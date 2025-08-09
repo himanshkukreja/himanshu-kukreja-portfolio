@@ -173,6 +173,118 @@ export function buildWelcomeEmailHtml(stories: StoryFrontmatter[], opts: EmailTe
   });
 }
 
+// Contact email templates
+export function buildContactNotificationHtml(name: string, email: string, message: string, queryId: string) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>New Contact Query</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; background: #0b1020; color: #e4e4e7; }
+    .container { max-width: 600px; margin: 0 auto; padding: 32px 20px; }
+    .header { text-align: center; margin-bottom: 32px; }
+    .title { font-size: 24px; font-weight: 700; margin: 0; color: #fbbf24; }
+    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    .field { margin-bottom: 16px; }
+    .label { font-size: 12px; font-weight: 600; color: #9ca3af; margin-bottom: 4px; display: block; }
+    .value { font-size: 14px; color: #e4e4e7; word-wrap: break-word; }
+    .message-box { background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 12px; padding: 16px; }
+    .footer { text-align: center; font-size: 12px; color: #6b7280; margin-top: 32px; }
+    .query-id { font-family: 'Courier New', monospace; font-size: 11px; color: #6b7280; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">🔔 New Contact Query</h1>
+    </div>
+    
+    <div class="card">
+      <div class="field">
+        <span class="label">FROM</span>
+        <div class="value"><strong>${escapeHtml(name)}</strong> &lt;${escapeHtml(email)}&gt;</div>
+      </div>
+      
+      <div class="field">
+        <span class="label">MESSAGE</span>
+        <div class="message-box">
+          ${escapeHtml(message).replace(/\n/g, '<br>')}
+        </div>
+      </div>
+      
+      <div class="field">
+        <span class="label">QUERY ID</span>
+        <div class="query-id">${queryId}</div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>This is an automated notification from your portfolio contact form.</p>
+      <p>Reply directly to this email to respond to ${escapeHtml(name)}.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+export function buildContactReplyHtml(name: string) {
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Thank you for reaching out</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; margin: 0; padding: 0; background: #0b1020; color: #e4e4e7; }
+    .container { max-width: 600px; margin: 0 auto; padding: 32px 20px; }
+    .header { text-align: center; margin-bottom: 32px; }
+    .title { font-size: 24px; font-weight: 700; margin: 0; color: #34d399; }
+    .card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 24px; margin-bottom: 20px; }
+    .content { font-size: 16px; line-height: 1.6; margin-bottom: 20px; }
+    .signature { margin-top: 32px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+    .signature-name { font-weight: 600; color: #fbbf24; }
+    .footer { text-align: center; font-size: 12px; color: #6b7280; margin-top: 32px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 class="title">✨ Thank you for reaching out!</h1>
+    </div>
+    
+    <div class="card">
+      <div class="content">
+        <p>Hi ${escapeHtml(name)},</p>
+        
+        <p>Thank you for getting in touch! I've received your message and really appreciate you taking the time to reach out.</p>
+        
+        <p>I'll review your message carefully and get back to you as soon as possible - typically within 24-48 hours. If your inquiry is urgent, please feel free to connect with me directly on LinkedIn.</p>
+        
+        <p>Looking forward to our conversation!</p>
+      </div>
+      
+      <div class="signature">
+        <div class="signature-name">Himanshu Kukreja</div>
+        <div style="font-size: 14px; color: #9ca3af; margin-top: 4px;">
+          Engineering Leader & Full-Stack Developer<br>
+          <a href="https://www.linkedin.com/in/kukreja-him" style="color: #60a5fa;">LinkedIn</a> • 
+          <a href="https://himanshukukreja.in" style="color: #60a5fa;">Portfolio</a>
+        </div>
+      </div>
+    </div>
+    
+    <div class="footer">
+      <p>This is an automated response. Please don't reply to this email.</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 function escapeHtml(s: string) {
   return s
     .replace(/&/g, "&amp;")

@@ -1,9 +1,10 @@
 "use client";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { motion, cubicBezier } from "framer-motion";
-import { Mail, User, MessageSquare } from "lucide-react";
+import { Mail, User, MessageSquare, CheckCircle, AlertCircle } from "lucide-react";
 
 const schema = z.object({
   name: z.string().min(2, "Please enter at least 2 characters"),
@@ -14,18 +15,36 @@ const schema = z.object({
 type FormValues = z.infer<typeof schema>;
 
 export default function Contact() {
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting, isSubmitSuccessful } } = useForm<FormValues>({ resolver: zodResolver(schema) });
+  const [status, setStatus] = useState<"idle" | "success" | "error">("idle");
+  const [statusMessage, setStatusMessage] = useState<string>("");
+  
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormValues>({ 
+    resolver: zodResolver(schema) 
+  });
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await fetch("/api/contact", {
+      setStatus("idle");
+      const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(values),
       });
-      reset();
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setStatus("success");
+        setStatusMessage(data.message || "Message sent successfully!");
+        reset();
+      } else {
+        setStatus("error");
+        setStatusMessage(data.error || "Failed to send message. Please try again.");
+      }
     } catch (e) {
       console.error(e);
+      setStatus("error");
+      setStatusMessage("Network error. Please check your connection and try again.");
     }
   };
 
@@ -78,8 +97,19 @@ export default function Contact() {
             <span aria-hidden className="absolute inset-0 -z-20 rounded-xl blur-md bg-gradient-to-r from-indigo-500/40 via-blue-500/35 to-purple-500/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
             {isSubmitting ? "Sending..." : "Send Message"}
           </button>
-          {isSubmitSuccessful && (
-            <span className="text-[11px] text-green-400">Thanks! I will get back to you soon.</span>
+          
+          {status === "success" && (
+            <span className="flex items-center gap-1.5 text-[11px] text-green-400">
+              <CheckCircle className="h-3.5 w-3.5" />
+              {statusMessage}
+            </span>
+          )}
+          
+          {status === "error" && (
+            <span className="flex items-center gap-1.5 text-[11px] text-red-400">
+              <AlertCircle className="h-3.5 w-3.5" />
+              {statusMessage}
+            </span>
           )}
         </div>
       </form>

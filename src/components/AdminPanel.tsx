@@ -28,6 +28,10 @@ export default function AdminPanel() {
   // Confirmation modal
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
 
+  // New: Contact queries state
+  const [contactQueries, setContactQueries] = useState<{ id: string; name: string; email: string; message: string; status: string; created_at: string }[]>([]);
+  const [contactQuery, setContactQuery] = useState<string>("");
+
   // Helper: verify token against a protected API
   const verifyToken = useCallback(async (t: string): Promise<boolean> => {
     if (!t) return false;
@@ -89,6 +93,13 @@ export default function AdminPanel() {
     }
   }, [canCall]);
 
+  const fetchContactQueries = useCallback(async () => {
+    if (!canCall) return;
+    const r = await fetch("/api/admin/contact-queries", { headers: { "x-admin-token": token }, cache: "no-store" });
+    if (r.status === 401) return handleUnauthorized();
+    if (r.ok) setContactQueries(await r.json());
+  }, [canCall, token, handleUnauthorized]);
+
   // Fetch after auth
   useEffect(() => {
     if (!canCall) return;
@@ -98,8 +109,8 @@ export default function AdminPanel() {
   useEffect(() => {
     if (!canCall) return;
     setLoading(true);
-    Promise.all([fetchSubs(), fetchLogs()]).finally(() => setLoading(false));
-  }, [canCall, fetchSubs, fetchLogs]);
+    Promise.all([fetchSubs(), fetchLogs(), fetchContactQueries()]).finally(() => setLoading(false));
+  }, [canCall, fetchSubs, fetchLogs, fetchContactQueries]);
 
   const filteredStories = useMemo(() => {
     const q = storyQuery.trim().toLowerCase();
@@ -390,6 +401,35 @@ export default function AdminPanel() {
                   <div className="text-xs text-white/60">No subscribers match your search/filters.</div>
                 )}
               </div>
+            </div>
+          </div>
+
+          {/* New: Contact Queries Section */}
+          <div className="mt-8">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-white text-lg font-semibold">Contact Queries</h3>
+              <div className="relative w-60">
+                <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-white/50" />
+                <input
+                  type="text"
+                  value={contactQuery}
+                  onChange={(e) => setContactQuery(e.target.value)}
+                  placeholder="Search queries..."
+                  className="w-full rounded-xl bg-white/5 border border-white/10 pl-8 pr-3 py-1.5 text-xs text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+                />
+              </div>
+            </div>
+            <div className="space-y-2 max-h-72 overflow-auto rounded-xl border border-white/10 p-3 bg-black/10">
+              {contactQueries.filter(q => q.message.toLowerCase().includes(contactQuery.toLowerCase())).map((q) => (
+                <div key={q.id} className="p-3 rounded-lg hover:bg-white/5 cursor-pointer">
+                  <div className="text-sm font-medium">{q.name} <span className="text-white/70">({q.email})</span></div>
+                  <div className="text-xs text-white/70 line-clamp-2">{q.message}</div>
+                  <div className="text-xs text-white/60 mt-1">{new Date(q.created_at).toLocaleString()}</div>
+                </div>
+              ))}
+              {contactQueries.length === 0 && (
+                <div className="text-xs text-white/60">No contact queries found.</div>
+              )}
             </div>
           </div>
 
