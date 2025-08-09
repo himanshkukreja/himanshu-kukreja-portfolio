@@ -236,8 +236,8 @@ export default function About() {
   };
 
   return (
-    // Make the section fill the viewport, and manage internal scroll in the right column
-    <div className="grid gap-6 md:grid-cols-12 md:grid-rows-1 grid-rows-[auto,1fr] h-[100dvh] overflow-hidden">
+    // Make the section fill the viewport on md+, allow natural flow on mobile to avoid clipping
+    <div className="grid gap-6 md:grid-cols-12 md:grid-rows-1 grid-rows-[auto,1fr] md:h-[100dvh] md:overflow-hidden">
       {/* Left: Education + intro (sticky on md+) */}
       <motion.aside
         variants={eduVariants}
@@ -348,10 +348,10 @@ export default function About() {
       </motion.aside>
 
       {/* Right: Story timeline in its own scroll container with sticky header, only cards scroll */}
-      <div className="relative md:col-span-8 xl:col-span-7 h-full md:h-[calc(100dvh-6rem)] md:self-start">
+      <div className="relative md:col-span-8 xl:col-span-7 md:h-[calc(100dvh-6rem)] md:self-start">
         <div
           data-scrollable="true"
-          className="h-full overflow-y-auto scroll-smooth overscroll-y-contain [scrollbar-width:thin] [scrollbar-color:rgba(99,102,241,0.55)_transparent] pr-1"
+          className="md:h-full md:overflow-y-auto scroll-smooth md:overscroll-y-contain [scrollbar-width:thin] [scrollbar-color:rgba(99,102,241,0.55)_transparent] md:pr-1"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
           <div className="rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/5 dark:shadow-black/30 min-h-full overflow-hidden">

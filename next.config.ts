@@ -1,7 +1,9 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Ensure server can use gray-matter/remark packages in serverless envs
+  outputFileTracingIncludes: {
+    "/*": ["./content/**/*"],
+  },
   experimental: {
     serverComponentsExternalPackages: [
       "gray-matter",

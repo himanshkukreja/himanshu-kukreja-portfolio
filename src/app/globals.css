@@ -96,3 +96,16 @@ code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, M
 
 /* Fix for Safari back/forward cache with theme */
 html.dark body { color-scheme: dark; }
+
+/* Mobile fixes for About section nested scroll */
+@media (max-width: 767px) {
+  /* Ensure body and main can scroll fully when child containers set overflow on md+ only */
+  html, body {
+    height: auto !important;
+    overflow: auto !important;
+  }
+  /* Avoid scroll chaining locks */
+  [data-scrollable="true"] {
+    overscroll-behavior: contain;
+  }
+}
