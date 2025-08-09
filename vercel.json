@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "src/app/api/newsletter/subscribe/route.ts": {
+      "maxDuration": 30
+    },
+    "src/app/api/newsletter/send-latest/route.ts": {
+      "maxDuration": 60
+    }
+  },
+  "regions": ["bom1"],
+  "crons": []
+}
