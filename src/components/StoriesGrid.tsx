@@ -46,7 +46,10 @@ export default function StoriesGrid({
                     if (!active) return;
                     const raw: StoryCard[] = d?.stories || [];
                     const next = sanitize(raw);
-                    setStories((prev) => (JSON.stringify(sanitize(prev)) === JSON.stringify(next) ? prev : next));
+                    // Only update when we actually have items; avoid replacing with empty lists in prod
+                    if (next.length > 0) {
+                        setStories((prev) => (JSON.stringify(sanitize(prev)) === JSON.stringify(next) ? prev : next));
+                    }
                 })
                 .catch(() => { });
         };

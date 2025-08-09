@@ -10,6 +10,8 @@ import StoriesGrid from "@/components/StoriesGrid";
 import { getAllStories } from "@/lib/stories";
 import SmartScroll from "@/components/SmartScroll";
 
+export const runtime = "nodejs"; // required for fs access on Vercel
+
 export default async function Home() {
   const stories = await getAllStories();
   return (

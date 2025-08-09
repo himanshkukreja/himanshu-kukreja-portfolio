@@ -1,7 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Ensure server can use gray-matter/remark packages in serverless envs
+  experimental: {
+    serverComponentsExternalPackages: [
+      "gray-matter",
+      "unified",
+      "remark-parse",
+      "remark-gfm",
+      "remark-rehype",
+      "rehype-stringify",
+    ],
+  },
 };
 
 export default nextConfig;

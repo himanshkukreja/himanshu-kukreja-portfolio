@@ -2,6 +2,7 @@ import { Section } from "@/components/Sections";
 import StoriesGrid from "@/components/StoriesGrid";
 import { getAllStories } from "@/lib/stories";
 
+export const runtime = "nodejs"; // required for fs access on Vercel
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 

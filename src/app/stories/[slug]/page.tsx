@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import { getStoryBySlug } from "@/lib/stories";
 import Link from "next/link";
 
+export const runtime = "nodejs"; // required for fs access on Vercel
+
 export async function generateStaticParams() {
   const { getAllStories } = await import("@/lib/stories");
   const list = await getAllStories();
