@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { motion, cubicBezier } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Mail, FileText, Github, Linkedin, Instagram, Twitter, MapPin } from "lucide-react";
+import { ArrowRight, Mail, FileText, Github, Linkedin, Instagram, Twitter, MapPin, Bell } from "lucide-react";
 
 type StoryCard = {
   slug: string;
@@ -30,19 +30,25 @@ const item = {
 // Small hook to scramble digits on hover for playful feedback
 function useScramble(value: string, active: boolean, duration = 800) {
   const [display, setDisplay] = useState(value);
+  const [mounted, setMounted] = useState(false);
+  
   useEffect(() => {
-    if (!active) {
+    setMounted(true);
+  }, []);
+  
+  useEffect(() => {
+    if (!mounted || !active) {
       setDisplay(value);
       return;
     }
-    let mounted = true;
+    let isActive = true;
     const digits = "0123456789";
     const plus = value.endsWith("+") ? "+" : "";
     const base = value.replace("+", "");
     const arr = base.split("");
     const start = Date.now();
     const id = setInterval(() => {
-      if (!mounted) return;
+      if (!isActive) return;
       const t = Date.now() - start;
       if (t >= duration) {
         setDisplay(base + plus);
@@ -55,10 +61,10 @@ function useScramble(value: string, active: boolean, duration = 800) {
       setDisplay(scrambled + plus);
     }, 32);
     return () => {
-      mounted = false;
+      isActive = false;
       clearInterval(id);
     };
-  }, [value, active, duration]);
+  }, [value, active, duration, mounted]);
   return display;
 }
 
@@ -84,6 +90,12 @@ export default function Hero() {
   const [statsXY, setStatsXY] = useState<{ x: number; y: number } | null>(null);
   const [tilt, setTilt] = useState<{ rx: number; ry: number }>({ rx: 0, ry: 0 });
   const [activeStat, setActiveStat] = useState<number | null>(null);
+  
+  // Newsletter subscription state
+  const [showNewsletterInput, setShowNewsletterInput] = useState(false);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterStatus, setNewsletterStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [newsletterMessage, setNewsletterMessage] = useState("");
 
   useEffect(() => {
     let mounted = true;
@@ -98,6 +110,41 @@ export default function Hero() {
       mounted = false;
     };
   }, []);
+
+  const handleNewsletterSubscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newsletterEmail.trim()) return;
+    
+    setNewsletterStatus("loading");
+    
+    try {
+      const response = await fetch("/api/newsletter/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newsletterEmail.trim() }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok) {
+        setNewsletterStatus("success");
+        setNewsletterMessage(data.message || "Successfully subscribed!");
+        setNewsletterEmail("");
+        // Auto-hide after success
+        setTimeout(() => {
+          setShowNewsletterInput(false);
+          setNewsletterStatus("idle");
+          setNewsletterMessage("");
+        }, 3000);
+      } else {
+        setNewsletterStatus("error");
+        setNewsletterMessage(data.error || "Subscription failed. Please try again.");
+      }
+    } catch (error) {
+      setNewsletterStatus("error");
+      setNewsletterMessage("Network error. Please check your connection.");
+    }
+  };
 
   return (
     <section id="home" className="pt-12 sm:pt-28 pb-20 sm:pb-28 relative overflow-hidden">
@@ -170,24 +217,91 @@ export default function Hero() {
           </motion.div>
 
           {/* CTAs */}
-          <motion.div variants={item} className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/#projects"
-              className="group relative inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 ring-1 ring-white/10"
+          <motion.div variants={item} className="mt-8 space-y-4">
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/#projects"
+                className="group relative inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 ring-1 ring-white/10"
+              >
+                <span className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-white/10 via-white/0 to-white/10 blur opacity-70" />
+                View Projects
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+              </Link>
+              <Link
+                href="/#contact"
+                className="group relative inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-12px_rgba(59,130,246,0.55)]"
+              >
+                <span aria-hidden className="absolute -inset-px -z-10 rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 opacity-95 transition-opacity duration-300 group-hover:opacity-100" />
+                <span aria-hidden className="absolute inset-0 -z-20 rounded-xl blur-md bg-gradient-to-r from-indigo-500/40 via-blue-500/35 to-purple-500/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                Get in Touch
+                <Mail className="h-4 w-4" />
+              </Link>
+              <button
+                onClick={() => setShowNewsletterInput(!showNewsletterInput)}
+                className="group relative inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-sm font-medium text-amber-200 hover:bg-amber-500/20 transition-all duration-300"
+              >
+                <Bell className="h-4 w-4" />
+                Subscribe to Stories
+              </button>
+            </div>
+
+            {/* Newsletter Subscription Form */}
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ 
+                height: showNewsletterInput ? "auto" : 0, 
+                opacity: showNewsletterInput ? 1 : 0 
+              }}
+              transition={{ duration: 0.3, ease: cubicBezier(0.22, 1, 0.36, 1) }}
+              className="overflow-hidden"
             >
-              <span className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-white/10 via-white/0 to-white/10 blur opacity-70" />
-              View Projects
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-            </Link>
-            <Link
-              href="/#contact"
-              className="group relative inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-12px_rgba(59,130,246,0.55)]"
-            >
-              <span aria-hidden className="absolute -inset-px -z-10 rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 opacity-95 transition-opacity duration-300 group-hover:opacity-100" />
-              <span aria-hidden className="absolute inset-0 -z-20 rounded-xl blur-md bg-gradient-to-r from-indigo-500/40 via-blue-500/35 to-purple-500/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-              Get in Touch
-              <Mail className="h-4 w-4" />
-            </Link>
+              <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
+                <h4 className="text-sm font-semibold text-white mb-2">📧 Get Engineering Stories</h4>
+                <p className="text-xs text-white/70 mb-3">
+                  Join 150+ developers getting weekly insights on backend systems, cloud architecture, and startup engineering.
+                </p>
+                
+                <form onSubmit={handleNewsletterSubscribe} className="space-y-3">
+                  <div className="flex gap-2">
+                    <input
+                      type="email"
+                      value={newsletterEmail}
+                      onChange={(e) => setNewsletterEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      disabled={newsletterStatus === "loading"}
+                      className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
+                    />
+                    <button
+                      type="submit"
+                      disabled={newsletterStatus === "loading" || !newsletterEmail.trim()}
+                      className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-500/30 focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:opacity-50 transition-colors"
+                    >
+                      {newsletterStatus === "loading" ? "..." : "Subscribe"}
+                    </button>
+                  </div>
+                  
+                  {newsletterMessage && (
+                    <motion.p
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`text-xs ${
+                        newsletterStatus === "success" 
+                          ? "text-green-400" 
+                          : newsletterStatus === "error" 
+                            ? "text-red-400" 
+                            : "text-white/70"
+                      }`}
+                    >
+                      {newsletterMessage}
+                    </motion.p>
+                  )}
+                  
+                  <p className="text-[10px] text-white/50">
+                    No spam. Unsubscribe anytime. Read about backend systems, cloud architecture, and real-world startup engineering.
+                  </p>
+                </form>
+              </div>
+            </motion.div>
           </motion.div>
 
           {/* Stats – interactive */}
