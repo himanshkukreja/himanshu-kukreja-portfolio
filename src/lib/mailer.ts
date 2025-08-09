@@ -62,6 +62,35 @@ export function getTransport() {
   return nodemailer.createTransport(transportConfig);
 }
 
+// Fast transport for welcome emails - more aggressive timeouts
+export function getFastTransport() {
+  const host = process.env.SMTP_HOST as string;
+  const port = Number(process.env.SMTP_PORT || 587);
+  const user = process.env.SMTP_USER as string;
+  const pass = process.env.SMTP_PASS as string;
+
+  if (!host || !user || !pass) {
+    throw new Error("SMTP credentials are not configured");
+  }
+
+  const transportConfig = {
+    host,
+    port,
+    secure: port === 465,
+    auth: { user, pass },
+    // Very aggressive settings for fast welcome emails
+    pool: false,
+    maxConnections: 1,
+    maxMessages: 1,
+    connectionTimeout: 15000, // 15 seconds (faster than default)
+    greetingTimeout: 10000,   // 10 seconds  
+    socketTimeout: 15000,     // 15 seconds
+    tls: { rejectUnauthorized: false }
+  };
+
+  return nodemailer.createTransport(transportConfig);
+}
+
 function fromAddress() {
   // If SMTP_FROM contains a full name + email, use it directly; otherwise fall back to user
   return process.env.SMTP_FROM || `Himanshu Kukreja <${process.env.SMTP_USER}>`;
@@ -112,4 +141,22 @@ export async function sendBulk(emails: string[], subject: string, htmlFor: (emai
     }
   }
   return results;
+}
+
+// Fast email send for welcome emails
+export async function sendWelcomeEmail(to: string, subject: string, html: string) {
+  return withRetry(async () => {
+    const transporter = getFastTransport();
+    try {
+      const result = await transporter.sendMail({ 
+        from: fromAddress(), 
+        to, 
+        subject, 
+        html 
+      });
+      return result;
+    } finally {
+      transporter.close();
+    }
+  }, 1, 500); // Only 1 retry with 500ms delay for welcome emails
 }

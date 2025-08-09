@@ -3,7 +3,7 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { getAllStories } from "@/lib/stories";
 import { buildWelcomeEmailHtml } from "@/lib/emailTemplate";
-import { sendNewsletterEmail } from "@/lib/mailer";
+import { sendWelcomeEmail } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,29 +49,54 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Could not subscribe" }, { status: 500 });
   }
 
-  queueMicrotask(async () => {
-    try {
-      const all = await getAllStories();
-      const latest = all.slice(0, 5);
-      const html = buildWelcomeEmailHtml(latest, { recipientEmail: email });
-      await sendNewsletterEmail(email, "🎉 Welcome to Engineering Stories!", html);
-      await supabase.from("newsletter_logs").insert({ 
-        email, 
-        status: "sent", 
-        type: "welcome", 
-        detail: "Welcome email sent upon subscription",
-        story_slugs: latest.map((s) => s.slug) 
-      });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      await supabase.from("newsletter_logs").insert({ 
-        email, 
-        status: "error", 
-        type: "welcome", 
-        detail: `Welcome email failed: ${msg}` 
-      });
-    }
-  });
+  // Send welcome email synchronously (but with timeout) for serverless reliability
+  let welcomeEmailSent = false;
+  console.log(`[WELCOME EMAIL] Starting welcome email for ${email}`);
+  
+  try {
+    const all = await getAllStories();
+    const latest = all.slice(0, 5);
+    const html = buildWelcomeEmailHtml(latest, { recipientEmail: email });
+    
+    console.log(`[WELCOME EMAIL] About to send email to ${email}`);
+    
+    // Use Promise.race to timeout the email send after 25 seconds
+    await Promise.race([
+      sendWelcomeEmail(email, "🎉 Welcome to Engineering Stories!", html),
+      new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Email timeout after 25s')), 25000)
+      )
+    ]);
+    
+    welcomeEmailSent = true;
+    console.log(`[WELCOME EMAIL] Successfully sent to ${email}`);
+    
+    await supabase.from("newsletter_logs").insert({ 
+      email, 
+      status: "sent", 
+      type: "welcome", 
+      detail: "Welcome email sent upon subscription",
+      story_slugs: latest.map((s) => s.slug) 
+    });
+    
+    console.log(`[WELCOME EMAIL] Log entry created for ${email}`);
+  } catch (e: unknown) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[WELCOME EMAIL] Failed for ${email}:`, msg);
+    
+    await supabase.from("newsletter_logs").insert({ 
+      email, 
+      status: "error", 
+      type: "welcome", 
+      detail: `Welcome email failed: ${msg}` 
+    });
+    
+    console.log(`[WELCOME EMAIL] Error log entry created for ${email}`);
+  }
 
-  return NextResponse.json({ ok: true, message: "You're subscribed!" });
+  return NextResponse.json({ 
+    ok: true, 
+    message: "You're subscribed!",
+    welcomeEmailSent 
+  });
 }
