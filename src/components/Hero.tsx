@@ -100,7 +100,7 @@ export default function Hero() {
   }, []);
 
   return (
-    <section id="home" className="py-20 sm:py-28 relative overflow-hidden">
+    <section id="home" className="pt-12 sm:pt-28 pb-20 sm:pb-28 relative overflow-hidden">
       <div className="code-grid" />
       {/* subtle gradient accent */}
       <div className="pointer-events-none absolute -top-24 -right-24 h-72 w-72 rounded-full bg-gradient-to-br from-indigo-500/15 via-blue-500/10 to-purple-500/10 blur-3xl" />
@@ -149,7 +149,7 @@ export default function Hero() {
                 <Linkedin className="h-4.5 w-4.5" />
               </a>
               <a
-                href="https://www.instagram.com/himanshukukreja_?igsh=dm84OHlyZTJyeXZl&utm_source=qr"
+                href="https://www.instagram.com/himanshukreja_?igsh=dm84OHlyZTJyeXZl&utm_source=qr"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"

@@ -15,7 +15,7 @@ export const runtime = "nodejs"; // required for fs access on Vercel
 export default async function Home() {
   const stories = await getAllStories();
   return (
-    <main className="pt-6">
+    <main className="pt-2 sm:pt-6">
       {/* Smart section snap scrolling (configurable) */}
       <SmartScroll config={{ enabled: true, durationMs: 600, earlySnapThreshold: 0.8 }} />
       <Hero />
