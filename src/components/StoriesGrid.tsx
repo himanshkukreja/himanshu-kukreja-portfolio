@@ -14,6 +14,14 @@ export type StoryCard = {
     tags?: string[];
 };
 
+function sortByDateDesc(arr: StoryCard[]): StoryCard[] {
+    return [...arr].sort((a, b) => {
+        const ta = new Date(a?.date || 0).getTime();
+        const tb = new Date(b?.date || 0).getTime();
+        return tb - ta; // newest first
+    });
+}
+
 export default function StoriesGrid({
     initial,
     limit,
@@ -27,14 +35,14 @@ export default function StoriesGrid({
     exploreHref?: string;
     exploreLabel?: string;
 }) {
-    const [stories, setStories] = useState<StoryCard[]>(initial || []);
+    const [stories, setStories] = useState<StoryCard[]>(sortByDateDesc(initial || []));
     const pathname = usePathname();
 
     useEffect(() => {
         let active = true;
 
         const sanitize = (arr: StoryCard[]): StoryCard[] =>
-            (Array.isArray(arr) ? arr : []).filter((s) => s && typeof s.slug === "string" && s.slug.trim() && typeof s.title === "string" && s.title.trim());
+            sortByDateDesc((Array.isArray(arr) ? arr : []).filter((s) => s && typeof s.slug === "string" && s.slug.trim() && typeof s.title === "string" && s.title.trim()));
 
         const fetchStories = () => {
             fetch("/api/stories", {
@@ -72,7 +80,7 @@ export default function StoriesGrid({
     }, [pathname]);
 
     const sanitizeLocal = (arr: StoryCard[]) =>
-        (Array.isArray(arr) ? arr : []).filter((s) => s && typeof s.slug === "string" && s.slug.trim() && typeof s.title === "string" && s.title.trim());
+        sortByDateDesc((Array.isArray(arr) ? arr : []).filter((s) => s && typeof s.slug === "string" && s.slug.trim() && typeof s.title === "string" && s.title.trim()));
 
     const visible = typeof limit === "number" ? sanitizeLocal(stories).slice(0, Math.max(0, limit)) : sanitizeLocal(stories);
     const shouldShowExplore = !!showExplore;
