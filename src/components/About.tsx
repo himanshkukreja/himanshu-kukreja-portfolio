@@ -173,15 +173,6 @@ const item = {
 };
 
 // subtle stat/skills animation
-const fadeInUp = {
-  hidden: { opacity: 0, y: 10 },
-  show: (i: number) => ({
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.35, ease: cubicBezier(0.4, 0, 0.2, 1), delay: 0.06 * i },
-  }),
-};
-
 const badgeBase =
   "group relative inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] leading-none text-white/85 hover:bg-white/10 transition-colors select-none";
 
@@ -336,7 +327,7 @@ export default function About() {
         {/* Top skills bars */}
         <h4 className="mt-6 text-sm font-semibold text-white/90">Top Skills</h4>
         <div className="mt-3 space-y-3">
-          {TOP_SKILLS.map((sk, i) => (
+          {TOP_SKILLS.map((sk) => (
             <div key={sk.name} className="">
               <div className="flex items-center justify-between text-[11px] text-white/70">
                 <span>{sk.name}</span>
@@ -361,7 +352,7 @@ export default function About() {
         <div
           data-scrollable="true"
           className="h-full overflow-y-auto scroll-smooth overscroll-y-contain [scrollbar-width:thin] [scrollbar-color:rgba(99,102,241,0.55)_transparent] pr-1"
-          style={{ WebkitOverflowScrolling: "touch" as any }}
+          style={{ WebkitOverflowScrolling: "touch" }}
         >
           <div className="rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/5 dark:shadow-black/30 min-h-full overflow-hidden">
             {/* Sticky header: title + tags remain visible while the cards scroll */}

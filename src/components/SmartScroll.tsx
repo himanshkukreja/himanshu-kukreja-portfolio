@@ -1,17 +1,22 @@
 "use client";
 import { useEffect, useRef, useCallback } from "react";
 
+// Augment window to hold our flag without using 'any'
+declare global {
+  interface Window { __SMART_SCROLL_ENABLED?: boolean }
+}
+
 // Single toggle to enable/disable SmartScroll globally
 export const SMART_SCROLL_ENABLED = false;
 
 // Global getters/setters so even stale listeners respect the latest toggle
 function getGlobalSmartScrollEnabled(): boolean {
   if (typeof window === 'undefined') return false;
-  return !!(window as any).__SMART_SCROLL_ENABLED;
+  return !!window.__SMART_SCROLL_ENABLED;
 }
 function setGlobalSmartScrollEnabled(v: boolean) {
   if (typeof window === 'undefined') return;
-  (window as any).__SMART_SCROLL_ENABLED = v;
+  window.__SMART_SCROLL_ENABLED = v;
 }
 
 // Configurable options
@@ -319,10 +324,10 @@ export default function SmartScroll({ config }: { config?: Partial<SmartScrollCo
     window.addEventListener('scroll', onScroll, { passive: true });
 
     return () => {
-      window.removeEventListener('wheel', onWheel as any);
-      window.removeEventListener('touchstart', onTouchStart as any);
-      window.removeEventListener('touchmove', onTouchMove as any);
-      window.removeEventListener('scroll', onScroll as any);
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('scroll', onScroll);
     };
   }, [cfg.enabled, onWheel, onTouchStart, onTouchMove, onScroll]);
 

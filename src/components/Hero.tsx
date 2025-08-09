@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { motion, cubicBezier } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Mail, FileText } from "lucide-react";
+import { ArrowRight, Mail, FileText, Github, Linkedin, Instagram, Twitter, MapPin } from "lucide-react";
 
 type StoryCard = {
   slug: string;
@@ -123,6 +123,51 @@ export default function Hero() {
           <motion.p variants={item} className="mt-4 max-w-2xl text-base sm:text-lg text-white/70">
             Software Engineer focused on backend systems, cloud architecture, real-time streaming, and shipping 0→1 products with startup agility.
           </motion.p>
+
+          {/* Location + Socials */}
+          <motion.div variants={item} className="mt-5 flex flex-wrap items-center gap-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/85">
+              <MapPin className="h-3.5 w-3.5 text-indigo-300" /> Bengaluru, India
+            </span>
+            <nav className="flex items-center gap-2" aria-label="Social links">
+              <a
+                href="https://github.com/himanshkukreja/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                aria-label="GitHub"
+              >
+                <Github className="h-4.5 w-4.5" />
+              </a>
+              <a
+                href="https://www.linkedin.com/in/himanshukukreja/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                aria-label="LinkedIn"
+              >
+                <Linkedin className="h-4.5 w-4.5" />
+              </a>
+              <a
+                href="https://www.instagram.com/himanshukukreja_?igsh=dm84OHlyZTJyeXZl&utm_source=qr"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                aria-label="Instagram"
+              >
+                <Instagram className="h-4.5 w-4.5" />
+              </a>
+              <a
+                href="https://x.com/hi_kukreja"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                aria-label="X (Twitter)"
+              >
+                <Twitter className="h-4.5 w-4.5" />
+              </a>
+            </nav>
+          </motion.div>
 
           {/* CTAs */}
           <motion.div variants={item} className="mt-8 flex flex-wrap gap-3">

@@ -8,8 +8,9 @@ export async function generateStaticParams() {
   return list.map((s) => ({ slug: s.slug }));
 }
 
-export default async function StoryReadPage({ params }: { params: { slug: string } }) {
-  const story = await getStoryBySlug(params.slug);
+export default async function StoryReadPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = await params;
+  const story = await getStoryBySlug(slug);
   if (!story) return notFound();
 
   return (
@@ -21,7 +22,6 @@ export default async function StoryReadPage({ params }: { params: { slug: string
           {story.date && <p className="mt-1 text-sm text-white/60">{new Date(story.date).toLocaleDateString()}</p>}
         </header>
         <div className="md-content">
-          {/* eslint-disable-next-line react/no-danger */}
           <div dangerouslySetInnerHTML={{ __html: story.content }} />
         </div>
       </article>

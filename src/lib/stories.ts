@@ -90,7 +90,7 @@ async function listStoryFiles(): Promise<string[]> {
   const fs = await import("fs/promises");
   const path = await import("path");
   const dir = path.join(process.cwd(), "content", "stories");
-  let entries: string[] = [];
+  const entries: string[] = [];
   try {
     const items = await fs.readdir(dir, { withFileTypes: true });
     for (const it of items) {
