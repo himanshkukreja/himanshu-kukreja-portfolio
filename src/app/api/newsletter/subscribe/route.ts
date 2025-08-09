@@ -62,12 +62,13 @@ export async function POST(req: NextRequest) {
         detail: "Welcome email sent upon subscription",
         story_slugs: latest.map((s) => s.slug) 
       });
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
       await supabase.from("newsletter_logs").insert({ 
         email, 
         status: "error", 
         type: "welcome", 
-        detail: `Welcome email failed: ${String(e?.message || e)}` 
+        detail: `Welcome email failed: ${msg}` 
       });
     }
   });

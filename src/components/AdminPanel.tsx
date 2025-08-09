@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { Download, Eye, Mail, Users, Check, X, Search, Filter } from "lucide-react";
 
 type SubRow = { email: string; created_at: string; city?: string | null; region?: string | null; country?: string | null; timezone?: string | null; unsubscribed?: boolean | null };
@@ -18,8 +18,6 @@ export default function AdminPanel() {
   const [selectedSlugs, setSelectedSlugs] = useState<string[]>([]);
   const [subject, setSubject] = useState<string>("🚀 Your Weekly Dose of Engineering Stories is Here!");
   const [selectAllEmails, setSelectAllEmails] = useState<boolean>(false);
-  const [previewOpen, setPreviewOpen] = useState<boolean>(false);
-  // New: decoupled header title for the email template top line
   const [headerTitle, setHeaderTitle] = useState<string>("Latest from Himanshu Kukreja");
 
   // Search & filter state
@@ -31,7 +29,7 @@ export default function AdminPanel() {
   const [confirmOpen, setConfirmOpen] = useState<boolean>(false);
 
   // Helper: verify token against a protected API
-  const verifyToken = async (t: string): Promise<boolean> => {
+  const verifyToken = useCallback(async (t: string): Promise<boolean> => {
     if (!t) return false;
     try {
       const r = await fetch("/api/admin/logs?limit=1", { headers: { "x-admin-token": t }, cache: "no-store" });
@@ -39,73 +37,69 @@ export default function AdminPanel() {
     } catch {
       return false;
     }
-  };
+  }, []);
 
   useEffect(() => {
     const t = sessionStorage.getItem("adminToken") || "";
     if (!t) return;
     setToken(t);
-    // Validate the stored token before enabling UI
     verifyToken(t).then((ok) => {
-      if (ok) {
-        setVerified(true);
-      } else {
+      if (ok) setVerified(true);
+      else {
         sessionStorage.removeItem("adminToken");
         setToken("");
         setVerified(false);
       }
     });
-  }, []);
+  }, [verifyToken]);
 
   const canCall = useMemo(() => !!token && verified, [token, verified]);
 
-  const handleUnauthorized = () => {
+  const handleUnauthorized = useCallback(() => {
     sessionStorage.removeItem("adminToken");
     setVerified(false);
     setToken("");
-  };
+  }, []);
 
-  const fetchSubs = async () => {
+  const fetchSubs = useCallback(async () => {
     if (!canCall) return;
     const r = await fetch("/api/admin/subscribers", { headers: { "x-admin-token": token }, cache: "no-store" });
-    if (r.status === 401) {
-      handleUnauthorized();
-      return;
-    }
+    if (r.status === 401) return handleUnauthorized();
     if (r.ok) {
       const data: SubRow[] = await r.json();
       setSubs(data);
     }
-  };
-  const fetchLogs = async () => {
+  }, [canCall, token, handleUnauthorized]);
+
+  const fetchLogs = useCallback(async () => {
     if (!canCall) return;
     const r = await fetch("/api/admin/logs?limit=100", { headers: { "x-admin-token": token }, cache: "no-store" });
-    if (r.status === 401) {
-      handleUnauthorized();
-      return;
-    }
+    if (r.status === 401) return handleUnauthorized();
     if (r.ok) setLogs(await r.json());
-  };
-  const fetchStories = async () => {
+  }, [canCall, token, handleUnauthorized]);
+
+  const fetchStories = useCallback(async () => {
+    if (!canCall) return;
     const r = await fetch("/api/stories", { cache: "no-store" });
     if (r.ok) {
-      const j = await r.json();
-      const data: Story[] = (j?.stories || []).map((s: any) => ({ slug: s.slug, title: s.title, excerpt: s.excerpt }));
+      type RawStory = { slug: string; title: string; excerpt?: string };
+      const j: { stories?: RawStory[] } = await r.json();
+      const data: Story[] = (j?.stories || []).map((s) => ({ slug: s.slug, title: s.title, excerpt: s.excerpt }));
       setStories(data);
     }
-  };
+  }, [canCall]);
 
-  // Only fetch stories when authenticated to avoid exposing admin UI content without token
+  // Fetch after auth
   useEffect(() => {
     if (!canCall) return;
     fetchStories();
-  }, [canCall]);
+  }, [canCall, fetchStories]);
 
   useEffect(() => {
     if (!canCall) return;
     setLoading(true);
     Promise.all([fetchSubs(), fetchLogs()]).finally(() => setLoading(false));
-  }, [canCall]);
+  }, [canCall, fetchSubs, fetchLogs]);
 
   const filteredStories = useMemo(() => {
     const q = storyQuery.trim().toLowerCase();
@@ -167,8 +161,8 @@ export default function AdminPanel() {
       const json = await res.json();
       alert(JSON.stringify(json));
       await fetchLogs();
-    } catch (e: any) {
-      alert(String(e?.message || e));
+    } catch (e: unknown) {
+      alert(String(e instanceof Error ? e.message : e));
     } finally {
       setLoading(false);
     }
@@ -202,7 +196,7 @@ export default function AdminPanel() {
       previewWindow.document.write(html);
       previewWindow.document.close();
     })
-    .catch(e => alert("Preview failed: " + e));
+    .catch((e: unknown) => alert("Preview failed: " + String(e instanceof Error ? e.message : e)));
   };
 
   const downloadCsv = async () => {
@@ -223,8 +217,8 @@ export default function AdminPanel() {
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (e: any) {
-      alert("Export failed: " + String(e?.message || e));
+    } catch (e: unknown) {
+      alert("Export failed: " + String(e instanceof Error ? e.message : e));
     }
   };
 

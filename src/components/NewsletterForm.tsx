@@ -22,9 +22,10 @@ export default function NewsletterForm() {
       setStatus("success");
       setMessage(json?.message || "You're subscribed!");
       reset();
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
       setStatus("error");
-      setMessage(e?.message || "Something went wrong");
+      setMessage(msg || "Something went wrong");
     }
   };
 

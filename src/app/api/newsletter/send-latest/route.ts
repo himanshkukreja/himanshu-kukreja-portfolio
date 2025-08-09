@@ -85,16 +85,17 @@ export async function POST(req: NextRequest) {
           story_slugs: stories.map((s) => s.slug) 
         });
         results.push({ email: to, ok: true });
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
         await supabase.from("newsletter_logs").insert({ 
           email: to, 
           status: "error", 
           type: "bulk", 
-          detail: `Custom send failed: ${String(err?.message || err)}`,
+          detail: `Custom send failed: ${msg}`,
           campaign_id: campaign.id, 
           story_slugs: stories.map((s) => s.slug) 
         });
-        results.push({ email: to, ok: false, error: String(err?.message || err) });
+        results.push({ email: to, ok: false, error: msg });
       }
     })
   );
