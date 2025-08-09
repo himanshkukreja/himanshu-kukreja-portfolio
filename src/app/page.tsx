@@ -9,6 +9,7 @@ import Contact from "@/components/Contact";
 import StoriesGrid from "@/components/StoriesGrid";
 import { getAllStories } from "@/lib/stories";
 import SmartScroll from "@/components/SmartScroll";
+import NewsletterForm from "@/components/NewsletterForm";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
@@ -43,8 +44,13 @@ export default async function Home() {
         <Contact />
       </Section>
       <footer className="py-12">
-        <div className="max-w-7xl mx-auto px-6 text-center text-white/60 text-sm">
-          © {new Date().getFullYear()} Himanshu Kukreja. All rights reserved.
+        <div className="max-w-7xl mx-auto px-6 text-center">
+          <div className="mb-6 flex flex-col items-center gap-3">
+            <h3 className="text-white text-lg font-semibold">Subscribe to the newsletter</h3>
+            <p className="text-white/70 text-sm">Get the latest engineering stories in your inbox.</p>
+            <NewsletterForm />
+          </div>
+          <div className="text-white/60 text-sm">© {new Date().getFullYear()} Himanshu Kukreja. All rights reserved.</div>
         </div>
       </footer>
     </main>

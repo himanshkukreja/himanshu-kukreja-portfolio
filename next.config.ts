@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       "remark-gfm",
       "remark-rehype",
       "rehype-stringify",
+      "nodemailer",
     ],
   },
 };
