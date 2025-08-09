@@ -3,7 +3,7 @@ slug: leader-follower-replication-node-outages
 title: "Handling Node Outages in Leader-Follower Database Replication: A Tale of Resilience"
 excerpt: "How distributed database systems maintain availability and consistency when nodes fail in leader-follower architectures."
 cover: "/blueprints/leader-follower-replication.png"
-date: "2025-08-09"
+date: "2025-08-07"
 tags: ["Database Replication", "Distributed Systems", "High Availability", "Fault Tolerance", "PostgreSQL", "MongoDB"]
 ---
 

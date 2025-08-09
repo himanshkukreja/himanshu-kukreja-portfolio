@@ -12,7 +12,7 @@ export function Section({
   description?: string;
 }) {
   return (
-    <section id={id} data-snap-section className="py-24 sm:py-32 scroll-mt-28">
+    <section id={id} data-snap-section className="pt-8 pb-24 sm:pt-10 sm:pb-32 scroll-mt-28">
       <div className="max-w-7xl mx-auto px-6">
         <h2 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">
           {title}

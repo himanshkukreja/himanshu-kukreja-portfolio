@@ -56,8 +56,8 @@ export default function Navbar() {
                             key={s.id}
                             href={`/#${s.id}`}
                             className={`px-3 py-2 rounded-full text-sm transition-colors ${active === s.id
-                                    ? "bg-white/10 text-white"
-                                    : "hover:bg-white/5 text-white/80"
+                                ? "bg-white/10 text-white"
+                                : "hover:bg-white/5 text-white/80"
                                 }`}
                         >
                             {s.label}
@@ -66,6 +66,10 @@ export default function Navbar() {
                     <Link
                         href="/stories"
                         className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-white/5 text-white/80"
+                        onClick={(e) => {
+                            e.preventDefault(); // prevent default client navigation
+                            window.location.href = "/stories"; // triggers full reload
+                        }}
                     >
                         All Stories
                     </Link>
