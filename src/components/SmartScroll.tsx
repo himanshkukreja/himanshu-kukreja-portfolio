@@ -46,14 +46,6 @@ function clamp(v: number, a: number, b: number) {
   return Math.max(a, Math.min(b, v));
 }
 
-function getDynamicDuration(distancePx: number, baseMs: number): number {
-  const vh = Math.max(1, window.innerHeight);
-  const sections = distancePx / vh;
-  const extraSections = Math.max(0, sections - 1);
-  const dur = baseMs + Math.min(2, extraSections) * 120;
-  return clamp(Math.round(dur), 180, 420);
-}
-
 // Removed rAF animation; keeping function definition unused to avoid larger refactors
 /* function smoothScrollTo(
   y: number,
@@ -151,8 +143,7 @@ function getIndexByAnchor(sections: HTMLElement[], offsetPx: number): number {
 
 function getCurrentSectionIndexDirectional(
   sections: HTMLElement[],
-  offsetPx: number,
-  direction: 1 | -1
+  offsetPx: number
 ): number {
   if (sections.length === 0) return -1;
 
@@ -229,13 +220,13 @@ export default function SmartScroll({ config }: { config?: Partial<SmartScrollCo
     if (sections.length === 0) return;
 
     if (activeIndexRef.current === -1) {
-      const initIdx = getCurrentSectionIndexDirectional(sections, cfg.offsetPx, direction);
+      const initIdx = getCurrentSectionIndexDirectional(sections, cfg.offsetPx);
       if (initIdx !== -1) activeIndexRef.current = initIdx;
     }
 
     const baseIdx = activeIndexRef.current !== -1
       ? activeIndexRef.current
-      : getCurrentSectionIndexDirectional(sections, cfg.offsetPx, direction);
+      : getCurrentSectionIndexDirectional(sections, cfg.offsetPx);
     if (baseIdx === -1) return;
 
     const targetIdx = clamp(baseIdx + direction, 0, sections.length - 1);
@@ -329,7 +320,7 @@ export default function SmartScroll({ config }: { config?: Partial<SmartScrollCo
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('scroll', onScroll);
     };
-  }, [cfg.enabled, onWheel, onTouchStart, onTouchMove, onScroll]);
+  }, [cfg.enabled, cfg.offsetPx, onWheel, onTouchStart, onTouchMove, onScroll]);
 
   return null;
 }

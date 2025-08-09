@@ -125,7 +125,6 @@ export default function AdminPanel() {
     );
   }, [subs, subscriberQuery, showActiveOnly]);
 
-  const activeSubscribers = useMemo(() => subs.filter(s => !s.unsubscribed), [subs]);
   const visibleActiveSubscribers = useMemo(() => filteredSubs.filter(s => !s.unsubscribed), [filteredSubs]);
 
   const allSelectableEmails = useMemo(() => visibleActiveSubscribers.map((s) => s.email), [visibleActiveSubscribers]);

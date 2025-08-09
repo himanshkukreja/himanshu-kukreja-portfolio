@@ -105,7 +105,7 @@ export default function Experience() {
         viewport={{ once: true, margin: "-10% 0px -20% 0px" }}
         className="space-y-8"
       >
-        {experiences.map((exp, i) => {
+        {experiences.map((exp) => {
           const Icon = exp.icon ?? Briefcase;
           const isOpen = expanded === exp.id || hovered === exp.id;
           const preview = firstSentence(exp.points[0] || "");
