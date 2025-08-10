@@ -4,6 +4,7 @@ import { motion, cubicBezier } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { FileText, ArrowRight } from "lucide-react";
+import SafeImage from "@/components/SafeImage";
 
 export type StoryCard = {
     slug: string;
@@ -120,6 +121,20 @@ export default function StoriesGrid({
                         <path d="M120 60 H180 V180 H60 V120" stroke="currentColor" strokeWidth="1" />
                         <circle cx="60" cy="120" r="3" fill="currentColor" />
                     </svg>
+
+                    {/* cover image */}
+                    {/* {s.cover && (
+                        <div className="relative mb-4 overflow-hidden rounded-xl ring-1 ring-white/10">
+                            <SafeImage
+                                src={s.cover}
+                                alt={s.title}
+                                width={640}
+                                height={360}
+                                className="w-full h-auto object-cover"
+                                priority={false}
+                            />
+                        </div>
+                    )} */}
 
                     <div className="relative z-10 flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2 text-white">
