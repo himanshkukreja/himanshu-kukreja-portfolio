@@ -3,6 +3,8 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
+import { Analytics } from '@vercel/analytics/next';
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -18,19 +20,28 @@ export const metadata: Metadata = {
   title: "Himanshu Kukreja — Portfolio",
   description:
     "Software engineer with expertise in backend systems, cloud architecture, real-time streaming, AI integrations, and startup product development.",
-  metadataBase: new URL("https://example.com"),
+  metadataBase: new URL("https://himanshukukreja.in"),
   openGraph: {
     title: "Himanshu Kukreja — Portfolio",
     description:
       "Backend, Cloud, Realtime streaming, AI integrations, Startup product development.",
-    url: "https://example.com",
+    url: "https://himanshukukreja.in",
     type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Himanshu Kukreja - Software Engineer Portfolio",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "Himanshu Kukreja — Portfolio",
     description:
       "Backend, Cloud, Realtime streaming, AI integrations, Startup product development.",
+    images: ["/og-image.png"],
   },
 };
 
@@ -44,6 +55,7 @@ export default function RootLayout({
           <Navbar />
           {children}
         </ThemeProvider>
+        <Analytics />
       </body>
     </html>
   );
