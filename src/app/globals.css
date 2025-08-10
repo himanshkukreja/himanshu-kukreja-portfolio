@@ -109,3 +109,7 @@ html.dark body { color-scheme: dark; }
     overscroll-behavior: contain;
   }
 }
+
+@keyframes shimmer {
+  100% { transform: translateX(100%); }
+}
