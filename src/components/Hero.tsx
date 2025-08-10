@@ -139,8 +139,7 @@ export default function Hero() {
       } else {
         setNewsletterStatus("error");
         setNewsletterMessage(data.error || "Subscription failed. Please try again.");
-      }
-    } catch (error) {
+      }      } catch {
       setNewsletterStatus("error");
       setNewsletterMessage("Network error. Please check your connection.");
     }

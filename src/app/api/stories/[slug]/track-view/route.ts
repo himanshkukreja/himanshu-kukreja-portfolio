@@ -169,14 +169,14 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
     if (error) throw error;
     const row = Array.isArray(data) && data[0] ? data[0] : null;
     payload = row ?? { total_views: 0, unique_views: 0, is_unique: false };
-  } catch (e: any) {
+  } catch (e: unknown) {
     // Log and fall back to non-atomic updates if RPC is unavailable (e.g., migration not applied)
-    console.error("[track-view] RPC failed:", e?.message || e);
+    console.error("[track-view] RPC failed:", e instanceof Error ? e.message : e);
     try {
       const fb = await trackWithFallback(storyId, id);
       payload = fb;
-    } catch (fallbackErr) {
-      console.error("[track-view] Fallback failed:", (fallbackErr as any)?.message || fallbackErr);
+    } catch (fallbackErr: unknown) {
+      console.error("[track-view] Fallback failed:", fallbackErr instanceof Error ? fallbackErr.message : fallbackErr);
       return NextResponse.json({ error: "Failed to track view" }, { status: 500 });
     }
   }

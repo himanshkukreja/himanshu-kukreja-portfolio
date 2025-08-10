@@ -38,7 +38,6 @@ export default function StoriesGrid({
 }) {
   const [stories, setStories] = useState<StoryCard[]>(sortByDateDesc(initial || []));
   const pathname = usePathname();
-  const [viewCounts, setViewCounts] = useState<Record<string, number>>({});
 
   useEffect(() => {
     let active = true;
