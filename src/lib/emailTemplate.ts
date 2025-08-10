@@ -1,4 +1,5 @@
 import type { StoryFrontmatter } from "@/lib/stories";
+import { resolveCoverUrl } from "@/lib/utils";
 
 export type EmailTemplateOptions = {
   recipientEmail?: string;
@@ -18,21 +19,26 @@ export function buildStoriesEmailHtml(stories: StoryFrontmatter[], opts: EmailTe
     : "These are some wonderful stories to help you master system/backend design — perfect for your learning journey!";
 
   const items = stories
-    .map(
-      (s) => `
-    <tr>
-      <td class="story" style="padding:20px 0;border-bottom:1px solid #e5e7eb">
-        <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-          <h3 class="story-title" style="margin:0;font-size:18px;color:#ffffff;font-weight:600;">${escapeHtml(s.title)}</h3>
-        </div>
-        ${s.excerpt ? `<p class="story-excerpt" style=\"margin:12px 0;font-size:15px;line-height:1.6\">${escapeHtml(s.excerpt)}</p>` : ""}
-        <div style="margin-top: 16px;">
-          <a class="btn" href="${site}/stories/${s.slug}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">Read Full Story →</a>
-        </div>
-      </td>
-    </tr>
-  `
-    )
+    .map((s) => {
+      const cover = resolveCoverUrl(s.cover);
+      const coverImg = cover
+        ? `<img src="${cover}" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:8px;border:1px solid #e5e7eb;margin:0 0 10px 0;" alt="${escapeHtml(s.title)} cover" />`
+        : "";
+      return `
+        <tr>
+          <td class="story" style="padding:20px 0;border-bottom:1px solid #e5e7eb">
+            ${coverImg}
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+              <h3 class="story-title" style="margin:0;font-size:18px;color:#ffffff;font-weight:600;">${escapeHtml(s.title)}</h3>
+            </div>
+            ${s.excerpt ? `<p class="story-excerpt" style=\"margin:12px 0;font-size:15px;line-height:1.6\">${escapeHtml(s.excerpt)}</p>` : ""}
+            <div style="margin-top: 16px;">
+              <a class="btn" href="${site}/stories/${s.slug}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">Read Full Story →</a>
+            </div>
+          </td>
+        </tr>
+      `;
+    })
     .join("");
 
   const subject = escapeHtml(opts.subjectTitle || "Engineering Stories");

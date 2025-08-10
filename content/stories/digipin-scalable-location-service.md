@@ -2,7 +2,7 @@
 slug: digipin-scalable-location-service
 title: "Building DIGIPIN: From Chaos to 4-Meter Precision Across India's Digital Geography"
 excerpt: "How to design a nationwide location-to-code service that assigns unique alphanumeric addresses to every 4m×4m grid in India."
-cover: "/blueprints/digipin-geospatial-service.png"
+cover: "/blueprints/digipin-geospatial.png"
 date: "2025-08-09"
 tags: ["Geospatial Systems", "GeoHash", "Location Services", "Distributed Systems", "Spatial Indexing", "Redis GEO"]
 ---

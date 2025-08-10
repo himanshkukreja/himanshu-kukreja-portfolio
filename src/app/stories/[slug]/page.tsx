@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import { getStoryBySlug } from "@/lib/stories";
 import Link from "next/link";
-import Image from "next/image";
-import SafeImage from "@/components/SafeImage";
+import CoverImage from "@/components/CoverImage";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
@@ -27,13 +26,12 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
           {story.date && <p className="mt-1 text-sm text-white/60">{new Date(story.date).toLocaleDateString()}</p>}
           {/* Cover image after the main title */}
           {story.cover && (
-            <div className="mt-6 overflow-hidden rounded-xl border border-white/10 bg-white/5">
-              <SafeImage
+            <div className="mt-6">
+              <CoverImage
                 src={story.cover}
                 alt={story.title}
                 width={1200}
                 height={630}
-                className="w-full h-auto object-cover"
                 priority
               />
             </div>

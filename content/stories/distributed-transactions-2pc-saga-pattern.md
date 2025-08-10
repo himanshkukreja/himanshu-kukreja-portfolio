@@ -32,20 +32,15 @@ It's Black Friday 2024, and WonderTravel expects their biggest sales day ever. A
 ```
 Customer Journey:
 1. Select flight: JFK → NRT (Japan Airlines, $1,200)
-2. Choose hotel: Tokyo Grand Hotel (3 nights, $450/night)  
+2. Choose hotel: Tokyo Grand Hotel (3 nights, $450/night)
 3. Pick rental: Toyota Camry (3 days, $80/day)
 4. Click "Book Everything" → Must be atomic!
 
 System Architecture:
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Flight Service│    │   Hotel Service │    │    Car Service  │
-│   (US-East)     │    │   (Europe)      │    │   (Asia-Pacific)│
-│                 │    │                 │    │                 │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │PostgreSQL   │ │    │ │MongoDB      │ │    │ │MySQL        │ │
-│ │Seats DB     │ │    │ │Rooms DB     │ │    │ │Cars DB      │ │
-│ └─────────────┘ │    │ └─────────────┘ │    │ └─────────────┘ │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
+
+[Flight Service] (US-East) ---> PostgreSQL (Seats DB)
+[Hotel Service] (Europe) ---> MongoDB (Rooms DB)
+[Car Service] (Asia-Pacific) ---> MySQL (Cars DB)
 ```
 
 **The Atomic Requirement:**
@@ -442,20 +437,13 @@ class FlightServiceClient:
 
 ```
 Current State at Crash:
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│ Flight Service  │    │ Hotel Service   │    │ Car Service     │
-│ 2,000 seats     │    │ 2,000 rooms     │    │ 2,000 cars      │
-│ LOCKED          │    │ LOCKED          │    │ LOCKED          │
-│ (awaiting       │    │ (awaiting       │    │ (awaiting       │
-│  coordinator)   │    │  coordinator)   │    │  coordinator)   │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-         ↑                       ↑                       ↑
-         │                       │                       │
-         └───────── ??? ─────────┴─────── ??? ───────────┘
-                    
-Coordinator: ☠️ CRASHED ☠️
-```
 
+[Flight Service] ---> 2,000 seats (LOCKED, awaiting coordinator)
+[Hotel Service] ---> 2,000 rooms (LOCKED, awaiting coordinator)
+[Car Service] ---> 2,000 cars (LOCKED, awaiting coordinator)
+
+[Coordinator] ☠️ CRASHED ☠️
+```
 **The Problem:** All services are blocked, waiting for commit/abort decisions that will never come.
 
 **Customer Impact:**

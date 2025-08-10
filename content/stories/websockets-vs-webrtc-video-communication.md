@@ -28,39 +28,29 @@ At 3 AM during a crucial investor demo preparation, disaster strikes. Their vide
 
 **ConnectNow's Original WebSocket Architecture:**
 ```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│    User A       │    │   WebSocket     │    │    User B       │
-│   (Browser)     │    │    Server       │    │   (Browser)     │
-│                 │    │   (Relay Hub)   │    │                 │
-│ ┌─────────────┐ │    │ ┌─────────────┐ │    │ ┌─────────────┐ │
-│ │Video Stream │◄┼────┼►│Process &    │◄┼────┼►│Video Stream │ │
-│ │  Capture    │ │    │ │Forward      │ │    │ │  Display    │ │
-│ └─────────────┘ │    │ │All Video    │ │    │ └─────────────┘ │
-└─────────────────┘    │ └─────────────┘ │    └─────────────────┘
-                       │                 │
-                       │ ⚠️ BOTTLENECK ⚠️ │
-                       │ Every video     │
-                       │ packet flows    │
-                       │ through server  │
-                       └─────────────────┘
+[User A] (Browser) ---> Video Stream & Capture
+      |
+      v
+[WebSocket Server] (Relay Hub) ---> Process & Forward All Video
+      |
+      v
+[User B] (Browser) ---> Video Stream Display
+
+⚠️ BOTTLENECK: Every video packet flows through server
 ```
 
 **The Better WebRTC Architecture:**
 ```
-┌─────────────────┐                            ┌─────────────────┐
-│    User A       │──── Direct P2P Video ────►│    User B       │
-│   (Browser)     │◄─── Communication     ────│   (Browser)     │
-│                 │                            │                 │
-│ ┌─────────────┐ │    ┌─────────────────┐    │ ┌─────────────┐ │
-│ │Video Stream │ │    │   Signaling     │    │ │Video Stream │ │
-│ │  Direct     │ │    │   Server        │    │ │  Direct     │ │
-│ │             │ │    │ (Setup Only)    │    │ │             │ │
-│ └─────────────┘ │    │                 │    │ └─────────────┘ │
-└─────────────────┘    │ ✅ Lightweight  │    └─────────────────┘
-         │              │ No video data   │              │
-         │              │ processing      │              │
-         └──── Setup ───┼─────────────────┼──── Setup ───┘
-              Handshake └─────────────────┘    Handshake
+[User A] (Browser) <─── Direct P2P Video Communication ───> [User B] (Browser)
+
+    Video Stream (Direct)                          Video Stream (Direct)
+
+          │                                               │
+          │                [Signaling Server] (Setup Only)
+          │                         - ✅ Lightweight
+          │                         - No video data processing
+          │
+          └──── Setup Handshake ────┼──── Setup Handshake ───┘
 ```
 
 ---
@@ -295,28 +285,15 @@ After the investor demo disaster, Emma's team implemented a **hybrid architectur
 ```
 ConnectNow's Hybrid Architecture:
 
-┌─────────────────────────────────────────────────────────────┐
-│                    Signaling Layer                         │
-│                   (WebSocket Server)                       │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ -  User authentication & presence                    │   │
-│  │ -  WebRTC connection negotiation                     │   │
-│  │ -  Text chat and notifications                       │   │
-│  │ -  Meeting management and recording control          │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
-                               │
-                               ▼
-┌─────────────────────────────────────────────────────────────┐
-│                    Media Layer                              │
-│                 (WebRTC P2P Connections)                    │
-│  ┌─────────────────────────────────────────────────────┐   │
-│  │ -  Direct video/audio streaming                      │   │
-│  │ -  Screen sharing and file transfer                  │   │
-│  │ -  Real-time collaboration data                      │   │
-│  │ -  Adaptive quality and network optimization         │   │
-│  └─────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+Signaling Layer (WebSocket Server)
+    - Handles user authentication and presence
+    - Negotiates WebRTC connections
+    - Manages text chat, notifications, meetings, and recording controls
+
+Media Layer (WebRTC Peer-to-Peer Connections)
+    - Streams video and audio directly between participants
+    - Supports screen sharing, file transfers, and real-time collaboration
+    - Optimizes quality based on network conditions
 ```
 
 ### Implementation Strategy
@@ -491,16 +468,11 @@ Emergency services require ultra-low latency for life-or-death situations:
 **Solution 1: Selective Forwarding Unit (SFU)**
 ```
 SFU Architecture:
-┌─────────┐    ┌─────────────┐    ┌─────────┐
-│ User A  │────┤    SFU      │────│ User B  │
-└─────────┘    │  (Server)   │    └─────────┘
-               │             │
-┌─────────┐    │ -  Receives  │    ┌─────────┐
-│ User C  │────┤   all feeds │────│ User D  │
-└─────────┘    │ -  Forwards  │    └─────────┘
-               │   without   │
-               │   encoding  │
-               └─────────────┘
+
+User A         SFU (Server)                     User B
+               - Receives all feeds
+               - Forwards without encoding
+User C                                          User D
 
 Advantages:
 ✅ Each user uploads once, receives multiple streams
@@ -511,17 +483,12 @@ Advantages:
 
 **Solution 2: Multipoint Control Unit (MCU)**
 ```
-MCU Architecture:
-┌─────────┐    ┌─────────────┐    ┌─────────┐
-│ User A  │────┤     MCU     │────│ User B  │
-└─────────┘    │  (Server)   │    └─────────┘
-               │             │
-┌─────────┐    │ -  Mixes all │    ┌─────────┐
-│ User C  │────┤   video     │────│ User D  │
-└─────────┘    │ -  Single    │    └─────────┘
-               │   combined  │
-               │   stream    │
-               └─────────────┘
+MCU Architecture
+
+User A         MCU (Server)                         User B
+               - Mixes all video streams
+               - Produces a single combined stream
+User C                                              User D
 
 Advantages:
 ✅ Ultra-low bandwidth (one stream per user)
