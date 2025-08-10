@@ -132,21 +132,22 @@ export default function StoriesGrid({
                                 width={640}
                                 height={360}
                                 priority={false}
-                              />
+                            />
                         </div>
                     )}
 
                     <div className="relative z-10 flex items-start justify-between gap-3">
                         <div className="flex items-center gap-2 text-white">
-                            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-300 ring-1 ring-inset ring-white/10">
-                                <FileText className="h-4 w-4" />
-                            </span>
+
                             <h3 className="font-semibold text-base sm:text-lg leading-snug">
                                 <Link href={`/stories/${s.slug}`} className="hover:underline">
                                     {s.title}
                                 </Link>
                             </h3>
                         </div>
+                        <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-300 ring-1 ring-inset ring-white/10">
+                            <FileText className="h-4 w-4" />
+                        </span>
                         <Link
                             href={`/stories/${s.slug}`}
                             className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/80 hover:bg-white/10"
@@ -205,7 +206,7 @@ export default function StoriesGrid({
                     <div className="relative mb-4 h-[200px] rounded-xl border border-white/10 bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-purple-500/20 flex items-center justify-center overflow-hidden">
                         {/* animated blueprint pattern overlay */}
                         <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(99,102,241,0.1)_1px,transparent_1px),linear-gradient(-45deg,rgba(147,51,234,0.1)_1px,transparent_1px)] bg-[size:16px_16px] animate-pulse opacity-60" />
-                        
+
                         {/* central icon */}
                         <div className="relative z-10 flex flex-col items-center gap-3">
                             <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 flex items-center justify-center ring-2 ring-white/20 backdrop-blur-sm">
