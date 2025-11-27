@@ -74,7 +74,7 @@ async function markdownToHtml(md: string): Promise<string> {
     .use(remarkGfm)
     .use(() => (tree) => {
       // Transform image URLs to use ImageKit
-      visit(tree, 'image', (node: any) => {
+      visit(tree, 'image', (node: { url?: string }) => {
         if (node.url) {
           const resolvedUrl = resolveCoverUrl(node.url);
           if (resolvedUrl) {
