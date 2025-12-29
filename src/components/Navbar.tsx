@@ -73,6 +73,16 @@ export default function Navbar() {
                     >
                         All Stories
                     </Link>
+                    <Link
+                        href="/learn"
+                        className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-white/5 text-white/80 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
+                        onClick={(e) => {
+                            e.preventDefault();
+                            window.location.href = "/learn";
+                        }}
+                    >
+                        Learn
+                    </Link>
                 </nav>
                 <div className="flex items-center gap-2">
                     <a

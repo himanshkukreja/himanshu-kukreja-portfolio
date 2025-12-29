@@ -1,0 +1,160 @@
+import { getAllLearningResources, getAllCourses } from "@/lib/github";
+import { notFound } from "next/navigation";
+import Link from "next/link";
+import { BookOpen, Calendar, Award, Target, ChevronLeft } from "lucide-react";
+import CollapsibleWeek from "@/components/CollapsibleWeek";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type Props = {
+  params: Promise<{
+    course: string;
+  }>;
+};
+
+export async function generateMetadata({ params }: Props) {
+  const { course } = await params;
+  const courses = await getAllCourses();
+  const courseData = courses.find(c => c.id === course);
+
+  if (!courseData) {
+    return {
+      title: "Not Found",
+    };
+  }
+
+  return {
+    title: `${courseData.title} | Learn`,
+    description: courseData.description,
+  };
+}
+
+export default async function CoursePage({ params }: Props) {
+  const { course } = await params;
+
+  // Get course data
+  const courses = await getAllCourses();
+  const courseData = courses.find(c => c.id === course);
+
+  if (!courseData) {
+    notFound();
+  }
+
+  // Get all resources for this course
+  const allResources = await getAllLearningResources();
+  const resources = allResources.filter(r => r.course === course);
+
+  // Group resources by week
+  const resourcesByWeek = resources.reduce((acc, resource) => {
+    if (!acc[resource.week]) {
+      acc[resource.week] = [];
+    }
+    acc[resource.week].push(resource);
+    return acc;
+  }, {} as Record<string, typeof resources>);
+
+  // Sort weeks
+  const sortedWeeks = Object.keys(resourcesByWeek).sort((a, b) => {
+    if (a === 'overview') return -1;
+    if (b === 'overview') return 1;
+    return a.localeCompare(b);
+  });
+
+  return (
+    <main className="min-h-screen pt-24 pb-16 px-6">
+      <div className="max-w-5xl mx-auto">
+        {/* Back Link */}
+        <Link
+          href="/learn"
+          className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-8"
+        >
+          <ChevronLeft className="w-4 h-4" />
+          Back to Courses
+        </Link>
+
+        {/* Header */}
+        <div className="mb-12">
+          <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
+            {courseData.title}
+          </h1>
+          <p className="text-lg text-white/70 max-w-2xl">
+            {courseData.description}
+          </p>
+        </div>
+
+        {/* Course Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+          <StatCard
+            icon={<Calendar className="w-6 h-6" />}
+            label="Weeks"
+            value={courseData.weeksCount.toString()}
+          />
+          <StatCard
+            icon={<BookOpen className="w-6 h-6" />}
+            label="Resources"
+            value={courseData.resourceCount.toString()}
+          />
+          <StatCard
+            icon={<Target className="w-6 h-6" />}
+            label="Time/Day"
+            value="1 hour"
+          />
+          <StatCard
+            icon={<Award className="w-6 h-6" />}
+            label="Capstones"
+            value={resources.filter(r => r.type === 'capstone').length.toString()}
+          />
+        </div>
+
+        {/* Learning Path */}
+        <div className="space-y-8">
+          {sortedWeeks.map((weekKey) => {
+            const weekResources = resourcesByWeek[weekKey];
+            const weekNumber = weekKey === 'overview' ? '' : weekKey.replace('week-', 'Week ');
+
+            return (
+              <CollapsibleWeek
+                key={weekKey}
+                weekKey={weekKey}
+                weekNumber={weekNumber}
+                resources={weekResources}
+                course={course}
+                defaultOpen={weekKey === 'overview'}
+              />
+            );
+          })}
+        </div>
+
+        {/* Footer CTA */}
+        <div className="mt-12 text-center p-8 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-white/10">
+          <h3 className="text-xl font-bold text-white mb-2">
+            Ready to Master System Design?
+          </h3>
+          <p className="text-white/60 mb-4">
+            Start with the course overview and work your way up to advanced distributed systems.
+          </p>
+          {sortedWeeks.length > 0 && (
+            <Link
+              href={`/learn/${course}/${sortedWeeks[0]}/${resourcesByWeek[sortedWeeks[0]][0].slug}`}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all"
+            >
+              <BookOpen className="w-5 h-5" />
+              Start Learning
+            </Link>
+          )}
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4 text-center">
+      <div className="flex justify-center mb-2 text-blue-400">{icon}</div>
+      <div className="text-2xl font-bold text-white">{value}</div>
+      <div className="text-sm text-white/60">{label}</div>
+    </div>
+  );
+}
