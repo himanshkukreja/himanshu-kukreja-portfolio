@@ -132,6 +132,13 @@ export async function trackEvent(event: AnalyticsEvent): Promise<void> {
     return;
   }
 
+  // Exclude admin pages from tracking
+  const excludedPaths = ["/admin/analytics", "/admin"];
+  if (excludedPaths.some(path => event.page_path.startsWith(path))) {
+    console.log("[Analytics] Admin page - skipping tracking:", event.page_path);
+    return;
+  }
+
   const visitorId = getVisitorId();
   const sessionId = getSessionId();
   const utmParams = getUTMParams();

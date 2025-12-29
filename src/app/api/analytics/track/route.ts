@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@supabase/supabase-js";
 
-export const runtime = "nodejs";
+export const runtime = "edge";
 export const dynamic = "force-dynamic";
 
 /**
@@ -11,6 +11,13 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+
+    // Create Supabase client for Edge runtime
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!,
+      { auth: { persistSession: false } }
+    );
 
     // Get geolocation data from Vercel Edge (automatically provided in production)
     // @ts-ignore - geo is a Vercel-specific property
@@ -26,7 +33,7 @@ export async function POST(request: NextRequest) {
                 request.headers.get("x-real-ip") ||
                 undefined;
 
-    // Insert event with geo data (using shared supabase client)
+    // Insert event with geo data
     // Note: 'region' field removed to match actual table schema
     const { error } = await supabase.from("analytics_events").insert([
       {
