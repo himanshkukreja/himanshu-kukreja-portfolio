@@ -65,7 +65,7 @@ export function addHeadingIds(html: string): string {
       .replace(/&quot;/g, '"')
       .trim();
 
-    let id = slugify(text);
+    const id = slugify(text);
 
     // Ensure unique ID
     let counter = 1;
