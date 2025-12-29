@@ -54,7 +54,8 @@ export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
       'Accept': 'application/vnd.github.v3+json',
       'X-GitHub-Api-Version': '2022-11-28',
     },
-    next: { revalidate: 3600 } // Cache for 1 hour
+    // Cache for 60 seconds (1 minute) for fresh content
+    next: { revalidate: 60 }
   });
 
   if (!response.ok) {
@@ -82,7 +83,8 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
       'Accept': 'application/vnd.github.v3.raw',
       'X-GitHub-Api-Version': '2022-11-28',
     },
-    next: { revalidate: 3600 } // Cache for 1 hour
+    // Cache for 60 seconds (1 minute) for fresh content
+    next: { revalidate: 60 }
   });
 
   if (!response.ok) {
