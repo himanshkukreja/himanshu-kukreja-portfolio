@@ -33,24 +33,29 @@ export async function POST(request: NextRequest) {
     let latitude = vercelGeo?.latitude || undefined;
     let longitude = vercelGeo?.longitude || undefined;
 
-    // Fallback to ip-api.com for more accurate geo data (especially region)
+    // Fallback to ipapi.co for more accurate geo data (especially region)
     // Only call if we have an IP and missing critical data
+    // Note: ipapi.co has a free tier of 30,000 requests/month
     if (ip && (!region || !city)) {
       try {
         const geoResponse = await fetch(
-          `http://ip-api.com/json/${ip}?fields=status,country,regionName,city,lat,lon,timezone`
+          `https://ipapi.co/${ip}/json/`,
+          {
+            headers: { 'User-Agent': 'Analytics-Tracker' },
+            signal: AbortSignal.timeout(3000) // 3 second timeout
+          }
         );
 
         if (geoResponse.ok) {
           const geoData = await geoResponse.json();
-          if (geoData.status === "success") {
-            // Use fallback data only if Vercel didn't provide it
-            country = country || geoData.country;
-            city = city || geoData.city;
-            region = region || geoData.regionName;
-            latitude = latitude || geoData.lat;
-            longitude = longitude || geoData.lon;
-          }
+          // Use fallback data only if Vercel didn't provide it
+          // IMPORTANT: Use country_code (2-letter) not country_name
+          const countryCode = geoData.country_code || geoData.country;
+          country = country || (countryCode ? countryCode.substring(0, 2).toUpperCase() : undefined);
+          city = city || geoData.city;
+          region = region || geoData.region;
+          latitude = latitude || geoData.latitude;
+          longitude = longitude || geoData.longitude;
         }
       } catch (geoError) {
         // Silently fail - we'll just use Vercel's data
@@ -75,13 +80,21 @@ export async function POST(request: NextRequest) {
     ]);
 
     if (error) {
-      console.error("[Analytics Track] Error:", error);
-      return NextResponse.json({ error: "Failed to track event" }, { status: 500 });
+      console.error("[Analytics Track] Supabase Error:", error);
+      return NextResponse.json({
+        error: "Failed to track event",
+        details: error.message,
+        code: error.code
+      }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
-  } catch (error) {
-    console.error("[Analytics Track] Error:", error);
-    return NextResponse.json({ error: "Failed to track event" }, { status: 500 });
+  } catch (error: any) {
+    console.error("[Analytics Track] Unexpected Error:", error);
+    return NextResponse.json({
+      error: "Failed to track event",
+      details: error.message,
+      stack: error.stack
+    }, { status: 500 });
   }
 }
