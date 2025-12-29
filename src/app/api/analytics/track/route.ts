@@ -12,11 +12,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
 
-    // Get geolocation data from Vercel Edge (automatically provided)
-    const country = request.geo?.country || undefined;
-    const city = request.geo?.city || undefined;
-    const latitude = request.geo?.latitude || undefined;
-    const longitude = request.geo?.longitude || undefined;
+    // Get geolocation data from Vercel Edge (automatically provided in production)
+    // @ts-ignore - geo is a Vercel-specific property
+    const geo = request.geo;
+    const country = geo?.country || undefined;
+    const city = geo?.city || undefined;
+    const latitude = geo?.latitude || undefined;
+    const longitude = geo?.longitude || undefined;
+    const region = geo?.region || undefined;
 
     // Get IP address
     const ip = request.headers.get("x-forwarded-for") ||
@@ -35,7 +38,7 @@ export async function POST(request: NextRequest) {
           ...body.metadata,
           latitude,
           longitude,
-          region: request.geo?.region, // Store region in metadata instead
+          region, // Store region in metadata instead
         },
       },
     ]);
