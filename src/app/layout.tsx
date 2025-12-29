@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import Navbar from "@/components/Navbar";
 import { Analytics } from '@vercel/analytics/next';
+import AnalyticsTracker from "@/components/AnalyticsTracker";
+
 
 
 const geistSans = Geist({
@@ -51,6 +53,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <AnalyticsTracker />
         <ThemeProvider>
           <Navbar />
           {children}
