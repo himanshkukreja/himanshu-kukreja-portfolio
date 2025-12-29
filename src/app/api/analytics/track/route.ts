@@ -19,22 +19,46 @@ export async function POST(request: NextRequest) {
       { auth: { persistSession: false } }
     );
 
-    // Get geolocation data from Vercel Edge (automatically provided in production)
-    // @ts-ignore - geo is a Vercel-specific property
-    const geo = request.geo;
-    const country = geo?.country || undefined;
-    const city = geo?.city || undefined;
-    const latitude = geo?.latitude || undefined;
-    const longitude = geo?.longitude || undefined;
-    const region = geo?.region || undefined;
-
     // Get IP address
-    const ip = request.headers.get("x-forwarded-for") ||
+    const ip = request.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
                 request.headers.get("x-real-ip") ||
                 undefined;
 
+    // Get geolocation data from Vercel Edge first
+    // @ts-ignore - geo is a Vercel-specific property
+    const vercelGeo = request.geo;
+    let country = vercelGeo?.country || undefined;
+    let city = vercelGeo?.city || undefined;
+    let region = vercelGeo?.region || undefined;
+    let latitude = vercelGeo?.latitude || undefined;
+    let longitude = vercelGeo?.longitude || undefined;
+
+    // Fallback to ip-api.com for more accurate geo data (especially region)
+    // Only call if we have an IP and missing critical data
+    if (ip && (!region || !city)) {
+      try {
+        const geoResponse = await fetch(
+          `http://ip-api.com/json/${ip}?fields=status,country,regionName,city,lat,lon,timezone`
+        );
+
+        if (geoResponse.ok) {
+          const geoData = await geoResponse.json();
+          if (geoData.status === "success") {
+            // Use fallback data only if Vercel didn't provide it
+            country = country || geoData.country;
+            city = city || geoData.city;
+            region = region || geoData.regionName;
+            latitude = latitude || geoData.lat;
+            longitude = longitude || geoData.lon;
+          }
+        }
+      } catch (geoError) {
+        // Silently fail - we'll just use Vercel's data
+        console.warn("[Analytics] IP geolocation fallback failed:", geoError);
+      }
+    }
+
     // Insert event with geo data
-    // Note: 'region' field removed to match actual table schema
     const { error } = await supabase.from("analytics_events").insert([
       {
         ...body,
@@ -45,7 +69,7 @@ export async function POST(request: NextRequest) {
           ...body.metadata,
           latitude,
           longitude,
-          region, // Store region in metadata instead
+          region, // Store region in metadata
         },
       },
     ]);
