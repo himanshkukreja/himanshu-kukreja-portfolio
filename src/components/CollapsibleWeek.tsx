@@ -36,9 +36,11 @@ export default function CollapsibleWeek({ weekKey, weekNumber, weekBadge, resour
             <h2 className="text-2xl font-bold text-white mb-2">
               {weekNumber || 'Course Overview'}
             </h2>
-            {resources.find(r => r.type === 'week-preview') && (
+            {resources.length > 0 && (
               <p className="text-white/60 text-sm">
-                {resources.length - 1} lessons
+                {resources.find(r => r.type === 'week-preview')
+                  ? `${resources.length - 1} lessons`
+                  : `${resources.length} lessons`}
               </p>
             )}
           </div>
