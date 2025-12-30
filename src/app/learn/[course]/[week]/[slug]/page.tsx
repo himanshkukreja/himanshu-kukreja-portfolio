@@ -7,6 +7,7 @@ import { extractHeadings, addHeadingIds } from "@/lib/toc";
 import TableOfContents from "@/components/TableOfContents";
 import MarkdownContent from "@/components/MarkdownContent";
 import FocusMode from "@/components/FocusMode";
+import ReadingProgress from "@/components/ReadingProgress";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -64,8 +65,10 @@ export default async function LearningResourcePage({ params }: Props) {
   const allWeekResources = await getWeekResources(week);
 
   return (
-    <main className="min-h-screen pt-20 pb-16">
-      <div className="max-w-7xl mx-auto px-6">
+    <>
+      <ReadingProgress />
+      <main className="min-h-screen pt-20 pb-16">
+        <div className="max-w-7xl mx-auto px-6">
         {/* Breadcrumb */}
         <div className="mb-8 flex items-center gap-2 text-sm text-white/60">
           <Link href="/learn" className="hover:text-white transition-colors flex items-center gap-1">
@@ -190,5 +193,6 @@ export default async function LearningResourcePage({ params }: Props) {
         </FocusMode>
       </div>
     </main>
+    </>
   );
 }
