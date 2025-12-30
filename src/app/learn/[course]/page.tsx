@@ -111,13 +111,39 @@ export default async function CoursePage({ params }: Props) {
         <div className="space-y-8">
           {sortedWeeks.map((weekKey) => {
             const weekResources = resourcesByWeek[weekKey];
-            const weekNumber = weekKey === 'overview' ? '' : weekKey.replace('week-', 'Week ');
+
+            // Extract week number and topic name
+            let weekBadge = '';
+            let topicName = '';
+
+            if (weekKey === 'overview') {
+              topicName = 'Course Overview';
+            } else if (weekKey.includes('foundations')) {
+              topicName = 'Foundations';
+              weekBadge = 'Week 00'; // Show Week 00 badge for foundations
+            } else {
+              // Extract from format: week-01-data-at-scale
+              const match = weekKey.match(/week-(\d+)-(.+)/);
+              if (match) {
+                const num = parseInt(match[1], 10);
+                const topic = match[2];
+                weekBadge = `Week ${String(num).padStart(2, '0')}`; // Week 01, Week 02, etc.
+                // Convert "data-at-scale" to "Data At Scale"
+                topicName = topic
+                  .split('-')
+                  .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                  .join(' ');
+              } else {
+                topicName = weekKey.replace('week-', 'Week ');
+              }
+            }
 
             return (
               <CollapsibleWeek
                 key={weekKey}
                 weekKey={weekKey}
-                weekNumber={weekNumber}
+                weekNumber={topicName}
+                weekBadge={weekBadge}
                 resources={weekResources}
                 course={course}
                 defaultOpen={weekKey === 'overview'}

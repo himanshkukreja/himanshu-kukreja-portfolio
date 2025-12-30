@@ -8,12 +8,13 @@ import type { LearningResource } from "@/lib/github";
 type Props = {
   weekKey: string;
   weekNumber: string;
+  weekBadge?: string; // Optional badge like "Week 01"
   resources: LearningResource[];
   course: string;
   defaultOpen?: boolean;
 };
 
-export default function CollapsibleWeek({ weekKey, weekNumber, resources, course, defaultOpen = false }: Props) {
+export default function CollapsibleWeek({ weekKey, weekNumber, weekBadge, resources, course, defaultOpen = false }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
@@ -42,9 +43,9 @@ export default function CollapsibleWeek({ weekKey, weekNumber, resources, course
             )}
           </div>
         </div>
-        {weekKey !== 'overview' && (
+        {weekBadge && (
           <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium flex-shrink-0">
-            {weekKey.toUpperCase()}
+            {weekBadge}
           </span>
         )}
       </button>

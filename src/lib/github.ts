@@ -184,7 +184,23 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
 
   if (fileName.includes('preview')) {
     type = 'week-preview';
-    title = `${week.toUpperCase()} Preview`;
+    // Format week name properly: week-01-data-at-scale -> Data At Scale Preview
+    let weekName = '';
+    if (week.includes('foundations')) {
+      weekName = 'Foundations';
+    } else {
+      const match = week.match(/week-(\d+)-(.+)/);
+      if (match) {
+        const topic = match[2];
+        weekName = topic
+          .split('-')
+          .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+          .join(' ');
+      } else {
+        weekName = week.replace('week-', 'Week ');
+      }
+    }
+    title = `${weekName} Preview`;
     order = getWeekOrder(week) * 100;
   } else if (fileName.includes('capstone')) {
     type = 'capstone';

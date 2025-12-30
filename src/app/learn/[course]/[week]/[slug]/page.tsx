@@ -64,6 +64,23 @@ export default async function LearningResourcePage({ params }: Props) {
   // Get all resources for week navigation sidebar
   const allWeekResources = await getWeekResources(week);
 
+  // Format week display name
+  const formatWeekName = (weekKey: string): string => {
+    if (weekKey === 'overview') return 'Overview';
+    if (weekKey.includes('foundations')) return 'Foundations';
+
+    // Extract week number from format: week-01-data-at-scale -> Week 1
+    const match = weekKey.match(/week-(\d+)/);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      return `Week ${num}`;
+    }
+
+    return weekKey.replace('week-', 'Week ');
+  };
+
+  const weekDisplayName = formatWeekName(week);
+
   return (
     <>
       <ReadingProgress />
@@ -81,7 +98,7 @@ export default async function LearningResourcePage({ params }: Props) {
           </Link>
           <ChevronRight className="w-4 h-4" />
           <Link href={`/learn/${course}`} className="hover:text-white transition-colors">
-            {week.replace('week-', 'Week ')}
+            {weekDisplayName}
           </Link>
           <ChevronRight className="w-4 h-4" />
           <span className="text-white">{resource.title}</span>
@@ -92,7 +109,7 @@ export default async function LearningResourcePage({ params }: Props) {
             <div className="sticky top-24 bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4">
               <h3 className="text-white font-semibold mb-4 flex items-center gap-2 text-sm">
                 <BookOpen className="w-4 h-4" />
-                {week === 'overview' ? 'Overview' : week.replace('week-', 'Week ')}
+                {weekDisplayName}
               </h3>
               <nav className="space-y-1">
                 {allWeekResources.map((r) => (
