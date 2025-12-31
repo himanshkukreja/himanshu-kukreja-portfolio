@@ -104,7 +104,7 @@ export default async function CoursePage({ params }: Props) {
           <StatCard
             icon={<Target className="w-6 h-6" />}
             label="Time/Day"
-            value="1 hour"
+            value="2-3 hours"
           />
           <StatCard
             icon={<Award className="w-6 h-6" />}

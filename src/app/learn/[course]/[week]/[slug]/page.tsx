@@ -9,6 +9,7 @@ import MarkdownContent from "@/components/MarkdownContent";
 import FocusMode from "@/components/FocusMode";
 import ReadingProgress from "@/components/ReadingProgress";
 import SearchBar from "@/components/SearchBar";
+import SearchHighlight from "@/components/SearchHighlight";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,6 +86,7 @@ export default async function LearningResourcePage({ params }: Props) {
   return (
     <>
       <ReadingProgress />
+      <SearchHighlight />
       <main className="min-h-screen pt-20 pb-16">
         <div className="max-w-7xl mx-auto px-6">
         {/* Breadcrumb */}

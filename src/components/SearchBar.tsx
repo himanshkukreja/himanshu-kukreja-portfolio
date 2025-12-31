@@ -6,7 +6,13 @@ import { Search, X, FileText, Calendar, Award, Target, BookOpen, Loader2 } from 
 import Fuse, { FuseResult } from "fuse.js";
 import type { LearningResource } from "@/lib/github";
 
-type SearchResult = FuseResult<LearningResource>;
+// Extended type with content for search
+type LearningResourceWithContent = LearningResource & {
+  content?: string;
+  excerpt?: string;
+};
+
+type SearchResult = FuseResult<LearningResourceWithContent>;
 
 type SearchBarProps = {
   variant?: "bar" | "floating";
@@ -16,7 +22,7 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
-  const [allResources, setAllResources] = useState<LearningResource[]>([]);
+  const [allResources, setAllResources] = useState<LearningResourceWithContent[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -26,14 +32,17 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
   // Fuse.js configuration for fuzzy search
   const fuseOptions = {
     keys: [
-      { name: "title", weight: 2 },
-      { name: "week", weight: 1 },
-      { name: "type", weight: 0.5 },
-      { name: "day", weight: 0.5 },
+      { name: "title", weight: 3 }, // Highest priority
+      { name: "content", weight: 1 }, // Search through full content
+      { name: "week", weight: 0.8 },
+      { name: "type", weight: 0.3 },
+      { name: "day", weight: 0.3 },
     ],
     threshold: 0.4, // 0 = exact match, 1 = match anything
     includeScore: true,
     minMatchCharLength: 2,
+    ignoreLocation: true, // Don't consider position of match in content
+    findAllMatches: true, // Find all matches, not just the first one
   };
 
   // Fetch all resources on mount
@@ -97,9 +106,11 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
   };
 
   // Navigate to selected result
-  const navigateToResult = (resource: LearningResource) => {
+  const navigateToResult = (resource: LearningResourceWithContent) => {
     const course = "system-design-mastery";
-    router.push(`/learn/${course}/${resource.week}/${resource.slug}`);
+    // Pass the search query as a URL parameter for highlighting
+    const url = `/learn/${course}/${resource.week}/${resource.slug}?highlight=${encodeURIComponent(query)}`;
+    router.push(url);
     setIsOpen(false);
     setQuery("");
   };
@@ -271,7 +282,7 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-white/50">
+                          <div className="flex items-center gap-2 text-sm text-white/50 mb-1">
                             <span>{formatWeekName(resource.week)}</span>
                             {resource.day && (
                               <>
@@ -280,6 +291,11 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
                               </>
                             )}
                           </div>
+                          {resource.excerpt && (
+                            <p className="text-xs text-white/40 line-clamp-2 mt-1">
+                              {resource.excerpt}
+                            </p>
+                          )}
                         </div>
                       </button>
                     );
