@@ -2,7 +2,7 @@
 import { useEffect, useState } from "react";
 import { motion, cubicBezier } from "framer-motion";
 import Link from "next/link";
-import { ArrowRight, Mail, FileText, Github, Linkedin, Instagram, Twitter, MapPin, Bell } from "lucide-react";
+import { ArrowRight, Mail, FileText, Github, Linkedin, Instagram, Twitter, MapPin, Bell, BookOpen } from "lucide-react";
 
 type StoryCard = {
   slug: string;
@@ -235,13 +235,25 @@ export default function Hero() {
                 Get in Touch
                 <Mail className="h-4 w-4" />
               </Link>
+            </div>
+            <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => setShowNewsletterInput(!showNewsletterInput)}
-                className="group relative inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-5 py-2.5 text-sm font-medium text-amber-200 hover:bg-amber-500/20 transition-all duration-300"
+                className="group relative inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-500/20 transition-all duration-300"
               >
                 <Bell className="h-4 w-4" />
-                Subscribe to Stories
+                <span className="hidden sm:inline">Subscribe to Stories</span>
+                <span className="sm:hidden">Subscribe</span>
               </button>
+              <Link
+                href="/learn/system-design-mastery"
+                className="group relative inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 transition-all duration-300"
+              >
+                <BookOpen className="h-4 w-4" />
+                <span className="hidden sm:inline">System Design Course</span>
+                <span className="sm:hidden">Learn</span>
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+              </Link>
             </div>
 
             {/* Newsletter Subscription Form */}
