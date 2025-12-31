@@ -8,6 +8,7 @@ import TableOfContents from "@/components/TableOfContents";
 import MarkdownContent from "@/components/MarkdownContent";
 import FocusMode from "@/components/FocusMode";
 import ReadingProgress from "@/components/ReadingProgress";
+import SearchBar from "@/components/SearchBar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,6 +104,9 @@ export default async function LearningResourcePage({ params }: Props) {
           <ChevronRight className="w-4 h-4" />
           <span className="text-white">{resource.title}</span>
         </div>
+
+        {/* Floating Search Button */}
+        <SearchBar variant="floating" />
 
         <FocusMode
           sidebarLeft={

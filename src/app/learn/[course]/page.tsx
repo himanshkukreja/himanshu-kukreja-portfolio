@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Calendar, Award, Target, ChevronLeft } from "lucide-react";
 import CollapsibleWeek from "@/components/CollapsibleWeek";
+import SearchBar from "@/components/SearchBar";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,13 +75,18 @@ export default async function CoursePage({ params }: Props) {
         </Link>
 
         {/* Header */}
-        <div className="mb-12">
+        <div className="mb-8">
           <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
             {courseData.title}
           </h1>
           <p className="text-lg text-white/70 max-w-2xl">
             {courseData.description}
           </p>
+        </div>
+
+        {/* Search Bar */}
+        <div className="mb-8">
+          <SearchBar />
         </div>
 
         {/* Course Stats */}
