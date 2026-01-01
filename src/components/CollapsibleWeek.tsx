@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Calendar, Award, Target, BookOpen } from "lucide-react";
+import { ChevronDown, ChevronUp, Calendar, Award, Target, BookOpen, Sparkles } from "lucide-react";
 import type { LearningResource } from "@/lib/github";
 
 type Props = {
@@ -111,6 +111,8 @@ function ResourceTypeIcon({ type }: { type: string }) {
       return <Target className="w-5 h-5 text-purple-400 flex-shrink-0" />;
     case 'overview':
       return <BookOpen className="w-5 h-5 text-green-400 flex-shrink-0" />;
+    case 'bonus':
+      return <Sparkles className="w-5 h-5 text-amber-400 flex-shrink-0" />;
     default:
       return <BookOpen className="w-5 h-5 text-white/60 flex-shrink-0" />;
   }

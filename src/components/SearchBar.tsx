@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, FileText, Calendar, Award, Target, BookOpen, Loader2 } from "lucide-react";
+import { Search, X, FileText, Calendar, Award, Target, BookOpen, Loader2, Sparkles } from "lucide-react";
 import Fuse, { FuseResult } from "fuse.js";
 import type { LearningResource } from "@/lib/github";
 
@@ -143,6 +143,8 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
         return <Target className="w-4 h-4 text-purple-400 flex-shrink-0" />;
       case "overview":
         return <BookOpen className="w-4 h-4 text-green-400 flex-shrink-0" />;
+      case "bonus":
+        return <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />;
       default:
         return <FileText className="w-4 h-4 text-white/60 flex-shrink-0" />;
     }

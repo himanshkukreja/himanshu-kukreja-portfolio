@@ -34,7 +34,7 @@ export type LearningResource = {
   week: string;
   day?: string;
   path: string;
-  type: 'week-preview' | 'day-content' | 'capstone' | 'foundations' | 'overview';
+  type: 'week-preview' | 'day-content' | 'capstone' | 'foundations' | 'overview' | 'bonus';
   order: number;
 };
 
@@ -167,6 +167,23 @@ export async function getAllLearningResources(): Promise<LearningResource[]> {
     }
   }
 
+  // Process bonus problems from resources/bonus-problems directory
+  try {
+    const bonusProblemsPath = `${BASE_PATH}/bonus-problems`;
+    const bonusFiles = await fetchGitHubContent(bonusProblemsPath);
+
+    for (const file of bonusFiles) {
+      if (file.type === 'file' && file.name.endsWith('.md')) {
+        const resource = parseFileToResource(file, 'bonus-problems');
+        if (resource) {
+          resources.push(resource);
+        }
+      }
+    }
+  } catch (error) {
+    console.log('[GitHub] No bonus problems found or error fetching:', error);
+  }
+
   return resources.sort((a, b) => a.order - b.order);
 }
 
@@ -182,7 +199,14 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
   let day: string | undefined;
   let order = 1000; // Default order
 
-  if (fileName.includes('preview')) {
+  // Handle bonus problems
+  if (week === 'bonus-problems') {
+    type = 'bonus';
+    // Extract title from bonus-XX-name format
+    title = extractTitle(fileName);
+    const bonusNum = fileName.match(/bonus-(\d+)/)?.[1];
+    order = 10000 + parseInt(bonusNum || '1'); // Place after all weeks
+  } else if (fileName.includes('preview')) {
     type = 'week-preview';
     // Format week name properly: week-01-data-at-scale -> Data At Scale Preview
     let weekName = '';
@@ -237,8 +261,8 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
  * Extract human-readable title from filename
  */
 function extractTitle(fileName: string): string {
-  // Remove day-XX- or week-XX- prefix
-  let title = fileName.replace(/^(day-\d+-|week-\d+-|capstone-|foundations-)/, '');
+  // Remove day-XX- or week-XX- or bonus-XX- prefix
+  let title = fileName.replace(/^(day-\d+-|week-\d+-|capstone-|foundations-|bonus-\d+-)/, '');
 
   // Convert hyphens to spaces and capitalize
   title = title

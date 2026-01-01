@@ -59,6 +59,8 @@ export default async function CoursePage({ params }: Props) {
   const sortedWeeks = Object.keys(resourcesByWeek).sort((a, b) => {
     if (a === 'overview') return -1;
     if (b === 'overview') return 1;
+    if (a === 'bonus-problems') return 1;  // bonus-problems at the end
+    if (b === 'bonus-problems') return -1; // bonus-problems at the end
     return a.localeCompare(b);
   });
 
@@ -124,6 +126,8 @@ export default async function CoursePage({ params }: Props) {
 
             if (weekKey === 'overview') {
               topicName = 'Course Overview';
+            } else if (weekKey === 'bonus-problems') {
+              topicName = 'Bonus Problems';
             } else if (weekKey.includes('foundations')) {
               topicName = 'Foundations';
               weekBadge = 'Week 00'; // Show Week 00 badge for foundations
