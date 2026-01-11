@@ -303,6 +303,7 @@ export async function markLessonComplete(
     status: "completed",
     progress_percentage: 100,
     time_spent: timeSpent,
+    started_at: new Date().toISOString(),
     completed_at: new Date().toISOString(),
     last_accessed_at: new Date().toISOString(),
   });

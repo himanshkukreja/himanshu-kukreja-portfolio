@@ -19,19 +19,8 @@ export default function BookmarkButton({
   lessonSlug,
   lessonTitle,
 }: BookmarkButtonProps) {
-  // Add null check to handle potential context issues during HMR
-  let user = null;
-  let openAuthModal = () => {};
-
-  try {
-    const auth = useAuth();
-    const authModal = useAuthModal();
-    user = auth.user;
-    openAuthModal = authModal.openAuthModal;
-  } catch (error) {
-    console.error("[BookmarkButton] Auth context error:", error);
-    // Component will render in a disabled state if context is not available
-  }
+  const { user } = useAuth();
+  const { openAuthModal } = useAuthModal();
   const [isBookmarked, setIsBookmarked] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showDialog, setShowDialog] = useState(false);
@@ -47,6 +36,8 @@ export default function BookmarkButton({
     }
 
     async function checkBookmark() {
+      if (!user) return;
+
       try {
         const { data, error } = await supabaseClient
           .from("bookmarks")

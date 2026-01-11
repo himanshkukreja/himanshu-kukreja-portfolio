@@ -31,6 +31,8 @@ export default function CourseProgressStats({
     }
 
     async function fetchProgress() {
+      if (!user) return;
+
       try {
         const { data, error } = await supabaseClient
           .from("learning_progress")

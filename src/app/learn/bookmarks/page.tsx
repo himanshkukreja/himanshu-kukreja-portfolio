@@ -38,6 +38,8 @@ export default function BookmarksPage() {
     }
 
     async function fetchBookmarks() {
+      if (!user) return;
+
       try {
         const { data, error } = await supabaseClient
           .from("bookmarks")

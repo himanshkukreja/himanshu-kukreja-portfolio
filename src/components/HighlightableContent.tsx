@@ -114,6 +114,8 @@ export default function HighlightableContent({
     }
 
     async function fetchHighlightsAndNotes() {
+      if (!user) return;
+
       console.log("[Content] Fetching highlights and notes for lesson");
 
       // Fetch highlights (content_notes with highlight_text but no note_text)
@@ -903,14 +905,14 @@ export default function HighlightableContent({
 
       // Find the text node at the given offset
       let currentOffset = 0;
-      let targetNode: Node | null = null;
+      let foundNode: Node | null = null;
       let targetNodeOffset = 0;
 
       const findNodeAtOffset = (node: Node): boolean => {
         if (node.nodeType === Node.TEXT_NODE) {
           const textLength = (node.textContent || '').length;
           if (currentOffset + textLength > bookmarkScrollTarget) {
-            targetNode = node;
+            foundNode = node;
             targetNodeOffset = bookmarkScrollTarget - currentOffset;
             return true;
           }
@@ -928,11 +930,12 @@ export default function HighlightableContent({
 
       findNodeAtOffset(contentRef.current);
 
-      if (targetNode) {
+      const targetNode = foundNode as (Node & { parentElement: HTMLElement | null }) | null;
+      if (targetNode?.parentElement) {
         console.log("[BookmarkScroll] Found target node at offset:", targetNodeOffset);
 
         // Find the parent element to scroll to
-        let scrollTarget = targetNode.parentElement;
+        let scrollTarget: HTMLElement | null = targetNode.parentElement;
         while (scrollTarget && scrollTarget.tagName === 'SPAN') {
           scrollTarget = scrollTarget.parentElement;
         }

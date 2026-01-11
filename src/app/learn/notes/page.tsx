@@ -23,6 +23,7 @@ type NoteWithDetails = {
   week: string;
   lesson_slug: string;
   highlight_text: string;
+  highlight_offset: number | null;
   note_text: string;
   note_type: "general" | "question" | "important" | "todo";
   color: "yellow" | "green" | "blue" | "red" | "purple";
@@ -66,6 +67,8 @@ export default function NotesPage() {
     }
 
     async function fetchNotes() {
+      if (!user) return;
+
       try {
         const { data, error } = await supabaseClient
           .from("content_notes")

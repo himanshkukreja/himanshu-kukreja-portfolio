@@ -32,6 +32,8 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
     }
 
     async function fetchProgress() {
+      if (!user) return;
+
       const { data, error } = await supabaseClient
         .from("learning_progress")
         .select("progress_percentage, status, last_accessed_at, scroll_position")

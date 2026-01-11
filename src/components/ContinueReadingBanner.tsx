@@ -33,6 +33,8 @@ export default function ContinueReadingBanner({ courseId, lessonTitle }: Continu
     }
 
     async function fetchLastLesson() {
+      if (!user) return;
+
       try {
         // Get the most recently accessed lesson that's not completed
         const { data, error } = await supabaseClient

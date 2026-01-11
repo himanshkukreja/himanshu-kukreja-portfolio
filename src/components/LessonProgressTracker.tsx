@@ -8,7 +8,7 @@ type LessonProgressTrackerProps = {
   courseId: string;
   week: string;
   lessonSlug: string;
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
 };
 
 export default function LessonProgressTracker({
