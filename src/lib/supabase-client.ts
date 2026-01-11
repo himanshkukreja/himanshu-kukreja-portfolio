@@ -200,6 +200,11 @@ export async function getCurrentSession() {
 export async function getUserProfile(userId: string): Promise<{ data: UserProfile | null; error: any }> {
   try {
     console.log('[getUserProfile] Fetching profile for user:', userId);
+    console.log('[getUserProfile] Environment:', {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
+      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      origin: typeof window !== 'undefined' ? window.location.origin : 'server',
+    });
 
     // Create a timeout promise
     const timeoutPromise = new Promise<{ data: null; error: any }>((_, reject) => {
@@ -209,25 +214,49 @@ export async function getUserProfile(userId: string): Promise<{ data: UserProfil
     });
 
     // First, verify the session is valid
-    const { data: { session } } = await supabaseClient.auth.getSession();
+    console.log('[getUserProfile] Checking session...');
+    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
+
+    if (sessionError) {
+      console.error('[getUserProfile] Session error:', sessionError);
+      return { data: null, error: { message: sessionError.message, code: 'SESSION_ERROR' } };
+    }
 
     if (!session) {
       console.warn('[getUserProfile] No active session found');
       return { data: null, error: { message: 'No active session', code: 'NO_SESSION' } };
     }
 
-    // Create the fetch promise
+    console.log('[getUserProfile] Session valid, userId from session:', session.user.id);
+    console.log('[getUserProfile] Fetching profile...');
+
+    // Create the fetch promise with explicit session handling
     const fetchPromise = (async () => {
+      console.log('[getUserProfile] Starting database query...');
+      const startTime = Date.now();
+
+      // CRITICAL FIX: Ensure the session is set before making the query
+      // This forces the client to use the current session's access token
+      await supabaseClient.auth.setSession({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+      });
+
       const { data, error } = await supabaseClient
         .from("user_profiles")
         .select("*")
         .eq("id", userId)
         .maybeSingle();
 
+      const duration = Date.now() - startTime;
+
+      console.log('[getUserProfile] Query completed in', duration, 'ms');
       console.log('[getUserProfile] Response:', {
         hasData: !!data,
         error: error ? error.message : null,
         errorCode: error?.code,
+        errorDetails: error?.details,
+        errorHint: error?.hint,
       });
 
       return { data, error };
@@ -239,6 +268,7 @@ export async function getUserProfile(userId: string): Promise<{ data: UserProfil
       return result;
     } catch (timeoutError: any) {
       console.error('[getUserProfile] Request timeout:', timeoutError.message);
+      console.error('[getUserProfile] This suggests a network or CORS issue');
       return { data: null, error: { message: timeoutError.message, code: 'TIMEOUT' } };
     }
   } catch (err: any) {
