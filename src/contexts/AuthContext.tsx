@@ -57,9 +57,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // Handle different error types
         const shouldRetry =
-          (error.code === 'PGRST116' || // Profile not created yet
-           error.code === 'TIMEOUT' ||  // Request timeout
-           error.code === 'NO_SESSION') && // Session not ready
+          (error.code === 'PGRST116' ||      // Profile not created yet
+           error.code === 'TIMEOUT' ||       // Request timeout
+           error.code === 'NO_SESSION' ||    // Session not ready
+           error.code === 'SESSION_TIMEOUT' || // getSession() timed out
+           error.code === 'AUTH_TIMEOUT') && // Auth check timed out
           retryCount < 2; // Max 3 attempts
 
         if (shouldRetry) {

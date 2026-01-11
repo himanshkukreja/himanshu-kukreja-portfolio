@@ -213,21 +213,52 @@ export async function getUserProfile(userId: string): Promise<{ data: UserProfil
       }, 5000);
     });
 
-    // First, verify the session is valid
+    // First, verify the session is valid with timeout
     console.log('[getUserProfile] Checking session...');
-    const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
-    if (sessionError) {
-      console.error('[getUserProfile] Session error:', sessionError);
-      return { data: null, error: { message: sessionError.message, code: 'SESSION_ERROR' } };
+    let session;
+    try {
+      // Add timeout to getSession() call itself
+      const sessionPromise = supabaseClient.auth.getSession();
+      const sessionTimeout = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('getSession timeout')), 2000);
+      });
+
+      const { data: { session: sess }, error: sessionError } = await Promise.race([
+        sessionPromise,
+        sessionTimeout
+      ]) as any;
+
+      if (sessionError) {
+        console.error('[getUserProfile] Session error:', sessionError);
+        return { data: null, error: { message: sessionError.message, code: 'SESSION_ERROR' } };
+      }
+
+      session = sess;
+    } catch (sessionErr: any) {
+      console.error('[getUserProfile] getSession failed:', sessionErr.message);
+      // Fallback: Try to get user directly
+      console.log('[getUserProfile] Attempting fallback with getUser()...');
+      try {
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        if (userError || !user) {
+          console.error('[getUserProfile] Fallback getUser() failed:', userError);
+          return { data: null, error: { message: 'Session check failed', code: 'SESSION_TIMEOUT' } };
+        }
+        console.log('[getUserProfile] Fallback getUser() succeeded, proceeding without session validation');
+        // Continue without session - the client should have auth headers from previous auth
+      } catch (userErr) {
+        console.error('[getUserProfile] Fallback failed:', userErr);
+        return { data: null, error: { message: 'Auth check failed', code: 'AUTH_TIMEOUT' } };
+      }
     }
 
-    if (!session) {
-      console.warn('[getUserProfile] No active session found');
-      return { data: null, error: { message: 'No active session', code: 'NO_SESSION' } };
+    if (session) {
+      console.log('[getUserProfile] Session valid, userId from session:', session.user.id);
+    } else {
+      console.log('[getUserProfile] No session found, proceeding with client auth state');
     }
 
-    console.log('[getUserProfile] Session valid, userId from session:', session.user.id);
     console.log('[getUserProfile] Fetching profile...');
 
     // Create the fetch promise with explicit session handling
@@ -235,12 +266,17 @@ export async function getUserProfile(userId: string): Promise<{ data: UserProfil
       console.log('[getUserProfile] Starting database query...');
       const startTime = Date.now();
 
-      // CRITICAL FIX: Ensure the session is set before making the query
+      // CRITICAL FIX: Ensure the session is set before making the query (if we have it)
       // This forces the client to use the current session's access token
-      await supabaseClient.auth.setSession({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
-      });
+      if (session) {
+        console.log('[getUserProfile] Setting session before query...');
+        await supabaseClient.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        });
+      } else {
+        console.log('[getUserProfile] Skipping setSession (no session available), using existing client state');
+      }
 
       const { data, error } = await supabaseClient
         .from("user_profiles")
