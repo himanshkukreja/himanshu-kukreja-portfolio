@@ -1,14 +1,28 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase-client";
 
 /**
- * Client-side OAuth callback handler
- * This page processes the OAuth redirect and ensures the session is saved to localStorage
+ * Loading fallback for Suspense
  */
-export default function AuthCallbackPage() {
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
+        <h1 className="text-2xl font-bold text-white mb-2">Loading...</h1>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Client-side OAuth callback handler content
+ * This component processes the OAuth redirect and ensures the session is saved to localStorage
+ */
+function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
@@ -156,5 +170,16 @@ export default function AuthCallbackPage() {
         )}
       </div>
     </div>
+  );
+}
+
+/**
+ * Main page component with Suspense wrapper
+ */
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <AuthCallbackContent />
+    </Suspense>
   );
 }
