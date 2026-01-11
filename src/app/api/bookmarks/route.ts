@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Create Supabase client for API routes
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
+// Create Supabase client for API routes (lazy initialization)
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false,
     },
-  }
-);
+  });
+}
 
 // GET /api/bookmarks - Get all bookmarks for the current user
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get authorization token from request headers
     const authHeader = request.headers.get("authorization");
     if (!authHeader) {
@@ -65,6 +72,8 @@ export async function GET(request: NextRequest) {
 // POST /api/bookmarks - Add a new bookmark
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },
@@ -125,6 +134,8 @@ export async function POST(request: NextRequest) {
 // DELETE /api/bookmarks - Remove a bookmark
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },

@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Create Supabase client for API routes
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
+// Create Supabase client for API routes (lazy initialization)
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false,
     },
-  }
-);
+  });
+}
 
 // GET /api/notes - Get notes for the current user
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },
@@ -72,6 +79,8 @@ export async function GET(request: NextRequest) {
 // POST /api/notes - Create a new note
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },
@@ -142,6 +151,8 @@ export async function POST(request: NextRequest) {
 // PATCH /api/notes - Update an existing note
 export async function PATCH(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },
@@ -200,6 +211,8 @@ export async function PATCH(request: NextRequest) {
 // DELETE /api/notes - Delete a note
 export async function DELETE(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },

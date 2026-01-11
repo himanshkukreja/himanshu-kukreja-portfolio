@@ -1,20 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
-// Create Supabase client for API routes
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-  {
+// Create Supabase client for API routes (lazy initialization)
+function getSupabaseClient() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error("Missing Supabase environment variables");
+  }
+
+  return createClient(supabaseUrl, supabaseKey, {
     auth: {
       persistSession: false,
     },
-  }
-);
+  });
+}
 
 // GET /api/progress - Get learning progress for the current user
 export async function GET(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },
@@ -73,6 +80,8 @@ export async function GET(request: NextRequest) {
 // POST /api/progress - Update or create learning progress
 export async function POST(request: NextRequest) {
   try {
+    const supabase = getSupabaseClient();
+
     // Get current user
     const {
       data: { user },
@@ -157,6 +166,7 @@ export async function POST(request: NextRequest) {
 
 // PATCH /api/progress - Increment time spent on a lesson
 export async function PATCH(request: NextRequest) {
+  const supabase = getSupabaseClient();
   try {
     // Get current user
     const {
