@@ -37,9 +37,13 @@ export default function AuthHashHandler() {
         if (accessToken && refreshToken) {
           console.log("[AuthHashHandler] Processing tokens and redirecting to callback...");
 
+          // Retrieve the redirect path stored before OAuth started
+          const redirectPath = localStorage.getItem('auth_redirect_path') || '/';
+          console.log('[AuthHashHandler] Retrieved redirect path:', redirectPath);
+
           // Instead of manually storing in localStorage, redirect to our callback endpoint
           // This is more reliable and lets the server handle session creation
-          const callbackUrl = `/auth/callback?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}&expires_in=${expiresIn || 3600}&token_type=bearer`;
+          const callbackUrl = `/auth/callback?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}&expires_in=${expiresIn || 3600}&token_type=bearer&redirect=${encodeURIComponent(redirectPath)}`;
 
           console.log("[AuthHashHandler] Redirecting to callback handler");
           window.location.href = callbackUrl;

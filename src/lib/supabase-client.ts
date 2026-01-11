@@ -97,11 +97,17 @@ export type ContentNote = {
  * No separate signup needed - Supabase handles both signin and signup
  */
 export async function signInWithEmail(email: string) {
+  // Store the current path in localStorage so we can redirect back after authentication
+  const currentPath = window.location.pathname + window.location.search;
+  localStorage.setItem('auth_redirect_path', currentPath);
+
+  console.log('[signInWithEmail] Storing redirect path:', currentPath);
+
   const { data, error } = await supabaseClient.auth.signInWithOtp({
     email,
     options: {
       shouldCreateUser: true, // Auto-create user if doesn't exist
-      emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(window.location.pathname)}`,
+      emailRedirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(currentPath)}`,
     },
   });
 
@@ -132,10 +138,17 @@ export async function verifyOtp(email: string, token: string) {
  * Sign in with Google OAuth
  */
 export async function signInWithGoogle() {
+  // Store the current path in localStorage so we can redirect back after OAuth
+  // This is necessary because OAuth hash fragment redirects lose query parameters
+  const currentPath = window.location.pathname + window.location.search;
+  localStorage.setItem('auth_redirect_path', currentPath);
+
+  console.log('[signInWithGoogle] Storing redirect path:', currentPath);
+
   const { data, error } = await supabaseClient.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(window.location.pathname)}`,
+      redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(currentPath)}`,
       skipBrowserRedirect: false,
       queryParams: {
         access_type: "offline",

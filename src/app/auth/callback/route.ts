@@ -50,8 +50,12 @@ export async function GET(request: NextRequest) {
           }
         }
 
+        // Use the redirect path from query params, defaulting to homepage
+        const redirectPath = redirect || '/';
+        console.log("[Auth Callback] Redirecting to:", redirectPath);
+
         // Set cookies to persist session
-        const response = NextResponse.redirect(`${origin}${redirect || '/'}`);
+        const response = NextResponse.redirect(`${origin}${redirectPath}`);
 
         // Set session cookies
         response.cookies.set('sb-access-token', accessToken, {
