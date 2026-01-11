@@ -8,6 +8,7 @@ import Navbar from "@/components/Navbar";
 import { Analytics } from '@vercel/analytics/next';
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import GlobalAuthModal from "@/components/GlobalAuthModal";
+import AuthHashHandler from "@/components/AuthHashHandler";
 
 
 
@@ -60,6 +61,7 @@ export default function RootLayout({
         <AuthProvider>
           <AuthModalProvider>
             <ThemeProvider>
+              <AuthHashHandler />
               <Navbar />
               {children}
               <GlobalAuthModal />

@@ -136,6 +136,7 @@ export async function signInWithGoogle() {
     provider: "google",
     options: {
       redirectTo: `${window.location.origin}/auth/callback?redirect=${encodeURIComponent(window.location.pathname)}`,
+      skipBrowserRedirect: false,
       queryParams: {
         access_type: "offline",
         prompt: "consent",
