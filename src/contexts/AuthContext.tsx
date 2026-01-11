@@ -175,11 +175,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const handleSignOut = async () => {
     try {
       console.log("[AuthContext] Signing out...");
-      const { error } = await supabaseClient.auth.signOut();
 
-      if (error) {
-        console.error("[AuthContext] Sign out error:", error);
-        throw error;
+      // Try to sign out via Supabase
+      try {
+        await supabaseClient.auth.signOut();
+      } catch (signOutError) {
+        console.warn("[AuthContext] Supabase sign out failed, using manual cleanup:", signOutError);
+
+        // Manual cleanup - clear localStorage directly
+        const storageKey = "sb-jnvxizdhpecnydnvhell-auth-token";
+        localStorage.removeItem(storageKey);
+
+        // Also clear any other Supabase keys
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('sb-jnvxizdhpecnydnvhell')) {
+            localStorage.removeItem(key);
+          }
+        });
       }
 
       // Clear state immediately

@@ -35,54 +35,14 @@ export default function AuthHashHandler() {
         });
 
         if (accessToken && refreshToken) {
-          // Decode the JWT to get user info
-          const payloadBase64 = accessToken.split('.')[1];
-          const decodedPayload = JSON.parse(atob(payloadBase64));
+          console.log("[AuthHashHandler] Processing tokens and redirecting to callback...");
 
-          console.log("[AuthHashHandler] Decoded user from token:", {
-            userId: decodedPayload.sub,
-            email: decodedPayload.email,
-          });
+          // Instead of manually storing in localStorage, redirect to our callback endpoint
+          // This is more reliable and lets the server handle session creation
+          const callbackUrl = `/auth/callback?access_token=${encodeURIComponent(accessToken)}&refresh_token=${encodeURIComponent(refreshToken)}&expires_in=${expiresIn || 3600}&token_type=bearer`;
 
-          // Calculate expiry timestamp
-          const expiryTimestamp = expiresAt
-            ? parseInt(expiresAt)
-            : Math.floor(Date.now() / 1000) + (expiresIn ? parseInt(expiresIn) : 3600);
-
-          // Create complete session object in the format Supabase v2 expects
-          const sessionData = {
-            access_token: accessToken,
-            refresh_token: refreshToken,
-            expires_in: expiresIn ? parseInt(expiresIn) : 3600,
-            expires_at: expiryTimestamp,
-            token_type: "bearer",
-            user: {
-              id: decodedPayload.sub,
-              email: decodedPayload.email,
-              aud: decodedPayload.aud,
-              role: decodedPayload.role,
-              created_at: decodedPayload.created_at,
-              updated_at: decodedPayload.updated_at,
-              app_metadata: decodedPayload.app_metadata || {},
-              user_metadata: decodedPayload.user_metadata || {},
-            },
-          };
-
-          // Supabase v2 uses this key format: sb-{project-ref}-auth-token
-          const storageKey = "sb-jnvxizdhpecnydnvhell-auth-token";
-
-          console.log("[AuthHashHandler] Storing session with key:", storageKey);
-          localStorage.setItem(storageKey, JSON.stringify(sessionData));
-
-          console.log("[AuthHashHandler] ✅ Session stored in localStorage");
-          console.log("[AuthHashHandler] Cleaning URL and reloading...");
-
-          // Clean the URL
-          const cleanUrl = window.location.pathname + window.location.search;
-          window.history.replaceState({}, document.title, cleanUrl);
-
-          // Reload the page to let Supabase pick up the session from localStorage
-          window.location.reload();
+          console.log("[AuthHashHandler] Redirecting to callback handler");
+          window.location.href = callbackUrl;
         } else {
           console.error("[AuthHashHandler] ❌ Missing tokens");
         }
