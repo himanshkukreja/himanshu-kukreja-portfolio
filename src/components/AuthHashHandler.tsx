@@ -1,37 +1,44 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef } from "react";
 import { supabaseClient } from "@/lib/supabase-client";
-import { useRouter } from "next/navigation";
 
 /**
  * Component to handle OAuth callback with hash fragment tokens
  * This handles the case when Supabase redirects with #access_token= in the URL
  */
 export default function AuthHashHandler() {
-  const router = useRouter();
-  const [processed, setProcessed] = useState(false);
+  const processedRef = useRef(false);
 
   useEffect(() => {
     // Only run on client side and only once
-    if (typeof window === "undefined" || processed) return;
+    if (typeof window === "undefined" || processedRef.current) return;
 
     const handleHashFragment = async () => {
       const hash = window.location.hash;
+      console.log("[AuthHashHandler] Current URL:", window.location.href);
+      console.log("[AuthHashHandler] Hash:", hash);
 
       // Check if we have auth tokens in the hash
       if (hash && hash.includes("access_token=")) {
-        console.log("[AuthHashHandler] Detected auth tokens in hash fragment");
-        setProcessed(true);
+        console.log("[AuthHashHandler] ✅ Detected auth tokens in hash fragment");
+        processedRef.current = true;
 
         try {
           // Parse the hash fragment
           const hashParams = new URLSearchParams(hash.substring(1));
           const accessToken = hashParams.get("access_token");
           const refreshToken = hashParams.get("refresh_token");
+          const expiresIn = hashParams.get("expires_in");
+
+          console.log("[AuthHashHandler] Tokens extracted:", {
+            hasAccessToken: !!accessToken,
+            hasRefreshToken: !!refreshToken,
+            expiresIn: expiresIn,
+          });
 
           if (accessToken && refreshToken) {
-            console.log("[AuthHashHandler] Setting session with tokens from hash");
+            console.log("[AuthHashHandler] Setting session with tokens...");
 
             // Set the session using the tokens from the hash
             const { data, error } = await supabaseClient.auth.setSession({
@@ -40,29 +47,39 @@ export default function AuthHashHandler() {
             });
 
             if (error) {
-              console.error("[AuthHashHandler] Error setting session:", error);
+              console.error("[AuthHashHandler] ❌ Error setting session:", error);
             } else if (data.session) {
               console.log("[AuthHashHandler] ✅ Session created successfully!");
-              console.log("[AuthHashHandler] User:", data.session.user.email);
+              console.log("[AuthHashHandler] User ID:", data.session.user.id);
+              console.log("[AuthHashHandler] User Email:", data.session.user.email);
 
               // Clean up the URL by removing the hash fragment
               const cleanUrl = window.location.pathname + window.location.search;
+              console.log("[AuthHashHandler] Cleaning URL to:", cleanUrl);
               window.history.replaceState({}, document.title, cleanUrl);
 
-              // Refresh the page to update auth state
-              router.refresh();
+              // Force a re-render of auth state by manually triggering a storage event
+              window.dispatchEvent(new Event("storage"));
+            } else {
+              console.error("[AuthHashHandler] ❌ Session data is null");
             }
+          } else {
+            console.error("[AuthHashHandler] ❌ Missing access_token or refresh_token");
           }
         } catch (error) {
-          console.error("[AuthHashHandler] Error processing hash fragment:", error);
+          console.error("[AuthHashHandler] ❌ Error processing hash fragment:", error);
         }
+      } else {
+        console.log("[AuthHashHandler] No auth tokens in hash, skipping");
       }
     };
 
-    // Small delay to ensure the component is mounted
-    const timer = setTimeout(handleHashFragment, 100);
+    // Run immediately and also after a small delay as a backup
+    handleHashFragment();
+    const timer = setTimeout(handleHashFragment, 500);
+
     return () => clearTimeout(timer);
-  }, [processed, router]);
+  }, []);
 
   return null; // This component doesn't render anything
 }
