@@ -1,11 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { supabaseClient } from "@/lib/supabase-client";
 
 /**
  * Component to handle OAuth callback with hash fragment tokens
- * This handles the case when Supabase redirects with #access_token= in the URL
+ * Manually stores session in localStorage for Supabase to pick up
  */
 export default function AuthHashHandler() {
   const processedRef = useRef(false);
@@ -14,72 +13,64 @@ export default function AuthHashHandler() {
     // Only run on client side and only once
     if (typeof window === "undefined" || processedRef.current) return;
 
-    const handleHashFragment = async () => {
-      const hash = window.location.hash;
-      console.log("[AuthHashHandler] Current URL:", window.location.href);
-      console.log("[AuthHashHandler] Hash:", hash);
+    const hash = window.location.hash;
 
-      // Check if we have auth tokens in the hash
-      if (hash && hash.includes("access_token=")) {
-        console.log("[AuthHashHandler] ✅ Detected auth tokens in hash fragment");
-        processedRef.current = true;
+    // Check if we have auth tokens in the hash
+    if (hash && hash.includes("access_token=")) {
+      console.log("[AuthHashHandler] ✅ Detected auth tokens in hash");
+      processedRef.current = true;
 
-        try {
-          // Parse the hash fragment
-          const hashParams = new URLSearchParams(hash.substring(1));
-          const accessToken = hashParams.get("access_token");
-          const refreshToken = hashParams.get("refresh_token");
-          const expiresIn = hashParams.get("expires_in");
+      try {
+        // Parse the hash fragment
+        const hashParams = new URLSearchParams(hash.substring(1));
+        const accessToken = hashParams.get("access_token");
+        const refreshToken = hashParams.get("refresh_token");
+        const expiresIn = hashParams.get("expires_in");
+        const expiresAt = hashParams.get("expires_at");
 
-          console.log("[AuthHashHandler] Tokens extracted:", {
-            hasAccessToken: !!accessToken,
-            hasRefreshToken: !!refreshToken,
-            expiresIn: expiresIn,
-          });
+        console.log("[AuthHashHandler] Extracted tokens:", {
+          hasAccessToken: !!accessToken,
+          hasRefreshToken: !!refreshToken,
+          expiresIn,
+        });
 
-          if (accessToken && refreshToken) {
-            console.log("[AuthHashHandler] Setting session with tokens...");
+        if (accessToken && refreshToken) {
+          // Calculate expiry timestamp
+          const expiryTimestamp = expiresAt
+            ? parseInt(expiresAt)
+            : Math.floor(Date.now() / 1000) + (expiresIn ? parseInt(expiresIn) : 3600);
 
-            // Set the session using the tokens from the hash
-            const { data, error } = await supabaseClient.auth.setSession({
-              access_token: accessToken,
-              refresh_token: refreshToken,
-            });
+          // Create session object that Supabase expects
+          const session = {
+            access_token: accessToken,
+            refresh_token: refreshToken,
+            expires_in: expiresIn ? parseInt(expiresIn) : 3600,
+            expires_at: expiryTimestamp,
+            token_type: "bearer",
+            user: null, // Will be populated by Supabase
+          };
 
-            if (error) {
-              console.error("[AuthHashHandler] ❌ Error setting session:", error);
-            } else if (data.session) {
-              console.log("[AuthHashHandler] ✅ Session created successfully!");
-              console.log("[AuthHashHandler] User ID:", data.session.user.id);
-              console.log("[AuthHashHandler] User Email:", data.session.user.email);
+          // Store in localStorage with Supabase's expected key format
+          const supabaseKey = `sb-jnvxizdhpecnydnvhell-auth-token`;
+          localStorage.setItem(supabaseKey, JSON.stringify(session));
 
-              // Clean up the URL by removing the hash fragment
-              const cleanUrl = window.location.pathname + window.location.search;
-              console.log("[AuthHashHandler] Cleaning URL to:", cleanUrl);
-              window.history.replaceState({}, document.title, cleanUrl);
+          console.log("[AuthHashHandler] ✅ Session stored in localStorage");
+          console.log("[AuthHashHandler] Cleaning URL and reloading...");
 
-              // Force a re-render of auth state by manually triggering a storage event
-              window.dispatchEvent(new Event("storage"));
-            } else {
-              console.error("[AuthHashHandler] ❌ Session data is null");
-            }
-          } else {
-            console.error("[AuthHashHandler] ❌ Missing access_token or refresh_token");
-          }
-        } catch (error) {
-          console.error("[AuthHashHandler] ❌ Error processing hash fragment:", error);
+          // Clean the URL
+          const cleanUrl = window.location.pathname + window.location.search;
+          window.history.replaceState({}, document.title, cleanUrl);
+
+          // Reload the page to let Supabase pick up the session from localStorage
+          window.location.reload();
+        } else {
+          console.error("[AuthHashHandler] ❌ Missing tokens");
         }
-      } else {
-        console.log("[AuthHashHandler] No auth tokens in hash, skipping");
+      } catch (error) {
+        console.error("[AuthHashHandler] ❌ Error processing hash:", error);
       }
-    };
-
-    // Run immediately and also after a small delay as a backup
-    handleHashFragment();
-    const timer = setTimeout(handleHashFragment, 500);
-
-    return () => clearTimeout(timer);
+    }
   }, []);
 
-  return null; // This component doesn't render anything
+  return null;
 }
