@@ -86,17 +86,17 @@ export default function CourseProgressStats({
   }
 
   return (
-    <div className="mb-8 bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/20 rounded-xl p-6">
-      <div className="flex items-center justify-between gap-4 flex-wrap">
+    <div className="mb-6 sm:mb-8 bg-gradient-to-r from-green-500/10 to-blue-500/10 dark:from-green-500/10 dark:to-blue-500/10 border border-green-500/20 dark:border-green-500/20 rounded-xl p-4 sm:p-6">
+      <div className="flex flex-col gap-4">
         {/* Progress Info */}
-        <div className="flex-1 min-w-[200px]">
+        <div className="w-full">
           <div className="flex items-center gap-2 mb-2">
-            <TrendingUp className="w-5 h-5 text-green-400" />
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white">
+            <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-400" />
+            <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
               Your Progress
             </h3>
           </div>
-          <p className="text-sm text-gray-600 dark:text-white/70">
+          <p className="text-xs sm:text-sm text-gray-600 dark:text-white/70">
             {stats.completedLessons} of {totalLessons} lessons completed
             {stats.inProgressLessons > 0 && (
               <span className="text-blue-400"> • {stats.inProgressLessons} in progress</span>
@@ -104,17 +104,17 @@ export default function CourseProgressStats({
           </p>
         </div>
 
-        {/* Progress Circle */}
-        <div className="flex items-center gap-6">
+        {/* Progress Bar and Badge */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-6">
           {/* Progress Bar */}
-          <div className="flex-1 min-w-[200px]">
+          <div className="flex-1">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs text-gray-500 dark:text-white/60">Overall Progress</span>
               <span className="text-sm font-bold text-gray-900 dark:text-white">
                 {stats.overallProgress}%
               </span>
             </div>
-            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-3">
+            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 sm:h-3">
               <div
                 className="h-full bg-gradient-to-r from-green-500 to-blue-500 rounded-full transition-all duration-500"
                 style={{ width: `${stats.overallProgress}%` }}
@@ -123,8 +123,8 @@ export default function CourseProgressStats({
           </div>
 
           {/* Completion Badge */}
-          <div className="flex items-center gap-2 px-4 py-2 bg-green-500/20 text-green-400 rounded-lg">
-            <CheckCircle2 className="w-5 h-5" />
+          <div className="flex items-center justify-center gap-2 px-4 py-2 bg-green-500/20 dark:bg-green-500/20 text-green-600 dark:text-green-400 rounded-lg flex-shrink-0 w-full sm:w-auto">
+            <CheckCircle2 className="w-4 h-4 sm:w-5 sm:h-5" />
             <span className="text-sm font-semibold">
               {stats.completedLessons}/{totalLessons}
             </span>
