@@ -2,12 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer utilities {
+  /* Theme-aware text utilities */
+  .text-theme {
+    @apply text-gray-900 dark:text-white;
+  }
+  .text-theme-muted {
+    @apply text-gray-700 dark:text-white/80;
+  }
+  .text-theme-subtle {
+    @apply text-gray-600 dark:text-white/70;
+  }
+
+  /* Theme-aware border utilities */
+  .border-theme {
+    @apply border-black/10 dark:border-white/10;
+  }
+
+  /* Theme-aware background utilities */
+  .bg-theme-subtle {
+    @apply bg-black/5 dark:bg-white/5;
+  }
+  .bg-theme-hover {
+    @apply hover:bg-black/10 dark:hover:bg-white/10;
+  }
+}
+
 :root {
-  --background: #0b1020; /* deep blue for light default background */
-  --foreground: #0f172a; /* slate-900 */
+  --background: #ffffff; /* pure white background for light mode */
+  --foreground: #0f172a; /* slate-900 for text */
   --muted: #64748b; /* slate-500 */
-  --card: #ffffff;
-  --card-foreground: #0b1020;
+  --card: #f8fafc; /* slate-50 for cards */
+  --card-foreground: #0f172a;
   --accent: #3b82f6; /* blue-500 */
   --accent-2: #8b5cf6; /* violet-500 */
   --ring: #60a5fa; /* blue-400 */
@@ -42,11 +68,16 @@
 html { scroll-behavior: smooth; }
 
 body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+}
+
+/* Dark mode gradient overlays */
+.dark body {
   background: radial-gradient(1200px 600px at 50% -10%, rgba(56, 189, 248, 0.12), transparent 60%),
               radial-gradient(800px 400px at 80% 10%, rgba(168, 85, 247, 0.12), transparent 60%),
               var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
 }
 
 code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
@@ -54,28 +85,29 @@ code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, M
 /* Markdown content formatting — refined for readability */
 .md-content { line-height: 1.85; letter-spacing: 0.01em; font-size: 1.0625rem; }
 .md-content > * + * { margin-top: 1rem; }
-.md-content h1 { margin: 2.5rem 0 1.25rem; font-size: clamp(2rem, 3vw + 1rem, 2.5rem); font-weight: 800; color: #fff; }
-.md-content h2 { margin: 2.25rem 0 1rem; font-size: clamp(1.5rem, 2.2vw + 0.75rem, 2rem); font-weight: 700; color: #fff; }
-.md-content h3 { margin: 1.75rem 0 0.75rem; font-size: 1.5rem; font-weight: 600; color: #fff; }
-.md-content h4, .md-content h5, .md-content h6 { margin: 1.5rem 0 0.75rem; font-weight: 600; color: #fff; font-size: 1.125rem; }
+.md-content h1 { margin: 2.5rem 0 1.25rem; font-size: clamp(2rem, 3vw + 1rem, 2.5rem); font-weight: 800; color: var(--foreground); }
+.md-content h2 { margin: 2.25rem 0 1rem; font-size: clamp(1.5rem, 2.2vw + 0.75rem, 2rem); font-weight: 700; color: var(--foreground); }
+.md-content h3 { margin: 1.75rem 0 0.75rem; font-size: 1.5rem; font-weight: 600; color: var(--foreground); }
+.md-content h4, .md-content h5, .md-content h6 { margin: 1.5rem 0 0.75rem; font-weight: 600; color: var(--foreground); font-size: 1.125rem; }
 .md-content h1, .md-content h2, .md-content h3, .md-content h4, .md-content h5, .md-content h6 { scroll-margin-top: 100px; }
-.md-content p { margin: 1.125rem 0; color: rgba(255,255,255,0.92); line-height: 1.8; }
+.md-content p { margin: 1.125rem 0; color: var(--foreground); opacity: 0.92; line-height: 1.8; }
 .md-content ul, .md-content ol { margin: 1.125rem 0; padding-left: 1.5rem; }
 .md-content ul { list-style: disc; }
 .md-content ol { list-style: decimal; }
 .md-content li { margin: 0.5rem 0; line-height: 1.75; }
 .md-content li > ul, .md-content li > ol { margin-top: 0.5rem; }
-.md-content blockquote { margin: 1.25rem 0; padding-left: 1rem; border-left: 4px solid rgba(255,255,255,0.15); color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.04); border-radius: 0 0.5rem 0.5rem 0; }
-.md-content code { background: rgba(255,255,255,0.08); color: white; padding: 0.15rem 0.35rem; border-radius: 0.375rem; }
+.md-content blockquote { margin: 1.25rem 0; padding-left: 1rem; border-left: 4px solid rgba(0,0,0,0.15); color: var(--foreground); opacity: 0.85; background: rgba(0,0,0,0.04); border-radius: 0 0.5rem 0.5rem 0; }
+.md-content code { background: rgba(0,0,0,0.08); color: var(--foreground); padding: 0.15rem 0.35rem; border-radius: 0.375rem; }
 .md-content pre {
-  background: #0f172a;
-  color: #e5e7eb;
+  background: #f8fafc;
+  color: #0f172a;
   padding: 1.5rem;
   border-radius: 0.75rem;
   overflow-x: auto;
   overflow-y: hidden;
   margin: 1.25rem 0;
   white-space: pre;
+  border: 1px solid #e2e8f0;
   /* Use system monospace fonts that render box-drawing chars well */
   font-family: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, 'Courier New', monospace;
   font-size: 0.875rem;
@@ -91,6 +123,22 @@ code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, M
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+/* Dark mode markdown styles */
+.dark .md-content h1,
+.dark .md-content h2,
+.dark .md-content h3,
+.dark .md-content h4,
+.dark .md-content h5,
+.dark .md-content h6 { color: #fff; }
+.dark .md-content p { color: rgba(255,255,255,0.92); }
+.dark .md-content blockquote { border-left-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.85); background: rgba(255,255,255,0.04); }
+.dark .md-content code { background: rgba(255,255,255,0.08); color: white; }
+.dark .md-content pre {
+  background: #0f172a;
+  color: #e5e7eb;
+  border-color: rgba(255,255,255,0.1);
 }
 
 /* Mobile responsive for code blocks */
@@ -116,23 +164,35 @@ code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, M
   text-align: left;
 }
 .md-content table { width: 100%; border-collapse: collapse; margin: 1.25rem 0; font-size: 0.95rem; }
-.md-content thead th { background: rgba(255,255,255,0.05); }
-.md-content th, .md-content td { border: 1px solid rgba(255,255,255,0.12); padding: 0.5rem 0.75rem; text-align: left; }
-.md-content hr { border: 0; border-top: 1px solid rgba(255,255,255,0.12); margin: 2rem 0; }
-.md-content a { color: #93c5fd; text-decoration: underline; }
-.md-content a:hover { color: #bfdbfe; }
+.md-content thead th { background: rgba(0,0,0,0.05); }
+.md-content th, .md-content td { border: 1px solid rgba(0,0,0,0.12); padding: 0.5rem 0.75rem; text-align: left; }
+.md-content hr { border: 0; border-top: 1px solid rgba(0,0,0,0.12); margin: 2rem 0; }
+.md-content a { color: #3b82f6; text-decoration: underline; }
+.md-content a:hover { color: #2563eb; }
 .md-content img { display: block; margin: 1rem auto; border-radius: 0.75rem; max-width: 100%; height: auto; }
+
+/* Dark mode table and link styles */
+.dark .md-content thead th { background: rgba(255,255,255,0.05); }
+.dark .md-content th, .dark .md-content td { border-color: rgba(255,255,255,0.12); }
+.dark .md-content hr { border-top-color: rgba(255,255,255,0.12); }
+.dark .md-content a { color: #93c5fd; }
+.dark .md-content a:hover { color: #bfdbfe; }
 
 /******** Animated backgrounds ********/
 .code-grid {
   position: absolute;
   inset: 0;
-  background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
-                    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
+  background-image: linear-gradient(rgba(0,0,0,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(0,0,0,0.04) 1px, transparent 1px);
   background-size: 24px 24px, 24px 24px;
   -webkit-mask-image: radial-gradient(circle at 50% 30%, black, transparent 70%);
   mask-image: radial-gradient(circle at 50% 30%, black, transparent 70%);
   pointer-events: none;
+}
+
+.dark .code-grid {
+  background-image: linear-gradient(rgba(255,255,255,0.04) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.04) 1px, transparent 1px);
 }
 
 @keyframes float {

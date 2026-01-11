@@ -1,9 +1,13 @@
-import { getAllLearningResources, getAllCourses } from "@/lib/github";
+import { getAllLearningResources, getAllCourses, fetchMarkdownContent } from "@/lib/github";
+import { calculateReadingTime } from "@/lib/reading-time";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BookOpen, Calendar, Award, Target, ChevronLeft } from "lucide-react";
 import CollapsibleWeek from "@/components/CollapsibleWeek";
 import SearchBar from "@/components/SearchBar";
+import AuthPromptBanner from "@/components/AuthPromptBanner";
+import ContinueReadingBanner from "@/components/ContinueReadingBanner";
+import CourseProgressStats from "@/components/CourseProgressStats";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +50,21 @@ export default async function CoursePage({ params }: Props) {
   const allResources = await getAllLearningResources();
   const resources = allResources.filter(r => r.course === course);
 
+  // Calculate reading times for all resources
+  const readingTimes: Record<string, string> = {};
+  await Promise.all(
+    resources.map(async (resource) => {
+      try {
+        const content = await fetchMarkdownContent(resource.path);
+        const { text } = calculateReadingTime(content);
+        readingTimes[resource.slug] = text;
+      } catch (error) {
+        console.log(`[ReadingTime] Error calculating for ${resource.slug}:`, error);
+        readingTimes[resource.slug] = '5 min read'; // Default fallback
+      }
+    })
+  );
+
   // Group resources by week
   const resourcesByWeek = resources.reduce((acc, resource) => {
     if (!acc[resource.week]) {
@@ -70,7 +89,7 @@ export default async function CoursePage({ params }: Props) {
         {/* Back Link */}
         <Link
           href="/learn"
-          className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors mb-8"
+          className="inline-flex items-center gap-2 text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white transition-colors mb-8"
         >
           <ChevronLeft className="w-4 h-4" />
           Back to Courses
@@ -81,7 +100,7 @@ export default async function CoursePage({ params }: Props) {
           <h1 className="text-4xl sm:text-5xl font-bold mb-4 bg-gradient-to-r from-blue-400 to-purple-600 bg-clip-text text-transparent">
             {courseData.title}
           </h1>
-          <p className="text-lg text-white/70 max-w-2xl">
+          <p className="text-lg text-gray-600 dark:text-white/70 max-w-2xl">
             {courseData.description}
           </p>
         </div>
@@ -90,6 +109,17 @@ export default async function CoursePage({ params }: Props) {
         <div className="mb-8">
           <SearchBar />
         </div>
+
+        {/* Auth Prompt Banner */}
+        <div className="mb-8">
+          <AuthPromptBanner variant="learn-page" />
+        </div>
+
+        {/* Continue Reading Banner */}
+        <ContinueReadingBanner courseId={course} />
+
+        {/* Course Progress Stats */}
+        <CourseProgressStats courseId={course} totalLessons={resources.length} />
 
         {/* Course Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
@@ -157,23 +187,24 @@ export default async function CoursePage({ params }: Props) {
                 resources={weekResources}
                 course={course}
                 defaultOpen={weekKey === 'overview'}
+                readingTimes={readingTimes}
               />
             );
           })}
         </div>
 
         {/* Footer CTA */}
-        <div className="mt-12 text-center p-8 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-white/10">
-          <h3 className="text-xl font-bold text-white mb-2">
+        <div className="mt-12 text-center p-8 bg-gradient-to-r from-blue-500/10 to-purple-500/10 rounded-lg border border-black/10 dark:border-white/10">
+          <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
             Ready to Master System Design?
           </h3>
-          <p className="text-white/60 mb-4">
+          <p className="text-gray-500 dark:text-white/60 mb-4">
             Start with the course overview and work your way up to advanced distributed systems.
           </p>
           {sortedWeeks.length > 0 && (
             <Link
               href={`/learn/${course}/${sortedWeeks[0]}/${resourcesByWeek[sortedWeeks[0]][0].slug}`}
-              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-blue-500 hover:bg-blue-600 text-gray-900 dark:text-white rounded-lg transition-all"
             >
               <BookOpen className="w-5 h-5" />
               Start Learning
@@ -187,10 +218,10 @@ export default async function CoursePage({ params }: Props) {
 
 function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4 text-center">
+    <div className="bg-white/5 backdrop-blur-sm rounded-lg border border-black/10 dark:border-white/10 p-4 text-center">
       <div className="flex justify-center mb-2 text-blue-400">{icon}</div>
-      <div className="text-2xl font-bold text-white">{value}</div>
-      <div className="text-sm text-white/60">{label}</div>
+      <div className="text-2xl font-bold text-gray-900 dark:text-white">{value}</div>
+      <div className="text-sm text-gray-500 dark:text-white/60">{label}</div>
     </div>
   );
 }

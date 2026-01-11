@@ -53,13 +53,13 @@ export default function Skills() {
         <motion.div
           key={c.title}
           variants={item}
-          className="group relative rounded-2xl border border-white/10 bg-white/5 p-6 text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
+          className="group relative rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-6 text-gray-800 dark:text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
         >
-          <div className="flex items-center gap-2 text-white">
+          <div className="flex items-center gap-2 text-gray-900 dark:text-white">
             <c.icon className="h-5 w-5 text-indigo-300/90" />
             <h3 className="font-semibold text-base sm:text-lg">{c.title}</h3>
           </div>
-          <ul className="mt-3 space-y-2 text-white/85">
+          <ul className="mt-3 space-y-2 text-gray-700 dark:text-white/85">
             {c.items.map((it) => (
               <li key={it} className="flex items-start gap-2">
                 <span className="mt-1 inline-block h-1.5 w-1.5 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500" />

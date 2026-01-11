@@ -22,7 +22,7 @@ const item = {
 };
 
 const tagClass =
-  "inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-white/85 ring-1 ring-inset ring-white/10 transition-colors hover:from-indigo-500/25 hover:to-blue-500/25";
+  "inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-gray-700 dark:text-white/85 ring-1 ring-inset ring-white/10 transition-colors hover:from-indigo-500/25 hover:to-blue-500/25";
 
 export default function Projects() {
   const projects: Project[] = [
@@ -46,10 +46,10 @@ export default function Projects() {
         <motion.article
           key={p.title}
           variants={item}
-          className="group relative rounded-2xl border border-white/10 bg-white/5 p-6 text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)] will-change-transform"
+          className="group relative rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-6 text-gray-800 dark:text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)] will-change-transform"
         >
           <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2 text-white">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
               <FolderGit2 className="h-5 w-5 text-indigo-300/90" />
               <h3 className="font-semibold text-base sm:text-lg">{p.title}</h3>
             </div>
@@ -58,14 +58,14 @@ export default function Projects() {
                 href={p.link}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/80 hover:bg-white/10"
+                className="inline-flex items-center gap-1 rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-2.5 py-1 text-xs text-gray-700 dark:text-white/80 hover:bg-black/10 dark:bg-white/10"
               >
                 View <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
           </div>
 
-          <p className="text-white/80 mt-2 text-sm">{p.desc}</p>
+          <p className="text-gray-700 dark:text-white/80 mt-2 text-sm">{p.desc}</p>
 
           <div className="mt-4 flex flex-wrap gap-1.5">
             {p.tags.map((t) => (

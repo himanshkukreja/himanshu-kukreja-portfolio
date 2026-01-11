@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>Your Verification Code</title>
+  <style>
+    /* Force light mode for email clients */
+    :root {
+      color-scheme: light only;
+      supported-color-schemes: light;
+    }
+    /* Prevent dark mode auto-inversion */
+    * {
+      color-scheme: light only !important;
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f5f5f7;">
+  <table role="presentation" style="width: 100%; border-collapse: collapse; background-color: #f5f5f7;">
+    <tr>
+      <td align="center" style="padding: 40px 20px;">
+        <table role="presentation" style="max-width: 600px; width: 100%; border-collapse: collapse; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+
+          <!-- Top Gradient Line -->
+          <tr>
+            <td style="height: 4px; background: linear-gradient(to right, #3b82f6, #8b5cf6, #3b82f6);"></td>
+          </tr>
+
+          <!-- Header -->
+          <tr>
+            <td style="padding: 40px 40px 20px; text-align: center; border-bottom: 1px solid #e5e5e7;">
+              <h1 style="margin: 0; font-size: 28px; font-weight: 700; color: #1d1d1f;">
+                Welcome to Your Learning Journey
+              </h1>
+              <p style="margin: 8px 0 0; color: #86868b; font-size: 14px;">
+                Verify your email to get started
+              </p>
+            </td>
+          </tr>
+
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <p style="margin: 0 0 24px; color: #1d1d1f; font-size: 16px; line-height: 1.6;">
+                Hi there! 👋
+              </p>
+              <p style="margin: 0 0 32px; color: #1d1d1f; font-size: 15px; line-height: 1.6;">
+                Use the verification code below to complete your sign-in. This code will expire in <strong style="color: #0066cc;">10 minutes</strong>.
+              </p>
+
+              <!-- OTP Code Box -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 32px;">
+                <tr>
+                  <td style="background-color: #f5f5f7; border: 2px solid #0066cc; border-radius: 12px; padding: 24px; text-align: center;">
+                    <div style="font-size: 13px; color: #86868b; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; font-weight: 600;">
+                      Your Verification Code
+                    </div>
+                    <div style="font-size: 42px; font-weight: 700; letter-spacing: 8px; color: #0066cc; font-family: 'Courier New', monospace;">
+                      {{ .Token }}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Magic Link Fallback -->
+              <table role="presentation" style="width: 100%; border-collapse: collapse; margin: 0 0 32px;">
+                <tr>
+                  <td align="center">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 14px 28px; background-color: #0066cc; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; border-radius: 8px;">
+                      Or click here to verify instantly →
+                    </a>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Benefits Section -->
+              <div style="background-color: #f5f5f7; border: 1px solid #e5e5e7; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+                <p style="margin: 0 0 16px; color: #1d1d1f; font-size: 14px; font-weight: 600;">
+                  ✨ What you'll get:
+                </p>
+                <ul style="margin: 0; padding: 0 0 0 20px; color: #1d1d1f; font-size: 14px; line-height: 1.8;">
+                  <li>Track your learning progress and earn streaks</li>
+                  <li>Bookmark lessons and take personal notes</li>
+                  <li>Access to exclusive learning resources</li>
+                  <li>100% free, no credit card required</li>
+                </ul>
+              </div>
+
+              <p style="margin: 0 0 8px; color: #86868b; font-size: 13px; line-height: 1.6;">
+                If you didn't request this code, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px; background-color: #f5f5f7; border-top: 1px solid #e5e5e7; text-align: center;">
+              <p style="margin: 0 0 8px; color: #86868b; font-size: 12px;">
+                This email was sent to <strong>{{ .Email }}</strong>
+              </p>
+              <p style="margin: 0; color: #86868b; font-size: 11px;">
+                © 2025 Himanshu Kukreja. All rights reserved.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Bottom Gradient -->
+          <tr>
+            <td style="height: 2px; background: linear-gradient(to right, transparent, #0066cc, transparent);"></td>
+          </tr>
+        </table>
+
+        <!-- Security Notice -->
+        <table role="presentation" style="max-width: 600px; width: 100%; margin-top: 20px;">
+          <tr>
+            <td style="text-align: center; padding: 0 20px;">
+              <p style="margin: 0; color: #86868b; font-size: 11px; line-height: 1.5;">
+                🔒 This is an automated message. Never share your verification code with anyone.
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

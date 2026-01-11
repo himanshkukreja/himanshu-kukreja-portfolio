@@ -68,9 +68,9 @@ export default function StoryViewsClient({ slug }: { slug: string }) {
 
   if (total === null) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-white/60">
+      <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/60">
         <span className="relative inline-flex h-4 w-6 overflow-hidden rounded">
-          <span className="absolute inset-0 bg-white/10" />
+          <span className="absolute inset-0 bg-black/10 dark:bg-white/10" />
           <span className="absolute inset-0 -translate-x-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
         </span>
         <EyeIcon className="h-4 w-4 animate-pulse opacity-70" />
@@ -79,7 +79,7 @@ export default function StoryViewsClient({ slug }: { slug: string }) {
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-white/60">
+    <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/60">
       <EyeIcon className="h-4 w-4" />
       {total.toLocaleString()}
     </span>

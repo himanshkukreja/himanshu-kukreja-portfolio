@@ -1,0 +1,40 @@
+"use client";
+
+import { useState } from "react";
+import { UserCircle } from "lucide-react";
+import AuthModal from "./AuthModal";
+import UserMenu from "./UserMenu";
+import { useAuth } from "@/contexts/AuthContext";
+
+export default function AuthButton() {
+  const { user, loading } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+
+  if (loading) {
+    return (
+      <div className="w-8 h-8 rounded-full bg-white/10 animate-pulse" />
+    );
+  }
+
+  if (user) {
+    return <UserMenu />;
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => setShowAuthModal(true)}
+        className="p-2 rounded-full border border-white/10 bg-transparent hover:bg-white/5 text-white/80 hover:text-white transition-all"
+        aria-label="Sign in"
+        title="Sign in"
+      >
+        <UserCircle className="w-5 h-5" />
+      </button>
+
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+      />
+    </>
+  );
+}

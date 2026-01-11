@@ -38,13 +38,13 @@ export default function Achievements() {
         <motion.article
           key={i.text}
           variants={item}
-          className="group relative rounded-2xl border border-white/10 bg-white/5 p-5 text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
+          className="group relative rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-5 text-gray-800 dark:text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
         >
           <div className="flex items-start gap-3">
             <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-300 ring-1 ring-inset ring-white/10">
               <i.icon className="h-5 w-5" />
             </span>
-            <p className="text-sm text-white/85">{i.text}</p>
+            <p className="text-sm text-gray-700 dark:text-white/85">{i.text}</p>
           </div>
           <span className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-r from-blue-500/0 via-purple-500/0 to-blue-500/0 opacity-0 blur group-hover:opacity-60 transition-opacity" />
         </motion.article>

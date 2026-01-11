@@ -29,8 +29,21 @@ if (!remotePatterns) {
       hostname: "ik.imagekit.io",
       pathname: "/**",
     },
+    {
+      protocol: "https",
+      hostname: "lh3.googleusercontent.com",
+      pathname: "/**",
+    },
   ];
-  domains = ["ik.imagekit.io"];
+  domains = ["ik.imagekit.io", "lh3.googleusercontent.com"];
+} else {
+  // Add Google images to existing remote patterns
+  remotePatterns.push({
+    protocol: "https",
+    hostname: "lh3.googleusercontent.com",
+    pathname: "/**",
+  });
+  domains = domains ? [...domains, "lh3.googleusercontent.com"] : ["lh3.googleusercontent.com"];
 }
 
 const nextConfig: NextConfig = {

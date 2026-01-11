@@ -1,0 +1,483 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
+import { supabaseClient } from "@/lib/supabase-client";
+import TextSelectionMenu from "./TextSelectionMenu";
+import MarkdownContent from "./MarkdownContent";
+import Toast from "./Toast";
+
+type HighlightableContentProps = {
+  htmlContent: string;
+  courseId: string;
+  week: string;
+  lessonSlug: string;
+};
+
+type Highlight = {
+  id: string;
+  highlight_text: string;
+  color: string;
+  highlight_offset: number | null;
+};
+
+export default function HighlightableContent({
+  htmlContent,
+  courseId,
+  week,
+  lessonSlug,
+}: HighlightableContentProps) {
+  const { user } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  const [selectedText, setSelectedText] = useState("");
+  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [highlights, setHighlights] = useState<Highlight[]>([]);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const currentRangeRef = useRef<Range | null>(null);
+  const selectedTextRef = useRef<string>("");
+  const selectedOffsetRef = useRef<number>(0);
+
+  // Fetch user's highlights for this lesson
+  useEffect(() => {
+    if (!user) {
+      setHighlights([]);
+      return;
+    }
+
+    async function fetchHighlights() {
+      console.log("[Highlights] Fetching highlights for lesson");
+      const { data, error } = await supabaseClient
+        .from("content_notes")
+        .select("id, highlight_text, color, highlight_offset")
+        .eq("user_id", user.id)
+        .eq("course_id", courseId)
+        .eq("week", week)
+        .eq("lesson_slug", lessonSlug)
+        .not("highlight_text", "is", null);
+
+      if (error) {
+        console.error("[Highlights] Error fetching:", error);
+        return;
+      }
+
+      console.log("[Highlights] Fetched:", data?.length || 0, "highlights");
+      setHighlights(data || []);
+    }
+
+    fetchHighlights();
+  }, [user, courseId, week, lessonSlug]);
+
+  // Handle clicks on highlighted text to delete
+  useEffect(() => {
+    const handleHighlightClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'MARK' && target.dataset.highlightId) {
+        e.preventDefault();
+        const highlightId = target.dataset.highlightId;
+        console.log("[Click] Highlight clicked:", highlightId);
+
+        // Confirm before deleting
+        if (confirm("Remove this highlight?")) {
+          handleDeleteHighlight(highlightId);
+        }
+      }
+    };
+
+    const contentDiv = contentRef.current;
+    if (contentDiv) {
+      contentDiv.addEventListener('click', handleHighlightClick);
+    }
+
+    return () => {
+      if (contentDiv) {
+        contentDiv.removeEventListener('click', handleHighlightClick);
+      }
+    };
+  }, [highlights]); // Re-attach when highlights change
+
+  useEffect(() => {
+    const handleSelection = () => {
+      setTimeout(() => {
+        // Don't process selection changes if menu is already open
+        if (menuOpen) {
+          console.log("[Selection] Menu already open, ignoring selection change");
+          return;
+        }
+
+        const selection = window.getSelection();
+        if (!selection || selection.isCollapsed) {
+          setMenuPosition(null);
+          setSelectedText("");
+          return;
+        }
+
+        const text = selection.toString().trim();
+        if (text.length === 0) {
+          setMenuPosition(null);
+          setSelectedText("");
+          return;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!contentRef.current?.contains(range.commonAncestorContainer)) {
+          return;
+        }
+
+        console.log("[Selection] Text selected:", text.slice(0, 50));
+        setSelectedText(text);
+        selectedTextRef.current = text; // Store in ref too
+        currentRangeRef.current = range.cloneRange(); // Store the range for later use
+
+        // Calculate offset IMMEDIATELY while selection is still active
+        try {
+          const tempRange = document.createRange();
+          tempRange.selectNodeContents(contentRef.current);
+          tempRange.setEnd(range.startContainer, range.startOffset);
+          const offset = tempRange.toString().length;
+          selectedOffsetRef.current = offset;
+          console.log("[Selection] Calculated offset immediately:", offset);
+        } catch (e) {
+          console.error("[Selection] Error calculating offset:", e);
+          selectedOffsetRef.current = 0;
+        }
+
+        setMenuOpen(true);
+
+        const rect = range.getBoundingClientRect();
+        const menuWidth = 250;
+        const menuHeight = 200;
+
+        let x = rect.left + (rect.width / 2) - (menuWidth / 2);
+        x = Math.max(10, Math.min(x, window.innerWidth - menuWidth - 10));
+
+        let y;
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const spaceAbove = rect.top;
+
+        if (spaceBelow >= menuHeight + 10) {
+          y = rect.bottom + 10;
+        } else if (spaceAbove >= menuHeight + 10) {
+          y = rect.top - menuHeight - 10;
+        } else {
+          y = rect.bottom + 10;
+        }
+
+        setMenuPosition({ x, y });
+        console.log("[Selection] Menu at:", { x, y });
+      }, 10);
+    };
+
+    document.addEventListener("mouseup", handleSelection);
+    return () => document.removeEventListener("mouseup", handleSelection);
+  }, [menuOpen]);
+
+  // Calculate text offset in the plain text content
+  const calculateTextOffset = (): number | null => {
+    console.log("[Offset] Calculating offset...");
+    console.log("[Offset] currentRangeRef.current:", currentRangeRef.current);
+    console.log("[Offset] contentRef.current:", contentRef.current);
+
+    if (!currentRangeRef.current || !contentRef.current) {
+      console.warn("[Offset] Missing range or content ref");
+      return null;
+    }
+
+    try {
+      const range = currentRangeRef.current;
+      console.log("[Offset] Range startContainer:", range.startContainer);
+      console.log("[Offset] Range startOffset:", range.startOffset);
+      console.log("[Offset] Range text:", range.toString());
+
+      const tempRange = document.createRange();
+      tempRange.selectNodeContents(contentRef.current);
+      tempRange.setEnd(range.startContainer, range.startOffset);
+
+      const offset = tempRange.toString().length;
+      console.log("[Offset] Temp range text length:", offset);
+      console.log("[Offset] Temp range text (first 100 chars):", tempRange.toString().substring(0, 100));
+
+      return offset;
+    } catch (e) {
+      console.error("[Offset] Error calculating:", e);
+      return null;
+    }
+  };
+
+  const handleHighlight = async (color: string) => {
+    console.log("[Highlight] Called with color:", color);
+    console.log("[Highlight] User:", user ? "logged in" : "not logged in");
+    console.log("[Highlight] Selected text state:", selectedText);
+    console.log("[Highlight] Selected text ref:", selectedTextRef.current);
+
+    if (!user) {
+      openAuthModal();
+      return;
+    }
+
+    const textToHighlight = selectedTextRef.current || selectedText;
+    if (!textToHighlight) {
+      console.error("[Highlight] No text selected!");
+      return;
+    }
+
+    const offset = selectedOffsetRef.current;
+    console.log("[Highlight] Selected text:", textToHighlight.substring(0, 30), "...");
+    console.log("[Highlight] Using stored offset:", offset);
+
+    try {
+      const { data, error } = await supabaseClient
+        .from("content_notes")
+        .insert({
+          user_id: user.id,
+          course_id: courseId,
+          week,
+          lesson_slug: lessonSlug,
+          note_text: "",
+          highlight_text: textToHighlight,
+          highlight_offset: offset,
+          color,
+          note_type: "general",
+          is_private: true,
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("[Highlight] Error:", error);
+        setToast({ message: `Error: ${error.message}`, type: "error" });
+        return;
+      }
+
+      console.log("[Highlight] Saved successfully:", data);
+
+      // Add the new highlight to the state
+      if (data) {
+        setHighlights((prev) => [...prev, {
+          id: data.id,
+          highlight_text: data.highlight_text,
+          color: data.color,
+          highlight_offset: data.highlight_offset,
+        }]);
+      }
+
+      // Don't show toast on success, just close the menu
+      window.getSelection()?.removeAllRanges();
+      setMenuPosition(null);
+      setSelectedText("");
+      setMenuOpen(false);
+    } catch (error) {
+      console.error(error);
+      setToast({ message: "Failed to save highlight", type: "error" });
+    }
+  };
+
+  const handleBookmark = async () => {
+    console.log("[Bookmark] Called");
+    if (!user) {
+      openAuthModal();
+      return;
+    }
+    if (!selectedText) return;
+
+    try {
+      const { data: existing } = await supabaseClient
+        .from("bookmarks")
+        .select("*")
+        .eq("user_id", user.id)
+        .eq("course_id", courseId)
+        .eq("week", week)
+        .eq("lesson_slug", lessonSlug)
+        .maybeSingle();
+
+      if (existing) {
+        setToast({ message: "Already bookmarked!", type: "info" });
+        setMenuPosition(null);
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("bookmarks")
+        .insert({
+          user_id: user.id,
+          course_id: courseId,
+          week,
+          lesson_slug: lessonSlug,
+          note: `"${selectedText.slice(0, 100)}"`,
+        });
+
+      if (error) {
+        setToast({ message: `Error: ${error.message}`, type: "error" });
+        return;
+      }
+
+      setToast({ message: "Bookmarked!", type: "success" });
+      window.getSelection()?.removeAllRanges();
+      setMenuPosition(null);
+      setSelectedText("");
+      setMenuOpen(false);
+    } catch (error) {
+      console.error(error);
+      setToast({ message: "Failed to bookmark", type: "error" });
+    }
+  };
+
+  // Delete a highlight
+  const handleDeleteHighlight = async (highlightId: string) => {
+    console.log("[Delete] Highlight ID:", highlightId);
+    if (!user) return;
+
+    try {
+      const { error } = await supabaseClient
+        .from("content_notes")
+        .delete()
+        .eq("id", highlightId)
+        .eq("user_id", user.id);
+
+      if (error) {
+        console.error("[Delete] Error:", error);
+        setToast({ message: "Failed to delete highlight", type: "error" });
+        return;
+      }
+
+      // Remove from state
+      setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
+      console.log("[Delete] Highlight removed");
+    } catch (error) {
+      console.error(error);
+      setToast({ message: "Failed to delete highlight", type: "error" });
+    }
+  };
+
+  // Apply highlights to HTML content - simplified approach
+  const applyHighlights = (html: string): string => {
+    if (highlights.length === 0) return html;
+
+    console.log("[ApplyHighlights] Total highlights:", highlights.length);
+
+    // Color map for background colors
+    const colorMap: Record<string, string> = {
+      yellow: 'bg-yellow-200/40 dark:bg-yellow-500/30 hover:bg-yellow-300/50 dark:hover:bg-yellow-500/40',
+      green: 'bg-green-200/40 dark:bg-green-500/30 hover:bg-green-300/50 dark:hover:bg-green-500/40',
+      blue: 'bg-blue-200/40 dark:bg-blue-500/30 hover:bg-blue-300/50 dark:hover:bg-blue-500/40',
+      pink: 'bg-pink-200/40 dark:bg-pink-500/30 hover:bg-pink-300/50 dark:hover:bg-pink-500/40',
+      purple: 'bg-purple-200/40 dark:bg-purple-500/30 hover:bg-purple-300/50 dark:hover:bg-purple-500/40',
+    };
+
+    // Get plain text to determine occurrence numbers
+    const tempDiv = document.createElement('div');
+    tempDiv.innerHTML = html;
+    const plainText = tempDiv.textContent || '';
+
+    // Group highlights by text and determine which occurrence each one is
+    const highlightsByText = new Map<string, Array<Highlight & { occurrenceIndex: number }>>();
+
+    for (const h of highlights) {
+      if (!highlightsByText.has(h.highlight_text)) {
+        highlightsByText.set(h.highlight_text, []);
+      }
+
+      // Find which occurrence this highlight is
+      let occurrenceIndex = 0;
+      if (h.highlight_offset !== null) {
+        // Count how many occurrences appear before this offset
+        const escapedText = h.highlight_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const regex = new RegExp(escapedText, 'g');
+        let match;
+        let index = 0;
+        let foundOccurrence = 0;
+
+        while ((match = regex.exec(plainText)) !== null) {
+          const matchStart = match.index;
+          const matchEnd = match.index + h.highlight_text.length;
+
+          // Check if this match contains our offset
+          if (matchStart <= h.highlight_offset && h.highlight_offset < matchEnd) {
+            foundOccurrence = index;
+            break;
+          }
+          index++;
+        }
+
+        occurrenceIndex = foundOccurrence;
+        console.log(`[ApplyHighlights] Text "${h.highlight_text.substring(0, 20)}..." at offset ${h.highlight_offset} is occurrence #${occurrenceIndex}`);
+      } else {
+        console.log(`[ApplyHighlights] Text "${h.highlight_text.substring(0, 20)}..." has no offset, defaulting to occurrence #0`);
+      }
+
+      highlightsByText.get(h.highlight_text)!.push({ ...h, occurrenceIndex });
+    }
+
+    console.log("[ApplyHighlights] Unique texts:", highlightsByText.size);
+
+    let modifiedHtml = html;
+
+    // Process each unique text
+    for (const [text, textHighlights] of highlightsByText.entries()) {
+      const escapedText = text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const regex = new RegExp(escapedText, 'g');
+
+      // Track which occurrences to highlight
+      const occurrencesToHighlight = new Map<number, { id: string; color: string }>();
+
+      for (const h of textHighlights) {
+        occurrencesToHighlight.set(h.occurrenceIndex, {
+          id: h.id,
+          color: h.color,
+        });
+      }
+
+      // Replace occurrences with highlights
+      let occurrenceCount = 0;
+      modifiedHtml = modifiedHtml.replace(new RegExp(escapedText, 'g'), (match) => {
+        const current = occurrenceCount++;
+
+        if (occurrencesToHighlight.has(current)) {
+          const { id, color } = occurrencesToHighlight.get(current)!;
+          const bgClass = colorMap[color] || colorMap.yellow;
+          console.log(`[ApplyHighlights] Highlighting occurrence ${current} of "${text.substring(0, 20)}..." with ${color}`);
+          return `<mark class="${bgClass} rounded px-1 cursor-pointer transition-colors" data-highlight-id="${id}" title="Click to remove highlight">${match}</mark>`;
+        }
+
+        return match; // Don't highlight this occurrence
+      });
+    }
+
+    return modifiedHtml;
+  };
+
+  const highlightedContent = applyHighlights(htmlContent);
+
+  return (
+    <>
+      <div ref={contentRef} className="relative">
+        <MarkdownContent htmlContent={highlightedContent} />
+        {menuPosition && selectedText && (
+          <TextSelectionMenu
+            selectedText={selectedText}
+            position={menuPosition}
+            onHighlight={handleHighlight}
+            onBookmark={handleBookmark}
+            onNote={() => setToast({ message: "Notes feature coming soon!", type: "info" })}
+            onClose={() => {
+              console.log("[Menu] Closing menu");
+              setMenuPosition(null);
+              setSelectedText("");
+              setMenuOpen(false);
+              window.getSelection()?.removeAllRanges();
+            }}
+          />
+        )}
+      </div>
+      {toast && (
+        <Toast
+          message={toast.message}
+          type={toast.type}
+          onClose={() => setToast(null)}
+        />
+      )}
+    </>
+  );
+}

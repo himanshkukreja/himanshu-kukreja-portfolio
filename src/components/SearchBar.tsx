@@ -146,7 +146,7 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
       case "bonus":
         return <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />;
       default:
-        return <FileText className="w-4 h-4 text-white/60 flex-shrink-0" />;
+        return <FileText className="w-4 h-4 text-gray-500 dark:text-white/60 flex-shrink-0" />;
     }
   };
 
@@ -186,13 +186,13 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
           setIsOpen(true);
           setTimeout(() => inputRef.current?.focus(), 100);
         }}
-        className="w-full flex items-center justify-between px-4 py-3 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-lg transition-all group"
+        className="w-full flex items-center justify-between px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 rounded-lg transition-all group"
       >
         <div className="flex items-center gap-3">
-          <Search className="w-5 h-5 text-white/60 group-hover:text-white/80" />
-          <span className="text-white/60 text-sm sm:text-base">Search lessons, topics, concepts...</span>
+          <Search className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-700 dark:group-hover:text-white/80" />
+          <span className="text-gray-500 dark:text-white/60 text-sm sm:text-base">Search lessons, topics, concepts...</span>
         </div>
-        <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-white/5 border border-white/10 rounded text-xs text-white/40">
+        <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded text-xs text-gray-400 dark:text-white/40">
           <span>⌘</span>
           <span>K</span>
         </kbd>
@@ -213,10 +213,10 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
 
       {/* Search Modal */}
       <div className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-2xl z-50 px-4">
-        <div className="bg-gray-900 border border-white/20 rounded-xl shadow-2xl overflow-hidden">
+        <div className="bg-white dark:bg-gray-900 border border-black/20 dark:border-white/20 rounded-xl shadow-2xl overflow-hidden">
           {/* Search Input */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10">
-            <Search className="w-5 h-5 text-white/60 flex-shrink-0" />
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-black/10 dark:border-white/10">
+            <Search className="w-5 h-5 text-gray-500 dark:text-white/60 flex-shrink-0" />
             <input
               ref={inputRef}
               type="text"
@@ -224,18 +224,18 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Search for lessons, topics, or concepts..."
-              className="flex-1 bg-transparent text-white placeholder:text-white/40 outline-none text-lg"
+              className="flex-1 bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 outline-none text-lg"
               autoFocus
             />
-            {isLoading && <Loader2 className="w-5 h-5 text-white/60 animate-spin" />}
+            {isLoading && <Loader2 className="w-5 h-5 text-gray-500 dark:text-white/60 animate-spin" />}
             <button
               onClick={() => {
                 setIsOpen(false);
                 setQuery("");
               }}
-              className="p-1 hover:bg-white/10 rounded transition-colors"
+              className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
             >
-              <X className="w-5 h-5 text-white/60" />
+              <X className="w-5 h-5 text-gray-500 dark:text-white/60" />
             </button>
           </div>
 
@@ -247,8 +247,8 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
             >
               {results.length === 0 ? (
                 <div className="px-4 py-8 text-center">
-                  <p className="text-white/40">No results found for "{query}"</p>
-                  <p className="text-white/30 text-sm mt-2">
+                  <p className="text-gray-400 dark:text-white/40">No results found for "{query}"</p>
+                  <p className="text-gray-300 dark:text-white/30 text-sm mt-2">
                     Try searching with different keywords
                   </p>
                 </div>
@@ -264,8 +264,8 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
                         onClick={() => navigateToResult(resource)}
                         className={`w-full px-4 py-3 flex items-start gap-3 transition-colors ${
                           isSelected
-                            ? "bg-white/10 border-l-2 border-blue-400"
-                            : "hover:bg-white/5"
+                            ? "bg-black/10 dark:bg-white/10 border-l-2 border-blue-400"
+                            : "hover:bg-black/5 dark:hover:bg-white/5"
                         }`}
                       >
                         <div className="mt-1">{getResourceIcon(resource.type)}</div>
@@ -273,18 +273,18 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
                           <div className="flex items-center gap-2 mb-1">
                             <h3
                               className={`font-medium ${
-                                isSelected ? "text-white" : "text-white/90"
+                                isSelected ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/90"
                               }`}
                             >
                               {resource.title}
                             </h3>
                             {result.score !== undefined && (
-                              <span className="text-xs text-white/30">
+                              <span className="text-xs text-gray-300 dark:text-white/30">
                                 {Math.round((1 - result.score) * 100)}% match
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2 text-sm text-white/50 mb-1">
+                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/50 mb-1">
                             <span>{formatWeekName(resource.week)}</span>
                             {resource.day && (
                               <>
@@ -294,7 +294,7 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
                             )}
                           </div>
                           {resource.excerpt && (
-                            <p className="text-xs text-white/40 line-clamp-2 mt-1">
+                            <p className="text-xs text-gray-400 dark:text-white/40 line-clamp-2 mt-1">
                               {resource.excerpt}
                             </p>
                           )}
@@ -309,18 +309,18 @@ export default function SearchBar({ variant = "bar" }: SearchBarProps) {
 
           {/* Footer with shortcuts */}
           {!query && (
-            <div className="px-4 py-3 border-t border-white/10 flex items-center justify-between text-xs text-white/40">
+            <div className="px-4 py-3 border-t border-black/10 dark:border-white/10 flex items-center justify-between text-xs text-gray-400 dark:text-white/40">
               <div className="flex items-center gap-4">
                 <span className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded">↑↓</kbd>
+                  <kbd className="px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded">↑↓</kbd>
                   Navigate
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded">↵</kbd>
+                  <kbd className="px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded">↵</kbd>
                   Select
                 </span>
                 <span className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 bg-white/5 border border-white/10 rounded">Esc</kbd>
+                  <kbd className="px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded">Esc</kbd>
                   Close
                 </span>
               </div>

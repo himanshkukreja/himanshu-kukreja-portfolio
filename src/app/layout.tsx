@@ -2,9 +2,12 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
+import { AuthProvider } from "@/contexts/AuthContext";
+import { AuthModalProvider } from "@/contexts/AuthModalContext";
 import Navbar from "@/components/Navbar";
 import { Analytics } from '@vercel/analytics/next';
 import AnalyticsTracker from "@/components/AnalyticsTracker";
+import GlobalAuthModal from "@/components/GlobalAuthModal";
 
 
 
@@ -54,10 +57,15 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning={true}>
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
         <AnalyticsTracker />
-        <ThemeProvider>
-          <Navbar />
-          {children}
-        </ThemeProvider>
+        <AuthProvider>
+          <AuthModalProvider>
+            <ThemeProvider>
+              <Navbar />
+              {children}
+              <GlobalAuthModal />
+            </ThemeProvider>
+          </AuthModalProvider>
+        </AuthProvider>
         <Analytics />
       </body>
     </html>

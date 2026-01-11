@@ -51,8 +51,8 @@ export default function TableOfContents({ headings }: Props) {
   }
 
   return (
-    <div className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto bg-white/5 backdrop-blur-sm rounded-lg border border-white/10 p-4">
-      <h3 className="text-white font-semibold mb-4 text-sm uppercase tracking-wide">
+    <div className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto bg-black/5 dark:bg-white/5 backdrop-blur-sm rounded-lg border border-black/10 dark:border-white/10 p-4">
+      <h3 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wide">
         On This Page
       </h3>
       <nav className="space-y-1">
@@ -68,7 +68,7 @@ export default function TableOfContents({ headings }: Props) {
               className={`block py-2 px-3 rounded text-sm transition-all ${
                 isActive
                   ? "bg-blue-500/20 text-blue-400 font-medium border-l-2 border-blue-400"
-                  : "text-white/60 hover:text-white hover:bg-white/5 border-l-2 border-transparent"
+                  : "text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border-l-2 border-transparent"
               }`}
               style={{ paddingLeft }}
             >

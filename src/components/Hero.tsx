@@ -155,32 +155,32 @@ export default function Hero() {
         {/* Left column */}
         <motion.div variants={container} initial="hidden" whileInView="show" viewport={{ once: true, margin: "-15% 0px -10% 0px" }}>
           {/* Badge row */}
-          <motion.div variants={item} className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/80">
+          <motion.div variants={item} className="inline-flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-3 py-1 text-xs text-gray-700 dark:text-white/80">
             <span className="h-1.5 w-1.5 rounded-full bg-[var(--accent)]"></span>
             Backend • Cloud • Realtime • Startups
           </motion.div>
 
           {/* Heading */}
-          <motion.h1 variants={item} className="mt-4 text-4xl sm:text-6xl font-semibold tracking-tight text-white">
+          <motion.h1 variants={item} className="mt-4 text-4xl sm:text-6xl font-semibold tracking-tight text-gray-900 dark:text-white">
             Himanshu Kukreja
           </motion.h1>
 
           {/* Subtitle */}
-          <motion.p variants={item} className="mt-4 max-w-2xl text-base sm:text-lg text-white/70">
+          <motion.p variants={item} className="mt-4 max-w-2xl text-base sm:text-lg text-gray-700 dark:text-white/70">
             Software Engineer focused on backend systems, cloud architecture, real-time streaming, and shipping 0→1 products with startup agility.
           </motion.p>
 
           {/* Location + Socials */}
           <motion.div variants={item} className="mt-5 flex flex-wrap items-center gap-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-white/85">
-              <MapPin className="h-3.5 w-3.5 text-indigo-300" /> Bengaluru, India
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-3 py-1 text-xs text-gray-700 dark:text-white/85">
+              <MapPin className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-300" /> Bengaluru, India
             </span>
             <nav className="flex items-center gap-2" aria-label="Social links">
               <a
                 href="https://github.com/himanshkukreja/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 aria-label="GitHub"
               >
                 <Github className="h-4.5 w-4.5" />
@@ -189,7 +189,7 @@ export default function Hero() {
                 href="https://www.linkedin.com/in/himanshukukreja/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 aria-label="LinkedIn"
               >
                 <Linkedin className="h-4.5 w-4.5" />
@@ -198,7 +198,7 @@ export default function Hero() {
                 href="https://www.instagram.com/himanshukreja_?igsh=dm84OHlyZTJyeXZl&utm_source=qr"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 aria-label="Instagram"
               >
                 <Instagram className="h-4.5 w-4.5" />
@@ -207,7 +207,7 @@ export default function Hero() {
                 href="https://x.com/hi_kukreja"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-white/10 bg-white/5 text-white/85 hover:bg-white/10 transition-colors"
+                className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 aria-label="X (Twitter)"
               >
                 <Twitter className="h-4.5 w-4.5" />
@@ -220,9 +220,9 @@ export default function Hero() {
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/#projects"
-                className="group relative inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2.5 text-sm font-medium text-white hover:bg-white/10 ring-1 ring-white/10"
+                className="group relative inline-flex items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-white hover:bg-black/10 dark:hover:bg-white/10 ring-1 ring-black/10 dark:ring-white/10"
               >
-                <span className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-white/10 via-white/0 to-white/10 blur opacity-70" />
+                <span className="absolute inset-0 -z-10 rounded-xl bg-gradient-to-r from-black/10 dark:from-white/10 via-transparent to-black/10 dark:to-white/10 blur opacity-70" />
                 View Projects
                 <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
               </Link>
@@ -239,7 +239,7 @@ export default function Hero() {
             <div className="flex flex-wrap gap-3">
               <button
                 onClick={() => setShowNewsletterInput(!showNewsletterInput)}
-                className="group relative inline-flex items-center gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-500/20 transition-all duration-300"
+                className="group relative inline-flex items-center gap-2 rounded-xl border border-amber-500/30 dark:border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/10 px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-200 hover:bg-amber-500/20 transition-all duration-300"
               >
                 <Bell className="h-4 w-4" />
                 <span className="hidden sm:inline">Subscribe to Stories</span>
@@ -247,7 +247,7 @@ export default function Hero() {
               </button>
               <Link
                 href="/learn/system-design-mastery"
-                className="group relative inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-200 hover:bg-emerald-500/20 transition-all duration-300"
+                className="group relative inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 dark:border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/20 transition-all duration-300"
               >
                 <BookOpen className="h-4 w-4" />
                 <span className="hidden sm:inline">System Design Course</span>
@@ -266,12 +266,12 @@ export default function Hero() {
               transition={{ duration: 0.3, ease: cubicBezier(0.22, 1, 0.36, 1) }}
               className="overflow-hidden"
             >
-              <div className="rounded-xl border border-white/10 bg-white/5 p-4 backdrop-blur-sm">
-                <h4 className="text-sm font-semibold text-white mb-2">📧 Get Engineering Stories</h4>
-                <p className="text-xs text-white/70 mb-3">
+              <div className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-4 backdrop-blur-sm">
+                <h4 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">📧 Get Engineering Stories</h4>
+                <p className="text-xs text-gray-700 dark:text-white/70 mb-3">
                   Join 150+ developers getting weekly insights on backend systems, cloud architecture, and startup engineering.
                 </p>
-                
+
                 <form onSubmit={handleNewsletterSubscribe} className="space-y-3">
                   <div className="flex gap-2">
                     <input
@@ -280,34 +280,34 @@ export default function Hero() {
                       onChange={(e) => setNewsletterEmail(e.target.value)}
                       placeholder="your@email.com"
                       disabled={newsletterStatus === "loading"}
-                      className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-white/50 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
+                      className="flex-1 rounded-lg border border-black/10 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-sm text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-white/50 focus:border-amber-500/50 focus:outline-none focus:ring-2 focus:ring-amber-500/20 disabled:opacity-50"
                     />
                     <button
                       type="submit"
                       disabled={newsletterStatus === "loading" || !newsletterEmail.trim()}
-                      className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-500/30 focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:opacity-50 transition-colors"
+                      className="rounded-lg bg-amber-500/20 border border-amber-500/30 px-4 py-2 text-sm font-medium text-amber-700 dark:text-amber-200 hover:bg-amber-500/30 focus:outline-none focus:ring-2 focus:ring-amber-500/50 disabled:opacity-50 transition-colors"
                     >
                       {newsletterStatus === "loading" ? "..." : "Subscribe"}
                     </button>
                   </div>
-                  
+
                   {newsletterMessage && (
                     <motion.p
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className={`text-xs ${
-                        newsletterStatus === "success" 
-                          ? "text-green-400" 
-                          : newsletterStatus === "error" 
-                            ? "text-red-400" 
-                            : "text-white/70"
+                        newsletterStatus === "success"
+                          ? "text-green-600 dark:text-green-400"
+                          : newsletterStatus === "error"
+                            ? "text-red-600 dark:text-red-400"
+                            : "text-gray-700 dark:text-white/70"
                       }`}
                     >
                       {newsletterMessage}
                     </motion.p>
                   )}
-                  
-                  <p className="text-[10px] text-white/50">
+
+                  <p className="text-[10px] text-gray-600 dark:text-white/50">
                     No spam. Unsubscribe anytime. Read about backend systems, cloud architecture, and real-world startup engineering.
                   </p>
                 </form>
@@ -318,7 +318,7 @@ export default function Hero() {
           {/* Stats – interactive */}
           <motion.div
             variants={item}
-            className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-4 sm:p-5 text-white/80 relative overflow-hidden group will-change-transform"
+            className="mt-8 rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-4 sm:p-5 text-gray-700 dark:text-white/80 relative overflow-hidden group will-change-transform"
             onMouseMove={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               const x = e.clientX - rect.left;
@@ -359,7 +359,7 @@ export default function Hero() {
                     onMouseEnter={() => setActiveStat(i)}
                   >
                     {/* column divider */}
-                    {i !== 0 && <span className="pointer-events-none absolute left-0 top-2 bottom-2 w-px bg-white/10" />}
+                    {i !== 0 && <span className="pointer-events-none absolute left-0 top-2 bottom-2 w-px bg-black/10 dark:bg-white/10" />}
                     {/* highlight ring behind number when active */}
                     <motion.span
                       aria-hidden
@@ -368,7 +368,7 @@ export default function Hero() {
                       transition={{ duration: 0.25, ease: cubicBezier(0.22, 1, 0.36, 1) }}
                       className="pointer-events-none absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 h-14 w-14 rounded-full bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.28),rgba(99,102,241,0)_60%)]"
                     />
-                    <div className="text-3xl font-semibold text-white select-none relative">
+                    <div className="text-3xl font-semibold text-gray-900 dark:text-white select-none relative">
                       <StatNumber value={s.value} active={active} />
                     </div>
                     <div className="text-xs mt-1">{s.label}</div>
@@ -388,7 +388,7 @@ export default function Hero() {
           className="lg:mt-4"
         >
           <div
-            className="relative rounded-2xl border border-white/10 bg-white/5 p-5 sm:p-6 text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 overflow-hidden group"
+            className="relative rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-5 sm:p-6 text-gray-800 dark:text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 overflow-hidden group"
             onMouseMove={(e) => {
               const rect = e.currentTarget.getBoundingClientRect();
               setHoverXY({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -413,9 +413,9 @@ export default function Hero() {
             <div className="absolute right-4 top-4">
               <Link
                 href={latest ? `/stories/${latest.slug}` : "/stories"}
-                className="group inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-white/85 hover:bg-white/10"
+                className="group inline-flex items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-3 py-1.5 text-xs text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10"
               >
-                <span className="grid h-6 w-6 place-items-center rounded-md bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-300 ring-1 ring-inset ring-white/10">
+                <span className="grid h-6 w-6 place-items-center rounded-md bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-500 dark:text-indigo-300 ring-1 ring-inset ring-black/10 dark:ring-white/10">
                   <FileText className="h-3.5 w-3.5" />
                 </span>
                 <span className="hidden sm:inline">Story Spotlight</span>
@@ -423,24 +423,24 @@ export default function Hero() {
               </Link>
             </div>
 
-            <h3 className="text-sm font-semibold text-white/80">Currently exploring</h3>
-            <ul className="mt-3 space-y-3 text-white/85">
+            <h3 className="text-sm font-semibold text-gray-700 dark:text-white/80">Currently exploring</h3>
+            <ul className="mt-3 space-y-3 text-gray-700 dark:text-white/85">
               {[
                 "Low-latency streaming with WebRTC/WebSockets",
                 "Cloud-native serverless pipelines",
                 "Generative AI for 3D & testing automation",
               ].map((t) => (
                 <li key={t} className="flex items-start gap-3">
-                  <span className="mt-2 inline-block h-2 w-2 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 shadow-[0_0_0_2px_rgba(255,255,255,0.06)] group-hover:animate-pulse" />
+                  <span className="mt-2 inline-block h-2 w-2 rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 shadow-[0_0_0_2px_rgba(0,0,0,0.06)] dark:shadow-[0_0_0_2px_rgba(255,255,255,0.06)] group-hover:animate-pulse" />
                   <span className="text-sm">{t}</span>
                 </li>
               ))}
             </ul>
 
-            <div className="mt-6 rounded-xl border border-white/10 bg-white/5 p-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-0.5 group-hover:shadow-[0_0_0_1px_rgba(99,102,241,0.25),0_12px_36px_-12px_rgba(59,130,246,0.35)]">
-              <div className="text-xs font-semibold tracking-wide text-white/60">EDUCATION</div>
-              <div className="mt-2 text-white">B.E. Computer Science — Thapar Institute of Engineering & Technology</div>
-              <div className="text-sm text-white/70">CGPA 9.04 / 10</div>
+            <div className="mt-6 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-4 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-0.5 group-hover:shadow-[0_0_0_1px_rgba(99,102,241,0.25),0_12px_36px_-12px_rgba(59,130,246,0.35)]">
+              <div className="text-xs font-semibold tracking-wide text-gray-600 dark:text-white/60">EDUCATION</div>
+              <div className="mt-2 text-gray-900 dark:text-white">B.E. Computer Science — Thapar Institute of Engineering & Technology</div>
+              <div className="text-sm text-gray-700 dark:text-white/70">CGPA 9.04 / 10</div>
             </div>
 
             {/* animated wiring path */}

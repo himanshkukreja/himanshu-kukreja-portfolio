@@ -36,7 +36,7 @@ export default function NewsletterForm() {
           type="email"
           placeholder="Your email"
           {...register("email")}
-          className="flex-1 rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
+          className="flex-1 rounded-xl bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 px-4 py-2 text-sm text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]"
         />
         <button type="submit" disabled={isSubmitting} className="inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium text-white shadow-[inset_0_0_0_1px_rgba(255,255,255,0.12),0_10px_30px_-12px_rgba(59,130,246,0.6)] bg-[linear-gradient(110deg,rgba(99,102,241,0.95),rgba(59,130,246,0.95),rgba(147,51,234,0.95))]">
           <Mail className="h-4 w-4" /> Subscribe

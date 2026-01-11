@@ -46,11 +46,11 @@ export default async function Home() {
       <footer className="py-12">
         <div className="max-w-7xl mx-auto px-6 text-center">
           <div className="mb-6 flex flex-col items-center gap-3">
-            <h3 className="text-white text-lg font-semibold">Subscribe to the Stories</h3>
-            <p className="text-white/70 text-sm">Get the latest engineering stories in your inbox.</p>
+            <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Subscribe to the Stories</h3>
+            <p className="text-gray-600 dark:text-white/70 text-sm">Get the latest engineering stories in your inbox.</p>
             <NewsletterForm />
           </div>
-          <div className="text-white/60 text-sm">© {new Date().getFullYear()} Himanshu Kukreja. All rights reserved.</div>
+          <div className="text-gray-500 dark:text-white/60 text-sm">© {new Date().getFullYear()} Himanshu Kukreja. All rights reserved.</div>
         </div>
       </footer>
     </main>

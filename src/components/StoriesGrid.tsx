@@ -108,7 +108,7 @@ export default function StoriesGrid({
         <motion.article
           key={s.slug}
           variants={item}
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 pb-16 text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
+          className="group relative overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-5 pb-16 text-gray-800 dark:text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
         >
           {/* blueprint grid backdrop */}
           <div className="pointer-events-none absolute inset-0 -z-10 opacity-60">
@@ -137,7 +137,7 @@ export default function StoriesGrid({
           )}
 
           <div className="relative z-10 flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2 text-white">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
 
               <h3 className="font-semibold text-base sm:text-lg leading-snug">
                 <Link href={`/stories/${s.slug}`} className="hover:underline">
@@ -145,24 +145,24 @@ export default function StoriesGrid({
                 </Link>
               </h3>
             </div>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-300 ring-1 ring-inset ring-white/10">
+            <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-500 dark:text-indigo-300 ring-1 ring-inset ring-black/10 dark:ring-white/10">
               <FileText className="h-4 w-4" />
             </span>
             <Link
               href={`/stories/${s.slug}`}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/80 hover:bg-white/10"
+              className="inline-flex items-center gap-1 rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-2.5 py-1 text-xs text-gray-700 dark:text-white/80 hover:bg-black/10 dark:hover:bg-white/10"
             >
               Read <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          {s.excerpt && <p className="relative z-10 mt-2 text-sm text-white/80 line-clamp-3">{s.excerpt}</p>}
+          {s.excerpt && <p className="relative z-10 mt-2 text-sm text-gray-700 dark:text-white/80 line-clamp-3">{s.excerpt}</p>}
 
           {/* tags */}
           {s.tags && (
             <div className="relative z-10 mt-3 flex flex-wrap gap-1.5">
               {s.tags.slice(0, 4).map((t) => (
-                <span key={`${s.slug}-${t}`} className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-white/85 ring-1 ring-inset ring-white/10">
+                <span key={`${s.slug}-${t}`} className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-gray-700 dark:text-white/85 ring-1 ring-inset ring-black/10 dark:ring-white/10">
                   {t}
                 </span>
               ))}
@@ -174,7 +174,7 @@ export default function StoriesGrid({
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-2 z-0 opacity-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100"
           >
-            <div className="mx-5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-[12px] text-indigo-100/90 shadow-[0_6px_20px_-10px_rgba(99,102,241,0.5)]">
+            <div className="mx-5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-[12px] text-indigo-700 dark:text-indigo-100/90 shadow-[0_6px_20px_-10px_rgba(99,102,241,0.5)]">
               Blueprint preview — zoom into the architecture sketch.
             </div>
           </div>
@@ -187,7 +187,7 @@ export default function StoriesGrid({
         <motion.article
           key="explore-more"
           variants={item}
-          className="group relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 p-5 pb-16 text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
+          className="group relative overflow-hidden rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-5 pb-16 text-gray-800 dark:text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)]"
         >
           {/* blueprint grid backdrop */}
           <div className="pointer-events-none absolute inset-0 -z-10 opacity-60">
@@ -203,18 +203,18 @@ export default function StoriesGrid({
           </svg>
 
           {/* hero visual area - matching cover image space */}
-          <div className="relative mb-4 h-[200px] rounded-xl border border-white/10 bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-purple-500/20 flex items-center justify-center overflow-hidden">
+          <div className="relative mb-4 h-[200px] rounded-xl border border-black/10 dark:border-white/10 bg-gradient-to-br from-indigo-500/20 via-blue-500/15 to-purple-500/20 flex items-center justify-center overflow-hidden">
             {/* animated blueprint pattern overlay */}
             <div className="absolute inset-0 bg-[linear-gradient(45deg,rgba(99,102,241,0.1)_1px,transparent_1px),linear-gradient(-45deg,rgba(147,51,234,0.1)_1px,transparent_1px)] bg-[size:16px_16px] animate-pulse opacity-60" />
 
             {/* central icon */}
             <div className="relative z-10 flex flex-col items-center gap-3">
-              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 flex items-center justify-center ring-2 ring-white/20 backdrop-blur-sm">
-                <FileText className="h-8 w-8 text-white" />
+              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-indigo-500/30 to-purple-500/30 flex items-center justify-center ring-2 ring-indigo-500/20 dark:ring-white/20 backdrop-blur-sm">
+                <FileText className="h-8 w-8 text-indigo-600 dark:text-white" />
               </div>
               <div className="text-center">
-                <div className="text-xs text-white/60 font-medium tracking-wider uppercase">Engineering Stories</div>
-                <div className="text-sm text-white/80 mt-0.5">Blueprint Collection</div>
+                <div className="text-xs text-gray-600 dark:text-white/60 font-medium tracking-wider uppercase">Engineering Stories</div>
+                <div className="text-sm text-gray-700 dark:text-white/80 mt-0.5">Blueprint Collection</div>
               </div>
             </div>
 
@@ -225,8 +225,8 @@ export default function StoriesGrid({
           </div>
 
           <div className="relative z-10 flex items-start justify-between gap-3">
-            <div className="flex items-center gap-2 text-white">
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-300 ring-1 ring-inset ring-white/10">
+            <div className="flex items-center gap-2 text-gray-900 dark:text-white">
+              <span className="grid h-8 w-8 place-items-center rounded-lg bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-500 dark:text-indigo-300 ring-1 ring-inset ring-black/10 dark:ring-white/10">
                 <FileText className="h-4 w-4" />
               </span>
               <h3 className="font-semibold text-base sm:text-lg leading-snug">
@@ -239,18 +239,18 @@ export default function StoriesGrid({
                 e.preventDefault();
                 window.location.href = exploreHref; // navigate + full refresh
               }}
-              className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/80 hover:bg-white/10"
+              className="inline-flex items-center gap-1 rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-2.5 py-1 text-xs text-gray-700 dark:text-white/80 hover:bg-black/10 dark:hover:bg-white/10"
             >
               Browse <ArrowRight className="h-3.5 w-3.5" />
             </Link>
           </div>
 
-          <p className="relative z-10 mt-2 text-sm text-white/80">Dive into the full library of engineering deep-dives and blueprints.</p>
+          <p className="relative z-10 mt-2 text-sm text-gray-700 dark:text-white/80">Dive into the full library of engineering deep-dives and blueprints.</p>
 
           {/* tags matching story cards */}
           <div className="relative z-10 mt-3 flex flex-wrap gap-1.5">
             {["System Design", "Architecture", "Backend", "Scalability"].slice(0, 4).map((tag) => (
-              <span key={tag} className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-white/85 ring-1 ring-inset ring-white/10">
+              <span key={tag} className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-gray-700 dark:text-white/85 ring-1 ring-inset ring-black/10 dark:ring-white/10">
                 {tag}
               </span>
             ))}
@@ -261,13 +261,13 @@ export default function StoriesGrid({
             aria-hidden
             className="pointer-events-none absolute inset-x-0 bottom-2 z-0 opacity-0 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:opacity-100"
           >
-            <div className="mx-5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-[12px] text-indigo-100/90 shadow-[0_6px_20px_-10px_rgba(99,102,241,0.5)]">
+            <div className="mx-5 rounded-xl border border-indigo-400/20 bg-indigo-500/10 p-3 text-[12px] text-indigo-700 dark:text-indigo-100/90 shadow-[0_6px_20px_-10px_rgba(99,102,241,0.5)]">
               <div className="flex items-center justify-between">
                 <span>Explore the complete collection →</span>
                 <div className="flex gap-1">
-                  <div className="w-1 h-1 rounded-full bg-indigo-300/50" />
-                  <div className="w-1 h-1 rounded-full bg-indigo-300/30" />
-                  <div className="w-1 h-1 rounded-full bg-indigo-300/20" />
+                  <div className="w-1 h-1 rounded-full bg-indigo-500/50 dark:bg-indigo-300/50" />
+                  <div className="w-1 h-1 rounded-full bg-indigo-500/30 dark:bg-indigo-300/30" />
+                  <div className="w-1 h-1 rounded-full bg-indigo-500/20 dark:bg-indigo-300/20" />
                 </div>
               </div>
             </div>

@@ -1,9 +1,10 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { FileText, Moon, Sun, Menu, X } from "lucide-react";
+import { Moon, Sun, Menu, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Satisfy } from "next/font/google";
+import AuthButton from "./AuthButton";
 
 const signatureFont = Satisfy({ subsets: ["latin"], weight: "400" });
 
@@ -39,12 +40,12 @@ export default function Navbar() {
     }, []);
 
     return (
-        <header className="sticky top-0 z-50 backdrop-blur supports-[backdrop-filter]:bg-white/30 dark:supports-[backdrop-filter]:bg-black/20 border-b border-white/10">
+        <header className="sticky top-0 z-50 backdrop-blur supports-[backdrop-filter]:bg-white/80 dark:supports-[backdrop-filter]:bg-black/20 border-b border-black/10 dark:border-white/10">
             <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
                 <Link
                     href="/#home"
                     aria-label="Go to home"
-                    className="group relative inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3.5 py-1.5 text-white shadow-sm hover:bg-white/10 transition-colors"
+                    className="group relative inline-flex items-center gap-2 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-3.5 py-1.5 text-gray-900 dark:text-white shadow-sm hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
                 >
                     <span className={`${signatureFont.className} text-base sm:text-lg leading-none tracking-wide`}>
                         Himanshu Kukreja
@@ -57,8 +58,8 @@ export default function Navbar() {
                             key={s.id}
                             href={`/#${s.id}`}
                             className={`px-3 py-2 rounded-full text-sm transition-colors ${active === s.id
-                                ? "bg-white/10 text-white"
-                                : "hover:bg-white/5 text-white/80"
+                                ? "bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white"
+                                : "hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80"
                                 }`}
                         >
                             {s.label}
@@ -66,38 +67,21 @@ export default function Navbar() {
                     ))}
                     <Link
                         href="/stories"
-                        className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-white/5 text-white/80"
-                        onClick={(e) => {
-                            e.preventDefault(); // prevent default client navigation
-                            window.location.href = "/stories"; // triggers full reload
-                        }}
+                        className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80"
                     >
                         All Stories
                     </Link>
                     <Link
                         href="/learn"
-                        className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-white/5 text-white/80 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
-                        onClick={(e) => {
-                            e.preventDefault();
-                            window.location.href = "/learn";
-                        }}
+                        className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
                     >
                         Learn
                     </Link>
                 </nav>
-                <div className="flex items-center gap-2">
-                    <a
-                        href="/resume.pdf"
-                        className="hidden sm:inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm border border-white/10 bg-transparent hover:bg-white/5 text-white"
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        <FileText className="h-4 w-4" />
-                        <span className="hidden sm:inline">Resume</span>
-                    </a>
+                <div className="flex items-center gap-1.5">
                     <button
                         aria-label="Toggle theme"
-                        className="hidden sm:inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm border border-white/10 bg-transparent hover:bg-white/5 text-white"
+                        className="hidden md:inline-flex items-center gap-2 rounded-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-900 dark:text-white"
                         onClick={() =>
                             setTheme(resolvedTheme === "dark" ? "light" : "dark")
                         }
@@ -106,10 +90,14 @@ export default function Navbar() {
                         <Sun className="h-4 w-4 hidden dark:block" />
                         <Moon className="h-4 w-4 block dark:hidden" />
                     </button>
+
+                    {/* Auth Button - Always visible */}
+                    <AuthButton />
+
                     {/* Mobile Hamburger Menu */}
                     <button
                         aria-label="Toggle mobile menu"
-                        className="md:hidden inline-flex items-center justify-center rounded-full px-3 py-2 text-sm border border-white/10 bg-transparent hover:bg-white/5 text-white"
+                        className="md:hidden inline-flex items-center justify-center rounded-full px-3 py-2 text-sm border border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-900 dark:text-white"
                         onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                     >
                         {mobileMenuOpen ? (
@@ -123,7 +111,7 @@ export default function Navbar() {
 
             {/* Mobile Menu Dropdown */}
             {mobileMenuOpen && (
-                <div className="md:hidden border-t border-white/10 bg-white/5 backdrop-blur-sm">
+                <div className="md:hidden border-t border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 backdrop-blur-sm">
                     <nav className="px-4 py-4 space-y-2">
                         {sections.map((s) => (
                             <Link
@@ -131,8 +119,8 @@ export default function Navbar() {
                                 href={`/#${s.id}`}
                                 className={`block px-4 py-2 rounded-lg text-sm transition-colors ${
                                     active === s.id
-                                        ? "bg-white/10 text-white"
-                                        : "hover:bg-white/5 text-white/80"
+                                        ? "bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white"
+                                        : "hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80"
                                 }`}
                                 onClick={() => setMobileMenuOpen(false)}
                             >
@@ -141,39 +129,21 @@ export default function Navbar() {
                         ))}
                         <Link
                             href="/stories"
-                            className="block px-4 py-2 rounded-lg text-sm transition-colors hover:bg-white/5 text-white/80"
-                            onClick={(e) => {
-                                setMobileMenuOpen(false);
-                                e.preventDefault();
-                                window.location.href = "/stories";
-                            }}
+                            className="block px-4 py-2 rounded-lg text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80"
+                            onClick={() => setMobileMenuOpen(false)}
                         >
                             All Stories
                         </Link>
                         <Link
                             href="/learn"
-                            className="block px-4 py-2 rounded-lg text-sm transition-colors hover:bg-white/5 text-white/80 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
-                            onClick={(e) => {
-                                setMobileMenuOpen(false);
-                                e.preventDefault();
-                                window.location.href = "/learn";
-                            }}
+                            className="block px-4 py-2 rounded-lg text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
+                            onClick={() => setMobileMenuOpen(false)}
                         >
                             Learn
                         </Link>
-                        <div className="pt-4 mt-4 border-t border-white/10 space-y-2">
-                            <a
-                                href="/resume.pdf"
-                                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm hover:bg-white/5 text-white/80"
-                                target="_blank"
-                                rel="noreferrer"
-                                onClick={() => setMobileMenuOpen(false)}
-                            >
-                                <FileText className="h-4 w-4" />
-                                Resume
-                            </a>
+                        <div className="pt-4 mt-4 border-t border-black/10 dark:border-white/10">
                             <button
-                                className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm hover:bg-white/5 text-white/80 text-left"
+                                className="w-full flex items-center gap-2 px-4 py-2 rounded-lg text-sm hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 text-left"
                                 onClick={() => {
                                     setTheme(resolvedTheme === "dark" ? "light" : "dark");
                                 }}

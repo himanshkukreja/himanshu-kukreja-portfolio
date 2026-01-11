@@ -96,7 +96,7 @@ export default function Experience() {
   return (
     <div className="relative">
       {/* Vertical line */}
-      <div className="pointer-events-none absolute left-3 top-0 h-full w-px bg-white/10" />
+      <div className="pointer-events-none absolute left-3 top-0 h-full w-px bg-black/10 dark:bg-white/10" />
 
       <motion.ol
         variants={container}
@@ -113,7 +113,7 @@ export default function Experience() {
           return (
             <motion.li key={exp.id} variants={item} className="relative pl-10">
               {/* Dot/Icon */}
-              <span className="absolute left-0 top-4 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-white/10 text-white shadow-sm">
+              <span className="absolute left-0 top-4 grid h-6 w-6 place-items-center rounded-full border border-black/10 dark:border-white/10 bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white shadow-sm">
                 <Icon className="h-3.5 w-3.5 opacity-90" />
               </span>
 
@@ -123,14 +123,14 @@ export default function Experience() {
                 onMouseEnter={() => setHovered(exp.id)}
                 onMouseLeave={() => setHovered((h) => (h === exp.id ? null : h))}
                 onClick={() => setExpanded((e) => (e === exp.id ? null : exp.id))}
-                className="group relative cursor-pointer rounded-2xl border border-white/10 bg-white/5 p-5 text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)] will-change-transform"
+                className="group relative cursor-pointer rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-5 text-gray-800 dark:text-white/90 shadow-lg shadow-black/5 dark:shadow-black/30 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)] will-change-transform"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
-                    <p className="text-xs text-white/60 flex items-center gap-1">
+                    <p className="text-xs text-gray-500 dark:text-white/60 flex items-center gap-1">
                       <Calendar className="h-3.5 w-3.5" /> {exp.period}
                     </p>
-                    <h3 className="mt-1 text-base sm:text-lg font-semibold text-white">
+                    <h3 className="mt-1 text-base sm:text-lg font-semibold text-gray-900 dark:text-white">
                       {exp.company} — <span className="text-[var(--accent-2)]">{exp.role}</span>
                     </h3>
                   </div>
@@ -139,7 +139,7 @@ export default function Experience() {
                       href={exp.link}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="group relative inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-white focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.45)]"
+                      className="group relative inline-flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.45)]"
                       onClick={(e) => e.stopPropagation()}
                     >
                       <span aria-hidden className="absolute -inset-px -z-10 rounded-lg bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 opacity-95 transition-opacity duration-300 group-hover:opacity-100" />
@@ -157,7 +157,7 @@ export default function Experience() {
                   {exp.tags.slice(0, 6).map((t) => (
                     <span
                       key={`${exp.id}-${t}`}
-                      className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-white/85 ring-1 ring-inset ring-white/10 transition-colors hover:from-indigo-500/25 hover:to-blue-500/25"
+                      className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-gray-700 dark:text-white/85 ring-1 ring-inset ring-white/10 transition-colors hover:from-indigo-500/25 hover:to-blue-500/25"
                     >
                       {t}
                     </span>
@@ -182,7 +182,7 @@ export default function Experience() {
                       {exp.tags.slice(6).map((t) => (
                         <span
                           key={`${exp.id}-${t}`}
-                          className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-500/15 to-indigo-500/15 px-2 py-0.5 text-[10px] text-white/85 ring-1 ring-inset ring-white/10"
+                          className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-500/15 to-indigo-500/15 px-2 py-0.5 text-[10px] text-gray-700 dark:text-white/85 ring-1 ring-inset ring-white/10"
                         >
                           {t}
                         </span>

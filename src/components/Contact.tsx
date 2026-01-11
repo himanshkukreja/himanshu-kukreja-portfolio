@@ -54,35 +54,35 @@ export default function Contact() {
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-10% 0px -20% 0px" }}
       transition={{ duration: 0.45, ease: cubicBezier(0.22, 1, 0.36, 1) }}
-      className="relative rounded-2xl border border-white/10 bg-white/5 p-6 shadow-lg shadow-black/5 dark:shadow-black/30"
+      className="relative rounded-2xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 p-6 shadow-lg shadow-black/5 dark:shadow-black/30"
     >
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-4 max-w-2xl">
         <div className="grid gap-1">
-          <label className="text-xs font-medium text-white/70 flex items-center gap-2"><User className="h-4 w-4" /> Name</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-white/70 flex items-center gap-2"><User className="h-4 w-4" /> Name</label>
           <input
             placeholder="Your name"
-            className="rounded-xl border border-white/10 bg-white/5 text-white p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 placeholder:text-white/40"
+            className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-900 dark:text-white p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 placeholder:text-gray-500 dark:placeholder:text-white/40"
             {...register("name")}
           />
           {errors.name && <p className="text-[11px] text-red-400">{errors.name.message}</p>}
         </div>
 
         <div className="grid gap-1">
-          <label className="text-xs font-medium text-white/70 flex items-center gap-2"><Mail className="h-4 w-4" /> Email</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-white/70 flex items-center gap-2"><Mail className="h-4 w-4" /> Email</label>
           <input
             placeholder="you@example.com"
-            className="rounded-xl border border-white/10 bg-white/5 text-white p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 placeholder:text-white/40"
+            className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-900 dark:text-white p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 placeholder:text-gray-500 dark:placeholder:text-white/40"
             {...register("email")}
           />
           {errors.email && <p className="text-[11px] text-red-400">{errors.email.message}</p>}
         </div>
 
         <div className="grid gap-1">
-          <label className="text-xs font-medium text-white/70 flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Message</label>
+          <label className="text-xs font-medium text-gray-600 dark:text-white/70 flex items-center gap-2"><MessageSquare className="h-4 w-4" /> Message</label>
           <textarea
             rows={5}
             placeholder="Tell me about your project or role..."
-            className="rounded-xl border border-white/10 bg-white/5 text-white p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 placeholder:text-white/40"
+            className="rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-900 dark:text-white p-3 focus:outline-none focus:ring-2 focus:ring-[var(--ring)]/60 placeholder:text-gray-500 dark:placeholder:text-white/40"
             {...register("message")}
           />
           {errors.message && <p className="text-[11px] text-red-400">{errors.message.message}</p>}
@@ -91,7 +91,7 @@ export default function Contact() {
         <div className="flex items-center gap-3">
           <button
             disabled={isSubmitting}
-            className="group relative inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-white focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-12px_rgba(59,130,246,0.55)] disabled:opacity-70"
+            className="group relative inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[var(--ring)] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_12px_36px_-12px_rgba(59,130,246,0.55)] disabled:opacity-70"
           >
             <span aria-hidden className="absolute -inset-px -z-10 rounded-xl bg-gradient-to-r from-indigo-500 via-blue-500 to-purple-500 opacity-95 transition-opacity duration-300 group-hover:opacity-100" />
             <span aria-hidden className="absolute inset-0 -z-20 rounded-xl blur-md bg-gradient-to-r from-indigo-500/40 via-blue-500/35 to-purple-500/40 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />

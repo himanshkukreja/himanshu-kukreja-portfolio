@@ -174,7 +174,7 @@ const item = {
 
 // subtle stat/skills animation
 const badgeBase =
-  "group relative inline-flex items-center rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[11px] leading-none text-white/85 hover:bg-white/10 transition-colors select-none";
+  "group relative inline-flex items-center rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-2.5 py-1 text-[11px] leading-none text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10 transition-colors select-none";
 
 // NEW: quick stats and skills data
 const QUICK_STATS = [
@@ -244,7 +244,7 @@ export default function About() {
         initial="hidden"
         whileInView="show"
         viewport={{ once: true, margin: "-20% 0px -10% 0px" }}
-        className="relative rounded-2xl border border-white/10 bg-white/5 p-6 md:col-span-4 xl:col-span-5 shadow-lg shadow-black/5 dark:shadow-black/30 overflow-hidden md:sticky md:top-24 md:self-start md:h-[calc(100dvh-6rem)] md:max-h-[calc(100dvh-6rem)]"
+        className="relative rounded-2xl border border-black/10 dark:border-white/10 bg-white/5 p-6 md:col-span-4 xl:col-span-5 shadow-lg shadow-black/5 dark:shadow-black/30 overflow-hidden md:sticky md:top-24 md:self-start md:h-[calc(100dvh-6rem)] md:max-h-[calc(100dvh-6rem)]"
       >
         {/* subtle gradient accent */}
         <div className="pointer-events-none absolute -top-20 -right-24 h-56 w-56 rounded-full bg-gradient-to-br from-indigo-500/15 via-blue-500/10 to-purple-500/10 blur-2xl" />
@@ -262,23 +262,23 @@ export default function About() {
                 priority
               />
             ) : (
-              <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 text-white font-semibold">
+              <span className="grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-indigo-500 to-blue-500 text-gray-900 dark:text-white font-semibold">
                 HK
               </span>
             )}
           </div>
           <div>
-            <h3 className="text-lg sm:text-xl font-semibold text-white flex items-center gap-2">
-              <GraduationCap className="h-5 w-5 text-white/80" /> Education
+            <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+              <GraduationCap className="h-5 w-5 text-gray-700 dark:text-white/80" /> Education
             </h3>
-            <p className="mt-1 text-sm text-white/80">
+            <p className="mt-1 text-sm text-gray-700 dark:text-white/80">
               B.E. in Computer Science, Thapar Institute of Engineering & Technology (CGPA 9.04/10)
             </p>
           </div>
         </div>
 
         {/* short intro */}
-        <p className="mt-4 text-sm text-white/85">
+        <p className="mt-4 text-sm text-gray-700 dark:text-white/85">
           Startup‑minded engineer passionate about building scalable systems and solving complex backend challenges.
         </p>
 
@@ -292,7 +292,7 @@ export default function About() {
               <Cpu className="h-4 w-4 text-purple-400" />
             </div>
           </div>
-          <ul className="text-sm text-white/75 space-y-3">
+          <ul className="text-sm text-gray-600 dark:text-white/75 space-y-3">
             <li>Strong CS fundamentals and hands‑on product mindset.</li>
             <li>Focus on backend, cloud, real‑time streaming, and AI.</li>
             <li>Comfortable owning features from idea to production.</li>
@@ -300,7 +300,7 @@ export default function About() {
         </div>
 
         {/* Quick Highlights */}
-        <h4 className="mt-8 text-sm font-semibold text-white/90">Core Strengths</h4>
+        <h4 className="mt-8 text-sm font-semibold text-gray-800 dark:text-white/90">Core Strengths</h4>
         <div className="mt-3 grid grid-cols-2 gap-3">
           {QUICK_STATS.map((s, i) => (
             <motion.div
@@ -309,15 +309,15 @@ export default function About() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-20% 0px -10% 0px" }}
               transition={{ duration: 0.35, ease: cubicBezier(0.4, 0, 0.2, 1), delay: 0.06 * i }}
-              className="rounded-xl border border-white/10 bg-white/5 p-3 shadow-sm transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-12px_rgba(99,102,241,0.45)]"
+              className="rounded-xl border border-black/10 dark:border-white/10 bg-white/5 p-3 shadow-sm transition-all duration-300 ease-in-out hover:-translate-y-0.5 hover:shadow-[0_8px_24px_-12px_rgba(99,102,241,0.45)]"
             >
               <div className="flex items-center gap-2">
                 <span className="grid h-7 w-7 place-items-center rounded-md bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-300 ring-1 ring-inset ring-white/10">
                   <s.icon className="h-4 w-4" />
                 </span>
                 <div>
-                  <div className="text-base font-semibold text-white leading-tight">{s.value}</div>
-                  <div className="text-[11px] text-white/70 leading-tight">{s.label}</div>
+                  <div className="text-base font-semibold text-gray-900 dark:text-white leading-tight">{s.value}</div>
+                  <div className="text-[11px] text-gray-600 dark:text-white/70 leading-tight">{s.label}</div>
                 </div>
               </div>
             </motion.div>
@@ -325,15 +325,15 @@ export default function About() {
         </div>
 
         {/* Top skills bars */}
-        <h4 className="mt-6 text-sm font-semibold text-white/90">Top Skills</h4>
+        <h4 className="mt-6 text-sm font-semibold text-gray-800 dark:text-white/90">Top Skills</h4>
         <div className="mt-3 space-y-3">
           {TOP_SKILLS.map((sk) => (
             <div key={sk.name} className="">
-              <div className="flex items-center justify-between text-[11px] text-white/70">
+              <div className="flex items-center justify-between text-[11px] text-gray-600 dark:text-white/70">
                 <span>{sk.name}</span>
                 <span>{sk.level}%</span>
               </div>
-              <div className="mt-1 h-2 w-full rounded-full bg-white/10">
+              <div className="mt-1 h-2 w-full rounded-full bg-black/10 dark:bg-white/10">
                 <motion.div
                   initial={{ width: 0 }}
                   whileInView={{ width: `${sk.level}%` }}
@@ -354,10 +354,10 @@ export default function About() {
           className="md:h-full md:overflow-y-auto scroll-smooth md:overscroll-y-contain [scrollbar-width:thin] [scrollbar-color:rgba(99,102,241,0.55)_transparent] md:pr-1"
           style={{ WebkitOverflowScrolling: "touch" }}
         >
-          <div className="rounded-2xl border border-white/10 bg-white/5 shadow-lg shadow-black/5 dark:shadow-black/30 min-h-full overflow-hidden">
+          <div className="rounded-2xl border border-black/10 dark:border-white/10 bg-white/5 shadow-lg shadow-black/5 dark:shadow-black/30 min-h-full overflow-hidden">
             {/* Sticky header: title + tags remain visible while the cards scroll */}
-            <div className="sticky top-0 z-10 p-6 bg-white/5 backdrop-blur-sm border-b border-white/10">
-              <h3 className="text-lg sm:text-xl font-semibold text-white">My story</h3>
+            <div className="sticky top-0 z-10 p-6 bg-white/5 backdrop-blur-sm border-b border-black/10 dark:border-white/10">
+              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white">My story</h3>
               <div className="mt-3 flex flex-wrap gap-2">
                 {allTags.map((t) => {
                   const active = activeTags.includes(t);
@@ -382,7 +382,7 @@ export default function About() {
             <div className="p-6 pt-4">
               <div className="relative mt-4">
                 {/* center line */}
-                <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-white/10" />
+                <div className="pointer-events-none absolute left-1/2 top-0 h-full w-px -translate-x-1/2 bg-black/10 dark:bg-white/10" />
 
                 <motion.ul
                   variants={container}
@@ -401,7 +401,7 @@ export default function About() {
                     return (
                       <motion.li key={m.id} variants={item} className="relative">
                         {/* dot */}
-                        <span className="absolute left-1/2 top-4 -translate-x-1/2 grid h-6 w-6 place-items-center rounded-full border border-white/10 bg-white/10 text-white shadow-sm">
+                        <span className="absolute left-1/2 top-4 -translate-x-1/2 grid h-6 w-6 place-items-center rounded-full border border-black/10 dark:border-white/10 bg-black/10 dark:bg-white/10 text-gray-900 dark:text-white shadow-sm">
                           <Icon className="h-3.5 w-3.5 opacity-90" />
                         </span>
 
@@ -424,12 +424,12 @@ export default function About() {
                               onClick={() =>
                                 setExpanded((e) => (e === m.id ? null : m.id))
                               }
-                              className="relative cursor-pointer rounded-xl border border-white/10 bg-white/5 p-4 text-white/90 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)] group"
+                              className="relative cursor-pointer rounded-xl border border-black/10 dark:border-white/10 bg-white/5 p-4 text-gray-800 dark:text-white/90 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:shadow-[0_0_0_1px_rgba(99,102,241,0.35),0_12px_36px_-12px_rgba(59,130,246,0.45)] group"
                             >
                               <div className="flex items-start justify-between gap-3">
                                 <div>
-                                  <p className="text-xs text-white/60">{m.period}</p>
-                                  <h4 className="mt-0.5 text-base font-semibold text-white">
+                                  <p className="text-xs text-gray-500 dark:text-white/60">{m.period}</p>
+                                  <h4 className="mt-0.5 text-base font-semibold text-gray-900 dark:text-white">
                                     {m.title}
                                   </h4>
                                 </div>
@@ -446,7 +446,7 @@ export default function About() {
                                 {m.tags.slice(0, 6).map((t) => (
                                   <span
                                     key={`${m.id}-${t}`}
-                                    className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-white/85 ring-1 ring-inset ring-white/10 transition-colors hover:from-indigo-500/25 hover:to-blue-500/25"
+                                    className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-2 py-0.5 text-[10px] text-gray-700 dark:text-white/85 ring-1 ring-inset ring-black/10 dark:ring-white/10 transition-colors hover:from-indigo-500/25 hover:to-blue-500/25"
                                   >
                                     {t}
                                   </span>
@@ -478,7 +478,7 @@ export default function About() {
                                     {m.tags.slice(6).map((t) => (
                                       <span
                                         key={`${m.id}-${t}`}
-                                        className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-500/15 to-indigo-500/15 px-2 py-0.5 text-[10px] text-white/85 ring-1 ring-inset ring-white/10"
+                                        className="inline-flex items-center rounded-full bg-gradient-to-r from-purple-500/15 to-indigo-500/15 px-2 py-0.5 text-[10px] text-gray-700 dark:text-white/85 ring-1 ring-inset ring-black/10 dark:ring-white/10"
                                       >
                                         {t}
                                       </span>
