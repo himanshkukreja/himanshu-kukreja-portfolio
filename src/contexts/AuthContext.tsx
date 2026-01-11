@@ -38,42 +38,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const fetchProfile = async (userId: string, retryCount = 0) => {
     console.log(`[AuthContext] Fetching profile for user ${userId} (attempt ${retryCount + 1}/5)...`);
 
-    const { data, error } = await getUserProfile(userId);
+    try {
+      const { data, error } = await getUserProfile(userId);
 
-    if (error) {
-      console.error("[AuthContext] Profile fetch error:", error);
+      if (error) {
+        console.error("[AuthContext] Profile fetch error:", error);
 
-      // If profile doesn't exist yet (PGRST116 = no rows returned), retry with exponential backoff
-      // This can happen if the database trigger hasn't created the profile yet
-      if (error.code === 'PGRST116' && retryCount < 5) {
-        const delay = Math.min(1000 * Math.pow(1.5, retryCount), 5000); // Exponential backoff up to 5s
-        console.log(`[AuthContext] Profile not found, retrying in ${delay}ms (${retryCount + 1}/5)...`);
+        // If profile doesn't exist yet (PGRST116 = no rows returned), retry with exponential backoff
+        // This can happen if the database trigger hasn't created the profile yet
+        if (error.code === 'PGRST116' && retryCount < 5) {
+          const delay = Math.min(1000 * Math.pow(1.5, retryCount), 5000); // Exponential backoff up to 5s
+          console.log(`[AuthContext] Profile not found, retrying in ${delay}ms (${retryCount + 1}/5)...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          return fetchProfile(userId, retryCount + 1);
+        }
+
+        // For other errors, only retry a couple times
+        if (retryCount < 2) {
+          console.log(`[AuthContext] Retrying after error (${retryCount + 1}/2)...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          return fetchProfile(userId, retryCount + 1);
+        }
+
+        console.error("[AuthContext] Failed to fetch profile after retries:", error);
+        return;
+      }
+
+      if (data) {
+        console.log("[AuthContext] Profile loaded successfully:", { full_name: data.full_name, avatar_url: data.avatar_url });
+        setProfile(data);
+      } else if (retryCount < 5) {
+        // If data is null but no error, retry with backoff
+        const delay = Math.min(1000 * Math.pow(1.5, retryCount), 5000);
+        console.log(`[AuthContext] Profile returned null, retrying in ${delay}ms (${retryCount + 1}/5)...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        return fetchProfile(userId, retryCount + 1);
+      } else {
+        console.error("[AuthContext] Profile is null after all retries");
+      }
+    } catch (err) {
+      console.error('[AuthContext] Exception in fetchProfile:', err);
+
+      // Retry on exception
+      if (retryCount < 3) {
+        const delay = 2000;
+        console.log(`[AuthContext] Retrying after exception in ${delay}ms (${retryCount + 1}/3)...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         return fetchProfile(userId, retryCount + 1);
       }
-
-      // For other errors, only retry a couple times
-      if (retryCount < 2) {
-        console.log(`[AuthContext] Retrying after error (${retryCount + 1}/2)...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        return fetchProfile(userId, retryCount + 1);
-      }
-
-      console.error("[AuthContext] Failed to fetch profile after retries:", error);
-      return;
-    }
-
-    if (data) {
-      console.log("[AuthContext] Profile loaded successfully:", { full_name: data.full_name, avatar_url: data.avatar_url });
-      setProfile(data);
-    } else if (retryCount < 5) {
-      // If data is null but no error, retry with backoff
-      const delay = Math.min(1000 * Math.pow(1.5, retryCount), 5000);
-      console.log(`[AuthContext] Profile returned null, retrying in ${delay}ms (${retryCount + 1}/5)...`);
-      await new Promise(resolve => setTimeout(resolve, delay));
-      return fetchProfile(userId, retryCount + 1);
-    } else {
-      console.error("[AuthContext] Profile is null after all retries");
     }
   };
 

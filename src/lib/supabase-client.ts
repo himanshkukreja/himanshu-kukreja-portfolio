@@ -195,16 +195,41 @@ export async function getCurrentSession() {
 // =====================================================
 
 /**
- * Get user profile
+ * Get user profile with timeout
  */
 export async function getUserProfile(userId: string): Promise<{ data: UserProfile | null; error: any }> {
-  const { data, error } = await supabaseClient
-    .from("user_profiles")
-    .select("*")
-    .eq("id", userId)
-    .single();
+  try {
+    console.log('[getUserProfile] Fetching profile for user:', userId);
 
-  return { data, error };
+    // Create a promise that rejects after 10 seconds
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error('Profile fetch timeout after 10s')), 10000);
+    });
+
+    // Race between the actual fetch and timeout
+    const fetchPromise = supabaseClient
+      .from("user_profiles")
+      .select("*")
+      .eq("id", userId)
+      .single();
+
+    const { data, error } = await Promise.race([
+      fetchPromise,
+      timeoutPromise
+    ]);
+
+    console.log('[getUserProfile] Response:', {
+      hasData: !!data,
+      error: error ? error.message : null,
+      errorCode: error?.code,
+      errorDetails: error?.details,
+    });
+
+    return { data, error };
+  } catch (err: any) {
+    console.error('[getUserProfile] Exception:', err);
+    return { data: null, error: err };
+  }
 }
 
 /**
