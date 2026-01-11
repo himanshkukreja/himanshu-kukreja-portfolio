@@ -35,24 +35,44 @@ export default function AuthHashHandler() {
         });
 
         if (accessToken && refreshToken) {
+          // Decode the JWT to get user info
+          const payloadBase64 = accessToken.split('.')[1];
+          const decodedPayload = JSON.parse(atob(payloadBase64));
+
+          console.log("[AuthHashHandler] Decoded user from token:", {
+            userId: decodedPayload.sub,
+            email: decodedPayload.email,
+          });
+
           // Calculate expiry timestamp
           const expiryTimestamp = expiresAt
             ? parseInt(expiresAt)
             : Math.floor(Date.now() / 1000) + (expiresIn ? parseInt(expiresIn) : 3600);
 
-          // Create session object that Supabase expects
-          const session = {
+          // Create complete session object in the format Supabase v2 expects
+          const sessionData = {
             access_token: accessToken,
             refresh_token: refreshToken,
             expires_in: expiresIn ? parseInt(expiresIn) : 3600,
             expires_at: expiryTimestamp,
             token_type: "bearer",
-            user: null, // Will be populated by Supabase
+            user: {
+              id: decodedPayload.sub,
+              email: decodedPayload.email,
+              aud: decodedPayload.aud,
+              role: decodedPayload.role,
+              created_at: decodedPayload.created_at,
+              updated_at: decodedPayload.updated_at,
+              app_metadata: decodedPayload.app_metadata || {},
+              user_metadata: decodedPayload.user_metadata || {},
+            },
           };
 
-          // Store in localStorage with Supabase's expected key format
-          const supabaseKey = `sb-jnvxizdhpecnydnvhell-auth-token`;
-          localStorage.setItem(supabaseKey, JSON.stringify(session));
+          // Supabase v2 uses this key format: sb-{project-ref}-auth-token
+          const storageKey = "sb-jnvxizdhpecnydnvhell-auth-token";
+
+          console.log("[AuthHashHandler] Storing session with key:", storageKey);
+          localStorage.setItem(storageKey, JSON.stringify(sessionData));
 
           console.log("[AuthHashHandler] ✅ Session stored in localStorage");
           console.log("[AuthHashHandler] Cleaning URL and reloading...");
