@@ -33,10 +33,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const initializedRef = useRef(false); // Use ref instead of state to avoid closure issues
+  const fetchingProfileRef = useRef(false); // Prevent concurrent profile fetches
+  const currentUserIdRef = useRef<string | null>(null); // Track current user ID
 
   // Fetch user profile with retry logic
   const fetchProfile = async (userId: string, retryCount = 0) => {
-    console.log(`[AuthContext] Fetching profile for user ${userId} (attempt ${retryCount + 1}/5)...`);
+    // Prevent duplicate fetches for the same user
+    if (fetchingProfileRef.current && currentUserIdRef.current === userId) {
+      console.log(`[AuthContext] Profile fetch already in progress for user ${userId}, skipping...`);
+      return;
+    }
+
+    fetchingProfileRef.current = true;
+    currentUserIdRef.current = userId;
+
+    console.log(`[AuthContext] Fetching profile for user ${userId} (attempt ${retryCount + 1}/3)...`);
 
     try {
       const { data, error } = await getUserProfile(userId);
@@ -46,52 +57,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         // If profile doesn't exist yet (PGRST116 = no rows returned), retry with exponential backoff
         // This can happen if the database trigger hasn't created the profile yet
-        if (error.code === 'PGRST116' && retryCount < 5) {
-          const delay = Math.min(1000 * Math.pow(1.5, retryCount), 5000); // Exponential backoff up to 5s
-          console.log(`[AuthContext] Profile not found, retrying in ${delay}ms (${retryCount + 1}/5)...`);
+        if (error.code === 'PGRST116' && retryCount < 3) {
+          const delay = Math.min(500 * Math.pow(2, retryCount), 2000); // Exponential backoff: 500ms, 1s, 2s
+          console.log(`[AuthContext] Profile not found, retrying in ${delay}ms (${retryCount + 1}/3)...`);
           await new Promise(resolve => setTimeout(resolve, delay));
+          fetchingProfileRef.current = false; // Reset before retry
           return fetchProfile(userId, retryCount + 1);
         }
 
-        // For other errors, only retry a couple times
-        if (retryCount < 2) {
-          console.log(`[AuthContext] Retrying after error (${retryCount + 1}/2)...`);
-          await new Promise(resolve => setTimeout(resolve, 2000));
-          return fetchProfile(userId, retryCount + 1);
-        }
-
-        console.error("[AuthContext] Failed to fetch profile after retries:", error);
+        console.error("[AuthContext] Failed to fetch profile:", error);
+        fetchingProfileRef.current = false;
         return;
       }
 
       if (data) {
         console.log("[AuthContext] Profile loaded successfully:", { full_name: data.full_name, avatar_url: data.avatar_url });
         setProfile(data);
-      } else if (retryCount < 5) {
+      } else if (retryCount < 3) {
         // If data is null but no error, retry with backoff
-        const delay = Math.min(1000 * Math.pow(1.5, retryCount), 5000);
-        console.log(`[AuthContext] Profile returned null, retrying in ${delay}ms (${retryCount + 1}/5)...`);
+        const delay = Math.min(500 * Math.pow(2, retryCount), 2000);
+        console.log(`[AuthContext] Profile returned null, retrying in ${delay}ms (${retryCount + 1}/3)...`);
         await new Promise(resolve => setTimeout(resolve, delay));
+        fetchingProfileRef.current = false; // Reset before retry
         return fetchProfile(userId, retryCount + 1);
       } else {
         console.error("[AuthContext] Profile is null after all retries");
       }
+
+      fetchingProfileRef.current = false;
     } catch (err) {
       console.error('[AuthContext] Exception in fetchProfile:', err);
-
-      // Retry on exception
-      if (retryCount < 3) {
-        const delay = 2000;
-        console.log(`[AuthContext] Retrying after exception in ${delay}ms (${retryCount + 1}/3)...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        return fetchProfile(userId, retryCount + 1);
-      }
+      fetchingProfileRef.current = false;
     }
   };
 
   // Refresh profile manually
   const refreshProfile = async () => {
     if (!user?.id) return;
+    fetchingProfileRef.current = false; // Reset flag to allow manual refresh
     await fetchProfile(user.id);
   };
 
@@ -147,25 +150,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log("[AuthContext] Fetching profile for auth state change...");
         await fetchProfile(session.user.id);
 
-        // Send welcome email on first successful sign in
+        // Send welcome email on first successful sign in (non-blocking)
         if (event === "SIGNED_IN") {
-          try {
-            const response = await fetch("/api/send-welcome-email", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ userId: session.user.id }),
+          // Don't await - run in background to not block auth flow
+          fetch("/api/send-welcome-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ userId: session.user.id }),
+          })
+            .then(response => response.json())
+            .then(data => {
+              if (data.success) {
+                console.log("[AuthContext] Welcome email sent successfully");
+              } else if (data.alreadySent) {
+                console.log("[AuthContext] Welcome email already sent (returning user)");
+              }
+            })
+            .catch(error => {
+              console.error("[AuthContext] Error sending welcome email:", error);
+              // Don't block authentication if welcome email fails
             });
-
-            const data = await response.json();
-            if (data.success) {
-              console.log("[AuthContext] Welcome email sent successfully");
-            } else if (data.alreadySent) {
-              console.log("[AuthContext] Welcome email already sent (returning user)");
-            }
-          } catch (error) {
-            console.error("[AuthContext] Error sending welcome email:", error);
-            // Don't block authentication if welcome email fails
-          }
         }
       } else {
         console.log("[AuthContext] No session, clearing profile");
