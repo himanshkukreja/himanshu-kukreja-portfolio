@@ -33,8 +33,7 @@ function AuthCallbackContent() {
       try {
         console.log('[AuthCallback Page] Processing OAuth callback...');
 
-        // Get the code from URL params (OAuth callback)
-        const code = searchParams.get('code');
+        // Check for OAuth errors in URL
         const error = searchParams.get('error');
         const errorDescription = searchParams.get('error_description');
 
@@ -46,75 +45,49 @@ function AuthCallbackContent() {
           return;
         }
 
-        if (code) {
-          console.log('[AuthCallback Page] Code found, exchanging for session...');
+        // CRITICAL: Don't manually exchange the code - Supabase client does this automatically
+        // The auth.detectSessionInUrl config handles PKCE flow automatically
+        // Just check if the session was created successfully
 
-          // Exchange the code for a session
-          const { data, error: exchangeError } = await supabaseClient.auth.exchangeCodeForSession(code);
+        console.log('[AuthCallback Page] Checking if session was created...');
 
-          if (exchangeError) {
-            console.error('[AuthCallback Page] Exchange error:', exchangeError);
-            setStatus('error');
-            setMessage('Failed to complete authentication');
-            setTimeout(() => router.push('/'), 3000);
-            return;
-          }
+        // Wait a moment for the automatic session creation to complete
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-          if (data?.session) {
-            console.log('[AuthCallback Page] ✅ Session created successfully!');
-            console.log('[AuthCallback Page] User:', data.user?.email);
+        // Check if Supabase already has a session (from automatic PKCE exchange)
+        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
 
-            // Ensure session is saved to localStorage
-            await supabaseClient.auth.setSession({
-              access_token: data.session.access_token,
-              refresh_token: data.session.refresh_token,
-            });
+        if (sessionError) {
+          console.error('[AuthCallback Page] Session error:', sessionError);
+          setStatus('error');
+          setMessage('Failed to retrieve session');
+          setTimeout(() => router.push('/'), 3000);
+          return;
+        }
 
-            setStatus('success');
-            setMessage('Authentication successful! Redirecting...');
+        if (session) {
+          console.log('[AuthCallback Page] ✅ Session created successfully!');
+          console.log('[AuthCallback Page] User:', session.user?.email);
 
-            // Get the redirect path from localStorage or default to home
-            const redirectPath = localStorage.getItem('auth_redirect_path') || '/';
-            localStorage.removeItem('auth_redirect_path');
+          setStatus('success');
+          setMessage('Authentication successful! Redirecting...');
 
-            console.log('[AuthCallback Page] Redirecting to:', redirectPath);
+          // Get the redirect path from localStorage or default to home
+          const redirectPath = localStorage.getItem('auth_redirect_path') || '/';
+          localStorage.removeItem('auth_redirect_path');
 
-            // Redirect after a brief delay
-            setTimeout(() => {
-              router.push(redirectPath);
-              router.refresh(); // Force refresh to update auth state
-            }, 1000);
-          } else {
-            console.error('[AuthCallback Page] No session data received');
-            setStatus('error');
-            setMessage('No session created');
-            setTimeout(() => router.push('/'), 3000);
-          }
+          console.log('[AuthCallback Page] Redirecting to:', redirectPath);
+
+          // Redirect after a brief delay
+          setTimeout(() => {
+            router.push(redirectPath);
+            router.refresh(); // Force refresh to update auth state
+          }, 1000);
         } else {
-          // No code in URL - might be coming from hash fragment (implicit flow)
-          console.log('[AuthCallback Page] No code in URL, checking hash...');
-
-          // Check if Supabase already has a session (from hash fragment)
-          const { data: { session } } = await supabaseClient.auth.getSession();
-
-          if (session) {
-            console.log('[AuthCallback Page] ✅ Session found in Supabase client');
-            setStatus('success');
-            setMessage('Authentication successful! Redirecting...');
-
-            const redirectPath = localStorage.getItem('auth_redirect_path') || '/';
-            localStorage.removeItem('auth_redirect_path');
-
-            setTimeout(() => {
-              router.push(redirectPath);
-              router.refresh();
-            }, 1000);
-          } else {
-            console.warn('[AuthCallback Page] No code or session found');
-            setStatus('error');
-            setMessage('No authentication data received');
-            setTimeout(() => router.push('/'), 3000);
-          }
+          console.warn('[AuthCallback Page] No session found after callback');
+          setStatus('error');
+          setMessage('Authentication did not complete');
+          setTimeout(() => router.push('/'), 3000);
         }
       } catch (err: any) {
         console.error('[AuthCallback Page] Exception:', err);
