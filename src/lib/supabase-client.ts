@@ -195,25 +195,52 @@ export async function getCurrentSession() {
 // =====================================================
 
 /**
- * Get user profile
+ * Get user profile with proper timeout handling
  */
 export async function getUserProfile(userId: string): Promise<{ data: UserProfile | null; error: any }> {
   try {
     console.log('[getUserProfile] Fetching profile for user:', userId);
 
-    const { data, error } = await supabaseClient
-      .from("user_profiles")
-      .select("*")
-      .eq("id", userId)
-      .maybeSingle(); // Use maybeSingle() instead of single() to handle missing profiles gracefully
-
-    console.log('[getUserProfile] Response:', {
-      hasData: !!data,
-      error: error ? error.message : null,
-      errorCode: error?.code,
+    // Create a timeout promise
+    const timeoutPromise = new Promise<{ data: null; error: any }>((_, reject) => {
+      setTimeout(() => {
+        reject(new Error('Profile fetch timeout after 5s'));
+      }, 5000);
     });
 
-    return { data, error };
+    // First, verify the session is valid
+    const { data: { session } } = await supabaseClient.auth.getSession();
+
+    if (!session) {
+      console.warn('[getUserProfile] No active session found');
+      return { data: null, error: { message: 'No active session', code: 'NO_SESSION' } };
+    }
+
+    // Create the fetch promise
+    const fetchPromise = (async () => {
+      const { data, error } = await supabaseClient
+        .from("user_profiles")
+        .select("*")
+        .eq("id", userId)
+        .maybeSingle();
+
+      console.log('[getUserProfile] Response:', {
+        hasData: !!data,
+        error: error ? error.message : null,
+        errorCode: error?.code,
+      });
+
+      return { data, error };
+    })();
+
+    // Race between fetch and timeout
+    try {
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
+      return result;
+    } catch (timeoutError: any) {
+      console.error('[getUserProfile] Request timeout:', timeoutError.message);
+      return { data: null, error: { message: timeoutError.message, code: 'TIMEOUT' } };
+    }
   } catch (err: any) {
     console.error('[getUserProfile] Exception:', err);
     return { data: null, error: err };

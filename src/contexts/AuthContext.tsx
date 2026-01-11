@@ -55,17 +55,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (error) {
         console.error("[AuthContext] Profile fetch error:", error);
 
-        // If profile doesn't exist yet (PGRST116 = no rows returned), retry with exponential backoff
-        // This can happen if the database trigger hasn't created the profile yet
-        if (error.code === 'PGRST116' && retryCount < 3) {
-          const delay = Math.min(500 * Math.pow(2, retryCount), 2000); // Exponential backoff: 500ms, 1s, 2s
-          console.log(`[AuthContext] Profile not found, retrying in ${delay}ms (${retryCount + 1}/3)...`);
+        // Handle different error types
+        const shouldRetry =
+          (error.code === 'PGRST116' || // Profile not created yet
+           error.code === 'TIMEOUT' ||  // Request timeout
+           error.code === 'NO_SESSION') && // Session not ready
+          retryCount < 2; // Max 3 attempts
+
+        if (shouldRetry) {
+          // Use shorter delays for faster retry
+          const delay = retryCount === 0 ? 300 : 800; // 300ms, then 800ms
+          console.log(`[AuthContext] Retrying in ${delay}ms (attempt ${retryCount + 2}/3)...`);
           await new Promise(resolve => setTimeout(resolve, delay));
           fetchingProfileRef.current = false; // Reset before retry
           return fetchProfile(userId, retryCount + 1);
         }
 
-        console.error("[AuthContext] Failed to fetch profile:", error);
+        console.error("[AuthContext] Failed to fetch profile after retries:", error);
         fetchingProfileRef.current = false;
         return;
       }
@@ -73,9 +79,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (data) {
         console.log("[AuthContext] Profile loaded successfully:", { full_name: data.full_name, avatar_url: data.avatar_url });
         setProfile(data);
-      } else if (retryCount < 3) {
-        // If data is null but no error, retry with backoff
-        const delay = Math.min(500 * Math.pow(2, retryCount), 2000);
+      } else if (retryCount < 2) {
+        // If data is null but no error, retry once more
+        const delay = 500;
         console.log(`[AuthContext] Profile returned null, retrying in ${delay}ms (${retryCount + 1}/3)...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         fetchingProfileRef.current = false; // Reset before retry
