@@ -13,12 +13,47 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables");
 }
 
+// Custom storage implementation to avoid production issues with localStorage
+const customStorage = {
+  getItem: (key: string) => {
+    if (typeof window === 'undefined') return null;
+    try {
+      return window.localStorage.getItem(key);
+    } catch (error) {
+      console.error('[Storage] getItem error:', error);
+      return null;
+    }
+  },
+  setItem: (key: string, value: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(key, value);
+    } catch (error) {
+      console.error('[Storage] setItem error:', error);
+    }
+  },
+  removeItem: (key: string) => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.removeItem(key);
+    } catch (error) {
+      console.error('[Storage] removeItem error:', error);
+    }
+  },
+};
+
 export const supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
     detectSessionInUrl: true,
-    storage: typeof window !== "undefined" ? window.localStorage : undefined,
+    storage: customStorage,
+    flowType: 'pkce', // Use PKCE flow for better security and reliability
+  },
+  global: {
+    headers: {
+      'x-client-info': 'supabase-js-web',
+    },
   },
 });
 
@@ -195,121 +230,61 @@ export async function getCurrentSession() {
 // =====================================================
 
 /**
- * Get user profile with proper timeout handling
+ * Get user profile - uses server-side API route to bypass client-side Supabase issues
  */
 export async function getUserProfile(userId: string): Promise<{ data: UserProfile | null; error: any }> {
   try {
     console.log('[getUserProfile] Fetching profile for user:', userId);
-    console.log('[getUserProfile] Environment:', {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 30) + '...',
-      hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-      origin: typeof window !== 'undefined' ? window.location.origin : 'server',
-    });
 
-    // Create a timeout promise
-    const timeoutPromise = new Promise<{ data: null; error: any }>((_, reject) => {
-      setTimeout(() => {
-        reject(new Error('Profile fetch timeout after 5s'));
-      }, 5000);
-    });
+    const startTime = Date.now();
 
-    // First, verify the session is valid with timeout
-    console.log('[getUserProfile] Checking session...');
+    // Get the access token from localStorage (set during auth)
+    const storageKey = `sb-${process.env.NEXT_PUBLIC_SUPABASE_URL?.split('//')[1]?.split('.')[0]}-auth-token`;
+    const authData = typeof window !== 'undefined' ? localStorage.getItem(storageKey) : null;
 
-    let session;
-    try {
-      // Add timeout to getSession() call itself
-      const sessionPromise = supabaseClient.auth.getSession();
-      const sessionTimeout = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('getSession timeout')), 2000);
-      });
-
-      const { data: { session: sess }, error: sessionError } = await Promise.race([
-        sessionPromise,
-        sessionTimeout
-      ]) as any;
-
-      if (sessionError) {
-        console.error('[getUserProfile] Session error:', sessionError);
-        return { data: null, error: { message: sessionError.message, code: 'SESSION_ERROR' } };
-      }
-
-      session = sess;
-    } catch (sessionErr: any) {
-      console.error('[getUserProfile] getSession failed:', sessionErr.message);
-      // Fallback: Try to get user directly
-      console.log('[getUserProfile] Attempting fallback with getUser()...');
+    let accessToken = null;
+    if (authData) {
       try {
-        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
-        if (userError || !user) {
-          console.error('[getUserProfile] Fallback getUser() failed:', userError);
-          return { data: null, error: { message: 'Session check failed', code: 'SESSION_TIMEOUT' } };
-        }
-        console.log('[getUserProfile] Fallback getUser() succeeded, proceeding without session validation');
-        // Continue without session - the client should have auth headers from previous auth
-      } catch (userErr) {
-        console.error('[getUserProfile] Fallback failed:', userErr);
-        return { data: null, error: { message: 'Auth check failed', code: 'AUTH_TIMEOUT' } };
+        const parsed = JSON.parse(authData);
+        accessToken = parsed.access_token;
+      } catch (e) {
+        console.warn('[getUserProfile] Could not parse auth token from localStorage');
       }
     }
 
-    if (session) {
-      console.log('[getUserProfile] Session valid, userId from session:', session.user.id);
-    } else {
-      console.log('[getUserProfile] No session found, proceeding with client auth state');
+    if (!accessToken) {
+      console.error('[getUserProfile] No access token found in localStorage');
+      return { data: null, error: { message: 'No access token', code: 'NO_TOKEN' } };
     }
 
-    console.log('[getUserProfile] Fetching profile...');
+    console.log('[getUserProfile] Fetching via API route...');
 
-    // Create the fetch promise with explicit session handling
-    const fetchPromise = (async () => {
-      console.log('[getUserProfile] Starting database query...');
-      const startTime = Date.now();
+    // Call our API route instead of Supabase directly
+    const response = await fetch(`/api/profile?userId=${userId}`, {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+      },
+    });
 
-      // CRITICAL FIX: Ensure the session is set before making the query (if we have it)
-      // This forces the client to use the current session's access token
-      if (session) {
-        console.log('[getUserProfile] Setting session before query...');
-        await supabaseClient.auth.setSession({
-          access_token: session.access_token,
-          refresh_token: session.refresh_token,
-        });
-      } else {
-        console.log('[getUserProfile] Skipping setSession (no session available), using existing client state');
-      }
+    const duration = Date.now() - startTime;
 
-      const { data, error } = await supabaseClient
-        .from("user_profiles")
-        .select("*")
-        .eq("id", userId)
-        .maybeSingle();
-
-      const duration = Date.now() - startTime;
-
-      console.log('[getUserProfile] Query completed in', duration, 'ms');
-      console.log('[getUserProfile] Response:', {
-        hasData: !!data,
-        error: error ? error.message : null,
-        errorCode: error?.code,
-        errorDetails: error?.details,
-        errorHint: error?.hint,
-      });
-
-      return { data, error };
-    })();
-
-    // Race between fetch and timeout
-    try {
-      const result = await Promise.race([fetchPromise, timeoutPromise]);
-      return result;
-    } catch (timeoutError: any) {
-      console.error('[getUserProfile] Request timeout:', timeoutError.message);
-      console.error('[getUserProfile] This suggests a network or CORS issue');
-      return { data: null, error: { message: timeoutError.message, code: 'TIMEOUT' } };
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error('[getUserProfile] API error:', errorData);
+      return { data: null, error: errorData.error };
     }
+
+    const { data } = await response.json();
+
+    console.log('[getUserProfile] Query completed in', duration, 'ms');
+    console.log('[getUserProfile] Response:', {
+      hasData: !!data,
+    });
+
+    return { data, error: null };
   } catch (err: any) {
     console.error('[getUserProfile] Exception:', err);
-    return { data: null, error: err };
+    return { data: null, error: err.message || 'Failed to fetch profile' };
   }
 }
 

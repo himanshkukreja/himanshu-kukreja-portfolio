@@ -61,7 +61,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
            error.code === 'TIMEOUT' ||       // Request timeout
            error.code === 'NO_SESSION' ||    // Session not ready
            error.code === 'SESSION_TIMEOUT' || // getSession() timed out
-           error.code === 'AUTH_TIMEOUT') && // Auth check timed out
+           error.code === 'AUTH_TIMEOUT' ||  // Auth check timed out
+           error.code === 'NO_TOKEN') &&     // No access token in localStorage yet
           retryCount < 2; // Max 3 attempts
 
         if (shouldRetry) {
