@@ -125,14 +125,14 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
   return (
     <Link
       href={getLessonUrl()}
-      className={`block p-4 rounded-lg transition-all group ${
+      className={`block p-3 sm:p-4 rounded-lg transition-all group ${
         isCurrentlyReading
           ? 'bg-blue-50/50 dark:bg-blue-900/20 border-2 border-blue-500/30 dark:border-blue-500/40'
           : 'bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10'
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex items-start gap-3 flex-1 min-w-0">
+      <div className="flex items-start justify-between gap-2 sm:gap-4">
+        <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
           {/* Progress Indicator */}
           <div className={`flex-shrink-0 mt-0.5 ${getProgressColor()}`}>
             {getProgressIcon()}
@@ -140,38 +140,38 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <h3 className="text-gray-900 dark:text-white font-medium group-hover:text-blue-400 transition-colors">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
+              <h3 className="text-sm sm:text-base text-gray-900 dark:text-white font-medium group-hover:text-blue-400 transition-colors break-words">
                 {resource.title}
               </h3>
               {isCurrentlyReading && (
-                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded text-xs font-medium flex-shrink-0">
+                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded text-xs font-medium flex-shrink-0 w-fit">
                   Currently Reading
                 </span>
               )}
             </div>
 
             {/* Metadata */}
-            <div className="flex items-center gap-3 mt-2 text-xs text-gray-500 dark:text-white/50">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-1.5 sm:mt-2 text-xs text-gray-500 dark:text-white/50">
               {resource.day && (
-                <span>{resource.day.replace("day-", "Day ")}</span>
+                <span className="flex-shrink-0">{resource.day.replace("day-", "Day ")}</span>
               )}
 
               {readingTime && (
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 flex-shrink-0">
                   <Clock className="w-3 h-3" />
                   {readingTime}
                 </span>
               )}
 
               {progress && progress.percentage > 0 && progress.status !== "completed" && (
-                <span className="text-blue-500 dark:text-blue-400">
+                <span className="text-blue-500 dark:text-blue-400 font-medium flex-shrink-0">
                   {progress.percentage}% complete
                 </span>
               )}
 
               {progress && progress.status === "completed" && (
-                <span className="text-green-500 dark:text-green-400 font-medium">
+                <span className="text-green-500 dark:text-green-400 font-medium flex-shrink-0">
                   ✓ Completed
                 </span>
               )}
@@ -179,7 +179,7 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
 
             {/* Progress Bar */}
             {progress && progress.percentage > 0 && progress.status !== "completed" && (
-              <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 overflow-hidden">
+              <div className="mt-2 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1 sm:h-1.5 overflow-hidden">
                 <div
                   className="h-full bg-blue-500 dark:bg-blue-400 transition-all duration-300 rounded-full"
                   style={{ width: `${progress.percentage}%` }}
@@ -191,7 +191,7 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
 
         {/* Arrow */}
         <svg
-          className="w-5 h-5 text-gray-400 dark:text-white/40 group-hover:text-gray-600 dark:group-hover:text-white/60 group-hover:translate-x-1 transition-all flex-shrink-0 mt-1"
+          className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400 dark:text-white/40 group-hover:text-gray-600 dark:group-hover:text-white/60 group-hover:translate-x-1 transition-all flex-shrink-0 mt-0.5 sm:mt-1"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

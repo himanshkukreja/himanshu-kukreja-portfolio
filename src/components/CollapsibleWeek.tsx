@@ -23,22 +23,22 @@ export default function CollapsibleWeek({ weekKey, weekNumber, weekBadge, resour
       {/* Header - Clickable */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-6 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+        className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
       >
-        <div className="flex items-start gap-4">
-          <div className="flex-shrink-0">
+        <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
+          <div className="flex-shrink-0 mt-1">
             {isOpen ? (
-              <ChevronUp className="w-5 h-5 text-gray-500 dark:text-white/60" />
+              <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-white/60" />
             ) : (
-              <ChevronDown className="w-5 h-5 text-gray-500 dark:text-white/60" />
+              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-white/60" />
             )}
           </div>
-          <div className="text-left">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+          <div className="text-left flex-1 min-w-0">
+            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 break-words">
               {weekNumber || 'Course Overview'}
             </h2>
             {resources.length > 0 && (
-              <p className="text-gray-500 dark:text-white/60 text-sm">
+              <p className="text-gray-500 dark:text-white/60 text-xs sm:text-sm">
                 {resources.find(r => r.type === 'week-preview')
                   ? `${resources.length - 1} lessons`
                   : `${resources.length} lessons`}
@@ -47,7 +47,7 @@ export default function CollapsibleWeek({ weekKey, weekNumber, weekBadge, resour
           </div>
         </div>
         {weekBadge && (
-          <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium flex-shrink-0">
+          <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 ml-2">
             {weekBadge}
           </span>
         )}
@@ -59,7 +59,7 @@ export default function CollapsibleWeek({ weekKey, weekNumber, weekBadge, resour
           isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
         } overflow-hidden`}
       >
-        <div className="px-6 pb-6 space-y-2">
+        <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-2">
           {resources.map((resource) => (
             <LessonCard
               key={resource.slug}
