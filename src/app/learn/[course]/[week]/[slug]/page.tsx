@@ -5,7 +5,7 @@ import { ChevronLeft, ChevronRight, Home, BookOpen } from "lucide-react";
 import { markdownToHtml } from "@/lib/markdown";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
 import TableOfContents from "@/components/TableOfContents";
-import HighlightableContent from "@/components/HighlightableContent";
+import LessonContentWrapper from "@/components/LessonContentWrapper";
 import FocusMode from "@/components/FocusMode";
 import ReadingProgress from "@/components/ReadingProgress";
 import SearchBar from "@/components/SearchBar";
@@ -178,8 +178,8 @@ export default async function LearningResourcePage({ params }: Props) {
             />
           </div>
 
-          {/* Markdown Content */}
-          <HighlightableContent
+          {/* Markdown Content with Read Aloud */}
+          <LessonContentWrapper
             htmlContent={htmlContent}
             courseId={course}
             week={week}
