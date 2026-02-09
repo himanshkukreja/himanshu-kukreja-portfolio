@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { Volume2, VolumeX, Pause, Play, Settings2, X, Minimize2 } from "lucide-react";
 
 type ReadAloudProps = {
-  contentRef: React.RefObject<HTMLDivElement>;
+  contentRef: React.RefObject<HTMLDivElement | null>;
 };
 
 export default function ReadAloud({ contentRef }: ReadAloudProps) {
