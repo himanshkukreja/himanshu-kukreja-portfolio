@@ -24,6 +24,7 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
   const textContentRef = useRef<string>("");
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentHighlightRef = useRef<HTMLSpanElement | null>(null);
+  const startElementRef = useRef<HTMLElement | null>(null); // Store where we started reading from
 
   // Check if Web Speech API is supported
   useEffect(() => {
@@ -76,15 +77,34 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
       currentHighlightRef.current = null;
     }
 
+    // If we started from a specific element, only look at content from that point
+    let shouldInclude = !startElementRef.current;
     const textNodes: Text[] = [];
 
-    // Get all text nodes
+    // Get all text nodes (only from start element onwards)
     const walker = document.createTreeWalker(
       content,
       NodeFilter.SHOW_TEXT,
       {
         acceptNode: (node) => {
           const parent = node.parentElement;
+
+          // Check if we should start including nodes
+          if (!shouldInclude && startElementRef.current) {
+            let element = parent;
+            while (element) {
+              if (element === startElementRef.current) {
+                shouldInclude = true;
+                break;
+              }
+              element = element.parentElement;
+            }
+          }
+
+          if (!shouldInclude) {
+            return NodeFilter.FILTER_REJECT;
+          }
+
           if (parent && (
             parent.tagName === 'SCRIPT' ||
             parent.tagName === 'STYLE' ||
@@ -169,13 +189,8 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
           // Store reference to current highlight
           currentHighlightRef.current = span;
 
-          // Scroll highlighted text into view (only if not already visible)
-          const rect = span.getBoundingClientRect();
-          const isVisible = rect.top >= 100 && rect.bottom <= window.innerHeight - 100;
-
-          if (!isVisible) {
-            span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
+          // Don't auto-scroll - let user control their reading position
+          // The highlight will appear wherever the text is being read
         }
         break;
       }
@@ -184,7 +199,41 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
     }
   }, [currentCharIndex, isPlaying, isPaused]);
 
-  const extractTextContent = () => {
+  // Find the first visible heading or paragraph on screen
+  const findVisibleStartElement = (): HTMLElement | null => {
+    if (!contentRef.current) return null;
+
+    const viewportTop = window.scrollY;
+    const viewportBottom = viewportTop + window.innerHeight;
+    const viewportMiddle = viewportTop + (window.innerHeight / 3); // Top third of viewport
+
+    // Get all headings and paragraphs
+    const elements = contentRef.current.querySelectorAll('h1, h2, h3, h4, h5, h6, p');
+
+    for (const element of Array.from(elements)) {
+      const rect = element.getBoundingClientRect();
+      const elementTop = rect.top + window.scrollY;
+
+      // Find first element that's in the top third of viewport
+      if (elementTop >= viewportTop && elementTop <= viewportMiddle) {
+        return element as HTMLElement;
+      }
+    }
+
+    // Fallback: find first element in viewport
+    for (const element of Array.from(elements)) {
+      const rect = element.getBoundingClientRect();
+      const elementTop = rect.top + window.scrollY;
+
+      if (elementTop >= viewportTop && elementTop <= viewportBottom) {
+        return element as HTMLElement;
+      }
+    }
+
+    return null;
+  };
+
+  const extractTextContent = (startFromElement?: HTMLElement | null) => {
     if (!contentRef.current) return "";
     const clone = contentRef.current.cloneNode(true) as HTMLElement;
 
@@ -192,9 +241,40 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
     clone.querySelectorAll("pre, code, img, script, style").forEach(el => el.remove());
 
     let text = "";
+    let shouldInclude = !startFromElement; // If no start element, include everything
+
+    // If we have a start element, find its match in the cloned content
+    let startMarker: Element | null = null;
+    if (startFromElement) {
+      // Find the matching element in clone by comparing text content and tag name
+      const originalTag = startFromElement.tagName.toLowerCase();
+      const originalText = startFromElement.textContent?.trim().substring(0, 50) || "";
+
+      const candidates = clone.querySelectorAll(originalTag);
+      for (const candidate of Array.from(candidates)) {
+        const candidateText = candidate.textContent?.trim().substring(0, 50) || "";
+        if (candidateText === originalText) {
+          startMarker = candidate;
+          break;
+        }
+      }
+    }
 
     // Process each element to preserve structure and add pauses
     const processNode = (node: Node): void => {
+      // Check if we've reached the start marker
+      if (startMarker && node === startMarker) {
+        shouldInclude = true;
+      }
+
+      // Only process if we should include this content
+      if (!shouldInclude) {
+        if (node.nodeType === Node.ELEMENT_NODE) {
+          const element = node as HTMLElement;
+          element.childNodes.forEach(child => processNode(child));
+        }
+        return;
+      }
       if (node.nodeType === Node.TEXT_NODE) {
         const content = node.textContent || "";
         if (content.trim()) {
@@ -288,11 +368,20 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
     window.speechSynthesis.cancel();
     cleanupHighlights();
 
-    const text = extractTextContent();
+    // Find visible element to start from
+    const visibleElement = findVisibleStartElement();
+
+    // Store the start element for highlight syncing
+    startElementRef.current = visibleElement;
+
+    // Extract text starting from visible element (or from beginning if at top)
+    const text = extractTextContent(visibleElement);
     if (!text) {
       alert("No content to read!");
       return;
     }
+
+    console.log("[ReadAloud] Starting from:", visibleElement ? visibleElement.tagName + ": " + visibleElement.textContent?.substring(0, 50) : "beginning");
 
     textContentRef.current = text;
     setCurrentCharIndex(0);
@@ -358,6 +447,7 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
     setIsPlaying(false);
     setIsPaused(false);
     setCurrentCharIndex(0);
+    startElementRef.current = null; // Reset start element
     cleanupHighlights();
   };
 
