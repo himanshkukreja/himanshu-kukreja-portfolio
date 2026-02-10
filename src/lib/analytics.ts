@@ -3,6 +3,8 @@
  * Tracks page views, user sessions, and custom events
  */
 
+import { supabaseClient } from "./supabase-client";
+
 export type AnalyticsEvent = {
   event_type: "page_view" | "click" | "form_submit" | "custom";
   page_path: string;
@@ -126,12 +128,6 @@ function parseUserAgent(): { browser?: string; os?: string } {
 export async function trackEvent(event: AnalyticsEvent): Promise<void> {
   if (typeof window === "undefined") return;
 
-  // Disable tracking in development mode
-  if (process.env.NODE_ENV === "development") {
-    console.log("[Analytics] Dev mode - skipping tracking:", event.event_type, event.page_path);
-    return;
-  }
-
   // Exclude admin pages from tracking
   const excludedPaths = ["/admin/analytics", "/admin"];
   if (excludedPaths.some(path => event.page_path.startsWith(path))) {
@@ -148,8 +144,18 @@ export async function trackEvent(event: AnalyticsEvent): Promise<void> {
   const referrer = document.referrer || undefined;
   const referrerDomain = referrer ? getDomain(referrer) : undefined;
 
+  // Get authenticated user ID from Supabase
+  let userId: string | undefined;
+  try {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    userId = user?.id;
+  } catch {
+    // Ignore errors - user might not be authenticated
+  }
+
   const analyticsData = {
     ...event,
+    user_id: userId,
     visitor_id: visitorId,
     session_id: sessionId,
     referrer,
@@ -162,6 +168,11 @@ export async function trackEvent(event: AnalyticsEvent): Promise<void> {
     screen_width: window.screen.width,
     screen_height: window.screen.height,
   };
+
+  // Log in development
+  if (process.env.NODE_ENV === "development") {
+    console.log("[Analytics] Tracking:", event.event_type, event.page_path, { userId });  
+  }
 
   try {
     // Use the edge API endpoint which automatically captures geo data from Vercel
