@@ -16,9 +16,12 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight }: Props
     // Handle keyboard shortcut (F key)
     const handleKeyPress = (e: KeyboardEvent) => {
       if (e.key === 'f' && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        // Check if user is not typing in an input/textarea
+        // Check if user is not typing in an input/textarea/contentEditable
         const target = e.target as HTMLElement;
-        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+        const isEditable = target.tagName === 'INPUT' || 
+                          target.tagName === 'TEXTAREA' || 
+                          target.isContentEditable;
+        if (!isEditable) {
           e.preventDefault();
           setIsFocusMode(prev => !prev);
         }

@@ -11,6 +11,7 @@ import ReadingProgress from "@/components/ReadingProgress";
 import SearchBar from "@/components/SearchBar";
 import SearchHighlight from "@/components/SearchHighlight";
 import BookmarkButton from "@/components/BookmarkButton";
+import LessonComments from "@/components/LessonComments";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -185,6 +186,13 @@ export default async function LearningResourcePage({ params }: Props) {
             week={week}
             lessonSlug={slug}
             lessonTitle={resource.title}
+          />
+
+          {/* Comments Section */}
+          <LessonComments
+            courseId={course}
+            week={week}
+            lessonSlug={slug}
           />
 
           {/* Navigation */}
