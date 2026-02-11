@@ -496,8 +496,8 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
 
   return (
     <>
-      {/* Minimalistic Floating Controls - Positioned to avoid overlap */}
-      <div className="fixed bottom-20 right-6 z-40 flex flex-col items-end gap-2">
+      {/* Minimalistic Floating Controls - Positioned to avoid overlap, lower on mobile */}
+      <div className="fixed bottom-6 lg:bottom-20 right-4 sm:right-6 z-40 flex flex-col items-end gap-2">
         {/* Enhanced Settings Panel - Shows only when settings button clicked */}
         {showSettings && (
           <div className="bg-white dark:bg-gray-900 rounded-lg border border-black/10 dark:border-white/10 shadow-2xl p-4 w-72 mb-2 animate-in slide-in-from-right duration-200">

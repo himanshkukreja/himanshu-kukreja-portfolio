@@ -34,10 +34,10 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight }: Props
 
   return (
     <>
-      {/* Focus Mode Toggle Button */}
+      {/* Focus Mode Toggle Button - Hidden on mobile */}
       <button
         onClick={() => setIsFocusMode(!isFocusMode)}
-        className="fixed bottom-6 right-6 z-50 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all group"
+        className="hidden lg:block fixed bottom-6 right-6 z-50 p-3 bg-blue-500 hover:bg-blue-600 text-white rounded-full shadow-lg transition-all group"
         aria-label={isFocusMode ? "Exit focus mode" : "Enter focus mode"}
         title={isFocusMode ? "Exit focus mode (F)" : "Enter focus mode (F)"}
       >
@@ -53,10 +53,10 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight }: Props
 
       {/* Layout Grid */}
       <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6 transition-all duration-300`}>
-        {/* Left Sidebar */}
+        {/* Left Sidebar - shows at top on mobile */}
         <aside
-          className={`lg:col-span-2 order-2 lg:order-1 transition-all duration-300 ${
-            isFocusMode ? 'opacity-20 blur-sm pointer-events-none' : 'opacity-100'
+          className={`lg:col-span-2 order-1 transition-all duration-300 ${
+            isFocusMode ? 'hidden lg:block lg:opacity-20 lg:blur-sm lg:pointer-events-none' : 'opacity-100'
           }`}
         >
           {sidebarLeft}
@@ -64,7 +64,7 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight }: Props
 
         {/* Main Content */}
         <article
-          className={`order-1 lg:order-2 transition-all duration-300 ${
+          className={`order-2 transition-all duration-300 ${
             isFocusMode ? 'lg:col-span-12 mx-auto max-w-4xl' : 'lg:col-span-8 xl:col-span-7'
           }`}
         >

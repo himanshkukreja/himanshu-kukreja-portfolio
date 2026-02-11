@@ -1,7 +1,7 @@
 import { getLearningResource, getWeekResources } from "@/lib/github";
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Home, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 import { markdownToHtml } from "@/lib/markdown";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
 import TableOfContents from "@/components/TableOfContents";
@@ -12,6 +12,7 @@ import SearchBar from "@/components/SearchBar";
 import SearchHighlight from "@/components/SearchHighlight";
 import BookmarkButton from "@/components/BookmarkButton";
 import LessonComments from "@/components/LessonComments";
+import CollapsibleWeekNav from "@/components/CollapsibleWeekNav";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -114,34 +115,12 @@ export default async function LearningResourcePage({ params }: Props) {
 
         <FocusMode
           sidebarLeft={
-            <div className="sticky top-24 bg-black/5 dark:bg-white/5 backdrop-blur-sm rounded-lg border border-black/10 dark:border-white/10 p-4">
-              <h3 className="text-gray-900 dark:text-white font-semibold mb-4 flex items-center gap-2 text-sm">
-                <BookOpen className="w-4 h-4" />
-                {weekDisplayName}
-              </h3>
-              <nav className="space-y-1">
-                {allWeekResources.map((r) => (
-                  <Link
-                    key={r.slug}
-                    href={`/learn/${course}/${r.week}/${r.slug}`}
-                    className={`block px-3 py-2 rounded text-xs transition-all ${
-                      r.slug === slug
-                        ? 'bg-blue-500/20 text-blue-400 font-medium'
-                        : 'text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      {r.day && (
-                        <span className="text-xs opacity-60">
-                          {r.day.replace('day-', 'D')}
-                        </span>
-                      )}
-                      <span className="truncate">{r.title}</span>
-                    </div>
-                  </Link>
-                ))}
-              </nav>
-            </div>
+            <CollapsibleWeekNav
+              weekDisplayName={weekDisplayName}
+              weekResources={allWeekResources}
+              currentSlug={slug}
+              course={course}
+            />
           }
           sidebarRight={<TableOfContents headings={headings} />}
         >

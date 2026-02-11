@@ -123,6 +123,26 @@ code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, M
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  /* Better scrollbar styling */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.3) transparent;
+}
+
+.md-content pre::-webkit-scrollbar {
+  height: 8px;
+}
+
+.md-content pre::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.md-content pre::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+}
+
+.md-content pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.5);
 }
 
 /* Dark mode markdown styles */
@@ -141,12 +161,49 @@ code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, M
   border-color: rgba(255,255,255,0.1);
 }
 
+.dark .md-content pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.dark .md-content pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.dark .md-content pre::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.dark .md-content pre::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
 /* Mobile responsive for code blocks */
 @media (max-width: 640px) {
   .md-content pre {
-    font-size: 0.6875rem;
-    padding: 1rem;
+    font-size: 0.75rem;
+    padding: 0.875rem;
     line-height: 1.4;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Ensure horizontal scroll is visible and functional */
+    display: block;
+    width: 100%;
+  }
+  
+  .md-content pre code {
+    display: inline-block;
+    min-width: 100%;
+    width: max-content;
+  }
+  
+  /* Make scrollbar more visible on mobile */
+  .md-content pre::-webkit-scrollbar {
+    height: 6px;
+  }
+  
+  .md-content pre::-webkit-scrollbar-thumb {
+    background: rgba(0, 0, 0, 0.4);
   }
 }
 

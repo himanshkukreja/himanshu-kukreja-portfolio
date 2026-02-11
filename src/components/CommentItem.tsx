@@ -218,7 +218,7 @@ export default function CommentItem({
     }
   };
 
-  const indentClass = depth > 0 ? "ml-6 sm:ml-10 border-l-2 border-black/10 dark:border-white/10 pl-3 sm:pl-4" : "";
+  const indentClass = depth > 0 ? "ml-3 sm:ml-6 md:ml-10 border-l-2 border-black/10 dark:border-white/10 pl-2 sm:pl-3 md:pl-4" : "";
 
   return (
     <div className={`${indentClass}`}>
@@ -230,7 +230,7 @@ export default function CommentItem({
         }`}
       >
         {/* Header */}
-        <div className="flex items-start gap-3">
+        <div className="flex items-start gap-2 sm:gap-3">
           {/* Avatar */}
           <div className="flex-shrink-0">
             {comment.user_avatar ? (
@@ -239,11 +239,11 @@ export default function CommentItem({
                 alt={comment.user_name}
                 width={32}
                 height={32}
-                className="w-8 h-8 rounded-full"
+                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
                 unoptimized={!comment.user_avatar.includes('googleusercontent.com')}
               />
             ) : (
-              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-sm font-bold">
+              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs sm:text-sm font-bold">
                 {comment.user_name.charAt(0).toUpperCase()}
               </div>
             )}
@@ -253,26 +253,31 @@ export default function CommentItem({
           <div className="flex-1 min-w-0">
             {/* User info and metadata */}
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="font-semibold text-sm text-gray-900 dark:text-white">
+              <span className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white truncate">
                 {comment.user_name}
               </span>
+              {isAuthor && (
+                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs rounded-full font-medium flex-shrink-0">
+                  You
+                </span>
+              )}
               {comment.is_solution && (
-                <span className="flex items-center gap-1 text-xs bg-green-500/20 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full">
+                <span className="flex items-center gap-1 text-xs bg-green-500/20 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">
                   <CheckCircle className="w-3 h-3" />
-                  Solution
+                  <span className="hidden sm:inline">Solution</span>
                 </span>
               )}
               {comment.is_pinned && (
-                <span className="flex items-center gap-1 text-xs bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full">
+                <span className="flex items-center gap-1 text-xs bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full flex-shrink-0">
                   <Pin className="w-3 h-3" />
-                  Pinned
+                  <span className="hidden sm:inline">Pinned</span>
                 </span>
               )}
-              <span className="text-xs text-gray-500 dark:text-white/50">
+              <span className="text-xs text-gray-500 dark:text-white/50 flex-shrink-0">
                 {formatDistanceToNow(new Date(comment.created_at))}
               </span>
               {comment.is_edited && (
-                <span className="text-xs text-gray-500 dark:text-white/50">(edited)</span>
+                <span className="text-xs text-gray-500 dark:text-white/50 flex-shrink-0">(edited)</span>
               )}
             </div>
 
@@ -311,36 +316,36 @@ export default function CommentItem({
               </div>
             ) : (
               <div
-                className="prose prose-sm dark:prose-invert max-w-none mb-3"
+                className="prose prose-sm dark:prose-invert max-w-none mb-3 break-words overflow-hidden"
                 dangerouslySetInnerHTML={{ __html: comment.content }}
               />
             )}
 
             {/* Action buttons */}
             {!showEditBox && (
-              <div className="flex items-center gap-3 text-sm">
+              <div className="flex items-center flex-wrap gap-2 sm:gap-3 text-sm">
                 {/* Vote buttons */}
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 sm:gap-2">
                   <button
                     onClick={() => handleVote("upvote")}
-                    className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+                    className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded transition-colors ${
                       localVote === "upvote"
                         ? "bg-green-500/20 text-green-600 dark:text-green-400"
                         : "hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60"
                     }`}
                   >
-                    <ThumbsUp className="w-4 h-4" />
+                    <ThumbsUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                     <span className="text-xs font-medium">{localUpvotes}</span>
                   </button>
                   <button
                     onClick={() => handleVote("downvote")}
-                    className={`flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+                    className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded transition-colors ${
                       localVote === "downvote"
                         ? "bg-red-500/20 text-red-600 dark:text-red-400"
                         : "hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60"
                     }`}
                   >
-                    <ThumbsDown className="w-4 h-4" />
+                    <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </button>
                   {netVotes !== 0 && (
                     <span className={`text-xs font-medium ${netVotes > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
@@ -359,10 +364,10 @@ export default function CommentItem({
                       }
                       setShowReplyBox(!showReplyBox);
                     }}
-                    className="flex items-center gap-1 px-2 py-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 transition-colors"
+                    className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 transition-colors"
                   >
-                    <Reply className="w-4 h-4" />
-                    <span className="text-xs font-medium">Reply</span>
+                    <Reply className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="text-xs font-medium hidden sm:inline">Reply</span>
                   </button>
                 )}
 
@@ -370,11 +375,11 @@ export default function CommentItem({
                 <div className="relative">
                   <button
                     onClick={handleShare}
-                    className="flex items-center gap-1 px-2 py-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 transition-colors"
+                    className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 transition-colors"
                     title="Share this comment"
                   >
-                    <Share2 className="w-4 h-4" />
-                    <span className="text-xs font-medium">Share</span>
+                    <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    <span className="text-xs font-medium hidden sm:inline">Share</span>
                   </button>
                   
                   {/* Copy success toast */}
