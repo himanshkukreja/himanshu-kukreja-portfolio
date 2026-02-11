@@ -10,12 +10,11 @@ import {
   ChevronRight,
   Loader2,
   FileX,
-  Edit,
-  Trash2,
   ArrowUpDown,
   Search,
 } from "lucide-react";
 import NoteEditor from "@/components/NoteEditor";
+import CollapsibleNoteCard from "@/components/CollapsibleNoteCard";
 
 type NoteWithDetails = {
   id: string;
@@ -367,107 +366,18 @@ export default function NotesPage() {
           </div>
         ) : (
           <div className="space-y-4">
-            {filteredAndSortedNotes.map((note) => {
-              // Build URL with scroll offset for note navigation
-              const noteUrl = `/learn/${note.course_id}/${note.week}/${
-                note.lesson_slug
-              }${
-                note.highlight_offset !== null
-                  ? `#note-${note.highlight_offset}`
-                  : ""
-              }`;
-
-              return (
-                <div
-                  key={note.id}
-                  className="group bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 rounded-lg transition-all overflow-hidden"
-                >
-                  {/* Clickable Card Area */}
-                  <Link
-                    href={noteUrl}
-                    className="block p-6 pb-4"
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1">
-                        {/* Note Type Badge */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-2xl">
-                            {NOTE_TYPE_ICONS[note.note_type]}
-                          </span>
-                          <span className="text-xs text-gray-500 dark:text-white/50 uppercase tracking-wider">
-                            {NOTE_TYPE_LABELS[note.note_type]} •{" "}
-                            {formatWeekName(note.week)}
-                          </span>
-                        </div>
-
-                        {/* Lesson Title */}
-                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-400 transition-colors mb-2">
-                          {formatLessonTitle(note.lesson_slug)}
-                        </h3>
-
-                        {/* Highlighted Text */}
-                        <p className="text-gray-500 dark:text-white/60 text-sm mb-3 italic">
-                          "{note.highlight_text.slice(0, 150)}
-                          {note.highlight_text.length > 150 ? "..." : ""}"
-                        </p>
-
-                        {/* Note Text */}
-                        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-lg p-4 mb-3">
-                          <p className="text-gray-900 dark:text-white whitespace-pre-wrap">
-                            {note.note_text}
-                          </p>
-                        </div>
-
-                        {/* Metadata */}
-                        <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-white/40">
-                          <span>
-                            Created{" "}
-                            {new Date(note.created_at).toLocaleDateString()}
-                          </span>
-                          {note.updated_at !== note.created_at && (
-                            <span>
-                              Updated{" "}
-                              {new Date(note.updated_at).toLocaleDateString()}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* View Arrow Indicator */}
-                      <div className="flex-shrink-0">
-                        <ChevronRight className="w-6 h-6 text-gray-400 dark:text-white/40 group-hover:text-blue-400 transition-colors" />
-                      </div>
-                    </div>
-                  </Link>
-
-                  {/* Action Buttons (outside clickable area) */}
-                  <div className="px-6 pb-4 flex items-center gap-2 border-t border-black/10 dark:border-white/10 pt-3">
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEditNote(note);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-lg text-sm transition-colors"
-                      title="Edit note"
-                    >
-                      <Edit className="w-4 h-4" />
-                      <span className="hidden sm:inline">Edit</span>
-                    </button>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteNote(note.id);
-                      }}
-                      className="flex items-center gap-2 px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm transition-colors"
-                      title="Delete note"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      <span className="hidden sm:inline">Delete</span>
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
+            {filteredAndSortedNotes.map((note) => (
+              <CollapsibleNoteCard
+                key={note.id}
+                note={note}
+                noteTypeIcons={NOTE_TYPE_ICONS}
+                noteTypeLabels={NOTE_TYPE_LABELS}
+                formatLessonTitle={formatLessonTitle}
+                formatWeekName={formatWeekName}
+                onEdit={() => handleEditNote(note)}
+                onDelete={() => handleDeleteNote(note.id)}
+              />
+            ))}
           </div>
         )}
       </div>
