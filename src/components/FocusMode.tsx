@@ -52,7 +52,7 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight }: Props
       </button>
 
       {/* Layout Grid */}
-      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-4 xl:gap-6 transition-all duration-300`}>
+      <div className={`grid grid-cols-1 lg:grid-cols-12 gap-6 xl:gap-8 transition-all duration-300`}>
         {/* Left Sidebar - shows at top on mobile */}
         <aside
           className={`lg:col-span-2 order-1 transition-all duration-300 ${
@@ -65,7 +65,7 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight }: Props
         {/* Main Content */}
         <article
           className={`order-2 transition-all duration-300 ${
-            isFocusMode ? 'lg:col-span-12 mx-auto max-w-4xl' : 'lg:col-span-8 xl:col-span-7'
+            isFocusMode ? 'lg:col-span-12 mx-auto max-w-4xl' : 'lg:col-span-7'
           }`}
         >
           {children}
@@ -73,7 +73,7 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight }: Props
 
         {/* Right Sidebar */}
         <aside
-          className={`hidden xl:block xl:col-span-3 order-3 transition-all duration-300 ${
+          className={`hidden lg:block lg:col-span-3 order-3 transition-all duration-300 ${
             isFocusMode ? 'opacity-0 pointer-events-none absolute' : 'opacity-100'
           }`}
         >

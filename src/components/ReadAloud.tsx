@@ -189,8 +189,19 @@ export default function ReadAloud({ contentRef }: ReadAloudProps) {
           // Store reference to current highlight
           currentHighlightRef.current = span;
 
-          // Don't auto-scroll - let user control their reading position
-          // The highlight will appear wherever the text is being read
+          // Auto-scroll to keep highlighted text in view
+          const rect = span.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          const scrollThreshold = viewportHeight * 0.8; // Scroll when within 80% of viewport height
+
+          // Check if highlight is below the visible area
+          if (rect.top > scrollThreshold || rect.bottom > viewportHeight) {
+            span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+          // Check if highlight is above the visible area
+          else if (rect.top < 100) {
+            span.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
         }
         break;
       }

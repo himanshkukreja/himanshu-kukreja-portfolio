@@ -1,13 +1,17 @@
 import { notFound } from "next/navigation";
 import { getStoryBySlug, getAllStories } from "@/lib/stories";
 import Link from "next/link";
-import { ChevronLeft, ChevronRight, Home, BookOpen } from "lucide-react";
+import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 import CoverImage from "@/components/CoverImage";
 import StoryViewsClient from "./views-client";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
 import TableOfContents from "@/components/TableOfContents";
 import FocusMode from "@/components/FocusMode";
 import ReadingProgress from "@/components/ReadingProgress";
+import StoryContentWrapper from "@/components/StoryContentWrapper";
+import StoryComments from "@/components/StoryComments";
+import ScrollToDiscussion from "@/components/ScrollToDiscussion";
+import CollapsibleStoriesNav from "@/components/CollapsibleStoriesNav";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
@@ -36,6 +40,7 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
   return (
     <>
       <ReadingProgress />
+      <ScrollToDiscussion />
       <main className="min-h-screen pt-20 pb-16">
         <div className="max-w-7xl mx-auto px-6">
           {/* Breadcrumb */}
@@ -54,32 +59,10 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
 
           <FocusMode
             sidebarLeft={
-              <div className="sticky top-24 bg-black/5 dark:bg-white/5 backdrop-blur-sm rounded-lg border border-black/10 dark:border-white/10 p-4">
-                <h3 className="text-gray-900 dark:text-white font-semibold mb-4 flex items-center gap-2 text-sm">
-                  <BookOpen className="w-4 h-4" />
-                  All Stories
-                </h3>
-                <nav className="space-y-1 max-h-[60vh] overflow-y-auto">
-                  {allStories.map((s) => (
-                    <Link
-                      key={s.slug}
-                      href={`/stories/${s.slug}`}
-                      className={`block px-3 py-2 rounded text-xs transition-all ${
-                        s.slug === slug
-                          ? 'bg-blue-500/20 text-blue-400 font-medium'
-                          : 'text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5'
-                      }`}
-                    >
-                      <div className="truncate">{s.title}</div>
-                      {s.date && (
-                        <div className="text-[10px] opacity-60 mt-1">
-                          {new Date(s.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </div>
-                      )}
-                    </Link>
-                  ))}
-                </nav>
-              </div>
+              <CollapsibleStoriesNav
+                allStories={allStories}
+                currentSlug={slug}
+              />
             }
             sidebarRight={<TableOfContents headings={headings} />}
           >
@@ -131,10 +114,11 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
                 )}
               </header>
 
-              {/* Story Content */}
-              <div className="md-content">
-                <div dangerouslySetInnerHTML={{ __html: htmlContent }} />
-              </div>
+              {/* Story Content with Read Aloud */}
+              <StoryContentWrapper htmlContent={htmlContent} />
+
+              {/* Comments Section */}
+              <StoryComments storySlug={slug} />
 
               {/* Navigation */}
               <nav className="mt-12 pt-8 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
