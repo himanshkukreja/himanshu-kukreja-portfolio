@@ -12,7 +12,7 @@ interface MCQSectionsWithResetProps {
   courseId: string;
   week: string;
   lessonSlug: string;
-  assessmentRef?: React.RefObject<SimpleMCQAssessmentHandle>;
+  assessmentRef?: React.RefObject<SimpleMCQAssessmentHandle | null>;
 }
 
 export default function MCQSectionsWithReset({ 
