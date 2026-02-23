@@ -20,6 +20,8 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
     status: string;
     last_accessed_at?: string;
     scroll_position?: number | null;
+    mcq_attempted?: number;
+    mcq_total?: number;
   } | null>(null);
   const [isCurrentlyReading, setIsCurrentlyReading] = useState(false);
 
@@ -44,11 +46,53 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
         .maybeSingle();
 
       if (!error && data) {
+        let mcqAttempted: number | undefined;
+        let mcqTotal: number | undefined;
+
+        // For MCQ documents, fetch attempted questions count
+        if (resource.slug.includes('mcq')) {
+          const { data: assessment } = await supabaseClient
+            .from('mcq_assessments')
+            .select('id, total_questions')
+            .eq('course_id', course)
+            .eq('week', resource.week)
+            .eq('lesson_slug', resource.slug)
+            .maybeSingle();
+
+          if (assessment) {
+            mcqTotal = assessment.total_questions;
+            
+            const { data: answers } = await supabaseClient
+              .from('mcq_user_answers')
+              .select('question_number')
+              .eq('user_id', user.id)
+              .eq('assessment_id', assessment.id);
+
+            mcqAttempted = answers?.length || 0;
+            
+            // Update the progress percentage and status based on MCQ completion
+            if (mcqTotal > 0) {
+              data.progress_percentage = Math.round((mcqAttempted / mcqTotal) * 100);
+              
+              // Update status based on MCQ progress
+              if (mcqAttempted === 0) {
+                data.status = "not_started";
+              } else if (mcqAttempted === mcqTotal) {
+                data.status = "completed";
+              } else {
+                data.status = "in_progress";
+              }
+            }
+          }
+        }
+
         setProgress({
           percentage: data.progress_percentage || 0,
           status: data.status || "not_started",
           last_accessed_at: data.last_accessed_at,
           scroll_position: data.scroll_position,
+          mcq_attempted: mcqAttempted,
+          mcq_total: mcqTotal,
         });
 
         // Check if this is the most recently accessed in-progress lesson
@@ -114,11 +158,9 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
 
     // Add scroll position if lesson is in progress (not completed and has scroll position)
     if (progress && progress.status !== "completed" && progress.scroll_position) {
-      console.log(`[LessonCard] Building URL with scroll position: ${progress.scroll_position}px for lesson "${resource.title}"`);
       return `${baseUrl}#scroll-${progress.scroll_position}`;
     }
 
-    console.log(`[LessonCard] No scroll position for lesson "${resource.title}" (status: ${progress?.status}, scroll_pos: ${progress?.scroll_position})`);
     return baseUrl;
   };
 
@@ -166,7 +208,9 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
 
               {progress && progress.percentage > 0 && progress.status !== "completed" && (
                 <span className="text-blue-500 dark:text-blue-400 font-medium flex-shrink-0">
-                  {progress.percentage}% complete
+                  {progress.mcq_attempted !== undefined && progress.mcq_total !== undefined
+                    ? `${progress.mcq_attempted}/${progress.mcq_total} questions attempted`
+                    : `${progress.percentage}% complete`}
                 </span>
               )}
 

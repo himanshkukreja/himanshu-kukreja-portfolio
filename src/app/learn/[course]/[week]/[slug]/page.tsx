@@ -4,8 +4,11 @@ import Link from "next/link";
 import { ChevronLeft, ChevronRight, Home } from "lucide-react";
 import { markdownToHtml } from "@/lib/markdown";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
+import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
 import TableOfContents from "@/components/TableOfContents";
 import LessonContentWrapper from "@/components/LessonContentWrapper";
+import SimpleMCQAssessment from "@/components/SimpleMCQAssessment";
+import MCQAssessmentWrapper from "@/components/MCQAssessmentWrapper";
 import FocusMode from "@/components/FocusMode";
 import ReadingProgress from "@/components/ReadingProgress";
 import SearchBar from "@/components/SearchBar";
@@ -51,14 +54,26 @@ export default async function LearningResourcePage({ params }: Props) {
 
   const { resource, content } = data;
 
-  // Convert markdown to HTML
-  let htmlContent = await markdownToHtml(content);
+  // Check if this is an MCQ assessment document
+  const isMCQ = isMCQDocument(content);
+  
+  let htmlContent = '';
+  let headings: any[] = [];
+  let mcqAssessment = null;
 
-  // Add IDs to headings for anchor links
-  htmlContent = addHeadingIds(htmlContent);
+  if (isMCQ) {
+    // Parse MCQ content
+    mcqAssessment = parseMCQMarkdown(content);
+  } else {
+    // Convert markdown to HTML
+    htmlContent = await markdownToHtml(content);
 
-  // Extract headings for Table of Contents
-  const headings = extractHeadings(htmlContent);
+    // Add IDs to headings for anchor links
+    htmlContent = addHeadingIds(htmlContent);
+
+    // Extract headings for Table of Contents
+    headings = extractHeadings(htmlContent);
+  }
 
   // Get navigation (previous/next resources)
   const weekResources = await getWeekResources(week);
@@ -113,111 +128,130 @@ export default async function LearningResourcePage({ params }: Props) {
         {/* Floating Search Button */}
         <SearchBar variant="floating" />
 
-        <FocusMode
-          sidebarLeft={
-            <CollapsibleWeekNav
-              weekDisplayName={weekDisplayName}
-              weekResources={allWeekResources}
-              currentSlug={slug}
-              course={course}
-            />
-          }
-          sidebarRight={<TableOfContents headings={headings} />}
-        >
-          {/* Badges and Actions */}
-          <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-            <div className="flex items-center gap-3">
-              {resource.type === 'capstone' && (
-                <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-medium">
-                  Capstone
-                </span>
-              )}
-              {resource.type === 'week-preview' && (
-                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">
-                  Week Preview
-                </span>
-              )}
-              {resource.type === 'foundations' && (
-                <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium">
-                  Foundation
-                </span>
-              )}
-              {resource.day && (
-                <span className="px-3 py-1 bg-black/10 dark:bg-white/10 text-gray-600 dark:text-white/70 rounded-full text-sm">
-                  {resource.day.replace('day-', 'Day ')}
-                </span>
-              )}
+        {isMCQ && mcqAssessment ? (
+          <MCQAssessmentWrapper
+            assessment={mcqAssessment}
+            courseId={course}
+            week={week}
+            lessonSlug={slug}
+            weekDisplayName={weekDisplayName}
+            previousResource={previousResource}
+            nextResource={nextResource}
+            sidebarLeft={
+              <CollapsibleWeekNav
+                weekDisplayName={weekDisplayName}
+                weekResources={allWeekResources}
+                currentSlug={slug}
+                course={course}
+              />
+            }
+          />
+        ) : (
+          <FocusMode
+            sidebarLeft={
+              <CollapsibleWeekNav
+                weekDisplayName={weekDisplayName}
+                weekResources={allWeekResources}
+                currentSlug={slug}
+                course={course}
+              />
+            }
+            sidebarRight={<TableOfContents headings={headings} />}
+          >
+            {/* Badges and Actions */}
+            <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+              <div className="flex items-center gap-3">
+                {resource.type === 'capstone' && (
+                  <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-medium">
+                    Capstone
+                  </span>
+                )}
+                {resource.type === 'week-preview' && (
+                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">
+                    Week Preview
+                  </span>
+                )}
+                {resource.type === 'foundations' && (
+                  <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium">
+                    Foundation
+                  </span>
+                )}
+                {resource.day && (
+                  <span className="px-3 py-1 bg-black/10 dark:bg-white/10 text-gray-600 dark:text-white/70 rounded-full text-sm">
+                    {resource.day.replace('day-', 'Day ')}
+                  </span>
+                )}
+              </div>
+
+              {/* Bookmark Button */}
+              <BookmarkButton
+                courseId={course}
+                week={week}
+                lessonSlug={slug}
+                lessonTitle={resource.title}
+              />
             </div>
 
-            {/* Bookmark Button */}
-            <BookmarkButton
+            {/* Render Markdown Content */}
+            <LessonContentWrapper
+              htmlContent={htmlContent}
               courseId={course}
               week={week}
               lessonSlug={slug}
               lessonTitle={resource.title}
             />
-          </div>
 
-          {/* Markdown Content with Read Aloud */}
-          <LessonContentWrapper
-            htmlContent={htmlContent}
-            courseId={course}
-            week={week}
-            lessonSlug={slug}
-            lessonTitle={resource.title}
-          />
+            {/* Comments Section */}
+            <LessonComments
+              courseId={course}
+              week={week}
+              lessonSlug={slug}
+            />
 
-          {/* Comments Section */}
-          <LessonComments
-            courseId={course}
-            week={week}
-            lessonSlug={slug}
-          />
+            {/* Navigation */}
+            <nav className="mt-12 pt-8 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
+              {previousResource ? (
+                <Link
+                  href={`/learn/${course}/${previousResource.week}/${previousResource.slug}`}
+                  className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
+                >
+                  <ChevronLeft className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:-translate-x-1 transition-all" />
+                  <div className="text-left">
+                    <div className="text-xs text-gray-500 dark:text-white/40">Previous</div>
+                    <div className="text-gray-900 dark:text-white text-sm font-medium">{previousResource.title}</div>
+                  </div>
+                </Link>
+              ) : (
+                <div />
+              )}
+              {nextResource ? (
+                <Link
+                  href={`/learn/${course}/${nextResource.week}/${nextResource.slug}`}
+                  className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
+                >
+                  <div className="text-right">
+                    <div className="text-xs text-gray-500 dark:text-white/40">Next</div>
+                    <div className="text-gray-900 dark:text-white text-sm font-medium">{nextResource.title}</div>
+                  </div>
+                  <ChevronRight className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:translate-x-1 transition-all" />
+                </Link>
+              ) : (
+                <div />
+              )}
+            </nav>
 
-          {/* Navigation */}
-          <nav className="mt-12 pt-8 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
-            {previousResource ? (
+            {/* Back to Course */}
+            <div className="mt-8 text-center">
               <Link
-                href={`/learn/${course}/${previousResource.week}/${previousResource.slug}`}
-                className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
+                href={`/learn/${course}`}
+                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
               >
-                <ChevronLeft className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:-translate-x-1 transition-all" />
-                <div className="text-left">
-                  <div className="text-xs text-gray-500 dark:text-white/40">Previous</div>
-                  <div className="text-gray-900 dark:text-white text-sm font-medium">{previousResource.title}</div>
-                </div>
+                <ChevronLeft className="w-4 h-4" />
+                Back to Course Overview
               </Link>
-            ) : (
-              <div /> // Spacer
-            )}
-
-            {nextResource ? (
-              <Link
-                href={`/learn/${course}/${nextResource.week}/${nextResource.slug}`}
-                className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
-              >
-                <div className="text-right">
-                  <div className="text-xs text-gray-500 dark:text-white/40">Next</div>
-                  <div className="text-gray-900 dark:text-white text-sm font-medium">{nextResource.title}</div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:translate-x-1 transition-all" />
-              </Link>
-            ) : (
-              <div /> // Spacer
-            )}
-          </nav>
-
-          {/* Back to Course */}
-          <div className="mt-8 text-center">
-            <Link
-              href={`/learn/${course}`}
-              className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Back to Course Overview
-            </Link>
-          </div>
-        </FocusMode>
+            </div>
+          </FocusMode>
+        )}
       </div>
     </main>
     </>

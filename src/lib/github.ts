@@ -34,7 +34,7 @@ export type LearningResource = {
   week: string;
   day?: string;
   path: string;
-  type: 'week-preview' | 'day-content' | 'capstone' | 'foundations' | 'overview' | 'bonus';
+  type: 'week-preview' | 'day-content' | 'capstone' | 'foundations' | 'overview' | 'bonus' | 'mcq';
   order: number;
 };
 
@@ -235,6 +235,11 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
     title = extractTitle(fileName);
     const partNum = fileName.match(/part-(\d+)/)?.[1];
     order = parseInt(partNum || '1');
+  } else if (fileName.includes('mcq')) {
+    // MCQ Assessment - use placeholder, will be updated when content is fetched
+    type = 'mcq';
+    title = 'MCQ Assessment';
+    order = getWeekOrder(week) * 100 + 100; // Place at end of week, after capstone
   } else if (fileName.startsWith('day-')) {
     type = 'day-content';
     const dayMatch = fileName.match(/day-(\d+)/);
@@ -295,6 +300,14 @@ export async function getLearningResource(week: string, slug: string): Promise<{
 
     const content = await fetchMarkdownContent(resource.path);
 
+    // For MCQ documents, try to extract title from markdown content if it's generic
+    if (slug.includes('mcq') && resource.title.toLowerCase().includes('mcq')) {
+      const titleMatch = content.match(/^#\s+(.+)/m);
+      if (titleMatch) {
+        resource.title = titleMatch[1].trim();
+      }
+    }
+
     return {
       resource,
       content,
@@ -310,5 +323,25 @@ export async function getLearningResource(week: string, slug: string): Promise<{
  */
 export async function getWeekResources(week: string): Promise<LearningResource[]> {
   const allResources = await getAllLearningResources();
-  return allResources.filter(r => r.week === week);
+  const weekResources = allResources.filter(r => r.week === week);
+  
+  // For MCQ resources, fetch content to get the real title
+  const resourcesWithTitles = await Promise.all(
+    weekResources.map(async (resource) => {
+      if (resource.slug.includes('mcq') && resource.title === 'MCQ Assessment') {
+        try {
+          const content = await fetchMarkdownContent(resource.path);
+          const titleMatch = content.match(/^#\s+(.+)/m);
+          if (titleMatch) {
+            return { ...resource, title: titleMatch[1].trim() };
+          }
+        } catch (error) {
+          console.error(`Error fetching MCQ title for ${resource.slug}:`, error);
+        }
+      }
+      return resource;
+    })
+  );
+  
+  return resourcesWithTitles;
 }
