@@ -43,6 +43,8 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
   const questionsContainerRef = useRef<HTMLDivElement>(null);
   const [noteScrollTarget, setNoteScrollTarget] = useState<number | null>(null);
   const [showResults, setShowResults] = useState(false);
+  const hasScrolledToLastAttempted = useRef(false);
+  const [answersLoaded, setAnswersLoaded] = useState(false);
 
   // Flatten all questions from sections
   const allQuestions = assessment.sections.flatMap(section => section.questions);
@@ -139,8 +141,17 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
   useEffect(() => {
     if (user) {
       loadSavedAnswers();
+    } else {
+      // No user, mark as loaded
+      setAnswersLoaded(true);
     }
   }, [user]);
+
+  // Reset scroll flag when navigating to different assessment
+  useEffect(() => {
+    hasScrolledToLastAttempted.current = false;
+    setAnswersLoaded(false);
+  }, [lessonSlug]);
 
   // Right-click and long-press handler for text selection
   useEffect(() => {
@@ -264,14 +275,29 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     };
   }, []);
 
-  // Scroll to last attempted question when answers are loaded - DISABLED per user request
-  // useEffect(() => {
-  //   if (userAnswers.size > 0) {
-  //     setTimeout(() => {
-  //       scrollToLastAttempted();
-  //     }, 500);
-  //   }
-  // }, [userAnswers.size]);
+  // Scroll to last attempted question when answers are loaded
+  useEffect(() => {
+    const hash = window.location.hash;
+    // Allow auto-scroll unless there's a specific question/note hash (not scroll position)
+    const hasSpecificHash = hash.startsWith('#question-') || hash.startsWith('#note-');
+    
+    // Only scroll if answers are loaded, there are answers, no specific hash navigation, and we haven't scrolled yet
+    if (answersLoaded && userAnswers.size > 0 && !hasSpecificHash && !hasScrolledToLastAttempted.current) {
+      console.log('[AutoScroll] Attempting to scroll to last attempted question');
+      hasScrolledToLastAttempted.current = true;
+      
+      // Clear any scroll position hash since we're auto-scrolling
+      if (hash.startsWith('#scroll-')) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+      
+      const timer = setTimeout(() => {
+        scrollToLastAttempted();
+      }, 1200); // Give time for DOM to render completely
+      
+      return () => clearTimeout(timer);
+    }
+  }, [answersLoaded, userAnswers.size]); // Trigger when answers are loaded or size changes
 
   const scrollToQuestion = (questionNumber: number) => {
     const element = document.querySelector(`[data-question-number="${questionNumber}"]`);
@@ -304,8 +330,11 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
   const scrollToLastAttempted = () => {
     if (userAnswers.size === 0) return;
 
+    console.log('[AutoScroll] scrollToLastAttempted called with', userAnswers.size, 'answers');
+
     // Find the highest question number that was attempted
     const lastAttemptedQuestion = Math.max(...Array.from(userAnswers.keys()));
+    console.log('[AutoScroll] Last attempted question:', lastAttemptedQuestion);
     
     // Find the next unattempted question after the last attempted one
     const allQuestionNumbers = allQuestions.map(q => q.number).sort((a, b) => a - b);
@@ -313,11 +342,15 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     
     // Scroll to next unattempted or last attempted
     const targetQuestion = nextUnattempted || lastAttemptedQuestion;
+    console.log('[AutoScroll] Target question to scroll to:', targetQuestion);
     scrollToQuestion(targetQuestion);
   };
 
   const loadSavedAnswers = async () => {
-    if (!user) return;
+    if (!user) {
+      setAnswersLoaded(true);
+      return;
+    }
 
     try {
       // Get or find assessment
@@ -329,7 +362,10 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
         .eq('lesson_slug', lessonSlug)
         .maybeSingle();
 
-      if (!assessment) return;
+      if (!assessment) {
+        setAnswersLoaded(true);
+        return;
+      }
 
       // Fetch user's answers
       const { data: answers, error } = await supabaseClient
@@ -342,10 +378,15 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
         const answersMap = new Map<number, 'A' | 'B' | 'C' | 'D'>(
           answers.map((a: any) => [a.question_number, a.selected_option])
         );
+        console.log('[LoadAnswers] Loaded', answersMap.size, 'saved answers');
         setUserAnswers(answersMap);
       }
     } catch (error) {
       console.error('Failed to load saved answers:', error);
+    } finally {
+      // Always mark as loaded, even if there was an error or no answers
+      setAnswersLoaded(true);
+      console.log('[LoadAnswers] Answers loading complete');
     }
   };
 
