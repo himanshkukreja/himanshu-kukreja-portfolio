@@ -71,7 +71,7 @@ export default function LessonCard({ resource, course, readingTime }: LessonCard
             mcqAttempted = answers?.length || 0;
             
             // Update the progress percentage and status based on MCQ completion
-            if (mcqTotal > 0) {
+            if (mcqTotal && mcqTotal > 0) {
               data.progress_percentage = Math.round((mcqAttempted / mcqTotal) * 100);
               
               // Update status based on MCQ progress
