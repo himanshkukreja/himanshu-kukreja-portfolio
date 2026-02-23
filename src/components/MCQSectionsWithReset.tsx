@@ -82,10 +82,15 @@ export default function MCQSectionsWithReset({
     // This allows the reset button to enable immediately when user selects answers
     const interval = setInterval(() => {
       const localCount = assessmentRef?.current?.localAnswersCount || 0;
-      if (localCount > 0 && !hasAnswers) {
-        setHasAnswers(true);
-      } else if (localCount === 0 && hasAnswers) {
-        // Re-check database when local is empty
+      const dbHasAnswers = hasAnswers; // Capture current value
+      
+      if (localCount > 0) {
+        // If there are local answers, always enable the button
+        if (!dbHasAnswers) {
+          setHasAnswers(true);
+        }
+      } else {
+        // If no local answers, check database
         checkAnswers();
       }
     }, 500);
@@ -112,7 +117,7 @@ export default function MCQSectionsWithReset({
       clearInterval(interval);
       channel.unsubscribe();
     };
-  }, [user, courseId, week, lessonSlug, hasAnswers]);
+  }, [user, courseId, week, lessonSlug]);
 
   const handleResetAll = async () => {
     if (!user) return;
