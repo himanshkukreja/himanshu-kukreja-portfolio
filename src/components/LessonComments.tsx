@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { supabaseClient } from "@/lib/supabase-client";
-import { MessageSquare, Loader2, AlertCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import CommentItem from "./CommentItem";
 import RichTextEditor from "./RichTextEditor";
 
@@ -48,6 +48,7 @@ export default function LessonComments({
   const [newCommentRawContent, setNewCommentRawContent] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [sortBy, setSortBy] = useState<"newest" | "oldest" | "top">("top");
+  const [postError, setPostError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchComments();
@@ -207,7 +208,7 @@ export default function LessonComments({
 
     setIsSubmitting(true);
     try {
-      const { data, error: insertError } = await supabaseClient
+      const { error: insertError } = await supabaseClient
         .from("lesson_comments")
         .insert({
           user_id: user.id,
@@ -217,27 +218,20 @@ export default function LessonComments({
           content: newCommentContent,
           raw_content: newCommentRawContent,
           parent_id: null,
-        })
-        .select()
-        .single();
+        });
 
       if (insertError) throw insertError;
 
-      // Reset form
+      // Reset form (the editor clears itself when its value goes back to "")
       setNewCommentContent("");
       setNewCommentRawContent("");
-      
-      // Clear the editor DOM
-      const editorElement = document.querySelector('[contenteditable="true"]');
-      if (editorElement) {
-        editorElement.innerHTML = "";
-      }
+      setPostError(null);
 
       // Refresh comments
       await fetchComments();
     } catch (err: any) {
       console.error("Error posting comment:", err);
-      alert("Failed to post comment. Please try again.");
+      setPostError("Your comment didn't post. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -350,110 +344,85 @@ export default function LessonComments({
     setComments(sortedComments);
   }, [sortBy]);
 
+  const total = comments.reduce(function count(n: number, c: Comment): number {
+    return n + 1 + (c.replies ?? []).reduce(count, 0);
+  }, 0);
+
   return (
-    <div className="mt-12 pt-8 border-t border-black/10 dark:border-white/10">
-      {/* Public visibility notice */}
-      <div className="mb-6 p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-        <p className="text-sm text-blue-700 dark:text-blue-400">
-          💬 <strong>Public Discussion:</strong> Comments are visible to all users. Please be respectful and mindful of what you share.
-        </p>
-      </div>
-
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <MessageSquare className="w-5 h-5 text-blue-500" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">
-            Discussion ({comments.length})
-          </h2>
-        </div>
-
-        {/* Sort options */}
-        <div className="flex items-center gap-2">
-          <span className="text-sm text-gray-600 dark:text-white/60">Sort by:</span>
+    <section aria-labelledby="discussion-h" className="mt-12 flex flex-col gap-4 border-t border-line pt-6">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+        <h2 id="discussion-h" className="m-0 font-display text-[26px] font-bold tracking-[-0.02em]">
+          Discussion · {loading ? "…" : total}
+        </h2>
+        <label className="flex items-center gap-2 font-mono text-xs text-fg-3">
+          sort
           <select
             value={sortBy}
             onChange={(e) => setSortBy(e.target.value as "newest" | "oldest" | "top")}
-            className="text-sm bg-white dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg px-3 py-1.5 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="min-h-10 border border-line-strong bg-bg px-2 text-sm text-fg"
           >
-            <option value="top">Top</option>
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
+            <option value="top">top</option>
+            <option value="newest">newest</option>
+            <option value="oldest">oldest</option>
           </select>
-        </div>
+        </label>
       </div>
+      <p className="m-0 text-[13px] text-fg-3">Public: everyone reading this lesson sees comments. Be kind and keep it on the material.</p>
 
-      {/* New comment form */}
-      <div className="mb-8">
-        {user ? (
-          <div>
-            <RichTextEditor
-              value={newCommentContent}
-              onChange={(html, text) => {
-                setNewCommentContent(html);
-                setNewCommentRawContent(text);
-              }}
-              placeholder="Share your thoughts, ask questions, or help others learn..."
-              minHeight="120px"
-            />
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 mt-3">
-              <p className="text-xs text-gray-500 dark:text-white/50 order-2 sm:order-1">
-                You can format your comment with bold, italic, code blocks, and more.
-              </p>
-              <button
-                onClick={handleSubmitComment}
-                disabled={isSubmitting || !newCommentRawContent.trim()}
-                className="px-4 sm:px-6 py-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm sm:text-base font-medium transition-all shadow-md hover:shadow-lg disabled:shadow-none order-1 sm:order-2 w-full sm:w-auto"
-              >
-                {isSubmitting ? "Posting..." : "Post Comment"}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-8 bg-black/5 dark:bg-white/5 rounded-lg border border-black/10 dark:border-white/10">
-            <MessageSquare className="w-12 h-12 text-gray-400 dark:text-white/40 mx-auto mb-3" />
-            <p className="text-gray-600 dark:text-white/60 mb-4">
-              Sign in to join the discussion
-            </p>
+      {user ? (
+        <div className="flex flex-col gap-2">
+          <span className="text-[13px] text-fg-3">Add to the discussion</span>
+          <RichTextEditor
+            value={newCommentContent}
+            onChange={(html, text) => {
+              setNewCommentContent(html);
+              setNewCommentRawContent(text);
+            }}
+            placeholder="Ask about this lesson, or answer someone…"
+            minHeight="110px"
+          />
+          <div className="flex flex-wrap items-center justify-end gap-3">
+            {postError && (
+              <span role="alert" className="text-[13px] text-bad-text">
+                {postError}
+              </span>
+            )}
             <button
-              onClick={openAuthModal}
-              className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium transition-colors"
+              type="button"
+              onClick={handleSubmitComment}
+              disabled={isSubmitting || !newCommentRawContent.trim()}
+              className="min-h-11 w-full bg-fg px-5 text-sm font-semibold text-bg hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto"
             >
-              Sign In
+              {isSubmitting ? "Posting…" : "Post"}
             </button>
           </div>
-        )}
-      </div>
-
-      {/* Comments list */}
-      {loading ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
-        </div>
-      ) : error ? (
-        <div className="flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-600 dark:text-red-400">
-          <AlertCircle className="w-5 h-5 flex-shrink-0" />
-          <p>{error}</p>
-        </div>
-      ) : comments.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 dark:text-white/50">
-          <MessageSquare className="w-12 h-12 mx-auto mb-3 opacity-50" />
-          <p>No comments yet. Be the first to share your thoughts!</p>
         </div>
       ) : (
-        <div className="space-y-1">
+        <div className="flex flex-wrap items-center gap-3 border border-dashed border-line-strong px-4 py-4">
+          <span className="min-w-0 flex-[1_1_240px] text-sm text-fg-2">Sign in to ask a question or answer one. Reading stays open to everyone.</span>
+          <button type="button" onClick={openAuthModal} className="min-h-11 bg-fg px-4 text-sm font-semibold text-bg hover:opacity-90">
+            Sign in to comment
+          </button>
+        </div>
+      )}
+
+      {loading ? (
+        <div role="status" className="flex items-center gap-2 py-6 font-mono text-xs text-fg-3">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> loading the discussion…
+        </div>
+      ) : error ? (
+        <div role="alert" className="border border-bad p-4 text-sm text-bad-text">
+          {error}
+        </div>
+      ) : comments.length === 0 ? (
+        <p className="m-0 py-4 text-sm text-fg-3">No comments yet. Start the thread.</p>
+      ) : (
+        <div className="flex flex-col divide-y divide-line border-y border-line">
           {comments.map((comment) => (
-            <CommentItem
-              key={comment.id}
-              comment={comment}
-              onReply={handleReply}
-              onEdit={handleEdit}
-              onDelete={handleDelete}
-              onVote={handleVote}
-            />
+            <CommentItem key={comment.id} comment={comment} onReply={handleReply} onEdit={handleEdit} onDelete={handleDelete} onVote={handleVote} />
           ))}
         </div>
       )}
-    </div>
+    </section>
   );
 }

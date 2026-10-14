@@ -31,11 +31,28 @@ export type MCQSection = {
   questions: MCQQuestion[];
 };
 
+type OptionLabel = MCQOption['label'];
+
+// "# Part 1: Name", "## Part 1: Name (Questions 1-25)", "### Section 2 - Name"
+const SECTION_HEADER = /^#{1,3}\s+((?:Part|Section)\b.*)$/i;
+// "## Questions 1-15"
+const RANGE_HEADER = /^#{1,3}\s+(Questions?\s+\d+\s*[-–]\s*\d+.*)$/i;
+// "# Answer Key", "## Answer Key", "### Answers - Part 1", "### Part 1 Answers: ..."
+const ANSWER_KEY_HEADER = /^#{1,3}\s+(?:answer\s+key\b|answers\s*[-–:]\s*part\b|part\s+\d+\s+answers\b)/i;
+// Any H1 ends the answer key (e.g. "# Scoring Guide", "# Next Steps")
+const H1 = /^#\s+/;
+// "**Q1. text**", "Q1: text", "**1. text**" (bare numbers only when bold, so ordinary lists don't match)
+const QUESTION = /^(?:\*\*Q|Q|\*\*(?=\d))(\d+)[.:)]\s*(?:\*\*)?\s*(.*)$/i;
+// "A) text" / "A. text"
+const OPTION = /^([A-D])[.)]\s+(.+)$/;
+// "1. **B** - why", "**1. B** - why", "Q1. B - why", "**Q1.** B"; letter must stand alone
+const ANSWER = /^\*{0,2}Q?(\d+)[.)]\*{0,2}\s+\*{0,2}([A-D])(?![A-Za-z])\*{0,2}(?:\s*[-–:]\s*(.+))?/;
+
 /**
  * Parse markdown content to extract MCQ questions
  * Expects format like:
- * 
- * # Part 1: Section Name
+ *
+ * # Part 1: Section Name          (or ## / ###)
  * ## Questions 1-15
  * **Q1. Question text?**
  * A) Option A
@@ -55,7 +72,20 @@ export function parseMCQMarkdown(markdown: string): MCQAssessment {
   let currentSection: MCQSection | null = null;
   let currentQuestion: Partial<MCQQuestion> | null = null;
   let inAnswerKey = false;
-  const answerKey: Record<number, { answer: 'A' | 'B' | 'C' | 'D'; explanation?: string }> = {};
+  const answerKey: Record<number, { answer: OptionLabel; explanation?: string }> = {};
+
+  // Push the in-flight question into the section it was read in.
+  const flushQuestion = () => {
+    if (currentQuestion && currentSection) {
+      currentSection.questions.push(currentQuestion as MCQQuestion);
+    }
+    currentQuestion = null;
+  };
+  const flushSection = () => {
+    flushQuestion();
+    if (currentSection) assessment.sections.push(currentSection);
+    currentSection = null;
+  };
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
@@ -69,62 +99,63 @@ export function parseMCQMarkdown(markdown: string): MCQAssessment {
       continue;
     }
 
-    // Check if we're in the Answer Key section
-    // Support both "# Answer Key" and "### Answers - Part X" formats
-    if (line.match(/(answer\s+key|###\s+answers\s*-\s*part)/i)) {
+    // Answer key section(s)
+    if (ANSWER_KEY_HEADER.test(line)) {
+      flushSection();
       inAnswerKey = true;
       continue;
     }
 
-    // Parse answer key
     if (inAnswerKey) {
-      // Match patterns like "1. B - Explanation" or "1. **B** - Explanation" or "Q1. B - Explanation" or "**Q1.** B - Explanation"
-      const answerMatch = line.match(/\*?\*?Q?(\d+)[\.)\.]\*?\*?\s+\*?\*?([A-D])\*?\*?(?:\s*-\s*(.+))?/i);
-      if (answerMatch) {
-        const questionNum = parseInt(answerMatch[1]);
-        const answer = answerMatch[2].toUpperCase() as 'A' | 'B' | 'C' | 'D';
-        const explanation = answerMatch[3]?.trim();
-        answerKey[questionNum] = { answer, explanation };
+      // A new top-level section (Scoring Guide, Next Steps...) ends the key, so numbered
+      // lists there ("3. **Apply** ...") can't overwrite real answers.
+      if (H1.test(line)) {
+        inAnswerKey = false;
+      } else {
+        const answerMatch = line.match(ANSWER);
+        if (answerMatch) {
+          const questionNum = parseInt(answerMatch[1], 10);
+          if (!answerKey[questionNum]) {
+            answerKey[questionNum] = {
+              answer: answerMatch[2] as OptionLabel,
+              explanation: answerMatch[3]?.trim(),
+            };
+          }
+        }
+        continue;
       }
-      continue;
     }
 
-    // Detect section headers (# Part 1: ...)
-    if (line.startsWith('# Part') || line.startsWith('# Section')) {
-      if (currentSection) {
-        assessment.sections.push(currentSection);
-      }
+    // Section headers: "# Part 1: ...", "## Part 1: ...", "### Part 1: ..."
+    const sectionMatch = line.match(SECTION_HEADER);
+    if (sectionMatch) {
+      // Flush the previous question first so the last question of a part stays in that part.
+      flushSection();
+      const rawTitle = sectionMatch[1].trim();
+      // Inline range: "Part 1: Name (Questions 1-25)"
+      const inlineRange = rawTitle.match(/\((Questions?\s+\d+\s*[-–]\s*\d+)\)\s*$/i);
       currentSection = {
-        title: line.replace('# ', '').trim(),
-        questionRange: '',
+        title: inlineRange ? rawTitle.slice(0, inlineRange.index).trim() : rawTitle,
+        questionRange: inlineRange ? inlineRange[1] : '',
         questions: [],
       };
       continue;
     }
 
-    // Detect question range (## Questions 1-15)
-    if (line.startsWith('## Questions') && currentSection) {
-      currentSection.questionRange = line.replace('## ', '').trim();
+    // Question range header (## Questions 1-15)
+    const rangeMatch = line.match(RANGE_HEADER);
+    if (rangeMatch) {
+      if (currentSection) currentSection.questionRange = rangeMatch[1].trim();
       continue;
     }
 
     // Detect question start
-    // Matches: **Q1. text?** or **Q1: text?** or Q1. text?
-    const questionMatch = line.match(/^\*?\*?Q(\d+)[\.\:\)]?\s+(.*)/i);
+    const questionMatch = line.match(QUESTION);
     if (questionMatch) {
-      // Save previous question if exists
-      if (currentQuestion && currentSection) {
-        currentSection.questions.push(currentQuestion as MCQQuestion);
-      }
-
-      const questionNum = parseInt(questionMatch[1]);
-      const questionText = questionMatch[2]
-        .replace(/\*\*/g, '') // Remove bold markers
-        .trim();
-
+      flushQuestion();
       currentQuestion = {
-        number: questionNum,
-        text: questionText,
+        number: parseInt(questionMatch[1], 10),
+        text: questionMatch[2].replace(/\*\*/g, '').trim(),
         options: [],
         section: currentSection?.title,
       };
@@ -132,22 +163,18 @@ export function parseMCQMarkdown(markdown: string): MCQAssessment {
     }
 
     // Parse options (A), B), C), D)
-    const optionMatch = line.match(/^([A-D])[\.\)]\s+(.+)/i);
+    const optionMatch = line.match(OPTION);
     if (optionMatch && currentQuestion) {
-      const label = optionMatch[1].toUpperCase() as 'A' | 'B' | 'C' | 'D';
-      const text = optionMatch[2].trim();
-      currentQuestion.options?.push({ label, text });
+      (currentQuestion as Partial<MCQQuestion>).options?.push({
+        label: optionMatch[1] as OptionLabel,
+        text: optionMatch[2].trim(),
+      });
       continue;
     }
   }
 
   // Save last question and section
-  if (currentQuestion && currentSection) {
-    currentSection.questions.push(currentQuestion as MCQQuestion);
-  }
-  if (currentSection) {
-    assessment.sections.push(currentSection);
-  }
+  flushSection();
 
   // Attach correct answers and explanations from answer key
   assessment.sections.forEach(section => {
@@ -159,6 +186,16 @@ export function parseMCQMarkdown(markdown: string): MCQAssessment {
     });
   });
 
+  // Label each section with the questions it actually holds. Source headers can be wrong
+  // (Week 1 Part 5 says "Questions 81-100" but holds Q81-Q120).
+  assessment.sections.forEach(section => {
+    if (section.questions.length === 0) return;
+    const nums = section.questions.map(q => q.number);
+    const first = Math.min(...nums);
+    const last = Math.max(...nums);
+    section.questionRange = first === last ? `Question ${first}` : `Questions ${first}-${last}`;
+  });
+
   // Calculate total questions
   assessment.totalQuestions = assessment.sections.reduce(
     (sum, section) => sum + section.questions.length,
@@ -168,7 +205,7 @@ export function parseMCQMarkdown(markdown: string): MCQAssessment {
   // Extract passing score if mentioned in description
   const passingScoreMatch = markdown.match(/passing.*?(\d+)%/i);
   if (passingScoreMatch) {
-    assessment.passingScore = parseInt(passingScoreMatch[1]);
+    assessment.passingScore = parseInt(passingScoreMatch[1], 10);
   }
 
   return assessment;
@@ -179,11 +216,11 @@ export function parseMCQMarkdown(markdown: string): MCQAssessment {
  * by looking for MCQ patterns
  */
 export function isMCQDocument(markdown: string): boolean {
-  const hasQuestionPattern = /\*?\*?Q\d+[\.\:]/.test(markdown);
+  const hasQuestionPattern = /^\s*(?:\*\*Q?|Q)\d+[.:]/im.test(markdown);
   // Support both "Answer Key" and "Answers - Part X" formats
   const hasAnswerKey = /(answer\s+key|answers\s*-\s*part)/i.test(markdown);
-  const hasOptions = /^[A-D][\.\)]\s+/m.test(markdown);
-  
+  const hasOptions = /^[A-D][.)]\s+/m.test(markdown);
+
   return hasQuestionPattern && hasAnswerKey && hasOptions;
 }
 

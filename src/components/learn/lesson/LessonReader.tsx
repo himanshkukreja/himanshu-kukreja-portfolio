@@ -1,0 +1,155 @@
+"use client";
+
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import type { Stage, TocItem } from "@/lib/course/types";
+import { LessonProgressProvider } from "@/components/LessonProgressTracker";
+import LessonContentWrapper from "@/components/LessonContentWrapper";
+import FocusMode from "@/components/FocusMode";
+import TableOfContents from "@/components/TableOfContents";
+import CollapsibleWeekNav from "@/components/CollapsibleWeekNav";
+import LessonComments from "@/components/LessonComments";
+import SearchHighlight from "@/components/SearchHighlight";
+import { useReadAloud } from "@/components/ReadAloud";
+import LessonHero from "./LessonHero";
+import StageRail from "./StageRail";
+import ContentsSheet from "./ContentsSheet";
+import EndOfLesson from "./EndOfLesson";
+import BossEntry from "./BossEntry";
+import { MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
+import { headerStackBottom, stageRailHeight } from "./layout";
+import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
+
+type Props = {
+  meta: ReaderMeta;
+  html: string;
+  stages: Stage[];
+  toc: TocItem[];
+  rail: RailData;
+  prev: NavLink | null;
+  next: NavLink | null;
+  trial: TrialPartLink | null;
+};
+
+const SIZE_KEY = "hk.reader.size";
+
+/** Keeps --reader-top / --reader-rail / --site-dock in sync with the real chrome heights. */
+function useChromeVars(root: React.RefObject<HTMLDivElement | null>) {
+  useEffect(() => {
+    const el = root.current;
+    if (!el) return;
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const top = headerStackBottom();
+      const rail = stageRailHeight();
+      const dock = document.querySelector<HTMLElement>('nav[aria-label="Sections"]');
+      const dockH = dock && window.getComputedStyle(dock).display !== "none" ? dock.offsetHeight : 0;
+      el.style.setProperty("--reader-top", `${top}px`);
+      el.style.setProperty("--reader-rail", `${rail}px`);
+      el.style.setProperty("--site-dock", `${dockH}px`);
+      el.style.setProperty("--reader-scroll-margin", `${top + rail + 16}px`);
+    };
+    const schedule = () => {
+      if (!raf) raf = window.requestAnimationFrame(measure);
+    };
+    measure();
+    // the learn sub-nav publishes its height a moment after mount
+    const t1 = window.setTimeout(schedule, 300);
+    const t2 = window.setTimeout(schedule, 1200);
+    const ro = new ResizeObserver(schedule);
+    document.querySelectorAll("header, [data-stage-rail], nav[aria-label='Sections']").forEach((n) => ro.observe(n));
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+      ro.disconnect();
+      window.removeEventListener("resize", schedule);
+    };
+  }, [root]);
+}
+
+export default function LessonReader({ meta, html, stages, toc, rail, prev, next, trial }: Props) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [focus, setFocus] = useState(false);
+  const [size, setSize] = useState<number>(TEXT_SIZES[0]);
+  const [sheet, setSheet] = useState(false);
+  const readAloud = useReadAloud(contentRef);
+  useChromeVars(rootRef);
+
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem(SIZE_KEY));
+      // a per-viewer preference, read after mount so server and client markup match
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if ((TEXT_SIZES as readonly number[]).includes(saved)) setSize(saved);
+    } catch {
+      // storage unavailable
+    }
+  }, []);
+
+  const cycleSize = useCallback(() => {
+    setSize((s) => {
+      const i = (TEXT_SIZES as readonly number[]).indexOf(s);
+      const n = TEXT_SIZES[(i + 1) % TEXT_SIZES.length];
+      try {
+        window.localStorage.setItem(SIZE_KEY, String(n));
+      } catch {
+        // storage unavailable
+      }
+      return n;
+    });
+  }, []);
+
+  const toggleFocus = useCallback(() => setFocus((f) => !f), []);
+  const closeSheet = useCallback(() => setSheet(false), []);
+  const openSheet = useCallback(() => setSheet(true), []);
+
+  const tools = { readAloud, focus, onFocus: toggleFocus, size, onSize: cycleSize, onContents: openSheet };
+
+  return (
+    <LessonProgressProvider courseId={meta.course} week={meta.week} lessonSlug={meta.slug} title={meta.title} stages={stages} contentVersion={meta.contentVersion}>
+      <div ref={rootRef} className="min-h-screen">
+        <Suspense fallback={null}>
+          <SearchHighlight />
+        </Suspense>
+        <LessonHero meta={meta} />
+        <StageRail onOpenContents={openSheet} />
+
+        <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 sm:px-6 lg:pt-10">
+          <FocusMode
+            focus={focus}
+            onFocusChange={setFocus}
+            leftOnMobile={false}
+            sidebarLeft={<CollapsibleWeekNav course={meta.course} rail={rail} />}
+            sidebarRight={<TableOfContents toc={toc} stages={stages} />}
+          >
+            {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
+
+            <LessonContentWrapper
+              ref={contentRef}
+              htmlContent={html}
+              courseId={meta.course}
+              week={meta.week}
+              lessonSlug={meta.slug}
+              lessonTitle={meta.title}
+              textSize={size}
+            />
+
+            <EndOfLesson meta={meta} prev={prev} next={next} trial={trial} />
+
+            <LessonComments courseId={meta.course} week={meta.week} lessonSlug={meta.slug} />
+          </FocusMode>
+        </div>
+
+        {/* room for the phone reading toolbar above the site dock */}
+        <div aria-hidden className="h-20 lg:hidden" />
+
+        <ReadingDock {...tools} />
+        <MobileReadingBar {...tools} />
+        <ContentsSheet open={sheet} onClose={closeSheet} toc={toc} stages={stages} kicker={meta.shortLabel.toUpperCase()} title={meta.title} />
+      </div>
+    </LessonProgressProvider>
+  );
+}

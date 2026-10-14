@@ -2,150 +2,91 @@
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { stickyOffset } from "@/components/learn/lesson/layout";
 
+/**
+ * `?highlight=<query>` (course search results): marks the matches in the lesson for a few
+ * seconds and scrolls to the first one, under the sticky header and stage rail.
+ */
 export default function SearchHighlight() {
   const searchParams = useSearchParams();
   const highlight = searchParams.get("highlight");
 
   useEffect(() => {
     if (!highlight) return;
-
-    // Wait for content to render
-    const timer = setTimeout(() => {
-      highlightAndScroll(highlight);
-    }, 500);
-
-    return () => clearTimeout(timer);
+    let cleanup: (() => void) | undefined;
+    // wait for the content (and its client-side enhancements) to render
+    const timer = window.setTimeout(() => {
+      cleanup = highlightAndScroll(highlight);
+    }, 600);
+    return () => {
+      window.clearTimeout(timer);
+      cleanup?.();
+    };
   }, [highlight]);
 
-  return null; // This component doesn't render anything
+  return null;
 }
 
-function highlightAndScroll(searchQuery: string) {
-  // Clean up the search query
+const MARK_STYLE = "background: rgba(255,107,43,0.3); color: inherit; box-shadow: inset 0 -2px 0 var(--c-signal, #FF6B2B); padding: 0 1px;";
+
+function unmark() {
+  document.querySelectorAll("mark.search-highlight").forEach((mark) => {
+    const parent = mark.parentNode;
+    if (parent) {
+      parent.replaceChild(document.createTextNode(mark.textContent || ""), mark);
+      parent.normalize();
+    }
+  });
+}
+
+function highlightAndScroll(searchQuery: string): (() => void) | undefined {
   const query = searchQuery.trim().toLowerCase();
   if (!query) return;
 
-  // Find the markdown content container
-  const contentContainer = document.querySelector(".markdown-content, [class*='markdown'], article, main");
-  if (!contentContainer) {
-    console.warn("[SearchHighlight] Content container not found");
-    return;
-  }
+  const container = document.querySelector(".course-content, .md-content, article, main");
+  if (!container) return;
 
-  // Get all text nodes in the content
-  const walker = document.createTreeWalker(
-    contentContainer,
-    NodeFilter.SHOW_TEXT,
-    {
-      acceptNode: (node) => {
-        // Skip script and style tags
-        const parent = node.parentElement;
-        if (!parent || parent.tagName === "SCRIPT" || parent.tagName === "STYLE") {
-          return NodeFilter.FILTER_REJECT;
-        }
-        // Only accept nodes with actual text content
-        return node.textContent && node.textContent.trim().length > 0
-          ? NodeFilter.FILTER_ACCEPT
-          : NodeFilter.FILTER_REJECT;
-      },
-    }
-  );
-
-  const textNodes: Node[] = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    textNodes.push(node);
-  }
-
-  let firstMatch: HTMLElement | null = null;
-
-  // Search through text nodes and highlight matches
-  textNodes.forEach((textNode) => {
-    const text = textNode.textContent || "";
-    const lowerText = text.toLowerCase();
-    const index = lowerText.indexOf(query);
-
-    if (index !== -1) {
-      const parent = textNode.parentElement;
-      if (!parent) return;
-
-      // Split the text into parts: before, match, after
-      const before = text.substring(0, index);
-      const match = text.substring(index, index + query.length);
-      const after = text.substring(index + query.length);
-
-      // Create highlight span
-      const highlightSpan = document.createElement("mark");
-      highlightSpan.textContent = match;
-      highlightSpan.className = "search-highlight";
-      highlightSpan.style.cssText = `
-        background: linear-gradient(90deg, #fbbf24, #f59e0b);
-        color: #000;
-        padding: 2px 4px;
-        border-radius: 3px;
-        font-weight: 500;
-        animation: highlightPulse 2s ease-in-out;
-      `;
-
-      // Replace text node with highlighted version
-      const fragment = document.createDocumentFragment();
-      if (before) fragment.appendChild(document.createTextNode(before));
-      fragment.appendChild(highlightSpan);
-      if (after) fragment.appendChild(document.createTextNode(after));
-
-      parent.replaceChild(fragment, textNode);
-
-      // Store first match for scrolling
-      if (!firstMatch) {
-        firstMatch = highlightSpan;
+  const walker = document.createTreeWalker(container, NodeFilter.SHOW_TEXT, {
+    acceptNode: (node) => {
+      const parent = node.parentElement;
+      if (!parent || parent.tagName === "SCRIPT" || parent.tagName === "STYLE" || parent.closest("button, [aria-hidden='true']")) {
+        return NodeFilter.FILTER_REJECT;
       }
-    }
+      return node.textContent && node.textContent.toLowerCase().includes(query) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+    },
   });
 
-  // Scroll to first match with smooth animation
-  if (firstMatch) {
-    // Add CSS animation
-    const style = document.createElement("style");
-    style.textContent = `
-      @keyframes highlightPulse {
-        0%, 100% {
-          background: linear-gradient(90deg, #fbbf24, #f59e0b);
-          transform: scale(1);
-        }
-        50% {
-          background: linear-gradient(90deg, #f59e0b, #fbbf24);
-          transform: scale(1.05);
-        }
-      }
+  const nodes: Text[] = [];
+  let node: Node | null;
+  while ((node = walker.nextNode())) nodes.push(node as Text);
 
-      .search-highlight {
-        transition: all 0.3s ease;
-      }
-    `;
-    document.head.appendChild(style);
-
-    // Scroll with offset for better visibility
-    const matchElement = firstMatch as HTMLElement;
-    const elementPosition = matchElement.getBoundingClientRect().top + window.scrollY;
-    const offsetPosition = elementPosition - 150; // Offset from top
-
-    window.scrollTo({
-      top: offsetPosition,
-      behavior: "smooth",
-    });
-
-    // Remove highlight after 5 seconds
-    setTimeout(() => {
-      document.querySelectorAll(".search-highlight").forEach((mark) => {
-        const parent = mark.parentNode;
-        if (parent) {
-          parent.replaceChild(document.createTextNode(mark.textContent || ""), mark);
-          parent.normalize(); // Merge adjacent text nodes
-        }
-      });
-    }, 5000);
-  } else {
-    console.log("[SearchHighlight] No matches found for:", searchQuery);
+  let first: HTMLElement | null = null;
+  for (const textNode of nodes.slice(0, 200)) {
+    const text = textNode.textContent || "";
+    const index = text.toLowerCase().indexOf(query);
+    if (index === -1 || !textNode.parentNode) continue;
+    const mark = document.createElement("mark");
+    mark.className = "search-highlight";
+    mark.style.cssText = MARK_STYLE;
+    mark.textContent = text.slice(index, index + query.length);
+    const frag = document.createDocumentFragment();
+    if (index > 0) frag.appendChild(document.createTextNode(text.slice(0, index)));
+    frag.appendChild(mark);
+    const after = text.slice(index + query.length);
+    if (after) frag.appendChild(document.createTextNode(after));
+    textNode.parentNode.replaceChild(frag, textNode);
+    if (!first) first = mark;
   }
+
+  if (!first) return;
+  const top = first.getBoundingClientRect().top + window.scrollY - stickyOffset() - 48;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: Math.max(0, top), behavior: reduce ? "auto" : "smooth" });
+
+  const t = window.setTimeout(unmark, 6000);
+  return () => {
+    window.clearTimeout(t);
+    unmark();
+  };
 }

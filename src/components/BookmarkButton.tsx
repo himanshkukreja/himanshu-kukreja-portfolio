@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Bookmark, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { supabaseClient } from "@/lib/supabase-client";
+import Toast from "./Toast";
 
 type BookmarkButtonProps = {
   courseId: string;
@@ -27,29 +28,35 @@ export default function BookmarkButton({
   const [customTitle, setCustomTitle] = useState("");
   const [note, setNote] = useState("");
   const dialogRef = useRef<HTMLDivElement>(null);
+  const [toast, setToast] = useState<{ message: string; type: "success" | "error" } | null>(null);
+  const closeToast = useCallback(() => setToast(null), []);
 
-  // Check if lesson is bookmarked on mount
+  // Check if the whole lesson is bookmarked. Text bookmarks (bookmark_offset set) live in the
+  // same table, so only the lesson-level row (bookmark_offset IS NULL) counts here; a
+  // maybeSingle() over all rows errors as soon as a lesson has several text bookmarks.
+  const userId = user?.id ?? null;
   useEffect(() => {
-    if (!user) {
-      setIsBookmarked(false);
-      return;
-    }
+    let cancelled = false;
 
     async function checkBookmark() {
-      if (!user) return;
+      if (!userId) {
+        if (!cancelled) setIsBookmarked(false);
+        return;
+      }
 
       try {
         const { data, error } = await supabaseClient
           .from("bookmarks")
-          .select("*")
-          .eq("user_id", user.id)
+          .select("id")
+          .eq("user_id", userId)
           .eq("course_id", courseId)
           .eq("week", week)
           .eq("lesson_slug", lessonSlug)
-          .maybeSingle();
+          .is("bookmark_offset", null)
+          .limit(1);
 
-        if (!error && data) {
-          setIsBookmarked(true);
+        if (!cancelled && !error) {
+          setIsBookmarked((data?.length ?? 0) > 0);
         }
       } catch (error) {
         console.error("Error checking bookmark:", error);
@@ -57,7 +64,10 @@ export default function BookmarkButton({
     }
 
     checkBookmark();
-  }, [user, courseId, week, lessonSlug]);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, courseId, week, lessonSlug]);
 
   const handleToggleBookmark = async () => {
     if (!user) {
@@ -86,13 +96,14 @@ export default function BookmarkButton({
         .eq("user_id", user.id)
         .eq("course_id", courseId)
         .eq("week", week)
-        .eq("lesson_slug", lessonSlug);
+        .eq("lesson_slug", lessonSlug)
+        .is("bookmark_offset", null); // keep the reader's text bookmarks
 
       if (error) throw error;
       setIsBookmarked(false);
     } catch (error) {
       console.error("Error removing bookmark:", error);
-      alert("Failed to remove bookmark. Please try again.");
+      setToast({ message: "Failed to remove bookmark. Please try again.", type: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -132,7 +143,7 @@ export default function BookmarkButton({
       setNote("");
     } catch (error) {
       console.error("Error adding bookmark:", error);
-      alert("Failed to add bookmark. Please try again.");
+      setToast({ message: "Failed to add bookmark. Please try again.", type: "error" });
     } finally {
       setIsLoading(false);
     }
@@ -147,108 +158,70 @@ export default function BookmarkButton({
   return (
     <>
       <button
+        type="button"
         onClick={handleToggleBookmark}
         disabled={isLoading}
-        className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-          isBookmarked
-            ? "bg-yellow-500/20 text-yellow-400 hover:bg-yellow-500/30"
-            : "bg-white/5 text-white/60 hover:bg-white/10 hover:text-white"
-        } disabled:opacity-50 disabled:cursor-not-allowed`}
+        aria-pressed={isBookmarked}
+        className={`inline-flex min-h-11 items-center gap-2 border px-3.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          isBookmarked ? "border-signal text-signal-text" : "border-line-strong text-fg-2 hover:border-fg-3 hover:text-fg"
+        }`}
         title={isBookmarked ? "Remove bookmark" : "Bookmark this lesson"}
       >
-        <Bookmark
-          className={`w-5 h-5 ${isBookmarked ? "fill-yellow-400" : ""}`}
-        />
-        <span className="text-sm font-medium">
-          {isBookmarked ? "Bookmarked" : "Bookmark"}
-        </span>
+        <Bookmark className={`h-4 w-4 ${isBookmarked ? "fill-current" : ""}`} aria-hidden />
+        <span>{isBookmarked ? "Bookmarked" : "Bookmark"}</span>
       </button>
 
-      {/* Bookmark Dialog */}
+      {toast && <Toast message={toast.message} type={toast.type} onClose={closeToast} />}
+
       {showDialog && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div
-            ref={dialogRef}
-            className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full border border-black/10 dark:border-white/10"
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-black/10 dark:border-white/10">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                Add Bookmark
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4" onKeyDown={(e) => e.key === "Escape" && handleCancelDialog()}>
+          <div ref={dialogRef} role="dialog" aria-modal="true" aria-labelledby="bm-dialog-title" className="w-full max-w-md animate-hk-in border border-line-strong bg-surface text-fg">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <h3 id="bm-dialog-title" className="m-0 font-display text-xl font-bold tracking-[-0.02em]">
+                Bookmark this lesson
               </h3>
-              <button
-                onClick={handleCancelDialog}
-                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
-                aria-label="Close"
-              >
-                <X className="w-5 h-5 text-gray-500 dark:text-white/60" />
+              <button type="button" onClick={handleCancelDialog} className="grid h-11 w-11 place-items-center text-fg-3 hover:text-fg" aria-label="Close">
+                <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
 
-            {/* Content */}
-            <div className="p-6 space-y-4">
-              {/* Lesson Title Info */}
+            <div className="flex flex-col gap-4 px-5 py-5">
               {lessonTitle && (
-                <div className="text-sm text-gray-500 dark:text-white/60">
-                  Bookmarking: <span className="font-medium text-gray-900 dark:text-white">{lessonTitle}</span>
-                </div>
+                <p className="m-0 text-sm text-fg-3">
+                  Bookmarking <span className="font-medium text-fg">{lessonTitle}</span>
+                </p>
               )}
-
-              {/* Custom Title Input */}
-              <div>
-                <label
-                  htmlFor="custom-title"
-                  className="block text-sm font-medium text-gray-700 dark:text-white/80 mb-2"
-                >
-                  Custom Name (Optional)
-                </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Custom name · optional</span>
                 <input
                   id="custom-title"
                   type="text"
+                  autoFocus
                   value={customTitle}
                   onChange={(e) => setCustomTitle(e.target.value)}
-                  placeholder="Leave empty to use default lesson title"
-                  className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-white/20 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                  placeholder="Leave empty to use the lesson title"
+                  className="min-h-11 border border-line-strong bg-bg px-3 text-base text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
                 />
-                <p className="mt-1 text-xs text-gray-500 dark:text-white/50">
-                  Give this bookmark a custom name to help you remember why you saved it
-                </p>
-              </div>
-
-              {/* Note Input */}
-              <div>
-                <label
-                  htmlFor="bookmark-note"
-                  className="block text-sm font-medium text-gray-700 dark:text-white/80 mb-2"
-                >
-                  Note (Optional)
-                </label>
+              </label>
+              <label className="flex flex-col gap-1.5">
+                <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Note · optional</span>
                 <textarea
                   id="bookmark-note"
                   value={note}
                   onChange={(e) => setNote(e.target.value)}
-                  placeholder="Add a note about why you bookmarked this..."
+                  placeholder="Why are you saving this?"
                   rows={3}
-                  className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-white/20 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 resize-none"
+                  className="resize-none border border-line-strong bg-bg px-3 py-2 text-base text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
                 />
-              </div>
+              </label>
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-black/10 dark:border-white/10">
-              <button
-                onClick={handleCancelDialog}
-                disabled={isLoading}
-                className="px-4 py-2 text-gray-700 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
-              >
+            <div className="flex items-center justify-end gap-2.5 border-t border-line px-5 py-4">
+              <button type="button" onClick={handleCancelDialog} disabled={isLoading} className="min-h-11 border border-line-strong px-4 text-sm text-fg hover:border-fg-3 disabled:opacity-50">
                 Cancel
               </button>
-              <button
-                onClick={handleSaveBookmark}
-                disabled={isLoading}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isLoading ? "Saving..." : "Save Bookmark"}
+              <button type="button" onClick={handleSaveBookmark} disabled={isLoading} className="min-h-11 bg-signal px-5 text-sm font-semibold text-on-signal hover:brightness-110 disabled:opacity-50">
+                {isLoading ? "Saving…" : "Save bookmark"}
               </button>
             </div>
           </div>

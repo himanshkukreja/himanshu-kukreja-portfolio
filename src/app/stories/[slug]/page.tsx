@@ -1,17 +1,14 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getStoryBySlug, getAllStories } from "@/lib/stories";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Home } from "lucide-react";
-import CoverImage from "@/components/CoverImage";
-import StoryViewsClient from "./views-client";
+import { getStoryBySlug, getAllStories, getStoryMarkdown } from "@/lib/stories";
+import { renderLesson } from "@/lib/course/render";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
-import TableOfContents from "@/components/TableOfContents";
-import FocusMode from "@/components/FocusMode";
-import ReadingProgress from "@/components/ReadingProgress";
-import StoryContentWrapper from "@/components/StoryContentWrapper";
+import StoryViewsClient from "./views-client";
 import StoryComments from "@/components/StoryComments";
 import ScrollToDiscussion from "@/components/ScrollToDiscussion";
-import CollapsibleStoriesNav from "@/components/CollapsibleStoriesNav";
+import StoryReader, { type CaseLink, type Checkpoint } from "@/components/stories/StoryReader";
+import { getCaseFiles } from "@/components/stories/case-files";
+import { parseDebrief, resolveCaseType, type CaseFile } from "@/components/stories/case-types";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
@@ -20,153 +17,83 @@ export async function generateStaticParams() {
   return list.map((s) => ({ slug: s.slug }));
 }
 
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
+  const { slug } = await params;
+  const story = (await getAllStories()).find((s) => s.slug === slug);
+  if (!story) return {};
+  return {
+    title: `${story.title} · Case files`,
+    description: story.excerpt,
+  };
+}
+
+/** "Crisis Scenario: The 10 Seconds That Decide Everything" → "The 10 Seconds That Decide Everything" */
+function checkpointLabel(text: string): string {
+  const i = text.indexOf(": ");
+  if (i > 0 && i < text.length - 2) {
+    const rest = text.slice(i + 2).trim();
+    if (rest.length >= 8) return rest;
+  }
+  return text;
+}
+
+function toLink(c: CaseFile | undefined): CaseLink | null {
+  return c ? { slug: c.slug, caseId: c.caseId, type: c.type, title: c.title } : null;
+}
+
 export default async function StoryReadPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const story = await getStoryBySlug(slug);
   if (!story) return notFound();
 
-  // Add IDs to headings for anchor links
-  let htmlContent = addHeadingIds(story.content);
+  // Stories go through the same rich renderer as course lessons (diagrams, callouts, numbers sheets,
+  // compare cards, highlighted code…); the plain pipeline stays as a fallback.
+  const markdown = await getStoryMarkdown(slug);
+  const rendered = markdown ? await renderLesson(markdown, { kind: "day-content" }).catch(() => null) : null;
+  const htmlContent = rendered ? rendered.html : addHeadingIds(story.content);
+  const checkpoints: Checkpoint[] = rendered
+    ? rendered.toc.filter((t) => t.level === 2).map((t) => ({ id: t.id, label: checkpointLabel(t.text) }))
+    : extractHeadings(htmlContent)
+        .filter((h) => h.level === 2)
+        .map((h) => ({ id: h.id, label: checkpointLabel(h.text) }));
 
-  // Extract headings for Table of Contents
-  const headings = extractHeadings(htmlContent);
-
-  // Get all stories for navigation
-  const allStories = await getAllStories();
-  const currentIndex = allStories.findIndex(s => s.slug === slug);
-  const previousStory = currentIndex < allStories.length - 1 ? allStories[currentIndex + 1] : null;
-  const nextStory = currentIndex > 0 ? allStories[currentIndex - 1] : null;
+  const cases = await getCaseFiles();
+  const index = cases.findIndex((c) => c.slug === slug);
+  const raw = story as unknown as Record<string, unknown>;
+  const meta: CaseFile =
+    index >= 0
+      ? cases[index]
+      : {
+          slug,
+          caseId: "CASE-000",
+          title: story.title,
+          excerpt: story.excerpt,
+          cover: story.cover,
+          date: story.date,
+          tags: Array.from(new Set(story.tags || [])),
+          type: resolveCaseType(slug, raw.type),
+          mins: 1,
+          hasDebrief: false,
+        };
+  // cases are newest first: the previous case file is the older one.
+  const prev = index >= 0 ? toLink(cases[index + 1]) : null;
+  const next = index > 0 ? toLink(cases[index - 1]) : null;
 
   return (
-    <>
-      <ReadingProgress />
+    <main className="min-h-screen">
       <ScrollToDiscussion />
-      <main className="min-h-screen pt-20 pb-16">
-        <div className="max-w-7xl mx-auto px-6">
-          {/* Breadcrumb */}
-          <div className="mb-8 flex items-center gap-2 text-sm text-gray-500 dark:text-white/60">
-            <Link href="/" className="hover:text-gray-900 dark:hover:text-white transition-colors flex items-center gap-1">
-              <Home className="w-4 h-4" />
-              Home
-            </Link>
-            <ChevronRight className="w-4 h-4" />
-            <Link href="/stories" className="hover:text-gray-900 dark:hover:text-white transition-colors">
-              Stories
-            </Link>
-            <ChevronRight className="w-4 h-4" />
-            <span className="text-gray-900 dark:text-white">{story.title}</span>
-          </div>
-
-          <FocusMode
-            sidebarLeft={
-              <CollapsibleStoriesNav
-                allStories={allStories}
-                currentSlug={slug}
-              />
-            }
-            sidebarRight={<TableOfContents headings={headings} />}
-          >
-            <article>
-              <header className="mb-10">
-                {/* Cover image first */}
-                {story.cover && (
-                  <div className="mb-6 -mx-6 md:mx-0">
-                    <CoverImage
-                      src={story.cover}
-                      alt={story.title}
-                      width={1200}
-                      height={630}
-                      priority
-                    />
-                  </div>
-                )}
-
-                {/* Title */}
-                <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-gray-900 dark:text-white">{story.title}</h1>
-
-                {/* Meta info */}
-                <div className="mt-4 flex items-center gap-4 text-sm text-gray-500 dark:text-white/60">
-                  {story.date && (
-                    <time dateTime={story.date}>
-                      {new Date(story.date).toLocaleDateString('en-US', {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
-                      })}
-                    </time>
-                  )}
-                  <StoryViewsClient slug={slug} />
-                </div>
-
-                {/* Tags */}
-                {story.tags && story.tags.length > 0 && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {/* Remove duplicates and map with index for unique keys */}
-                    {Array.from(new Set(story.tags)).map((tag, index) => (
-                      <span
-                        key={`${tag}-${index}`}
-                        className="inline-flex items-center rounded-full bg-gradient-to-r from-indigo-500/15 to-blue-500/15 px-3 py-1 text-xs text-gray-700 dark:text-white/85 ring-1 ring-inset ring-black/10 dark:ring-white/10"
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </header>
-
-              {/* Story Content with Read Aloud */}
-              <StoryContentWrapper htmlContent={htmlContent} />
-
-              {/* Comments Section */}
-              <StoryComments storySlug={slug} />
-
-              {/* Navigation */}
-              <nav className="mt-12 pt-8 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
-                {previousStory ? (
-                  <Link
-                    href={`/stories/${previousStory.slug}`}
-                    className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
-                  >
-                    <ChevronLeft className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:group-hover:text-white group-hover:-translate-x-1 transition-all" />
-                    <div className="text-left">
-                      <div className="text-xs text-gray-500 dark:text-white/40">Previous</div>
-                      <div className="text-gray-900 dark:text-white text-sm font-medium line-clamp-1">{previousStory.title}</div>
-                    </div>
-                  </Link>
-                ) : (
-                  <div />
-                )}
-
-                {nextStory ? (
-                  <Link
-                    href={`/stories/${nextStory.slug}`}
-                    className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
-                  >
-                    <div className="text-right">
-                      <div className="text-xs text-gray-500 dark:text-white/40">Next</div>
-                      <div className="text-gray-900 dark:text-white text-sm font-medium line-clamp-1">{nextStory.title}</div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:group-hover:text-white group-hover:translate-x-1 transition-all" />
-                  </Link>
-                ) : (
-                  <div />
-                )}
-              </nav>
-
-              {/* Back to Stories */}
-              <div className="mt-8 text-center">
-                <Link
-                  href="/stories"
-                  className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                  Back to All Stories
-                </Link>
-              </div>
-            </article>
-          </FocusMode>
-        </div>
-      </main>
-    </>
+      <StoryReader
+        key={slug}
+        meta={meta}
+        checkpoints={checkpoints}
+        htmlContent={htmlContent}
+        debrief={parseDebrief(raw.debrief)}
+        prev={prev}
+        next={next}
+        totalCases={cases.length}
+        views={<StoryViewsClient slug={slug} />}
+        comments={<StoryComments storySlug={slug} />}
+      />
+    </main>
   );
 }

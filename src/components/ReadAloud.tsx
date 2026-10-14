@@ -1,735 +1,435 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { Volume2, VolumeX, Pause, Play, Settings2, X, Minimize2 } from "lucide-react";
+/**
+ * Read aloud (Web Speech API) with a controlled API.
+ *
+ * - `useReadAloud(contentRef)` → controller: state, start / pause / resume / stop / toggle, rate,
+ *   voices. The lesson reader's dock drives this directly.
+ * - `<ReadAloudBar controller />` → compact token-styled player strip (lesson dock / mobile bar).
+ * - `<ReadAloud contentRef />` (default export) → self-contained floating controls, as used by
+ *   stories. Its buttons keep their titles ("Start Reading", "Pause", "Resume", "Stop",
+ *   "Settings", "Minimize", "Show Read Aloud") and the outer `.fixed` wrapper, which the story
+ *   reader's bridge and CSS rely on. Pass `controller` to render the same UI for an external one.
+ *
+ * Reading starts at the first heading/paragraph near the top of the viewport and highlights the
+ * current sentence (span.reading-highlight, removed again on stop/end).
+ */
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Volume2, Pause, Play, Settings2, X, Minimize2, Square } from "lucide-react";
 
-type ReadAloudProps = {
-  contentRef: React.RefObject<HTMLDivElement | null>;
+export type ReadAloudStatus = "unsupported" | "idle" | "playing" | "paused";
+
+export type ReadAloudController = {
+  supported: boolean;
+  status: ReadAloudStatus;
+  playing: boolean;
+  paused: boolean;
+  start: () => void;
+  pause: () => void;
+  resume: () => void;
+  stop: () => void;
+  /** idle → start, playing → pause, paused → resume */
+  toggle: () => void;
+  rate: number;
+  setRate: (r: number) => void;
+  voices: SpeechSynthesisVoice[];
+  voice: string;
+  setVoice: (name: string) => void;
+  /** set when there was nothing readable from the current position */
+  notice: string | null;
 };
 
-export default function ReadAloud({ contentRef }: ReadAloudProps) {
-  const [isSupported, setIsSupported] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoice, setSelectedVoice] = useState<string>("");
-  const [rate, setRate] = useState(1.0);
-  const [pitch, setPitch] = useState(1.0);
-  const [volume, setVolume] = useState(1.0);
-  const [showSettings, setShowSettings] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
-  const [currentCharIndex, setCurrentCharIndex] = useState(0);
-
-  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
-  const textContentRef = useRef<string>("");
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
-  const currentHighlightRef = useRef<HTMLSpanElement | null>(null);
-  const startElementRef = useRef<HTMLElement | null>(null); // Store where we started reading from
-
-  // Check if Web Speech API is supported
-  useEffect(() => {
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      setIsSupported(true);
-
-      const loadVoices = () => {
-        const availableVoices = window.speechSynthesis.getVoices();
-        setVoices(availableVoices);
-
-        const englishVoice = availableVoices.find(v => v.lang.startsWith("en"));
-        if (englishVoice && !selectedVoice) {
-          setSelectedVoice(englishVoice.name);
-        }
-      };
-
-      loadVoices();
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-
-    return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-    };
-  }, [selectedVoice]);
-
-  // Improved highlight text as it's being read (no blinking)
-  useEffect(() => {
-    if (!isPlaying || isPaused || !contentRef.current) {
-      return;
-    }
-
-    const content = contentRef.current;
-
-    // Remove previous highlight smoothly
-    if (currentHighlightRef.current) {
-      const oldSpan = currentHighlightRef.current;
-      const parent = oldSpan.parentNode; // Store parent reference before replacing
-
-      if (parent) {
-        const textContent = oldSpan.textContent || "";
-        const textNode = document.createTextNode(textContent);
-        parent.replaceChild(textNode, oldSpan);
-        parent.normalize(); // Use stored parent reference
-      }
-      currentHighlightRef.current = null;
-    }
-
-    // If we started from a specific element, only look at content from that point
-    let shouldInclude = !startElementRef.current;
-    const textNodes: Text[] = [];
-
-    // Get all text nodes (only from start element onwards)
-    const walker = document.createTreeWalker(
-      content,
-      NodeFilter.SHOW_TEXT,
-      {
-        acceptNode: (node) => {
-          const parent = node.parentElement;
-
-          // Check if we should start including nodes
-          if (!shouldInclude && startElementRef.current) {
-            let element = parent;
-            while (element) {
-              if (element === startElementRef.current) {
-                shouldInclude = true;
-                break;
-              }
-              element = element.parentElement;
-            }
-          }
-
-          if (!shouldInclude) {
-            return NodeFilter.FILTER_REJECT;
-          }
-
-          if (parent && (
-            parent.tagName === 'SCRIPT' ||
-            parent.tagName === 'STYLE' ||
-            parent.tagName === 'CODE' ||
-            parent.tagName === 'PRE' ||
-            parent.classList.contains('reading-highlight')
-          )) {
-            return NodeFilter.FILTER_REJECT;
-          }
-          return NodeFilter.FILTER_ACCEPT;
-        }
-      }
-    );
-
-    let node;
-    while ((node = walker.nextNode())) {
-      textNodes.push(node as Text);
-    }
-
-    // Calculate which text node contains current position
-    let charCount = 0;
-    for (const textNode of textNodes) {
-      const text = textNode.textContent || "";
-      const nextCharCount = charCount + text.length;
-
-      if (currentCharIndex >= charCount && currentCharIndex < nextCharCount) {
-        const relativeIndex = currentCharIndex - charCount;
-        const textContent = text;
-
-        // Find sentence boundaries (period, question mark, exclamation)
-        let start = 0;
-        let end = textContent.length;
-
-        // Find start of current sentence
-        for (let i = relativeIndex - 1; i >= 0; i--) {
-          if (textContent[i] === '.' || textContent[i] === '?' || textContent[i] === '!') {
-            start = i + 1;
-            break;
-          }
-        }
-
-        // Find end of current sentence
-        for (let i = relativeIndex; i < textContent.length; i++) {
-          if (textContent[i] === '.' || textContent[i] === '?' || textContent[i] === '!') {
-            end = i + 1;
-            break;
-          }
-        }
-
-        // Skip whitespace at start
-        while (start < end && /\s/.test(textContent[start])) {
-          start++;
-        }
-
-        if (start < end) {
-          // Extract the sentence
-          const beforeText = textContent.substring(0, start);
-          const highlightText = textContent.substring(start, end);
-          const afterText = textContent.substring(end);
-
-          // Create highlight span
-          const span = document.createElement('span');
-          span.className = 'reading-highlight';
-          span.textContent = highlightText;
-          span.style.cssText = `
-            background: linear-gradient(120deg, rgba(59, 130, 246, 0.25) 0%, rgba(59, 130, 246, 0.35) 100%);
-            color: inherit;
-            border-radius: 3px;
-            padding: 2px 4px;
-            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2);
-            transition: all 0.3s ease;
-          `;
-
-          // Replace text node with highlighted version
-          const fragment = document.createDocumentFragment();
-          if (beforeText) fragment.appendChild(document.createTextNode(beforeText));
-          fragment.appendChild(span);
-          if (afterText) fragment.appendChild(document.createTextNode(afterText));
-
-          textNode.parentNode?.replaceChild(fragment, textNode);
-
-          // Store reference to current highlight
-          currentHighlightRef.current = span;
-
-          // Auto-scroll to keep highlighted text in view
-          const rect = span.getBoundingClientRect();
-          const viewportHeight = window.innerHeight;
-          const scrollThreshold = viewportHeight * 0.8; // Scroll when within 80% of viewport height
-
-          // Check if highlight is below the visible area
-          if (rect.top > scrollThreshold || rect.bottom > viewportHeight) {
-            span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-          // Check if highlight is above the visible area
-          else if (rect.top < 100) {
-            span.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }
-        }
-        break;
-      }
-
-      charCount = nextCharCount;
-    }
-  }, [currentCharIndex, isPlaying, isPaused]);
-
-  // Find the first visible heading or paragraph on screen
-  const findVisibleStartElement = (): HTMLElement | null => {
-    if (!contentRef.current) return null;
-
-    const viewportTop = window.scrollY;
-    const viewportBottom = viewportTop + window.innerHeight;
-    const viewportMiddle = viewportTop + (window.innerHeight / 3); // Top third of viewport
-
-    // Get all headings and paragraphs
-    const elements = contentRef.current.querySelectorAll('h1, h2, h3, h4, h5, h6, p');
-
-    for (const element of Array.from(elements)) {
-      const rect = element.getBoundingClientRect();
-      const elementTop = rect.top + window.scrollY;
-
-      // Find first element that's in the top third of viewport
-      if (elementTop >= viewportTop && elementTop <= viewportMiddle) {
-        return element as HTMLElement;
-      }
-    }
-
-    // Fallback: find first element in viewport
-    for (const element of Array.from(elements)) {
-      const rect = element.getBoundingClientRect();
-      const elementTop = rect.top + window.scrollY;
-
-      if (elementTop >= viewportTop && elementTop <= viewportBottom) {
-        return element as HTMLElement;
-      }
-    }
-
-    return null;
-  };
-
-  const extractTextContent = (startFromElement?: HTMLElement | null) => {
-    if (!contentRef.current) return "";
-    const clone = contentRef.current.cloneNode(true) as HTMLElement;
-
-    // Remove elements we don't want to read
-    clone.querySelectorAll("pre, code, img, script, style").forEach(el => el.remove());
-
-    let text = "";
-    let shouldInclude = !startFromElement; // If no start element, include everything
-
-    // If we have a start element, find its match in the cloned content
-    let startMarker: Element | null = null;
-    if (startFromElement) {
-      // Find the matching element in clone by comparing text content and tag name
-      const originalTag = startFromElement.tagName.toLowerCase();
-      const originalText = startFromElement.textContent?.trim().substring(0, 50) || "";
-
-      const candidates = clone.querySelectorAll(originalTag);
-      for (const candidate of Array.from(candidates)) {
-        const candidateText = candidate.textContent?.trim().substring(0, 50) || "";
-        if (candidateText === originalText) {
-          startMarker = candidate;
-          break;
-        }
-      }
-    }
-
-    // Process each element to preserve structure and add pauses
-    const processNode = (node: Node): void => {
-      // Check if we've reached the start marker
-      if (startMarker && node === startMarker) {
-        shouldInclude = true;
-      }
-
-      // Only process if we should include this content
-      if (!shouldInclude) {
-        if (node.nodeType === Node.ELEMENT_NODE) {
-          const element = node as HTMLElement;
-          element.childNodes.forEach(child => processNode(child));
-        }
-        return;
-      }
-      if (node.nodeType === Node.TEXT_NODE) {
-        const content = node.textContent || "";
-        if (content.trim()) {
-          text += content.trim() + " ";
-        }
-      } else if (node.nodeType === Node.ELEMENT_NODE) {
-        const element = node as HTMLElement;
-        const tagName = element.tagName.toLowerCase();
-
-        // Add pauses for block-level elements (paragraphs, headings, divs)
-        if (['p', 'div', 'section', 'article'].includes(tagName)) {
-          // Process children
-          element.childNodes.forEach(child => processNode(child));
-          text += ". "; // Add period and space for paragraph pause
-        }
-        // Add pauses and structure for headings
-        else if (['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].includes(tagName)) {
-          text += "\n\n"; // Double line break before heading
-          element.childNodes.forEach(child => processNode(child));
-          text += ". "; // Pause after heading
-        }
-        // Add structure for list items
-        else if (tagName === 'li') {
-          text += "\n"; // Line break for list item
-          element.childNodes.forEach(child => processNode(child));
-          text += ". "; // Pause after each list item
-        }
-        // Add pauses for lists
-        else if (['ul', 'ol'].includes(tagName)) {
-          text += ". "; // Pause before list
-          element.childNodes.forEach(child => processNode(child));
-          text += ". "; // Pause after list
-        }
-        // Line breaks
-        else if (tagName === 'br') {
-          text += ". "; // Add pause for line break
-        }
-        // Blockquotes
-        else if (tagName === 'blockquote') {
-          text += ". "; // Pause before quote
-          element.childNodes.forEach(child => processNode(child));
-          text += ". "; // Pause after quote
-        }
-        // Tables (add structure)
-        else if (tagName === 'td' || tagName === 'th') {
-          element.childNodes.forEach(child => processNode(child));
-          text += ", "; // Comma between table cells
-        }
-        else if (tagName === 'tr') {
-          element.childNodes.forEach(child => processNode(child));
-          text += ". "; // Pause after table row
-        }
-        // Default: process children
-        else {
-          element.childNodes.forEach(child => processNode(child));
-        }
-      }
-    };
-
-    // Start processing from the cloned content
-    clone.childNodes.forEach(node => processNode(node));
-
-    // Clean up the text
-    text = text
-      .replace(/\n+/g, ". ") // Convert line breaks to pauses
-      .replace(/\s+/g, " ") // Collapse multiple spaces
-      .replace(/\.\s*\.\s*/g, ". ") // Remove duplicate periods
-      .replace(/,\s*\./g, ".") // Clean up comma-period combinations
-      .replace(/\s+\./g, ".") // Remove spaces before periods
-      .trim();
-
-    return text;
-  };
-
-  const cleanupHighlights = () => {
-    if (!contentRef.current) return;
-
-    contentRef.current.querySelectorAll('.reading-highlight').forEach(el => {
-      const parent = el.parentNode;
-      if (parent) {
-        parent.replaceChild(document.createTextNode(el.textContent || ""), el);
-        parent.normalize();
-      }
-    });
-    currentHighlightRef.current = null;
-  };
-
-  const startReading = () => {
-    if (!isSupported || !contentRef.current) return;
-
-    window.speechSynthesis.cancel();
-    cleanupHighlights();
-
-    // Find visible element to start from
-    const visibleElement = findVisibleStartElement();
-
-    // Store the start element for highlight syncing
-    startElementRef.current = visibleElement;
-
-    // Extract text starting from visible element (or from beginning if at top)
-    const text = extractTextContent(visibleElement);
-    if (!text) {
-      alert("No content to read!");
-      return;
-    }
-
-    console.log("[ReadAloud] Starting from:", visibleElement ? visibleElement.tagName + ": " + visibleElement.textContent?.substring(0, 50) : "beginning");
-
-    textContentRef.current = text;
-    setCurrentCharIndex(0);
-
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    if (selectedVoice) {
-      const voice = voices.find(v => v.name === selectedVoice);
-      if (voice) utterance.voice = voice;
-    }
-
-    utterance.rate = rate;
-    utterance.pitch = pitch;
-    utterance.volume = volume;
-
-    // Track character position with debouncing
-    let lastCharIndex = 0;
-    utterance.onboundary = (event) => {
-      if (event.name === 'word' && event.charIndex !== lastCharIndex) {
-        lastCharIndex = event.charIndex;
-        setCurrentCharIndex(event.charIndex);
-      }
-    };
-
-    utterance.onstart = () => {
-      setIsPlaying(true);
-      setIsPaused(false);
-    };
-
-    utterance.onend = () => {
-      setIsPlaying(false);
-      setIsPaused(false);
-      setCurrentCharIndex(0);
-      cleanupHighlights();
-    };
-
-    utterance.onerror = () => {
-      setIsPlaying(false);
-      setIsPaused(false);
-      cleanupHighlights();
-    };
-
-    utteranceRef.current = utterance;
-    window.speechSynthesis.speak(utterance);
-  };
-
-  const pauseReading = () => {
-    if (window.speechSynthesis.speaking && !window.speechSynthesis.paused) {
-      window.speechSynthesis.pause();
-      setIsPaused(true);
-    }
-  };
-
-  const resumeReading = () => {
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-      setIsPaused(false);
-    }
-  };
-
-  const stopReading = () => {
-    window.speechSynthesis.cancel();
-    setIsPlaying(false);
-    setIsPaused(false);
-    setCurrentCharIndex(0);
-    startElementRef.current = null; // Reset start element
-    cleanupHighlights();
-  };
-
-  const handleRateChange = (newRate: number) => {
-    setRate(newRate);
-    if (isPlaying && !isPaused) {
-      stopReading();
-      setTimeout(() => startReading(), 100);
-    }
-  };
-
-  const handlePitchChange = (newPitch: number) => {
-    setPitch(newPitch);
-    if (isPlaying && !isPaused) {
-      stopReading();
-      setTimeout(() => startReading(), 100);
-    }
-  };
-
-  const handleVolumeChange = (newVolume: number) => {
-    setVolume(newVolume);
-    if (isPlaying && !isPaused) {
-      stopReading();
-      setTimeout(() => startReading(), 100);
-    }
-  };
-
-  if (!isSupported) {
-    return null;
+const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "CODE", "PRE", "BUTTON", "SVG"]);
+
+function findVisibleStartElement(root: HTMLElement): HTMLElement | null {
+  const els = Array.from(root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, p, li"));
+  const vh = window.innerHeight;
+  // first element whose top is in the upper third of the viewport, else the first visible one
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (r.top >= 0 && r.top <= vh / 3) return el;
   }
+  for (const el of els) {
+    const r = el.getBoundingClientRect();
+    if (r.top >= 0 && r.top <= vh) return el;
+  }
+  return null;
+}
 
-  // If minimized, show only a small floating button
-  if (isMinimized) {
+type Segment = { start: number; block: HTMLElement };
+
+const BLOCK_SEL = "p, li, h1, h2, h3, h4, h5, h6, td, th, blockquote, dt, dd, figcaption";
+const PAUSE_TAGS = new Set(["p", "div", "section", "article", "li", "blockquote", "tr", "ul", "ol", "h1", "h2", "h3", "h4", "h5", "h6", "br", "dt", "dd"]);
+
+/**
+ * Spoken text from `startFrom` onwards, plus where each DOM text run starts in it, so the
+ * boundary events can be mapped back to the block being read. The DOM itself is never modified
+ * (highlight / bookmark text offsets stay valid); the current block only gets a class.
+ */
+function extractText(root: HTMLElement, startFrom: HTMLElement | null): { text: string; segments: Segment[] } {
+  let text = "";
+  const segments: Segment[] = [];
+  let include = !startFrom;
+  const pause = (mark: string) => {
+    if (!text) return;
+    const tail = text.trimEnd();
+    text = /[.?!,:;]$/.test(tail) ? tail + " " : tail + mark + " ";
+  };
+  const walk = (node: Node) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (!include) return;
+      const t = (node.textContent || "").replace(/\s+/g, " ").trim();
+      if (!t) return;
+      const block = (node.parentElement?.closest(BLOCK_SEL) as HTMLElement | null) ?? node.parentElement;
+      if (block) segments.push({ start: text.length, block });
+      text += t + " ";
+      return;
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return;
+    const el = node as HTMLElement;
+    if (startFrom && el === startFrom) include = true;
+    if (SKIP_TAGS.has(el.tagName) || el.tagName === "IMG" || el.getAttribute("aria-hidden") === "true") return;
+    el.childNodes.forEach(walk);
+    if (!include) return;
+    const tag = el.tagName.toLowerCase();
+    if (PAUSE_TAGS.has(tag)) pause(".");
+    else if (tag === "td" || tag === "th") pause(",");
+  };
+  root.childNodes.forEach(walk);
+  return { text: text.trim(), segments };
+}
+
+function cleanupHighlights(root: HTMLElement | null) {
+  if (!root) return;
+  root.querySelectorAll(".reading-highlight").forEach((el) => el.classList.remove("reading-highlight"));
+}
+
+export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): ReadAloudController {
+  const [supported, setSupported] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [paused, setPaused] = useState(false);
+  const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
+  const [voice, setVoice] = useState("");
+  const [rate, setRateState] = useState(1);
+  const [charIndex, setCharIndex] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const segmentsRef = useRef<Segment[]>([]);
+  const highlightRef = useRef<HTMLElement | null>(null);
+  const rateRef = useRef(1);
+  const voiceRef = useRef("");
+  const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    const root = contentRef.current;
+    const load = () => {
+      const list = synth.getVoices();
+      voicesRef.current = list;
+      setVoices(list);
+      if (!voiceRef.current) {
+        const en = list.find((v) => v.lang.startsWith("en"));
+        if (en) {
+          voiceRef.current = en.name;
+          setVoice(en.name);
+        }
+      }
+    };
+    // Feature detection has to run on the client; the server render reports "unsupported".
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSupported(true);
+    load();
+    synth.addEventListener?.("voiceschanged", load);
+    return () => {
+      synth.removeEventListener?.("voiceschanged", load);
+      synth.cancel();
+      cleanupHighlights(root);
+    };
+  }, [contentRef]);
+
+  // Highlight the block being spoken.
+  useEffect(() => {
+    const root = contentRef.current;
+    if (!playing || paused || !root) return;
+    const segs = segmentsRef.current;
+    let seg: Segment | null = null;
+    for (const sg of segs) {
+      if (sg.start <= charIndex) seg = sg;
+      else break;
+    }
+    const block = seg?.block ?? null;
+    if (block === highlightRef.current) return;
+    highlightRef.current?.classList.remove("reading-highlight");
+    highlightRef.current = block;
+    if (!block || !block.isConnected) return;
+    block.classList.add("reading-highlight");
+    const r = block.getBoundingClientRect();
+    if (r.top < 140 || r.top > window.innerHeight * 0.75) block.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [charIndex, playing, paused, contentRef]);
+
+  const speak = useCallback(() => {
+    const root = contentRef.current;
+    if (!root || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    cleanupHighlights(root);
+    highlightRef.current = null;
+    const startEl = findVisibleStartElement(root);
+    const { text, segments } = extractText(root, startEl);
+    segmentsRef.current = segments;
+    if (!text) {
+      setNotice("Nothing to read from here. Scroll to some text and try again.");
+      return;
+    }
+    setNotice(null);
+    setCharIndex(0);
+    const u = new SpeechSynthesisUtterance(text);
+    const v = voicesRef.current.find((x) => x.name === voiceRef.current);
+    if (v) u.voice = v;
+    u.rate = rateRef.current;
+    let last = -1;
+    u.onboundary = (e) => {
+      if (e.name === "word" && e.charIndex !== last) {
+        last = e.charIndex;
+        setCharIndex(e.charIndex);
+      }
+    };
+    u.onstart = () => {
+      setPlaying(true);
+      setPaused(false);
+    };
+    const done = () => {
+      setPlaying(false);
+      setPaused(false);
+      setCharIndex(0);
+      cleanupHighlights(contentRef.current);
+      highlightRef.current = null;
+    };
+    u.onend = done;
+    u.onerror = done;
+    synth.speak(u);
+    // some engines never fire onstart for the first utterance
+    setPlaying(true);
+    setPaused(false);
+  }, [contentRef]);
+
+  const pause = useCallback(() => {
+    const synth = window.speechSynthesis;
+    if (synth?.speaking && !synth.paused) {
+      synth.pause();
+      setPaused(true);
+    }
+  }, []);
+
+  const resume = useCallback(() => {
+    const synth = window.speechSynthesis;
+    if (synth?.paused) {
+      synth.resume();
+      setPaused(false);
+    }
+  }, []);
+
+  const stop = useCallback(() => {
+    window.speechSynthesis?.cancel();
+    setPlaying(false);
+    setPaused(false);
+    setCharIndex(0);
+    segmentsRef.current = [];
+    cleanupHighlights(contentRef.current);
+    highlightRef.current = null;
+  }, [contentRef]);
+
+  const restartIfPlaying = useCallback(() => {
+    if (playing && !paused) {
+      window.speechSynthesis?.cancel();
+      window.setTimeout(speak, 80);
+    }
+  }, [playing, paused, speak]);
+
+  const setRate = useCallback(
+    (r: number) => {
+      rateRef.current = r;
+      setRateState(r);
+      restartIfPlaying();
+    },
+    [restartIfPlaying]
+  );
+
+  const chooseVoice = useCallback(
+    (name: string) => {
+      voiceRef.current = name;
+      setVoice(name);
+      restartIfPlaying();
+    },
+    [restartIfPlaying]
+  );
+
+  const toggle = useCallback(() => {
+    if (!playing) speak();
+    else if (paused) resume();
+    else pause();
+  }, [playing, paused, speak, resume, pause]);
+
+  const status: ReadAloudStatus = !supported ? "unsupported" : playing ? (paused ? "paused" : "playing") : "idle";
+
+  return {
+    supported,
+    status,
+    playing,
+    paused,
+    start: speak,
+    pause,
+    resume,
+    stop,
+    toggle,
+    rate,
+    setRate,
+    voices,
+    voice,
+    setVoice: chooseVoice,
+    notice,
+  };
+}
+
+const RATES = [0.75, 1, 1.25, 1.5, 1.75, 2];
+
+/** Compact player strip: status, play/pause, stop, speed. */
+export function ReadAloudBar({ controller, className = "" }: { controller: ReadAloudController; className?: string }) {
+  const c = controller;
+  if (!c.supported || (!c.playing && !c.notice)) return null;
+  const nextRate = RATES[(RATES.indexOf(c.rate) + 1) % RATES.length] ?? 1;
+  return (
+    <div role="group" aria-label="Read aloud" className={`flex items-stretch border border-line-strong bg-surface text-fg ${className}`}>
+      {c.notice && !c.playing ? (
+        <span role="status" className="flex items-center px-3 py-2 text-[13px] text-fg-2">
+          {c.notice}
+        </span>
+      ) : (
+        <>
+          <span className="flex min-w-[88px] items-center gap-2 border-r border-line px-3 font-mono text-[11px] uppercase tracking-label text-fg-3" role="status">
+            <span aria-hidden className={`h-1.5 w-1.5 ${c.paused ? "bg-fg-4" : "animate-hk-pulse bg-signal"}`} />
+            {c.paused ? "paused" : "reading"}
+          </span>
+          <button type="button" onClick={c.paused ? c.resume : c.pause} aria-label={c.paused ? "Resume reading" : "Pause reading"} className="grid min-h-11 min-w-11 place-items-center border-r border-line hover:bg-surface-2">
+            {c.paused ? <Play className="h-4 w-4" aria-hidden /> : <Pause className="h-4 w-4" aria-hidden />}
+          </button>
+          <button type="button" onClick={c.stop} aria-label="Stop reading" className="grid min-h-11 min-w-11 place-items-center border-r border-line hover:bg-surface-2">
+            <Square className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          <button type="button" onClick={() => c.setRate(nextRate)} aria-label={`Reading speed ${c.rate}x, change`} className="min-h-11 min-w-14 px-2 font-mono text-xs hover:bg-surface-2">
+            {c.rate}x
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+type ReadAloudProps = {
+  contentRef: React.RefObject<HTMLElement | null>;
+  /** drive an external controller (from useReadAloud) instead of an internal one */
+  controller?: ReadAloudController;
+};
+
+/** Floating read-aloud controls (stories). */
+export default function ReadAloud({ contentRef, controller }: ReadAloudProps) {
+  const own = useReadAloud(contentRef);
+  const c = controller ?? own;
+  const [showSettings, setShowSettings] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+
+  if (!c.supported) return null;
+
+  const iconBtn = "grid min-h-11 min-w-11 place-items-center border border-line-strong bg-surface text-fg hover:bg-surface-2";
+
+  if (minimized) {
     return (
-      <div className="fixed bottom-20 right-6 z-40">
-        <button
-          onClick={() => setIsMinimized(false)}
-          className="p-3 bg-blue-500/90 hover:bg-blue-600 rounded-full shadow-lg border border-blue-400/30 transition-all backdrop-blur-sm"
-          title="Show Read Aloud"
-        >
-          <Volume2 className="w-4 h-4 text-white" />
+      <div className="fixed bottom-24 right-4 z-40 lg:bottom-20 lg:right-6">
+        <button type="button" onClick={() => setMinimized(false)} className={iconBtn} title="Show Read Aloud" aria-label="Show read aloud controls">
+          <Volume2 className="h-4 w-4" aria-hidden />
         </button>
       </div>
     );
   }
 
-  return (
-    <>
-      {/* Minimalistic Floating Controls - Positioned to avoid overlap, lower on mobile */}
-      <div className="fixed bottom-6 lg:bottom-20 right-4 sm:right-6 z-40 flex flex-col items-end gap-2">
-        {/* Enhanced Settings Panel - Shows only when settings button clicked */}
-        {showSettings && (
-          <div className="bg-white dark:bg-gray-900 rounded-lg border border-black/10 dark:border-white/10 shadow-2xl p-4 w-72 mb-2 animate-in slide-in-from-right duration-200">
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wide">
-                {isPaused ? '⏸️ Paused - Adjust Settings' : 'Read Aloud Settings'}
-              </h4>
-              <button
-                onClick={() => setShowSettings(false)}
-                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded transition-colors"
-              >
-                <X className="w-3 h-3 text-gray-500" />
-              </button>
-            </div>
+  const english = c.voices.filter((v) => v.lang.startsWith("en"));
 
-            {/* Voice Selection */}
-            <div className="mb-3">
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1.5">
-                🎤 Voice
-              </label>
-              <select
-                value={selectedVoice}
-                onChange={(e) => setSelectedVoice(e.target.value)}
-                className="w-full px-2 py-1.5 text-xs bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded text-gray-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
-              >
-                {voices.filter(v => v.lang.startsWith('en')).map((voice) => (
-                  <option key={voice.name} value={voice.name}>
-                    {voice.name.split(' ').slice(0, 2).join(' ')}
+  return (
+    <div className="fixed bottom-24 right-4 z-40 flex flex-col items-end gap-2 sm:right-6 lg:bottom-20">
+      {showSettings && (
+        <div className="w-72 animate-hk-in border border-line-strong bg-surface p-4 text-fg">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="font-mono text-xs uppercase tracking-label text-fg-3">{c.paused ? "Paused · settings" : "Read aloud"}</h4>
+            <button type="button" onClick={() => setShowSettings(false)} aria-label="Close settings" className="grid min-h-9 min-w-9 place-items-center text-fg-3 hover:text-fg">
+              <X className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          </div>
+          {english.length > 0 && (
+            <label className="mb-3 block">
+              <span className="mb-1.5 block font-mono text-[11px] uppercase tracking-label text-fg-3">Voice</span>
+              <select value={c.voice} onChange={(e) => c.setVoice(e.target.value)} className="w-full border border-line-strong bg-bg px-2 py-2 text-xs text-fg">
+                {english.map((v) => (
+                  <option key={v.name} value={v.name}>
+                    {v.name.split(" ").slice(0, 2).join(" ")}
                   </option>
                 ))}
               </select>
-            </div>
-
-            {/* Speed Control */}
-            <div className="mb-3">
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1.5">
-                ⚡ Speed: {rate.toFixed(1)}x
-              </label>
-              <input
-                type="range"
-                min="0.5"
-                max="2.0"
-                step="0.1"
-                value={rate}
-                onChange={(e) => handleRateChange(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-blue-500"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                <span>0.5x Slow</span>
-                <span>1.0x</span>
-                <span>2.0x Fast</span>
-              </div>
-            </div>
-
-            {/* Pitch Control */}
-            <div className="mb-3">
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1.5">
-                🎵 Pitch: {pitch.toFixed(1)}
-              </label>
-              <input
-                type="range"
-                min="0.5"
-                max="2.0"
-                step="0.1"
-                value={pitch}
-                onChange={(e) => handlePitchChange(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-green-500"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                <span>Low</span>
-                <span>Normal</span>
-                <span>High</span>
-              </div>
-            </div>
-
-            {/* Volume Control */}
-            <div>
-              <label className="block text-xs text-gray-600 dark:text-gray-400 mb-1.5">
-                🔊 Volume: {Math.round(volume * 100)}%
-              </label>
-              <input
-                type="range"
-                min="0"
-                max="1"
-                step="0.1"
-                value={volume}
-                onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-lg appearance-none cursor-pointer accent-yellow-500"
-              />
-              <div className="flex justify-between text-[10px] text-gray-400 mt-1">
-                <span>🔇 0%</span>
-                <span>50%</span>
-                <span>🔊 100%</span>
-              </div>
-            </div>
-
-            {/* Quick Presets */}
-            {isPaused && (
-              <div className="mt-4 pt-3 border-t border-black/10 dark:border-white/10">
-                <label className="block text-xs text-gray-600 dark:text-gray-400 mb-2">
-                  ⚙️ Quick Presets
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  <button
-                    onClick={() => {
-                      setRate(1.0);
-                      setPitch(1.0);
-                      setVolume(1.0);
-                    }}
-                    className="px-2 py-1.5 text-[10px] bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded transition-colors"
-                  >
-                    Normal
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRate(1.5);
-                      setPitch(1.0);
-                      setVolume(1.0);
-                    }}
-                    className="px-2 py-1.5 text-[10px] bg-green-500/10 hover:bg-green-500/20 text-green-600 dark:text-green-400 rounded transition-colors"
-                  >
-                    Fast
-                  </button>
-                  <button
-                    onClick={() => {
-                      setRate(0.75);
-                      setPitch(0.9);
-                      setVolume(1.0);
-                    }}
-                    className="px-2 py-1.5 text-[10px] bg-purple-500/10 hover:bg-purple-500/20 text-purple-600 dark:text-purple-400 rounded transition-colors"
-                  >
-                    Relaxed
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Main Control Buttons */}
-        <div className="flex items-center gap-2">
-          {/* Minimize Button */}
-          {(isPlaying || showSettings) && (
-            <button
-              onClick={() => {
-                setIsMinimized(true);
-                setShowSettings(false);
-              }}
-              className="p-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-full shadow-lg border border-black/10 dark:border-white/10 transition-all"
-              title="Minimize"
-            >
-              <Minimize2 className="w-3.5 h-3.5 text-gray-600 dark:text-gray-400" />
-            </button>
+            </label>
           )}
-
-          {/* Settings Icon - Shows when NOT playing OR when paused */}
-          {(!isPlaying || isPaused) && !showSettings && (
-            <button
-              onClick={() => setShowSettings(true)}
-              className="p-2.5 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-full shadow-lg border border-black/10 dark:border-white/10 transition-all"
-              title="Settings"
-            >
-              <Settings2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-            </button>
-          )}
-
-          {/* Playing Controls */}
-          {isPlaying && (
-            <>
-              <button
-                onClick={stopReading}
-                className="p-2 bg-white dark:bg-gray-900 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-full shadow-lg border border-black/10 dark:border-white/10 transition-all"
-                title="Stop"
-              >
-                <VolumeX className="w-4 h-4 text-red-500" />
-              </button>
-
-              {isPaused ? (
-                <button
-                  onClick={resumeReading}
-                  className="p-3.5 bg-green-500 hover:bg-green-600 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95"
-                  title="Resume"
-                >
-                  <Play className="w-5 h-5 text-white" />
-                </button>
-              ) : (
-                <button
-                  onClick={pauseReading}
-                  className="p-3.5 bg-yellow-500 hover:bg-yellow-600 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95"
-                  title="Pause"
-                >
-                  <Pause className="w-5 h-5 text-white" />
-                </button>
-              )}
-            </>
-          )}
-
-          {/* Start Button */}
-          {!isPlaying && (
-            <button
-              onClick={startReading}
-              className="p-4 bg-blue-500 hover:bg-blue-600 rounded-full shadow-lg transition-all transform hover:scale-105 active:scale-95"
-              title="Start Reading"
-            >
-              <Volume2 className="w-5 h-5 text-white" />
-            </button>
-          )}
+          <label className="block">
+            <span className="mb-1.5 block font-mono text-[11px] uppercase tracking-label text-fg-3">Speed · {c.rate.toFixed(2)}x</span>
+            <input type="range" min="0.5" max="2" step="0.25" value={c.rate} onChange={(e) => c.setRate(parseFloat(e.target.value))} className="w-full accent-[var(--c-signal)]" />
+          </label>
         </div>
+      )}
 
-        {/* Status Badge */}
-        {isPlaying && (
-          <div className="px-3 py-1 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm rounded-full border border-black/10 dark:border-white/10 shadow-lg">
-            <div className="flex items-center gap-2">
-              <div className={`w-1.5 h-1.5 rounded-full ${isPaused ? 'bg-yellow-500' : 'bg-green-500 animate-pulse'}`} />
-              <span className="text-[10px] font-medium text-gray-600 dark:text-gray-400">
-                {isPaused ? 'Paused' : 'Reading'}
-              </span>
-            </div>
-          </div>
+      {c.notice && !c.playing && (
+        <p role="status" className="m-0 max-w-[260px] border border-line-strong bg-surface px-3 py-2 text-xs text-fg-2">
+          {c.notice}
+        </p>
+      )}
+
+      <div className="flex items-center gap-1.5">
+        {(c.playing || showSettings) && (
+          <button type="button" onClick={() => { setMinimized(true); setShowSettings(false); }} className={iconBtn} title="Minimize" aria-label="Minimize read aloud controls">
+            <Minimize2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        )}
+        {(!c.playing || c.paused) && !showSettings && (
+          <button type="button" onClick={() => setShowSettings(true)} className={iconBtn} title="Settings" aria-label="Read aloud settings">
+            <Settings2 className="h-4 w-4" aria-hidden />
+          </button>
+        )}
+        {c.playing && (
+          <>
+            <button type="button" onClick={c.stop} className={iconBtn} title="Stop" aria-label="Stop reading">
+              <Square className="h-3.5 w-3.5" aria-hidden />
+            </button>
+            {c.paused ? (
+              <button type="button" onClick={c.resume} className="grid min-h-12 min-w-12 place-items-center bg-signal text-on-signal" title="Resume" aria-label="Resume reading">
+                <Play className="h-5 w-5" aria-hidden />
+              </button>
+            ) : (
+              <button type="button" onClick={c.pause} className="grid min-h-12 min-w-12 place-items-center bg-signal text-on-signal" title="Pause" aria-label="Pause reading">
+                <Pause className="h-5 w-5" aria-hidden />
+              </button>
+            )}
+          </>
+        )}
+        {!c.playing && (
+          <button type="button" onClick={c.start} className="grid min-h-12 min-w-12 place-items-center bg-signal text-on-signal" title="Start Reading" aria-label="Read this page aloud">
+            <Volume2 className="h-5 w-5" aria-hidden />
+          </button>
         )}
       </div>
-    </>
+
+      {c.playing && (
+        <div className="flex items-center gap-2 border border-line bg-surface px-3 py-1" role="status">
+          <span aria-hidden className={`h-1.5 w-1.5 ${c.paused ? "bg-fg-4" : "animate-hk-pulse bg-signal"}`} />
+          <span className="font-mono text-[10px] uppercase tracking-label text-fg-3">{c.paused ? "Paused" : "Reading"}</span>
+        </div>
+      )}
+    </div>
   );
 }

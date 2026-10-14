@@ -190,6 +190,16 @@ class FastWebRTCService:
                 self.frame_queue.put_nowait(frame_data)
 ```
 
+```mermaid
+%% title: Always keep the newest frame
+flowchart TD
+    CAP["capture_optimized_screenshot"]:::core --> Q{"frame_queue<br/>maxsize=1 · full?"}:::queue
+    Q -->|"no"| PUT["put_nowait(frame_data)"]:::service
+    Q -->|"queue.Full"| DROP["Drop old frame<br/>get_nowait()"]:::bad
+    DROP --> PUT
+    PUT --> RTC(["WebRTC stream<br/>low 45 · high 75 · ultra 90 fps"]):::ok
+```
+
 **Results:** 
 - **WebSocket**: 2-5 FPS → 30 FPS with 200ms latency
 - **WebRTC**: 60-90 FPS with 50-100ms latency
@@ -270,6 +280,18 @@ class SessionManager:
         logger.info(f"Recovered {len(orphaned)} orphaned simulators")
 ```
 
+```mermaid
+%% title: Startup recovery of orphaned simulators
+flowchart TD
+    S(["Server restart"]):::client --> RS["get_running_simulators"]:::service
+    S --> LS[("load_stored_sessions<br/>session_storage/sessions.json")]:::store
+    RS --> C{"Simulator udid<br/>in stored sessions?"}
+    LS --> C
+    C -->|"yes"| K(["Not orphaned"]):::ok
+    C -->|"no · orphaned"| N["Create SimulatorSession<br/>status = recovered"]:::core
+    N --> L(["Recovered N orphaned simulators"]):::ok
+```
+
 ### Challenge 4: Command Line Interface Design
 
 **The Developer Experience Revolution:**
@@ -296,35 +318,50 @@ ios-bridge terminate  # Smart session detection
 
 ---
 
-```
-iOS Bridge System Components:
-
-🎮 CLIENT TIER
-├─ Windows Desktop App    → Electron + WebRTC client
-├─ Linux Desktop App      → Electron + WebRTC client  
-├─ macOS Desktop App      → Electron + WebRTC client
-├─ Web Interface          → Browser + JavaScript client
-└─ CLI Tools              → Python + REST client
-
-🔄 COMMUNICATION TIER  
-├─ REST APIs              → Session CRUD, file operations
-├─ WebSocket Streams      → Real-time video + control
-├─ WebRTC Streams         → Ultra-low latency streaming
-└─ HTTP Endpoints         → Static assets, documentation
-
-🖥️ SERVER TIER (macOS)
-├─ FastAPI Application    → Async web framework
-├─ Session Manager        → Multi-simulator orchestration
-├─ WebSocket Hub          → Real-time connection management
-├─ Recording Service      → MP4 video capture
-├─ File Manager           → APP install, media upload
-└─ Device Controller      → simctl/idb integration
-
-📱 SIMULATOR TIER
-├─ iOS Simulators         → Multiple concurrent instances
-├─ Device Types           → iPhone, iPad variants
-├─ iOS Versions           → 14.0 - 18.2+ support
-└─ App Instances          → Installed user applications
+```mermaid
+%% title: iOS Bridge system components
+flowchart TD
+    subgraph CT["Client tier"]
+        direction TB
+        C1["Windows Desktop App<br/>Electron + WebRTC client"]:::client
+        C2["Linux Desktop App<br/>Electron + WebRTC client"]:::client
+        C3["macOS Desktop App<br/>Electron + WebRTC client"]:::client
+        C4["Web Interface<br/>Browser + JavaScript client"]:::client
+        C5["CLI Tools<br/>Python + REST client"]:::client
+        C1 ~~~ C4
+        C2 ~~~ C5
+    end
+    subgraph COM["Communication tier"]
+        direction TB
+        M1["REST APIs<br/>Session CRUD, file operations"]:::edge
+        M2["WebSocket Streams<br/>Real-time video + control"]:::edge
+        M3["WebRTC Streams<br/>Ultra-low latency streaming"]:::edge
+        M4["HTTP Endpoints<br/>Static assets, documentation"]:::edge
+        M1 ~~~ M3
+        M2 ~~~ M4
+    end
+    subgraph SV["Server tier (macOS)"]
+        direction TB
+        S1["FastAPI Application<br/>Async web framework"]:::core
+        S2["Session Manager<br/>Multi-simulator orchestration"]:::service
+        S3["WebSocket Hub<br/>Real-time connection management"]:::service
+        S4["Recording Service<br/>MP4 video capture"]:::service
+        S5["File Manager<br/>APP install, media upload"]:::service
+        S6["Device Controller<br/>simctl/idb integration"]:::service
+        S1 ~~~ S4
+        S2 ~~~ S5
+        S3 ~~~ S6
+    end
+    subgraph SIM["Simulator tier"]
+        direction TB
+        I1["iOS Simulators<br/>Multiple concurrent instances"]:::store
+        I2["Device Types<br/>iPhone, iPad variants"]:::store
+        I3["iOS Versions<br/>14.0 - 18.2+ support"]:::store
+        I4["App Instances<br/>Installed user applications"]:::store
+        I1 ~~~ I3
+        I2 ~~~ I4
+    end
+    CT --> COM --> SV --> SIM
 ```
 
 ### Core Components
@@ -508,6 +545,19 @@ class SmartSessionDetection:
         raise MultipleSessionsError(
             f"Multiple sessions found: {list(sessions.keys())}"
         )
+```
+
+```mermaid
+%% title: Smart session detection
+flowchart TD
+    IN(["ios-bridge stream"]):::client --> P{"Session ID provided?"}
+    P -->|"yes"| V{"In active sessions?"}
+    V -->|"yes"| USE(["Use provided session"]):::ok
+    V -->|"no"| E1(["SessionNotFoundError"]):::bad
+    P -->|"no"| N{"How many active sessions?"}:::core
+    N -->|"1"| AUTO(["Auto-select single session"]):::ok
+    N -->|"0"| E2(["NoSessionsError"]):::bad
+    N -->|"more than 1"| E3(["MultipleSessionsError<br/>user must specify"]):::bad
 ```
 
 ### Cross-Platform Desktop App

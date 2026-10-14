@@ -1,10 +1,21 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+/**
+ * The reader's content layer: renders lesson HTML, applies the reader's highlights and notes,
+ * and opens the selection toolbar (highlight · note · bookmark).
+ *
+ * Selection opens the toolbar on mouseup, after a touch long-press (selectionchange), after a
+ * keyboard selection (Shift + arrows), or with Shift+F10. Text offsets count characters only
+ * outside [data-sd-chrome] (captions, toolbars, buttons the renderer adds), so chrome can change
+ * without moving a saved highlight.
+ */
+import "@/app/learn/course-content.css";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { supabaseClient } from "@/lib/supabase-client";
-import TextSelectionMenu from "./TextSelectionMenu";
+import type { NoteColor, NoteType } from "@/lib/learn/notebook";
+import TextSelectionMenu, { displayHighlightColor } from "./TextSelectionMenu";
 import MarkdownContent from "./MarkdownContent";
 import Toast from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
@@ -17,6 +28,8 @@ type HighlightableContentProps = {
   week: string;
   lessonSlug: string;
   lessonTitle?: string;
+  /** wrapper class for the HTML (defaults: "sd-body" for course HTML, "md-content" otherwise) */
+  className?: string;
 };
 
 type Highlight = {
@@ -30,23 +43,97 @@ type Note = {
   id: string;
   highlight_text: string;
   note_text: string;
-  note_type: "general" | "question" | "important" | "todo";
-  color: "yellow" | "green" | "blue" | "red" | "purple";
+  note_type: NoteType;
+  color: NoteColor;
   highlight_offset: number | null;
 };
 
-export default function HighlightableContent({
-  htmlContent,
-  courseId,
-  week,
-  lessonSlug,
-  lessonTitle,
-}: HighlightableContentProps) {
+type MenuState = { x: number; y: number; placement: "above" | "below"; autoFocus: boolean };
+
+const CHROME = "[data-sd-chrome]";
+const COACH_KEY = "sd:coach:select";
+
+/* ------------------------------------------------------------------ text offsets */
+
+function isChromeNode(n: Node | null): boolean {
+  const el = n && (n.nodeType === Node.ELEMENT_NODE ? (n as Element) : n.parentElement);
+  return !!el?.closest(CHROME);
+}
+
+/** Text nodes in document order, skipping chrome subtrees, script and style. */
+function textWalker(root: Node): TreeWalker {
+  return document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        const el = node as Element;
+        if (el.hasAttribute("data-sd-chrome") || el.tagName === "SCRIPT" || el.tagName === "STYLE") return NodeFilter.FILTER_REJECT;
+        return NodeFilter.FILTER_SKIP;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    },
+  });
+}
+
+/** Plain text of a subtree without chrome. */
+function contentText(root: Node): string {
+  const w = textWalker(root);
+  let out = "";
+  for (let n = w.nextNode(); n; n = w.nextNode()) out += n.nodeValue || "";
+  return out;
+}
+
+/** Character offset of a DOM point, counting only non-chrome text. */
+function offsetOfPoint(root: Node, container: Node, offset: number): number {
+  const point = document.createRange();
+  point.setStart(container, offset);
+  point.collapse(true);
+  const w = textWalker(root);
+  let total = 0;
+  for (let n = w.nextNode(); n; n = w.nextNode()) {
+    if (n === container) return total + offset;
+    if (point.comparePoint(n, 0) > 0) break;
+    total += (n.nodeValue || "").length;
+  }
+  return total;
+}
+
+/* ------------------------------------------------------------------ one-time coach mark flag */
+
+function subscribeStorage(cb: () => void) {
+  window.addEventListener("storage", cb);
+  window.addEventListener("sd:coach", cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener("sd:coach", cb);
+  };
+}
+
+function coachSeen(): boolean {
+  try {
+    return window.localStorage.getItem(COACH_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
+function markCoachSeen() {
+  try {
+    window.localStorage.setItem(COACH_KEY, "1");
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event("sd:coach"));
+}
+
+function escapeHtml(s: string) {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] as string);
+}
+
+export default function HighlightableContent({ htmlContent, courseId, week, lessonSlug, lessonTitle, className }: HighlightableContentProps) {
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const [selectedText, setSelectedText] = useState("");
-  const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
+  const [menu, setMenu] = useState<MenuState | null>(null);
   const [highlights, setHighlights] = useState<Highlight[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
@@ -59,368 +146,289 @@ export default function HighlightableContent({
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const currentRangeRef = useRef<Range | null>(null);
+  const rangeRef = useRef<Range | null>(null);
   const selectedTextRef = useRef<string>("");
   const selectedOffsetRef = useRef<number>(0);
   const [bookmarkScrollTarget, setBookmarkScrollTarget] = useState<number | null>(null);
+  const seen = useSyncExternalStore(subscribeStorage, coachSeen, () => true);
 
-  // Detect bookmark, note, or scroll position navigation from URL hash
+  /* ---------------- hash navigation (#bookmark-N, #note-N, #scroll-N) */
   useEffect(() => {
     const hash = window.location.hash;
-
-    // Handle bookmark navigation (text offset)
-    if (hash.startsWith('#bookmark-')) {
-      const offset = parseInt(hash.replace('#bookmark-', ''), 10);
-      if (!isNaN(offset)) {
-        console.log("[Bookmark] Detected bookmark navigation to offset:", offset);
-        setBookmarkScrollTarget(offset);
-      }
-    }
-
-    // Handle note navigation (text offset)
-    if (hash.startsWith('#note-')) {
-      const offset = parseInt(hash.replace('#note-', ''), 10);
-      if (!isNaN(offset)) {
-        console.log("[Note] Detected note navigation to offset:", offset);
-        setBookmarkScrollTarget(offset); // Reuse same scroll logic as bookmarks
-      }
-    }
-
-    // Handle continue reading navigation (scroll position)
-    if (hash.startsWith('#scroll-')) {
-      const scrollPos = parseInt(hash.replace('#scroll-', ''), 10);
-      if (!isNaN(scrollPos)) {
-        console.log(`[ContinueReading] Detected scroll position: ${scrollPos}px`);
-        // Wait for content to render, then scroll to saved position
-        setTimeout(() => {
-          console.log(`[ContinueReading] Scrolling to ${scrollPos}px`);
-          window.scrollTo({
-            top: scrollPos,
-            behavior: 'smooth'
-          });
-          // Clear the hash from URL
-          window.history.replaceState(null, '', window.location.pathname + window.location.search);
-        }, 800); // Increased timeout to ensure content is fully rendered
-      }
-    }
-  }, []); // Run once on mount
-
-  // Fetch user's highlights and notes for this lesson
-  useEffect(() => {
-    if (!user) {
-      setHighlights([]);
-      setNotes([]);
-      return;
-    }
-
-    async function fetchHighlightsAndNotes() {
-      if (!user) return;
-
-      console.log("[Content] Fetching highlights and notes for lesson");
-
-      // Fetch highlights (content_notes with highlight_text but no note_text)
-      const { data: highlightsData, error: highlightsError } = await supabaseClient
-        .from("content_notes")
-        .select("id, highlight_text, color, highlight_offset")
-        .eq("user_id", user.id)
-        .eq("course_id", courseId)
-        .eq("week", week)
-        .eq("lesson_slug", lessonSlug)
-        .not("highlight_text", "is", null)
-        .or("note_text.is.null,note_text.eq.");
-
-      if (highlightsError) {
-        console.error("[Highlights] Error fetching:", highlightsError);
-      } else {
-        console.log("[Highlights] Fetched:", highlightsData?.length || 0, "highlights");
-        setHighlights(highlightsData || []);
-      }
-
-      // Fetch notes (content_notes with both highlight_text and note_text)
-      const { data: notesData, error: notesError } = await supabaseClient
-        .from("content_notes")
-        .select("id, highlight_text, note_text, note_type, color, highlight_offset")
-        .eq("user_id", user.id)
-        .eq("course_id", courseId)
-        .eq("week", week)
-        .eq("lesson_slug", lessonSlug)
-        .not("note_text", "is", null)
-        .neq("note_text", "");
-
-      if (notesError) {
-        console.error("[Notes] Error fetching:", notesError);
-      } else {
-        console.log("[Notes] Fetched:", notesData?.length || 0, "notes");
-        setNotes(notesData || []);
-      }
-    }
-
-    fetchHighlightsAndNotes();
-  }, [user, courseId, week, lessonSlug]);
-
-  // Handle clicks on highlighted text to delete and notes to edit
-  useEffect(() => {
-    const handleHighlightOrNoteClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-
-      if (target.tagName === 'MARK') {
-        e.preventDefault();
-
-        // Check if it's a note
-        if (target.dataset.noteId) {
-          const noteId = target.dataset.noteId;
-          console.log("[Click] Note clicked:", noteId);
-
-          // Find the note and open editor
-          const note = notes.find((n) => n.id === noteId);
-          if (note) {
-            setEditingNote(note);
-            setShowNoteEditor(true);
-          }
-        }
-        // Check if it's a highlight
-        else if (target.dataset.highlightId) {
-          const highlightId = target.dataset.highlightId;
-          console.log("[Click] Highlight clicked:", highlightId);
-
-          // Open custom confirmation dialog
-          setConfirmDialog({ isOpen: true, highlightId });
-        }
-      }
+    const num = (prefix: string) => {
+      const v = parseInt(hash.replace(prefix, ""), 10);
+      return Number.isNaN(v) ? null : v;
     };
-
-    const contentDiv = contentRef.current;
-    if (contentDiv) {
-      contentDiv.addEventListener('click', handleHighlightOrNoteClick);
+    let timer: number | undefined;
+    if (hash.startsWith("#bookmark-") || hash.startsWith("#note-")) {
+      const v = num(hash.startsWith("#note-") ? "#note-" : "#bookmark-");
+      if (v !== null) timer = window.setTimeout(() => setBookmarkScrollTarget(v), 0);
+    } else if (hash.startsWith("#scroll-")) {
+      const v = num("#scroll-");
+      if (v !== null) {
+        timer = window.setTimeout(() => {
+          window.scrollTo({ top: v, behavior: "smooth" });
+          window.history.replaceState(null, "", window.location.pathname + window.location.search);
+        }, 800);
+      }
     }
-
-    return () => {
-      if (contentDiv) {
-        contentDiv.removeEventListener('click', handleHighlightOrNoteClick);
-      }
-    };
-  }, [highlights, notes]); // Re-attach when highlights or notes change
-
-  useEffect(() => {
-    console.log("[HighlightableContent] Mounting right-click handler");
-
-    const handleRightClick = (e: MouseEvent) => {
-      // Check if right-click is inside the content area
-      if (!contentRef.current?.contains(e.target as Node)) {
-        return;
-      }
-
-      const selection = window.getSelection();
-      if (!selection || selection.isCollapsed) {
-        console.log("[RightClick] No text selected");
-        return;
-      }
-
-      const text = selection.toString().trim();
-      if (text.length === 0) {
-        console.log("[RightClick] Empty selection");
-        return;
-      }
-
-      // Prevent default context menu
-      e.preventDefault();
-
-      const range = selection.getRangeAt(0);
-      if (!contentRef.current?.contains(range.commonAncestorContainer)) {
-        return;
-      }
-
-      console.log("[RightClick] Text selected:", text.slice(0, 50));
-      setSelectedText(text);
-      selectedTextRef.current = text;
-      currentRangeRef.current = range.cloneRange();
-
-      // Calculate offset IMMEDIATELY while selection is still active
-      try {
-        const tempRange = document.createRange();
-        tempRange.selectNodeContents(contentRef.current);
-        tempRange.setEnd(range.startContainer, range.startOffset);
-        const offset = tempRange.toString().length;
-        selectedOffsetRef.current = offset;
-        console.log("[RightClick] Calculated offset immediately:", offset);
-      } catch (err) {
-        console.error("[RightClick] Error calculating offset:", err);
-        selectedOffsetRef.current = 0;
-      }
-
-      setMenuOpen(true);
-
-      // Position menu at cursor location
-      const menuWidth = 250;
-      const menuHeight = 200;
-
-      let x = e.clientX;
-      let y = e.clientY;
-
-      // Keep menu within viewport bounds
-      if (x + menuWidth > window.innerWidth) {
-        x = window.innerWidth - menuWidth - 10;
-      }
-      if (y + menuHeight > window.innerHeight) {
-        y = window.innerHeight - menuHeight - 10;
-      }
-
-      setMenuPosition({ x, y });
-      console.log("[RightClick] Menu at:", { x, y });
-    };
-
-    document.addEventListener("contextmenu", handleRightClick);
-    console.log("[HighlightableContent] Right-click handler attached");
-
-    return () => {
-      document.removeEventListener("contextmenu", handleRightClick);
-      console.log("[HighlightableContent] Right-click handler removed");
-    };
+    return () => window.clearTimeout(timer);
   }, []);
 
-  // Calculate text offset in the plain text content
-  const calculateTextOffset = (): number | null => {
-    console.log("[Offset] Calculating offset...");
-    console.log("[Offset] currentRangeRef.current:", currentRangeRef.current);
-    console.log("[Offset] contentRef.current:", contentRef.current);
-
-    if (!currentRangeRef.current || !contentRef.current) {
-      console.warn("[Offset] Missing range or content ref");
-      return null;
+  /* ---------------- load this reader's highlights and notes */
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!user) {
+        if (!cancelled) {
+          setHighlights([]);
+          setNotes([]);
+        }
+        return;
+      }
+      const [hl, nt] = await Promise.all([
+        supabaseClient
+          .from("content_notes")
+          .select("id, highlight_text, color, highlight_offset")
+          .eq("user_id", user.id)
+          .eq("course_id", courseId)
+          .eq("week", week)
+          .eq("lesson_slug", lessonSlug)
+          .not("highlight_text", "is", null)
+          .or("note_text.is.null,note_text.eq."),
+        supabaseClient
+          .from("content_notes")
+          .select("id, highlight_text, note_text, note_type, color, highlight_offset")
+          .eq("user_id", user.id)
+          .eq("course_id", courseId)
+          .eq("week", week)
+          .eq("lesson_slug", lessonSlug)
+          .not("note_text", "is", null)
+          .neq("note_text", ""),
+      ]);
+      if (cancelled) return;
+      if (hl.error) console.error("[Highlights] fetch failed:", hl.error.message);
+      else setHighlights((hl.data as Highlight[]) || []);
+      if (nt.error) console.error("[Notes] fetch failed:", nt.error.message);
+      else setNotes((nt.data as Note[]) || []);
     }
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, courseId, week, lessonSlug]);
 
-    try {
-      const range = currentRangeRef.current;
-      console.log("[Offset] Range startContainer:", range.startContainer);
-      console.log("[Offset] Range startOffset:", range.startOffset);
-      console.log("[Offset] Range text:", range.toString());
+  /* ---------------- click a highlight (remove) or a note (edit) */
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const onClick = (e: MouseEvent) => {
+      const mark = (e.target as Element | null)?.closest?.("mark");
+      if (!mark || !el.contains(mark)) return;
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) return; // finishing a selection, not a click
+      const noteId = (mark as HTMLElement).dataset.noteId;
+      const highlightId = (mark as HTMLElement).dataset.highlightId;
+      if (noteId) {
+        const note = notes.find((n) => n.id === noteId);
+        if (note) {
+          e.preventDefault();
+          setEditingNote(note);
+          setShowNoteEditor(true);
+        }
+      } else if (highlightId) {
+        e.preventDefault();
+        setConfirmDialog({ isOpen: true, highlightId });
+      }
+    };
+    el.addEventListener("click", onClick);
+    return () => el.removeEventListener("click", onClick);
+  }, [notes]);
 
-      const tempRange = document.createRange();
-      tempRange.selectNodeContents(contentRef.current);
-      tempRange.setEnd(range.startContainer, range.startOffset);
+  /* ---------------- selection → toolbar */
+  const closeMenu = useCallback(() => {
+    setMenu(null);
+  }, []);
 
-      const offset = tempRange.toString().length;
-      console.log("[Offset] Temp range text length:", offset);
-      console.log("[Offset] Temp range text (first 100 chars):", tempRange.toString().substring(0, 100));
+  /** Capture the current selection if it is inside the content (and not only chrome). */
+  const captureSelection = useCallback((): Range | null => {
+    const root = contentRef.current;
+    const sel = window.getSelection();
+    if (!root || !sel || sel.isCollapsed || !sel.rangeCount) return null;
+    const range = sel.getRangeAt(0);
+    if (!root.contains(range.commonAncestorContainer)) return null;
+    if (isChromeNode(range.startContainer) && isChromeNode(range.endContainer)) return null;
+    const textValue = sel.toString().trim();
+    if (!textValue) return null;
+    rangeRef.current = range.cloneRange();
+    selectedTextRef.current = textValue;
+    selectedOffsetRef.current = offsetOfPoint(root, range.startContainer, range.startOffset);
+    setSelectedText(textValue);
+    return range;
+  }, []);
 
-      return offset;
-    } catch (e) {
-      console.error("[Offset] Error calculating:", e);
-      return null;
-    }
+  const openMenuFor = useCallback((range: Range, how: "mouse" | "touch" | "keyboard") => {
+    const rects = range.getClientRects();
+    const first = rects[0] || range.getBoundingClientRect();
+    const last = rects[rects.length - 1] || first;
+    const W = Math.min(window.innerWidth - 16, 400);
+    const H = 54;
+    const below = how === "touch" || first.top - H - 10 < 64;
+    const anchor = below ? last : first;
+    const x = Math.max(8, Math.min(anchor.left - 24, window.innerWidth - W - 8));
+    const y = below ? Math.min(anchor.bottom + 12, window.innerHeight - H - 8) : first.top - H - 10;
+    setMenu({ x, y, placement: below ? "below" : "above", autoFocus: how === "keyboard" });
+    markCoachSeen();
+  }, []);
+
+  useEffect(() => {
+    let lastPointer: string = "mouse";
+    let touchTimer: number | undefined;
+    let keyTimer: number | undefined;
+
+    const onPointerDown = (e: PointerEvent) => {
+      lastPointer = e.pointerType || "mouse";
+    };
+    const onMouseUp = (e: MouseEvent) => {
+      if (lastPointer === "touch") return;
+      if ((e.target as Element | null)?.closest?.('[role="toolbar"][aria-label]')?.hasAttribute("data-sd-chrome")) return;
+      window.setTimeout(() => {
+        const r = captureSelection();
+        if (r) openMenuFor(r, "mouse");
+      }, 0);
+    };
+    const onSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) {
+        window.clearTimeout(touchTimer);
+        return;
+      }
+      if (lastPointer !== "touch") return;
+      window.clearTimeout(touchTimer);
+      touchTimer = window.setTimeout(() => {
+        const r = captureSelection();
+        if (r) openMenuFor(r, "touch");
+      }, 450);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "F10" && e.shiftKey) {
+        const r = captureSelection();
+        if (r) {
+          e.preventDefault();
+          openMenuFor(r, "keyboard");
+        }
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== "Shift" && !(e.shiftKey && e.key.startsWith("Arrow"))) return;
+      window.clearTimeout(keyTimer);
+      keyTimer = window.setTimeout(() => {
+        const r = captureSelection();
+        if (r) openMenuFor(r, "keyboard");
+      }, 250);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("selectionchange", onSelectionChange);
+    document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("keyup", onKeyUp);
+    return () => {
+      window.clearTimeout(touchTimer);
+      window.clearTimeout(keyTimer);
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("mouseup", onMouseUp);
+      document.removeEventListener("selectionchange", onSelectionChange);
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("keyup", onKeyUp);
+    };
+  }, [captureSelection, openMenuFor]);
+
+  // keep the toolbar attached to the selection while scrolling
+  useEffect(() => {
+    if (!menu) return;
+    let raf = 0;
+    const onScroll = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const r = rangeRef.current;
+        if (!r) return;
+        const rect = r.getBoundingClientRect();
+        if (rect.bottom < 0 || rect.top > window.innerHeight) {
+          setMenu(null);
+          return;
+        }
+        setMenu((m) => (m ? { ...m, y: m.placement === "below" ? rect.bottom + 12 : rect.top - 64 } : m));
+      });
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      cancelAnimationFrame(raf);
+    };
+  }, [menu]);
+
+  const resetSelection = () => {
+    window.getSelection()?.removeAllRanges();
+    setSelectedText("");
+    setMenu(null);
   };
 
+  /* ---------------- actions */
   const handleHighlight = async (color: string) => {
-    console.log("[Highlight] Called with color:", color);
-    console.log("[Highlight] User:", user ? "logged in" : "not logged in");
-    console.log("[Highlight] Selected text state:", selectedText);
-    console.log("[Highlight] Selected text ref:", selectedTextRef.current);
-
     if (!user) {
+      setMenu(null);
       openAuthModal();
       return;
     }
-
     const textToHighlight = selectedTextRef.current || selectedText;
-    if (!textToHighlight) {
-      console.error("[Highlight] No text selected!");
+    if (!textToHighlight) return;
+    const { data, error } = await supabaseClient
+      .from("content_notes")
+      .insert({
+        user_id: user.id,
+        course_id: courseId,
+        week,
+        lesson_slug: lessonSlug,
+        note_text: "",
+        highlight_text: textToHighlight,
+        highlight_offset: selectedOffsetRef.current,
+        color,
+        note_type: "general",
+        is_private: true,
+      })
+      .select()
+      .single();
+    if (error) {
+      setToast({ message: `Couldn't save the highlight: ${error.message}`, type: "error" });
       return;
     }
-
-    const offset = selectedOffsetRef.current;
-    console.log("[Highlight] Selected text:", textToHighlight.substring(0, 30), "...");
-    console.log("[Highlight] Using stored offset:", offset);
-
-    try {
-      const { data, error } = await supabaseClient
-        .from("content_notes")
-        .insert({
-          user_id: user.id,
-          course_id: courseId,
-          week,
-          lesson_slug: lessonSlug,
-          note_text: "",
-          highlight_text: textToHighlight,
-          highlight_offset: offset,
-          color,
-          note_type: "general",
-          is_private: true,
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error("[Highlight] Error:", error);
-        setToast({ message: `Error: ${error.message}`, type: "error" });
-        return;
-      }
-
-      console.log("[Highlight] Saved successfully:", data);
-
-      // Add the new highlight to the state
-      if (data) {
-        setHighlights((prev) => [...prev, {
-          id: data.id,
-          highlight_text: data.highlight_text,
-          color: data.color,
-          highlight_offset: data.highlight_offset,
-        }]);
-      }
-
-      // Don't show toast on success, just close the menu
-      window.getSelection()?.removeAllRanges();
-      setMenuPosition(null);
-      setSelectedText("");
-      setMenuOpen(false);
-    } catch (error) {
-      console.error(error);
-      setToast({ message: "Failed to save highlight", type: "error" });
+    if (data) {
+      setHighlights((prev) => [...prev, { id: data.id, highlight_text: data.highlight_text, color: data.color, highlight_offset: data.highlight_offset }]);
     }
+    resetSelection();
   };
 
   const handleBookmark = () => {
-    console.log("[Bookmark] Called");
     if (!user) {
+      setMenu(null);
       openAuthModal();
       return;
     }
-
-    const textToBookmark = selectedTextRef.current || selectedText;
-    if (!textToBookmark) {
-      console.error("[Bookmark] No text selected!");
-      return;
-    }
-
-    console.log("[Bookmark] Opening dialog for text:", textToBookmark.substring(0, 30), "...");
-
-    // Close the text selection menu
-    setMenuPosition(null);
-    setMenuOpen(false);
-
-    // Open the bookmark dialog
+    if (!(selectedTextRef.current || selectedText)) return;
+    setMenu(null);
     setShowBookmarkDialog(true);
   };
 
   const handleSaveBookmark = async () => {
     if (!user) return;
-
     const textToBookmark = selectedTextRef.current || selectedText;
-    if (!textToBookmark) {
-      console.error("[SaveBookmark] No text selected!");
-      return;
-    }
-
+    if (!textToBookmark) return;
     const offset = selectedOffsetRef.current;
-    console.log("[SaveBookmark] Selected text:", textToBookmark.substring(0, 30), "...");
-    console.log("[SaveBookmark] Using stored offset:", offset);
-
     setIsSavingBookmark(true);
-
     try {
-      // Check if this exact text + offset combination is already bookmarked
       const { data: existing } = await supabaseClient
         .from("bookmarks")
-        .select("*")
+        .select("id")
         .eq("user_id", user.id)
         .eq("course_id", courseId)
         .eq("week", week)
@@ -428,20 +436,10 @@ export default function HighlightableContent({
         .eq("bookmark_text", textToBookmark)
         .eq("bookmark_offset", offset)
         .maybeSingle();
-
       if (existing) {
-        setToast({ message: "This text is already bookmarked!", type: "info" });
-        setShowBookmarkDialog(false);
-        setBookmarkCustomTitle("");
-        setBookmarkNote("");
-        window.getSelection()?.removeAllRanges();
-        setSelectedText("");
-        return;
-      }
-
-      const { error } = await supabaseClient
-        .from("bookmarks")
-        .insert({
+        setToast({ message: "Already bookmarked.", type: "info" });
+      } else {
+        const { error } = await supabaseClient.from("bookmarks").insert({
           user_id: user.id,
           course_id: courseId,
           week,
@@ -451,25 +449,18 @@ export default function HighlightableContent({
           custom_title: bookmarkCustomTitle.trim() || null,
           note: bookmarkNote.trim() || null,
         });
-
-      if (error) {
-        console.error("[SaveBookmark] Error:", error);
-        setToast({ message: `Error: ${error.message}`, type: "error" });
-        return;
+        if (error) {
+          setToast({ message: `Couldn't bookmark: ${error.message}`, type: "error" });
+          return;
+        }
+        setToast({ message: "Bookmarked.", type: "success" });
       }
-
-      console.log("[SaveBookmark] Saved successfully");
-      setToast({ message: "Bookmarked!", type: "success" });
-
-      // Close dialog and reset form
       setShowBookmarkDialog(false);
       setBookmarkCustomTitle("");
       setBookmarkNote("");
-      window.getSelection()?.removeAllRanges();
-      setSelectedText("");
-    } catch (error) {
-      console.error(error);
-      setToast({ message: "Failed to bookmark", type: "error" });
+      resetSelection();
+    } catch {
+      setToast({ message: "Couldn't bookmark.", type: "error" });
     } finally {
       setIsSavingBookmark(false);
     }
@@ -479,85 +470,40 @@ export default function HighlightableContent({
     setShowBookmarkDialog(false);
     setBookmarkCustomTitle("");
     setBookmarkNote("");
-    window.getSelection()?.removeAllRanges();
-    setSelectedText("");
+    resetSelection();
   };
 
-  // Handle note creation/editing
   const handleNote = () => {
-    console.log("[Note] Called");
     if (!user) {
+      setMenu(null);
       openAuthModal();
       return;
     }
-
-    const textForNote = selectedTextRef.current || selectedText;
-    if (!textForNote) {
-      console.error("[Note] No text selected!");
-      return;
-    }
-
-    console.log("[Note] Opening editor for text:", textForNote.substring(0, 30), "...");
-
-    // Close the text selection menu
-    setMenuPosition(null);
-    setMenuOpen(false);
-
-    // Open the note editor (without existing note since it's new)
+    if (!(selectedTextRef.current || selectedText)) return;
+    setMenu(null);
     setEditingNote(null);
     setShowNoteEditor(true);
   };
 
-  const handleSaveNote = async (
-    noteText: string,
-    noteType: "general" | "question" | "important" | "todo",
-    color: "yellow" | "green" | "blue" | "red" | "purple"
-  ) => {
+  const handleSaveNote = async (noteText: string, noteType: NoteType, color: NoteColor) => {
     if (!user) return;
-
     const textWithNote = selectedTextRef.current || selectedText;
-    if (!textWithNote && !editingNote) {
-      console.error("[SaveNote] No text selected!");
-      return;
-    }
-
-    const offset = selectedOffsetRef.current;
-    console.log("[SaveNote] Saving note:", noteText.substring(0, 30), "...");
-
+    if (!textWithNote && !editingNote) return;
     setIsSavingNote(true);
-
     try {
       if (editingNote) {
-        // Update existing note
         const { error } = await supabaseClient
           .from("content_notes")
-          .update({
-            note_text: noteText,
-            note_type: noteType,
-            color: color,
-          })
+          .update({ note_text: noteText, note_type: noteType, color })
           .eq("id", editingNote.id)
           .eq("user_id", user.id);
-
         if (error) {
-          console.error("[SaveNote] Error updating:", error);
-          setToast({ message: `Error: ${error.message}`, type: "error" });
+          setToast({ message: `Couldn't update the note: ${error.message}`, type: "error" });
           return;
         }
-
-        // Update in local state
-        setNotes((prev) =>
-          prev.map((n) =>
-            n.id === editingNote.id
-              ? { ...n, note_text: noteText, note_type: noteType, color: color }
-              : n
-          )
-        );
-
-        console.log("[SaveNote] Updated successfully");
-        setToast({ message: "Note updated!", type: "success" });
+        setNotes((prev) => prev.map((n) => (n.id === editingNote.id ? { ...n, note_text: noteText, note_type: noteType, color } : n)));
+        setToast({ message: "Note updated.", type: "success" });
       } else {
-        // Create new note
         const { data, error } = await supabaseClient
           .from("content_notes")
           .insert({
@@ -566,48 +512,31 @@ export default function HighlightableContent({
             week,
             lesson_slug: lessonSlug,
             highlight_text: textWithNote,
-            highlight_offset: offset,
+            highlight_offset: selectedOffsetRef.current,
             note_text: noteText,
             note_type: noteType,
-            color: color,
+            color,
             is_private: true,
           })
           .select()
           .single();
-
         if (error) {
-          console.error("[SaveNote] Error creating:", error);
-          setToast({ message: `Error: ${error.message}`, type: "error" });
+          setToast({ message: `Couldn't save the note: ${error.message}`, type: "error" });
           return;
         }
-
-        // Add to local state
         if (data) {
           setNotes((prev) => [
             ...prev,
-            {
-              id: data.id,
-              highlight_text: data.highlight_text,
-              note_text: data.note_text,
-              note_type: data.note_type,
-              color: data.color,
-              highlight_offset: data.highlight_offset,
-            },
+            { id: data.id, highlight_text: data.highlight_text, note_text: data.note_text, note_type: data.note_type, color: data.color, highlight_offset: data.highlight_offset },
           ]);
         }
-
-        console.log("[SaveNote] Created successfully");
-        setToast({ message: "Note saved!", type: "success" });
+        setToast({ message: "Note saved.", type: "success" });
       }
-
-      // Close editor and reset
       setShowNoteEditor(false);
       setEditingNote(null);
-      window.getSelection()?.removeAllRanges();
-      setSelectedText("");
-    } catch (error) {
-      console.error(error);
-      setToast({ message: "Failed to save note", type: "error" });
+      resetSelection();
+    } catch {
+      setToast({ message: "Couldn't save the note.", type: "error" });
     } finally {
       setIsSavingNote(false);
     }
@@ -615,34 +544,17 @@ export default function HighlightableContent({
 
   const handleDeleteNote = async () => {
     if (!user || !editingNote) return;
-
     setIsSavingNote(true);
-
     try {
-      const { error } = await supabaseClient
-        .from("content_notes")
-        .delete()
-        .eq("id", editingNote.id)
-        .eq("user_id", user.id);
-
+      const { error } = await supabaseClient.from("content_notes").delete().eq("id", editingNote.id).eq("user_id", user.id);
       if (error) {
-        console.error("[DeleteNote] Error:", error);
-        setToast({ message: "Failed to delete note", type: "error" });
+        setToast({ message: "Couldn't delete the note.", type: "error" });
         return;
       }
-
-      // Remove from local state
       setNotes((prev) => prev.filter((n) => n.id !== editingNote.id));
-
-      console.log("[DeleteNote] Deleted successfully");
-      setToast({ message: "Note deleted", type: "success" });
-
-      // Close editor
+      setToast({ message: "Note deleted.", type: "success" });
       setShowNoteEditor(false);
       setEditingNote(null);
-    } catch (error) {
-      console.error(error);
-      setToast({ message: "Failed to delete note", type: "error" });
     } finally {
       setIsSavingNote(false);
     }
@@ -651,479 +563,241 @@ export default function HighlightableContent({
   const handleCancelNoteEditor = () => {
     setShowNoteEditor(false);
     setEditingNote(null);
-    window.getSelection()?.removeAllRanges();
-    setSelectedText("");
+    resetSelection();
   };
 
-  // Delete a highlight
   const handleDeleteHighlight = async (highlightId: string) => {
-    console.log("[Delete] Highlight ID:", highlightId);
     if (!user) return;
-
-    try {
-      const { error } = await supabaseClient
-        .from("content_notes")
-        .delete()
-        .eq("id", highlightId)
-        .eq("user_id", user.id);
-
-      if (error) {
-        console.error("[Delete] Error:", error);
-        setToast({ message: "Failed to delete highlight", type: "error" });
-        return;
-      }
-
-      // Remove from state
-      setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
-      console.log("[Delete] Highlight removed");
-    } catch (error) {
-      console.error(error);
-      setToast({ message: "Failed to delete highlight", type: "error" });
+    const { error } = await supabaseClient.from("content_notes").delete().eq("id", highlightId).eq("user_id", user.id);
+    if (error) {
+      setToast({ message: "Couldn't remove the highlight.", type: "error" });
+      return;
     }
+    setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
   };
 
-  // Apply highlights and notes to HTML content - DOM-based approach to avoid breaking HTML tags
+  /* ---------------- apply highlights + notes to the HTML (text nodes only, chrome skipped) */
   const applyHighlightsAndNotes = (html: string): string => {
-    if (highlights.length === 0 && notes.length === 0) return html;
-
-    console.log("[ApplyHighlights] Total highlights:", highlights.length, "notes:", notes.length);
-
-    // Color map - vibrant colors for dark mode, softer colors for light mode
-    const colorMap: Record<string, string> = {
-      yellow: 'bg-yellow-100 dark:bg-yellow-400/40 hover:bg-yellow-200 dark:hover:bg-yellow-400/50',
-      green: 'bg-green-100 dark:bg-green-400/40 hover:bg-green-200 dark:hover:bg-green-400/50',
-      blue: 'bg-blue-100 dark:bg-blue-400/40 hover:bg-blue-200 dark:hover:bg-blue-400/50',
-      pink: 'bg-pink-100 dark:bg-pink-400/40 hover:bg-pink-200 dark:hover:bg-pink-400/50',
-      purple: 'bg-purple-100 dark:bg-purple-400/40 hover:bg-purple-200 dark:hover:bg-purple-400/50',
-      red: 'bg-red-100 dark:bg-red-400/40 hover:bg-red-200 dark:hover:bg-red-400/50',
-    };
-
-    // Note-specific color map with border to distinguish from highlights
-    const noteColorMap: Record<string, string> = {
-      yellow: 'bg-yellow-100 dark:bg-yellow-400/40 hover:bg-yellow-200 dark:hover:bg-yellow-400/50 border-b-2 border-yellow-500 dark:border-yellow-400',
-      green: 'bg-green-100 dark:bg-green-400/40 hover:bg-green-200 dark:hover:bg-green-400/50 border-b-2 border-green-500 dark:border-green-400',
-      blue: 'bg-blue-100 dark:bg-blue-400/40 hover:bg-blue-200 dark:hover:bg-blue-400/50 border-b-2 border-blue-500 dark:border-blue-400',
-      pink: 'bg-pink-100 dark:bg-pink-400/40 hover:bg-pink-200 dark:hover:bg-pink-400/50 border-b-2 border-pink-500 dark:border-pink-400',
-      purple: 'bg-purple-100 dark:bg-purple-400/40 hover:bg-purple-200 dark:hover:bg-purple-400/50 border-b-2 border-purple-500 dark:border-purple-400',
-      red: 'bg-red-100 dark:bg-red-400/40 hover:bg-red-200 dark:hover:bg-red-400/50 border-b-2 border-red-500 dark:border-red-400',
-    };
-
-    // Create a temporary DOM element to parse HTML
-    const tempDiv = document.createElement('div');
+    if ((highlights.length === 0 && notes.length === 0) || typeof document === "undefined") return html;
+    const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
-    const plainText = tempDiv.textContent || '';
+    const plainText = contentText(tempDiv);
 
-    // Group highlights by text and determine which occurrence each one is
-    const highlightsByText = new Map<string, Array<Highlight & { occurrenceIndex: number; isNote?: boolean; noteId?: string }>>();
-
-    // Process regular highlights
-    for (const h of highlights) {
-      if (!highlightsByText.has(h.highlight_text)) {
-        highlightsByText.set(h.highlight_text, []);
+    type Item = { id: string; color: string; isNote: boolean };
+    const byText = new Map<string, Map<number, Item>>();
+    const occurrenceAt = (needle: string, offset: number | null) => {
+      if (offset === null) return 0;
+      const re = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      let i = 0;
+      for (let m = re.exec(plainText); m; m = re.exec(plainText)) {
+        if (m.index <= offset && offset < m.index + needle.length) return i;
+        if (m.index > offset) return i; // content moved: nearest following occurrence
+        i++;
+        if (m[0].length === 0) re.lastIndex++;
       }
+      return 0;
+    };
+    const add = (t: string, offset: number | null, item: Item) => {
+      if (!t) return;
+      if (!byText.has(t)) byText.set(t, new Map());
+      byText.get(t)!.set(occurrenceAt(t, offset), item);
+    };
+    highlights.forEach((h) => add(h.highlight_text, h.highlight_offset, { id: h.id, color: h.color, isNote: false }));
+    notes.forEach((n) => add(n.highlight_text, n.highlight_offset, { id: n.id, color: n.color, isNote: true }));
 
-      // Find which occurrence this highlight is
-      let occurrenceIndex = 0;
-      if (h.highlight_offset !== null) {
-        // Count how many occurrences appear before this offset in plain text
-        const escapedText = h.highlight_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedText, 'gi'); // case insensitive
-        let match;
-        let index = 0;
-        let foundOccurrence = 0;
-
-        while ((match = regex.exec(plainText)) !== null) {
-          const matchStart = match.index;
-          const matchEnd = match.index + h.highlight_text.length;
-
-          // Check if this match contains our offset
-          if (matchStart <= h.highlight_offset && h.highlight_offset < matchEnd) {
-            foundOccurrence = index;
-            break;
-          }
-          index++;
-        }
-
-        occurrenceIndex = foundOccurrence;
-        console.log(`[ApplyHighlights] Text "${h.highlight_text.substring(0, 20)}..." at offset ${h.highlight_offset} is occurrence #${occurrenceIndex}`);
-      } else {
-        console.log(`[ApplyHighlights] Text "${h.highlight_text.substring(0, 20)}..." has no offset, defaulting to occurrence #0`);
-      }
-
-      highlightsByText.get(h.highlight_text)!.push({ ...h, occurrenceIndex, isNote: false });
+    for (const [needle, occurrences] of byText.entries()) {
+      highlightTextInNode(tempDiv, needle, occurrences, { count: 0 });
     }
-
-    // Process notes (they have underline border to distinguish)
-    for (const note of notes) {
-      if (!highlightsByText.has(note.highlight_text)) {
-        highlightsByText.set(note.highlight_text, []);
-      }
-
-      // Find which occurrence this note is
-      let occurrenceIndex = 0;
-      if (note.highlight_offset !== null) {
-        const escapedText = note.highlight_text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const regex = new RegExp(escapedText, 'gi');
-        let match;
-        let index = 0;
-        let foundOccurrence = 0;
-
-        while ((match = regex.exec(plainText)) !== null) {
-          const matchStart = match.index;
-          const matchEnd = match.index + note.highlight_text.length;
-
-          if (matchStart <= note.highlight_offset && note.highlight_offset < matchEnd) {
-            foundOccurrence = index;
-            break;
-          }
-          index++;
-        }
-
-        occurrenceIndex = foundOccurrence;
-        console.log(`[ApplyNotes] Note "${note.highlight_text.substring(0, 20)}..." at offset ${note.highlight_offset} is occurrence #${occurrenceIndex}`);
-      } else {
-        console.log(`[ApplyNotes] Note "${note.highlight_text.substring(0, 20)}..." has no offset, defaulting to occurrence #0`);
-      }
-
-      highlightsByText.get(note.highlight_text)!.push({
-        ...note,
-        occurrenceIndex,
-        isNote: true,
-        noteId: note.id,
-      });
-    }
-
-    console.log("[ApplyHighlights] Unique texts:", highlightsByText.size);
-
-    // Process each unique text using DOM traversal to avoid breaking HTML
-    for (const [text, textHighlights] of highlightsByText.entries()) {
-      // Track which occurrences to highlight
-      const occurrencesToHighlight = new Map<number, { id: string; color: string; isNote?: boolean; noteId?: string }>();
-
-      for (const h of textHighlights) {
-        occurrencesToHighlight.set(h.occurrenceIndex, {
-          id: h.id,
-          color: h.color,
-          isNote: h.isNote,
-          noteId: h.noteId,
-        });
-      }
-
-      // Walk through all text nodes and apply highlights
-      highlightTextInNode(tempDiv, text, occurrencesToHighlight, colorMap, noteColorMap);
-    }
-
     return tempDiv.innerHTML;
   };
 
-  // Helper function to highlight text only in text nodes (not in HTML tags/attributes)
-  const highlightTextInNode = (
-    node: Node,
-    searchText: string,
-    occurrencesToHighlight: Map<number, { id: string; color: string; isNote?: boolean; noteId?: string }>,
-    colorMap: Record<string, string>,
-    noteColorMap: Record<string, string>,
-    currentOccurrence = { count: 0 }
-  ) => {
+  const highlightTextInNode = (node: Node, needle: string, occurrences: Map<number, { id: string; color: string; isNote: boolean }>, seen: { count: number }) => {
     if (node.nodeType === Node.TEXT_NODE) {
-      const textContent = node.textContent || '';
-      const regex = new RegExp(searchText.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi');
-      const matches = [...textContent.matchAll(regex)];
-
-      if (matches.length === 0) return;
-
-      // Build new HTML with highlights
-      let lastIndex = 0;
-      let newHTML = '';
-
-      for (const match of matches) {
-        const matchIndex = match.index!;
-        const matchText = match[0];
-        const beforeText = textContent.substring(lastIndex, matchIndex);
-
-        newHTML += beforeText;
-
-        // Check if this occurrence should be highlighted
-        if (occurrencesToHighlight.has(currentOccurrence.count)) {
-          const item = occurrencesToHighlight.get(currentOccurrence.count)!;
-          const { id, color, isNote, noteId } = item;
-
-          if (isNote) {
-            // Notes have special styling with underline border
-            const bgClass = noteColorMap[color] || noteColorMap.blue;
-            console.log(`[HighlightText] Highlighting note occurrence ${currentOccurrence.count} of "${searchText.substring(0, 20)}..." with ${color}`);
-            newHTML += `<mark class="${bgClass} rounded px-1 cursor-pointer transition-colors" data-note-id="${noteId}" title="Click to view/edit note">📝 ${matchText}</mark>`;
-          } else {
-            // Regular highlights
-            const bgClass = colorMap[color] || colorMap.yellow;
-            console.log(`[HighlightText] Highlighting occurrence ${currentOccurrence.count} of "${searchText.substring(0, 20)}..." with ${color}`);
-            newHTML += `<mark class="${bgClass} rounded px-1 cursor-pointer transition-colors" data-highlight-id="${id}" title="Click to remove highlight">${matchText}</mark>`;
-          }
-        } else {
-          newHTML += matchText;
-        }
-
-        currentOccurrence.count++;
-        lastIndex = matchIndex + matchText.length;
+      const value = node.textContent || "";
+      const re = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      const matches = [...value.matchAll(re)];
+      if (!matches.length) return;
+      let last = 0;
+      let out = "";
+      let changed = false;
+      for (const m of matches) {
+        const at = m.index ?? 0;
+        out += escapeHtml(value.slice(last, at));
+        const item = occurrences.get(seen.count);
+        if (item) {
+          changed = true;
+          const hl = displayHighlightColor(item.color);
+          out += item.isNote
+            ? `<mark class="sd-mark" data-hl="${hl}" data-note-id="${escapeHtml(item.id)}" title="Open note">${escapeHtml(m[0])}</mark>`
+            : `<mark class="sd-mark" data-hl="${hl}" data-highlight-id="${escapeHtml(item.id)}" title="Click to remove highlight">${escapeHtml(m[0])}</mark>`;
+        } else out += escapeHtml(m[0]);
+        seen.count++;
+        last = at + m[0].length;
       }
-
-      newHTML += textContent.substring(lastIndex);
-
-      // Replace the text node with a span containing the new HTML
-      if (newHTML !== textContent) {
-        const span = document.createElement('span');
-        span.innerHTML = newHTML;
-        node.parentNode?.replaceChild(span, node);
+      out += escapeHtml(value.slice(last));
+      if (changed) {
+        const span = document.createElement("span");
+        span.innerHTML = out;
+        const frag = document.createDocumentFragment();
+        while (span.firstChild) frag.appendChild(span.firstChild);
+        node.parentNode?.replaceChild(frag, node);
       }
-    } else if (node.nodeType === Node.ELEMENT_NODE) {
-      // Skip script, style, and mark tags
-      const tagName = (node as Element).tagName?.toLowerCase();
-      if (tagName === 'script' || tagName === 'style' || tagName === 'mark') {
-        return;
-      }
-
-      // Process child nodes
-      const children = Array.from(node.childNodes);
-      for (const child of children) {
-        highlightTextInNode(child, searchText, occurrencesToHighlight, colorMap, noteColorMap, currentOccurrence);
-      }
+      return;
+    }
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const el = node as Element;
+      const tag = el.tagName.toLowerCase();
+      if (tag === "script" || tag === "style" || tag === "mark" || el.hasAttribute("data-sd-chrome")) return;
+      Array.from(node.childNodes).forEach((c) => highlightTextInNode(c, needle, occurrences, seen));
     }
   };
 
   const highlightedContent = applyHighlightsAndNotes(htmlContent);
 
-  // Scroll to bookmarked text when navigating from bookmarks page
+  /* ---------------- scroll to a bookmarked / noted offset */
   useEffect(() => {
     if (bookmarkScrollTarget === null || !contentRef.current) return;
-
-    // Wait for content to render
-    const timer = setTimeout(() => {
-      if (!contentRef.current) return;
-
-      const plainText = contentRef.current.textContent || '';
-      console.log("[BookmarkScroll] Looking for offset:", bookmarkScrollTarget);
-
-      // Find the text node at the given offset
-      let currentOffset = 0;
-      let foundNode: Node | null = null;
-      let targetNodeOffset = 0;
-
-      const findNodeAtOffset = (node: Node): boolean => {
-        if (node.nodeType === Node.TEXT_NODE) {
-          const textLength = (node.textContent || '').length;
-          if (currentOffset + textLength > bookmarkScrollTarget) {
-            foundNode = node;
-            targetNodeOffset = bookmarkScrollTarget - currentOffset;
-            return true;
-          }
-          currentOffset += textLength;
-        } else if (node.nodeType === Node.ELEMENT_NODE) {
-          const tagName = (node as Element).tagName?.toLowerCase();
-          if (tagName === 'script' || tagName === 'style') return false;
-
-          for (const child of Array.from(node.childNodes)) {
-            if (findNodeAtOffset(child)) return true;
-          }
+    const timer = window.setTimeout(() => {
+      const root = contentRef.current;
+      if (!root) return;
+      const w = textWalker(root);
+      let acc = 0;
+      let found: Node | null = null;
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        const len = (n.nodeValue || "").length;
+        if (acc + len > bookmarkScrollTarget) {
+          found = n;
+          break;
         }
-        return false;
-      };
-
-      findNodeAtOffset(contentRef.current);
-
-      const targetNode = foundNode as (Node & { parentElement: HTMLElement | null }) | null;
-      if (targetNode?.parentElement) {
-        console.log("[BookmarkScroll] Found target node at offset:", targetNodeOffset);
-
-        // Find the parent element to scroll to
-        let scrollTarget: HTMLElement | null = targetNode.parentElement;
-        while (scrollTarget && scrollTarget.tagName === 'SPAN') {
-          scrollTarget = scrollTarget.parentElement;
-        }
-
-        if (scrollTarget) {
-          // Scroll with smooth behavior and add temporary highlight
-          scrollTarget.scrollIntoView({ behavior: 'smooth', block: 'center' });
-
-          // Add temporary highlight animation
-          const originalBg = scrollTarget.style.background;
-          const originalTransition = scrollTarget.style.transition;
-
-          scrollTarget.style.transition = 'background 0.3s ease-in-out';
-          scrollTarget.style.background = 'rgba(59, 130, 246, 0.3)'; // Blue highlight
-
-          // Fade out after 3 seconds
-          setTimeout(() => {
-            if (scrollTarget) {
-              scrollTarget.style.background = originalBg;
-              setTimeout(() => {
-                if (scrollTarget) {
-                  scrollTarget.style.transition = originalTransition;
-                }
-              }, 300);
-            }
-          }, 3000);
-
-          console.log("[BookmarkScroll] Scrolled to bookmarked text");
-        }
+        acc += len;
       }
-
-      // Clear the bookmark target
+      let target: HTMLElement | null = found?.parentElement || null;
+      while (target && (target.tagName === "SPAN" || target.tagName === "MARK" || target.tagName === "STRONG" || target.tagName === "EM")) target = target.parentElement;
+      if (target) {
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        const prevOutline = target.style.outline;
+        target.style.outline = "1px solid var(--c-signal)";
+        target.style.outlineOffset = "4px";
+        window.setTimeout(() => {
+          target.style.outline = prevOutline;
+          target.style.outlineOffset = "";
+        }, 3000);
+      }
       setBookmarkScrollTarget(null);
-
-      // Clear the hash from URL
-      window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    }, 500); // Wait for DOM to be ready
-
-    return () => clearTimeout(timer);
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+    }, 500);
+    return () => window.clearTimeout(timer);
   }, [bookmarkScrollTarget]);
 
   return (
     <>
-      {/* Progress Tracker */}
-      <LessonProgressTracker
-        courseId={courseId}
-        week={week}
-        lessonSlug={lessonSlug}
-        contentRef={contentRef}
-      />
+      <LessonProgressTracker courseId={courseId} week={week} lessonSlug={lessonSlug} contentRef={contentRef} />
+
+      {!seen && (
+        <div role="note" data-sd-chrome="" className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 border border-signal bg-surface py-3 pl-4 pr-3 animate-hk-in">
+          <span aria-hidden="true" className="font-mono text-lg text-signal-text">
+            ↑
+          </span>
+          <span className="flex min-w-0 flex-[1_1_260px] flex-col gap-0.5">
+            <span className="text-[15px] font-semibold text-fg">Select or long-press any text</span>
+            <span className="text-[13px] leading-relaxed text-fg-2">
+              Highlight, note or bookmark it. Keyboard: Shift + arrows to select, then{" "}
+              <kbd className="border border-line-strong px-1 font-mono text-[12px]">H</kbd> <kbd className="border border-line-strong px-1 font-mono text-[12px]">N</kbd>{" "}
+              <kbd className="border border-line-strong px-1 font-mono text-[12px]">B</kbd> (or Shift+F10 for the toolbar). Everything lands in your notebook.
+            </span>
+          </span>
+          <button type="button" onClick={markCoachSeen} className="min-h-[44px] bg-fg px-4 text-sm font-semibold text-bg hover:bg-fg-2">
+            Got it
+          </button>
+        </div>
+      )}
 
       <div ref={contentRef} className="relative">
-        <MarkdownContent htmlContent={highlightedContent} />
-        {menuPosition && selectedText && (
-          <TextSelectionMenu
-            selectedText={selectedText}
-            position={menuPosition}
-            onHighlight={handleHighlight}
-            onBookmark={handleBookmark}
-            onNote={handleNote}
-            onClose={() => {
-              console.log("[Menu] Closing menu");
-              setMenuPosition(null);
-              setSelectedText("");
-              setMenuOpen(false);
-              window.getSelection()?.removeAllRanges();
-            }}
-          />
-        )}
+        <MarkdownContent htmlContent={highlightedContent} className={className} />
       </div>
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => setToast(null)}
+
+      {menu && selectedText && (
+        <TextSelectionMenu
+          selectedText={selectedText}
+          position={{ x: menu.x, y: menu.y }}
+          placement={menu.placement}
+          autoFocus={menu.autoFocus}
+          onHighlight={handleHighlight}
+          onBookmark={handleBookmark}
+          onNote={handleNote}
+          onClose={closeMenu}
         />
       )}
+
+      {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
-        title="Remove Highlight"
-        message="Are you sure you want to remove this highlight? This action cannot be undone."
+        title="Remove highlight"
+        message="Remove this highlight? This can't be undone."
         confirmText="Remove"
         cancelText="Cancel"
         onConfirm={() => {
-          if (confirmDialog.highlightId) {
-            handleDeleteHighlight(confirmDialog.highlightId);
-          }
+          if (confirmDialog.highlightId) void handleDeleteHighlight(confirmDialog.highlightId);
           setConfirmDialog({ isOpen: false, highlightId: null });
         }}
         onCancel={() => setConfirmDialog({ isOpen: false, highlightId: null })}
       />
 
-      {/* Bookmark Dialog */}
       {showBookmarkDialog && (
-        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-xl shadow-2xl max-w-md w-full border border-black/10 dark:border-white/10">
-            {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-black/10 dark:border-white/10">
-              <h3 className="text-xl font-bold text-gray-900 dark:text-white">
-                Add Bookmark
+        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/75 sm:items-center sm:p-4" onMouseDown={(e) => e.target === e.currentTarget && handleCancelBookmarkDialog()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="bookmark-dialog-h" className="w-full max-w-md animate-hk-in border border-line-strong bg-surface">
+            <div className="flex items-center justify-between border-b border-line px-5 py-4">
+              <h3 id="bookmark-dialog-h" className="font-display text-xl font-bold tracking-[-0.02em] text-fg">
+                Add bookmark
               </h3>
-              <button
-                onClick={handleCancelBookmarkDialog}
-                className="p-1 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors"
-                aria-label="Close"
-              >
-                <span className="text-gray-500 dark:text-white/60 text-2xl leading-none">&times;</span>
+              <button type="button" onClick={handleCancelBookmarkDialog} className="grid h-11 w-11 place-items-center text-fg-3 hover:text-fg" aria-label="Close">
+                ✕
               </button>
             </div>
-
-            {/* Content */}
-            <div className="p-6 space-y-4">
-              {/* Bookmarked Text Preview */}
+            <div className="flex flex-col gap-4 px-5 py-4">
               {selectedTextRef.current && (
-                <div className="text-sm text-gray-500 dark:text-white/60">
-                  Bookmarking: <span className="font-medium text-gray-900 dark:text-white italic">"{selectedTextRef.current.slice(0, 100)}{selectedTextRef.current.length > 100 ? "..." : ""}"</span>
-                </div>
+                <p className="border-l-2 border-signal pl-3 text-sm leading-relaxed text-fg-2">
+                  {selectedTextRef.current.slice(0, 140)}
+                  {selectedTextRef.current.length > 140 ? "…" : ""}
+                </p>
               )}
-
-              {/* Lesson Title Info */}
-              {lessonTitle && (
-                <div className="text-xs text-gray-400 dark:text-white/50">
-                  From: {lessonTitle}
-                </div>
-              )}
-
-              {/* Custom Title Input */}
-              <div>
-                <label
-                  htmlFor="bookmark-custom-title"
-                  className="block text-sm font-medium text-gray-700 dark:text-white/80 mb-2"
-                >
-                  Custom Name (Optional)
-                </label>
+              {lessonTitle && <p className="font-mono text-xs uppercase tracking-label text-fg-3">From · {lessonTitle}</p>}
+              <label className="flex flex-col gap-1.5 text-sm text-fg-2" htmlFor="bookmark-custom-title">
+                Name (optional)
                 <input
                   id="bookmark-custom-title"
                   type="text"
                   value={bookmarkCustomTitle}
                   onChange={(e) => setBookmarkCustomTitle(e.target.value)}
-                  placeholder="Leave empty to use selected text"
-                  className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-white/20 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                  placeholder="Defaults to the selected text"
+                  className="min-h-[44px] border border-line-strong bg-bg px-3 text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
                 />
-                <p className="mt-1 text-xs text-gray-500 dark:text-white/50">
-                  Give this bookmark a custom name to help you remember it
-                </p>
-              </div>
-
-              {/* Note Input */}
-              <div>
-                <label
-                  htmlFor="bookmark-note-text"
-                  className="block text-sm font-medium text-gray-700 dark:text-white/80 mb-2"
-                >
-                  Note (Optional)
-                </label>
+              </label>
+              <label className="flex flex-col gap-1.5 text-sm text-fg-2" htmlFor="bookmark-note-text">
+                Note (optional)
                 <textarea
                   id="bookmark-note-text"
                   value={bookmarkNote}
                   onChange={(e) => setBookmarkNote(e.target.value)}
-                  placeholder="Add a note about why you bookmarked this..."
+                  placeholder="Why this matters"
                   rows={3}
-                  className="w-full px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-white/20 rounded-lg text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 resize-none"
+                  className="resize-none border border-line-strong bg-bg px-3 py-2 text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
                 />
-              </div>
+              </label>
             </div>
-
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-6 border-t border-black/10 dark:border-white/10">
-              <button
-                onClick={handleCancelBookmarkDialog}
-                disabled={isSavingBookmark}
-                className="px-4 py-2 text-gray-700 dark:text-white/70 hover:bg-black/5 dark:hover:bg-white/5 rounded-lg transition-colors disabled:opacity-50"
-              >
+            <div className="flex items-center justify-end gap-2 border-t border-line px-5 py-4">
+              <button type="button" onClick={handleCancelBookmarkDialog} disabled={isSavingBookmark} className="min-h-[44px] border border-line-strong px-4 text-sm text-fg hover:border-fg-3 disabled:opacity-50">
                 Cancel
               </button>
-              <button
-                onClick={handleSaveBookmark}
-                disabled={isSavingBookmark}
-                className="px-6 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSavingBookmark ? "Saving..." : "Save Bookmark"}
+              <button type="button" onClick={handleSaveBookmark} disabled={isSavingBookmark} className="min-h-[44px] bg-signal px-4 text-sm font-semibold text-on-signal disabled:opacity-50">
+                {isSavingBookmark ? "Saving…" : "Save bookmark"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Note Editor */}
       <NoteEditor
         isOpen={showNoteEditor}
         selectedText={selectedTextRef.current || selectedText}

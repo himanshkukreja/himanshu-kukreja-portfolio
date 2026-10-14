@@ -1,0 +1,411 @@
+/* Story reader ("case file") — rendered markdown, scoped to the stories reader only. */
+
+.prose {
+  --reader-p: 19px;
+  font-size: var(--reader-p);
+  line-height: 1.75;
+  color: var(--c-fg-2);
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 639px) {
+  .prose {
+    --reader-p: 17px;
+    line-height: 1.7;
+  }
+}
+
+.prose > :global(div) > :first-child {
+  margin-top: 0;
+}
+
+.prose :global(h1),
+.prose :global(h2),
+.prose :global(h3),
+.prose :global(h4),
+.prose :global(h5),
+.prose :global(h6) {
+  color: var(--c-fg);
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  scroll-margin-top: calc(var(--reader-top, 120px) + 16px);
+  text-wrap: balance;
+}
+
+.prose :global(h1) {
+  margin: 2.5rem 0 1rem;
+  font-size: clamp(32px, 4vw, 44px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+}
+
+.prose :global(h2) {
+  margin: 3rem 0 1rem;
+  font-size: clamp(26px, 3vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+
+.prose :global(h3) {
+  margin: 2rem 0 0.75rem;
+  font-size: clamp(21px, 2.2vw, 24px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+.prose :global(h4),
+.prose :global(h5),
+.prose :global(h6) {
+  margin: 1.5rem 0 0.5rem;
+  font-size: 19px;
+  font-weight: 700;
+}
+
+.prose :global(p) {
+  margin: 1.1rem 0;
+}
+
+.prose :global(strong) {
+  color: var(--c-fg);
+  font-weight: 600;
+}
+
+.prose :global(em) {
+  color: var(--c-fg);
+}
+
+.prose :global(a) {
+  color: var(--c-signal-text);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+
+.prose :global(a:hover) {
+  text-decoration-thickness: 2px;
+}
+
+.prose :global(ul),
+.prose :global(ol) {
+  margin: 1.1rem 0;
+  padding-left: 1.4em;
+}
+
+.prose :global(ul) {
+  list-style: square;
+}
+
+.prose :global(ol) {
+  list-style: decimal;
+}
+
+.prose :global(li) {
+  margin: 0.4rem 0;
+  padding-left: 0.2em;
+}
+
+.prose :global(li::marker) {
+  color: var(--c-signal-text);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.85em;
+}
+
+.prose :global(li > ul),
+.prose :global(li > ol) {
+  margin: 0.4rem 0;
+}
+
+.prose :global(blockquote) {
+  margin: 1.5rem 0;
+  padding: 16px 20px;
+  border: 1px solid var(--c-line);
+  border-left: 2px solid var(--c-signal);
+  background: var(--c-surface);
+  color: var(--c-fg);
+}
+
+.prose :global(blockquote > :first-child) {
+  margin-top: 0;
+}
+
+.prose :global(blockquote > :last-child) {
+  margin-bottom: 0;
+}
+
+.prose :global(code) {
+  font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.84em;
+  padding: 0.1em 0.35em;
+  background: var(--c-surface-2);
+  border: 1px solid var(--c-line);
+  color: var(--c-fg);
+}
+
+.prose :global(pre) {
+  margin: 1.5rem 0;
+  padding: 20px;
+  overflow-x: auto;
+  background: var(--c-surface);
+  border: 1px solid var(--c-line);
+  color: var(--c-fg-2);
+  font-family: var(--font-geist-mono), ui-monospace, "Cascadia Code", Menlo, monospace;
+  font-size: 14px;
+  line-height: 1.6;
+  white-space: pre;
+  tab-size: 4;
+  font-variant-ligatures: none;
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-line-strong) transparent;
+}
+
+.prose :global(pre code) {
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: inherit;
+  color: inherit;
+  white-space: pre;
+  min-width: max-content;
+}
+
+@media (max-width: 639px) {
+  .prose :global(pre) {
+    padding: 14px;
+    font-size: 12.5px;
+    margin-left: -16px;
+    margin-right: -16px;
+    border-left: 0;
+    border-right: 0;
+  }
+}
+
+.prose :global(table) {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  border-collapse: collapse;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.prose :global(th),
+.prose :global(td) {
+  padding: 10px 14px;
+  border: 1px solid var(--c-line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.prose :global(thead th) {
+  background: var(--c-surface);
+  color: var(--c-fg-3);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.prose :global(hr) {
+  margin: 2.5rem 0;
+  border: 0;
+  border-top: 1px solid var(--c-line);
+}
+
+.prose :global(img) {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 1.5rem auto;
+  border: 1px solid var(--c-line);
+}
+
+.prose :global(mark) {
+  background: rgba(255, 107, 43, 0.28);
+  color: var(--c-fg);
+  box-shadow: inset 0 -2px 0 var(--c-signal);
+}
+
+/* ReadAloud sentence highlight: retint to the signal colour (its styles are inline). */
+.prose :global(.reading-highlight) {
+  background: rgba(255, 107, 43, 0.28) !important;
+  box-shadow: inset 0 -2px 0 var(--c-signal) !important;
+  border-radius: 0 !important;
+  padding: 2px 0 !important;
+}
+
+/* The replay card injected mid-story. */
+.prose :global([data-case-inline]) {
+  margin: 2rem 0;
+}
+
+.prose :global([data-case-inline] a) {
+  text-decoration: none;
+}
+
+/* Read-aloud equaliser bars in the toolbar button. */
+.eq {
+  animation: eq 0.8s ease-in-out infinite;
+}
+
+@keyframes eq {
+  0%,
+  100% {
+    transform: scaleY(0.3);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+/* ---------- ReadAloud floating controls, restyled from the outside ---------- */
+
+.dock :global(.fixed) {
+  right: 16px !important;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px) !important;
+}
+
+@media (min-width: 1024px) {
+  .dock :global(.fixed) {
+    right: 24px !important;
+    bottom: 24px !important;
+  }
+}
+
+.dock :global(.rounded),
+.dock :global(.rounded-full),
+.dock :global(.rounded-lg) {
+  border-radius: 0 !important;
+}
+
+.dock :global(.shadow-lg),
+.dock :global(.shadow-2xl) {
+  box-shadow: none !important;
+}
+
+.dock :global(button) {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.dock :global([class*="bg-white"]) {
+  background: var(--c-surface) !important;
+  border-color: var(--c-line-strong) !important;
+  color: var(--c-fg) !important;
+}
+
+.dock :global([class*="bg-blue-500"]),
+.dock :global([class*="bg-green-500"]),
+.dock :global([class*="bg-yellow-500"]) {
+  background: var(--c-signal) !important;
+  border-color: var(--c-signal) !important;
+  color: var(--c-on-signal) !important;
+  transform: none !important;
+}
+
+.dock :global([class*="bg-blue-500/10"]),
+.dock :global([class*="bg-green-500/10"]),
+.dock :global([class*="bg-purple-500/10"]) {
+  background: var(--c-surface-2) !important;
+  border: 1px solid var(--c-line-strong) !important;
+  color: var(--c-fg) !important;
+}
+
+.dock :global([class*="bg-blue-500"] svg),
+.dock :global([class*="bg-green-500"] svg),
+.dock :global([class*="bg-yellow-500"] svg) {
+  color: var(--c-on-signal) !important;
+}
+
+.dock :global(.text-red-500) {
+  color: var(--c-bad-text) !important;
+}
+
+.dock :global(.bg-green-500.animate-pulse),
+.dock :global(.w-1\.5.bg-green-500),
+.dock :global(.w-1\.5.bg-yellow-500) {
+  background: var(--c-signal) !important;
+}
+
+.dock :global(input[type="range"]) {
+  accent-color: var(--c-signal) !important;
+  border-radius: 0 !important;
+}
+
+.dock :global(select) {
+  border-radius: 0 !important;
+}
+
+.dock :global(h4),
+.dock :global(label) {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  color: var(--c-fg-3) !important;
+}
+
+/* ---------- Comments: CommentItem / RichTextEditor (shared with /learn), restyled from the outside ---------- */
+
+.comments :global(.rounded),
+.comments :global(.rounded-full),
+.comments :global(.rounded-lg),
+.comments :global(.rounded-xl) {
+  border-radius: 0 !important;
+}
+
+.comments :global(.shadow-md),
+.comments :global(.shadow-lg) {
+  box-shadow: none !important;
+}
+
+.comments :global([class*="bg-gradient-to"]) {
+  background-image: none !important;
+  background-color: var(--c-surface-2) !important;
+  color: var(--c-fg) !important;
+}
+
+.comments :global([class~="bg-blue-500"]),
+.comments :global([class~="bg-blue-600"]) {
+  background-color: var(--c-signal) !important;
+  color: var(--c-on-signal) !important;
+}
+
+.comments :global([class*="bg-blue-500/"]),
+.comments :global([class*="bg-green-500/"]) {
+  background-color: transparent !important;
+  border: 1px solid var(--c-line-strong);
+}
+
+.comments :global([class*="text-blue-"]) {
+  color: var(--c-signal-text) !important;
+}
+
+.comments :global([class*="text-green-"]) {
+  color: var(--c-ok) !important;
+}
+
+.comments :global([class*="bg-white"]) {
+  background-color: var(--c-surface) !important;
+}
+
+.comments :global([class*="border-black/10"]) {
+  border-color: var(--c-line) !important;
+}
+
+.comments :global(.prose) {
+  color: var(--c-fg-2);
+}
+
+.comments :global(.prose a) {
+  color: var(--c-signal-text) !important;
+}
+
+.comments :global(textarea),
+.comments :global([contenteditable="true"]) {
+  font-size: 16px;
+}

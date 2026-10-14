@@ -2,80 +2,155 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { BookOpen, ChevronDown, ChevronUp } from "lucide-react";
+import { useOptionalLessonProgress } from "@/components/LessonProgressTracker";
+import { useRailStatus } from "@/components/learn/lesson/useRailStatus";
+import { stageLine } from "@/components/learn/lesson/stageText";
+import type { RailData, RailEntry, RailWeek } from "@/components/learn/lesson/types";
 
-type WeekResource = {
-  slug: string;
-  title: string;
-  week: string;
-  day?: string;
-};
-
-type CollapsibleWeekNavProps = {
-  weekDisplayName: string;
-  weekResources: WeekResource[];
-  currentSlug: string;
+type Props = {
   course: string;
+  rail: RailData;
 };
 
-export default function CollapsibleWeekNav({
-  weekDisplayName,
-  weekResources,
-  currentSlug,
-  course,
-}: CollapsibleWeekNavProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+const MARK = "grid h-[22px] w-[22px] shrink-0 place-items-center text-[11px]";
+
+/**
+ * Left course path: the previous world's summary, this world's nodes with ticks, and the next
+ * world's first node — Next carries on across weeks. Collapsible below 1280px (trial page).
+ */
+export default function CollapsibleWeekNav({ course, rail }: Props) {
+  const [open, setOpen] = useState(false);
+  const weeks = [rail.prev?.week, rail.week.week, rail.next?.week].filter(Boolean) as string[];
+  const { status, trialPassed } = useRailStatus(course, weeks);
+  const lesson = useOptionalLessonProgress();
+
+  const weekDone = (w: RailWeek) => w.entries.filter((e) => e.kind !== "mcq" && status(e.week, e.slug) === "done").length;
+  const weekTotal = (w: RailWeek) => w.entries.filter((e) => e.kind !== "mcq").length;
+
+  const row = (e: RailEntry) => {
+    const st = status(e.week, e.slug);
+    let tone = "text-fg-3";
+    let mark = <span className={`${MARK} border border-dashed border-line-strong`} />;
+    let sub: string | null = null;
+
+    if (e.kind === "capstone") {
+      tone = "text-fg-2";
+      mark = (
+        <span className={MARK}>
+          <span className={`h-[13px] w-[13px] rotate-45 border-[1.5px] ${st === "done" ? "border-fg bg-fg" : "border-fg"}`} />
+        </span>
+      );
+      sub = st === "done" ? "boss defeated" : "timed phases";
+    } else if (e.kind === "mcq") {
+      tone = "text-fg-2";
+      mark = <span className={`${MARK} border border-signal font-mono text-signal-text`}>T</span>;
+      const passed = trialPassed(e.week);
+      sub = e.parts ? `${passed}/${e.parts} parts passed` : passed ? `${passed} parts passed` : "per-part trials";
+    } else if (st === "done") {
+      tone = "text-fg-2";
+      mark = <span className={`${MARK} bg-fg text-bg`}>✓</span>;
+      sub = "cleared";
+    } else if (st === "started") {
+      tone = "text-fg-2";
+      mark = <span className={`${MARK} border border-fg-3 text-[9px] text-fg-3`}>▶</span>;
+      sub = "in progress";
+    }
+
+    if (e.current) {
+      tone = "bg-surface-2 font-semibold text-fg";
+      const cleared = st === "done" || lesson?.completed;
+      mark = <span className={`${MARK} bg-signal text-on-signal ${cleared ? "" : "text-[9px]"}`}>{cleared ? "✓" : "▶"}</span>;
+      if (lesson) {
+        sub = lesson.completed
+          ? "cleared · you are here"
+          : `${stageLine(lesson)}${lesson.minutesLeft ? ` · ~${lesson.minutesLeft} min left` : ""}`;
+      } else {
+        sub = "you are here";
+      }
+    }
+
+    return (
+      <li key={`${e.week}/${e.slug}`}>
+        <Link
+          href={e.href}
+          aria-current={e.current ? "page" : undefined}
+          className={`flex min-h-12 items-center gap-2.5 px-2 py-1 text-sm ${tone} ${e.current ? "" : "hover:bg-surface hover:text-fg"}`}
+        >
+          {mark}
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="line-clamp-2 leading-snug">{e.label}</span>
+            {sub && <span className="truncate font-mono text-[11px] font-normal text-fg-3">{sub}</span>}
+          </span>
+        </Link>
+      </li>
+    );
+  };
+
+  const prev = rail.prev;
+  const next = rail.next;
+  const prevCleared = prev ? weekDone(prev) === weekTotal(prev) && weekTotal(prev) > 0 : false;
+  const nextFirst = next?.entries[0];
 
   return (
-    <div className="sticky top-24 bg-black/5 dark:bg-white/5 backdrop-blur-sm rounded-lg border border-black/10 dark:border-white/10 overflow-hidden">
-      {/* Header - Always visible, clickable on mobile */}
+    <nav
+      aria-label="Course path"
+      data-reader-ui
+      className="flex flex-col gap-1 xl:sticky xl:overflow-y-auto"
+      style={{
+        top: "calc(var(--reader-top, 61px) + var(--reader-rail, 90px) + 24px)",
+        maxHeight: "calc(100vh - var(--reader-top, 61px) - var(--reader-rail, 90px) - 48px)",
+      }}
+    >
       <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full p-4 flex items-center justify-between lg:cursor-default"
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        aria-expanded={open}
+        className="flex min-h-11 items-center justify-between border border-line px-3 font-mono text-xs uppercase tracking-label text-fg-2 xl:hidden"
       >
-        <h3 className="text-gray-900 dark:text-white font-semibold flex items-center gap-2 text-sm">
-          <BookOpen className="w-4 h-4" />
-          {weekDisplayName}
-        </h3>
-        {/* Toggle icon - only visible on mobile */}
-        <div className="lg:hidden">
-          {isExpanded ? (
-            <ChevronUp className="w-4 h-4 text-gray-500 dark:text-white/60" />
-          ) : (
-            <ChevronDown className="w-4 h-4 text-gray-500 dark:text-white/60" />
-          )}
-        </div>
+        <span>
+          {rail.week.label} · {rail.week.topic}
+        </span>
+        <span aria-hidden>{open ? "▴" : "▾"}</span>
       </button>
 
-      {/* Navigation links - Collapsible on mobile, always visible on desktop */}
-      <nav
-        className={`transition-all duration-300 ease-in-out overflow-hidden ${
-          isExpanded ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
-        } lg:max-h-none lg:opacity-100 lg:block`}
-      >
-        <div className="px-4 pb-4 space-y-1">
-          {weekResources.map((r) => (
-            <Link
-              key={r.slug}
-              href={`/learn/${course}/${r.week}/${r.slug}`}
-              className={`block px-3 py-2 rounded text-xs transition-all ${
-                r.slug === currentSlug
-                  ? "bg-blue-500/20 text-blue-400 font-medium"
-                  : "text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5"
-              }`}
-            >
-              <div className="flex items-center gap-2">
-                {r.day && (
-                  <span className="text-xs opacity-60">
-                    {r.day.replace("day-", "D")}
-                  </span>
-                )}
-                <span className="truncate">{r.title}</span>
-              </div>
+      <div className={`${open ? "flex" : "hidden"} flex-col gap-1 xl:flex`}>
+        {prev && (
+          <Link
+            href={`/learn/${course}`}
+            className="flex min-h-11 items-center gap-2.5 border border-line px-2 py-1 text-[13px] text-fg-3 hover:text-fg"
+          >
+            {prevCleared ? <span className={`${MARK} bg-fg text-bg`}>✓</span> : <span className={`${MARK} border border-dashed border-line-strong`} />}
+            <span className="flex min-w-0 flex-col">
+              <span className="font-mono text-[11px] tracking-label">
+                {prev.code} · {prevCleared ? "CLEARED" : `${weekDone(prev)}/${weekTotal(prev)}`}
+              </span>
+              <span className="truncate">{prev.topic}</span>
+            </span>
+          </Link>
+        )}
+
+        <span className="hidden px-0 pb-1.5 pt-4 font-mono text-xs uppercase tracking-label text-fg-3 xl:block">
+          {rail.week.label} · world
+        </span>
+        <ol className="m-0 flex list-none flex-col gap-0.5 p-0">{rail.week.entries.map(row)}</ol>
+
+        {next && nextFirst && (
+          <>
+            <span className="pb-1.5 pt-4 font-mono text-xs uppercase tracking-label text-fg-3">Next world ↓</span>
+            <Link href={nextFirst.href} className="flex min-h-12 items-center gap-2.5 border border-dashed border-line-strong px-2 py-1.5 text-[13px] text-fg-2 hover:text-fg">
+              <span aria-hidden className={`${MARK} border border-dashed border-line-strong`} />
+              <span className="flex min-w-0 flex-col">
+                <span className="font-mono text-[11px] tracking-label text-fg-3">
+                  {next.code} · {nextFirst.label.toUpperCase()}
+                </span>
+                <span className="truncate">{next.topic}</span>
+              </span>
             </Link>
-          ))}
-        </div>
-      </nav>
-    </div>
+            <span className="px-0.5 pt-2 text-xs leading-normal text-fg-4">Next carries on across worlds, no dead end after the trial.</span>
+          </>
+        )}
+      </div>
+    </nav>
   );
 }
+

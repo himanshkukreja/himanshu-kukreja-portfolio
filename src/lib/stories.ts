@@ -88,3 +88,16 @@ async function listStoryFiles(): Promise<string[]> {
   }
   return entries;
 }
+
+/** Raw markdown body (frontmatter stripped) — used by the story reader's rich renderer. */
+export async function getStoryMarkdown(slug: string): Promise<string | null> {
+  const files = await listStoryFiles();
+  const pathMod = await import("path");
+  for (const file of files) {
+    const raw = await readFile(file);
+    const { data, content } = await parseFrontmatter(raw);
+    const fmSlug = (data as Record<string, unknown>).slug as string | undefined;
+    if ((fmSlug || pathMod.basename(file, ".md")) === slug) return content;
+  }
+  return null;
+}

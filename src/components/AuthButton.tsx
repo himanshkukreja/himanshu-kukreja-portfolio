@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { UserCircle } from "lucide-react";
+import { LogIn } from "lucide-react";
 import AuthModal from "./AuthModal";
 import UserMenu from "./UserMenu";
 import { useAuth } from "@/contexts/AuthContext";
@@ -11,9 +11,7 @@ export default function AuthButton() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   if (loading) {
-    return (
-      <div className="w-8 h-8 rounded-full bg-black/10 dark:bg-white/10 animate-pulse" />
-    );
+    return <div className="h-10 w-10 animate-pulse bg-surface-2" aria-hidden />;
   }
 
   if (user) {
@@ -23,18 +21,16 @@ export default function AuthButton() {
   return (
     <>
       <button
+        type="button"
         onClick={() => setShowAuthModal(true)}
-        className="p-2 rounded-full border border-black/10 dark:border-white/10 bg-transparent hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 hover:text-gray-900 dark:hover:text-white transition-all"
+        className="grid h-10 w-10 place-items-center border border-line-strong text-fg hover:bg-surface-2"
         aria-label="Sign in"
         title="Sign in"
       >
-        <UserCircle className="w-5 h-5" />
+        <LogIn className="h-4 w-4" aria-hidden />
       </button>
 
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </>
   );
 }

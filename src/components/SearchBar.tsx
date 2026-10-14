@@ -1,333 +1,535 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+/**
+ * Course search (⌘K on /learn). Grouped results: lessons, interview questions, your notes.
+ * Data: the existing /api/search payload (loaded the first time the palette opens, not on mount)
+ * plus, for signed-in learners, their own content_notes.
+ *
+ * Variants: "nav" (learn sub-nav trigger), "bar" (full-width trigger), "floating" (legacy: the
+ * learn sub-nav owns search now, so it renders nothing). Only an instance with `hotkey` listens
+ * for ⌘K / Ctrl+K and for the `hk:course-search` window event.
+ */
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Search, X, FileText, Calendar, Award, Target, BookOpen, Loader2, Sparkles } from "lucide-react";
-import Fuse, { FuseResult } from "fuse.js";
+import { createPortal } from "react-dom";
+import { Search } from "lucide-react";
+import Fuse from "fuse.js";
 import type { LearningResource } from "@/lib/github";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabaseClient } from "@/lib/supabase-client";
 
-// Extended type with content for search
-type LearningResourceWithContent = LearningResource & {
-  content?: string;
-  excerpt?: string;
+type Doc = LearningResource & { content?: string; excerpt?: string };
+type Group = "lessons" | "questions" | "notes";
+type Hit = {
+  id: string;
+  group: Group;
+  badge: string;
+  title: string;
+  sub: string;
+  meta?: string;
+  href: string;
 };
 
-type SearchResult = FuseResult<LearningResourceWithContent>;
+const COURSE = "system-design-mastery";
+const RECENT_KEY = "hk.search.recent";
+export const COURSE_SEARCH_EVENT = "hk:course-search";
 
-type SearchBarProps = {
-  variant?: "bar" | "floating";
-};
+const pad = (n: number) => String(n).padStart(2, "0");
 
-export default function SearchBar({ variant = "bar" }: SearchBarProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
-  const [allResources, setAllResources] = useState<LearningResourceWithContent[]>([]);
-  const [selectedIndex, setSelectedIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const resultsRef = useRef<HTMLDivElement>(null);
+function weekNum(week: string) {
+  const m = week.match(/week-(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+
+function badgeFor(d: { week: string; slug: string; type?: string }) {
+  const n = weekNum(d.week);
+  const W = n === null ? "" : `W${pad(n)}`;
+  if (d.type === "bonus" || d.week === "bonus-problems") return `SQ-${pad(parseInt(d.slug.match(/bonus-(\d+)/)?.[1] || "0", 10))}`;
+  if (d.type === "overview" || d.week === "overview") return "PLAN";
+  if (d.type === "capstone" || d.slug.includes("capstone")) return `${W}·B`;
+  if (d.type === "week-preview" || d.slug.includes("preview")) return `${W}·PRE`;
+  if (d.type === "mcq" || d.slug.includes("mcq")) return `${W}·T`;
+  const part = d.slug.match(/part-(\d+)/)?.[1];
+  if (part) return `${W}·P${part}`;
+  const day = d.slug.match(/day-(\d+)/)?.[1];
+  if (day) return `${W}·D${parseInt(day, 10)}`;
+  return W || "—";
+}
+
+function topicFor(week: string) {
+  if (week === "overview") return "Course plan";
+  if (week === "bonus-problems") return "Side quests";
+  const m = week.match(/week-(\d+)-(.+)/);
+  if (!m) return week;
+  return `Week ${pad(parseInt(m[1], 10))} · ${m[2].replace(/-/g, " ").replace("tanency", "tenancy")}`;
+}
+
+function snippet(text: string, q: string, span = 70) {
+  if (!text) return "";
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return text.slice(0, span * 2).trim() + (text.length > span * 2 ? "…" : "");
+  const start = Math.max(0, i - span);
+  const end = Math.min(text.length, i + q.length + span);
+  return (start > 0 ? "…" : "") + text.slice(start, end).trim() + (end < text.length ? "…" : "");
+}
+
+/** Wraps case-insensitive matches of q in <mark>. */
+function Highlight({ text, q, soft }: { text: string; q: string; soft?: boolean }) {
+  const parts = useMemo(() => {
+    const t = q.trim();
+    if (!t) return [text];
+    const esc = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return text.split(new RegExp(`(${esc})`, "ig"));
+  }, [text, q]);
+  return (
+    <>
+      {parts.map((p, i) =>
+        i % 2 === 1 ? (
+          <mark
+            key={i}
+            className={soft ? "bg-transparent text-fg-2 shadow-[inset_0_-1px_0_var(--c-signal)]" : "bg-signal/25 text-fg shadow-[inset_0_-2px_0_var(--c-signal)]"}
+          >
+            {p}
+          </mark>
+        ) : (
+          <span key={i}>{p}</span>
+        )
+      )}
+    </>
+  );
+}
+
+type NoteRow = { id: string; week: string; lesson_slug: string; note_text: string | null; highlight_text: string | null; note_type: string; created_at: string; highlight_offset: number | null };
+
+function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const { user } = useAuth();
+  const [docs, setDocs] = useState<Doc[] | null>(null);
+  const [notes, setNotes] = useState<NoteRow[]>([]);
+  const [q, setQ] = useState("");
+  const [filter, setFilter] = useState<"all" | Group>("all");
+  const [sel, setSel] = useState(0);
+  const [recent, setRecent] = useState<string[]>([]);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
 
-  // Fuse.js configuration for fuzzy search
-  const fuseOptions = {
-    keys: [
-      { name: "title", weight: 3 }, // Highest priority
-      { name: "content", weight: 1 }, // Search through full content
-      { name: "week", weight: 0.8 },
-      { name: "type", weight: 0.3 },
-      { name: "day", weight: 0.3 },
-    ],
-    threshold: 0.4, // 0 = exact match, 1 = match anything
-    includeScore: true,
-    minMatchCharLength: 2,
-    ignoreLocation: true, // Don't consider position of match in content
-    findAllMatches: true, // Find all matches, not just the first one
-  };
-
-  // Fetch all resources on mount
   useEffect(() => {
-    const fetchResources = async () => {
-      try {
-        const response = await fetch("/api/search");
-        const data = await response.json();
-        setAllResources(data.results || []);
-      } catch (error) {
-        console.error("[SearchBar] Failed to fetch resources:", error);
-      }
-    };
-    fetchResources();
-  }, []);
-
-  // Perform fuzzy search
-  useEffect(() => {
-    if (!query.trim()) {
-      setResults([]);
-      setSelectedIndex(0);
-      return;
+    inputRef.current?.focus();
+    try {
+      setRecent(JSON.parse(window.localStorage.getItem(RECENT_KEY) || "[]").slice(0, 5));
+    } catch {
+      setRecent([]);
     }
-
-    const fuse = new Fuse(allResources, fuseOptions);
-    const searchResults = fuse.search(query);
-    setResults(searchResults.slice(0, 10)); // Limit to 10 results
-    setSelectedIndex(0);
-  }, [query, allResources]);
-
-  // Keyboard shortcuts: Cmd+K or Ctrl+K to open search
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setIsOpen(true);
-        setTimeout(() => inputRef.current?.focus(), 100);
-      }
-      if (e.key === "Escape") {
-        setIsOpen(false);
-        setQuery("");
-      }
+    let off = false;
+    fetch("/api/search")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!off) setDocs((d.results || []) as Doc[]);
+      })
+      .catch(() => {
+        if (!off) setDocs([]);
+      });
+    return () => {
+      off = true;
     };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
-  // Keyboard navigation in results
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
+  useEffect(() => {
+    if (!user) return;
+    let off = false;
+    supabaseClient
+      .from("content_notes")
+      .select("id, week, lesson_slug, note_text, highlight_text, note_type, created_at, highlight_offset")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(500)
+      .then(({ data }) => {
+        if (!off && data) setNotes(data as NoteRow[]);
+      });
+    return () => {
+      off = true;
+    };
+  }, [user]);
+
+  const titleOf = useMemo(() => {
+    const m = new Map<string, string>();
+    (docs || []).forEach((d) => m.set(`${d.week}/${d.slug}`, d.title));
+    return m;
+  }, [docs]);
+
+  const questions = useMemo(() => {
+    const out: { id: string; doc: Doc; n: string; text: string }[] = [];
+    (docs || []).forEach((d) => {
+      const re = /Question\s+(\d+)\s*[:.]\s*["“]([^"”]{8,220})["”]/g;
+      let m: RegExpExecArray | null;
+      const content = d.content || "";
+      while ((m = re.exec(content))) out.push({ id: `${d.week}/${d.slug}/q${m[1]}/${m.index}`, doc: d, n: m[1], text: m[2].trim() });
+    });
+    return out;
+  }, [docs]);
+
+  const fuse = useMemo(
+    () =>
+      docs
+        ? new Fuse(docs, {
+            keys: [
+              { name: "title", weight: 3 },
+              { name: "content", weight: 1 },
+              { name: "week", weight: 0.6 },
+            ],
+            threshold: 0.35,
+            ignoreLocation: true,
+            minMatchCharLength: 2,
+          })
+        : null,
+    [docs]
+  );
+
+  const { hits, ms } = useMemo(() => {
+    const t = q.trim();
+    if (!t || !docs) return { hits: [] as Hit[], ms: 0 };
+    const t0 = performance.now();
+    const lower = t.toLowerCase();
+    const lessonHits: Hit[] = (fuse?.search(t).slice(0, 8) || []).map(({ item: d }) => ({
+      id: `l:${d.week}/${d.slug}`,
+      group: "lessons",
+      badge: badgeFor(d),
+      title: d.title,
+      sub: snippet(d.content || d.excerpt || "", t, 60) || topicFor(d.week),
+      meta: topicFor(d.week),
+      href: `/learn/${COURSE}/${d.week}/${d.slug}?highlight=${encodeURIComponent(t)}`,
+    }));
+    const qHits: Hit[] = questions
+      .filter((x) => x.text.toLowerCase().includes(lower))
+      .slice(0, 6)
+      .map((x) => ({
+        id: `q:${x.id}`,
+        group: "questions",
+        badge: `Q ${x.n}`,
+        title: `“${x.text}”`,
+        sub: `${x.doc.title} · ${topicFor(x.doc.week)} · strong answer inside`,
+        href: `/learn/${COURSE}/${x.doc.week}/${x.doc.slug}?highlight=${encodeURIComponent(x.text.slice(0, 60))}`,
+      }));
+    const nHits: Hit[] = notes
+      .filter((n) => `${n.note_text || ""} ${n.highlight_text || ""}`.toLowerCase().includes(lower))
+      .slice(0, 6)
+      .map((n) => {
+        const isNote = !!(n.note_text && n.note_text.trim());
+        return {
+          id: `n:${n.id}`,
+          group: "notes",
+          badge: isNote ? "NOTE" : "HL",
+          title: (isNote ? n.note_text : n.highlight_text) || "",
+          sub: `${isNote ? "note" : "highlight"} · ${titleOf.get(`${n.week}/${n.lesson_slug}`) || n.lesson_slug} · ${new Date(n.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`,
+          href: `/learn/${COURSE}/${n.week}/${n.lesson_slug}${n.highlight_offset !== null ? `#note-${n.highlight_offset}` : ""}`,
+        };
+      });
+    return { hits: [...lessonHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
+  }, [q, docs, fuse, questions, notes, titleOf]);
+
+  const counts = useMemo(
+    () => ({
+      all: hits.length,
+      lessons: hits.filter((h) => h.group === "lessons").length,
+      questions: hits.filter((h) => h.group === "questions").length,
+      notes: hits.filter((h) => h.group === "notes").length,
+    }),
+    [hits]
+  );
+  const visible = filter === "all" ? hits : hits.filter((h) => h.group === filter);
+
+  useEffect(() => {
+    setSel(0);
+  }, [q, filter]);
+
+  useEffect(() => {
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-idx="${sel}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [sel]);
+
+  const remember = useCallback(() => {
+    const t = q.trim();
+    if (!t) return;
+    try {
+      const next = [t, ...recent.filter((r) => r.toLowerCase() !== t.toLowerCase())].slice(0, 5);
+      window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
+    }
+  }, [q, recent]);
+
+  const open = useCallback(
+    (h: Hit, newTab = false) => {
+      remember();
+      if (newTab) {
+        window.open(h.href, "_blank", "noopener");
+        return;
+      }
+      onClose();
+      router.push(h.href);
+    },
+    [remember, onClose, router]
+  );
+
+  const onKey = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev + 1) % results.length);
+      onClose();
+    } else if (e.key === "ArrowDown") {
+      e.preventDefault();
+      if (visible.length) setSel((s) => (s + 1) % visible.length);
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
-      setSelectedIndex((prev) => (prev - 1 + results.length) % results.length);
-    } else if (e.key === "Enter" && results.length > 0) {
+      if (visible.length) setSel((s) => (s - 1 + visible.length) % visible.length);
+    } else if (e.key === "Enter" && visible[sel]) {
       e.preventDefault();
-      navigateToResult(results[selectedIndex].item);
+      open(visible[sel], e.metaKey || e.ctrlKey);
+    } else if (e.key === "Tab" && visible.length && e.target === inputRef.current) {
+      // tab jumps to the first result of the next group
+      e.preventDefault();
+      const cur = visible[sel]?.group;
+      const order: Group[] = ["lessons", "questions", "notes"];
+      const start = cur ? order.indexOf(cur) : -1;
+      for (let k = 1; k <= 3; k++) {
+        const g = order[(start + (e.shiftKey ? -k + 3 : k)) % 3];
+        const idx = visible.findIndex((h) => h.group === g);
+        if (idx >= 0) {
+          setSel(idx);
+          break;
+        }
+      }
     }
   };
 
-  // Navigate to selected result
-  const navigateToResult = (resource: LearningResourceWithContent) => {
-    const course = "system-design-mastery";
-    // Pass the search query as a URL parameter for highlighting
-    const url = `/learn/${course}/${resource.week}/${resource.slug}?highlight=${encodeURIComponent(query)}`;
-    router.push(url);
-    setIsOpen(false);
-    setQuery("");
-  };
+  const groups: { key: Group; label: string; more?: { label: string; href: string } }[] = [
+    { key: "lessons", label: "Lessons" },
+    { key: "questions", label: "Interview questions" },
+    { key: "notes", label: "Your notes", more: { label: "open notebook →", href: "/learn/notebook?tab=notes" } },
+  ];
+  const chip = (on: boolean) =>
+    `min-h-8 px-2.5 font-mono text-xs ${on ? "bg-fg font-semibold text-bg" : "border border-line-strong text-fg-2 hover:text-fg"}`;
 
-  // Format week name for display
-  const formatWeekName = (weekKey: string): string => {
-    if (weekKey === "overview") return "Overview";
-    if (weekKey.includes("foundations")) return "Foundations";
+  let idx = -1;
+  return (
+    <div className="fixed inset-0 z-[70] flex items-start justify-center bg-black/70 px-3 pt-[8vh] sm:px-6" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Search the course" className="flex max-h-[calc(100dvh-8vh-110px)] w-full max-w-[700px] lg:max-h-[84vh] animate-hk-in flex-col border border-line-strong bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
+        <label className="flex min-h-[60px] items-center gap-3 border-b border-line px-4 focus-within:shadow-[inset_0_-2px_0_var(--c-signal)]">
+          <Search className="h-[18px] w-[18px] shrink-0 text-signal-text" aria-hidden />
+          <span className="sr-only">Search lessons, interview questions and your notes</span>
+          <input
+            ref={inputRef}
+            type="search"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={onKey}
+            aria-controls="course-search-results"
+            placeholder="Search lessons, questions, notes…"
+            className="min-h-11 min-w-0 flex-1 appearance-none bg-transparent text-lg text-fg outline-none placeholder:text-fg-4 focus-visible:outline-none sm:text-xl [&::-webkit-search-cancel-button]:hidden"
+          />
+          {q.trim() && docs && (
+            <span className="hidden whitespace-nowrap font-mono text-[11px] text-fg-3 sm:inline">
+              {counts.all} results · {ms} ms
+            </span>
+          )}
+          <button type="button" onClick={onClose} aria-label="Close search" className="min-h-8 min-w-11 border border-line-strong font-mono text-[11px] text-fg-3 hover:text-fg">
+            esc
+          </button>
+        </label>
 
-    const match = weekKey.match(/week-(\d+)-(.+)/);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      const topic = match[2]
-        .split("-")
-        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-        .join(" ");
-      return `Week ${num}: ${topic}`;
-    }
-    return weekKey.replace("week-", "Week ");
-  };
+        {q.trim() && (
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-4 py-2.5">
+            {(
+              [
+                ["all", "all"],
+                ["lessons", "lessons"],
+                ["questions", "interview qs"],
+                ...(user ? [["notes", "your notes"]] : []),
+              ] as [("all" | Group), string][]
+            ).map(([k, label]) => (
+              <button key={k} type="button" aria-pressed={filter === k} onClick={() => setFilter(k)} className={chip(filter === k)}>
+                {label} {counts[k]}
+              </button>
+            ))}
+          </div>
+        )}
 
-  // Get icon for resource type
-  const getResourceIcon = (type: string) => {
-    switch (type) {
-      case "week-preview":
-        return <Calendar className="w-4 h-4 text-blue-400 flex-shrink-0" />;
-      case "capstone":
-        return <Award className="w-4 h-4 text-yellow-400 flex-shrink-0" />;
-      case "foundations":
-        return <Target className="w-4 h-4 text-purple-400 flex-shrink-0" />;
-      case "overview":
-        return <BookOpen className="w-4 h-4 text-green-400 flex-shrink-0" />;
-      case "bonus":
-        return <Sparkles className="w-4 h-4 text-amber-400 flex-shrink-0" />;
-      default:
-        return <FileText className="w-4 h-4 text-gray-500 dark:text-white/60 flex-shrink-0" />;
-    }
-  };
+        {!q.trim() && recent.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1.5 border-b border-line px-4 py-2">
+            <span className="pr-1 font-mono text-[11px] tracking-label text-fg-4">RECENT</span>
+            {recent.map((r) => (
+              <button key={r} type="button" onClick={() => setQ(r)} className="min-h-8 border border-dashed border-line-strong px-2 font-mono text-xs text-fg-3 hover:text-fg">
+                {r}
+              </button>
+            ))}
+          </div>
+        )}
 
-  // Scroll selected item into view
-  useEffect(() => {
-    if (resultsRef.current) {
-      const selected = resultsRef.current.children[selectedIndex] as HTMLElement;
-      selected?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    }
-  }, [selectedIndex]);
-
-  if (!isOpen) {
-    // Floating button variant (bottom-left corner to avoid focus button)
-    if (variant === "floating") {
-      return (
-        <button
-          onClick={() => {
-            setIsOpen(true);
-            setTimeout(() => inputRef.current?.focus(), 100);
-          }}
-          className="fixed bottom-6 left-6 z-50 p-3 sm:p-4 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 rounded-full shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 transition-all group"
-          aria-label="Search content"
-        >
-          <Search className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-          </span>
-        </button>
-      );
-    }
-
-    // Bar variant (full-width search bar)
-    return (
-      <button
-        onClick={() => {
-          setIsOpen(true);
-          setTimeout(() => inputRef.current?.focus(), 100);
-        }}
-        className="w-full flex items-center justify-between px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 rounded-lg transition-all group"
-      >
-        <div className="flex items-center gap-3">
-          <Search className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-700 dark:group-hover:text-white/80" />
-          <span className="text-gray-500 dark:text-white/60 text-sm sm:text-base">Search lessons, topics, concepts...</span>
+        <div id="course-search-results" ref={listRef} role="listbox" aria-label="Results" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-1.5">
+          {!q.trim() && (
+            <p className="px-2 py-6 text-sm leading-relaxed text-fg-3">
+              Titles, headings, interview questions{user ? " and your own notes" : ""}. Try <span className="font-mono text-fg-2">idempotency</span>, <span className="font-mono text-fg-2">half-open</span> or{" "}
+              <span className="font-mono text-fg-2">hot keys</span>.
+            </p>
+          )}
+          {q.trim() && docs === null && <p className="px-2 py-6 font-mono text-xs text-fg-3">loading the course index…</p>}
+          {q.trim() && docs && visible.length === 0 && (
+            <p className="px-2 py-6 text-sm text-fg-3">
+              Nothing matches <span className="text-fg">“{q.trim()}”</span>. Search looks at lesson titles and text{user ? ", interview questions and your notes" : " and interview questions"}.
+            </p>
+          )}
+          {groups.map((g) => {
+            const items = visible.filter((h) => h.group === g.key);
+            if (!items.length) return null;
+            return (
+              <div key={g.key}>
+                <div className="flex justify-between px-2 pb-1.5 pt-3 font-mono text-[11px] tracking-label text-fg-3">
+                  <span>
+                    {g.label.toUpperCase()} · {items.length}
+                  </span>
+                  {g.more && (
+                    <a href={g.more.href} className="text-fg-3 hover:text-fg">
+                      {g.more.label}
+                    </a>
+                  )}
+                </div>
+                {items.map((h) => {
+                  idx++;
+                  const i = idx;
+                  const on = i === sel;
+                  return (
+                    <a
+                      key={h.id}
+                      href={h.href}
+                      role="option"
+                      aria-selected={on}
+                      data-idx={i}
+                      onMouseEnter={() => setSel(i)}
+                      onClick={(e) => {
+                        if (e.metaKey || e.ctrlKey) return;
+                        e.preventDefault();
+                        open(h);
+                      }}
+                      className={`flex min-h-[52px] items-center gap-3 border px-2.5 py-1.5 ${on ? "border-signal bg-surface-2" : "border-transparent"}`}
+                    >
+                      <span
+                        className={`grid h-7 w-[62px] shrink-0 place-items-center font-mono text-[11px] ${
+                          h.group === "notes"
+                            ? "bg-fg font-semibold text-bg"
+                            : h.group === "questions"
+                              ? "border border-line-strong text-fg"
+                              : on
+                                ? "bg-signal font-semibold text-on-signal"
+                                : "border border-dashed border-line-strong text-fg-3"
+                        }`}
+                      >
+                        {h.badge}
+                      </span>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="truncate text-[15px] text-fg">
+                          <Highlight text={h.title} q={q} />
+                        </span>
+                        <span className="line-clamp-1 text-xs text-fg-3">
+                          <Highlight text={h.sub} q={q} soft />
+                        </span>
+                      </span>
+                      {on && <span className="hidden font-mono text-[13px] text-signal-text sm:inline" aria-hidden>↵</span>}
+                    </a>
+                  );
+                })}
+              </div>
+            );
+          })}
         </div>
-        <kbd className="hidden sm:inline-flex items-center gap-1 px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded text-xs text-gray-400 dark:text-white/40">
-          <span>⌘</span>
-          <span>K</span>
-        </kbd>
-      </button>
-    );
-  }
+
+        <div className="hidden flex-wrap justify-between gap-2 border-t border-line px-4 py-2.5 font-mono text-[11px] text-fg-3 sm:flex">
+          <span>
+            <span className="text-fg">↑↓</span> move · <span className="text-fg">↵</span> open · <span className="text-fg">⌘↵</span> new tab · <span className="text-fg">tab</span> next group ·{" "}
+            <span className="text-fg">esc</span> close
+          </span>
+          <span>titles · text · questions{user ? " · your notes" : ""}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type SearchBarProps = {
+  variant?: "bar" | "floating" | "nav";
+  /** listen for ⌘K / Ctrl+K and the hk:course-search event (one instance per page: the learn sub-nav) */
+  hotkey?: boolean;
+};
+
+export default function SearchBar({ variant = "bar", hotkey = false }: SearchBarProps) {
+  const [isOpen, setIsOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const close = useCallback(() => {
+    setIsOpen(false);
+    window.setTimeout(() => triggerRef.current?.focus(), 0);
+  }, []);
+
+  useEffect(() => {
+    if (!hotkey) return;
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsOpen((o) => !o);
+      }
+    };
+    const onOpen = () => setIsOpen(true);
+    window.addEventListener("keydown", onKey);
+    window.addEventListener(COURSE_SEARCH_EVENT, onOpen);
+    return () => {
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener(COURSE_SEARCH_EVENT, onOpen);
+    };
+  }, [hotkey]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [isOpen]);
+
+  if (variant === "floating") return null;
 
   return (
     <>
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
-        onClick={() => {
-          setIsOpen(false);
-          setQuery("");
-        }}
-      />
-
-      {/* Search Modal */}
-      <div className="fixed top-20 left-1/2 -translate-x-1/2 w-full max-w-2xl z-50 px-4">
-        <div className="bg-white dark:bg-gray-900 border border-black/20 dark:border-white/20 rounded-xl shadow-2xl overflow-hidden">
-          {/* Search Input */}
-          <div className="flex items-center gap-3 px-4 py-3 border-b border-black/10 dark:border-white/10">
-            <Search className="w-5 h-5 text-gray-500 dark:text-white/60 flex-shrink-0" />
-            <input
-              ref={inputRef}
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Search for lessons, topics, or concepts..."
-              className="flex-1 bg-transparent text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-white/40 outline-none text-lg"
-              autoFocus
-            />
-            {isLoading && <Loader2 className="w-5 h-5 text-gray-500 dark:text-white/60 animate-spin" />}
-            <button
-              onClick={() => {
-                setIsOpen(false);
-                setQuery("");
-              }}
-              className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded transition-colors"
-            >
-              <X className="w-5 h-5 text-gray-500 dark:text-white/60" />
-            </button>
-          </div>
-
-          {/* Search Results */}
-          {query && (
-            <div
-              ref={resultsRef}
-              className="max-h-[60vh] overflow-y-auto overscroll-contain"
-            >
-              {results.length === 0 ? (
-                <div className="px-4 py-8 text-center">
-                  <p className="text-gray-400 dark:text-white/40">No results found for "{query}"</p>
-                  <p className="text-gray-300 dark:text-white/30 text-sm mt-2">
-                    Try searching with different keywords
-                  </p>
-                </div>
-              ) : (
-                <div className="py-2">
-                  {results.map((result, index) => {
-                    const resource = result.item;
-                    const isSelected = index === selectedIndex;
-
-                    return (
-                      <button
-                        key={`${resource.week}-${resource.slug}`}
-                        onClick={() => navigateToResult(resource)}
-                        className={`w-full px-4 py-3 flex items-start gap-3 transition-colors ${
-                          isSelected
-                            ? "bg-black/10 dark:bg-white/10 border-l-2 border-blue-400"
-                            : "hover:bg-black/5 dark:hover:bg-white/5"
-                        }`}
-                      >
-                        <div className="mt-1">{getResourceIcon(resource.type)}</div>
-                        <div className="flex-1 text-left">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3
-                              className={`font-medium ${
-                                isSelected ? "text-gray-900 dark:text-white" : "text-gray-800 dark:text-white/90"
-                              }`}
-                            >
-                              {resource.title}
-                            </h3>
-                            {result.score !== undefined && (
-                              <span className="text-xs text-gray-300 dark:text-white/30">
-                                {Math.round((1 - result.score) * 100)}% match
-                              </span>
-                            )}
-                          </div>
-                          <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-white/50 mb-1">
-                            <span>{formatWeekName(resource.week)}</span>
-                            {resource.day && (
-                              <>
-                                <span>•</span>
-                                <span>{resource.day.replace("day-", "Day ")}</span>
-                              </>
-                            )}
-                          </div>
-                          {resource.excerpt && (
-                            <p className="text-xs text-gray-400 dark:text-white/40 line-clamp-2 mt-1">
-                              {resource.excerpt}
-                            </p>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Footer with shortcuts */}
-          {!query && (
-            <div className="px-4 py-3 border-t border-black/10 dark:border-white/10 flex items-center justify-between text-xs text-gray-400 dark:text-white/40">
-              <div className="flex items-center gap-4">
-                <span className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded">↑↓</kbd>
-                  Navigate
-                </span>
-                <span className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded">↵</kbd>
-                  Select
-                </span>
-                <span className="flex items-center gap-1">
-                  <kbd className="px-2 py-1 bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded">Esc</kbd>
-                  Close
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
+      {variant === "nav" ? (
+        <>
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => setIsOpen(true)}
+            className="hidden min-h-10 w-[240px] items-center gap-2.5 border border-line-strong bg-bg px-3 text-left text-sm text-fg-4 hover:text-fg-3 md:flex"
+          >
+            <Search className="h-[15px] w-[15px] text-fg-3" aria-hidden />
+            <span className="flex-1">Search lessons, topics…</span>
+            <kbd className="border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-fg-3">⌘K</kbd>
+          </button>
+          <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg md:hidden">
+            <Search className="h-4 w-4" aria-hidden />
+          </button>
+        </>
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={() => setIsOpen(true)}
+          className="flex min-h-12 w-full items-center justify-between gap-3 border border-line-strong bg-surface px-4 text-left hover:border-fg-4"
+        >
+          <span className="flex items-center gap-3 text-fg-3">
+            <Search className="h-4 w-4" aria-hidden />
+            <span className="text-sm sm:text-base">Search lessons, topics, concepts…</span>
+          </span>
+          <kbd className="hidden border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-fg-3 sm:inline">⌘K</kbd>
+        </button>
+      )}
+      {isOpen && typeof document !== "undefined" && createPortal(<Palette onClose={close} />, document.body)}
     </>
   );
 }

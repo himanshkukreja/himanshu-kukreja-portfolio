@@ -27,22 +27,24 @@ Now imagine if every **4m × 4m square** in India had a unique, memorable code l
 - **Peak Traffic**: 50,000 queries/second during festivals or emergencies
 - **Latency Requirement**: <50ms for location resolution
 
-```
+```mermaid
+%% title: India's DIGIPIN grid system
 flowchart TD
-    subgraph "India's DIGIPIN Grid System"
-        A[3.28M km² Total Area]
-        B[4m × 4m Grid Cells]
-        C[205 Billion DIGIPINs]
-        D[10-Character Codes]
+    subgraph GRID["India's DIGIPIN Grid System"]
+        A["3.28M km² Total Area"]:::client
+        B["4m × 4m Grid Cells"]:::service
+        C[("205 Billion DIGIPINs")]:::store
+        D["10-Character Codes"]:::core
     end
-    
-    subgraph "Real-World Use Cases"
-        E[Emergency Services]
-        F[Logistics & Delivery]
-        G[Navigation Apps]
-        H[Social Check-ins]
+
+    subgraph USES["Real-World Use Cases"]
+        direction TB
+        E["Emergency Services"]:::external
+        F["Logistics & Delivery"]:::external
+        G["Navigation Apps"]:::external
+        H["Social Check-ins"]:::external
     end
-    
+
     A --> B --> C --> D
     D --> E
     D --> F
@@ -114,21 +116,36 @@ Step 4: Convert to Base32
 
 ### Core Components Overview
 
-```
+```mermaid
+%% title: Core components · request through the edge
 sequenceDiagram
+    autonumber
     participant U as User/App
     participant CDN as Edge CDN
     participant LB as Load Balancer
     participant API as API Gateway
     participant GEO as GeoService
-    participant CACHE as Redis Cluster
-    participant DB as PostgreSQL+PostGIS
-    participant INDEX as Spatial Index
-    
+
     U->>CDN: Get DIGIPIN for (lat,lon)
     CDN->>LB: Cache miss
     LB->>API: Route request
     API->>GEO: Process coordinates
+    Note over GEO: Cache and spatial lookup<br/>(next diagram)
+    GEO-->>API: Return response
+    API-->>LB: Response
+    LB-->>CDN: Response + cache
+    CDN-->>U: DIGIPIN result
+```
+
+```mermaid
+%% title: Core components · inside GeoService
+sequenceDiagram
+    autonumber
+    participant GEO as GeoService
+    participant CACHE as Redis Cluster
+    participant DB as PostgreSQL+PostGIS
+    participant INDEX as Spatial Index
+
     GEO->>CACHE: Check hot cache
     CACHE-->>GEO: Cache miss
     GEO->>DB: Query spatial data
@@ -136,10 +153,6 @@ sequenceDiagram
     INDEX-->>DB: Geospatial result
     DB-->>GEO: DIGIPIN + metadata
     GEO->>CACHE: Cache result
-    GEO-->>API: Return response
-    API-->>LB: Response
-    LB-->>CDN: Response + cache
-    CDN-->>U: DIGIPIN result
 ```
 
 ---
@@ -238,6 +251,18 @@ class DIGIPINGenerator:
         return self.bits_to_base32(bits)
 ```
 
+```mermaid
+%% title: DIGIPIN generation
+flowchart TD
+    IN(["lat, lon"]):::client --> G["Step 1 · encode_geohash<br/>precision=10 · 5 bits per character"]:::core
+    G --> CK["Step 2 · calculate_checksum<br/>error detection"]:::service
+    IN --> SC["Step 3 · get_state_code<br/>state prefix from coordinates"]:::service
+    G -->|"geohash[:6]"| F["Step 4 · format<br/>XX##-YYYYYY<br/>State + Checksum + GeoHash"]:::hot
+    CK --> F
+    SC --> F
+    F --> OUT(["MH12-K7R9Q"]):::ok
+```
+
 ---
 
 ## Spatial Search: Finding Needles in Geographic Haystacks
@@ -312,28 +337,29 @@ def find_digipins_by_prefix(geohash_prefix: str, max_results: int = 1000):
 
 ### Multi-Layer Caching Architecture
 
-```
-graph TD
-    subgraph "Client Layer"
-        A[Mobile App Cache]
-        B[Browser Cache]
+```mermaid
+%% title: Multi-layer caching architecture
+flowchart TD
+    subgraph CL["Client Layer"]
+        A["Mobile App Cache"]:::client
+        B["Browser Cache"]:::client
     end
-    
-    subgraph "CDN Layer (CloudFlare)"
-        C[Edge Locations]
-        D[Regional Cache]
+
+    subgraph CDNL["CDN Layer (CloudFlare)"]
+        C["Edge Locations"]:::edge
+        D["Regional Cache"]:::cache
     end
-    
-    subgraph "Application Layer"
-        E[Redis Cluster]
-        F[Application Cache]
+
+    subgraph AL["Application Layer"]
+        E[("Redis Cluster")]:::cache
+        F["Application Cache"]:::cache
     end
-    
-    subgraph "Database Layer"
-        G[PostgreSQL + PostGIS]
-        H[Read Replicas]
+
+    subgraph DL["Database Layer"]
+        G[("PostgreSQL + PostGIS")]:::store
+        H[("Read Replicas")]:::store
     end
-    
+
     A --> C
     B --> C
     C --> E
@@ -592,40 +618,44 @@ mumbai_digipins = bulk_generate_delivery_zone_digipins({
 
 ### Multi-Region Deployment Strategy
 
-```
-graph TD
-    subgraph "Region 1: Mumbai (Primary)"
-        A1[Load Balancer]
-        B1[API Servers × 4]
-        C1[Redis Cluster]
-        D1[PostgreSQL Master]
-        E1[PostGIS Replicas × 2]
+```mermaid
+%% title: Multi-region deployment strategy
+flowchart TD
+    subgraph R1["Region 1: Mumbai (Primary)"]
+        A1["Load Balancer"]:::edge
+        B1["API Servers × 4"]:::core
+        C1[("Redis Cluster")]:::cache
+        D1[("PostgreSQL Master")]:::store
+        E1[("PostGIS Replicas × 2")]:::store
     end
-    
-    subgraph "Region 2: Bangalore (DR)"
-        A2[Load Balancer]
-        B2[API Servers × 2]
-        C2[Redis Cluster]
-        D2[PostgreSQL Standby]
-        E2[PostGIS Replicas × 2]
+
+    subgraph R2["Region 2: Bangalore (DR)"]
+        A2["Load Balancer"]:::edge
+        B2["API Servers × 2"]:::core
+        C2[("Redis Cluster")]:::cache
+        D2[("PostgreSQL Standby")]:::store
+        E2[("PostGIS Replicas × 2")]:::store
     end
-    
-    subgraph "Region 3: Delhi (Read-Only)"
-        A3[Load Balancer]
-        B3[API Servers × 2]
-        C3[Redis Cluster]
-        E3[PostGIS Replicas × 2]
+
+    subgraph R3["Region 3: Delhi (Read-Only)"]
+        A3["Load Balancer"]:::edge
+        B3["API Servers × 2"]:::core
+        C3[("Redis Cluster")]:::cache
+        E3[("PostGIS Replicas × 2")]:::store
     end
-    
+
     A1 --> B1 --> C1
     B1 --> D1
     D1 --> E1
-    
-    D1 -.->|Streaming Replication| D2
-    D1 -.->|Async Replication| E3
-    
+
+    D1 -.->|"Streaming Replication"| D2
+    D1 -.->|"Async Replication"| E3
+
     A2 --> B2 --> C2
     A3 --> B3 --> C3
+
+    E1 ~~~ A2
+    C2 ~~~ A3
 ```
 
 ### Disaster Recovery Playbook
@@ -669,6 +699,19 @@ class DIGIPINDisasterRecovery:
         
         # 5. Alert operations team
         self.send_alert("Database failover completed", severity="HIGH")
+```
+
+```mermaid
+%% title: Disaster recovery playbook
+flowchart TD
+    H["monitor_system_health"]:::service
+    H -->|"DB health check fails"| F1["1 · Stop writes to failed master"]:::bad
+    F1 --> F2["2 · Promote best standby to master"]:::core
+    F2 --> F3["3 · Update DNS / load balancer"]:::edge
+    F3 --> F4["4 · Resume operations"]:::ok
+    F4 --> F5["5 · Alert operations team<br/>Database failover completed · HIGH"]:::external
+    H -->|"Redis health check fails"| RR["Rebuild Redis cluster"]:::cache
+    H -->|"API health check fails"| SA["Scale API servers"]:::service
 ```
 
 ---

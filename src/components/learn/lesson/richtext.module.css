@@ -1,0 +1,73 @@
+/* Comment bodies and the comment editor (shared by lessons and stories). */
+
+.rich {
+  overflow-wrap: anywhere;
+}
+
+.rich > * + * {
+  margin-top: 0.6em;
+}
+
+.rich :global(:is(ul, ol)) {
+  padding-left: 1.4em;
+}
+
+.rich :global(ul) {
+  list-style: square;
+}
+
+.rich :global(ol) {
+  list-style: decimal;
+}
+
+.rich :global(li + li) {
+  margin-top: 0.25em;
+}
+
+.rich :global(a) {
+  color: var(--c-signal-text);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.rich :global(b),
+.rich :global(strong) {
+  color: var(--c-fg);
+  font-weight: 600;
+}
+
+.rich :global(code) {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  background: var(--c-surface-2);
+  padding: 0.05em 0.3em;
+}
+
+.rich :global(pre) {
+  margin: 0.6em 0;
+  overflow-x: auto;
+  border: 1px solid var(--c-line);
+  background: var(--c-raised);
+  padding: 0.75em;
+}
+
+.rich :global(pre code) {
+  display: block;
+  background: transparent;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.rich :global(blockquote) {
+  margin: 0.6em 0;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface-2);
+  padding: 0.5em 0.9em;
+  color: var(--c-fg-2);
+}
+
+.editor:empty::before {
+  content: attr(data-placeholder);
+  color: var(--c-fg-4);
+  pointer-events: none;
+}

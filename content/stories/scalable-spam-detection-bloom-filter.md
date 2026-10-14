@@ -46,20 +46,22 @@ Peak Event Traffic (Breaking News):
 
 ### Traditional Database Approach: Why It Fails
 
-```
+```mermaid
+%% title: Traditional database approach
 sequenceDiagram
+    autonumber
     participant U as User
     participant API as Message API
     participant DB as MySQL Database
     participant SPAM as Spam Table (1.2B rows)
-    
+
     U->>API: Post message with URL
     API->>DB: SELECT * FROM spam_urls WHERE url = ?
     DB->>SPAM: Full table scan/index lookup
     SPAM-->>DB: Result (200ms+ during peak)
     DB-->>API: URL status
     API-->>U: Message blocked/allowed (TIMEOUT!)
-    
+
     Note over DB,SPAM: Database dies under<br/>50,000 concurrent queries
 ```
 
@@ -167,93 +169,97 @@ Result: 2.15GB memory vs. 120GB+ for full URL storage!
 
 ### Core Architecture Overview
 
-```
+```mermaid
+%% title: Core architecture overview
 flowchart TD
-    subgraph "User Layer"
-        U[User Posts Message]
-        APP[Mobile/Web App]
+    subgraph UL["User Layer"]
+        U(["User Posts Message"]):::client
+        APP["Mobile/Web App"]:::client
     end
-    
-    subgraph "API Gateway"
-        LB[Load Balancer]
-        API[Message API]
-        EXTRACT[URL Extractor]
+
+    subgraph GW["API Gateway"]
+        LB["Load Balancer"]:::edge
+        API["Message API"]:::service
+        EXTRACT["URL Extractor"]:::service
     end
-    
-    subgraph "Spam Detection Layer"
-        BF[Bloom Filter Service]
-        CACHE[Redis Cache]
-        VERIFY[Verification Service]
+
+    subgraph SD["Spam Detection Layer"]
+        BF["Bloom Filter Service"]:::hot
+        CACHE[("Redis Cache")]:::cache
+        VERIFY["Verification Service"]:::core
     end
-    
-    subgraph "Data Sources"
-        FEEDS[Threat Intelligence Feeds]
-        ML[ML Spam Detection]
-        REPORTS[User Reports]
-        UPDATE[Update Service]
+
+    subgraph DS["Data Sources"]
+        FEEDS["Threat Intelligence Feeds"]:::external
+        ML["ML Spam Detection"]:::service
+        REPORTS["User Reports"]:::client
+        UPDATE["Update Service"]:::queue
     end
-    
-    subgraph "Storage"
-        DB[(PostgreSQL)]
-        BACKUP[(Backup Storage)]
+
+    subgraph ST["Storage"]
+        DB[("PostgreSQL")]:::store
+        BACKUP[("Backup Storage")]:::store
     end
-    
+
     U --> APP --> LB --> API --> EXTRACT
     EXTRACT --> BF
     BF --> CACHE
     BF --> VERIFY
     VERIFY --> DB
-    
+
     FEEDS --> UPDATE
-    ML --> UPDATE  
+    ML --> UPDATE
     REPORTS --> UPDATE
     UPDATE --> BF
     UPDATE --> DB
-    
+
     BF -.->|"99.9% queries<br/>end here"| API
     VERIFY -.->|"0.1% false positives<br/>verified here"| API
 ```
 
 ### The Complete Flow: From URL to Decision
 
-```
+```mermaid
+%% title: The complete flow · from URL to decision
 sequenceDiagram
+    autonumber
     participant U as User
     participant API as Message API
     participant EXTRACT as URL Extractor
     participant BF as Bloom Filter
     participant VERIFY as Verify Service
     participant DB as Database
-    
-    U->>API: POST /message {"text": "Check out this link: https://suspicious-site.com"}
+
+    U->>API: POST /message
+    Note over U,API: {"text": "Check out this link:<br/>https://suspicious-site.com"}
     API->>EXTRACT: Extract URLs from message
-    EXTRACT->>API: ["https://suspicious-site.com"]
-    
+    EXTRACT-->>API: ["https://suspicious-site.com"]
+
     loop For each URL
         API->>BF: check_url("https://suspicious-site.com")
         BF->>BF: Apply 10 hash functions
-        
+
         alt All bits are 1 (Possible Match)
-            BF->>API: POSSIBLY_MALICIOUS
+            BF-->>API: POSSIBLY_MALICIOUS
             API->>VERIFY: Double-check with database
             VERIFY->>DB: SELECT url FROM spam_urls WHERE url = ?
-            
+
             alt Actually malicious
-                DB->>VERIFY: Found
-                VERIFY->>API: CONFIRMED_MALICIOUS
-                API->>U: ❌ Message blocked
-            else False positive  
-                DB->>VERIFY: Not found
-                VERIFY->>API: FALSE_POSITIVE
-                API->>U: ✅ Message posted
+                DB-->>VERIFY: Found
+                VERIFY-->>API: CONFIRMED_MALICIOUS
+                API-->>U: Message blocked
+            else False positive
+                DB-->>VERIFY: Not found
+                VERIFY-->>API: FALSE_POSITIVE
+                API-->>U: Message posted
             end
-            
+
         else At least one bit is 0 (Definite Clean)
-            BF->>API: DEFINITELY_CLEAN
-            API->>U: ✅ Message posted instantly
+            BF-->>API: DEFINITELY_CLEAN
+            API-->>U: Message posted instantly
         end
     end
-    
+
     Note over BF: 99.9% of queries end here<br/>without database hit
 ```
 
@@ -656,6 +662,26 @@ class ThreatIntelligenceService:
             await asyncio.sleep(300)  # 5 minutes
 ```
 
+```mermaid
+%% title: Multi-layer update architecture
+flowchart TD
+    subgraph FEEDS["Threat feeds · polled every 5 minutes"]
+        direction TB
+        G["google_safe_browsing"]:::external
+        PT["phishtank"]:::external
+        ML["internal_ml"]:::service
+        UR["user_reports"]:::client
+        G ~~~ ML
+        PT ~~~ UR
+    end
+    FEEDS -->|"add_new_threats · immediately"| UB[("Update buffer<br/>Bloom filter · 10M items")]:::cache
+    FEEDS -.->|"scheduled batch update"| PF[("Primary filter<br/>1.2B items")]:::cache
+    DB[("Authoritative database")]:::store -->|"rebuild every 24 hours<br/>batches of 100,000"| NF["New filter"]:::core
+    NF -->|"atomic swap · then clear update buffer"| PF
+    Q(["check_url_multi_layer"]):::client -->|"1 · primary filter first"| PF
+    PF -->|"2 · not found · check recent updates buffer"| UB
+```
+
 ---
 
 ## Crisis Management: When the Internet Explodes
@@ -790,6 +816,25 @@ class EnhancedSpamDetectionService(SpamDetectionService):
             })
         
         return results
+```
+
+```mermaid
+%% title: Emergency mode switch
+stateDiagram-v2
+    Normal: Normal mode · Bloom filter + database verification
+    Emergency: Emergency mode · maximum protection
+    [*] --> Normal
+    Normal --> Emergency: current_rps > 10,000 (emergency_threshold)
+    Emergency --> Normal: current_rps < 10,000 × 0.7
+    note right of Emergency
+        1. false_positive_rate 0.01
+        2. Pattern-based pre-filtering
+        3. Cache TTL 1 hour
+        4. Domain-level blocking
+        Bloom filter hits trusted as MALICIOUS
+    end note
+    class Normal ok
+    class Emergency bad
 ```
 
 ---

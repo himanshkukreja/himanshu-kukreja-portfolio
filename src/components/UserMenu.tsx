@@ -3,8 +3,15 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, BookOpen, Bookmark, FileText, ChevronDown, Loader2 } from "lucide-react";
+import { LogOut, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
+
+const LINKS = [
+  { href: "/learn", label: "course" },
+  { href: "/learn/dashboard", label: "profile" },
+  { href: "/learn/bookmarks", label: "bookmarks" },
+  { href: "/learn/notes", label: "notes" },
+];
 
 export default function UserMenu() {
   const { user, profile, loading, signOut } = useAuth();
@@ -12,23 +19,24 @@ export default function UserMenu() {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // Close menu when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setIsOpen(false);
     };
-
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setIsOpen(false);
+    };
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, []);
 
   if (!user) return null;
 
-  // Get avatar URL from profile or user metadata (Google OAuth)
   const avatarUrl = profile?.avatar_url || user.user_metadata?.avatar_url;
-
   const displayName = profile?.full_name || user.user_metadata?.full_name || user.email?.split("@")[0] || "User";
   const initials = displayName
     .split(" ")
@@ -39,106 +47,51 @@ export default function UserMenu() {
 
   return (
     <div className="relative" ref={menuRef}>
-      {/* User Avatar Button */}
       <button
+        type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all"
-        aria-label="User menu"
+        aria-expanded={isOpen}
+        aria-label="Account menu"
+        className="grid h-10 w-10 place-items-center overflow-hidden bg-fg font-display text-sm font-extrabold text-bg"
       >
-        {/* Avatar */}
-        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-400 to-purple-600 flex items-center justify-center text-white text-sm font-semibold overflow-hidden">
-          {loading && !profile ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : avatarUrl ? (
-            <Image
-              src={avatarUrl}
-              alt={displayName}
-              width={32}
-              height={32}
-              className="w-full h-full rounded-full object-cover"
-              unoptimized={avatarUrl.includes('googleusercontent.com')}
-            />
-          ) : (
-            initials
-          )}
-        </div>
-
-        {/* Name (hidden on mobile) */}
-        <span className="hidden sm:block text-gray-900 dark:text-white/90 font-medium text-sm">
-          {displayName}
-        </span>
-
-        {/* Chevron */}
-        <ChevronDown
-          className={`hidden sm:block w-4 h-4 text-gray-500 dark:text-white/60 transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        />
+        {loading && !profile ? (
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+        ) : avatarUrl ? (
+          <Image src={avatarUrl} alt="" width={40} height={40} className="h-full w-full object-cover" unoptimized={avatarUrl.includes("googleusercontent.com")} />
+        ) : (
+          initials
+        )}
       </button>
 
-      {/* Dropdown Menu */}
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-64 bg-white dark:bg-gray-900 border border-black/20 dark:border-white/20 rounded-lg shadow-2xl overflow-hidden z-50">
-          {/* User Info */}
-          <div className="px-4 py-3 border-b border-black/10 dark:border-white/10">
-            <p className="text-gray-900 dark:text-white font-medium">{displayName}</p>
-            <p className="text-gray-500 dark:text-white/60 text-sm truncate">{user.email}</p>
+        <div className="absolute right-0 z-50 mt-2 w-64 animate-hk-in border border-line-strong bg-surface">
+          <div className="border-b border-line px-4 py-3">
+            <p className="font-medium text-fg">{displayName}</p>
+            <p className="truncate text-sm text-fg-3">{user.email}</p>
             {profile && profile.current_streak > 0 && (
-              <div className="mt-2">
-                <span className="px-2 py-1 bg-orange-500/20 text-orange-600 dark:text-orange-400 rounded text-xs">
-                  {profile.current_streak} day streak 🔥
-                </span>
-              </div>
+              <span className="mt-2 inline-block border border-signal px-2 py-1 font-mono text-xs text-signal-text">{profile.current_streak}-day streak</span>
             )}
           </div>
-
-          {/* Menu Items */}
-          <div className="py-2">
-            <Link
-              href="/learn/dashboard"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <BookOpen className="w-4 h-4" />
-              <span className="text-sm">My Progress</span>
-            </Link>
-
-            <Link
-              href="/learn/bookmarks"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <Bookmark className="w-4 h-4" />
-              <span className="text-sm">Bookmarks</span>
-            </Link>
-
-            <Link
-              href="/learn/notes"
-              onClick={() => setIsOpen(false)}
-              className="flex items-center gap-3 px-4 py-2 hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 hover:text-gray-900 dark:hover:text-white transition-colors"
-            >
-              <FileText className="w-4 h-4" />
-              <span className="text-sm">My Notes</span>
-            </Link>
-          </div>
-
-          {/* Sign Out */}
-          <div className="border-t border-black/10 dark:border-white/10">
+          <nav aria-label="Account" className="flex flex-col py-1.5 font-mono text-sm">
+            {LINKS.map((l) => (
+              <Link key={l.href} href={l.href} onClick={() => setIsOpen(false)} className="px-4 py-2.5 text-fg-2 hover:bg-surface-2 hover:text-fg">
+                <span className="text-signal-text">❯</span> {l.label}
+              </Link>
+            ))}
+          </nav>
+          <div className="border-t border-line">
             <button
+              type="button"
               onClick={async () => {
-                if (isSigningOut) return; // Prevent multiple clicks
+                if (isSigningOut) return;
                 setIsSigningOut(true);
                 await signOut();
-                // No need to setIsOpen(false) or setIsSigningOut(false)
-                // because page will redirect
               }}
               disabled={isSigningOut}
-              className="flex items-center gap-3 px-4 py-2 w-full hover:bg-red-500/10 text-red-500 dark:text-red-400 hover:text-red-600 dark:hover:text-red-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex w-full items-center gap-3 px-4 py-2.5 font-mono text-sm text-bad-text hover:bg-surface-2 disabled:opacity-50"
             >
-              <LogOut className="w-4 h-4" />
-              <span className="text-sm">
-                {isSigningOut ? "Signing out..." : "Sign Out"}
-              </span>
+              <LogOut className="h-4 w-4" aria-hidden />
+              {isSigningOut ? "signing out…" : "sign out"}
             </button>
           </div>
         </div>

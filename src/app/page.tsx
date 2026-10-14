@@ -1,58 +1,75 @@
-import Hero from "@/components/Hero";
-import { Section } from "@/components/Sections";
-import About from "@/components/About";
-import Experience from "@/components/Experience";
-import Projects from "@/components/Projects";
-import Skills from "@/components/Skills";
-import Achievements from "@/components/Achievements";
-import Contact from "@/components/Contact";
-import StoriesGrid from "@/components/StoriesGrid";
-import { getAllStories } from "@/lib/stories";
-import SmartScroll from "@/components/SmartScroll";
-import NewsletterForm from "@/components/NewsletterForm";
+import { readFile } from "fs/promises";
+import path from "path";
+import { getAllStories, type StoryFrontmatter } from "@/lib/stories";
+import { calculateReadingTime } from "@/lib/reading-time";
+import HeroIntro from "@/components/home/HeroIntro";
+import TatkalRush from "@/components/home/TatkalRush";
+import ProcessTable from "@/components/home/ProcessTable";
+import CareerReplay from "@/components/home/CareerReplay";
+import GamesTeaser from "@/components/home/GamesTeaser";
+import PinnedRepos from "@/components/home/PinnedRepos";
+import Dependencies from "@/components/home/Dependencies";
+import CaseFilesTeaser, { type CaseTeaser } from "@/components/home/CaseFilesTeaser";
+import LearnCta from "@/components/home/LearnCta";
+import HireApi from "@/components/home/HireApi";
+import HomeFooter from "@/components/home/HomeFooter";
+import { container } from "@/components/home/ui";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
+const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+function monthYear(date?: string): string | null {
+  if (!date) return null;
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return null;
+  return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+}
+
+async function readingMinutes(slug: string): Promise<number | null> {
+  try {
+    const raw = await readFile(path.join(process.cwd(), "content", "stories", `${slug}.md`), "utf8");
+    const body = raw.replace(/^---[\s\S]*?\n---\s*\n/, "");
+    return calculateReadingTime(body).minutes;
+  } catch {
+    return null;
+  }
+}
+
+async function toTeaser(s: StoryFrontmatter, index: number, total: number): Promise<CaseTeaser> {
+  const minutes = await readingMinutes(s.slug);
+  const meta = [monthYear(s.date), minutes ? `${minutes} min` : null].filter(Boolean).join(" · ");
+  return {
+    id: `CASE-${String(total - index).padStart(3, "0")}`,
+    slug: s.slug,
+    meta,
+    title: s.title,
+    excerpt: s.excerpt,
+  };
+}
+
 export default async function Home() {
   const stories = await getAllStories();
+  const total = stories.length;
+  const cases = await Promise.all(stories.slice(0, 3).map((s, i) => toTeaser(s, i, total)));
+
   return (
-    <main className="pt-2 sm:pt-6">
-      {/* Smart section snap scrolling (configurable) */}
-      <SmartScroll config={{ enabled: true, durationMs: 600, earlySnapThreshold: 0.8 }} />
-      <Hero />
-      {/* Spacer to prevent About section from peeking into Hero */}
-      <div aria-hidden className="h-6 sm:h-10" />
-      <Section id="about" title="About Me">
-        <About />
-      </Section>
-      <Section id="experience" title="Experience">
-        <Experience />
-      </Section>
-      <Section id="stories" title="Engineering Stories" description="Deep-dives into backend design, realtime, cloud, and systems—presented as blueprint-style stories.">
-        <StoriesGrid initial={stories} limit={2} showExplore exploreHref="/stories" exploreLabel="Explore more stories" />
-      </Section>
-      <Section id="projects" title="Projects">
-        <Projects />
-      </Section>
-      <Section id="skills" title="Skills">
-        <Skills />
-      </Section>
-      <Section id="achievements" title="Achievements & Certifications">
-        <Achievements />
-      </Section>
-      <Section id="contact" title="Contact">
-        <Contact />
-      </Section>
-      <footer className="py-12">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-          <div className="mb-6 flex flex-col items-center gap-3">
-            <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Subscribe to the Stories</h3>
-            <p className="text-gray-600 dark:text-white/70 text-sm">Get the latest engineering stories in your inbox.</p>
-            <NewsletterForm />
-          </div>
-          <div className="text-gray-500 dark:text-white/60 text-sm">© {new Date().getFullYear()} Himanshu Kukreja. All rights reserved.</div>
-        </div>
-      </footer>
-    </main>
+    <>
+      <main id="top">
+        <section aria-label="Intro and Tatkal Rush" className={`${container} flex flex-wrap items-start gap-10 pb-14 pt-6 sm:pb-[72px] sm:pt-14`}>
+          <HeroIntro />
+          <TatkalRush />
+        </section>
+        <ProcessTable />
+        <CareerReplay />
+        <GamesTeaser />
+        <PinnedRepos />
+        <Dependencies />
+        <CaseFilesTeaser cases={cases} total={total} />
+        <LearnCta />
+        <HireApi />
+      </main>
+      <HomeFooter year={new Date().getFullYear()} />
+    </>
   );
 }

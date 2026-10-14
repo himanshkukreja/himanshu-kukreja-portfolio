@@ -1,43 +1,125 @@
 'use client';
 
-import { useState, useEffect, useImperativeHandle, forwardRef, useRef } from 'react';
+import { useState, useEffect, useImperativeHandle, forwardRef, useRef, useMemo, useCallback, useSyncExternalStore } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useAuthModal } from '@/contexts/AuthModalContext';
 import { CheckCircle, XCircle, Eye, EyeOff, Save, Share2, RotateCcw } from 'lucide-react';
-import { MCQAssessment } from '@/lib/mcq-parser';
+import { MCQAssessment, MCQOption } from '@/lib/mcq-parser';
 import { supabaseClient } from '@/lib/supabase-client';
 import AuthModal from './AuthModal';
 import TextSelectionMenu from './TextSelectionMenu';
 import NoteEditor from './NoteEditor';
 import Toast from './Toast';
+import ConfirmDialog from './ConfirmDialog';
+
+type OptionLabel = MCQOption['label'];
 
 interface SimpleMCQAssessmentProps {
   assessment: MCQAssessment;
   courseId: string;
   week: string;
   lessonSlug: string;
+  /** Called whenever the number of answered questions changes (e.g. to enable "Reset all"). */
+  onAnsweredCountChange?: (count: number) => void;
 }
 
 export interface SimpleMCQAssessmentHandle {
-  resetAll: () => void;
+  /** Clears every answer (server + local). Callers confirm first. Resolves false on failure. */
+  resetAll: () => Promise<boolean>;
   isSaving: boolean;
   hasAnswers: boolean;
   localAnswersCount: number;
 }
 
+type SaveStatus = 'idle' | 'pending' | 'saving' | 'saved' | 'error';
+
+const DISPLAY_LETTERS = ['A', 'B', 'C', 'D'] as const;
+const SAVE_DEBOUNCE_MS = 800;
+const SAVE_RETRY_MS = 5000;
+
+// ---------------------------------------------------------------------------
+// Deterministic option shuffling.
+// The markdown answer key is ~80-90% "B", so options are shown in a per-learner order
+// (per-session for guests). Answers are always stored by the ORIGINAL option letter, so
+// saved answers stay valid whatever order a learner sees.
+// ---------------------------------------------------------------------------
+function hashString(str: string): number {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function mulberry32(seed: number) {
+  let a = seed | 0;
+  return () => {
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function seededShuffle<T>(items: T[], seedKey: string): T[] {
+  const rand = mulberry32(hashString(seedKey));
+  const out = items.slice();
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
+// Guests get one shuffle per browser session. Read through useSyncExternalStore so the
+// server render (no seed) and the first client render agree.
+const GUEST_SEED_KEY = 'mcq-shuffle-seed';
+let guestSeedCache: string | null = null;
+function getGuestSeed(): string {
+  if (guestSeedCache) return guestSeedCache;
+  let seed: string | null = null;
+  try {
+    seed = window.sessionStorage.getItem(GUEST_SEED_KEY);
+    if (!seed) {
+      seed = Math.random().toString(36).slice(2) + Date.now().toString(36);
+      window.sessionStorage.setItem(GUEST_SEED_KEY, seed);
+    }
+  } catch {
+    seed = seed || Math.random().toString(36).slice(2);
+  }
+  guestSeedCache = seed;
+  return seed;
+}
+const subscribeNoop = () => () => {};
+const getNoSeed = () => null;
+
+function guestAnswersKey(courseId: string, week: string, lessonSlug: string) {
+  return `mcq-answers:${courseId}:${week}:${lessonSlug}`;
+}
+
+function isOptionLabel(value: unknown): value is OptionLabel {
+  return value === 'A' || value === 'B' || value === 'C' || value === 'D';
+}
+
 const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAssessmentProps>(
-  ({ assessment, courseId, week, lessonSlug }, ref) => {
-  const { user } = useAuth();
+  ({ assessment, courseId, week, lessonSlug, onAnsweredCountChange }, ref) => {
+  const { user, loading: authLoading } = useAuth();
   const { openAuthModal } = useAuthModal();
-  const [userAnswers, setUserAnswers] = useState<Map<number, 'A' | 'B' | 'C' | 'D'>>(new Map());
+  // Keyed by question number -> ORIGINAL option letter from the markdown
+  const [userAnswers, setUserAnswers] = useState<Map<number, OptionLabel>>(new Map());
+  // Questions whose answer panel is open
   const [showAnswers, setShowAnswers] = useState<Set<number>>(new Set());
-  const [isSaving, setIsSaving] = useState(false);
-  const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  // Questions whose answer has been revealed at least once: their pick is locked
+  const [revealed, setRevealed] = useState<Set<number>>(new Set());
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [selectedText, setSelectedText] = useState("");
   const [menuPosition, setMenuPosition] = useState<{ x: number; y: number } | null>(null);
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
+  const closeToast = useCallback(() => setToast(null), []);
   const selectedTextRef = useRef<string>("");
   const selectedOffsetRef = useRef<number>(0);
   const questionsContainerRef = useRef<HTMLDivElement>(null);
@@ -46,8 +128,42 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
   const hasScrolledToLastAttempted = useRef(false);
   const [answersLoaded, setAnswersLoaded] = useState(false);
 
+  // Autosave bookkeeping (refs so timers and unmount flushes see current values)
+  const userIdRef = useRef<string | null>(null);
+  const answersRef = useRef<Map<number, OptionLabel>>(new Map());
+  const pendingRef = useRef<Map<number, OptionLabel | null>>(new Map()); // null = delete
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingRef = useRef(false);
+  const assessmentIdRef = useRef<string | null>(null);
+  const sessionStartRef = useRef<number>(0);
+  const progressRowRef = useRef<{ progress: number; status: string; timeSpent: number; started: boolean } | null>(null);
+  const loadPromiseRef = useRef<Promise<void> | null>(null);
+
   // Flatten all questions from sections
-  const allQuestions = assessment.sections.flatMap(section => section.questions);
+  const allQuestions = useMemo(() => assessment.sections.flatMap(section => section.questions), [assessment]);
+
+  // Shuffle seed: per user when signed in, per session for guests, none until auth resolves.
+  const guestSeed = useSyncExternalStore(subscribeNoop, getGuestSeed, getNoSeed);
+  const shuffleSeed = authLoading ? null : user ? `u:${user.id}` : guestSeed ? `g:${guestSeed}` : null;
+
+  // Display order per question, as ORIGINAL option letters.
+  const optionOrder = useMemo(() => {
+    const orders = new Map<number, OptionLabel[]>();
+    allQuestions.forEach(q => {
+      const labels = q.options.map(o => o.label);
+      orders.set(
+        q.number,
+        shuffleSeed ? seededShuffle(labels, `${shuffleSeed}:${courseId}:${week}:${lessonSlug}:${q.number}`) : labels
+      );
+    });
+    return orders;
+  }, [allQuestions, shuffleSeed, courseId, week, lessonSlug]);
+
+  // Original letter -> letter shown to this learner
+  const displayLetter = (questionNumber: number, original: OptionLabel): string => {
+    const idx = optionOrder.get(questionNumber)?.indexOf(original) ?? -1;
+    return idx >= 0 ? DISPLAY_LETTERS[idx] : original;
+  };
 
   // Detect note navigation or question navigation from URL hash
   useEffect(() => {
@@ -106,7 +222,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
         const originalTransition = targetElement.style.transition;
 
         targetElement.style.transition = 'background 0.3s ease-in-out';
-        targetElement.style.background = 'rgba(99, 102, 241, 0.2)'; // Indigo highlight
+        targetElement.style.background = 'rgba(255, 107, 43, 0.15)';
 
         setTimeout(() => {
           if (targetElement) {
@@ -129,29 +245,332 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     return () => clearTimeout(timer);
   }, [noteScrollTarget]);
 
+  // ---------------------------------------------------------------------------
+  // Persistence
+  // ---------------------------------------------------------------------------
+
+  // Find (or lazily create) this assessment's row.
+  const ensureAssessmentId = useCallback(async (create: boolean): Promise<string | null> => {
+    if (assessmentIdRef.current) return assessmentIdRef.current;
+    const { data: existing } = await supabaseClient
+      .from('mcq_assessments')
+      .select('id')
+      .eq('course_id', courseId)
+      .eq('week', week)
+      .eq('lesson_slug', lessonSlug)
+      .maybeSingle();
+    if (existing) {
+      assessmentIdRef.current = existing.id;
+      return existing.id;
+    }
+    if (!create) return null;
+    const { data: created, error } = await supabaseClient
+      .from('mcq_assessments')
+      .insert({
+        course_id: courseId,
+        week,
+        lesson_slug: lessonSlug,
+        title: assessment.title,
+        description: assessment.description,
+        total_questions: assessment.totalQuestions,
+      })
+      .select('id')
+      .single();
+    if (error || !created) throw error || new Error('Failed to create assessment');
+    assessmentIdRef.current = created.id;
+    return created.id;
+  }, [courseId, week, lessonSlug, assessment.title, assessment.description, assessment.totalQuestions]);
+
+  // Mirror answers into learning_progress so assessments count toward course progress.
+  // Same rules as lessons: progress never goes down and "completed" is never undone.
+  const writeProgress = useCallback(async (userId: string, answered: number) => {
+    const total = assessment.totalQuestions;
+    if (!total) return;
+    const prev = progressRowRef.current ?? { progress: 0, status: 'not_started', timeSpent: 0, started: false };
+    const pct = Math.round((Math.min(answered, total) / total) * 100);
+    const progress = Math.max(prev.progress, pct);
+    if (progress === 0 && !progressRowRef.current) return; // nothing worth recording yet
+
+    const wasCompleted = prev.status === 'completed';
+    const completed = wasCompleted || answered >= total;
+    const status = completed ? 'completed' : progress > 0 ? 'in_progress' : 'not_started';
+    const now = new Date().toISOString();
+    const sessionSeconds = sessionStartRef.current ? Math.floor((Date.now() - sessionStartRef.current) / 1000) : 0;
+
+    const row: Record<string, string | number> = {
+      user_id: userId,
+      course_id: courseId,
+      week,
+      lesson_slug: lessonSlug,
+      progress_percentage: progress,
+      status,
+      time_spent: prev.timeSpent + sessionSeconds,
+      last_accessed_at: now,
+    };
+    if (!prev.started) row.started_at = now;
+    if (completed && !wasCompleted) row.completed_at = now;
+
+    const { error } = await supabaseClient
+      .from('learning_progress')
+      .upsert(row, { onConflict: 'user_id,course_id,week,lesson_slug' });
+    if (error) throw error;
+    progressRowRef.current = { progress, status, timeSpent: prev.timeSpent, started: true };
+  }, [assessment.totalQuestions, courseId, week, lessonSlug]);
+
+  // Push queued answer changes to the server. Safe to call at any time; it no-ops for guests,
+  // when nothing is queued, or while a save is already running (that save re-runs it).
+  const flushSaves = useCallback(async () => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    const userId = userIdRef.current;
+    if (!userId || savingRef.current || pendingRef.current.size === 0) return;
+
+    savingRef.current = true;
+    const batch = new Map(pendingRef.current);
+    pendingRef.current.clear();
+    setSaveStatus('saving');
+
+    let failed = false;
+    try {
+      if (loadPromiseRef.current) await loadPromiseRef.current;
+      const assessmentId = await ensureAssessmentId(true);
+      if (!assessmentId) throw new Error('No assessment id');
+
+      const upserts = Array.from(batch.entries())
+        .filter((entry): entry is [number, OptionLabel] => entry[1] !== null)
+        .map(([questionNumber, selectedOption]) => ({
+          user_id: userId,
+          assessment_id: assessmentId,
+          question_number: questionNumber,
+          selected_option: selectedOption,
+        }));
+      const deletions = Array.from(batch.entries()).filter(([, v]) => v === null).map(([n]) => n);
+
+      if (upserts.length > 0) {
+        const { error } = await supabaseClient
+          .from('mcq_user_answers')
+          .upsert(upserts, { onConflict: 'user_id,assessment_id,question_number' });
+        if (error) throw error;
+      }
+      if (deletions.length > 0) {
+        const { error } = await supabaseClient
+          .from('mcq_user_answers')
+          .delete()
+          .eq('user_id', userId)
+          .eq('assessment_id', assessmentId)
+          .in('question_number', deletions);
+        if (error) throw error;
+      }
+
+      await writeProgress(userId, answersRef.current.size);
+    } catch (error) {
+      console.error('[MCQ] Autosave failed:', error);
+      failed = true;
+      // Re-queue anything that wasn't changed again in the meantime
+      batch.forEach((value, questionNumber) => {
+        if (!pendingRef.current.has(questionNumber)) pendingRef.current.set(questionNumber, value);
+      });
+    } finally {
+      savingRef.current = false;
+    }
+
+    if (failed) {
+      setSaveStatus('error');
+      saveTimerRef.current = setTimeout(() => { void flushSaves(); }, SAVE_RETRY_MS);
+    } else if (pendingRef.current.size > 0) {
+      void flushSaves();
+    } else {
+      setSaveStatus('saved');
+    }
+  }, [ensureAssessmentId, writeProgress]);
+
+  const scheduleSave = useCallback(() => {
+    if (!userIdRef.current) return;
+    setSaveStatus('pending');
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => { void flushSaves(); }, SAVE_DEBOUNCE_MS);
+  }, [flushSaves]);
+
+  // Track the signed-in user for timers/unmount, and start the time-on-page clock.
+  useEffect(() => {
+    userIdRef.current = user?.id ?? null;
+  }, [user?.id]);
+  useEffect(() => {
+    sessionStartRef.current = Date.now();
+  }, []);
+
+  // Keep a ref copy of answers, report the count, and persist guest answers locally.
+  useEffect(() => {
+    answersRef.current = userAnswers;
+    onAnsweredCountChange?.(userAnswers.size);
+    if (!authLoading && !user && answersLoaded) {
+      try {
+        const key = guestAnswersKey(courseId, week, lessonSlug);
+        if (userAnswers.size === 0) window.localStorage.removeItem(key);
+        else window.localStorage.setItem(key, JSON.stringify(Object.fromEntries(userAnswers)));
+      } catch {
+        // storage unavailable: answers stay in memory for this visit
+      }
+    }
+  }, [userAnswers, onAnsweredCountChange, authLoading, user, answersLoaded, courseId, week, lessonSlug]);
+
+  // Flush queued answers when the tab is hidden or the component unmounts; warn on close
+  // only if something is still unsaved.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') void flushSaves();
+    };
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (userIdRef.current && (pendingRef.current.size > 0 || savingRef.current)) {
+        void flushSaves();
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('beforeunload', onBeforeUnload);
+      void flushSaves();
+    };
+  }, [flushSaves]);
+
+  // Load saved answers (signed in) or this browser's answers (guest) once auth resolves.
+  const signedInUserId = user?.id ?? null;
+  useEffect(() => {
+    if (authLoading) return;
+    let cancelled = false;
+
+    const applyLoaded = (loaded: Map<number, OptionLabel>, carryOverLocal: boolean) => {
+      const merged = new Map(loaded);
+      // Anything picked before the load finished (or as a guest before signing in) wins,
+      // and is queued so it reaches the server.
+      answersRef.current.forEach((option, questionNumber) => {
+        if (merged.get(questionNumber) !== option) {
+          merged.set(questionNumber, option);
+          if (carryOverLocal) pendingRef.current.set(questionNumber, option);
+        }
+      });
+      pendingRef.current.forEach((option, questionNumber) => {
+        if (option === null) merged.delete(questionNumber);
+      });
+      answersRef.current = merged;
+      setUserAnswers(merged);
+      // Only resume-scroll when there were saved answers; never jump while someone starts fresh
+      if (loaded.size === 0) hasScrolledToLastAttempted.current = true;
+      setAnswersLoaded(true);
+    };
+
+    if (!signedInUserId) {
+      const loaded = new Map<number, OptionLabel>();
+      try {
+        const raw = window.localStorage.getItem(guestAnswersKey(courseId, week, lessonSlug));
+        const parsed: unknown = raw ? JSON.parse(raw) : null;
+        if (parsed && typeof parsed === 'object') {
+          Object.entries(parsed as Record<string, unknown>).forEach(([k, v]) => {
+            if (isOptionLabel(v)) loaded.set(Number(k), v);
+          });
+        }
+      } catch {
+        // ignore unreadable storage
+      }
+      Promise.resolve().then(() => {
+        if (!cancelled) applyLoaded(loaded, false);
+      });
+      return () => { cancelled = true; };
+    }
+
+    const userId = signedInUserId;
+    const load = (async () => {
+      const loaded = new Map<number, OptionLabel>();
+      try {
+        const [assessmentId, progressResult] = await Promise.all([
+          ensureAssessmentId(false),
+          supabaseClient
+            .from('learning_progress')
+            .select('progress_percentage, status, time_spent, started_at')
+            .eq('user_id', userId)
+            .eq('course_id', courseId)
+            .eq('week', week)
+            .eq('lesson_slug', lessonSlug)
+            .maybeSingle(),
+        ]);
+        const row = progressResult.data;
+        progressRowRef.current = row
+          ? { progress: row.progress_percentage || 0, status: row.status || 'not_started', timeSpent: row.time_spent || 0, started: true }
+          : null;
+
+        if (assessmentId) {
+          const { data: answers, error } = await supabaseClient
+            .from('mcq_user_answers')
+            .select('question_number, selected_option')
+            .eq('user_id', userId)
+            .eq('assessment_id', assessmentId);
+          if (!error && answers) {
+            answers.forEach((a: { question_number: number; selected_option: string }) => {
+              if (isOptionLabel(a.selected_option)) loaded.set(a.question_number, a.selected_option);
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load saved answers:', error);
+      }
+      if (cancelled) return;
+      // Carry over answers picked as a guest in this browser too
+      try {
+        const raw = window.localStorage.getItem(guestAnswersKey(courseId, week, lessonSlug));
+        if (raw) window.localStorage.removeItem(guestAnswersKey(courseId, week, lessonSlug));
+      } catch {
+        // ignore
+      }
+      applyLoaded(loaded, true);
+      if (pendingRef.current.size > 0) scheduleSave();
+    })();
+    loadPromiseRef.current = load;
+
+    return () => { cancelled = true; };
+  }, [authLoading, signedInUserId, courseId, week, lessonSlug, ensureAssessmentId, scheduleSave]);
+
+  const resetAll = useCallback(async (): Promise<boolean> => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
+    }
+    pendingRef.current.clear();
+    try {
+      const userId = userIdRef.current;
+      if (userId) {
+        const assessmentId = await ensureAssessmentId(false);
+        if (assessmentId) {
+          const { error } = await supabaseClient
+            .from('mcq_user_answers')
+            .delete()
+            .eq('user_id', userId)
+            .eq('assessment_id', assessmentId);
+          if (error) throw error;
+        }
+      }
+      setUserAnswers(new Map());
+      setShowAnswers(new Set());
+      setRevealed(new Set());
+      setShowResults(false);
+      setSaveStatus('idle');
+      return true;
+    } catch (error) {
+      console.error('Failed to reset answers:', error);
+      return false;
+    }
+  }, [ensureAssessmentId]);
+
   // Expose reset handler to parent via ref
   useImperativeHandle(ref, () => ({
-    resetAll: handleResetAll,
-    isSaving,
+    resetAll,
+    isSaving: saveStatus === 'saving',
     hasAnswers: userAnswers.size > 0,
     localAnswersCount: userAnswers.size,
-  }), [isSaving, userAnswers.size]);
-
-  // Load user's saved answers on mount
-  useEffect(() => {
-    if (user) {
-      loadSavedAnswers();
-    } else {
-      // No user, mark as loaded
-      setAnswersLoaded(true);
-    }
-  }, [user]);
-
-  // Reset scroll flag when navigating to different assessment
-  useEffect(() => {
-    hasScrolledToLastAttempted.current = false;
-    setAnswersLoaded(false);
-  }, [lessonSlug]);
+  }), [resetAll, saveStatus, userAnswers.size]);
 
   // Right-click and long-press handler for text selection
   useEffect(() => {
@@ -183,7 +602,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
           const offset = tempRange.toString().length;
           selectedOffsetRef.current = offset;
         }
-      } catch (err) {
+      } catch {
         selectedOffsetRef.current = 0;
       }
 
@@ -316,7 +735,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
       const originalTransition = htmlElement.style.transition;
 
       htmlElement.style.transition = 'background 0.3s ease-in-out';
-      htmlElement.style.background = 'rgba(99, 102, 241, 0.2)'; // Indigo highlight
+      htmlElement.style.background = 'rgba(255, 107, 43, 0.15)';
 
       setTimeout(() => {
         htmlElement.style.background = originalBg;
@@ -346,67 +765,27 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     scrollToQuestion(targetQuestion);
   };
 
-  const loadSavedAnswers = async () => {
-    if (!user) {
-      setAnswersLoaded(true);
-      return;
-    }
+  const handleAnswerSelect = (questionNumber: number, option: OptionLabel) => {
+    // Once the answer has been revealed the pick is final (until "Reset all")
+    if (revealed.has(questionNumber)) return;
 
-    try {
-      // Get or find assessment
-      const { data: assessment } = await supabaseClient
-        .from('mcq_assessments')
-        .select('id')
-        .eq('course_id', courseId)
-        .eq('week', week)
-        .eq('lesson_slug', lessonSlug)
-        .maybeSingle();
+    const next: OptionLabel | null = userAnswers.get(questionNumber) === option ? null : option; // same option again = unselect
+    const newAnswers = new Map(userAnswers);
+    if (next === null) newAnswers.delete(questionNumber);
+    else newAnswers.set(questionNumber, next);
+    setUserAnswers(newAnswers);
+    answersRef.current = newAnswers;
 
-      if (!assessment) {
-        setAnswersLoaded(true);
-        return;
-      }
-
-      // Fetch user's answers
-      const { data: answers, error } = await supabaseClient
-        .from('mcq_user_answers')
-        .select('question_number, selected_option')
-        .eq('user_id', user.id)
-        .eq('assessment_id', assessment.id);
-
-      if (!error && answers) {
-        const answersMap = new Map<number, 'A' | 'B' | 'C' | 'D'>(
-          answers.map((a: any) => [a.question_number, a.selected_option])
-        );
-        console.log('[LoadAnswers] Loaded', answersMap.size, 'saved answers');
-        setUserAnswers(answersMap);
-      }
-    } catch (error) {
-      console.error('Failed to load saved answers:', error);
-    } finally {
-      // Always mark as loaded, even if there was an error or no answers
-      setAnswersLoaded(true);
-      console.log('[LoadAnswers] Answers loading complete');
+    if (userIdRef.current) {
+      pendingRef.current.set(questionNumber, next);
+      scheduleSave();
     }
   };
 
-  const handleAnswerSelect = (questionNumber: number, option: 'A' | 'B' | 'C' | 'D') => {
-    setUserAnswers(prev => {
-      const newAnswers = new Map(prev);
-      const currentAnswer = prev.get(questionNumber);
-      
-      // If clicking the same option, unselect it
-      if (currentAnswer === option) {
-        newAnswers.delete(questionNumber);
-      } else {
-        newAnswers.set(questionNumber, option);
-      }
-      
-      return newAnswers;
-    });
-  };
-
+  // Only answered questions can be revealed
   const toggleShowAnswer = (questionNumber: number) => {
+    if (!userAnswers.has(questionNumber)) return;
+    setRevealed(prev => (prev.has(questionNumber) ? prev : new Set(prev).add(questionNumber)));
     setShowAnswers(prev => {
       const newSet = new Set(prev);
       if (newSet.has(questionNumber)) {
@@ -418,138 +797,10 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     });
   };
 
-  const handleSaveAnswers = async () => {
-    if (!user) {
-      alert('Please sign in to save your answers');
-      return;
-    }
-
-    setIsSaving(true);
-
-    try {
-      // Get or create assessment
-      let assessmentId: string;
-      const { data: existingAssessment } = await supabaseClient
-        .from('mcq_assessments')
-        .select('id')
-        .eq('course_id', courseId)
-        .eq('week', week)
-        .eq('lesson_slug', lessonSlug)
-        .maybeSingle();
-
-      if (existingAssessment) {
-        assessmentId = existingAssessment.id;
-      } else {
-        // Create new assessment
-        const { data: newAssessment, error: createError } = await supabaseClient
-          .from('mcq_assessments')
-          .insert({
-            course_id: courseId,
-            week,
-            lesson_slug: lessonSlug,
-            title: assessment.title,
-            description: assessment.description,
-            total_questions: assessment.totalQuestions,
-          })
-          .select('id')
-          .single();
-
-        if (createError || !newAssessment) {
-          throw new Error('Failed to create assessment');
-        }
-        assessmentId = newAssessment.id;
-      }
-
-      // Get all existing answers for this assessment
-      const { data: existingAnswers } = await supabaseClient
-        .from('mcq_user_answers')
-        .select('question_number')
-        .eq('user_id', user.id)
-        .eq('assessment_id', assessmentId);
-
-      const existingQuestionNumbers = new Set(existingAnswers?.map(a => a.question_number) || []);
-      const currentQuestionNumbers = new Set(userAnswers.keys());
-
-      // Delete answers that are no longer selected
-      const questionsToDelete = Array.from(existingQuestionNumbers).filter(
-        q => !currentQuestionNumbers.has(q)
-      );
-
-      if (questionsToDelete.length > 0) {
-        await supabaseClient
-          .from('mcq_user_answers')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('assessment_id', assessmentId)
-          .in('question_number', questionsToDelete);
-      }
-
-      // Upsert currently selected answers
-      if (userAnswers.size > 0) {
-        const answersToSave = Array.from(userAnswers.entries()).map(([questionNumber, selectedOption]) => ({
-          user_id: user.id,
-          assessment_id: assessmentId,
-          question_number: questionNumber,
-          selected_option: selectedOption,
-        }));
-
-        const { error: answersError } = await supabaseClient
-          .from('mcq_user_answers')
-          .upsert(answersToSave, {
-            onConflict: 'user_id,assessment_id,question_number',
-          });
-
-        if (answersError) {
-          throw answersError;
-        }
-      }
-
-      setLastSaved(new Date());
-    } catch (error) {
-      console.error('Failed to save answers:', error);
-      alert('Failed to save answers. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleResetAll = async () => {
-    if (!user) return;
-
-    const confirmed = confirm('Are you sure you want to reset all your answers? This cannot be undone.');
-    if (!confirmed) return;
-
-    setIsSaving(true);
-
-    try {
-      // Get assessment
-      const { data: existingAssessment } = await supabaseClient
-        .from('mcq_assessments')
-        .select('id')
-        .eq('course_id', courseId)
-        .eq('week', week)
-        .eq('lesson_slug', lessonSlug)
-        .maybeSingle();
-
-      if (existingAssessment) {
-        // Delete all answers
-        await supabaseClient
-          .from('mcq_user_answers')
-          .delete()
-          .eq('user_id', user.id)
-          .eq('assessment_id', existingAssessment.id);
-      }
-
-      // Clear local state
-      setUserAnswers(new Map());
-      setShowAnswers(new Set());
-      setLastSaved(new Date());
-    } catch (error) {
-      console.error('Failed to reset answers:', error);
-      alert('Failed to reset answers. Please try again.');
-    } finally {
-      setIsSaving(false);
-    }
+  const handleConfirmReset = async () => {
+    setShowResetConfirm(false);
+    const ok = await resetAll();
+    setToast(ok ? { message: 'All answers cleared', type: 'success' } : { message: 'Could not reset answers. Please try again.', type: 'error' });
   };
 
   const getAnsweredCount = () => userAnswers.size;
@@ -560,6 +811,8 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     });
     return correct;
   };
+  const totalQuestions = assessment.totalQuestions || allQuestions.length;
+  const scorePercent = totalQuestions > 0 ? Math.round((getCorrectCount() / totalQuestions) * 100) : 0;
 
   const handleHighlight = async (color: string) => {
     if (!user) {
@@ -592,7 +845,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
       window.getSelection()?.removeAllRanges();
       setMenuPosition(null);
       setSelectedText("");
-    } catch (error) {
+    } catch {
       setToast({ message: "Failed to save highlight", type: "error" });
     }
   };
@@ -624,7 +877,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
       window.getSelection()?.removeAllRanges();
       setMenuPosition(null);
       setSelectedText("");
-    } catch (error) {
+    } catch {
       setToast({ message: "Failed to bookmark", type: "error" });
     }
   };
@@ -674,7 +927,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
       setShowNoteEditor(false);
       window.getSelection()?.removeAllRanges();
       setSelectedText("");
-    } catch (error) {
+    } catch {
       setToast({ message: "Failed to save note", type: "error" });
     }
   };
@@ -685,62 +938,66 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     try {
       await navigator.clipboard.writeText(url);
       setToast({ message: "Question link copied to clipboard!", type: "success" });
-    } catch (error) {
+    } catch {
       setToast({ message: "Failed to copy link", type: "error" });
     }
   };
 
   const handleCheckResults = () => {
-    // Show all answers
-    const allQuestionNumbers = allQuestions.map(q => q.number);
-    setShowAnswers(new Set(allQuestionNumbers));
+    // Reveal (and lock) answered questions only; unanswered ones stay hidden
+    const answered = Array.from(userAnswers.keys());
+    setShowAnswers(new Set(answered));
+    setRevealed(prev => new Set([...prev, ...answered]));
     setShowResults(true);
-    
+
     // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const saveIndicator =
+    saveStatus === 'saving' || saveStatus === 'pending'
+      ? 'Saving…'
+      : saveStatus === 'error'
+      ? 'Not saved · retrying'
+      : saveStatus === 'saved'
+      ? `Saved ✓ · ${userAnswers.size}/${totalQuestions}`
+      : 'Autosave on';
+
   return (
     <>
-      <div className="max-w-4xl mx-auto space-y-6 pb-20 sm:pb-24">{/* Add padding-bottom for sticky bar */}
+      <div className="max-w-4xl space-y-6 pb-20 sm:pb-24">
         {/* Header */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 sticky top-16 z-10">
+        <div className="border border-line bg-surface p-5 sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+            <h1 className="mb-2 font-display text-[clamp(30px,4vw,48px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
               {assessment.title}
             </h1>
             {assessment.description && (
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
+              <p className="mb-4 text-fg-2">
                 {assessment.description}
               </p>
             )}
             
-            <div className="flex items-center gap-6 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex flex-wrap items-center gap-x-6 gap-y-1 font-mono text-xs uppercase tracking-label text-fg-3">
               <span>{assessment.totalQuestions} Questions</span>
               <span>Answered: {getAnsweredCount()} / {assessment.totalQuestions}</span>
-              {userAnswers.size > 0 && showAnswers.size > 0 && (
-                <span className="text-green-600 dark:text-green-400 font-medium">
-                  Correct: {getCorrectCount()} / {userAnswers.size}
+              {userAnswers.size > 0 && (showResults || showAnswers.size > 0) && (
+                <span className="text-ok">
+                  Correct: {getCorrectCount()} / {totalQuestions}
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {lastSaved && (
-          <p className="mt-2 text-sm text-green-600 dark:text-green-400">
-            Last saved: {lastSaved.toLocaleTimeString()}
-          </p>
-        )}
-
         {!user && (
-          <div className="mt-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-3 text-center">
+          <div className="mt-4 border border-dashed border-line-strong p-3 text-center">
             <button
               onClick={() => setShowAuthModal(true)}
-              className="text-sm text-yellow-800 dark:text-yellow-200 hover:text-yellow-900 dark:hover:text-yellow-100 underline font-medium transition-colors"
+              className="min-h-[44px] text-sm font-medium text-signal-text underline underline-offset-[3px]"
             >
-              Sign in to save your answers
+              Sign in to keep practice answers across devices
             </button>
           </div>
         )}
@@ -760,51 +1017,54 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
           return (
             <div key={section.title} className="space-y-6" id={sectionId}>
               {/* Section Header */}
-              <div className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-lg p-4">
-                <h2 className="text-xl font-bold">{section.title}</h2>
-                <p className="text-sm text-indigo-100">{section.questionRange}</p>
+              <div className="border-l-2 border-signal bg-surface px-4 py-3">
+                <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-fg">{section.title}</h2>
+                <p className="font-mono text-xs uppercase tracking-label text-fg-3">{section.questionRange}</p>
               </div>
 
             {/* Section Questions */}
             {section.questions.map((question) => {
               const userAnswer = userAnswers.get(question.number);
-              const isShowingAnswer = showAnswers.has(question.number);
+              const isShowingAnswer = !!userAnswer && showAnswers.has(question.number);
+              const isLocked = revealed.has(question.number);
               const isCorrect = userAnswer === question.correctAnswer;
 
-              // Convert options array to object format
-              const optionsObj = question.options.reduce((acc, opt) => {
-                acc[opt.label] = opt.text;
-                return acc;
-              }, {} as Record<string, string>);
+              // Options in this learner's display order; values stay the ORIGINAL letters
+              const optionText = new Map(question.options.map(opt => [opt.label, opt.text]));
+              const orderedOptions = (optionOrder.get(question.number) ?? question.options.map(opt => opt.label)).map(
+                (label, idx) => ({ label, display: DISPLAY_LETTERS[idx] ?? label, text: optionText.get(label) ?? '' })
+              );
 
               return (
                 <div
                   key={question.number}
                   data-question-number={question.number}
-                  className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 sm:p-6"
+                  className="border border-line bg-surface p-4 sm:p-6"
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4 mb-4">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-indigo-600 dark:text-indigo-400">
+                        <span className="font-mono text-xs uppercase tracking-label text-signal-text">
                           Question {question.number}
                         </span>
                         <button
                           onClick={() => handleShareQuestion(question.number)}
-                          className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                          className="grid h-9 w-9 place-items-center text-fg-3 transition-colors hover:text-fg"
                           title="Share this question"
+                          aria-label={`Copy a link to question ${question.number}`}
                         >
                           <Share2 className="w-3.5 h-3.5" />
                         </button>
                       </div>
-                      <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white mt-1">
+                      <h3 className="mt-1 text-base font-semibold text-fg sm:text-lg">
                         {question.text}
                       </h3>
                     </div>
 
+                    {userAnswer && (
                     <button
                       onClick={() => toggleShowAnswer(question.number)}
-                      className="flex items-center justify-center gap-2 px-4 py-2 text-sm bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-lg transition-colors shrink-0 w-full sm:w-auto"
+                      className="flex min-h-[44px] w-full shrink-0 items-center justify-center gap-2 border border-line-strong px-4 text-sm text-fg transition-colors hover:border-fg-3 sm:w-auto"
                     >
                       {isShowingAnswer ? (
                         <>
@@ -818,11 +1078,13 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
                         </>
                       )}
                     </button>
+                    )}
                   </div>
 
                   {/* Options */}
-                  <div className="space-y-3">
-                    {Object.entries(optionsObj).map(([key, value]) => {
+                  {/* Hidden until the shuffle seed is known so learners never see the order jump */}
+                  <div className={`space-y-3 ${shuffleSeed ? '' : 'invisible'}`} aria-busy={!shuffleSeed}>
+                    {orderedOptions.map(({ label: key, display, text: value }) => {
                       const isSelected = userAnswer === key;
                       const isCorrectOption = question.correctAnswer === key;
                       const showCorrect = isShowingAnswer && isCorrectOption;
@@ -831,40 +1093,40 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
                       return (
                         <button
                           key={key}
-                          onClick={() => handleAnswerSelect(question.number, key as 'A' | 'B' | 'C' | 'D')}
-                          className={`w-full p-4 text-left rounded-lg border-2 transition-all ${
+                          onClick={() => handleAnswerSelect(question.number, key)}
+                          aria-pressed={isSelected}
+                          aria-disabled={isLocked}
+                          className={`w-full p-4 text-left transition-colors ${isLocked ? 'cursor-default ' : ''}${
                             showCorrect
-                              ? 'border-green-500 dark:border-green-400 bg-green-50 dark:bg-green-900/20'
+                              ? 'border-2 border-ok bg-bg'
                               : showIncorrect
-                              ? 'border-red-500 dark:border-red-400 bg-red-50 dark:bg-red-900/20'
+                              ? 'border-2 border-bad bg-bg'
                               : isSelected
-                              ? 'border-indigo-600 dark:border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
-                              : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                              ? 'border-2 border-signal bg-surface-2'
+                              : 'border border-line-strong bg-bg hover:border-fg-3'
                           }`}
                         >
                           <div className="flex items-start gap-3">
-                            <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
+                            <span className={`grid h-8 w-8 flex-shrink-0 place-items-center font-mono text-sm font-semibold ${
                               showCorrect
-                                ? 'bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300'
+                                ? 'bg-ok text-[#04140B]'
                                 : showIncorrect
-                                ? 'bg-red-100 dark:bg-red-900/50 text-red-700 dark:text-red-300'
+                                ? 'border border-bad text-bad-text'
                                 : isSelected
-                                ? 'bg-indigo-100 dark:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300'
-                                : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
+                                ? 'bg-signal text-on-signal'
+                                : 'border border-line-strong text-fg-2'
                             }`}>
-                              {key}
+                              {display}
                             </span>
-                            <span className="flex-1 pt-1 text-gray-900 dark:text-white">{value}</span>
+                            <span className="flex-1 pt-1 text-fg">{value}</span>
                             {showCorrect && (
-                              <CheckCircle className="flex-shrink-0 w-6 h-6 text-green-600 dark:text-green-400" />
+                              <CheckCircle className="flex-shrink-0 w-6 h-6 text-ok" />
                             )}
                             {showIncorrect && (
-                              <XCircle className="flex-shrink-0 w-6 h-6 text-red-600 dark:text-red-400" />
+                              <XCircle className="flex-shrink-0 w-6 h-6 text-bad-text" />
                             )}
                             {isSelected && !isShowingAnswer && (
-                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-indigo-600 dark:bg-indigo-500 flex items-center justify-center">
-                                <CheckCircle className="w-4 h-4 text-white" />
-                              </div>
+                              <span className="flex-shrink-0 font-mono text-xs text-signal-text">SELECTED</span>
                             )}
                           </div>
                         </button>
@@ -874,56 +1136,14 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
 
                   {/* Answer status and explanation */}
                   {isShowingAnswer && (
-                    <div className={`mt-4 p-4 rounded-lg space-y-3 ${
-                      userAnswer 
-                        ? isCorrect
-                          ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-                          : 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
-                        : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                    }`}>
-                      {userAnswer ? (
-                        <p className={`text-sm font-medium ${
-                          isCorrect 
-                            ? 'text-green-800 dark:text-green-300' 
-                            : 'text-red-800 dark:text-red-300'
-                        }`}>
-                          {isCorrect 
-                            ? '✓ Your answer is correct!' 
-                            : `✗ Your answer is incorrect. The correct answer is ${question.correctAnswer}.`}
-                        </p>
-                      ) : (
-                        <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-                          Correct answer: {question.correctAnswer}
-                        </p>
-                      )}
-                      
+                    <div className={`mt-4 space-y-3 border bg-bg p-4 ${isCorrect ? 'border-ok' : 'border-bad'}`}>
+                      <p className={`font-mono text-xs font-semibold uppercase tracking-label ${isCorrect ? 'text-ok' : 'text-bad-text'}`}>
+                        {isCorrect
+                          ? '✓ Correct'
+                          : `✕ Not quite · the answer is ${displayLetter(question.number, question.correctAnswer)}`}
+                      </p>
                       {question.explanation && (
-                        <div className={`pt-3 border-t ${
-                          userAnswer
-                            ? isCorrect
-                              ? 'border-green-200 dark:border-green-800'
-                              : 'border-red-200 dark:border-red-800'
-                            : 'border-blue-200 dark:border-blue-800'
-                        }`}>
-                          <p className={`text-sm font-medium mb-1 ${
-                            userAnswer
-                              ? isCorrect
-                                ? 'text-green-700 dark:text-green-400'
-                                : 'text-red-700 dark:text-red-400'
-                              : 'text-blue-700 dark:text-blue-400'
-                          }`}>
-                            💡 Explanation:
-                          </p>
-                          <p className={`text-sm ${
-                            userAnswer
-                              ? isCorrect
-                                ? 'text-green-700 dark:text-green-300'
-                                : 'text-red-700 dark:text-red-300'
-                              : 'text-blue-700 dark:text-blue-300'
-                          }`}>
-                            {question.explanation}
-                          </p>
-                        </div>
+                        <p className="border-t border-line pt-3 text-sm leading-relaxed text-fg-2">{question.explanation}</p>
                       )}
                     </div>
                   )}
@@ -972,70 +1192,69 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
         <Toast
           message={toast.message}
           type={toast.type}
-          onClose={() => setToast(null)}
+          onClose={closeToast}
         />
       )}
+
+      <ConfirmDialog
+        isOpen={showResetConfirm}
+        title="Reset all answers?"
+        message="This clears every answer on this assessment. It cannot be undone."
+        confirmText="Reset answers"
+        onConfirm={handleConfirmReset}
+        onCancel={() => setShowResetConfirm(false)}
+      />
     </div>
 
-    {/* Bottom Action Buttons - Fixed on mobile, sticky on desktop */}
+    {/* Bottom bar: fixed above the mobile dock, floating bottom-right on desktop */}
     {userAnswers.size > 0 && (
-      <div className="fixed sm:sticky bottom-0 left-0 right-0 sm:max-w-4xl sm:mx-auto bg-white/95 dark:bg-gray-800/95 backdrop-blur-sm shadow-lg sm:rounded-lg p-2 sm:p-4 border-t border-gray-200 dark:border-gray-700 z-50">
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 sm:gap-3">
-          <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 text-center sm:text-left">
-            <span className="font-medium">Progress: </span>
-            {getAnsweredCount()} / {assessment.totalQuestions}
+      <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] z-40 border-t border-line bg-bg/95 p-2 backdrop-blur sm:p-3 lg:inset-x-auto lg:bottom-4 lg:right-6 lg:border">
+        <div className="flex flex-col items-stretch justify-between gap-2 sm:flex-row sm:items-center sm:gap-3">
+          <div className="text-center font-mono text-xs text-fg-3 sm:text-left">
+            {getAnsweredCount()} / {assessment.totalQuestions} answered
             {showResults && (
-              <span className="ml-2 sm:ml-4 text-green-600 dark:text-green-400 font-medium">
-                Score: {getCorrectCount()}/{userAnswers.size} ({Math.round((getCorrectCount() / userAnswers.size) * 100)}%)
+              <span className="ml-3 text-ok">
+                score {getCorrectCount()}/{totalQuestions} · {scorePercent}%
               </span>
             )}
           </div>
-          <div className={`grid ${user ? 'grid-cols-3' : 'grid-cols-2'} sm:flex gap-1.5 sm:gap-2`}>
-            {/* Reset button - visible on mobile only when authenticated */}
-            {user && (
-              <button
-                onClick={handleResetAll}
-                disabled={isSaving || userAnswers.size === 0}
-                className="sm:hidden flex items-center justify-center gap-0.5 px-2 py-1.5 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Reset All Answers"
-              >
-                <RotateCcw className="w-3 h-3" />
-                <span className="text-[10px]">Reset</span>
-              </button>
-            )}
+          <div className="grid grid-cols-3 gap-1.5 sm:flex sm:gap-2">
+            {/* Reset button - mobile only (desktop has it in the sections sidebar) */}
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              disabled={userAnswers.size === 0}
+              className="flex min-h-[44px] items-center justify-center gap-1 border border-line-strong px-2 text-xs text-fg transition-colors hover:border-fg-3 disabled:cursor-not-allowed disabled:opacity-50 lg:hidden"
+              title="Reset all answers"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
+            </button>
             <button
               onClick={handleCheckResults}
               disabled={userAnswers.size === 0}
-              className="flex items-center justify-center gap-0.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded text-xs sm:text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex min-h-[44px] items-center justify-center gap-1.5 bg-signal px-4 text-sm font-semibold text-on-signal transition-opacity hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">Check</span>
-              <span className="sm:hidden text-[10px]">Check</span>
+              <CheckCircle className="h-4 w-4" />
+              Check
             </button>
             {user ? (
-              <button
-                onClick={handleSaveAnswers}
-                disabled={isSaving}
-                className="flex items-center justify-center gap-0.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs sm:text-sm font-medium transition-colors disabled:opacity-50"
+              <span
+                aria-live="polite"
+                className={`flex items-center justify-center gap-1 px-2 font-mono text-[10px] sm:px-3 sm:text-xs ${
+                  saveStatus === 'error' ? 'text-bad-text' : saveStatus === 'saved' ? 'text-ok' : 'text-fg-3'
+                }`}
               >
-                <Save className="w-3 h-3 sm:w-4 sm:h-4" />
-                {isSaving ? (
-                  <span className="text-[10px] sm:text-sm">Saving...</span>
-                ) : (
-                  <>
-                    <span className="hidden sm:inline">Save</span>
-                    <span className="sm:hidden text-[10px]">Save</span>
-                  </>
-                )}
-              </button>
+                {saveIndicator}
+              </span>
             ) : (
               <button
                 onClick={() => openAuthModal()}
-                className="flex items-center justify-center gap-0.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2 bg-indigo-500 hover:bg-indigo-600 text-white rounded text-xs sm:text-sm font-medium transition-colors"
+                className="flex min-h-[44px] items-center justify-center gap-1.5 border border-line-strong px-3 text-xs text-fg transition-colors hover:border-fg-3 sm:text-sm"
+                title="Answers are saved in this browser. Sign in to keep them across devices."
               >
-                <Save className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="hidden sm:inline">Sign in to Save</span>
-                <span className="sm:hidden text-[10px]">Sign in</span>
+                <Save className="h-4 w-4" />
+                <span className="hidden sm:inline">Saved here · sign in to sync</span>
+                <span className="sm:hidden">Sign in</span>
               </button>
             )}
           </div>

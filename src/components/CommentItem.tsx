@@ -4,24 +4,11 @@ import { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import {
-  ThumbsUp,
-  ThumbsDown,
-  Reply,
-  MoreVertical,
-  Edit,
-  Trash2,
-  Flag,
-  CheckCircle,
-  Pin,
-  ChevronDown,
-  ChevronUp,
-  Share2,
-  Check,
-} from "lucide-react";
+import { ThumbsUp, ThumbsDown, Reply, MoreVertical, Edit, Trash2, Flag, CheckCircle, Pin, Share2 } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
 import { formatDistanceToNow } from "@/lib/date-utils";
 import ConfirmDialog from "./ConfirmDialog";
+import richStyles from "@/components/learn/lesson/richtext.module.css";
 
 type Comment = {
   id: string;
@@ -53,20 +40,22 @@ type CommentItemProps = {
   maxDepth?: number;
 };
 
-export default function CommentItem({
-  comment,
-  onReply,
-  onEdit,
-  onDelete,
-  onVote,
-  depth = 0,
-  maxDepth = 5,
-}: CommentItemProps) {
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase() ?? "")
+    .join("") || "?";
+
+const ACTION = "inline-flex min-h-11 items-center gap-1.5 px-2 font-mono text-xs text-fg-3 hover:text-fg";
+
+export default function CommentItem({ comment, onReply, onEdit, onDelete, onVote, depth = 0, maxDepth = 5 }: CommentItemProps) {
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [showEditBox, setShowEditBox] = useState(false);
-  const [showReplies, setShowReplies] = useState(depth < 2); // Auto-expand first 2 levels
+  const [showReplies, setShowReplies] = useState(depth < 2); // first two levels open
   const [showMenu, setShowMenu] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [replyRawContent, setReplyRawContent] = useState("");
@@ -77,7 +66,8 @@ export default function CommentItem({
   const [localUpvotes, setLocalUpvotes] = useState(comment.upvotes);
   const [localDownvotes, setLocalDownvotes] = useState(comment.downvotes);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [showShareToast, setShowShareToast] = useState(false);
+  const [share, setShare] = useState<{ ok: boolean; url: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [isHighlighted, setIsHighlighted] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const commentRef = useRef<HTMLDivElement>(null);
@@ -86,35 +76,32 @@ export default function CommentItem({
   const netVotes = localUpvotes - localDownvotes;
   const canReply = depth < maxDepth;
 
-  // Handle comment highlighting from URL hash
+  // #comment-<id> deep links: scroll to and briefly mark the comment
   useEffect(() => {
-    const hash = window.location.hash;
-    if (hash === `#comment-${comment.id}`) {
+    if (window.location.hash !== `#comment-${comment.id}`) return;
+    const t1 = window.setTimeout(() => {
       setIsHighlighted(true);
-      // Scroll to comment
-      setTimeout(() => {
-        commentRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }, 300);
-      
-      // Remove highlight after 3 seconds
-      setTimeout(() => {
-        setIsHighlighted(false);
-      }, 3000);
-    }
+      commentRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 300);
+    const t2 = window.setTimeout(() => setIsHighlighted(false), 3300);
+    return () => {
+      window.clearTimeout(t1);
+      window.clearTimeout(t2);
+    };
   }, [comment.id]);
 
-  // Close menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowMenu(false);
-      }
+    if (!showMenu) return;
+    const onDown = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) setShowMenu(false);
     };
-
-    if (showMenu) {
-      document.addEventListener("mousedown", handleClickOutside);
-      return () => document.removeEventListener("mousedown", handleClickOutside);
-    }
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setShowMenu(false);
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
   }, [showMenu]);
 
   const handleVote = async (voteType: "upvote" | "downvote") => {
@@ -122,60 +109,44 @@ export default function CommentItem({
       openAuthModal();
       return;
     }
-
-    const previousVote = localVote;
-    const previousUpvotes = localUpvotes;
-    const previousDownvotes = localDownvotes;
-
-    // Optimistic update
+    const prev = { vote: localVote, up: localUpvotes, down: localDownvotes };
     if (localVote === voteType) {
-      // Remove vote
       setLocalVote(null);
-      if (voteType === "upvote") {
-        setLocalUpvotes((prev) => prev - 1);
-      } else {
-        setLocalDownvotes((prev) => prev - 1);
-      }
+      if (voteType === "upvote") setLocalUpvotes((n) => n - 1);
+      else setLocalDownvotes((n) => n - 1);
     } else {
-      // Add or change vote
       if (localVote === "upvote") {
-        setLocalUpvotes((prev) => prev - 1);
-        setLocalDownvotes((prev) => prev + 1);
+        setLocalUpvotes((n) => n - 1);
+        setLocalDownvotes((n) => n + 1);
       } else if (localVote === "downvote") {
-        setLocalDownvotes((prev) => prev - 1);
-        setLocalUpvotes((prev) => prev + 1);
-      } else {
-        if (voteType === "upvote") {
-          setLocalUpvotes((prev) => prev + 1);
-        } else {
-          setLocalDownvotes((prev) => prev + 1);
-        }
-      }
+        setLocalDownvotes((n) => n - 1);
+        setLocalUpvotes((n) => n + 1);
+      } else if (voteType === "upvote") setLocalUpvotes((n) => n + 1);
+      else setLocalDownvotes((n) => n + 1);
       setLocalVote(voteType);
     }
-
     try {
       await onVote(comment.id, voteType);
-    } catch (error) {
-      // Revert on error
-      setLocalVote(previousVote);
-      setLocalUpvotes(previousUpvotes);
-      setLocalDownvotes(previousDownvotes);
+    } catch {
+      setLocalVote(prev.vote);
+      setLocalUpvotes(prev.up);
+      setLocalDownvotes(prev.down);
+      setError("Vote didn't save. Try again.");
     }
   };
 
   const handleReplySubmit = async () => {
     if (!replyRawContent.trim() || isSubmitting) return;
-
     setIsSubmitting(true);
+    setError(null);
     try {
       await onReply(comment.id, replyContent, replyRawContent);
       setReplyContent("");
       setReplyRawContent("");
       setShowReplyBox(false);
-      setShowReplies(true); // Auto-expand to show new reply
-    } catch (error) {
-      console.error("Error submitting reply:", error);
+      setShowReplies(true);
+    } catch {
+      setError("Reply didn't post. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -183,13 +154,13 @@ export default function CommentItem({
 
   const handleEditSubmit = async () => {
     if (!editRawContent.trim() || isSubmitting) return;
-
     setIsSubmitting(true);
+    setError(null);
     try {
       await onEdit(comment.id, editContent, editRawContent);
       setShowEditBox(false);
-    } catch (error) {
-      console.error("Error editing comment:", error);
+    } catch {
+      setError("Edit didn't save. Try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -199,89 +170,71 @@ export default function CommentItem({
     try {
       await onDelete(comment.id);
       setShowDeleteConfirm(false);
-    } catch (error) {
-      console.error("Error deleting comment:", error);
+    } catch {
+      setShowDeleteConfirm(false);
+      setError("Couldn't delete the comment. Try again.");
     }
   };
 
   const handleShare = async () => {
-    const shareUrl = `${window.location.origin}${window.location.pathname}#comment-${comment.id}`;
-    
+    const url = `${window.location.origin}${window.location.pathname}#comment-${comment.id}`;
     try {
-      await navigator.clipboard.writeText(shareUrl);
-      setShowShareToast(true);
-      setTimeout(() => setShowShareToast(false), 2000);
-    } catch (error) {
-      console.error("Error copying to clipboard:", error);
-      // Fallback: show the URL in a prompt
-      prompt("Copy this link:", shareUrl);
+      await navigator.clipboard.writeText(url);
+      setShare({ ok: true, url });
+      window.setTimeout(() => setShare(null), 2000);
+    } catch {
+      // clipboard blocked: show the link so it can be copied by hand
+      setShare({ ok: false, url });
     }
   };
 
-  const indentClass = depth > 0 ? "ml-3 sm:ml-6 md:ml-10 border-l-2 border-black/10 dark:border-white/10 pl-2 sm:pl-3 md:pl-4" : "";
-
   return (
-    <div className={`${indentClass}`}>
-      <div 
+    <div className={depth > 0 ? "ml-3 border-l border-line pl-3 sm:ml-6 sm:pl-4" : ""}>
+      <div
         ref={commentRef}
         id={`comment-${comment.id}`}
-        className={`py-3 transition-all duration-300 ${
-          isHighlighted ? 'bg-blue-500/10 -mx-2 px-2 rounded-lg border-l-4 border-blue-500' : ''
-        }`}
+        className={`py-3 transition-colors ${isHighlighted ? "-mx-2 bg-surface-2 px-2 outline outline-1 outline-signal" : ""}`}
       >
-        {/* Header */}
-        <div className="flex items-start gap-2 sm:gap-3">
-          {/* Avatar */}
-          <div className="flex-shrink-0">
+        <div className="flex items-start gap-3">
+          <div className="shrink-0">
             {comment.user_avatar ? (
               <Image
                 src={comment.user_avatar}
-                alt={comment.user_name}
-                width={32}
-                height={32}
-                className="w-7 h-7 sm:w-8 sm:h-8 rounded-full"
-                unoptimized={!comment.user_avatar.includes('googleusercontent.com')}
+                alt=""
+                width={36}
+                height={36}
+                className="h-9 w-9 border border-line-strong object-cover"
+                unoptimized={!comment.user_avatar.includes("googleusercontent.com")}
               />
             ) : (
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs sm:text-sm font-bold">
-                {comment.user_name.charAt(0).toUpperCase()}
-              </div>
+              <span aria-hidden className="grid h-9 w-9 place-items-center border border-line-strong bg-surface-2 text-[13px] font-bold text-fg">
+                {initials(comment.user_name)}
+              </span>
             )}
           </div>
 
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            {/* User info and metadata */}
-            <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className="font-semibold text-sm sm:text-base text-gray-900 dark:text-white truncate">
-                {comment.user_name}
-              </span>
-              {isAuthor && (
-                <span className="px-2 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 text-xs rounded-full font-medium flex-shrink-0">
-                  You
-                </span>
-              )}
+          <div className="min-w-0 flex-1">
+            <div className="mb-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="truncate text-sm font-semibold text-fg">{comment.user_name}</span>
+              {isAuthor && <span className="bg-fg px-1.5 py-0.5 font-mono text-[10px] font-semibold tracking-label text-bg">YOU</span>}
               {comment.is_solution && (
-                <span className="flex items-center gap-1 text-xs bg-green-500/20 text-green-600 dark:text-green-400 px-2 py-0.5 rounded-full flex-shrink-0">
-                  <CheckCircle className="w-3 h-3" />
-                  <span className="hidden sm:inline">Solution</span>
+                <span className="inline-flex items-center gap-1 border border-ok px-1.5 py-0.5 font-mono text-[10px] tracking-label text-ok">
+                  <CheckCircle className="h-3 w-3" aria-hidden />
+                  SOLUTION
                 </span>
               )}
               {comment.is_pinned && (
-                <span className="flex items-center gap-1 text-xs bg-blue-500/20 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full flex-shrink-0">
-                  <Pin className="w-3 h-3" />
-                  <span className="hidden sm:inline">Pinned</span>
+                <span className="inline-flex items-center gap-1 border border-signal px-1.5 py-0.5 font-mono text-[10px] tracking-label text-signal-text">
+                  <Pin className="h-3 w-3" aria-hidden />
+                  PINNED
                 </span>
               )}
-              <span className="text-xs text-gray-500 dark:text-white/50 flex-shrink-0">
+              <span className="font-mono text-[11px] text-fg-3">
                 {formatDistanceToNow(new Date(comment.created_at))}
+                {comment.is_edited ? " · edited" : ""}
               </span>
-              {comment.is_edited && (
-                <span className="text-xs text-gray-500 dark:text-white/50 flex-shrink-0">(edited)</span>
-              )}
             </div>
 
-            {/* Comment content */}
             {showEditBox ? (
               <div className="mb-3">
                 <RichTextEditor
@@ -290,25 +243,27 @@ export default function CommentItem({
                     setEditContent(html);
                     setEditRawContent(text);
                   }}
-                  placeholder="Edit your comment..."
+                  placeholder="Edit your comment…"
                   minHeight="100px"
                   autoFocus
                 />
-                <div className="flex items-center gap-2 mt-2">
+                <div className="mt-2 flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={handleEditSubmit}
                     disabled={isSubmitting || !editRawContent.trim()}
-                    className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg disabled:shadow-none"
+                    className="min-h-11 bg-signal px-4 text-sm font-semibold text-on-signal disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isSubmitting ? "Saving..." : "Save"}
+                    {isSubmitting ? "Saving…" : "Save"}
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowEditBox(false);
                       setEditContent(comment.content);
                       setEditRawContent(comment.raw_content);
                     }}
-                    className="px-4 py-1.5 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
+                    className="min-h-11 border border-line-strong px-4 text-sm text-fg hover:border-fg-3"
                   >
                     Cancel
                   </button>
@@ -316,122 +271,111 @@ export default function CommentItem({
               </div>
             ) : (
               <div
-                className="prose prose-sm dark:prose-invert max-w-none mb-3 break-words overflow-hidden"
+                className={`prose ${richStyles.rich} mb-1 max-w-none text-[15px] leading-relaxed text-fg-2`}
                 dangerouslySetInnerHTML={{ __html: comment.content }}
               />
             )}
 
-            {/* Action buttons */}
             {!showEditBox && (
-              <div className="flex items-center flex-wrap gap-2 sm:gap-3 text-sm">
-                {/* Vote buttons */}
-                <div className="flex items-center gap-1 sm:gap-2">
-                  <button
-                    onClick={() => handleVote("upvote")}
-                    className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded transition-colors ${
-                      localVote === "upvote"
-                        ? "bg-green-500/20 text-green-600 dark:text-green-400"
-                        : "hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60"
-                    }`}
-                  >
-                    <ThumbsUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="text-xs font-medium">{localUpvotes}</span>
-                  </button>
-                  <button
-                    onClick={() => handleVote("downvote")}
-                    className={`flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded transition-colors ${
-                      localVote === "downvote"
-                        ? "bg-red-500/20 text-red-600 dark:text-red-400"
-                        : "hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60"
-                    }`}
-                  >
-                    <ThumbsDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                  </button>
-                  {netVotes !== 0 && (
-                    <span className={`text-xs font-medium ${netVotes > 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                      {netVotes > 0 ? "+" : ""}{netVotes}
-                    </span>
-                  )}
-                </div>
-
-                {/* Reply button */}
+              <div className="-ml-2 flex flex-wrap items-center text-sm">
+                <button
+                  type="button"
+                  onClick={() => handleVote("upvote")}
+                  aria-pressed={localVote === "upvote"}
+                  aria-label={`Upvote, ${localUpvotes}`}
+                  className={`${ACTION} ${localVote === "upvote" ? "text-signal-text" : ""}`}
+                >
+                  <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
+                  {localUpvotes}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleVote("downvote")}
+                  aria-pressed={localVote === "downvote"}
+                  aria-label="Downvote"
+                  className={`${ACTION} ${localVote === "downvote" ? "text-bad-text" : ""}`}
+                >
+                  <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
+                </button>
+                {netVotes !== 0 && (
+                  <span className={`px-1 font-mono text-xs ${netVotes > 0 ? "text-fg-2" : "text-bad-text"}`}>
+                    {netVotes > 0 ? "+" : ""}
+                    {netVotes}
+                  </span>
+                )}
                 {canReply && (
                   <button
+                    type="button"
                     onClick={() => {
                       if (!user) {
                         openAuthModal();
                         return;
                       }
-                      setShowReplyBox(!showReplyBox);
+                      setShowReplyBox((v) => !v);
                     }}
-                    className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 transition-colors"
+                    aria-expanded={showReplyBox}
+                    className={ACTION}
                   >
-                    <Reply className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="text-xs font-medium hidden sm:inline">Reply</span>
+                    <Reply className="h-3.5 w-3.5" aria-hidden />
+                    reply
                   </button>
                 )}
-
-                {/* Share button */}
-                <div className="relative">
-                  <button
-                    onClick={handleShare}
-                    className="flex items-center gap-1 px-1.5 sm:px-2 py-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 transition-colors"
-                    title="Share this comment"
-                  >
-                    <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                    <span className="text-xs font-medium hidden sm:inline">Share</span>
+                <span className="relative">
+                  <button type="button" onClick={handleShare} className={ACTION} title="Copy a link to this comment">
+                    <Share2 className="h-3.5 w-3.5" aria-hidden />
+                    share
                   </button>
-                  
-                  {/* Copy success toast */}
-                  {showShareToast && (
-                    <div className="absolute left-0 top-8 bg-green-500/10 border border-green-500/20 text-green-700 dark:text-green-400 text-xs px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1 whitespace-nowrap z-20 animate-in fade-in slide-in-from-top-2">
-                      <Check className="w-3 h-3" />
-                      Link copied!
-                    </div>
+                  {share && (
+                    <span role="status" className="absolute left-0 top-full z-20 mt-1 flex min-w-max max-w-[min(80vw,420px)] items-center gap-2 border border-line-strong bg-surface px-3 py-2 font-mono text-[11px] text-fg-2">
+                      {share.ok ? (
+                        "Link copied ✓"
+                      ) : (
+                        <>
+                          <span className="shrink-0">Copy this link:</span>
+                          <input readOnly value={share.url} onFocus={(e) => e.currentTarget.select()} aria-label="Comment link" className="min-w-0 flex-1 bg-transparent text-fg outline-none" />
+                          <button type="button" onClick={() => setShare(null)} aria-label="Close" className="px-1 text-fg-3 hover:text-fg">
+                            ×
+                          </button>
+                        </>
+                      )}
+                    </span>
                   )}
-                </div>
+                </span>
 
-                {/* More menu */}
                 <div className="relative ml-auto" ref={menuRef}>
-                  <button
-                    onClick={() => setShowMenu(!showMenu)}
-                    className="p-1 rounded hover:bg-black/10 dark:hover:bg-white/10 text-gray-600 dark:text-white/60 transition-colors"
-                  >
-                    <MoreVertical className="w-4 h-4" />
+                  <button type="button" onClick={() => setShowMenu((v) => !v)} aria-expanded={showMenu} aria-label="More actions" className="grid min-h-11 min-w-11 place-items-center text-fg-3 hover:text-fg">
+                    <MoreVertical className="h-4 w-4" aria-hidden />
                   </button>
-
                   {showMenu && (
-                    <div className="absolute right-0 top-8 w-48 bg-white dark:bg-gray-800 border border-black/10 dark:border-white/10 rounded-lg shadow-lg py-1 z-20">
-                      {isAuthor && (
+                    <div className="absolute right-0 top-full z-20 w-44 border border-line-strong bg-surface py-1">
+                      {isAuthor ? (
                         <>
                           <button
+                            type="button"
                             onClick={() => {
                               setShowEditBox(true);
                               setShowMenu(false);
                             }}
-                            className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/70"
+                            className="flex min-h-11 w-full items-center gap-2 px-4 text-sm text-fg hover:bg-surface-2"
                           >
-                            <Edit className="w-4 h-4" />
+                            <Edit className="h-4 w-4" aria-hidden />
                             Edit
                           </button>
                           <button
+                            type="button"
                             onClick={() => {
                               setShowDeleteConfirm(true);
                               setShowMenu(false);
                             }}
-                            className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 text-red-600 dark:text-red-400"
+                            className="flex min-h-11 w-full items-center gap-2 px-4 text-sm text-bad-text hover:bg-surface-2"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <Trash2 className="h-4 w-4" aria-hidden />
                             Delete
                           </button>
                         </>
-                      )}
-                      {!isAuthor && (
-                        <button
-                          onClick={() => setShowMenu(false)}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/70"
-                        >
-                          <Flag className="w-4 h-4" />
+                      ) : (
+                        <button type="button" onClick={() => setShowMenu(false)} className="flex min-h-11 w-full items-center gap-2 px-4 text-sm text-fg hover:bg-surface-2">
+                          <Flag className="h-4 w-4" aria-hidden />
                           Report
                         </button>
                       )}
@@ -441,34 +385,41 @@ export default function CommentItem({
               </div>
             )}
 
-            {/* Reply box */}
+            {error && (
+              <p role="alert" className="m-0 mt-1 text-[13px] text-bad-text">
+                {error}
+              </p>
+            )}
+
             {showReplyBox && (
-              <div className="mt-3 mb-2">
+              <div className="mb-2 mt-3">
                 <RichTextEditor
                   value={replyContent}
                   onChange={(html, text) => {
                     setReplyContent(html);
                     setReplyRawContent(text);
                   }}
-                  placeholder={`Reply to ${comment.user_name}...`}
+                  placeholder={`Reply to ${comment.user_name}…`}
                   minHeight="100px"
                   autoFocus
                 />
-                <div className="flex items-center gap-2 mt-2">
+                <div className="mt-2 flex items-center gap-2">
                   <button
+                    type="button"
                     onClick={handleReplySubmit}
                     disabled={isSubmitting || !replyRawContent.trim()}
-                    className="px-4 py-1.5 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg disabled:shadow-none"
+                    className="min-h-11 bg-signal px-4 text-sm font-semibold text-on-signal disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {isSubmitting ? "Posting..." : "Reply"}
+                    {isSubmitting ? "Posting…" : "Reply"}
                   </button>
                   <button
+                    type="button"
                     onClick={() => {
                       setShowReplyBox(false);
                       setReplyContent("");
                       setReplyRawContent("");
                     }}
-                    className="px-4 py-1.5 bg-black/10 dark:bg-white/10 hover:bg-black/20 dark:hover:bg-white/20 rounded-lg text-sm font-medium transition-colors"
+                    className="min-h-11 border border-line-strong px-4 text-sm text-fg hover:border-fg-3"
                   >
                     Cancel
                   </button>
@@ -478,53 +429,34 @@ export default function CommentItem({
           </div>
         </div>
 
-        {/* Delete Confirmation Dialog */}
         <ConfirmDialog
           isOpen={showDeleteConfirm}
-          title="Delete Comment"
-          message="Are you sure you want to delete this comment? This action cannot be undone."
+          title="Delete comment"
+          message="Delete this comment? This can't be undone."
           confirmText="Delete"
           cancelText="Cancel"
           onConfirm={handleDelete}
           onCancel={() => setShowDeleteConfirm(false)}
         />
 
-        {/* Replies */}
         {comment.replies && comment.replies.length > 0 && (
-          <div className="mt-2">
-            <button
-              onClick={() => setShowReplies(!showReplies)}
-              className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 font-medium mb-2"
-            >
-              {showReplies ? (
-                <>
-                  <ChevronUp className="w-3 h-3" />
-                  Hide {comment.replies.length} {comment.replies.length === 1 ? "reply" : "replies"}
-                </>
-              ) : (
-                <>
-                  <ChevronDown className="w-3 h-3" />
-                  Show {comment.replies.length} {comment.replies.length === 1 ? "reply" : "replies"}
-                </>
-              )}
+          <div className="mt-1">
+            <button type="button" onClick={() => setShowReplies((v) => !v)} aria-expanded={showReplies} className="min-h-11 font-mono text-xs text-signal-text hover:underline">
+              {showReplies ? "▾ hide" : "▸ show"} {comment.replies.length} {comment.replies.length === 1 ? "reply" : "replies"}
             </button>
-
-            {showReplies && (
-              <div>
-                {comment.replies.map((reply) => (
-                  <CommentItem
-                    key={reply.id}
-                    comment={reply}
-                    onReply={onReply}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                    onVote={onVote}
-                    depth={depth + 1}
-                    maxDepth={maxDepth}
-                  />
-                ))}
-              </div>
-            )}
+            {showReplies &&
+              comment.replies.map((reply) => (
+                <CommentItem
+                  key={reply.id}
+                  comment={reply}
+                  onReply={onReply}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                  onVote={onVote}
+                  depth={depth + 1}
+                  maxDepth={maxDepth}
+                />
+              ))}
           </div>
         )}
       </div>

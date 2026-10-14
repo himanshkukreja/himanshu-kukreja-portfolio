@@ -29,56 +29,78 @@
 }
 
 :root {
-  --background: #ffffff; /* pure white background for light mode */
-  --foreground: #0f172a; /* slate-900 for text */
-  --muted: #64748b; /* slate-500 */
-  --card: #f8fafc; /* slate-50 for cards */
-  --card-foreground: #0f172a;
-  --accent: #3b82f6; /* blue-500 */
-  --accent-2: #8b5cf6; /* violet-500 */
-  --ring: #60a5fa; /* blue-400 */
+  /* "Level Up" design tokens — light (paper + ink) */
+  --c-bg: #F5F4F0;
+  --c-surface: #FFFFFF;
+  --c-surface-2: #EEEDE8;
+  --c-raised: #FAFAF7;
+  --c-line: #DDDBD4;
+  --c-line-strong: #C9C7BF;
+  --c-fg: #0B0B0B;
+  --c-fg-2: #2E2E33;
+  --c-fg-3: #55555B;
+  --c-fg-4: #6B6B72;
+  --c-signal: #FF6B2B;
+  --c-on-signal: #120700;
+  --c-signal-text: #C2410C;
+  --c-ok: #16A34A;
+  --c-bad: #DC2626;
+  --c-bad-text: #B91C1C;
+  --c-dot: #DDDBD4;
+
+  /* legacy names still used by older components */
+  --background: var(--c-bg);
+  --foreground: var(--c-fg);
+  --muted: var(--c-fg-3);
+  --card: var(--c-surface);
+  --card-foreground: var(--c-fg);
+  --accent: var(--c-signal);
+  --accent-2: var(--c-signal);
+  --ring: var(--c-signal);
 }
 
-/* Dark theme overrides when .dark class is on <html> */
+/* Dark: true black, one signal colour */
 .dark {
-  --background: #0a0b14; /* near-black with blue tint */
-  --foreground: #e5e7eb; /* gray-200 */
-  --muted: #94a3b8; /* slate-400 */
-  --card: #0f172a; /* slate-900 */
-  --card-foreground: #e5e7eb;
-  --accent: #60a5fa; /* blue-400 */
-  --accent-2: #a78bfa; /* violet-400 */
-  --ring: #93c5fd; /* blue-300 */
-}
-
-/* Fallback for users preferring dark scheme but without toggle */
-@media (prefers-color-scheme: dark) {
-  :root:not(.light):not(.dark) {
-    --background: #0a0b14;
-    --foreground: #e5e7eb;
-    --muted: #94a3b8;
-    --card: #0f172a;
-    --card-foreground: #e5e7eb;
-    --accent: #60a5fa;
-    --accent-2: #a78bfa;
-    --ring: #93c5fd;
-  }
+  --c-bg: #000000;
+  --c-surface: #0A0A0B;
+  --c-surface-2: #141416;
+  --c-raised: #050506;
+  --c-line: #26262A;
+  --c-line-strong: #3A3A40;
+  --c-fg: #F3F2EE;
+  --c-fg-2: #C9C8C4;
+  --c-fg-3: #A3A3A8;
+  --c-fg-4: #7E7E85;
+  --c-signal: #FF6B2B;
+  --c-on-signal: #120700;
+  --c-signal-text: #FF6B2B;
+  --c-ok: #3DD68C;
+  --c-bad: #E5484D;
+  --c-bad-text: #FF8A8D;
+  --c-dot: #1A1A1D;
+  color-scheme: dark;
 }
 
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+  background-color: var(--c-bg);
+  background-image: radial-gradient(var(--c-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: var(--c-fg);
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
 }
 
-/* Dark mode gradient overlays */
-.dark body {
-  background: radial-gradient(1200px 600px at 50% -10%, rgba(56, 189, 248, 0.12), transparent 60%),
-              radial-gradient(800px 400px at 80% 10%, rgba(168, 85, 247, 0.12), transparent 60%),
-              var(--background);
+::selection { background: rgba(255, 107, 43, 0.35); }
+
+:focus-visible { outline: 2px solid var(--c-signal); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }
+
+/* Mono label used across the site */
+.label-mono { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; }
 
 code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace; }
 
@@ -262,14 +284,10 @@ code, pre { font-family: var(--font-geist-mono), ui-monospace, SFMono-Regular, M
 /* Fix for Safari back/forward cache with theme */
 html.dark body { color-scheme: dark; }
 
-/* Mobile fixes for About section nested scroll */
+/* Mobile: avoid scroll chaining locks in nested scroll areas.
+   (The old html/body overflow override for the retired About section is gone: it turned body into its
+   own scroll container on phones, which broke every position: sticky element site-wide.) */
 @media (max-width: 767px) {
-  /* Ensure body and main can scroll fully when child containers set overflow on md+ only */
-  html, body {
-    height: auto !important;
-    overflow: auto !important;
-  }
-  /* Avoid scroll chaining locks */
   [data-scrollable="true"] {
     overscroll-behavior: contain;
   }
@@ -497,3 +515,39 @@ html.dark body { color-scheme: dark; }
   --tw-prose-pre-bg: rgba(255, 255, 255, 0.05);
 }
 
+
+/* ---------------------------------------------------------------------------------------------
+   Mermaid diagrams (course lessons + stories). Source text stays in .sd-mermaid-src (hidden once
+   rendered); <MermaidHydrator/> draws the themed SVG into .sd-mermaid-canvas.
+   --------------------------------------------------------------------------------------------- */
+.sd-mermaid { margin: 2rem 0; border: 1px solid var(--c-line); background: var(--c-raised); background-image: linear-gradient(var(--c-dot) 1px, transparent 1px), linear-gradient(90deg, var(--c-dot) 1px, transparent 1px); background-size: 24px 24px; }
+.sd-mermaid-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 8px 12px; border-bottom: 1px solid var(--c-line); background: var(--c-surface); }
+.sd-mermaid-label { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; padding: 2px 6px; background: var(--c-signal); color: var(--c-on-signal); font-weight: 600; }
+.sd-mermaid-title { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-fg-2); }
+.sd-mermaid-tools { margin-left: auto; display: flex; gap: 6px; }
+.sd-mermaid-btn { min-height: 32px; padding: 0 10px; border: 1px solid var(--c-line-strong); background: transparent; color: var(--c-fg-2); font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; cursor: pointer; }
+.sd-mermaid-btn:hover { color: var(--c-fg); border-color: var(--c-fg-3); }
+.sd-mermaid-canvas { padding: 20px 16px; overflow-x: auto; display: flex; justify-content: center; }
+.sd-mermaid-canvas svg { max-width: 100%; height: auto; }
+.sd-mermaid[data-natural] .sd-mermaid-canvas { justify-content: flex-start; }
+.sd-mermaid[data-natural] .sd-mermaid-canvas svg { max-width: none; }
+.sd-mermaid-src { margin: 0; padding: 16px; overflow-x: auto; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 13px; line-height: 1.6; color: var(--c-fg-2); white-space: pre; }
+.sd-mermaid[data-mermaid-state="ok"] .sd-mermaid-src { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: pre; }
+.sd-mermaid:not([data-mermaid-state="ok"]) .sd-mermaid-canvas { display: none; }
+.sd-mermaid[data-fullscreen] { position: fixed; inset: 0; z-index: 90; margin: 0; display: flex; flex-direction: column; background-color: var(--c-bg); }
+.sd-mermaid[data-fullscreen] .sd-mermaid-canvas { flex: 1; overflow: auto; align-items: flex-start; }
+.sd-mermaid[data-fullscreen] .sd-mermaid-canvas svg { max-width: none; min-width: min(100%, 1400px); }
+
+/* Stories reuse the course renderer; a story is one continuous read, so no stage header. */
+.story-content .sd-stage-head { display: none; }
+
+/* Stat tiles: lists whose items lead with a bold figure (marked .sd-stats by the renderer). */
+.course-content ul.sd-stats, .course-content ol.sd-stats { list-style: none; padding: 0; margin: 1.75rem 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr)); gap: 0; background: var(--c-surface); border-top: 1px solid var(--c-line); border-left: 1px solid var(--c-line); }
+.course-content .sd-stats > li { margin: 0; padding: 18px 18px 20px; background: var(--c-surface); border-right: 1px solid var(--c-line); border-bottom: 1px solid var(--c-line); font-size: 15px; line-height: 1.5; color: var(--c-fg-2); }
+.course-content .sd-stats > li::before, .course-content .sd-stats > li::marker { content: none; }
+.course-content .sd-stats > li > strong:first-child, .course-content .sd-stats > li > p:first-child > strong:first-child { display: block; margin-bottom: 6px; font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif; font-size: clamp(24px, 2.2vw, 32px); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; color: var(--c-fg); overflow-wrap: normal; word-break: keep-all; }
+.course-content .sd-stats > li:nth-child(3n + 1) > strong:first-child, .course-content .sd-stats > li:nth-child(3n + 1) > p:first-child > strong:first-child { color: var(--c-signal-text); }
+
+/* Images that fail to load (e.g. not uploaded yet) degrade to a labelled blueprint placeholder. */
+.course-content img.sd-img-missing { display: none; }
+.course-content .sd-img-missing-cap { display: flex; align-items: flex-end; min-height: 180px; margin: 1.5rem 0; padding: 14px; border: 1px dashed var(--c-line-strong); background-color: var(--c-raised); background-image: linear-gradient(var(--c-dot) 1px, transparent 1px), linear-gradient(90deg, var(--c-dot) 1px, transparent 1px); background-size: 20px 20px; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-fg-3); }

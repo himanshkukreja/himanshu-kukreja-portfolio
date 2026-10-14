@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 function getOrCreateVisitorId(): string {
   try {
@@ -15,21 +15,13 @@ function getOrCreateVisitorId(): string {
   }
 }
 
-function EyeIcon({ className = "" }: { className?: string }) {
-  return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12Z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  );
-}
-
+/** "1,234 reads" — records this visit (once per visitor, server-side) and shows the total. */
 export default function StoryViewsClient({ slug }: { slug: string }) {
   const [total, setTotal] = useState<number | null>(null);
-  const visitorId = useMemo(() => getOrCreateVisitorId(), []);
 
   useEffect(() => {
     const ac = new AbortController();
+    const visitorId = getOrCreateVisitorId();
 
     async function readCounts() {
       try {
@@ -64,24 +56,20 @@ export default function StoryViewsClient({ slug }: { slug: string }) {
     readCounts();
 
     return () => ac.abort();
-  }, [slug, visitorId]);
+  }, [slug]);
 
   if (total === null) {
     return (
-      <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/60">
-        <span className="relative inline-flex h-4 w-6 overflow-hidden rounded">
-          <span className="absolute inset-0 bg-black/10 dark:bg-white/10" />
-          <span className="absolute inset-0 -translate-x-full animate-[shimmer_1.2s_infinite] bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-        </span>
-        <EyeIcon className="h-4 w-4 animate-pulse opacity-70" />
+      <span className="inline-flex items-center gap-1.5" aria-busy="true">
+        <span aria-hidden className="inline-block h-3 w-8 animate-pulse bg-surface-2" />
+        <span>reads</span>
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-white/60">
-      <EyeIcon className="h-4 w-4" />
-      {total.toLocaleString()}
+    <span>
+      <span className="font-mono">{total.toLocaleString()}</span> {total === 1 ? "read" : "reads"}
     </span>
   );
 }

@@ -42,6 +42,15 @@ What makes this particularly dangerous is the **silent failure mode**. Unlike a 
 - **Maintains connections**: Applications don't detect issues immediately
 - **Corrupts monitoring**: Metrics show "stable" behavior when actually broken
 
+```mermaid
+%% title: How the silent failure spreads
+flowchart TD
+    V(["50 million events/day<br/>for 18 months"]):::client --> ID["event_log auto-increment ID<br/>reaches 2,147,483,647"]:::hot
+    ID --> INS["Every new INSERT fails<br/>nowhere left to count"]:::bad
+    INS --> H["Looks healthy<br/>reads answered · connections open<br/>metrics show stable"]:::store
+    INS --> A["Analytics dead<br/>Recommendation engine failing<br/>Revenue tracking broken"]:::bad
+```
+
 ---
 
 ## Short-Term Emergency Fixes
@@ -75,6 +84,16 @@ What makes this particularly dangerous is the **silent failure mode**. Unlike a 
 - Update application to write to both tables temporarily
 - Gradually migrate read queries to union both tables
 - Eventually migrate historical data and deprecate old table
+
+```mermaid
+%% title: The table split strategy
+flowchart TD
+    APP["Application<br/>writes to both tables temporarily"]:::core --> OLD[("event_log<br/>INT ID")]:::store
+    APP --> NEW[("event_log_v2<br/>BIGINT ID from a high number")]:::store
+    Q["Read queries<br/>gradually union both tables"]:::service --> OLD
+    Q --> NEW
+    OLD -.->|"eventually migrate historical data<br/>and deprecate old table"| NEW
+```
 
 ### Option 3: The Reset and Restart (High Risk)
 
@@ -275,16 +294,20 @@ An e-commerce platform's order table hit the limit during Black Friday:
 - Set up monitoring for other at-risk tables
 
 **Decision Tree:**
-```
-Is this a critical business table?
-├── YES: Plan BIGINT migration with minimal downtime
-│   ├── Test on replica first
-│   ├── Use online schema change tools
-│   └── Schedule during lowest traffic period
-└── NO: Consider table split or reset strategy
-    ├── Can afford complexity? → Table split
-    ├── Data is replaceable? → Reset and restart
-    └── Otherwise → BIGINT migration
+```mermaid
+%% title: Decision tree
+flowchart TD
+    Q{"Is this a critical<br/>business table?"}:::hot
+    Q -->|"YES"| BM["Plan BIGINT migration<br/>with minimal downtime"]:::core
+    BM --> S1["Test on replica first"]:::service
+    S1 --> S2["Use online schema change tools"]:::service
+    S2 --> S3["Schedule during lowest traffic period"]:::service
+    Q -->|"NO"| ALT["Consider table split<br/>or reset strategy"]:::queue
+    ALT --> C1{"Can afford complexity?"}
+    C1 -->|"yes"| TS(["Table split"]):::ok
+    C1 -->|"no"| C2{"Data is replaceable?"}
+    C2 -->|"yes"| RR(["Reset and restart"]):::bad
+    C2 -->|"otherwise"| BM2(["BIGINT migration"]):::ok
 ```
 
 ### Phase 3: Long-term Prevention (Following Weeks)
@@ -353,6 +376,19 @@ Is this a critical business table?
 **At 70% utilization**: Page on-call engineer
 **At 90% utilization**: Trigger emergency response procedures
 **At 95% utilization**: Implement immediate protective measures
+
+```mermaid
+%% title: Automated response triggers
+flowchart TD
+    M["ID space monitoring<br/>current max ID / theoretical max ID"]:::service --> T50["50% utilization"]:::ok
+    T50 -->|"generate"| A1["Migration planning ticket"]:::queue
+    T50 --> T70["70% utilization"]:::queue
+    T70 -->|"page"| A2["On-call engineer"]:::client
+    T70 --> T90["90% utilization"]:::bad
+    T90 -->|"trigger"| A3["Emergency response procedures"]:::hot
+    T90 --> T95["95% utilization"]:::bad
+    T95 -->|"implement"| A4["Immediate protective measures"]:::hot
+```
 
 ---
 

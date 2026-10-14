@@ -1,173 +1,104 @@
 "use client";
 
-import { useEffect, useState } from "react";
+/**
+ * Continue card: resume by stage (last_stage / stage checkpoints), never by scroll position.
+ * Presentational: the hub passes the resume target (from one batched progress load), the lesson's
+ * stages (server action) and the due review count.
+ */
 import Link from "next/link";
-import { useAuth } from "@/contexts/AuthContext";
-import { supabaseClient } from "@/lib/supabase-client";
-import { BookOpen, Play, Clock } from "lucide-react";
+import type { Resume } from "@/lib/learn/progress";
 
-type LastLesson = {
-  course_id: string;
-  week: string;
-  lesson_slug: string;
-  progress_percentage: number;
-  status: string;
-  last_accessed_at: string;
-  scroll_position: number | null;
+export type ResumeStage = { id: string; label: string; title: string; minutes: number };
+
+type Props = {
+  ready: boolean;
+  resume: Resume | null;
+  stages: ResumeStage[] | null;
+  dueCount: number;
+  dueReady: boolean;
+  streak: { current: number; today: boolean } | null;
+  compact?: boolean;
 };
 
-type ContinueReadingBannerProps = {
-  courseId: string;
-  lessonTitle?: string; // Optional: pass the lesson title if you have it
-};
+export function resumeDetails(resume: Resume, stages: ResumeStage[] | null) {
+  const done = new Set(resume.progress?.completedStages || []);
+  const list = stages && stages.length ? stages : null;
+  if (!list) return { stageIdx: -1, total: 0, stage: null as ResumeStage | null, minsLeft: resume.lesson.minutes, pct: resume.progress?.pct || 0, href: resume.lesson.href };
+  let idx = list.findIndex((s) => !done.has(s.id));
+  const last = resume.progress?.lastStage;
+  const li = last ? list.findIndex((s) => s.id === last) : -1;
+  if (li >= 0 && !done.has(last as string)) idx = li;
+  if (idx < 0) idx = list.length - 1;
+  const minsLeft = list.reduce((a, s, i) => a + (i >= idx && !done.has(s.id) ? s.minutes : 0), 0) || list[idx].minutes;
+  const pct = Math.round((list.filter((s) => done.has(s.id)).length / list.length) * 100);
+  const href = idx > 0 ? `${resume.lesson.href}#${list[idx].id}` : resume.lesson.href;
+  return { stageIdx: idx, total: list.length, stage: list[idx], minsLeft, pct: Math.max(pct, resume.progress?.pct && list.length === 1 ? resume.progress.pct : 0), href };
+}
 
-export default function ContinueReadingBanner({ courseId, lessonTitle }: ContinueReadingBannerProps) {
-  const { user } = useAuth();
-  const [lastLesson, setLastLesson] = useState<LastLesson | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    if (!user) {
-      setLoading(false);
-      return;
-    }
-
-    async function fetchLastLesson() {
-      if (!user) return;
-
-      try {
-        // Get the most recently accessed lesson that's not completed
-        const { data, error } = await supabaseClient
-          .from("learning_progress")
-          .select("course_id, week, lesson_slug, progress_percentage, status, last_accessed_at, scroll_position")
-          .eq("user_id", user.id)
-          .eq("course_id", courseId)
-          .neq("status", "completed") // Only show in-progress lessons
-          .gt("progress_percentage", 0) // Must have some progress
-          .order("last_accessed_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (error) {
-          console.error("[ContinueReading] Error fetching last lesson:", error);
-          setLoading(false);
-          return;
-        }
-
-        if (data) {
-          setLastLesson(data);
-          console.log("[ContinueReading] Last lesson:", data);
-        }
-
-        setLoading(false);
-      } catch (error) {
-        console.error("[ContinueReading] Error:", error);
-        setLoading(false);
-      }
-    }
-
-    fetchLastLesson();
-  }, [user, courseId]);
-
-  // Don't show anything if no user, loading, or no last lesson
-  if (!user || loading || !lastLesson) {
-    return null;
+export default function ContinueReadingBanner({ ready, resume, stages, dueCount, dueReady, streak, compact = false }: Props) {
+  if (!ready || !resume) {
+    return (
+      <div aria-busy="true" className="flex min-h-[300px] flex-col gap-3.5 border border-line bg-surface p-6">
+        <span className="h-3 w-40 animate-pulse bg-surface-2" />
+        <span className="h-8 w-3/4 animate-pulse bg-surface-2" />
+        <span className="h-1.5 w-full bg-surface-2" />
+        <span className="mt-auto h-[52px] w-full animate-pulse bg-surface-2" />
+      </div>
+    );
   }
-
-  // Format the lesson title from slug
-  const formatLessonTitle = (slug: string) => {
-    return slug
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  };
-
-  // Format week name
-  const formatWeekName = (week: string) => {
-    if (week === "overview") return "Overview";
-    if (week.includes("foundations")) return "Foundations";
-    const match = week.match(/week-(\d+)/);
-    if (match) {
-      return `Week ${parseInt(match[1], 10)}`;
-    }
-    return week;
-  };
-
-  // Format time ago
-  const getTimeAgo = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMins < 60) {
-      return diffMins <= 1 ? "just now" : `${diffMins} minutes ago`;
-    } else if (diffHours < 24) {
-      return diffHours === 1 ? "1 hour ago" : `${diffHours} hours ago`;
-    } else if (diffDays === 1) {
-      return "yesterday";
-    } else if (diffDays < 7) {
-      return `${diffDays} days ago`;
-    } else {
-      return date.toLocaleDateString();
-    }
-  };
+  const l = resume.lesson;
+  const d = resumeDetails(resume, stages);
+  const multi = d.total > 1;
+  const head = resume.mode === "start" ? "Start here" : resume.mode === "next" ? "Up next" : "Continue";
+  const stageLine =
+    resume.mode === "start"
+      ? `${l.minutes} min read · nothing to resume yet. Progress saves by stage.`
+      : multi && d.stage
+        ? `Stage ${d.stageIdx + 1} of ${d.total} · ${d.stage.label}${d.stage.title && d.stage.title !== d.stage.label ? ` · ${d.stage.title}` : ""} · ~${d.minsLeft} min left`
+        : resume.mode === "next"
+          ? `${l.minutes} min read · the next lesson after your last cleared one`
+          : `${l.minutes} min read${d.pct ? ` · ${d.pct}% read` : ""}`;
+  const cta =
+    resume.mode === "start" ? "Start lesson" : resume.mode === "next" ? "Start lesson" : multi && d.stageIdx > 0 ? `Resume stage ${d.stageIdx + 1}` : "Resume lesson";
 
   return (
-    <div className="bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10 dark:from-blue-500/20 dark:via-purple-500/20 dark:to-pink-500/20 rounded-xl border-2 border-blue-500/30 dark:border-blue-500/40 p-4 sm:p-6 mb-6 sm:mb-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-start justify-between gap-4">
-        <div className="flex items-start gap-3 sm:gap-4 flex-1 w-full sm:w-auto">
-          {/* Icon */}
-          <div className="flex-shrink-0 w-10 h-10 sm:w-12 sm:h-12 bg-blue-500/20 dark:bg-blue-500/30 rounded-full flex items-center justify-center">
-            <BookOpen className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
-          </div>
-
-          {/* Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2 mb-1">
-              <h3 className="text-base sm:text-lg font-bold text-gray-900 dark:text-white">
-                Continue Reading
-              </h3>
-              <span className="px-2 py-0.5 bg-blue-500/20 text-blue-600 dark:text-blue-400 rounded text-xs font-medium w-fit">
-                {lastLesson.progress_percentage}% complete
-              </span>
-            </div>
-
-            <p className="text-sm sm:text-base text-gray-600 dark:text-white/70 mb-2 truncate">
-              {lessonTitle || formatLessonTitle(lastLesson.lesson_slug)}
-            </p>
-
-            <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-500 dark:text-white/50">
-              <span className="truncate">{formatWeekName(lastLesson.week)}</span>
-              <span className="flex items-center gap-1 flex-shrink-0">
-                <Clock className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
-                {getTimeAgo(lastLesson.last_accessed_at)}
-              </span>
-            </div>
-
-            {/* Progress Bar */}
-            <div className="mt-3 w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 sm:h-2 overflow-hidden">
-              <div
-                className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300 rounded-full"
-                style={{ width: `${lastLesson.progress_percentage}%` }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* Continue Button */}
-        <Link
-          href={`/learn/${lastLesson.course_id}/${lastLesson.week}/${lastLesson.lesson_slug}${
-            lastLesson.scroll_position ? `#scroll-${lastLesson.scroll_position}` : ""
-          }`}
-          className="w-full sm:w-auto flex-shrink-0 px-5 sm:px-6 py-2.5 sm:py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors font-medium flex items-center justify-center gap-2 group text-sm sm:text-base"
-        >
-          <Play className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
-          Continue
-        </Link>
+    <div className={`flex flex-col gap-3.5 border border-signal bg-surface ${compact ? "p-4" : "p-6"}`}>
+      <div className="flex justify-between gap-3 font-mono text-xs uppercase tracking-label">
+        <span className="text-signal-text">{head}</span>
+        <span className="text-fg-3">{l.tag}</span>
       </div>
+      <span className="font-display text-[26px] font-bold leading-[1.05] tracking-[-0.025em] text-fg sm:text-[30px]">{l.kind === "week-preview" ? `${l.title}` : l.title}</span>
+      <div className="flex flex-col gap-1.5">
+        {multi ? (
+          <span aria-hidden className="flex gap-[3px]">
+            {(stages || []).map((s, i) => {
+              const isDone = resume.progress?.completedStages.includes(s.id);
+              return (
+                <span key={s.id} className={`h-1.5 flex-1 ${isDone ? "bg-fg" : "bg-surface-2"}`}>
+                  {i === d.stageIdx && !isDone && <span className="block h-1.5 w-[40%] bg-signal" />}
+                </span>
+              );
+            })}
+          </span>
+        ) : (
+          <span aria-hidden className="h-1.5 bg-surface-2">
+            <span className="block h-1.5 bg-signal" style={{ width: `${d.pct}%` }} />
+          </span>
+        )}
+        <span className="text-[13px] text-fg-3">{stageLine}</span>
+      </div>
+      <Link href={d.href} className="flex min-h-[52px] items-center justify-center bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
+        {cta}
+      </Link>
+      <Link href="/learn/review" className="flex min-h-12 items-center justify-between gap-3 border border-line-strong px-3.5 text-sm text-fg hover:bg-surface-2">
+        <span>{dueReady ? (dueCount ? `Daily standup · ${dueCount} card${dueCount === 1 ? "" : "s"} · ~${Math.max(1, Math.ceil((dueCount * 25) / 60))} min` : "Daily standup · nothing due today") : "Daily standup"}</span>
+        <span className="font-mono text-signal-text">review →</span>
+      </Link>
+      <span className="text-[13px] text-fg-3">
+        {streak && streak.current > 0
+          ? `${streak.current}-day streak${streak.today ? "" : " · today not counted yet"}. A stage or a review session keeps it alive.`
+          : "Finish a stage or review a card to start a streak."}
+      </span>
     </div>
   );
 }

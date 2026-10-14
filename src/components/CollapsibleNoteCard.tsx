@@ -1,8 +1,12 @@
 "use client";
 
+/**
+ * A note as a collapsible card. Kept for callers of the old notes list; the notebook renders its
+ * own rows. No emoji: the note type is a text chip (noteTypeIcons is accepted but ignored).
+ */
 import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, ChevronDown, ChevronUp, Edit, Trash2 } from "lucide-react";
+import { HIGHLIGHT_COLOURS, noteTypeLabel, type NoteColor } from "@/lib/learn/notebook";
 
 type NoteCardProps = {
   note: {
@@ -14,143 +18,93 @@ type NoteCardProps = {
     highlight_offset: number | null;
     note_text: string;
     note_type: "general" | "question" | "important" | "todo";
-    color: "yellow" | "green" | "blue" | "red" | "purple";
+    color: NoteColor;
     created_at: string;
     updated_at: string;
   };
-  noteTypeIcons: Record<string, string>;
-  noteTypeLabels: Record<string, string>;
+  noteTypeIcons?: Record<string, string>;
+  noteTypeLabels?: Record<string, string>;
   formatLessonTitle: (slug: string) => string;
   formatWeekName: (week: string) => string;
   onEdit: () => void;
   onDelete: () => void;
 };
 
-export default function CollapsibleNoteCard({
-  note,
-  noteTypeIcons,
-  noteTypeLabels,
-  formatLessonTitle,
-  formatWeekName,
-  onEdit,
-  onDelete,
-}: NoteCardProps) {
+export default function CollapsibleNoteCard({ note, noteTypeLabels, formatLessonTitle, formatWeekName, onEdit, onDelete }: NoteCardProps) {
   const [isExpanded, setIsExpanded] = useState(false);
-
-  // Build URL with scroll offset for note navigation
-  const noteUrl = `/learn/${note.course_id}/${note.week}/${note.lesson_slug}${
-    note.highlight_offset !== null ? `#note-${note.highlight_offset}` : ""
-  }`;
+  const [confirming, setConfirming] = useState(false);
+  const col = HIGHLIGHT_COLOURS[note.color] || HIGHLIGHT_COLOURS.yellow;
+  const noteUrl = `/learn/${note.course_id}/${note.week}/${note.lesson_slug}${note.highlight_offset !== null ? `#note-${note.highlight_offset}` : ""}`;
+  const typeLabel = noteTypeLabels?.[note.note_type] ? noteTypeLabel(note.note_type) : noteTypeLabel(note.note_type);
+  const panelId = `note-${note.id}-body`;
 
   return (
-    <div className="group bg-black/5 dark:bg-white/5 border border-black/10 dark:border-white/10 rounded-lg transition-all overflow-hidden">
-      {/* Header - Always visible, clickable to expand/collapse */}
-      <div className="p-4 sm:p-6">
-        <div className="flex items-start justify-between gap-4">
-          <button
-            onClick={() => setIsExpanded(!isExpanded)}
-            className="flex-1 text-left"
-          >
-            <div className="flex items-start gap-3">
-              {/* Expand/Collapse Icon */}
-              <div className="flex-shrink-0 mt-1">
-                {isExpanded ? (
-                  <ChevronUp className="w-5 h-5 text-gray-500 dark:text-white/60" />
-                ) : (
-                  <ChevronDown className="w-5 h-5 text-gray-500 dark:text-white/60" />
-                )}
-              </div>
+    <article className={`flex flex-col bg-surface ${confirming ? "border border-bad" : "border border-line"}`}>
+      <div className="flex items-start gap-3 px-4 py-3.5 sm:px-5">
+        <button type="button" onClick={() => setIsExpanded((x) => !x)} aria-expanded={isExpanded} aria-controls={panelId} className="flex min-h-11 min-w-0 flex-1 flex-col gap-1.5 text-left">
+          <span className="flex flex-wrap items-center gap-2">
+            <span className="border border-line-strong px-2 py-0.5 font-mono text-[11px] tracking-label text-fg">{typeLabel.toUpperCase()}</span>
+            <span className="font-mono text-[11px] tracking-label text-fg-3">{formatWeekName(note.week).toUpperCase()}</span>
+          </span>
+          <span className="text-base font-semibold text-fg">{formatLessonTitle(note.lesson_slug)}</span>
+          {!isExpanded && <span className="line-clamp-2 text-sm text-fg-2">{note.note_text}</span>}
+        </button>
+        <span aria-hidden className="pt-1 font-mono text-fg-3">
+          {isExpanded ? "−" : "+"}
+        </span>
+      </div>
 
-              <div className="flex-1 min-w-0">
-                {/* Note Type Badge */}
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-lg sm:text-2xl">
-                    {noteTypeIcons[note.note_type]}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-white/50 uppercase tracking-wider">
-                    {noteTypeLabels[note.note_type]} • {formatWeekName(note.week)}
-                  </span>
-                </div>
-
-                {/* Lesson Title */}
-                <h3 className="text-base sm:text-lg font-semibold text-gray-900 dark:text-white group-hover:text-blue-400 transition-colors mb-2">
-                  {formatLessonTitle(note.lesson_slug)}
-                </h3>
-
-                {/* Preview of note text when collapsed */}
-                {!isExpanded && (
-                  <p className="text-sm text-gray-600 dark:text-white/70 line-clamp-2">
-                    {note.note_text}
-                  </p>
-                )}
-              </div>
-            </div>
-          </button>
-
-          {/* Go to Lesson Button */}
-          <Link
-            href={noteUrl}
-            className="flex-shrink-0 p-2 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-colors"
-            title="Go to lesson"
-          >
-            <ChevronRight className="w-5 h-5 text-gray-400 dark:text-white/40 hover:text-blue-400 transition-colors" />
-          </Link>
+      {isExpanded && (
+        <div id={panelId} className="flex animate-hk-in flex-col gap-3 px-4 pb-4 sm:px-5">
+          {note.highlight_text && (
+            <p className="text-[15px] leading-[1.7] text-fg">
+              <span className="py-0.5 [box-decoration-break:clone]" style={{ background: col.tint, boxShadow: `inset 0 -2px 0 ${col.swatch}` }}>
+                {note.highlight_text.slice(0, 280)}
+                {note.highlight_text.length > 280 ? "…" : ""}
+              </span>
+            </p>
+          )}
+          <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-fg">{note.note_text}</p>
+          <span className="font-mono text-[11px] text-fg-3">
+            created {new Date(note.created_at).toLocaleDateString()}
+            {note.updated_at !== note.created_at ? ` · edited ${new Date(note.updated_at).toLocaleDateString()}` : ""}
+          </span>
         </div>
+      )}
 
-        {/* Expanded Content */}
-        {isExpanded && (
-          <div className="mt-4 pl-8 space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-            {/* Highlighted Text */}
-            <div className="bg-yellow-50 dark:bg-yellow-500/10 border border-yellow-200 dark:border-yellow-500/20 rounded-lg p-3">
-              <p className="text-sm text-gray-700 dark:text-white/80 italic">
-                "{note.highlight_text.slice(0, 200)}
-                {note.highlight_text.length > 200 ? "..." : ""}"
-              </p>
-            </div>
-
-            {/* Note Text */}
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-white/10 rounded-lg p-4">
-              <p className="text-gray-900 dark:text-white whitespace-pre-wrap text-sm sm:text-base">
-                {note.note_text}
-              </p>
-            </div>
-
-            {/* Metadata */}
-            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-white/40">
-              <span>Created {new Date(note.created_at).toLocaleDateString()}</span>
-              {note.updated_at !== note.created_at && (
-                <span>Updated {new Date(note.updated_at).toLocaleDateString()}</span>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="px-4 sm:px-6 pb-4 flex items-center gap-2 border-t border-black/10 dark:border-white/10 pt-3">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 rounded-lg text-sm transition-colors"
-          title="Edit note"
-        >
-          <Edit className="w-4 h-4" />
-          <span className="hidden sm:inline">Edit</span>
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-red-500/20 text-red-400 hover:bg-red-500/30 rounded-lg text-sm transition-colors"
-          title="Delete note"
-        >
-          <Trash2 className="w-4 h-4" />
-          <span className="hidden sm:inline">Delete</span>
-        </button>
-      </div>
-    </div>
+      {confirming ? (
+        <div role="alertdialog" aria-label="Delete this note?" className="flex flex-wrap items-center justify-between gap-3 border-t border-bad px-4 py-3 sm:px-5">
+          <span className="text-[15px] font-semibold text-fg">Delete this note?</span>
+          <span className="flex gap-2">
+            <button type="button" autoFocus onClick={() => setConfirming(false)} className="min-h-11 border border-line-strong px-4 text-sm text-fg">
+              Keep it
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setConfirming(false);
+                onDelete();
+              }}
+              className="min-h-11 bg-bad px-4 text-sm font-semibold text-[#120203]"
+            >
+              Delete
+            </button>
+          </span>
+        </div>
+      ) : (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-line px-4 py-2.5 sm:px-5">
+          <Link href={noteUrl} className="inline-flex min-h-11 items-center px-1 text-sm font-semibold text-signal-text">
+            Open at note ›
+          </Link>
+          <span className="flex-1" />
+          <button type="button" onClick={onEdit} className="min-h-11 border border-line-strong px-3 text-[13px] text-fg hover:bg-surface-2">
+            Edit
+          </button>
+          <button type="button" onClick={() => setConfirming(true)} aria-label="Delete note" className="min-h-11 border border-line-strong px-3 text-[13px] text-fg-3 hover:text-fg">
+            Delete
+          </button>
+        </div>
+      )}
+    </article>
   );
 }

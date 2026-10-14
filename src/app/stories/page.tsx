@@ -1,24 +1,24 @@
-import { Section } from "@/components/Sections";
-import StoriesGrid from "@/components/StoriesGrid";
-import { getAllStories } from "@/lib/stories";
-import NewsletterForm from "@/components/NewsletterForm";
+import type { Metadata } from "next";
+import CaseFilesIndex from "@/components/stories/CaseFilesIndex";
+import NewsletterStrip from "@/components/stories/NewsletterStrip";
+import { getCaseFiles } from "@/components/stories/case-files";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+export const metadata: Metadata = {
+  title: "Case files · Himanshu Kukreja",
+  description:
+    "Production incidents, rush hours and the things I built, told as stories with blueprints. Each one ends with the lessons you can steal.",
+};
+
 export default async function StoriesPage() {
-  const stories = await getAllStories();
+  const cases = await getCaseFiles();
   return (
-    <main className="pt-6">
-      <Section id="stories" title="Engineering Stories">
-        <StoriesGrid initial={stories} />
-        <div className="mt-10 flex flex-col items-center gap-3">
-          <h3 className="text-gray-900 dark:text-white text-lg font-semibold">Subscribe to the Stories</h3>
-          <p className="text-gray-600 dark:text-white/70 text-sm">Get the latest stories in your inbox.</p>
-          <NewsletterForm />
-        </div>
-      </Section>
+    <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-24 pt-8 sm:gap-10 sm:px-6 sm:pt-[72px]">
+      <CaseFilesIndex cases={cases} />
+      <NewsletterStrip />
     </main>
   );
 }

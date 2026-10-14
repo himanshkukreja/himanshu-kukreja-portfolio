@@ -162,6 +162,14 @@ echo "adb connect bore.pub:15750"
 
 **First Success:** Sitting in my home office, connected to my Samsung S21 that was physically in a different room via WiFi. It was manual, fragile, but it **worked**!
 
+```mermaid
+%% title: The weekend-1 prototype path
+flowchart TD
+    DEV(["Developer anywhere<br/>adb connect bore.pub:15750"]):::client --> BP["bore.pub:15750"]:::edge
+    BP -->|"bore local 5000 --to bore.pub"| L["Local port 5000"]:::service
+    L -->|"adb forward tcp:5000 tcp:5555"| D["Device 1d752b81<br/>adb tcpip 5555"]:::core
+```
+
 ![Prototype Success](/blueprints/bridgelink-prototype.png)
 <!-- IMAGE PROMPT: A celebratory moment illustration showing a developer at their desk with a laptop displaying a terminal window with green success text "adb connect bore.pub:15750" and "connected to 192.168.1.15:5555". In the background/foreground, show a Samsung phone floating with WiFi signal waves and a glowing connection line to the laptop. Include confetti or sparkle effects around the connection. Modern, vibrant illustration style with dark mode terminal aesthetic. Show the "first victory" vibe with subtle celebration elements. -->
 
@@ -428,6 +436,26 @@ class ConnectionMonitor:
 # Developer action required: Zero! 🎉
 ```
 
+```mermaid
+%% title: Health monitor and auto-activation
+stateDiagram-v2
+    Active: active · tunnel running
+    Inactive: inactive · tunnel stopped
+    [*] --> Active: bridgelink devices add
+    Active --> Inactive: Health monitor · device unreachable · 1 second
+    Inactive --> Active: Connection monitor · device back · auto-activate · 1 second
+    note right of Inactive
+        Battery dies · WiFi drops
+        ADB daemon crashes · USB unplugged
+    end note
+    note left of Active
+        Total downtime ~2 seconds
+        Developer action required: zero
+    end note
+    class Active ok
+    class Inactive bad
+```
+
 ![Auto-Activation Flow](/blueprints/bridgelink-auto-activation.png)
 <!-- IMAGE PROMPT: A circular flow diagram showing auto-activation cycle. Show 4 states clockwise: 1) Green phone icon labeled "Device Active" with checkmark, 2) Phone with X mark and red indicator "Device Disconnected", 3) Gray phone with refresh icon "Health Monitor Detects (1 sec)", 4) Phone reconnecting with green arrow "Auto-Activation". In the center, show a daemon/robot icon labeled "Background Monitor" with 1-second timer. Use circular arrows connecting each state. Include time labels "1 sec" on detection and activation steps. Modern, clean design with status colors (green=active, red=disconnected, orange=detecting, blue=reconnecting). -->
 
@@ -486,34 +514,48 @@ click.echo(click.style("bridgelink.io:15750", fg='magenta', bold=True))
 ![Architecture Diagram](/blueprints/bridgelink-architecture.png)
 <!-- IMAGE PROMPT: A layered architecture diagram showing BridgeLink system components in 4 tiers, displayed vertically from top to bottom. Tier 1 (Developer): Show laptop/desktop icons with CLI terminal and web dashboard. Tier 2 (Management): Show interconnected boxes for Tunnel Manager, Health Monitor (with heartbeat icon), Connection Monitor (with refresh icon), and State Management (with database icon). Tier 3 (Platform/NativeBridge): Show cloud infrastructure with API endpoints, user auth (lock icon), device registry (database), and dashboard. Tier 4 (Devices): Show 5-6 different Android phones (Samsung, Pixel, OnePlus) with USB/WiFi indicators and tunnel connections. Use connecting lines/arrows showing data flow between tiers. Color-code each tier differently (purple, blue, green, orange). Modern, technical diagram style with icons and clear labels. Include bore tunnel visualization as encrypted pipes connecting tiers. -->
 
-```
-BridgeLink System Components:
-
-🎮 DEVELOPER TIER
-├─ CLI Commands           → Python Click framework
-├─ Dashboard Interface    → Web-based device management
-├─ Remote ADB Access      → Global device connectivity
-└─ Auto-Activation        → Set-and-forget device management
-
-🔄 MANAGEMENT TIER
-├─ Tunnel Manager         → bore tunnel lifecycle management
-├─ Health Monitor         → 1-second device health checks
-├─ Connection Monitor     → Auto-activation for reconnected devices
-├─ Session Persistence    → Survive restarts and failures
-└─ State Management       → ~/.bridgelink/ state storage
-
-🌐 PLATFORM TIER (NativeBridge)
-├─ Device Registry        → Central database of all devices
-├─ User Authentication    → API key-based access control
-├─ State Synchronization  → Keep device status in sync
-├─ Dashboard URL          → Web interface for device control
-└─ Remote Session API     → Start sessions from dashboard
-
-🔌 DEVICE TIER
-├─ Physical Devices       → Samsung, Pixel, OnePlus, etc.
-├─ ADB Connectivity       → USB or WiFi connection
-├─ TCP Mode               → Port 5555 forwarding
-└─ Global Accessibility   → via secure bore tunnels
+```mermaid
+%% title: BridgeLink system components
+flowchart TD
+    subgraph DT["Developer tier"]
+        direction TB
+        D1["CLI Commands<br/>Python Click framework"]:::client
+        D2["Dashboard Interface<br/>Web-based device management"]:::client
+        D3["Remote ADB Access<br/>Global device connectivity"]:::client
+        D4["Auto-Activation<br/>Set-and-forget device management"]:::client
+        D1 ~~~ D3
+        D2 ~~~ D4
+    end
+    subgraph MT["Management tier"]
+        direction TB
+        M1["Tunnel Manager<br/>bore tunnel lifecycle management"]:::core
+        M2["Health Monitor<br/>1-second device health checks"]:::service
+        M3["Connection Monitor<br/>Auto-activation for reconnected devices"]:::service
+        M4["Session Persistence<br/>Survive restarts and failures"]:::service
+        M5[("State Management<br/>~/.bridgelink/ state storage")]:::store
+        M1 ~~~ M4
+        M2 ~~~ M5
+    end
+    subgraph PT["Platform tier (NativeBridge)"]
+        direction TB
+        P1[("Device Registry<br/>Central database of all devices")]:::store
+        P2["User Authentication<br/>API key-based access control"]:::edge
+        P3["State Synchronization<br/>Keep device status in sync"]:::service
+        P4["Dashboard URL<br/>Web interface for device control"]:::service
+        P5["Remote Session API<br/>Start sessions from dashboard"]:::service
+        P1 ~~~ P4
+        P2 ~~~ P5
+    end
+    subgraph DVT["Device tier"]
+        direction TB
+        V1["Physical Devices<br/>Samsung, Pixel, OnePlus, etc."]:::external
+        V2["ADB Connectivity<br/>USB or WiFi connection"]:::external
+        V3["TCP Mode<br/>Port 5555 forwarding"]:::external
+        V4["Global Accessibility<br/>via secure bore tunnels"]:::external
+        V1 ~~~ V3
+        V2 ~~~ V4
+    end
+    DT --> MT --> PT --> DVT
 ```
 
 ### Core Components
@@ -767,6 +809,18 @@ class WiFiConnectionFlow:
                               fg='yellow'))
 
         return f"{device_ip}:5555"
+```
+
+```mermaid
+%% title: WiFi connection flow
+flowchart TD
+    U(["USB-connected device"]):::client --> S1["Step 1/3 · adb tcpip 5555"]:::service
+    S1 -->|"returncode != 0"| E1(["WiFiSetupError<br/>Failed to enable TCP/IP mode"]):::bad
+    S1 -->|"wait 3s for mode switch"| S2["Step 2/3 · adb shell ip route<br/>parse device IP"]:::service
+    S2 -->|"no IP"| E2(["WiFiSetupError<br/>Could not determine device IP address"]):::bad
+    S2 --> S3["Step 3/3 · adb connect IP:5555"]:::core
+    S3 -->|"returncode != 0"| E3(["WiFiSetupError<br/>Failed to connect via WiFi"]):::bad
+    S3 --> OK(["Connected via WiFi<br/>You can now disconnect the USB cable"]):::ok
 ```
 
 ### Auto-Activation Intelligence

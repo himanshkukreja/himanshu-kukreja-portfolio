@@ -1,153 +1,174 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import type { TocHeading } from "@/lib/toc";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Stage, TocItem } from "@/lib/course/types";
+import { useOptionalLessonProgress, isOptionalStage } from "@/components/LessonProgressTracker";
+import { headerStackBottom, scrollToId, stageRailHeight } from "@/components/learn/lesson/layout";
 
-type Props = {
-  headings: TocHeading[];
+export type TocGroup = {
+  id: string;
+  title: string;
+  kind: "stage" | "questions";
+  stage?: Stage;
+  optional: boolean;
+  items: TocItem[];
 };
 
-export default function TableOfContents({ headings }: Props) {
-  const [activeId, setActiveId] = useState<string>("");
-  const tocContainerRef = useRef<HTMLDivElement>(null);
-  const activeItemRef = useRef<HTMLAnchorElement>(null);
+/** Group the renderer's TOC by stage, plus an "Interview questions" group. */
+export function buildTocGroups(toc: TocItem[], stages: Stage[]): TocGroup[] {
+  const groups: TocGroup[] = stages.map((s) => ({
+    id: s.id,
+    title: s.label === s.title || !s.title ? s.label : `${s.label.replace(/^Part\s+/i, "")} · ${s.title}`,
+    kind: "stage",
+    stage: s,
+    optional: isOptionalStage(s),
+    items: toc.filter((t) => t.stageId === s.id && t.kind !== "part" && t.kind !== "question" && t.level <= 3),
+  }));
+  const questions = toc.filter((t) => t.kind === "question");
+  if (questions.length) groups.push({ id: "interview-questions", title: "Interview questions", kind: "questions", optional: false, items: questions });
+  return groups;
+}
 
+/** Id of the last heading above the reading line; elements are looked up on every pass. */
+export function useActiveHeading(ids: string[]) {
+  const [active, setActive] = useState<string>("");
+  const key = ids.join("|");
   useEffect(() => {
-    // Get all heading elements
-    const headingElements = headings.map(({ id }) => document.getElementById(id)).filter(Boolean) as HTMLElement[];
-
-    if (headingElements.length === 0) return;
-
-    // Scroll-based detection for better accuracy
-    const handleScroll = () => {
-      const scrollPosition = window.scrollY + 120; // Account for header height
-
-      // Find the heading that's currently in view
-      let currentHeading = headingElements[0];
-
-      for (const heading of headingElements) {
-        const headingTop = heading.offsetTop;
-        if (scrollPosition >= headingTop) {
-          currentHeading = heading;
-        } else {
-          break;
+    const list = key ? key.split("|") : [];
+    if (!list.length) return;
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      const line = headerStackBottom() + stageRailHeight() + 120;
+      let cur = "";
+      let best = -Infinity;
+      for (const id of list) {
+        const el = document.getElementById(id);
+        if (!el || !el.isConnected) continue;
+        const top = el.getBoundingClientRect().top;
+        if (top <= line && top > best) {
+          best = top;
+          cur = id;
         }
       }
-
-      if (currentHeading && currentHeading.id !== activeId) {
-        setActiveId(currentHeading.id);
-      }
+      setActive((a) => (a === cur ? a : cur));
     };
-
-    // Set initial active heading
-    handleScroll();
-
-    // Listen to scroll events
-    window.addEventListener("scroll", handleScroll, { passive: true });
-
-    // Also use IntersectionObserver as a fallback for better precision
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            setActiveId(entry.target.id);
-          }
-        });
-      },
-      {
-        rootMargin: "-100px 0px -66%",
-        threshold: [0, 0.5, 1.0],
-      }
-    );
-
-    headingElements.forEach((elem) => observer.observe(elem));
-
+    const schedule = () => {
+      if (!raf) raf = window.requestAnimationFrame(measure);
+    };
+    schedule();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
     return () => {
-      window.removeEventListener("scroll", handleScroll);
-      headingElements.forEach((elem) => observer.unobserve(elem));
+      if (raf) window.cancelAnimationFrame(raf);
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
     };
-  }, [headings, activeId]);
+  }, [key]);
+  return active;
+}
 
-  // Auto-scroll the active item into view in the TOC
+type Props = {
+  toc: TocItem[];
+  stages: Stage[];
+};
+
+/** Right rail "On this page": collapsible per stage, current stage open. */
+export default function TableOfContents({ toc, stages }: Props) {
+  const groups = useMemo(() => buildTocGroups(toc, stages), [toc, stages]);
+  const ids = useMemo(() => toc.map((t) => t.id), [toc]);
+  const active = useActiveHeading(ids);
+  const progress = useOptionalLessonProgress();
+  const current = progress?.current ?? "";
+  const [openState, setOpenState] = useState<Record<string, boolean>>({});
+  const activeRef = useRef<HTMLAnchorElement>(null);
+  const boxRef = useRef<HTMLElement>(null);
+
+  // keep the active entry visible inside the rail
   useEffect(() => {
-    if (!activeId || !activeItemRef.current || !tocContainerRef.current) return;
+    const a = activeRef.current;
+    const box = boxRef.current;
+    if (!a || !box) return;
+    const ar = a.getBoundingClientRect();
+    const br = box.getBoundingClientRect();
+    if (ar.top < br.top + 40 || ar.bottom > br.bottom - 40) box.scrollTo({ top: box.scrollTop + ar.top - br.top - br.height / 3 });
+  }, [active]);
 
-    const tocContainer = tocContainerRef.current;
-    const activeItem = activeItemRef.current;
-
-    // Use a small delay to ensure the DOM is updated
-    const timeoutId = setTimeout(() => {
-      // Get the position of the active item relative to the container
-      const containerTop = tocContainer.scrollTop;
-      const containerBottom = containerTop + tocContainer.clientHeight;
-
-      const itemTop = activeItem.offsetTop;
-      const itemBottom = itemTop + activeItem.offsetHeight;
-
-      // Add some padding for better visibility
-      const PADDING = 20;
-
-      // Check if the active item is outside the visible scroll area
-      const isAboveView = itemTop < containerTop + PADDING;
-      const isBelowView = itemBottom > containerBottom - PADDING;
-
-      if (isAboveView || isBelowView) {
-        // Calculate the ideal scroll position to center the item
-        const idealScrollTop = itemTop - (tocContainer.clientHeight / 2) + (activeItem.offsetHeight / 2);
-
-        // Scroll the container smoothly
-        tocContainer.scrollTo({
-          top: idealScrollTop,
-          behavior: "smooth",
-        });
-      }
-    }, 100);
-
-    return () => clearTimeout(timeoutId);
-  }, [activeId]);
-
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
+  const go = (id: string) => (e: React.MouseEvent) => {
     e.preventDefault();
-    const element = document.getElementById(id);
-    if (element) {
-      const yOffset = -80; // Offset for sticky header
-      const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
-      window.scrollTo({ top: y, behavior: "smooth" });
-    }
+    scrollToId(id);
   };
 
-  if (headings.length === 0) {
-    return null;
-  }
-
   return (
-    <div className="sticky top-24 bg-black/5 dark:bg-white/5 backdrop-blur-sm rounded-lg border border-black/10 dark:border-white/10 p-4">
-      <h3 className="text-gray-900 dark:text-white font-semibold mb-4 text-sm uppercase tracking-wide">
-        On This Page
-      </h3>
-      <nav ref={tocContainerRef} className="space-y-1 max-h-[calc(100vh-12rem)] overflow-y-auto pr-2">
-        {headings.map((heading) => {
-          const isActive = activeId === heading.id;
-          const paddingLeft = heading.level === 1 ? "0" : heading.level === 2 ? "0.75rem" : "1.5rem";
-
-          return (
-            <a
-              key={heading.id}
-              ref={isActive ? activeItemRef : null}
-              href={`#${heading.id}`}
-              onClick={(e) => handleClick(e, heading.id)}
-              className={`block py-2 px-3 rounded text-sm transition-all ${
-                isActive
-                  ? "bg-blue-500/20 text-blue-400 font-medium border-l-2 border-blue-400"
-                  : "text-gray-500 dark:text-white/60 hover:text-gray-900 dark:hover:text-white hover:bg-black/5 dark:hover:bg-white/5 border-l-2 border-transparent"
-              }`}
-              style={{ paddingLeft }}
+    <aside
+      ref={boxRef}
+      aria-label="On this page"
+      data-reader-ui
+      className="sticky flex flex-col gap-0.5 overflow-y-auto pb-4"
+      style={{
+        top: "calc(var(--reader-top, 61px) + var(--reader-rail, 90px) + 24px)",
+        maxHeight: "calc(100vh - var(--reader-top, 61px) - var(--reader-rail, 90px) - 120px)",
+      }}
+    >
+      <span className="pb-2 font-mono text-xs uppercase tracking-label text-fg-3">On this page</span>
+      {groups.map((g) => {
+        const hasCur = g.kind === "stage" ? g.id === current : g.items.some((i) => i.id === active);
+        const open = openState[g.id] ?? (hasCur || g.kind === "questions");
+        const isDone = g.stage && (progress?.completed || progress?.done.has(g.id));
+        let meta = "";
+        let metaTone = "text-fg-4";
+        if (g.kind === "questions") {
+          meta = `${g.items.length} Qs`;
+          metaTone = "text-fg-3";
+        } else if (g.optional) meta = "opt";
+        else if (isDone) {
+          meta = "✓";
+          metaTone = "text-fg";
+        } else if (g.stage) {
+          meta = `${g.stage.minutes}m`;
+          if (g.id === current) metaTone = "text-signal-text";
+        }
+        const headTone = hasCur ? "text-fg" : g.kind === "questions" ? "text-signal-text" : "text-fg-2";
+        const wrap = g.kind === "questions" ? "mt-2.5 border-t border-line pt-2.5" : g.optional ? "mt-1" : "";
+        return (
+          <div key={g.id} className={wrap}>
+            <button
+              type="button"
+              onClick={(e) => (g.items.length ? setOpenState((o) => ({ ...o, [g.id]: !open })) : go(g.id)(e))}
+              aria-expanded={g.items.length ? open : undefined}
+              className={`flex min-h-11 w-full items-center gap-2 px-1.5 text-left text-sm font-semibold ${headTone} hover:text-fg`}
             >
-              <span className="line-clamp-2">{heading.text}</span>
-            </a>
-          );
-        })}
-      </nav>
-    </div>
+              <span aria-hidden className="w-2.5 font-mono text-[11px] text-fg-4">
+                {g.items.length ? (open ? "▾" : "▸") : "·"}
+              </span>
+              <span className="min-w-0 flex-1 leading-snug">{g.title}</span>
+              <span className={`font-mono text-[11px] font-normal ${metaTone}`}>{meta}</span>
+            </button>
+            {open && g.items.length > 0 && (
+              <div className="flex flex-col pb-1.5 pl-5">
+                {g.items.map((it) => {
+                  const on = it.id === active;
+                  return (
+                    <a
+                      key={it.id}
+                      ref={on ? activeRef : undefined}
+                      href={`#${it.id}`}
+                      onClick={go(it.id)}
+                      aria-current={on ? "location" : undefined}
+                      className={`flex min-h-9 items-center gap-2.5 px-2 py-0.5 text-[13px] leading-snug ${
+                        on ? "bg-surface-2 font-semibold text-fg" : "text-fg-3 hover:text-fg"
+                      } ${it.level >= 3 ? "pl-4" : ""}`}
+                    >
+                      <span aria-hidden className={`h-1.5 w-1.5 shrink-0 ${on ? "bg-signal" : "border border-line-strong"}`} />
+                      <span>{it.text}</span>
+                    </a>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </aside>
   );
 }

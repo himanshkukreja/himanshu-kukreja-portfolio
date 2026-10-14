@@ -53,8 +53,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
       setSuccess("Check your email for the verification code!");
       setStep("otp");
-    } catch (err: any) {
-      setError(err.message || "Something went wrong");
+    } catch (err: unknown) {
+      setError((err instanceof Error && err.message) || "Something went wrong");
     } finally {
       setLoading(false);
     }
@@ -81,8 +81,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
       setTimeout(() => {
         handleClose();
       }, 1500);
-    } catch (err: any) {
-      setError(err.message || "Invalid verification code");
+    } catch (err: unknown) {
+      setError((err instanceof Error && err.message) || "Invalid verification code");
     } finally {
       setLoading(false);
     }
@@ -99,8 +99,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         setLoading(false);
       }
       // Google OAuth will redirect, so we don't need to handle success here
-    } catch (err: any) {
-      setError(err.message || "Failed to sign in with Google");
+    } catch (err: unknown) {
+      setError((err instanceof Error && err.message) || "Failed to sign in with Google");
       setLoading(false);
     }
   };
@@ -109,33 +109,39 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 bg-black/80 backdrop-blur-md z-[9999] flex items-center justify-center p-4 overflow-y-auto"
+        className="fixed inset-0 bg-black/80 z-[9999] flex items-center justify-center p-4 overflow-y-auto"
         onClick={handleClose}
       >
         {/* Modal - Click inside doesn't close */}
         <div
-          className="w-full max-w-md max-h-[95vh] my-auto overflow-y-auto"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sign in"
+          className="w-full max-w-md max-h-[95vh] my-auto overflow-y-auto animate-hk-in"
           onClick={(e) => e.stopPropagation()}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") handleClose();
+          }}
         >
-          <div className="bg-gradient-to-b from-gray-900 to-black border border-white/20 rounded-2xl shadow-2xl overflow-hidden relative min-h-0">
+          <div className="bg-surface border border-line-strong overflow-hidden relative min-h-0">
             {/* Decorative gradient top */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-blue-500" />
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-signal" />
           {/* Header */}
-          <div className="flex items-center justify-between px-6 py-5 border-b border-white/10">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-line">
             <div>
-              <h2 className="text-2xl font-bold text-white mb-1">
+              <h2 className="font-display text-3xl font-extrabold tracking-[-0.03em] text-fg mb-1">
                 Continue Learning
               </h2>
-              <p className="text-sm text-white/50">
+              <p className="text-sm text-fg-3">
                 Sign in to unlock your progress and features
               </p>
             </div>
             <button
               onClick={handleClose}
-              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+              className="grid h-10 w-10 place-items-center hover:bg-surface-2"
               aria-label="Close"
             >
-              <X className="w-5 h-5 text-white/60 hover:text-white" />
+              <X className="w-5 h-5 text-fg-3 hover:text-fg" />
             </button>
           </div>
 
@@ -143,16 +149,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <div className="p-6">
             {/* Success/Error Messages */}
             {success && (
-              <div className="mb-4 p-3 bg-green-500/20 border border-green-500/30 rounded-lg flex items-center gap-2">
-                <CheckCircle className="w-5 h-5 text-green-400 flex-shrink-0" />
-                <p className="text-sm text-green-400">{success}</p>
+              <div className="mb-4 p-3 border border-ok flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-ok flex-shrink-0" />
+                <p className="text-sm text-ok">{success}</p>
               </div>
             )}
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg flex items-center gap-2">
-                <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0" />
-                <p className="text-sm text-red-400">{error}</p>
+              <div className="mb-4 p-3 border border-bad flex items-center gap-2">
+                <AlertCircle className="w-5 h-5 text-bad-text flex-shrink-0" />
+                <p className="text-sm text-bad-text">{error}</p>
               </div>
             )}
 
@@ -160,16 +166,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {step === "email" && (
               <>
                 <div className="mb-6">
-                  <div className="flex items-start gap-2 text-white/70 text-sm">
-                    <span className="text-blue-400">✓</span>
+                  <div className="flex items-start gap-2 text-fg-2 text-sm">
+                    <span className="text-signal-text">✓</span>
                     <p>Track your progress and earn streaks</p>
                   </div>
-                  <div className="flex items-start gap-2 text-white/70 text-sm mt-2">
-                    <span className="text-blue-400">✓</span>
+                  <div className="flex items-start gap-2 text-fg-2 text-sm mt-2">
+                    <span className="text-signal-text">✓</span>
                     <p>Bookmark lessons and take notes</p>
                   </div>
-                  <div className="flex items-start gap-2 text-white/70 text-sm mt-2">
-                    <span className="text-blue-400">✓</span>
+                  <div className="flex items-start gap-2 text-fg-2 text-sm mt-2">
+                    <span className="text-signal-text">✓</span>
                     <p>100% free, no credit card required</p>
                   </div>
                 </div>
@@ -178,7 +184,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={loading}
-                  className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-white/10 hover:bg-white/15 text-white border border-white/20 hover:border-white/30 rounded-xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed mb-4 shadow-lg hover:shadow-xl"
+                  className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-fg text-bg hover:opacity-90 transition-opacity font-semibold min-h-12 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                 >
                   {loading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />
@@ -210,21 +216,21 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 {/* Divider */}
                 <div className="relative my-6">
                   <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-white/20"></div>
+                    <div className="w-full border-t border-line"></div>
                   </div>
                   <div className="relative flex justify-center text-xs">
-                    <span className="px-4 bg-gradient-to-b from-gray-900 to-black text-white/50 uppercase tracking-wider">or</span>
+                    <span className="px-4 bg-surface text-fg-3 font-mono uppercase tracking-label">or</span>
                   </div>
                 </div>
 
                 {/* Email Form */}
                 <form onSubmit={handleEmailSubmit} className="space-y-4">
                   <div>
-                    <label htmlFor="email" className="block text-sm font-semibold text-white mb-2">
+                    <label htmlFor="email" className="block text-sm font-semibold text-fg mb-2">
                       Email Address
                     </label>
                     <div className="relative">
-                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                      <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-fg-4" />
                       <input
                         id="email"
                         type="email"
@@ -233,7 +239,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                         placeholder="you@example.com"
                         required
                         disabled={loading}
-                        className="w-full pl-12 pr-4 py-3.5 bg-white/5 border border-white/20 rounded-xl text-white placeholder:text-white/40 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:border-white/30"
+                        className="w-full pl-12 pr-4 min-h-12 bg-bg border border-line-strong text-fg placeholder:text-fg-4 focus:outline-none focus:border-signal disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
                   </div>
@@ -241,7 +247,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   <button
                     type="submit"
                     disabled={loading || !email}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-signal text-on-signal hover:opacity-90 transition-opacity font-semibold min-h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <>
@@ -255,8 +261,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </form>
 
                 {/* Info Text */}
-                <div className="mt-6 text-center text-sm text-white/50">
-                  We'll create your account automatically if you're new
+                <div className="mt-6 text-center text-sm text-fg-3">
+                  We&apos;ll create your account automatically if you&apos;re new
                 </div>
               </>
             )}
@@ -265,18 +271,18 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {step === "otp" && (
               <>
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-500/20 rounded-full mb-4">
-                    <Mail className="w-8 h-8 text-blue-400" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 border border-signal mb-4">
+                    <Mail className="w-8 h-8 text-signal-text" />
                   </div>
-                  <p className="text-white/70 text-sm">
+                  <p className="text-fg-2 text-sm">
                     We sent a 6-digit code to<br />
-                    <span className="text-white font-semibold">{email}</span>
+                    <span className="text-fg font-semibold">{email}</span>
                   </p>
                 </div>
 
                 <form onSubmit={handleOtpSubmit} className="space-y-5">
                   <div>
-                    <label htmlFor="otp" className="block text-sm font-semibold text-white mb-3 text-center">
+                    <label htmlFor="otp" className="block text-sm font-semibold text-fg mb-3 text-center">
                       Enter Verification Code
                     </label>
                     <input
@@ -289,14 +295,14 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       required
                       disabled={loading}
                       autoFocus
-                      className="w-full px-4 py-4 bg-white/5 border-2 border-white/20 rounded-xl text-white text-center text-3xl font-bold tracking-[0.5em] placeholder:text-white/30 placeholder:tracking-[0.5em] focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover:border-white/30"
+                      className="w-full px-4 py-4 bg-bg border border-line-strong text-fg text-center font-mono text-3xl font-semibold tracking-[0.5em] placeholder:text-fg-4 placeholder:tracking-[0.5em] focus:outline-none focus:border-signal disabled:opacity-50 disabled:cursor-not-allowed"
                     />
                   </div>
 
                   <button
                     type="submit"
                     disabled={loading || otp.length !== 6}
-                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-xl transition-all font-semibold disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-blue-500/20"
+                    className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-signal text-on-signal hover:opacity-90 transition-opacity font-semibold min-h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {loading ? (
                       <>
@@ -311,10 +317,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
                 {/* Resend Code */}
                 <div className="mt-4 text-center text-sm">
-                  <span className="text-white/60">Didn't receive the code?</span>{" "}
+                  <span className="text-fg-3">Didn&apos;t receive the code?</span>{" "}
                   <button
                     onClick={() => setStep("email")}
-                    className="text-blue-400 hover:text-blue-300 font-medium"
+                    className="text-signal-text hover:underline font-medium"
                   >
                     Try again
                   </button>
@@ -325,20 +331,20 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
             {/* Step 3: Success */}
             {step === "success" && (
               <div className="text-center py-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 bg-green-500/20 rounded-full mb-4">
-                  <CheckCircle className="w-8 h-8 text-green-400" />
+                <div className="inline-flex items-center justify-center w-16 h-16 border border-ok mb-4">
+                  <CheckCircle className="w-8 h-8 text-ok" />
                 </div>
-                <h3 className="text-xl font-bold text-white mb-2">Welcome!</h3>
-                <p className="text-white/70">You're all set. Redirecting...</p>
+                <h3 className="font-display text-2xl font-bold text-fg mb-2">Welcome!</h3>
+                <p className="text-fg-2">You&apos;re all set. Redirecting…</p>
               </div>
             )}
           </div>
 
           {/* Footer */}
-          <div className="px-6 py-3 bg-black/30 border-t border-white/10 text-center text-xs text-white/40">
+          <div className="px-6 py-3 bg-raised border-t border-line text-center text-xs text-fg-3">
             By continuing, you agree to our{" "}
-            <span className="text-white/60">Terms of Service</span> and{" "}
-            <span className="text-white/60">Privacy Policy</span>
+            <span className="text-fg-3">Terms of Service</span> and{" "}
+            <span className="text-fg-3">Privacy Policy</span>
           </div>
           </div>
         </div>

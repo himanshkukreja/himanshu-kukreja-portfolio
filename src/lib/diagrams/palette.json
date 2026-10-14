@@ -1,0 +1,241 @@
+{
+  "_doc": "Semantic node classes for Mermaid diagrams in the course + stories. Content uses `A:::core` / `class A,B store`; the site injects these classDefs per theme. Keep in sync with docs: scratchpad/mermaid/STYLE.md",
+  "classes": {
+    "core": {
+      "dark": {
+        "fill": "#2A1408",
+        "stroke": "#FF6B2B",
+        "color": "#FFE3D3"
+      },
+      "light": {
+        "fill": "#FFE8DB",
+        "stroke": "#C2410C",
+        "color": "#431407"
+      }
+    },
+    "hot": {
+      "dark": {
+        "fill": "#FF6B2B",
+        "stroke": "#FF6B2B",
+        "color": "#120700"
+      },
+      "light": {
+        "fill": "#EA580C",
+        "stroke": "#C2410C",
+        "color": "#FFFFFF"
+      }
+    },
+    "client": {
+      "dark": {
+        "fill": "#141416",
+        "stroke": "#C9C8C4",
+        "color": "#F3F2EE"
+      },
+      "light": {
+        "fill": "#FFFFFF",
+        "stroke": "#55555B",
+        "color": "#0B0B0B"
+      }
+    },
+    "edge": {
+      "dark": {
+        "fill": "#0B1A26",
+        "stroke": "#4FB3FF",
+        "color": "#D6ECFF"
+      },
+      "light": {
+        "fill": "#E3F2FF",
+        "stroke": "#1D6FB8",
+        "color": "#0B2740"
+      }
+    },
+    "service": {
+      "dark": {
+        "fill": "#1A1A1D",
+        "stroke": "#F3F2EE",
+        "color": "#F3F2EE"
+      },
+      "light": {
+        "fill": "#F2F1EC",
+        "stroke": "#2E2E33",
+        "color": "#0B0B0B"
+      }
+    },
+    "store": {
+      "dark": {
+        "fill": "#0A1F1C",
+        "stroke": "#2DD4BF",
+        "color": "#CCFBF1"
+      },
+      "light": {
+        "fill": "#DDF7F3",
+        "stroke": "#0F766E",
+        "color": "#042F2E"
+      }
+    },
+    "cache": {
+      "dark": {
+        "fill": "#14200A",
+        "stroke": "#A3E635",
+        "color": "#ECFCCB"
+      },
+      "light": {
+        "fill": "#EEF8DA",
+        "stroke": "#4D7C0F",
+        "color": "#1A2E05"
+      }
+    },
+    "queue": {
+      "dark": {
+        "fill": "#231A05",
+        "stroke": "#F5B83D",
+        "color": "#FDECC8"
+      },
+      "light": {
+        "fill": "#FDF1D6",
+        "stroke": "#A16207",
+        "color": "#3A2402"
+      }
+    },
+    "external": {
+      "dark": {
+        "fill": "#0A0A0B",
+        "stroke": "#7E7E85",
+        "color": "#C9C8C4",
+        "stroke-dasharray": "5 4"
+      },
+      "light": {
+        "fill": "#FAFAF7",
+        "stroke": "#6B6B72",
+        "color": "#2E2E33",
+        "stroke-dasharray": "5 4"
+      }
+    },
+    "ok": {
+      "dark": {
+        "fill": "#0A2014",
+        "stroke": "#3DD68C",
+        "color": "#D1FAE5"
+      },
+      "light": {
+        "fill": "#DCFCE7",
+        "stroke": "#15803D",
+        "color": "#052E16"
+      }
+    },
+    "bad": {
+      "dark": {
+        "fill": "#2A0A0B",
+        "stroke": "#E5484D",
+        "color": "#FFD9DA"
+      },
+      "light": {
+        "fill": "#FDE2E2",
+        "stroke": "#B91C1C",
+        "color": "#450A0A"
+      }
+    },
+    "note": {
+      "dark": {
+        "fill": "#0C0C0D",
+        "stroke": "#3A3A40",
+        "color": "#A3A3A8"
+      },
+      "light": {
+        "fill": "#FFFFFF",
+        "stroke": "#C9C7BF",
+        "color": "#55555B"
+      }
+    }
+  },
+  "theme": {
+    "dark": {
+      "background": "transparent",
+      "primaryColor": "#1A1A1D",
+      "primaryTextColor": "#F3F2EE",
+      "primaryBorderColor": "#3A3A40",
+      "lineColor": "#8A8A91",
+      "secondaryColor": "#141416",
+      "tertiaryColor": "#0A0A0B",
+      "textColor": "#F3F2EE",
+      "mainBkg": "#1A1A1D",
+      "nodeBorder": "#3A3A40",
+      "clusterBkg": "#070708",
+      "clusterBorder": "#3A3A40",
+      "titleColor": "#F3F2EE",
+      "edgeLabelBackground": "#0A0A0B",
+      "actorBkg": "#141416",
+      "actorBorder": "#FF6B2B",
+      "actorTextColor": "#F3F2EE",
+      "actorLineColor": "#3A3A40",
+      "signalColor": "#C9C8C4",
+      "signalTextColor": "#F3F2EE",
+      "labelBoxBkgColor": "#141416",
+      "labelBoxBorderColor": "#3A3A40",
+      "labelTextColor": "#F3F2EE",
+      "loopTextColor": "#C9C8C4",
+      "noteBkgColor": "#231A05",
+      "noteBorderColor": "#F5B83D",
+      "noteTextColor": "#FDECC8",
+      "activationBkgColor": "#2A1408",
+      "activationBorderColor": "#FF6B2B",
+      "sequenceNumberColor": "#120700",
+      "stateBkg": "#1A1A1D",
+      "stateLabelColor": "#F3F2EE",
+      "compositeBackground": "#070708",
+      "altBackground": "#0A0A0B",
+      "transitionColor": "#8A8A91",
+      "transitionLabelColor": "#C9C8C4",
+      "fontFamily": "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
+      "fontSize": "14px",
+      "attributeBackgroundColorOdd": "#141416",
+      "attributeBackgroundColorEven": "#0C0C0D",
+      "rowOdd": "#141416",
+      "rowEven": "#0C0C0D"
+    },
+    "light": {
+      "background": "transparent",
+      "primaryColor": "#F2F1EC",
+      "primaryTextColor": "#0B0B0B",
+      "primaryBorderColor": "#C9C7BF",
+      "lineColor": "#6B6B72",
+      "secondaryColor": "#EEEDE8",
+      "tertiaryColor": "#FFFFFF",
+      "textColor": "#0B0B0B",
+      "mainBkg": "#F2F1EC",
+      "nodeBorder": "#C9C7BF",
+      "clusterBkg": "#FAFAF7",
+      "clusterBorder": "#C9C7BF",
+      "titleColor": "#0B0B0B",
+      "edgeLabelBackground": "#F5F4F0",
+      "actorBkg": "#FFFFFF",
+      "actorBorder": "#C2410C",
+      "actorTextColor": "#0B0B0B",
+      "actorLineColor": "#C9C7BF",
+      "signalColor": "#2E2E33",
+      "signalTextColor": "#0B0B0B",
+      "labelBoxBkgColor": "#FFFFFF",
+      "labelBoxBorderColor": "#C9C7BF",
+      "labelTextColor": "#0B0B0B",
+      "loopTextColor": "#2E2E33",
+      "noteBkgColor": "#FDF1D6",
+      "noteBorderColor": "#A16207",
+      "noteTextColor": "#3A2402",
+      "activationBkgColor": "#FFE8DB",
+      "activationBorderColor": "#C2410C",
+      "sequenceNumberColor": "#FFFFFF",
+      "stateBkg": "#F2F1EC",
+      "stateLabelColor": "#0B0B0B",
+      "compositeBackground": "#FAFAF7",
+      "altBackground": "#FFFFFF",
+      "transitionColor": "#6B6B72",
+      "transitionLabelColor": "#2E2E33",
+      "fontFamily": "var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif",
+      "fontSize": "14px",
+      "attributeBackgroundColorOdd": "#FFFFFF",
+      "attributeBackgroundColorEven": "#F5F4F0",
+      "rowOdd": "#FFFFFF",
+      "rowEven": "#F5F4F0"
+    }
+  }
+}

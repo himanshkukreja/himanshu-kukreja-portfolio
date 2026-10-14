@@ -51,7 +51,7 @@ export default function MCQSections({ sections, onResetAll, isResetting, hasAnsw
 
   return (
     <div className="sticky top-24 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-900 dark:text-white uppercase tracking-wider">
+      <h3 className="font-mono text-xs uppercase tracking-label text-fg-3">
         Sections
       </h3>
       <nav className="space-y-2">
@@ -63,14 +63,12 @@ export default function MCQSections({ sections, onResetAll, isResetting, hasAnsw
             <button
               key={section.title}
               onClick={() => scrollToSection(section.title)}
-              className={`block w-full text-left text-sm transition-colors py-2 px-3 rounded-lg ${
-                isActive
-                  ? 'bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 border-l-2 border-indigo-600 dark:border-indigo-400'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              className={`block w-full border-l-2 px-3 py-2 text-left text-sm transition-colors ${
+                isActive ? 'border-signal bg-surface text-fg' : 'border-transparent text-fg-2 hover:border-line-strong hover:text-fg'
               }`}
             >
               <div className="font-medium">{section.title}</div>
-              <div className="text-xs text-gray-500 dark:text-gray-500 mt-0.5">
+              <div className="mt-0.5 font-mono text-[11px] text-fg-3">
                 {section.questionRange} • {section.questions.length} questions
               </div>
             </button>
@@ -78,8 +76,8 @@ export default function MCQSections({ sections, onResetAll, isResetting, hasAnsw
         })}
       </nav>
       
-      <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <div className="text-xs text-gray-500 dark:text-gray-400">
+      <div className="mt-6 border-t border-line pt-6">
+        <div className="text-xs text-fg-3">
           <div className="font-medium mb-2">Quick Stats</div>
           <div className="space-y-1">
             <div>Total Sections: {sections.length}</div>
@@ -89,16 +87,16 @@ export default function MCQSections({ sections, onResetAll, isResetting, hasAnsw
       </div>
 
       {onResetAll && (
-        <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+        <div className="mt-4 border-t border-line pt-4">
           <button
             onClick={onResetAll}
             disabled={isResetting || !hasAnswers}
-            className="w-full px-4 py-2 bg-red-50 hover:bg-red-100 dark:bg-red-900/20 dark:hover:bg-red-900/30 text-red-600 dark:text-red-400 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed border border-red-200 dark:border-red-800"
+            className="min-h-[44px] w-full border border-bad px-4 text-sm font-medium text-bad-text transition-colors hover:bg-surface disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isResetting ? 'Resetting...' : 'Reset All Answers'}
           </button>
           {!hasAnswers && (
-            <p className="text-xs text-gray-400 dark:text-gray-500 mt-2 text-center">
+            <p className="mt-2 text-center text-xs text-fg-4">
               No answers to reset
             </p>
           )}

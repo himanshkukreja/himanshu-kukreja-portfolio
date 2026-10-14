@@ -1,102 +1,99 @@
 "use client";
 
+/**
+ * Guest prompt: "Save your run". Reading stays free and open; signing in only keeps progress.
+ * Opens the global sign-in dialog. Hidden for signed-in visitors and after dismissal (per tab).
+ */
 import { useState } from "react";
-import { X, BookmarkPlus, FileText, TrendingUp, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
-import AuthModal from "./AuthModal";
+import { useAuthModal } from "@/contexts/AuthModalContext";
+import { useGame } from "@/game/GameProvider";
 
 type AuthPromptBannerProps = {
-  variant?: "learn-page" | "lesson-page";
+  variant?: "learn-page" | "lesson-page" | "notebook" | "profile";
+  /** render without the dismiss button (e.g. when the page has nothing else to show a guest) */
+  persistent?: boolean;
+  /** "stack" for narrow columns */
+  layout?: "row" | "stack";
 };
 
-export default function AuthPromptBanner({ variant = "learn-page" }: AuthPromptBannerProps) {
-  const { user } = useAuth();
+const COPY: Record<NonNullable<AuthPromptBannerProps["variant"]>, { title: string; body: string }> = {
+  "learn-page": {
+    title: "Keep what you earn",
+    body: "Reading stays free and open. Your progress lives in this browser until you sign in; then it follows you to every device.",
+  },
+  "lesson-page": {
+    title: "Save this lesson's progress",
+    body: "Stage checkpoints and XP stay in this browser. Sign in to sync them and to highlight, note and bookmark.",
+  },
+  notebook: {
+    title: "Your notebook needs an account",
+    body: "Highlights, notes and bookmarks are saved to your account so they are searchable and follow you across devices.",
+  },
+  profile: {
+    title: "Make this profile yours",
+    body: "Everything here is from this browser. Sign in to keep your streak, trials and XP on every device.",
+  },
+};
+
+const PERKS = [
+  ["Progress syncs", "Completed lessons and stage checkpoints, on every device."],
+  ["Streaks that count", "A day counts once you finish a stage or a review."],
+  ["Notes and highlights", "One searchable notebook."],
+  ["Trials saved", "Misses feed your review queue."],
+];
+
+export default function AuthPromptBanner({ variant = "learn-page", persistent = false, layout = "row" }: AuthPromptBannerProps) {
+  const row = layout === "row";
+  const { user, loading } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  const { xp, hydrated } = useGame();
   const [isDismissed, setIsDismissed] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Don't show if user is authenticated or banner is dismissed
-  if (user || isDismissed) return null;
-
-  const content = {
-    "learn-page": {
-      icon: <Sparkles className="w-5 h-5 text-purple-400 flex-shrink-0" />,
-      title: "Unlock Your Full Learning Experience",
-      description: "Sign in to track progress, bookmark lessons, and take notes as you learn.",
-      features: [
-        { icon: <TrendingUp className="w-4 h-4" />, text: "Track your progress" },
-        { icon: <BookmarkPlus className="w-4 h-4" />, text: "Bookmark lessons" },
-        { icon: <FileText className="w-4 h-4" />, text: "Take notes" },
-      ],
-    },
-    "lesson-page": {
-      icon: <BookmarkPlus className="w-5 h-5 text-blue-400 flex-shrink-0" />,
-      title: "Want to save your progress?",
-      description: "Sign in to bookmark this lesson and track your learning journey.",
-      features: [
-        { icon: <TrendingUp className="w-4 h-4" />, text: "Auto-save progress" },
-        { icon: <BookmarkPlus className="w-4 h-4" />, text: "Quick bookmarks" },
-        { icon: <FileText className="w-4 h-4" />, text: "Personal notes" },
-      ],
-    },
-  };
-
-  const { icon, title, description, features } = content[variant];
+  if (loading || user || (isDismissed && !persistent)) return null;
+  const { title, body } = COPY[variant];
 
   return (
-    <>
-      <div className="relative bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-blue-500/10 dark:from-blue-500/10 dark:via-purple-500/10 dark:to-blue-500/10 border border-blue-500/20 dark:border-blue-500/20 rounded-xl p-4 md:p-6 backdrop-blur-sm">
-        {/* Dismiss Button */}
+    <section aria-label="Sign in to save progress" className={`relative flex flex-col gap-5 border border-line bg-raised p-5 sm:p-6 ${row ? "lg:flex-row lg:items-center lg:gap-8" : ""}`}>
+      {!persistent && (
         <button
+          type="button"
           onClick={() => setIsDismissed(true)}
-          className="absolute top-3 right-3 p-1 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors"
           aria-label="Dismiss"
+          className="absolute right-2 top-2 grid h-11 w-11 place-items-center text-lg text-fg-3 hover:text-fg"
         >
-          <X className="w-4 h-4 text-gray-600 dark:text-white/60" />
+          ×
         </button>
-
-        <div className="flex flex-col md:flex-row items-start md:items-center gap-4 pr-8">
-          {/* Icon */}
-          <div className="flex-shrink-0">
-            <div className="p-3 bg-gradient-to-br from-blue-500/20 to-purple-500/20 rounded-lg">
-              {icon}
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className="flex-1">
-            <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">{title}</h3>
-            <p className="text-gray-700 dark:text-white/70 text-sm mb-3">{description}</p>
-
-            {/* Features */}
-            <div className="flex flex-wrap items-center gap-3 md:gap-4 mb-4 md:mb-0">
-              {features.map((feature, index) => (
-                <div key={index} className="flex items-center gap-1.5 text-gray-600 dark:text-white/60 text-xs">
-                  {feature.icon}
-                  <span>{feature.text}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* CTA Button */}
-          <div className="flex-shrink-0 w-full md:w-auto">
-            <button
-              onClick={() => setShowAuthModal(true)}
-              className="w-full md:w-auto px-6 py-2.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-all font-medium text-sm shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40"
-            >
-              Sign In Free
-            </button>
-          </div>
-        </div>
-
-        {/* Decorative gradient line */}
-        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-transparent via-blue-500/50 to-transparent" />
+      )}
+      <div className={`flex min-w-0 flex-col gap-2.5 ${persistent ? "" : "pr-10"} ${row ? "lg:max-w-[340px] lg:pr-0" : ""}`}>
+        <span className="font-mono text-[11px] tracking-label text-signal-text">SAVE YOUR RUN</span>
+        <h2 className="font-display text-[28px] font-extrabold leading-[0.98] tracking-[-0.04em] text-fg sm:text-[32px]">
+          {title}
+          <span className="text-signal-text">.</span>
+        </h2>
+        <p className="text-sm leading-relaxed text-fg-2">{body}</p>
       </div>
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-      />
-    </>
+      <ul className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+        {PERKS.map(([t, d]) => (
+          <li key={t} className="flex gap-2.5">
+            <span aria-hidden className="grid h-5 w-5 shrink-0 place-items-center bg-fg text-[11px] text-bg">
+              ✓
+            </span>
+            <span className="flex flex-col gap-0.5">
+              <span className="text-sm font-semibold text-fg">{t}</span>
+              <span className="text-[13px] text-fg-3">{d}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+      <div className={`flex shrink-0 flex-col gap-2.5 ${row ? "lg:w-[230px]" : "sm:max-w-[320px]"}`}>
+        <button type="button" onClick={openAuthModal} className="min-h-[52px] bg-signal px-5 font-semibold text-on-signal hover:brightness-110">
+          Sign in free
+        </button>
+        {hydrated && xp > 0 && (
+          <span className="border border-dashed border-signal px-3 py-2 font-mono text-xs leading-relaxed text-signal-text">{xp} XP on this device moves to your account.</span>
+        )}
+      </div>
+    </section>
   );
 }

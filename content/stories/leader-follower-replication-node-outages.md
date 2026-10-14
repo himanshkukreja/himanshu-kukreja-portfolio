@@ -24,28 +24,29 @@ At 2 AM on Black Friday, disaster strikes. Your primary database server in the U
 - **3 Follower Nodes** (Replicas): Serve read queries - movie catalogs, user profiles, recommendations
 - **Global Distribution**: Nodes spread across US-East, US-West, and Europe for low latency
 
-```
+```mermaid
+%% title: StreamFlix database cluster
 flowchart TD
-    subgraph "StreamFlix Database Cluster"
-        L[Leader Node<br/>US-East<br/>Writes Only]
-        F1[Follower 1<br/>US-West<br/>Reads]
-        F2[Follower 2<br/>Europe<br/>Reads]
-        F3[Follower 3<br/>US-East<br/>Reads]
+    subgraph UT["User Traffic"]
+        W["Write Operations<br/>Signups, Payments"]:::client
+        R["Read Operations<br/>Browse, Search"]:::client
     end
-    
-    subgraph "User Traffic"
-        W[Write Operations<br/>Signups, Payments]
-        R[Read Operations<br/>Browse, Search]
+
+    subgraph SC["StreamFlix Database Cluster"]
+        L[("Leader Node<br/>US-East<br/>Writes Only")]:::core
+        F1[("Follower 1<br/>US-West<br/>Reads")]:::store
+        F2[("Follower 2<br/>Europe<br/>Reads")]:::store
+        F3[("Follower 3<br/>US-East<br/>Reads")]:::store
     end
-    
+
     W --> L
     R --> F1
     R --> F2
     R --> F3
-    
-    L -.->|Replication| F1
-    L -.->|Replication| F2
-    L -.->|Replication| F3
+
+    L -.->|"Replication"| F1
+    L -.->|"Replication"| F2
+    L -.->|"Replication"| F3
 ```
 
 ---
@@ -84,6 +85,16 @@ Recovery Time: 2-5 minutes for full synchronization
 4. **Traffic Redirection** → All applications point to the new leader
 5. **Data Reconciliation** → Ensure all followers sync with new leader
 
+```mermaid
+%% title: The failover dance
+flowchart TD
+    X(["Leader node fails<br/>all writes halt"]):::bad --> D["Detection · 10-30 seconds<br/>monitoring sees leader unresponsive"]:::service
+    D --> E["Election process<br/>choose the most up-to-date follower"]:::service
+    E --> P["Promotion<br/>follower becomes write-capable leader"]:::core
+    P --> T["Traffic redirection<br/>all applications point to new leader"]:::edge
+    T --> RC(["Data reconciliation<br/>all followers sync with new leader"]):::ok
+```
+
 ---
 
 ## The Consistency Challenge: Synchronous vs Asynchronous Replication
@@ -97,17 +108,19 @@ Recovery Time: 2-5 minutes for full synchronization
 ### Two Replication Strategies
 
 #### Synchronous Replication: The Safe but Slower Approach
-```
+```mermaid
+%% title: Synchronous replication
 sequenceDiagram
+    autonumber
     participant U as User
     participant L as Leader
     participant F as Follower
-    
+
     U->>L: Purchase Premium ($9.99)
     L->>F: Replicate transaction
-    F->>L: Acknowledge success
-    L->>U: Payment confirmed
-    
+    F-->>L: Acknowledge success
+    L-->>U: Payment confirmed
+
     Note over L,F: Write only completes when<br/>follower confirms receipt
 ```
 
@@ -117,16 +130,18 @@ sequenceDiagram
 - ❌ **Availability Risk** → Slow followers can block all writes
 
 #### Asynchronous Replication: The Fast but Risky Approach
-```
+```mermaid
+%% title: Asynchronous replication
 sequenceDiagram
+    autonumber
     participant U as User
     participant L as Leader
     participant F as Follower
-    
+
     U->>L: Update watchlist
-    L->>U: Success (immediate)
-    L-->>F: Replicate later
-    
+    L-->>U: Success (immediate)
+    L-)F: Replicate later
+
     Note over L,F: Write completes immediately<br/>Replication happens after
 ```
 
@@ -222,14 +237,15 @@ cross_region_backup: enabled
 
 ### The Hybrid Approach: Best of Both Worlds
 
-```
-graph TD
-    A[Write Request] --> B{Critical Data?}
-    B -->|Yes| C[Synchronous Replication]
-    B -->|No| D[Asynchronous Replication]
-    C --> E[Wait for Acknowledgment]
-    D --> F[Immediate Response]
-    E --> G[Confirmed Write]
+```mermaid
+%% title: The hybrid approach
+flowchart TD
+    A(["Write Request"]):::client --> B{"Critical Data?"}
+    B -->|"Yes"| C["Synchronous Replication"]:::core
+    B -->|"No"| D["Asynchronous Replication"]:::queue
+    C --> E["Wait for Acknowledgment"]:::service
+    D --> F["Immediate Response"]:::service
+    E --> G(["Confirmed Write"]):::ok
     F --> G
 ```
 
@@ -240,8 +256,11 @@ graph TD
 
 ### Geographic Distribution Strategy
 
-```
-US-East (Leader) ←→ US-West (Sync Follower) ←→ Europe (Async Follower)
+```mermaid
+%% title: Geographic distribution strategy
+flowchart LR
+    E[("US-East<br/>Leader")]:::core <-->|"sync"| W[("US-West<br/>Sync Follower")]:::store
+    W <-.->|"async"| EU[("Europe<br/>Async Follower")]:::store
 ```
 
 - **Regional Writes** → Synchronous to nearby follower

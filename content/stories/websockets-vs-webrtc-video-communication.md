@@ -27,30 +27,21 @@ At 3 AM during a crucial investor demo preparation, disaster strikes. Their vide
 ## The Architecture Showdown: Client-Server vs Peer-to-Peer
 
 **ConnectNow's Original WebSocket Architecture:**
-```
-[User A] (Browser) ---> Video Stream & Capture
-      |
-      v
-[WebSocket Server] (Relay Hub) ---> Process & Forward All Video
-      |
-      v
-[User B] (Browser) ---> Video Stream Display
-
-⚠️ BOTTLENECK: Every video packet flows through server
+```mermaid
+%% title: ConnectNow's original WebSocket architecture
+flowchart TD
+    A["User A (Browser)<br/>Video Stream & Capture"]:::client --> WS["WebSocket Server (Relay Hub)<br/>Process & Forward All Video"]:::bad
+    WS --> B["User B (Browser)<br/>Video Stream Display"]:::client
+    WS -.- N["BOTTLENECK: Every video packet<br/>flows through server"]:::note
 ```
 
 **The Better WebRTC Architecture:**
-```
-[User A] (Browser) <─── Direct P2P Video Communication ───> [User B] (Browser)
-
-    Video Stream (Direct)                          Video Stream (Direct)
-
-          │                                               │
-          │                [Signaling Server] (Setup Only)
-          │                         - ✅ Lightweight
-          │                         - No video data processing
-          │
-          └──── Setup Handshake ────┼──── Setup Handshake ───┘
+```mermaid
+%% title: The better WebRTC architecture
+flowchart TD
+    A["User A (Browser)"]:::client <==>|"Direct P2P Video Communication<br/>Video Stream (Direct)"| B["User B (Browser)"]:::client
+    A -.->|"Setup Handshake"| S["Signaling Server (Setup Only)<br/>Lightweight · No video data processing"]:::service
+    B -.->|"Setup Handshake"| S
 ```
 
 ---
@@ -62,19 +53,16 @@ At 3 AM during a crucial investor demo preparation, disaster strikes. Their vide
 WebSockets provide a **persistent, full-duplex communication channel** between client and server over TCP[1][3]. Think of it as upgrading a regular HTTP request-response into a permanent telephone line where both sides can talk anytime.
 
 **The WebSocket Handshake Process:**
-```
-1. Client sends HTTP request with special headers:
-   - Upgrade: websocket
-   - Connection: Upgrade
-   - Sec-WebSocket-Key: [random key]
-
-2. Server responds with HTTP 101 Switching Protocols:
-   - Upgrade: websocket  
-   - Connection: Upgrade
-   - Sec-WebSocket-Accept: [computed response]
-
-3. Connection upgraded to WebSocket protocol
-4. Both sides can now send messages freely
+```mermaid
+%% title: The WebSocket handshake process
+sequenceDiagram
+    autonumber
+    participant C as Client
+    participant S as Server
+    C->>S: HTTP request with special headers<br/>Upgrade: websocket · Connection: Upgrade<br/>Sec-WebSocket-Key: [random key]
+    S-->>C: HTTP 101 Switching Protocols<br/>Upgrade: websocket · Connection: Upgrade<br/>Sec-WebSocket-Accept: [computed response]
+    Note over C,S: Connection upgraded to WebSocket protocol
+    Note over C,S: Both sides can now send messages freely
 ```
 
 ### WebSocket Strengths: Why They Excel
@@ -102,16 +90,19 @@ WebSockets provide a **persistent, full-duplex communication channel** between c
 ### WebSocket Limitations for Video
 
 **The Video Streaming Problem:**
-```
-Video Frame Journey via WebSocket:
-1. User A captures video frame (30 FPS = 33ms intervals)
-2. Frame encoded and sent to WebSocket server
-3. Server receives frame and processes
-4. Server forwards frame to User B
-5. User B receives and displays frame
-
-Total latency: Network RTT + Server Processing + Queuing Delays
-Typical result: 200-500ms delay (unacceptable for real-time)
+```mermaid
+%% title: Video frame journey via WebSocket
+sequenceDiagram
+    autonumber
+    participant A as User A
+    participant WS as WebSocket server
+    participant B as User B
+    Note over A: Captures video frame<br/>30 FPS = 33ms intervals
+    A->>WS: Frame encoded and sent
+    Note over WS: Receives frame and processes
+    WS->>B: Forwards frame
+    Note over B: Receives and displays frame
+    Note over A,B: Total latency: Network RTT + Server Processing + Queuing Delays<br/>Typical result: 200-500ms delay (unacceptable for real-time)
 ```
 
 **Resource Consumption Issues:**
@@ -129,20 +120,25 @@ Typical result: 200-500ms delay (unacceptable for real-time)
 WebRTC (Web Real-Time Communication) enables **direct peer-to-peer connections** between browsers for audio, video, and data[6][11]. It's designed specifically for real-time media streaming with ultra-low latency.
 
 **WebRTC Connection Establishment:**
-```
-Signaling Phase (uses WebSocket or HTTP):
-1. Peer A creates RTCPeerConnection
-2. Peer A generates "offer" (SDP - Session Description Protocol)
-3. Offer sent to Peer B via signaling server
-4. Peer B creates "answer" and sends back
-5. ICE candidates exchanged for NAT traversal
-6. Direct P2P connection established
-
-Media Streaming Phase:
-1. Audio/video captured directly in browser
-2. Media streams sent directly between peers
-3. No server involvement in media transfer
-4. Ultra-low latency (<50ms typical)
+```mermaid
+%% title: WebRTC connection establishment
+sequenceDiagram
+    autonumber
+    participant A as Peer A
+    participant S as Signaling server
+    participant B as Peer B
+    Note over A,B: Signaling Phase (uses WebSocket or HTTP)
+    Note over A: Creates RTCPeerConnection
+    A->>S: "offer" (SDP - Session Description Protocol)
+    S->>B: Offer sent to Peer B
+    B->>S: "answer"
+    S->>A: Answer sent back
+    Note over A,B: ICE candidates exchanged for NAT traversal
+    A->>B: Direct P2P connection established
+    Note over A,B: Media Streaming Phase
+    A->>B: Audio/video captured in browser, sent directly
+    B->>A: Media streams sent directly between peers
+    Note over A,B: No server involvement in media transfer<br/>Ultra-low latency (#lt;50ms typical)
 ```
 
 ### The NAT Traversal Challenge
@@ -227,20 +223,21 @@ Most devices sit behind NAT (Network Address Translation) firewalls that block d
 - Messages can be persisted and replayed
 
 **Example Architecture - Live Trading Platform:**
+```mermaid
+%% title: Live trading platform · real-time stock price updates
+flowchart TD
+    T["Trading Server"]:::core -->|"Price Feed"| B1["Browser 1"]:::client
+    T -->|"Price Feed"| B2["Browser 2"]:::client
+    T -->|"Price Feed"| BN["Browser N"]:::client
 ```
+
 WebSocket Use Case: Real-time stock price updates
 
 Advantages:
-✅ Guaranteed delivery of price updates
-✅ Server can enforce rate limiting
-✅ Easy to implement price history
-✅ Can handle millions of concurrent price feeds
-
-Trading Server ──┐
-                 ├─ Price Feed ─► Browser 1
-                 ├─ Price Feed ─► Browser 2  
-                 └─ Price Feed ─► Browser N
-```
+- ✅ Guaranteed delivery of price updates
+- ✅ Server can enforce rate limiting
+- ✅ Easy to implement price history
+- ✅ Can handle millions of concurrent price feeds
 
 #### Choose WebRTC When:
 
@@ -258,21 +255,24 @@ Trading Server ──┐
 - Optimized for audio/video processing
 
 **Example Architecture - Video Conferencing:**
+```mermaid
+%% title: Video conferencing · 4-person call
+flowchart TD
+    A["User A"]:::client <--> B["User B"]:::client
+    A <--> D["User D"]:::client
+    B <--> C["User C"]:::client
+    D <--> C
+    S["Signaling Server (WebSocket/HTTP)<br/>manages setup only"]:::service
+    C ~~~ S
 ```
+
 WebRTC Use Case: 4-person video call
 
 Advantages:
-✅ <50ms video latency
-✅ Direct P2P connections
-✅ Automatic quality adaptation
-✅ Built-in security and encryption
-
-User A ←──────→ User B
-  ↕              ↕
-User D ←──────→ User C
-
-Signaling Server (WebSocket/HTTP) manages setup only
-```
+- ✅ <50ms video latency
+- ✅ Direct P2P connections
+- ✅ Automatic quality adaptation
+- ✅ Built-in security and encryption
 
 ---
 
@@ -282,18 +282,24 @@ Signaling Server (WebSocket/HTTP) manages setup only
 
 After the investor demo disaster, Emma's team implemented a **hybrid architecture** that uses both technologies strategically:
 
-```
-ConnectNow's Hybrid Architecture:
-
-Signaling Layer (WebSocket Server)
-    - Handles user authentication and presence
-    - Negotiates WebRTC connections
-    - Manages text chat, notifications, meetings, and recording controls
-
-Media Layer (WebRTC Peer-to-Peer Connections)
-    - Streams video and audio directly between participants
-    - Supports screen sharing, file transfers, and real-time collaboration
-    - Optimizes quality based on network conditions
+```mermaid
+%% title: ConnectNow's hybrid architecture
+flowchart TD
+    subgraph SIG["Signaling Layer (WebSocket Server)"]
+        direction TB
+        S1["Handles user authentication<br/>and presence"]:::edge
+        S2["Negotiates WebRTC connections"]:::edge
+        S3["Manages text chat, notifications,<br/>meetings, and recording controls"]:::edge
+        S1 ~~~ S3
+    end
+    subgraph MED["Media Layer (WebRTC Peer-to-Peer Connections)"]
+        direction TB
+        M1["Streams video and audio<br/>directly between participants"]:::core
+        M2["Supports screen sharing, file transfers,<br/>and real-time collaboration"]:::core
+        M3["Optimizes quality based on<br/>network conditions"]:::core
+        M1 ~~~ M3
+    end
+    SIG --> MED
 ```
 
 ### Implementation Strategy
@@ -466,37 +472,37 @@ Emergency services require ultra-low latency for life-or-death situations:
 ```
 
 **Solution 1: Selective Forwarding Unit (SFU)**
+```mermaid
+%% title: SFU architecture
+flowchart TD
+    A["User A"]:::client <--> SFU["SFU (Server)<br/>Receives all feeds<br/>Forwards without encoding"]:::core
+    B["User B"]:::client <--> SFU
+    SFU <--> C["User C"]:::client
+    SFU <--> D["User D"]:::client
 ```
-SFU Architecture:
-
-User A         SFU (Server)                     User B
-               - Receives all feeds
-               - Forwards without encoding
-User C                                          User D
 
 Advantages:
-✅ Each user uploads once, receives multiple streams
-✅ Server doesn't encode/decode (lower CPU)
-✅ Scales to 50+ participants
-✅ Lower bandwidth per participant
-```
+- ✅ Each user uploads once, receives multiple streams
+- ✅ Server doesn't encode/decode (lower CPU)
+- ✅ Scales to 50+ participants
+- ✅ Lower bandwidth per participant
 
 **Solution 2: Multipoint Control Unit (MCU)**
+```mermaid
+%% title: MCU architecture
+flowchart TD
+    A["User A"]:::client <--> MCU["MCU (Server)<br/>Mixes all video streams<br/>Produces a single combined stream"]:::core
+    B["User B"]:::client <--> MCU
+    MCU <--> C["User C"]:::client
+    MCU <--> D["User D"]:::client
 ```
-MCU Architecture
-
-User A         MCU (Server)                         User B
-               - Mixes all video streams
-               - Produces a single combined stream
-User C                                              User D
 
 Advantages:
-✅ Ultra-low bandwidth (one stream per user)
-✅ Consistent quality for all participants
-✅ Can add effects and branding
-❌ High server CPU usage
-❌ Introduces additional latency
-```
+- ✅ Ultra-low bandwidth (one stream per user)
+- ✅ Consistent quality for all participants
+- ✅ Can add effects and branding
+- ❌ High server CPU usage
+- ❌ Introduces additional latency
 
 ### Network Optimization Techniques
 

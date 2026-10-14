@@ -1,21 +1,34 @@
-import { getLearningResource, getWeekResources } from "@/lib/github";
+import { Suspense } from "react";
 import { notFound } from "next/navigation";
-import Link from "next/link";
-import { ChevronLeft, ChevronRight, Home } from "lucide-react";
-import { markdownToHtml } from "@/lib/markdown";
-import { extractHeadings, addHeadingIds } from "@/lib/toc";
+import {
+  fetchMarkdownContent,
+  getAllLearningResources,
+  getLearningResource,
+  getWeekResources,
+  type LearningResource,
+} from "@/lib/github";
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
-import TableOfContents from "@/components/TableOfContents";
-import LessonContentWrapper from "@/components/LessonContentWrapper";
-import SimpleMCQAssessment from "@/components/SimpleMCQAssessment";
+import { renderLesson } from "@/lib/course/render";
+import { isOptionalStage } from "@/components/learn/lesson/stageText";
 import MCQAssessmentWrapper from "@/components/MCQAssessmentWrapper";
-import FocusMode from "@/components/FocusMode";
 import ReadingProgress from "@/components/ReadingProgress";
-import SearchBar from "@/components/SearchBar";
 import SearchHighlight from "@/components/SearchHighlight";
-import BookmarkButton from "@/components/BookmarkButton";
-import LessonComments from "@/components/LessonComments";
 import CollapsibleWeekNav from "@/components/CollapsibleWeekNav";
+import LessonReader from "@/components/learn/lesson/LessonReader";
+import {
+  buildRail,
+  cleanTitle,
+  kindBadge,
+  lede,
+  lessonStats,
+  shortLabel,
+  trialLinkFor,
+  trialParts,
+  weekCode,
+  weekLabel,
+  weekTopic,
+} from "@/components/learn/lesson/data";
+import type { NavLink, ReaderMeta } from "@/components/learn/lesson/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,229 +44,135 @@ type Props = {
 export async function generateMetadata({ params }: Props) {
   const { week, slug } = await params;
   const data = await getLearningResource(week, slug);
-
-  if (!data) {
-    return {
-      title: "Not Found",
-    };
-  }
-
+  if (!data) return { title: "Not Found" };
   return {
     title: `${data.resource.title} | System Design Mastery`,
-    description: `Learn ${data.resource.title} - Part of the ${week.toUpperCase()} curriculum`,
+    description: `${data.resource.title} · ${weekLabel(week)} · ${weekTopic(week)}. Part of the System Design Mastery course.`,
   };
+}
+
+/** Capstones open with a whiteboard frame: "Design a Global Flash Sale System for …". */
+function capstoneTeaser(markdown: string): string | null {
+  const m = markdown.match(/[║|]\s*(Design[^║|\n]{8,}?)\s*[║|]/);
+  return m ? m[1].replace(/\s+/g, " ").trim() : null;
+}
+
+async function teaserFor(r: LearningResource): Promise<string | null> {
+  try {
+    const md = await fetchMarkdownContent(r.path);
+    if (r.type === "capstone") return capstoneTeaser(md);
+    if (r.type === "mcq") return null;
+    return lede(md, 170);
+  } catch {
+    return null;
+  }
 }
 
 export default async function LearningResourcePage({ params }: Props) {
   const { course, week, slug } = await params;
   const data = await getLearningResource(week, slug);
-
-  if (!data) {
-    notFound();
-  }
+  if (!data) notFound();
 
   const { resource, content } = data;
 
-  // Check if this is an MCQ assessment document
+  // Previous/next run through the whole course in reading order (plan -> Week 0 -> ... ->
+  // bonus problems), so the last item of a week leads into the next week and the plan has a Next.
+  const [allResources, weekResources] = await Promise.all([getAllLearningResources(), getWeekResources(week)]);
+  const sequence = allResources.filter((r) => r.course === course);
+  const currentIndex = sequence.findIndex((r) => r.week === week && r.slug === slug);
+  // Week sidebar titles are the most complete (MCQ titles resolved), so prefer them.
+  const titleFor = (r: LearningResource) => (r.week === week && weekResources.find((w) => w.slug === r.slug)?.title) || r.title;
+  const prevRes = currentIndex > 0 ? sequence[currentIndex - 1] : undefined;
+  const nextRes = currentIndex >= 0 && currentIndex < sequence.length - 1 ? sequence[currentIndex + 1] : undefined;
+
+  const navLink = (r: LearningResource | undefined, dir: "Previous" | "Next", teaser?: string | null): NavLink | null =>
+    r
+      ? {
+          week: r.week,
+          slug: r.slug,
+          href: `/learn/${course}/${r.week}/${r.slug}`,
+          title: titleFor(r),
+          label: r.week !== week ? `${dir} · ${weekLabel(r.week)}` : dir,
+          kicker: `${shortLabel(r).toUpperCase()}${r.week !== week ? ` · ${weekCode(r.week)}` : ""}`,
+          kind: r.type,
+          teaser: teaser ?? null,
+        }
+      : null;
+
+  // The week's trial (MCQ) and its parts: Day N ↔ Part N.
+  const mcq = weekResources.find((r) => r.type === "mcq");
   const isMCQ = isMCQDocument(content);
-  
-  let htmlContent = '';
-  let headings: any[] = [];
-  let mcqAssessment = null;
+  const [mcqParts, nextTeaser] = await Promise.all([
+    mcq && !isMCQ ? fetchMarkdownContent(mcq.path).then(trialParts).catch(() => []) : Promise.resolve([]),
+    nextRes ? teaserFor(nextRes) : Promise.resolve(null),
+  ]);
+
+  const rail = buildRail(sequence, resource, titleFor, mcqParts.length);
+  const previous = navLink(prevRes, "Previous");
+  const next = navLink(nextRes, "Next", nextTeaser);
 
   if (isMCQ) {
-    // Parse MCQ content
-    mcqAssessment = parseMCQMarkdown(content);
-  } else {
-    // Convert markdown to HTML
-    htmlContent = await markdownToHtml(content);
-
-    // Add IDs to headings for anchor links
-    htmlContent = addHeadingIds(htmlContent);
-
-    // Extract headings for Table of Contents
-    headings = extractHeadings(htmlContent);
+    const mcqAssessment = parseMCQMarkdown(content);
+    return (
+      <>
+        <ReadingProgress />
+        <Suspense fallback={null}>
+          <SearchHighlight />
+        </Suspense>
+        <main className="min-h-screen pb-16 pt-8">
+          <div className="mx-auto max-w-[1320px] px-4 sm:px-6">
+            <MCQAssessmentWrapper
+              assessment={mcqAssessment}
+              courseId={course}
+              week={week}
+              lessonSlug={slug}
+              weekDisplayName={weekLabel(week)}
+              previousResource={previous ? { week: previous.week, slug: previous.slug, title: previous.title } : null}
+              nextResource={next ? { week: next.week, slug: next.slug, title: next.title } : null}
+              previousLabel={previous?.label ?? "Previous"}
+              nextLabel={next?.label ?? "Next"}
+              sidebarLeft={<CollapsibleWeekNav course={course} rail={rail} />}
+            />
+          </div>
+        </main>
+      </>
+    );
   }
 
-  // Get navigation (previous/next resources)
-  const weekResources = await getWeekResources(week);
-  const currentIndex = weekResources.findIndex(r => r.slug === slug);
-  const previousResource = currentIndex > 0 ? weekResources[currentIndex - 1] : null;
-  const nextResource = currentIndex < weekResources.length - 1 ? weekResources[currentIndex + 1] : null;
+  const rendered = await renderLesson(content, { kind: resource.type });
+  const title = cleanTitle(rendered, resource.title);
+  const requiredStages = rendered.stages.filter((s) => !isOptionalStage(s));
+  const numbered = requiredStages.filter((s) => s.id !== "preface" && s.id !== "intro").length || requiredStages.length;
 
-  // Get all resources for week navigation sidebar
-  const allWeekResources = await getWeekResources(week);
-
-  // Format week display name
-  const formatWeekName = (weekKey: string): string => {
-    if (weekKey === 'overview') return 'Overview';
-    if (weekKey.includes('foundations')) return 'Foundations';
-
-    // Extract week number from format: week-01-data-at-scale -> Week 1
-    const match = weekKey.match(/week-(\d+)/);
-    if (match) {
-      const num = parseInt(match[1], 10);
-      return `Week ${num}`;
-    }
-
-    return weekKey.replace('week-', 'Week ');
+  const meta: ReaderMeta = {
+    course,
+    week,
+    slug,
+    title,
+    subtitle: rendered.subtitle ?? (resource.type === "capstone" ? capstoneTeaser(content) : lede(content)),
+    kind: resource.type,
+    kindBadge: kindBadge(resource),
+    shortLabel: shortLabel(resource),
+    weekCode: weekCode(week),
+    weekLabel: weekLabel(week),
+    weekTopic: weekTopic(week),
+    readingMinutes: rendered.readingMinutes,
+    contentVersion: rendered.contentVersion,
+    stats: lessonStats(rendered, numbered),
   };
 
-  const weekDisplayName = formatWeekName(week);
-
   return (
-    <>
-      <ReadingProgress />
-      <SearchHighlight />
-      <main className="min-h-screen pt-20 pb-16">
-        <div className="max-w-7xl mx-auto px-6">
-        {/* Breadcrumb */}
-        <div className="mb-8 flex items-center gap-2 text-sm text-gray-500 dark:text-white/60">
-          <Link href="/learn" className="hover:text-gray-900 dark:hover:text-white transition-colors flex items-center gap-1">
-            <Home className="w-4 h-4" />
-            Learn
-          </Link>
-          <ChevronRight className="w-4 h-4" />
-          <Link href={`/learn/${course}`} className="hover:text-gray-900 dark:hover:text-white transition-colors">
-            System Design
-          </Link>
-          <ChevronRight className="w-4 h-4" />
-          <Link href={`/learn/${course}`} className="hover:text-gray-900 dark:hover:text-white transition-colors">
-            {weekDisplayName}
-          </Link>
-          <ChevronRight className="w-4 h-4" />
-          <span className="text-gray-900 dark:text-white">{resource.title}</span>
-        </div>
-
-        {/* Floating Search Button */}
-        <SearchBar variant="floating" />
-
-        {isMCQ && mcqAssessment ? (
-          <MCQAssessmentWrapper
-            assessment={mcqAssessment}
-            courseId={course}
-            week={week}
-            lessonSlug={slug}
-            weekDisplayName={weekDisplayName}
-            previousResource={previousResource}
-            nextResource={nextResource}
-            sidebarLeft={
-              <CollapsibleWeekNav
-                weekDisplayName={weekDisplayName}
-                weekResources={allWeekResources}
-                currentSlug={slug}
-                course={course}
-              />
-            }
-          />
-        ) : (
-          <FocusMode
-            sidebarLeft={
-              <CollapsibleWeekNav
-                weekDisplayName={weekDisplayName}
-                weekResources={allWeekResources}
-                currentSlug={slug}
-                course={course}
-              />
-            }
-            sidebarRight={<TableOfContents headings={headings} />}
-          >
-            {/* Badges and Actions */}
-            <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-              <div className="flex items-center gap-3">
-                {resource.type === 'capstone' && (
-                  <span className="px-3 py-1 bg-yellow-500/20 text-yellow-400 rounded-full text-sm font-medium">
-                    Capstone
-                  </span>
-                )}
-                {resource.type === 'week-preview' && (
-                  <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">
-                    Week Preview
-                  </span>
-                )}
-                {resource.type === 'foundations' && (
-                  <span className="px-3 py-1 bg-purple-500/20 text-purple-400 rounded-full text-sm font-medium">
-                    Foundation
-                  </span>
-                )}
-                {resource.day && (
-                  <span className="px-3 py-1 bg-black/10 dark:bg-white/10 text-gray-600 dark:text-white/70 rounded-full text-sm">
-                    {resource.day.replace('day-', 'Day ')}
-                  </span>
-                )}
-              </div>
-
-              {/* Bookmark Button */}
-              <BookmarkButton
-                courseId={course}
-                week={week}
-                lessonSlug={slug}
-                lessonTitle={resource.title}
-              />
-            </div>
-
-            {/* Render Markdown Content */}
-            <LessonContentWrapper
-              htmlContent={htmlContent}
-              courseId={course}
-              week={week}
-              lessonSlug={slug}
-              lessonTitle={resource.title}
-            />
-
-            {/* Comments Section */}
-            <LessonComments
-              courseId={course}
-              week={week}
-              lessonSlug={slug}
-            />
-
-            {/* Navigation */}
-            <nav className="mt-12 pt-8 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
-              {previousResource ? (
-                <Link
-                  href={`/learn/${course}/${previousResource.week}/${previousResource.slug}`}
-                  className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
-                >
-                  <ChevronLeft className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:-translate-x-1 transition-all" />
-                  <div className="text-left">
-                    <div className="text-xs text-gray-500 dark:text-white/40">Previous</div>
-                    <div className="text-gray-900 dark:text-white text-sm font-medium">{previousResource.title}</div>
-                  </div>
-                </Link>
-              ) : (
-                <div />
-              )}
-              {nextResource ? (
-                <Link
-                  href={`/learn/${course}/${nextResource.week}/${nextResource.slug}`}
-                  className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
-                >
-                  <div className="text-right">
-                    <div className="text-xs text-gray-500 dark:text-white/40">Next</div>
-                    <div className="text-gray-900 dark:text-white text-sm font-medium">{nextResource.title}</div>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:translate-x-1 transition-all" />
-                </Link>
-              ) : (
-                <div />
-              )}
-            </nav>
-
-            {/* Back to Course */}
-            <div className="mt-8 text-center">
-              <Link
-                href={`/learn/${course}`}
-                className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Back to Course Overview
-              </Link>
-            </div>
-          </FocusMode>
-        )}
-      </div>
+    <main className="pb-16">
+      <LessonReader
+        meta={meta}
+        html={rendered.html}
+        stages={rendered.stages}
+        toc={rendered.toc}
+        rail={rail}
+        prev={previous}
+        next={next}
+        trial={trialLinkFor(resource, mcq, mcqParts)}
+      />
     </main>
-    </>
   );
 }

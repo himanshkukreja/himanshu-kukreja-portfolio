@@ -1,0 +1,80 @@
+/* Lesson reader: things Tailwind can't reach inside the rendered course HTML. */
+
+.content {
+  --reader-size: 17px;
+}
+
+/* Text size control (17 / 19 / 21 px): the content's base size follows the variable. */
+.content :global(:is(.md-content, .sd-body)) {
+  font-size: var(--reader-size);
+}
+
+/* Anchors and programmatic jumps land under the sticky header + stage rail. */
+.content :global(:is(h1, h2, h3, h4, h5, h6, section[data-sd="stage"])) {
+  scroll-margin-top: var(--reader-scroll-margin, 170px);
+}
+
+/* Read-aloud: the block being spoken. Text nodes are never split. */
+.content :global(.reading-highlight) {
+  background: rgba(255, 107, 43, 0.1);
+  outline: 1px solid rgba(255, 107, 43, 0.55);
+  outline-offset: 4px;
+}
+
+/* ?highlight= search hits */
+.content :global(mark.search-highlight) {
+  background: rgba(255, 107, 43, 0.3);
+  color: inherit;
+  box-shadow: inset 0 -2px 0 var(--c-signal);
+  padding: 0 1px;
+}
+
+.rail {
+  scrollbar-width: thin;
+}
+
+.sheet {
+  overscroll-behavior: contain;
+}
+
+@keyframes sheetIn {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.sheetIn {
+  animation: sheetIn 0.18s ease-out;
+}
+
+@keyframes ring {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 107, 43, 0.45);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(255, 107, 43, 0);
+  }
+}
+
+.ring {
+  animation: ring 2.4s ease-in-out infinite;
+}
+
+/* Outline numerals for stages ahead. */
+.outlineNum {
+  color: transparent;
+  -webkit-text-stroke: 1.5px var(--c-line-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .sheetIn {
+    animation: none;
+  }
+}

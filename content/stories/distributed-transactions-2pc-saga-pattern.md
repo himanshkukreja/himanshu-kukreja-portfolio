@@ -29,18 +29,19 @@ It's Black Friday 2024, and WonderTravel expects their biggest sales day ever. A
 ## The Distributed Transaction Challenge: The ACID Test
 
 **WonderTravel's Booking Architecture:**
-```
+
 Customer Journey:
 1. Select flight: JFK → NRT (Japan Airlines, $1,200)
 2. Choose hotel: Tokyo Grand Hotel (3 nights, $450/night)
 3. Pick rental: Toyota Camry (3 days, $80/day)
 4. Click "Book Everything" → Must be atomic!
 
-System Architecture:
-
-[Flight Service] (US-East) ---> PostgreSQL (Seats DB)
-[Hotel Service] (Europe) ---> MongoDB (Rooms DB)
-[Car Service] (Asia-Pacific) ---> MySQL (Cars DB)
+```mermaid
+%% title: WonderTravel's system architecture
+flowchart TD
+    F["Flight Service<br/>US-East"]:::core --> PG[("PostgreSQL<br/>Seats DB")]:::store
+    H["Hotel Service<br/>Europe"]:::core --> MG[("MongoDB<br/>Rooms DB")]:::store
+    C["Car Service<br/>Asia-Pacific"]:::core --> MY[("MySQL<br/>Cars DB")]:::store
 ```
 
 **The Atomic Requirement:**
@@ -58,33 +59,35 @@ System Architecture:
 
 Two-Phase Commit implements distributed atomicity through a **coordinator** that orchestrates a two-stage process across all **participants**.
 
-```
+```mermaid
+%% title: Two-phase commit · the coordinator's dance
 sequenceDiagram
+    autonumber
     participant C as Coordinator
     participant F as Flight Service
     participant H as Hotel Service
     participant R as Car Service
-    
+
     Note over C: Phase 1: PREPARE
     C->>F: PREPARE: Reserve JFK→NRT flight
     C->>H: PREPARE: Reserve Tokyo hotel room
     C->>R: PREPARE: Reserve Toyota Camry
-    
-    F->>C: PREPARED (flight locked)
-    H->>C: PREPARED (room locked)  
-    R->>C: PREPARED (car locked)
-    
+
+    F-->>C: PREPARED (flight locked)
+    H-->>C: PREPARED (room locked)
+    R-->>C: PREPARED (car locked)
+
     Note over C: All services ready!
     Note over C: Phase 2: COMMIT
-    
+
     C->>F: COMMIT: Finalize flight booking
     C->>H: COMMIT: Finalize hotel reservation
     C->>R: COMMIT: Finalize car rental
-    
-    F->>C: COMMITTED
-    H->>C: COMMITTED
-    R->>C: COMMITTED
-    
+
+    F-->>C: COMMITTED
+    H-->>C: COMMITTED
+    R-->>C: COMMITTED
+
     Note over C: Success! All bookings confirmed
 ```
 
@@ -435,14 +438,12 @@ class FlightServiceClient:
 
 **The Incident:** At 12:15 AM, the 2PC coordinator service crashes due to memory exhaustion during peak load. **2,000 transactions** are left in prepared state.
 
-```
-Current State at Crash:
-
-[Flight Service] ---> 2,000 seats (LOCKED, awaiting coordinator)
-[Hotel Service] ---> 2,000 rooms (LOCKED, awaiting coordinator)
-[Car Service] ---> 2,000 cars (LOCKED, awaiting coordinator)
-
-[Coordinator] ☠️ CRASHED ☠️
+```mermaid
+%% title: Current state at crash
+flowchart TD
+    F["Flight Service<br/>2,000 seats LOCKED"]:::queue -.->|"awaiting coordinator"| CO["Coordinator<br/>CRASHED"]:::bad
+    H["Hotel Service<br/>2,000 rooms LOCKED"]:::queue -.->|"awaiting coordinator"| CO
+    R["Car Service<br/>2,000 cars LOCKED"]:::queue -.->|"awaiting coordinator"| CO
 ```
 **The Problem:** All services are blocked, waiting for commit/abort decisions that will never come.
 
@@ -456,21 +457,23 @@ Current State at Crash:
 
 **The Incident:** A network partition splits the coordinator from the Hotel Service during the commit phase.
 
-```
+```mermaid
+%% title: Network partition during commit
 sequenceDiagram
+    autonumber
     participant C as Coordinator
-    participant F as Flight Service  
+    participant F as Flight Service
     participant H as Hotel Service
     participant R as Car Service
-    
+
     C->>F: COMMIT
-    C->>H: COMMIT (NETWORK FAILURE!)
+    C-xH: COMMIT (NETWORK FAILURE!)
     C->>R: COMMIT
-    
-    F->>C: COMMITTED ✅
+
+    F-->>C: COMMITTED
     Note over H: Network partition!<br/>Never receives COMMIT
-    R->>C: COMMITTED ✅
-    
+    R-->>C: COMMITTED
+
     Note over C: 2/3 services committed<br/>What about Hotel?
     Note over H: Still waiting for decision<br/>Resources locked indefinitely
 ```
@@ -883,6 +886,35 @@ class SagaStatus(Enum):
     FAILED = "failed"
 ```
 
+```mermaid
+%% title: Orchestrated saga lifecycle
+stateDiagram-v2
+    BookingFlight: booking_flight
+    BookingHotel: booking_hotel
+    BookingCar: booking_car
+    Completed: COMPLETED
+    Compensating: COMPENSATING · reverse order
+    Compensated: COMPENSATED
+    [*] --> BookingFlight: STARTED
+    BookingFlight --> BookingHotel: flight booked
+    BookingHotel --> BookingCar: hotel booked
+    BookingCar --> Completed: car booked
+    BookingFlight --> Compensating: flight_booking_failed
+    BookingHotel --> Compensating: hotel_booking_failed · cancel flight
+    BookingCar --> Compensating: car_booking_failed · cancel hotel, flight
+    Compensating --> Compensated
+    Completed --> [*]
+    Compensated --> [*]
+    note right of BookingHotel
+        Each step retried up to 3 times
+        with exponential backoff
+    end note
+    class BookingFlight,BookingHotel,BookingCar core
+    class Completed ok
+    class Compensating queue
+    class Compensated bad
+```
+
 #### Option 2: Choreographed Saga (Decentralized)
 
 ```
@@ -1096,6 +1128,33 @@ class ChoreographedSagaState:
             self.compensation_stack = []
 ```
 
+```mermaid
+%% title: Choreographed saga · events between services
+sequenceDiagram
+    autonumber
+    participant SG as Saga handlers
+    participant F as Flight Service
+    participant H as Hotel Service
+    participant C as Car Service
+    Note over SG: TravelBookingRequested · saga STARTED
+    SG-)F: BookFlightRequested
+    F-)SG: FlightBooked
+    Note over SG: compensation_stack: cancel_flight
+    SG-)H: BookHotelRequested
+    H-)SG: HotelBooked
+    Note over SG: compensation_stack: cancel_flight, cancel_hotel
+    SG-)C: BookCarRequested
+    alt Car booked
+        C-)SG: CarBooked
+        Note over SG: COMPLETED · TravelBookingSagaCompleted
+    else Car booking failed
+        C-)SG: CarBookingFailed
+        Note over SG: COMPENSATING · reverse order
+        SG-)H: cancel_hotel requested
+        SG-)F: cancel_flight requested
+    end
+```
+
 ---
 
 ## Handling Partial Failures and Idempotency
@@ -1288,6 +1347,23 @@ class DistributedIdempotencyManager:
         finally:
             # Always release the lock
             await self.redis.delete(lock_key)
+```
+
+```mermaid
+%% title: Distributed idempotency with Redis
+flowchart TD
+    IN(["with_idempotency · idempotency_key"]):::client --> CK[("GET idempotency:result:key")]:::cache
+    CK --> R1{"Cached?"}
+    R1 -->|"yes"| RET(["Return cached result"]):::ok
+    R1 -->|"no"| LK[("SET idempotency:lock:key<br/>nx · ex=300 (5 min lock)")]:::cache
+    LK --> L{"Lock acquired?"}
+    L -->|"not acquired · another instance"| POLL["Poll for result<br/>up to 30 seconds"]:::queue
+    POLL -->|"result appears"| RET
+    POLL -->|"no result"| TO(["Operation timeout<br/>retry_after 60"]):::bad
+    L -->|"acquired"| EX["Execute the operation"]:::core
+    EX --> CA[("Cache the result<br/>ttl 86400 · 24 hours")]:::cache
+    CA --> REL["Always release the lock"]:::service
+    REL --> RET2(["Return result"]):::ok
 ```
 
 ---

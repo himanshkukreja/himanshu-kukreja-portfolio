@@ -1,117 +1,116 @@
-'use client';
+import { Suspense } from "react";
+import { formatWeekTopic, getWeekResources, type LearningResource } from "@/lib/github";
+import type { MCQAssessment } from "@/lib/mcq-parser";
+import LessonComments from "./LessonComments";
+import TrialApp from "./learn/trial/TrialApp";
+import type { TrialLesson, TrialPart } from "./learn/trial/engine";
 
-import { useRef } from 'react';
-import Link from 'next/link';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-import SimpleMCQAssessment, { SimpleMCQAssessmentHandle } from './SimpleMCQAssessment';
-import MCQSectionsWithReset from './MCQSectionsWithReset';
-import FocusMode from './FocusMode';
-import LessonComments from './LessonComments';
-import { MCQAssessment } from '@/lib/mcq-parser';
-
+/**
+ * Server wrapper for an MCQ lesson. Splits the week's assessment into per-part trials
+ * (`?part=N`), a trial hub (no `part`) and the original all-questions practice page (`?view=all`).
+ * It looks up the week's lessons itself so each part can link to (and unlock with) its lesson.
+ *
+ * Must be rendered from a server component (it is async).
+ */
 interface MCQAssessmentWrapperProps {
   assessment: MCQAssessment;
   courseId: string;
   week: string;
   lessonSlug: string;
-  weekDisplayName: string;
+  weekDisplayName?: string;
   previousResource?: { week: string; slug: string; title: string } | null;
   nextResource?: { week: string; slug: string; title: string } | null;
-  sidebarLeft: React.ReactNode;
+  /** e.g. "Previous · Week 1" when the link leaves this week */
+  previousLabel?: string;
+  nextLabel?: string;
+  /** Kept for compatibility with the old layout; the trial screens are full width. */
+  sidebarLeft?: React.ReactNode;
+  /** Render the discussion thread under the hub / practice views (default true). */
+  showComments?: boolean;
 }
 
-export default function MCQAssessmentWrapper({
+const sentenceCase = (s: string) => (s ? s.charAt(0) + s.slice(1).toLowerCase() : s);
+
+function weekLabelFor(week: string): string {
+  const m = week.match(/^week-(\d+)/);
+  return m ? `Week ${m[1].padStart(2, "0")}` : formatWeekTopic(week);
+}
+
+function lessonFor(r: LearningResource): TrialLesson {
+  let label = r.title;
+  if (r.type === "day-content" && r.day) label = `Day ${parseInt(r.day.replace(/\D/g, ""), 10) || r.day}`;
+  else if (r.type === "foundations") {
+    const m = r.slug.match(/part-(\d+)/);
+    label = m ? `Foundations ${m[1]}` : "Foundations";
+  } else if (r.type === "capstone") label = "the capstone";
+  return { slug: r.slug, title: r.title, label };
+}
+
+/** Pair each MCQ part with the lesson it tests: Part N ↔ Day N (or Foundations part N); "Integration" ↔ the capstone. */
+function buildParts(assessment: MCQAssessment, resources: LearningResource[]): TrialPart[] {
+  const byOrder = (a: LearningResource, b: LearningResource) => a.order - b.order || a.slug.localeCompare(b.slug);
+  const days = resources.filter((r) => r.type === "day-content").sort(byOrder);
+  const foundations = resources.filter((r) => r.type === "foundations").sort(byOrder);
+  const capstone = resources.find((r) => r.type === "capstone") ?? null;
+  const pool = days.length ? days : foundations;
+
+  return assessment.sections.map((section, idx) => {
+    const nums = section.questions.map((q) => q.number);
+    const title = section.title.replace(/^(?:part|section)\s+\d+\s*[:.\-–—]\s*/i, "").trim() || section.title;
+    let lesson: TrialLesson | null = null;
+    let boss = false;
+    if (/integration|advanced/i.test(title) && capstone && !pool[idx]) {
+      lesson = lessonFor(capstone);
+      boss = true;
+    } else if (/integration/i.test(title) && capstone) {
+      lesson = lessonFor(capstone);
+      boss = true;
+    } else if (pool[idx]) {
+      lesson = lessonFor(pool[idx]);
+    }
+    return {
+      n: idx + 1,
+      title,
+      first: nums.length ? Math.min(...nums) : 0,
+      last: nums.length ? Math.max(...nums) : 0,
+      count: section.questions.length,
+      lesson,
+      boss,
+    };
+  });
+}
+
+export default async function MCQAssessmentWrapper({
   assessment,
   courseId,
   week,
   lessonSlug,
-  weekDisplayName,
-  previousResource,
   nextResource,
-  sidebarLeft,
+  nextLabel = "Next",
+  showComments = true,
 }: MCQAssessmentWrapperProps) {
-  const mcqRef = useRef<SimpleMCQAssessmentHandle>(null);
+  let resources: LearningResource[] = [];
+  try {
+    resources = await getWeekResources(week);
+  } catch {
+    // Parts still work without lesson links; they just never show as locked.
+  }
+  const parts = buildParts(assessment, resources);
 
   return (
-    <FocusMode
-      sidebarLeft={sidebarLeft}
-      sidebarRight={
-        <MCQSectionsWithReset
-          sections={assessment.sections}
-          courseId={courseId}
-          week={week}
-          lessonSlug={lessonSlug}
-          assessmentRef={mcqRef}
-        />
-      }
-    >
-      {/* Badges and Actions */}
-      <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-        <div className="flex items-center gap-3">
-          <span className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded-full text-sm font-medium">
-            MCQ Assessment
-          </span>
-        </div>
-      </div>
-
-      {/* Render MCQ Assessment */}
-      <SimpleMCQAssessment
-        ref={mcqRef}
+    <Suspense fallback={<div className="min-h-[60vh]" aria-busy="true" />}>
+      <TrialApp
         assessment={assessment}
         courseId={courseId}
         week={week}
         lessonSlug={lessonSlug}
+        weekLabel={weekLabelFor(week)}
+        weekTopic={sentenceCase(formatWeekTopic(week))}
+        parts={parts}
+        nextResource={nextResource ?? null}
+        nextLabel={nextLabel}
+        comments={showComments ? <LessonComments courseId={courseId} week={week} lessonSlug={lessonSlug} /> : null}
       />
-
-      {/* Comments Section */}
-      <LessonComments
-        courseId={courseId}
-        week={week}
-        lessonSlug={lessonSlug}
-      />
-
-      {/* Navigation */}
-      <nav className="mt-12 pt-8 border-t border-black/10 dark:border-white/10 flex items-center justify-between gap-4">
-        {previousResource ? (
-          <Link
-            href={`/learn/${courseId}/${previousResource.week}/${previousResource.slug}`}
-            className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
-          >
-            <ChevronLeft className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:-translate-x-1 transition-all" />
-            <div className="text-left">
-              <div className="text-xs text-gray-500 dark:text-white/40">Previous</div>
-              <div className="text-gray-900 dark:text-white text-sm font-medium">{previousResource.title}</div>
-            </div>
-          </Link>
-        ) : (
-          <div />
-        )}
-        {nextResource ? (
-          <Link
-            href={`/learn/${courseId}/${nextResource.week}/${nextResource.slug}`}
-            className="flex items-center gap-2 px-4 py-3 bg-black/5 dark:bg-white/5 hover:bg-black/10 dark:hover:bg-white/10 rounded-lg transition-all group"
-          >
-            <div className="text-right">
-              <div className="text-xs text-gray-500 dark:text-white/40">Next</div>
-              <div className="text-gray-900 dark:text-white text-sm font-medium">{nextResource.title}</div>
-            </div>
-            <ChevronRight className="w-5 h-5 text-gray-500 dark:text-white/60 group-hover:text-gray-900 dark:hover:text-white group-hover:translate-x-1 transition-all" />
-          </Link>
-        ) : (
-          <div />
-        )}
-      </nav>
-
-      {/* Back to Course */}
-      <div className="mt-8 text-center">
-        <Link
-          href={`/learn/${courseId}`}
-          className="inline-flex items-center gap-2 text-blue-400 hover:text-blue-300 transition-colors"
-        >
-          <ChevronLeft className="w-4 h-4" />
-          Back to Course Overview
-        </Link>
-      </div>
-    </FocusMode>
+    </Suspense>
   );
 }

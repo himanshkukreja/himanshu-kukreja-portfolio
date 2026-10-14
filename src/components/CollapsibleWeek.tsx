@@ -1,75 +1,59 @@
 "use client";
 
+/**
+ * A world as a collapsible list of lessons. Progress is passed in as one map (no per-card queries).
+ */
 import { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
 import type { LearningResource } from "@/lib/github";
+import type { LessonProgress } from "@/lib/learn/progress";
 import LessonCard from "./LessonCard";
 
 type Props = {
   weekKey: string;
   weekNumber: string;
-  weekBadge?: string; // Optional badge like "Week 01"
+  weekBadge?: string;
   resources: LearningResource[];
   course: string;
   defaultOpen?: boolean;
   readingTimes: Record<string, string>;
+  /** keyed `${week}/${slug}` */
+  progress?: Record<string, LessonProgress>;
+  currentKey?: string | null;
 };
 
-export default function CollapsibleWeek({ weekKey, weekNumber, weekBadge, resources, course, defaultOpen = false, readingTimes }: Props) {
+export default function CollapsibleWeek({ weekKey, weekNumber, weekBadge, resources, course, defaultOpen = false, readingTimes, progress = {}, currentKey = null }: Props) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+  const done = resources.filter((r) => progress[`${r.week}/${r.slug}`]?.status === "completed").length;
+  const panelId = `week-panel-${weekKey}`;
 
   return (
-    <div className="bg-black/5 dark:bg-white/5 backdrop-blur-sm rounded-lg border border-black/10 dark:border-white/10 hover:border-black/20 dark:hover:border-white/20 transition-all overflow-hidden">
-      {/* Header - Clickable */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className="w-full p-4 sm:p-6 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-      >
-        <div className="flex items-start gap-3 sm:gap-4 flex-1 min-w-0">
-          <div className="flex-shrink-0 mt-1">
-            {isOpen ? (
-              <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-white/60" />
-            ) : (
-              <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-500 dark:text-white/60" />
-            )}
-          </div>
-          <div className="text-left flex-1 min-w-0">
-            <h2 className="text-lg sm:text-2xl font-bold text-gray-900 dark:text-white mb-1 sm:mb-2 break-words">
-              {weekNumber || 'Course Overview'}
-            </h2>
-            {resources.length > 0 && (
-              <p className="text-gray-500 dark:text-white/60 text-xs sm:text-sm">
-                {resources.find(r => r.type === 'week-preview')
-                  ? `${resources.length - 1} lessons`
-                  : `${resources.length} lessons`}
-              </p>
-            )}
-          </div>
-        </div>
-        {weekBadge && (
-          <span className="px-2 sm:px-3 py-0.5 sm:py-1 bg-blue-500/20 text-blue-400 rounded-full text-xs sm:text-sm font-medium flex-shrink-0 ml-2">
-            {weekBadge}
-          </span>
-        )}
+    <section className="border border-line bg-surface">
+      <button type="button" onClick={() => setIsOpen((o) => !o)} aria-expanded={isOpen} aria-controls={panelId} className="flex min-h-14 w-full items-center gap-4 px-4 py-3 text-left sm:px-5">
+        <span className="flex min-w-0 flex-1 flex-col gap-1">
+          {weekBadge && <span className="font-mono text-[11px] tracking-label text-fg-3">{weekBadge.toUpperCase()}</span>}
+          <span className="font-display text-xl font-bold tracking-[-0.02em] text-fg sm:text-2xl">{weekNumber || "Course overview"}</span>
+        </span>
+        <span className="font-mono text-xs text-fg-3">
+          {done}/{resources.length}
+        </span>
+        <span aria-hidden className="font-mono text-fg-3">
+          {isOpen ? "−" : "+"}
+        </span>
       </button>
-
-      {/* Content - Collapsible */}
-      <div
-        className={`transition-all duration-300 ease-in-out ${
-          isOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
-        } overflow-hidden`}
-      >
-        <div className="px-4 sm:px-6 pb-4 sm:pb-6 space-y-2">
+      {isOpen && (
+        <div id={panelId} className="flex flex-col gap-1.5 border-t border-line p-3 sm:p-4">
           {resources.map((resource) => (
             <LessonCard
               key={resource.slug}
               resource={resource}
               course={course}
               readingTime={readingTimes[resource.slug]}
+              progress={progress[`${resource.week}/${resource.slug}`]}
+              current={currentKey === `${resource.week}/${resource.slug}`}
             />
           ))}
         </div>
-      </div>
-    </div>
+      )}
+    </section>
   );
 }

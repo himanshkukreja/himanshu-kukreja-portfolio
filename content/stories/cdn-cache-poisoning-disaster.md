@@ -83,6 +83,25 @@ x-cache-hits: 47      # ← 47 different users got the same cart!
 
 **The Horror Realization:** Their CDN was treating personalized API endpoints like static content, caching the first user's response and serving it to everyone who requested the same URL path.
 
+```mermaid
+%% title: How one cart reached 47 users
+sequenceDiagram
+    autonumber
+    participant A as User A
+    participant B as User B
+    participant CDN as CDN edge
+    participant API as api.shopfast.com
+    A->>CDN: GET /api/user/cart (Bearer token_A)
+    CDN->>API: cache miss · forward
+    API-->>CDN: User A's cart
+    Note over CDN: cache-control: public, max-age=300<br/>cache key = URL path only
+    CDN-->>A: User A's cart
+    B->>CDN: GET /api/user/cart (Bearer token_B)
+    Note over CDN,API: same cache key · backend never asked
+    CDN-->>B: User A's cart (cf-cache-status: HIT)
+    Note over B,CDN: x-cache-hits: 47 · 47 different users got the same cart
+```
+
 ---
 
 ## Immediate Damage Control: The First 3 Actions
@@ -238,6 +257,16 @@ app.get('/api/user/cart', authenticate, (req, res) => {
 const cacheKey = `${url_path}:${authorization_header}:${user_id}`;
 ```
 
+```mermaid
+%% title: The misconfiguration chain of disasters
+flowchart TD
+    R["CDN rule · pattern /api/*<br/>cache_ttl: 300 · cache_key: url_path"]:::edge --> IG["respect_origin_headers: false"]:::bad
+    BE["Backend sends<br/>Cache-Control: private, no-cache<br/>Vary: Authorization"]:::core -->|"ignored"| IG
+    IG --> K["URL-only cache key"]:::cache
+    U(["User A · Bearer token_A<br/>User B · Bearer token_B<br/>User C · Bearer token_C"]):::client -->|"GET /api/user/cart"| K
+    K --> SAME(["Same cached response<br/>for every user"]):::bad
+```
+
 ### The Perfect Storm Conditions
 
 **Why It Happened on Black Friday:**
@@ -342,6 +371,16 @@ function applyCachingStrategy(req, res, next) {
   
   next();
 }
+```
+
+```mermaid
+%% title: Endpoint classification
+flowchart LR
+    REQ(["Request path"]):::client --> C{"classifyEndpoint"}:::core
+    C --> ST["STATIC · /assets/* /images/* /css/* /js/*<br/>public · max-age 86400 (24 hours)<br/>key: url_path"]:::cache
+    C --> SS["SEMI_STATIC · /api/products/* /api/categories/* /api/search*<br/>public · max-age 300 (5 minutes)<br/>key: url_path + query_params<br/>Vary: Accept-Language, X-Currency"]:::cache
+    C --> US["USER_SPECIFIC · /api/user/* /api/cart/* /api/orders/*<br/>NO CACHING · ttl 0 · bypass<br/>private, no-cache, no-store"]:::bad
+    C --> SD["SESSION_DEPENDENT · /api/recommendations/* /api/wishlist/*<br/>private · 1 minute max<br/>key: url_path + user_id + session_id"]:::queue
 ```
 
 ### Defense-in-Depth Caching Architecture
@@ -456,6 +495,19 @@ class SecureCacheManager {
     }
   }
 }
+```
+
+```mermaid
+%% title: Three layers of protection
+flowchart TD
+    REQ(["Request to a sensitive pattern<br/>/api/user · cart · orders · profile<br/>payment-methods · addresses"]):::client --> L1["Layer 1 · Application-level protection<br/>private, no-cache, no-store · Vary: Authorization, X-User-ID"]:::core
+    L1 --> L2["Layer 2 · CDN-level validation"]:::edge
+    L2 --> V{"private and no-cache?"}
+    V -->|"no"| AL["SECURITY ALERT<br/>sendSecurityAlert cache_header_violation"]:::bad
+    V ~~~ L3
+    L3["Layer 3 · Runtime cache verification<br/>same endpoint · user_token_1, 2, 3"]:::service --> U{"All responses different?"}
+    U -->|"no"| P(["CACHE POISONING DETECTED<br/>emergency cache purge"]):::bad
+    U -->|"yes"| OK(["Not cached cross-user"]):::ok
 ```
 
 ### Smart Cache Key Generation
