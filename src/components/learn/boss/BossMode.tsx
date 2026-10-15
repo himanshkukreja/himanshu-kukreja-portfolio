@@ -629,7 +629,7 @@ function MiniStat({ value, label }: { value: string; label: string }) {
 
 function Bubble({ text, label = "INTERVIEWER" }: { text: string; label?: string }) {
   return (
-    <div className="flex items-start gap-3">
+    <div className="flex flex-col items-start gap-2 sm:flex-row sm:gap-3">
       <span className="shrink-0 border border-line-strong px-[7px] py-[5px] font-mono text-[11px] tracking-label text-fg-2">{label}</span>
       <p className="m-0 border border-line bg-surface-2 px-4 py-3 text-base leading-relaxed text-fg-2">“{text}”</p>
     </div>

@@ -7,7 +7,7 @@ export default function XPToaster() {
   if (toasts.length === 0) return null;
   return (
     <div aria-live="polite" className="pointer-events-none fixed right-4 z-[60] flex flex-col items-end gap-2"
-      style={{ top: "calc(var(--hk-header-h, 64px) + var(--learn-nav-h, 0px) + 12px)" }}>
+      style={{ top: "calc(var(--hk-header-h, 64px) + 12px)" }}>
       {toasts.map((t) => (
         <div
           key={t.id}

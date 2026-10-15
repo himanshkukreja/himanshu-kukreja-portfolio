@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useGame } from "@/game/GameProvider";
+import { Dot, Prompt, container, h2Class } from "./ui";
 
 type ToggleKey = "cache" | "queue" | "limiter" | "lock";
 
@@ -324,5 +325,43 @@ export default function TatkalRush() {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Home section: the boss fight, with room to breathe instead of squeezed beside the hero. */
+export function RushSection() {
+  const { done, hydrated } = useGame();
+  const won = hydrated && !!done.rush;
+  return (
+    <section aria-labelledby="rush-h">
+      <div className={`${container} grid items-start gap-8 pb-14 pt-14 sm:pb-20 sm:pt-[88px] lg:grid-cols-[minmax(0,0.78fr)_minmax(0,1.22fr)] lg:gap-12`}>
+        <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24">
+          <Prompt>./tatkal-rush</Prompt>
+          <h2 id="rush-h" className={h2Class}>
+            Your turn: survive the rush
+            <Dot />
+          </h2>
+          <p className="m-0 text-base leading-relaxed text-fg-2 sm:text-[17px]">
+            10:00 IST. Two million people want 500 train seats. You get 100 credits and 60 seconds. Sell every seat without
+            selling one twice.
+          </p>
+          <ul className="m-0 flex list-none flex-col gap-1.5 p-0 font-mono text-[13px] text-fg-3">
+            <li>
+              <span className="text-signal-text">win</span> · zero double bookings, under 2% errors, p99 ≤ 500 ms
+            </li>
+            <li>
+              <span className="text-signal-text">loot</span> · +150 XP and the Rush survivor badge
+            </li>
+            <li>
+              <span className="text-signal-text">status</span> · {won ? "cleared ✓" : "not cleared yet"}
+            </li>
+          </ul>
+          <Link href="/stories/irctc-tatkal-500-seats-2-million-users" className="font-mono text-sm text-signal-text underline underline-offset-4">
+            Spoilers: how IRCTC actually does it →
+          </Link>
+        </div>
+        <TatkalRush />
+      </div>
+    </section>
   );
 }

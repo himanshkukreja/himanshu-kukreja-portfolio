@@ -13,12 +13,14 @@
  * buttons on the client.
  */
 import { createHash } from "crypto";
-import type { Heading, Paragraph, Root, RootContent } from "mdast";
+import type { Code, Heading, Paragraph, Root, RootContent } from "mdast";
 import type { Element as HastElement, ElementContent, Root as HastRoot, RootContent as HastRootContent } from "hast";
 import type { LessonKind, RenderedLesson, Stage, TocItem } from "./types";
 import { chrome, el, h, hastText, rawHast, startsWithEmoji, stripEmoji, text, toText, wordCount, type AnyNode, type SdEl, type SdHast } from "./md";
 import { IdRegistry, intToRoman, romanToInt, slugify } from "./slug";
 import { cleanHr, count, isEndMarker, isTomorrow, processBlocks, renderNestedCode, type BlockCtx } from "./detect/blocks";
+import { practiceCard } from "./detect/quiz";
+import { practiceFor, type PracticeGame } from "@/lib/learn/arena/games";
 
 export type RenderStats = Record<string, number>;
 
@@ -173,6 +175,7 @@ function hastPass(tree: HastRoot, stats: RenderStats, state: { check: number }) 
       if (!isEl(n)) continue;
       if (n.properties.dataSdChrome !== undefined) continue;
       if (n.tagName === "pre") continue;
+      if (n.properties.dataSd === "quiz") continue;
 
       if (n.tagName === "table") {
         const firstRow = (n.children.find((c) => isEl(c, "thead")) as HastElement | undefined)?.children.find((c) => isEl(c, "tr")) as HastElement | undefined;
@@ -277,6 +280,26 @@ function hastPass(tree: HastRoot, stats: RenderStats, state: { check: number }) 
   visitKids(tree);
 }
 
+/* ------------------------------------------------------------------ quick checks */
+
+/**
+ * Number every ```quiz fence in document order (the Arena question bank uses the same order, see
+ * src/lib/learn/arena/bank.ts) and hang the lesson's practice games on the last one. Returns the
+ * quiz count; with none, the caller appends the practice card at the end of the lesson.
+ */
+async function markQuizzes(mdast: Root, practice: PracticeGame[]): Promise<number> {
+  const { visit } = await import("unist-util-visit");
+  const quizzes: Code[] = [];
+  visit(mdast, "code", (node: Code) => {
+    if ((node.lang || "").toLowerCase() === "quiz") quizzes.push(node);
+  });
+  quizzes.forEach((node, i) => {
+    const sdQuiz = { index: i, practice: i === quizzes.length - 1 && practice.length ? practice : undefined };
+    node.data = { ...(node.data || {}), sdQuiz } as Code["data"];
+  });
+  return quizzes.length;
+}
+
 /* ------------------------------------------------------------------ main */
 
 export async function renderLessonDetailed(markdown: string, opts: { kind: LessonKind }): Promise<{ lesson: RenderedLesson; stats: RenderStats }> {
@@ -329,6 +352,9 @@ export async function renderLessonDetailed(markdown: string, opts: { kind: Lesso
     body = body.slice(1);
   }
 
+  const practice = practiceFor(title);
+  const quizCount = await markQuizzes(mdast, practice);
+
   /* End of Day + Tomorrow: keep only the last pair */
   const ends = body.filter((n) => isEndMarker(n as AnyNode)) as Paragraph[];
   const lastEnd = ends.length ? ends[ends.length - 1] : null;
@@ -367,6 +393,13 @@ export async function renderLessonDetailed(markdown: string, opts: { kind: Lesso
 
     const content = await processBlocks(s.nodes as AnyNode[], ctx);
     await renderNestedCode(content, ctx);
+    if (!quizCount && s === raw[raw.length - 1]) {
+      const card = practiceCard(practice, "lesson");
+      if (card) {
+        content.push(rawHast(card, { component: "practice" }));
+        count(ctx, "practice");
+      }
+    }
 
     const meta = [head.label, head.core && coreTotal > 1 ? `Stage ${coreIdx} of ${coreTotal}` : null, head.budget ? `${head.budget} min budget` : null, `${minutes} min${head.budget ? " read" : ""}`]
       .filter(Boolean)

@@ -10,6 +10,7 @@
  * without moving a saved highlight.
  */
 import "@/app/learn/course-content.css";
+import "@/components/learn/quiz/quiz.css";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -48,7 +49,7 @@ type Note = {
   highlight_offset: number | null;
 };
 
-type MenuState = { x: number; y: number; placement: "above" | "below"; autoFocus: boolean };
+type MenuState = { x: number; y: number; placement: "above" | "below" | "sheet"; autoFocus: boolean };
 
 const CHROME = "[data-sd-chrome]";
 const COACH_KEY = "sd:coach:select";
@@ -273,7 +274,14 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     const last = rects[rects.length - 1] || first;
     const W = Math.min(window.innerWidth - 16, 400);
     const H = 54;
-    const below = how === "touch" || first.top - H - 10 < 64;
+    // touch: dock the toolbar at the bottom of the screen, clear of the native selection
+    // handles and the iOS / Android callout that sit around the selection itself
+    if (how === "touch") {
+      setMenu({ x: 0, y: 0, placement: "sheet", autoFocus: false });
+      markCoachSeen();
+      return;
+    }
+    const below = first.top - H - 10 < 64;
     const anchor = below ? last : first;
     const x = Math.max(8, Math.min(anchor.left - 24, window.innerWidth - W - 8));
     const y = below ? Math.min(anchor.bottom + 12, window.innerHeight - H - 8) : first.top - H - 10;
@@ -357,7 +365,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           setMenu(null);
           return;
         }
-        setMenu((m) => (m ? { ...m, y: m.placement === "below" ? rect.bottom + 12 : rect.top - 64 } : m));
+        setMenu((m) => (m && m.placement !== "sheet" ? { ...m, y: m.placement === "below" ? rect.bottom + 12 : rect.top - 64 } : m));
       });
     };
     window.addEventListener("scroll", onScroll, { passive: true });
@@ -694,19 +702,21 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
       <LessonProgressTracker courseId={courseId} week={week} lessonSlug={lessonSlug} contentRef={contentRef} />
 
       {!seen && (
-        <div role="note" data-sd-chrome="" className="mb-8 flex flex-wrap items-center gap-x-4 gap-y-3 border border-signal bg-surface py-3 pl-4 pr-3 animate-hk-in">
-          <span aria-hidden="true" className="font-mono text-lg text-signal-text">
+        <div role="note" data-sd-chrome="" className="mb-6 flex items-center gap-x-3 border border-signal bg-surface py-2 pl-3 pr-2 animate-hk-in sm:mb-8 sm:flex-wrap sm:gap-x-4 sm:gap-y-3 sm:py-3 sm:pl-4 sm:pr-3">
+          <span aria-hidden="true" className="hidden font-mono text-lg text-signal-text sm:inline">
             ↑
           </span>
-          <span className="flex min-w-0 flex-[1_1_260px] flex-col gap-0.5">
-            <span className="text-[15px] font-semibold text-fg">Select or long-press any text</span>
-            <span className="text-[13px] leading-relaxed text-fg-2">
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-[1_1_260px]">
+            <span className="text-sm font-semibold text-fg sm:text-[15px]">Select or long-press any text</span>
+            {/* touch screens: no keyboard instructions, one short line */}
+            <span className="text-[13px] leading-snug text-fg-2 [@media(pointer:fine)]:hidden">Highlight, note or bookmark it. It all lands in your notebook.</span>
+            <span className="hidden text-[13px] leading-relaxed text-fg-2 [@media(pointer:fine)]:inline">
               Highlight, note or bookmark it. Keyboard: Shift + arrows to select, then{" "}
               <kbd className="border border-line-strong px-1 font-mono text-[12px]">H</kbd> <kbd className="border border-line-strong px-1 font-mono text-[12px]">N</kbd>{" "}
               <kbd className="border border-line-strong px-1 font-mono text-[12px]">B</kbd> (or Shift+F10 for the toolbar). Everything lands in your notebook.
             </span>
           </span>
-          <button type="button" onClick={markCoachSeen} className="min-h-[44px] bg-fg px-4 text-sm font-semibold text-bg hover:bg-fg-2">
+          <button type="button" onClick={markCoachSeen} className="min-h-[44px] shrink-0 bg-fg px-4 text-sm font-semibold text-bg hover:bg-fg-2">
             Got it
           </button>
         </div>

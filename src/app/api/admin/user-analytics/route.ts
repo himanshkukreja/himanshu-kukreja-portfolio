@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/admin/auth";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -7,26 +8,18 @@ export const runtime = "nodejs";
 /**
  * GET /api/admin/user-analytics?userId=xxx
  * Fetch detailed analytics for a specific user
- * Admin only endpoint - requires x-admin-email header
+ * Admin only (Bearer session verified by requireAdmin).
  */
 export async function GET(request: NextRequest) {
+  const admin = await requireAdmin(request);
+  if (admin instanceof NextResponse) return admin;
+
   try {
     const { searchParams } = new URL(request.url);
     const targetUserId = searchParams.get("userId");
 
     if (!targetUserId) {
       return NextResponse.json({ error: "userId parameter required" }, { status: 400 });
-    }
-
-    // Check admin authentication via header
-    const adminEmail = request.headers.get("x-admin-email");
-    const adminEmails = [
-      "himanshuk9303@gmail.com",
-      process.env.ADMIN_EMAIL,
-    ].filter(Boolean);
-
-    if (!adminEmail || !adminEmails.includes(adminEmail)) {
-      return NextResponse.json({ error: "Unauthorized - Admin only" }, { status: 401 });
     }
 
     // Fetch detailed analytics for specific user
@@ -65,13 +58,13 @@ export async function GET(request: NextRequest) {
 
     // Process device stats
     const devices = deviceStats.data || [];
-    const deviceBreakdown = devices.reduce((acc: any, event: any) => {
+    const deviceBreakdown = devices.reduce((acc: Record<string, number>, event: { device_type: string | null; browser: string | null }) => {
       const key = event.device_type || "unknown";
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
 
-    const browserBreakdown = devices.reduce((acc: any, event: any) => {
+    const browserBreakdown = devices.reduce((acc: Record<string, number>, event: { device_type: string | null; browser: string | null }) => {
       const key = event.browser || "unknown";
       acc[key] = (acc[key] || 0) + 1;
       return acc;
@@ -80,7 +73,7 @@ export async function GET(request: NextRequest) {
     // Process most visited pages
     const pages = pageStats.data || [];
     const pageFrequency: { [key: string]: { count: number; title: string } } = {};
-    pages.forEach((event: any) => {
+    pages.forEach((event: { page_path: string; page_title: string | null }) => {
       const path = event.page_path;
       if (!pageFrequency[path]) {
         pageFrequency[path] = { count: 0, title: event.page_title || path };
@@ -101,11 +94,8 @@ export async function GET(request: NextRequest) {
       topPages,
       totalPageViews: pages.length,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[Admin User Analytics] Unexpected error:", error);
-    return NextResponse.json(
-      { error: "Internal server error", details: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

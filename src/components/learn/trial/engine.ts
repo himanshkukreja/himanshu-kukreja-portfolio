@@ -319,7 +319,7 @@ export async function updateRemoteAttempt(
 export async function writeTrialProgress(userId: string, courseId: string, week: string, lessonSlug: string, passedParts: number, totalParts: number) {
   if (!totalParts) return;
   try {
-    const { data: prev } = await supabaseClient
+    const { data: prev, error: readError } = await supabaseClient
       .from("learning_progress")
       .select("progress_percentage, status, started_at")
       .eq("user_id", userId)
@@ -327,6 +327,9 @@ export async function writeTrialProgress(userId: string, courseId: string, week:
       .eq("week", week)
       .eq("lesson_slug", lessonSlug)
       .maybeSingle();
+    // A failed read is not "no row": writing anyway would put a completed trial back to
+    // in_progress at a lower % (the mirror is rewritten on the next attempt).
+    if (readError) throw readError;
     const pct = Math.round((Math.min(passedParts, totalParts) / totalParts) * 100);
     const progress = Math.max(prev?.progress_percentage || 0, pct);
     const wasCompleted = prev?.status === "completed";

@@ -2,7 +2,7 @@
 slug: distributed-transactions-2pc-saga-pattern
 title: "The Great Travel Booking Disaster: How 2PC Nearly Killed Our Business and Saga Pattern Saved It"
 excerpt: "A tale of distributed transactions gone wrong and the architectural patterns that brought resilience to global travel bookings."
-cover: "/blueprints/distributed-transactions-travel-booking.png"
+cover: "/covers/distributed-transactions-travel-booking.png"
 date: "2025-08-04"
 tags: ["Distributed Transactions", "Two Phase Commit", "Saga Pattern", "Microservices", "Travel Booking", "System Design"]
 ---

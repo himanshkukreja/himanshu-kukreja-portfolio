@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getStoryBySlug, getAllStories, getStoryMarkdown } from "@/lib/stories";
 import { renderLesson } from "@/lib/course/render";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
+import { absoluteCoverUrl } from "@/lib/utils";
 import StoryViewsClient from "./views-client";
 import StoryComments from "@/components/StoryComments";
 import ScrollToDiscussion from "@/components/ScrollToDiscussion";
@@ -21,9 +22,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const story = (await getAllStories()).find((s) => s.slug === slug);
   if (!story) return {};
+  const cover = absoluteCoverUrl(story.cover);
+  const images = cover ? [{ url: cover, width: 1536, height: 1024, alt: story.title }] : undefined;
   return {
     title: `${story.title} · Case files`,
     description: story.excerpt,
+    openGraph: { type: "article", title: story.title, description: story.excerpt, url: `/stories/${slug}`, ...(images ? { images } : {}) },
+    twitter: { card: "summary_large_image", title: story.title, description: story.excerpt, ...(cover ? { images: [cover] } : {}) },
   };
 }
 

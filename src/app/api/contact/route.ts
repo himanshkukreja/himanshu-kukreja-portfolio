@@ -8,9 +8,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const schema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email address"),
-  message: z.string().min(10, "Message must be at least 10 characters"),
+  // upper bounds too: the row is stored and echoed into two emails
+  name: z.string().min(2, "Name must be at least 2 characters").max(120, "Name is too long"),
+  email: z.string().email("Invalid email address").max(254, "Email is too long"),
+  message: z.string().min(10, "Message must be at least 10 characters").max(5000, "Message is too long (5000 characters max)"),
 });
 
 function getIp(req: NextRequest): string | null {

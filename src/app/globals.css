@@ -534,7 +534,7 @@ html.dark body { color-scheme: dark; }
 .sd-mermaid-src { margin: 0; padding: 16px; overflow-x: auto; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 13px; line-height: 1.6; color: var(--c-fg-2); white-space: pre; }
 .sd-mermaid[data-mermaid-state="ok"] .sd-mermaid-src { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: pre; }
 .sd-mermaid:not([data-mermaid-state="ok"]) .sd-mermaid-canvas { display: none; }
-.sd-mermaid[data-fullscreen] { position: fixed; inset: 0; z-index: 90; margin: 0; display: flex; flex-direction: column; background-color: var(--c-bg); }
+.sd-mermaid[data-fullscreen] { position: fixed; inset: 0; z-index: 90; margin: 0; display: flex; flex-direction: column; background-color: var(--c-bg); padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
 .sd-mermaid[data-fullscreen] .sd-mermaid-canvas { flex: 1; overflow: auto; align-items: flex-start; }
 .sd-mermaid[data-fullscreen] .sd-mermaid-canvas svg { max-width: none; min-width: min(100%, 1400px); }
 
@@ -551,3 +551,8 @@ html.dark body { color-scheme: dark; }
 /* Images that fail to load (e.g. not uploaded yet) degrade to a labelled blueprint placeholder. */
 .course-content img.sd-img-missing { display: none; }
 .course-content .sd-img-missing-cap { display: flex; align-items: flex-end; min-height: 180px; margin: 1.5rem 0; padding: 14px; border: 1px dashed var(--c-line-strong); background-color: var(--c-raised); background-image: linear-gradient(var(--c-dot) 1px, transparent 1px), linear-gradient(90deg, var(--c-dot) 1px, transparent 1px); background-size: 20px 20px; font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-fg-3); }
+
+/* Lesson focus mode: the article alone (the reader adds html.hk-focus, often in real fullscreen). */
+html.hk-focus [data-focus-hide] {
+  display: none !important;
+}

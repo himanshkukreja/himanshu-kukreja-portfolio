@@ -2,7 +2,7 @@
 slug: ios-bridge-cross-platform-streaming
 title: "From Mac Bottleneck to Universal Access: The iOS Bridge Story"
 excerpt: "How a frustrating Windows development workflow led to building a complete iOS simulator streaming platform, enabling cross-platform teams to access Mac-hosted iOS simulators from anywhere."
-cover: "/blueprints/ios-bridge-streaming-revolution.png"
+cover: "/covers/ios-bridge-streaming-revolution.png"
 date: "2025-08-15"
 tags: ["iOS Development", "Cross-Platform", "WebRTC", "Developer Experience", "Remote Development", "Electron", "FastAPI", "Developer Experience", "Open Source", "Tech Innovation", "Productivity"]
 ---

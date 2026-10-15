@@ -1,20 +1,19 @@
 /**
- * Reader geometry helpers. Everything is measured on demand: the global header, the learn
- * sub-nav and the stage rail can all change height (wrapping, theme, viewport), and elements are
+ * Reader geometry helpers. Everything is measured on demand: the global header and the
+ * stage rail can all change height (wrapping, theme, viewport), and elements are
  * looked up by id on every call because the content layer may replace nodes (a detached node
  * reports top 0).
  */
 
-/** Bottom edge (px from viewport top) of the sticky/fixed chrome above the reader (site header, learn sub-nav). */
+/** Bottom edge (px from viewport top) of the sticky/fixed chrome above the reader (site header). */
 export function headerStackBottom(): number {
   if (typeof document === "undefined") return 0;
-  // the learn sub-nav publishes its own and the site header's height on <html>
-  const root = window.getComputedStyle(document.documentElement);
-  const headerH = parseFloat(root.getPropertyValue("--hk-header-h"));
-  const learnH = parseFloat(root.getPropertyValue("--learn-nav-h"));
-  let bottom = (Number.isNaN(headerH) ? 0 : headerH) + (Number.isNaN(learnH) ? 0 : learnH);
+  // the site header publishes its height on <html>; it slides away (data-hidden) while reading
+  const header = document.querySelector<HTMLElement>("header[data-focus-hide]");
+  const headerH = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue("--hk-header-h"));
+  let bottom = header?.hasAttribute("data-hidden") || Number.isNaN(headerH) ? 0 : headerH;
   document.querySelectorAll<HTMLElement>("header, nav, [data-sticky-header]").forEach((el) => {
-    if (el.closest("[data-reader-ui]")) return;
+    if (el.closest("[data-reader-ui]") || el.closest("[data-hidden]")) return;
     const cs = window.getComputedStyle(el);
     if (cs.position !== "sticky" && cs.position !== "fixed") return;
     const top = parseFloat(cs.top);
@@ -29,6 +28,7 @@ export function headerStackBottom(): number {
 /** Height of the sticky stage rail, 0 when it is not rendered. */
 export function stageRailHeight(): number {
   if (typeof document === "undefined") return 0;
+  // the compact stage bar that pins once the full rail has scrolled away
   const rail = document.querySelector<HTMLElement>("[data-stage-rail]");
   return rail ? rail.offsetHeight : 0;
 }
@@ -46,7 +46,15 @@ function prefersReducedMotion() {
 export function scrollToId(id: string, behavior: ScrollBehavior = "smooth"): boolean {
   const el = document.getElementById(id);
   if (!el) return false;
-  const delta = el.getBoundingClientRect().top - stickyOffset() - 12;
+  // The lesson header slides away while scrolling down and returns on the way up, so the space
+  // above the target depends on the direction: going down only the stage bar stays; going up the
+  // header comes back on top of it.
+  const header = document.querySelector<HTMLElement>("header[data-focus-hide]");
+  const headerH = header ? header.offsetHeight : 0;
+  const top = el.getBoundingClientRect().top;
+  const down = top > headerStackBottom() + stageRailHeight();
+  const offset = down && window.scrollY + top > 200 ? stageRailHeight() : headerH + stageRailHeight();
+  const delta = top - offset - 12;
   // long jumps go straight there; a multi-second smooth scroll through a 2-hour lesson helps no one
   const far = Math.abs(delta) > window.innerHeight * 4;
   window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: prefersReducedMotion() || far ? "auto" : behavior });

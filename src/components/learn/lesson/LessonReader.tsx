@@ -15,7 +15,7 @@ import StageRail from "./StageRail";
 import ContentsSheet from "./ContentsSheet";
 import EndOfLesson from "./EndOfLesson";
 import BossEntry from "./BossEntry";
-import { MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
+import { FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
 import { headerStackBottom, stageRailHeight } from "./layout";
 import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
 
@@ -53,13 +53,18 @@ function useChromeVars(root: React.RefObject<HTMLDivElement | null>) {
       if (!raf) raf = window.requestAnimationFrame(measure);
     };
     measure();
-    // the learn sub-nav publishes its height a moment after mount
+    // the site header publishes its height a moment after mount
     const t1 = window.setTimeout(schedule, 300);
     const t2 = window.setTimeout(schedule, 1200);
     const ro = new ResizeObserver(schedule);
     document.querySelectorAll("header, [data-stage-rail], nav[aria-label='Sections']").forEach((n) => ro.observe(n));
     window.addEventListener("resize", schedule);
+    // the header slides away while reading (hk:chrome) and disappears in focus/fullscreen
+    window.addEventListener("hk:chrome", schedule);
+    document.addEventListener("fullscreenchange", schedule);
     return () => {
+      window.removeEventListener("hk:chrome", schedule);
+      document.removeEventListener("fullscreenchange", schedule);
       if (raf) window.cancelAnimationFrame(raf);
       window.clearTimeout(t1);
       window.clearTimeout(t2);
@@ -102,7 +107,53 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
     });
   }, []);
 
-  const toggleFocus = useCallback(() => setFocus((f) => !f), []);
+  // Focus = the article alone: every bit of chrome hidden (html.hk-focus) and, where the browser
+  // allows it (not iPhone Safari), real fullscreen. Called from click/key handlers so the
+  // fullscreen request carries the user gesture.
+  const focusRef = useRef(false);
+  const changeFocus = useCallback((on: boolean) => {
+    focusRef.current = on;
+    setFocus(on);
+    const doc = document as Document & { webkitFullscreenElement?: Element; webkitExitFullscreen?: () => void };
+    const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => void };
+    const fsEl = document.fullscreenElement || doc.webkitFullscreenElement;
+    try {
+      if (on && !fsEl) {
+        if (el.requestFullscreen) el.requestFullscreen({ navigationUI: "hide" }).catch(() => {});
+        else el.webkitRequestFullscreen?.();
+      } else if (!on && fsEl) {
+        if (document.exitFullscreen) document.exitFullscreen().catch(() => {});
+        else doc.webkitExitFullscreen?.();
+      }
+    } catch {
+      // fullscreen unsupported: focus still hides the chrome
+    }
+  }, []);
+  const toggleFocus = useCallback(() => changeFocus(!focusRef.current), [changeFocus]);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    root.classList.toggle("hk-focus", focus);
+    window.dispatchEvent(new Event("hk:chrome"));
+    return () => root.classList.remove("hk-focus");
+  }, [focus]);
+
+  useEffect(() => {
+    // leaving fullscreen with Esc / the browser UI leaves focus too
+    const onFs = () => {
+      if (!document.fullscreenElement && focusRef.current) changeFocus(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      // (a fullscreen diagram takes the first Esc)
+      if (e.key === "Escape" && focusRef.current && !document.querySelector("figure.sd-mermaid[data-fullscreen]")) changeFocus(false);
+    };
+    document.addEventListener("fullscreenchange", onFs);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("fullscreenchange", onFs);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [changeFocus]);
   const closeSheet = useCallback(() => setSheet(false), []);
   const openSheet = useCallback(() => setSheet(true), []);
 
@@ -120,7 +171,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
         <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 sm:px-6 lg:pt-10">
           <FocusMode
             focus={focus}
-            onFocusChange={setFocus}
+            onFocusChange={changeFocus}
             leftOnMobile={false}
             sidebarLeft={<CollapsibleWeekNav course={meta.course} rail={rail} />}
             sidebarRight={<TableOfContents toc={toc} stages={stages} />}
@@ -144,10 +195,11 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
         </div>
 
         {/* room for the phone reading toolbar above the site dock */}
-        <div aria-hidden className="h-20 lg:hidden" />
+        <div aria-hidden data-focus-hide className="h-20 lg:hidden" />
 
         <ReadingDock {...tools} />
         <MobileReadingBar {...tools} />
+        {focus && <FocusControls stages={stages} size={size} onSize={cycleSize} onExit={() => changeFocus(false)} />}
         <ContentsSheet open={sheet} onClose={closeSheet} toc={toc} stages={stages} kicker={meta.shortLabel.toUpperCase()} title={meta.title} />
       </div>
     </LessonProgressProvider>

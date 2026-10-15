@@ -1,5 +1,5 @@
 import type { StoryFrontmatter } from "@/lib/stories";
-import { resolveCoverUrl } from "@/lib/utils";
+import { absoluteCoverUrl } from "@/lib/utils";
 
 export type EmailTemplateOptions = {
   recipientEmail?: string;
@@ -20,7 +20,7 @@ export function buildStoriesEmailHtml(stories: StoryFrontmatter[], opts: EmailTe
 
   const items = stories
     .map((s) => {
-      const cover = resolveCoverUrl(s.cover);
+      const cover = absoluteCoverUrl(s.cover); // emails need absolute URLs (local /covers/ files included)
       const coverImg = cover
         ? `<img src="${cover}" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:8px;border:1px solid #e5e7eb;margin:0 0 10px 0;" alt="${escapeHtml(s.title)} cover" />`
         : "";
@@ -277,7 +277,7 @@ export function buildContactReplyHtml(name: string) {
         <div class="signature-name">Himanshu Kukreja</div>
         <div style="font-size: 14px; color: #9ca3af; margin-top: 4px;">
           Engineering Leader & Full-Stack Developer<br>
-          <a href="https://www.linkedin.com/in/kukreja-him" style="color: #60a5fa;">LinkedIn</a> • 
+          <a href="https://www.linkedin.com/in/himanshukukreja/" style="color: #60a5fa;">LinkedIn</a> • 
           <a href="https://himanshukukreja.in" style="color: #60a5fa;">Portfolio</a>
         </div>
       </div>

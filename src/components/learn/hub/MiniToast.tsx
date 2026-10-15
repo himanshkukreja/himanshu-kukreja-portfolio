@@ -19,7 +19,7 @@ export default function MiniToast({ toast, onDismiss }: { toast: MiniToastState;
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] left-3 right-3 z-[75] flex animate-hk-in items-center gap-3 py-2 pl-4 pr-2 sm:bottom-auto sm:left-auto sm:right-6 sm:top-[calc(var(--hk-header-h,61px)+var(--learn-nav-h,48px)+16px)] sm:max-w-[440px] ${
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] left-3 right-3 z-[75] flex animate-hk-in items-center gap-3 py-2 pl-4 pr-2 sm:bottom-auto sm:left-auto sm:right-6 sm:top-[calc(var(--hk-header-h,61px)+16px)] sm:max-w-[440px] ${
         xp ? "bg-signal text-on-signal" : "bg-fg text-bg"
       }`}
     >

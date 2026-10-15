@@ -47,8 +47,9 @@ type TextSelectionMenuProps = {
   onBookmark: () => void;
   onNote: () => void;
   onClose: () => void;
-  /** where the arrow points: "above" = toolbar sits above the selection (default) */
-  placement?: "above" | "below";
+  /** where the arrow points: "above" = toolbar sits above the selection (default);
+   *  "sheet" = docked to the bottom of the screen (touch: clear of the native selection UI) */
+  placement?: "above" | "below" | "sheet";
   /** move focus into the toolbar (keyboard-opened) */
   autoFocus?: boolean;
 };
@@ -120,9 +121,12 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
 
   if (!mounted) return null;
 
-  const btn =
-    "inline-flex items-center gap-1.5 min-h-[44px] px-3 bg-transparent text-fg text-[13px] font-semibold hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal";
+  const sheet = props.placement === "sheet";
+  const btn = `inline-flex items-center gap-1.5 bg-transparent text-fg font-semibold hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${
+    sheet ? "min-h-12 flex-1 justify-center px-2 text-sm" : "min-h-[44px] px-3 text-[13px]"
+  }`;
   const below = props.placement === "below";
+  const key = sheet ? "hidden" : "font-mono text-[10px] text-fg-4 font-normal";
 
   const menu = (
     <div
@@ -132,25 +136,27 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       onKeyDown={onToolbarKey}
       onMouseDown={(e) => e.preventDefault()}
       data-sd-chrome=""
-      className="fixed z-[9999] flex items-center gap-0.5 p-1 bg-surface-2 border border-line-strong shadow-[0_12px_40px_rgba(0,0,0,0.45)] animate-hk-in"
-      style={{ left: `${props.position.x}px`, top: `${props.position.y}px` }}
+      className={`fixed z-[9999] flex items-center gap-0.5 p-1 bg-surface-2 border border-line-strong shadow-[0_12px_40px_rgba(0,0,0,0.45)] animate-hk-in ${
+        sheet ? "inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+8px)]" : ""
+      }`}
+      style={sheet ? undefined : { left: `${props.position.x}px`, top: `${props.position.y}px` }}
     >
       {!showColors ? (
         <>
           <button type="button" className={btn} onClick={() => setShowColors(true)} aria-keyshortcuts="H">
             <Highlighter className="w-3.5 h-3.5" aria-hidden="true" />
             Highlight
-            <span className="font-mono text-[10px] text-fg-4 font-normal">H</span>
+            <span className={key}>H</span>
           </button>
           <button type="button" className={btn} onClick={onNote} aria-keyshortcuts="N">
             <StickyNote className="w-3.5 h-3.5" aria-hidden="true" />
             Note
-            <span className="font-mono text-[10px] text-fg-4 font-normal">N</span>
+            <span className={key}>N</span>
           </button>
           <button type="button" className={btn} onClick={onBookmark} aria-keyshortcuts="B">
             <Bookmark className="w-3.5 h-3.5" aria-hidden="true" />
             Bookmark
-            <span className="font-mono text-[10px] text-fg-4 font-normal">B</span>
+            <span className={key}>B</span>
           </button>
         </>
       ) : (
@@ -177,10 +183,12 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       <button type="button" onClick={onClose} aria-label="Dismiss selection toolbar" className="grid place-items-center w-11 h-11 text-fg-3 hover:text-fg">
         <X className="w-4 h-4" aria-hidden="true" />
       </button>
-      <span
-        aria-hidden="true"
-        className={`absolute left-9 w-2.5 h-2.5 bg-surface-2 border-line-strong rotate-45 ${below ? "-top-[6px] border-l border-t" : "-bottom-[6px] border-r border-b"}`}
-      />
+      {!sheet && (
+        <span
+          aria-hidden="true"
+          className={`absolute left-9 w-2.5 h-2.5 bg-surface-2 border-line-strong rotate-45 ${below ? "-top-[6px] border-l border-t" : "-bottom-[6px] border-r border-b"}`}
+        />
+      )}
     </div>
   );
 

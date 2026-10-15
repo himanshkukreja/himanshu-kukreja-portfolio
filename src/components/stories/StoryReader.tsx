@@ -4,12 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { Bookmark } from "lucide-react";
-import CoverImage from "@/components/CoverImage";
+import CaseCover from "./CaseCover";
 import ReadAloud from "@/components/ReadAloud";
 import StoryContentWrapper from "@/components/StoryContentWrapper";
 import CourseEnhancer from "@/components/learn/content/CourseEnhancer";
 import { useGame } from "@/game/GameProvider";
 import DebriefCard from "./DebriefCard";
+import CaseActivity from "./activities/registry";
 import styles from "./reader.module.css";
 import { useReadAloudBridge } from "./useReadAloudBridge";
 import {
@@ -413,7 +414,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
 
             {meta.cover && (
               <figure className="m-0 flex flex-col gap-2.5">
-                <CoverImage src={meta.cover} alt={meta.title} width={1200} height={630} priority sizes="(min-width: 1280px) 760px, 100vw" />
+                <CaseCover src={meta.cover} alt={meta.title} width={1536} height={1024} priority sizes="(min-width: 1280px) 760px, 100vw" />
                 <figcaption className="font-mono text-xs text-fg-3">FIG. 1 · Blueprint · {meta.caseId}</figcaption>
               </figure>
             )}
@@ -465,6 +466,9 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
             </section>
 
             {debrief && <DebriefCard slug={meta.slug} caseId={meta.caseId} debrief={debrief} />}
+
+            {/* End-of-file activity (lazy, per story): after the article, so it never affects checkpoints or progress. */}
+            <CaseActivity slug={meta.slug} caseId={meta.caseId} />
 
             {meta.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 xl:hidden" aria-label="Tags">

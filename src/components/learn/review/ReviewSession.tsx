@@ -9,6 +9,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/game/GameProvider";
+import { track } from "@/lib/track";
 import type { CourseMap } from "@/lib/learn/types";
 import { lessonKey } from "@/lib/learn/types";
 import { fallbackMeta, indexLessons } from "@/lib/learn/notebook";
@@ -104,11 +105,16 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
       logReviewActivity(1);
       setReviewLog(readReviewLog());
       setResults((r) => [...r, { id: card.id, g, from, to, days }]);
+      // last card of the session → analytics (tracking contract v2)
+      if (i + 1 >= (snapshot ?? dueLive).length) {
+        const all = [...results, { g }];
+        track("review_session", { reviewed: all.length, correct: all.filter((r) => r.g !== "again").length });
+      }
       setI((x) => x + 1);
       setShown(false);
       setBusy(false);
     },
-    [card, busy, snapshot, dueLive, grant, today]
+    [card, busy, snapshot, dueLive, grant, today, i, results]
   );
 
   // Keyboard: Space / Enter shows the answer, 1-4 grade.
@@ -208,7 +214,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
           <p className="max-w-[620px] text-[17px] leading-relaxed text-fg-2 sm:text-lg">
             Five minutes on what you got wrong, flagged or highlighted. Recall it, flip it, grade yourself. Cards you know drift to bigger boxes and come back less often.
           </p>
-          <div className="grid grid-cols-2 gap-px self-start border border-line bg-line sm:flex sm:flex-wrap">
+          <div className="grid grid-cols-2 gap-px self-stretch border border-line bg-line sm:flex sm:flex-wrap sm:self-start">
             {[
               [ready ? String(n) : "·", "cards today"],
               [ready ? `~${n ? minLeft : 0}` : "·", "min"],
@@ -244,7 +250,8 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
       </section>
 
       {/* Boxes + sources */}
-      <section className="flex flex-wrap items-stretch gap-6">
+      {/* phones: the session (the thing you came for) comes right after the hero; stats follow */}
+      <section className="flex flex-wrap items-stretch gap-6 max-lg:order-1">
         <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-[18px] border border-line bg-raised p-5 sm:p-[22px]">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 className="font-display text-[28px] font-bold tracking-[-0.025em] text-fg">Leitner boxes</h2>
@@ -263,27 +270,27 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
               </span>
             </div>
           </div>
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[560px] grid-cols-5 gap-2.5">
+          <div className="sm:overflow-x-auto">
+            <div className="grid grid-cols-5 gap-1.5 sm:min-w-[560px] sm:gap-2.5">
               {boxes.map((b) => {
                 const cur = !!card && card.box === b.b;
                 const slats = Math.min(b.count, 22);
                 return (
-                  <div key={b.b} className={`flex flex-col gap-2.5 bg-bg p-3.5 ${cur ? "animate-hk-pulse border border-signal" : "border border-line"}`}>
-                    <div className="flex items-baseline justify-between gap-1.5">
-                      <span className="font-mono text-xs font-semibold tracking-label text-fg">BOX {b.b}</span>
-                      <span className="font-mono text-[11px] text-fg-3">{BOX_EVERY[b.b - 1]}</span>
+                  <div key={b.b} className={`flex min-w-0 flex-col gap-1.5 bg-bg p-2 sm:gap-2.5 sm:p-3.5 ${cur ? "animate-hk-pulse border border-signal" : "border border-line"}`}>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-baseline sm:justify-between sm:gap-1.5">
+                      <span className="whitespace-nowrap font-mono text-xs font-semibold tracking-label text-fg">BOX {b.b}</span>
+                      <span className="font-mono text-[11px] leading-tight text-fg-3">{BOX_EVERY[b.b - 1]}</span>
                     </div>
-                    <div aria-hidden className="flex h-[132px] flex-col-reverse gap-[3px] overflow-hidden">
+                    <div aria-hidden className="flex h-14 flex-col-reverse gap-[3px] overflow-hidden sm:h-[132px]">
                       {Array.from({ length: slats }, (_, j) => (
                         <span key={j} className={`h-[5px] shrink-0 ${j < b.due ? "bg-signal" : j < b.due + b.moved ? "bg-fg" : "bg-line-strong"}`} />
                       ))}
                     </div>
-                    <div className="flex items-baseline justify-between gap-1.5">
-                      <span className="font-mono text-[26px] font-semibold text-fg">{b.count}</span>
-                      <span className={`font-mono text-xs ${b.due ? "text-signal-text" : b.moved ? "text-fg" : "text-fg-4"}`}>{b.due ? `${b.due} due` : b.moved ? `+${b.moved} today` : "—"}</span>
+                    <div className="mt-auto flex flex-col gap-0.5 sm:mt-0 sm:flex-row sm:items-baseline sm:justify-between sm:gap-1.5">
+                      <span className="font-mono text-[22px] font-semibold leading-none text-fg sm:text-[26px] sm:leading-normal">{b.count}</span>
+                      <span className={`font-mono text-[11px] sm:text-xs ${b.due ? "text-signal-text" : b.moved ? "text-fg" : "text-fg-4"}`}>{b.due ? `${b.due} due` : b.moved ? `+${b.moved} today` : "—"}</span>
                     </div>
-                    <span className={`font-mono text-[11px] uppercase tracking-[0.06em] ${cur ? "text-signal-text" : "text-fg-3"}`}>{cur ? "▶ current card" : BOX_TAG[b.b - 1]}</span>
+                    <span className={`hidden font-mono text-[11px] uppercase tracking-[0.06em] sm:block ${cur ? "text-signal-text" : "text-fg-3"}`}>{cur ? "▶ current card" : BOX_TAG[b.b - 1]}</span>
                   </div>
                 );
               })}
@@ -396,7 +403,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
               {!shown ? (
                 <div className="flex flex-wrap items-center justify-between gap-3 border-t border-line px-5 py-[18px] sm:px-[22px]">
                   <span className="text-sm text-fg-3">Answer it in your head first. Honesty is the whole trick.</span>
-                  <button type="button" onClick={() => setShown(true)} className="min-h-[52px] bg-signal px-7 text-base font-semibold text-on-signal">
+                  <button type="button" onClick={() => setShown(true)} className="min-h-[52px] w-full bg-signal px-7 text-base font-semibold text-on-signal sm:w-auto">
                     Show answer <span className="hidden font-mono text-xs sm:inline">space</span>
                   </button>
                 </div>
@@ -583,7 +590,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
 
       {/* Forecast */}
       {ready && deck > 0 && (
-        <section aria-labelledby="fc-h" className="flex flex-col gap-[18px] border border-line bg-raised p-5 sm:p-[22px]">
+        <section aria-labelledby="fc-h" className="flex flex-col gap-[18px] border border-line bg-raised p-5 max-lg:order-1 sm:p-[22px]">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
             <h2 id="fc-h" className="font-display text-[28px] font-bold tracking-[-0.025em] text-fg">
               Coming up

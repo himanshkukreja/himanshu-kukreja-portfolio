@@ -2,7 +2,7 @@
 slug: cdn-cache-poisoning-disaster
 title: "The Silent Cache Poisoning Disaster: When CDN Becomes Your Enemy"
 excerpt: "A Black Friday nightmare where a misconfigured CDN turned private customer data into a public cache, exposing shopping carts and personal information across user sessions."
-cover: "/blueprints/cdn-cache-poisoning-disaster.png"
+cover: "/covers/cdn-cache-poisoning-disaster.png"
 date: "2025-08-08"
 tags: ["CDN", "Cache Poisoning", "Security", "Data Breach", "E-commerce", "Production Incidents", "Black Friday"]
 ---

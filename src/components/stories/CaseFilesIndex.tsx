@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
-import CoverImage from "@/components/CoverImage";
+import CaseCover from "./CaseCover";
 import { useGame } from "@/game/GameProvider";
 import { BADGES } from "@/game/catalog";
 import {
@@ -16,6 +16,7 @@ import {
   type CaseFile,
   type CaseType,
 } from "./case-types";
+import { ACTIVITY_FLAG, readActivityResults } from "./activities/types";
 
 type Filter = "all" | CaseType;
 type Sort = "new" | "short";
@@ -54,6 +55,8 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
 
   const closed = useMemo(() => new Set(hydrated ? flagList(flags[READ_FLAG]) : []), [hydrated, flags]);
   const closedCount = cases.filter((c) => closed.has(c.slug)).length;
+  // End-of-file activities completed in this browser (best score kept in game flags).
+  const solved = useMemo(() => (hydrated ? readActivityResults(flags[ACTIVITY_FLAG]) : {}), [hydrated, flags]);
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: cases.length, incident: 0, design: 0, build: 0 };
@@ -169,9 +172,13 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
           href={`/stories/${latest.slug}`}
           className="group flex flex-wrap border border-signal bg-surface text-fg no-underline hover:text-fg"
         >
-          <span className={`relative grid min-h-[160px] flex-[1_1_480px] place-items-center border-line sm:min-h-[340px] sm:border-r ${BLUEPRINT_BG}`}>
+          <span className={`relative grid aspect-[3/2] flex-[1_1_480px] place-items-center overflow-hidden border-line sm:aspect-auto sm:min-h-[340px] sm:border-r ${BLUEPRINT_BG}`}>
             {latest.cover ? (
-              <CoverImage src={latest.cover} alt="" fill priority sizes="(min-width: 1024px) 700px, 100vw" />
+              // Covers carry labels, so show the whole 3:2 plate (pinned to the top) instead of cropping it to the
+              // card. CoverImage's fill wrapper ends up `relative` (zero height) in a grid cell: give it a sized box.
+              <span className="absolute inset-x-0 top-0 aspect-[3/2]">
+                <CaseCover src={latest.cover} alt="" fill priority sizes="(min-width: 1024px) 700px, 100vw" className="h-full w-full" />
+              </span>
             ) : (
               <span className="font-mono text-[13px] text-fg-3">[cover]</span>
             )}
@@ -179,6 +186,7 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
               <span className="bg-signal px-2 py-1 font-mono text-xs font-semibold tracking-[0.06em] text-on-signal">{latest.caseId}</span>
               <span className="border border-line-strong bg-bg px-2 py-1 font-mono text-xs tracking-[0.06em] text-fg">
                 {closed.has(latest.slug) ? "CLOSED ✓" : "NEW"}
+                {solved[latest.slug] ? " · SOLVED ◆" : ""}
               </span>
             </span>
           </span>
@@ -254,11 +262,13 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
                     <span className="font-mono text-[13px] text-fg-2">
                       {formatMonthYear(r.date)}
                     </span>
-                    <span
-                     
-                      className={`font-mono text-xs tracking-[0.06em] ${isClosed ? "font-semibold text-signal-text" : "text-fg-3"}`}
-                    >
-                      {isClosed ? "CLOSED ✓" : "OPEN"}
+                    <span className="flex flex-col gap-1 font-mono text-xs tracking-[0.06em]">
+                      <span className={isClosed ? "font-semibold text-signal-text" : "text-fg-3"}>{isClosed ? "CLOSED ✓" : "OPEN"}</span>
+                      {solved[r.slug] && (
+                        <span className="text-[11px] text-fg-2" title={`Activity best: ${solved[r.slug].best}/${solved[r.slug].max}`}>
+                          SOLVED ◆
+                        </span>
+                      )}
                     </span>
                   </Link>
                   </li>
@@ -278,6 +288,7 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
                   <span className={`font-mono text-[11px] tracking-[0.04em] ${r.type === "incident" ? "text-bad-text" : "text-fg-3"}`}>
                     {r.caseId} · {CASE_TYPE_LABEL[r.type].toUpperCase()} ·{" "}
                     {isClosed ? <span className="font-semibold text-signal-text">CLOSED ✓</span> : `${r.mins} MIN`}
+                    {solved[r.slug] && <span className="text-fg-2"> · SOLVED ◆</span>}
                   </span>
                   <span className="text-[15px] font-semibold leading-snug">{r.title}</span>
                 </Link>

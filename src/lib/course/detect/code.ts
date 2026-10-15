@@ -12,6 +12,8 @@ import type { Element as HastElement, ElementContent } from "hast";
 import { chrome, EMOJI_RE, h, type HChild } from "../md";
 import { highlightLines, plainLines } from "../highlight";
 import type { LessonKind } from "../types";
+import type { PracticeGame } from "@/lib/learn/arena/games";
+import { quizFigure } from "./quiz";
 
 export type CodeKind =
   | "whiteboard"
@@ -718,6 +720,16 @@ export function mermaidFigure(value: string, ctx: CodeCtx): HastElement {
 export async function renderCode(node: Code, ctx: CodeCtx): Promise<HastElement> {
   const value = node.value.replace(/\t/g, "    ");
   if (node.lang && node.lang.toLowerCase() === "mermaid") return mermaidFigure(node.value, ctx);
+  if (node.lang && node.lang.toLowerCase() === "quiz") {
+    // index / practice games are assigned by render.ts in document order (see markQuizzes)
+    const meta = (node.data as { sdQuiz?: { index: number; practice?: PracticeGame[] } } | undefined)?.sdQuiz;
+    const fig = quizFigure(node.value, { index: meta?.index ?? 0, practice: meta?.practice });
+    if (fig) {
+      ctx.count("quiz");
+      return fig;
+    }
+    return codeFigure(value, null, ctx, true);
+  }
   if (node.lang) return codeFigure(value, node.lang, ctx);
   const lines = value.split("\n");
   const detectors = [detectWhiteboard, detectNote, detectPhrases, detectNumbers, detectTree, detectCompare, detectTimeline, detectBlueprint];

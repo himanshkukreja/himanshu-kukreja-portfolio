@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { requireAdmin } from "@/lib/admin/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,32 +10,12 @@ type TimeRange = "7d" | "30d" | "90d" | "all";
 /**
  * GET /api/admin/analytics
  * Fetch analytics data for the admin dashboard
- * Requires: Authorization header with ANALYTICS_ADMIN_TOKEN
+ * Requires an admin session (Authorization: Bearer <supabase access token>, see requireAdmin).
  */
 export async function GET(request: NextRequest) {
   try {
-    // Check authentication
-    const authHeader = request.headers.get("authorization");
-    const expectedToken = process.env.ANALYTICS_ADMIN_TOKEN;
-
-    if (!authHeader || !expectedToken) {
-      return NextResponse.json(
-        { error: "Unauthorized - Missing authentication" },
-        { status: 401 }
-      );
-    }
-
-    // Support both "Bearer <token>" and just "<token>" formats
-    const token = authHeader.startsWith("Bearer ")
-      ? authHeader.substring(7)
-      : authHeader;
-
-    if (token !== expectedToken) {
-      return NextResponse.json(
-        { error: "Unauthorized - Invalid token" },
-        { status: 401 }
-      );
-    }
+    const admin = await requireAdmin(request);
+    if (admin instanceof NextResponse) return admin;
 
     const searchParams = request.nextUrl.searchParams;
     const timeRange = (searchParams.get("range") as TimeRange) || "30d";

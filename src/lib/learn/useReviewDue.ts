@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { REVIEW_CHANGED_EVENT, loadReviewCards, localDate, type ReviewCard } from "./review";
 
 /**
- * Due review cards, shared by the learn sub-nav badge, the hub's standup card and the profile.
+ * Due review cards, shared by the course nav badge, the hub's standup card and the profile.
  * One load per change event (module-level de-dupe), not one per component.
  */
 let inflight: { key: string; at: number; p: Promise<ReviewCard[]> } | null = null;

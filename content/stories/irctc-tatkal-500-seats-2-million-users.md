@@ -2,7 +2,7 @@
 slug: irctc-tatkal-500-seats-2-million-users
 title: "The Tatkal Gamble: How India Sells 500 Train Seats to 2 Million People Without a Single Mistake"
 excerpt: "Every morning at 10 AM, millions of Indians fight for a few hundred train seats in a battle that lasts less than a minute. This is the story of the system that referees it — fairly, instantly, and without ever selling the same seat twice."
-cover: "/blueprints/irctc-tatkal-rush.png"
+cover: "/covers/irctc-tatkal-rush.png"
 date: "2026-08-05"
 tags: ["System Design", "IRCTC", "Ticket Booking", "Concurrency", "India", "Fraud Detection", "Real-World Engineering"]
 debrief:
@@ -33,7 +33,7 @@ At 10:00:00 AM, the clock ticks over. And in the time it takes you to read this 
 
 This happens every single day, on hundreds of trains, all over India. This is the story of the system standing at the door — and how it learned, sometimes the hard way, to say "no" fast, fairly, and without ever making a mistake that costs someone their seat or their money.
 
-![The Impossible Funnel](/blueprints/irctc-tatkal-rush.png)
+![The impossible funnel: about 2,000,000 people trying for about 500 Tatkal seats, a 4,000-to-1 contest](/case-files/irctc-tatkal-funnel.png)
 <!-- IMAGE PROMPT: A dramatic wide illustration of a giant funnel. At the top, a massive crowd of two million tiny human silhouettes (diverse Indian faces, different ages) all reaching upward toward a giant clock showing "10:00:00 AM". The funnel narrows dramatically downward. At the bottom, only a tiny cluster of exactly a few glowing golden train-ticket icons emerges, held by a handful of relieved-looking silhouettes, while a red "SOLD OUT" stamp appears just below them. Background hints at an Indian Railways station platform silhouette and a speeding train. Style: modern flat-illustration with a warm saffron-to-blue gradient, bold and slightly dramatic, like an infographic cover for a tech blog. Include small text labels "2,000,000 TRYING" at top and "500 SEATS" at the narrow bottom of the funnel. -->
 
 ---
@@ -79,7 +79,7 @@ Indian Railways' actual, recorded numbers give a sense of scale here: the platfo
 
 Here's the counter-intuitive part, the thing that trips up most people the first time they think about this problem: **this is not a storage problem.** Five hundred confirmed bookings take up a few hundred kilobytes of disk space — genuinely nothing. The entire challenge is that, for about ten seconds, five hundred tiny rows of data become the single most contested resource in the country's digital infrastructure. The hard part isn't holding the information. It's surviving the stampede to get near it.
 
-![The Ten-Second Stampede](/blueprints/irctc-stampede-clock.png)
+![The ten-second stampede: booking attempts spike at 10:00:00, the 500 seats are gone by 10:00:05, millions are told no by 10:00:10, and Ananya is confirmed at 10:00:12](/case-files/irctc-stampede-clock.png)
 <!-- IMAGE PROMPT: A dynamic split-frame illustration showing a giant analog clock face with the second hand sweeping from 9:59:55 to 10:00:10, rendered in a comic-panel style across 4 sequential frames left to right. Frame 1: calm crowd of phones/laptops glowing, all showing a countdown timer. Frame 2: the clock strikes 10:00:00, an explosive burst of lightning-bolt lines radiates outward from the clock center toward thousands of small device icons. Frame 3: a narrow glowing green gate with a small number of tickets passing through while red "X" marks appear on most incoming lines. Frame 4: the gate slams shut with a "SOLD OUT — 10:00:10 AM" banner, most devices now showing sad/red screens, a few showing a golden checkmark. Style: bold, energetic infographic illustration, saffron/green/blue Indian color palette, motion-blur lines to convey speed. -->
 
 ---
@@ -135,7 +135,7 @@ flowchart TD
   DB -.->|"response times climbing · tighten within a second"| WR
 ```
 
-![The Waiting Room](/blueprints/irctc-waiting-room.png)
+![The waiting room: a queue ticket reading you are number 84,213, a gate letting a steady trickle into booking, and a database response-time gauge that widens or tightens the flow](/case-files/irctc-waiting-room.png)
 <!-- IMAGE PROMPT: A serene yet clever illustration of a modern digital "waiting room" concept. Show a glowing turnstile/gate icon in the center with a small display reading "Position: 84,213 — Est. wait: 2 sec". Behind the gate, a calm, orderly queue of glowing human silhouette icons stretches back and fades into a soft blur (representing millions), while a small trickle of 3-4 silhouettes passes smoothly through the open gate into a bright green "Booking Hall" area on the right. A subtle dashboard-style gauge above the gate shows "System Health: Optimal" with a needle in the green zone. Style: clean, modern, minimal UI-inspired illustration, calming blue and teal palette with warm golden accents on the admitted figures, conveying order emerging from chaos. -->
 
 ---
@@ -192,7 +192,7 @@ The response, rolled out through 2025, reads like a layered defense:
 
 None of these are silver bullets on their own. Together, they raise the cost of cheating high enough that most of it simply isn't worth attempting anymore — which, in security, is often the most realistic version of "winning."
 
-![Humans vs Scripts](/blueprints/irctc-bot-defense.png)
+![Humans vs scripts: identity, timing and behaviour layers of the 2025 Tatkal defences, with 3.03 crore accounts deactivated and 4.18 lakh suspicious PNRs flagged](/case-files/irctc-bot-defense.png)
 <!-- IMAGE PROMPT: A visually striking split-screen illustration. Left side: a shadowy robotic hand/script icon (green matrix-style code streaming from its fingers) rapidly clicking a booking button, surrounded by multiple identical duplicate ghost-icons representing fake accounts, all trying to pass through a gate. Right side: the same gate now has a glowing shield icon with an Aadhaar-style fingerprint/OTP symbol on it, blocking the robotic hand with a red barrier, while a genuine warm-toned human hand (holding a phone with an OTP screen) passes through smoothly with a green checkmark. Include small icons around the shield: a clock icon (time-window restriction), a fingerprint icon (Aadhaar), and a speedometer icon (velocity check). Style: modern cybersecurity-meets-civic-tech illustration, cool blues and greens for the "defense" side, ominous dark green/black for the "bot" side. -->
 
 ---

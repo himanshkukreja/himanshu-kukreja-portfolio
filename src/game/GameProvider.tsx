@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { LEVELS, QUEST_BY_ID, QUESTS, levelIndex } from "./catalog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGameSync } from "./useGameSync";
+import { track } from "@/lib/track";
 
 const STORAGE_KEY = "hk.game.v1";
 
@@ -107,6 +108,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const quest = QUEST_BY_ID[questId];
       const cur = stateRef.current;
       if (!quest || cur.done[questId]) return 0;
+      if (quest.group === "arcade" || quest.group === "play" || questId === "rush") track("play", { game: questId, result: "cleared" });
       const done = { ...cur.done, [questId]: Date.now() };
       let xp = cur.xp + quest.xp;
       let gained = quest.xp;

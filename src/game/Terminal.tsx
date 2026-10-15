@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { EMAIL, SOCIALS } from "@/lib/socials";
 import { usePathname, useRouter } from "next/navigation";
 import { useGame } from "./GameProvider";
 import { LEVELS, MAIN_QUESTS, levelIndex } from "./catalog";
@@ -82,8 +83,11 @@ export default function Terminal() {
         "ls repos        open source, by stars",
         "npx markdrop    what markdrop does",
         "cat resume      open the résumé",
+        "socials         where to find me",
         "clear · exit",
       ];
+    } else if (c === "socials" || c === "ls ~/socials" || c === "cat socials") {
+      out = [...SOCIALS.map((s) => `${s.label.padEnd(14)}${s.handle.padEnd(22)}${s.href}`), `${"email".padEnd(14)}${EMAIL}`];
     } else if (c === "whoami") {
       const quests = MAIN_QUESTS.filter((q) => done[q.id]).length;
       out = [`${lv.code} · ${lv.name} · ${xp} XP · ${quests}/${MAIN_QUESTS.length} quests`];

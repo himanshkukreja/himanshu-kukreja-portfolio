@@ -1,19 +1,19 @@
+import { Suspense } from "react";
 import { readFile } from "fs/promises";
 import path from "path";
 import { getAllStories, type StoryFrontmatter } from "@/lib/stories";
 import { calculateReadingTime } from "@/lib/reading-time";
 import HeroIntro from "@/components/home/HeroIntro";
-import TatkalRush from "@/components/home/TatkalRush";
-import ProcessTable from "@/components/home/ProcessTable";
+import { RushSection } from "@/components/home/TatkalRush";
 import CareerReplay from "@/components/home/CareerReplay";
 import GamesTeaser from "@/components/home/GamesTeaser";
 import PinnedRepos from "@/components/home/PinnedRepos";
+import ContribSection, { ContribSectionSkeleton } from "@/components/home/contrib/ContribSection";
 import Dependencies from "@/components/home/Dependencies";
 import CaseFilesTeaser, { type CaseTeaser } from "@/components/home/CaseFilesTeaser";
 import LearnCta from "@/components/home/LearnCta";
 import HireApi from "@/components/home/HireApi";
 import HomeFooter from "@/components/home/HomeFooter";
-import { container } from "@/components/home/ui";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
@@ -56,15 +56,15 @@ export default async function Home() {
   return (
     <>
       <main id="top">
-        <section aria-label="Intro and Tatkal Rush" className={`${container} flex flex-wrap items-start gap-10 pb-14 pt-6 sm:pb-[72px] sm:pt-14`}>
-          <HeroIntro />
-          <TatkalRush />
-        </section>
-        <ProcessTable />
+        <HeroIntro />
         <CareerReplay />
+        <Dependencies />
+        <RushSection />
         <GamesTeaser />
         <PinnedRepos />
-        <Dependencies />
+        <Suspense fallback={<ContribSectionSkeleton />}>
+          <ContribSection />
+        </Suspense>
         <CaseFilesTeaser cases={cases} total={total} />
         <LearnCta />
         <HireApi />

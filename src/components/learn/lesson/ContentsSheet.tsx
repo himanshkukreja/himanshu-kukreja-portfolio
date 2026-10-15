@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Stage, TocItem } from "@/lib/course/types";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { buildTocGroups, useActiveHeading } from "@/components/TableOfContents";
-import { scrollToId } from "./layout";
+import { stageRailHeight } from "./layout";
 import { isOptionalStage, numberedStages } from "./stageText";
 import styles from "./reader.module.css";
 
@@ -16,6 +16,26 @@ type Props = {
   kicker: string;
   title: string;
 };
+
+/**
+ * Jump so the heading lands just under the chrome that will be showing once the scroll ends.
+ * The site header slides away on scroll down and returns on scroll up (readerChrome), so a jump
+ * down only clears the pinned stage bar, a jump up also clears the header that comes back.
+ */
+function jumpTo(id: string) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const headerH = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue("--hk-header-h")) || 0;
+  const rail = stageRailHeight();
+  const top = el.getBoundingClientRect().top;
+  const up = top < headerH + rail;
+  let y = window.scrollY + top - (up ? headerH + rail : rail) - 12;
+  // near the top of the page the header always shows and the stage bar is not pinned yet
+  if (y < 160) y = window.scrollY + top - headerH - 12;
+  const far = Math.abs(y - window.scrollY) > window.innerHeight * 4;
+  const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+  window.scrollTo({ top: Math.max(0, y), behavior: far || reduce ? "auto" : "smooth" });
+}
 
 /** Phone contents: bottom sheet grouped by stage, with "find in this lesson". */
 export default function ContentsSheet({ open, onClose, toc, stages, kicker, title }: Props) {
@@ -64,7 +84,7 @@ export default function ContentsSheet({ open, onClose, toc, stages, kicker, titl
   const jump = (id: string) => {
     onClose();
     // after the sheet has closed and the body scroll lock is gone
-    window.setTimeout(() => scrollToId(id), 30);
+    window.setTimeout(() => jumpTo(id), 30);
   };
 
   const requiredCount = numberedStages(stages.filter((s) => !isOptionalStage(s))).length;

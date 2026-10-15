@@ -16,6 +16,7 @@
  *   "sd:checklist" detail { lessonKey, done: number, total: number }
  */
 import MermaidHydrator from "@/components/diagrams/MermaidHydrator";
+import QuizHydrator from "@/components/learn/quiz/QuizHydrator";
 import "@/app/learn/course-content.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -120,8 +121,10 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
         const avail = body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
         if (!natural || avail <= 0) return;
         const size = Math.min(15, (base * avail) / natural);
-        if (size < 7) {
-          pre.style.setProperty("--sd-bp-size", `7px`);
+        // phones: below ~9px box drawings stop being legible, so scroll (with a fade cue) instead
+        const min = window.matchMedia("(max-width: 640px)").matches ? 9 : 7;
+        if (size < min) {
+          pre.style.setProperty("--sd-bp-size", `${min}px`);
           setText(note, "too wide to fit · scroll");
         } else {
           pre.style.setProperty("--sd-bp-size", `${size.toFixed(2)}px`);
@@ -194,6 +197,17 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
       });
     };
 
+    /* horizontal scrollers (tables, code, wide blueprints): data-sd-scroll="left right" drives an edge fade */
+    const SCROLLERS = ".sd-table, .sd-code-pre, .sd-bp-body";
+    const scrollHint = (el: HTMLElement) => {
+      const max = el.scrollWidth - el.clientWidth;
+      const parts: string[] = [];
+      if (max > 2 && el.scrollLeft > 2) parts.push("left");
+      if (max > 2 && el.scrollLeft < max - 2) parts.push("right");
+      setAttr(el, "data-sd-scroll", parts.length ? parts.join(" ") : null);
+    };
+    const applyScrollHints = (root: HTMLElement) => root.querySelectorAll<HTMLElement>(SCROLLERS).forEach(scrollHint);
+
     const applyAll = (root: HTMLElement) => {
       setAttr(root, "data-sd-ready", "");
       applyChecklists(root);
@@ -201,6 +215,7 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
       applyCode(root);
       applyTranscripts(root);
       fitBlueprints(root);
+      applyScrollHints(root);
     };
 
     roots.forEach(applyAll);
@@ -241,6 +256,7 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
           if (action === "native") session.native.add(id);
           else session.native.delete(id);
           fitBlueprints(root);
+          applyScrollHints(root);
           break;
         }
         case "fullscreen": {
@@ -308,8 +324,24 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
       applyChecklists(root, true);
     };
 
+    let scrollRaf = 0;
+    const scrolled = new Set<HTMLElement>();
+    const onInnerScroll = (e: Event) => {
+      const el = e.target as HTMLElement | null;
+      if (!el || el.nodeType !== 1 || !el.matches?.(SCROLLERS) || !roots.some((r) => r.contains(el))) return;
+      scrolled.add(el);
+      if (scrollRaf) return;
+      scrollRaf = requestAnimationFrame(() => {
+        scrollRaf = 0;
+        scrolled.forEach(scrollHint);
+        scrolled.clear();
+      });
+    };
+
     document.addEventListener("click", onClick);
     document.addEventListener("change", onChange);
+    // scroll does not bubble: listen in the capture phase for the inner scrollers
+    document.addEventListener("scroll", onInnerScroll, { capture: true, passive: true });
 
     /* ---------------- re-apply after the content HTML is replaced */
     let raf = 0;
@@ -327,21 +359,40 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
     roots.forEach((r) => mo.observe(r, { childList: true, subtree: true }));
 
     let lastW = 0;
+    let hintRaf = 0;
     const ro = new ResizeObserver((entries) => {
+      // any reflow (text size, expanded code) can make a table start or stop overflowing
+      cancelAnimationFrame(hintRaf);
+      hintRaf = requestAnimationFrame(() => roots.forEach(applyScrollHints));
       const w = Math.round(entries[0]?.contentRect.width || 0);
       if (w === lastW) return;
       lastW = w;
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(() => roots.forEach(fitBlueprints));
+      raf = requestAnimationFrame(() =>
+        roots.forEach((r) => {
+          fitBlueprints(r);
+          applyScrollHints(r);
+        }),
+      );
     });
     roots.forEach((r) => ro.observe(r));
 
     // web fonts change glyph widths: refit once they are ready
-    document.fonts?.ready.then(() => roots.forEach(fitBlueprints)).catch(() => {});
+    document.fonts?.ready
+      .then(() =>
+        roots.forEach((r) => {
+          fitBlueprints(r);
+          applyScrollHints(r);
+        }),
+      )
+      .catch(() => {});
 
     return () => {
       document.removeEventListener("click", onClick);
       document.removeEventListener("change", onChange);
+      document.removeEventListener("scroll", onInnerScroll, { capture: true });
+      if (scrollRaf) cancelAnimationFrame(scrollRaf);
+      cancelAnimationFrame(hintRaf);
       mo.disconnect();
       ro.disconnect();
       cancelAnimationFrame(raf);
@@ -369,6 +420,7 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
     <>
       <span ref={markerRef} hidden data-sd-chrome="" />
       <MermaidHydrator rootSelector=".course-content" />
+      <QuizHydrator lessonKey={lessonKey} />
       {fs &&
         createPortal(
           <div className="sd-fs" role="dialog" aria-modal="true" aria-label={`${fs.caption} fullscreen`}>

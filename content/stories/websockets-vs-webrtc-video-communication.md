@@ -2,7 +2,7 @@
 slug: websockets-vs-webrtc-video-communication
 title: "The Great Video Call Revolution: When WebSockets Met WebRTC and Changed Everything"
 excerpt: "A tale of two technologies fighting for supremacy in real-time video communication, and why choosing the wrong one can crash your startup dreams."
-cover: "/blueprints/websockets-webrtc-comparison.png"
+cover: "/covers/websockets-webrtc-comparison.png"
 date: "2025-08-05"
 tags: ["WebSockets", "WebRTC", "Video Streaming", "Real-time Communication", "Web Technologies", "System Architecture"]
 ---

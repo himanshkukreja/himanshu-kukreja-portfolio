@@ -7,7 +7,10 @@ const GITHUB_TOKEN = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
 const REPO_OWNER = 'himanshkukreja';
 const REPO_NAME = 'system-design-mastery';
 // Content branch of the course repo (override e.g. to preview a content branch before merging).
-const BRANCH = process.env.SDM_BRANCH || 'main';
+// Course content branch. Preview deploys read the branch with the Mermaid diagrams until it is
+// merged into the content repo's main (production keeps main). SDM_BRANCH always wins.
+const PREVIEW_CONTENT_BRANCH = 'mermaid-diagrams';
+const BRANCH = process.env.SDM_BRANCH || (process.env.VERCEL_ENV === 'preview' ? PREVIEW_CONTENT_BRANCH : 'main');
 const BASE_PATH = 'resources';
 
 /**

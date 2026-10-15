@@ -83,6 +83,25 @@ export function writeGuestLesson(course: string, week: string, slug: string, rec
   }
 }
 
+const OWNER_KEY = "hk.lesson.owner";
+
+/**
+ * May this browser's `hk.lesson.v1` records be merged into `userId`'s account? The store is also
+ * written while signed in, so after one person signs out and another signs in on the same browser,
+ * the first person's completed lessons used to be merged into the second account. The first
+ * account to sign in here claims the store; any other account skips the merge.
+ */
+export function claimGuestProgress(userId: string): boolean {
+  try {
+    const owner = window.localStorage.getItem(OWNER_KEY);
+    if (owner && owner !== userId) return false;
+    if (!owner) window.localStorage.setItem(OWNER_KEY, userId);
+    return true;
+  } catch {
+    return true; // storage unavailable: there is nothing stored to leak either
+  }
+}
+
 // ---------------------------------------------------------------------------------------------
 // Supabase
 

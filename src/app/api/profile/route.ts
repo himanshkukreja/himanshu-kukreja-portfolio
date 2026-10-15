@@ -43,6 +43,16 @@ export async function GET(request: NextRequest) {
       }
     );
 
+    // Only the caller's own profile: user_profiles is readable by everyone (comment author names),
+    // so without this check any token (even the public anon key) could read any profile row.
+    const { data: auth } = await supabaseWithAuth.auth.getUser(token);
+    if (!auth?.user) {
+      return NextResponse.json({ error: 'Unauthorized', code: 'NO_SESSION' }, { status: 401 });
+    }
+    if (auth.user.id !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { data, error } = await supabaseWithAuth
       .from('user_profiles')
       .select('*')

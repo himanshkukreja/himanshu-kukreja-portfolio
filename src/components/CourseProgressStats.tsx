@@ -27,7 +27,7 @@ export default function CourseProgressStats({ stats, learner }: { stats: CourseS
   const started = learner && learner.coreDone + learner.bossesDone + learner.partsPassed + learner.sideDone > 0;
   return (
     <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-2 gap-px self-start border border-line bg-line sm:flex sm:flex-wrap">
+      <div className="grid grid-cols-2 gap-px self-stretch border border-line bg-line sm:flex sm:flex-wrap sm:self-start">
         <Cell n={stats.worlds} label="worlds" />
         <Cell n={stats.coreLessons} label="core lessons" />
         <Cell n={stats.bosses} label="bosses" />

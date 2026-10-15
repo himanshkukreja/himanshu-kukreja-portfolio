@@ -192,14 +192,14 @@ export default function CourseHub({ map }: { map: CourseMap }) {
               <Link
                 key={q.slug}
                 href={q.href}
-                className={`flex min-h-[140px] flex-col gap-2.5 p-[18px] hover:border-fg-4 ${isDone ? "border border-line-strong bg-surface-2" : "border border-line bg-bg"}`}
+                className={`flex flex-col gap-1.5 p-4 hover:border-fg-4 sm:min-h-[140px] sm:gap-2.5 sm:p-[18px] ${isDone ? "border border-line-strong bg-surface-2" : "border border-line bg-bg"}`}
               >
                 <span className="flex justify-between font-mono text-[11px] tracking-label text-fg-3">
                   <span>{q.code}</span>
                   <span>{q.minutes} MIN</span>
                 </span>
-                <span className="font-display text-[22px] font-bold leading-[1.05] tracking-[-0.02em] text-fg">{q.title}</span>
-                <span className={`mt-auto font-mono text-xs ${isDone ? "text-fg" : "text-signal-text"}`}>
+                <span className="font-display text-[19px] font-bold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[22px] sm:leading-[1.05]">{q.title}</span>
+                <span className={`mt-auto pt-1 font-mono text-xs ${isDone ? "text-fg" : "text-signal-text"}`}>
                   {isDone ? "COMPLETED ✓" : started ? `IN PROGRESS · +${LEARN_XP.sideQuest} XP` : `+${LEARN_XP.sideQuest} XP`}
                 </span>
               </Link>

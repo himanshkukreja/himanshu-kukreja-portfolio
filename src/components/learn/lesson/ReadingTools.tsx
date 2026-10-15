@@ -3,6 +3,9 @@
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { ReadAloudBar, type ReadAloudController } from "@/components/ReadAloud";
+import { useChromeHidden } from "@/components/site/readerChrome";
+import type { Stage } from "@/lib/course/types";
+import { StageSegments } from "./StageRail";
 import { stagePosition, stageShort } from "./stageText";
 
 export const TEXT_SIZES = [17, 19, 21] as const;
@@ -29,6 +32,12 @@ const PauseIcon = () => (
   </svg>
 );
 
+const FocusIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+  </svg>
+);
+
 /** Desktop reading tools: stage indicator · Listen · Focus · Aa. Bottom right, lg and up. */
 export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) {
   const p = useLessonProgress();
@@ -36,7 +45,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
   const btn = (on: boolean) =>
     `flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] border-r border-line px-1 ${on ? "bg-signal text-on-signal" : "text-fg hover:bg-surface-2"}`;
   return (
-    <div data-reader-ui className="fixed bottom-6 right-6 z-40 hidden flex-col items-end gap-2 lg:flex">
+    <div data-reader-ui data-focus-hide className="fixed bottom-6 right-6 z-40 hidden flex-col items-end gap-2 lg:flex">
       <ReadAloudBar controller={readAloud} />
       <div role="toolbar" aria-label="Reading tools" className="flex items-stretch border border-line-strong bg-surface">
         <div className="flex min-w-[92px] flex-col justify-center gap-1 border-r border-line px-3 py-1.5">
@@ -54,9 +63,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
           </button>
         )}
         <button type="button" onClick={onFocus} aria-pressed={focus} title="Focus (F)" className={btn(focus)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-            <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
-          </svg>
+          <FocusIcon />
           <span className="font-mono text-[10px] tracking-[0.06em]">FOCUS</span>
         </button>
         <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] text-fg hover:bg-surface-2">
@@ -74,8 +81,10 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
  * Phone reading toolbar: Listen · Contents · Aa · Notes · Save. Sits directly above the site's
  * bottom dock (its height is measured into --site-dock), never on top of it.
  */
-export function MobileReadingBar({ readAloud, size, onSize, onContents }: Props) {
+export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus }: Props) {
   const p = useLessonProgress();
+  // slides away with the header while reading down
+  const hidden = useChromeHidden();
   const { current, done, completed, stages, required, saveCheckpoint, complete, ready } = p;
   const listening = readAloud.playing && !readAloud.paused;
   const curStage = stages.find((s) => s.id === current);
@@ -83,29 +92,37 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents }: Props)
   const curDone = completed || done.has(current);
   const lastRequired = required[required.length - 1]?.id === current;
 
+  // `short` replaces `label` below ~380px so the button never truncates mid-word
   let label = "Save checkpoint";
+  let short = "Save";
   let action: (() => void) | null = saveCheckpoint;
   let primary = true;
   if (completed) {
     label = "Cleared ✓";
+    short = "Cleared ✓";
     action = null;
     primary = false;
   } else if (lastRequired) {
     label = "Finish · +60 XP";
+    short = "Finish";
     action = complete;
   } else if (curDone) {
     label = n ? `Stage ${n}/${total} done ✓` : `${curStage?.label ?? "Stage"} done ✓`;
+    short = n ? `${n}/${total} ✓` : "Done ✓";
     action = null;
     primary = false;
   } else if (n) {
     label = `Save · stage ${n}/${total}`;
+    short = `Save ${n}/${total}`;
   }
 
-  const sq = "grid h-12 w-11 shrink-0 place-items-center border border-line-strong text-fg";
+  const sq = "grid h-11 w-10 shrink-0 place-items-center border border-line-strong text-fg";
   return (
     <div
       data-reader-ui
-      className="fixed inset-x-0 z-40 flex flex-col gap-1.5 border-t border-line bg-bg/95 px-2.5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] backdrop-blur lg:hidden"
+      data-focus-hide
+      inert={hidden || undefined}
+      className={`fixed inset-x-0 z-40 flex flex-col gap-1.5 border-t border-line bg-bg/95 px-2.5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] backdrop-blur transition-transform duration-200 lg:hidden ${hidden ? "translate-y-full" : ""}`}
       style={{ bottom: "var(--site-dock, 0px)" }}
     >
       <ReadAloudBar controller={readAloud} className="self-end" />
@@ -123,7 +140,10 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents }: Props)
         <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className={`${sq} font-display text-[15px] font-bold`}>
           Aa
         </button>
-        <Link href="/learn/notes" aria-label="Notebook: highlights and notes" className={sq}>
+        <button type="button" onClick={onFocus} aria-label="Focus: just the lesson, full screen" className={sq}>
+          <FocusIcon />
+        </button>
+        <Link href="/learn/notebook" aria-label="Notebook: highlights and notes" className={sq}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <path d="M4 20h4L19 9l-4-4L4 16z" />
           </svg>
@@ -132,11 +152,37 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents }: Props)
           type="button"
           onClick={action ?? undefined}
           disabled={!action || !ready}
-          className={`h-12 min-w-0 flex-1 truncate px-2 text-sm font-semibold ${primary ? "bg-signal text-on-signal" : "border border-line-strong text-fg-2"}`}
+          className={`h-11 min-w-0 flex-1 truncate px-2 text-sm font-semibold ${primary ? "bg-signal text-on-signal" : "border border-line-strong text-fg-2"}`}
         >
-          {label}
+          <span className="hidden min-[380px]:inline">{label}</span>
+          <span className="min-[380px]:hidden">{short}</span>
         </button>
       </div>
     </div>
+  );
+}
+
+/**
+ * The only chrome left in focus mode: a hairline stage progress bar along the top edge and a
+ * small, quiet control cluster (text size, exit) that wakes up on hover/tap.
+ */
+export function FocusControls({ stages, size, onSize, onExit }: { stages: Stage[]; size: number; onSize: () => void; onExit: () => void }) {
+  return (
+    <>
+      <StageSegments stages={stages} height="h-[3px]" className="fixed inset-x-0 top-0 z-[60]" />
+      <div
+        role="toolbar"
+        aria-label="Focus mode"
+        className="fixed right-3 top-[calc(env(safe-area-inset-top,0px)+12px)] z-[60] flex items-stretch border border-line bg-bg/80 opacity-60 backdrop-blur transition-opacity hover:opacity-100 focus-within:opacity-100"
+      >
+        <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="grid h-10 w-11 place-items-center border-r border-line font-display text-[15px] font-bold text-fg hover:bg-surface-2">
+          Aa
+        </button>
+        <button type="button" onClick={onExit} className="flex h-10 items-center gap-2 px-3 font-mono text-[11px] text-fg hover:bg-surface-2">
+          exit focus
+          <kbd className="hidden border border-line-strong px-1 text-[10px] text-fg-3 sm:inline">esc</kbd>
+        </button>
+      </div>
+    </>
   );
 }

@@ -365,3 +365,32 @@ export function hoursLabel(minutes: number): string {
   const h = minutes / 60;
   return `~${h >= 10 ? Math.round(h) : Math.round(h * 10) / 10} h`;
 }
+
+// ---------------------------------------------------------------- guest lesson records (hk.lesson.v1)
+
+type GuestLessonLike = { stages?: string[]; last?: string | null; completed?: boolean; completedAt?: number; max?: number; updatedAt?: number };
+
+/**
+ * Fold the lesson reader's own per-lesson records (`hk.lesson.v1`, keyed `<course>/<week>/<slug>`)
+ * into a merged progress map. They carry the reading percentage and resume stage, which the game's
+ * done record doesn't, so in-progress lessons get a real % for guests too. Never regresses.
+ */
+export function withGuestLessons(lessons: Record<string, LessonProgress>, guest: Record<string, GuestLessonLike>, courseId: string): Record<string, LessonProgress> {
+  const out: Record<string, LessonProgress> = {};
+  Object.entries(lessons).forEach(([k, p]) => (out[k] = { ...p, completedStages: [...p.completedStages] }));
+  const prefix = `${courseId}/`;
+  Object.entries(guest).forEach(([key, rec]) => {
+    if (!key.startsWith(prefix) || !rec || typeof rec !== "object") return;
+    const lk = key.slice(prefix.length);
+    if (!lk.includes("/")) return;
+    const p = (out[lk] ||= { status: "not_started", pct: 0, completedStages: [], lastStage: null, lastAt: 0 });
+    (rec.stages || []).forEach((s) => p.completedStages.includes(s) || p.completedStages.push(s));
+    if (rec.completed) p.status = "completed";
+    else if (p.status === "not_started" && ((rec.max || 0) > 0 || (rec.stages || []).length > 0 || rec.last)) p.status = "in_progress";
+    p.pct = p.status === "completed" ? 100 : Math.max(p.pct, Math.min(99, rec.max || 0));
+    // the reader's own resume point on this device beats a checkpoint-derived guess
+    if (rec.last && (rec.updatedAt || 0) >= p.lastAt) p.lastStage = rec.last;
+    p.lastAt = Math.max(p.lastAt, rec.updatedAt || 0, rec.completedAt || 0);
+  });
+  return out;
+}

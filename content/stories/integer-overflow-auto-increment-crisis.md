@@ -2,7 +2,7 @@
 slug: integer-overflow-auto-increment-crisis
 title: "The Great ID Crisis: When Auto-Increment Hits the Mathematical Wall"
 excerpt: "A real-world incident story of integer overflow bringing down a high-volume analytics system and the emergency response strategies that saved the day."
-cover: "/blueprints/integer-overflow-crisis.png"
+cover: "/covers/integer-overflow-crisis.png"
 date: "2025-08-08"
 tags: ["Integer Overflow", "Database Design", "Auto-increment", "Production Incidents", "Emergency Response", "System Design"]
 ---

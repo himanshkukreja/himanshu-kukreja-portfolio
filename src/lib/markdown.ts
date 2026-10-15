@@ -55,6 +55,18 @@ export async function markdownToHtml(md: string): Promise<string> {
         };
       });
     })
+    .use(() => async (tree) => {
+      // ```quiz → the course renderer's quick-check figure; <QuizHydrator/> makes it interactive.
+      const { quizFigure } = await import("./course/detect/quiz");
+      let index = 0;
+      visit(tree, "code", (node: { type: string; lang?: string | null; value: string; data?: Record<string, unknown> }) => {
+        if ((node.lang || "").toLowerCase() !== "quiz") return;
+        const fig = quizFigure(node.value, { index: index++ });
+        if (!fig) return;
+        node.type = "quizBlock";
+        node.data = { hName: fig.tagName, hProperties: fig.properties, hChildren: fig.children };
+      });
+    })
     .use(remarkRehype)
     .use(rehypeStringify)
     .process(md);

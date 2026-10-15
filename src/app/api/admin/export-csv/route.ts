@@ -1,23 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function requireAdmin(req: NextRequest) {
-  const token = req.headers.get("x-admin-token") || req.nextUrl.searchParams.get("token");
-  if (token !== process.env.NEWSLETTER_ADMIN_TOKEN) {
-    throw new Error("Unauthorized");
-  }
-}
+
+/** Quote a CSV cell; neutralise spreadsheet formulas (=, +, -, @) from user-supplied values. */
+const cell = (v: unknown) => {
+  let t = v == null ? "" : String(v);
+  if (/^[=+\-@\t\r]/.test(t)) t = `'${t}`;
+  return `"${t.replace(/"/g, '""')}"`;
+};
 
 export async function GET(req: NextRequest) {
-  try {
-    requireAdmin(req);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
 
   const { data, error } = await supabase
     .from("newsletter_subscribers")
@@ -32,17 +31,17 @@ export async function GET(req: NextRequest) {
   const headers = ["Email", "Subscribed Date", "Status", "City", "Region", "Country", "Timezone", "Unsubscribed Date"];
   const csvRows = [headers.join(",")];
 
-  (data || []).forEach(sub => {
+  (data || []).forEach((sub) => {
     const row = [
-      `"${sub.email}"`,
-      `"${new Date(sub.created_at).toISOString()}"`,
-      `"${sub.unsubscribed ? "Unsubscribed" : "Active"}"`,
-      `"${sub.city || ""}"`,
-      `"${sub.region || ""}"`,
-      `"${sub.country || ""}"`,
-      `"${sub.timezone || ""}"`,
-      `"${sub.unsubscribed_at ? new Date(sub.unsubscribed_at).toISOString() : ""}"`
-    ];
+      sub.email,
+      new Date(sub.created_at).toISOString(),
+      sub.unsubscribed ? "Unsubscribed" : "Active",
+      sub.city,
+      sub.region,
+      sub.country,
+      sub.timezone,
+      sub.unsubscribed_at ? new Date(sub.unsubscribed_at).toISOString() : "",
+    ].map(cell);
     csvRows.push(row.join(","));
   });
 

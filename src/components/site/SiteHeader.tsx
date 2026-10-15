@@ -8,6 +8,9 @@ import { Moon, Sun } from "lucide-react";
 import AuthButton from "@/components/AuthButton";
 import { useGame } from "@/game/GameProvider";
 import { BADGES, MAIN_QUESTS, levelProgress } from "@/game/catalog";
+import SearchBar from "@/components/SearchBar";
+import { LearnBrand, LearnDock, LearnTabs, isLearnRoute } from "./LearnNav";
+import { useAutoHideChrome, useChromeHidden } from "./readerChrome";
 
 const NAV = [
   { href: "/#career", label: "career", match: (p: string) => p === "/" },
@@ -97,33 +100,74 @@ function QuestLog({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Publishes the header's height as --hk-header-h on <html> for sticky reader UI and toasts. */
+function useHeaderHeightVar() {
+  const ref = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const root = document.documentElement;
+    const set = () => root.style.setProperty("--hk-header-h", `${Math.round(el.getBoundingClientRect().height)}px`);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return ref;
+}
+
 export default function SiteHeader() {
   const pathname = usePathname() || "/";
   const { xp, hydrated, done, setTerminalOpen } = useGame();
   const [questsOpen, setQuestsOpen] = useState(false);
+  const headerRef = useHeaderHeightVar();
   const p = levelProgress(hydrated ? xp : 0);
   const doneCount = MAIN_QUESTS.filter((q) => done[q.id]).length;
+  const learn = isLearnRoute(pathname);
+  const lesson = isLessonRoute(pathname);
+  // lesson pages: the header slides away while reading down, back on scroll up
+  useAutoHideChrome(lesson && !questsOpen);
+  const hidden = useChromeHidden() && lesson;
+  // Lesson pages bring their own phone reading toolbar, which takes the dock's place.
+  const dockClass = `${lesson ? "hidden" : "grid lg:hidden"} fixed inset-x-0 bottom-0 z-50 grid-cols-5 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`;
 
   return (
     <>
-      <header className="sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur">
-        <div className="relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6 lg:flex-wrap lg:gap-y-2">
-          <Link href="/" className="inline-flex shrink-0 items-center py-2 font-mono text-[15px] font-semibold text-fg sm:text-base">
-            <span className="text-signal-text">~</span>/himanshu
-            <span aria-hidden className="ml-1 inline-block h-4 w-2 animate-hk-blink bg-signal" />
-          </Link>
-          <nav aria-label="Primary" className="hidden flex-wrap gap-0.5 font-mono text-[13px] lg:flex">
-            {NAV.map((n) => {
-              const on = n.match(pathname);
-              return (
-                <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined} className={`px-2.5 py-2.5 ${on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}>
-                  {n.label}
-                </Link>
-              );
-            })}
-          </nav>
+      <header
+        ref={headerRef}
+        data-focus-hide
+        data-hidden={hidden || undefined}
+        aria-hidden={hidden || undefined}
+        inert={hidden || undefined}
+        className={`sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
+      >
+        <div className="relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6">
+          {learn ? (
+            <>
+              <LearnBrand />
+              <LearnTabs pathname={pathname} />
+            </>
+          ) : (
+            <>
+              <Link href="/" className="inline-flex shrink-0 items-center py-2 font-mono text-[15px] font-semibold text-fg sm:text-base">
+                <span className="text-signal-text">~</span>/himanshu
+                <span aria-hidden className="ml-1 inline-block h-4 w-2 animate-hk-blink bg-signal" />
+              </Link>
+              <nav aria-label="Primary" className="hidden flex-wrap gap-0.5 font-mono text-[13px] lg:flex">
+                {NAV.map((n) => {
+                  const on = n.match(pathname);
+                  return (
+                    <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined} className={`px-2.5 py-2.5 ${on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}>
+                      {n.label}
+                    </Link>
+                  );
+                })}
+              </nav>
+            </>
+          )}
           <div className="flex-1" />
           <div className="flex items-center gap-2 sm:gap-2.5">
+            {learn && <SearchBar variant="nav" hotkey />}
             <button
               type="button"
               onClick={() => setQuestsOpen((o) => !o)}
@@ -134,7 +178,7 @@ export default function SiteHeader() {
               {p.level.code}
               <span className="hidden sm:inline"> · {p.level.name}</span>
             </button>
-            <div className="hidden w-[150px] flex-col gap-1.5 sm:flex">
+            <div className={`${learn ? "hidden xl:flex" : "hidden sm:flex"} w-[150px] flex-col gap-1.5`}>
               <div className="h-1.5 bg-surface-2">
                 <div className="h-1.5 bg-signal transition-[width] duration-500" style={{ width: `${p.pct}%` }} />
               </div>
@@ -142,17 +186,22 @@ export default function SiteHeader() {
                 {p.next ? `${hydrated ? xp : 0} / ${p.next.min} xp → ${p.next.name.toLowerCase()}` : `${xp} xp · max level`}
               </span>
             </div>
-            <button
-              type="button"
-              onClick={() => setQuestsOpen((o) => !o)}
-              aria-expanded={questsOpen}
-              className="hidden min-h-10 border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2 sm:block"
-            >
-              quests {hydrated ? doneCount : 0}/{MAIN_QUESTS.length}
-            </button>
-            <button type="button" onClick={() => setTerminalOpen(true)} aria-label="Open terminal" className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2">
-              ⌘K
-            </button>
+            {!learn && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setQuestsOpen((o) => !o)}
+                  aria-expanded={questsOpen}
+                  className="hidden min-h-10 border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2 sm:block"
+                >
+                  quests {hydrated ? doneCount : 0}/{MAIN_QUESTS.length}
+                </button>
+                {/* On /learn ⌘K is the course search, so the terminal button only lives on the portfolio. */}
+                <button type="button" onClick={() => setTerminalOpen(true)} aria-label="Open terminal" className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2">
+                  ⌘K
+                </button>
+              </>
+            )}
             <ThemeToggle />
             <AuthButton />
           </div>
@@ -163,18 +212,21 @@ export default function SiteHeader() {
         </div>
       </header>
 
-      {/* Lesson pages bring their own phone reading toolbar, which takes the dock's place. */}
-      <nav aria-label="Sections" className={`${isLessonRoute(pathname) ? "hidden" : "grid lg:hidden"} fixed inset-x-0 bottom-0 z-50 grid-cols-5 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`}>
-        {DOCK.map((d) => {
-          const on = d.match(pathname);
-          return (
-            <Link key={d.href} href={d.href} aria-current={on ? "page" : undefined} className={`flex min-h-12 flex-col items-center justify-center gap-1.5 font-mono text-[11px] ${on ? "text-fg" : "text-fg-3"}`}>
-              <span aria-hidden className={`h-1.5 w-1.5 ${on ? "bg-signal" : "bg-transparent"}`} />
-              {d.label}
-            </Link>
-          );
-        })}
-      </nav>
+      {learn ? (
+        <LearnDock pathname={pathname} className={dockClass} />
+      ) : (
+        <nav aria-label="Sections" className={dockClass}>
+          {DOCK.map((d) => {
+            const on = d.match(pathname);
+            return (
+              <Link key={d.href} href={d.href} aria-current={on ? "page" : undefined} className={`flex min-h-12 flex-col items-center justify-center gap-1.5 font-mono text-[11px] ${on ? "text-fg" : "text-fg-3"}`}>
+                <span aria-hidden className={`h-1.5 w-1.5 ${on ? "bg-signal" : "bg-transparent"}`} />
+                {d.label}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
     </>
   );
 }

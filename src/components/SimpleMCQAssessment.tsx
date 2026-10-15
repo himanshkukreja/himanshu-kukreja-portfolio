@@ -11,6 +11,7 @@ import TextSelectionMenu from './TextSelectionMenu';
 import NoteEditor from './NoteEditor';
 import Toast from './Toast';
 import ConfirmDialog from './ConfirmDialog';
+import { startEngagedClock, type EngagedClock } from '@/lib/learn/engagedClock';
 
 type OptionLabel = MCQOption['label'];
 
@@ -135,7 +136,8 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savingRef = useRef(false);
   const assessmentIdRef = useRef<string | null>(null);
-  const sessionStartRef = useRef<number>(0);
+  // engaged time on this page (visible tab + recent activity), not wall-clock time
+  const clockRef = useRef<EngagedClock | null>(null);
   const progressRowRef = useRef<{ progress: number; status: string; timeSpent: number; started: boolean } | null>(null);
   const loadPromiseRef = useRef<Promise<void> | null>(null);
 
@@ -295,7 +297,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     const completed = wasCompleted || answered >= total;
     const status = completed ? 'completed' : progress > 0 ? 'in_progress' : 'not_started';
     const now = new Date().toISOString();
-    const sessionSeconds = sessionStartRef.current ? Math.floor((Date.now() - sessionStartRef.current) / 1000) : 0;
+    const sessionSeconds = clockRef.current?.seconds() ?? 0;
 
     const row: Record<string, string | number> = {
       user_id: userId,
@@ -304,7 +306,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
       lesson_slug: lessonSlug,
       progress_percentage: progress,
       status,
-      time_spent: prev.timeSpent + sessionSeconds,
+      time_spent: Math.min(3 * 3600, prev.timeSpent + sessionSeconds),
       last_accessed_at: now,
     };
     if (!prev.started) row.started_at = now;
@@ -398,7 +400,9 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
     userIdRef.current = user?.id ?? null;
   }, [user?.id]);
   useEffect(() => {
-    sessionStartRef.current = Date.now();
+    const clock = startEngagedClock();
+    clockRef.current = clock;
+    return () => clock.stop();
   }, []);
 
   // Keep a ref copy of answers, report the count, and persist guest answers locally.
@@ -1049,7 +1053,7 @@ const SimpleMCQAssessment = forwardRef<SimpleMCQAssessmentHandle, SimpleMCQAsses
                         </span>
                         <button
                           onClick={() => handleShareQuestion(question.number)}
-                          className="grid h-9 w-9 place-items-center text-fg-3 transition-colors hover:text-fg"
+                          className="grid h-11 w-11 place-items-center text-fg-3 transition-colors hover:text-fg"
                           title="Share this question"
                           aria-label={`Copy a link to question ${question.number}`}
                         >

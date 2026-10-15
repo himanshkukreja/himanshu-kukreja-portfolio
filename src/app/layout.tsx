@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { EMAIL, SOCIALS } from "@/lib/socials";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
@@ -30,6 +31,17 @@ const display = Bricolage_Grotesque({
   subsets: ["latin"],
   weight: ["700", "800"],
 });
+
+const PERSON_LD = {
+  "@context": "https://schema.org",
+  "@type": "Person",
+  name: "Himanshu Kukreja",
+  url: "https://himanshukukreja.in",
+  jobTitle: "Senior Software Engineer",
+  worksFor: { "@type": "Organization", name: "Senseloaf AI", url: "https://senseloaf.ai" },
+  email: `mailto:${EMAIL}`,
+  sameAs: SOCIALS.map((s) => s.href),
+};
 
 export const metadata: Metadata = {
   title: "Himanshu Kukreja — Portfolio",
@@ -66,6 +78,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning={true}>
       <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased pb-24 lg:pb-0`}>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON_LD) }} />
         <AnalyticsTracker />
         <AuthProvider>
           <AuthModalProvider>

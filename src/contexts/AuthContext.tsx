@@ -164,8 +164,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Don't await - run in background to not block auth flow
           fetch("/api/send-welcome-email", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ userId: session.user.id }),
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
           })
             .then(response => response.json())
             .then(data => {

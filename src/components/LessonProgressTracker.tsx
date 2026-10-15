@@ -20,6 +20,7 @@ import type { Stage } from "@/lib/course/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/game/GameProvider";
 import {
+  claimGuestProgress,
   loadRemoteLesson,
   readGuestLesson,
   recordLearningActivity,
@@ -29,6 +30,8 @@ import {
 } from "@/components/learn/lesson/progress";
 import { headerStackBottom, stageElement, stageRailHeight } from "@/components/learn/lesson/layout";
 import { isOptionalStage } from "@/components/learn/lesson/stageText";
+import { track } from "@/lib/track";
+import { lessonTimeCap, startEngagedClock, type EngagedClock } from "@/lib/learn/engagedClock";
 
 export { isOptionalStage };
 
@@ -110,6 +113,8 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     return r.length ? r : stages;
   }, [stages]);
 
+  const timeCap = useMemo(() => lessonTimeCap(stages.reduce((a, s) => a + (s.minutes || 0), 0)), [stages]);
+
   const [stored, setStored] = useState<Stored>(EMPTY);
   const [ready, setReady] = useState(false);
   const [current, setCurrent] = useState<string>(stages[0]?.id ?? "");
@@ -117,7 +122,8 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
 
   const storedRef = useRef<Stored>(EMPTY);
   const remoteOk = useRef(false); // the row loaded, so writes can't clobber unknown state
-  const sessionStart = useRef(0);
+  // engaged reading time of this lesson view (visible tab + recent activity), not wall-clock time
+  const clock = useRef<EngagedClock | null>(null);
   const intent = useRef(false);
   const dwell = useRef<Record<string, number>>({});
   const saveTimer = useRef<number | null>(null);
@@ -137,10 +143,18 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     gameCompletedRef.current = hydrated && !!gameDone[lessonXpKey];
   }, [hydrated, gameDone, lessonXpKey]);
 
+  // ---- analytics (tracking contract v2): lesson_open / stage_reach / stage_done / lesson_complete
+  const trackCtx = useRef({ course: courseId, week, lesson: lessonSlug });
+  const reached = useRef<Set<string>>(new Set());
+  const opened = useRef("");
+  useEffect(() => {
+    trackCtx.current = { course: courseId, week, lesson: lessonSlug };
+    reached.current = new Set();
+  }, [courseId, week, lessonSlug]);
+
   // ---- load ------------------------------------------------------------------------------
   useEffect(() => {
     let cancelled = false;
-    sessionStart.current = Date.now();
     remoteOk.current = false;
     dwell.current = {};
     const guest = readGuestLesson(courseId, week, lessonSlug);
@@ -165,7 +179,12 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       const { row, ok } = await loadRemoteLesson(userId, courseId, week, lessonSlug);
       remoteOk.current = ok;
       const remote = fromRow(row);
-      // merge: anything read as a guest on this device carries over after signing in
+      // merge: anything read as a guest on this device carries over after signing in — unless
+      // the stored records belong to another account that signed in on this browser before
+      if (!claimGuestProgress(userId)) {
+        apply(remote);
+        return;
+      }
       apply({
         ...remote,
         done: Array.from(new Set([...remote.done, ...local.done])),
@@ -178,6 +197,13 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       cancelled = true;
     };
   }, [userId, courseId, week, lessonSlug]);
+
+  useEffect(() => {
+    const key = `${courseId}/${week}/${lessonSlug}`;
+    if (!ready || opened.current === key) return;
+    opened.current = key;
+    track("lesson_open", { course: courseId, week, lesson: lessonSlug, stage: storedRef.current.lastStage ?? stages[0]?.id ?? "" });
+  }, [ready, courseId, week, lessonSlug, stages]);
 
   // ---- persist -----------------------------------------------------------------------------
   const persist = useCallback(
@@ -200,8 +226,9 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       });
 
       if (!userId || !remoteOk.current) return;
-      if (!next.completed && next.done.length === 0 && !next.lastStage) return;
-      const seconds = sessionStart.current ? Math.floor((Date.now() - sessionStart.current) / 1000) : 0;
+      const seconds = clock.current?.seconds() ?? 0;
+      // a row is worth writing once there is progress, or a minute of real reading
+      if (!next.completed && next.done.length === 0 && !next.lastStage && seconds < 60) return;
       void saveRemoteLesson({
         userId,
         course: courseId,
@@ -211,7 +238,7 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
         lastStage: next.lastStage,
         completed: next.completed,
         progress,
-        timeSpent: next.timeSpent + seconds,
+        timeSpent: Math.min(timeCap, next.timeSpent + seconds),
         startedAt: next.startedAt,
         completedAt: next.completedAt,
         contentVersion,
@@ -219,8 +246,41 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
         if (ok && !storedRef.current.startedAt) storedRef.current = { ...storedRef.current, startedAt: new Date().toISOString() };
       });
     },
-    [required, courseId, week, lessonSlug, userId, contentVersion]
+    [required, courseId, week, lessonSlug, userId, contentVersion, timeCap]
   );
+
+  // Run the engaged clock for this lesson and save its time when the reader leaves, hides the tab,
+  // or every 2 minutes of reading (time used to be saved only with a checkpoint).
+  const persistRef = useRef(persist);
+  useEffect(() => {
+    persistRef.current = persist;
+  }, [persist]);
+  useEffect(() => {
+    const c = startEngagedClock();
+    clock.current = c;
+    let sent = 0;
+    const flush = () => {
+      const secs = c.seconds();
+      if (secs - sent < 1) return;
+      sent = secs;
+      persistRef.current(storedRef.current);
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    const timer = window.setInterval(() => {
+      if (c.seconds() - sent >= 120) flush();
+    }, 15_000);
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+      flush();
+      c.stop();
+    };
+  }, [courseId, week, lessonSlug]);
 
   const update = useCallback(
     (fn: (s: Stored) => Stored, opts: { immediate?: boolean } = {}) => {
@@ -236,6 +296,8 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
 
   const complete = useCallback(() => {
     if (!storedRef.current.completed) {
+      const secs = Math.min(timeCap, storedRef.current.timeSpent + (clock.current?.seconds() ?? 0));
+      track("lesson_complete", { ...trackCtx.current, minutes: Math.round(secs / 60) });
       update(
         (s) => ({ ...s, completed: true, completedAt: s.completedAt ?? new Date().toISOString() }),
         { immediate: true }
@@ -243,7 +305,7 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       if (userId) void recordLearningActivity(userId);
     }
     awardOnce(lessonXpKey, 60, `${title} · complete`);
-  }, [update, awardOnce, lessonXpKey, title, userId]);
+  }, [update, awardOnce, lessonXpKey, title, userId, timeCap]);
 
   const markStageDone = useCallback(
     (id: string) => {
@@ -251,6 +313,7 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       if (!stage) return;
       const already = storedRef.current.done.includes(id);
       if (!already) {
+        track("stage_done", { ...trackCtx.current, stage: id, index: stages.indexOf(stage), total: stages.length });
         update((s) => ({ ...s, done: [...s.done, id] }), { immediate: true });
         if (userId) void recordLearningActivity(userId);
       }
@@ -297,6 +360,10 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       if (cur !== currentRef.current) {
         currentRef.current = cur;
         setCurrent(cur);
+        if (intent.current && !reached.current.has(cur)) {
+          reached.current.add(cur);
+          track("stage_reach", { ...trackCtx.current, stage: cur, index: stages.findIndex((s) => s.id === cur), total: stages.length });
+        }
         if (intent.current) update((s) => (s.lastStage === cur ? s : { ...s, lastStage: cur }));
       }
       if (rounded !== pctRef.current) {

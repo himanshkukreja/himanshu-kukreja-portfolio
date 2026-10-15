@@ -30,7 +30,7 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
         <span aria-hidden className="h-px flex-1 bg-line" />
       </div>
 
-      <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 border bg-surface px-5 py-5 ${completed ? "border-line-strong" : "border-signal"}`}>
+      <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 border bg-surface p-4 sm:px-5 sm:py-5 ${completed ? "border-line-strong" : "border-signal"}`}>
         <span className="flex min-w-0 flex-[1_1_300px] flex-col gap-1">
           <span className="text-[17px] font-semibold">{completed ? `${name} cleared` : `Finish ${name}`}</span>
           <span className="text-sm leading-normal text-fg-2">
@@ -43,7 +43,7 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
           type="button"
           onClick={complete}
           disabled={completed || !ready}
-          className={`min-h-[52px] px-5 text-[15px] font-semibold ${
+          className={`min-h-[52px] w-full px-5 text-[15px] font-semibold sm:w-auto ${
             completed ? "border border-line-strong bg-surface-2 text-fg-2" : "bg-signal text-on-signal hover:brightness-110"
           } disabled:cursor-default`}
         >

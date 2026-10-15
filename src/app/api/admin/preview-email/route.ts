@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/admin/auth";
 import { getAllStories } from "@/lib/stories";
 import { buildStoriesEmailHtml } from "@/lib/emailTemplate";
 
@@ -6,19 +7,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
-function requireAdmin(req: NextRequest) {
-  const token = req.headers.get("x-admin-token") || req.nextUrl.searchParams.get("token");
-  if (token !== process.env.NEWSLETTER_ADMIN_TOKEN) {
-    throw new Error("Unauthorized");
-  }
-}
 
 export async function POST(req: NextRequest) {
-  try {
-    requireAdmin(req);
-  } catch {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const admin = await requireAdmin(req);
+  if (admin instanceof NextResponse) return admin;
 
   const payload = await req.json().catch(() => ({}));
   const requestedSlugs: string[] | undefined = Array.isArray(payload?.slugs) ? payload.slugs : undefined;

@@ -99,21 +99,26 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
       const rows = (data || []) as CommentRow[];
       const commentIds = rows.map((c) => c.id);
 
-      // Fetch user votes if logged in
-      let userVotes: Record<string, "upvote" | "downvote"> = {};
-      if (userId && commentIds.length > 0) {
-        const { data: votesData } = await supabaseClient
+      // Vote counts come from the votes themselves (public rows), not the denormalized
+      // upvotes/downvotes columns: those were written by the voter's browser, which RLS only lets
+      // through on the voter's OWN comments, so other people's votes never counted.
+      const userVotes: Record<string, "upvote" | "downvote"> = {};
+      const counts = new Map<string, { up: number; down: number }>();
+      let votesOk = false;
+      if (commentIds.length > 0) {
+        const { data: votesData, error: votesError } = await supabaseClient
           .from("story_comment_votes")
-          .select("comment_id, vote_type")
-          .eq("user_id", userId)
+          .select("comment_id, vote_type, user_id")
           .in("comment_id", commentIds);
+        votesOk = !votesError && !!votesData;
 
-        if (votesData) {
-          userVotes = (votesData as VoteRow[]).reduce<Record<string, "upvote" | "downvote">>((acc, vote) => {
-            acc[vote.comment_id] = vote.vote_type;
-            return acc;
-          }, {});
-        }
+        ((votesData || []) as (VoteRow & { user_id: string })[]).forEach((vote) => {
+          const c = counts.get(vote.comment_id) || { up: 0, down: 0 };
+          if (vote.vote_type === "upvote") c.up++;
+          else c.down++;
+          counts.set(vote.comment_id, c);
+          if (userId && vote.user_id === userId) userVotes[vote.comment_id] = vote.vote_type;
+        });
       }
 
       // Build the nested structure
@@ -130,8 +135,8 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
           content: comment.content,
           raw_content: comment.raw_content,
           is_edited: comment.is_edited,
-          upvotes: comment.upvotes,
-          downvotes: comment.downvotes,
+          upvotes: votesOk ? counts.get(comment.id)?.up ?? 0 : comment.upvotes,
+          downvotes: votesOk ? counts.get(comment.id)?.down ?? 0 : comment.downvotes,
           is_pinned: comment.is_pinned,
           is_solution: false,
           created_at: comment.created_at,
@@ -255,20 +260,10 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
         });
       }
 
-      // Recalculate votes
-      const { data: votes } = await supabaseClient
-        .from("story_comment_votes")
-        .select("vote_type")
-        .eq("comment_id", commentId);
-
-      const upvotes = votes?.filter((v) => v.vote_type === "upvote").length || 0;
-      const downvotes = votes?.filter((v) => v.vote_type === "downvote").length || 0;
-
-      await supabaseClient
-        .from("story_comments")
-        .update({ upvotes, downvotes })
-        .eq("id", commentId);
-
+      // Counts are derived from story_comment_votes on fetch (and kept by a DB trigger once
+      // 20261015_learn_backend_fixes.sql is applied). The browser no longer writes upvotes /
+      // downvotes itself: RLS silently dropped that write on anyone else's comment, and it let
+      // authors set any count on their own.
       await fetchComments();
     } catch (err) {
       console.error("Error voting:", err);

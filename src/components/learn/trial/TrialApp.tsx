@@ -272,14 +272,14 @@ function TrialHub({
           {cur && (
             <Link
               href={hrefFor(cur.part.n)}
-              className="inline-flex min-h-[56px] items-center gap-3 bg-signal px-6 text-[17px] font-semibold text-on-signal no-underline hover:opacity-90"
+              className="inline-flex min-h-[56px] w-full items-center justify-center gap-3 bg-signal px-6 text-center text-[17px] font-semibold text-on-signal no-underline hover:opacity-90 sm:w-auto sm:justify-start sm:text-left"
             >
               {cleared === k ? "Retake a part" : `${cur.state === "fail" ? "Retry" : "Start"} Part ${cur.part.n} · ${cur.part.title}`} <span aria-hidden="true">▶</span>
             </Link>
           )}
           <Link
             href={`${base}?view=all`}
-            className="inline-flex min-h-[56px] items-center border border-line-strong px-4 text-[15px] text-fg no-underline hover:border-fg-3"
+            className="inline-flex min-h-[56px] w-full items-center justify-center border border-line-strong px-4 text-[15px] text-fg no-underline hover:border-fg-3 sm:w-auto"
           >
             Practice all {total} on one page
           </Link>

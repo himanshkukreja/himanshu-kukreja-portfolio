@@ -5,8 +5,8 @@
  * Data: the existing /api/search payload (loaded the first time the palette opens, not on mount)
  * plus, for signed-in learners, their own content_notes.
  *
- * Variants: "nav" (learn sub-nav trigger), "bar" (full-width trigger), "floating" (legacy: the
- * learn sub-nav owns search now, so it renders nothing). Only an instance with `hotkey` listens
+ * Variants: "nav" (course search in the site header), "bar" (full-width trigger), "floating" (legacy: the
+ * the site header owns search now, so it renders nothing). Only an instance with `hotkey` listens
  * for ⌘K / Ctrl+K and for the `hk:course-search` window event.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,6 +17,7 @@ import Fuse from "fuse.js";
 import type { LearningResource } from "@/lib/github";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabaseClient } from "@/lib/supabase-client";
+import { track } from "@/lib/track";
 
 type Doc = LearningResource & { content?: string; excerpt?: string };
 type Group = "lessons" | "questions" | "notes";
@@ -243,6 +244,14 @@ function Palette({ onClose }: { onClose: () => void }) {
     setSel(0);
   }, [q, filter]);
 
+  // analytics: one `search` event per settled query (1.2 s idle) — length only, never the text
+  useEffect(() => {
+    const t = q.trim();
+    if (!t || !docs) return;
+    const id = window.setTimeout(() => track("search", { q_len: t.length, results: hits.length }), 1200);
+    return () => window.clearTimeout(id);
+  }, [q, docs, hits.length]);
+
   useEffect(() => {
     const el = listRef.current?.querySelector<HTMLElement>(`[data-idx="${sel}"]`);
     el?.scrollIntoView({ block: "nearest" });
@@ -456,7 +465,7 @@ function Palette({ onClose }: { onClose: () => void }) {
 
 type SearchBarProps = {
   variant?: "bar" | "floating" | "nav";
-  /** listen for ⌘K / Ctrl+K and the hk:course-search event (one instance per page: the learn sub-nav) */
+  /** listen for ⌘K / Ctrl+K and the hk:course-search event (one instance per page: the site header) */
   hotkey?: boolean;
 };
 

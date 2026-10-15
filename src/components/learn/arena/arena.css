@@ -1,0 +1,17 @@
+/* Arena micro-animations (Tailwind arbitrary animations reference these; reduced motion is
+   handled by motion-safe: at the call site and by the global rule in globals.css). */
+@keyframes sd-arena-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes sd-arena-glow {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--c-ok) 55%, transparent); }
+  100% { box-shadow: 0 0 0 10px transparent; }
+}
+@keyframes sd-arena-pop {
+  0% { transform: scale(0.96); opacity: 0.4; }
+  100% { transform: scale(1); opacity: 1; }
+}

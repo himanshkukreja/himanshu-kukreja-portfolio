@@ -84,29 +84,24 @@ async function sendWelcomeEmail(email: string, name: string) {
 export async function POST(request: NextRequest) {
   try {
     console.log("[WELCOME EMAIL API] 🔵 Request received");
-    const { userId } = await request.json();
-    console.log("[WELCOME EMAIL API] User ID:", userId);
-
-    if (!userId) {
-      console.log("[WELCOME EMAIL API] ❌ No user ID provided");
-      return NextResponse.json({ error: "User ID required" }, { status: 400 });
-    }
-
-    // Get user from auth.users to check account creation time
-    console.log("[WELCOME EMAIL API] 📧 Fetching user details...");
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
-
-    if (userError || !user) {
-      console.error("[WELCOME EMAIL API] ❌ Error fetching user:", userError);
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
+    // The caller is whoever owns the session token — never a user id from the body.
+    const auth = request.headers.get("authorization") || "";
+    const token = auth.startsWith("Bearer ") ? auth.slice(7).trim() : "";
+    if (!token) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
+    if (userError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const userId = user.id;
 
     // Get user profile for display name
     const { data: profile } = await supabaseAdmin
       .from("user_profiles")
-      .select("full_name")
+      .select("full_name, welcome_email_sent")
       .eq("id", userId)
       .single();
+
+    if (profile?.welcome_email_sent) {
+      return NextResponse.json({ message: "Existing user - welcome email not sent", alreadySent: true });
+    }
 
     // Check if account was created recently (within last 60 seconds = first signup)
     const accountCreatedAt = new Date(user.created_at);
@@ -136,6 +131,8 @@ export async function POST(request: NextRequest) {
     try {
       await sendWelcomeEmail(user.email!, profile?.full_name || user.email!);
       console.log("[WELCOME EMAIL API] ✅ Welcome email sent successfully");
+      // once per account, even if the client calls again
+      await supabaseAdmin.from("user_profiles").update({ welcome_email_sent: true }).eq("id", userId);
     } catch (emailError) {
       console.error(`[WELCOME EMAIL API] ❌ Failed to send email:`, emailError);
       // Don't throw - the user is authenticated successfully, email is a bonus
@@ -143,7 +140,6 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       message: "Welcome email sent successfully",
-      email: user.email,
       success: true,
       isNewAccount: true,
     });

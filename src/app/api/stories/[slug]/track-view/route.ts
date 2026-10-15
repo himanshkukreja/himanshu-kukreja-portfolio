@@ -117,6 +117,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ slu
   const { slug } = await params;
   const storyId = slug?.trim();
   if (!storyId) return NextResponse.json({ error: "Missing story id" }, { status: 400 });
+  // any string used to create a story_views row; story slugs are short kebab-case
+  if (!/^[a-z0-9][a-z0-9-]{0,119}$/i.test(storyId)) return NextResponse.json({ error: "Bad story id" }, { status: 400 });
 
   const { id, setCookie } = getVisitorId(req);
 

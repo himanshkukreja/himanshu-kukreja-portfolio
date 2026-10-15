@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useGame } from "@/game/GameProvider";
 import { addReviewCard } from "@/lib/learn/review";
+import { track } from "@/lib/track";
 import type { MCQQuestion } from "@/lib/mcq-parser";
 import {
   TRIAL_XP,
@@ -209,6 +210,7 @@ export default function TrialRun(props: Props) {
     const score = marks.reduce<number>((a, b) => a + b, 0);
     const passed = score >= pm;
     const award = passed ? awardOnce(trialXpKey(week, part.n), TRIAL_XP, `Trial cleared · ${props.weekLabel} part ${part.n}`) : 0;
+    track("trial_result", { week, part: part.n, score, total: N, passed });
 
     // Misses (wrong or skipped) and flagged-but-right questions go to the review queue
     let queued = 0;
@@ -505,7 +507,7 @@ function Gate(
               <button
                 type="button"
                 onClick={props.onResume}
-                className="inline-flex min-h-[56px] items-center gap-3 bg-signal px-6 text-[17px] font-semibold text-on-signal hover:opacity-90"
+                className="inline-flex min-h-[56px] w-full items-center justify-center gap-3 bg-signal px-6 text-[17px] font-semibold sm:w-auto sm:justify-start text-on-signal hover:opacity-90"
               >
                 Resume attempt {resumable.attempt} · Q{Math.min(resumable.i + 1, N)} of {N} <span aria-hidden="true">▶</span>
               </button>
@@ -513,7 +515,7 @@ function Gate(
               <>
                 <Link
                   href={lessonHref}
-                  className="inline-flex min-h-[56px] items-center gap-3 bg-signal px-6 text-[17px] font-semibold text-on-signal no-underline hover:opacity-90"
+                  className="inline-flex min-h-[56px] w-full items-center justify-center gap-3 bg-signal px-6 text-[17px] font-semibold sm:w-auto sm:justify-start text-on-signal no-underline hover:opacity-90"
                 >
                   Read {part.boss ? "the capstone" : lesson?.label} first <span aria-hidden="true">→</span>
                 </Link>
@@ -521,7 +523,7 @@ function Gate(
                   type="button"
                   onClick={props.onStart}
                   disabled={!props.canStart}
-                  className="inline-flex min-h-[56px] items-center border border-line-strong px-[18px] text-[15px] text-fg hover:border-fg-3 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="inline-flex min-h-[56px] w-full items-center justify-center border border-line-strong px-[18px] text-[15px] sm:w-auto text-fg hover:border-fg-3 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Start anyway
                 </button>
@@ -532,7 +534,7 @@ function Gate(
                   type="button"
                   onClick={props.onStart}
                   disabled={!props.canStart}
-                  className="inline-flex min-h-[56px] items-center gap-3 bg-signal px-6 text-[17px] font-semibold text-on-signal hover:opacity-90 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-3"
+                  className="inline-flex min-h-[56px] w-full items-center justify-center gap-3 bg-signal px-6 text-[17px] font-semibold sm:w-auto sm:justify-start text-on-signal hover:opacity-90 disabled:cursor-not-allowed disabled:bg-surface-2 disabled:text-fg-3"
                 >
                   {cd > 0 ? `Retry opens in ${mmss(cd)}` : `Start attempt ${attemptN}`} <span aria-hidden="true">▶</span>
                 </button>

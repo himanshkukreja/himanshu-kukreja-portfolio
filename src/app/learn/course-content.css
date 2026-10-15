@@ -1641,9 +1641,113 @@ pre mark {
   }
 }
 
+/* ------------------------------------------------------------ horizontal scroll cue */
+
+/* Tables, code and wide blueprints scroll inside their box. CourseEnhancer marks the edges that
+   have more content (data-sd-scroll="left right"); that edge fades out, so a cut-off column
+   reads as "keeps going", and the fade disappears once the reader reaches the end. */
+.course-content :is(.sd-table, .sd-code-pre, .sd-bp-body)[data-sd-scroll="right"] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), rgba(0, 0, 0, 0.18));
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), rgba(0, 0, 0, 0.18));
+}
+.course-content :is(.sd-code-pre, .sd-bp-body)[data-sd-scroll="left"] {
+  -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0.18), #000 32px);
+  mask-image: linear-gradient(to right, rgba(0, 0, 0, 0.18), #000 32px);
+}
+.course-content :is(.sd-code-pre, .sd-bp-body)[data-sd-scroll="left right"] {
+  -webkit-mask-image: linear-gradient(to right, rgba(0, 0, 0, 0.18), #000 32px, #000 calc(100% - 40px), rgba(0, 0, 0, 0.18));
+  mask-image: linear-gradient(to right, rgba(0, 0, 0, 0.18), #000 32px, #000 calc(100% - 40px), rgba(0, 0, 0, 0.18));
+}
+/* the sticky first column stays crisp: tables only fade on the right */
+.course-content .sd-table[data-sd-scroll="left right"] {
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 40px), rgba(0, 0, 0, 0.18));
+  mask-image: linear-gradient(to right, #000 calc(100% - 40px), rgba(0, 0, 0, 0.18));
+}
+.course-content .sd-table,
+.course-content .sd-code-pre,
+.course-content .sd-bp-body {
+  overscroll-behavior-x: contain;
+}
+
+/* ------------------------------------------------------------ touch */
+
+@media (hover: none) {
+  /* heading anchors: a 40px hit area without moving the heading text */
+  .course-content .sd-anchor {
+    padding: 12px 8px;
+    margin: -12px -8px -12px 0;
+  }
+}
+
 /* ------------------------------------------------------------ phones */
 
 @media (max-width: 640px) {
+  /* reading rhythm: a ~45-55 character line reads best a touch tighter than desktop */
+  .course-content {
+    line-height: 1.68;
+  }
+  .course-content p {
+    margin-bottom: 1em;
+  }
+  .course-content .sd-h {
+    margin-top: 1.8em;
+  }
+  .course-content .sd-h1 {
+    font-size: 1.6em;
+  }
+  .course-content .sd-h2 {
+    font-size: 1.42em;
+  }
+  .course-content .sd-h3 {
+    font-size: 1.24em;
+  }
+  .course-content .sd-h4 {
+    font-size: 1.08em;
+  }
+  .course-content .sd-chapter {
+    column-gap: 12px;
+    margin-top: 2em;
+  }
+  .course-content .sd-ch-box {
+    width: 40px;
+    height: 40px;
+    font-size: 14px;
+  }
+  .course-content .sd-stage + .sd-stage {
+    margin-top: 48px;
+    padding-top: 32px;
+  }
+  .course-content .sd-stage-num {
+    font-size: 52px;
+  }
+  .course-content .sd-stage-title {
+    margin: 0;
+    font-size: clamp(1.5em, 7.4vw, 2.1em);
+    line-height: 1.02;
+  }
+  .course-content .sd-lede {
+    font-size: 1.28em;
+  }
+  .course-content hr {
+    margin: 36px auto;
+  }
+  .course-content .sd-table th,
+  .course-content .sd-table td {
+    padding: 9px 10px;
+  }
+  .course-content .sd-table td {
+    min-width: 6.5em;
+  }
+  .course-content .sd-code-pre .line::before {
+    width: 2em;
+    margin-right: 0.9em;
+  }
+  .course-content .sd-fig-cap {
+    padding: 10px 12px;
+  }
+  .course-content .sd-toolbar {
+    padding: 8px 12px;
+  }
   .course-content .sd-stage-head {
     gap: 12px;
   }

@@ -2,15 +2,15 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { trackPageView } from "@/lib/analytics";
+import { pageview } from "@/lib/track";
 
+/** Mounted once in the root layout: a page view per app-router navigation (see src/lib/track.ts). */
 export default function AnalyticsTracker() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // Track page view on mount and pathname change
-    trackPageView();
+    pageview(pathname || undefined);
   }, [pathname]);
 
-  return null; // This component doesn't render anything
+  return null;
 }

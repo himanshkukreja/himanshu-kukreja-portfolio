@@ -2,7 +2,7 @@
 slug: bridgelink-remote-android-testing
 title: "From Office-Bound Devices to Global Access: The BridgeLink Story"
 excerpt: "How a remote work challenge transformed into a universal Android device access platform, enabling developers to test on physical devices from anywhere in the world."
-cover: "/blueprints/bridgelink-remote-testing-revolution.png"
+cover: "/covers/bridgelink-remote-testing-revolution.png"
 date: "2025-11-27"
 tags: ["Android Development", "Remote Development", "ADB", "Developer Experience", "Testing", "CI/CD", "Automation", "Open Source", "Tech Innovation", "Productivity"]
 ---
@@ -56,7 +56,20 @@ Monday 10:00 AM - User reports UPI payment crash on Redmi Note 11
 
 ## The Vision: Your Physical Devices, Universally Accessible
 
-![The Vision Diagram](/blueprints/bridgelink-vision.png)
+```mermaid
+%% title: Traditional vs BridgeLink
+flowchart LR
+    subgraph TR["Traditional approach"]
+        direction TB
+        D1(["Developer"]):::client --> U["USB cable"]:::edge --> P1["One physical device<br/>on the same desk"]:::external
+    end
+    subgraph BL["BridgeLink approach"]
+        direction TB
+        D2(["Developer anywhere<br/>Windows · macOS · Linux"]):::client --> I["Internet"]:::edge
+        I --> T["Secure bore tunnel"]:::core
+        T --> P2["Physical devices anywhere<br/>Redmi · Realme · Vivo · Pixel"]:::external
+    end
+```
 <!-- IMAGE PROMPT: A clean technical diagram showing the transformation from traditional to BridgeLink approach. Top section labeled "Traditional Approach": Simple linear flow with developer icon → USB cable → single Android phone icon. Bottom section labeled "BridgeLink Approach": Developer icon (multiple platforms - Windows, Mac, Linux) → cloud/internet symbol with lock/security icon → network lines branching to multiple Android devices (5-6 phones of different brands) placed globally. Use isometric 3D style, modern gradients (blue to purple), with glowing connection lines. Include small location pins on devices to show global distribution. -->
 
 
@@ -170,7 +183,7 @@ flowchart TD
     L -->|"adb forward tcp:5000 tcp:5555"| D["Device 1d752b81<br/>adb tcpip 5555"]:::core
 ```
 
-![Prototype Success](/blueprints/bridgelink-prototype.png)
+![First success: a terminal running adb connect bore.pub:15750 and getting connected, while the Samsung S21 sits in another room on WiFi](/case-files/bridgelink-prototype.png)
 <!-- IMAGE PROMPT: A celebratory moment illustration showing a developer at their desk with a laptop displaying a terminal window with green success text "adb connect bore.pub:15750" and "connected to 192.168.1.15:5555". In the background/foreground, show a Samsung phone floating with WiFi signal waves and a glowing connection line to the laptop. Include confetti or sparkle effects around the connection. Modern, vibrant illustration style with dark mode terminal aesthetic. Show the "first victory" vibe with subtle celebration elements. -->
 
 ---
@@ -239,7 +252,7 @@ class TunnelManager:
 - **After**: Automated, persistent, recoverable tunnel management
 - **Impact**: Can manage 50+ tunnels reliably
 
-![Tunnel Management](/blueprints/bridgelink-tunnel-management.png)
+![Tunnel hell to tunnel manager: fifty per-device shell scripts replaced by one persisted tunnels.json with each device's tunnel URL, pid, ADB port and type](/case-files/bridgelink-tunnel-management.png)
 <!-- IMAGE PROMPT: A dashboard-style illustration showing organized tunnel management. Display a grid/table view with 6-8 rows representing different devices. Each row shows: device icon (different Android phones), device serial number, tunnel URL (bore.pub:XXXXX), status indicator (green checkmark for active, gray circle for inactive), and connection type (USB/WiFi icon). Include visual indicators like green glowing lines connecting devices to cloud tunnel icons. Modern UI design, dark mode, with subtle animations suggested by glow effects. Show organization vs chaos - maybe split screen with "Before" showing messy scripts and "After" showing clean dashboard. -->
 
 ### Challenge 2: WiFi Connection Support
@@ -300,7 +313,7 @@ bridgelink devices add --wifi 1d752b81
 # Device is now wireless, tunnel still works globally! 🎉
 ```
 
-![WiFi Connection Flow](/blueprints/bridgelink-wifi-flow.png)
+![USB to WiFi in three steps: adb tcpip 5555 on USB, read the device IP with ip route, then adb connect 192.168.1.15:5555 and unplug the cable](/case-files/bridgelink-wifi-flow.png)
 <!-- IMAGE PROMPT: A 3-step visual flow diagram showing WiFi setup process. Step 1: Android phone connected to laptop via USB cable (show cable clearly). Step 2: Phone displaying TCP/IP mode enabled screen with "5555" port number visible, WiFi waves emanating from phone. Step 3: Phone now wireless (no cable), connected via WiFi waves to laptop, with USB cable disconnected and set aside. Use numbered circular badges (1, 2, 3) for each step. Include checkmarks and progress indicators. Clean, modern infographic style with teal/blue color scheme. Show the transformation from wired to wireless clearly. -->
 
 ### Challenge 3: The "Is My Device Still Alive?" Problem
@@ -456,7 +469,7 @@ stateDiagram-v2
     class Inactive bad
 ```
 
-![Auto-Activation Flow](/blueprints/bridgelink-auto-activation.png)
+![Auto-activation timeline: device unplugged, health monitor marks it inactive a second later, device plugged back in, connection monitor re-activates it a second later](/case-files/bridgelink-auto-activation.png)
 <!-- IMAGE PROMPT: A circular flow diagram showing auto-activation cycle. Show 4 states clockwise: 1) Green phone icon labeled "Device Active" with checkmark, 2) Phone with X mark and red indicator "Device Disconnected", 3) Gray phone with refresh icon "Health Monitor Detects (1 sec)", 4) Phone reconnecting with green arrow "Auto-Activation". In the center, show a daemon/robot icon labeled "Background Monitor" with 1-second timer. Use circular arrows connecting each state. Include time labels "1 sec" on detection and activation steps. Modern, clean design with status colors (green=active, red=disconnected, orange=detecting, blue=reconnecting). -->
 
 ### Challenge 4: Beautiful Developer Experience
@@ -511,7 +524,7 @@ click.echo(click.style("bridgelink.io:15750", fg='magenta', bold=True))
 
 ## The Platform Architecture: How It All Comes Together
 
-![Architecture Diagram](/blueprints/bridgelink-architecture.png)
+![One adb command end to end: developer, NativeBridge platform, bore tunnel with an API-key secret, the device host running the tunnel, health and connection monitors, then the Android device on TCP 5555](/case-files/bridgelink-architecture.png)
 <!-- IMAGE PROMPT: A layered architecture diagram showing BridgeLink system components in 4 tiers, displayed vertically from top to bottom. Tier 1 (Developer): Show laptop/desktop icons with CLI terminal and web dashboard. Tier 2 (Management): Show interconnected boxes for Tunnel Manager, Health Monitor (with heartbeat icon), Connection Monitor (with refresh icon), and State Management (with database icon). Tier 3 (Platform/NativeBridge): Show cloud infrastructure with API endpoints, user auth (lock icon), device registry (database), and dashboard. Tier 4 (Devices): Show 5-6 different Android phones (Samsung, Pixel, OnePlus) with USB/WiFi indicators and tunnel connections. Use connecting lines/arrows showing data flow between tiers. Color-code each tier differently (purple, blue, green, orange). Modern, technical diagram style with icons and clear labels. Include bore tunnel visualization as encrypted pipes connecting tiers. -->
 
 ```mermaid
@@ -657,7 +670,7 @@ dashboard_url = get_dashboard_url()
 
 ## Real-World Impact: Transforming Developer Workflows
 
-![Success Metrics](/blueprints/bridgelink-success-metrics.png)
+![PaySecure India before and after: office trips from 2–3 a day to zero, bug fixes from 24–48 hours to 2–4 hours, developer satisfaction from 4 to 9 out of 10](/case-files/bridgelink-success-metrics.png)
 <!-- IMAGE PROMPT: An infographic showing before/after metrics comparison. Split into two columns labeled "Before BridgeLink" (left, red/orange tones) and "After BridgeLink" (right, green/blue tones). Show key metrics with icons: Office trips (car icon): 2-3/day → 0/day, Time wasted (clock): 15+ hrs/week → 0 hrs/week, Bug fix time (wrench): 24-48 hrs → 2-4 hrs, Developer satisfaction (star rating): 4/10 → 9/10, Device access (phone icon): Impossible from home → 24/7 instant. Use progress bars, charts, and large numbers to show dramatic improvements. Modern infographic style with clear visual hierarchy. -->
 
 ### Success Story 1: PaySecure India Transformation
@@ -701,7 +714,7 @@ Monday 10:00 AM - User reports UPI crash on Redmi Note 11
 
 ### Success Story 2: QA Testing Revolution
 
-![India-Wide Device Access](/blueprints/bridgelink-india-access.png)
+![TestMatrix India: 200 devices in one Bangalore office reached by QA engineers across India; shipping costs from ₹40 lakh a year to zero and coverage from 60% to 95%](/case-files/bridgelink-india-access.png)
 <!-- IMAGE PROMPT: An India map illustration showing device distribution across Indian cities. Display a central office location in Bangalore (marked with a building icon) with 200 device icons clustered around it. Show connection lines radiating out to 5-6 different Indian locations (marked with user/tester icons) - Mumbai, Delhi, Pune, Hyderabad, Chennai, Kolkata. Each connection line should be glowing/animated style showing active tunnels. Include small phone icons (Redmi, Realme, OnePlus) at the central hub and laptop icons at remote locations. Use dark mode map with neon blue/purple/saffron connection lines (tricolor inspiration). Add data statistics in corners: "200 Devices", "Pan-India QA Team", "Zero Shipping Costs", "Instant Access". Modern, tech-forward design with Indian aesthetic. -->
 
 **TestMatrix India** - QA Services Company (Pune-based):
@@ -728,7 +741,7 @@ Monday 10:00 AM - User reports UPI crash on Redmi Note 11
 
 ### Success Story 3: Startup Cost Savings
 
-![Cost Comparison](/blueprints/bridgelink-cost-savings.png)
+![QuickShip year one: ₹1,63,20,000 a year on a cloud device farm versus ₹4,48,000 with BridgeLink and owned devices, a 35x return](/case-files/bridgelink-cost-savings.png)
 <!-- IMAGE PROMPT: A side-by-side cost comparison infographic with Indian currency. Left side "Cloud Device Farm" (expensive): Show stacked money/coin icons with rupee amounts: Monthly ₹13.6L, Annual ₹1.6Cr. Include cloud icons with device farm logos. Right side "BridgeLink Solution" (affordable): Show much smaller money stack: One-time device cost ₹4L, Monthly platform ₹4,000, First year total ₹4.5L. Include a large green badge/seal saying "SAVED ₹1.55 Cr!" or "35x ROI". Use red/orange colors for expensive side, green/blue for affordable side. Include calculator or piggy bank icons. Make the savings visually dramatic with size differences in money representations. Indian business-friendly infographic style with rupee symbols. -->
 
 **QuickShip Technologies** - 10-person startup (Gurugram):
@@ -1183,7 +1196,7 @@ pip install -e .
 
 ## Conclusion: Democratizing Android Device Access
 
-![The Impact](/blueprints/bridgelink-impact.png)
+![Where it landed: 1000+ developers, 40+ countries, 5000+ physical devices and ₹15 crore+ saved versus cloud device farms](/case-files/bridgelink-impact.png)
 <!-- IMAGE PROMPT: An inspiring closing image showing the transformation and impact with Indian focus. Center: A diverse group of Indian developers (different genders, representing different Indian states) working from different locations - home office with Indian decor, coffee shops (like Blue Tokai/Third Wave), co-working spaces - all with laptops showing BridgeLink terminals. Surrounding them in a circle/arc: Multiple Android devices (Redmi, Realme, OnePlus, Samsung) connected via glowing tunnel lines. Above the scene: Stats floating in space: "1000+ Indian Developers", "5000+ Devices", "₹15 Cr+ Saved", "Pan-India Access". Background: India map with connection points lighting up across major tech cities - Bangalore, Pune, Hyderabad, Mumbai, Delhi, Chennai. Style: Inspirational, modern, diverse, showing remote work and Indian tech ecosystem. Use warm, inclusive colors with saffron, green, blue tech elements. Show the "democratization" of access in Indian context visually. -->
 
 ### The Transformation
@@ -1234,7 +1247,7 @@ The project evolved from a weekend bash script to a platform used by thousands o
 
 ---
 
-![Get Started](/blueprints/bridgelink-get-started.png)
+![Get started: pip install bridgelink, bridgelink setup, export NB_API_KEY, bridgelink devices add, bridgelink devices list](/case-files/bridgelink-get-started.png)
 <!-- IMAGE PROMPT: A call-to-action banner illustration with Indian tech vibe. Show a welcoming scene with an open laptop displaying a terminal with "pip install bridgelink" command. Around the laptop: GitHub octocat icon, documentation book icon, community/people icons (showing Indian developers), and multiple Indian Android phone brands (Redmi, Realme, OnePlus) connected with glowing lines. Include large, friendly text areas for: "Try it", "Contribute", "Learn", "Connect". Use inviting colors (saffron, green, blue gradients - tricolor inspiration). Add rocket emoji 🚀, tools emoji 🔧, book emoji 📖, chat emoji 💬. Background: Subtle Indian tech hub elements (Bangalore skyline, coffee cup from Indian cafe). Bottom of image: BridgeLink logo or text with tagline "Your devices, accessible from HSR to Hyderabad". Modern, friendly, open-source community vibe with Indian aesthetic. Horizontal banner format suitable for blog footer. -->
 
 **Want to join the revolution?**

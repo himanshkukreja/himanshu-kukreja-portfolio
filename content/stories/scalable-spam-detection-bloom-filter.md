@@ -2,7 +2,7 @@
 slug: scalable-spam-detection-bloom-filter
 title: "Building a Scalable Spam Detection System for User-Submitted URLs Using Bloom Filters"
 excerpt: "How to design a low-latency, large-scale spam URL detection service using probabilistic data structures."
-cover: "/blueprints/bloom-filter-spam-detection.png"
+cover: "/covers/bloom-filter-spam-detection.png"
 date: "2025-08-09"
 tags: ["Bloom Filter", "Distributed Systems", "URL Filtering", "Spam Detection", "Scalable Architecture"]
 ---

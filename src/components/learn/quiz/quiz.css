@@ -1,0 +1,395 @@
+/*
+ * Inline quick checks (```quiz → figure.sd-quiz, src/lib/course/detect/quiz.ts) and the
+ * "practice this" card. Interactive states are set by <QuizHydrator/>; without JS the figure is a
+ * readable list with the answer in a <details>. Tokens from globals.css (light + dark).
+ */
+
+.course-content .sd-quiz {
+  --q-ok: var(--c-ok);
+  --q-bad: var(--c-bad);
+  margin: 2.2rem 0;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-surface);
+  font-size: 0.94em;
+  line-height: 1.55;
+}
+.course-content .sd-quiz[data-aced] {
+  border-color: var(--c-signal);
+}
+
+.course-content .sd-quiz-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c-line);
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.course-content .sd-quiz-tag {
+  padding: 2px 6px;
+  background: var(--c-signal);
+  color: var(--c-on-signal);
+  font-weight: 600;
+}
+.course-content .sd-quiz-score {
+  color: var(--c-fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.course-content .sd-quiz[data-complete] .sd-quiz-score {
+  color: var(--c-fg);
+  font-weight: 600;
+}
+
+.course-content .sd-quiz-title {
+  margin: 0;
+  padding: 14px 16px 0;
+  font-family: var(--sd-display);
+  font-size: 1.15em;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+  color: var(--c-fg);
+}
+
+.course-content .sd-quiz-qs {
+  list-style: none;
+  margin: 0;
+  padding: 4px 16px 4px;
+}
+.course-content .sd-quiz-q {
+  margin: 0;
+  padding: 14px 0 16px;
+  border-bottom: 1px dashed var(--c-line);
+}
+.course-content .sd-quiz-q:last-child {
+  border-bottom: 0;
+}
+.course-content .sd-quiz-prompt {
+  margin: 0 0 12px;
+  font-weight: 600;
+  color: var(--c-fg);
+}
+.course-content .sd-quiz-qn {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 0 5px;
+  border: 1px solid var(--c-line-strong);
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  line-height: 18px;
+  vertical-align: 2px;
+  color: var(--c-fg-3);
+}
+
+/* options */
+.course-content .sd-quiz-opts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+.course-content .sd-quiz-opt {
+  margin: 0;
+}
+.course-content .sd-quiz-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 11px 12px;
+  border: 1px solid var(--c-line);
+  background: var(--c-bg);
+  color: var(--c-fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.12s ease, background-color 0.12s ease, opacity 0.2s ease;
+}
+.course-content .sd-quiz-btn:disabled {
+  cursor: default;
+  opacity: 1;
+}
+.course-content .sd-quiz:not([data-quiz-ready]) .sd-quiz-btn {
+  /* no JS: a plain lettered list */
+  border-color: transparent;
+  background: transparent;
+  min-height: 0;
+  padding: 4px 0;
+}
+.course-content .sd-quiz[data-quiz-ready] .sd-quiz-btn:not(:disabled):hover {
+  border-color: var(--c-fg-4);
+  background: var(--c-surface-2);
+}
+.course-content .sd-quiz-btn:focus-visible {
+  outline: 2px solid var(--c-signal);
+  outline-offset: 2px;
+}
+.course-content .sd-quiz-key {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin-top: 1px;
+  border: 1px solid var(--c-line-strong);
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--c-fg-2);
+}
+.course-content .sd-quiz-txt {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.course-content .sd-quiz-mark {
+  flex: none;
+  align-self: center;
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.course-content .sd-quiz-mark:empty {
+  display: none;
+}
+
+/* answered states */
+.course-content .sd-quiz-q:not([data-state="idle"]) .sd-quiz-btn:not([data-picked]):not([data-correct]) {
+  opacity: 0.55;
+}
+.course-content .sd-quiz-btn[data-correct] {
+  border-color: var(--q-ok);
+  background: color-mix(in srgb, var(--q-ok) 10%, transparent);
+}
+.course-content .sd-quiz-btn[data-correct] .sd-quiz-key {
+  border-color: var(--q-ok);
+  background: var(--q-ok);
+  color: #000;
+}
+.course-content .sd-quiz-btn[data-correct] .sd-quiz-mark {
+  color: var(--q-ok);
+}
+.course-content .sd-quiz-btn[data-picked]:not([data-correct]) {
+  border-color: var(--q-bad);
+  background: color-mix(in srgb, var(--q-bad) 10%, transparent);
+}
+.course-content .sd-quiz-btn[data-picked]:not([data-correct]) .sd-quiz-key {
+  border-color: var(--q-bad);
+  background: var(--q-bad);
+  color: #fff;
+}
+.course-content .sd-quiz-btn[data-picked]:not([data-correct]) .sd-quiz-mark {
+  color: var(--c-bad-text);
+}
+.course-content .sd-quiz-q[data-state="wrong"] .sd-quiz-btn[data-correct]:not([data-picked]) {
+  border-style: dashed;
+  background: transparent;
+}
+
+/* micro-animations (only on the answer you just gave; the global reduced-motion rule also applies) */
+@keyframes sd-quiz-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(5px); }
+  60% { transform: translateX(-3px); }
+  80% { transform: translateX(2px); }
+}
+@keyframes sd-quiz-glow {
+  0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--q-ok) 55%, transparent); }
+  100% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--q-ok) 0%, transparent); }
+}
+.course-content .sd-quiz-q[data-fresh][data-state="wrong"] .sd-quiz-btn[data-picked] {
+  animation: sd-quiz-shake 0.42s ease-in-out;
+}
+.course-content .sd-quiz-q[data-fresh][data-state="right"] .sd-quiz-btn[data-picked] {
+  animation: sd-quiz-glow 0.7s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .course-content .sd-quiz-q[data-fresh] .sd-quiz-btn[data-picked] {
+    animation: none;
+  }
+}
+
+/* status + explanation */
+.course-content .sd-quiz-status {
+  margin: 10px 0 0;
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.course-content .sd-quiz-status:empty {
+  display: none;
+}
+.course-content .sd-quiz-q[data-state="right"] .sd-quiz-status {
+  color: var(--q-ok);
+}
+.course-content .sd-quiz-q[data-state="wrong"] .sd-quiz-status {
+  color: var(--c-bad-text);
+}
+.course-content .sd-quiz-why {
+  margin: 10px 0 0;
+}
+.course-content .sd-quiz-why-sum {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 40px;
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--c-fg-3);
+}
+.course-content .sd-quiz-why-sum::-webkit-details-marker {
+  display: none;
+}
+.course-content .sd-quiz-why-sum::before {
+  content: "▸";
+  color: var(--c-fg-4);
+}
+.course-content .sd-quiz-why[open] > .sd-quiz-why-sum::before {
+  content: "▾";
+}
+.course-content .sd-quiz-why-sum:hover {
+  color: var(--c-fg);
+}
+.course-content .sd-quiz-q[data-state="idle"] .sd-quiz-why:not([open]) .sd-quiz-why-sum {
+  /* before answering the reveal is a quiet escape hatch */
+  color: var(--c-fg-4);
+}
+.course-content .sd-quiz-why-body {
+  margin-top: 4px;
+  padding: 2px 0 2px 14px;
+  border-left: 2px solid var(--c-line-strong);
+  color: var(--c-fg-2);
+}
+.course-content .sd-quiz-why-body p {
+  margin: 0 0 0.6em;
+}
+.course-content .sd-quiz-why-body p:last-child {
+  margin-bottom: 0;
+}
+.course-content .sd-quiz-answer {
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--c-fg);
+}
+.course-content .sd-quiz[data-quiz-ready] .sd-quiz-q[data-state="idle"] .sd-quiz-answer {
+  /* the status line says it once answered; keep the spoiler for readers who open it early */
+  color: var(--c-fg-3);
+}
+
+/* foot: result + retry */
+.course-content .sd-quiz-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--c-line);
+}
+.course-content .sd-quiz:not([data-started]) .sd-quiz-foot {
+  display: none;
+}
+.course-content .sd-quiz-result {
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: var(--c-fg-2);
+}
+.course-content .sd-quiz[data-aced] .sd-quiz-result {
+  color: var(--c-signal-text);
+  font-weight: 600;
+}
+.course-content .sd-quiz-retry {
+  margin-left: auto;
+}
+
+/* ------------------------------------------------------------ practice this */
+
+.course-content .sd-practice {
+  margin: 2rem 0;
+  border: 1px dashed var(--c-line-strong);
+  background: var(--c-bg);
+  font-size: 15px;
+  line-height: 1.45;
+}
+.course-content .sd-practice-quiz {
+  margin: 0;
+  border-width: 1px 0 0;
+}
+.course-content .sd-practice-label {
+  margin: 0;
+  padding: 10px 16px 0;
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-signal-text);
+}
+.course-content .sd-practice-list {
+  list-style: none;
+  margin: 0;
+  padding: 8px 8px 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: 6px;
+}
+.course-content .sd-practice-item {
+  margin: 0;
+}
+.course-content .sd-practice-link {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 12px;
+  height: 100%;
+  padding: 10px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  color: var(--c-fg);
+  text-decoration: none;
+}
+.course-content .sd-practice-link:hover {
+  border-color: var(--c-signal);
+  color: var(--c-fg);
+}
+.course-content .sd-practice-kind {
+  grid-column: 1 / -1;
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-fg-3);
+}
+.course-content .sd-practice-name {
+  font-family: var(--sd-display);
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+.course-content .sd-practice-go {
+  grid-row: 2 / span 2;
+  grid-column: 2;
+  align-self: end;
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  color: var(--c-signal-text);
+}
+.course-content .sd-practice-hook {
+  font-size: 14px;
+  color: var(--c-fg-3);
+}

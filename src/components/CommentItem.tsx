@@ -9,6 +9,7 @@ import RichTextEditor from "./RichTextEditor";
 import { formatDistanceToNow } from "@/lib/date-utils";
 import ConfirmDialog from "./ConfirmDialog";
 import richStyles from "@/components/learn/lesson/richtext.module.css";
+import { sanitizeRichText } from "@/lib/sanitizeHtml";
 
 type Comment = {
   id: string;
@@ -272,7 +273,8 @@ export default function CommentItem({ comment, onReply, onEdit, onDelete, onVote
             ) : (
               <div
                 className={`prose ${richStyles.rich} mb-1 max-w-none text-[15px] leading-relaxed text-fg-2`}
-                dangerouslySetInnerHTML={{ __html: comment.content }}
+                // comment HTML is user-written and stored as-is: never render it unsanitized
+                dangerouslySetInnerHTML={{ __html: sanitizeRichText(comment.content) }}
               />
             )}
 

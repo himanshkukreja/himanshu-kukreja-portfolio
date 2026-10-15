@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useChromeHidden } from "@/components/site/readerChrome";
 import { mmss, type Phase } from "./shared";
 
 /**
@@ -29,6 +30,8 @@ export default function BossHud(props: {
   const { phases, current, used, revealed } = props;
   const cur = phases[current];
   const ref = useRef<HTMLDivElement>(null);
+  // phones: the reading toolbar under the HUD slides away while scrolling down; follow it
+  const barHidden = useChromeHidden();
 
   // Keep the end of the page reachable under the HUD, and lift the reader's floating tools
   // (bottom-right on desktop) above it while the fight is on.
@@ -42,10 +45,20 @@ export default function BossHud(props: {
     const apply = () => {
       const h = el.offsetHeight;
       const desktop = window.innerWidth >= 1024;
+      // the phone reading toolbar (bottom-anchored reader UI) the HUD rides on
+      let bar = 0;
+      document.querySelectorAll<HTMLElement>("[data-reader-ui]").forEach((t) => {
+        if (t === el || (lifted.get(t) ?? t.style.bottom) === "") return;
+        const cs = getComputedStyle(t);
+        if (cs.position === "fixed" && cs.display !== "none") bar = Math.max(bar, t.offsetHeight);
+      });
+      el.style.setProperty("--boss-bar", `${bar}px`);
       body.style.paddingBottom = `${h + (desktop ? 0 : 70) + 16}px`;
       root.style.setProperty("--boss-hud-h", `${h}px`);
       document.querySelectorAll<HTMLElement>("[data-reader-ui]").forEach((t) => {
         if (getComputedStyle(t).position !== "fixed") return;
+        // top-anchored reader UI (the pinned stage bar) stays put: a bottom would stretch it
+        if (t.style.top !== "" || t.closest("header")) return;
         if (!lifted.has(t)) lifted.set(t, t.style.bottom);
         t.style.bottom = desktop ? `${h + 16}px` : lifted.get(t) || "";
       });
@@ -53,6 +66,7 @@ export default function BossHud(props: {
     apply();
     const ro = new ResizeObserver(apply);
     ro.observe(el);
+    document.querySelectorAll<HTMLElement>("[data-reader-ui]").forEach((t) => ro.observe(t));
     window.addEventListener("resize", apply);
     return () => {
       ro.disconnect();
@@ -82,7 +96,9 @@ export default function BossHud(props: {
       ref={ref}
       role="region"
       aria-label="Boss fight controls"
-      className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] z-[45] border-t border-line-strong bg-bg/95 backdrop-blur lg:bottom-0"
+      className={`fixed inset-x-0 z-[45] border-t border-line-strong bg-bg/95 backdrop-blur transition-[bottom] duration-200 lg:bottom-0 lg:pb-0 ${
+        barHidden ? "bottom-0 pb-[env(safe-area-inset-bottom,0px)]" : "bottom-[var(--boss-bar,58px)]"
+      }`}
     >
       <div className="mx-auto flex max-w-[1320px] flex-col gap-2 px-4 py-2.5 sm:px-6 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-6 lg:py-3">
         <div className="flex min-w-0 flex-col gap-1.5 lg:flex-[1_1_520px]">

@@ -39,6 +39,13 @@ function readBest(raw: unknown): BestMap {
 export default function PlaygroundShell() {
   const { award, done, xp, hydrated, flags, setFlag } = useGame();
   const [sel, setSel] = useState<GameKey>("cache");
+  // Deep link from the course ("practice this" cards, the Arena): /play?g=breaker
+  useEffect(() => {
+    const g = new URLSearchParams(window.location.search).get("g");
+    const hit = GAMES.find((x) => x.key === g);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the URL after mount (SSR has no search params here)
+    if (hit) setSel(hit.key);
+  }, []);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
   // Latest flags for the win handler without re-creating it (keeps the breaker's interval stable).

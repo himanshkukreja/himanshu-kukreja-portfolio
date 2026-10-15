@@ -90,22 +90,26 @@ export default function LessonComments({
       if (fetchError) throw fetchError;
 
       if (data) {
-        // Fetch user votes if authenticated
-        let userVotes: { [key: string]: "upvote" | "downvote" } = {};
-        if (user) {
-          const commentIds = data.map((c: any) => c.id);
-          const { data: votesData } = await supabaseClient
+        // Counts come from the votes (public rows), not lesson_comments.upvotes/downvotes: the
+        // trigger that maintains those runs as the voter, and RLS stops it updating anyone else's
+        // comment, so they never moved (fixed in 20261015_learn_backend_fixes.sql).
+        const userVotes: { [key: string]: "upvote" | "downvote" } = {};
+        const counts = new Map<string, { up: number; down: number }>();
+        let votesOk = false;
+        const commentIds = data.map((c: any) => c.id);
+        if (commentIds.length > 0) {
+          const { data: votesData, error: votesError } = await supabaseClient
             .from("comment_votes")
-            .select("comment_id, vote_type")
-            .eq("user_id", user.id)
+            .select("comment_id, vote_type, user_id")
             .in("comment_id", commentIds);
-
-          if (votesData) {
-            userVotes = votesData.reduce((acc: any, vote: any) => {
-              acc[vote.comment_id] = vote.vote_type;
-              return acc;
-            }, {});
-          }
+          votesOk = !votesError && !!votesData;
+          (votesData || []).forEach((vote: { comment_id: string; vote_type: "upvote" | "downvote"; user_id: string }) => {
+            const c = counts.get(vote.comment_id) || { up: 0, down: 0 };
+            if (vote.vote_type === "upvote") c.up++;
+            else c.down++;
+            counts.set(vote.comment_id, c);
+            if (user && vote.user_id === user.id) userVotes[vote.comment_id] = vote.vote_type;
+          });
         }
 
         // Transform data and build nested structure
@@ -124,8 +128,8 @@ export default function LessonComments({
             content: comment.content,
             raw_content: comment.raw_content,
             is_edited: comment.is_edited,
-            upvotes: comment.upvotes,
-            downvotes: comment.downvotes,
+            upvotes: votesOk ? counts.get(comment.id)?.up ?? 0 : comment.upvotes,
+            downvotes: votesOk ? counts.get(comment.id)?.down ?? 0 : comment.downvotes,
             is_pinned: comment.is_pinned,
             is_solution: comment.is_solution,
             created_at: comment.created_at,

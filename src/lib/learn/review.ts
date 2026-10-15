@@ -192,6 +192,13 @@ type Row = {
 /** Remembers for this page view whether the review_cards table answered; avoids hammering a missing table. */
 let remoteState: "unknown" | "ok" | "missing" = "unknown";
 
+/** review_cards not created yet (migration 20261014_level_up.sql not applied). */
+function isMissingTable(e: unknown): boolean {
+  const err = (e || {}) as { code?: string; message?: string };
+  if (["42P01", "PGRST205", "PGRST204", "42703"].includes(err.code || "")) return true;
+  return /does not exist|could not find the/i.test(err.message || "");
+}
+
 async function currentUserId(): Promise<string | null> {
   try {
     const { data } = await supabaseClient.auth.getSession();
@@ -265,11 +272,17 @@ export async function addReviewCard(input: ReviewCardInput): Promise<{
         box: 1,
         due_at: localDate(),
       });
-      if (error) throw error;
+      if (error) {
+        // another tab / a double click added the same card between the select and the insert
+        if ((error as { code?: string }).code === "23505") return { ok: true, storage: "remote", duplicate: true };
+        throw error;
+      }
       emitChanged();
       return { ok: true, storage: "remote", duplicate: false };
-    } catch {
-      remoteState = "missing";
+    } catch (e) {
+      // Only a missing table disables the remote queue for this page; a network blip used to
+      // flip it too, sending every later card of the session into this browser's storage only.
+      if (isMissingTable(e)) remoteState = "missing";
       // fall through to localStorage
     }
   }
@@ -414,13 +427,13 @@ export async function loadReviewCards(): Promise<{ cards: ReviewCard[]; storage:
     const seen = new Set(remote.map((c) => c.source + "|" + c.sourceRef));
     const merged = remote.concat(local.filter((c) => !seen.has(c.source + "|" + c.sourceRef)));
     return { cards: merged, storage: local.length ? "mixed" : "remote" };
-  } catch {
-    remoteState = "missing";
+  } catch (e) {
+    if (isMissingTable(e)) remoteState = "missing";
     return { cards: local, storage: "local" };
   }
 }
 
-/** Number of cards due today or earlier (used by the learn sub-nav badge). */
+/** Number of cards due today or earlier (used by the course nav badge). */
 export async function countDueReviewCards(): Promise<number> {
   const { cards } = await loadReviewCards();
   const today = localDate();

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { MCQQuestion } from "@/lib/mcq-parser";
 import { passMark, shuffleLabel, type OptionLabel, type RunState, type TrialPart } from "./engine";
@@ -33,8 +33,44 @@ type Props = {
   isTyping: (t: EventTarget | null) => boolean;
 };
 
+/**
+ * Height of the site's fixed bottom dock on phones (0 where there is none, e.g. on lesson routes,
+ * which trials share), so the trial's action bar sits right on top of it instead of floating.
+ */
+function useBottomDock(): number {
+  const [h, setH] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const measure = () => {
+      raf = 0;
+      let max = 0;
+      document.querySelectorAll<HTMLElement>('nav[aria-label="Course"], nav[aria-label="Sections"]').forEach((n) => {
+        const cs = window.getComputedStyle(n);
+        if (cs.position !== "fixed" || cs.display === "none") return;
+        const r = n.getBoundingClientRect();
+        if (r.height && Math.abs(r.bottom - window.innerHeight) < 2) max = Math.max(max, r.height);
+      });
+      setH(max);
+    };
+    const schedule = () => {
+      if (!raf) raf = window.requestAnimationFrame(measure);
+    };
+    schedule();
+    const ro = new ResizeObserver(schedule);
+    document.querySelectorAll('nav[aria-label="Course"], nav[aria-label="Sections"]').forEach((n) => ro.observe(n));
+    window.addEventListener("resize", schedule);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", schedule);
+    };
+  }, []);
+  return h;
+}
+
 export default function TrialQuestion(props: Props) {
   const { part, questions, run, index: i, order, sel, revealed, pick } = props;
+  const dock = useBottomDock();
   const N = questions.length;
   const pm = passMark(N);
   const q = questions[i];
@@ -280,8 +316,13 @@ export default function TrialQuestion(props: Props) {
 
           {!revealed && <span className="text-xs leading-normal text-fg-3 sm:hidden">Options are shuffled for you and saved as you go. Pass mark 80% ({pm} of {N}).</span>}
 
-          {/* Actions: a fixed bar above the dock on phones, inline on desktop */}
-          <div className="fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+58px)] z-40 flex flex-wrap items-center justify-between gap-2.5 border-t border-line bg-bg px-4 py-2.5 sm:static sm:z-auto sm:border-0 sm:bg-transparent sm:px-0 sm:pt-1">
+          {/* Actions: a fixed bar on phones (on top of the site dock when there is one), inline on desktop */}
+          <div
+            style={{ bottom: dock }}
+            className={`fixed inset-x-0 z-40 flex flex-wrap items-center justify-between gap-2.5 border-t border-line bg-bg/95 px-4 pt-2.5 backdrop-blur sm:static sm:z-auto sm:border-0 sm:bg-transparent sm:px-0 sm:pb-0 sm:pt-1 sm:backdrop-blur-none ${
+              dock ? "pb-2.5" : "pb-[calc(env(safe-area-inset-bottom,0px)+10px)]"
+            }`}
+          >
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
@@ -395,6 +436,8 @@ export default function TrialQuestion(props: Props) {
           </button>
         </aside>
       </div>
+      {/* phones: room for the fixed action bar under the last block */}
+      <div aria-hidden="true" className="h-12 sm:hidden" />
     </div>
   );
 }
