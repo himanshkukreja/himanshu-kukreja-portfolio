@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { welcomeEmail } from "@/lib/email/welcome";
 
 /**
  * Load and process email template with variable substitution
@@ -29,14 +30,9 @@ export function loadEmailTemplate(
 }
 
 /**
- * Get welcome email content
+ * Welcome email content. Kept for old callers; the template lives in src/lib/email/welcome.ts
+ * (the Supabase HTML file this used to load is no longer used for the welcome email).
  */
-export function getWelcomeEmail(userEmail: string, siteUrl: string) {
-  return {
-    subject: "Welcome to System Design Mastery! 🚀",
-    html: loadEmailTemplate("SUPABASE_WELCOME_EMAIL_TEMPLATE", {
-      Email: userEmail,
-      SiteURL: siteUrl,
-    }),
-  };
+export function getWelcomeEmail(userEmail: string, _siteUrl?: string, name?: string | null) {
+  return welcomeEmail({ email: userEmail, name });
 }

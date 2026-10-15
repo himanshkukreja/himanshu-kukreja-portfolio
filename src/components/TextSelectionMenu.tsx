@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, ChevronLeft, ClipboardCopy, Highlighter, MessageCircleQuestion, StickyNote, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ClipboardCopy, Highlighter, Link2, MessageCircleQuestion, Share2, StickyNote, X } from "lucide-react";
 import { HIGHLIGHT_COLOURS } from "@/lib/learn/notebook";
 import type { AskClient } from "@/lib/learn/askAi";
 
@@ -70,6 +70,10 @@ type TextSelectionMenuProps = {
   onAsk?: (client: AskClient) => void;
   /** "Copy as prompt" */
   onCopyPrompt?: () => void;
+  /** "Copy link": a deep link that reopens the page at this exact passage */
+  onCopyLink?: () => void;
+  /** "Share…" through the native share sheet (pass only where navigator.share exists) */
+  onShareLink?: () => void;
   onClose: () => void;
   /** where the arrow points: "above" = toolbar sits above the selection (default);
    *  "sheet" = docked to the bottom of the screen (touch: clear of the native selection UI) */
@@ -78,10 +82,10 @@ type TextSelectionMenuProps = {
   autoFocus?: boolean;
 };
 
-type Panel = "main" | "colors" | "ask";
+type Panel = "main" | "colors" | "ask" | "link";
 
 export default function TextSelectionMenu(props: TextSelectionMenuProps) {
-  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, autoFocus } = props;
+  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, autoFocus } = props;
   const notes = !!(onHighlight || onNote || onBookmark);
   const ask = !!(onAsk || onCopyPrompt);
   const [panel, setPanel] = useState<Panel>("main");
@@ -122,6 +126,12 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       } else if (view === "ask" && onCopyPrompt && k === "p") {
         e.preventDefault();
         onCopyPrompt();
+      } else if (k === "l" && onCopyLink && (view === "main" || view === "link" || (view === "ask" && !notes))) {
+        e.preventDefault();
+        onCopyLink();
+      } else if (k === "s" && view === "link" && onShareLink) {
+        e.preventDefault();
+        onShareLink();
       } else if (k === "h" && onHighlight) {
         e.preventDefault();
         setPanel("colors");
@@ -142,7 +152,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, panel, view, ask, notes]);
+  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, panel, view, ask, notes]);
 
   useEffect(() => {
     if (!mounted || !ref.current) return;
@@ -168,11 +178,28 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
   const below = props.placement === "below";
   const key = sheet ? "hidden" : "font-mono text-[10px] text-fg-4 font-normal";
 
+  // touch + a share sheet: "Link" opens Copy link · Share…; elsewhere it copies straight away
+  const linkPanel = sheet && !!onShareLink;
+  const linkButton = onCopyLink && (
+    <button
+      type="button"
+      className={btn}
+      onClick={() => (linkPanel ? setPanel("link") : onCopyLink())}
+      aria-keyshortcuts="L"
+      aria-label={linkPanel ? "Link to this passage: copy or share" : "Copy a link to this passage"}
+      title="Copy a link that opens the page at this line"
+    >
+      <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
+      {sheet ? "Link" : "Copy link"}
+      <span className={key}>L</span>
+    </button>
+  );
+
   const menu = (
     <div
       ref={ref}
       role="toolbar"
-      aria-label={showColors ? "Highlight colour" : view === "ask" ? "Ask an AI about the selection" : "Selection actions"}
+      aria-label={showColors ? "Highlight colour" : view === "link" ? "Share a link to the selection" : view === "ask" && notes ? "Ask an AI about the selection" : "Selection actions"}
       onKeyDown={onToolbarKey}
       onMouseDown={(e) => e.preventDefault()}
       data-sd-chrome=""
@@ -211,6 +238,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
               <span className={key}>A</span>
             </button>
           )}
+          {linkButton}
         </>
       )}
       {view === "ask" && (
@@ -239,6 +267,26 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
               <ClipboardCopy className="w-3.5 h-3.5" aria-hidden="true" />
               {sheet ? "Copy" : "Copy prompt"}
               <span className={key}>P</span>
+            </button>
+          )}
+          {!notes && linkButton}
+        </>
+      )}
+      {view === "link" && onCopyLink && (
+        <>
+          <button type="button" className={`${btn} px-2 ${sheet ? "!w-11 !flex-none" : ""}`} onClick={() => setPanel("main")} aria-label="Back to actions">
+            <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+          </button>
+          <button type="button" className={btn} onClick={onCopyLink} aria-keyshortcuts="L" aria-label="Copy a link that opens the page at this line">
+            <Link2 className="w-3.5 h-3.5" aria-hidden="true" />
+            Copy link
+            <span className={key}>L</span>
+          </button>
+          {onShareLink && (
+            <button type="button" className={btn} onClick={onShareLink} aria-keyshortcuts="S" aria-label="Share a link to this line">
+              <Share2 className="w-3.5 h-3.5" aria-hidden="true" />
+              Share…
+              <span className={key}>S</span>
             </button>
           )}
         </>

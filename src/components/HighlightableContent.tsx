@@ -2,7 +2,7 @@
 
 /**
  * The reader's content layer: renders lesson HTML, applies the reader's highlights and notes,
- * and opens the selection toolbar (highlight · note · bookmark · ask Claude / ChatGPT).
+ * and opens the selection toolbar (highlight · note · bookmark · ask Claude / ChatGPT · copy link).
  *
  * Selection opens the toolbar on mouseup, after a touch long-press (selectionchange), after a
  * keyboard selection (Shift + arrows), or with Shift+F10. Text offsets count characters only
@@ -23,7 +23,8 @@ import Toast from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import LessonProgressTracker from "./LessonProgressTracker";
 import NoteEditor from "./NoteEditor";
-import { askAi, CLIENT_LABEL, copyAskPrompt, courseName, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
+import { askAi, CLIENT_LABEL, cleanText, copyAskPrompt, courseName, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
+import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
 
 type HighlightableContentProps = {
   htmlContent: string;
@@ -274,7 +275,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     const rects = range.getClientRects();
     const first = rects[0] || range.getBoundingClientRect();
     const last = rects[rects.length - 1] || first;
-    const W = Math.min(window.innerWidth - 16, 470);
+    const W = Math.min(window.innerWidth - 16, 580);
     const H = 54;
     // touch: dock the toolbar at the bottom of the screen, clear of the native selection
     // handles and the iOS / Android callout that sit around the selection itself
@@ -593,7 +594,8 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     if (!root || !range) return null;
     const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE ? (range.startContainer as Element) : range.startContainer.parentElement;
     const stage = startEl?.closest<HTMLElement>('section[data-sd="stage"]');
-    const stageTitle = stage?.querySelector(".sd-stage-title")?.textContent?.trim() || "";
+    const titleEl = stage?.querySelector(".sd-stage-title");
+    const stageTitle = titleEl ? cleanText(titleEl) : "";
     return {
       kind: "lesson",
       title: lessonTitle || document.title,
@@ -621,6 +623,18 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     setMenu(null);
     const ok = await copyAskPrompt(text, ctx);
     setToast(ok ? { message: "Prompt copied. Paste it into any AI chat.", type: "success" } : { message: "Couldn't copy to the clipboard.", type: "error" });
+  };
+
+  /* ---------------- copy / share a link that reopens the lesson at this passage */
+  const handleLink = async (channel: "copy" | "share") => {
+    const root = contentRef.current;
+    const range = rangeRef.current;
+    if (!root || !range) return;
+    setMenu(null);
+    const res = await sharePassage(root, range, channel, lessonTitle);
+    if (res === "copied") setToast({ message: LINK_COPIED, type: "success" });
+    else if (res === "shared") setToast({ message: "Link shared — it opens at this line.", type: "success" });
+    else if (res === "failed") setToast({ message: "Couldn't copy the link.", type: "error" });
   };
 
   /* ---------------- apply highlights + notes to the HTML (text nodes only, chrome skipped) */
@@ -762,7 +776,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
         </div>
       )}
 
-      <div ref={contentRef} className="relative">
+      <div ref={contentRef} className="relative" data-sd-content="">
         <MarkdownContent htmlContent={highlightedContent} className={className} />
       </div>
 
@@ -777,6 +791,8 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           onNote={handleNote}
           onAsk={handleAsk}
           onCopyPrompt={handleCopyPrompt}
+          onCopyLink={() => void handleLink("copy")}
+          onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void handleLink("share") : undefined}
           onClose={closeMenu}
         />
       )}

@@ -14,6 +14,7 @@ import CaseActivity from "./activities/registry";
 import styles from "./reader.module.css";
 import { useReadAloudBridge } from "./useReadAloudBridge";
 import StorySelectionAsk from "./StorySelectionAsk";
+import DeepLinkResolver from "@/components/DeepLinkResolver";
 import { buildSections, readStoryRecord, sectionRects, writeStoryRecord, type Section, type StoryRecord } from "./storyReading";
 import { completeNeedSeconds, isStageRead, readProgress, startReadingProbe, visibleBins } from "@/lib/learn/engagedClock";
 import { track } from "@/lib/track";
@@ -338,7 +339,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
   return (
     <div style={rootStyle}>
       {/* Reader bar: back link, checkpoint, progress with checkpoint ticks */}
-      <div ref={barRef} className="sticky z-40 border-b border-line bg-[color-mix(in_srgb,var(--c-bg)_92%,transparent)] backdrop-blur" style={{ top: siteTop }}>
+      <div ref={barRef} data-sticky-header className="sticky z-40 border-b border-line bg-[color-mix(in_srgb,var(--c-bg)_92%,transparent)] backdrop-blur" style={{ top: siteTop }}>
         <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-5 gap-y-0 px-4 sm:px-6">
           <Link href="/stories" className="inline-flex min-h-11 items-center gap-2 text-sm text-fg-3 no-underline hover:text-fg">
             ← Case files
@@ -647,6 +648,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
       </div>
 
       <StorySelectionAsk rootRef={contentRef} title={meta.title} />
+      <DeepLinkResolver rootRef={contentRef} />
 
       {/* Existing ReadAloud controls, restyled from the outside and driven by the toolbar button. */}
       <div ref={dockRef} className={styles.dock}>

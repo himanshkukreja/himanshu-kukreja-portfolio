@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Case files: select a word, line or paragraph → "Ask Claude" / "Ask ChatGPT" / "Copy prompt",
+ * Case files: select a word, line or paragraph → "Ask Claude" / "Ask ChatGPT" / "Copy prompt" /
+ * "Copy link" (a deep link that reopens the case file at that passage; "Share…" on phones),
  * with the case title, the checkpoint heading and the surrounding paragraphs as context.
  * Same triggers as the lesson reader: mouse up, a touch long-press (toolbar docked to the bottom,
  * clear of the native selection UI), Shift + arrows, or Shift+F10.
@@ -10,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import TextSelectionMenu from "@/components/TextSelectionMenu";
 import Toast from "@/components/Toast";
 import { askAi, CLIENT_LABEL, copyAskPrompt, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
+import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
 
 type Menu = { x: number; y: number; placement: "above" | "below" | "sheet"; autoFocus: boolean };
 
@@ -46,7 +48,7 @@ export default function StorySelectionAsk({ rootRef, title }: { rootRef: React.R
     const rects = range.getClientRects();
     const first = rects[0] || range.getBoundingClientRect();
     const last = rects[rects.length - 1] || first;
-    const W = Math.min(window.innerWidth - 16, 400);
+    const W = Math.min(window.innerWidth - 16, 500);
     const H = 54;
     const below = first.top - H - 10 < 120;
     const anchor = below ? last : first;
@@ -168,6 +170,17 @@ export default function StorySelectionAsk({ rootRef, title }: { rootRef: React.R
     setToast(ok ? { message: "Prompt copied. Paste it into any AI chat.", type: "success" } : { message: "Couldn't copy to the clipboard.", type: "error" });
   };
 
+  const onLink = async (channel: "copy" | "share") => {
+    const root = rootRef.current;
+    const range = rangeRef.current;
+    if (!root || !range) return;
+    setMenu(null);
+    const res = await sharePassage(root, range, channel, title);
+    if (res === "copied") setToast({ message: LINK_COPIED, type: "success" });
+    else if (res === "shared") setToast({ message: "Link shared — it opens at this line.", type: "success" });
+    else if (res === "failed") setToast({ message: "Couldn't copy the link.", type: "error" });
+  };
+
   return (
     <>
       {menu && text && (
@@ -178,6 +191,8 @@ export default function StorySelectionAsk({ rootRef, title }: { rootRef: React.R
           autoFocus={menu.autoFocus}
           onAsk={onAsk}
           onCopyPrompt={onCopyPrompt}
+          onCopyLink={() => void onLink("copy")}
+          onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void onLink("share") : undefined}
           onClose={() => setMenu(null)}
         />
       )}

@@ -57,7 +57,7 @@ export function scrollToId(id: string, behavior: ScrollBehavior = "smooth"): boo
   const delta = top - offset - 12;
   // long jumps go straight there; a multi-second smooth scroll through a 2-hour lesson helps no one
   const far = Math.abs(delta) > window.innerHeight * 4;
-  window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: prefersReducedMotion() || far ? "auto" : behavior });
+  window.scrollTo({ top: Math.max(0, window.scrollY + delta), behavior: prefersReducedMotion() || far ? "instant" : behavior });
   return true;
 }
 

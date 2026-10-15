@@ -9,6 +9,7 @@ import TableOfContents from "@/components/TableOfContents";
 import CollapsibleWeekNav from "@/components/CollapsibleWeekNav";
 import LessonComments from "@/components/LessonComments";
 import SearchHighlight from "@/components/SearchHighlight";
+import DeepLinkResolver from "@/components/DeepLinkResolver";
 import { useReadAloud } from "@/components/ReadAloud";
 import LessonHero from "./LessonHero";
 import StageRail from "./StageRail";
@@ -187,6 +188,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
               lessonTitle={meta.title}
               textSize={size}
             />
+            <DeepLinkResolver rootRef={contentRef} />
 
             <EndOfLesson meta={meta} prev={prev} next={next} trial={trial} />
 

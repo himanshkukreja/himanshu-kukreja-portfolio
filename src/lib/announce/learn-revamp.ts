@@ -8,8 +8,13 @@
  */
 
 export const ANNOUNCE_KEY = "announce:learn-revamp-2026-10";
-export const ANNOUNCE_SUBJECT = "System Design Mastery, rebuilt: daily challenge, leagues and 1,000+ quick checks";
-const PREHEADER = "A new lesson reader, 1,000+ quick checks, an Arena with a daily challenge and weekly leagues, and a real progress page.";
+/** Short, personal, curiosity first; the specifics live in the preheader. */
+export const ANNOUNCE_SUBJECT = "I rebuilt System Design Mastery (and it's a game now)";
+export function announceSubject(name?: string | null): string {
+  const first = (name || "").trim().split(/\s+/)[0];
+  return first ? `${first}, your system design course just levelled up` : ANNOUNCE_SUBJECT;
+}
+const PREHEADER = "1,000+ quick checks, a daily 5-question challenge and weekly leagues. Pick up right where you left off.";
 
 const SITE = "https://www.himanshukukreja.in";
 const UTM = "utm_source=email&utm_medium=email&utm_campaign=learn-revamp-2026";
@@ -220,5 +225,5 @@ export function learnRevampText({ email, name }: AnnounceInput): string {
 }
 
 export function learnRevampEmail(input: AnnounceInput) {
-  return { subject: ANNOUNCE_SUBJECT, html: learnRevampHtml(input), text: learnRevampText(input) };
+  return { subject: announceSubject(input.name), html: learnRevampHtml(input), text: learnRevampText(input) };
 }

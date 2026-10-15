@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { getWelcomeEmail } from "@/lib/email-templates";
+import { welcomeEmail } from "@/lib/email/welcome";
 
 // Server-side Supabase client with service role
 const supabaseAdmin = createClient(
@@ -18,11 +18,10 @@ const supabaseAdmin = createClient(
  * Send welcome email using configured email service
  * Uses SMTP (AWS SES) configured in .env
  */
-async function sendWelcomeEmail(email: string, name: string) {
+async function sendWelcomeEmail(email: string, name: string | null) {
   console.log("[WELCOME EMAIL] 📨 sendWelcomeEmail called for:", email);
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const { subject, html } = getWelcomeEmail(email, siteUrl);
+  const { subject, html, text, replyTo, headers } = welcomeEmail({ email, name });
 
   // Check if SMTP is configured
   const smtpHost = process.env.SMTP_HOST;
@@ -56,10 +55,13 @@ async function sendWelcomeEmail(email: string, name: string) {
       });
 
       await transporter.sendMail({
-        from: smtpFrom || "Himanshu <noreply@yourdomain.com>",
+        from: smtpFrom || `Himanshu Kukreja <${smtpUser}>`,
         to: email,
+        replyTo,
         subject,
         html,
+        text,
+        headers,
       });
 
       console.log(`[WELCOME EMAIL] ✅ Sent via SMTP to: ${email}`);
@@ -71,7 +73,7 @@ async function sendWelcomeEmail(email: string, name: string) {
   }
 
   // Fallback: Console log (for development)
-  console.log(`[WELCOME EMAIL] 📧 Would send to: ${email} (${name})`);
+  console.log(`[WELCOME EMAIL] 📧 Would send to: ${email} (${name || "no name"})`);
   console.log(`[WELCOME EMAIL] Subject: ${subject}`);
   console.log(`[WELCOME EMAIL] ⚠️  No SMTP configured - email not actually sent`);
   console.log(`[WELCOME EMAIL] 💡 Add SMTP settings to .env to send real emails`);
@@ -129,7 +131,10 @@ export async function POST(request: NextRequest) {
     // Send welcome email
     console.log("[WELCOME EMAIL API] 📬 Attempting to send welcome email...");
     try {
-      await sendWelcomeEmail(user.email!, profile?.full_name || user.email!);
+      // Greeting name: the profile first, then the Google account metadata; none → neutral "Hi,".
+      const meta = (user.user_metadata || {}) as Record<string, unknown>;
+      const metaName = [meta.full_name, meta.name, meta.given_name].find((v): v is string => typeof v === "string" && v.trim().length > 0);
+      await sendWelcomeEmail(user.email!, profile?.full_name || metaName || null);
       console.log("[WELCOME EMAIL API] ✅ Welcome email sent successfully");
       // once per account, even if the client calls again
       await supabaseAdmin.from("user_profiles").update({ welcome_email_sent: true }).eq("id", userId);
@@ -143,10 +148,10 @@ export async function POST(request: NextRequest) {
       success: true,
       isNewAccount: true,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("[WELCOME EMAIL API] ❌ Error:", error);
     return NextResponse.json(
-      { error: error.message || "Internal server error" },
+      { error: (error instanceof Error && error.message) || "Internal server error" },
       { status: 500 }
     );
   }

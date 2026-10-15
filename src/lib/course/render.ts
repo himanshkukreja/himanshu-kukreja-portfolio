@@ -499,7 +499,9 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
           ...(inline.slice(1) as AnyNode[]),
         ];
       }
-      titleKids.push(el("h2", { className: ["sd-h", "sd-h1", "sd-stage-title"] }, headingChildren, { heading: 1 }));
+      // "#" copies a link to this stage (DeepLinkResolver), like every other heading's anchor
+      const stageAnchor = rawHast(chrome("a", { className: ["sd-anchor"], href: `#${head.id}`, ariaLabel: `Link to ${full}` }, ["#"]));
+      titleKids.push(el("h2", { className: ["sd-h", "sd-h1", "sd-stage-title"] }, [...headingChildren, stageAnchor], { heading: 1 }));
     }
     headKids.push(el("div", { className: ["sd-stage-titles"] }, titleKids));
     const header = el("header", { className: ["sd-stage-head"], dataSdStageHead: "" }, headKids, { heading: 1 });
