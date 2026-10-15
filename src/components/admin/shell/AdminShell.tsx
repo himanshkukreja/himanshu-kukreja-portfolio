@@ -29,6 +29,7 @@ export const ADMIN_NAV = [
   { href: "/admin/course", label: "Course", key: "course", match: (p: string) => p.startsWith("/admin/course") },
   { href: "/admin/traffic", label: "Traffic", key: "traffic", match: (p: string) => p.startsWith("/admin/traffic") },
   { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
+  { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
 ] as const;
 
 /* ─────────────── tiny storage stores (useSyncExternalStore) ─────────────── */

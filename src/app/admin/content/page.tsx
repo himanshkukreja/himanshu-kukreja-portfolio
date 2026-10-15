@@ -2,7 +2,7 @@
 
 /** /admin/content — newsletter, contact queries, comment moderation, users, send logs, story stats. */
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useCallback } from "react";
+import { useCallback, useEffect } from "react";
 import { PageHead, Tabs } from "@/components/admin/ui";
 import NewsletterTab from "@/components/admin/content/NewsletterTab";
 import ContactTab from "@/components/admin/content/ContactTab";
@@ -10,13 +10,11 @@ import CommentsTab from "@/components/admin/content/CommentsTab";
 import UsersTab from "@/components/admin/content/UsersTab";
 import LogsTab from "@/components/admin/content/LogsTab";
 import StoriesTab from "@/components/admin/content/StoriesTab";
-import AnnounceTab from "@/components/admin/content/AnnounceTab";
 import WelcomeTab from "@/components/admin/content/WelcomeTab";
 import { FlashLine, useFlash } from "@/components/admin/content/common";
 
 const TABS = [
   { id: "newsletter", label: "newsletter" },
-  { id: "announce", label: "announce" },
   { id: "welcome", label: "welcome email" },
   { id: "contact", label: "contact" },
   { id: "comments", label: "comments" },
@@ -36,6 +34,11 @@ export default function AdminContent() {
   const openQuery = params.get("q");
   const { flash, say, clear } = useFlash();
 
+  // The one-off announce tab moved into /admin/newsletter (the revamp email is a template there).
+  useEffect(() => {
+    if (raw === "announce") router.replace("/admin/newsletter/new?template=learn-revamp");
+  }, [raw, router]);
+
   const setParams = useCallback(
     (patch: Record<string, string | null>) => {
       const next = new URLSearchParams(params.toString());
@@ -54,7 +57,6 @@ export default function AdminContent() {
       <PageHead path="sudo ~/admin/content" title="Content" sub="Newsletter, inbox, comments, accounts and case-file readership." />
       <Tabs label="Content sections" tabs={[...TABS]} value={tab} onChange={(id) => setParams({ tab: id, q: null })} className="mb-5" />
       {tab === "newsletter" && <NewsletterTab say={say} />}
-      {tab === "announce" && <AnnounceTab say={say} />}
       {tab === "welcome" && <WelcomeTab say={say} />}
       {tab === "contact" && <ContactTab say={say} openId={openQuery} onOpen={(id) => setParams({ q: id })} />}
       {tab === "comments" && <CommentsTab say={say} />}

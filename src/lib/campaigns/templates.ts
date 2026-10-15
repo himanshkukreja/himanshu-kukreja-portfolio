@@ -1,0 +1,142 @@
+/**
+ * Starting points for a campaign. The learn-revamp announcement and the welcome email are generated
+ * from their source modules (src/lib/announce/learn-revamp.ts, src/lib/email/welcome.ts), so edits to
+ * those files flow through and a campaign sends exactly the approved design:
+ *
+ *   render once with a sentinel name and once without → line diff → name-dependent lines become
+ *   `{{#if first_name}}…{{else}}…{{/if}}`, the sentinel becomes `{{first_name}}`, the address and its
+ *   unsubscribe link become `{{email}}` / `{{unsubscribe_url}}` (per-recipient token link).
+ *
+ * The blank newsletter is a block document in the same layout.
+ */
+import { ANNOUNCE_KEY, announceSubject, learnRevampHtml, learnRevampText, unsubscribeUrl } from "@/lib/announce/learn-revamp";
+import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
+import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
+import type { TemplateInfo } from "./types";
+
+const S_NAME = "Zqxmergefirst";
+const S_EMAIL = "zqx.merge.email@example.invalid";
+
+/** Line-level LCS diff of a (named) vs b (anonymous), name-dependent hunks wrapped in a conditional. */
+function mergeVariants(a: string, b: string): string {
+  const la = a.split("\n");
+  const lb = b.split("\n");
+  const n = la.length;
+  const m = lb.length;
+  const L: Uint16Array[] = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = la[i] === lb[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+  const out: string[] = [];
+  let i = 0;
+  let j = 0;
+  let ha: string[] = [];
+  let hb: string[] = [];
+  const flush = () => {
+    if (!ha.length && !hb.length) return;
+    out.push(`{{#if first_name}}${ha.join("\n")}{{else}}${hb.join("\n")}{{/if}}`);
+    ha = [];
+    hb = [];
+  };
+  while (i < n || j < m) {
+    if (i < n && j < m && la[i] === lb[j]) {
+      flush();
+      out.push(la[i]);
+      i++;
+      j++;
+    } else if (j < m && (i >= n || L[i][j + 1] >= L[i + 1][j])) hb.push(lb[j++]);
+    else ha.push(la[i++]);
+  }
+  flush();
+  return out.join("\n");
+}
+
+function toTags(s: string, unsub: string): string {
+  return s
+    .split(unsub)
+    .join("{{unsubscribe_url}}")
+    .split(encodeURIComponent(S_EMAIL))
+    .join("{{email}}")
+    .split(S_EMAIL)
+    .join("{{email}}")
+    .split(S_NAME)
+    .join("{{first_name}}");
+}
+
+function fromSource(render: (i: { email: string; name: string | null }) => string, unsub: string): string {
+  return toTags(mergeVariants(render({ email: S_EMAIL, name: S_NAME }), render({ email: S_EMAIL, name: null })), unsub);
+}
+
+function subjectTemplate(fn: (name: string | null) => string) {
+  return { subject: fn(S_NAME).split(S_NAME).join("{{first_name}}"), subjectFallback: fn(null) };
+}
+
+function learnRevampTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/learn-revamp.ts", html: fromSource(learnRevampHtml, unsub), text: fromSource(learnRevampText, unsub) };
+  const pre = /<div style="display:none[^>]*>([^<&]*)/.exec(doc.html)?.[1]?.trim() ?? null;
+  return {
+    id: "learn-revamp",
+    name: "Learn revamp announcement",
+    description: "The “course, rebuilt” patch notes email for every account. Generated from src/lib/announce/learn-revamp.ts.",
+    topic: ANNOUNCE_KEY,
+    ...subjectTemplate(announceSubject),
+    preheader: pre,
+    doc,
+  };
+}
+
+function welcomeTemplate(): TemplateInfo {
+  const unsub = welcomeUnsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/email/welcome.ts", html: fromSource(welcomeHtml, unsub), text: fromSource(welcomeText, unsub) };
+  return {
+    id: "welcome",
+    name: "Welcome email",
+    description: "The new-account welcome (light theme). Use it for people who signed up before it existed. Generated from src/lib/email/welcome.ts.",
+    topic: "welcome",
+    ...subjectTemplate(welcomeSubject),
+    preheader: WELCOME_PREHEADER,
+    doc,
+  };
+}
+
+export function blankDoc(): BlocksDoc {
+  return {
+    layout: "blocks",
+    topLabel: "newsletter",
+    footer: "You're getting this because you have an account or subscribed at himanshukukreja.in with {{email}}.",
+    blocks: [
+      { id: newBlockId(), type: "hero", eyebrow: "❯ system design mastery", title: "A headline that earns the open." },
+      { id: newBlockId(), type: "text", md: "Hi {{first_name|there}},\n\nWrite the update here. **Bold**, *italic*, [links](https://www.himanshukukreja.in/learn) and lists work.\n\n- You're on a **{{streak}}-day** streak\n- {{lessons_completed}} lessons done so far" },
+      { id: newBlockId(), type: "button", label: "Pick up where you left off →", url: "{{resume_url}}" },
+      { id: newBlockId(), type: "text", md: "Reply to this email if anything looks off. I read every reply.\n\nHimanshu" },
+    ],
+  };
+}
+
+function blankTemplate(): TemplateInfo {
+  return {
+    id: "blank",
+    name: "Blank newsletter",
+    description: "Editable blocks (markdown text, buttons, features, a dark callout, images, raw HTML) in the site's email layout.",
+    topic: "newsletter",
+    subject: "{{first_name}}, a quick update from System Design Mastery",
+    subjectFallback: "A quick update from System Design Mastery",
+    preheader: "What's new this week, in two minutes.",
+    doc: blankDoc(),
+  };
+}
+
+export function listTemplates(): TemplateInfo[] {
+  const out: TemplateInfo[] = [];
+  for (const make of [learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+    try {
+      out.push(make());
+    } catch (e) {
+      console.error("[campaigns] template failed", e);
+    }
+  }
+  return out;
+}
+
+export function getTemplate(id: string): TemplateInfo | null {
+  return listTemplates().find((t) => t.id === id) ?? null;
+}

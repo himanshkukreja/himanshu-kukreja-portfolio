@@ -16,6 +16,7 @@ import type {
   TrafficOverview,
 } from "./types";
 import { resolveLearnFixture, resolveLearnFixtureText } from "@/components/admin/learners/fixtures";
+import { resolveNewsletterFixture, resolveNewsletterFixtureText } from "@/components/admin/newsletter/fixtures";
 
 if (process.env.NODE_ENV !== "development") {
   throw new Error("admin fixtures are dev-only");
@@ -223,6 +224,7 @@ ${stories.map((s) => `<div style="border-top:1px solid #eee;padding:14px 0"><b>$
 /** Resolve a GET to mock data; writes (non-GET) succeed. Unknown URLs → undefined (falls through). */
 export function resolveFixture(url: string, init?: RequestInit): unknown {
   const u = new URL(url, "http://x");
+  if (u.pathname.startsWith("/api/admin/newsletter")) return resolveNewsletterFixture(u, init);
   const method = (init?.method || "GET").toUpperCase();
   if (method !== "GET") return { ok: true, sent: 3, total: 3 };
   const range = u.searchParams.get("range") || "7d";
@@ -264,6 +266,7 @@ export function resolveFixture(url: string, init?: RequestInit): unknown {
 /** Text endpoints (email preview HTML, CSV export). */
 export function resolveFixtureText(url: string): string | undefined {
   const path = new URL(url, "http://x").pathname;
+  if (path.startsWith("/api/admin/newsletter")) return resolveNewsletterFixtureText(new URL(url, "http://x"));
   if (path === "/api/admin/preview-email") return PREVIEW_EMAIL_HTML;
   if (path === "/api/admin/export-csv")
     return ["Email,Subscribed Date,Status,City,Country", ...subscribers.map((s) => `"${s.email}","${s.created_at}","${s.unsubscribed ? "Unsubscribed" : "Active"}","${s.city}","${s.country}"`)].join("\n");
