@@ -4,6 +4,8 @@ import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { X, Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { signInWithEmail, verifyOtp, signInWithGoogle } from "@/lib/supabase-client";
+import GoogleIdButton from "@/components/auth/GoogleIdButton";
+import { GIS_ENABLED } from "@/lib/auth/googleIdentity";
 import { BootLoader, Spinner } from "@/components/ui/loader";
 
 type AuthModalProps = {
@@ -183,7 +185,17 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </div>
                 </div>
 
-                {/* Google Sign In */}
+                {/* Google Sign In: on our own domain when enabled (Google then names himanshukukreja.in) */}
+                {GIS_ENABLED && busy !== "google" ? (
+                  <GoogleIdButton
+                    onDone={() => {
+                      setError(null);
+                      handleClose();
+                    }}
+                    onError={(m) => setError(m)}
+                    onFallback={handleGoogleSignIn}
+                  />
+                ) : (
                 <button
                   onClick={handleGoogleSignIn}
                   disabled={loading}
@@ -218,6 +230,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </>
                   )}
                 </button>
+                )}
 
                 {/* Divider */}
                 <div className="relative my-6">
