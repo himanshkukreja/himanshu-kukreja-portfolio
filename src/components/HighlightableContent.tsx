@@ -10,6 +10,7 @@
  * without moving a saved highlight.
  */
 import "@/app/learn/course-content.css";
+import "@/app/learn/course-blocks.css";
 import "@/components/learn/quiz/quiz.css";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/contexts/AuthContext";

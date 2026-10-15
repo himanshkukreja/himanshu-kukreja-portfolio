@@ -2,6 +2,7 @@
 
 import CourseEnhancer from "@/components/learn/content/CourseEnhancer";
 import "@/app/learn/course-content.css";
+import "@/app/learn/course-blocks.css";
 import "@/components/learn/quiz/quiz.css";
 
 /** Dev-only: the renderer's HTML inside .course-content with the same client chrome lessons get. */

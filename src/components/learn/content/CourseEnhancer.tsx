@@ -18,6 +18,7 @@
 import MermaidHydrator from "@/components/diagrams/MermaidHydrator";
 import QuizHydrator from "@/components/learn/quiz/QuizHydrator";
 import "@/app/learn/course-content.css";
+import "@/app/learn/course-blocks.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 

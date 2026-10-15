@@ -12,6 +12,7 @@ import type { LessonKind, TocItem, TocKind } from "../types";
 import { chrome, el, h, isNode, rawHast, stripEmoji, text, toText, type AnyNode, type SdEl } from "../md";
 import { IdRegistry, slugify } from "../slug";
 import { renderCode } from "./code";
+import { renderBlock } from "./directives";
 
 export type BlockCtx = {
   kind: LessonKind;
@@ -617,6 +618,12 @@ export async function processBlocks(nodes: AnyNode[], ctx: BlockCtx, opts: Opts 
         inPhrases: opts.inPhrases,
       });
       out.push(rawHast(hast, { component: String((hast.properties as Properties).dataSd || "code") }));
+      continue;
+    }
+
+    // `:::` blocks (detect/directives.ts); stray directives were already turned back into text
+    if (n.type === "containerDirective") {
+      out.push(await renderBlock(n, ctx, opts));
       continue;
     }
 

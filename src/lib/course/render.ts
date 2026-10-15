@@ -20,6 +20,7 @@ import { chrome, el, h, hastText, rawHast, startsWithEmoji, stripEmoji, text, to
 import { IdRegistry, intToRoman, romanToInt, slugify } from "./slug";
 import { cleanHr, count, isEndMarker, isTomorrow, processBlocks, renderNestedCode, type BlockCtx } from "./detect/blocks";
 import { practiceCard } from "./detect/quiz";
+import { neutralizeDirectives } from "./detect/directives";
 import { practiceFor, type PracticeGame } from "@/lib/learn/arena/games";
 
 export type RenderStats = Record<string, number>;
@@ -167,8 +168,33 @@ function prevElement(siblings: HastRootContent[] | ElementContent[], idx: number
   return null;
 }
 
+/** "12 ms", "~1.2M", "$40", "99.9%", "3×", "500 GB/day" — a cell that is a quantity */
+const NUMERIC_CELL = /^[~≈<>≤≥±+\-−]?\s?[₹$€£]?\d[\d,.]*(?:\s?[A-Za-zµ%×/]{1,10}){0,2}$/;
+
+/** Right-align columns whose body cells are (mostly) quantities, unless the author set an alignment. */
+function markNumericColumns(table: HastElement) {
+  const rows: HastElement[] = [];
+  const collect = (e: HastElement) => e.children.forEach((c) => isEl(c) && (c.tagName === "tr" ? rows.push(c) : collect(c)));
+  collect(table);
+  const cells = rows.map((r) => r.children.filter((c): c is HastElement => isEl(c, "td") || isEl(c, "th")));
+  const body = cells.filter((r) => r.every((c) => c.tagName === "td"));
+  const cols = Math.max(0, ...cells.map((r) => r.length));
+  for (let j = 1; j < cols; j++) {
+    if (cells.some((r) => r[j] && r[j].properties.align)) continue;
+    const vals = body.map((r) => (r[j] ? hastText(r[j]).trim() : "")).filter(Boolean);
+    if (vals.length < 2) continue;
+    const num = vals.filter((v) => v.length <= 22 && NUMERIC_CELL.test(v)).length;
+    if (num / vals.length < 0.75) continue;
+    cells.forEach((r) => {
+      if (r[j]) r[j].properties.className = [...cls(r[j]), "sd-num"];
+    });
+  }
+}
+
 function hastPass(tree: HastRoot, stats: RenderStats, state: { check: number }) {
-  const visitKids = (parent: HastRoot | HastElement) => {
+  // inBlock: inside a `:::` block (detect/directives.ts), whose author already chose the layout —
+  // tables are still wrapped, but the stat-tile heuristic stays off.
+  const visitKids = (parent: HastRoot | HastElement, inBlock = false) => {
     const kids = parent.children as ElementContent[];
     for (let i = 0; i < kids.length; i++) {
       const n = kids[i];
@@ -176,8 +202,13 @@ function hastPass(tree: HastRoot, stats: RenderStats, state: { check: number }) 
       if (n.properties.dataSdChrome !== undefined) continue;
       if (n.tagName === "pre") continue;
       if (n.properties.dataSd === "quiz") continue;
+      if (n.properties.dataSdBlock !== undefined) {
+        visitKids(n, true);
+        continue;
+      }
 
       if (n.tagName === "table") {
+        markNumericColumns(n);
         const firstRow = (n.children.find((c) => isEl(c, "thead")) as HastElement | undefined)?.children.find((c) => isEl(c, "tr")) as HastElement | undefined;
         const colCount = firstRow ? firstRow.children.filter((c) => isEl(c)).length : 0;
         const headText = firstRow ? hastText(firstRow).replace(/\s+/g, " ").trim().slice(0, 80) : "Table";
@@ -209,7 +240,7 @@ function hastPass(tree: HastRoot, stats: RenderStats, state: { check: number }) 
 
       // "Numbers" lists: ≥3 items that each lead with a bold figure (**~2,000,000** people …) become a
       // stat-tile grid. Marked with a class only — the text is untouched, so highlight offsets stay valid.
-      if ((n.tagName === "ul" || n.tagName === "ol") && !cls(n).includes("contains-task-list")) {
+      if (!inBlock && (n.tagName === "ul" || n.tagName === "ol") && !cls(n).includes("contains-task-list")) {
         const items = n.children.filter((c): c is HastElement => isEl(c, "li"));
         const leadsWithFigure = (li: HastElement) => {
           const first = li.children.find((c) => !(c.type === "text" && !c.value.trim()));
@@ -274,7 +305,7 @@ function hastPass(tree: HastRoot, stats: RenderStats, state: { check: number }) 
         ]);
         continue;
       }
-      visitKids(n);
+      visitKids(n, inBlock);
     }
   };
   visitKids(tree);
@@ -302,26 +333,50 @@ async function markQuizzes(mdast: Root, practice: PracticeGame[]): Promise<numbe
 
 /* ------------------------------------------------------------------ main */
 
-export async function renderLessonDetailed(markdown: string, opts: { kind: LessonKind }): Promise<{ lesson: RenderedLesson; stats: RenderStats }> {
+export type RenderOpts = {
+  kind: LessonKind;
+  /** parse `:::` blocks (default true; false = the pre-blocks pipeline, used by the text-diff test) */
+  directives?: boolean;
+};
+
+export async function renderLessonDetailed(markdown: string, opts: RenderOpts): Promise<{ lesson: RenderedLesson; stats: RenderStats }> {
   const { kind } = opts;
+  const stats: RenderStats = {};
   const { unified } = await import("unified");
   const remarkParse = (await import("remark-parse")).default;
   const remarkGfm = (await import("remark-gfm")).default;
   const remarkRehype = (await import("remark-rehype")).default;
   const rehypeStringify = (await import("rehype-stringify")).default;
 
-  const parser = unified().use(remarkParse).use(remarkGfm);
+  // `:::` blocks (detect/directives.ts). Every other directive the plugin finds in prose
+  // ("ratio:high", "::x" lines, unknown containers) is turned straight back into its source text.
+  const parser = opts.directives === false ? unified().use(remarkParse).use(remarkGfm) : unified().use(remarkParse).use(remarkGfm).use((await import("remark-directive")).default);
   const mdast = (await parser.run(parser.parse(markdown))) as Root;
+  if (opts.directives !== false) stats.strayDirectives = neutralizeDirectives(mdast, markdown);
   // Image URLs: same ImageKit rewrite the stories pipeline uses (course lessons have no images today).
   {
     const { visit } = await import("unist-util-visit");
     const { resolveCoverUrl } = await import("@/lib/utils");
-    visit(mdast, "image", (node: { url?: string }) => {
+    // remark-directive also reads `:00` in an image's alt text as a directive and drops it from
+    // `alt` (a plain string, so neutralizeDirectives can't restore it): re-read those alts without it.
+    const plain = opts.directives === false ? null : unified().use(remarkParse).use(remarkGfm);
+    visit(mdast, "image", (node: { url?: string; alt?: string | null; position?: { start: { offset?: number }; end: { offset?: number } } }) => {
+      const s = node.position?.start.offset;
+      const e = node.position?.end.offset;
+      if (plain && typeof s === "number" && typeof e === "number") {
+        const src = markdown.slice(s, e);
+        if (src.includes(":")) {
+          let alt: string | null | undefined;
+          visit(plain.parse(src), "image", (img: { alt?: string | null }) => {
+            alt ??= img.alt;
+          });
+          if (alt !== undefined) node.alt = alt;
+        }
+      }
       const u = node.url ? resolveCoverUrl(node.url) : undefined;
       if (u) node.url = u;
     });
   }
-  const stats: RenderStats = {};
 
   /* hero: h1 title, h2 deck (unless the series label), hr; optional emoji h1 lede */
   const nodes = [...mdast.children];
@@ -478,6 +533,6 @@ export async function renderLessonDetailed(markdown: string, opts: { kind: Lesso
   };
 }
 
-export async function renderLesson(markdown: string, opts: { kind: LessonKind }): Promise<RenderedLesson> {
+export async function renderLesson(markdown: string, opts: RenderOpts): Promise<RenderedLesson> {
   return (await renderLessonDetailed(markdown, opts)).lesson;
 }

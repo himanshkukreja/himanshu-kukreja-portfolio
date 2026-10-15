@@ -1,0 +1,1293 @@
+/*
+ * `:::` course blocks — panel, compare/col, steps, tree, callout, stats, calc, timeline
+ * (renderer: src/lib/course/detect/directives.ts, authoring spec: BLOCKS.md) + GFM tables.
+ *
+ * Same family as the other renderer components in course-content.css: square corners, 1px rules,
+ * mono uppercase labels, Geist body, Bricolage for big figures. Tones are accents only — a 2px rule,
+ * a glyph, a faint tint — never coloured slabs. Layout switches use container queries, so a block
+ * adapts to the reader column (and the reader's text size), not to the window.
+ */
+
+/* ------------------------------------------------------------ tone tokens */
+
+.course-content {
+  /* sky + amber come from src/lib/diagrams/palette.json (edge / queue strokes) */
+  --sdb-sky: #1d6fb8;
+  --sdb-amber: #a16207;
+  --sdb-ok-text: #15803d;
+}
+.dark .course-content {
+  --sdb-sky: #4fb3ff;
+  --sdb-amber: #f5b83d;
+  --sdb-ok-text: #3dd68c;
+}
+
+.course-content .sdb,
+.course-content .sdb-col {
+  --sdb-tone: var(--c-line-strong);
+  --sdb-tone-text: var(--c-fg-3);
+}
+.course-content [data-tone="core"],
+.course-content .sdb-callout[data-type="key"] {
+  --sdb-tone: var(--c-signal);
+  --sdb-tone-text: var(--c-signal-text);
+}
+.course-content [data-tone="info"],
+.course-content .sdb-callout[data-type="tip"] {
+  --sdb-tone: var(--sdb-sky);
+  --sdb-tone-text: var(--sdb-sky);
+}
+.course-content [data-tone="ok"],
+.course-content .sdb-callout[data-type="ok"] {
+  --sdb-tone: var(--c-ok);
+  --sdb-tone-text: var(--sdb-ok-text);
+}
+.course-content [data-tone="bad"],
+.course-content .sdb-callout[data-type="bad"] {
+  --sdb-tone: var(--c-bad);
+  --sdb-tone-text: var(--c-bad-text);
+}
+.course-content [data-tone="warn"],
+.course-content .sdb-callout[data-type="warn"] {
+  --sdb-tone: var(--sdb-amber);
+  --sdb-tone-text: var(--sdb-amber);
+}
+.course-content [data-tone="note"],
+.course-content .sdb-callout[data-type="info"] {
+  --sdb-tone: var(--c-line-strong);
+  --sdb-tone-text: var(--c-fg-3);
+}
+
+/* ------------------------------------------------------------ shared frame */
+
+.course-content .sdb {
+  container-type: inline-size;
+  position: relative;
+  margin: 32px 0;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  font-size: 0.94em;
+  line-height: 1.65;
+}
+.course-content .sdb .sdb {
+  margin: 16px 0;
+  font-size: 1em;
+}
+.course-content .sdb-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+  padding: 11px 16px 10px;
+  border-bottom: 1px solid var(--c-line);
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.45;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-fg);
+}
+.course-content .sdb-head::before {
+  content: "";
+  flex: none;
+  align-self: center;
+  width: 7px;
+  height: 7px;
+  background: var(--sdb-tone);
+}
+.course-content .sdb-title {
+  min-width: 0;
+  flex: 1 1 12em;
+}
+.course-content .sdb-head code {
+  font-size: 1em;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.course-content .sdb-kicker {
+  flex: none;
+  padding: 1px 6px;
+  border: 1px solid var(--c-line-strong);
+  font-size: 10.5px;
+  color: var(--c-fg-3);
+}
+.course-content .sdb-body {
+  padding: 16px 18px 2px;
+  font-size: 1em;
+}
+.course-content .sdb-body::after {
+  content: "";
+  display: block;
+  height: 14px;
+}
+.course-content .sdb-body > :last-child,
+.course-content .sdb-col-body > :last-child,
+.course-content .sdb-callout-main > :last-child,
+.course-content .sdb-tl-event > :last-child,
+.course-content .sdb-compare-intro > :last-child,
+.course-content .sdb-compare-foot > :last-child {
+  margin-bottom: 0;
+}
+.course-content .sdb-body > :first-child,
+.course-content .sdb-col-body > :first-child {
+  margin-top: 0;
+}
+
+/* flow inside blocks: a touch tighter than the page */
+.course-content .sdb p {
+  margin: 0 0 0.8em;
+}
+.course-content .sdb ul,
+.course-content .sdb ol {
+  margin: 0 0 0.9em;
+  padding-left: 1.25em;
+}
+.course-content .sdb li {
+  margin: 0.2em 0;
+}
+.course-content .sdb ul > li::marker {
+  color: var(--sdb-tone-text);
+}
+.course-content .sdb li > ul,
+.course-content .sdb li > ol {
+  margin: 0.2em 0 0.3em;
+}
+.course-content .sdb blockquote {
+  margin: 0.9em 0;
+  padding: 0.1em 0 0.1em 0.9em;
+  border-left: 2px solid var(--sdb-tone);
+}
+.course-content .sdb .sd-code,
+.course-content .sdb .sd-table,
+.course-content .sdb .sd-mermaid {
+  margin: 14px 0;
+}
+.course-content .sdb hr {
+  width: auto;
+  margin: 18px 0;
+}
+
+/* sub-heads inside a block: labels, not document headings */
+.course-content .sdb-h {
+  margin: 1.3em 0 0.55em;
+  padding-top: 0.9em;
+  border-top: 1px dashed var(--c-line);
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--sdb-tone-text);
+}
+.course-content .sdb [data-tone="note"] .sdb-h,
+.course-content .sdb-panel[data-tone="note"] .sdb-h {
+  color: var(--c-fg-2);
+}
+.course-content .sdb-body > .sdb-h:first-child,
+.course-content .sdb-col-body > .sdb-h:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+.course-content .sdb-h code {
+  text-transform: none;
+}
+
+/* separators that the layout replaces (kept in the DOM so the text reads with CSS off) */
+.course-content .sdb-stats .sdb-dash,
+.course-content .sdb-steps .sdb-dash,
+.course-content .sdb-tl-item > .sdb-dash,
+.course-content .sdb-chip-sep {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------ panel */
+
+.course-content .sdb-panel {
+  border-top: 2px solid var(--sdb-tone);
+}
+.course-content .sdb-panel[data-tone="note"] {
+  border-top-color: var(--c-line-strong);
+}
+.course-content .sdb-panel:not([data-titled]) > .sdb-body {
+  padding-top: 18px;
+}
+
+/* ------------------------------------------------------------ compare */
+
+.course-content .sdb-cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+.course-content .sdb-col {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--sdb-tone);
+}
+/* stacked: a divider with the "vs" chip on it */
+.course-content .sdb-col + .sdb-col {
+  margin-top: 24px;
+}
+.course-content .sdb-col + .sdb-col::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -14px;
+  height: 1px;
+  background: var(--c-line);
+}
+.course-content .sdb-col-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px 0;
+}
+.course-content .sdb-col-title {
+  margin: 0 !important;
+  min-width: 0;
+  font-family: var(--sd-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--sdb-tone-text);
+}
+.course-content .sdb-col[data-tone="note"] .sdb-col-title {
+  color: var(--c-fg);
+}
+.course-content .sdb-col-title code {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.course-content .sdb-glyph {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 1px solid currentColor;
+  color: var(--sdb-tone-text);
+  background: color-mix(in srgb, var(--sdb-tone) 10%, transparent);
+}
+.course-content .sdb-glyph svg {
+  width: 13px;
+  height: 13px;
+}
+.course-content .sdb-swatch {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  background: var(--sdb-tone);
+}
+.course-content .sdb-col[data-tone="note"] .sdb-swatch {
+  background: var(--c-fg-3);
+}
+.course-content .sdb-col-body {
+  flex: 1 1 auto;
+  padding: 10px 16px 16px;
+}
+.course-content [data-contrast] .sdb-col[data-tone="ok"] .sdb-col-body,
+.course-content [data-contrast] .sdb-col[data-tone="bad"] .sdb-col-body {
+  background: linear-gradient(color-mix(in srgb, var(--sdb-tone) 5%, transparent), transparent 120px);
+}
+.course-content [data-contrast] .sdb-col[data-tone="ok"] .sdb-col-head,
+.course-content [data-contrast] .sdb-col[data-tone="bad"] .sdb-col-head {
+  background: color-mix(in srgb, var(--sdb-tone) 5%, transparent);
+}
+/* "vs": a chip on the divider between two columns */
+.course-content .sdb-vs {
+  position: absolute;
+  z-index: 1;
+  left: 50%;
+  top: -14px;
+  transform: translate(-50%, -50%);
+  padding: 0 7px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  font-family: var(--sd-mono);
+  font-size: 10.5px;
+  line-height: 18px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-fg-3);
+}
+.course-content .sdb-compare-intro,
+.course-content .sdb-compare-foot {
+  padding: 12px 16px;
+  font-size: 0.97em;
+  color: var(--c-fg-2);
+}
+.course-content .sdb-compare-intro {
+  border-bottom: 1px solid var(--c-line);
+}
+.course-content .sdb-compare-foot {
+  border-top: 1px solid var(--c-line);
+}
+
+/* side by side: 2–3 columns once there is room, 4 columns go 2×2 first */
+@container (min-width: 540px) {
+  .course-content .sdb-compare:is([data-cols="2"], [data-cols="3"]) > .sdb-cols {
+    grid-template-columns: repeat(var(--sdb-n, 2), minmax(0, 1fr));
+  }
+  .course-content .sdb-compare[data-cols="3"] > .sdb-cols {
+    --sdb-n: 3;
+  }
+  .course-content .sdb-compare:is([data-cols="4"], [data-cols="5"], [data-cols="6"]) > .sdb-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .course-content .sdb-compare > .sdb-cols > .sdb-col + .sdb-col {
+    margin-top: 0;
+    border-left: 1px solid var(--c-line);
+  }
+  .course-content .sdb-compare > .sdb-cols > .sdb-col + .sdb-col::before {
+    display: none;
+  }
+  .course-content .sdb-compare > .sdb-cols > .sdb-col > .sdb-vs {
+    left: 0;
+    top: 20px;
+    transform: translate(-50%, -50%);
+  }
+  /* 2×2: the second row gets a rule, the "vs" chips sit only between neighbours in a row */
+  .course-content .sdb-compare:is([data-cols="4"], [data-cols="5"], [data-cols="6"]) > .sdb-cols > .sdb-col:nth-child(2n + 1) {
+    border-left: 0;
+  }
+  .course-content .sdb-compare:is([data-cols="4"], [data-cols="5"], [data-cols="6"]) > .sdb-cols > .sdb-col:nth-child(2n + 1) > .sdb-vs {
+    display: none;
+  }
+}
+/* 3 columns are too tight in a narrow reader column: 3 stacked rows until 640px */
+@container (max-width: 639px) {
+  .course-content .sdb-compare[data-cols="3"] > .sdb-cols {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .course-content .sdb-compare[data-cols="3"] > .sdb-cols > .sdb-col + .sdb-col {
+    margin-top: 24px;
+    border-left: 0;
+  }
+  .course-content .sdb-compare[data-cols="3"] > .sdb-cols > .sdb-col + .sdb-col::before {
+    display: block;
+  }
+  .course-content .sdb-compare[data-cols="3"] > .sdb-cols > .sdb-col > .sdb-vs {
+    left: 50%;
+    top: -14px;
+  }
+}
+@container (min-width: 980px) {
+  .course-content .sdb-compare:is([data-cols="4"]) > .sdb-cols {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .course-content .sdb-compare[data-cols="4"] > .sdb-cols > .sdb-col:nth-child(n) {
+    border-left: 1px solid var(--c-line);
+  }
+  .course-content .sdb-compare[data-cols="4"] > .sdb-cols > .sdb-col:first-child {
+    border-left: 0;
+  }
+  .course-content .sdb-compare[data-cols="4"] > .sdb-cols > .sdb-col > .sdb-vs {
+    display: block;
+  }
+}
+
+/* ------------------------------------------------------------ steps */
+
+.course-content .sdb .sdb-step-list {
+  margin: 0 0 0.9em;
+  padding: 0;
+  list-style: none;
+  counter-reset: sdbstep;
+}
+.course-content .sdb-step {
+  position: relative;
+  margin: 0;
+  padding: 0 0 18px 46px;
+  counter-increment: sdbstep;
+}
+.course-content .sdb-step::before {
+  content: counter(sdbstep, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-surface-2);
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--c-fg);
+}
+.course-content .sdb-step:first-child::before {
+  border-color: var(--c-signal);
+  background: var(--c-signal);
+  color: var(--c-on-signal);
+}
+/* connector */
+.course-content .sdb-step::after {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 34px;
+  bottom: 4px;
+  width: 1px;
+  background: var(--c-line-strong);
+}
+.course-content .sdb-step:last-child {
+  padding-bottom: 2px;
+}
+.course-content .sdb-step:last-child::after {
+  display: none;
+}
+.course-content .sdb-step-head {
+  min-height: 30px;
+  padding-top: 2px;
+  margin-bottom: 4px;
+}
+.course-content .sdb-step-title {
+  font-weight: 650;
+  color: var(--c-fg);
+}
+.course-content .sdb-step-title strong {
+  font-weight: inherit;
+}
+.course-content .sdb-step-desc {
+  display: block;
+  color: var(--c-fg-2);
+}
+.course-content .sdb-step > ul,
+.course-content .sdb-step > ol,
+.course-content .sdb-step > p {
+  margin-top: 4px;
+  margin-bottom: 4px;
+}
+.course-content .sdb-sublist {
+  font-size: 0.92em;
+  color: var(--c-fg-2);
+}
+.course-content .sdb-sublist > li {
+  margin: 0.12em 0;
+}
+.course-content .sdb-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0 4px !important;
+  padding: 0 !important;
+  list-style: none;
+}
+.course-content .sdb-chips > li {
+  margin: 0;
+}
+.course-content .sdb-chips-one {
+  display: contents;
+}
+.course-content .sdb-chip {
+  display: inline-block;
+  padding: 2px 8px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface-2);
+  font-size: 0.82em;
+  line-height: 1.55;
+  color: var(--c-fg-2);
+}
+.course-content .sdb-chip code {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* dir="right": short flat flows read left → right once the column is wide enough */
+@container (min-width: 600px) {
+  .course-content .sdb-steps[data-dir="right"] .sdb-step-list {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+  .course-content .sdb-steps[data-dir="right"] .sdb-step {
+    padding: 44px 18px 4px 0;
+  }
+  .course-content .sdb-steps[data-dir="right"] .sdb-step::after {
+    display: block;
+    left: 38px;
+    right: 12px;
+    top: 15px;
+    bottom: auto;
+    width: auto;
+    height: 1px;
+  }
+  .course-content .sdb-steps[data-dir="right"] .sdb-step:last-child::after {
+    display: none;
+  }
+  /* chevron at the end of each connector */
+  .course-content .sdb-steps[data-dir="right"] .sdb-step:not(:last-child) > .sdb-step-head::after {
+    content: "";
+    position: absolute;
+    right: 12px;
+    top: 11px;
+    width: 8px;
+    height: 8px;
+    border-top: 1px solid var(--c-fg-3);
+    border-right: 1px solid var(--c-fg-3);
+    transform: rotate(45deg);
+  }
+  .course-content .sdb-steps[data-dir="right"] .sdb-step-head {
+    min-height: 0;
+    padding-top: 0;
+  }
+  .course-content .sdb-steps[data-dir="right"] .sdb-step-desc {
+    margin-top: 2px;
+    font-size: 0.92em;
+  }
+}
+
+/* ------------------------------------------------------------ tree */
+
+.course-content .sdb-tree-root {
+  margin: 0 0 0.9em;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.course-content .sdb-tree-list {
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none;
+}
+.course-content .sdb-tree-item {
+  position: relative;
+  margin: 0 !important;
+}
+.course-content .sdb-tree-item::marker {
+  content: none;
+}
+/* nested levels: real connector lines */
+.course-content .sdb-tree-item .sdb-tree-list {
+  margin-left: 4px !important;
+}
+.course-content .sdb-tree-item .sdb-tree-item {
+  padding-left: 22px;
+}
+.course-content .sdb-tree-item .sdb-tree-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 1px solid var(--c-line-strong);
+}
+.course-content .sdb-tree-item .sdb-tree-item:last-child::before {
+  bottom: auto;
+  height: calc(0.4em + 11px);
+}
+.course-content .sdb-tree-item .sdb-tree-item::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(0.4em + 11px);
+  width: 15px;
+  border-top: 1px solid var(--c-line-strong);
+}
+.course-content .sdb-tree-line {
+  position: relative;
+  display: block;
+  padding: 3px 0;
+  line-height: 1.55;
+}
+/* top level: a square node */
+.course-content .sdb-tree-root > .sdb-tree-list > .sdb-tree-item {
+  padding-left: 18px;
+}
+.course-content .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-line::before,
+.course-content .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-fold > .sdb-tree-line::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: calc(0.4em + 5px);
+  width: 7px;
+  height: 7px;
+  background: var(--sdb-tone, var(--c-fg-3));
+}
+.course-content .sdb-tree[data-tone="note"] .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-line::before,
+.course-content .sdb-tree[data-tone="note"] .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-fold > .sdb-tree-line::before,
+.course-content .sdb-tree:not([data-tone]) .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-line::before,
+.course-content .sdb-tree:not([data-tone]) .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-fold > .sdb-tree-line::before {
+  background: var(--c-signal);
+}
+.course-content .sdb-tree-root > .sdb-tree-list > .sdb-tree-item + .sdb-tree-item {
+  margin-top: 4px !important;
+}
+.course-content .sdb-tree-name {
+  font-family: var(--sd-mono);
+  font-size: 0.86em;
+  font-weight: 500;
+  color: var(--c-fg);
+}
+.course-content .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-line > .sdb-tree-name,
+.course-content .sdb-tree-root > .sdb-tree-list > .sdb-tree-item > .sdb-tree-fold > .sdb-tree-line > .sdb-tree-name {
+  font-weight: 650;
+}
+.course-content .sdb-tree-name code {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 1em;
+}
+.course-content .sdb-tree-name strong {
+  font-weight: 650;
+}
+.course-content .sdb-tree-line > .sdb-dash {
+  color: var(--c-fg-4);
+}
+.course-content .sdb-tree-note {
+  font-size: 0.9em;
+  color: var(--c-fg-3);
+}
+.course-content .sdb-tree-item > p,
+.course-content .sdb-tree-fold > p {
+  margin: 0 0 4px;
+  font-size: 0.9em;
+  color: var(--c-fg-3);
+}
+/* folding branches */
+.course-content .sdb-tree-fold > summary {
+  cursor: pointer;
+  list-style: none;
+  padding-right: 34px;
+}
+.course-content .sdb-tree-fold > summary::-webkit-details-marker {
+  display: none;
+}
+.course-content .sdb-tree-fold > summary::after {
+  content: "+";
+  position: absolute;
+  right: 0;
+  top: 3px;
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--c-line);
+  font-family: var(--sd-mono);
+  font-size: 12px;
+  line-height: 1;
+  color: var(--c-fg-3);
+}
+.course-content .sdb-tree-fold[open] > summary::after {
+  content: "\2212";
+}
+.course-content .sdb-tree-fold > summary:hover::after {
+  border-color: var(--c-fg-3);
+  color: var(--c-fg);
+}
+.course-content .sdb-tree-fold:not([open]) > summary .sdb-tree-name {
+  text-decoration: underline dotted var(--c-fg-4);
+  text-underline-offset: 3px;
+}
+@media (pointer: coarse) {
+  .course-content .sdb-tree-fold > summary {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .course-content .sdb-tree-fold > summary::after {
+    top: 8px;
+  }
+}
+
+/* ------------------------------------------------------------ callout */
+
+.course-content .sdb-callout {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  column-gap: 12px;
+  padding: 14px 18px 14px 14px;
+  border-left: 2px solid var(--sdb-tone);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--sdb-tone) 7%, var(--c-surface)), var(--c-surface) 70%);
+}
+.course-content .sdb-callout[data-type="info"] {
+  border-left-color: var(--c-fg-3);
+}
+.course-content .sdb-callout-icon {
+  display: grid;
+  place-items: center;
+  width: 20px;
+  height: 22px;
+  color: var(--sdb-tone-text);
+}
+.course-content .sdb-callout[data-type="info"] .sdb-callout-icon {
+  color: var(--c-fg-2);
+}
+.course-content .sdb-callout-main {
+  min-width: 0;
+}
+.course-content .sdb-callout-title {
+  margin: 0 0 6px !important;
+  font-weight: 650;
+  line-height: 1.45;
+  color: var(--c-fg);
+}
+.course-content .sdb-callout-kind {
+  display: inline-block;
+  margin-right: 10px;
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: 0.1em;
+  color: var(--sdb-tone-text);
+}
+.course-content .sdb-callout-title-chrome {
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--sdb-tone-text);
+}
+.course-content .sdb-callout[data-type="info"] .sdb-callout-kind,
+.course-content .sdb-callout[data-type="info"] .sdb-callout-title-chrome {
+  color: var(--c-fg-3);
+}
+.course-content .sdb-callout ul > li::marker {
+  color: var(--sdb-tone-text);
+}
+
+/* ------------------------------------------------------------ stats (extends .sd-stats) */
+
+.course-content .sdb-stats {
+  border: 0;
+  background: transparent;
+}
+.course-content .sdb-stats > .sdb-head {
+  padding: 0 0 10px;
+  border-bottom: 0;
+}
+.course-content .sdb-stats > .sdb-head::before {
+  background: var(--c-signal);
+}
+.course-content .sdb-stats > p {
+  margin: 10px 0;
+  color: var(--c-fg-2);
+}
+.course-content .sdb-stats ul.sd-stats,
+.course-content .sdb-stats ol.sd-stats {
+  margin: 0;
+  padding: 0;
+}
+.course-content .sdb-stats .sd-stats > li {
+  font-size: 0.86em;
+}
+.course-content .sdb-stats .sd-stats > li > strong:first-child {
+  font-size: clamp(22px, 1.6em, 32px);
+}
+.course-content .sdb-stat-label {
+  display: block;
+  color: var(--c-fg-2);
+}
+
+/* ------------------------------------------------------------ calc (worksheet) */
+
+.course-content .sdb-calc .sdb-body {
+  padding: 4px 0 0;
+}
+.course-content .sdb-calc .sdb-body::after {
+  height: 0;
+}
+.course-content .sdb-calc .sdb-body > :not(.sdb-calc-list):not(.sd-table) {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+.course-content .sdb-calc .sdb-body > p:first-child {
+  margin-top: 10px;
+}
+.course-content .sdb-calc .sdb-body > :last-child:not(.sdb-calc-list):not(.sd-table) {
+  margin-bottom: 14px;
+}
+.course-content .sdb-calc .sdb-body > .sd-table {
+  margin: 0;
+  border-width: 0 0 0 0;
+}
+.course-content .sdb-calc-list {
+  margin: 0 !important;
+  padding: 0 !important;
+  list-style: none;
+}
+.course-content .sdb-calc-row {
+  margin: 0 !important;
+  border-bottom: 1px dashed var(--c-line);
+}
+.course-content .sdb-calc .sdb-body > .sdb-calc-list:last-child > .sdb-calc-row:last-child {
+  border-bottom: 0;
+}
+/* a row is label · working · result (data-shape says which parts exist: l, w, r);
+   phones: label + result on one line, working below; wide: three columns */
+.course-content .sdb-calc-line {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  row-gap: 1px;
+  align-items: baseline;
+  padding: 9px 16px;
+}
+.course-content .sdb-calc-label {
+  grid-column: 1;
+  grid-row: 1;
+  min-width: 0;
+  font-weight: 550;
+  color: var(--c-fg);
+}
+.course-content .sdb-calc-work {
+  grid-column: 1 / -1;
+  min-width: 0;
+  font-family: var(--sd-mono);
+  font-size: 0.84em;
+  line-height: 1.6;
+  color: var(--c-fg-3);
+  overflow-wrap: anywhere;
+}
+.course-content .sdb-calc-line:is([data-shape="wr"], [data-shape="w"]) > .sdb-calc-work {
+  grid-column: 1;
+  grid-row: 1;
+}
+.course-content .sdb-calc-work.sdb-calc-prose {
+  font-family: var(--sd-sans);
+  font-size: 0.95em;
+  line-height: 1.55;
+  color: var(--c-fg-2);
+  overflow-wrap: break-word;
+}
+.course-content .sdb-calc-work strong,
+.course-content .sdb-calc-work code {
+  color: var(--c-fg-2);
+}
+.course-content .sdb-calc-work code {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 1em;
+}
+.course-content .sdb-calc-res {
+  grid-column: 2;
+  grid-row: 1;
+  justify-self: end;
+  max-width: 18em;
+  font-family: var(--sd-mono);
+  font-size: 0.9em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-fg-2);
+}
+.course-content .sdb-calc-res > strong {
+  font-weight: 700;
+  color: var(--c-fg);
+}
+.course-content .sdb-calc-tail {
+  grid-column: 1 / -1;
+  font-size: 0.9em;
+  line-height: 1.55;
+  color: var(--c-fg-3);
+}
+.course-content .sdb-calc-note {
+  display: block;
+  font-size: 0.95em;
+  color: var(--c-fg-2);
+}
+.course-content .sdb .sdb-calc-sub {
+  margin: 0 0 8px 16px !important;
+  padding-left: 16px !important;
+  border-left: 1px solid var(--c-line);
+}
+.course-content .sdb-calc-sub .sdb-calc-row {
+  border-bottom: 0;
+}
+.course-content .sdb-calc-sub .sdb-calc-line {
+  padding: 3px 16px 3px 0;
+  font-size: 0.94em;
+}
+.course-content .sdb-calc-sub .sdb-calc-label {
+  font-weight: 450;
+  color: var(--c-fg-2);
+}
+/* the answer */
+.course-content .sdb-calc-answer > .sdb-calc-line {
+  border-left: 2px solid var(--c-signal);
+  padding-left: 14px;
+  background: color-mix(in srgb, var(--c-signal) 7%, transparent);
+}
+.course-content .sdb-calc-sub .sdb-calc-answer > .sdb-calc-line {
+  padding-left: 10px;
+}
+.course-content .sdb-calc-answer > .sdb-calc-line > .sdb-calc-res,
+.course-content .sdb-calc-answer > .sdb-calc-line > .sdb-calc-res > strong {
+  color: var(--c-signal-text);
+}
+.course-content .sdb-calc-answer > .sdb-calc-line > .sdb-calc-res > strong {
+  font-family: var(--sd-display);
+  font-size: 1.3em;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+/* narrow: a long result (and always the answer) gets its own line under the label */
+@container (max-width: 559px) {
+  .course-content .sdb-calc-line[data-shape="lw"] {
+    display: block;
+  }
+  .course-content .sdb-calc-line[data-shape="lw"] > .sdb-calc-work {
+    margin-left: 0.3em;
+  }
+  /* label and result share the first line while they fit; a long pair wraps the result under,
+     still right-aligned. Working and any tail sentence go below. */
+  .course-content .sdb-calc-line:not([data-shape="lw"]) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+  }
+  .course-content .sdb-calc-line > .sdb-calc-label {
+    flex: 1 1 auto;
+  }
+  .course-content .sdb-calc-line > .sdb-calc-work {
+    flex: 0 1 auto;
+  }
+  .course-content .sdb-calc-line > .sdb-calc-res {
+    margin-left: auto;
+    max-width: 100%;
+  }
+  .course-content .sdb-calc-line > .sdb-calc-tail {
+    flex: 1 1 100%;
+  }
+  .course-content .sdb-calc-answer > .sdb-calc-line > .sdb-calc-res {
+    flex: 1 1 100%;
+    margin-left: 0;
+    text-align: left;
+  }
+}
+@container (min-width: 560px) {
+  .course-content .sdb-calc-line:is([data-shape="lwr"], [data-shape="lw"]) {
+    grid-template-columns: fit-content(15em) minmax(0, 1fr) auto;
+  }
+  .course-content .sdb-calc-line:is([data-shape="lwr"], [data-shape="lw"]) > .sdb-calc-work {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .course-content .sdb-calc-line[data-shape="lwr"] > .sdb-calc-res {
+    grid-column: 3;
+  }
+  .course-content .sdb-calc-line[data-shape="lw"] > .sdb-calc-work {
+    grid-column: 2 / -1;
+  }
+  .course-content .sdb-calc-line[data-shape="lwr"] > .sdb-calc-tail {
+    grid-column: 2 / -1;
+  }
+}
+/* table worksheets: the last row is the total */
+.course-content .sdb-calc[data-variant="table"] tr:last-child td {
+  border-top: 1px solid var(--c-line-strong);
+  font-weight: 650;
+  color: var(--c-fg);
+}
+
+/* ------------------------------------------------------------ timeline */
+
+.course-content .sdb-tl-list {
+  margin: 0 0 0.9em !important;
+  padding: 0 !important;
+  list-style: none;
+}
+.course-content .sdb-tl-item {
+  position: relative;
+  margin: 0 !important;
+  padding: 0 0 14px 22px;
+}
+/* the rail */
+.course-content .sdb-tl-item::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--c-line-strong);
+}
+.course-content .sdb-tl-item:first-child::before {
+  top: 0.7em;
+}
+.course-content .sdb-tl-item:last-child::before {
+  bottom: auto;
+  height: 0.7em;
+}
+.course-content .sdb-tl-item:only-child::before {
+  display: none;
+}
+.course-content .sdb-tl-item::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: calc(0.7em - 4px);
+  width: 9px;
+  height: 9px;
+  border: 1px solid var(--c-fg-3);
+  background: var(--c-surface);
+}
+.course-content .sdb-tl-item:last-child::after {
+  border-color: var(--c-signal);
+  background: var(--c-signal);
+}
+.course-content .sdb-tl-item:last-child {
+  padding-bottom: 2px;
+}
+.course-content .sdb-tl-time {
+  display: inline-block;
+  margin-bottom: 3px;
+  padding: 0 7px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface-2);
+  font-family: var(--sd-mono);
+  font-size: 0.8em;
+  line-height: 1.75;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-fg);
+}
+.course-content .sdb-tl-time:empty {
+  display: none;
+}
+.course-content .sdb-tl-time strong {
+  font-weight: 600;
+}
+.course-content .sdb-tl-event {
+  color: var(--c-fg-2);
+}
+.course-content .sdb-tl-event > p {
+  margin: 0 0 0.4em;
+}
+.course-content .sdb-tl-event > ul,
+.course-content .sdb-tl-event > ol {
+  margin: 0.2em 0 0.3em;
+  font-size: 0.95em;
+}
+/* wide: times in their own column, left of the rail */
+@container (min-width: 520px) {
+  .course-content .sdb-tl-list {
+    display: grid;
+    grid-template-columns: fit-content(16em) minmax(0, 1fr);
+  }
+  .course-content .sdb-tl-item {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: subgrid;
+    column-gap: 0;
+    padding: 0;
+  }
+  .course-content .sdb-tl-time {
+    grid-column: 1;
+    justify-self: end;
+    align-self: start;
+    margin: 0 16px 12px 0;
+    text-align: right;
+    text-wrap: balance;
+  }
+  .course-content .sdb-tl-time:empty {
+    display: block;
+    visibility: hidden;
+  }
+  .course-content .sdb-tl-event {
+    grid-column: 2;
+    position: relative;
+    padding: 0 0 16px 24px;
+  }
+  .course-content .sdb-tl-item:last-child .sdb-tl-event {
+    padding-bottom: 2px;
+  }
+  .course-content .sdb-tl-item::before,
+  .course-content .sdb-tl-item::after {
+    display: none;
+  }
+  .course-content .sdb-tl-event::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: var(--c-line-strong);
+  }
+  .course-content .sdb-tl-item:first-child .sdb-tl-event::before {
+    top: 0.75em;
+  }
+  .course-content .sdb-tl-item:last-child .sdb-tl-event::before {
+    bottom: auto;
+    height: 0.75em;
+  }
+  .course-content .sdb-tl-item:only-child .sdb-tl-event::before {
+    display: none;
+  }
+  .course-content .sdb-tl-event::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: calc(0.75em - 4px);
+    width: 9px;
+    height: 9px;
+    border: 1px solid var(--c-fg-3);
+    background: var(--c-surface);
+  }
+  .course-content .sdb-tl-item:last-child .sdb-tl-event::after {
+    border-color: var(--c-signal);
+    background: var(--c-signal);
+  }
+}
+
+/* ------------------------------------------------------------ fallback (structure didn't match) */
+
+.course-content .sdb[data-fallback] {
+  border-top: 2px solid var(--c-line-strong);
+}
+
+/* ------------------------------------------------------------ GFM tables (everywhere in course content) */
+
+.course-content .sd-table {
+  background: var(--c-surface);
+}
+.course-content .sd-table tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--c-surface-2) 45%, var(--c-surface));
+}
+.course-content .sd-table[data-sticky] tbody tr:nth-child(even) td:first-child {
+  background: var(--c-surface-2);
+}
+.course-content .sd-table td code {
+  font-size: 0.9em;
+}
+.course-content .sd-table .sd-num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.course-content .sd-table th.sd-num {
+  text-align: right;
+}
+.course-content .sd-table td.sd-num {
+  min-width: 0;
+}
+.course-content .sd-table td > p:last-child {
+  margin-bottom: 0;
+}
+
+/* ------------------------------------------------------------ phones */
+
+@media (max-width: 640px) {
+  .course-content .sdb {
+    margin: 26px 0;
+    font-size: 0.92em;
+  }
+  .course-content .sdb .sdb {
+    font-size: 1em;
+  }
+  .course-content .sdb-head {
+    padding: 10px 14px 9px;
+  }
+  .course-content .sdb-body {
+    padding: 14px 14px 2px;
+  }
+  .course-content .sdb-col-head {
+    padding: 12px 14px 0;
+  }
+  .course-content .sdb-col-body {
+    padding: 8px 14px 14px;
+  }
+  .course-content .sdb-compare-intro,
+  .course-content .sdb-compare-foot {
+    padding: 10px 14px;
+  }
+  .course-content .sdb-calc-line {
+    padding: 9px 14px;
+  }
+  .course-content .sdb-calc-answer > .sdb-calc-line {
+    padding-left: 12px;
+  }
+  .course-content .sdb-calc .sdb-body > :not(.sdb-calc-list):not(.sd-table) {
+    margin-left: 14px;
+    margin-right: 14px;
+  }
+  .course-content .sdb-step {
+    padding-left: 40px;
+  }
+  .course-content .sdb-callout {
+    padding: 12px 14px 12px 12px;
+    column-gap: 10px;
+  }
+  .course-content .sdb .sd-table table,
+  .course-content .sd-table table {
+    font-size: 0.84em;
+  }
+}
+
+/* "vs" only reads right between two options; 3–4 columns are a set, the rules divide them */
+.course-content .sdb-compare:not([data-cols="2"]) .sdb-vs {
+  display: none !important;
+}
+
+/* stats blocks: tiles wrap and the last row stretches, so the frame never has holes */
+.course-content .sdb-stats ul.sd-stats,
+.course-content .sdb-stats ol.sd-stats {
+  display: flex;
+  flex-wrap: wrap;
+}
+.course-content .sdb-stats .sd-stats > li {
+  flex: 1 1 170px;
+  min-width: 0;
+}
+/* one protagonist figure (the first), the rest in ink */
+.course-content .sdb-stats .sd-stats > li > strong:first-child {
+  color: var(--c-fg);
+}
+.course-content .sdb-stats .sd-stats > li:first-child > strong:first-child {
+  color: var(--c-signal-text);
+}
+.course-content .sdb-stats > :not(.sdb-head):not(.sd-stats) {
+  margin: 14px 0 0;
+  font-size: 0.97em;
+  color: var(--c-fg-2);
+}
+.course-content .sdb-stats > :not(.sdb-head):not(.sd-stats) + .sd-stats,
+.course-content .sdb-stats > .sd-stats + :not(.sdb-head) {
+  margin-top: 14px;
+}
+.course-content .sdb-tree[data-names="prose"] .sdb-tree-name {
+  font-family: var(--sd-sans);
+  font-size: 0.97em;
+  font-weight: 450;
+}
+
+/* stacked sets of 3–4 (no "vs"): the tone rules alone separate the columns */
+@container (max-width: 539px) {
+  .course-content .sdb-compare:not([data-cols="2"]) > .sdb-cols > .sdb-col + .sdb-col {
+    margin-top: 10px;
+  }
+  .course-content .sdb-compare:not([data-cols="2"]) > .sdb-cols > .sdb-col + .sdb-col::before {
+    display: none;
+  }
+}
+@container (max-width: 639px) {
+  .course-content .sdb-compare[data-cols="3"] > .sdb-cols > .sdb-col + .sdb-col {
+    margin-top: 10px;
+  }
+  .course-content .sdb-compare[data-cols="3"] > .sdb-cols > .sdb-col + .sdb-col::before {
+    display: none;
+  }
+}
+/* calc sub-heads sit on the row rules already */
+.course-content .sdb-calc .sdb-h {
+  margin-top: 16px;
+  padding-top: 0;
+  border-top: 0;
+  color: var(--c-fg-3);
+}
