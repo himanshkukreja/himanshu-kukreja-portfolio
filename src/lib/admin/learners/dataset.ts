@@ -1,4 +1,5 @@
 import "server-only";
+import { adminEmails } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
 import { isLikelyBot } from "@/lib/admin/traffic/model";
 import type { Features } from "./types";
@@ -166,12 +167,7 @@ const EVENT_COLS =
   "id,event_type,page_path,page_title,visitor_id,session_id,referrer,referrer_domain,utm_source,utm_medium,utm_campaign,user_agent,device_type,browser,os,screen_width,screen_height,country,city,created_at,duration,metadata,user_id";
 
 async function load(): Promise<Dataset> {
-  const admins = new Set(
-    (process.env.ADMIN_EMAIL || "")
-      .split(",")
-      .map((e) => e.trim().toLowerCase())
-      .filter(Boolean)
-  );
+  const admins = new Set(adminEmails());
   const [users, profiles, progress, streaks, assessments, answers, notes, bookmarks, comments, events, trials] = await Promise.all([
     listAuthUsers(),
     readAll<ProfileRow>("user_profiles", "*"),

@@ -10,9 +10,12 @@ import { supabase } from "@/lib/supabase";
  */
 export type AdminUser = { id: string; email: string };
 
-const admins = () =>
-  (process.env.ADMIN_EMAIL || "")
-    .split(",")
+// The owner is always an admin, even when ADMIN_EMAIL is missing from a deployment's env;
+// ADMIN_EMAIL (comma-separated) adds more.
+const OWNER_EMAIL = "kukreja.him@gmail.com";
+
+export const adminEmails = () =>
+  [OWNER_EMAIL, ...(process.env.ADMIN_EMAIL || "").split(",")]
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
 
@@ -22,7 +25,7 @@ export async function getAdmin(request: Request): Promise<AdminUser | null> {
   if (!token) return null;
   const { data, error } = await supabase.auth.getUser(token);
   const email = data?.user?.email?.toLowerCase();
-  if (error || !data?.user || !email || !admins().includes(email)) return null;
+  if (error || !data?.user || !email || !adminEmails().includes(email)) return null;
   return { id: data.user.id, email };
 }
 
