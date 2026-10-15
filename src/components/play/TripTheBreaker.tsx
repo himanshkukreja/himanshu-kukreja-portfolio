@@ -20,6 +20,8 @@ type S = {
   bRun: boolean;
   bSeen: Seen;
   bMsg: string;
+  /** Ticks [from, to] when the bank API is down; rolled per shift so the outage can't be memorised. */
+  down: [number, number];
 };
 
 const INITIAL: S = {
@@ -31,10 +33,17 @@ const INITIAL: S = {
   bRun: false,
   bSeen: null,
   bMsg: "Start the shift. The bank API will have a bad day at some point.",
+  down: [8, 19],
 };
 
-/** The bank API fails on ticks 8 through 19. */
-const schedule = (t: number): "up" | "down" => (t >= 8 && t <= 19 ? "down" : "up");
+/** Health of the bank API at tick t of this shift. */
+const schedule = (t: number, down: [number, number]): "up" | "down" => (t >= down[0] && t <= down[1] ? "down" : "up");
+
+/** A new outage window: starts somewhere in ticks 4–12 and lasts 9–13 ticks. */
+function rollOutage(): [number, number] {
+  const from = 4 + Math.floor(Math.random() * 9);
+  return [from, from + 8 + Math.floor(Math.random() * 5)];
+}
 
 const CELL: Record<Outcome, string> = {
   ok: "bg-fg text-bg",
@@ -59,7 +68,7 @@ export default function TripTheBreaker({ onWin, active }: GameProps) {
       const cur = ref.current;
       if (!cur.bRun) return;
       const t = cur.bt + 1;
-      const h = schedule(t);
+      const h = schedule(t, cur.down);
       let pts = 0;
       let out: Outcome;
       let blocked = cur.bBlocked;
@@ -103,7 +112,7 @@ export default function TripTheBreaker({ onWin, active }: GameProps) {
   }, [s.bRun, active, commit, onWin]);
 
   const start = () =>
-    commit({ ...INITIAL, bRun: true, bMsg: "Traffic flowing. Watch for timeouts." });
+    commit({ ...INITIAL, down: rollOutage(), bRun: true, bMsg: "Traffic flowing. The outage comes at a different time every shift: watch for timeouts." });
 
   const toggle = () => {
     const cur = ref.current;
@@ -119,7 +128,7 @@ export default function TripTheBreaker({ onWin, active }: GameProps) {
 
   const probe = () => {
     const cur = ref.current;
-    const h = schedule(cur.bt + 1);
+    const h = schedule(cur.bt + 1, cur.down);
     commit({
       ...cur,
       bSeen: h === "up" ? "probe-up" : "probe-down",

@@ -1,19 +1,24 @@
 "use client";
 
 /**
- * Stage-based lesson progress.
+ * Stage-based lesson progress, earned by reading time.
  *
- * Progress is "stages done", not scroll depth:
- * - a stage is done when the reader saves a checkpoint on it, or reads it through (its end passes
- *   the reading line after a real dwell time — fast scrolling never counts);
- * - the lesson completes only through "Mark complete" or when every required stage is done
- *   (the old 90%-scroll auto-complete is gone);
- * - completed stays completed and the percentage never goes down;
- * - resume is by stage (`last_stage`), never by pixel offset.
+ * - A stage counts as read only after real engaged reading time IN it (≥ 35% of its estimated
+ *   minutes, 20 s – 6 min) with 80% of it on screen while reading — see READING in
+ *   lib/learn/engagedClock. Jumping or scrolling past (anchors, TOC, "discussion", End/PageDown,
+ *   flicks) never completes anything, and time below the article (end card, discussion) counts
+ *   for no stage. Reading seconds per stage persist on this device (`hk.lesson.v1` → dwell/seen).
+ * - The lesson completes on its own when every required stage is read. "Mark complete" is the
+ *   explicit shortcut, unlocked after 70% of the summed stage reading time (each stage counting
+ *   up to its own requirement); before that it shows "keep reading · ~N min left".
+ * - "Save checkpoint" is a bookmark (resume here). It also clears the stage when that stage's
+ *   time requirement is met (coverage is not required: the reader vouches for having read it).
+ * - XP (`stage:<week>/<slug>/<stageId>` +10, `lesson:<week>/<slug>` +60, each once) and the
+ *   `stage_done` / `lesson_complete` events happen only on those genuine completions.
+ * - Completed stays completed and the percentage never goes down; resume is by stage.
  *
  * Signed in → `learning_progress` (stage columns when the level-up migration is applied, the
- * original columns otherwise). Guests → localStorage (`hk.lesson.v1`). XP goes through the game
- * engine: `stage:<week>/<slug>/<stageId>` +10 and `lesson:<week>/<slug>` +60, each once.
+ * original columns otherwise; `time_spent` = engaged seconds on the page). Guests → localStorage.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Stage } from "@/lib/course/types";
@@ -25,15 +30,38 @@ import {
   readGuestLesson,
   recordLearningActivity,
   saveRemoteLesson,
+  writeGuestDwell,
   writeGuestLesson,
   type RemoteLessonRow,
 } from "@/components/learn/lesson/progress";
 import { headerStackBottom, stageElement, stageRailHeight } from "@/components/learn/lesson/layout";
 import { isOptionalStage } from "@/components/learn/lesson/stageText";
 import { track } from "@/lib/track";
-import { lessonTimeCap, startEngagedClock, type EngagedClock } from "@/lib/learn/engagedClock";
+import {
+  completeNeedSeconds,
+  coverageOf,
+  isStageRead,
+  lessonTimeCap,
+  readProgress,
+  stageNeedSeconds,
+  startEngagedClock,
+  startReadingProbe,
+  visibleBins,
+  type EngagedClock,
+} from "@/lib/learn/engagedClock";
 
 export { isOptionalStage };
+
+export type StageReading = {
+  /** engaged reading seconds in this stage */
+  seconds: number;
+  /** seconds it needs to count as read */
+  need: number;
+  /** 0..1 share of the stage seen while reading */
+  coverage: number;
+  /** 0..1 progress towards "read" (time and coverage) */
+  progress: number;
+};
 
 export type LessonProgressValue = {
   /** stored state has loaded (guest storage or the DB row) */
@@ -49,9 +77,17 @@ export type LessonProgressValue = {
   currentPct: number;
   /** required stages left, in minutes (current stage counted partially) */
   minutesLeft: number;
-  markStageDone: (id: string) => void;
-  /** "Save checkpoint": current stage done, resume moves to the next one */
+  /** reading time per stage id */
+  reading: Record<string, StageReading>;
+  /** "Mark complete" is allowed (enough reading time, or every required stage read) */
+  canComplete: boolean;
+  /** minutes of reading left before "Mark complete" unlocks (0 once it has) */
+  completeLeftMin: number;
+  /** clears a stage if its reading time is met; returns whether it is done */
+  markStageDone: (id: string) => boolean;
+  /** "Save checkpoint": bookmark the current stage; clears it too when its reading time is met */
   saveCheckpoint: () => void;
+  /** explicit "Mark complete" (gated by reading time) */
   complete: () => void;
 };
 
@@ -88,7 +124,10 @@ type Stored = {
   progress: number;
 };
 
+type Snap = { dwell: Record<string, number>; seen: Record<string, number> };
+
 const EMPTY: Stored = { done: [], lastStage: null, completed: false, completedAt: null, startedAt: null, timeSpent: 0, progress: 0 };
+const EMPTY_SNAP: Snap = { dwell: {}, seen: {} };
 
 function fromRow(row: RemoteLessonRow | null): Stored {
   if (!row) return EMPTY;
@@ -103,6 +142,8 @@ function fromRow(row: RemoteLessonRow | null): Stored {
   };
 }
 
+const fmtLeft = (secs: number) => `~${Math.max(1, Math.ceil(secs / 60))} min`;
+
 export function LessonProgressProvider({ courseId, week, lessonSlug, title, stages, contentVersion, children }: Props) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
@@ -113,20 +154,28 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     return r.length ? r : stages;
   }, [stages]);
 
+  const needs = useMemo(() => Object.fromEntries(stages.map((s) => [s.id, stageNeedSeconds(s.minutes)])) as Record<string, number>, [stages]);
+  const completeNeed = useMemo(() => completeNeedSeconds(required.map((s) => needs[s.id])), [required, needs]);
   const timeCap = useMemo(() => lessonTimeCap(stages.reduce((a, s) => a + (s.minutes || 0), 0)), [stages]);
 
   const [stored, setStored] = useState<Stored>(EMPTY);
   const [ready, setReady] = useState(false);
   const [current, setCurrent] = useState<string>(stages[0]?.id ?? "");
   const [currentPct, setCurrentPct] = useState(0);
+  const [snap, setSnap] = useState<Snap>(EMPTY_SNAP);
+  const [notice, setNotice] = useState<{ text: string; id: number } | null>(null);
 
   const storedRef = useRef<Stored>(EMPTY);
   const remoteOk = useRef(false); // the row loaded, so writes can't clobber unknown state
-  // engaged reading time of this lesson view (visible tab + recent activity), not wall-clock time
+  // engaged time on the whole page (visible tab + recent activity) → learning_progress.time_spent
   const clock = useRef<EngagedClock | null>(null);
   const intent = useRef(false);
+  // reading seconds and seen slices per stage (this device, persisted in hk.lesson.v1)
   const dwell = useRef<Record<string, number>>({});
+  const seen = useRef<Record<string, number>>({});
+  const readyRef = useRef(false);
   const saveTimer = useRef<number | null>(null);
+  const noticeId = useRef(0);
 
   const stageKey = useCallback((id: string) => `stage:${week}/${lessonSlug}/${id}`, [week, lessonSlug]);
   const lessonXpKey = `lesson:${week}/${lessonSlug}`;
@@ -139,9 +188,23 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
   }, [stored.done, hydrated, gameDone, stages, stageKey]);
   const completed = stored.completed || (hydrated && !!gameDone[lessonXpKey]);
   const gameCompletedRef = useRef(false);
+  const gameDoneRef = useRef<Record<string, number>>({});
   useEffect(() => {
     gameCompletedRef.current = hydrated && !!gameDone[lessonXpKey];
+    gameDoneRef.current = hydrated ? gameDone : {};
   }, [hydrated, gameDone, lessonXpKey]);
+
+  const isDone = useCallback((id: string) => storedRef.current.done.includes(id) || !!gameDoneRef.current[stageKey(id)], [stageKey]);
+
+  const say = useCallback((text: string) => {
+    noticeId.current += 1;
+    setNotice({ text, id: noticeId.current });
+  }, []);
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice((n) => (n?.id === notice.id ? null : n)), 5000);
+    return () => window.clearTimeout(t);
+  }, [notice]);
 
   // ---- analytics (tracking contract v2): lesson_open / stage_reach / stage_done / lesson_complete
   const trackCtx = useRef({ course: courseId, week, lesson: lessonSlug });
@@ -156,8 +219,10 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
   useEffect(() => {
     let cancelled = false;
     remoteOk.current = false;
-    dwell.current = {};
+    readyRef.current = false;
     const guest = readGuestLesson(courseId, week, lessonSlug);
+    dwell.current = { ...(guest?.dwell ?? {}) };
+    seen.current = { ...(guest?.seen ?? {}) };
     const local: Stored = guest
       ? { ...EMPTY, done: guest.stages, lastStage: guest.last, completed: guest.completed, progress: guest.max }
       : EMPTY;
@@ -165,7 +230,9 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     const apply = (s: Stored) => {
       if (cancelled) return;
       storedRef.current = s;
+      readyRef.current = true;
       setStored(s);
+      setSnap({ dwell: { ...dwell.current }, seen: { ...seen.current } });
       setReady(true);
     };
 
@@ -182,6 +249,8 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       // merge: anything read as a guest on this device carries over after signing in — unless
       // the stored records belong to another account that signed in on this browser before
       if (!claimGuestProgress(userId)) {
+        dwell.current = {};
+        seen.current = {};
         apply(remote);
         return;
       }
@@ -249,17 +318,25 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     [required, courseId, week, lessonSlug, userId, contentVersion, timeCap]
   );
 
+  const flushDwell = useCallback(() => {
+    if (!readyRef.current) return;
+    writeGuestDwell(courseId, week, lessonSlug, dwell.current, seen.current);
+  }, [courseId, week, lessonSlug]);
+
   // Run the engaged clock for this lesson and save its time when the reader leaves, hides the tab,
-  // or every 2 minutes of reading (time used to be saved only with a checkpoint).
+  // or every 2 minutes of reading.
   const persistRef = useRef(persist);
+  const flushDwellRef = useRef(flushDwell);
   useEffect(() => {
     persistRef.current = persist;
-  }, [persist]);
+    flushDwellRef.current = flushDwell;
+  }, [persist, flushDwell]);
   useEffect(() => {
     const c = startEngagedClock();
     clock.current = c;
     let sent = 0;
     const flush = () => {
+      flushDwellRef.current();
       const secs = c.seconds();
       if (secs - sent < 1) return;
       sent = secs;
@@ -294,47 +371,90 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     [persist]
   );
 
-  const complete = useCallback(() => {
+  /**
+   * Reading seconds that count towards "Mark complete": each required stage counts up to its own
+   * requirement (a read stage counts in full), so camping on one stage never unlocks the lesson.
+   */
+  const totalSeconds = useCallback(
+    (d: Record<string, number>, done: (id: string) => boolean) => required.reduce((a, s) => a + (done(s.id) ? needs[s.id] : Math.min(d[s.id] ?? 0, needs[s.id])), 0),
+    [required, needs]
+  );
+
+  // The lesson is complete: once, after genuine reading (all stages read, or the gated button).
+  const finishLesson = useCallback(() => {
     if (!storedRef.current.completed) {
       const secs = Math.min(timeCap, storedRef.current.timeSpent + (clock.current?.seconds() ?? 0));
       track("lesson_complete", { ...trackCtx.current, minutes: Math.round(secs / 60) });
-      update(
-        (s) => ({ ...s, completed: true, completedAt: s.completedAt ?? new Date().toISOString() }),
-        { immediate: true }
-      );
+      update((s) => ({ ...s, completed: true, completedAt: s.completedAt ?? new Date().toISOString() }), { immediate: true });
+      flushDwell();
       if (userId) void recordLearningActivity(userId);
     }
     awardOnce(lessonXpKey, 60, `${title} · complete`);
-  }, [update, awardOnce, lessonXpKey, title, userId, timeCap]);
+  }, [update, awardOnce, lessonXpKey, title, userId, timeCap, flushDwell]);
 
-  const markStageDone = useCallback(
+  // A stage is read: once, only from the reading rules / a checkpoint with its time met.
+  const clearStage = useCallback(
     (id: string) => {
       const stage = stages.find((s) => s.id === id);
       if (!stage) return;
-      const already = storedRef.current.done.includes(id);
-      if (!already) {
+      if (!isDone(id)) {
         track("stage_done", { ...trackCtx.current, stage: id, index: stages.indexOf(stage), total: stages.length });
-        update((s) => ({ ...s, done: [...s.done, id] }), { immediate: true });
+        update((s) => (s.done.includes(id) ? s : { ...s, done: [...s.done, id] }), { immediate: true });
+        flushDwell();
         if (userId) void recordLearningActivity(userId);
       }
       awardOnce(stageKey(id), 10, `${stage.label} cleared · ${title}`);
-      // every required stage done → the lesson is complete
-      const doneNow = new Set([...storedRef.current.done, id]);
-      if (required.every((s) => doneNow.has(s.id) || (hydrated && gameDone[stageKey(s.id)]))) complete();
+      setSnap({ dwell: { ...dwell.current }, seen: { ...seen.current } });
+      // every required stage read → the lesson is complete
+      if (required.every((s) => s.id === id || isDone(s.id))) finishLesson();
     },
-    [stages, update, userId, awardOnce, stageKey, title, required, hydrated, gameDone, complete]
+    [stages, isDone, update, flushDwell, userId, awardOnce, stageKey, title, required, finishLesson]
   );
 
+  const markStageDone = useCallback(
+    (id: string) => {
+      if (isDone(id)) return true;
+      if ((dwell.current[id] ?? 0) < (needs[id] ?? Infinity)) return false;
+      clearStage(id);
+      return true;
+    },
+    [isDone, needs, clearStage]
+  );
+
+  const complete = useCallback(() => {
+    if (storedRef.current.completed) {
+      awardOnce(lessonXpKey, 60, `${title} · complete`);
+      return;
+    }
+    const allRead = required.every((s) => isDone(s.id));
+    const total = totalSeconds(dwell.current, isDone);
+    if (allRead || total >= completeNeed) {
+      finishLesson();
+      return;
+    }
+    say(`Keep reading · ${fmtLeft(completeNeed - total)} left before this can be marked complete. Skimming and jumping ahead don't count.`);
+  }, [awardOnce, lessonXpKey, title, required, isDone, totalSeconds, completeNeed, finishLesson, say]);
+
+  const currentRef = useRef(current);
   const saveCheckpoint = useCallback(() => {
-    const idx = stages.findIndex((s) => s.id === current);
-    if (idx < 0) return;
-    const next = stages[idx + 1]?.id ?? stages[idx].id;
-    update((s) => ({ ...s, lastStage: next }), { immediate: false });
-    markStageDone(stages[idx].id);
-  }, [stages, current, update, markStageDone]);
+    const cur = currentRef.current;
+    const idx = stages.findIndex((s) => s.id === cur);
+    if (idx < 0 || isDone(cur)) return;
+    const secs = dwell.current[cur] ?? 0;
+    const need = needs[cur] ?? 0;
+    flushDwell();
+    if (secs >= need) {
+      const next = stages[idx + 1]?.id ?? stages[idx].id;
+      update((s) => ({ ...s, lastStage: next }), { immediate: true });
+      clearStage(cur);
+      return;
+    }
+    // a bookmark: resume here; the stage clears once its reading time is met
+    update((s) => ({ ...s, lastStage: cur }), { immediate: true });
+    say(`Checkpoint saved · you'll resume here. ${stages[idx].label} clears after ${fmtLeft(need - secs)} more of reading.`);
+  }, [stages, isDone, needs, flushDwell, update, clearStage, say]);
 
   // ---- reading position (current stage from scroll) -------------------------------------
-  const currentRef = useRef(current);
   const pctRef = useRef(0);
   useEffect(() => {
     if (!stages.length) return;
@@ -364,7 +484,6 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
           reached.current.add(cur);
           track("stage_reach", { ...trackCtx.current, stage: cur, index: stages.findIndex((s) => s.id === cur), total: stages.length });
         }
-        if (intent.current) update((s) => (s.lastStage === cur ? s : { ...s, lastStage: cur }));
       }
       if (rounded !== pctRef.current) {
         pctRef.current = rounded;
@@ -395,25 +514,53 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       window.removeEventListener("keydown", markIntent);
       window.removeEventListener("pointerdown", markIntent);
     };
-  }, [stages, update]);
+  }, [stages]);
 
-  // ---- "read through" detection: dwell time per stage, then its end passes the line ----------
+  // ---- reading time: one credited second at a time, to the stage under the reading line ------
+  const clearStageRef = useRef(clearStage);
+  const updateRef = useRef(update);
   useEffect(() => {
-    if (!ready || !stages.length) return;
-    const id = window.setInterval(() => {
-      if (document.visibilityState !== "visible" || !intent.current) return;
-      const cur = currentRef.current;
-      dwell.current[cur] = (dwell.current[cur] ?? 0) + 1;
-      const needed = (s: Stage) => Math.min(300, Math.max(20, s.minutes * 60 * 0.3));
-      const idx = stages.findIndex((s) => s.id === cur);
-      // the previous stage was read through when the reader moved on after enough time in it
-      const prev = stages[idx - 1];
-      if (prev && !storedRef.current.done.includes(prev.id) && (dwell.current[prev.id] ?? 0) >= needed(prev)) markStageDone(prev.id);
-      const stage = stages[idx];
-      if (stage && !storedRef.current.done.includes(stage.id) && pctRef.current >= 0.98 && (dwell.current[stage.id] ?? 0) >= needed(stage)) markStageDone(stage.id);
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [ready, stages, markStageDone]);
+    clearStageRef.current = clearStage;
+    updateRef.current = update;
+  }, [clearStage, update]);
+  useEffect(() => {
+    if (!stages.length) return;
+    let ticks = 0;
+    const stop = startReadingProbe(() => {
+      if (!readyRef.current) return;
+      const offset = headerStackBottom() + stageRailHeight();
+      const vh = window.innerHeight;
+      const line = offset + Math.min(180, (vh - offset) * 0.3);
+      let hit: Stage | null = null;
+      const visible: [string, number][] = [];
+      for (const s of stages) {
+        const el = stageElement(s.id);
+        if (!el) continue;
+        const r = el.getBoundingClientRect();
+        if (r.height === 0) continue;
+        if (r.top <= line && r.bottom > line) hit = s;
+        if (r.bottom > offset && r.top < vh) visible.push([s.id, visibleBins(r, offset, vh)]);
+      }
+      // the reading line is outside the article (hero, end card, discussion): no stage is read
+      if (!hit) return;
+      dwell.current[hit.id] = (dwell.current[hit.id] ?? 0) + 1;
+      for (const [id, mask] of visible) seen.current[id] = ((seen.current[id] ?? 0) | mask) >>> 0;
+      ticks++;
+      // resume point = where the reader actually reads (not where a jump landed)
+      if (storedRef.current.lastStage !== hit.id) updateRef.current((s) => ({ ...s, lastStage: hit.id }));
+      let cleared = false;
+      for (const s of stages) {
+        if (isDone(s.id)) continue;
+        if (isStageRead(dwell.current[s.id] ?? 0, needs[s.id], seen.current[s.id])) {
+          clearStageRef.current(s.id);
+          cleared = true;
+        }
+      }
+      if (!cleared && ticks % 5 === 0) setSnap({ dwell: { ...dwell.current }, seen: { ...seen.current } });
+      if (ticks % 10 === 0) flushDwellRef.current();
+    });
+    return stop;
+  }, [stages, needs, isDone]);
 
   // flush pending writes when leaving
   useEffect(() => {
@@ -436,8 +583,8 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     for (const st of stages) {
       const el = stageElement(st.id);
       if (!el) continue;
-      const isDone = completed || doneSet.has(st.id);
-      el.setAttribute("data-stage-state", isDone ? (st.id === current ? "done-current" : "done") : st.id === current ? "current" : "ahead");
+      const isDoneSt = completed || doneSet.has(st.id);
+      el.setAttribute("data-stage-state", isDoneSt ? (st.id === current ? "done-current" : "done") : st.id === current ? "current" : "ahead");
     }
   }, [stages, completed, doneSet, current]);
 
@@ -451,6 +598,22 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     return Math.max(0, Math.round(left));
   }, [completed, required, doneSet, current, currentPct]);
 
+  const reading = useMemo(() => {
+    const out: Record<string, StageReading> = {};
+    for (const s of stages) {
+      const seconds = snap.dwell[s.id] ?? 0;
+      const need = needs[s.id];
+      out[s.id] = { seconds, need, coverage: coverageOf(snap.seen[s.id]), progress: doneSet.has(s.id) ? 1 : readProgress(seconds, need, snap.seen[s.id]) };
+    }
+    return out;
+  }, [stages, snap, needs, doneSet]);
+
+  const { canComplete, completeLeftMin } = useMemo(() => {
+    if (completed || required.every((s) => doneSet.has(s.id))) return { canComplete: true, completeLeftMin: 0 };
+    const total = totalSeconds(snap.dwell, (id) => doneSet.has(id));
+    return total >= completeNeed ? { canComplete: true, completeLeftMin: 0 } : { canComplete: false, completeLeftMin: Math.max(1, Math.ceil((completeNeed - total) / 60)) };
+  }, [completed, required, doneSet, totalSeconds, snap, completeNeed]);
+
   const value = useMemo<LessonProgressValue>(
     () => ({
       ready,
@@ -462,14 +625,33 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       current,
       currentPct,
       minutesLeft,
+      reading,
+      canComplete,
+      completeLeftMin,
       markStageDone,
       saveCheckpoint,
       complete,
     }),
-    [ready, stages, required, doneSet, stored.lastStage, completed, current, currentPct, minutesLeft, markStageDone, saveCheckpoint, complete]
+    [ready, stages, required, doneSet, stored.lastStage, completed, current, currentPct, minutesLeft, reading, canComplete, completeLeftMin, markStageDone, saveCheckpoint, complete]
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+      <div
+        role="status"
+        aria-live="polite"
+        data-reader-ui
+        className="pointer-events-none fixed inset-x-0 bottom-[calc(env(safe-area-inset-bottom,0px)+150px)] z-[70] flex justify-center px-4 lg:bottom-8"
+      >
+        {notice && (
+          <p key={notice.id} className="m-0 max-w-[460px] animate-hk-in border border-line-strong bg-surface-2 px-4 py-3 font-mono text-xs leading-relaxed text-fg shadow-[0_12px_40px_rgba(0,0,0,0.45)]">
+            {notice.text}
+          </p>
+        )}
+      </div>
+    </Ctx.Provider>
+  );
 }
 
 type LegacyProps = {

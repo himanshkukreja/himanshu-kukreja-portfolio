@@ -85,7 +85,7 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
   const p = useLessonProgress();
   // slides away with the header while reading down
   const hidden = useChromeHidden();
-  const { current, done, completed, stages, required, saveCheckpoint, complete, ready } = p;
+  const { current, done, completed, stages, required, saveCheckpoint, complete, ready, canComplete } = p;
   const listening = readAloud.playing && !readAloud.paused;
   const curStage = stages.find((s) => s.id === current);
   const { n, total } = stagePosition(current, required);
@@ -102,7 +102,7 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
     short = "Cleared ✓";
     action = null;
     primary = false;
-  } else if (lastRequired) {
+  } else if (lastRequired && canComplete) {
     label = "Finish · +60 XP";
     short = "Finish";
     action = complete;

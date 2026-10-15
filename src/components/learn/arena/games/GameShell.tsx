@@ -25,10 +25,13 @@ export default function GameShell({
   rules,
   summary,
   Board,
+  clearAt,
 }: {
   game: PracticeGame;
   seconds: number;
   rules: ReactNode;
+  /** Points one round needs before the quest XP is paid. Wrong answers cost points, so guessing stays near zero. */
+  clearAt: number;
   /** results-screen extra (e.g. what you got wrong), given the round's stats */
   summary?: (score: number) => ReactNode;
   Board: ComponentType<{ api: BoardApi }>;
@@ -53,12 +56,12 @@ export default function GameShell({
     const s = scoreRef.current;
     const better = recordBest(game.key, s);
     setIsBest(better && s > 0);
-    if (s > 0) award(game.quest, `${game.name} · first run`);
-    track("play", { game: game.id, result: s > 0 ? "run" : "zero", score: s });
+    if (s >= clearAt) award(game.quest, `${game.name} · cleared at ${s} pts`);
+    track("play", { game: game.id, result: s >= clearAt ? "clear" : s > 0 ? "run" : "zero", score: s });
     setPhase("over");
     window.scrollTo({ top: 0 });
     window.setTimeout(() => headRef.current?.focus(), 0);
-  }, [game, award]);
+  }, [game, award, clearAt]);
 
   useEffect(() => {
     if (phase !== "run") return;
@@ -99,7 +102,7 @@ export default function GameShell({
         <section aria-labelledby="g-h" className="flex flex-col gap-4">
           <BackLink />
           <Kicker>
-            ❯ arena · {seconds}s round {cleared ? "· cleared" : `· +${QUEST_BY_ID[game.quest]?.xp ?? 40} xp first run`}
+            ❯ arena · {seconds}s round {cleared ? "· cleared" : `· +${QUEST_BY_ID[game.quest]?.xp ?? 40} xp at ${clearAt} pts`}
           </Kicker>
           <PageTitle id="g-h">{game.name}</PageTitle>
           <p className="max-w-[620px] text-[17px] leading-relaxed text-fg-2">{game.hook}</p>
@@ -114,7 +117,9 @@ export default function GameShell({
             <button type="button" onClick={start} className={`${BTN} min-h-12 px-7 text-[15px]`}>
               Start · {seconds}s →
             </button>
-            <span className="font-mono text-xs text-fg-3">{best !== undefined ? `best ${best}` : "no best yet"}</span>
+            <span className="font-mono text-xs text-fg-3">
+              clear at {clearAt} · {best !== undefined ? `best ${best}` : "no best yet"}
+            </span>
           </div>
           <TaughtIn game={game} />
         </section>
@@ -154,7 +159,8 @@ export default function GameShell({
             <span className="ml-2 align-middle font-mono text-sm font-normal tracking-normal text-fg-3">pts</span>
           </h2>
           <p className="m-0 font-mono text-sm text-fg-2">
-            {isBest ? "new best on this device" : best !== undefined ? `best ${best}` : ""}
+            {score >= clearAt ? `cleared (${clearAt}+)` : `${clearAt - score} short of the ${clearAt} clear line`}
+            {isBest ? " · new best on this device" : best !== undefined ? ` · best ${best}` : ""}
           </p>
           {summary?.(score)}
           <div className="flex flex-wrap gap-2">

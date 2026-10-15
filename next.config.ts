@@ -49,6 +49,9 @@ if (!remotePatterns) {
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/*": ["./content/**/*"],
+    // Share-card fonts (src/lib/og) for the per-lesson OG/Twitter images rendered on demand.
+    "/learn/**/opengraph-image": ["./src/lib/og/fonts/*.ttf"],
+    "/learn/**/twitter-image": ["./src/lib/og/fonts/*.ttf"],
   },
   serverExternalPackages: [
     "gray-matter",

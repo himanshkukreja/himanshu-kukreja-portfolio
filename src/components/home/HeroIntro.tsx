@@ -7,8 +7,12 @@ import { PERSON } from "./showcase/data";
 import { branchStats, label } from "./showcase/parts";
 import { openWorld } from "./showcase/bus";
 import { EMAIL, SOCIALS as SOCIAL_LINKS } from "@/lib/socials";
+import SocialIcon from "@/components/site/SocialIcon";
 
-const SOCIALS = SOCIAL_LINKS.map((s) => ({ href: s.href, label: s.label, extra: s.id === "github" ? `★ ${PERSON.stars}` : undefined }));
+const SOCIALS = SOCIAL_LINKS.map((s) => ({ href: s.href, label: s.label, icon: s.icon, extra: s.id === "github" ? `★ ${PERSON.stars}` : undefined }));
+const chip =
+  "group inline-flex min-h-11 items-center gap-2 border border-line px-3 font-mono text-[13px] text-fg-2 no-underline hover:border-line-strong hover:text-fg";
+const chipIcon = "h-4 w-4 text-fg-3 transition-colors group-hover:text-signal-text";
 
 /** He sits at L4 · Senior on the same ladder visitors climb on this site. */
 const HIS_LEVEL = 3;
@@ -232,31 +236,20 @@ export default function HeroIntro() {
           </a>
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
-          <a
-            href="/resume.pdf"
-            target="_blank"
-            rel="noopener"
-            className="inline-flex min-h-11 items-center border border-line px-3 font-mono text-[13px] text-fg-2 no-underline hover:border-line-strong hover:text-fg"
-          >
+          <a href="/resume.pdf" target="_blank" rel="noopener" className={chip}>
+            <SocialIcon name="resume" className={chipIcon} />
             resume.pdf
           </a>
           {SOCIALS.map((s) => (
-            <a
-              key={s.label}
-              href={s.href}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex min-h-11 items-center gap-2 border border-line px-3 font-mono text-[13px] text-fg-2 no-underline hover:border-line-strong hover:text-fg"
-            >
+            <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" className={chip}>
+              <SocialIcon name={s.icon} className={chipIcon} />
               {s.label}
               {s.extra && <span className="text-signal-text">{s.extra}</span>}
             </a>
           ))}
-          <a
-            href={`mailto:${EMAIL}`}
-            className="inline-flex min-h-11 items-center border border-line px-3 font-mono text-[13px] text-fg-2 no-underline hover:border-line-strong hover:text-fg"
-          >
-            {EMAIL}
+          <a href={`mailto:${EMAIL}`} className={`${chip} min-w-0 max-w-full`}>
+            <SocialIcon name="email" className={chipIcon} />
+            <span className="truncate">{EMAIL}</span>
           </a>
         </div>
       </div>

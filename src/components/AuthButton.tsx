@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LogIn } from "lucide-react";
 import AuthModal from "./AuthModal";
 import UserMenu from "./UserMenu";
+import { Spinner } from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function AuthButton() {
@@ -11,7 +12,11 @@ export default function AuthButton() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   if (loading) {
-    return <div className="h-10 w-10 animate-pulse bg-surface-2" aria-hidden />;
+    return (
+      <span role="status" aria-label="Checking sign-in" title="Checking sign-in" className="grid h-10 w-10 place-items-center border border-line text-[13px] text-fg-4">
+        <Spinner />
+      </span>
+    );
   }
 
   if (user) {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { supabaseClient } from "@/lib/supabase-client";
-import { Loader2 } from "lucide-react";
+import { InlineLoader, Spinner } from "@/components/ui/loader";
 import CommentItem from "./CommentItem";
 import RichTextEditor from "./RichTextEditor";
 import styles from "./stories/reader.module.css";
@@ -428,7 +428,7 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
             >
               {isSubmitting ? (
                 <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  <Spinner />
                   Posting…
                 </span>
               ) : (
@@ -441,8 +441,8 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
 
       {/* Comments List */}
       {loading ? (
-        <div className="flex items-center gap-2 py-8 font-mono text-xs text-fg-3" role="status">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> loading the record…
+        <div className="py-8">
+          <InlineLoader label="loading the record" />
         </div>
       ) : error ? (
         <div role="alert" className="border border-bad p-4 text-sm text-bad-text">

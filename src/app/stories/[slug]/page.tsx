@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { getStoryBySlug, getAllStories, getStoryMarkdown } from "@/lib/stories";
 import { renderLesson } from "@/lib/course/render";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
-import { absoluteCoverUrl } from "@/lib/utils";
+import { resolveCoverUrl } from "@/lib/utils";
 import StoryViewsClient from "./views-client";
 import StoryComments from "@/components/StoryComments";
 import ScrollToDiscussion from "@/components/ScrollToDiscussion";
@@ -12,6 +12,9 @@ import { getCaseFiles } from "@/components/stories/case-files";
 import { parseDebrief, resolveCaseType, type CaseFile } from "@/components/stories/case-types";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
+
+// Every story is known at build time; any other slug is a real 404 (not a streamed soft 404).
+export const dynamicParams = false;
 
 export async function generateStaticParams() {
   const list = await getAllStories();
@@ -22,7 +25,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const story = (await getAllStories()).find((s) => s.slug === slug);
   if (!story) return {};
-  const cover = absoluteCoverUrl(story.cover);
+  // Local covers stay relative so metadataBase (www) makes them absolute; remote covers pass through.
+  const cover = resolveCoverUrl(story.cover);
   const images = cover ? [{ url: cover, width: 1536, height: 1024, alt: story.title }] : undefined;
   return {
     title: `${story.title} · Case files`,

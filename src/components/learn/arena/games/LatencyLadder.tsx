@@ -3,7 +3,8 @@
 /**
  * Latency Ladder: five operations, shuffled; tap them fastest → slowest. Numbers are the course's own
  * table (W00 · Part 3 · "latency numbers every engineer should know"). Ladders keep coming until the
- * 90 s clock runs out. +20 per rung in the right place, +30 for a perfect ladder.
+ * 90 s clock runs out. +20 per rung in the right place, −10 per rung in the wrong place, +30 for a perfect
+ * ladder. Tapping in random order averages −20 a ladder, so spamming ladders cannot reach the clear line.
  */
 import { useMemo, useState } from "react";
 import { PRACTICE_GAMES } from "@/lib/learn/arena/games";
@@ -32,7 +33,10 @@ export const LATENCY: Op[] = [
 
 const GAME = PRACTICE_GAMES.find((g) => g.id === "arena:latency")!;
 const RUNG = 20;
+const MISS = 10;
 const PERFECT = 30;
+/** Two perfect ladders, or one plus a few mostly-right ones. */
+const CLEAR_AT = 260;
 const SIZE = 5;
 
 /** Five ops at least 2× apart (fair to order), shuffled. */
@@ -65,7 +69,8 @@ function Board({ api }: { api: BoardApi }) {
   const check = () => {
     if (placed.length !== SIZE || checked) return;
     const right = placed.filter((id, i) => order[i].id === id).length;
-    api.addScore(right * RUNG + (right === SIZE ? PERFECT : 0), right === SIZE ? "perfect ladder" : `${right} of ${SIZE} rungs right`);
+    const pts = right * RUNG - (SIZE - right) * MISS + (right === SIZE ? PERFECT : 0);
+    api.addScore(pts, right === SIZE ? "perfect ladder" : `${right} of ${SIZE} rungs right`);
     setChecked(true);
   };
 
@@ -138,7 +143,9 @@ function Board({ api }: { api: BoardApi }) {
       ) : (
         <div className="flex flex-col gap-3 border border-line bg-surface p-4" aria-live="polite">
           <p className="m-0 font-mono text-sm font-semibold text-fg">
-            {right === SIZE ? `Perfect ladder · +${SIZE * RUNG + PERFECT}` : `${right}/${SIZE} rungs · +${right * RUNG}`}
+            {right === SIZE
+              ? `Perfect ladder · +${SIZE * RUNG + PERFECT}`
+              : `${right}/${SIZE} rungs · ${right * RUNG - (SIZE - right) * MISS >= 0 ? "+" : ""}${right * RUNG - (SIZE - right) * MISS}`}
           </p>
           <ol className="m-0 flex list-none flex-col gap-1 p-0 font-mono text-xs text-fg-2">
             {order.map((o, i) => (
@@ -167,12 +174,14 @@ export default function LatencyLadder() {
       rules={
         <ul className="m-0 grid list-none gap-1.5 p-0">
           <li>■ Five operations per ladder. Tap them fastest first.</li>
-          <li>■ +{RUNG} per rung in the right place, +{PERFECT} for a perfect ladder.</li>
+          <li>■ +{RUNG} per rung in the right place, −{MISS} per rung in the wrong place, +{PERFECT} for a perfect ladder.</li>
+          <li>■ Score {CLEAR_AT} in one round to clear it (guessing averages below zero).</li>
           <li>■ As many ladders as you can in {GAME.seconds} seconds.</li>
           <li>■ The numbers are the course&apos;s own table: orders of magnitude, not benchmarks.</li>
         </ul>
       }
       Board={Board}
+      clearAt={CLEAR_AT}
     />
   );
 }

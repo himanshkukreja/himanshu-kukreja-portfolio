@@ -5,7 +5,8 @@ import { BTN_GHOST, BTN_INVERT, type GameProps } from "./shared";
 
 type Name = "A" | "B";
 type Thread = { pc: number; local: number | "–"; done: boolean; out: string };
-type S = { seats: number; lock: boolean; holder: Name | ""; A: Thread; B: Thread; sold: Name[]; msg: string };
+/** m1: mission 1 (double-book without the lock) done this session. contended: a thread hit the lock this round. */
+type S = { seats: number; lock: boolean; holder: Name | ""; A: Thread; B: Thread; sold: Name[]; msg: string; m1: boolean; contended: boolean };
 
 const FRESH: Thread = { pc: 0, local: "–", done: false, out: "" };
 const STEPS = ["SELECT seats_left", "IF seats_left > 0", "UPDATE seats_left = local − 1", "charge card ₹1,245"];
@@ -18,6 +19,8 @@ const INITIAL: S = {
   B: FRESH,
   sold: [],
   msg: "Two people hit “Book” for the last seat. You are the scheduler: step the threads in any order.",
+  m1: false,
+  contended: false,
 };
 
 export default function RaceCondition({ onWin }: GameProps) {
@@ -34,7 +37,7 @@ export default function RaceCondition({ onWin }: GameProps) {
 
     if (T.pc === 0) {
       if (s.lock && holder && holder !== name) {
-        setS({ ...s, msg: `Thread ${name} is waiting: thread ${holder} holds the row lock.` });
+        setS({ ...s, contended: true, msg: `Thread ${name} is waiting: thread ${holder} holds the row lock.` });
         return;
       }
       if (s.lock) holder = name;
@@ -61,28 +64,35 @@ export default function RaceCondition({ onWin }: GameProps) {
 
     const bothDone = T.done && s[other].done;
     let won = false;
+    let m1 = s.m1;
     if (bothDone) {
       if (sold.length === 2) {
-        msg = "DOUBLE BOOKED. seats_left is 0, but two people paid for one berth. Now turn on the row lock and try again.";
+        m1 = true;
+        msg = "DOUBLE BOOKED. seats_left is 0, but two people paid for one berth. Mission 1 done. Now turn on the row lock and run the same interleaving.";
+      } else if (s.lock && !s.m1) {
+        msg = "One sale, but you haven't broken it yet. Mission 1 first: turn the lock off and get both threads to pay.";
+      } else if (s.lock && !s.contended) {
+        msg = "One sale, but you ran the threads one after the other: that never races. Interleave them again (step B while A is mid-booking) and watch the lock hold.";
       } else if (s.lock) {
-        msg = "One ticket, one refund-free customer. The lock made read-check-write atomic. Cleared.";
+        msg = "Same interleaving, one ticket: B had to wait for A's row lock, then read 0. The lock made read-check-write atomic. Cleared.";
         won = true;
       } else {
         msg = "Only one sale this time. Interleave the reads so both threads see seats_left = 1.";
       }
     }
-    setS({ ...s, [name]: T, seats, holder, sold, msg });
+    setS({ ...s, [name]: T, seats, holder, sold, msg, m1 });
     if (won) onWin(1, "both missions");
   };
 
   const toggleLock = () =>
     setS({
       ...INITIAL,
+      m1: s.m1,
       lock: !s.lock,
       msg: !s.lock ? "Lock on. Try to double-book now." : "Lock off. Chaos allowed.",
     });
 
-  const reset = () => setS({ ...INITIAL, lock: s.lock, msg: "Seat restored. Go again." });
+  const reset = () => setS({ ...INITIAL, m1: s.m1, lock: s.lock, msg: "Seat restored. Go again." });
 
   const doubled = s.sold.length === 2;
 
@@ -156,9 +166,14 @@ export default function RaceCondition({ onWin }: GameProps) {
         {s.msg}
       </div>
 
-      <button type="button" onClick={reset} className={`${BTN_GHOST} min-h-11 self-start`}>
-        reset seat to 1
-      </button>
+      <div className="flex flex-wrap items-center gap-3">
+        <button type="button" onClick={reset} className={`${BTN_GHOST} min-h-11`}>
+          reset seat to 1
+        </button>
+        <span className="font-mono text-xs text-fg-3">
+          mission 1 (double-book) {s.m1 ? "✓" : "·"} · mission 2 (lock holds under a race) {s.lock ? "armed" : "·"}
+        </span>
+      </div>
     </>
   );
 }

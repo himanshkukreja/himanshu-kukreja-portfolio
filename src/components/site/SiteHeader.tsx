@@ -11,6 +11,7 @@ import { BADGES, MAIN_QUESTS, levelProgress } from "@/game/catalog";
 import SearchBar from "@/components/SearchBar";
 import { LearnBrand, LearnDock, LearnTabs, isLearnRoute } from "./LearnNav";
 import { useAutoHideChrome, useChromeHidden } from "./readerChrome";
+import { DockDot, TabPending } from "./LinkPending";
 
 const NAV = [
   { href: "/#career", label: "career", match: (p: string) => p === "/" },
@@ -34,9 +35,10 @@ const isLessonRoute = (p: string) => /^\/learn\/[^/]+\/[^/]+\/[^/]+/.test(p);
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
-  // true on the client, false during SSR — avoids a theme-icon hydration mismatch
+  // true on the client, false during SSR — avoids a theme-icon hydration mismatch.
+  // Light is the default theme, so the server renders the light-mode icon.
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const dark = !mounted || resolvedTheme === "dark";
+  const dark = mounted && resolvedTheme === "dark";
   return (
     <button
       type="button"
@@ -54,7 +56,10 @@ function QuestLog({ onClose }: { onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
+      const t = e.target as Element | null;
+      // The header toggles own open/close: closing here on mousedown would let their click re-open it.
+      if (t?.closest?.("[data-quest-toggle]")) return;
+      if (ref.current && !ref.current.contains(t)) onClose();
     };
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);
@@ -157,8 +162,9 @@ export default function SiteHeader() {
                 {NAV.map((n) => {
                   const on = n.match(pathname);
                   return (
-                    <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined} className={`px-2.5 py-2.5 ${on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}>
+                    <Link key={n.href} href={n.href} aria-current={on ? "page" : undefined} className={`relative px-2.5 py-2.5 ${on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}>
                       {n.label}
+                      <TabPending />
                     </Link>
                   );
                 })}
@@ -170,6 +176,7 @@ export default function SiteHeader() {
             {learn && <SearchBar variant="nav" hotkey />}
             <button
               type="button"
+              data-quest-toggle
               onClick={() => setQuestsOpen((o) => !o)}
               aria-expanded={questsOpen}
               aria-label={`Level ${p.level.code} ${p.level.name}. Open quest log`}
@@ -190,6 +197,7 @@ export default function SiteHeader() {
               <>
                 <button
                   type="button"
+                  data-quest-toggle
                   onClick={() => setQuestsOpen((o) => !o)}
                   aria-expanded={questsOpen}
                   className="hidden min-h-10 border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2 sm:block"
@@ -220,7 +228,7 @@ export default function SiteHeader() {
             const on = d.match(pathname);
             return (
               <Link key={d.href} href={d.href} aria-current={on ? "page" : undefined} className={`flex min-h-12 flex-col items-center justify-center gap-1.5 font-mono text-[11px] ${on ? "text-fg" : "text-fg-3"}`}>
-                <span aria-hidden className={`h-1.5 w-1.5 ${on ? "bg-signal" : "bg-transparent"}`} />
+                <DockDot on={on} />
                 {d.label}
               </Link>
             );

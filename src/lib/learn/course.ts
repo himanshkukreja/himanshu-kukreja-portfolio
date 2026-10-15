@@ -1,4 +1,5 @@
 import { fetchMarkdownContent, formatWeekTopic, getAllLearningResources, type LearningResource } from "@/lib/github";
+import { unstable_cache } from "next/cache";
 import { calculateReadingTime } from "@/lib/reading-time";
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
 import type { CourseLesson, CourseMap, CourseTrial, CourseWeek } from "./types";
@@ -155,7 +156,15 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
   };
 }
 
-// The map is the same for every visitor; rebuild at most once a minute per server instance.
+// The map is the same for every visitor. Next's data cache shares it across serverless
+// instances (an in-memory cache alone meant a ~2 s GitHub rebuild on most production requests);
+// /api/revalidate-courses clears it via the "course-map" tag. The in-memory layer below
+// de-duplicates concurrent builds within one instance.
+export const COURSE_MAP_TAG = "course-map";
+const buildCached = unstable_cache((courseId: string) => buildCourseMap(courseId), ["course-map-v1"], {
+  revalidate: 300,
+  tags: [COURSE_MAP_TAG],
+});
 const cache = new Map<string, { at: number; map: Promise<CourseMap> }>();
 const TTL = 60_000;
 
@@ -163,7 +172,7 @@ export async function getCourseMap(courseId: string = COURSE_ID): Promise<Course
   if (courseId !== COURSE_ID) return null;
   const hit = cache.get(courseId);
   if (hit && Date.now() - hit.at < TTL) return hit.map;
-  const map = buildCourseMap(courseId);
+  const map = buildCached(courseId);
   cache.set(courseId, { at: Date.now(), map });
   try {
     return await map;

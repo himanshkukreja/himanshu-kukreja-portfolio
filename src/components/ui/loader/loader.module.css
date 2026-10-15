@@ -1,0 +1,149 @@
+/*
+ * "Level Up" loader family. Pure CSS so loaders animate in streamed HTML before React hydrates.
+ * Colours come from the theme tokens in globals.css, so light and dark both work.
+ * Reduced motion: every animation is switched off and each piece falls back to a static,
+ * still-readable "busy" state (a half-filled stage bar, a solid cursor, all boot lines shown).
+ */
+
+/* ── stage-segment bar: square segments a signal wave runs through ───────────── */
+.bar {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 3px;
+  height: 10px;
+}
+.seg {
+  flex: 1 1 0;
+  min-width: 6px;
+  background: var(--c-signal);
+  opacity: 0.16;
+  animation: hk-ld-seg 1.5s ease-in-out infinite;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+@keyframes hk-ld-seg {
+  0%, 100% { opacity: 0.16; }
+  18%, 46% { opacity: 1; }
+  70% { opacity: 0.16; }
+}
+
+/* ── button spinner: three squares ticking left to right, in currentColor ────── */
+.dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.22em;
+  height: 1em;
+  vertical-align: -0.125em;
+}
+.dot {
+  width: 0.36em;
+  height: 0.36em;
+  background: currentColor;
+  opacity: 0.25;
+  animation: hk-ld-dot 0.9s steps(1, end) infinite;
+  animation-delay: calc(var(--i, 0) * 150ms);
+}
+@keyframes hk-ld-dot {
+  0% { opacity: 1; }
+  34% { opacity: 0.25; }
+}
+
+/* ── terminal cursor ───────────────────────────────────────────────────────── */
+.cursor {
+  display: inline-block;
+  width: 0.55em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.18em;
+  background: var(--c-signal);
+  animation: hk-ld-blink 1s step-end infinite;
+}
+@keyframes hk-ld-blink {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+
+/* ── typed command (monospace: one step per character) ───────────────────── */
+.typed {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  vertical-align: bottom;
+  width: calc(var(--n, 12) * 1ch);
+  animation: hk-ld-type calc(var(--n, 12) * 26ms) steps(var(--n, 12), end) 80ms both;
+}
+@keyframes hk-ld-type {
+  from { width: 0; }
+}
+
+/* ── boot log lines appear one after another ────────────────────────────── */
+.line {
+  animation: hk-ld-in 160ms ease-out both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes hk-ld-in {
+  from { opacity: 0; transform: translateY(3px); }
+}
+.pending {
+  animation: hk-ld-blink 1s step-end infinite;
+}
+
+/* ── skeleton: flat surface with a slow diagonal sheen ─────────────────────── */
+.skel {
+  position: relative;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--c-line) 45%, var(--c-surface-2));
+}
+.skel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--c-fg) 6%, transparent), transparent);
+  animation: hk-ld-sheen 1.6s ease-in-out infinite;
+}
+@keyframes hk-ld-sheen {
+  100% { transform: translateX(100%); }
+}
+
+/* ── route progress (top of the viewport) ─────────────────────────────────── */
+.progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 10000;
+  height: 3px;
+  pointer-events: none;
+}
+.progressFill {
+  height: 100%;
+  width: 100%;
+  transform-origin: 0 50%;
+  background: var(--c-signal);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--c-signal) 70%, transparent);
+  transition: transform 260ms ease-out, opacity 220ms ease-out 120ms;
+}
+.progressHead {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 6px;
+  background: var(--c-signal);
+  animation: hk-ld-blink 0.6s step-end infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seg,
+  .dot,
+  .cursor,
+  .typed,
+  .line,
+  .pending,
+  .progressHead,
+  .skel::after {
+    animation: none !important;
+  }
+  .seg[data-on] { opacity: 1; }
+  .dot:first-child { opacity: 1; }
+  .skel::after { display: none; }
+}

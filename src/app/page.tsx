@@ -1,8 +1,6 @@
 import { Suspense } from "react";
-import { readFile } from "fs/promises";
-import path from "path";
-import { getAllStories, type StoryFrontmatter } from "@/lib/stories";
-import { calculateReadingTime } from "@/lib/reading-time";
+import { getCaseFiles } from "@/components/stories/case-files";
+import type { CaseFile } from "@/components/stories/case-types";
 import HeroIntro from "@/components/home/HeroIntro";
 import { RushSection } from "@/components/home/TatkalRush";
 import CareerReplay from "@/components/home/CareerReplay";
@@ -26,32 +24,16 @@ function monthYear(date?: string): string | null {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-async function readingMinutes(slug: string): Promise<number | null> {
-  try {
-    const raw = await readFile(path.join(process.cwd(), "content", "stories", `${slug}.md`), "utf8");
-    const body = raw.replace(/^---[\s\S]*?\n---\s*\n/, "");
-    return calculateReadingTime(body).minutes;
-  } catch {
-    return null;
-  }
-}
-
-async function toTeaser(s: StoryFrontmatter, index: number, total: number): Promise<CaseTeaser> {
-  const minutes = await readingMinutes(s.slug);
-  const meta = [monthYear(s.date), minutes ? `${minutes} min` : null].filter(Boolean).join(" · ");
-  return {
-    id: `CASE-${String(total - index).padStart(3, "0")}`,
-    slug: s.slug,
-    meta,
-    title: s.title,
-    excerpt: s.excerpt,
-  };
+// Same case ids and reading times as /stories (one source: getCaseFiles).
+function toTeaser(c: CaseFile): CaseTeaser {
+  const meta = [monthYear(c.date), c.mins ? `${c.mins} min` : null].filter(Boolean).join(" · ");
+  return { id: c.caseId, slug: c.slug, meta, title: c.title, excerpt: c.excerpt, cover: c.cover };
 }
 
 export default async function Home() {
-  const stories = await getAllStories();
-  const total = stories.length;
-  const cases = await Promise.all(stories.slice(0, 3).map((s, i) => toTeaser(s, i, total)));
+  const files = await getCaseFiles();
+  const total = files.length;
+  const cases = files.slice(0, 3).map(toTeaser);
 
   return (
     <>

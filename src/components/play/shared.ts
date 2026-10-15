@@ -24,13 +24,6 @@ export type GameMeta = {
   higherIsBetter: boolean;
 };
 
-/**
- * Hash Ring win threshold. The artboard says "no node owns more than 7 keys", but with the fixed
- * 24 keys and nodes at 20/140/250 degrees the arcs owned by n1 (9 keys) and n2 (8 keys) can't
- * both be split by a single new node, so a max load of 7 is unreachable at any angle. 8 is the
- * lowest threshold that some candidate spot (0, 270 or 315 degrees) can clear.
- */
-export const RING_MAX_LOAD = 8;
 
 export const GAMES: GameMeta[] = [
   {
@@ -43,7 +36,7 @@ export const GAMES: GameMeta[] = [
     caseFile: "",
     caseHref: "",
     rules:
-      "A cache holds 3 keys. Requests arrive one at a time. On a miss with a full cache you choose which key to evict. Finish with at least as many hits as LRU would get.",
+      "A cache holds 3 keys. Requests arrive one at a time and you can see the next four. On a miss with a full cache you choose which key to evict. Finish within one hit of the clairvoyant optimum, which always beats LRU. Evicting the oldest key, or always the same slot, falls short.",
     lesson:
       "Eviction policy is a bet about the future. LRU bets on recency; when you know access patterns, you can do better.",
     higherIsBetter: true,
@@ -57,7 +50,8 @@ export const GAMES: GameMeta[] = [
     week: "Week 01 · Partitioning deep dive",
     caseFile: "",
     caseHref: "",
-    rules: `Three cache nodes share 24 keys on a consistent-hash ring. Place a 4th node so no node owns more than ${RING_MAX_LOAD} keys.`,
+    rules:
+      "Three cache nodes share 24 keys on a consistent-hash ring. You get one placement for a 4th node: put it where the busiest node ends up as light as this ring allows. Only one or two of the twelve spots do it.",
     lesson:
       "With hash mod N, going from 3 to 4 nodes moves most keys and cold-starts the whole cache. A ring moves only one arc.",
     higherIsBetter: false,
@@ -115,7 +109,7 @@ export const GAMES: GameMeta[] = [
     caseFile: "CASE-004 · Cache poisoning",
     caseHref: "/stories/cdn-cache-poisoning-disaster",
     rules:
-      "Four pages, one action each. The right first move costs 4 minutes; a wrong one costs 25. Finish under 40 minutes of downtime.",
+      "Five pages, one action each. The right first move costs 4 minutes; a wrong one costs 25. Finish under 45 minutes of downtime: one wrong call is survivable, two are not.",
     lesson: "Mitigate first, diagnose second. Rollback is the most underrated button in production.",
     higherIsBetter: false,
   },

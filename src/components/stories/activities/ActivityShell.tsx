@@ -10,6 +10,8 @@ import {
   ACTIVITY_SLUGS,
   ACTIVITY_XP,
   ALL_ACTIVITIES_QUEST,
+  isSolved,
+  passScore,
   readActivityResults,
   type ActivityDef,
   type StepCtx,
@@ -66,6 +68,7 @@ export default function ActivityShell({ slug, caseId, def }: { slug: string; cas
 
   const steps = def.steps;
   const max = steps.reduce((s, x) => s + x.max, 0);
+  const pass = passScore(max);
   const total = scores.reduce<number>((s, x) => s + (x ?? 0), 0);
   const stepDone = scores[idx] !== null && scores[idx] !== undefined;
   const results = readActivityResults(flags[ACTIVITY_FLAG]);
@@ -108,10 +111,14 @@ export default function ActivityShell({ slug, caseId, def }: { slug: string; cas
 
   const finish = useCallback(() => {
     const final = scores.reduce<number>((s, x) => s + (x ?? 0), 0);
+    // XP (and "solved") only for a run that clears the pass line: finishing is not the same as solving.
     // awardOnce()/award() before setFlag(): they write a whole state snapshot, setFlag is applied on top.
-    let xp = awardOnce(`${ACTIVITY_KEY_PREFIX}${slug}`, ACTIVITY_XP, `Case activity · ${caseId}`);
-    const doneNow = { ...questsDone, [`${ACTIVITY_KEY_PREFIX}${slug}`]: 1 };
-    if (ACTIVITY_SLUGS.every((s) => doneNow[`${ACTIVITY_KEY_PREFIX}${s}`])) xp += award(ALL_ACTIVITIES_QUEST, "Case cracker · every case activity solved");
+    let xp = 0;
+    if (final >= pass) {
+      xp = awardOnce(`${ACTIVITY_KEY_PREFIX}${slug}`, ACTIVITY_XP, `Case activity · ${caseId}`);
+      const doneNow = { ...questsDone, [`${ACTIVITY_KEY_PREFIX}${slug}`]: 1 };
+      if (ACTIVITY_SLUGS.every((s) => doneNow[`${ACTIVITY_KEY_PREFIX}${s}`])) xp += award(ALL_ACTIVITIES_QUEST, "Case cracker · every case activity solved");
+    }
     const old = readActivityResults(flags[ACTIVITY_FLAG]);
     const mine = old[slug];
     setFlag(ACTIVITY_FLAG, { ...old, [slug]: { best: Math.max(mine?.best ?? 0, final), max, runs: (mine?.runs ?? 0) + 1 } });
@@ -119,7 +126,7 @@ export default function ActivityShell({ slug, caseId, def }: { slug: string; cas
     setGained(xp);
     focusNext.current = true;
     setPhase("done");
-  }, [scores, awardOnce, award, setFlag, flags, questsDone, slug, caseId, max, def.kind]);
+  }, [scores, awardOnce, award, setFlag, flags, questsDone, slug, caseId, max, pass, def.kind]);
 
   const next = () => {
     if (!stepDone) return;
@@ -152,7 +159,7 @@ export default function ActivityShell({ slug, caseId, def }: { slug: string; cas
           <span className="text-signal-text">&gt;</span> debrief --interactive
         </span>
         <span className="text-fg-3">
-          {caseId} · {xpBanked ? "solved ✓" : `+${ACTIVITY_XP} XP`}
+          {caseId} · {xpBanked || isSolved(prev) ? "solved ✓" : `+${ACTIVITY_XP} XP at ${pass}/${max}`}
         </span>
       </div>
 
@@ -172,6 +179,7 @@ export default function ActivityShell({ slug, caseId, def }: { slug: string; cas
               <li className="border border-line-strong px-2 py-1">
                 {steps.length} STEPS · {max} PTS
               </li>
+              <li className="border border-line-strong px-2 py-1">SOLVE AT {pass}/{max}</li>
               <li className="border border-line-strong px-2 py-1">{xpBanked ? "XP BANKED" : `+${ACTIVITY_XP} XP`}</li>
               {prev && (
                 <li className="border border-signal px-2 py-1 text-signal-text">
@@ -245,11 +253,13 @@ export default function ActivityShell({ slug, caseId, def }: { slug: string; cas
               <div className="flex flex-col gap-1.5">
                 <span className="font-mono text-[13px] font-semibold uppercase tracking-label text-signal-text">{rank(total, max)}</span>
                 <span className="text-[15px] leading-relaxed text-fg-2">
-                  {gained > 0
-                    ? `+${gained} XP filed to your record.`
-                    : xpBanked
-                      ? "XP for this case is already banked. Runs still count toward your best."
-                      : ""}
+                  {total < pass
+                    ? `Not solved: ${pass}/${max} solves the case${xpBanked ? "" : ` and pays +${ACTIVITY_XP} XP`}. Rerun the drill.`
+                    : gained > 0
+                      ? `Solved. +${gained} XP filed to your record.`
+                      : xpBanked
+                        ? "Solved. XP for this case is already banked; runs still count toward your best."
+                        : "Solved."}
                   {prev && prev.best >= total && prev.runs > 1 ? ` Best so far: ${prev.best}/${prev.max}.` : ""}
                 </span>
               </div>

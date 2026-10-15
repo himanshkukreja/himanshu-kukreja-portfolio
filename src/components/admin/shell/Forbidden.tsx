@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { StageBar } from "@/components/ui/loader";
 
 export type GateMode = "checking" | "signedOut" | "notAdmin" | "error";
 
@@ -34,6 +35,7 @@ export default function Forbidden({
                 checking sudo<span className="animate-hk-blink">_</span>
               </h1>
               <p className="mt-4 max-w-md text-[15px] text-fg-3">Verifying your session with the server.</p>
+              <StageBar className="mt-6 h-2 w-full max-w-[320px]" />
             </>
           ) : (
             <>

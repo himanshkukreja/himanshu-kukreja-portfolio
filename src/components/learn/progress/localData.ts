@@ -25,6 +25,8 @@ export const KEYS = {
   review: "hk.review.v1",
   reviewLog: "hk.review.log.v1",
   reveal: "hk.reveal.v1",
+  /** case-file reading progress (story checkpoints read, per-section seconds) */
+  story: "hk.story.v1",
   goal: GOAL_STORAGE_KEY,
 } as const;
 
@@ -249,6 +251,12 @@ export function resetLocal(map: CourseMap, scope: ResetScope, parts: ResetParts,
         bump(r, "interview marks", n);
       }
     }
+  }
+
+  // case files aren't part of the course, so only "everything" clears their reading progress
+  if (scope.kind === "all" && parts.progress && s.getItem(KEYS.story)) {
+    remove(KEYS.story);
+    bump(r, "case-file reading");
   }
 
   if (parts.streaks && (scope.kind === "all" || scope.kind === "course") && s.getItem(KEYS.reviewLog)) {

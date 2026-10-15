@@ -451,16 +451,16 @@ Team Productivity Metrics:
 
 **GlobalTech Corp** - 50 developers across 12 time zones:
 
-```bash
-# Single Mac Pro server hosting 10 concurrent simulators
-# Serving developers in: US, India, Germany, Brazil, Australia
+:::panel[GlobalTech Corp]{tone="core"}
+- Single Mac Pro server hosting 10 concurrent simulators
+- Serving developers in: US, India, Germany, Brazil, Australia
 
-# Usage patterns:
-├── 24/7 simulator availability across time zones
-├── 150+ daily iOS testing sessions  
-├── 40% reduction in iOS-related delays
-└── $50,000 saved (vs buying 50 Mac computers)
-```
+#### Usage patterns
+- 24/7 simulator availability across time zones
+- 150+ daily iOS testing sessions
+- 40% reduction in iOS-related delays
+- $50,000 saved (vs buying 50 Mac computers)
+:::
 
 ### Success Story 3: Educational Institution
 
@@ -694,23 +694,21 @@ class ReliableWebSocket:
 ### Current Development Focus
 
 **Streaming Quality Enhancement:**
-```python
-# Goals for next version:
-├── 120 FPS ultra mode for premium hardware
-├── Adaptive bitrate based on network conditions  
-├── Hardware-accelerated encoding on Apple Silicon
-└── Sub-30ms latency targets
-```
+:::tree[Goals for next version]
+- 120 FPS ultra mode for premium hardware
+- Adaptive bitrate based on network conditions
+- Hardware-accelerated encoding on Apple Silicon
+- Sub-30ms latency targets
+:::
 
 **Advanced Features Pipeline:**
-```bash
-# Planned features:
-├── Multi-device testing (run 5+ simulators simultaneously)
-├── Automated testing integration (Appium, XCTest)
-├── Team collaboration tools (shared sessions, annotations)
-├── Cloud deployment options (AWS, Google Cloud)
-└── iOS device support (physical iPhone/iPad streaming)
-```
+:::tree[Planned features]
+- Multi-device testing — run 5+ simulators simultaneously
+- Automated testing integration — Appium, XCTest
+- Team collaboration tools — shared sessions, annotations
+- Cloud deployment options — AWS, Google Cloud
+- iOS device support — physical iPhone/iPad streaming
+:::
 
 ### Technical Roadmap
 
@@ -785,14 +783,15 @@ ios-bridge stream
 git clone https://github.com/AutoFlowLabs/ios-bridge
 cd ios-bridge
 pip install -r requirements.txt
-
-# Areas needing help:
-├── Streaming technology expertise
-├── Cross-platform desktop development  
-├── WebRTC protocol optimization
-├── iOS automation improvements
-└── Documentation and tutorials
 ```
+
+:::tree[Areas needing help]
+- Streaming technology expertise
+- Cross-platform desktop development
+- WebRTC protocol optimization
+- iOS automation improvements
+- Documentation and tutorials
+:::
 
 ---
 

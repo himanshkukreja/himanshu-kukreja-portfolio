@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Himanshu Kukreja — Resume</title>
+<meta name="author" content="Himanshu Kukreja">
+<meta name="description" content="Senior Software Engineer and Engineering Lead. Resume.">
+<style>
+  /* Fonts: the same static TTF instances the site's share cards use. Chromium embeds (subsets) them in the PDF. */
+  @font-face { font-family: "Bricolage"; font-weight: 700; src: url("../../src/lib/og/fonts/Bricolage-700.ttf") format("truetype"); }
+  @font-face { font-family: "Bricolage"; font-weight: 800; src: url("../../src/lib/og/fonts/Bricolage-800.ttf") format("truetype"); }
+  @font-face { font-family: "Geist"; font-weight: 400; src: url("../../src/lib/og/fonts/Geist-400.ttf") format("truetype"); }
+  @font-face { font-family: "Geist"; font-weight: 500; src: url("../../src/lib/og/fonts/Geist-500.ttf") format("truetype"); }
+  @font-face { font-family: "Geist"; font-weight: 600; src: url("../../src/lib/og/fonts/Geist-600.ttf") format("truetype"); }
+  @font-face { font-family: "Geist Mono"; font-weight: 400; src: url("../../src/lib/og/fonts/GeistMono-400.ttf") format("truetype"); }
+  @font-face { font-family: "Geist Mono"; font-weight: 500; src: url("../../src/lib/og/fonts/GeistMono-500.ttf") format("truetype"); }
+  @font-face { font-family: "Geist Mono"; font-weight: 600; src: url("../../src/lib/og/fonts/GeistMono-600.ttf") format("truetype"); }
+
+  :root {
+    --paper: #ffffff;
+    --ink: #0b0b0b;
+    --ink-2: #2e2e33;
+    --ink-3: #55555b;
+    --ink-4: #8a8a90;
+    --rule: #dddbd4;
+    --signal: #ff6b2b;
+    --signal-text: #c2410c;
+  }
+
+  /* A4 sheet. Content is kept inside a Letter-safe box: side margins cover Letter's extra width,
+     the bottom margin keeps each page's content within Letter's shorter height when printed. */
+  @page { size: A4; margin: 11mm 15mm 14mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--paper); }
+  body {
+    color: var(--ink);
+    font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
+    font-size: 8.9pt;
+    line-height: 1.38;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  /* Print: the @page margins frame every page. Screen: show the same box as a sheet of paper. */
+  .sheet { width: 180mm; }
+  @media screen {
+    html { background: #ecebe6; }
+    .sheet { width: 210mm; padding: 12mm 15mm 16mm; margin: 24px auto; background: var(--paper); box-shadow: 0 1px 0 #c9c7bf, 0 12px 40px rgba(0,0,0,.08); min-height: 297mm; }
+  }
+
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: "Geist Mono", ui-monospace, monospace; }
+
+  /* ---------- header ---------- */
+  header { display: flex; justify-content: space-between; align-items: flex-end; gap: 6mm; padding-bottom: 3.4mm; border-bottom: 1.6pt solid var(--ink); }
+  h1 {
+    margin: 0;
+    font-family: "Bricolage", sans-serif;
+    font-weight: 800;
+    font-size: 27pt;
+    line-height: 1;
+    letter-spacing: -0.035em;
+    display: flex; align-items: flex-end;
+  }
+  h1 .cursor { display: inline-block; width: 3.4mm; height: 7.6mm; background: var(--signal); margin-left: 1.6mm; margin-bottom: .6mm; }
+  .headline { margin: 2.4mm 0 0; font-size: 10.6pt; font-weight: 500; color: var(--ink-2); letter-spacing: -0.005em; }
+  .headline b { font-weight: 600; color: var(--ink); }
+  .contact { margin: 0; padding: 0; list-style: none; text-align: right; font-family: "Geist Mono", monospace; font-size: 7.7pt; line-height: 1.55; color: var(--ink-2); white-space: nowrap; }
+  .contact .k { color: var(--ink-4); }
+
+  .summary { margin: 3mm 0 0; font-size: 9.1pt; line-height: 1.45; color: var(--ink-2); }
+  .summary b { color: var(--ink); font-weight: 600; }
+
+  /* ---------- sections ---------- */
+  section { margin-top: 3.5mm; }
+  h2 {
+    margin: 0 0 2mm;
+    display: flex; align-items: center; gap: 2.2mm;
+    font-family: "Geist Mono", monospace;
+    font-weight: 600;
+    font-size: 7.8pt;
+    letter-spacing: 0.06em; /* wider tracking makes PDF text extractors read "E X P E R I E N C E" */
+    text-transform: uppercase;
+    color: var(--signal-text);
+  }
+  h2::before { content: ""; width: 2.2mm; height: 2.2mm; background: var(--signal); flex: none; }
+  h2::after { content: ""; flex: 1; height: 0; border-top: .6pt solid var(--rule); }
+
+  .role { margin-top: 2.5mm; break-inside: avoid; }
+  .role:first-of-type { margin-top: 0; }
+  .role-head { display: flex; justify-content: space-between; align-items: baseline; gap: 4mm; }
+  h3 { margin: 0; font-family: "Bricolage", sans-serif; font-weight: 700; font-size: 10.8pt; letter-spacing: -0.015em; line-height: 1.2; }
+  h3 .at { color: var(--ink-3); font-family: "Geist", sans-serif; font-weight: 500; font-size: 9.6pt; letter-spacing: 0; }
+  .when { flex: none; font-family: "Geist Mono", monospace; font-size: 7.9pt; color: var(--ink-3); white-space: nowrap; }
+  .when .now { color: var(--signal-text); font-weight: 600; }
+  .sub { margin: .4mm 0 0; font-size: 8.6pt; color: var(--ink-3); }
+
+  ul.points { margin: 1mm 0 0; padding: 0; list-style: none; }
+  /* No positioning here: positioned boxes paint after the flow, which scrambles the PDF's text order for ATS. */
+  ul.points li { padding-left: 4mm; text-indent: -4mm; margin-top: .55mm; color: var(--ink-2); }
+  ul.points li::before { content: ""; display: inline-block; width: 1.5mm; height: 1.5mm; margin: 0 2.5mm .45mm .4mm; vertical-align: middle; background: var(--ink); text-indent: 0; }
+  ul.points b { color: var(--ink); font-weight: 600; }
+  .metric { font-family: "Geist Mono", monospace; font-weight: 600; font-size: 8.6pt; color: var(--signal-text); }
+
+  /* ---------- skills ---------- */
+  dl.skills { margin: 0; display: grid; grid-template-columns: 27mm 1fr; row-gap: .9mm; column-gap: 3mm; }
+  dl.skills dt { font-family: "Geist Mono", monospace; font-size: 7.6pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); padding-top: .35mm; white-space: nowrap; }
+  dl.skills dd { margin: 0; color: var(--ink-2); }
+
+  /* ---------- two-up bottom row ---------- */
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; }
+  .edu-line { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; }
+  .small { font-size: 8.6pt; color: var(--ink-3); }
+
+  footer { margin-top: 4mm; padding-top: 2mm; border-top: .6pt solid var(--rule); display: flex; justify-content: space-between; font-family: "Geist Mono", monospace; font-size: 7.2pt; color: var(--ink-4); }
+</style>
+</head>
+<body>
+<main class="sheet">
+
+  <header>
+    <div>
+      <h1>Himanshu Kukreja<span class="cursor" aria-hidden="true"></span></h1>
+      <p class="headline"><b>Senior Software Engineer &amp; Engineering Lead</b> · Senseloaf AI</p>
+    </div>
+    <ul class="contact">
+      <li><a href="mailto:kukreja.him@gmail.com">kukreja.him@gmail.com</a></li>
+      <li><a href="https://www.himanshukukreja.in">himanshukukreja.in</a></li>
+      <li><a href="https://github.com/himanshkukreja">github.com/himanshkukreja</a></li>
+      <li><a href="https://www.linkedin.com/in/himanshukukreja/">linkedin.com/in/himanshukukreja</a></li>
+      <li><a href="https://x.com/hi_kukreja">x.com/hi_kukreja</a> · Bengaluru, India</li>
+    </ul>
+  </header>
+
+  <p class="summary">
+    Engineering lead who owns product <b>end to end</b>: product research, UI design, frontend, backend and infra.
+    Founding engineer twice. Builds <b>agentic AI products</b>, <b>real-time device streaming over WebRTC</b> and
+    <b>developer tools</b>; open-sources the tools and teaches system design to backend engineers.
+  </p>
+
+  <section>
+    <h2>Experience</h2>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>Senior Software Engineer &amp; Engineering Lead <span class="at">· Senseloaf AI</span></h3>
+        <span class="when"><span class="now">Apr 2026 – Present</span> · Bengaluru</span>
+      </div>
+      <ul class="points">
+        <li>Lead engineering of an <b>agentic hiring platform</b> used by enterprises and startups, with AI agents for sourcing, resume-to-job matching, profile verification, prescreening and AI interviews.</li>
+        <li>Own features end to end: product research, UI design, frontend, backend and infra scaling.</li>
+        <li>Building <b>SIA (Senseloaf Intelligent Agent)</b>, a chat interface where a recruiter runs hiring end to end, and its <b>MCP server</b>.</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>Software Engineer (Freelance) <span class="at">· pCloudy</span></h3>
+        <span class="when">Mar 2026 – Jun 2026 · Remote</span>
+      </div>
+      <ul class="points">
+        <li>Device-streaming research for a <span class="metric">5,000+</span> device cloud; built mobile app testing solutions.</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>Founding Engineer <span class="at">· NativeBridge</span></h3>
+        <span class="when">Jan 2025 – Mar 2026 · Bengaluru</span>
+      </div>
+      <ul class="points">
+        <li>Built cloud <b>Android and iOS devices streamed to the browser over WebRTC</b> at <span class="metric">&lt;100 ms</span>, with touch, rotation, clipboard and file transfer.</li>
+        <li>Open-sourced <b>iOS Bridge</b> (<span class="metric">75★</span>, iOS simulators from any OS) and <b>BridgeLink</b> (remote Android over secure tunnels).</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>Founding Engineer #1 <span class="at">· AutoFlow</span></h3>
+        <span class="when">Jan 2024 – Dec 2024 · Bengaluru</span>
+      </div>
+      <ul class="points">
+        <li>Employee #1: built the backend from an empty repo in <b>FastAPI</b> on PostgreSQL, plus a <b>Bun WebSocket gateway</b>.</li>
+        <li>Shipped AI-driven <b>autonomous UI testing</b> on a fleet of <b>Playwright runners</b> across AWS and GCP; launched on Product Hunt as <b>Product of the Day</b>.</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>SDA → SDE 1 <span class="at">· Ikarus 3D</span></h3>
+        <span class="when">Jan 2023 – Oct 2023 · Chandigarh</span>
+      </div>
+      <ul class="points">
+        <li>Led the backend for <b>IkarusNest</b>: <span class="metric">7+</span> microservices (auth, carts, orders, slicer), JWT service auth, caching.</li>
+        <li>Moved the slicer from AWS ECS/EFS to <b>GCP Cloud Run</b> (<span class="metric">−90%</span> infra cost); cut API latency <span class="metric">−50%</span> and login time <span class="metric">−30%</span>.</li>
+        <li>Set up the company’s first CI/CD pipelines; mentored 3 interns.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Building &amp; teaching</h2>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>Markdrop <span class="at">· Founder, personal venture · markdrop.in</span></h3>
+        <span class="when"><span class="now">Mar 2026 – Present</span></span>
+      </div>
+      <ul class="points">
+        <li>Publish markdown and AI docs with no account, or upload HTML, PDFs, sheets, Word docs, video and zipped sites: <b>one link that renders in any browser</b>.</li>
+        <li>Web app, <b>VS Code extension</b> and a <b>CLI on Homebrew and Scoop</b>; TypeScript, designed and built solo.</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>System Design Mastery <span class="at">· free course · himanshukukreja.in/learn</span></h3>
+      </div>
+      <ul class="points">
+        <li>Free course for backend engineers with <span class="metric">1,000+</span> quick-check questions, plus long-form <b>engineering case files</b>.</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>Open source <span class="at">· github.com/himanshkukreja</span></h3>
+      </div>
+      <ul class="points">
+        <li><b>iOS Bridge</b> (75★) · <b>BridgeLink</b> · <b>waygate</b> (self-hosted tunnel, Go) · <b>obscura</b> (encrypted HLS from S3) · <b>ios-web-streamer</b></li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <h2>Skills</h2>
+    <dl class="skills">
+      <dt>Backend</dt><dd>Python, FastAPI, Go, Bun, microservices, PostgreSQL, MySQL, Redis</dd>
+      <dt>Realtime</dt><dd>WebRTC, Android and iOS device control, secure tunnels, HLS video</dd>
+      <dt>AI &amp; agents</dt><dd>LLM agents, MCP, Playwright automation, TensorFlow</dd>
+      <dt>Cloud &amp; infra</dt><dd>AWS (ECS, EFS), GCP Cloud Run, Docker, CI/CD</dd>
+      <dt>Product &amp; UI</dt><dd>TypeScript, React, Next.js, UI design, CLIs and VS Code extensions</dd>
+    </dl>
+  </section>
+
+  <section>
+    <h2>Education</h2>
+    <div class="edu-line">
+      <h3>B.E. Computer Science <span class="at">· Thapar Institute of Engineering &amp; Technology</span></h3>
+      <span class="when">2019 – 2023 · CGPA <b>9.04</b>/10</span>
+    </div>
+  </section>
+
+  <footer>
+    <span>~/himanshu · himanshukukreja.in</span>
+    <span>Updated <span id="updated">October 2026</span></span>
+  </footer>
+</main>
+</body>
+</html>

@@ -15,7 +15,7 @@ type Props = {
 /** End of lesson: explicit completion, up next (across weeks), trial part, prev / next. */
 export default function EndOfLesson({ meta, prev, next, trial }: Props) {
   const p = useLessonProgress();
-  const { completed, complete, ready } = p;
+  const { completed, complete, ready, canComplete, completeLeftMin } = p;
   const total = numberedStages(p.required).length;
   const nDone = doneCount(p);
   const name = meta.shortLabel === "Lesson" ? meta.title : meta.shortLabel.replace(/^Day 0/, "Day ");
@@ -36,18 +36,24 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
           <span className="text-sm leading-normal text-fg-2">
             {completed
               ? "Saved to your skill tree. Completed stays completed, revisiting never resets it."
-              : `Marks the node complete on your skill tree. Your stages so far: ${nDone}/${total}.`}
+              : canComplete
+                ? `Marks the node complete on your skill tree. Stages read so far: ${nDone}/${total}.`
+                : `Stages clear as you read them (${nDone}/${total} so far). Skipping ahead doesn't count: marking complete unlocks after ~${completeLeftMin} more min of reading.`}
           </span>
         </span>
         <button
           type="button"
           onClick={complete}
-          disabled={completed || !ready}
+          disabled={completed || !ready || !canComplete}
           className={`min-h-[52px] w-full px-5 text-[15px] font-semibold sm:w-auto ${
-            completed ? "border border-line-strong bg-surface-2 text-fg-2" : "bg-signal text-on-signal hover:brightness-110"
+            completed
+              ? "border border-line-strong bg-surface-2 text-fg-2"
+              : canComplete
+                ? "bg-signal text-on-signal hover:brightness-110"
+                : "border border-dashed border-line-strong text-fg-2"
           } disabled:cursor-default`}
         >
-          {completed ? "Completed ✓" : `Mark ${name} complete · +60 XP`}
+          {completed ? "Completed ✓" : canComplete ? `Mark ${name} complete · +60 XP` : `Keep reading · ~${completeLeftMin} min left`}
         </button>
       </div>
 

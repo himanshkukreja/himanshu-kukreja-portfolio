@@ -24,6 +24,10 @@ export type GuestLessonRecord = {
   /** renderer content hash the stage ids belong to */
   v?: string;
   updatedAt: number;
+  /** engaged reading seconds per stage id (see READING in lib/learn/engagedClock) */
+  dwell?: Record<string, number>;
+  /** per stage id: bitmask of the slices that were on screen while reading */
+  seen?: Record<string, number>;
 };
 
 export type RemoteLessonRow = {
@@ -70,6 +74,8 @@ export function writeGuestLesson(course: string, week: string, slug: string, rec
     const stages = Array.from(new Set([...(prev?.stages ?? []), ...rec.stages]));
     all[key] = {
       ...rec,
+      dwell: rec.dwell ?? prev?.dwell,
+      seen: rec.seen ?? prev?.seen,
       stages,
       completed: !!(prev?.completed || rec.completed),
       completedAt: prev?.completedAt ?? rec.completedAt,
@@ -80,6 +86,27 @@ export function writeGuestLesson(course: string, week: string, slug: string, rec
     window.dispatchEvent(new CustomEvent("hk:lesson-progress", { detail: { key } }));
   } catch {
     // storage unavailable (private mode): progress lives for this visit only
+  }
+}
+
+/**
+ * Per-stage reading time for this device, kept inside the lesson's `hk.lesson.v1` record (so the
+ * learner's "reset progress" clears it too). Merges up: seconds take the max, seen slices are OR-ed.
+ * Silent: no `hk:lesson-progress` event, it changes nothing the rails show.
+ */
+export function writeGuestDwell(course: string, week: string, slug: string, dwell: Record<string, number>, seen: Record<string, number>) {
+  try {
+    const all = readAll();
+    const key = lessonKey(course, week, slug);
+    const prev: GuestLessonRecord = all[key] ?? { stages: [], last: null, completed: false, max: 0, updatedAt: 0 };
+    const d = { ...(prev.dwell ?? {}) };
+    for (const [id, secs] of Object.entries(dwell)) d[id] = Math.max(d[id] ?? 0, Math.round(secs));
+    const sn = { ...(prev.seen ?? {}) };
+    for (const [id, mask] of Object.entries(seen)) sn[id] = ((sn[id] ?? 0) | mask) >>> 0;
+    all[key] = { ...prev, dwell: d, seen: sn };
+    window.localStorage.setItem(GUEST_PROGRESS_KEY, JSON.stringify(all));
+  } catch {
+    // storage unavailable: reading time lives for this visit only
   }
 }
 

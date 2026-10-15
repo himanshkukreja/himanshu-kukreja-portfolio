@@ -13,6 +13,7 @@ import { Analytics } from '@vercel/analytics/next';
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import GlobalAuthModal from "@/components/GlobalAuthModal";
 import AuthHashHandler from "@/components/AuthHashHandler";
+import RouteProgress from "@/components/site/RouteProgress";
 
 
 
@@ -47,28 +48,19 @@ export const metadata: Metadata = {
   title: "Himanshu Kukreja — Portfolio",
   description:
     "Senior software engineer leading engineering at Senseloaf AI. Ships product end to end, streams real devices to browsers, open-sources the tools, writes case files and teaches system design.",
-  metadataBase: new URL("https://himanshukukreja.in"),
+  // Apex 307-redirects to www, so absolute OG/Twitter image URLs point straight at www.
+  metadataBase: new URL("https://www.himanshukukreja.in"),
+  // No title/description/images here on purpose: og:title/description fall back to each page's own
+  // title/description, and the card images come from the opengraph-image / twitter-image routes
+  // (src/app, src/app/learn, src/app/learn/[course]/[week]/[slug]); /stories/[slug] sets its cover.
   openGraph: {
-    title: "Himanshu Kukreja — Portfolio",
-    description:
-      "Senior SWE at Senseloaf AI · end-to-end product · realtime streaming · open source · system design.",
-    url: "https://himanshukukreja.in",
     type: "website",
-    images: [
-      {
-        url: "/og-image.png",
-        width: 1200,
-        height: 630,
-        alt: "Himanshu Kukreja - Software Engineer Portfolio",
-      },
-    ],
+    siteName: "Himanshu Kukreja",
+    locale: "en_IN",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Himanshu Kukreja — Portfolio",
-    description:
-      "Senior SWE at Senseloaf AI · end-to-end product · realtime streaming · open source · system design.",
-    images: ["/og-image.png"],
+    creator: "@hi_kukreja",
   },
 };
 
@@ -79,6 +71,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning={true}>
       <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased pb-24 lg:pb-0`}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON_LD) }} />
+        <RouteProgress />
         <AnalyticsTracker />
         <AuthProvider>
           <AuthModalProvider>

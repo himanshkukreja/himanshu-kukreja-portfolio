@@ -31,6 +31,16 @@ export const ACTIVITY_FLAG = "caseActivities";
 /** awardOnce() key prefix; one per story. The "Case cracker" badge counts these. */
 export const ACTIVITY_KEY_PREFIX = "caseplay:";
 export const ACTIVITY_XP = 25;
+/**
+ * Share of the points a run needs before it counts as "solved": the XP, the SOLVED ◆ chip on the index and the
+ * Case cracker quest all key off it. Every step is built so that guessing, "pick everything" or "always the
+ * same option" lands under this line.
+ */
+export const PASS_RATIO = 0.7;
+
+export function passScore(max: number): number {
+  return Math.ceil(max * PASS_RATIO);
+}
 /** Quest (catalog.ts) awarded once every story below has its activity solved. */
 export const ALL_ACTIVITIES_QUEST = "cases:all";
 
@@ -49,6 +59,11 @@ export const ACTIVITY_SLUGS = [
 ] as const;
 
 export type ActivityResult = { best: number; max: number; runs: number };
+
+/** A stored result counts as solved only when its best run cleared the pass line. */
+export function isSolved(r: ActivityResult | undefined): boolean {
+  return !!r && r.max > 0 && r.best >= passScore(r.max);
+}
 
 export function readActivityResults(raw: unknown): Record<string, ActivityResult> {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};

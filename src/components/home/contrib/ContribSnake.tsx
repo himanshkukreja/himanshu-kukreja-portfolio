@@ -144,6 +144,8 @@ export default function ContribSnake({ data }: { data: ContribData }) {
   const kickRef = useRef<() => void>(() => {});
   const swipeRef = useRef<{ x: number; y: number; id: number } | null>(null);
   const tipTimer = useRef(0);
+  /** Direction changes the player made this game: XP needs real steering, not pressing start and watching it wrap. */
+  const turnsRef = useRef(0);
 
   const [eng] = useState(() => new SnakeEngine());
   const [width, setWidth] = useState(0);
@@ -182,7 +184,8 @@ export default function ContribSnake({ data }: { data: ContribData }) {
           return;
         }
         setHud((h) => ({ ...h, score: e.score, eaten: e.eaten }));
-        if (e.score >= SCORE_BADGE) awardOnce("snake:500", 50, `Snake charmer · ate ${SCORE_BADGE}+ contributions`);
+        if (e.eaten >= 5 && turnsRef.current >= 2) award("snake", "Played the contribution snake");
+        if (e.score >= SCORE_BADGE && turnsRef.current >= 6) awardOnce("snake:500", 50, `Snake charmer · ate ${SCORE_BADGE}+ contributions`);
       } else if (e.type === "over") {
         const prevBest = readBest();
         const newBest = e.score > prevBest;
@@ -192,7 +195,7 @@ export default function ContribSnake({ data }: { data: ContribData }) {
         track("contrib_snake", { score: e.score });
       }
     });
-  }, [eng, awardOnce]);
+  }, [eng, award, awardOnce]);
 
   /* ── grid changes (data / range) reset the board ── */
   useEffect(() => {
@@ -290,10 +293,10 @@ export default function ContribSnake({ data }: { data: ContribData }) {
     setHud({ ...HUD0, mode: "play" });
     setTip(null);
     setAnnounce("Snake started. Steer with the arrow keys.");
-    award("snake", "Played the contribution snake");
+    turnsRef.current = 0;
     boardRef.current?.focus({ preventScroll: true });
     kickRef.current();
-  }, [eng, award]);
+  }, [eng]);
 
   const quit = useCallback(() => {
     eng.resetAttract(performance.now());
@@ -322,6 +325,7 @@ export default function ContribSnake({ data }: { data: ContribData }) {
         setHud((h) => ({ ...h, mode: "play" }));
         kickRef.current();
       }
+      if (eng.mode === "play") turnsRef.current += 1;
       eng.turn(d);
     },
     [eng]

@@ -125,9 +125,11 @@ function Insert({ ctx }: { ctx: StepCtx }) {
   );
 }
 
+// Two clean, one false positive, one real threat: "always check the DB" scores 2 of 4.
 const QUERIES = [
   { url: "suspicious-crypto.net", h: 29, db: false },
   { url: "cute-cats.blog", h: 12, db: false },
+  { url: "weather-today.in", h: 5, db: false },
   { url: "crypto-scam.net", h: 7, db: true },
 ];
 
@@ -206,11 +208,11 @@ const DEF: ActivityDef = {
   kind: "simulation",
   title: "False-positive hunt",
   blurb:
-    "Run GlobalForum's Bloom filter by hand: insert a phishing URL into a 16-bit array with the case file's hash functions, then judge three incoming links. One of them is a trap.",
+    "Run GlobalForum's Bloom filter by hand: insert a phishing URL into a 16-bit array with the case file's hash functions, then judge four incoming links. One of them is a trap.",
   minutes: 3,
   steps: [
     { id: "insert", label: "Insert a threat", max: 1, render: (ctx) => <Insert ctx={ctx} /> },
-    { id: "probe", label: "Judge three links", max: 3, render: (ctx) => <Probe ctx={ctx} /> },
+    { id: "probe", label: "Judge four links", max: 4, render: (ctx) => <Probe ctx={ctx} /> },
     {
       id: "fn",
       label: "The promise",

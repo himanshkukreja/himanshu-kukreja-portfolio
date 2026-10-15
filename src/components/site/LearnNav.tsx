@@ -7,6 +7,7 @@
  */
 import Link from "next/link";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
+import { DockDot, TabPending } from "./LinkPending";
 
 export const COURSE_HREF = "/learn/system-design-mastery";
 
@@ -67,10 +68,11 @@ export function LearnTabs({ pathname }: { pathname: string }) {
           key={l.href}
           href={l.href}
           aria-current={l.on ? "page" : undefined}
-          className={`inline-flex items-center gap-2 whitespace-nowrap px-2.5 py-2.5 ${l.on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}
+          className={`relative inline-flex items-center gap-2 whitespace-nowrap px-2.5 py-2.5 ${l.on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}
         >
           {l.label}
           {l.badge && <DueBadge />}
+          <TabPending />
         </Link>
       ))}
     </nav>
@@ -94,7 +96,7 @@ export function LearnDock({ pathname, className }: { pathname: string; className
           aria-current={l.on ? "page" : undefined}
           className={`relative flex min-h-12 flex-col items-center justify-center gap-1.5 font-mono text-[11px] ${l.on ? "text-fg" : "text-fg-3"}`}
         >
-          <span aria-hidden className={`h-1.5 w-1.5 ${l.on ? "bg-signal" : "bg-transparent"}`} />
+          <DockDot on={l.on} />
           {l.label}
           {l.badge && (
             <span className="absolute right-1 top-0.5">

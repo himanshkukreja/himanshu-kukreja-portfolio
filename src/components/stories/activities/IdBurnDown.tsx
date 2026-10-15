@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ActivityShell from "./ActivityShell";
-import { BTN_PRIMARY, ChoiceStep, ClassifyStep, Feedback, OPTION, OPT_DIM, OPT_IDLE, OPT_RIGHT, OPT_WRONG, StepPrompt } from "./kit";
+import { BTN_PRIMARY, ChoiceStep, ClassifyStep, Feedback, OPTION, OPT_DIM, OPT_IDLE, OPT_RIGHT, OPT_WRONG, StepPrompt, seededShuffle } from "./kit";
 import type { ActivityProps } from "./registry";
 import type { ActivityDef, StepCtx } from "./types";
 
@@ -21,6 +21,9 @@ const ALERTS = [
   { pct: 90, answer: 2 },
   { pct: 95, answer: 3 },
 ];
+// Shown in a different order at every alert, so "pick the next one down the list" is not a strategy:
+// you have to know which response belongs to which threshold.
+const ORDERS = ALERTS.map((a) => seededShuffle(ACTIONS.map((_, i) => i), `burn-${a.pct}`));
 
 function band(p: number): { name: string; cls: string } {
   if (p >= 80) return { name: "RED · migration underway", cls: "text-bad-text" };
@@ -127,7 +130,8 @@ function BurnDown({ ctx }: { ctx: StepCtx }) {
           <span className="font-mono text-[12px] font-semibold text-signal-text">PAGER · event_log.id at {alert.pct}% of INT</span>
           <span className="text-[16px] font-semibold text-fg">What’s the automated response at {alert.pct}%?</span>
           <div className="flex flex-col gap-2" role="group" aria-label="Responses">
-            {ACTIONS.map((a, k) => {
+            {ORDERS[Math.min(stage, ALERTS.length - 1)].map((k) => {
+              const a = ACTIONS[k];
               const cls = !answered ? OPT_IDLE : k === alert.answer ? OPT_RIGHT : k === picks[stage] ? OPT_WRONG : OPT_DIM;
               return (
                 <button key={a} type="button" disabled={answered} onClick={() => choose(k)} className={`${OPTION} ${cls}`}>

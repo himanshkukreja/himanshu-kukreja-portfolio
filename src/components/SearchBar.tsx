@@ -18,6 +18,7 @@ import type { LearningResource } from "@/lib/github";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabaseClient } from "@/lib/supabase-client";
 import { track } from "@/lib/track";
+import { InlineLoader } from "@/components/ui/loader";
 
 type Doc = LearningResource & { content?: string; excerpt?: string };
 type Group = "lessons" | "questions" | "notes";
@@ -381,7 +382,7 @@ function Palette({ onClose }: { onClose: () => void }) {
               <span className="font-mono text-fg-2">hot keys</span>.
             </p>
           )}
-          {q.trim() && docs === null && <p className="px-2 py-6 font-mono text-xs text-fg-3">loading the course index…</p>}
+          {q.trim() && docs === null && <p className="px-2 py-6"><InlineLoader label="loading the course index" /></p>}
           {q.trim() && docs && visible.length === 0 && (
             <p className="px-2 py-6 text-sm text-fg-3">
               Nothing matches <span className="text-fg">“{q.trim()}”</span>. Search looks at lesson titles and text{user ? ", interview questions and your notes" : " and interview questions"}.

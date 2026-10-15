@@ -1,4 +1,5 @@
-import { revalidatePath } from 'next/cache';
+import { revalidatePath, revalidateTag } from 'next/cache';
+import { COURSE_MAP_TAG } from '@/lib/learn/course';
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { getAdmin } from '@/lib/admin/auth';
@@ -35,6 +36,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Revalidate all course-related paths
+    revalidateTag(COURSE_MAP_TAG);
     revalidatePath('/learn', 'layout');
     revalidatePath('/learn/[course]', 'page');
     revalidatePath('/learn/[course]/[week]/[slug]', 'page');

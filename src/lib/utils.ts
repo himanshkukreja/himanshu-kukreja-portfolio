@@ -8,10 +8,11 @@ export function resolveCoverUrl(src?: string): string | undefined {
   if (!s) return undefined;
   // already absolute
   if (/^https?:\/\//i.test(s)) return s;
-  // Served from /public (story covers in /covers/, inline story figures in /case-files/): never rewritten
+  // Served from /public (story covers in /covers/, inline story figures in /case-files/, animated course
+  // plates in /learn-art/): never rewritten
   // to ImageKit, stays a same-origin path so it is served (and optimised) locally. Only /blueprints/… paths
   // are ImageKit uploads.
-  if (s.startsWith("/covers/") || s.startsWith("/case-files/")) return s;
+  if (s.startsWith("/covers/") || s.startsWith("/case-files/") || s.startsWith("/learn-art/")) return s;
 
   const base = process.env.NEXT_PUBLIC_IMAGEKIT_BASE_URL?.replace(/\/$/, "");
   const prefix = process.env.NEXT_PUBLIC_IMAGEKIT_PREFIX_PATH?.replace(/^\/+|\/+$/g, ""); // no leading/trailing slashes

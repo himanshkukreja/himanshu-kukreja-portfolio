@@ -38,16 +38,46 @@ const PAGES: Page[] = [
     answer: 1,
     why: "Fail fast and protect your own threads. Queue orders and retry with backoff once the provider recovers.",
   },
+  {
+    sev: "SEV-2",
+    title: "Login p99 jumped from 120 ms to 9 s; error rate is normal",
+    signals: ["one Redis shard at 100% CPU, the others idle", "a single key, session:flags, read 80k times a second", "overall traffic is normal"],
+    opts: ["Add replicas to every Redis shard", "Cache the hot key in-process for a few seconds", "Restart the Redis cluster"],
+    answer: 1,
+    why: "A hot key, not a capacity problem: one shard serves one key. A short in-process cache spreads the reads; more shards or a restart leave the key where it is.",
+  },
 ];
 const TOTAL = PAGES.length;
 const RIGHT_COST = 4;
 const WRONG_COST = 25;
-const WIN_UNDER = 40;
+/** Five right calls take 20 min, four right and one wrong 41 min. Two wrong calls (66+) always lose. */
+const WIN_UNDER = 45;
+
+/** Option order per page. The first shift uses a fixed mix (same on server and client); every new shift reshuffles. */
+const FIRST_ORDER: number[][] = [
+  [1, 2, 0],
+  [1, 0, 2],
+  [0, 2, 1],
+  [2, 0, 1],
+  [1, 0, 2],
+];
+
+function shuffledOrders(): number[][] {
+  return PAGES.map((p) => {
+    const o = p.opts.map((_, i) => i);
+    for (let i = o.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [o[i], o[j]] = [o[j], o[i]];
+    }
+    return o;
+  });
+}
 
 export default function IncidentCommander({ onWin }: GameProps) {
   const [iq, setIq] = useState(0);
   const [pick, setPick] = useState<number | null>(null);
   const [mttr, setMttr] = useState(0);
+  const [order, setOrder] = useState<number[][]>(FIRST_ORDER);
 
   const over = iq >= TOTAL;
   const cur = PAGES[Math.min(iq, TOTAL - 1)];
@@ -67,6 +97,7 @@ export default function IncidentCommander({ onWin }: GameProps) {
   };
 
   const reset = () => {
+    setOrder(shuffledOrders());
     setIq(0);
     setPick(null);
     setMttr(0);
@@ -97,7 +128,8 @@ export default function IncidentCommander({ onWin }: GameProps) {
             </ul>
           </div>
           <div className="flex flex-col gap-2">
-            {cur.opts.map((t, k) => {
+            {order[Math.min(iq, TOTAL - 1)].map((k) => {
+              const t = cur.opts[k];
               const style =
                 answered && k === cur.answer
                   ? "border-signal bg-signal text-on-signal"

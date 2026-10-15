@@ -1,4 +1,5 @@
 import Link from "next/link";
+import CoverImage from "@/components/CoverImage";
 import { Prompt, container, ghostBtn, h2Class } from "./ui";
 
 export type CaseTeaser = {
@@ -7,7 +8,11 @@ export type CaseTeaser = {
   meta: string;
   title: string;
   excerpt?: string;
+  cover?: string;
 };
+
+const BLUEPRINT_BG =
+  "bg-raised bg-[linear-gradient(var(--c-line)_1px,transparent_1px),linear-gradient(90deg,var(--c-line)_1px,transparent_1px)] bg-[size:24px_24px]";
 
 export default function CaseFilesTeaser({ cases, total }: { cases: CaseTeaser[]; total: number }) {
   return (
@@ -24,19 +29,29 @@ export default function CaseFilesTeaser({ cases, total }: { cases: CaseTeaser[];
         </Link>
       </div>
       {cases.length > 0 ? (
-        <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(340px,100%),1fr))] gap-3 p-0">
-          {cases.map((c) => (
-            <li key={c.slug} className="flex">
+        <ul className="m-0 grid list-none grid-cols-1 gap-3 p-0 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
+          {cases.map((c, i) => (
+            <li key={c.slug} className={`flex min-w-0 ${i === 2 ? "sm:hidden lg:flex" : ""}`}>
               <Link
                 href={`/stories/${c.slug}`}
-                className="flex w-full flex-col gap-2.5 border border-line bg-surface p-4 text-fg no-underline hover:border-line-strong sm:p-[22px]"
+                className="group grid w-full min-w-0 grid-cols-[112px_minmax(0,1fr)] border border-line bg-surface text-fg no-underline transition-colors hover:border-fg-4 hover:text-fg sm:flex sm:flex-col"
               >
-                <span className="flex justify-between gap-3 font-mono text-xs">
-                  <span className="text-signal-text">{c.id}.md</span>
-                  <span className="text-fg-3">{c.meta}</span>
+                {/* Phone: thumbnail on the left. Tablet and up: the full 3:2 plate on top. */}
+                <span className={`relative block overflow-hidden border-r border-line sm:aspect-[3/2] sm:border-b sm:border-r-0 ${BLUEPRINT_BG}`}>
+                  {c.cover && (
+                    <span className="absolute inset-0 transition-transform duration-500 ease-out [@media(hover:hover)_and_(prefers-reduced-motion:no-preference)]:group-hover:scale-[1.035]">
+                      <CoverImage src={c.cover} alt="" fill sizes="(min-width: 1024px) 420px, (min-width: 640px) 50vw, 112px" className="h-full w-full" />
+                    </span>
+                  )}
                 </span>
-                <span className="font-display text-xl font-bold leading-[1.1] tracking-[-0.02em] sm:text-2xl">{c.title}</span>
-                {c.excerpt && <span className="line-clamp-3 text-[15px] leading-normal text-fg-2">{c.excerpt}</span>}
+                <span className="flex min-w-0 flex-col gap-1.5 p-3 sm:gap-2.5 sm:p-[22px]">
+                  <span className="flex flex-wrap justify-between gap-x-3 gap-y-0.5 font-mono text-[11px] sm:text-xs">
+                    <span className="text-signal-text">{c.id}.md</span>
+                    <span className="text-fg-3">{c.meta}</span>
+                  </span>
+                  <span className="font-display text-[17px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-2xl sm:leading-[1.1]">{c.title}</span>
+                  {c.excerpt && <span className="hidden text-[15px] leading-normal text-fg-2 sm:line-clamp-3">{c.excerpt}</span>}
+                </span>
               </Link>
             </li>
           ))}

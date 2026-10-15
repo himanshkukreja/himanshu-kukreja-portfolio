@@ -2,8 +2,9 @@
 
 /**
  * Sorter engine for "Pick the Store" and "Fix the Outage": a card drops in, tap the bin it belongs to.
- * Right: +10 × streak multiplier (×2 from 3 in a row, ×3 from 6). Wrong: the streak resets and the
- * answer + why stay up until you move on (the clock keeps running, so mistakes cost time).
+ * Right: +10 × streak multiplier (×2 from 3 in a row, ×3 from 6). Wrong: −10, the streak resets and the
+ * answer + why stay up until you move on (the clock keeps running, so mistakes cost time). With six boxes a
+ * random tap is right 1 time in 6, so guessing loses points on average and never reaches the clear line.
  */
 import { useMemo, useState } from "react";
 import { PRACTICE_GAMES } from "@/lib/learn/arena/games";
@@ -15,6 +16,9 @@ export type SortCard = { text: string; bin: string; why: string };
 export type SortDeck = { game: string; bins: { key: string; label: string; sub: string }[]; cards: SortCard[]; prompt: string };
 
 const BASE = 10;
+const MISS = 10;
+/** Roughly ten right in a row, or fifteen right with a couple of slips. */
+const CLEAR_AT = 150;
 const mult = (streak: number) => (streak >= 6 ? 3 : streak >= 3 ? 2 : 1);
 
 export const STORE_DECK: SortDeck = {
@@ -113,7 +117,7 @@ function Board({ api, deck }: { api: BoardApi; deck: SortDeck }) {
       setStreak(0);
       setStats((x) => ({ ...x, wrong: x.wrong + 1 }));
       setMiss({ pick: bin });
-      api.addScore(0, `wrong, it's ${deck.bins.find((b) => b.key === card.bin)?.label}`);
+      api.addScore(-MISS, `wrong, it's ${deck.bins.find((b) => b.key === card.bin)?.label}`);
     }
   };
 
@@ -200,10 +204,12 @@ export default function Sorter({ which }: { which: "store" | "outage" }) {
         <ul className="m-0 grid list-none gap-1.5 p-0">
           <li>■ A card drops in: {deck.prompt.toLowerCase()} Tap the right box.</li>
           <li>■ +{BASE} per right answer, ×2 from 3 in a row, ×3 from 6 in a row.</li>
-          <li>■ A wrong answer resets the streak and shows why. The clock keeps running.</li>
+          <li>■ A wrong answer costs {MISS}, resets the streak and shows why. The clock keeps running.</li>
+          <li>■ Score {CLEAR_AT} in one round to clear it.</li>
         </ul>
       }
       Board={which === "store" ? StoreBoard : OutageBoard}
+      clearAt={CLEAR_AT}
     />
   );
 }

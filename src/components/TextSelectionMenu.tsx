@@ -2,8 +2,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, ChevronLeft, Highlighter, StickyNote, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ClipboardCopy, Highlighter, MessageCircleQuestion, StickyNote, X } from "lucide-react";
 import { HIGHLIGHT_COLOURS } from "@/lib/learn/notebook";
+import type { AskClient } from "@/lib/learn/askAi";
+
+/** Monochrome marks for the AI clients (currentColor, 16px). */
+export function ClaudeMark({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+      <path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4" />
+    </svg>
+  );
+}
+
+export function ChatGptMark({ className = "w-4 h-4" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden="true">
+      <path d="M12 2.8l8 4.6v9.2l-8 4.6-8-4.6V7.4z" />
+      <path d="M12 8.2l3.3 1.9v3.8L12 15.8l-3.3-1.9v-3.8z" />
+    </svg>
+  );
+}
 
 /**
  * The four highlight colours (Notebook.dc.html). Stored values keep the existing
@@ -43,9 +62,14 @@ type TextSelectionMenuProps = {
   selectedText: string;
   /** viewport position (top-left of the toolbar) */
   position: { x: number; y: number };
-  onHighlight: (color: string) => void;
-  onBookmark: () => void;
-  onNote: () => void;
+  /** highlight / note / bookmark (lessons); without them the toolbar shows the Ask actions directly */
+  onHighlight?: (color: string) => void;
+  onBookmark?: () => void;
+  onNote?: () => void;
+  /** "Ask Claude" / "Ask ChatGPT": open the client with the selection and its context */
+  onAsk?: (client: AskClient) => void;
+  /** "Copy as prompt" */
+  onCopyPrompt?: () => void;
   onClose: () => void;
   /** where the arrow points: "above" = toolbar sits above the selection (default);
    *  "sheet" = docked to the bottom of the screen (touch: clear of the native selection UI) */
@@ -54,9 +78,16 @@ type TextSelectionMenuProps = {
   autoFocus?: boolean;
 };
 
+type Panel = "main" | "colors" | "ask";
+
 export default function TextSelectionMenu(props: TextSelectionMenuProps) {
-  const { onClose, onHighlight, onBookmark, onNote, autoFocus } = props;
-  const [showColors, setShowColors] = useState(false);
+  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, autoFocus } = props;
+  const notes = !!(onHighlight || onNote || onBookmark);
+  const ask = !!(onAsk || onCopyPrompt);
+  const [panel, setPanel] = useState<Panel>("main");
+  // with no notebook actions (case files) the Ask actions are the main panel
+  const view: Panel = !notes && ask && panel === "main" ? "ask" : panel;
+  const showColors = view === "colors";
   const ref = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
 
@@ -76,24 +107,33 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       if (e.key === "Escape") {
         e.preventDefault();
-        if (showColors) setShowColors(false);
+        if (panel !== "main") setPanel("main");
         else onClose();
         return;
       }
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
-      if (showColors && /^[1-4]$/.test(k)) {
+      if (view === "colors" && onHighlight && /^[1-4]$/.test(k)) {
         e.preventDefault();
         onHighlight(HIGHLIGHT_COLORS[Number(k) - 1].value);
-      } else if (k === "h") {
+      } else if (view === "ask" && onAsk && (k === "c" || k === "g")) {
         e.preventDefault();
-        setShowColors(true);
-      } else if (k === "n") {
+        onAsk(k === "c" ? "claude" : "chatgpt");
+      } else if (view === "ask" && onCopyPrompt && k === "p") {
+        e.preventDefault();
+        onCopyPrompt();
+      } else if (k === "h" && onHighlight) {
+        e.preventDefault();
+        setPanel("colors");
+      } else if (k === "n" && onNote) {
         e.preventDefault();
         onNote();
-      } else if (k === "b") {
+      } else if (k === "b" && onBookmark) {
         e.preventDefault();
         onBookmark();
+      } else if (k === "a" && ask && notes) {
+        e.preventDefault();
+        setPanel("ask");
       }
     };
     document.addEventListener("pointerdown", onDown, true);
@@ -102,12 +142,12 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose, onHighlight, onBookmark, onNote, showColors]);
+  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, panel, view, ask, notes]);
 
   useEffect(() => {
     if (!mounted || !ref.current) return;
-    if (autoFocus || showColors) ref.current.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
-  }, [mounted, autoFocus, showColors]);
+    if (autoFocus || panel !== "main") ref.current.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
+  }, [mounted, autoFocus, panel]);
 
   // arrow keys move along the toolbar
   const onToolbarKey = (e: React.KeyboardEvent) => {
@@ -123,7 +163,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
 
   const sheet = props.placement === "sheet";
   const btn = `inline-flex items-center gap-1.5 bg-transparent text-fg font-semibold hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${
-    sheet ? "min-h-12 flex-1 justify-center px-2 text-sm" : "min-h-[44px] px-3 text-[13px]"
+    sheet ? "min-h-[52px] min-w-0 flex-1 flex-col justify-center gap-1 px-1 text-[12px] leading-none" : "min-h-[44px] px-3 text-[13px]"
   }`;
   const below = props.placement === "below";
   const key = sheet ? "hidden" : "font-mono text-[10px] text-fg-4 font-normal";
@@ -132,7 +172,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
     <div
       ref={ref}
       role="toolbar"
-      aria-label={showColors ? "Highlight colour" : "Selection actions"}
+      aria-label={showColors ? "Highlight colour" : view === "ask" ? "Ask an AI about the selection" : "Selection actions"}
       onKeyDown={onToolbarKey}
       onMouseDown={(e) => e.preventDefault()}
       data-sd-chrome=""
@@ -141,27 +181,71 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       }`}
       style={sheet ? undefined : { left: `${props.position.x}px`, top: `${props.position.y}px` }}
     >
-      {!showColors ? (
+      {view === "main" && (
         <>
-          <button type="button" className={btn} onClick={() => setShowColors(true)} aria-keyshortcuts="H">
-            <Highlighter className="w-3.5 h-3.5" aria-hidden="true" />
-            Highlight
-            <span className={key}>H</span>
-          </button>
-          <button type="button" className={btn} onClick={onNote} aria-keyshortcuts="N">
-            <StickyNote className="w-3.5 h-3.5" aria-hidden="true" />
-            Note
-            <span className={key}>N</span>
-          </button>
-          <button type="button" className={btn} onClick={onBookmark} aria-keyshortcuts="B">
-            <Bookmark className="w-3.5 h-3.5" aria-hidden="true" />
-            Bookmark
-            <span className={key}>B</span>
-          </button>
+          {onHighlight && (
+            <button type="button" className={btn} onClick={() => setPanel("colors")} aria-keyshortcuts="H">
+              <Highlighter className="w-3.5 h-3.5" aria-hidden="true" />
+              Highlight
+              <span className={key}>H</span>
+            </button>
+          )}
+          {onNote && (
+            <button type="button" className={btn} onClick={onNote} aria-keyshortcuts="N">
+              <StickyNote className="w-3.5 h-3.5" aria-hidden="true" />
+              Note
+              <span className={key}>N</span>
+            </button>
+          )}
+          {onBookmark && (
+            <button type="button" className={btn} onClick={onBookmark} aria-keyshortcuts="B">
+              <Bookmark className="w-3.5 h-3.5" aria-hidden="true" />
+              {sheet ? "Save" : "Bookmark"}
+              <span className={key}>B</span>
+            </button>
+          )}
+          {ask && (
+            <button type="button" className={btn} onClick={() => setPanel("ask")} aria-keyshortcuts="A" aria-label="Ask AI: Claude or ChatGPT">
+              <MessageCircleQuestion className="w-3.5 h-3.5" aria-hidden="true" />
+              Ask AI
+              <span className={key}>A</span>
+            </button>
+          )}
         </>
-      ) : (
+      )}
+      {view === "ask" && (
         <>
-          <button type="button" className={`${btn} px-2`} onClick={() => setShowColors(false)} aria-label="Back to actions">
+          {notes && (
+            <button type="button" className={`${btn} px-2 ${sheet ? "!w-11 !flex-none" : ""}`} onClick={() => setPanel("main")} aria-label="Back to actions">
+              <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
+          {onAsk && (
+            <>
+              <button type="button" className={btn} onClick={() => onAsk("claude")} aria-keyshortcuts="C" aria-label="Ask Claude about this (opens claude.ai in a new tab)">
+                <ClaudeMark className="w-3.5 h-3.5" />
+                {sheet ? "Claude" : "Ask Claude"}
+                <span className={key}>C</span>
+              </button>
+              <button type="button" className={btn} onClick={() => onAsk("chatgpt")} aria-keyshortcuts="G" aria-label="Ask ChatGPT about this (opens chatgpt.com in a new tab)">
+                <ChatGptMark className="w-3.5 h-3.5" />
+                {sheet ? "ChatGPT" : "Ask ChatGPT"}
+                <span className={key}>G</span>
+              </button>
+            </>
+          )}
+          {onCopyPrompt && (
+            <button type="button" className={btn} onClick={onCopyPrompt} aria-keyshortcuts="P" aria-label="Copy as a prompt for any AI">
+              <ClipboardCopy className="w-3.5 h-3.5" aria-hidden="true" />
+              {sheet ? "Copy" : "Copy prompt"}
+              <span className={key}>P</span>
+            </button>
+          )}
+        </>
+      )}
+      {view === "colors" && onHighlight && (
+        <>
+          <button type="button" className={`${btn} px-2 ${sheet ? "!w-11 !flex-none" : ""}`} onClick={() => setPanel("main")} aria-label="Back to actions">
             <ChevronLeft className="w-4 h-4" aria-hidden="true" />
           </button>
           {HIGHLIGHT_COLORS.map((c, i) => (

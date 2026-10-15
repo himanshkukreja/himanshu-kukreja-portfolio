@@ -10,10 +10,12 @@ import CommentsTab from "@/components/admin/content/CommentsTab";
 import UsersTab from "@/components/admin/content/UsersTab";
 import LogsTab from "@/components/admin/content/LogsTab";
 import StoriesTab from "@/components/admin/content/StoriesTab";
+import AnnounceTab from "@/components/admin/content/AnnounceTab";
 import { FlashLine, useFlash } from "@/components/admin/content/common";
 
 const TABS = [
   { id: "newsletter", label: "newsletter" },
+  { id: "announce", label: "announce" },
   { id: "contact", label: "contact" },
   { id: "comments", label: "comments" },
   { id: "users", label: "users" },
@@ -50,6 +52,7 @@ export default function AdminContent() {
       <PageHead path="sudo ~/admin/content" title="Content" sub="Newsletter, inbox, comments, accounts and case-file readership." />
       <Tabs label="Content sections" tabs={[...TABS]} value={tab} onChange={(id) => setParams({ tab: id, q: null })} className="mb-5" />
       {tab === "newsletter" && <NewsletterTab say={say} />}
+      {tab === "announce" && <AnnounceTab say={say} />}
       {tab === "contact" && <ContactTab say={say} openId={openQuery} onOpen={(id) => setParams({ q: id })} />}
       {tab === "comments" && <CommentsTab say={say} />}
       {tab === "users" && <UsersTab />}

@@ -13,6 +13,10 @@ import DebriefCard from "./DebriefCard";
 import CaseActivity from "./activities/registry";
 import styles from "./reader.module.css";
 import { useReadAloudBridge } from "./useReadAloudBridge";
+import StorySelectionAsk from "./StorySelectionAsk";
+import { buildSections, readStoryRecord, sectionRects, writeStoryRecord, type Section, type StoryRecord } from "./storyReading";
+import { completeNeedSeconds, isStageRead, readProgress, startReadingProbe, visibleBins } from "@/lib/learn/engagedClock";
+import { track } from "@/lib/track";
 import {
   CASE_TYPE_LABEL,
   DEBRIEF_FLAG,
@@ -58,7 +62,6 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
   const [cp, setCp] = useState(0);
   const [pct, setPct] = useState(0);
   const [focus, setFocus] = useState(false);
-  const [reached, setReached] = useState(false);
   const [replaySlot, setReplaySlot] = useState<HTMLElement | null>(null);
 
   const n = checkpoints.length;
@@ -133,27 +136,108 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
     };
   }, [checkpoints]);
 
-  // End of story reached.
+  // ---- Reading progress: each checkpoint section counts as read only after real engaged reading
+  // time in it (35% of its estimated minutes, 20 s – 6 min) with 80% of it on screen while
+  // reading (lib/learn/engagedClock READING). Jumps (checkpoint list, "Discussion", End) and fast
+  // scrolling never count, and time spent below the article counts for no section. The case
+  // closes (+ the "read" quest XP) when every section is read, or through "Close the case" once
+  // 70% of the total reading time is in.
+  const [sections, setSections] = useState<Section[]>([]);
+  const [snap, setSnap] = useState<{ d: Record<string, number>; s: Record<string, number>; r: string[] }>({ d: {}, s: {}, r: [] });
+  const rec = useRef<StoryRecord>({ d: {}, s: {}, r: [] });
+  const live = useRef({ hydrated, isClosed, readList });
   useEffect(() => {
-    const el = endRef.current;
-    if (!el) return;
-    const io = new IntersectionObserver((entries) => {
-      if (entries.some((e) => e.isIntersecting)) {
-        setReached(true);
-        io.disconnect();
-      }
-    });
-    io.observe(el);
-    return () => io.disconnect();
-  }, []);
+    live.current = { hydrated, isClosed, readList };
+  }, [hydrated, isClosed, readList]);
 
-  // ...close the case: file it to the record and complete the "read" quest (once).
   useEffect(() => {
-    if (!reached || !hydrated) return;
+    rec.current = readStoryRecord(meta.slug);
+    const content = contentRef.current;
+    if (!content) return;
+    const build = () => {
+      setSections(buildSections(content, checkpoints, meta.mins));
+      setSnap({ d: { ...rec.current.d }, s: { ...rec.current.s }, r: [...rec.current.r] });
+    };
+    // after the article HTML is in the DOM
+    const raf = window.requestAnimationFrame(build);
+    return () => window.cancelAnimationFrame(raf);
+  }, [meta.slug, meta.mins, checkpoints, htmlContent]);
+
+  const closeCase = useCallback(() => {
+    const { hydrated: h, isClosed: closed, readList: list } = live.current;
+    if (!h || closed) return;
+    const secs = Object.values(rec.current.d).reduce((a, b) => a + b, 0);
+    track("case_closed", { slug: meta.slug, minutes: Math.round(secs / 60) });
     // award() before setFlag(): award writes a whole state snapshot, setFlag is a functional update on top of it.
     award("read");
-    if (!readList.includes(meta.slug)) setFlag(READ_FLAG, [...readList, meta.slug]);
-  }, [reached, hydrated, readList, meta.slug, setFlag, award]);
+    if (!list.includes(meta.slug)) setFlag(READ_FLAG, [...list, meta.slug]);
+  }, [meta.slug, award, setFlag]);
+
+  useEffect(() => {
+    if (!sections.length) return;
+    let ticks = 0;
+    const flush = () => writeStoryRecord(meta.slug, rec.current);
+    const stop = startReadingProbe(() => {
+      const content = contentRef.current;
+      if (!content || !live.current.hydrated) return;
+      // the sticky reader bar's bottom edge = where the visible article starts
+      const top = Math.max(0, barRef.current?.getBoundingClientRect().bottom ?? 0);
+      const vh = window.innerHeight;
+      const line = top + Math.min(180, (vh - top) * 0.3);
+      const rects = sectionRects(content, sections);
+      let hit = -1;
+      rects.forEach((r, i) => {
+        if (!r) return;
+        if (r.top <= line && r.bottom > line) hit = i;
+        if (r.bottom > top && r.top < vh) {
+          const id = sections[i].id;
+          rec.current.s[id] = ((rec.current.s[id] ?? 0) | visibleBins({ top: r.top, height: r.bottom - r.top }, top, vh)) >>> 0;
+        }
+      });
+      // the reading line is outside the article (cover, case-closed card, discussion): nothing is read
+      if (hit < 0) return;
+      const sec = sections[hit];
+      rec.current.d[sec.id] = (rec.current.d[sec.id] ?? 0) + 1;
+      ticks++;
+      let changed = false;
+      sections.forEach((x, i) => {
+        if (rec.current.r.includes(x.id) || !isStageRead(rec.current.d[x.id] ?? 0, x.need, rec.current.s[x.id])) return;
+        rec.current.r.push(x.id);
+        changed = true;
+        track("case_checkpoint", { slug: meta.slug, checkpoint: x.id, index: i, total: sections.length });
+      });
+      if (changed) {
+        flush();
+        if (sections.every((x) => rec.current.r.includes(x.id))) closeCase();
+      }
+      if (changed || ticks % 5 === 0) setSnap({ d: { ...rec.current.d }, s: { ...rec.current.s }, r: [...rec.current.r] });
+      if (ticks % 10 === 0) flush();
+    });
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      stop();
+      flush();
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", flush);
+    };
+  }, [sections, meta.slug, closeCase]);
+
+  const readSet = useMemo(() => new Set(snap.r), [snap.r]);
+  const nRead = sections.filter((x) => readSet.has(x.id)).length;
+  const closeNeed = completeNeedSeconds(sections.map((x) => x.need));
+  // each section counts up to its own requirement: camping on one section never closes the case
+  const readSecs = sections.reduce((a, x) => a + (readSet.has(x.id) ? x.need : Math.min(snap.d[x.id] ?? 0, x.need)), 0);
+  const canClose = sections.length > 0 && (nRead === sections.length || readSecs >= closeNeed);
+  const closeLeftMin = Math.max(1, Math.ceil((closeNeed - readSecs) / 60));
+  const sectionProgress = (id: string) => {
+    const x = sections.find((y) => y.id === id);
+    if (!x) return 0;
+    return readSet.has(id) ? 1 : readProgress(snap.d[id] ?? 0, x.need, snap.s[id]);
+  };
 
   // Story images that 404 (not uploaded yet) become a labelled blueprint placeholder instead of a broken icon.
   // The article HTML is injected after this effect runs, so listen in the capture phase (image errors don't
@@ -263,6 +347,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
             <span className="hidden sm:inline">
               {meta.caseId}
               {n > 0 && ` · checkpoint ${cp + 1} of ${n}`}
+              {sections.length > 0 && !isClosed && ` · ${nRead}/${sections.length} read`}
             </span>
             <span className="sm:hidden">
               {n > 0 ? `checkpoint ${cp + 1} / ${n} · ` : `${meta.caseId} · `}~{minLeft} min left
@@ -306,14 +391,16 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                 {n > 0 ? (
                   <ol className="m-0 flex max-h-[calc(100vh_-_var(--reader-top)_-_64px)] list-none flex-col gap-0.5 overflow-y-auto p-0">
                     {checkpoints.map((c, k) => {
-                      const passed = k < cp;
+                      const passed = readSet.has(c.id) || isClosed;
                       const cur = k === cp;
+                      const prog = Math.round(sectionProgress(c.id) * 100);
                       return (
                         <li key={c.id}>
                           <button
                             type="button"
                             onClick={() => goTo(c.id)}
                             aria-current={cur ? "step" : undefined}
+                            aria-label={`${c.label}, ${passed ? "read" : prog > 0 ? `${prog}% read` : "not read yet"}`}
                             className={`flex min-h-10 w-full items-center gap-2.5 px-2 py-1.5 text-left text-sm leading-[1.3] ${
                               cur ? "bg-surface-2 font-semibold text-fg" : passed ? "text-fg-2 hover:text-fg" : "text-fg-3 hover:text-fg"
                             }`}
@@ -326,7 +413,14 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                             >
                               {passed ? "✓" : k + 1}
                             </span>
-                            <span>{c.label}</span>
+                            <span className="flex min-w-0 flex-col gap-1">
+                              <span>{c.label}</span>
+                              {!passed && prog > 0 && (
+                                <span aria-hidden className="block h-0.5 w-full bg-line">
+                                  <span className="block h-full bg-signal" style={{ width: `${prog}%` }} />
+                                </span>
+                              )}
+                            </span>
                           </button>
                         </li>
                       );
@@ -440,15 +534,27 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                     Case closed<span className="text-signal-text">.</span>
                   </>
                 ) : (
-                  "Reach this line to close the case."
+                  "Read it through to close the case."
                 )}
               </h2>
               <p className="m-0 text-[15px] leading-relaxed text-fg-2">
                 {isClosed
                   ? `Filed to your record: ${closedCount} of ${totalCases} case files closed.`
-                  : "It is filed to your record the moment you get here."}
+                  : `${nRead}/${sections.length || n || 1} sections read. Each one counts after a few minutes of actual reading in it; skipping ahead doesn't. The case closes itself once every section is read.`}
                 {hydrated && done.read ? " On-call badge ✓" : ""}
               </p>
+              {!isClosed && sections.length > 0 && (
+                <button
+                  type="button"
+                  onClick={closeCase}
+                  disabled={!canClose || !hydrated}
+                  className={`min-h-11 self-start px-4 text-sm font-semibold ${
+                    canClose ? "bg-signal text-on-signal hover:brightness-110" : "border border-dashed border-line-strong text-fg-2"
+                  } disabled:cursor-default`}
+                >
+                  {canClose ? `Close the case${readXp ? ` · +${readXp} XP` : ""}` : `Keep reading · ~${closeLeftMin} min left`}
+                </button>
+              )}
               {isClosed && (
                 <div
                   className="grid max-w-[360px] gap-1"
@@ -518,11 +624,11 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                   <span className="text-[13px] leading-normal text-fg-2">
                     {rewardXp > 0
                       ? debrief && debriefXp > 0
-                        ? "Reach the end and pass the debrief to close the case."
-                        : "Reach the end to close the case."
+                        ? "Read every section and pass the debrief."
+                        : "Read every section to close the case."
                       : isClosed
                         ? "Filed to your record."
-                        : "Reach the end to file it to your record."}
+                        : "Read every section to file it to your record."}
                   </span>
                 </div>
                 {meta.tags.length > 0 && (
@@ -539,6 +645,8 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
           )}
         </div>
       </div>
+
+      <StorySelectionAsk rootRef={contentRef} title={meta.title} />
 
       {/* Existing ReadAloud controls, restyled from the outside and driven by the toolbar button. */}
       <div ref={dockRef} className={styles.dock}>

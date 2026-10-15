@@ -2,7 +2,7 @@
 
 /**
  * The reader's content layer: renders lesson HTML, applies the reader's highlights and notes,
- * and opens the selection toolbar (highlight · note · bookmark).
+ * and opens the selection toolbar (highlight · note · bookmark · ask Claude / ChatGPT).
  *
  * Selection opens the toolbar on mouseup, after a touch long-press (selectionchange), after a
  * keyboard selection (Shift + arrows), or with Shift+F10. Text offsets count characters only
@@ -23,6 +23,7 @@ import Toast from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import LessonProgressTracker from "./LessonProgressTracker";
 import NoteEditor from "./NoteEditor";
+import { askAi, CLIENT_LABEL, copyAskPrompt, courseName, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 
 type HighlightableContentProps = {
   htmlContent: string;
@@ -273,7 +274,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     const rects = range.getClientRects();
     const first = rects[0] || range.getBoundingClientRect();
     const last = rects[rects.length - 1] || first;
-    const W = Math.min(window.innerWidth - 16, 400);
+    const W = Math.min(window.innerWidth - 16, 470);
     const H = 54;
     // touch: dock the toolbar at the bottom of the screen, clear of the native selection
     // handles and the iOS / Android callout that sit around the selection itself
@@ -585,6 +586,43 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     setHighlights((prev) => prev.filter((h) => h.id !== highlightId));
   };
 
+  /* ---------------- ask an AI about the selection (Claude / ChatGPT / copy as prompt) */
+  const askContext = (): AskContext | null => {
+    const root = contentRef.current;
+    const range = rangeRef.current;
+    if (!root || !range) return null;
+    const startEl = range.startContainer.nodeType === Node.ELEMENT_NODE ? (range.startContainer as Element) : range.startContainer.parentElement;
+    const stage = startEl?.closest<HTMLElement>('section[data-sd="stage"]');
+    const stageTitle = stage?.querySelector(".sd-stage-title")?.textContent?.trim() || "";
+    return {
+      kind: "lesson",
+      title: lessonTitle || document.title,
+      course: courseName(courseId),
+      section: stageTitle,
+      heading: headingBefore(range, stage ?? root),
+      surrounding: surroundingText(range, root),
+      url: pageUrl(),
+    };
+  };
+
+  const handleAsk = (client: AskClient) => {
+    const text = selectedTextRef.current || selectedText;
+    const ctx = askContext();
+    if (!text || !ctx) return;
+    const mode = askAi(client, text, ctx);
+    setMenu(null);
+    if (mode === "clipboard") setToast({ message: `Long selection: the full prompt is on your clipboard. Paste it into ${CLIENT_LABEL[client]}.`, type: "info" });
+  };
+
+  const handleCopyPrompt = async () => {
+    const text = selectedTextRef.current || selectedText;
+    const ctx = askContext();
+    if (!text || !ctx) return;
+    setMenu(null);
+    const ok = await copyAskPrompt(text, ctx);
+    setToast(ok ? { message: "Prompt copied. Paste it into any AI chat.", type: "success" } : { message: "Couldn't copy to the clipboard.", type: "error" });
+  };
+
   /* ---------------- apply highlights + notes to the HTML (text nodes only, chrome skipped) */
   const applyHighlightsAndNotes = (html: string): string => {
     if ((highlights.length === 0 && notes.length === 0) || typeof document === "undefined") return html;
@@ -710,11 +748,12 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-[1_1_260px]">
             <span className="text-sm font-semibold text-fg sm:text-[15px]">Select or long-press any text</span>
             {/* touch screens: no keyboard instructions, one short line */}
-            <span className="text-[13px] leading-snug text-fg-2 [@media(pointer:fine)]:hidden">Highlight, note or bookmark it. It all lands in your notebook.</span>
+            <span className="text-[13px] leading-snug text-fg-2 [@media(pointer:fine)]:hidden">Highlight, note or bookmark it, or ask Claude / ChatGPT about it.</span>
             <span className="hidden text-[13px] leading-relaxed text-fg-2 [@media(pointer:fine)]:inline">
               Highlight, note or bookmark it. Keyboard: Shift + arrows to select, then{" "}
               <kbd className="border border-line-strong px-1 font-mono text-[12px]">H</kbd> <kbd className="border border-line-strong px-1 font-mono text-[12px]">N</kbd>{" "}
-              <kbd className="border border-line-strong px-1 font-mono text-[12px]">B</kbd> (or Shift+F10 for the toolbar). Everything lands in your notebook.
+              <kbd className="border border-line-strong px-1 font-mono text-[12px]">B</kbd>, or <kbd className="border border-line-strong px-1 font-mono text-[12px]">A</kbd> to ask Claude / ChatGPT
+              (Shift+F10 opens the toolbar). Notes land in your notebook.
             </span>
           </span>
           <button type="button" onClick={markCoachSeen} className="min-h-[44px] shrink-0 bg-fg px-4 text-sm font-semibold text-bg hover:bg-fg-2">
@@ -736,6 +775,8 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           onHighlight={handleHighlight}
           onBookmark={handleBookmark}
           onNote={handleNote}
+          onAsk={handleAsk}
+          onCopyPrompt={handleCopyPrompt}
           onClose={closeMenu}
         />
       )}

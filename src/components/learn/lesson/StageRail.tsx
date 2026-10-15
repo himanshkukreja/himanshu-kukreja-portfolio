@@ -16,6 +16,13 @@ function stageState(id: string, current: string, done: ReadonlySet<string>, comp
   return id === current ? "cur" : "ahead";
 }
 
+/** Tooltip for "Save checkpoint": a bookmark, which also clears the stage once its reading time is met. */
+export function checkpointHint(r: { seconds: number; need: number } | undefined): string {
+  if (!r) return "Save checkpoint";
+  const left = r.need - r.seconds;
+  return left <= 0 ? "Save checkpoint · clears this stage" : `Save checkpoint · resume here. The stage clears after ~${Math.max(1, Math.ceil(left / 60))} more min of reading`;
+}
+
 const glyphBase = "grid h-[18px] w-[18px] shrink-0 place-items-center text-[10px]";
 
 export function StageGlyph({ state, className = "" }: { state: StageState; className?: string }) {
@@ -40,14 +47,15 @@ export function StageGlyph({ state, className = "" }: { state: StageState; class
   return <span aria-hidden className={`${glyphBase} border border-dashed border-line-strong ${className}`} />;
 }
 
-/** Segmented progress bar: one segment per stage, width by minutes. */
+/** Segmented progress bar: one segment per stage, width by minutes, fill by reading progress. */
 export function StageSegments({ stages, className = "", height = "h-1" }: { stages: Stage[]; className?: string; height?: string }) {
-  const { current, currentPct, done, completed } = useLessonProgress();
+  const { current, done, completed, reading } = useLessonProgress();
   return (
     <span aria-hidden className={`flex gap-[3px] ${className}`}>
       {stages.map((s) => {
         const isDone = completed || done.has(s.id);
-        const pct = isDone ? 100 : s.id === current ? Math.round(currentPct * 100) : 0;
+        // fill = reading progress (time + coverage), so a jump never fills a segment
+        const pct = isDone ? 100 : Math.round((reading[s.id]?.progress ?? 0) * 100);
         const ahead = !isDone && s.id !== current;
         return (
           <span key={s.id} className={`relative ${height} ${ahead ? "bg-surface-2" : "bg-line"}`} style={{ flex: `${Math.max(s.minutes, 6)} 1 0` }}>
@@ -91,7 +99,7 @@ function usePast(ref: React.RefObject<HTMLElement | null>) {
  */
 function CompactStageBar({ show, onOpenContents }: { show: boolean; onOpenContents: () => void }) {
   const p = useLessonProgress();
-  const { stages, current, done, completed, currentPct, minutesLeft, saveCheckpoint, ready } = p;
+  const { stages, current, done, completed, reading, minutesLeft, saveCheckpoint, ready } = p;
   const headerHidden = useChromeHidden();
   const line = stageLine(p);
   const numbered = numberedStages(p.required);
@@ -132,7 +140,7 @@ function CompactStageBar({ show, onOpenContents }: { show: boolean; onOpenConten
         <ol aria-label="Lesson stages" className="m-0 flex min-w-0 flex-1 list-none gap-[3px] p-0">
           {stages.map((s) => {
             const isDone = completed || done.has(s.id);
-            const pct = isDone ? 100 : s.id === current ? Math.round(currentPct * 100) : 0;
+            const pct = isDone ? 100 : Math.round((reading[s.id]?.progress ?? 0) * 100);
             return (
               <li key={s.id} className="flex" style={{ flex: `${Math.max(s.minutes, 6)} 1 0` }}>
                 <button type="button" onClick={() => scrollToId(s.id)} title={`${s.label} · ${s.title}`} aria-label={`Go to ${s.label}, ${s.title}`} className="group flex h-6 w-full items-center">
@@ -148,9 +156,10 @@ function CompactStageBar({ show, onOpenContents }: { show: boolean; onOpenConten
           type="button"
           onClick={saveCheckpoint}
           disabled={!ready || curDone}
+          title={curDone ? undefined : checkpointHint(reading[current])}
           className={`min-h-8 shrink-0 px-3 text-[13px] font-semibold ${curDone ? "border border-line-strong text-fg-2" : "bg-signal text-on-signal hover:brightness-110"} disabled:cursor-default`}
         >
-          {completed ? "Cleared ✓" : curDone ? "Saved ✓" : "Save checkpoint"}
+          {completed ? "Cleared ✓" : curDone ? "Read ✓" : "Save checkpoint"}
         </button>
       </div>
     </div>
@@ -161,7 +170,7 @@ export default function StageRail({ onOpenContents }: { onOpenContents: () => vo
   const endRef = useRef<HTMLDivElement>(null);
   const past = usePast(endRef);
   const p = useLessonProgress();
-  const { stages, required, current, done, completed, minutesLeft, saveCheckpoint, ready } = p;
+  const { stages, required, current, done, completed, minutesLeft, saveCheckpoint, ready, reading } = p;
   const main = stages.filter((s) => !isOptionalStage(s));
   const optional = stages.filter(isOptionalStage);
   const numbered = numberedStages(required);
@@ -240,9 +249,10 @@ export default function StageRail({ onOpenContents }: { onOpenContents: () => vo
               type="button"
               onClick={saveCheckpoint}
               disabled={!ready || curDone}
+              title={curDone ? undefined : checkpointHint(reading[current])}
               className={`min-h-11 shrink-0 self-center px-4 text-sm font-semibold ${curDone ? "border border-line-strong text-fg-2" : "bg-signal text-on-signal hover:brightness-110"} disabled:cursor-default`}
             >
-              {completed ? "Cleared ✓" : curDone ? "Saved ✓" : "Save checkpoint"}
+              {completed ? "Cleared ✓" : curDone ? "Read ✓" : "Save checkpoint"}
             </button>
           </div>
           <div role="progressbar" aria-label="Lesson progress by stage" aria-valuemin={0} aria-valuemax={numbered.length} aria-valuenow={completed ? numbered.length : nDone} className="-mb-px">

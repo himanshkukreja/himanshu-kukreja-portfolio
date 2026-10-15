@@ -353,9 +353,9 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
   const parser = opts.directives === false ? unified().use(remarkParse).use(remarkGfm) : unified().use(remarkParse).use(remarkGfm).use((await import("remark-directive")).default);
   const mdast = (await parser.run(parser.parse(markdown))) as Root;
   if (opts.directives !== false) stats.strayDirectives = neutralizeDirectives(mdast, markdown);
-  // Image URLs: same ImageKit rewrite the stories pipeline uses (course lessons have no images today).
+  // Image URLs: same ImageKit rewrite the stories pipeline uses (local /covers/, /case-files/, /learn-art/ stay local).
   {
-    const { visit } = await import("unist-util-visit");
+    const { visit, SKIP } = await import("unist-util-visit");
     const { resolveCoverUrl } = await import("@/lib/utils");
     // remark-directive also reads `:00` in an image's alt text as a directive and drops it from
     // `alt` (a plain string, so neutralizeDirectives can't restore it): re-read those alts without it.
@@ -375,6 +375,28 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
       }
       const u = node.url ? resolveCoverUrl(node.url) : undefined;
       if (u) node.url = u;
+    });
+    // A paragraph holding only a /learn-art/ image (animated blueprint plates in public/learn-art/,
+    // CSS-animated SVGs drawn on an 800×500 canvas) becomes a figure: the plate, lazy-loaded,
+    // captioned with its alt text. Reduced motion gets `#still`, which each plate's own CSS
+    // (`#still:target`) freezes on a meaningful frame: browsers don't reliably pass the user's
+    // motion preference into an <img>'s SVG document, but <source media> is evaluated by the page.
+    visit(mdast, "paragraph", (node: Paragraph, index, parent) => {
+      if (!parent || typeof index !== "number") return;
+      const kids = node.children.filter((c) => !(c.type === "text" && !c.value.trim()));
+      const img = kids.length === 1 && kids[0].type === "image" ? kids[0] : null;
+      if (!img || !img.url.startsWith("/learn-art/")) return;
+      const alt = (img.alt || "").trim();
+      const fig = h("figure", { className: ["sd-art"], dataSd: "art" }, [
+        h("picture", {}, [
+          h("source", { media: "(prefers-reduced-motion: reduce)", srcSet: `${img.url}#still` }),
+          h("img", { src: img.url, alt, width: 800, height: 500, loading: "lazy", decoding: "async" }),
+        ]),
+        alt ? chrome("figcaption", { className: ["sd-art-cap"] }, [h("span", { className: ["sd-fig-tag"] }, ["LIVE"]), alt]) : null,
+      ]);
+      (parent.children as AnyNode[])[index] = rawHast(fig, { component: "art" });
+      stats.art = (stats.art || 0) + 1;
+      return SKIP;
     });
   }
 

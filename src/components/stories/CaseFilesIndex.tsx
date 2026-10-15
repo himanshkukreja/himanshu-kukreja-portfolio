@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Search } from "lucide-react";
+import CoverImage from "@/components/CoverImage";
 import CaseCover from "./CaseCover";
 import { useGame } from "@/game/GameProvider";
 import { BADGES } from "@/game/catalog";
@@ -16,10 +17,10 @@ import {
   type CaseFile,
   type CaseType,
 } from "./case-types";
-import { ACTIVITY_FLAG, readActivityResults } from "./activities/types";
+import { ACTIVITY_FLAG, isSolved, readActivityResults } from "./activities/types";
 
 type Filter = "all" | CaseType;
-type Sort = "new" | "short";
+type Sort = "new" | "old" | "short";
 
 const FILTERS: { id: Filter; label: string; short: string }[] = [
   { id: "all", label: "All", short: "All" },
@@ -28,23 +29,42 @@ const FILTERS: { id: Filter; label: string; short: string }[] = [
   { id: "build", label: "Build logs", short: "Build logs" },
 ];
 
-const ONCALL = BADGES.find((b) => b.id === "oncall");
+const SORTS: { id: Sort; label: string }[] = [
+  { id: "new", label: "Newest first" },
+  { id: "old", label: "Oldest first" },
+  { id: "short", label: "Shortest read" },
+];
 
-const GRID_COLS = "grid-cols-[110px_minmax(0,1fr)_140px_90px_120px_92px]";
+const ONCALL = BADGES.find((b) => b.id === "oncall");
 
 const BLUEPRINT_BG =
   "bg-raised bg-[linear-gradient(var(--c-line)_1px,transparent_1px),linear-gradient(90deg,var(--c-line)_1px,transparent_1px)] bg-[size:24px_24px]";
 
-function TypePill({ type }: { type: CaseType }) {
+/** Desktop-only hover motion: pointer devices that hover, and only when the reader allows motion. */
+const HOVER_ZOOM =
+  "transition-transform duration-500 ease-out [@media(hover:hover)_and_(prefers-reduced-motion:no-preference)]:group-hover:scale-[1.035]";
+
+type Status = { closed: boolean; solved: boolean; isNew: boolean };
+
+function StatusChips({ s, className = "" }: { s: Status; className?: string }) {
+  if (!s.closed && !s.solved && !s.isNew) return null;
   return (
-    <span
-      className={`justify-self-start border px-2 py-1 font-mono text-[11px] tracking-[0.04em] ${
-        type === "incident" ? "border-bad text-bad-text" : "border-line-strong text-fg-2"
-      }`}
-    >
-      {CASE_TYPE_LABEL[type]}
+    <span className={`flex flex-wrap justify-end gap-1 ${className}`}>
+      {s.isNew && !s.closed && (
+        <span className="bg-signal px-1.5 py-1 font-mono text-[10.5px] font-semibold tracking-[0.06em] text-on-signal">NEW</span>
+      )}
+      {s.closed && (
+        <span className="border border-line-strong bg-bg px-1.5 py-1 font-mono text-[10.5px] font-semibold tracking-[0.06em] text-signal-text">CLOSED ✓</span>
+      )}
+      {s.solved && (
+        <span className="border border-line-strong bg-bg px-1.5 py-1 font-mono text-[10.5px] font-semibold tracking-[0.06em] text-fg">SOLVED ◆</span>
+      )}
     </span>
   );
+}
+
+function TypeTag({ type }: { type: CaseType }) {
+  return <span className={type === "incident" ? "text-bad-text" : "text-fg-2"}>{CASE_TYPE_LABEL[type].toUpperCase()}</span>;
 }
 
 export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
@@ -54,9 +74,13 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
   const [sort, setSort] = useState<Sort>("new");
 
   const closed = useMemo(() => new Set(hydrated ? flagList(flags[READ_FLAG]) : []), [hydrated, flags]);
+  // End-of-file activities cleared in this browser (best score kept in game flags, must beat the pass line).
+  const solved = useMemo(() => {
+    const r = hydrated ? readActivityResults(flags[ACTIVITY_FLAG]) : {};
+    return new Set(Object.keys(r).filter((slug) => isSolved(r[slug])));
+  }, [hydrated, flags]);
   const closedCount = cases.filter((c) => closed.has(c.slug)).length;
-  // End-of-file activities completed in this browser (best score kept in game flags).
-  const solved = useMemo(() => (hydrated ? readActivityResults(flags[ACTIVITY_FLAG]) : {}), [hydrated, flags]);
+  const solvedCount = cases.filter((c) => solved.has(c.slug)).length;
 
   const counts = useMemo(() => {
     const c: Record<Filter, number> = { all: cases.length, incident: 0, design: 0, build: 0 };
@@ -70,38 +94,43 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
   const query = q.trim().toLowerCase();
   const featuredVisible = !!latest && filter === "all" && !query && sort === "new";
 
-  const rows = useMemo(() => {
+  const matches = useMemo(() => {
     let list = cases.filter((c) => {
       if (filter !== "all" && c.type !== filter) return false;
       if (!query) return true;
       const hay = [c.caseId, c.title, c.excerpt || "", CASE_TYPE_LABEL[c.type], ...c.tags].join(" ").toLowerCase();
       return hay.includes(query);
     });
-    if (sort === "short") list = [...list].sort((a, b) => a.mins - b.mins);
-    if (featuredVisible && latest) list = list.filter((c) => c.slug !== latest.slug);
+    if (sort === "short") list = [...list].sort((a, b) => a.mins - b.mins || b.caseId.localeCompare(a.caseId));
+    if (sort === "old") list = [...list].reverse();
     return list;
-  }, [cases, filter, query, sort, featuredVisible, latest]);
+  }, [cases, filter, query, sort]);
 
-  const empty = rows.length === 0 && !featuredVisible;
+  const rows = featuredVisible && latest ? matches.filter((c) => c.slug !== latest.slug) : matches;
+  const status = (c: CaseFile): Status => ({ closed: closed.has(c.slug), solved: solved.has(c.slug), isNew: c.slug === latest?.slug });
   const oncallEarned = hydrated && ONCALL ? ONCALL.earned(done) : false;
 
   return (
     <>
       {/* Header + record */}
-      <div className="flex flex-wrap items-end justify-between gap-8">
-        <div className="flex max-w-[820px] flex-col gap-4 sm:gap-[18px]">
-          <span className="label-mono hidden text-signal-text sm:block">Case files · engineering stories</span>
+      <div className="flex flex-wrap items-end justify-between gap-6 sm:gap-8">
+        <div className="flex max-w-[820px] flex-col gap-3 sm:gap-[18px]">
+          <span className="label-mono text-signal-text">Case files · engineering stories</span>
           <h1 className="m-0 font-display text-[clamp(44px,8vw,120px)] font-extrabold leading-[0.86] tracking-tightest">
             Case files<span className="text-signal-text">.</span>
           </h1>
-          <p className="m-0 hidden text-[19px] leading-[1.55] text-fg-2 [text-wrap:pretty] sm:block">
+          <p className="m-0 text-[16px] leading-[1.55] text-fg-2 [text-wrap:pretty] sm:text-[19px]">
             Production incidents, rush hours and the things I built, told as stories with blueprints. Each one ends with the lessons you can steal.
           </p>
+          <span className="font-mono text-[12px] text-fg-3 sm:hidden" aria-hidden>
+            your record · {hydrated ? closedCount : "–"}/{cases.length} closed · {hydrated ? solvedCount : "–"} solved ◆
+          </span>
         </div>
         <div className="hidden min-w-[260px] flex-col gap-2.5 border border-line bg-surface px-5 py-[18px] sm:flex" aria-live="polite">
           <span className="label-mono text-fg-3">Your record</span>
           <span className="text-[15px]">
             <span className="font-mono text-[22px] font-semibold">{closedCount}</span> of {cases.length} closed
+            <span className="text-fg-3"> · {solvedCount} solved ◆</span>
           </span>
           <div
             className="grid gap-1"
@@ -145,7 +174,7 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
         </div>
         <div className="hidden grow sm:block" />
         <div className="flex gap-2.5 sm:contents">
-          <label className="flex min-h-11 max-w-[420px] flex-[1_1_260px] items-center gap-2.5 border border-line-strong bg-bg px-3.5 focus-within:border-signal">
+          <label className="flex min-h-11 min-w-0 max-w-[420px] flex-[1_1_220px] items-center gap-2.5 border border-line-strong bg-bg px-3.5 focus-within:border-signal">
             <Search className="h-4 w-4 shrink-0 text-fg-3" aria-hidden />
             <span className="sr-only">Search case files</span>
             <input
@@ -156,165 +185,168 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
               className="min-h-10 min-w-0 grow border-0 bg-transparent text-[15px] text-fg outline-none placeholder:text-fg-4 focus-visible:outline-none"
             />
           </label>
-          <button
-            type="button"
-            onClick={() => setSort((s) => (s === "new" ? "short" : "new"))}
-            className="min-h-11 shrink-0 border border-line-strong bg-transparent px-3.5 font-mono text-xs text-fg hover:bg-surface-2"
-          >
-            Sort: {sort === "new" ? "newest" : "shortest read"}
-          </button>
+          <label className="relative flex min-h-11 shrink-0 items-center border border-line-strong bg-transparent focus-within:border-signal">
+            <span className="sr-only">Sort case files</span>
+            <select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as Sort)}
+              className="h-11 cursor-pointer appearance-none bg-transparent pl-3.5 pr-8 font-mono text-xs text-fg outline-none focus-visible:outline-none"
+            >
+              {SORTS.map((s) => (
+                <option key={s.id} value={s.id} className="bg-surface text-fg">
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <span aria-hidden className="pointer-events-none absolute right-3 font-mono text-[10px] text-fg-3">
+              ▼
+            </span>
+          </label>
         </div>
       </div>
 
-      {/* Featured: latest case file */}
-      {featuredVisible && latest && (
-        <Link
-          href={`/stories/${latest.slug}`}
-          className="group flex flex-wrap border border-signal bg-surface text-fg no-underline hover:text-fg"
-        >
-          <span className={`relative grid aspect-[3/2] flex-[1_1_480px] place-items-center overflow-hidden border-line sm:aspect-auto sm:min-h-[340px] sm:border-r ${BLUEPRINT_BG}`}>
-            {latest.cover ? (
-              // Covers carry labels, so show the whole 3:2 plate (pinned to the top) instead of cropping it to the
-              // card. CoverImage's fill wrapper ends up `relative` (zero height) in a grid cell: give it a sized box.
-              <span className="absolute inset-x-0 top-0 aspect-[3/2]">
-                <CaseCover src={latest.cover} alt="" fill priority sizes="(min-width: 1024px) 700px, 100vw" className="h-full w-full" />
-              </span>
-            ) : (
-              <span className="font-mono text-[13px] text-fg-3">[cover]</span>
-            )}
-            <span className="absolute left-3 top-3 flex gap-1.5 sm:left-5 sm:top-5">
-              <span className="bg-signal px-2 py-1 font-mono text-xs font-semibold tracking-[0.06em] text-on-signal">{latest.caseId}</span>
-              <span className="border border-line-strong bg-bg px-2 py-1 font-mono text-xs tracking-[0.06em] text-fg">
-                {closed.has(latest.slug) ? "CLOSED ✓" : "NEW"}
-                {solved[latest.slug] ? " · SOLVED ◆" : ""}
-              </span>
-            </span>
-          </span>
-          <span className="flex flex-[1_1_420px] flex-col justify-center gap-2 p-4 sm:gap-4 sm:p-9">
-            <span className="font-mono text-[11px] tracking-[0.08em] text-signal-text sm:hidden">
-              {latest.caseId} · {latest.mins} MIN
-            </span>
-            <span className="hidden font-mono text-xs tracking-[0.08em] text-fg-3 sm:block">
-              {formatLongDate(latest.date)} · {CASE_TYPE_LABEL[latest.type].toUpperCase()} · {latest.mins} MIN READ
-            </span>
-            <span className="font-display text-[20px] font-bold leading-[1.1] tracking-[-0.02em] sm:text-[clamp(32px,3.4vw,48px)] sm:font-extrabold sm:leading-[0.98] sm:tracking-[-0.035em]">
-              {latest.title}
-            </span>
-            {latest.excerpt && <span className="hidden text-[17px] leading-[1.55] text-fg-2 sm:block">{latest.excerpt}</span>}
-            {latest.tags.length > 0 && (
-              <span className="hidden flex-wrap gap-1.5 sm:flex">
-                {latest.tags.slice(0, 3).map((t) => (
-                  <span key={t} className="border border-line-strong px-2 py-1 font-mono text-[11px] text-fg-2">
-                    {t}
-                  </span>
-                ))}
-              </span>
-            )}
-            <span className="mt-1 hidden flex-wrap items-center gap-3 sm:flex">
-              <span className="inline-flex min-h-12 items-center bg-signal px-5 text-[15px] font-semibold text-on-signal group-hover:brightness-110">
-                Open the case file
-              </span>
-              <FeaturedNote c={latest} readDone={hydrated && !!done.read} />
-            </span>
-          </span>
-        </Link>
-      )}
+      <p className="-mt-4 m-0 font-mono text-[12px] text-fg-3 sm:-mt-6" aria-live="polite">
+        {matches.length === cases.length ? `${cases.length} case files` : `${matches.length} of ${cases.length} case files`}
+        {query ? ` matching “${q.trim()}”` : ""} · {SORTS.find((s) => s.id === sort)?.label.toLowerCase()}
+      </p>
 
-      {/* Ledger */}
-      <div className="border border-line">
-        {/* Desktop / tablet: table */}
-        <div className="hidden overflow-x-auto md:block">
-          <div className="flex min-w-[920px] flex-col">
-            <div aria-hidden>
-              <div
-                className={`grid ${GRID_COLS} gap-4 border-b border-line bg-surface px-5 py-3 font-mono text-[11px] uppercase tracking-label text-fg-3`}
-              >
-                <span>File</span>
-                <span>Story</span>
-                <span>Type</span>
-                <span>Read</span>
-                <span>Opened</span>
-                <span>Status</span>
-              </div>
-            </div>
-            <ul aria-label="Case files" className="m-0 list-none p-0">
-              {rows.map((r) => {
-                const isClosed = closed.has(r.slug);
-                return (
-                  <li key={r.slug} className="border-b border-line last:border-b-0">
-                  <Link
-                    href={`/stories/${r.slug}`}
-                    className={`grid ${GRID_COLS} items-center gap-4 bg-bg p-5 text-fg no-underline hover:bg-surface hover:text-fg`}
-                  >
-                    <span className="font-mono text-[13px] text-signal-text">
-                      {r.caseId}
-                    </span>
-                    <span className="flex min-w-0 flex-col gap-1.5">
-                      <span className="font-display text-[21px] font-bold leading-[1.15] tracking-[-0.015em]">{r.title}</span>
-                      {r.excerpt && <span className="line-clamp-2 text-sm leading-normal text-fg-3">{r.excerpt}</span>}
-                    </span>
-                    <span>
-                      <TypePill type={r.type} />
-                    </span>
-                    <span className="font-mono text-[13px] text-fg-2">
-                      {r.mins} min
-                    </span>
-                    <span className="font-mono text-[13px] text-fg-2">
-                      {formatMonthYear(r.date)}
-                    </span>
-                    <span className="flex flex-col gap-1 font-mono text-xs tracking-[0.06em]">
-                      <span className={isClosed ? "font-semibold text-signal-text" : "text-fg-3"}>{isClosed ? "CLOSED ✓" : "OPEN"}</span>
-                      {solved[r.slug] && (
-                        <span className="text-[11px] text-fg-2" title={`Activity best: ${solved[r.slug].best}/${solved[r.slug].max}`}>
-                          SOLVED ◆
-                        </span>
-                      )}
-                    </span>
-                  </Link>
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        </div>
+      {/* Featured: the newest case file */}
+      {featuredVisible && latest && <Featured c={latest} s={status(latest)} readDone={hydrated && !!done.read} />}
 
-        {/* Phone: stacked list */}
-        <ul className="m-0 flex list-none flex-col p-0 md:hidden">
-          {rows.map((r) => {
-            const isClosed = closed.has(r.slug);
-            return (
-              <li key={r.slug} className="border-b border-line last:border-b-0">
-                <Link href={`/stories/${r.slug}`} className="flex min-h-11 flex-col gap-1 p-3 text-fg no-underline hover:bg-surface hover:text-fg">
-                  <span className={`font-mono text-[11px] tracking-[0.04em] ${r.type === "incident" ? "text-bad-text" : "text-fg-3"}`}>
-                    {r.caseId} · {CASE_TYPE_LABEL[r.type].toUpperCase()} ·{" "}
-                    {isClosed ? <span className="font-semibold text-signal-text">CLOSED ✓</span> : `${r.mins} MIN`}
-                    {solved[r.slug] && <span className="text-fg-2"> · SOLVED ◆</span>}
-                  </span>
-                  <span className="text-[15px] font-semibold leading-snug">{r.title}</span>
-                </Link>
-              </li>
-            );
-          })}
+      {/* Grid: 1 col phone, 2 tablet, 3 desktop */}
+      {rows.length > 0 ? (
+        <ul aria-label="Case files" className="m-0 grid list-none grid-cols-1 gap-4 p-0 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+          {rows.map((c) => (
+            <CaseCard key={c.slug} c={c} s={status(c)} />
+          ))}
         </ul>
-
-        {empty && (
-          <div className="flex flex-col items-start gap-2 px-5 py-10">
+      ) : (
+        !featuredVisible && (
+          <div className="flex flex-col items-start gap-2 border border-line px-5 py-10">
             <span className="font-display text-2xl font-bold">
               {query ? <>No case file matches “{q.trim()}”.</> : "No case files of this type yet."}
             </span>
             <span className="text-[15px] text-fg-3">Try a technology (Redis, WebRTC) or a failure (outage, overflow).</span>
+            {(query || filter !== "all") && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQ("");
+                  setFilter("all");
+                }}
+                className="mt-2 min-h-11 border border-line-strong px-3.5 font-mono text-xs text-fg hover:bg-surface-2"
+              >
+                clear filters
+              </button>
+            )}
           </div>
-        )}
-      </div>
+        )
+      )}
     </>
+  );
+}
+
+function Featured({ c, s, readDone }: { c: CaseFile; s: Status; readDone: boolean }) {
+  return (
+    <Link
+      href={`/stories/${c.slug}`}
+      className="group grid border border-signal bg-surface text-fg no-underline hover:text-fg lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
+    >
+      {/* The plate carries its own CASE / FIG labels, so nothing is laid over it; on wide screens it sits centred on the blueprint grid. */}
+      <span className={`flex items-center overflow-hidden border-b border-line lg:border-b-0 lg:border-r ${BLUEPRINT_BG}`}>
+        <span className="relative block aspect-[3/2] w-full overflow-hidden">
+          {c.cover ? (
+            <span className={`absolute inset-0 ${HOVER_ZOOM}`}>
+              <CaseCover src={c.cover} alt="" fill priority sizes="(min-width: 1320px) 740px, (min-width: 1024px) 56vw, 100vw" className="h-full w-full" />
+            </span>
+          ) : (
+            <span className="absolute inset-0 grid place-items-center font-mono text-[13px] text-fg-3">{c.caseId}</span>
+          )}
+        </span>
+      </span>
+      <span className="flex flex-col justify-center gap-3 p-4 sm:gap-4 sm:p-8">
+        <span className="flex flex-wrap items-center gap-1.5">
+          <span className="bg-signal px-2 py-1 font-mono text-xs font-semibold tracking-[0.06em] text-on-signal">{c.caseId}</span>
+          <span className="border border-line-strong px-2 py-1 font-mono text-xs tracking-[0.06em] text-fg">LATEST</span>
+          <StatusChips s={{ ...s, isNew: false }} className="!justify-start" />
+        </span>
+        <span className="font-mono text-[11.5px] tracking-[0.08em] text-fg-3 sm:text-xs">
+          <TypeTag type={c.type} /> · {c.mins} MIN READ · {formatLongDate(c.date)}
+        </span>
+        <span className="font-display text-[26px] font-extrabold leading-[1.02] tracking-[-0.03em] sm:text-[clamp(30px,3.2vw,46px)] sm:leading-[0.98] sm:tracking-[-0.035em]">
+          {c.title}
+        </span>
+        {c.excerpt && <span className="line-clamp-3 text-[15px] leading-[1.55] text-fg-2 sm:line-clamp-none sm:text-[17px]">{c.excerpt}</span>}
+        {c.tags.length > 0 && (
+          <span className="flex flex-wrap gap-1.5">
+            {c.tags.slice(0, 4).map((t) => (
+              <span key={t} className="border border-line-strong px-2 py-1 font-mono text-[11px] text-fg-2">
+                {t}
+              </span>
+            ))}
+          </span>
+        )}
+        <span className="mt-1 flex flex-wrap items-center gap-3">
+          <span className="inline-flex min-h-12 items-center bg-signal px-5 text-[15px] font-semibold text-on-signal group-hover:brightness-110">
+            Open the case file →
+          </span>
+          <FeaturedNote c={c} readDone={readDone} />
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function CaseCard({ c, s }: { c: CaseFile; s: Status }) {
+  return (
+    <li className="flex min-w-0">
+      <Link
+        href={`/stories/${c.slug}`}
+        className="group flex w-full min-w-0 flex-col border border-line bg-surface text-fg no-underline transition-colors hover:border-fg-4 hover:text-fg"
+      >
+        <span className={`relative block aspect-[3/2] overflow-hidden border-b border-line ${BLUEPRINT_BG}`}>
+          {c.cover ? (
+            <span className={`absolute inset-0 ${HOVER_ZOOM}`}>
+              <CoverImage
+                src={c.cover}
+                alt=""
+                fill
+                sizes="(min-width: 1320px) 420px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                className="h-full w-full"
+              />
+            </span>
+          ) : (
+            <span className="absolute inset-0 grid place-items-center font-mono text-[13px] text-fg-3">{c.caseId}</span>
+          )}
+        </span>
+        <span className="flex grow flex-col gap-2.5 p-4 sm:p-5">
+          <span className="flex items-start justify-between gap-2">
+            <span className="pt-1 font-mono text-[11px] tracking-[0.06em] text-fg-3">
+              <span className="font-semibold text-signal-text">{c.caseId}</span> · <TypeTag type={c.type} /> · {c.mins} MIN · {formatMonthYear(c.date)}
+            </span>
+            <StatusChips s={s} className="shrink-0" />
+          </span>
+          <span className="font-display text-[21px] font-bold leading-[1.12] tracking-[-0.02em] [text-wrap:balance] sm:text-[22px]">{c.title}</span>
+          {c.excerpt && <span className="line-clamp-3 text-[14.5px] leading-[1.5] text-fg-2">{c.excerpt}</span>}
+          {c.tags.length > 0 && (
+            <span className="mt-auto flex flex-wrap gap-1.5 pt-1.5">
+              {c.tags.slice(0, 3).map((t) => (
+                <span key={t} className="border border-line px-1.5 py-0.5 font-mono text-[10.5px] text-fg-3">
+                  {t}
+                </span>
+              ))}
+            </span>
+          )}
+        </span>
+      </Link>
+    </li>
   );
 }
 
 function FeaturedNote({ c, readDone }: { c: CaseFile; readDone: boolean }) {
   const parts: string[] = [];
-  if (c.hasDebrief) parts.push("+50 XP");
-  else if (!readDone) parts.push("+50 XP");
-  if (c.slug === TATKAL_SLUG) parts.push("and you can replay it as Tatkal Rush");
+  if (c.hasDebrief || !readDone) parts.push("+50 XP");
+  if (c.slug === TATKAL_SLUG) parts.push("then run the rush yourself on the home page");
   if (!parts.length) return null;
   return <span className="font-mono text-xs text-signal-text">{parts.join(" · ")}</span>;
 }

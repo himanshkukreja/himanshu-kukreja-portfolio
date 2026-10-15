@@ -724,25 +724,25 @@ Monday 10:00 AM - User reports UPI crash on Redmi Note 11
 
 **TestMatrix India** - QA Services Company (Pune-based):
 
-```bash
-# The Challenge:
-├── 200 client devices across offices in Bangalore, Pune, Hyderabad, Mumbai
-├── QA engineers distributed across India (Tier 1 & Tier 2 cities)
-├── Each tester needs access to specific Indian devices (Redmi, Realme, Vivo)
-└── Previous solution: Ship devices via courier (₹500-1000 per shipment)
+:::panel[TestMatrix India]{tone="core"}
+#### The challenge
+- 200 client devices across offices in Bangalore, Pune, Hyderabad, Mumbai
+- QA engineers distributed across India (Tier 1 & Tier 2 cities)
+- Each tester needs access to specific Indian devices (Redmi, Realme, Vivo)
+- Previous solution: Ship devices via courier (₹500-1000 per shipment)
 
-# The BridgeLink Solution:
-# Central Bangalore office with all 200 devices
-# Each device registered with BridgeLink
-# Pan-India QA team connects remotely
+#### The BridgeLink solution
+- Central Bangalore office with all 200 devices
+- Each device registered with BridgeLink
+- Pan-India QA team connects remotely
 
-# Results:
-├── Device shipping costs: ₹40 Lakhs/year → ₹0
-├── Device access time: 3-5 days (courier delays) → Instant
-├── Concurrent testing: Limited → 200 devices simultaneously
-├── Test coverage: 60% → 95%
-└── Client satisfaction: Up 40%
-```
+#### Results
+- **Device shipping costs:** ₹40 Lakhs/year → ₹0
+- **Device access time:** 3-5 days (courier delays) → Instant
+- **Concurrent testing:** Limited → 200 devices simultaneously
+- **Test coverage:** 60% → 95%
+- **Client satisfaction:** Up 40%
+:::
 
 ### Success Story 3: Startup Cost Savings
 
@@ -1088,23 +1088,21 @@ class TunnelManager:
 ### Current Development Focus
 
 **Performance Optimization:**
-```python
-# Goals for next version:
-├── Faster tunnel creation (< 2 seconds)
-├── More efficient health checks
-├── Reduced memory footprint
-└── Better network reliability
-```
+:::tree[Goals for next version]
+- Faster tunnel creation (< 2 seconds)
+- More efficient health checks
+- Reduced memory footprint
+- Better network reliability
+:::
 
 **Advanced Features Pipeline:**
-```bash
-# Planned features:
-├── Device pools (share devices across teams)
-├── Reservation system (book devices for testing windows)
-├── Integration with CI/CD (Jenkins, GitHub Actions)
-├── Team management (organization accounts)
-└── Analytics dashboard (usage metrics, uptime stats)
-```
+:::tree[Planned features]
+- Device pools — share devices across teams
+- Reservation system — book devices for testing windows
+- Integration with CI/CD — Jenkins, GitHub Actions
+- Team management — organization accounts
+- Analytics dashboard — usage metrics, uptime stats
+:::
 
 ### Technical Roadmap
 
@@ -1188,14 +1186,15 @@ git clone https://github.com/AutoFlowLabs/bridgelink
 cd bridgelink
 pip install -r requirements.txt
 pip install -e .
-
-# Areas needing help:
-├── CLI enhancements and new commands
-├── Cross-platform compatibility testing
-├── Tunnel management improvements
-├── Documentation and examples
-└── Integration with popular CI/CD platforms
 ```
+
+:::tree[Areas needing help]
+- CLI enhancements and new commands
+- Cross-platform compatibility testing
+- Tunnel management improvements
+- Documentation and examples
+- Integration with popular CI/CD platforms
+:::
 
 ---
 

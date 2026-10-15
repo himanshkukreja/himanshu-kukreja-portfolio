@@ -10,10 +10,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
 
+  // Upsert, not update: account holders who never joined the newsletter (learn announcements) get a
+  // row marked unsubscribed, which every sender (newsletter + /api/admin/announce) honours.
   const { error } = await supabase
     .from("newsletter_subscribers")
-    .update({ unsubscribed: true, unsubscribed_at: new Date().toISOString() })
-    .eq("email", email);
+    .upsert({ email, unsubscribed: true, unsubscribed_at: new Date().toISOString() }, { onConflict: "email" });
 
   if (error) {
     return NextResponse.json({ error: "Failed to unsubscribe" }, { status: 500 });

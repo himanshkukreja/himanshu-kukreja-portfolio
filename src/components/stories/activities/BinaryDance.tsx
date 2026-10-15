@@ -61,7 +61,8 @@ function Halving({
         <div className="relative grid h-12 grid-cols-2 border border-line-strong" aria-hidden>
           <span className={`border-r border-line-strong ${finished ? "" : "bg-[repeating-linear-gradient(90deg,transparent_0_11px,var(--c-line)_11px_12px)]"}`} />
           <span className={finished ? "" : "bg-[repeating-linear-gradient(90deg,transparent_0_11px,var(--c-line)_11px_12px)]"} />
-          {!finished && (
+          {/* The marker appears only once all bits are in: before that, compare the number with the midpoint yourself. */}
+          {finished && (
             <span className="absolute inset-y-0 w-0.5 bg-signal" style={{ left: pos(value) }}>
               <span className="absolute -top-1 left-1/2 h-2.5 w-2.5 -translate-x-1/2 bg-signal" />
             </span>

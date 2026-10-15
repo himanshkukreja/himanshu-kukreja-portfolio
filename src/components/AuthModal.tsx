@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { X, Mail, Loader2, CheckCircle, AlertCircle } from "lucide-react";
-import { signInWithEmail, signUpWithEmail, verifyOtp, signInWithGoogle } from "@/lib/supabase-client";
+import { X, Mail, CheckCircle, AlertCircle } from "lucide-react";
+import { signInWithEmail, verifyOtp, signInWithGoogle } from "@/lib/supabase-client";
+import { BootLoader, Spinner } from "@/components/ui/loader";
 
 type AuthModalProps = {
   isOpen: boolean;
@@ -11,19 +12,21 @@ type AuthModalProps = {
 };
 
 type AuthStep = "email" | "otp" | "success";
+type Busy = null | "google" | "email" | "otp";
+
+const noopSubscribe = () => () => {};
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [busy, setBusy] = useState<Busy>(null);
+  const loading = busy !== null;
+  const setLoading = (v: Busy | false) => setBusy(v || null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // portal target only exists on the client
+  const mounted = useSyncExternalStore(noopSubscribe, () => true, () => false);
 
   if (!isOpen || !mounted) return null;
 
@@ -38,7 +41,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLoading("email");
     setError(null);
 
     try {
@@ -62,7 +65,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
   const handleOtpSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
+    setLoading("otp");
     setError(null);
 
     try {
@@ -74,7 +77,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         return;
       }
 
-      setSuccess("Successfully signed in!");
+      setSuccess(null);
       setStep("success");
 
       // Close modal after 1.5 seconds
@@ -89,7 +92,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   };
 
   const handleGoogleSignIn = async () => {
-    setLoading(true);
+    setLoading("google");
     setError(null);
 
     try {
@@ -186,8 +189,11 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   disabled={loading}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-fg text-bg hover:opacity-90 transition-opacity font-semibold min-h-12 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                 >
-                  {loading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
+                  {busy === "google" ? (
+                    <>
+                      <Spinner />
+                      <span className="font-mono text-sm">redirecting to google…</span>
+                    </>
                   ) : (
                     <>
                       <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -249,10 +255,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     disabled={loading || !email}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-signal text-on-signal hover:opacity-90 transition-opacity font-semibold min-h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? (
+                    {busy === "email" ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Sending code...
+                        <Spinner />
+                        <span className="font-mono text-sm">sending code…</span>
                       </>
                     ) : (
                       `Continue with Email`
@@ -304,10 +310,10 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     disabled={loading || otp.length !== 6}
                     className="w-full flex items-center justify-center gap-2 px-4 py-3.5 bg-signal text-on-signal hover:opacity-90 transition-opacity font-semibold min-h-12 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {loading ? (
+                    {busy === "otp" ? (
                       <>
-                        <Loader2 className="w-5 h-5 animate-spin" />
-                        Verifying...
+                        <Spinner />
+                        <span className="font-mono text-sm">verifying…</span>
                       </>
                     ) : (
                       "Verify Code"
@@ -330,12 +336,16 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
 
             {/* Step 3: Success */}
             {step === "success" && (
-              <div className="text-center py-8">
-                <div className="inline-flex items-center justify-center w-16 h-16 border border-ok mb-4">
-                  <CheckCircle className="w-8 h-8 text-ok" />
-                </div>
-                <h3 className="font-display text-2xl font-bold text-fg mb-2">Welcome!</h3>
-                <p className="text-fg-2">You&apos;re all set. Redirecting…</p>
+              <div className="flex flex-col gap-4 py-2">
+                <h3 className="m-0 font-display text-3xl font-extrabold tracking-[-0.03em] text-fg">
+                  Welcome in<span className="text-signal-text">.</span>
+                </h3>
+                <BootLoader
+                  label="Signing you in"
+                  cmd={`ssh ${email.split("@")[0] || "you"}@himanshu`}
+                  steps={["code verified", "session saved", "syncing your progress"]}
+                  className="max-w-none"
+                />
               </div>
             )}
           </div>

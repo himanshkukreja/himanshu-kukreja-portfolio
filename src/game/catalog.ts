@@ -85,7 +85,7 @@ export const MAIN_QUESTS = QUESTS.filter((q) => q.group === "main");
 export type Badge = { id: string; name: string; how: string; earned: (done: Record<string, number>) => boolean };
 
 export const BADGES: Badge[] = [
-  { id: "rush", name: "Rush survivor", how: "Beat Tatkal Rush with zero double bookings.", earned: (d) => !!d.rush },
+  { id: "rush", name: "Rush survivor", how: "Win Tatkal Rush: run the 10:00 front door without a meltdown.", earned: (d) => !!d.rush },
   { id: "root", name: "Root shell", how: "Find the hidden terminal command.", earned: (d) => !!d.root },
   { id: "completionist", name: "Completionist", how: "Clear every cartridge in the Project Arcade.", earned: (d) => !!d["arcade:all"] },
   { id: "chaos", name: "Chaos engineer", how: "Clear all six Playground games.", earned: (d) => QUESTS.filter((q) => q.group === "play").every((q) => !!d[q.id]) },

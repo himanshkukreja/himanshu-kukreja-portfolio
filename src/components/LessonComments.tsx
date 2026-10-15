@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { supabaseClient } from "@/lib/supabase-client";
-import { Loader2 } from "lucide-react";
+import { InlineLoader } from "@/components/ui/loader";
 import CommentItem from "./CommentItem";
 import RichTextEditor from "./RichTextEditor";
 
@@ -411,8 +411,8 @@ export default function LessonComments({
       )}
 
       {loading ? (
-        <div role="status" className="flex items-center gap-2 py-6 font-mono text-xs text-fg-3">
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> loading the discussion…
+        <div className="py-6">
+          <InlineLoader label="loading the discussion" />
         </div>
       ) : error ? (
         <div role="alert" className="border border-bad p-4 text-sm text-bad-text">

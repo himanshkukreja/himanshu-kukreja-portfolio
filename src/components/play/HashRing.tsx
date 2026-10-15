@@ -1,19 +1,31 @@
 "use client";
 
 import { useState } from "react";
-import { BTN_GHOST, MSG_BOX, RING_MAX_LOAD, type GameProps } from "./shared";
+import { BTN_GHOST, MSG_BOX, type GameProps } from "./shared";
 
 type NodeId = "n1" | "n2" | "n3" | "n4";
 type RingNode = { id: NodeId; a: number };
 
 const SIZE = 340; // design size of the ring box; everything is positioned in % of it so it scales down
 const KEYS: number[] = Array.from({ length: 24 }, (_, k) => (k * 15 + 7 + ((k * 37) % 9)) % 360);
-const BASE: RingNode[] = [
-  { id: "n1", a: 20 },
-  { id: "n2", a: 140 },
-  { id: "n3", a: 250 },
+/**
+ * Starting rings. Each was checked offline so that only one or two of the twelve spots reach the lowest possible
+ * max load: guessing clears about one ring in eight, splitting the most loaded arc clears every one.
+ */
+const LAYOUTS: [number, number, number][] = [
+  [30, 60, 270],
+  [30, 90, 300],
+  [90, 150, 240],
+  [30, 120, 330],
+  [30, 150, 210],
+  [60, 150, 330],
 ];
-const CANDIDATES = [0, 45, 90, 135, 180, 225, 270, 315];
+const toNodes = (l: [number, number, number]): RingNode[] => [
+  { id: "n1", a: l[0] },
+  { id: "n2", a: l[1] },
+  { id: "n3", a: l[2] },
+];
+const CANDIDATES = Array.from({ length: 12 }, (_, i) => i * 30 + 15);
 
 const NODE_CLASS: Record<NodeId, string> = {
   n1: "bg-fg text-bg",
@@ -49,8 +61,13 @@ let MOD_MOVED = 0;
 for (let k = 0; k < 24; k++) if (k % 3 !== k % 4) MOD_MOVED++;
 
 export default function HashRing({ onWin }: GameProps) {
+  const [li, setLi] = useState(0);
   const [ring4, setRing4] = useState<number | null>(null);
+  const [cleared, setCleared] = useState(0);
 
+  const BASE = toNodes(LAYOUTS[li]);
+  // The lowest max load any spot can reach on this ring: the bar to clear.
+  const target = Math.min(...CANDIDATES.map((d) => loads([...BASE, { id: "n4", a: d }]).max));
   const nodes: RingNode[] = ring4 === null ? BASE : [...BASE, { id: "n4", a: ring4 }];
   const owners = KEYS.map((a) => owner(a, nodes));
   const owners3 = KEYS.map((a) => owner(a, BASE));
@@ -58,17 +75,29 @@ export default function HashRing({ onWin }: GameProps) {
   const { counts, max: maxLoad } = loads(nodes);
   const taken = ring4 !== null;
 
+  // One placement per ring: a node you bootstrapped is not free to move (every move is another rebalance).
   const place = (d: number) => {
+    if (ring4 !== null) return;
     setRing4(d);
     const { max } = loads([...BASE, { id: "n4", a: d }]);
-    if (max <= RING_MAX_LOAD) onWin(max, `max load ${max}`);
+    if (max <= target) {
+      setCleared((c) => c + 1);
+      onWin(max, `max load ${max}`);
+    }
+  };
+
+  const nextRing = () => {
+    setLi((i) => (i + 1 + Math.floor(Math.random() * (LAYOUTS.length - 1))) % LAYOUTS.length);
+    setRing4(null);
   };
 
   const msg =
     ring4 === null
-      ? "Every key is on its node. Pick a spot for node 4."
+      ? `Busiest node holds ${loads(BASE).max} keys. One placement: find the spot that brings the busiest node down to ${target}.`
       : `Consistent hashing moved ${moved} of 24 keys (highlighted). Hash mod N would have moved ${MOD_MOVED}. Max load ${maxLoad}${
-          maxLoad <= RING_MAX_LOAD ? ", balanced. Cleared." : ", still lopsided. Remove it and try another spot."
+          maxLoad <= target
+            ? ", the best this ring allows. Cleared."
+            : `; the best spot gets it to ${target}. Split the longest arc, the one owned by the busiest node. Try a new ring.`
         }`;
 
   return (
@@ -154,9 +183,12 @@ export default function HashRing({ onWin }: GameProps) {
         <div className={`${MSG_BOX} text-sm leading-[1.55]`} aria-live="polite">
           {msg}
         </div>
-        <button type="button" onClick={() => setRing4(null)} disabled={!taken} className={`${BTN_GHOST} min-h-11 self-start`}>
-          remove node 4
-        </button>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={nextRing} disabled={!taken} className={`${BTN_GHOST} min-h-11`}>
+            new ring →
+          </button>
+          {cleared > 0 && <span className="font-mono text-xs text-fg-3">{cleared} ring{cleared === 1 ? "" : "s"} balanced</span>}
+        </div>
       </div>
     </div>
   );

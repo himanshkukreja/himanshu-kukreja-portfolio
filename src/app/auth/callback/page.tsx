@@ -1,157 +1,135 @@
 "use client";
 
-import { useEffect, useState, Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase-client";
+import { FullScreenLoader } from "@/components/ui/loader";
 
-/**
- * Loading fallback for Suspense
- */
-function LoadingFallback() {
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-        <h1 className="text-2xl font-bold text-white mb-2">Loading...</h1>
-      </div>
-    </div>
-  );
+type Status = "processing" | "success" | "error";
+
+const BOOT_CMD = "ssh you@himanshu";
+const BOOT_STEPS = ["provider said yes", "exchange code for a session", "load your progress"];
+
+/** Only same-site paths: never bounce a fresh session to another origin. */
+function safePath(p: string | null | undefined): string {
+  if (!p || !p.startsWith("/") || p.startsWith("//") || p.startsWith("/auth/callback")) return "/";
+  return p;
+}
+
+function Fallback() {
+  return <FullScreenLoader title="Signing you in." label="Signing you in" cmd={BOOT_CMD} steps={BOOT_STEPS} />;
 }
 
 /**
- * Client-side OAuth callback handler content
- * This component processes the OAuth redirect and ensures the session is saved to localStorage
+ * OAuth landing page. With PKCE the Supabase client exchanges `?code=` by itself on load
+ * (detectSessionInUrl); tokens forwarded by AuthHashHandler (`?access_token=&refresh_token=`)
+ * are stored with setSession. Then we hop back to where the visitor started.
  */
 function AuthCallbackContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
-  const [message, setMessage] = useState('Processing authentication...');
+  const [status, setStatus] = useState<Status>("processing");
+  const [message, setMessage] = useState("");
+  const [target, setTarget] = useState("/");
 
   useEffect(() => {
-    async function handleCallback() {
+    let cancelled = false;
+    const timers: number[] = [];
+    const later = (fn: () => void, ms: number) => timers.push(window.setTimeout(fn, ms));
+    const fail = (msg: string) => {
+      if (cancelled) return;
+      setStatus("error");
+      setMessage(msg);
+      later(() => router.replace("/"), 5000);
+    };
+
+    (async () => {
       try {
-        console.log('[AuthCallback Page] Processing OAuth callback...');
+        const error = searchParams.get("error");
+        if (error) return fail(searchParams.get("error_description") || error);
 
-        // Check for OAuth errors in URL
-        const error = searchParams.get('error');
-        const errorDescription = searchParams.get('error_description');
-
-        if (error) {
-          console.error('[AuthCallback Page] Auth error:', error, errorDescription);
-          setStatus('error');
-          setMessage(errorDescription || error);
-          setTimeout(() => router.push('/'), 3000);
-          return;
+        const accessToken = searchParams.get("access_token");
+        const refreshToken = searchParams.get("refresh_token");
+        if (accessToken && refreshToken) {
+          const { error: setErr } = await supabaseClient.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (setErr) return fail(setErr.message);
         }
 
-        // CRITICAL: Don't manually exchange the code - Supabase client does this automatically
-        // The auth.detectSessionInUrl config handles PKCE flow automatically
-        // Just check if the session was created successfully
+        // getSession waits for the client's own PKCE exchange of ?code= to finish
+        const {
+          data: { session },
+          error: sessionError,
+        } = await supabaseClient.auth.getSession();
+        if (sessionError) return fail("Couldn't read the new session.");
+        if (!session) return fail("The sign-in didn't complete. Try again from the sign-in button.");
 
-        console.log('[AuthCallback Page] Checking if session was created...');
-
-        // Wait a moment for the automatic session creation to complete
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Check if Supabase already has a session (from automatic PKCE exchange)
-        const { data: { session }, error: sessionError } = await supabaseClient.auth.getSession();
-
-        if (sessionError) {
-          console.error('[AuthCallback Page] Session error:', sessionError);
-          setStatus('error');
-          setMessage('Failed to retrieve session');
-          setTimeout(() => router.push('/'), 3000);
-          return;
+        let stored: string | null = null;
+        try {
+          stored = localStorage.getItem("auth_redirect_path");
+          localStorage.removeItem("auth_redirect_path");
+        } catch {
+          /* storage blocked */
         }
-
-        if (session) {
-          console.log('[AuthCallback Page] ✅ Session created successfully!');
-          console.log('[AuthCallback Page] User:', session.user?.email);
-
-          setStatus('success');
-          setMessage('Authentication successful! Redirecting...');
-
-          // Get the redirect path from localStorage or default to home
-          const redirectPath = localStorage.getItem('auth_redirect_path') || '/';
-          localStorage.removeItem('auth_redirect_path');
-
-          console.log('[AuthCallback Page] Redirecting to:', redirectPath);
-
-          // Redirect after a brief delay
-          setTimeout(() => {
-            router.push(redirectPath);
-            router.refresh(); // Force refresh to update auth state
-          }, 1000);
-        } else {
-          console.warn('[AuthCallback Page] No session found after callback');
-          setStatus('error');
-          setMessage('Authentication did not complete');
-          setTimeout(() => router.push('/'), 3000);
-        }
-      } catch (err: any) {
-        console.error('[AuthCallback Page] Exception:', err);
-        setStatus('error');
-        setMessage(err.message || 'An error occurred');
-        setTimeout(() => router.push('/'), 3000);
+        const path = safePath(stored || searchParams.get("redirect"));
+        if (cancelled) return;
+        setTarget(path);
+        setStatus("success");
+        later(() => router.replace(path), 350);
+      } catch (err: unknown) {
+        fail(err instanceof Error ? err.message : "Something went wrong.");
       }
-    }
+    })();
 
-    handleCallback();
+    return () => {
+      cancelled = true;
+      timers.forEach((t) => window.clearTimeout(t));
+    };
   }, [searchParams, router]);
 
+  if (status === "error") {
+    return (
+      <main className="grid min-h-[calc(100svh-var(--hk-header-h,64px))] place-items-center px-4 py-16">
+        <div role="alert" className="flex w-full max-w-[460px] flex-col gap-5">
+          <p className="m-0 font-display text-[clamp(28px,6vw,40px)] font-extrabold leading-none tracking-[-0.04em] text-fg">
+            Sign-in failed<span className="text-signal-text">.</span>
+          </p>
+          <div className="border border-line-strong bg-surface font-mono text-[13px] leading-6">
+            <div className="border-b border-line px-3.5 py-2 text-[11px] uppercase tracking-label text-fg-3">~/himanshu · exit 1</div>
+            <div className="flex flex-col px-3.5 py-3">
+              <span>
+                <span className="text-signal-text">~/himanshu</span> <span className="text-fg-4">$</span> <span className="text-fg">{BOOT_CMD}</span>
+              </span>
+              <span className="break-words text-bad-text">[err] {message}</span>
+              <span className="text-fg-3">sending you home in 5s…</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/" className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal hover:brightness-110">
+              cd ~
+            </Link>
+            <Link href="/learn" className="inline-flex min-h-11 items-center border border-line-strong px-5 font-mono text-sm text-fg hover:bg-surface-2">
+              open the course
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center">
-      <div className="text-center max-w-md mx-auto px-4">
-        {status === 'processing' && (
-          <>
-            <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Completing Sign In
-            </h1>
-            <p className="text-gray-400">{message}</p>
-          </>
-        )}
-
-        {status === 'success' && (
-          <>
-            <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Success!
-            </h1>
-            <p className="text-gray-400">{message}</p>
-          </>
-        )}
-
-        {status === 'error' && (
-          <>
-            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </div>
-            <h1 className="text-2xl font-bold text-white mb-2">
-              Authentication Failed
-            </h1>
-            <p className="text-gray-400 mb-4">{message}</p>
-            <p className="text-sm text-gray-500">Redirecting to home...</p>
-          </>
-        )}
-      </div>
-    </div>
+    <FullScreenLoader
+      title={status === "success" ? "Welcome in." : "Signing you in."}
+      label={status === "success" ? "Signed in, redirecting" : "Signing you in"}
+      cmd={BOOT_CMD}
+      steps={status === "success" ? [...BOOT_STEPS.slice(0, 2), `cd ${target}`] : BOOT_STEPS}
+    />
   );
 }
 
-/**
- * Main page component with Suspense wrapper
- */
 export default function AuthCallbackPage() {
   return (
-    <Suspense fallback={<LoadingFallback />}>
+    <Suspense fallback={<Fallback />}>
       <AuthCallbackContent />
     </Suspense>
   );

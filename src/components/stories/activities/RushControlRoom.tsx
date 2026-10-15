@@ -196,14 +196,14 @@ const DEF: ActivityDef = {
   kind: "simulation",
   title: "Rush control room",
   blurb:
-    "It's 9:59:59 and you run the door. Pick the architecture that survives the 10:00:00 stampede, then sort six sessions into humans and bots using IRCTC's 2025 rules.",
+    "It's 9:59:59 and you run the door. Pick the architecture that survives the 10:00:00 stampede, then sort eight sessions into humans and bots using IRCTC's 2025 rules.",
   minutes: 3,
   steps: [
     { id: "rush", label: "Survive 10:00:00", max: 2, render: (ctx) => <Rush ctx={ctx} /> },
     {
       id: "bots",
       label: "Human or bot?",
-      max: 6,
+      max: 8,
       render: (ctx) => (
         <ClassifyStep
           ctx={ctx}
@@ -239,10 +239,22 @@ const DEF: ActivityDef = {
               explain: "Agents are banned from booking in the first 30 minutes of the window (10:00–10:30 for AC), so individual travellers get a fair shot at the first seats.",
             },
             {
-              label: "dc",
-              text: "Requests pouring in from a data-center IP range",
-              bucket: "block",
-              explain: "Real travellers book from homes and mobile networks, not server farms. Data-center ranges are a bot tell.",
+              label: "agent-late",
+              text: "An authorized travel agent booking AC Tatkal at 10:41 AM, Aadhaar OTP verified",
+              bucket: "let",
+              explain: "The agent ban covers only the first 30 minutes (10:00–10:30 for AC). At 10:41 a verified agent is booking legitimately: blocking them is a false positive.",
+            },
+            {
+              label: "retry",
+              text: "A verified traveller whose UPI payment failed, retrying the same booking 40 s later from the same phone",
+              bucket: "let",
+              explain: "One account, one device, human timing and a real reason to retry. Treating every retry as a bot punishes exactly the people Tatkal is for.",
+            },
+            {
+              label: "cafe",
+              text: "A retired teacher booking from a cyber café's shared IP, entering the Aadhaar OTP sent to her own phone",
+              bucket: "let",
+              explain: "A shared IP alone is weak evidence: cafés, offices and mobile carriers put many real people behind one address. Her verified OTP and human timing say traveller.",
             },
             {
               label: "aadhaar",

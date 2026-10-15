@@ -102,22 +102,28 @@ export function ChoiceStep({
   explain: ReactNode;
 }) {
   const [pick, setPick] = useState<number | null>(null);
+  // Display order is a deterministic shuffle of the authored order (same on server and client), so the right
+  // answer doesn't sit in the same slot step after step and "always B" is not a strategy. The salt was picked so no
+  // activity has two questions with the answer in the same slot (checked over every ChoiceStep in this folder).
+  const [order] = useState(() => seededShuffle(options.map((_, i) => i), `${options.join("|")}#44`));
   const answered = pick !== null;
   const choose = (k: number) => {
     if (answered) return;
     setPick(k);
     ctx.done(k === answer ? 1 : 0);
   };
+  const letter = (k: number) => String.fromCharCode(65 + order.indexOf(k));
   return (
     <div className="flex flex-col gap-4">
       <StepPrompt sub={sub}>{prompt}</StepPrompt>
       <div className="flex flex-col gap-2" role="group" aria-label="Answers">
-        {options.map((t, k) => {
+        {order.map((k, pos) => {
+          const t = options[k];
           const cls = !answered ? OPT_IDLE : k === answer ? OPT_RIGHT : k === pick ? OPT_WRONG : OPT_DIM;
           return (
             <button key={t} type="button" disabled={answered} onClick={() => choose(k)} aria-pressed={pick === k} className={`${OPTION} ${cls}`}>
-              <Key k={k} />
-              <span className="sr-only">Option {String.fromCharCode(65 + k)}: </span>
+              <Key k={pos} />
+              <span className="sr-only">Option {String.fromCharCode(65 + pos)}: </span>
               <span className="grow">{t}</span>
               {answered && k === answer && <span className="shrink-0 font-mono text-[11px]">✓</span>}
               {answered && k === pick && k !== answer && <span className="shrink-0 font-mono text-[11px] text-bad-text">✗</span>}
@@ -127,7 +133,7 @@ export function ChoiceStep({
       </div>
       <div aria-live="polite">
         {answered && (
-          <Feedback ok={pick === answer} title={pick === answer ? "Right call." : `The answer is ${String.fromCharCode(65 + answer)}.`}>
+          <Feedback ok={pick === answer} title={pick === answer ? "Right call." : `The answer is ${letter(answer)}.`}>
             {explain}
           </Feedback>
         )}

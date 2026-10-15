@@ -3,7 +3,8 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { LogOut, Loader2 } from "lucide-react";
+import { LogOut } from "lucide-react";
+import { Spinner } from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 
 const LINKS = [
@@ -55,7 +56,7 @@ export default function UserMenu() {
         className="grid h-10 w-10 place-items-center overflow-hidden bg-fg font-display text-sm font-extrabold text-bg"
       >
         {loading && !profile ? (
-          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          <Spinner className="text-[13px]" />
         ) : avatarUrl ? (
           <Image src={avatarUrl} alt="" width={40} height={40} className="h-full w-full object-cover" unoptimized={avatarUrl.includes("googleusercontent.com")} />
         ) : (
@@ -90,7 +91,7 @@ export default function UserMenu() {
               disabled={isSigningOut}
               className="flex w-full items-center gap-3 px-4 py-2.5 font-mono text-sm text-bad-text hover:bg-surface-2 disabled:opacity-50"
             >
-              <LogOut className="h-4 w-4" aria-hidden />
+              {isSigningOut ? <Spinner className="w-4" /> : <LogOut className="h-4 w-4" aria-hidden />}
               {isSigningOut ? "signing out…" : "sign out"}
             </button>
           </div>
