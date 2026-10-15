@@ -10,9 +10,9 @@ tags: ["Android Development", "Remote Development", "ADB", "Developer Experience
 ## The Remote Work Reality Check: When Your Test Devices Are Miles Away
 
 
-Meet **Priya Sharma**, a senior Android engineer at **PaySecure India**, a Bangalore-based fintech startup building a UPI payment app that needs to work flawlessly across 50+ Android devices. Priya is exceptional at her job, writing clean code and catching edge cases before they hit production. But in March 2020, everything changed.
+Meet **Priya Sharma**, a senior Android engineer at **PaySecure India**, a Bangalore-based fintech startup building a UPI payment app that needs to work flawlessly across 50+ Android devices. Priya is exceptional at her job, writing clean code and catching edge cases before they hit production. But when the team went fully remote, everything changed.
 
-**The Pre-Pandemic Setup:**
+**The Office Setup:**
 ```
 Office Device Lab (Koramangala, Bangalore):
 ├── Samsung Galaxy S20, S21, S22, S23
@@ -34,7 +34,7 @@ Monday 10:00 AM - User reports UPI payment crash on Redmi Note 11
 10:30 AM - Books Ola/Uber to office (Koramangala traffic nightmare)
 11:45 AM - Back home in HSR Layout, discovers fix doesn't work, needs another iteration
 1:00 PM - Another ride through Bangalore traffic...
-4:00 PM - After 3 round trips and ₹900 in cab fare, bug finally fixed
+4:00 PM - After 3 round trips and ₹2,000+ in cab fare, bug finally fixed
 6:00 PM - Completely exhausted from commuting instead of coding
 ```
 
@@ -106,9 +106,9 @@ BrowserStack:         ₹2,400/month minimum (very limited)
 Firebase Test Lab:    ₹420/hour for physical devices
 Sauce Labs:           ₹12,400/month starting price
 
-For our 50 devices running 8 hours/day:
-Monthly Cost: ₹10,00,000+ 😱 (10 Lakhs!)
-Annual Cost: ₹1,20,00,000+ 😱😱😱 (1.2 Crores!)
+For our 50 devices running 8 hours/day (AWS rate, 20 working days):
+Monthly Cost: ₹68,00,000+ 😱 (68 Lakhs!)
+Annual Cost: ₹8,16,00,000+ 😱😱😱 (8 Crores+!)
 ```
 
 **The "We Can Build This Better" Moment:**
@@ -377,11 +377,16 @@ class HealthMonitor:
             return self._check_emulator_running(serial)
         else:
             # Physical devices: Check ADB connectivity
-            result = subprocess.run(
-                ['adb', '-s', serial, 'shell', 'echo', 'ping'],
-                capture_output=True,
-                timeout=5
-            )
+            try:
+                # Run off the event loop, so one slow device can't stall the others
+                result = await asyncio.to_thread(
+                    subprocess.run,
+                    ['adb', '-s', serial, 'shell', 'echo', 'ping'],
+                    capture_output=True,
+                    timeout=5
+                )
+            except subprocess.TimeoutExpired:
+                return False  # a hung device is an unhealthy device
             return result.returncode == 0
 ```
 
@@ -742,7 +747,7 @@ Monday 10:00 AM - User reports UPI crash on Redmi Note 11
 ### Success Story 3: Startup Cost Savings
 
 ![QuickShip year one: ₹1,63,20,000 a year on a cloud device farm versus ₹4,48,000 with BridgeLink and owned devices, a 35x return](/case-files/bridgelink-cost-savings.png)
-<!-- IMAGE PROMPT: A side-by-side cost comparison infographic with Indian currency. Left side "Cloud Device Farm" (expensive): Show stacked money/coin icons with rupee amounts: Monthly ₹13.6L, Annual ₹1.6Cr. Include cloud icons with device farm logos. Right side "BridgeLink Solution" (affordable): Show much smaller money stack: One-time device cost ₹4L, Monthly platform ₹4,000, First year total ₹4.5L. Include a large green badge/seal saying "SAVED ₹1.55 Cr!" or "35x ROI". Use red/orange colors for expensive side, green/blue for affordable side. Include calculator or piggy bank icons. Make the savings visually dramatic with size differences in money representations. Indian business-friendly infographic style with rupee symbols. -->
+<!-- IMAGE PROMPT: A side-by-side cost comparison infographic with Indian currency. Left side "Cloud Device Farm" (expensive): Show stacked money/coin icons with rupee amounts: Monthly ₹13.6L, Annual ₹1.6Cr. Include cloud icons with device farm logos. Right side "BridgeLink Solution" (affordable): Show much smaller money stack: One-time device cost ₹4L, Monthly platform ₹4,000, First year total ₹4.5L. Include a large green badge/seal saying "SAVED ₹1.59 Cr!" or "35x ROI". Use red/orange colors for expensive side, green/blue for affordable side. Include calculator or piggy bank icons. Make the savings visually dramatic with size differences in money representations. Indian business-friendly infographic style with rupee symbols. -->
 
 **QuickShip Technologies** - 10-person startup (Gurugram):
 
@@ -760,7 +765,7 @@ BridgeLink + Owned Devices Approach:
 └── First year total: ₹4,48,000 (saved ₹1,58,72,000!) 🎉
 
 Return on Investment: 35x in first year
-Cost per device per month: ₹400 (vs ₹1,36,000 in cloud!)
+Cost per device per month: ₹400 platform fee (vs ₹1,36,000 in cloud!)
 ```
 
 ---
@@ -1058,7 +1063,7 @@ class TunnelManager:
 **1. Real Device Streaming:**
 ```python
 # Attempted: Stream device screen like iOS Bridge
-# Problem: Android screen streaming requires root or custom ROM
+# Problem: a full streaming stack was out of scope (scrcpy already streams over ADB, no root needed)
 # Decision: Focus on ADB access, let developers use scrcpy separately
 ```
 
@@ -1204,11 +1209,11 @@ pip install -e .
 **What Started as Remote Work Pain:**
 - Physical devices locked in Koramangala office, inaccessible from HSR Layout
 - Productivity killed by Bangalore traffic and ₹900 cab fares
-- ₹18 Lakhs device lab gathering dust during lockdown
+- ₹18 Lakhs device lab gathering dust in an empty office
 
 **Became a Universal Access Platform:**
 - Any developer, anywhere in India, instant device access
-- 1000+ devices exposed across India via BridgeLink
+- 5000+ devices exposed via BridgeLink
 - Open source enabling similar solutions for any Indian startup
 
 ### The Bigger Picture

@@ -205,9 +205,9 @@ const DEF: ActivityDef = {
           items={[
             {
               label: "bank",
-              text: "Transfer $10,000 from Bank A to Bank B",
+              text: "Move $10,000 between two account databases at the same bank",
               bucket: "2pc",
-              explain: "Interbank transfers need absolute consistency (no partial transfers), are lower volume and can tolerate blocking: one of the story's rare cases for 2PC.",
+              explain: "Moving money between two ledgers inside one institution needs absolute consistency (no partial transfers), is lower volume and can tolerate blocking: one of the story's rare cases for 2PC. (Transfers between banks go through settlement systems instead.)",
             },
             {
               label: "travel",

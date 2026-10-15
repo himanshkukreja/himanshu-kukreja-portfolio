@@ -11,12 +11,12 @@ tags: ["Integer Overflow", "Database Design", "Auto-increment", "Production Inci
 
 You're staring at the PagerDuty alert at 2 AM, coffee growing cold as you trace through logs that make no sense. Your `event_log` table—the heart of your analytics pipeline—has gone silent. No crashes, no database errors, just... nothing. New events simply aren't being recorded.
 
-Then it hits you: **2,147,483,647**. That's not just a random number—it's the maximum value for a 32-bit signed integer. Your auto-increment ID has reached the mathematical ceiling, and every new INSERT is failing silently because there's literally nowhere left to count.
+Then it hits you: **2,147,483,647**. That's not just a random number—it's the maximum value for a 32-bit signed integer. Your auto-increment ID has reached the mathematical ceiling, and every new INSERT is failing—while your fire-and-forget event writer quietly swallows the errors—because there's literally nowhere left to count.
 
 **The Scale That Broke The System:**
-- **Daily event volume**: 50 million events
+- **Daily event volume**: ~4 million events
 - **Running for**: 18 months  
-- **Total events processed**: ~27 billion
+- **Total events processed**: ~2.15 billion (4M × ~540 days)
 - **ID space exhausted**: Every possible 32-bit signed integer used
 - **Business impact**: Analytics dead, recommendation engine failing, revenue tracking broken
 
@@ -28,14 +28,14 @@ Then it hits you: **2,147,483,647**. That's not just a random number—it's the 
 
 In computer science, a 32-bit signed integer can represent values from -2,147,483,648 to 2,147,483,647. When you try to increment beyond this maximum, different systems handle it differently:
 
-- **MySQL**: Silently fails INSERTs, returns duplicate key errors
-- **PostgreSQL**: Throws explicit overflow errors
+- **MySQL**: INSERTs fail with duplicate-key errors (the counter can't advance past the max, so it hands out the same value again)—easy to miss if the application swallows them
+- **PostgreSQL**: Throws explicit errors (`integer out of range`, or the sequence reports it has reached its maximum value)
 - **SQL Server**: Fails with arithmetic overflow error
-- **Oracle**: Cycles back to the minimum negative value (even worse!)
+- **Oracle**: Sequences error out at MAXVALUE by default; one created with `CYCLE` wraps back to MINVALUE and starts reissuing old IDs (even worse!)
 
 ### The Silent Killer Problem
 
-What makes this particularly dangerous is the **silent failure mode**. Unlike a crashed database or explicit error, integer overflow often:
+What makes this particularly dangerous is the **silent failure mode**. The database stays up and the errors land in application logs nobody is watching (or in a retry loop that swallows them), so unlike a crashed database, integer overflow often:
 
 - **Appears healthy**: Database responds normally to reads
 - **Fails quietly**: New records simply don't get inserted
@@ -45,7 +45,7 @@ What makes this particularly dangerous is the **silent failure mode**. Unlike a 
 ```mermaid
 %% title: How the silent failure spreads
 flowchart TD
-    V(["50 million events/day<br/>for 18 months"]):::client --> ID["event_log auto-increment ID<br/>reaches 2,147,483,647"]:::hot
+    V(["~4 million events/day<br/>for 18 months"]):::client --> ID["event_log auto-increment ID<br/>reaches 2,147,483,647"]:::hot
     ID --> INS["Every new INSERT fails<br/>nowhere left to count"]:::bad
     INS --> H["Looks healthy<br/>reads answered · connections open<br/>metrics show stable"]:::store
     INS --> A["Analytics dead<br/>Recommendation engine failing<br/>Revenue tracking broken"]:::bad
@@ -58,7 +58,7 @@ flowchart TD
 ### Option 1: The Quick Column Expansion (Minimal Downtime)
 
 **Strategy**: Change the column type from INT to BIGINT
-- **Downtime**: 5-30 minutes depending on table size
+- **Downtime**: near zero with an online schema change tool, though the table copy can take hours on ~2 billion rows (a plain `ALTER TABLE` rewrites the whole table and blocks writes for that long)
 - **Risk**: Medium (schema change on large table)
 - **Complexity**: Low
 - **Trade-offs**: Brief service interruption but permanent fix
@@ -125,7 +125,7 @@ flowchart TD
 - **Storage overhead**: 16 bytes vs 4 bytes for INT
 - **Index performance**: Random UUIDs create index fragmentation
 - **Human readability**: Hard to debug or reference manually
-- **Sort order**: No natural chronological ordering
+- **Sort order**: No natural chronological ordering (random UUIDv4; time-ordered UUIDv7 fixes this)
 
 ### Snowflake IDs (Twitter's Approach)
 
@@ -161,8 +161,8 @@ flowchart TD
 
 **Alert Thresholds**:
 - **Warning**: 50% of ID space consumed
-- **Critical**: 80% of ID space consumed
-- **Emergency**: 95% of ID space consumed
+- **Critical**: 70% of ID space consumed
+- **Emergency**: 90% of ID space consumed
 
 ### Design Guidelines
 
@@ -199,9 +199,9 @@ flowchart TD
 
 **BIGINT Migration**: 
 - **Preparation**: 2-4 hours (testing, planning)
-- **Execution**: 30 minutes (actual migration)
+- **Execution**: 2-6 hours (online copy of a ~2-billion-row table)
 - **Verification**: 1 hour (confirming fix works)
-- **Total**: ~4-6 hours to full recovery
+- **Total**: ~5-11 hours to full recovery
 
 **Table Split Strategy**:
 - **Implementation**: 8-12 hours (dual-write logic)
@@ -213,13 +213,15 @@ flowchart TD
 
 ## Real-World War Stories
 
-### The Instagram Photo ID Crisis
+### Instagram's 64-bit Photo IDs
 
-Instagram faced this exact issue in their early hypergrowth phase. Their solution:
-- **Emergency**: Switched to 64-bit IDs immediately
-- **Migration**: Used their read replica to test the schema change first
-- **Prevention**: Implemented automated monitoring for all auto-increment columns
-- **Result**: 6-hour emergency response became a 2-hour planned maintenance
+Instagram is often cited here, but what it actually published ("Sharding & IDs at Instagram", 2012) is a prevention story, not an outage:
+- **Problem**: IDs had to stay unique across many PostgreSQL shards and sort by time
+- **Solution**: 64-bit IDs generated inside PostgreSQL itself
+- **Layout**: 41 bits of millisecond timestamp, 13 bits of logical shard ID, 10 bits of per-shard sequence
+- **Result**: no central ID service, no 32-bit ceiling, and IDs that sort roughly by creation time
+
+The next two are anonymised composites of incidents teams commonly report; treat the figures as illustrative.
 
 ### The Gaming Company Analytics Meltdown
 
@@ -368,7 +370,7 @@ flowchart TD
 - **Green**: <25% ID space used
 - **Yellow**: 25-50% ID space used (start planning)
 - **Orange**: 50-80% ID space used (active migration planning)
-- **Red**: >80% ID space used (emergency response)
+- **Red**: >80% ID space used (migration must be underway; emergency response from 90%)
 
 ### Automated Response Triggers
 

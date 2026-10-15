@@ -79,28 +79,28 @@ function Topology({ ctx }: { ctx: StepCtx }) {
         prompt="Drag the slider to feel the mesh blow up, then pick the WebRTC topology for each call."
         sub="Using the story's decision tree."
         buckets={[
-          { id: "p2p", label: "Peer-to-peer mesh", hint: "< 10 people" },
+          { id: "p2p", label: "Peer-to-peer mesh", hint: "≤ 4 people" },
           { id: "sfu", label: "WebRTC + SFU", hint: "forwards, no re-encode" },
           { id: "mcu", label: "WebRTC + MCU", hint: "mixes one stream" },
         ]}
         items={[
           {
             label: "standup",
-            text: "A 6-person team standup",
+            text: "A 3-person team standup",
             bucket: "p2p",
-            explain: "Under 10 participants, direct peer-to-peer connections work and need almost no server: WebRTC P2P.",
+            explain: "Up to about 4 people, a direct peer-to-peer mesh fits home bandwidth (3 people: 4 streams, ~12 Mbps at 1080p) and needs almost no server: WebRTC P2P.",
           },
           {
             label: "all-hands",
             text: "A 40-person all-hands where anyone can unmute",
             bucket: "sfu",
-            explain: "10–100 participants: an SFU. Each user uploads once and the server forwards streams without encoding or decoding, so CPU stays low.",
+            explain: "5–100 participants: an SFU. Each user uploads once and the server forwards streams without encoding or decoding, so CPU stays low.",
           },
           {
             label: "workshop",
-            text: "A 150-person workshop with everyone on camera",
+            text: "A call joined by old room systems that can decode only one video stream",
             bucket: "mcu",
-            explain: "100+ participants: an MCU mixes all video into a single combined stream per user. Ultra-low bandwidth for clients, at the cost of high server CPU and extra latency.",
+            explain: "An MCU mixes all video into a single combined stream per user: ultra-low bandwidth and decoding for clients, at the cost of high server CPU and extra latency. (Big 100+ calls usually use cascaded SFUs instead.)",
           },
         ]}
       />
@@ -138,7 +138,7 @@ const DEF: ActivityDef = {
               label: "video",
               text: "A 4-person video call",
               bucket: "rtc",
-              explain: "Media goes peer to peer over UDP with built-in codecs and adaptive bitrate: under 50 ms typical, versus 200–500 ms through a server.",
+              explain: "Media goes peer to peer over UDP with built-in codecs and adaptive bitrate: roughly 100–300 ms glass-to-glass, versus 200–500 ms or worse through a server.",
             },
             {
               label: "signaling",
@@ -162,7 +162,7 @@ const DEF: ActivityDef = {
               label: "voice",
               text: "A voice channel",
               bucket: "rtc",
-              explain: "Discord runs voice over WebRTC (consistently under 50 ms) and keeps text and presence on WebSockets.",
+              explain: "Discord runs voice over WebRTC (relayed by its own voice servers) and keeps text and presence on WebSockets.",
             },
           ]}
         />

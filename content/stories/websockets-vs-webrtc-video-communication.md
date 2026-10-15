@@ -50,7 +50,7 @@ flowchart TD
 
 ### How WebSockets Work: The TCP Foundation
 
-WebSockets provide a **persistent, full-duplex communication channel** between client and server over TCP[1][3]. Think of it as upgrading a regular HTTP request-response into a permanent telephone line where both sides can talk anytime.
+WebSockets provide a **persistent, full-duplex communication channel** between client and server over TCP. Think of it as upgrading a regular HTTP request-response into a permanent telephone line where both sides can talk anytime.
 
 **The WebSocket Handshake Process:**
 ```mermaid
@@ -68,20 +68,20 @@ sequenceDiagram
 ### WebSocket Strengths: Why They Excel
 
 **Perfect for Text-Based Real-Time Communication:**
-- **Guaranteed delivery**: TCP ensures every message arrives in order[1]
+- **Guaranteed delivery**: TCP ensures every message arrives in order
 - **Low overhead**: After handshake, minimal protocol overhead
-- **Broad compatibility**: Supported by all modern browsers[1]
+- **Broad compatibility**: Supported by all modern browsers
 - **Server-centric**: Easy to implement authentication, logging, and moderation
 
 **Real-World WebSocket Success Stories:**
 
-**Slack's Messaging Architecture**[14]:
+**Slack's Messaging Architecture**:
 - Uses WebSockets for instant message delivery
 - Handles typing indicators and read receipts
 - Processes millions of messages daily with <100ms latency
 - Server manages all message routing and history
 
-**Discord's Communication Platform**[14]:
+**Discord's Communication Platform**:
 - WebSockets for text chat and presence updates
 - Real-time activity status and notifications
 - Scales to millions of concurrent users
@@ -117,7 +117,7 @@ sequenceDiagram
 
 ### How WebRTC Works: Direct Communication Magic
 
-WebRTC (Web Real-Time Communication) enables **direct peer-to-peer connections** between browsers for audio, video, and data[6][11]. It's designed specifically for real-time media streaming with ultra-low latency.
+WebRTC (Web Real-Time Communication) enables **direct peer-to-peer connections** between browsers for audio, video, and data. It's designed specifically for real-time media streaming with ultra-low latency.
 
 **WebRTC Connection Establishment:**
 ```mermaid
@@ -138,7 +138,7 @@ sequenceDiagram
     Note over A,B: Media Streaming Phase
     A->>B: Audio/video captured in browser, sent directly
     B->>A: Media streams sent directly between peers
-    Note over A,B: No server involvement in media transfer<br/>Ultra-low latency (#lt;50ms typical)
+    Note over A,B: No server involvement in media transfer<br/>Low latency (~100-300ms glass-to-glass typical)
 ```
 
 ### The NAT Traversal Challenge
@@ -146,12 +146,12 @@ sequenceDiagram
 **Why Direct P2P is Complex:**
 Most devices sit behind NAT (Network Address Translation) firewalls that block direct connections. WebRTC solves this through:
 
-**STUN Servers** (Session Traversal Utilities for NAT)[6]:
+**STUN Servers** (Session Traversal Utilities for NAT):
 - Help discover public IP addresses
 - Enable direct connections when possible
 - Lightweight and cheap to operate
 
-**TURN Servers** (Traversal Using Relays around NAT)[6]:
+**TURN Servers** (Traversal Using Relays around NAT):
 - Relay traffic when direct connection impossible
 - Used as fallback (~10-20% of connections)
 - More expensive but ensures connectivity
@@ -159,10 +159,10 @@ Most devices sit behind NAT (Network Address Translation) firewalls that block d
 ### WebRTC Strengths: Built for Media
 
 **Optimized for Real-Time Media:**
-- **UDP-based**: Prioritizes speed over guaranteed delivery[17]
-- **Built-in codecs**: Efficient video/audio compression (H.264, VP8, Opus)[6]
+- **UDP-based**: Prioritizes speed over guaranteed delivery
+- **Built-in codecs**: Efficient video/audio compression (H.264, VP8, Opus)
 - **Adaptive bitrate**: Automatically adjusts quality based on network conditions
-- **Minimal latency**: Direct P2P typically achieves <50ms delays
+- **Minimal latency**: Direct P2P adds little beyond network transit (often <50ms nearby); ~100-300ms glass-to-glass including capture, encoding and jitter buffer
 
 **Real-World WebRTC Success Stories:**
 
@@ -170,13 +170,13 @@ Most devices sit behind NAT (Network Address Translation) firewalls that block d
 - Uses WebRTC for all video/audio streams
 - Handles millions of concurrent calls
 - Automatic quality adaptation based on network conditions
-- Scales globally with minimal server infrastructure
+- Routes group calls through Google's own media servers (SFUs) worldwide: WebRTC doesn't mean serverless
 
 **Zoom's Hybrid Approach**:
 - WebRTC for browser-based clients
 - Custom protocols for native apps
-- Intelligent routing between P2P and server relay
-- Achieves sub-100ms latency globally
+- Intelligent routing between P2P (two-person meetings) and server relay
+- Relies on its own global data-center network for low latency
 
 ### WebRTC Limitations
 
@@ -200,7 +200,7 @@ Most devices sit behind NAT (Network Address Translation) firewalls that block d
 | Metric | WebSockets | WebRTC | Winner |
 |--------|------------|---------|---------|
 | **Text Chat Latency** | 50-100ms | 50-100ms (via data channels) | Tie |
-| **Video Streaming Latency** | 200-500ms | <50ms typical | **WebRTC** |
+| **Video Streaming Latency** | 200-500ms+ (seconds under packet loss) | ~100-300ms typical | **WebRTC** |
 | **Audio Quality** | Depends on server processing | Optimized codecs | **WebRTC** |
 | **Server Resource Usage** | High (processes all media) | Low (signaling only) | **WebRTC** |
 | **Bandwidth Costs** | High (all traffic via server) | Low (direct P2P) | **WebRTC** |
@@ -210,9 +210,9 @@ Most devices sit behind NAT (Network Address Translation) firewalls that block d
 
 #### Choose WebSockets When:
 
-**Real-Time Text Communication**[9][14]:
+**Real-Time Text Communication**:
 - **Chat applications**: Slack, Discord, WhatsApp Web
-- **Collaborative editing**: Google Docs, Notion
+- **Collaborative editing**: Figma, Notion
 - **Live updates**: Stock prices, sports scores, notifications
 - **Gaming**: Turn-based games, chat systems
 
@@ -241,9 +241,9 @@ Advantages:
 
 #### Choose WebRTC When:
 
-**Real-Time Media Communication**[7][8]:
+**Real-Time Media Communication**:
 - **Video conferencing**: Zoom, Google Meet, Teams
-- **Live streaming**: Twitch, YouTube Live
+- **Live streaming**: interactive, low-latency streams (big platforms like Twitch and YouTube Live mainly deliver via HLS)
 - **Screen sharing**: Remote desktop, presentations
 - **Gaming**: Real-time multiplayer with voice chat
 - **IoT streaming**: Security cameras, baby monitors
@@ -262,6 +262,8 @@ flowchart TD
     A <--> D["User D"]:::client
     B <--> C["User C"]:::client
     D <--> C
+    A <--> C
+    B <--> D
     S["Signaling Server (WebSocket/HTTP)<br/>manages setup only"]:::service
     C ~~~ S
 ```
@@ -269,7 +271,7 @@ flowchart TD
 WebRTC Use Case: 4-person video call
 
 Advantages:
-- ✅ <50ms video latency
+- ✅ ~100-300ms video latency
 - ✅ Direct P2P connections
 - ✅ Automatic quality adaptation
 - ✅ Built-in security and encryption
@@ -357,7 +359,7 @@ navigator.mediaDevices.getUserMedia({ video: true, audio: true })
 
 // Handle incoming remote streams
 peerConnection.ontrack = (event) => {
-    remoteVideo.srcObject = event.streams;
+    remoteVideo.srcObject = event.streams[0];
 };
 ```
 
@@ -383,8 +385,8 @@ peerConnection.ontrack = (event) => {
 
 ### The Telemedicine Disaster: When Latency Kills
 
-**MedConnect's Crisis:**
-A telemedicine startup built their platform using WebSockets for video calls between doctors and patients[8]. During the COVID-19 surge:
+**MedConnect's Crisis** (a composite example):
+A telemedicine startup built their platform using WebSockets for video calls between doctors and patients. During the COVID-19 surge:
 
 **The Problem:**
 - Video delays of 3-5 seconds made medical consultations unusable
@@ -406,7 +408,7 @@ A telemedicine startup built their platform using WebSockets for video calls bet
 
 ### The Gaming Platform Success: Discord's Hybrid Mastery
 
-**Discord's Architecture Genius**[14]:
+**Discord's Architecture Genius**:
 Discord perfectly demonstrates the hybrid approach:
 
 **WebSockets for:**
@@ -418,18 +420,18 @@ Discord perfectly demonstrates the hybrid approach:
 **WebRTC for:**
 - Voice channels with crystal-clear audio
 - Video calls and screen sharing
-- Direct peer-to-peer file sharing
-- Low-latency game streaming
+- Low-latency game streaming (Go Live)
+- Media relayed through Discord's own voice servers (SFUs), not peer-to-peer
 
 **The Results:**
-- Supports 150+ million monthly active users
-- Voice chat latency consistently <50ms
-- Text messages delivered in under 100ms
-- Scales globally with minimal infrastructure costs
+- Supports 150+ million monthly active users (2021 figure)
+- Millions of concurrent voice users on low-latency voice
+- Text messages delivered in near real time
+- Scales globally on its own fleet of voice servers
 
 ### The Emergency Response Revolution: Carbyne's Life-Saving Tech
 
-**Carbyne's 911 System**[8]:
+**Carbyne's 911 System**:
 Emergency services require ultra-low latency for life-or-death situations:
 
 **The Challenge:**
@@ -438,17 +440,16 @@ Emergency services require ultra-low latency for life-or-death situations:
 - Must work reliably under network stress and poor conditions
 - Need to distribute video to multiple emergency responders simultaneously
 
-**The Solution:**
+**The Solution** (the typical design for this kind of system; Carbyne's internals are simplified here):
 - WebRTC for initial ultra-low latency video capture (<500ms)
 - Immediate streaming from caller's phone to 911 operator
 - WebSocket signaling for call setup and metadata
 - Hybrid relay system for distribution to paramedics and hospitals
 
 **The Impact:**
-- Reduced emergency response times by average of 3.2 minutes
+- Callers stream live video from a browser link, with no app install
 - Enables remote medical guidance during critical situations
-- Processes thousands of emergency video calls daily
-- Saves an estimated 200+ lives per year through faster response
+- Dispatchers see the scene instead of relying on a verbal description
 
 ---
 
@@ -512,10 +513,10 @@ Advantages:
 const connection = peerConnection.getStats()
     .then(stats => {
         stats.forEach(report => {
-            if (report.type === 'inbound-rtp') {
-                const packetsLost = report.packetsLost;
-                const packetsReceived = report.packetsReceived;
-                const lossRate = packetsLost / (packetsLost + packetsReceived);
+            // remote-inbound-rtp = the peer's report on OUR outgoing video
+            // (inbound-rtp would describe what we receive, not what we send)
+            if (report.type === 'remote-inbound-rtp' && report.kind === 'video') {
+                const lossRate = report.fractionLost;
                 
                 if (lossRate > 0.05) {
                     // High packet loss - reduce quality
@@ -535,9 +536,9 @@ function adjustVideoQuality(quality) {
     const params = sender.getParameters();
     
     if (quality === 'low') {
-        params.encodings.maxBitrate = 300000; // 300 kbps
+        params.encodings[0].maxBitrate = 300000; // 300 kbps
     } else if (quality === 'high') {
-        params.encodings.maxBitrate = 2000000; // 2 Mbps
+        params.encodings[0].maxBitrate = 2000000; // 2 Mbps
     }
     
     sender.setParameters(params);
@@ -547,7 +548,7 @@ function adjustVideoQuality(quality) {
 ### Security and Privacy Considerations
 
 **WebRTC Security Advantages:**
-- **End-to-end encryption**: All media streams encrypted by default using DTLS-SRTP
+- **Mandatory encryption**: All media streams encrypted by default using DTLS-SRTP (end-to-end in P2P; an SFU decrypts unless you add E2EE via Insertable Streams)
 - **Identity verification**: Cryptographic fingerprints prevent man-in-the-middle attacks
 - **Secure by design**: No media data touches servers in P2P mode
 
@@ -560,12 +561,13 @@ function adjustVideoQuality(quality) {
 **Hybrid Security Architecture:**
 ```
 // Secure WebSocket connection for signaling
-const signalingSocket = new WebSocket('wss://api.connectnow.com/signaling', [], {
-    headers: {
-        'Authorization': `Bearer ${jwtToken}`,
-        'X-Client-Version': '2.1.0'
-    }
-});
+// (browsers can't set custom headers on a WebSocket: authenticate in the first message)
+const signalingSocket = new WebSocket('wss://api.connectnow.com/signaling');
+signalingSocket.onopen = () => signalingSocket.send(JSON.stringify({
+    type: 'auth',
+    token: jwtToken,
+    clientVersion: '2.1.0'
+}));
 
 // WebRTC with secure TURN authentication
 const rtcConfig = {
@@ -599,20 +601,20 @@ Real-Time Communication Requirements:
 │   │
 │   └── Media Communication  
 │       ├── Video conferencing → WebRTC
-│       ├── Live streaming → WebRTC
+│       ├── Live streaming (interactive) → WebRTC
 │       ├── Screen sharing → WebRTC
 │       └── File transfer → WebRTC DataChannels
 │
 ├── Latency Requirements?
-│   ├── <100ms required → WebRTC
+│   ├── Conversational (<~300ms) → WebRTC
 │   ├── <500ms acceptable → Either
 │   └── >500ms acceptable → WebSockets
 │
 ├── Scaling Requirements?
-│   ├── <10 participants → WebRTC P2P
-│   ├── 10-100 participants → WebRTC + SFU
-│   ├── 100+ participants → WebRTC + MCU
-│   └── Broadcast (1-to-many) → WebRTC + CDN
+│   ├── ≤4 participants → WebRTC P2P mesh
+│   ├── 5-100 participants → WebRTC + SFU
+│   ├── 100+ participants → WebRTC + cascaded SFUs (MCU if clients can decode only one stream)
+│   └── Broadcast (1-to-many) → WebRTC/RTMP ingest + HLS via CDN
 │
 └── Infrastructure Budget?
     ├── Low budget → WebRTC (P2P saves bandwidth)
@@ -665,7 +667,7 @@ navigator.mediaDevices.getUserMedia({ audio: true })
 // ❌ DON'T: Stream video through WebSocket
 socket.send(JSON.stringify({
     type: 'video-frame',
-     videoFrame, // Huge payload!
+    data: videoFrame, // Huge payload!
     timestamp: Date.now()
 }));
 
@@ -734,29 +736,26 @@ peerConnection.oniceconnectionstatechange = () => {
 
 **WebTransport: The Next Evolution**
 ```
-// Future: WebTransport combines best of both worlds
+// WebTransport (HTTP/3) combines best of both worlds
 const transport = new WebTransport('https://api.example.com/webtransport');
+await transport.ready;
+const encoder = new TextEncoder();  // streams and datagrams carry bytes, not strings
 
 // Reliable streams (like WebSocket)
 const reliableStream = await transport.createBidirectionalStream();
-reliableStream.writable.getWriter().write('reliable message');
+reliableStream.writable.getWriter().write(encoder.encode('reliable message'));
 
 // Unreliable datagrams (like WebRTC)
 const datagramWriter = transport.datagrams.writable.getWriter();
-datagramWriter.write('low-latency data');
+datagramWriter.write(encoder.encode('low-latency data'));
 ```
 
 ### Industry Trends and Predictions
 
-**The Hybrid Architecture Revolution:**
+**The Hybrid Architecture Revolution** (predictions, not measured data):
 - **2025-2026**: 80% of new real-time apps will use hybrid WebSocket+WebRTC architectures
 - **2026-2027**: Edge computing integration for sub-20ms global latency
 - **2027-2028**: AI-powered automatic technology selection based on use case
-
-**Market Predictions:**
-- Real-time communication market growing 23% annually
-- WebRTC usage increasing 400% in enterprise applications
-- 95% of video calls will be browser-based by 2027
 
 ---
 
@@ -768,7 +767,7 @@ The battle between WebSockets and WebRTC isn't about one technology being superi
 
 1. **Use WebSockets for reliable data communication**: Text chat, notifications, collaborative editing, and any scenario where message delivery guarantees matter more than ultra-low latency.
 
-2. **Use WebRTC for real-time media**: Video calls, live streaming, screen sharing, and any application where sub-100ms latency is critical for user experience.
+2. **Use WebRTC for real-time media**: Video calls, interactive live streaming, screen sharing, and any application where conversational latency (a few hundred milliseconds at most) is critical for user experience.
 
 3. **Embrace hybrid architectures**: The most successful platforms use WebSockets for signaling and control, WebRTC for media streams, creating the best of both worlds.
 
@@ -789,7 +788,7 @@ Choosing the wrong technology can kill promising startups:
 
 **The Ultimate Lesson:**
 
-Technology choices aren't just technical decisions—they're business decisions. The difference between <50ms and 500ms video latency isn't just numbers on a monitoring dashboard; it's the difference between a $5M funding round and a failed startup. Understanding when to use WebSockets versus WebRTC isn't just about knowing protocols; it's about understanding user experience, scaling economics, and competitive advantage.
+Technology choices aren't just technical decisions—they're business decisions. The difference between ~150ms and multi-second video latency isn't just numbers on a monitoring dashboard; it's the difference between a $5M funding round and a failed startup. Understanding when to use WebSockets versus WebRTC isn't just about knowing protocols; it's about understanding user experience, scaling economics, and competitive advantage.
 
 Emma's team learned that the most elegant solution often isn't choosing one technology over another—it's orchestrating multiple technologies to create something greater than the sum of its parts. In the world of real-time communication, the winners aren't those who pick the "best" technology, but those who pick the right combination of technologies for their specific challenge.
 

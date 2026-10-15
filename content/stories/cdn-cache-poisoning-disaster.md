@@ -120,16 +120,16 @@ curl -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/purge_cache"
        "purge_everything": true
      }'
 
-# More targeted purge for specific patterns
+# More targeted purge by URL prefix ("files" takes exact URLs only, no wildcards)
 curl -X POST "https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/purge_cache" \
      -H "Authorization: Bearer ${CF_TOKEN}" \
      -H "Content-Type: application/json" \
      -d '{
-       "files": [
-         "https://api.shopfast.com/api/user/*",
-         "https://api.shopfast.com/api/cart/*", 
-         "https://api.shopfast.com/api/profile/*",
-         "https://api.shopfast.com/api/orders/*"
+       "prefixes": [
+         "api.shopfast.com/api/user/",
+         "api.shopfast.com/api/cart/",
+         "api.shopfast.com/api/profile/",
+         "api.shopfast.com/api/orders/"
        ]
      }'
 
@@ -143,18 +143,18 @@ aws cloudfront create-invalidation \
 
 ```
 // Emergency CDN bypass headers - add to all personal endpoints
-app.use('/api/user', (req, res, next) => {
+const bypassCDNMiddleware = (req, res, next) => {
   // Nuclear option: prevent ANY caching
   res.set({
     'Cache-Control': 'no-store, no-cache, must-revalidate, private',
     'Pragma': 'no-cache',
     'Expires': '0',
     'Surrogate-Control': 'no-store',
-    'CF-Cache-Status': 'BYPASS',  // CloudFlare specific
+    'CDN-Cache-Control': 'no-store',  // CDN-targeted (Cloudflare and others honour it)
     'X-Accel-Expires': '0'        // Nginx specific
   });
   next();
-});
+};
 
 // Apply to all potentially personal endpoints
 const personalEndpoints = [
@@ -182,7 +182,7 @@ app.use('/api', (req, res, next) => {
   if (isPersonalEndpoint) {
     // Make CDN treat each user as separate cache entry
     res.set({
-      'Vary': 'Authorization, Cookie, X-User-ID',
+      'Vary': 'Authorization, Cookie',
       'Cache-Control': 'private, no-cache',
       'X-User-Context': req.user?.id || 'anonymous'
     });
@@ -190,15 +190,10 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
-// Emergency: Force session ID into cache key
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/user')) {
-    const sessionId = req.headers['authorization'] || req.cookies.session_id;
-    res.set('Vary', `Authorization, ${res.get('Vary') || ''}`);
-    res.set('X-Cache-Key', `user-${sessionId}`);
-  }
-  next();
-});
+// Note: the CDN computes its cache key from the *request*, before the origin
+// answers, so a response header (e.g. X-Cache-Key) cannot change it. Put the
+// session cookie / Authorization header into the key in the CDN's own config,
+// and never echo a bearer token back in a response header.
 ```
 
 ---
@@ -412,14 +407,14 @@ class SecureCacheManager {
         'Expires': '0',
         'Surrogate-Control': 'no-store',  // Varnish
         'X-Accel-Expires': '0',           // Nginx
-        'CF-Cache-Status': 'BYPASS',      // CloudFlare
+        'CDN-Cache-Control': 'no-store',  // CDN-targeted (Cloudflare and others)
         'X-Security-Policy': 'no-cache-sensitive'
       });
       
       // Add user context to prevent cross-contamination
       if (req.user) {
         res.set('X-User-ID', req.user.id);
-        res.set('Vary', 'Authorization, X-User-ID');
+        res.set('Vary', 'Authorization, Cookie');  // Vary names *request* headers
       }
     }
     
@@ -500,7 +495,7 @@ class SecureCacheManager {
 ```mermaid
 %% title: Three layers of protection
 flowchart TD
-    REQ(["Request to a sensitive pattern<br/>/api/user · cart · orders · profile<br/>payment-methods · addresses"]):::client --> L1["Layer 1 · Application-level protection<br/>private, no-cache, no-store · Vary: Authorization, X-User-ID"]:::core
+    REQ(["Request to a sensitive pattern<br/>/api/user · cart · orders · profile<br/>payment-methods · addresses"]):::client --> L1["Layer 1 · Application-level protection<br/>private, no-cache, no-store · Vary: Authorization, Cookie"]:::core
     L1 --> L2["Layer 2 · CDN-level validation"]:::edge
     L2 --> V{"private and no-cache?"}
     V -->|"no"| AL["SECURITY ALERT<br/>sendSecurityAlert cache_header_violation"]:::bad
@@ -533,7 +528,7 @@ class SmartCacheKeyGenerator {
     
     // Check if endpoint varies by language
     if (this.isLanguageSensitive(req.path)) {
-      const language = req.headers['accept-language']?.split(',') || 'en';
+      const language = req.headers['accept-language']?.split(',')[0] || 'en';
       return `${baseKey}:lang:${language}`;
     }
     
@@ -884,7 +879,7 @@ const damageAssessment = {
   },
   
   potentialCosts: {
-    gdprFines: 50000000,       // Up to €50M potential fine
+    gdprFines: 50000000,       // GDPR cap: 4% of global turnover (or €20M if higher)
     lawsuits: 5000000,         // Estimated class action exposure
     brandDamage: 10000000,     // Estimated trust/reputation cost
     customerChurn: 8000000     // Lost lifetime value

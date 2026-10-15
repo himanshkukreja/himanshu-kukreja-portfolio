@@ -72,7 +72,7 @@ adb shell input tap 100 200   # Send touch commands
 adb shell screencap -p         # Capture screenshots
 
 # scrcpy - The streaming champion  
-scrcpy --bit-rate 8M --max-size 1920
+scrcpy --video-bit-rate 8M --max-size 1920
 # Result: Flawless Android device streaming to desktop
 ```
 
@@ -80,7 +80,7 @@ scrcpy --bit-rate 8M --max-size 1920
 Android developers had been enjoying seamless device streaming and control for years through `scrcpy`. Meanwhile, iOS developers were stuck with physical device cables or sharing expensive Mac hardware. The disparity was glaring.
 
 **The iOS Research Deep Dive:**
-While exploring iOS automation tools, I discovered **[Meta's IDB (iOS Debug Bridge)](https://fbidb.io/)** - and everything clicked into place.
+While exploring iOS automation tools, I discovered **[Meta's idb (iOS Development Bridge)](https://fbidb.io/)** - and everything clicked into place.
 
 **IDB: The Missing iOS Foundation:**
 ```bash
@@ -126,7 +126,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     while True:
         # Take screenshot of iOS simulator
         screenshot = subprocess.run([
-            "xcrun", "simctl", "io", session_id, "screenshot", "png", "-"
+            "xcrun", "simctl", "io", session_id, "screenshot", "--type=png", "-"
         ], capture_output=True)
         
         # Send to client
@@ -153,7 +153,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 def capture_frame():
     # Taking screenshots every 200ms via simctl
     result = subprocess.run([
-        "xcrun", "simctl", "io", device_id, "screenshot", "png", "-"
+        "xcrun", "simctl", "io", device_id, "screenshot", "--type=png", "-"
     ], capture_output=True)
     return base64.b64encode(result.stdout)
 

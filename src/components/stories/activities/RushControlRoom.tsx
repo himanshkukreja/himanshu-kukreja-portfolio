@@ -261,7 +261,7 @@ const DEF: ActivityDef = {
       render: (ctx) => (
         <ChoiceStep
           ctx={ctx}
-          prompt="Availability checks run at ~4,00,000 requests a minute; bookings at ~32,000 tickets a minute. Why keep them on separate infrastructure?"
+          prompt="The 2025 system was sized for ~4,00,000 availability enquiries a minute but ~32,000 tickets a minute. Why keep looking and booking on separate infrastructure?"
           options={[
             "Availability data must be strongly consistent.",
             "So a spike in looking can't drag down buying.",

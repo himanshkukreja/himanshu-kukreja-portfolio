@@ -158,23 +158,22 @@ sequenceDiagram
 
 **StreamFlix's Payment Database Setup:**
 ```
--- PostgreSQL Streaming Replication Configuration
+# PostgreSQL Streaming Replication Configuration
 # postgresql.conf (Leader)
 wal_level = replica
 max_wal_senders = 3
 synchronous_commit = on
 synchronous_standby_names = 'payment_replica'
 
-# recovery.conf (Follower)
-standby_mode = on
-primary_conninfo = 'host=leader-db port=5432'
+# postgresql.conf + empty standby.signal file (Follower, PostgreSQL 12+)
+primary_conninfo = 'host=leader-db port=5432 application_name=payment_replica'
 ```
 
 **Failure Scenario:** Leader crashes during payment processing
 - **Detection:** Connection timeouts after 30 seconds
-- **Recovery:** Manual promotion using tools like **Patroni**
+- **Recovery:** Manual promotion (`pg_ctl promote`), or automatic failover with tools like **Patroni**
 - **Downtime:** 2-5 minutes for manual failover
-- **Data Safety:** Synchronous mode ensures zero payment data loss
+- **Data Safety:** Synchronous mode ensures zero payment data loss, as long as the synchronous standby is the one promoted
 
 ### MongoDB: The Automatic Guardian
 

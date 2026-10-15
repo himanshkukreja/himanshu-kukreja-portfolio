@@ -9,18 +9,18 @@ tags: ["Bloom Filter", "Distributed Systems", "URL Filtering", "Spam Detection",
 
 ## Understanding the Problem: The Battle Against Digital Deception
 
-Meet **Sarah**, a content moderator at **GlobalForum**, the world's largest discussion platform with 500 million active users. Every second, thousands of messages flood the platform—some containing innocent links to news articles, others harboring malicious phishing scams designed to steal user credentials or spread malware.
+Meet **Sarah**, a content moderator at **GlobalForum**, the world's largest discussion platform with 500 million active users. Every second, hundreds of messages flood the platform—some containing innocent links to news articles, others harboring malicious phishing scams designed to steal user credentials or spread malware.
 
 At 3 AM during a major geopolitical event, GlobalForum experiences a **10x traffic spike**. Malicious actors exploit the chaos, flooding the platform with fake news sites, cryptocurrency scams, and phishing links disguised as legitimate sources. Sarah watches helplessly as the traditional database-backed spam detection system **collapses under load**, allowing thousands of malicious URLs to slip through while legitimate users face frustrating delays.
 
 **The Crisis Numbers:**
-- **5 billion URL checks per day** during normal traffic
-- **50 billion checks per day** during major news events
+- **200 million URL checks per day** during normal traffic
+- **2 billion checks per day** during major news events (10x)
 - **Target latency: <50ms** for message submission
 - **1.2 billion known malicious URLs** constantly updated from threat feeds
 - **5 million new spam URLs added hourly** during attacks
 
-**Our Mission:** Design a lightning-fast spam detection system that can handle billions of checks per day without breaking the bank or slowing down users, while ensuring **zero false negatives**—no malicious URL must ever slip through.
+**Our Mission:** Design a lightning-fast spam detection system that can handle billions of checks per day without breaking the bank or slowing down users, while ensuring **zero false negatives**—no *known* malicious URL must ever slip through.
 
 ---
 
@@ -33,13 +33,13 @@ Daily Statistics:
 ├── 50M messages posted daily
 ├── 200M URLs submitted for checking
 ├── 1.2B known malicious URLs in database
-├── 5M new threats added hourly
+├── 3.6M+ new threats added daily (up to 5M hourly during attacks)
 └── <50ms response time requirement
 
 Peak Event Traffic (Breaking News):
 ├── 10x message volume spike
-├── 2B URL checks in 4 hours
-├── 50,000 requests per second
+├── ~330M URL checks in 4 hours (10x rate)
+├── ~23,000 requests per second, bursting to 50,000
 ├── Coordinated spam campaigns
 └── System must NOT fail
 ```
@@ -98,13 +98,14 @@ A **Bloom filter** is a space-efficient probabilistic data structure designed fo
 - ✅ **No False Negatives**: If Bloom filter says "not present," it's **guaranteed safe**
 - ⚠️ **Some False Positives**: If it says "possibly present," needs verification (tunable rate)
 - ⚡ **O(1) Performance**: Constant time regardless of data set size
-- 💾 **Memory Efficient**: 10-15 bits per item vs. thousands of bits for full storage
+- 💾 **Memory Efficient**: 10-15 bits per item vs. ~800 bits (100 bytes) for full storage
 
 ### How Bloom Filters Work: The Binary Magic
 
 ```
-Step 1: Initialize Bit Array
- (16 bits for example)
+Step 1: Initialize Bit Array (16 bits for example)
+index:   0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5   (positions 0-15, last digit shown)
+Bits:   [0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0]
 
 Step 2: Choose Hash Functions
 - hash1(x) = x % 16
@@ -117,9 +118,9 @@ URL Hash: 42
 - hash2(42) = (42 * 7) % 16 = 6
 - hash3(42) = (42 * 13) % 16 = 2
 
-Set bits: 
-                ↑     ↑     ↑
-               pos2  pos6  pos10
+Set bits 2, 6, 10:
+Bits:   [0 0 1 0 0 0 1 0 0 0 1 0 0 0 0 0]
+             ↑       ↑       ↑
 
 Step 4: Query "suspicious-crypto.net"  
 URL Hash: 29
@@ -128,9 +129,9 @@ URL Hash: 29
 - hash3(29) = (29 * 13) % 16 = 9
 
 Check bits at positions 13, 11, 9:
-
-                  ↑ ↑       ↑
-                 pos9,11,13 = 0,0,0
+Bits:   [0 0 1 0 0 0 1 0 0 0 1 0 0 0 0 0]
+                           ↑   ↑   ↑
+         pos9, 11, 13 = 0, 0, 0
 
 Result: "DEFINITELY NOT MALICIOUS" (at least one bit is 0)
 ```
@@ -277,7 +278,8 @@ import numpy as np
 from typing import List, Set
 
 class ScalableBloomFilter:
-    def __init__(self, expected_items: int = 1_200_000_000, false_positive_rate: float = 0.001):
+    def __init__(self, expected_items: int = 1_200_000_000, false_positive_rate: float = 0.001,
+                 key: str = "spam_bloom_filter"):
         """Initialize Bloom filter optimized for URL spam detection"""
         
         # Calculate optimal parameters
@@ -288,11 +290,14 @@ class ScalableBloomFilter:
         self.bit_size = int(-expected_items * np.log(false_positive_rate) / (np.log(2) ** 2))
         
         # Optimal number of hash functions  
-        self.hash_count = int((self.bit_size / expected_items) * np.log(2))
+        self.hash_count = round((self.bit_size / expected_items) * np.log(2))  # 9.97 -> 10 (int() would give 9)
         
         # Initialize bit array (distributed across Redis)
+        # Each filter needs its OWN key; one Redis string holds at most 2^32 bits
+        # (512 MB), so the 17.2B-bit array is split across 5 keys
         self.redis_client = redis.Redis(host='redis-cluster', port=6379)
-        self.bit_array_key = "spam_bloom_filter"
+        self.bit_array_key = key
+        self.max_bits_per_key = 2 ** 32
         
         print(f"Bloom Filter Config:")
         print(f"  Expected items: {expected_items:,}")
@@ -322,7 +327,7 @@ class ScalableBloomFilter:
                 hash_val = base_hashes[i] % self.bit_size
             else:
                 # Double hashing: h1(x) + i*h2(x)
-                hash_val = (base_hashes + i * base_hashes) % self.bit_size
+                hash_val = (base_hashes[0] + i * base_hashes[1]) % self.bit_size
             
             hash_values.append(hash_val)
         
@@ -355,6 +360,11 @@ class ScalableBloomFilter:
         
         return url
     
+    def _locate(self, position: int):
+        """Map a global bit position to (Redis key, offset within that key)"""
+        shard, offset = divmod(position, self.max_bits_per_key)
+        return f"{self.bit_array_key}:{shard}", offset
+    
     def add_url(self, url: str) -> None:
         """Add malicious URL to Bloom filter"""
         
@@ -363,7 +373,7 @@ class ScalableBloomFilter:
         # Set bits in Redis using pipeline for performance
         pipe = self.redis_client.pipeline()
         for position in hash_positions:
-            pipe.setbit(self.bit_array_key, position, 1)
+            pipe.setbit(*self._locate(position), 1)
         pipe.execute()
     
     def bulk_add_urls(self, urls: List[str]) -> None:
@@ -374,7 +384,7 @@ class ScalableBloomFilter:
         for url in urls:
             hash_positions = self._hash_functions(url)
             for position in hash_positions:
-                pipe.setbit(self.bit_array_key, position, 1)
+                pipe.setbit(*self._locate(position), 1)
         
         # Execute all operations in single batch
         pipe.execute()
@@ -387,7 +397,7 @@ class ScalableBloomFilter:
         # Check all required bits using pipeline
         pipe = self.redis_client.pipeline()
         for position in hash_positions:
-            pipe.getbit(self.bit_array_key, position)
+            pipe.getbit(*self._locate(position))
         
         results = pipe.execute()
         
@@ -400,17 +410,18 @@ class ScalableBloomFilter:
         # Count set bits (expensive operation, use sparingly)
         set_bits = 0
         bit_sample_size = min(10000, self.bit_size)  # Sample for estimation
+        step = self.bit_size // bit_sample_size
         
-        for i in range(0, bit_sample_size, self.bit_size // bit_sample_size):
-            if self.redis_client.getbit(self.bit_array_key, i):
+        for i in range(0, self.bit_size, step):  # sample across the WHOLE array
+            if self.redis_client.getbit(*self._locate(i)):
                 set_bits += 1
         
         # Estimate total set bits
-        estimated_set_bits = set_bits * (self.bit_size // bit_sample_size)
-        load_factor = estimated_set_bits / self.bit_size
+        estimated_set_bits = set_bits * step
+        load_factor = estimated_set_bits / self.bit_size  # fraction of bits set
         
-        # Estimate actual false positive rate
-        actual_fp_rate = (1 - np.exp(-self.hash_count * load_factor)) ** self.hash_count
+        # Estimate actual false positive rate: all k probed bits happen to be set
+        actual_fp_rate = load_factor ** self.hash_count
         
         return {
             'bit_size': self.bit_size,
@@ -440,6 +451,7 @@ from typing import List
 import time
 
 app = FastAPI(title="Spam URL Detection Service")
+service = None  # created once at startup (below), shared by all requests
 
 class URLCheckRequest(BaseModel):
     urls: List[str]
@@ -522,7 +534,6 @@ class SpamDetectionService:
 async def check_urls(request: URLCheckRequest):
     """API endpoint for bulk URL checking"""
     
-    service = SpamDetectionService()
     results, processing_time = await service.check_urls_batch(request.urls)
     
     return URLCheckResponse(
@@ -534,14 +545,18 @@ async def check_urls(request: URLCheckRequest):
 async def get_stats():
     """Get service performance statistics"""
     
-    service = SpamDetectionService()
     bloom_stats = service.bloom_filter.get_stats()
+    clean_checks = service.stats['total_checks'] - service.stats['verified_malicious']
     
     return {
         'bloom_filter': bloom_stats,
         'service_stats': service.stats,
-        'false_positive_rate': service.stats['false_positives'] / max(service.stats['bloom_hits'], 1)
+        # FPR = false positives / all URLs that are actually clean
+        'false_positive_rate': service.stats['false_positives'] / max(clean_checks, 1)
     }
+
+# One shared instance: a new one per request would reset stats and caches every call
+service = SpamDetectionService()
 ```
 
 ---
@@ -550,7 +565,7 @@ async def get_stats():
 
 ### The Update Challenge
 
-**Real-time Threat Intelligence:**
+**Real-time Threat Intelligence** (GlobalForum's planning figures for daily intake, counting URL variants and re-sightings, not numbers published by these feeds):
 - **Google Safe Browsing**: 1M+ new malicious URLs daily
 - **PhishTank**: 500K+ phishing URLs daily  
 - **Internal ML**: 2M+ machine-detected threats daily
@@ -562,8 +577,9 @@ async def get_stats():
 ```
 class DynamicBloomFilterManager:
     def __init__(self):
-        self.primary_filter = ScalableBloomFilter(expected_items=1_200_000_000)
-        self.update_buffer = ScalableBloomFilter(expected_items=10_000_000)
+        self.primary_filter = ScalableBloomFilter(expected_items=1_200_000_000, key="bf:primary:0")
+        self.update_buffer = ScalableBloomFilter(expected_items=10_000_000, key=f"bf:buffer:{time.time_ns()}")
+        self.previous_buffer = None  # still checked while a rebuild runs
         self.last_rebuild = time.time()
         self.rebuild_threshold = 24 * 3600  # 24 hours
         
@@ -583,8 +599,10 @@ class DynamicBloomFilterManager:
         if self.primary_filter.check_url(url):
             return True
         
-        # Check recent updates buffer
+        # Check recent updates buffer(s)
         if self.update_buffer.check_url(url):
+            return True
+        if self.previous_buffer and self.previous_buffer.check_url(url):
             return True
         
         return False
@@ -603,8 +621,13 @@ class DynamicBloomFilterManager:
         
         print("Starting Bloom filter rebuild...")
         
-        # Create new filter
-        new_filter = ScalableBloomFilter(expected_items=1_200_000_000)
+        # Start a fresh buffer BEFORE the DB snapshot, so threats arriving during
+        # the rebuild are never dropped (that would be a false negative)
+        self.previous_buffer = self.update_buffer
+        self.update_buffer = ScalableBloomFilter(expected_items=10_000_000, key=f"bf:buffer:{time.time_ns()}")
+        
+        # Create new filter under a NEW key (the live one keeps serving meanwhile)
+        new_filter = ScalableBloomFilter(expected_items=1_200_000_000, key=f"bf:primary:{time.time_ns()}")
         
         # Load all current threats from authoritative database
         all_threats = await self._load_all_threats_from_db()
@@ -624,8 +647,8 @@ class DynamicBloomFilterManager:
         old_filter = self.primary_filter
         self.primary_filter = new_filter
         
-        # Clear update buffer after successful rebuild
-        self.update_buffer = ScalableBloomFilter(expected_items=10_000_000)
+        # Everything in the old buffer is now in the snapshot: drop it
+        self.previous_buffer = None
         
         print(f"Bloom filter rebuild complete. Loaded {len(all_threats):,} threats.")
 
@@ -692,10 +715,10 @@ flowchart TD
 
 ```
 Attack Statistics (6-hour window):
-├── 50 billion URL checks (10x normal)
+├── 500 million URL checks (10x normal)
 ├── 25 million unique attack URLs
 ├── 847 distinct malicious domains
-├── 15,000 requests per second sustained
+├── ~23,000 requests per second sustained
 └── Attackers using URL variations to evade detection
 ```
 
@@ -728,11 +751,10 @@ class EmergencySpamResponse:
         
         self.normal_mode = False
         
-        # 1. Reduce false positive tolerance (more aggressive blocking)
-        self.bloom_filter = ScalableBloomFilter(
-            expected_items=1_200_000_000,
-            false_positive_rate=0.01  # 10x more false positives, but faster
-        )
+        # 1. Keep the SAME filter: a Bloom filter's size and hash count can't change
+        #    without a full rebuild, and a fresh/resized one would let known threats
+        #    through. Instead, Bloom hits are trusted without DB verification
+        #    (accepting ~0.1% wrongly blocked clean URLs) - see Stage 2 below.
         
         # 2. Enable pattern-based pre-filtering
         await self._activate_pattern_filters()
@@ -827,7 +849,7 @@ stateDiagram-v2
     Normal --> Emergency: current_rps > 10,000 (emergency_threshold)
     Emergency --> Normal: current_rps < 10,000 × 0.7
     note right of Emergency
-        1. false_positive_rate 0.01
+        1. Same filter · hits skip DB verification
         2. Pattern-based pre-filtering
         3. Cache TTL 1 hour
         4. Domain-level blocking
@@ -850,6 +872,7 @@ class DistributedBloomFilter:
     """Distribute Bloom filter across multiple Redis instances"""
     
     def __init__(self, redis_nodes: List[str], total_bits: int):
+        # Needs >= 5 nodes for 17.2B bits: one Redis string holds at most 2^32 bits
         self.redis_nodes = [redis.Redis.from_url(node) for node in redis_nodes]
         self.hash_ring = consistent_hashing.ConsistentHashRing(redis_nodes)
         self.bits_per_node = total_bits // len(redis_nodes)
@@ -874,8 +897,8 @@ class DistributedBloomFilter:
         
         # Execute operations in parallel across nodes
         tasks = []
-        for node, positions in node_operations.items():
-            task = self._set_bits_on_node(node, positions)
+        for node, local_positions in node_operations.items():
+            task = self._set_bits_on_node(node, local_positions)
             tasks.append(task)
         
         await asyncio.gather(*tasks)
@@ -898,26 +921,26 @@ class DistributedBloomFilter:
         
         # Execute parallel queries
         tasks = []
-        for node, positions in node_operations.items():
-            task = self._check_bits_on_node(node, positions)
+        for node, local_positions in node_operations.items():
+            task = self._check_bits_on_node(node, local_positions)
             tasks.append(task)
         
         results = await asyncio.gather(*tasks)
         
-        # Reconstruct original order
+        # Reconstruct original order (don't reuse `positions` as the loop variable:
+        # it must still be the caller's list when we return)
         bit_values = {}
-        for i, (node, positions) in enumerate(node_operations.items()):
-            for j, local_pos in enumerate(positions):
-                original_pos = local_pos + (self.redis_nodes.index(node) * self.bits_per_node)
-                bit_values[original_pos] = results[i][j]
+        for i, (node, local_positions) in enumerate(node_operations.items()):
+            for j, local_pos in enumerate(local_positions):
+                bit_values[(node, local_pos)] = results[i][j]
         
-        return [bit_values[pos] for pos in positions]
+        return [bit_values[position_to_node[pos]] for pos in positions]
 
 # High-performance URL processing pipeline
 class HighPerformanceURLProcessor:
     def __init__(self):
         self.bloom_filter = DistributedBloomFilter(
-            redis_nodes=['redis://node-1:6379', 'redis://node-2:6379', 'redis://node-3:6379'],
+            redis_nodes=[f'redis://node-{i}:6379' for i in range(1, 6)],  # 5 nodes × ~3.4B bits
             total_bits=17_200_000_000  # 2.15GB distributed
         )
         self.url_queue = asyncio.Queue(maxsize=100000)
@@ -1086,7 +1109,7 @@ print("Metrics server started on port 8000")
 **Scenario 1: Zero False Positives Required**
 ```
 class HybridSpamDetection:
-    """Combine Bloom filter with Cuckoo filter for deletions"""
+    """Combine Bloom filter with Cuckoo filter for deletions (only the DB is exact)"""
     
     def __init__(self):
         self.bloom_filter = ScalableBloomFilter()  # Primary screening
@@ -1104,12 +1127,12 @@ class HybridSpamDetection:
         if not self.bloom_filter.check_url(url):
             return 'CLEAN'  # Guaranteed clean
         
-        # Stage 3: Cuckoo filter verification
-        if self.cuckoo_filter.contains(url):
-            self.cache[url] = 'MALICIOUS'
-            return 'MALICIOUS'
+        # Stage 3: Cuckoo filter - supports deletions, so delisted URLs drop out
+        # here; but it is probabilistic too, so a hit still needs the database
+        if not self.cuckoo_filter.contains(url):
+            return 'CLEAN'
         
-        # Stage 4: Database verification (rare)
+        # Stage 4: Database verification (rare) - the only exact answer
         db_result = await self._verify_with_database(url)
         self.cache[url] = 'MALICIOUS' if db_result else 'CLEAN'
         
@@ -1135,11 +1158,11 @@ class MLEnhancedSpamDetection:
         
         # Stage 2: ML analysis for unknown URLs
         features = self.feature_extractor.extract(url)
-        ml_score = self.ml_model.predict_proba([features])  # Probability of malicious
+        ml_score = self.ml_model.predict_proba([features])[0][1]  # P(malicious)
         
         if ml_score > 0.8:
             # High confidence malicious - add to Bloom filter
-            await self.bloom_filter.add_url(url)
+            self.bloom_filter.add_url(url)
             return {'status': 'ML_DETECTED_MALICIOUS', 'confidence': ml_score}
         elif ml_score > 0.3:
             return {'status': 'SUSPICIOUS', 'confidence': ml_score}
@@ -1156,7 +1179,7 @@ class MLEnhancedSpamDetection:
 | Component | Database Approach | Bloom Filter Approach | Savings |
 |-----------|------------------|----------------------|---------|
 | **Memory** | 120GB × $0.50/GB/month | 2.15GB × $0.50/GB/month | 98.2% |
-| **Compute** | 50 × c5.4xlarge instances | 5 × c5.large instances | 87.5% |
+| **Compute** | 50 × c5.4xlarge instances | 5 × c5.large instances | ~99% |
 | **Database** | RDS Multi-AZ × 10 | RDS Single × 1 | 95% |
 | **Network** | High I/O costs | Minimal I/O | 80% |
 | **Monthly Total** | **$45,000** | **$3,200** | **$41,800** |
@@ -1259,13 +1282,12 @@ class AdaptiveBloomFilter:
         self.url_frequency[url] = self.url_frequency.get(url, 0) + 1
         frequency = self.url_frequency[url]
         
-        # Route to appropriate filter based on frequency
-        if frequency > 100:  # Hot URLs
-            return self.filters['hot'].check_url(url)
-        elif frequency > 10:  # Warm URLs  
-            return self.filters['warm'].check_url(url)
-        else:  # Cold URLs
-            return self.filters['cold'].check_url(url)
+        # Probe the small hot filter first, but always fall through to the
+        # bigger ones: skipping a tier would let known threats through
+        for tier in ('hot', 'warm', 'cold'):
+            if self.filters[tier].check_url(url):
+                return True
+        return False
     
     async def adapt_structure(self):
         """Periodically rebalance filters based on access patterns"""
@@ -1295,10 +1317,11 @@ class QuantumResistantSpamDetection:
             self._post_quantum_hash
         ]
         
-    def _post_quantum_hash(self,  str, seed: int) -> int:
+    def _post_quantum_hash(self, data: str, seed: int) -> int:
         """Quantum-resistant hash function"""
-        # Implementation would use post-quantum cryptographic algorithms
-        # like CRYSTALS-Kyber or CRYSTALS-Dilithium
+        # Note: SHA-3 and BLAKE3 are already considered quantum-resistant
+        # (Grover's algorithm only halves their security); CRYSTALS-Kyber and
+        # CRYSTALS-Dilithium are key-exchange/signature schemes, not hashes
         pass
 ```
 
@@ -1315,13 +1338,13 @@ Bloom filters transform the impossible into the inevitable. What seemed like an 
 - **$41,800 monthly savings** while improving performance
 
 **The Architectural Beauty:**
-- **Probabilistic guarantees** that eliminate false negatives entirely
+- **Probabilistic guarantees** that eliminate false negatives for known threats
 - **Tunable precision** allowing optimization for specific use cases
 - **Horizontal scalability** across distributed Redis clusters
 - **Real-time adaptability** to emerging threat patterns
 
 **The Business Impact:**
-- **Zero malicious URLs slip through** (no false negatives)
+- **Zero known malicious URLs slip through** (no false negatives)
 - **Minimal user friction** from false positive blocking
 - **Massive cost savings** compared to traditional database approaches
 - **Future-proof foundation** for AI and quantum-resistant evolution

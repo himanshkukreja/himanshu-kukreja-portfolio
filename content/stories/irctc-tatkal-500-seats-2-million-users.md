@@ -40,22 +40,22 @@ This happens every single day, on hundreds of trains, all over India. This is th
 
 ## The Anatomy of a Tatkal Rush
 
-To understand why this is so hard, you have to understand what Tatkal actually is. It's not regular booking. Indian Railways deliberately holds back a small block of seats on most trains — the **Tatkal quota** — and releases it exactly **24 hours before departure**, at a fixed clock time: **10:00 AM for AC classes, 11:00 AM for non-AC**.
+To understand why this is so hard, you have to understand what Tatkal actually is. It's not regular booking. Indian Railways deliberately holds back a small block of seats on most trains — the **Tatkal quota** — and releases it **one day before the date of journey** (counted from the train's starting station), at a fixed clock time: **10:00 AM for AC classes, 11:00 AM for non-AC**.
 
 It exists for exactly the situation Ananya is in: a sudden, urgent, can't-plan-ahead trip. And because everyone with an urgent trip converges on the same clock tick, Tatkal isn't really "ticket booking." It's closer to a nationwide, perfectly-synchronized sprint that happens 365 days a year.
 
-Here's what makes one specific train the epicenter of the chaos: on ordinary days, Indian Railways' booking platform handles about **14.5 lakh (1.45 million) tickets a day**, spread evenly across roughly **13,000 trains**. That's calm, predictable traffic. But a Tatkal quota on one *popular* route can pull in a wildly disproportionate share of attention — hundreds of thousands, sometimes over a million, hopeful clicks landing on one train's page in the same handful of seconds.
+Here's what makes one specific train the epicenter of the chaos: on ordinary days, Indian Railways' booking platform handles about **14.5 lakh (1.45 million) tickets a day**, spread across roughly **13,000 trains**. That's calm, predictable traffic. But a Tatkal quota on one *popular* route can pull in a wildly disproportionate share of attention — hundreds of thousands, sometimes over a million, hopeful clicks landing on one train's page in the same handful of seconds.
 
 **Two Very Different Kinds of Traffic:**
 
 | | Checking Availability | Actually Booking |
 |---|---|---|
 | Who does it | Almost everyone | The lucky few |
-| Volume (national peak) | ~4,00,000 requests/minute | ~32,000 tickets/minute |
+| Capacity (national, per minute, 2025) | ~4,00,000 enquiries/minute | ~32,000 tickets/minute |
 | Ratio | **~12** | **1** |
 | What happens if it's slow | Mildly annoying | Someone loses a real seat |
 
-That 12-to-1 ratio is the first clue to how this problem gets solved: the system that shows you *whether* a seat exists must be a completely different beast from the system that actually *hands you* one.
+That roughly 12-to-1 ratio between the capacity built for looking and the capacity built for buying is the first clue to how this problem gets solved: the system that shows you *whether* a seat exists must be a completely different beast from the system that actually *hands you* one.
 
 ---
 
@@ -181,7 +181,7 @@ Here's the part of this story that isn't really about engineering at all — it'
 
 Every seat a script grabs in the opening seconds is a seat a real, urgent traveler never gets to see. And for years, that's exactly what happened at scale: automated scripts that fill forms faster than any human, and organized touts who'd snap up Tatkal seats in bulk within seconds to resell them at a markup — a genuinely illegal practice in India, and a deeply frustrating one for ordinary passengers.
 
-The 2025 numbers on this are staggering. Indian Railways disclosed that it **deactivated 3.03 crore (30.3 million) suspicious user accounts** and placed another **6.05 crore (60.5 million)** under review that year, blocked over **13,000 suspicious email domains**, and flagged **4.18 lakh (418,000) suspicious PNRs** in coordination with law enforcement. This isn't a hypothetical threat model — it's a daily, industrial-scale fight.
+The 2025 numbers on this are staggering. Indian Railways disclosed that it **deactivated about 3.03 crore (30.3 million) suspicious user accounts**, put crores more under suspension or revalidation that year, blocked nearly **13,000 suspicious email domains**, and reported around **4 lakh (400,000) suspicious PNRs** on the National Cyber Crime Reporting Portal. This isn't a hypothetical threat model — it's a daily, industrial-scale fight.
 
 The response, rolled out through 2025, reads like a layered defense:
 
@@ -192,7 +192,7 @@ The response, rolled out through 2025, reads like a layered defense:
 
 None of these are silver bullets on their own. Together, they raise the cost of cheating high enough that most of it simply isn't worth attempting anymore — which, in security, is often the most realistic version of "winning."
 
-![Humans vs scripts: identity, timing and behaviour layers of the 2025 Tatkal defences, with 3.03 crore accounts deactivated and 4.18 lakh suspicious PNRs flagged](/case-files/irctc-bot-defense.png)
+![Humans vs scripts: identity, timing and behaviour layers of the 2025 Tatkal defences, with 3.03 crore accounts deactivated and around 4 lakh suspicious PNRs reported](/case-files/irctc-bot-defense.png)
 <!-- IMAGE PROMPT: A visually striking split-screen illustration. Left side: a shadowy robotic hand/script icon (green matrix-style code streaming from its fingers) rapidly clicking a booking button, surrounded by multiple identical duplicate ghost-icons representing fake accounts, all trying to pass through a gate. Right side: the same gate now has a glowing shield icon with an Aadhaar-style fingerprint/OTP symbol on it, blocking the robotic hand with a red barrier, while a genuine warm-toned human hand (holding a phone with an OTP screen) passes through smoothly with a green checkmark. Include small icons around the shield: a clock icon (time-window restriction), a fingerprint icon (Aadhaar), and a speedometer icon (velocity check). Style: modern cybersecurity-meets-civic-tech illustration, cool blues and greens for the "defense" side, ominous dark green/black for the "bot" side. -->
 
 ---
@@ -201,17 +201,17 @@ None of these are silver bullets on their own. Together, they raise the cost of 
 
 No system this contested gets everything right on the first try, and IRCTC's own history proves it.
 
-**December 2024**, a Tatkal morning like any other: complaints started flooding social media and outage-tracking sites at 9:48 AM, right as the rush was building. Users trying to book were met with a message that must rank among the most painful sentences in Indian tech: *"Due to maintenance activity, e-ticketing service will not be available for the next one hour. Please try later."* On a Tatkal morning, "try later" isn't advice — it's a door slamming shut on someone's train.
+**December 2024**, a Tatkal morning like any other: complaints started flooding social media and outage-tracking sites around 10 AM, right as the Tatkal window opened. Users trying to book were met with a message that must rank among the most painful sentences in Indian tech: *"Due to maintenance activity, e-ticketing service will not be available for the next one hour. Please try later."* On a Tatkal morning, "try later" isn't advice — it's a door slamming shut on someone's train.
 
-**October 2025**, just before Chhath Puja — one of the biggest travel seasons of the year — server errors returned during the Tatkal window yet again, echoing a similar failure that had happened around Diwali weeks earlier. Passengers, understandably, asked the obvious question: why does this keep happening during the exact minutes when it matters most?
+**October 2025**, in the run-up to Diwali and Chhath Puja — the biggest travel season of the year — server errors returned during the Tatkal window yet again (17 October), echoing the string of December 2024 failures. Passengers, understandably, asked the obvious question: why does this keep happening during the exact minutes when it matters most?
 
 The recurring lesson across these incidents is almost always the same one: when the system that lets people *check* availability shares infrastructure with the system that lets people *book*, a spike in one drags down the other. A curious person refreshing the availability page a hundred times shouldn't be able to make a real booking attempt any slower — but if both are running on the same overloaded servers, that's exactly what happens.
 
 ```mermaid
 %% title: When looking and buying share servers
 flowchart TD
-  C(["Curious person<br/>refreshing a hundred times"]):::client --> AV["Checking availability<br/>~4,00,000 requests/minute"]:::service
-  R(["Real booking attempt"]):::client --> BK["Actually booking<br/>~32,000 tickets/minute"]:::core
+  C(["Curious person<br/>refreshing a hundred times"]):::client --> AV["Checking availability<br/>~4,00,000 enquiries/minute capacity"]:::service
+  R(["Real booking attempt"]):::client --> BK["Actually booking<br/>~32,000 tickets/minute capacity"]:::core
   AV --> SH["Same overloaded servers"]:::bad
   BK --> SH
   SH -->|"a spike in one drags down the other"| SL(["Booking attempts slower<br/>server errors in the Tatkal window"]):::bad

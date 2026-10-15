@@ -23,7 +23,7 @@ const ALERTS = [
 ];
 
 function band(p: number): { name: string; cls: string } {
-  if (p >= 80) return { name: "RED · emergency response", cls: "text-bad-text" };
+  if (p >= 80) return { name: "RED · migration underway", cls: "text-bad-text" };
   if (p >= 50) return { name: "ORANGE · active migration planning", cls: "text-signal-text" };
   if (p >= 25) return { name: "YELLOW · start planning", cls: "text-fg" };
   return { name: "GREEN", cls: "text-fg-2" };
@@ -90,7 +90,7 @@ function BurnDown({ ctx }: { ctx: StepCtx }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <StepPrompt sub="50 million events a day are landing in event_log. Run the ingest and answer each automated alert as it fires.">
+      <StepPrompt sub="About 4 million events a day are landing in event_log. Run the ingest and answer each automated alert as it fires.">
         Watch the ID climb. Respond to every alert.
       </StepPrompt>
       <div className="flex flex-col gap-3 border border-line-strong bg-bg p-4">
@@ -185,7 +185,7 @@ const DEF: ActivityDef = {
             "PagerDuty was misconfigured.",
           ]}
           answer={0}
-          explain="MySQL silently fails the INSERTs (duplicate key errors) while reads keep working, so the application and monitoring see “stable”. PostgreSQL and SQL Server throw explicit errors instead; the case file says Oracle cycles back to the minimum value."
+          explain="MySQL fails the INSERTs with duplicate-key errors that the fire-and-forget writer swallows, while reads keep working, so the application and monitoring see “stable”. PostgreSQL and SQL Server throw explicit overflow errors; an Oracle sequence errors at MAXVALUE unless created with CYCLE, which wraps and reissues old IDs."
         />
       ),
     },

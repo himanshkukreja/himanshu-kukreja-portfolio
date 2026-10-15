@@ -11,9 +11,11 @@ tags: ["Geospatial Systems", "GeoHash", "Location Services", "Distributed System
 
 Picture this: **Priya**, a delivery driver in Mumbai, is trying to find a specific shop in the maze-like lanes of Dharavi. The GPS shows "Building No. 42, Lane 7" but there are dozens of unmarked lanes and no clear building numbers. She wastes 30 minutes asking locals, the customer gets frustrated, and the delivery company loses money.
 
-Now imagine if every **4m × 4m square** in India had a unique, memorable code like **"MH12-K7R9Q"**. Priya could navigate directly to that exact spot, emergency services could find accident locations instantly, and e-commerce could revolutionize last-mile delivery.
+Now imagine if every **4m × 4m square** in India had a unique, shareable code like **"TE7UD2EVVK"**. Priya could navigate directly to that exact spot, emergency services could find accident locations instantly, and e-commerce could revolutionize last-mile delivery.
 
 **Enter DIGIPIN Location Service (DLS)** - our mission to assign a unique 10-character alphanumeric code to every 16 square meters across India's 3.28 million square kilometers. That's approximately **205 billion unique locations** that need precise, fast, and scalable addressing.
+
+*(A note on the real thing: India Post's DIGIPIN, launched in May 2025 with IIT Hyderabad and ISRO's NRSC, needs no lookup database. It recursively splits a fixed box over India — 2.5°–38.5°N, 63.5°–99.5°E — into a 4×4 grid ten times, emitting one of 16 symbols per level, for cells of roughly 3.8 m. This case study designs a GeoHash-based service around the same goal.)*
 
 ---
 
@@ -90,25 +92,26 @@ Latitude bits: 1001...
 Interleaved: 11001011... (lon,lat,lon,lat...)
 
 Step 4: Convert to Base32
-11001011... → "te7h" (using base32 encoding)
+11001011... → "te7u" (using base32 encoding)
 ```
 
 #### GeoHash Precision Levels
 
 | GeoHash Length | Lat/Lon Error | Grid Size | Use Case |
 |----------------|---------------|-----------|----------|
-| 1 character | ±23 km | ~5000 km × 5000 km | Country level |
-| 3 characters | ±1.2 km | ~156 km × 156 km | City level |
-| 6 characters | ±0.61 m | ~1.2 km × 0.6 km | Neighborhood |
-| 8 characters | ±0.019 m | ~38 m × 19 m | Building level |
-| **10 characters** | **±0.6 m** | **~1.2 m × 0.6 m** | **DIGIPIN precision** |
+| 1 character | ±2,500 km | ~5000 km × 5000 km | Continent level |
+| 3 characters | ±78 km | ~156 km × 156 km | Region level |
+| 6 characters | ±0.61 km | ~1.2 km × 0.6 km | Neighborhood |
+| 8 characters | ±19 m | ~38 m × 19 m | Building level |
+| **9 characters** | **±2.4 m** | **~4.8 m × 4.8 m** | **DIGIPIN precision (+1 check character = 10)** |
+| 10 characters | ±0.6 m | ~1.2 m × 0.6 m | Sub-meter |
 
 ### Why GeoHash is Perfect for DIGIPIN
 
-1. **Hierarchical Neighbors**: Nearby locations share common prefixes
+1. **Hierarchical Neighbors**: Nearby locations usually share common prefixes (points either side of a cell boundary can differ from the first character)
 2. **Deterministic**: Same lat/lon always produces same hash
 3. **Sortable**: Lexicographic sorting maintains spatial locality
-4. **Compact**: 10 characters cover areas smaller than our 4m requirement
+4. **Compact**: 9 characters give ~4.8 m cells (about 4.5 m wide at Indian latitudes), the closest GeoHash level to our 4m target; a 10th character carries a checksum
 
 ---
 
@@ -164,7 +167,7 @@ sequenceDiagram
 ```
 -- Primary DIGIPIN table (PostgreSQL + PostGIS)
 CREATE TABLE digipins (
-    digipin_id VARCHAR(10) PRIMARY KEY,  -- "MH12-K7R9Q"
+    digipin_id VARCHAR(10) PRIMARY KEY,  -- "TE7UD2EVVK"
     geohash VARCHAR(12) NOT NULL,        -- Underlying spatial hash
     center_point GEOGRAPHY(POINT, 4326), -- WGS84 coordinates
     bounding_box GEOGRAPHY(POLYGON, 4326), -- 4m × 4m boundary
@@ -205,18 +208,19 @@ class DIGIPINGenerator:
     def generate_digipin(self, lat: float, lon: float) -> str:
         """Generate deterministic DIGIPIN from coordinates"""
         
-        # Step 1: Generate high-precision geohash
-        geohash = self.encode_geohash(lat, lon, precision=10)
+        # Step 1: Generate geohash at ~4.8 m precision (9 characters)
+        # Never truncate it: 6 characters would merge ~30,000 cells into one code
+        geohash = self.encode_geohash(lat, lon, precision=9)
         
-        # Step 2: Add checksum for error detection
-        checksum = self.calculate_checksum(geohash)
+        # Step 2: Add a check character for error detection
+        check = self.base32_chars[self.calculate_checksum(geohash) % 32]
         
-        # Step 3: Determine state prefix from coordinates
+        # Step 3: Determine state from coordinates (stored in state_code, used for partitioning)
         state_code = self.get_state_code(lat, lon)
         
-        # Step 4: Format as human-readable DIGIPIN
-        # Format: XX##-YYYYYY (State + Checksum + GeoHash)
-        digipin = f"{state_code}{checksum:02d}-{geohash[:6].upper()}"
+        # Step 4: Format as DIGIPIN
+        # Format: 9-char GeoHash + 1 check character = 10 characters
+        digipin = f"{geohash.upper()}{check}"
         
         return digipin
     
@@ -230,21 +234,21 @@ class DIGIPINGenerator:
         
         for _ in range(precision * 5):  # 5 bits per character
             if even:  # Longitude
-                mid = (lon_range + lon_range) / 2
+                mid = (lon_range[0] + lon_range[1]) / 2
                 if lon >= mid:
                     bits.append(1)
-                    lon_range = mid
+                    lon_range[0] = mid
                 else:
                     bits.append(0)
-                    lon_range = mid
+                    lon_range[1] = mid
             else:  # Latitude
-                mid = (lat_range + lat_range) / 2
+                mid = (lat_range[0] + lat_range[1]) / 2
                 if lat >= mid:
                     bits.append(1)
-                    lat_range = mid
+                    lat_range[0] = mid
                 else:
                     bits.append(0)
-                    lat_range = mid
+                    lat_range[1] = mid
             even = not even
         
         # Convert bits to base32
@@ -254,13 +258,12 @@ class DIGIPINGenerator:
 ```mermaid
 %% title: DIGIPIN generation
 flowchart TD
-    IN(["lat, lon"]):::client --> G["Step 1 · encode_geohash<br/>precision=10 · 5 bits per character"]:::core
-    G --> CK["Step 2 · calculate_checksum<br/>error detection"]:::service
-    IN --> SC["Step 3 · get_state_code<br/>state prefix from coordinates"]:::service
-    G -->|"geohash[:6]"| F["Step 4 · format<br/>XX##-YYYYYY<br/>State + Checksum + GeoHash"]:::hot
+    IN(["lat, lon"]):::client --> G["Step 1 · encode_geohash<br/>precision=9 · 5 bits per character"]:::core
+    G --> CK["Step 2 · calculate_checksum<br/>one check character"]:::service
+    IN --> SC["Step 3 · get_state_code<br/>state_code column · partition key"]:::service
+    G -->|"full 9-char geohash"| F["Step 4 · format<br/>9-char GeoHash + 1 check character"]:::hot
     CK --> F
-    SC --> F
-    F --> OUT(["MH12-K7R9Q"]):::ok
+    F --> OUT(["TE7UD2EVVK"]):::ok
 ```
 
 ---
@@ -277,11 +280,11 @@ WITH search_point AS (
 SELECT 
     d.digipin_id,
     d.locality,
-    ST_Distance(d.center_point::geometry, sp.geom::geometry) as distance_meters
+    ST_Distance(d.center_point, sp.geom::geography) as distance_meters
 FROM digipins d, search_point sp
 WHERE ST_DWithin(
-    d.center_point::geometry, 
-    sp.geom::geometry, 
+    d.center_point,             -- geography: distances in meters
+    sp.geom::geography,         -- (on SRID 4326 geometry they'd be degrees)
     500  -- 500 meter radius
 )
 ORDER BY distance_meters
@@ -328,7 +331,7 @@ def find_digipins_by_prefix(geohash_prefix: str, max_results: int = 1000):
     return db.execute(query, (f"{geohash_prefix}%", max_results))
 
 # Example: Find all DIGIPINs in ~1.2km area
-# digipins = find_digipins_by_prefix("te7h2k")
+# digipins = find_digipins_by_prefix("te7ud2")
 ```
 
 ---
@@ -379,7 +382,7 @@ class DIGIPINCache:
     def __init__(self):
         self.redis_client = redis.Redis(host='redis-cluster', port=6379)
         
-    def cache_digipin(self, digipin_id: str, meta dict, ttl: int = 3600):
+    def cache_digipin(self, digipin_id: str, metadata: dict, ttl: int = 3600):
         """Cache DIGIPIN with geographic indexing"""
         
         # Direct lookup cache
@@ -389,8 +392,8 @@ class DIGIPINCache:
         # Spatial indexing using Redis GEO
         lat, lon = metadata['center_lat'], metadata['center_lon']
         self.redis_client.geoadd(
-            "india_digipins",           # Spatial index name
-            lon, lat, digipin_id        # longitude, latitude, member
+            "india_digipins",               # Spatial index name
+            (lon, lat, digipin_id)          # longitude, latitude, member (redis-py 4+)
         )
     
     def find_nearby_digipins(self, lat: float, lon: float, radius_km: float):
@@ -409,7 +412,7 @@ class DIGIPINCache:
 
 # Cache hot DIGIPINs (frequent lookups)
 cache = DIGIPINCache()
-cache.cache_digipin("MH12-K7R9Q", {
+cache.cache_digipin("TE7UD2EVVK", {
     "center_lat": 19.0760,
     "center_lon": 72.8777,
     "state": "Maharashtra", 
@@ -431,7 +434,7 @@ async function handleRequest(request) {
     
     // Cache static DIGIPIN lookups at edge
     if (url.pathname.startsWith('/api/digipin/')) {
-        const cacheKey = `digipin:${url.pathname}:${url.search}`
+        const cacheKey = url.toString()  // Cache API keys must be a URL or Request
         
         // Check edge cache first
         let response = await caches.default.match(cacheKey)
@@ -510,16 +513,17 @@ class DIGIPINService:
         SELECT digipin_id, geohash, locality, state_code
         FROM digipins 
         WHERE ST_DWithin(
-            center_point::geometry,
-            ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geometry,
-            2  -- 2 meter tolerance for 4m grid
+            center_point,
+            ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
+            3  -- meters: a point is at most ~2.83 m from its 4m cell's centre
         )
+        ORDER BY center_point <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
         LIMIT 1
         """
         
-        return replica.execute(query, (lon, lat))
+        return replica.execute(query, (lon, lat, lon, lat))
     
-    def create_digipin(self, digipin_ dict) -> str:
+    def create_digipin(self, digipin_data: dict) -> str:
         """Write to master only"""
         return self.master_db.execute_insert(
             "INSERT INTO digipins ...", 
@@ -533,7 +537,7 @@ class DIGIPINService:
 
 ### The Chennai Floods Emergency Response
 
-**The Crisis:** December 2015, Chennai faces unprecedented flooding. Emergency services need to locate stranded people using DIGIPINs shared via SMS.
+**The Crisis:** Picture a repeat of Chennai's December 2015 floods, this time with DIGIPINs in place. Emergency services need to locate stranded people using DIGIPINs shared via SMS.
 
 **Challenge:** 10,000 emergency lookups/second during peak crisis hours
 
@@ -585,6 +589,7 @@ def bulk_generate_delivery_zone_digipins(city_bounds: dict) -> List[str]:
     """Pre-generate all DIGIPINs for a delivery zone"""
     
     digipins = []
+    generator = DIGIPINGenerator()
     
     # Generate 4m×4m grid across city bounds
     lat_start, lat_end = city_bounds['lat_range']
@@ -598,7 +603,7 @@ def bulk_generate_delivery_zone_digipins(city_bounds: dict) -> List[str]:
     while lat <= lat_end:
         lon = lon_start
         while lon <= lon_end:
-            digipin = self.generate_digipin(lat, lon)
+            digipin = generator.generate_digipin(lat, lon)
             digipins.append(digipin)
             lon += lon_step
         lat += lat_step
@@ -731,15 +736,13 @@ class OfflineDIGIPINGenerator:
     def generate_offline_digipin(self, lat: float, lon: float) -> str:
         """Generate DIGIPIN using local algorithms"""
         
-        # Step 1: Generate geohash locally
-        geohash = self.local_geohash_encode(lat, lon, precision=10)
+        # Step 1: Generate geohash locally (same 9-char precision as the server)
+        geohash = self.local_geohash_encode(lat, lon, precision=9)
         
-        # Step 2: Determine state from local boundary data
-        state_code = self.find_state_from_coordinates(lat, lon)
-        
-        # Step 3: Format as DIGIPIN
-        checksum = self.calculate_local_checksum(geohash)
-        digipin = f"{state_code}{checksum:02d}-{geohash[:6].upper()}"
+        # Step 2: Format as DIGIPIN: 9-char GeoHash + 1 check character
+        # (pure math: the state lookup is only needed for metadata, not the code)
+        check = "0123456789BCDEFGHJKMNPQRSTUVWXYZ"[self.calculate_local_checksum(geohash) % 32]
+        digipin = f"{geohash.upper()}{check}"
         
         return digipin
     
@@ -863,7 +866,7 @@ class DIGIPINLoadTest:
 class SmartDIGIPIN:
     """Next-generation location intelligence"""
     
-    def predict_delivery_time(self, digipin: str, traffic_ dict) -> int:
+    def predict_delivery_time(self, digipin: str, traffic_data: dict) -> int:
         """AI-powered delivery time prediction"""
         
         location_features = self.extract_location_features(digipin)
@@ -945,7 +948,7 @@ DIGIPIN Location Service represents more than just a mapping system—it's the f
 **Technical Achievements:**
 - **Sub-50ms response times** for 500M+ daily queries
 - **99.95% availability** across multiple regions and disaster scenarios
-- **Elastic scalability** from thousands to millions of requests per second
+- **Elastic scalability** to tens of thousands of requests per second
 - **4-meter precision** using deterministic geohash algorithms
 
 **Architectural Foundations:**
@@ -954,7 +957,7 @@ DIGIPIN Location Service represents more than just a mapping system—it's the f
 - **State-based partitioning** for optimal query performance across India
 - **Automated failover** and disaster recovery for mission-critical availability
 
-The beauty of DIGIPIN lies not just in its technical sophistication, but in its simplicity for end users. Whether it's a delivery driver finding "KA12-R7Y9Q2" in Bangalore's narrow lanes, or emergency services responding to "UP05-M3K7X1" during a crisis, every Indian location now has a precise, shareable, and memorable digital address.
+The beauty of DIGIPIN lies not just in its technical sophistication, but in its simplicity for end users. Whether it's a delivery driver finding "TDR1V9QTJ7" in Bangalore's narrow lanes, or emergency services responding to "TUC89ZR1RM" in Lucknow during a crisis, every Indian location now has a precise, shareable, and memorable digital address.
 
 As India continues its digital journey, DIGIPIN will evolve from a location service into a comprehensive spatial intelligence platform, powering everything from autonomous vehicle navigation to smart city infrastructure management. The foundation we've built today will serve as the backbone for tomorrow's location-aware applications, ensuring that no corner of India remains unreachable in our connected future.
 

@@ -110,7 +110,7 @@ function Halving({
             }
           >
             {finished
-              ? `${bits.filter((b) => b.mine === b.right).length} of ${ROUNDS} right. Each extra halving doubles the precision; DIGIPIN runs 5 bits per character for 10 characters.`
+              ? `${bits.filter((b) => b.mine === b.right).length} of ${ROUNDS} right. Each extra halving doubles the precision; the DIGIPIN code is 9 GeoHash characters of 5 bits each, plus a check character.`
               : null}
           </Feedback>
         )}
@@ -179,7 +179,7 @@ const DEF: ActivityDef = {
             "The checksum digits encode the district.",
           ]}
           answer={1}
-          explain="Because every character is a further halving of the same grid, nearby points share prefixes: cluster_by_geohash_prefix() uses a 6-character prefix for roughly 1.2 km clusters, and prefix queries (WHERE geohash LIKE 'te7h2k%') stay fast and sortable."
+          explain="Because every character is a further halving of the same grid, nearby points share prefixes: cluster_by_geohash_prefix() uses a 6-character prefix for roughly 1.2 km clusters, and prefix queries (WHERE geohash LIKE 'te7ud2%') stay fast and sortable."
         />
       ),
     },

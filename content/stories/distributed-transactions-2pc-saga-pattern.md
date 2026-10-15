@@ -483,7 +483,7 @@ sequenceDiagram
 - **Hotel**: ❓ Locked but not confirmed  
 - **Car**: ✅ Booked and charged customer
 - **Customer**: Has flight and car, but no hotel!
-- **System State**: Inconsistent and corrupted
+- **System State**: Inconsistent until the partition heals and COMMIT is re-sent (the hotel is "in doubt" and can't decide alone) — and our coordinator had no durable decision log or retry, so it never was
 
 ---
 
@@ -532,12 +532,12 @@ blocking_stats = {
     'resources_locked_per_transaction': 3,
     'concurrent_transactions_peak': 50000,
     'total_resources_at_risk': 150000,  # 50k × 3 resources
-    'coordinator_uptime': 99.5,  # 99.5% uptime = 4.38 hours downtime/month
+    'coordinator_uptime': 99.5,  # 99.5% uptime = ~3.65 hours downtime/month
     'blocked_customers_per_outage': 25000,  # Customers affected during coordinator crash
 }
 ```
 
-### Problem 2: CAP Theorem Violations
+### Problem 2: The CAP Theorem Trade-off
 
 **WonderTravel's CAP Analysis:**
 
@@ -554,7 +554,8 @@ Availability (A): ❌ POOR
 - Coordinator failures cause total outages
 - Services can't make progress independently
 
-Partition Tolerance (P): ❌ POOR  
+Partition Tolerance (P): not optional - partitions WILL happen
+- 2PC "tolerates" them by blocking: it picks C over A (a CP protocol)
 - Network splits cause indefinite blocking
 - Cannot distinguish between slow network and crashed node
 - Manual intervention required for recovery
@@ -621,14 +622,14 @@ print(f"Performance degradation: {high_load['transaction_latency_ms'] / low_load
 
 ## The Saga Pattern: Choreographed Resilience
 
-### Understanding Saga: The Netflix Model
+### Understanding Saga: Undo Instead of Lock
 
-After the 2PC disaster, Alex's team discovered the **Saga Pattern**—a way to manage distributed transactions without blocking or coordinators. Instead of locking resources and coordinating commits, Saga breaks the transaction into a sequence of **local transactions**, each with a corresponding **compensating action**.
+After the 2PC disaster, Alex's team discovered the **Saga Pattern** (first described by Garcia-Molina and Salem in 1987)—a way to manage distributed transactions without distributed locks or a blocking commit protocol. Instead of locking resources and coordinating commits, Saga breaks the transaction into a sequence of **local transactions**, each with a corresponding **compensating action**.
 
 **Core Saga Principles:**
-- **No locks**: Each service commits immediately to its local database
+- **No distributed locks**: Each service commits immediately to its local database
 - **Compensating actions**: For every action, define how to undo it
-- **Event-driven**: Services communicate through events, not direct calls
+- **Event-driven** (in the choreographed style): Services communicate through events, not direct calls
 - **Eventually consistent**: System reaches consistency over time, not immediately
 
 ```
@@ -779,7 +780,9 @@ class TravelBookingSagaOrchestrator:
                         'error': str(e)
                     })
         
-        saga_state.status = SagaStatus.COMPENSATED
+        # Only COMPENSATED if every undo worked; otherwise flag for manual repair
+        all_undone = all(r and r.get('success') for r in compensation_results)
+        saga_state.status = SagaStatus.COMPENSATED if all_undone else SagaStatus.FAILED
         await self._persist_saga_state(saga_state)
         
         return {
@@ -818,7 +821,7 @@ class TravelBookingSagaOrchestrator:
     async def _execute_compensation(self, step_name: str, step_result, saga_state):
         """Execute compensating action for a completed step"""
         
-        compensation_function = self.compensation_handlers.get(step_name.split('_'))
+        compensation_function = self.compensation_handlers.get(step_name.split('_')[0])  # 'flight_booking' -> 'flight'
         
         if compensation_function:
             return await compensation_function(step_result, saga_state)
@@ -864,6 +867,14 @@ class TravelBookingSagaOrchestrator:
         # Similar implementation to flight compensation  
         pass
 
+class SagaStatus(Enum):  # defined before SagaState, which uses it as a default
+    STARTED = "started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    COMPENSATING = "compensating"
+    COMPENSATED = "compensated"
+    FAILED = "failed"
+
 @dataclass
 class SagaState:
     saga_id: str
@@ -876,14 +887,6 @@ class SagaState:
     def __post_init__(self):
         if self.completed_steps is None:
             self.completed_steps = []
-
-class SagaStatus(Enum):
-    STARTED = "started"
-    IN_PROGRESS = "in_progress"
-    COMPLETED = "completed"
-    COMPENSATING = "compensating"
-    COMPENSATED = "compensated"
-    FAILED = "failed"
 ```
 
 ```mermaid
@@ -1317,8 +1320,9 @@ class DistributedIdempotencyManager:
         if cached_result:
             return json.loads(cached_result)
         
-        # Acquire distributed lock
-        lock_acquired = await self.redis.set(lock_key, "locked", ex=300, nx=True)  # 5 min lock
+        # Acquire distributed lock (unique token, so we only ever release our own)
+        token = str(uuid.uuid4())
+        lock_acquired = await self.redis.set(lock_key, token, ex=300, nx=True)  # 5 min lock
         
         if not lock_acquired:
             # Another instance is processing this operation
@@ -1345,8 +1349,12 @@ class DistributedIdempotencyManager:
             return result
             
         finally:
-            # Always release the lock
-            await self.redis.delete(lock_key)
+            # Release the lock only if it is still ours: if the operation outlived
+            # the 5-min TTL, another instance may now hold it
+            await self.redis.eval(
+                "if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) end return 0",
+                1, lock_key, token
+            )
 ```
 
 ```mermaid
@@ -1392,10 +1400,11 @@ class RareUseCasesFor2PC:
     def financial_transfers():
         """Bank account transfers between different banks"""
         return {
-            'use_case': 'Interbank money transfers',
+            'use_case': 'Money transfers across databases inside one institution',
             'why_2pc': 'Absolute consistency required - no partial transfers allowed',
             'constraints': 'Lower volume, can tolerate blocking',
-            'example': 'Transfer $10,000 from Bank A to Bank B - must be atomic',
+            'example': 'Move $10,000 between two account databases at the same bank - must be atomic',
+            # (Transfers BETWEEN banks don't use 2PC: they go through settlement systems)
             'acceptable_trade_offs': 'Lower availability for perfect consistency'
         }
     
@@ -1600,7 +1609,7 @@ class IntelligentSagaCompensation:
         features = self._extract_features(saga_context, failure_reason)
         
         # Predict best compensation approach
-        compensation_scores = self.ml_model.predict_proba([features])
+        compensation_scores = self.ml_model.predict_proba([features])[0]  # one row of class scores
         
         strategies = [
             'immediate_full_refund',
@@ -1641,6 +1650,7 @@ class EventSourcingSaga:
     
     def __init__(self):
         self.event_store = EventStore()
+        self.event_bus = EventBus()
         self.saga_projector = SagaStateProjector()
     
     async def execute_saga_with_event_sourcing(self, saga_id: str, booking_request: dict):
@@ -1669,7 +1679,7 @@ class EventSourcingSaga:
         
         return state
     
-    async def _emit_event(self, saga_id: str, event_type: str, event_ dict):
+    async def _emit_event(self, saga_id: str, event_type: str, event_data: dict):
         """Emit saga event to event store"""
         
         event = {
