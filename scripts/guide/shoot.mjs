@@ -9,6 +9,12 @@
  * Env: GUIDE_BASE_URL (default http://localhost:3110), PLAYWRIGHT_MODULE (path to playwright when it
  * isn't installed in this repo). Reads NEXT_PUBLIC_SUPABASE_URL and SDM_LOCAL_DIR from .env/.env.local.
  *
+ * The share-* shots need a DEV server started with SHARE_FIXTURES=1 (src/lib/share/store.ts: settings
+ * live in memory, `Bearer fixture.<id>` signs in a fixture learner, nothing touches the database):
+ *   SHARE_FIXTURES=1 npm run dev -- -p 3110 && npm run guide:shots -- share
+ * They run in a browser that resolves himanshukukreja.in to that server, so links the page builds from
+ * window.location (the share link, the /u/ handle prefix) read like production instead of localhost.
+ *
  * Every context seeds realistic learner state into localStorage (scripts/guide/seed.mjs), sets
  * hk.notrack=1, blocks analytics and refuses every write (scripts/guide/mock.mjs), uses the LIGHT
  * theme, and saves WebP files + public/guide/shots.json (image sizes, numbered callout positions in
@@ -79,18 +85,36 @@ let browser;
 const questions = readTrialQuestions(SDM_DIR);
 let stages = {};
 
-async function makeContext({ phone = false, signedIn = false, seed = true, fixtures = {} } = {}) {
+/** Production host, resolved to BASE by a second browser (share shots: links show the real domain). */
+const PROD_HOST = "himanshukukreja.in";
+let hostBrowser;
+async function prodBrowser() {
+  if (hostBrowser) return hostBrowser;
+  const b = new URL(BASE);
+  hostBrowser = await chromium.launch({ args: [`--host-resolver-rules=MAP ${PROD_HOST} ${b.hostname}:${b.port || 80}`] });
+  return hostBrowser;
+}
+
+/**
+ * @param {object} [o]
+ * @param {boolean} [o.prodHost]     open pages as http://himanshukukreja.in (served by BASE)
+ * @param {boolean} [o.nativeShare]  phones: give the page a navigator.share, as real phones have
+ * @param {any} [o.share]            ShareState the share API answers with (signed in)
+ */
+async function makeContext({ phone = false, signedIn = false, seed = true, fixtures = {}, prodHost = false, nativeShare = false, share = null } = {}) {
   const device = phone ? { ...devices["iPhone 13"], deviceScaleFactor: 2 } : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 };
-  const ctx = await browser.newContext({ ...device, colorScheme: "light", locale: "en-IN", timezoneId: "Asia/Kolkata" });
+  const ctx = await (prodHost ? await prodBrowser() : browser).newContext({ ...device, colorScheme: "light", locale: "en-IN", timezoneId: "Asia/Kolkata" });
+  ctx.__base = prodHost ? `http://${PROD_HOST}` : BASE;
   const sess = signedIn ? sessionStorageEntry(SUPABASE_URL) : null;
   const s = seed ? buildSeed({ stages, questions, userId: signedIn ? DEMO_USER.id : null }) : { store: { "hk.notrack": "1", theme: "light", "sd:coach:select": "1" } };
   const store = { ...s.store };
   if (sess) store[sess.key] = sess.value;
   await ctx.addInitScript(
-    ({ store, css }) => {
+    ({ store, css, nativeShare }) => {
       try {
         for (const [k, v] of Object.entries(store)) localStorage.setItem(k, v);
       } catch {}
+      if (nativeShare && !navigator.share) navigator.share = async () => {};
       const add = () => {
         const st = document.createElement("style");
         st.textContent = css;
@@ -99,7 +123,7 @@ async function makeContext({ phone = false, signedIn = false, seed = true, fixtu
       if (document.head) add();
       else document.addEventListener("DOMContentLoaded", add);
     },
-    { store, css: CSS },
+    { store, css: CSS, nativeShare: nativeShare && phone },
   );
   const profile = {
     id: DEMO_USER.id,
@@ -118,13 +142,13 @@ async function makeContext({ phone = false, signedIn = false, seed = true, fixtu
     longest_streak: 4,
   };
   ctx.__seeded = seed;
-  await installRoutes(ctx, { supabaseUrl: SUPABASE_URL, signedIn, fixtures, profile, user: sess?.user, game: s.game, board: (p, si) => exampleBoard(p, si) });
+  await installRoutes(ctx, { supabaseUrl: SUPABASE_URL, signedIn, fixtures, profile, user: sess?.user, game: s.game, board: (p, si) => exampleBoard(p, si), share });
   return ctx;
 }
 
 async function open(ctx, url, waitFor) {
   const page = await ctx.newPage();
-  await page.goto(BASE + url, { waitUntil: "networkidle", timeout: 180_000 }).catch(() => undefined);
+  await page.goto((ctx.__base || BASE) + url, { waitUntil: "networkidle", timeout: 180_000 }).catch(() => undefined);
   if (waitFor) await page.waitForSelector(waitFor, { timeout: 60_000 }).catch(() => console.warn(`  ! ${waitFor} not found on ${url}`));
   // hydrated: the level chip shows the seeded level (L4 for the persona) instead of the SSR default L1
   if (ctx.__seeded) await page.waitForFunction(() => /L[2-6]/.test(document.querySelector("button[data-quest-toggle]")?.textContent || ""), null, { timeout: 30_000 }).catch(() => console.warn(`  ! ${url} did not hydrate`));
@@ -1063,6 +1087,213 @@ shot("progress", () =>
   }),
 );
 
+/* ---------- i2) share my progress */
+
+/**
+ * Example public page: the dev server's fixture learner `fx-grace` (src/lib/share/fixtures.ts) is
+ * republished under an example handle, anonymous, everything else visible (in memory only), and
+ * the signed-in mock's share API answers with that same state, so the settings preview, the share
+ * sheet and the public page agree.
+ */
+const SHARE = { fixture: "fx-grace", handle: "demo-learner" };
+async function shareState() {
+  if (shareState.v) return shareState.v;
+  const headers = { authorization: `Bearer fixture.${SHARE.fixture}`, "content-type": "application/json" };
+  const visibility = { name: "none", avatar: false, progress: true, tree: true, streak: true, scores: true, badges: true, milestones: true };
+  const put = await fetch(`${BASE}/api/learn/share`, { method: "PUT", headers, body: JSON.stringify({ enabled: true, handle: SHARE.handle, visibility }) }).catch(() => null);
+  if (!put?.ok) throw new Error(`share fixtures unavailable (HTTP ${put?.status ?? "offline"}): start the dev server with SHARE_FIXTURES=1`);
+  const res = await fetch(`${BASE}/api/learn/share`, { headers });
+  const st = await res.json();
+  if (!st?.settings?.enabled) throw new Error("share fixture state did not load");
+  return (shareState.v = st);
+}
+const U = `/u/${SHARE.handle}`;
+
+/** A point just right of the end of an element's text (its last line): a marker there covers nothing. */
+async function afterText(page, sel, text, dx = 30, exact = false) {
+  return page.evaluate(
+    ({ sel, text, dx, exact }) => {
+      const has = (e) => !text || (exact ? (e.textContent || "").trim().toLowerCase() === text.toLowerCase() : (e.textContent || "").includes(text));
+      const el = [...document.querySelectorAll(sel)].find((e) => e.getBoundingClientRect().height > 0 && has(e));
+      if (!el) return null;
+      const r = document.createRange();
+      r.selectNodeContents(el);
+      const rects = [...r.getClientRects()].filter((x) => x.width > 0);
+      const last = rects[rects.length - 1];
+      return last ? [last.right + dx, last.top + last.height / 2] : null;
+    },
+    { sel, text: text || null, dx, exact },
+  );
+}
+
+shot("share-settings", async () => {
+  const share = await shareState();
+  await both(
+    async (ctx, v) => {
+      const page = await open(ctx, "/learn/dashboard#share", "#share-handle");
+      await page.waitForFunction(() => document.querySelector('#share button[role="switch"]')?.getAttribute("aria-checked") === "true", null, { timeout: 30_000 }).catch(() => console.warn("  ! share switch not on"));
+      // put the section just below the sticky "Progress sections" row, which must stay out of the shot
+      const belowNav = async () => {
+        await scrollTo(page, "#share", 140);
+        const nav = await rectOf(page, 'nav[aria-label="Progress sections"]');
+        const sec = await rectOf(page, "#share");
+        const want = (nav ? nav.y + nav.height : 0) + 20;
+        await page.evaluate((d) => window.scrollBy({ top: d, behavior: "instant" }), sec.y - want);
+        await page.waitForTimeout(400);
+        return rectOf(page, "#share");
+      };
+      if (v === "desktop") {
+        await page.setViewportSize({ width: 1440, height: 1250 });
+        const sec = await belowNav();
+        await capture(page, "share-settings", v, {
+          clip: { x: 60, y: sec.y - 12, width: 1320, height: Math.min(1100, sec.height + 28) },
+          alt: "Progress page, 05 · share: the Public page switch, the handle for your /u/ link, the name shown, six switches for what visitors see, a live preview of the page and the Share my page button.",
+          callouts: [
+            { n: 1, label: "Public page: off until you turn it on", sel: '#share button[role="switch"]', at: "l", dx: -24 },
+            { n: 2, label: "Your handle: the link is himanshukukreja.in/u/<handle>", sel: "#share-handle", at: "r", dx: -30 },
+            { n: 3, label: "Name: full, first name + initial, or anonymous", point: await afterText(page, "#share fieldset span", "Name on the page") },
+            { n: 4, label: "What visitors see: six switches", point: await afterText(page, "#share fieldset span", "What visitors see") },
+            { n: 5, label: "Never shown: email, notes, highlights, bookmarks", point: await afterText(page, "#share fieldset p", "Never shown") },
+            { n: 6, label: "Live preview of your page", point: await afterText(page, "#share span", "visitors see", 30, true) },
+            { n: 7, label: "Share it, or open the page as visitors see it", sel: '#share button[data-share="profile"]', at: "l", dx: -22 },
+          ],
+        });
+      } else {
+        await page.setViewportSize({ width: 390, height: 1000 });
+        const sec = await belowNav();
+        const photo = await rectOf(page, "#share label", "profile photo");
+        await capture(page, "share-settings", v, {
+          clip: { x: 0, y: sec.y - 10, width: 390, height: photo.y + photo.height + 22 - (sec.y - 10) },
+          alt: "The share settings on a phone: the Public page switch, the /u/ handle and the name shown on the page.",
+          callouts: [
+            { n: 1, label: "Public page on or off", sel: '#share button[role="switch"]', at: "l", dx: -22 },
+            { n: 2, label: "Your handle", sel: "#share-handle", at: "r", dx: -30 },
+            { n: 3, label: "Name: full, first + initial, or anonymous", point: await afterText(page, "#share fieldset span", "Name on the page") },
+          ],
+        });
+      }
+    },
+    { signedIn: true, prodHost: true, share, fixtures: notebookFixtures() },
+  );
+});
+
+shot("share-sheet", async () => {
+  const share = await shareState();
+  await both(
+    async (ctx, v) => {
+      const page = await open(ctx, "/learn/dashboard", "#share-handle");
+      if (v === "phone") await page.setViewportSize({ width: 390, height: 900 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.locator('main button[data-share="profile"]').first().click();
+      await page.waitForSelector('div.fixed input[aria-label="Share link"]', { timeout: 30_000 });
+      await page.waitForTimeout(700);
+      // the sheet's own box: the overlay child that holds its heading
+      const box = await page.evaluate(() => {
+        const h = document.querySelector("div.fixed.inset-0 h2#share-h");
+        let el = h;
+        while (el && el.parentElement && !el.parentElement.classList.contains("fixed")) el = el.parentElement;
+        const r = el.getBoundingClientRect();
+        return { x: r.left, y: r.top, width: r.width, height: r.height };
+      });
+      const pad = v === "phone" ? 8 : 20;
+      await capture(page, "share-sheet", v, {
+        clip: { x: box.x - pad, y: box.y - pad, width: box.width + pad * 2, height: box.height + pad * 2 },
+        header: true,
+        alt: "The share sheet: your public link with Copy link, buttons for WhatsApp, LinkedIn and X, the prefilled message, and links to open your page or change what's visible.",
+        callouts: [
+          { n: 1, label: "Your link, ready to copy", sel: 'div.fixed input[aria-label="Share link"]', at: "tl", dy: -12 },
+          ...(v === "phone" ? [{ n: 2, label: "Share…: your phone's own share sheet", sel: "div.fixed button", text: "Share…", at: "tl" }] : []),
+          { n: v === "phone" ? 3 : 2, label: "WhatsApp, LinkedIn or X with the message filled in", sel: 'div.fixed a[data-channel="whatsapp"]', at: "tl" },
+          { n: v === "phone" ? 4 : 3, label: "The message; copy it together with the link", point: await afterText(page, "div.fixed span", "message") },
+          { n: v === "phone" ? 5 : 4, label: "Open your page, or change what's visible", point: await afterText(page, "div.fixed a", "open my public page") },
+        ],
+      });
+    },
+    { signedIn: true, prodHost: true, share, fixtures: notebookFixtures(), nativeShare: true },
+  );
+});
+
+shot("share-public", async () => {
+  await shareState();
+  await both(
+    async (ctx, v) => {
+      const page = await open(ctx, U, "#who-h");
+      if (v === "desktop") {
+        await page.setViewportSize({ width: 1440, height: 1000 });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(400);
+        const hero = await rectOf(page, 'section[aria-labelledby="who-h"]');
+        await capture(page, "share-public", v, {
+          clip: { x: hero.x - 24, y: hero.y - 24, width: hero.width + 48, height: hero.height + 48 },
+          alt: "A public progress page at /u/demo-learner (example data): the handle, the level on the L1 Intern to L6 Principal ladder with XP, course percentage, streak, lessons and worlds, a world map, and buttons for visitors to start the free course or take today's daily challenge.",
+          callouts: [
+            { n: 1, label: "Name, first name + initial, or @handle (anonymous here)", point: await afterText(page, "#who-h", null, 22) },
+            { n: 2, label: "Level on the L1 Intern → L6 Principal ladder, with XP", point: await afterText(page, "main span.font-mono", "XP ·") },
+            { n: 3, label: "Course %, streak, lessons and worlds", sel: 'section[aria-labelledby="who-h"] .grid.grid-cols-2', at: "tl" },
+            { n: 4, label: "World map: one bar per world", point: await afterText(page, "main span", "world map") },
+            { n: 5, label: "Visitors can start the free course or today's daily challenge", sel: 'aside[aria-label="Start the course"]', at: "tl" },
+            { n: 6, label: "Your best daily, as a challenge", point: await afterText(page, "main a span span", "can you beat their score?") },
+          ],
+        });
+        await scrollTo(page, "#arena-h", 90);
+        const arena = await rectOf(page, 'section[aria-labelledby="arena-h"]');
+        const end = await page.evaluate(() => {
+          const b = document.querySelector('section[aria-labelledby="ms-h"]') || document.querySelector('section[aria-labelledby="badges-h"]');
+          return b ? b.getBoundingClientRect().bottom : 0;
+        });
+        const vp = page.viewportSize();
+        await capture(page, "share-public-scores", v, {
+          clip: { x: arena.x - 24, y: arena.y - 20, width: arena.width + 48, height: Math.min(vp.height - (arena.y - 20), Math.max(arena.height, end - arena.y) + 40) },
+          alt: "Further down the public page: Arena scores (league, rank in league, points this week, best daily, daily streak) with a challenge link, the badges earned and recent milestones.",
+          callouts: [
+            { n: 1, label: "Arena: league, rank, weekly points, best daily, daily streak", sel: 'section[aria-labelledby="arena-h"] .grid', at: "tl" },
+            { n: 2, label: "“Can you beat …?” opens today's daily challenge", sel: 'section[aria-labelledby="arena-h"] a', at: "tl" },
+            { n: 3, label: "Badges earned", point: await afterText(page, "#badges-h") },
+            { n: 4, label: "Milestones; each big one has its own share page", point: await afterText(page, "#ms-h") },
+          ],
+        });
+      } else {
+        await page.setViewportSize({ width: 390, height: 1000 });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(400);
+        const hero = await rectOf(page, 'section[aria-labelledby="who-h"]');
+        const map = await rectOf(page, 'ol[aria-label="Completion per world"]');
+        await capture(page, "share-public", v, {
+          clip: { x: 0, y: hero.y - 16, width: 390, height: map.y + map.height + 20 - (hero.y - 16) },
+          alt: "The same public page on a phone: handle, level ladder, the four numbers and the world map.",
+          callouts: [
+            { n: 1, label: "Name or @handle", sel: "#who-h", at: "tr", dy: -14 },
+            { n: 2, label: "Level and XP", point: await afterText(page, "main span.font-mono", "XP ·") },
+            { n: 3, label: "Course %, streak, lessons, worlds", sel: 'section[aria-labelledby="who-h"] .grid.grid-cols-2', at: "tl" },
+          ],
+        });
+      }
+    },
+    { prodHost: true },
+  );
+});
+
+shot("share-achievement", async () => {
+  await shareState();
+  await both(
+    async (ctx, v) => {
+      const page = await open(ctx, `${U}/a/world-02`, "#ach-h");
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(400);
+      const card = await rectOf(page, 'section[aria-labelledby="ach-h"]');
+      await capture(page, "share-achievement", v, {
+        clip: { x: card.x - 20, y: card.y - 20, width: card.width + 40, height: card.height + 40 },
+        alt: "An achievement page (/u/demo-learner/a/world-02): World 02 cleared, with the world's badge and a link to the learner's full progress.",
+        callouts: [
+          { n: 1, label: "One achievement, big: here a cleared world", point: await afterText(page, "#ach-h", null, 70) },
+          { n: 2, label: "Back to the learner's full page", sel: 'section[aria-labelledby="ach-h"] a', text: "full progress", at: "t", dy: -34 },
+        ],
+      });
+    },
+    { only: "desktop", prodHost: true },
+  );
+});
+
 /* ---------- j) case files */
 
 shot("cases", () =>
@@ -1117,4 +1348,5 @@ try {
   }
 } finally {
   await browser.close();
+  await hostBrowser?.close();
 }

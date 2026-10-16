@@ -23,6 +23,8 @@ import {
   DAILY_XP_PER_RIGHT,
   DAILY_XP_PERFECT,
   DEBRIEF_XP,
+  HANDLE_MAX,
+  HANDLE_MIN,
   LEAGUE_RULES,
   LEARN_XP,
   LEITNER_INTERVALS,
@@ -32,7 +34,10 @@ import {
   POINTS,
   POINTS_TABLE,
   QUIZ_XP,
+  REF_DAYS,
   REVIEW_XP_PER_CARD,
+  SHARE_ALL_ON,
+  SHARE_DEFAULT_NAME,
   STAGE_ACE_XP,
   TRIAL_COOLDOWN_MIN,
   TRIAL_PASS_PCT,
@@ -55,10 +60,11 @@ const TOC: TocItem[] = [
   { id: "arena", n: "07", label: "The Arena" },
   { id: "xp", n: "08", label: "XP, levels, badges" },
   { id: "progress", n: "09", label: "Progress page" },
-  { id: "cases", n: "10", label: "Case files" },
-  { id: "account", n: "11", label: "Account & data" },
-  { id: "faq", n: "12", label: "FAQ" },
-  { id: "glossary", n: "13", label: "Glossary" },
+  { id: "share", n: "10", label: "Share your progress" },
+  { id: "cases", n: "11", label: "Case files" },
+  { id: "account", n: "12", label: "Account & data" },
+  { id: "faq", n: "13", label: "FAQ" },
+  { id: "glossary", n: "14", label: "Glossary" },
 ];
 
 const LOOP = [
@@ -146,7 +152,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                   shot: "progress-top",
                   title: "Track your progress",
                   what: "The stage bar in every lesson, and the Progress tab for the whole course.",
-                  can: ["See which stage you're on and minutes left", "Resume exactly where you stopped", "Course map of every lesson, boss and trial", "Streak, activity heatmap, weekly goal, your data"],
+                  can: ["See which stage you're on and minutes left", "Resume exactly where you stopped", "Course map of every lesson, boss and trial", "Streak, activity heatmap, weekly goal, your data", "Share a public page with friends (off until you turn it on)"],
                   href: "#progress",
                   tab: "progress tab",
                 },
@@ -602,6 +608,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               <strong className="text-fg">Weekly goal:</strong> pick minutes or lessons per week and, if you like, a finish date. The page projects when you&apos;ll finish at your recent pace and how much a week you need to make your date.{" "}
               <strong className="text-fg">What stuck:</strong> best trial score per part, review cards by box, Notebook counts and every badge.
             </p>
+            <p className="m-0 max-w-[70ch] text-[15px] leading-relaxed text-fg-2">
+              <strong className="text-fg">Share my progress:</strong> turn on a public page for friends and choose what it shows. Off until you turn it on; all of it is in{" "}
+              <a href="#share" className="text-signal-text underline underline-offset-4">
+                the next section
+              </a>
+              .
+            </p>
             <Shot id="progress-data" only="desktop" />
             <div className={PROSE}>
               <p>
@@ -628,12 +641,120 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               <li className="text-fg-3">A reset can&apos;t be undone; the page shows exactly what will be removed before you confirm.</li>
             </ul>
             <Where>
-              the <A href="/learn/dashboard">progress</A> tab. Sections: overview · map · activity · goals · mastery · data (the sticky row under the header jumps between them).
+              the <A href="/learn/dashboard">progress</A> tab. Sections: overview · map · activity · goals · mastery · share · data (the sticky row under the header jumps between them).
+            </Where>
+          </Section>
+
+          {/* ------------------------------------------------------------ i2) share */}
+          <Section
+            id="share"
+            n="10"
+            kicker="share your progress"
+            title="Show your run to friends"
+            lead="Your progress is private. Turn on a public page and you get one link, showing only the parts you pick, to send on WhatsApp, LinkedIn or X."
+          >
+            <Shot id="share-settings" example caption="Shown signed in with an example learner who chose to be anonymous." />
+            <div className={PROSE}>
+              <p>
+                <strong>Turn it on</strong> in the share section of the Progress page (it needs an account). The <strong>Public page</strong> switch is off until you flip it or press <strong>Publish my page</strong>. While it&apos;s off
+                nobody can see your progress, and switching it off again makes your link show a 404 straight away.
+              </p>
+              <p>
+                <strong>Handle.</strong> Your page lives at <strong>himanshukukreja.in/u/&lt;handle&gt;</strong>. A handle is {HANDLE_MIN}–{HANDLE_MAX} lowercase letters, numbers or single hyphens. One is suggested from your name, and
+                whatever you type is checked as you go: taken, reserved and offensive handles are refused. Changing it later breaks links you already sent.
+              </p>
+              <p>
+                <strong>Name on the page:</strong> your full name, first name + initial or anonymous (just the @handle); new pages start with {SHARE_DEFAULT_NAME}. Your profile photo appears only if you tick it, your account has one and you
+                aren&apos;t anonymous. Then pick what visitors see{SHARE_ALL_ON ? " (all six start on)" : ""}. The preview on the right follows every change, and <strong>Save changes</strong> updates a live page at once.
+              </p>
+            </div>
+            <Table
+              caption="What visitors can see"
+              head={["Switch", "What it shows"]}
+              rows={[
+                ["Level & course progress", "level, XP, course %, lessons, world map"],
+                ["Skill tree", "every world, boss and trial node, read-only"],
+                ["Streak", "current and best streak"],
+                ["Arena scores", "league, rank, weekly points, best daily, daily streak"],
+                ["Badges", "badges you've earned"],
+                ["Milestones", "worlds cleared, bosses beaten, recent wins"],
+              ]}
+            />
+            <Note title="Never on your page" tone="signal">
+              <p>
+                Your email, account id, notes, highlights, bookmarks and exact study times are never shown, whatever you switch on. Public pages are kept out of search engines, and a handle that doesn&apos;t exist looks exactly like one
+                that&apos;s switched off (both are a 404), so nobody can check who has a page.
+              </p>
+            </Note>
+
+            <Sub>The share sheet</Sub>
+            <Pair>
+              <Shot id="share-sheet" example />
+              <div className={PROSE}>
+                <p>
+                  Every <strong>Share</strong> button opens the same sheet: your link with <strong>Copy link</strong>, <strong>WhatsApp</strong>, <strong>LinkedIn</strong> and <strong>Post</strong> (X) with a message already written,
+                  and <strong>copy message + link</strong>. On a phone, <strong>Share…</strong> opens your phone&apos;s own share menu.
+                </p>
+                <p>
+                  <strong>Page still off?</strong> The sheet offers <strong>Turn on &amp; get my link</strong> (it publishes with your saved choices, or the defaults) or <strong>Choose what&apos;s visible</strong>, which brings you to the settings. As a
+                  guest it asks you to <strong>sign in to get your share link</strong>, and the progress in this browser comes with you; you can also share the course itself instead.
+                </p>
+              </div>
+            </Pair>
+            <Table
+              caption="Where the Share buttons are"
+              head={["Where", "Button", "The link opens"]}
+              rows={[
+                ["Progress page, under your level", "share my progress", "your page"],
+                ["Progress page, share section", "Share my page", "your page"],
+                ["Course hub, next to Skill tree", "Share", "your page"],
+                ["Daily challenge result", "Challenge a friend", "today's daily challenge (works without a page or an account)"],
+                ["World cleared, level up", "Share it", "that world's or level's achievement page"],
+                ["Boss debrief, after a win", "Share the win", "that boss's achievement page"],
+                ["End of a lesson, once complete", "Share", "your page"],
+                ["Progress page, badges", "share", "your page"],
+                ["Leaderboard, your own row", "share icon", "your league rank's achievement page"],
+              ]}
+            />
+
+            <Sub>Your public page</Sub>
+            <Shot id="share-public" example wide />
+            <div className={PROSE}>
+              <p>
+                What a friend sees when they open your link, no account needed: your name or @handle, your level on the L1 Intern → L6 Principal ladder with XP, course %, streak, lessons and worlds done, a world map, a read-only copy of your
+                skill tree, your Arena scores, badges and recent milestones. Each part is there only if its switch is on.
+              </p>
+              <p>
+                The page ends with an invitation: <strong>Start the free course</strong> or <strong>Take today&apos;s daily challenge</strong>, plus &ldquo;Can you beat …?&rdquo; next to your scores. When you open your own page signed in,
+                a &ldquo;your page&rdquo; bar adds <strong>Edit what&apos;s visible</strong> and <strong>Share</strong>; visitors never see it.
+              </p>
+            </div>
+            <Shot id="share-public-scores" only="desktop" example />
+            <Pair>
+              <Shot id="share-achievement" only="desktop" example />
+              <div className={PROSE}>
+                <p>
+                  <strong>Achievement pages</strong> (/u/&lt;handle&gt;/a/…) show one win, big: a cleared world, a beaten boss, a level, your streak, your best daily, your league rank this week or a badge. They exist only for what your page
+                  shows; otherwise the link opens your page.
+                </p>
+                <p>
+                  <strong>Link previews.</strong> Paste your link into WhatsApp, Slack, LinkedIn or X and it unfolds into a preview card of your page or the achievement.
+                </p>
+              </div>
+            </Pair>
+            <Note title="Who came from your link">
+              <p>
+                When someone arrives through your link and creates an account within {REF_DAYS} days, the sign-up is counted for your link (the first link a browser arrived from is the one that counts). Only the site owner sees these
+                numbers, and nothing about the visitor appears on your page.
+              </p>
+            </Note>
+            <Where>
+              the share section of the <A href="/learn/dashboard#share">progress page</A> (signed in); the Share buttons above, at the moments worth sharing; your page itself at /u/&lt;handle&gt;.
             </Where>
           </Section>
 
           {/* ------------------------------------------------------------ j) cases */}
-          <Section id="cases" n="10" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
+          <Section id="cases" n="11" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
             <Shot id="case-index" only="desktop" />
             <div className={PROSE}>
               <p>
@@ -652,15 +773,16 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ k) account */}
-          <Section id="account" n="11" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
+          <Section id="account" n="12" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
             <ul className="m-0 grid max-w-[72ch] list-none gap-px border border-line bg-line p-0 sm:grid-cols-2">
               {[
                 ["Progress on every device", "Lessons, stages, XP, review cards and trial attempts follow you instead of living in one browser."],
                 ["Notebook", "Highlights, notes and bookmarks are account-only."],
                 ["Leaderboard & leagues", "Only signed-in activity is ranked."],
                 ["Nothing lost", "Clearing your browser or switching phones keeps your history."],
-              ].map(([t, d]) => (
-                <li key={t} className="flex flex-col gap-1 bg-bg p-4">
+                ["Share your progress", "A public page and share links come from your account. Off until you turn it on."],
+              ].map(([t, d], i, all) => (
+                <li key={t} className={`flex flex-col gap-1 bg-bg p-4 ${i === all.length - 1 && all.length % 2 ? "sm:col-span-2" : ""}`}>
                   <span className="text-[15px] font-semibold text-fg">{t}</span>
                   <span className="text-[14px] leading-relaxed text-fg-2">{d}</span>
                 </li>
@@ -671,7 +793,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 Sign in with Google or an email code from the arrow button in the header. The first account that signs in on a browser picks up that browser&apos;s guest progress; a second account on the same browser starts from its own.
               </p>
               <p>
-                <strong>What&apos;s stored:</strong> page views and reading time, learning events (lessons opened and completed, answers, games), and if you sign in your email, name and progress. No ads, nothing sold. The{" "}
+                <strong>What&apos;s stored:</strong> page views and reading time, learning events (lessons opened and completed, answers, games), and if you sign in your email, name and progress. No ads, nothing sold, and nothing about you is public unless you turn on a <a href="#share" className="text-signal-text underline underline-offset-4">share page</a>. The{" "}
                 <A href="/privacy">privacy page</A> lists every tool and has a switch to turn analytics off in your browser (also &ldquo;opt out&rdquo; in the site footer).
               </p>
             </div>
@@ -681,7 +803,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ l) faq */}
-          <Section id="faq" n="12" kicker="faq" title="Questions people actually ask">
+          <Section id="faq" n="13" kicker="faq" title="Questions people actually ask">
             <div className="flex max-w-[78ch] flex-col border-t border-line">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group border-b border-line">
@@ -698,7 +820,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ glossary */}
-          <Section id="glossary" n="13" kicker="glossary" title="Words the course uses">
+          <Section id="glossary" n="14" kicker="glossary" title="Words the course uses">
             <dl className="m-0 grid max-w-[78ch] gap-px border border-line bg-line sm:grid-cols-2">
               {GLOSSARY.map(([t, d]) => (
                 <div key={t} className="flex flex-col gap-1 bg-bg p-4">
@@ -763,6 +885,20 @@ const FAQ: [string, React.ReactNode][] = [
     "Why do I see two different streaks?",
     <>The course streak (hub and progress page) counts days with a cleared stage, a finished lesson, a passed trial part or a reviewed card. The daily streak in the Arena only counts days you played the daily challenge.</>,
   ],
+  [
+    "Can other people see my progress?",
+    <>
+      Not unless you turn on your public page in <Link href="/learn/dashboard#share">Progress → share</Link>; it&apos;s off by default. You pick the handle, the name shown (full, first name + initial or anonymous) and which of six parts appear.
+      Your email, notes, highlights, bookmarks and exact study times are never shown. Switch it off and the link shows a 404 at once.
+    </>,
+  ],
+  [
+    "Why does Share ask me to sign in?",
+    <>
+      Your public page is built from your account, so a share link needs one. Signing in is free and the progress in this browser comes with you. As a guest you can still share the course, and <strong>Challenge a friend</strong> after
+      the daily challenge works without an account.
+    </>,
+  ],
   ["Does replaying the daily challenge count?", <>No, only your first run of the day counts for XP, points and the streak. Replays are practice.</>],
   ["Does re-reading a lesson reset it?", <>Never. Completed stays completed and percentages never go down. Only the Reset on the progress page removes progress.</>],
   ["Does listening count as reading?", <>Yes. While Listen is reading the lesson aloud, the time counts even if you don&apos;t touch the screen.</>],
@@ -790,5 +926,7 @@ const GLOSSARY: [string, string][] = [
   ["Leitner box", "One of five review boxes. Higher boxes come back less often, Box 5 about monthly."],
   ["Due", "A review card whose next date is today or earlier: it's waiting in today's standup."],
   ["Checkpoint", "Your saved place in a lesson (Save checkpoint). Where Continue and Resume take you."],
+  ["Public page", "Your optional page at /u/<handle>, showing the parts of your progress you chose. Off until you turn it on."],
+  ["Handle", "The name in your public link: lowercase letters, numbers and hyphens, picked in Progress → share."],
   ["Case file", "A story from real production work, outside the course, often ending with an interactive activity."],
 ];

@@ -1705,5 +1705,409 @@
         }
       ]
     }
+  },
+  "share-settings": {
+    "desktop": {
+      "src": "/guide/share-settings-desktop.webp",
+      "w": 1760,
+      "h": 1372,
+      "alt": "Progress page, 05 · share: the Public page switch, the handle for your /u/ link, the name shown, six switches for what visitors see, a live preview of the page and the Share my page button.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 56.59,
+          "y": 13.07
+        },
+        {
+          "n": 2,
+          "x": 60.61,
+          "y": 24.53
+        },
+        {
+          "n": 3,
+          "x": 14.88,
+          "y": 34.44
+        },
+        {
+          "n": 4,
+          "x": 14.42,
+          "y": 50.58
+        },
+        {
+          "n": 5,
+          "x": 41.79,
+          "y": 86.73
+        },
+        {
+          "n": 6,
+          "x": 75.44,
+          "y": 9.58
+        },
+        {
+          "n": 7,
+          "x": 64.7,
+          "y": 35.96
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Public page: off until you turn it on"
+        },
+        {
+          "n": 2,
+          "label": "Your handle: the link is himanshukukreja.in/u/<handle>"
+        },
+        {
+          "n": 3,
+          "label": "Name: full, first name + initial, or anonymous"
+        },
+        {
+          "n": 4,
+          "label": "What visitors see: six switches"
+        },
+        {
+          "n": 5,
+          "label": "Never shown: email, notes, highlights, bookmarks"
+        },
+        {
+          "n": 6,
+          "label": "Live preview of your page"
+        },
+        {
+          "n": 7,
+          "label": "Share it, or open the page as visitors see it"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/share-settings-phone.webp",
+      "w": 780,
+      "h": 1246,
+      "alt": "The share settings on a phone: the Public page switch, the /u/ handle and the name shown on the page.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 70.51,
+          "y": 24.9
+        },
+        {
+          "n": 2,
+          "x": 83.59,
+          "y": 43.99
+        },
+        {
+          "n": 3,
+          "x": 47.28,
+          "y": 61.96
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Public page on or off"
+        },
+        {
+          "n": 2,
+          "label": "Your handle"
+        },
+        {
+          "n": 3,
+          "label": "Name: full, first + initial, or anonymous"
+        }
+      ]
+    }
+  },
+  "share-sheet": {
+    "desktop": {
+      "src": "/guide/share-sheet-desktop.webp",
+      "w": 1200,
+      "h": 910,
+      "alt": "The share sheet: your public link with Copy link, buttons for WhatsApp, LinkedIn and X, the prefilled message, and links to open your page or change what's visible.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 7.67,
+          "y": 26.21
+        },
+        {
+          "n": 2,
+          "x": 7.5,
+          "y": 42.25
+        },
+        {
+          "n": 3,
+          "x": 21.23,
+          "y": 57.2
+        },
+        {
+          "n": 4,
+          "x": 37.71,
+          "y": 88.85
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Your link, ready to copy"
+        },
+        {
+          "n": 2,
+          "label": "WhatsApp, LinkedIn or X with the message filled in"
+        },
+        {
+          "n": 3,
+          "label": "The message; copy it together with the link"
+        },
+        {
+          "n": 4,
+          "label": "Open your page, or change what's visible"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/share-sheet-phone.webp",
+      "w": 764,
+      "h": 1130,
+      "alt": "The share sheet: your public link with Copy link, buttons for WhatsApp, LinkedIn and X, the prefilled message, and links to open your page or change what's visible.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 7.85,
+          "y": 19.09
+        },
+        {
+          "n": 2,
+          "x": 7.59,
+          "y": 32.01
+        },
+        {
+          "n": 3,
+          "x": 7.59,
+          "y": 41.92
+        },
+        {
+          "n": 4,
+          "x": 29.16,
+          "y": 63.87
+        },
+        {
+          "n": 5,
+          "x": 55.04,
+          "y": 93.38
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Your link, ready to copy"
+        },
+        {
+          "n": 2,
+          "label": "Share…: your phone's own share sheet"
+        },
+        {
+          "n": 3,
+          "label": "WhatsApp, LinkedIn or X with the message filled in"
+        },
+        {
+          "n": 4,
+          "label": "The message; copy it together with the link"
+        },
+        {
+          "n": 5,
+          "label": "Open your page, or change what's visible"
+        }
+      ]
+    }
+  },
+  "share-public": {
+    "desktop": {
+      "src": "/guide/share-public-desktop.webp",
+      "w": 1760,
+      "h": 740,
+      "alt": "A public progress page at /u/demo-learner (example data): the handle, the level on the L1 Intern to L6 Principal ladder with XP, course percentage, streak, lessons and worlds, a world map, and buttons for visitors to start the free course or take today's daily challenge.",
+      "url": "/u/demo-learner",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 62.21,
+          "y": 18.95
+        },
+        {
+          "n": 2,
+          "x": 28.84,
+          "y": 38.53
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 54.25
+        },
+        {
+          "n": 4,
+          "x": 10.28,
+          "y": 85.5
+        },
+        {
+          "n": 5,
+          "x": 64.07,
+          "y": 4.84
+        },
+        {
+          "n": 6,
+          "x": 83.9,
+          "y": 80.95
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Name, first name + initial, or @handle (anonymous here)"
+        },
+        {
+          "n": 2,
+          "label": "Level on the L1 Intern → L6 Principal ladder, with XP"
+        },
+        {
+          "n": 3,
+          "label": "Course %, streak, lessons and worlds"
+        },
+        {
+          "n": 4,
+          "label": "World map: one bar per world"
+        },
+        {
+          "n": 5,
+          "label": "Visitors can start the free course or today's daily challenge"
+        },
+        {
+          "n": 6,
+          "label": "Your best daily, as a challenge"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/share-public-phone.webp",
+      "w": 780,
+      "h": 1080,
+      "alt": "The same public page on a phone: handle, level ladder, the four numbers and the world map.",
+      "url": "/u/demo-learner",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 94.77,
+          "y": 7.11
+        },
+        {
+          "n": 2,
+          "x": 85.2,
+          "y": 27.69
+        },
+        {
+          "n": 3,
+          "x": 4.1,
+          "y": 42.13
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Name or @handle"
+        },
+        {
+          "n": 2,
+          "label": "Level and XP"
+        },
+        {
+          "n": 3,
+          "label": "Course %, streak, lessons, worlds"
+        }
+      ]
+    }
+  },
+  "share-public-scores": {
+    "desktop": {
+      "src": "/guide/share-public-scores-desktop.webp",
+      "w": 1760,
+      "h": 1193,
+      "alt": "Further down the public page: Arena scores (league, rank in league, points this week, best daily, daily streak) with a challenge link, the badges earned and recent milestones.",
+      "url": "/u/demo-learner",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 10.14
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 27.51
+        },
+        {
+          "n": 3,
+          "x": 17.15,
+          "y": 47.01
+        },
+        {
+          "n": 4,
+          "x": 69.16,
+          "y": 47.01
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Arena: league, rank, weekly points, best daily, daily streak"
+        },
+        {
+          "n": 2,
+          "label": "“Can you beat …?” opens today's daily challenge"
+        },
+        {
+          "n": 3,
+          "label": "Badges earned"
+        },
+        {
+          "n": 4,
+          "label": "Milestones; each big one has its own share page"
+        }
+      ]
+    }
+  },
+  "share-achievement": {
+    "desktop": {
+      "src": "/guide/share-achievement-desktop.webp",
+      "w": 1760,
+      "h": 727,
+      "alt": "An achievement page (/u/demo-learner/a/world-02): World 02 cleared, with the world's badge and a link to the learner's full progress.",
+      "url": "/u/demo-learner/a/world-02",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 97,
+          "y": 37.66
+        },
+        {
+          "n": 2,
+          "x": 77.8,
+          "y": 66.09
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "One achievement, big: here a cleared world"
+        },
+        {
+          "n": 2,
+          "label": "Back to the learner's full page"
+        }
+      ]
+    }
   }
 }

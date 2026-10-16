@@ -7,6 +7,7 @@
  *   account-only screens (notebook, highlights) can be shown without a real account and without
  *   writing a single row anywhere.
  * - The leaderboard API answers with example players (no real names or scores in the screenshots).
+ * - The share settings API answers with the example share state (`o.share`); saves go nowhere.
  */
 export const DEMO_USER = {
   id: "0d1e6a8c-5b4f-4c1e-9a77-6c2f00000042",
@@ -114,5 +115,15 @@ export async function installRoutes(ctx, o) {
 
   if (o.signedIn) {
     await ctx.route(/\/api\/profile/, (r) => r.fulfill(json({ data: o.profile })));
+  }
+
+  // Share my progress (signed-in mock): the settings, handle check and save answer from `o.share`,
+  // a ShareState read from the dev server's fixture learner (see shoot.mjs shareState()).
+  if (o.signedIn && o.share) {
+    await ctx.route(/\/api\/learn\/share(\?|$)/, (r) => {
+      if (r.request().method() === "GET") return r.fulfill(json(o.share));
+      return r.fulfill(json({ settings: o.share.settings }));
+    });
+    await ctx.route(/\/api\/learn\/share\/handle/, (r) => r.fulfill(json({ ok: true })));
   }
 }

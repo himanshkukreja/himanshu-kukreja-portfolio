@@ -11,8 +11,10 @@ import { ACTIVITY_XP, ACTIVITY_SLUGS, PASS_RATIO } from "@/components/stories/ac
 import { LEITNER_INTERVALS, REVIEW_XP_PER_CARD } from "@/lib/learn/review";
 import { PRACTICE_GAMES } from "@/lib/learn/arena/games";
 import { PART_INFO, partsFor } from "@/components/learn/progress/scope";
+import { HANDLE_MAX, HANDLE_MIN } from "@/lib/share/handle";
+import { DEFAULT_VISIBILITY, VISIBILITY_KEYS } from "@/lib/share/model";
 
-export { LEVELS, LEARN_XP, DAILY_N, DAILY_SECONDS, LEAGUE_RULES, POINTS, POINTS_TABLE, BOSS_XP, LEITNER_INTERVALS, REVIEW_XP_PER_CARD, PART_INFO, partsFor };
+export { LEVELS, LEARN_XP, DAILY_N, DAILY_SECONDS, LEAGUE_RULES, POINTS, POINTS_TABLE, BOSS_XP, LEITNER_INTERVALS, REVIEW_XP_PER_CARD, PART_INFO, partsFor, HANDLE_MIN, HANDLE_MAX };
 
 /** src/components/learn/quiz/QuizHydrator.tsx (a client module): QUIZ_XP and STAGE_ACE_XP. */
 export const QUIZ_XP = 5;
@@ -41,3 +43,9 @@ export const DAILY_XP_PER_RIGHT = 5;
 export const DAILY_XP_PERFECT = 10;
 
 export const BOX_EVERY = LEITNER_INTERVALS.map((d) => (d === 1 ? "every day" : d >= 30 ? `about monthly (${d} days)` : `every ${d} days`));
+
+/** Share my progress (src/lib/share/model.ts): the default name mode and whether every visibility switch starts on. */
+export const SHARE_DEFAULT_NAME = DEFAULT_VISIBILITY.name === "full" ? "full name" : DEFAULT_VISIBILITY.name === "first" ? "first name + initial" : "anonymous";
+export const SHARE_ALL_ON = VISIBILITY_KEYS.every((k) => DEFAULT_VISIBILITY[k]);
+/** src/components/share/RefCapture.tsx: a referral is remembered for TTL = 30 days (first link wins). */
+export const REF_DAYS = 30;
