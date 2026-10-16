@@ -73,6 +73,8 @@ const nextConfig: NextConfig = {
   },
   outputFileTracingIncludes: {
     "/*": ["./content/**/*"],
+    // Case-file update emails: story markdown + each story's activity title/blurb (read at runtime).
+    "/api/admin/newsletter/stories": ["./content/stories/**/*", "./src/components/stories/activities/*.tsx"],
     // Share-card fonts (src/lib/og) for the per-lesson OG/Twitter images rendered on demand.
     "/learn/**/opengraph-image": ["./src/lib/og/fonts/*.ttf"],
     "/learn/**/twitter-image": ["./src/lib/og/fonts/*.ttf"],

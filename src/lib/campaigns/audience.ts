@@ -173,7 +173,7 @@ function parseCustom(raw: string) {
 }
 
 /** Recipients for a spec (eligible only) + the counts shown next to the picker. */
-export async function resolveAudience(spec: AudienceSpec, opts: { exclude?: Set<string> } = {}): Promise<{ recipients: Recipient[]; count: AudienceCount }> {
+export async function resolveAudience(spec: AudienceSpec, opts: { exclude?: Set<string>; storyExclude?: Set<string> } = {}): Promise<{ recipients: Recipient[]; count: AudienceCount }> {
   const b = await base();
   const now = Date.now();
   let candidates: string[] = [];
@@ -188,6 +188,9 @@ export async function resolveAudience(spec: AudienceSpec, opts: { exclude?: Set<
       break;
     case "subscribers":
       candidates = [...b.subscribers];
+      break;
+    case "subscribers_learners":
+      candidates = [...b.subscribers, ...accounts.filter((p) => p.active).map((p) => p.email)];
       break;
     case "active": {
       const days = Math.min(Math.max(Math.round(spec.days || 30), 1), 3650);
@@ -214,6 +217,7 @@ export async function resolveAudience(spec: AudienceSpec, opts: { exclude?: Set<
   let unsubscribed = 0;
   let suppressed = 0;
   let alreadyQueued = 0;
+  let alreadyGotStory = 0;
   const recipients: Recipient[] = [];
   for (const e of candidates) {
     if (seen.has(e)) {
@@ -233,17 +237,21 @@ export async function resolveAudience(spec: AudienceSpec, opts: { exclude?: Set<
       alreadyQueued++;
       continue;
     }
+    if (opts.storyExclude?.has(e)) {
+      alreadyGotStory++;
+      continue;
+    }
     const p = b.people.get(e);
     recipients.push({ email: e, name: p?.name || null, userId: p?.userId || null });
   }
   recipients.sort((x, y) => x.email.localeCompare(y.email));
-  return { recipients, count: { eligible: recipients.length, unsubscribed, suppressed, invalid, duplicates, alreadyQueued, sample: recipients.slice(0, 6).map((r) => r.email) } };
+  return { recipients, count: { eligible: recipients.length, unsubscribed, suppressed, invalid, duplicates, alreadyQueued, alreadyGotStory, sample: recipients.slice(0, 6).map((r) => r.email) } };
 }
 
 /** Counts for every preset at once (the picker shows them side by side). */
-export async function presetCounts(): Promise<Record<"all" | "learners" | "subscribers" | "never_started", number>> {
-  const [all, learners, subscribers, never] = await Promise.all((["all", "learners", "subscribers", "never_started"] as const).map((kind) => resolveAudience({ kind })));
-  return { all: all.count.eligible, learners: learners.count.eligible, subscribers: subscribers.count.eligible, never_started: never.count.eligible };
+export async function presetCounts(): Promise<Record<"all" | "learners" | "subscribers" | "subscribers_learners" | "never_started", number>> {
+  const [all, learners, subscribers, never, both] = await Promise.all((["all", "learners", "subscribers", "never_started", "subscribers_learners"] as const).map((kind) => resolveAudience({ kind })));
+  return { all: all.count.eligible, learners: learners.count.eligible, subscribers: subscribers.count.eligible, subscribers_learners: both.count.eligible, never_started: never.count.eligible };
 }
 
 function varsFromBase(b: Base, email: string, fallbackName?: string | null): MergeVars {

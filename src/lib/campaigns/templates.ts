@@ -125,9 +125,26 @@ function blankTemplate(): TemplateInfo {
   };
 }
 
+/**
+ * "Case file update": the card + a placeholder document; the composer swaps in the generated email
+ * for the story picked in its dropdown (GET /api/admin/newsletter/stories, src/lib/campaigns/story.ts).
+ */
+function storyTemplate(): TemplateInfo {
+  return {
+    id: "story",
+    name: "Case file update",
+    description: "Pick a story from a dropdown: cover, case id, hook, what you'll learn, the end-of-case challenge and a tracked “Read the case file” button.",
+    topic: "story",
+    subject: "{{first_name}}, new case file",
+    subjectFallback: "New case file",
+    preheader: null,
+    doc: { ...blankDoc(), topLabel: "case files", blocks: [] },
+  };
+}
+
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [storyTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {

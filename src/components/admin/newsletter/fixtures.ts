@@ -7,6 +7,8 @@ import { listTemplates } from "@/lib/campaigns/templates";
 import { SITE } from "@/lib/campaigns/links";
 import type { AudienceCount, AudienceSpec, Campaign, CampaignCounts, CampaignSummary, EventRow, MessageRow, NewsletterInfo, RecipientPreview, Sender, TemplateInfo } from "@/lib/campaigns/types";
 import { displayStatus } from "@/lib/campaigns/types";
+import type { StoryOption } from "@/lib/campaigns/types";
+import { storyContent } from "@/lib/campaigns/story-doc";
 
 if (process.env.NODE_ENV !== "development") throw new Error("newsletter fixtures are dev-only");
 
@@ -61,7 +63,7 @@ const varsOf = (p: Person) => ({
   unsubscribe_url: "",
 });
 
-function audience(spec: AudienceSpec, exclude?: Set<string>): { list: Person[]; count: AudienceCount } {
+function audience(spec: AudienceSpec, exclude?: Set<string>, storyEx?: Set<string>): { list: Person[]; count: AudienceCount } {
   let cands: Person[] = [];
   let invalid = 0;
   let duplicates = 0;
@@ -76,6 +78,17 @@ function audience(spec: AudienceSpec, exclude?: Set<string>): { list: Person[]; 
     case "subscribers":
       cands = PEOPLE.filter((p) => p.subscriber);
       break;
+    case "subscribers_learners": {
+      const seen = new Set<string>();
+      for (const p of [...PEOPLE.filter((x) => x.subscriber), ...acc.filter((x) => x.active)]) {
+        if (seen.has(p.email)) duplicates++;
+        else {
+          seen.add(p.email);
+          cands.push(p);
+        }
+      }
+      break;
+    }
     case "active":
       cands = acc.filter((p) => p.lastDays <= (spec.days || 30));
       break;
@@ -100,20 +113,35 @@ function audience(spec: AudienceSpec, exclude?: Set<string>): { list: Person[]; 
   }
   let unsubscribed = 0,
     suppressed = 0,
-    alreadyQueued = 0;
+    alreadyQueued = 0,
+    alreadyGotStory = 0;
   const list = cands.filter((p) => {
     if (UNSUB.has(p.email)) return (unsubscribed++, false);
     if (BOUNCED.has(p.email)) return (suppressed++, false);
     if (exclude?.has(p.email)) return (alreadyQueued++, false);
+    if (storyEx?.has(p.email)) return (alreadyGotStory++, false);
     return true;
   });
-  return { list, count: { eligible: list.length, unsubscribed, suppressed, invalid, duplicates, alreadyQueued, sample: list.slice(0, 6).map((p) => p.email) } };
+  return { list, count: { eligible: list.length, unsubscribed, suppressed, invalid, duplicates, alreadyQueued, alreadyGotStory, sample: list.slice(0, 6).map((p) => p.email) } };
 }
+
+/* ───────────── stories (real titles; generated with the same builder the server uses) ───────────── */
+
+const C = (n: string) => `${SITE}/covers/${n}.png`;
+const STORY_SRC = [
+  { slug: "irctc-tatkal-500-seats-2-million-users", caseId: "CASE-010", title: "The Tatkal Gamble: How India Sells 500 Train Seats to 2 Million People Without a Single Mistake", type: "design", typeLabel: "System design", mins: 12, date: "2026-08-05", cover: C("irctc-tatkal-rush"), excerpt: "Every morning at 10 AM, millions of Indians fight for a few hundred train seats in a battle that lasts less than a minute.", bullets: ["The Anatomy of a Tatkal Rush", "The Virtual Waiting Room", "Real War Stories"], activity: { kind: "simulation", title: "Rush control room", blurb: "", minutes: 3 }, xp: 75 },
+  { slug: "bridgelink-remote-android-testing", caseId: "CASE-009", title: "From Office-Bound Devices to Global Access: Building BridgeLink", type: "build", typeLabel: "Build log", mins: 18, date: "2025-11-27", cover: C("bridgelink-remote-testing-revolution"), excerpt: "How we turned a drawer of Android phones into a remote device lab anyone on the team could use from anywhere.", bullets: ["When Your Test Devices Are Miles Away", "Transforming Developer Workflows", "The Tunnel Underneath"], activity: { kind: "fill the blanks", title: "Wire the tunnel", blurb: "", minutes: 2 }, xp: 25 },
+  { slug: "cdn-cache-poisoning-disaster", caseId: "CASE-004", title: "The Silent Cache Poisoning Disaster: When CDN Becomes Your Enemy", type: "incident", typeLabel: "Incident", mins: 16, date: "2025-08-08", cover: C("cdn-cache-poisoning-disaster"), excerpt: "A Black Friday nightmare where a misconfigured CDN turned private customer data into a public cache.", bullets: ["Following the Digital Breadcrumbs", "The Robust Caching Strategy: Never Again", "The Philosophical Shift"], activity: { kind: "spot the bug", title: "Find the leak", blurb: "", minutes: 3 }, xp: 25 },
+  { slug: "websockets-vs-webrtc-video-communication", caseId: "CASE-002", title: "The Great Video Call Revolution: WebSockets vs WebRTC", type: "design", typeLabel: "System design", mins: 14, date: "2025-08-05", cover: C("websockets-webrtc-comparison"), excerpt: "Emma's demo died because video went through a WebSocket server. Here's why, and what to use instead.", bullets: ["Client-Server vs Peer-to-Peer", "Best of Both Worlds", "Sizing a Call"], activity: { kind: "topology picker", title: "Pick the pipe", blurb: "", minutes: 2 }, xp: 25 },
+];
+const STORY_SENT = new Map<string, Set<string>>([["cdn-cache-poisoning-disaster", new Set(PEOPLE.filter((_, i) => i % 6 === 1).map((p) => p.email))]]);
+const storyOptions = (): StoryOption[] =>
+  STORY_SRC.map((x) => ({ slug: x.slug, caseId: x.caseId, title: x.title, type: x.type, typeLabel: x.typeLabel, mins: x.mins, date: x.date, cover: x.cover, excerpt: x.excerpt, sentTo: STORY_SENT.get(x.slug)?.size ?? 0, content: storyContent(x) }));
 
 /* ───────────── state ───────────── */
 
 type Msg = MessageRow & { token: string };
-type Entry = { c: Campaign; msgs: Msg[]; events: EventRow[] };
+type Entry = { c: Campaign; msgs: Msg[]; events: EventRow[]; cron?: boolean };
 const state = new Map<string, Entry>();
 let seq = 1;
 let templatesCache: TemplateInfo[] | null = null;
@@ -237,6 +265,8 @@ function seed() {
     startedAt: null,
     finishedAt: null,
     lockUntil: null,
+    scheduledAt: null,
+    storySlug: null,
     ...patch,
   });
   // 1 · the revamp announcement, sent two days ago
@@ -293,6 +323,26 @@ function seed() {
     if (i % 3 === 0) open(w, m, ago(5 * HOUR - i * MIN));
   });
   state.set(w.c.id, w);
+  // 4 · a case-file update scheduled for tomorrow 09:00 IST
+  const story = storyOptions()[0];
+  const tpl = t.find((x) => x.id === "story") || blank;
+  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const at = new Date(new Date(`${today}T09:00:00+05:30`).getTime() + DAY).toISOString();
+  state.set("c0ffee00-0000-4000-8000-000000000004", {
+    c: mk("c0ffee00-0000-4000-8000-000000000004", tpl, {
+      name: `${story.caseId} · The Tatkal Gamble`,
+      ...story.content,
+      audience: { kind: "subscribers_learners" },
+      status: "scheduled",
+      scheduledAt: at,
+      storySlug: story.slug,
+      sender: { fromName: "Himanshu Kukreja", fromEmail: "no-reply@himanshukukreja.in", replyTo: "kukreja.him@gmail.com", transport: "smtp" },
+      createdAt: ago(3 * HOUR),
+      updatedAt: ago(2 * HOUR),
+    }),
+    msgs: [],
+    events: [],
+  });
 }
 
 /** Opens / clicks arriving while you watch (each fetch of a campaign). */
@@ -306,10 +356,33 @@ function trickle(e: Entry) {
   }
 }
 
+/** The scheduled campaign's recipients are frozen when it starts (like the real cron's promote). */
+function promote(e: Entry) {
+  const { list } = audience(e.c.audience, new Set(e.msgs.map((x) => x.email)), e.c.storySlug ? STORY_SENT.get(e.c.storySlug) : undefined);
+  e.msgs.push(...makeMsgs(list));
+  Object.assign(e.c, { status: "sending", queuedAt: new Date().toISOString() });
+}
+
+/** Stand-in for Supabase pg_cron: promote due scheduled campaigns, send 25 per call for cron-started ones. */
+function cronSim() {
+  for (const e of state.values()) {
+    if (e.c.status === "scheduled" && e.c.scheduledAt && new Date(e.c.scheduledAt).getTime() <= Date.now()) {
+      promote(e);
+      e.cron = true;
+    } else if (e.cron && e.c.status === "sending") {
+      e.msgs
+        .filter((x) => x.status === "queued")
+        .slice(0, 25)
+        .forEach((x) => Object.assign(x, { status: "sent", sentAt: new Date().toISOString() }));
+      if (!e.msgs.some((x) => x.status === "queued")) Object.assign(e.c, { status: "sent", finishedAt: new Date().toISOString() });
+    }
+  }
+}
+
 function info(): NewsletterInfo {
   seed();
   return {
-    setup: { tablesReady: true, missing: [], transportMode: "console", trackingBase: SITE, batch: { size: 25, gapMs: 400, budgetMs: 40_000 }, admin: "preview@localhost" },
+    setup: { schedulingReady: true, tablesReady: true, missing: [], transportMode: "console", trackingBase: SITE, batch: { size: 25, gapMs: 400, budgetMs: 40_000 }, admin: "preview@localhost" },
     transports: [
       { id: "smtp", label: "SMTP (SMTP_*)", configured: true, host: "smtp-relay.brevo.com", provider: "Brevo", verifiedDomains: ["himanshukukreja.in"], verifiedSource: "assumed", note: "Brevo only delivers from senders or domains verified under Senders, Domains & Dedicated IPs." },
       { id: "smtp2", label: "Second SMTP (SMTP2_*)", configured: false, host: null, provider: "SMTP", verifiedDomains: [], verifiedSource: "none", note: "" },
@@ -342,10 +415,12 @@ function filterMsgs(e: Entry, filter: string, q: string) {
 
 export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
   seed();
+  cronSim();
   const method = (init?.method || "GET").toUpperCase();
   const p = u.pathname.replace(/^\/api\/admin\/newsletter/, "");
   if (p === "" && method === "GET") return info();
   if (p === "/templates") return { templates: templates() };
+  if (p === "/stories") return { stories: storyOptions() };
   if (p === "/senders") return method === "GET" ? { senders: SENDERS, transports: info().transports, dbError: null } : { sender: body(init) };
   if (p.startsWith("/senders/")) return { ok: true };
   if (p === "/recipients") {
@@ -360,8 +435,9 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
     const b = body(init);
     const e = b.campaignId ? state.get(b.campaignId) : undefined;
     const ex = e ? new Set(e.msgs.map((m) => m.email)) : undefined;
-    const presets = { all: audience({ kind: "all" }).count.eligible, learners: audience({ kind: "learners" }).count.eligible, subscribers: audience({ kind: "subscribers" }).count.eligible, never_started: audience({ kind: "never_started" }).count.eligible };
-    return { count: audience(b.audience || { kind: "learners" }, ex).count, presets };
+    const storyEx = e?.c.storySlug || b.storySlug ? STORY_SENT.get(e?.c.storySlug || b.storySlug) : undefined;
+    const presets = { subscribers_learners: audience({ kind: "subscribers_learners" }).count.eligible, all: audience({ kind: "all" }).count.eligible, learners: audience({ kind: "learners" }).count.eligible, subscribers: audience({ kind: "subscribers" }).count.eligible, never_started: audience({ kind: "never_started" }).count.eligible };
+    return { count: audience(b.audience || { kind: "learners" }, ex, storyEx).count, presets };
   }
   if (p === "/test") {
     const b = body(init);
@@ -373,7 +449,7 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
   if (p === "/campaigns" && method === "POST") {
     const b = body(init);
     const id = `c0ffee00-0000-4000-8000-${String(100 + seq++).padStart(12, "0")}`;
-    const c: Campaign = { ...b, id, status: "draft", sender: null, lastError: null, createdBy: "preview@localhost", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), queuedAt: null, startedAt: null, finishedAt: null, lockUntil: null };
+    const c: Campaign = { ...b, id, status: "draft", sender: null, lastError: null, createdBy: "preview@localhost", createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(), queuedAt: null, startedAt: null, finishedAt: null, lockUntil: null, scheduledAt: null, storySlug: b.doc?.story?.slug ?? null };
     state.set(id, { c, msgs: [], events: [] });
     return { campaign: { ...summary(state.get(id)!), doc: c.doc } };
   }
@@ -387,7 +463,8 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
         return { campaign: { ...summary(e), doc: e.c.doc }, events: e.events.slice(0, 40) };
       }
       if (method === "PATCH") {
-        Object.assign(e.c, body(init), { updatedAt: new Date().toISOString() });
+        const pb = body(init);
+        Object.assign(e.c, pb, { updatedAt: new Date().toISOString(), storySlug: pb.doc?.story?.slug ?? e.c.storySlug });
         return { campaign: { ...summary(e), doc: e.c.doc } };
       }
       if (method === "DELETE") {
@@ -405,8 +482,26 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
       const b = body(init);
       const done = () => ({ campaign: summary(e) });
       switch (b.action) {
+        case "schedule": {
+          const { list } = audience(e.c.audience, new Set(e.msgs.map((x) => x.email)), e.c.storySlug ? STORY_SENT.get(e.c.storySlug) : undefined);
+          if (b.confirm !== `send to ${list.length}`) fail(`Type "send to ${list.length}" to confirm.`);
+          if (!b.at || new Date(b.at).getTime() - Date.now() < 60_000) fail("Pick a time at least a minute from now (or use “send now”).");
+          Object.assign(e.c, { status: "scheduled", scheduledAt: new Date(b.at).toISOString(), sender: SENDERS.find((s) => s.id === e.c.senderId) || SENDERS[0] });
+          return done();
+        }
+        case "reschedule":
+          if (e.c.status !== "scheduled") fail("Only scheduled campaigns can be rescheduled.", 409);
+          if (!b.at || new Date(b.at).getTime() - Date.now() < 60_000) fail("Pick a time at least a minute from now.");
+          e.c.scheduledAt = new Date(b.at).toISOString();
+          return done();
+        case "unschedule":
+          Object.assign(e.c, { status: "draft", scheduledAt: null });
+          return done();
+        case "send-now":
+          promote(e);
+          return { added: e.msgs.length, status: e.c.status };
         case "queue": {
-          const { list } = audience(e.c.audience, new Set(e.msgs.map((x) => x.email)));
+          const { list } = audience(e.c.audience, new Set(e.msgs.map((x) => x.email)), e.c.storySlug ? STORY_SENT.get(e.c.storySlug) : undefined);
           if (b.confirm !== `send to ${list.length}`) fail(`Type "send to ${list.length}" to confirm.`);
           e.msgs.push(...makeMsgs(list));
           Object.assign(e.c, { status: "sending", queuedAt: e.c.queuedAt || new Date().toISOString(), sender: SENDERS.find((s) => s.id === e.c.senderId) || SENDERS[0] });

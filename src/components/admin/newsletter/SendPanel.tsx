@@ -7,17 +7,46 @@
  * who aren't in the campaign yet. Survives reloads: the state lives in the database.
  */
 import { useRef, useState } from "react";
-import { Badge, Card, ConfirmButton, LABEL, fmtNum, useAdminClient } from "@/components/admin/ui";
+import { Segmented } from "@/components/admin/content/common";
+import { Badge, Card, ConfirmButton, LABEL, fmtNum, useAdminClient, useNow } from "@/components/admin/ui";
 import { Field, btnCls, inputCls, primaryBtnCls, type useFlash } from "@/components/admin/content/common";
 import type { CampaignCounts, CampaignSummary, NewsletterInfo, TickResult } from "@/lib/campaigns/types";
 import type { TagProblem } from "@/lib/campaigns/tags";
-import { CampaignBadge, Note, jsonInit, pct } from "./bits";
+import { CampaignBadge, Note, fmtCountdown, jsonInit, pct, zoned } from "./bits";
 import { useAudienceCount } from "./AudiencePicker";
 
 type Say = ReturnType<typeof useFlash>["say"];
 type Run = { state: "running" | "waiting" | "stopped" | "done" | "error"; sent: number; failed: { email: string; error: string }[]; skipped: number; error?: string; counts?: CampaignCounts; status?: CampaignSummary["status"] };
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const localTz = () => {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata";
+  } catch {
+    return "Asia/Kolkata";
+  }
+};
+const pad = (n: number) => String(n).padStart(2, "0");
+/** Date → value for <input type="datetime-local"> in the browser's zone. */
+const toLocalInput = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+/** 09:00 IST on the day `addDays` after today (in IST). */
+const istAt = (addDays: number, hh: number, now: number) => {
+  const today = new Date(now).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  const d = new Date(`${today}T${pad(hh)}:00:00+05:30`);
+  d.setUTCDate(d.getUTCDate() + addDays);
+  return d;
+};
+function quickPicks(now: number) {
+  const istDow = new Date(new Date(now).toLocaleString("en-US", { timeZone: "Asia/Kolkata" })).getDay();
+  const toMonday = ((8 - istDow) % 7) || 7;
+  return [
+    { label: "in 1 hour", at: new Date(Math.ceil((now + 3_600_000) / 300_000) * 300_000) },
+    { label: "tomorrow 9:00 IST", at: istAt(1, 9, now) },
+    { label: "tomorrow 18:00 IST", at: istAt(1, 18, now) },
+    { label: "Monday 9:00 IST", at: istAt(toMonday, 9, now) },
+  ];
+}
 
 export default function SendPanel({
   campaign,
@@ -41,7 +70,14 @@ export default function SendPanel({
   const [run, setRun] = useState<Run | null>(null);
   const [busyAction, setBusyAction] = useState<string | null>(null);
   const stopRef = useRef(false);
-  const pending = useAudienceCount(campaign?.audience ?? { kind: "learners" }, campaign?.id);
+  const [mode, setMode] = useState<"now" | "schedule">("now");
+  const [when, setWhen] = useState("");
+  const now = useNow(1000);
+  const tz = localTz();
+  const whenIso = when ? new Date(when).toISOString() : "";
+  const whenOk = !!whenIso && new Date(whenIso).getTime() - now >= 60_000;
+  const schedulingReady = info?.setup.schedulingReady !== false;
+  const pending = useAudienceCount(campaign?.audience ?? { kind: "learners" }, campaign?.id, campaign?.storySlug);
   const tablesReady = info?.setup.tablesReady !== false;
 
   const counts = run?.counts ?? campaign?.counts;
@@ -50,7 +86,7 @@ export default function SendPanel({
   const expected = `send to ${n}`;
   const armed = n > 0 && typed.trim().toLowerCase() === expected && !problems.length && !dirty;
   const running = run?.state === "running" || run?.state === "waiting";
-  const isTop = status !== "draft";
+  const isTop = status !== "draft" && status !== "scheduled";
 
   const post = <T,>(body: unknown) => client.json<T>(`/api/admin/newsletter/campaigns/${campaign!.id}/send`, jsonInit("POST", body));
 
@@ -123,6 +159,40 @@ export default function SendPanel({
     }
   };
 
+  const schedule = async (action: "schedule" | "reschedule") => {
+    if (!campaign || !whenOk) return;
+    setBusyAction(action);
+    try {
+      await post({ action, at: whenIso, confirm: expected });
+      setTyped("");
+      say(`Scheduled for ${zoned(whenIso, tz).local} (${zoned(whenIso, tz).ist} IST)`);
+      onChanged();
+    } catch (e) {
+      say((e as Error).message, "bad");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
+  const scheduled = async (action: "unschedule" | "send-now") => {
+    if (!campaign) return;
+    setBusyAction(action);
+    try {
+      await post({ action });
+      if (action === "send-now") {
+        say("Started: recipients frozen, sending now");
+        void loop();
+      } else {
+        say("Unscheduled: back to draft");
+        onChanged();
+      }
+    } catch (e) {
+      say((e as Error).message, "bad");
+    } finally {
+      setBusyAction(null);
+    }
+  };
+
   const act = async (action: "resume" | "cancel" | "retry" | "requeue-stuck") => {
     if (!campaign) return;
     setBusyAction(action);
@@ -184,7 +254,7 @@ export default function SendPanel({
             </dd>
             <dt className={LABEL}>audience</dt>
             <dd className="m-0 text-fg-2">
-              {campaign.audience.kind.replace("_", " ")}
+              {campaign.audience.kind === "subscribers_learners" ? "subscribers + learners" : campaign.audience.kind.replace(/_/g, " ")}
               {campaign.audience.kind === "active" ? ` · ${campaign.audience.days}d` : campaign.audience.kind === "completed" ? ` · ≥ ${campaign.audience.min}` : ""} ·{" "}
               {pending.data ? `${fmtNum(n)} ${isTop ? "new" : "eligible"}` : "counting…"}
             </dd>
@@ -251,13 +321,87 @@ export default function SendPanel({
         </div>
       </Card>
 
-      {status !== "cancelled" && !running && (status === "draft" || n > 0) && (
+      {status === "scheduled" && campaign.scheduledAt && (
+        <Card label="scheduled" title={`Goes out ${fmtCountdown(campaign.scheduledAt, now)}`} action={<Badge tone="signal">{fmtCountdown(campaign.scheduledAt, now)}</Badge>}>
+          <div className="flex flex-col gap-4">
+            <dl className="m-0 grid grid-cols-[92px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-sm">
+              <dt className={LABEL}>your time</dt>
+              <dd className="m-0 font-mono text-fg">
+                {zoned(campaign.scheduledAt, tz).local} <span className="text-fg-4">· {tz}</span>
+              </dd>
+              <dt className={LABEL}>IST</dt>
+              <dd className="m-0 font-mono text-fg-2">{zoned(campaign.scheduledAt, tz).ist}</dd>
+              <dt className={LABEL}>UTC</dt>
+              <dd className="m-0 font-mono text-fg-2">{zoned(campaign.scheduledAt, tz).utc}</dd>
+              <dt className={LABEL}>audience</dt>
+              <dd className="m-0 text-fg-2">≈ {fmtNum(n)} today · the list is frozen when it starts (unsubscribes and repeat-story readers removed then)</dd>
+            </dl>
+            <Note title="runs without this tab">
+              Supabase pg_cron calls the sender every minute while something is due or sending, so you can close the browser. Content is locked while scheduled; unschedule to edit.
+            </Note>
+            <div className="flex flex-col gap-2 border-t border-line pt-4 sm:flex-row sm:items-end">
+              <Field label="Reschedule (your time)">
+                <input className={`${inputCls} font-mono`} type="datetime-local" value={when} min={toLocalInput(new Date(now + 60_000))} onChange={(e) => setWhen(e.target.value)} />
+              </Field>
+              <button type="button" className={btnCls} disabled={!whenOk || !!busyAction} onClick={() => schedule("reschedule")}>
+                {busyAction === "reschedule" ? "saving…" : "reschedule"}
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <ConfirmButton tone="signal" primary onConfirm={() => scheduled("send-now")} confirmLabel={`send to ≈${fmtNum(n)} now?`}>
+                ▶ send now instead
+              </ConfirmButton>
+              <button type="button" className={btnCls} disabled={!!busyAction} onClick={() => scheduled("unschedule")}>
+                unschedule · back to draft
+              </button>
+              <ConfirmButton onConfirm={() => act("cancel")} confirmLabel="cancel campaign?">
+                cancel
+              </ConfirmButton>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {status !== "cancelled" && status !== "scheduled" && !running && (status === "draft" || n > 0) && (
         <Card label={isTop ? "top up" : "confirm"} title={isTop ? `${fmtNum(n)} new people match this audience` : "Typed confirmation"}>
           <div className="flex flex-col gap-3">
             {isTop && <p className="m-0 text-sm text-fg-3">Sends only to people who aren&apos;t in this campaign yet. Everyone already sent stays untouched.</p>}
             {dirty && <Note tone="warn" title="unsaved changes">Save the draft before sending so the queued email matches what you see.</Note>}
             {problems.length > 0 && <Note tone="bad" title="fix the problems in compose first">{problems[0].message}</Note>}
             {info?.setup.transportMode === "live" && <Note tone="warn" title="this is real">Every address gets a real email from {campaign.sender?.fromEmail || "the selected sender"}. Unsubscribes are re-checked before each batch.</Note>}
+            {!isTop && (
+              <div className="flex flex-col gap-3">
+                <Segmented
+                  label="When"
+                  value={mode}
+                  onChange={setMode}
+                  options={[
+                    { id: "now", label: "send now" },
+                    { id: "schedule", label: "schedule" },
+                  ]}
+                />
+                {mode === "schedule" && !schedulingReady && <Note tone="warn" title="scheduling is off">Apply supabase/migrations/20261016_email_scheduling.sql first.</Note>}
+                {mode === "schedule" && schedulingReady && (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {quickPicks(now).map((q) => (
+                        <button key={q.label} type="button" className={btnCls} onClick={() => setWhen(toLocalInput(q.at))}>
+                          {q.label}
+                        </button>
+                      ))}
+                    </div>
+                    <Field label={`Date + time · your zone (${tz})`}>
+                      <input className={`${inputCls} font-mono`} type="datetime-local" value={when} min={toLocalInput(new Date(now + 60_000))} onChange={(e) => setWhen(e.target.value)} />
+                    </Field>
+                    {whenIso && (
+                      <p className="m-0 font-mono text-xs text-fg-3">
+                        {zoned(whenIso, tz).local} yours · {zoned(whenIso, tz).ist} IST · {zoned(whenIso, tz).utc} UTC · {whenOk ? fmtCountdown(whenIso, now) : <span className="text-bad-text">pick a time ≥ 1 minute ahead</span>}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <Field label={`Type “${expected}” to unlock`}>
               <input className={`${inputCls} font-mono`} value={typed} onChange={(e) => setTyped(e.target.value)} placeholder={expected} autoComplete="off" spellCheck={false} disabled={!n || !tablesReady} />
             </Field>
@@ -267,9 +411,15 @@ export default function SendPanel({
                   save draft
                 </button>
               )}
-              <button type="button" className={primaryBtnCls} disabled={!armed || !!busyAction} onClick={queue}>
-                {busyAction === "queue" ? "queueing…" : `send to ${fmtNum(n)}`}
-              </button>
+              {mode === "schedule" && !isTop ? (
+                <button type="button" className={primaryBtnCls} disabled={!armed || !whenOk || !schedulingReady || !!busyAction} onClick={() => schedule("schedule")}>
+                  {busyAction === "schedule" ? "scheduling…" : whenOk ? `schedule · ${zoned(whenIso, tz).local}` : "schedule"}
+                </button>
+              ) : (
+                <button type="button" className={primaryBtnCls} disabled={!armed || !!busyAction} onClick={queue}>
+                  {busyAction === "queue" ? "queueing…" : `send to ${fmtNum(n)}`}
+                </button>
+              )}
               {pending.loading && <span className="font-mono text-xs text-fg-4">counting…</span>}
             </div>
           </div>

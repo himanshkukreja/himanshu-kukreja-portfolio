@@ -2,7 +2,7 @@
 import type { EmailDoc } from "./render";
 import type { MergeVars } from "./tags";
 
-export type AudienceKind = "all" | "learners" | "subscribers" | "active" | "never_started" | "completed" | "custom";
+export type AudienceKind = "all" | "learners" | "subscribers" | "subscribers_learners" | "active" | "never_started" | "completed" | "custom";
 
 export type AudienceSpec = {
   kind: AudienceKind;
@@ -26,6 +26,8 @@ export type AudienceCount = {
   duplicates: number;
   /** already in this campaign (top-ups only count new people) */
   alreadyQueued: number;
+  /** story campaigns: people who already got this case file (any campaign or the old newsletter) */
+  alreadyGotStory: number;
   sample: string[];
 };
 
@@ -60,7 +62,7 @@ export type Sender = {
   check: SenderCheck;
 };
 
-export type CampaignStatus = "draft" | "sending" | "paused" | "sent" | "cancelled";
+export type CampaignStatus = "draft" | "scheduled" | "sending" | "paused" | "sent" | "cancelled";
 export type MessageStatus = "queued" | "sending" | "sent" | "failed" | "skipped";
 
 export type CampaignCounts = {
@@ -102,6 +104,10 @@ export type Campaign = {
   startedAt: string | null;
   finishedAt: string | null;
   lockUntil: string | null;
+  /** status "scheduled": when the cron promotes it to sending (recipients are frozen then) */
+  scheduledAt: string | null;
+  /** story / case-file campaigns: the story sent (tracks who already got it) */
+  storySlug: string | null;
 };
 
 export type CampaignSummary = Omit<Campaign, "doc"> & { counts: CampaignCounts };
@@ -147,6 +153,8 @@ export type RecipientPreview = Recipient & { vars: MergeVars; source: "account" 
 /** GET /api/admin/newsletter */
 export type NewsletterInfo = {
   setup: {
+    /** 20261016_email_scheduling.sql applied (scheduled_at, story_slug, cron secret) */
+    schedulingReady: boolean;
     tablesReady: boolean;
     missing: string[];
     transportMode: TransportMode;
@@ -168,4 +176,20 @@ export type TickResult = {
   done: boolean;
   transport: TransportMode;
   error?: string;
+};
+
+/** A story / case file offered by the "Case file update" template. */
+export type StoryOption = {
+  slug: string;
+  caseId: string;
+  title: string;
+  type: string;
+  typeLabel: string;
+  mins: number;
+  date: string | null;
+  cover: string | null;
+  excerpt: string | null;
+  /** distinct addresses that already got this story (campaigns + the old newsletter) */
+  sentTo: number;
+  content: { subject: string; subjectFallback: string | null; preheader: string | null; doc: EmailDoc };
 };

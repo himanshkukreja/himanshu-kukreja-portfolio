@@ -15,13 +15,13 @@
  */
 import crypto from "crypto";
 import { EMAIL } from "@/lib/socials";
-import { mergeVarsFor, resolveAudience } from "./audience";
+import { invalidateAudience, mergeVarsFor, resolveAudience } from "./audience";
 import { renderEmail, type EmailContent } from "./render";
 import type { MergeVars } from "./tags";
 import { contentProblems } from "./validate";
 import { unsubscribeUrlFor } from "./links";
 import { checkSender, envSenders, formatFrom, isFatalSendError, isRecipientRejection, makeTransport, transportMode } from "./senders";
-import { getStore, TablesMissingError, type DbMessage } from "./store";
+import { getStore, SchedulingMissingError, TablesMissingError, type DbMessage } from "./store";
 import { extraHosts } from "./tracking";
 import type { Campaign, CampaignSummary, Sender, TickResult, TransportId } from "./types";
 
@@ -123,39 +123,168 @@ export async function summarize(c: Campaign): Promise<CampaignSummary> {
 
 export const confirmPhrase = (n: number) => `send to ${n}`;
 
-/** Recipients a queue call would add right now (new people only). */
+/** Recipients a queue call would add right now: new people only, and (case files) not anyone who already got the story. */
 export async function pendingAudience(c: Campaign) {
-  const exclude = await getStore().existingEmails(c.id);
-  return resolveAudience(c.audience, { exclude });
+  const store = getStore();
+  const [exclude, storyExclude] = await Promise.all([store.existingEmails(c.id).catch(() => new Set<string>()), c.storySlug ? storySendSet(c.storySlug) : Promise.resolve(undefined)]);
+  return resolveAudience(c.audience, { exclude, storyExclude });
+}
+
+/** Everyone who already got this story (campaign sends + the old newsletter). */
+export async function storySendSet(slug: string): Promise<Set<string>> {
+  try {
+    return (await getStore().storySends(slug)).get(slug) ?? new Set<string>();
+  } catch {
+    return new Set<string>();
+  }
+}
+
+const err = (message: string, status: number, extra: Record<string, unknown> = {}) => Object.assign(new Error(message), { status, ...extra });
+
+/** Shared checks before a campaign may go out (now or later). */
+async function preflight(c: Campaign | null, confirm: string) {
+  if (!c) throw err("Campaign not found", 404);
+  if (c.status === "cancelled") throw err("This campaign was cancelled.", 409);
+  const problems = contentProblems(c);
+  if (problems.length) throw err(`Fix ${problems.length} problem(s) first: ${problems[0].message}`, 400);
+  const sender = await resolveSender(c.senderId);
+  if (sender.check.level === "bad" && transportMode() === "live") throw err(`Sender can't send: ${sender.check.message}`, 400);
+  const { recipients } = await pendingAudience(c);
+  if (!recipients.length) throw err("Nobody new to send to in this audience.", 400);
+  if (confirm.trim().toLowerCase() !== confirmPhrase(recipients.length)) throw err(`Type "${confirmPhrase(recipients.length)}" to confirm.`, 400, { expected: confirmPhrase(recipients.length) });
+  return { sender, recipients };
+}
+
+const senderSnapshot = (s: Sender) => ({ fromName: s.fromName, fromEmail: s.fromEmail, replyTo: s.replyTo, transport: s.transport });
+
+/** Freeze the recipient list into email_messages (unique per campaign) and flip to "sending". */
+async function freezeAndStart(c: Campaign, recipients: { email: string; name: string | null; userId: string | null }[], sender: Sender, admin: string | null, onlyIf?: Campaign["status"][]) {
+  const store = getStore();
+  const added = recipients.length ? await store.insertMessages(c.id, recipients.map((r) => ({ ...r, token: newToken() }))) : 0;
+  const now = new Date().toISOString();
+  const updated = await store.updateCampaign(
+    c.id,
+    {
+      status: "sending",
+      sender: senderSnapshot(sender),
+      senderId: sender.id,
+      queuedAt: c.queuedAt || now,
+      finishedAt: null,
+      lastError: null,
+      createdBy: c.createdBy || admin,
+    },
+    onlyIf
+  );
+  return { added, campaign: updated };
 }
 
 export async function queueCampaign(id: string, confirm: string, admin: string) {
+  const c = await getStore().getCampaign(id);
+  const { sender, recipients } = await preflight(c, confirm);
+  if (c!.status === "scheduled") throw err("This campaign is scheduled. Use “send now” or unschedule it first.", 409);
+  const { added, campaign } = await freezeAndStart(c!, recipients, sender, admin);
+  return { added, campaign: await summarize(campaign || c!) };
+}
+
+/* ───────────────────────────── scheduling ───────────────────────────── */
+
+const MIN_LEAD_MS = 60_000;
+const MAX_LEAD_MS = 90 * 86_400_000;
+
+function parseWhen(at: string): Date {
+  const d = new Date(at);
+  if (Number.isNaN(d.getTime())) throw err("That date isn't valid.", 400);
+  const lead = d.getTime() - Date.now();
+  if (lead < MIN_LEAD_MS) throw err("Pick a time at least a minute from now (or use “send now”).", 400);
+  if (lead > MAX_LEAD_MS) throw err("Schedules can be at most 90 days ahead.", 400);
+  return d;
+}
+
+/** draft → scheduled. The typed confirmation uses today's count; the list is frozen at send time. */
+export async function scheduleCampaign(id: string, confirm: string, at: string, admin: string) {
   const store = getStore();
+  if (!(await store.schedulingReady())) throw new SchedulingMissingError();
   const c = await store.getCampaign(id);
-  if (!c) throw Object.assign(new Error("Campaign not found"), { status: 404 });
-  if (c.status === "cancelled") throw Object.assign(new Error("This campaign was cancelled."), { status: 409 });
-  const problems = contentProblems(c);
-  if (problems.length) throw Object.assign(new Error(`Fix ${problems.length} problem(s) first: ${problems[0].message}`), { status: 400 });
-  const sender = await resolveSender(c.senderId);
-  if (sender.check.level === "bad" && transportMode() === "live") throw Object.assign(new Error(`Sender can't send: ${sender.check.message}`), { status: 400 });
-  const { recipients } = await pendingAudience(c);
-  if (!recipients.length) throw Object.assign(new Error("Nobody new to send to in this audience."), { status: 400 });
-  if (confirm.trim().toLowerCase() !== confirmPhrase(recipients.length)) throw Object.assign(new Error(`Type "${confirmPhrase(recipients.length)}" to confirm.`), { status: 400, expected: confirmPhrase(recipients.length) });
-  const added = await store.insertMessages(
-    c.id,
-    recipients.map((r) => ({ ...r, token: newToken() }))
-  );
-  const now = new Date().toISOString();
-  const updated = await store.updateCampaign(c.id, {
-    status: "sending",
-    sender: { fromName: sender.fromName, fromEmail: sender.fromEmail, replyTo: sender.replyTo, transport: sender.transport },
-    senderId: sender.id,
-    queuedAt: c.queuedAt || now,
-    finishedAt: null,
-    lastError: null,
-    createdBy: c.createdBy || admin,
-  });
-  return { added, campaign: await summarize(updated || c) };
+  if (c && c.status !== "draft") throw err(`Only drafts can be scheduled (this one is ${c.status}).`, 409);
+  const { sender } = await preflight(c, confirm);
+  const when = parseWhen(at);
+  const next = await store.updateCampaign(id, { status: "scheduled", scheduledAt: when.toISOString(), sender: senderSnapshot(sender), senderId: sender.id, lastError: null, createdBy: c!.createdBy || admin }, ["draft"]);
+  if (!next) throw err("The campaign changed meanwhile; reload.", 409);
+  return summarize(next);
+}
+
+export async function rescheduleCampaign(id: string, at: string) {
+  const when = parseWhen(at);
+  const next = await getStore().updateCampaign(id, { scheduledAt: when.toISOString() }, ["scheduled"]);
+  if (!next) throw err("Only scheduled campaigns can be rescheduled.", 409);
+  return summarize(next);
+}
+
+/** scheduled → draft (editable again). */
+export async function unscheduleCampaign(id: string) {
+  const next = await getStore().updateCampaign(id, { status: "draft", scheduledAt: null }, ["scheduled"]);
+  if (!next) throw err("This campaign isn't scheduled any more (it may have started).", 409);
+  return summarize(next);
+}
+
+/**
+ * scheduled (and due, or `force`) → sending. Takes the campaign lease so the cron and an admin
+ * clicking "send now" can't both freeze the list; re-resolves the audience (unsubscribes, bounces,
+ * people who already got the story) at this moment and freezes it.
+ */
+export async function promoteScheduled(id: string, opts: { force?: boolean } = {}): Promise<{ promoted: boolean; added: number; reason?: string }> {
+  const store = getStore();
+  if (!(await store.acquireLease(id, 75_000))) return { promoted: false, added: 0, reason: "busy" };
+  try {
+    const c = await store.getCampaign(id);
+    if (!c || c.status !== "scheduled") return { promoted: false, added: 0, reason: "not scheduled" };
+    if (!opts.force && c.scheduledAt && new Date(c.scheduledAt).getTime() > Date.now() + 5_000) return { promoted: false, added: 0, reason: "not due" };
+    invalidateAudience();
+    const problems = contentProblems(c);
+    const sender = c.sender ? { ...(await resolveSender(c.senderId)), ...c.sender } : await resolveSender(c.senderId);
+    if (problems.length) {
+      await store.updateCampaign(id, { status: "paused", lastError: `Scheduled send blocked: ${problems[0].message}` }, ["scheduled"]);
+      return { promoted: false, added: 0, reason: "problems" };
+    }
+    const { recipients } = await pendingAudience(c);
+    if (!recipients.length) {
+      await store.updateCampaign(id, { status: "sent", finishedAt: new Date().toISOString(), lastError: "Nobody left to send to at the scheduled time." }, ["scheduled"]);
+      return { promoted: true, added: 0, reason: "empty" };
+    }
+    const { added } = await freezeAndStart(c, recipients, sender as Sender, null, ["scheduled"]);
+    return { promoted: true, added };
+  } finally {
+    await store.releaseLease(id);
+  }
+}
+
+/**
+ * One cron run (Supabase pg_cron → pg_net → /api/cron/email-campaigns, every minute):
+ * promote due scheduled campaigns, then send for every campaign in "sending" within the budget.
+ * The per-campaign lease means an open admin tab and the cron never send the same campaign at once.
+ */
+export async function runCron(budgetMs = 45_000) {
+  const store = getStore();
+  const started = Date.now();
+  const all = await store.listCampaigns();
+  const promoted: { id: string; added: number; reason?: string }[] = [];
+  for (const c of all.filter((x) => x.status === "scheduled" && x.scheduledAt && new Date(x.scheduledAt).getTime() <= Date.now() + 5_000)) {
+    try {
+      const r = await promoteScheduled(c.id);
+      promoted.push({ id: c.id, added: r.added, reason: r.reason });
+    } catch (e) {
+      promoted.push({ id: c.id, added: 0, reason: (e as Error).message });
+    }
+  }
+  const ticks: { id: string; sent: number; failed: number; busy: boolean; status: string }[] = [];
+  const sending = (await store.listCampaigns()).filter((x) => x.status === "sending");
+  for (const c of sending) {
+    const left = budgetMs - (Date.now() - started);
+    if (left < 8_000) break;
+    const r = await tick(c.id, Math.min(BUDGET_MS, left - 5_000));
+    ticks.push({ id: c.id, sent: r.sentNow, failed: r.failedNow.length, busy: !!r.busy, status: r.campaign.status });
+  }
+  return { promoted, ticks, ms: Date.now() - started };
 }
 
 export async function setStatus(id: string, action: "pause" | "resume" | "cancel") {
@@ -165,7 +294,7 @@ export async function setStatus(id: string, action: "pause" | "resume" | "cancel
   let next: Campaign | null = null;
   if (action === "pause") next = await store.updateCampaign(id, { status: "paused" }, ["sending"]);
   if (action === "resume") next = await store.updateCampaign(id, { status: "sending", lastError: null }, ["paused", "sent"]);
-  if (action === "cancel") next = await store.updateCampaign(id, { status: "cancelled", finishedAt: new Date().toISOString() }, ["sending", "paused", "draft"]);
+  if (action === "cancel") next = await store.updateCampaign(id, { status: "cancelled", finishedAt: new Date().toISOString() }, ["sending", "paused", "draft", "scheduled"]);
   if (!next) throw Object.assign(new Error(`Can't ${action} a ${c.status} campaign.`), { status: 409 });
   if (action === "cancel") {
     const queued = await store.peekQueued(id, 100_000);

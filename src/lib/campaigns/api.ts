@@ -45,10 +45,12 @@ export function parseDoc(v: unknown): EmailDoc {
     for (const f of BLOCK_FIELDS[type]) out[f] = str(b[f], type === "html" ? 100_000 : 20_000);
     return out as unknown as Block;
   });
-  return { layout: "blocks", topLabel: str(d.topLabel, 60), footer: str(d.footer, 2000), blocks };
+  const st = d.story as Record<string, unknown> | undefined;
+  const story = st && typeof st.slug === "string" && /^[a-z0-9-]{1,120}$/.test(st.slug) ? { slug: st.slug, caseId: str(st.caseId, 20), title: str(st.title, 200) } : undefined;
+  return { layout: "blocks", topLabel: str(d.topLabel, 60), footer: str(d.footer, 2000), blocks, ...(story ? { story } : {}) };
 }
 
-const KINDS: AudienceKind[] = ["all", "learners", "subscribers", "active", "never_started", "completed", "custom"];
+const KINDS: AudienceKind[] = ["all", "learners", "subscribers", "subscribers_learners", "active", "never_started", "completed", "custom"];
 
 export function parseAudience(v: unknown): AudienceSpec {
   const a = (v || {}) as Record<string, unknown>;
@@ -71,21 +73,25 @@ export type ContentInput = {
   audience: AudienceSpec;
   trackOpens: boolean;
   trackClicks: boolean;
+  /** derived from doc.story (case-file updates) */
+  storySlug: string | null;
 };
 
 export function parseContent(body: unknown): ContentInput {
   const b = (body || {}) as Record<string, unknown>;
   const subject = str(b.subject, 300).replace(/[\r\n]+/g, " ");
+  const doc = parseDoc(b.doc);
   return {
     name: str(b.name, 120).trim() || subject.slice(0, 80) || "Untitled campaign",
     subject,
     subjectFallback: str(b.subjectFallback, 300).replace(/[\r\n]+/g, " ").trim() || null,
     preheader: str(b.preheader, 300).trim() || null,
     template: str(b.template, 40) || "blank",
-    doc: parseDoc(b.doc),
+    doc,
     senderId: str(b.senderId, 60) || null,
     audience: parseAudience(b.audience),
     trackOpens: b.trackOpens !== false,
     trackClicks: b.trackClicks !== false,
+    storySlug: doc.layout === "blocks" && doc.story ? doc.story.slug : null,
   };
 }

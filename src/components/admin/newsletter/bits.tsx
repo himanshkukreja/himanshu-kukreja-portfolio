@@ -11,7 +11,7 @@ export const jsonInit = (method: string, body: unknown): RequestInit => ({ metho
 
 export const pct = (n: number, d: number) => (d > 0 ? `${Math.round((n / d) * 1000) / 10}%` : "—");
 
-const CAMPAIGN_TONE: Record<CampaignStatus, BadgeTone> = { draft: "muted", sending: "solid", paused: "signal", sent: "ok", cancelled: "bad" };
+const CAMPAIGN_TONE: Record<CampaignStatus, BadgeTone> = { draft: "muted", scheduled: "signal", sending: "solid", paused: "neutral", sent: "ok", cancelled: "bad" };
 export function CampaignBadge({ status }: { status: CampaignStatus }) {
   return <Badge tone={CAMPAIGN_TONE[status]}>{status}</Badge>;
 }
@@ -27,6 +27,27 @@ export function CheckBadge({ check }: { check: SenderCheck }) {
       {check.level === "ok" ? "✓ verified" : check.level === "bad" ? "✗ can't send" : "! unverified"}
     </Badge>
   );
+}
+
+/** "in 2d 4h" / "in 14m 05s" / "due now" */
+export function fmtCountdown(iso: string | null | undefined, now: number): string {
+  if (!iso) return "—";
+  const ms = new Date(iso).getTime() - now;
+  if (ms <= 0) return "due now";
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  if (d) return `in ${d}d ${h}h`;
+  if (h) return `in ${h}h ${String(m).padStart(2, "0")}m`;
+  return `in ${m}m ${String(s % 60).padStart(2, "0")}s`;
+}
+
+/** One instant in the admin's zone, IST and UTC. */
+export function zoned(iso: string, tz: string) {
+  const d = new Date(iso);
+  const f = (timeZone: string) => d.toLocaleString("en-IN", { timeZone, weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hour12: false });
+  return { local: f(tz), ist: f("Asia/Kolkata"), utc: f("UTC") };
 }
 
 /** Value that settles `ms` after the last change (live audience counts). */
@@ -63,6 +84,12 @@ export function SetupBanners({ setup }: { setup: NewsletterInfo["setup"] | undef
         <Note tone="bad" title="apply migration · campaigns can't be saved yet">
           The campaign tables don&apos;t exist yet ({setup.missing.join(", ")}). Apply <code className="font-mono text-xs">supabase/migrations/20261016_email_campaigns.sql</code> in the
           Supabase SQL editor. Until then you can still compose, preview and send tests; saving, sending and tracking need the tables.
+        </Note>
+      )}
+      {setup.tablesReady && !setup.schedulingReady && (
+        <Note tone="warn" title="apply migration · scheduling + story tracking are off">
+          Apply <code className="font-mono text-xs">supabase/migrations/20261016_email_scheduling.sql</code> to enable scheduled sends (Supabase cron) and “already got this story” tracking. Sending now works
+          without it.
         </Note>
       )}
       {setup.transportMode === "console" && (

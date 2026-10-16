@@ -10,10 +10,11 @@ import { Field, inputCls } from "@/components/admin/content/common";
 import type { AudienceCount, AudienceKind, AudienceSpec } from "@/lib/campaigns/types";
 import { Note, cx, jsonInit, textareaCls, useDebounced } from "./bits";
 
-type Presets = Record<"all" | "learners" | "subscribers" | "never_started", number>;
+type Presets = Record<"all" | "learners" | "subscribers" | "subscribers_learners" | "never_started", number>;
 export type AudienceReply = { count: AudienceCount; presets: Presets };
 
 const OPTIONS: { kind: AudienceKind; label: string; hint: string }[] = [
+  { kind: "subscribers_learners", label: "Subscribers + learners", hint: "newsletter subscribers and anyone with learn activity, deduped" },
   { kind: "learners", label: "Learners", hint: "accounts with any learn activity" },
   { kind: "all", label: "All accounts", hint: "everyone who signed up" },
   { kind: "subscribers", label: "Newsletter subscribers", hint: "active subscribers, with or without an account" },
@@ -24,16 +25,16 @@ const OPTIONS: { kind: AudienceKind; label: string; hint: string }[] = [
 ];
 
 /** Live count for a spec (campaignId → only people not already in that campaign). */
-export function useAudienceCount(spec: AudienceSpec, campaignId?: string | null) {
+export function useAudienceCount(spec: AudienceSpec, campaignId?: string | null, storySlug?: string | null) {
   const client = useAdminClient();
-  const key = JSON.stringify({ spec, campaignId: campaignId || null });
+  const key = JSON.stringify({ spec, campaignId: campaignId || null, storySlug: storySlug || null });
   const dkey = useDebounced(key, 450);
   const [state, setState] = useState<{ key: string; data?: AudienceReply; error?: string }>({ key: "" });
   const [nonce, setNonce] = useState(0);
   useEffect(() => {
     let off = false;
     client
-      .json<AudienceReply>("/api/admin/newsletter/audience", jsonInit("POST", { audience: JSON.parse(dkey).spec, campaignId: JSON.parse(dkey).campaignId }))
+      .json<AudienceReply>("/api/admin/newsletter/audience", jsonInit("POST", { audience: JSON.parse(dkey).spec, campaignId: JSON.parse(dkey).campaignId, storySlug: JSON.parse(dkey).storySlug }))
       .then((data) => {
         if (!off) setState({ key: dkey, data });
       })
@@ -47,8 +48,8 @@ export function useAudienceCount(spec: AudienceSpec, campaignId?: string | null)
   return { data: state.data, error: state.key === dkey ? state.error : undefined, loading: state.key !== key, refresh: () => setNonce((n) => n + 1) };
 }
 
-export default function AudiencePicker({ spec, onChange, readOnly, campaignId }: { spec: AudienceSpec; onChange: (s: AudienceSpec) => void; readOnly?: boolean; campaignId?: string | null }) {
-  const live = useAudienceCount(spec, campaignId);
+export default function AudiencePicker({ spec, onChange, readOnly, campaignId, storySlug }: { spec: AudienceSpec; onChange: (s: AudienceSpec) => void; readOnly?: boolean; campaignId?: string | null; storySlug?: string | null }) {
+  const live = useAudienceCount(spec, campaignId, storySlug);
   const c = live.data?.count;
   const presets = live.data?.presets;
   const presetN = (k: AudienceKind) => (presets && k in presets ? fmtNum(presets[k as keyof Presets]) : null);
@@ -100,7 +101,11 @@ export default function AudiencePicker({ spec, onChange, readOnly, campaignId }:
         <Kpi label={campaignId ? "Will receive · new" : "Will receive"} value={fmtNum(c?.eligible)} loading={!c && !live.error} hint={live.loading && c ? "updating…" : "after exclusions"} />
         <Kpi label="Unsubscribed" value={fmtNum(c?.unsubscribed)} loading={!c && !live.error} hint="always excluded" />
         <Kpi label="Bounced · suppressed" value={fmtNum(c?.suppressed)} loading={!c && !live.error} hint="always excluded" />
-        <Kpi label={spec.kind === "custom" ? "Invalid · duplicate" : campaignId ? "Already in campaign" : "Duplicates"} value={spec.kind === "custom" ? `${fmtNum(c?.invalid)} · ${fmtNum(c?.duplicates)}` : fmtNum(campaignId ? c?.alreadyQueued : c?.duplicates)} loading={!c && !live.error} hint="folded / skipped" />
+        {storySlug ? (
+          <Kpi label="Already got this story" value={fmtNum(c?.alreadyGotStory)} loading={!c && !live.error} hint="skipped automatically" />
+        ) : (
+          <Kpi label={spec.kind === "custom" ? "Invalid · duplicate" : campaignId ? "Already in campaign" : "Duplicates"} value={spec.kind === "custom" ? `${fmtNum(c?.invalid)} · ${fmtNum(c?.duplicates)}` : fmtNum(campaignId ? c?.alreadyQueued : c?.duplicates)} loading={!c && !live.error} hint="folded / skipped" />
+        )}
       </div>
       {c && c.sample.length > 0 && (
         <p className="m-0 break-words font-mono text-xs text-fg-4">

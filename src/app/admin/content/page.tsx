@@ -1,6 +1,6 @@
 "use client";
 
-/** /admin/content — newsletter, contact queries, comment moderation, users, send logs, story stats. */
+/** /admin/content — newsletter subscribers, contact queries, comment moderation, users, send logs, story stats. */
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect } from "react";
 import { PageHead, Tabs } from "@/components/admin/ui";
@@ -14,7 +14,7 @@ import WelcomeTab from "@/components/admin/content/WelcomeTab";
 import { FlashLine, useFlash } from "@/components/admin/content/common";
 
 const TABS = [
-  { id: "newsletter", label: "newsletter" },
+  { id: "newsletter", label: "subscribers" },
   { id: "welcome", label: "welcome email" },
   { id: "contact", label: "contact" },
   { id: "comments", label: "comments" },

@@ -1,30 +1,48 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { tick } from "@/lib/campaigns/engine";
+import { runCron } from "@/lib/campaigns/engine";
 import { getStore, TablesMissingError } from "@/lib/campaigns/store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
+const same = (a: string, b: string) => {
+  const x = Buffer.from(a);
+  const y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+};
+
+/** Bearer must match the secret in public.email_cron_secret (what the Supabase pg_cron job sends) or CRON_SECRET. */
+async function authorized(req: NextRequest): Promise<boolean> {
+  const h = req.headers.get("authorization") || "";
+  const token = h.startsWith("Bearer ") ? h.slice(7).trim() : "";
+  if (token.length < 16) return false;
+  const env = process.env.CRON_SECRET;
+  if (env && same(token, env)) return true;
+  const db = await getStore()
+    .cronSecret()
+    .catch(() => null);
+  return !!db && same(token, db);
+}
+
 /**
- * Optional background sender: GET with `Authorization: Bearer $CRON_SECRET` (what Vercel Cron sends)
- * runs one tick for every campaign in "sending". The admin page does the same while it's open, so
- * this is only needed to keep a long send going with the tab closed. Disabled without CRON_SECRET.
+ * Background sender, called every minute by Supabase (pg_cron + pg_net, see
+ * supabase/migrations/20261016_email_scheduling.sql) — only while a campaign is due or sending.
+ * Promotes due scheduled campaigns (freezing their recipients now) and sends for every campaign in
+ * "sending" for ≤ 45 s. The per-campaign lease keeps it from double-sending with an open admin tab.
  */
-export async function GET(req: NextRequest) {
-  const secret = process.env.CRON_SECRET;
-  if (!secret || req.headers.get("authorization") !== `Bearer ${secret}`) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+async function handle(req: NextRequest) {
+  if (!(await authorized(req))) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
-    const store = getStore();
-    const active = (await store.listCampaigns()).filter((c) => c.status === "sending");
-    const out = [];
-    for (const c of active.slice(0, 3)) {
-      const r = await tick(c.id, 15_000);
-      out.push({ id: c.id, sent: r.sentNow, failed: r.failedNow.length, busy: !!r.busy, status: r.campaign.status });
-    }
-    return NextResponse.json({ ok: true, ran: out });
+    const r = await runCron();
+    return NextResponse.json({ ok: true, ...r });
   } catch (e) {
-    if (e instanceof TablesMissingError) return NextResponse.json({ ok: true, ran: [], note: "tables missing" });
+    if (e instanceof TablesMissingError) return NextResponse.json({ ok: true, promoted: [], ticks: [], note: "tables missing" });
+    console.error("[cron] email campaigns", e);
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
+
+export const GET = handle;
+export const POST = handle;

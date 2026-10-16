@@ -12,14 +12,15 @@ import { useMemo, useState } from "react";
 import { Card, ConfirmButton, ErrorState, PageHead, Skeleton, Tabs, fmtDate, useAdminClient, useAdminData } from "@/components/admin/ui";
 import { Field, FlashLine, btnCls, inputCls, primaryBtnCls, useFlash } from "@/components/admin/content/common";
 import { contentProblems } from "@/lib/campaigns/validate";
-import type { Campaign, CampaignSummary, EventRow, NewsletterInfo, RecipientPreview, TemplateInfo } from "@/lib/campaigns/types";
+import type { Campaign, CampaignSummary, EventRow, NewsletterInfo, RecipientPreview, StoryOption, TemplateInfo } from "@/lib/campaigns/types";
 import AudiencePicker from "./AudiencePicker";
 import Composer from "./Composer";
 import EmailPreview, { RecipientPicker } from "./EmailPreview";
 import Report from "./Report";
 import SendPanel from "./SendPanel";
 import { CampaignBadge, Note, SetupBanners, jsonInit } from "./bits";
-import { draftFromCampaign, draftFromTemplate, type Draft } from "./types";
+import StoryPicker from "./StoryPicker";
+import { applyStory, draftFromCampaign, draftFromTemplate, type Draft } from "./types";
 
 type DraftTab = "compose" | "audience" | "preview" | "send";
 type SentTab = "report" | "send" | "content";
@@ -42,10 +43,14 @@ export default function CampaignPage({ id }: { id: string }) {
   const template = templates.data?.templates.find((t) => t.id === templateId) ?? null;
   const defaultSender = info.data?.senders.find((s) => s.isDefault)?.id ?? info.data?.senders[0]?.id ?? null;
 
+  const isStory = templateId === "story";
+  const stories = useAdminData<{ stories: StoryOption[] }>(isStory ? "/api/admin/newsletter/stories" : null);
+  const storyList = stories.data?.stories;
   const base = useMemo<Draft | null>(() => {
+    if (isNew && isStory) return template && storyList?.length ? applyStory(draftFromTemplate(template, defaultSender), storyList[0]) : null;
     if (isNew) return template ? draftFromTemplate(template, defaultSender) : null;
     return campaign ? draftFromCampaign(campaign as unknown as Campaign) : null;
-  }, [isNew, template, defaultSender, campaign]);
+  }, [isNew, isStory, template, defaultSender, campaign, storyList]);
 
   const [edits, setEdits] = useState<Draft | null>(null);
   const draft = edits ?? base;
@@ -72,7 +77,7 @@ export default function CampaignPage({ id }: { id: string }) {
     { id: "send", label: "send" },
     { id: "content", label: "content" },
   ];
-  const tab = editable ? ((draftTabs.find((t) => t.id === tabParam)?.id ?? "compose") as DraftTab) : ((sentTabs.find((t) => t.id === tabParam)?.id ?? "report") as SentTab);
+  const tab = editable ? ((draftTabs.find((t) => t.id === tabParam)?.id ?? "compose") as DraftTab) : ((sentTabs.find((t) => t.id === tabParam)?.id ?? (status === "scheduled" ? "send" : "report")) as SentTab);
   const setTab = (t: string) => {
     const next = new URLSearchParams(params.toString());
     next.set("tab", t);
@@ -136,7 +141,7 @@ export default function CampaignPage({ id }: { id: string }) {
     }
   };
 
-  const loadError = full.error || (isNew && templates.error);
+  const loadError = full.error || (isNew && (templates.error || stories.error));
   if (loadError && !draft) return <ErrorState error={loadError} onRetry={() => (isNew ? templates.refresh() : full.refresh())} title={full.error?.status === 404 ? "Campaign not found" : "Couldn't load this campaign"} />;
   if (!draft || !info.data)
     return (
@@ -191,7 +196,17 @@ export default function CampaignPage({ id }: { id: string }) {
 
       {tab === "compose" && (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,720px)]">
-          <Composer draft={draft} onChange={set} senders={info.data.senders} problems={problems} template={template} />
+          <div className="flex min-w-0 flex-col gap-4">
+            {isStory && (
+              <StoryPicker
+                stories={storyList}
+                value={draft.doc.layout === "blocks" ? (draft.doc.story?.slug ?? null) : null}
+                onPick={(s) => set(applyStory(draft, s))}
+                error={stories.error?.message}
+              />
+            )}
+            <Composer draft={draft} onChange={set} senders={info.data.senders} problems={problems} template={template} />
+          </div>
           <div className="hidden xl:block">
             <div className="sticky top-[calc(var(--hk-header-h,57px)+24px)]">
               <EmailPreview draft={draft} base={trackingBase} as={as} compact />
@@ -200,7 +215,7 @@ export default function CampaignPage({ id }: { id: string }) {
         </div>
       )}
 
-      {tab === "audience" && <AudiencePicker spec={draft.audience} onChange={(audience) => set({ ...draft, audience })} campaignId={campaign?.id} />}
+      {tab === "audience" && <AudiencePicker spec={draft.audience} onChange={(audience) => set({ ...draft, audience })} campaignId={campaign?.id} storySlug={draft.doc.layout === "blocks" ? (draft.doc.story?.slug ?? null) : null} />}
 
       {tab === "preview" && (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">

@@ -8,12 +8,20 @@
  *     JSON file, for end-to-end tests without touching the production database. Unsubscribes are
  *     still READ from the real newsletter_subscribers table, never written.
  */
+import crypto from "crypto";
 import fs from "fs";
 import { supabase } from "@/lib/supabase";
 import type { AudienceSpec, Campaign, CampaignCounts, CampaignStatus, EventRow, MessageRow, MessageStatus, TransportId } from "./types";
 import type { EmailDoc } from "./render";
 
 export const TABLES = ["email_senders", "email_campaigns", "email_messages", "email_events", "email_suppressions"] as const;
+
+export class SchedulingMissingError extends Error {
+  status = 503;
+  constructor() {
+    super("Scheduling needs supabase/migrations/20261016_email_scheduling.sql applied (scheduled_at column, cron job).");
+  }
+}
 
 export class TablesMissingError extends Error {
   missing: string[];
@@ -27,7 +35,7 @@ export type DbSender = { id: string; label: string; fromName: string; fromEmail:
 
 export type DbMessage = MessageRow & { campaignId: string; token: string; vars: Record<string, string> | null; claimedAt: string | null; providerId: string | null };
 
-export type NewCampaign = Omit<Campaign, "id" | "createdAt" | "updatedAt" | "queuedAt" | "startedAt" | "finishedAt" | "lockUntil" | "lastError" | "status" | "sender"> & { status?: CampaignStatus };
+export type NewCampaign = Omit<Campaign, "id" | "createdAt" | "updatedAt" | "queuedAt" | "startedAt" | "finishedAt" | "lockUntil" | "lastError" | "status" | "sender" | "scheduledAt"> & { status?: CampaignStatus };
 
 export type MessageFilter = "all" | MessageStatus | "opened" | "clicked" | "unopened" | "unsubscribed";
 
@@ -36,6 +44,12 @@ export type Blocked = Map<string, "unsubscribed" | "suppressed">;
 export interface CampaignStore {
   kind: "supabase" | "file";
   ready(): Promise<{ ready: boolean; missing: string[] }>;
+  /** 20261016_email_scheduling.sql applied: scheduled_at / story_slug columns + cron secret table */
+  schedulingReady(): Promise<boolean>;
+  /** Shared secret the Supabase pg_cron job sends as its bearer token (null until the migration). */
+  cronSecret(): Promise<string | null>;
+  /** Addresses that already got each story: campaign sends (story_slug) + the old newsletter_logs. */
+  storySends(slug?: string): Promise<Map<string, Set<string>>>;
   listSenders(): Promise<DbSender[]>;
   saveSender(s: Omit<DbSender, "id" | "createdAt"> & { id?: string }): Promise<DbSender>;
   deleteSender(id: string): Promise<void>;
@@ -172,6 +186,8 @@ type CampaignRow = {
   started_at: string | null;
   finished_at: string | null;
   lock_until: string | null;
+  scheduled_at?: string | null;
+  story_slug?: string | null;
 };
 
 const toCampaign = (r: CampaignRow): Campaign => ({
@@ -196,6 +212,8 @@ const toCampaign = (r: CampaignRow): Campaign => ({
   startedAt: r.started_at,
   finishedAt: r.finished_at,
   lockUntil: r.lock_until,
+  scheduledAt: r.scheduled_at ?? null,
+  storySlug: r.story_slug ?? (r.doc && "story" in r.doc ? ((r.doc as { story?: { slug?: string } }).story?.slug ?? null) : null),
 });
 
 const CAMPAIGN_COLS: Record<string, keyof CampaignRow> = {
@@ -217,10 +235,16 @@ const CAMPAIGN_COLS: Record<string, keyof CampaignRow> = {
   startedAt: "started_at",
   finishedAt: "finished_at",
   lockUntil: "lock_until",
+  scheduledAt: "scheduled_at",
+  storySlug: "story_slug",
 };
 const toCampaignRow = (p: Partial<Campaign>) => {
   const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(p)) if (CAMPAIGN_COLS[k] && v !== undefined) out[CAMPAIGN_COLS[k]] = v;
+  for (const [k, v] of Object.entries(p)) {
+    // story_slug only exists after the scheduling migration: never send a null for it
+    if (!CAMPAIGN_COLS[k] || v === undefined || (k === "storySlug" && v == null)) continue;
+    out[CAMPAIGN_COLS[k]] = v;
+  }
   return out;
 };
 
@@ -285,6 +309,29 @@ const toMessagePatch = (p: Partial<DbMessage>) => {
 };
 
 let readyCache: { at: number; value: { ready: boolean; missing: string[] } } | null = null;
+let schedCache: { at: number; value: boolean } | null = null;
+let secretCache: { at: number; value: string | null } | null = null;
+
+/** PostgREST "column not found" (scheduling migration not applied yet). */
+const isMissingColumn = (e: Err) => !!e && (e.code === "PGRST204" || e.code === "42703" || /column .*(scheduled_at|story_slug)|(scheduled_at|story_slug).*column/i.test(e.message || ""));
+const withoutNewColumns = (row: Record<string, unknown>) => {
+  const { scheduled_at: _a, story_slug: _b, ...rest } = row;
+  void _a;
+  void _b;
+  return rest;
+};
+
+const PAGE_ROWS = 1000;
+async function pagedEmails(build: (from: number, to: number) => PromiseLike<{ data: { email: string }[] | null; error: Err }>): Promise<string[]> {
+  const out: string[] = [];
+  for (let from = 0; from < 1_000_000; from += PAGE_ROWS) {
+    const { data, error } = await build(from, from + PAGE_ROWS - 1);
+    if (error || !data) break;
+    for (const r of data) out.push(lc(r.email));
+    if (data.length < PAGE_ROWS) break;
+  }
+  return out;
+}
 
 const supabaseStore: CampaignStore = {
   kind: "supabase",
@@ -303,6 +350,52 @@ const supabaseStore: CampaignStore = {
     const value = { ready: missing.length === 0, missing };
     readyCache = { at: Date.now(), value };
     return value;
+  },
+
+  async schedulingReady() {
+    if (schedCache && Date.now() - schedCache.at < (schedCache.value ? 5 * 60_000 : 15_000)) return schedCache.value;
+    const [a, b] = await Promise.all([supabase.from("email_campaigns").select("scheduled_at, story_slug").limit(1), supabase.from("email_cron_secret").select("id").limit(1)]);
+    const value = !a.error && !b.error;
+    schedCache = { at: Date.now(), value };
+    return value;
+  },
+
+  async cronSecret() {
+    if (secretCache && Date.now() - secretCache.at < 5 * 60_000) return secretCache.value;
+    const { data, error } = await supabase.from("email_cron_secret").select("secret").eq("id", 1).maybeSingle();
+    const value = !error && data?.secret ? String(data.secret) : null;
+    secretCache = { at: Date.now(), value };
+    return value;
+  },
+
+  async storySends(slug) {
+    const out = new Map<string, Set<string>>();
+    const add = (s: string, e: string) => (out.get(s) || out.set(s, new Set()).get(s)!).add(e);
+    // campaigns that carried a story (column after the migration, else the doc's story ref)
+    type Row = { id: string; story_slug?: string | null; slug?: string | null };
+    let camps: { data: unknown; error: Err } = await supabase.from("email_campaigns").select("id, story_slug, doc->story->>slug").not("status", "eq", "draft");
+    if (camps.error && isMissingColumn(camps.error)) camps = await supabase.from("email_campaigns").select("id, doc->story->>slug").not("status", "eq", "draft");
+    const rows = (camps.data || []) as Row[];
+    await Promise.all(
+      rows.map(async (c) => {
+        const s = c.story_slug || c.slug;
+        if (!s || (slug && s !== slug)) return;
+        const emails = await pagedEmails((a, b) => supabase.from("email_messages").select("email").eq("campaign_id", c.id).eq("status", "sent").range(a, b));
+        emails.forEach((e) => add(s, e));
+      })
+    );
+    // the old stories newsletter (newsletter_logs.story_slugs jsonb array)
+    const legacy: { email: string; story_slugs: unknown }[] = [];
+    for (let from = 0; from < 1_000_000; from += PAGE_ROWS) {
+      let lq = supabase.from("newsletter_logs").select("email, story_slugs").eq("status", "sent").not("story_slugs", "is", null);
+      if (slug) lq = lq.filter("story_slugs", "cs", JSON.stringify([slug]));
+      const { data, error } = await lq.range(from, from + PAGE_ROWS - 1);
+      if (error || !data) break;
+      legacy.push(...(data as { email: string; story_slugs: unknown }[]));
+      if (data.length < PAGE_ROWS) break;
+    }
+    for (const r of legacy) for (const s of Array.isArray(r.story_slugs) ? r.story_slugs : []) if (typeof s === "string" && !s.startsWith("announce:") && (!slug || s === slug)) add(s, lc(r.email));
+    return out;
   },
 
   async listSenders() {
@@ -339,19 +432,25 @@ const supabaseStore: CampaignStore = {
   },
 
   async createCampaign(c) {
-    const { data, error } = await supabase
-      .from("email_campaigns")
-      .insert({ ...toCampaignRow(c), status: c.status || "draft" })
-      .select("*")
-      .single();
-    if (error || !data) fail(error, "email_campaigns insert failed");
-    return toCampaign(data as CampaignRow);
+    const row = { ...toCampaignRow(c), status: c.status || "draft" };
+    let res = await supabase.from("email_campaigns").insert(row).select("*").single();
+    if (res.error && isMissingColumn(res.error)) res = await supabase.from("email_campaigns").insert(withoutNewColumns(row)).select("*").single();
+    if (res.error || !res.data) fail(res.error, "email_campaigns insert failed");
+    return toCampaign(res.data as CampaignRow);
   },
 
   async updateCampaign(id, patch, onlyIf) {
-    let q = supabase.from("email_campaigns").update({ ...toCampaignRow(patch), updated_at: nowIso() }).eq("id", id);
-    if (onlyIf?.length) q = q.in("status", onlyIf);
-    const { data, error } = await q.select("*").maybeSingle();
+    const run = (row: Record<string, unknown>) => {
+      let q = supabase.from("email_campaigns").update(row).eq("id", id);
+      if (onlyIf?.length) q = q.in("status", onlyIf);
+      return q.select("*").maybeSingle();
+    };
+    const row = { ...toCampaignRow(patch), updated_at: nowIso() };
+    let { data, error } = await run(row);
+    if (error && isMissingColumn(error)) {
+      if (patch.scheduledAt !== undefined || patch.status === "scheduled") throw new SchedulingMissingError();
+      ({ data, error } = await run(withoutNewColumns(row)));
+    }
     if (error) fail(error, "email_campaigns update failed");
     return data ? toCampaign(data as CampaignRow) : null;
   },
@@ -556,6 +655,7 @@ const supabaseStore: CampaignStore = {
 
 type FileDb = {
   seq: number;
+  cronSecret?: string;
   senders: DbSender[];
   campaigns: Campaign[];
   messages: DbMessage[];
@@ -586,6 +686,23 @@ function fileStore(path: string): CampaignStore {
     async ready() {
       return { ready: true, missing: [] };
     },
+    async schedulingReady() {
+      return true;
+    },
+    async cronSecret() {
+      return tx((db) => (db.cronSecret ??= crypto.randomBytes(24).toString("hex")));
+    },
+    async storySends(slug) {
+      const db = load();
+      const out = new Map<string, Set<string>>();
+      for (const c of db.campaigns) {
+        if (!c.storySlug || c.status === "draft" || (slug && c.storySlug !== slug)) continue;
+        const set = out.get(c.storySlug) || new Set<string>();
+        db.messages.filter((m) => m.campaignId === c.id && m.status === "sent").forEach((m) => set.add(m.email));
+        out.set(c.storySlug, set);
+      }
+      return out;
+    },
     async listSenders() {
       return load().senders;
     },
@@ -613,7 +730,7 @@ function fileStore(path: string): CampaignStore {
     },
     async createCampaign(c) {
       return tx((db) => {
-        const row: Campaign = { ...c, status: c.status || "draft", id: uuid(), sender: null, lastError: null, createdAt: nowIso(), updatedAt: nowIso(), queuedAt: null, startedAt: null, finishedAt: null, lockUntil: null };
+        const row: Campaign = { ...c, status: c.status || "draft", id: uuid(), sender: null, lastError: null, createdAt: nowIso(), updatedAt: nowIso(), queuedAt: null, startedAt: null, finishedAt: null, lockUntil: null, scheduledAt: null };
         db.campaigns.push(row);
         return row;
       });

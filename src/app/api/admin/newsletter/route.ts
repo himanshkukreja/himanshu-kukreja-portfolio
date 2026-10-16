@@ -16,10 +16,11 @@ export async function GET(req: NextRequest) {
   try {
     const store = getStore();
     const ready = await store.ready();
+    const schedulingReady = ready.ready ? await store.schedulingReady().catch(() => false) : false;
     const { senders } = await listSenders();
     const campaigns = ready.ready ? await Promise.all((await store.listCampaigns()).map(summarize)) : [];
     const info: NewsletterInfo = {
-      setup: { tablesReady: ready.ready, missing: ready.missing, transportMode: transportMode(), trackingBase: trackingBase(), batch: { size: BATCH, gapMs: GAP_MS, budgetMs: BUDGET_MS }, admin: admin.email },
+      setup: { schedulingReady, tablesReady: ready.ready, missing: ready.missing, transportMode: transportMode(), trackingBase: trackingBase(), batch: { size: BATCH, gapMs: GAP_MS, budgetMs: BUDGET_MS }, admin: admin.email },
       transports: allTransports(),
       senders,
       campaigns,

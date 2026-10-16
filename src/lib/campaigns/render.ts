@@ -28,7 +28,9 @@ export type Block =
 
 export type BlockType = Block["type"];
 
-export type BlocksDoc = { layout: "blocks"; topLabel: string; footer: string; blocks: Block[] };
+/** Set on "Case file update" documents: which story the email announces (tracking + the picker). */
+export type StoryRef = { slug: string; caseId: string; title: string };
+export type BlocksDoc = { layout: "blocks"; topLabel: string; footer: string; blocks: Block[]; story?: StoryRef };
 export type RawDoc = { layout: "raw"; html: string; text: string; source?: string };
 export type EmailDoc = BlocksDoc | RawDoc;
 

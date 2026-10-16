@@ -10,7 +10,7 @@ import { useMemo } from "react";
 import { Card, ErrorState, Kpi, LABEL, PageHead, Table, Tabs, fmtNum, timeAgo, useAdminData, useNow, type Column } from "@/components/admin/ui";
 import { FlashLine, useFlash } from "@/components/admin/content/common";
 import type { CampaignSummary, NewsletterInfo, TemplateInfo } from "@/lib/campaigns/types";
-import { CampaignBadge, SetupBanners, cx, pct } from "./bits";
+import { CampaignBadge, SetupBanners, cx, fmtCountdown, pct } from "./bits";
 import SendersPanel from "./SendersPanel";
 
 type Tab = "campaigns" | "senders";
@@ -20,10 +20,11 @@ export default function NewsletterHome() {
   const router = useRouter();
   const pathname = usePathname();
   const tab: Tab = params.get("tab") === "senders" ? "senders" : "campaigns";
-  const info = useAdminData<NewsletterInfo>("/api/admin/newsletter");
+  // refresh so countdowns turn into "sending" / "sent" as the Supabase cron picks campaigns up
+  const info = useAdminData<NewsletterInfo>("/api/admin/newsletter", { refreshMs: 15_000 });
   const templates = useAdminData<{ templates: TemplateInfo[] }>("/api/admin/newsletter/templates");
   const { flash, say, clear } = useFlash();
-  const now = useNow(60_000);
+  const now = useNow(1000);
   const d = info.data;
   const campaigns = useMemo(() => d?.campaigns ?? [], [d]);
 
@@ -36,7 +37,7 @@ export default function NewsletterHome() {
       opened += c.counts.opened;
       clicked += c.counts.clicked;
     }
-    return { sent, opened, clicked, live: campaigns.filter((c) => c.status === "sending").length };
+    return { sent, opened, clicked, live: campaigns.filter((c) => c.status === "sending").length, scheduled: campaigns.filter((c) => c.status === "scheduled").length };
   }, [campaigns]);
 
   const cols: Column<CampaignSummary>[] = [
@@ -52,7 +53,17 @@ export default function NewsletterHome() {
       ),
       className: "max-w-[360px]",
     },
-    { key: "status", header: "status", sort: (c) => c.status, render: (c) => <CampaignBadge status={c.status} /> },
+    {
+      key: "status",
+      header: "status",
+      sort: (c) => c.status,
+      render: (c) => (
+        <span className="flex flex-col items-start gap-0.5">
+          <CampaignBadge status={c.status} />
+          {c.status === "scheduled" && <span className="whitespace-nowrap font-mono text-[11px] text-signal-text">{fmtCountdown(c.scheduledAt, now)}</span>}
+        </span>
+      ),
+    },
     { key: "sent", header: "sent", align: "right", sort: (c) => c.counts.sent, render: (c) => <span className="font-mono">{c.counts.total ? `${fmtNum(c.counts.sent)}/${fmtNum(c.counts.total)}` : "—"}</span> },
     { key: "open", header: "opened", align: "right", sort: (c) => (c.counts.sent ? c.counts.opened / c.counts.sent : -1), render: (c) => <span className="font-mono">{pct(c.counts.opened, c.counts.sent)}</span> },
     { key: "click", header: "clicked", align: "right", hideOnPhone: true, sort: (c) => (c.counts.sent ? c.counts.clicked / c.counts.sent : -1), render: (c) => <span className="font-mono">{pct(c.counts.clicked, c.counts.sent)}</span> },
@@ -91,7 +102,7 @@ export default function NewsletterHome() {
             <Kpi label="Emails sent" value={fmtNum(totals.sent)} loading={!d} hint="all campaigns" />
             <Kpi label="Opened · unique" value={pct(totals.opened, totals.sent)} loading={!d} hint={d ? `${fmtNum(totals.opened)} people` : undefined} />
             <Kpi label="Clicked · unique" value={pct(totals.clicked, totals.sent)} loading={!d} hint={d ? `${fmtNum(totals.clicked)} people` : undefined} />
-            <Kpi label="Sending now" value={fmtNum(totals.live)} loading={!d} hint="campaigns in progress" />
+            <Kpi label="Sending · scheduled" value={`${fmtNum(totals.live)} · ${fmtNum(totals.scheduled)}`} loading={!d} hint="campaigns in progress / queued for later" />
           </div>
 
           <Card label="campaigns" title="All campaigns" pad={false}>
@@ -110,7 +121,7 @@ export default function NewsletterHome() {
 
           <section id="new" className="scroll-mt-28">
             <div className={`${LABEL} mb-2`}>new campaign · pick a starting point</div>
-            <div className="grid gap-3 md:grid-cols-3">
+            <div className="grid gap-3 md:grid-cols-2 2xl:grid-cols-4">
               {(templates.data?.templates ?? []).map((t, i) => (
                 <Link
                   key={t.id}

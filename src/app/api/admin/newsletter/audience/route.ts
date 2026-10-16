@@ -3,12 +3,13 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { apiError, parseAudience } from "@/lib/campaigns/api";
 import { presetCounts, resolveAudience } from "@/lib/campaigns/audience";
 import { getStore } from "@/lib/campaigns/store";
+import { storySendSet } from "@/lib/campaigns/engine";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** POST { audience, campaignId? } → live count for that spec (+ preset counts). Read-only. */
+/** POST { audience, campaignId?, storySlug? } → live count (minus people already in the campaign / who got the story) for that spec (+ preset counts). Read-only. */
 export async function POST(req: NextRequest) {
   const admin = await requireAdmin(req);
   if (admin instanceof NextResponse) return admin;
@@ -23,7 +24,9 @@ export async function POST(req: NextRequest) {
         exclude = undefined; // tables missing: nobody queued yet
       }
     }
-    const [{ count }, presets] = await Promise.all([resolveAudience(spec, { exclude }), presetCounts()]);
+    const storySlug = typeof body?.storySlug === "string" && /^[a-z0-9-]{1,120}$/.test(body.storySlug) ? body.storySlug : null;
+    const storyExclude = storySlug ? await storySendSet(storySlug) : undefined;
+    const [{ count }, presets] = await Promise.all([resolveAudience(spec, { exclude, storyExclude }), presetCounts()]);
     return NextResponse.json({ count, presets }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return apiError(e);
