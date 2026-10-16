@@ -122,7 +122,9 @@ function GatedRuntime({ children }: { children: ReactNode }) {
   const client = useMemo<AdminClient>(() => ({ json: adminJson, text: adminText, preview: false, onUnauthorized }), [onUnauthorized]);
 
   const current = check && check.userId === userId ? check : null;
-  if (loading || (userId && !current)) return <Forbidden mode="checking" />;
+  // Once this user is confirmed as admin, keep the screen mounted through auth refreshes: swapping
+  // in the "checking" state would unmount open editors (and lose their in-memory state).
+  if (!(current?.status === "ok") && (loading || (userId && !current))) return <Forbidden mode="checking" />;
   if (!userId) return <Forbidden mode="signedOut" onSignIn={openAuthModal} />;
   if (current!.status !== "ok")
     return (

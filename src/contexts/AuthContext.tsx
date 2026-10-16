@@ -35,6 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const initializedRef = useRef(false); // Use ref instead of state to avoid closure issues
   const fetchingProfileRef = useRef(false); // Prevent concurrent profile fetches
   const currentUserIdRef = useRef<string | null>(null); // Track current user ID
+  const authUserIdRef = useRef<string | null>(null); // user id of the last auth state seen
 
   // Fetch user profile with retry logic
   const fetchProfile = async (userId: string, retryCount = 0) => {
@@ -122,6 +123,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setSession(session);
         setUser(session?.user ?? null);
+        authUserIdRef.current = session?.user?.id ?? null;
 
         if (session?.user) {
           console.log("[AuthContext] User found, fetching profile...");
@@ -147,8 +149,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
       console.log("[AuthContext] Auth state changed:", event, session ? "authenticated" : "not authenticated");
 
-      // Only set loading if we're already initialized to avoid blocking initial load
-      if (initializedRef.current) {
+      // Supabase re-emits SIGNED_IN / TOKEN_REFRESHED for the SAME user on every token refresh,
+      // tab refocus and from other tabs/iframes. Only a real change of user is a loading state:
+      // flipping `loading` for those unmounted gated screens (the admin editor reloaded in a loop).
+      const nextUserId = session?.user?.id ?? null;
+      const userChanged = nextUserId !== authUserIdRef.current;
+      authUserIdRef.current = nextUserId;
+      const showLoading = initializedRef.current && userChanged;
+      if (showLoading) {
         setLoading(true);
       }
 
@@ -185,7 +193,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Always set loading to false after handling auth change
-      if (initializedRef.current) {
+      if (showLoading) {
         setLoading(false);
       }
     });
