@@ -28,6 +28,7 @@ export const ADMIN_NAV = [
   { href: "/admin/learners", label: "Learners", key: "learners", match: (p: string) => p.startsWith("/admin/learners") },
   { href: "/admin/course", label: "Course", key: "course", match: (p: string) => p.startsWith("/admin/course") },
   { href: "/admin/traffic", label: "Traffic", key: "traffic", match: (p: string) => p.startsWith("/admin/traffic") },
+  { href: "/admin/journeys", label: "Journeys", key: "journeys", match: (p: string) => p.startsWith("/admin/journeys") },
   { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
   { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
 ] as const;
@@ -202,7 +203,7 @@ function Frame({ email, children }: { email: string; children: ReactNode }) {
   const live = useLive();
 
   return (
-    <div className="mx-auto w-full max-w-[1320px] px-4 pb-12 sm:px-6">
+    <div data-ph-mask className="mx-auto w-full max-w-[1320px] px-4 pb-12 sm:px-6">
       {/* phones + tablets: sticky tab strip under the site header */}
       <nav
         aria-label="Admin sections"

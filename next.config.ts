@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { POSTHOG_ASSETS_HOST, POSTHOG_INGEST_HOST, POSTHOG_KEY, POSTHOG_PROXY_PATH } from "./src/lib/analytics/config";
 
 // Attempt to configure Image Optimization for remote ImageKit (if provided via env)
 const imageKitBase = process.env.NEXT_PUBLIC_IMAGEKIT_BASE_URL;
@@ -46,7 +47,30 @@ if (!remotePatterns) {
   domains = domains ? [...domains, "lh3.googleusercontent.com"] : ["lh3.googleusercontent.com"];
 }
 
+// PostHog first-party proxy (ad-blocker proof), per posthog.com/docs/advanced/proxy/nextjs.
+// Registered only when a PostHog project key is configured; otherwise /hkr/* is a plain 404.
+const PH = POSTHOG_PROXY_PATH; // "/hkr"
+const posthogRewrites = POSTHOG_KEY
+  ? [
+      { source: `${PH}/static/:path*`, destination: `${POSTHOG_ASSETS_HOST}/static/:path*` },
+      { source: `${PH}/array/:path*`, destination: `${POSTHOG_ASSETS_HOST}/array/:path*` },
+      { source: `${PH}/:path*`, destination: `${POSTHOG_INGEST_HOST}/:path*` },
+    ]
+  : [];
+
 const nextConfig: NextConfig = {
+  // PostHog API paths end in a slash (/e/, /flags/?v=2): don't 308 them away (only needed, and
+  // only switched on, when the proxy is live).
+  skipTrailingSlashRedirect: posthogRewrites.length > 0,
+  async rewrites() {
+    return posthogRewrites;
+  },
+  // ...but keep the site's own canonical URLs: /learn/ → /learn as before (proxy paths excluded).
+  async redirects() {
+    return posthogRewrites.length
+      ? [{ source: `/:path((?!${PH.slice(1)}(?:/|$)).+)/`, destination: "/:path", permanent: true }]
+      : [];
+  },
   outputFileTracingIncludes: {
     "/*": ["./content/**/*"],
     // Share-card fonts (src/lib/og) for the per-lesson OG/Twitter images rendered on demand.
@@ -70,7 +94,8 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        // everything except the PostHog proxy (it forwards PostHog's own headers)
+        source: `/((?!${PH.slice(1)}/).*)`,
         headers: [
           {
             key: 'Access-Control-Allow-Origin',

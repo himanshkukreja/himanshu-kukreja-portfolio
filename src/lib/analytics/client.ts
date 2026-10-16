@@ -1,0 +1,465 @@
+"use client";
+
+/**
+ * Browser runtime for the optional third-party analytics: PostHog (product analytics, session
+ * replay, heatmaps) and Google Analytics 4. Mounted by <AnalyticsProvider/> in the root layout.
+ *
+ * Dormant by default: with no NEXT_PUBLIC_POSTHOG_KEY / NEXT_PUBLIC_GA_ID nothing below loads or
+ * sends anything (posthog-js is a lazy chunk that is never fetched, gtag.js is never injected).
+ *
+ * Never loads / captures:
+ *   - on /admin* (admin's own browsing): not loaded when the visit starts there; when navigating
+ *     into /admin, PostHog drops every event in before_send and pauses replay, GA is disabled
+ *     with the official `ga-disable-<id>` flag before the navigation commits;
+ *   - with localStorage hk.notrack=1 (admin "Exclude my visits", visitor opt-out on /privacy);
+ *   - with Do Not Track or Global Privacy Control on.
+ *
+ * PostHog talks to /hkr (first-party proxy, see next.config.ts) so ad blockers don't drop it.
+ * GA cannot be proxied without server-side GTM, so it is blockable by design.
+ */
+import type { CaptureResult, PostHog, Properties } from "posthog-js";
+import { supabaseClient } from "@/lib/supabase-client";
+import { startEngagedClock, type EngagedClock } from "@/lib/learn/engagedClock";
+import { onProduct, onRouteStart, type ProductProps } from "./bus";
+import { GA_ID, POSTHOG_KEY, POSTHOG_PROXY_PATH, POSTHOG_UI_HOST, gaEnabled, posthogEnabled } from "./config";
+
+export const NOTRACK_KEY = "hk.notrack";
+/** Fired on window when the visitor's opt-out state changes (for toggles). */
+export const OPTOUT_EVENT = "hk:analytics-optout";
+
+type Gtag = (...args: unknown[]) => void;
+type GaWindow = Window & { dataLayer?: unknown[]; gtag?: Gtag } & Record<string, unknown>;
+
+const isBrowser = () => typeof window !== "undefined" && typeof document !== "undefined";
+export const isAdminPath = (p: string) => p === "/admin" || p.startsWith("/admin/");
+
+export function privacySignal(): boolean {
+  if (!isBrowser()) return false;
+  const nav = navigator as Navigator & { globalPrivacyControl?: boolean; msDoNotTrack?: string };
+  const w = window as Window & { doNotTrack?: string };
+  return nav.globalPrivacyControl === true || nav.doNotTrack === "1" || nav.doNotTrack === "yes" || w.doNotTrack === "1" || nav.msDoNotTrack === "1";
+}
+
+export function isOptedOut(): boolean {
+  if (!isBrowser()) return false;
+  try {
+    return window.localStorage.getItem(NOTRACK_KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+/** Analytics may run for this visitor at all (path checks are separate). */
+const allowed = () => !isOptedOut() && !privacySignal();
+const currentPath = () => (isBrowser() ? window.location.pathname : "/");
+
+/* ───────────────────────────── content context ───────────────────────────── */
+
+const LEARN_RESERVED = new Set(["dashboard", "notes", "bookmarks", "review", "arena", "notebook"]);
+
+export type ContentRef =
+  | { content_type: "lesson"; course: string; week: string; lesson: string }
+  | { content_type: "story"; story: string };
+
+/** /learn/<course>/<week>/<slug> → lesson, /stories/<slug> → story. */
+export function contentOf(pathname: string): ContentRef | null {
+  const seg = pathname.split("/").filter(Boolean).map((s) => {
+    try {
+      return decodeURIComponent(s);
+    } catch {
+      return s;
+    }
+  });
+  if (seg[0] === "learn" && seg.length === 4 && !LEARN_RESERVED.has(seg[1])) return { content_type: "lesson", course: seg[1], week: seg[2], lesson: seg[3] };
+  if (seg[0] === "stories" && seg.length === 2) return { content_type: "story", story: seg[1] };
+  return null;
+}
+
+function pageContext(pathname: string): Properties {
+  const c = contentOf(pathname);
+  if (!c) return {};
+  const hash = window.location.hash.slice(1);
+  return { ...c, ...(hash && hash.length <= 80 ? { stage: hash } : {}), page_title: document.title };
+}
+
+/* ───────────────────────────── PostHog ───────────────────────────── */
+
+let ph: PostHog | null = null;
+let phLoading: Promise<PostHog | null> | null = null;
+let replayPaused = false;
+
+function beforeSend(ev: CaptureResult | null): CaptureResult | null {
+  if (!ev) return ev;
+  const path = currentPath();
+  if (isAdminPath(path) || !allowed()) return null;
+  if (ev.event === "$pageview" || ev.event === "$pageleave") {
+    const p = (ev.properties?.$pathname as string | undefined) || path;
+    ev.properties = { ...ev.properties, ...pageContext(p) };
+  }
+  return ev;
+}
+
+function loadPosthog(): Promise<PostHog | null> {
+  if (!posthogEnabled()) return Promise.resolve(null);
+  if (phLoading) return phLoading;
+  phLoading = import("posthog-js")
+    .then(({ default: posthog }) => {
+      posthog.init(POSTHOG_KEY, {
+        api_host: POSTHOG_PROXY_PATH,
+        ui_host: POSTHOG_UI_HOST,
+        defaults: "2026-05-30",
+        // App-router navigations are pushState: one $pageview per history change, no manual call.
+        capture_pageview: "history_change",
+        capture_pageleave: true,
+        autocapture: true,
+        rageclick: true,
+        capture_dead_clicks: true,
+        // batch heatmap points every 5 s instead of every 1 s (fewer $$heatmap requests)
+        capture_heatmaps: { flush_interval_milliseconds: 5000 },
+        // Every visitor gets a person profile so anonymous journeys show up in /admin/journeys.
+        person_profiles: "always",
+        respect_dnt: true,
+        disable_session_recording: false,
+        session_recording: {
+          maskAllInputs: true,
+          // Anything marked data-ph-mask (auth inputs, notes, comment editors, admin) is masked.
+          maskTextSelector: "[data-ph-mask], [data-ph-mask] *",
+        },
+        before_send: beforeSend,
+      });
+      ph = posthog;
+      syncGates(currentPath());
+      return posthog;
+    })
+    .catch(() => null);
+  return phLoading;
+}
+
+/* ───────────────────────────── Google Analytics 4 ───────────────────────────── */
+
+let gaLoaded = false;
+
+function gtag(...args: unknown[]) {
+  const w = window as unknown as GaWindow;
+  if (typeof w.gtag === "function") w.gtag(...args);
+}
+
+function loadGa() {
+  if (!gaEnabled() || gaLoaded) return;
+  gaLoaded = true;
+  const w = window as unknown as GaWindow;
+  w.dataLayer = w.dataLayer || [];
+  w.gtag = function gtagShim() {
+    // gtag.js expects the Arguments object itself, not an array
+    // eslint-disable-next-line prefer-rest-params
+    (w.dataLayer as unknown[]).push(arguments);
+  };
+  w[`ga-disable-${GA_ID}`] = false;
+  // Consent Mode v2 defaults: analytics allowed (we only get here without DNT/GPC/opt-out),
+  // everything advertising-related denied.
+  gtag("consent", "default", {
+    analytics_storage: privacySignal() ? "denied" : "granted",
+    ad_storage: "denied",
+    ad_user_data: "denied",
+    ad_personalization: "denied",
+  });
+  gtag("js", new Date());
+  // Initial page_view comes from config; later app-router navigations are counted by GA4's
+  // Enhanced measurement → "Page changes based on browser history events" (on by default).
+  gtag("config", GA_ID);
+  const s = document.createElement("script");
+  s.async = true;
+  s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`;
+  document.head.appendChild(s);
+}
+
+function setGaDisabled(off: boolean) {
+  if (!GA_ID || !isBrowser()) return;
+  (window as unknown as GaWindow)[`ga-disable-${GA_ID}`] = off;
+}
+
+/* ───────────────────────────── gates ───────────────────────────── */
+
+/** Apply the admin / opt-out gates for `path` to whatever is loaded. */
+function syncGates(path: string) {
+  const off = isAdminPath(path) || !allowed();
+  setGaDisabled(off);
+  if (!ph) return;
+  if (off && !replayPaused) {
+    replayPaused = true;
+    try {
+      ph.stopSessionRecording();
+    } catch {
+      /* ignore */
+    }
+  } else if (!off && replayPaused) {
+    replayPaused = false;
+    try {
+      ph.startSessionRecording();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/* ───────────────────────────── identity ───────────────────────────── */
+
+type AuthUser = {
+  id: string;
+  email?: string | null;
+  created_at?: string;
+  last_sign_in_at?: string | null;
+  app_metadata?: { provider?: string };
+  user_metadata?: { full_name?: string; name?: string };
+};
+
+const LOGIN_SEEN_KEY = "hk.an.login";
+const IDENT_KEY = "hk.an.ident";
+
+function identify(user: AuthUser) {
+  const name = user.user_metadata?.full_name || user.user_metadata?.name || undefined;
+  const provider = user.app_metadata?.provider || "email";
+  if (ph) {
+    // identify() on an already-identified id re-sends a $set on every page load: skip unless
+    // the id or the profile changed (each $set is a billable event)
+    const sig = `${user.id}|${user.email ?? ""}|${name ?? ""}|${provider}`;
+    let prev: string | null = null;
+    try {
+      prev = window.localStorage.getItem(IDENT_KEY);
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (ph.get_distinct_id() !== user.id || prev !== sig) {
+        ph.identify(user.id, { email: user.email ?? undefined, name, provider }, { signed_up_at: user.created_at });
+        window.localStorage.setItem(IDENT_KEY, sig);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  if (gaLoaded) gtag("set", { user_id: user.id });
+
+  // sign_up / login once per real sign-in (last_sign_in_at only changes on an actual sign-in)
+  const mark = `${user.id}:${user.last_sign_in_at || ""}`;
+  let seen: string | null = null;
+  try {
+    seen = window.localStorage.getItem(LOGIN_SEEN_KEY);
+  } catch {
+    /* ignore */
+  }
+  if (seen === mark || !user.last_sign_in_at) return;
+  try {
+    window.localStorage.setItem(LOGIN_SEEN_KEY, mark);
+  } catch {
+    /* ignore */
+  }
+  // first visit after the record was created → treat as the sign-up
+  const created = user.created_at ? Date.parse(user.created_at) : 0;
+  const isNew = created > 0 && Date.parse(user.last_sign_in_at) - created < 10 * 60_000 && Date.now() - created < 60 * 60_000;
+  if (ph) ph.capture(isNew ? "signed_up" : "signed_in", { provider });
+  if (gaLoaded) gtag("event", isNew ? "sign_up" : "login", { method: provider });
+}
+
+let authWatched = false;
+function watchAuth() {
+  if (authWatched) return;
+  authWatched = true;
+  try {
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        try {
+          ph?.reset();
+          window.localStorage.removeItem(IDENT_KEY);
+        } catch {
+          /* ignore */
+        }
+        if (gaLoaded) gtag("set", { user_id: null });
+        return;
+      }
+      const user = session?.user as AuthUser | undefined;
+      if (!user || isAdminPath(currentPath()) || !allowed()) return;
+      // posthog-js may still be loading: identify once it's there
+      void (phLoading ?? Promise.resolve(null)).then(() => identify(user));
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+/* ───────────────────────────── product events fan-out ───────────────────────────── */
+
+const quiz = { answered: 0, correct: 0, firstCorrect: 0, ctx: {} as ProductProps };
+
+function flushQuiz() {
+  if (!quiz.answered) return;
+  if (gaLoaded && !isAdminPath(currentPath()) && allowed())
+    gtag("event", "quiz_answers", { ...quiz.ctx, answered: quiz.answered, correct: quiz.correct, first_try_correct: quiz.firstCorrect, transport_type: "beacon" });
+  quiz.answered = quiz.correct = quiz.firstCorrect = 0;
+  quiz.ctx = {};
+}
+
+/** GA4 gets the key moments only (PostHog gets everything). */
+function toGa(name: string, p: ProductProps) {
+  if (!gaLoaded) return;
+  switch (name) {
+    case "lesson_complete":
+      gtag("event", "lesson_complete", { course: p.course, week: p.week, lesson: p.lesson, minutes: p.minutes });
+      break;
+    case "case_closed":
+      gtag("event", "case_closed", { story: p.slug, minutes: p.minutes });
+      break;
+    case "trial_result":
+      gtag("event", "trial_result", { week: p.week, part: p.part, score: p.score, total: p.total, passed: p.passed });
+      break;
+    case "ask_ai":
+      gtag("event", "ask_ai", { client: p.client, kind: p.kind });
+      break;
+    case "share_link":
+      gtag("event", "share", { method: p.channel, content_type: p.kind });
+      break;
+    case "quiz_answer":
+      quiz.answered++;
+      if (p.correct === true) quiz.correct++;
+      if (p.correct === true && p.first === true) quiz.firstCorrect++;
+      quiz.ctx = { course: p.course ?? "", week: p.week ?? "", lesson: p.lesson ?? "" };
+      break;
+  }
+}
+
+function onProductEvent(name: string, props: ProductProps) {
+  if (isAdminPath(currentPath()) || !allowed()) return;
+  // events fired while posthog-js is still downloading (e.g. lesson_open on load) wait for it
+  if (ph) ph.capture(name, props);
+  else if (phLoading) void phLoading.then((p) => p?.capture(name, props));
+  toGa(name, props);
+}
+
+/* ───────────────────────────── reading depth ───────────────────────────── */
+
+const READ_MARKS = [25, 50, 75, 100] as const;
+
+type Reader = { path: string; ref: ContentRef; clock: EngagedClock; sent: Set<number>; timer: number; onScroll: () => void };
+let reader: Reader | null = null;
+
+function stopReader() {
+  if (!reader) return;
+  reader.clock.stop();
+  window.clearInterval(reader.timer);
+  window.removeEventListener("scroll", reader.onScroll);
+  reader = null;
+}
+
+/** Depth through the article body (.course-content), 0–100, by the bottom of the viewport. */
+function articleDepth(): { pct: number; minutes: number } | null {
+  const root = document.querySelector<HTMLElement>(".course-content");
+  if (!root) return null;
+  const r = root.getBoundingClientRect();
+  if (r.height < 50) return null;
+  const seen = window.innerHeight - r.top;
+  const pct = Math.max(0, Math.min(100, Math.round((seen / r.height) * 100)));
+  const words = (root.textContent || "").split(/\s+/).length;
+  return { pct, minutes: Math.max(1, words / 230) };
+}
+
+function checkReader() {
+  const rd = reader;
+  if (!rd || !ph) return;
+  const d = articleDepth();
+  if (!d) return;
+  const secs = rd.clock.seconds();
+  for (const m of READ_MARKS) {
+    if (rd.sent.has(m) || d.pct < m) continue;
+    // engaged-time floor so a flick to the bottom doesn't count as reading:
+    // a quarter of the expected reading time up to this mark (8 s – 2 min per mark)
+    const need = Math.min(120 * (m / 25), Math.max(8 * (m / 25), d.minutes * 60 * 0.25 * (m / 100)));
+    if (secs < need) break;
+    rd.sent.add(m);
+    if (!isAdminPath(currentPath()) && allowed()) ph.capture("read_progress", { ...rd.ref, pct: m, engaged_sec: secs, est_minutes: Math.round(d.minutes) });
+  }
+}
+
+function startReader(path: string) {
+  if (reader?.path === path) return;
+  stopReader();
+  if (!posthogEnabled()) return;
+  const ref = contentOf(path);
+  if (!ref) return;
+  let raf = 0;
+  const onScroll = () => {
+    if (raf) return;
+    raf = window.requestAnimationFrame(() => {
+      raf = 0;
+      checkReader();
+    });
+  };
+  reader = { path, ref, clock: startEngagedClock(), sent: new Set(), timer: window.setInterval(checkReader, 2000), onScroll };
+  window.addEventListener("scroll", onScroll, { passive: true });
+}
+
+/* ───────────────────────────── public API ───────────────────────────── */
+
+let wired = false;
+
+function wire() {
+  if (wired) return;
+  wired = true;
+  onProduct(onProductEvent);
+  onRouteStart((path) => {
+    flushQuiz();
+    syncGates(path);
+  });
+  window.addEventListener("pagehide", flushQuiz);
+  watchAuth();
+}
+
+/** Called on every app-router pathname change (and once on load). */
+export function analyticsRoute(pathname: string) {
+  if (!isBrowser()) return;
+  if (!posthogEnabled() && !gaEnabled()) return; // dormant
+  syncGates(pathname);
+  if (isAdminPath(pathname) || !allowed()) {
+    stopReader();
+    return;
+  }
+  wire();
+  void loadPosthog();
+  loadGa();
+  startReader(pathname);
+}
+
+/** Visitor opt-out (footer / privacy page). Also stops the first-party tracker (hk.notrack). */
+export function setAnalyticsOptOut(out: boolean) {
+  if (!isBrowser()) return;
+  try {
+    if (out) window.localStorage.setItem(NOTRACK_KEY, "1");
+    else window.localStorage.removeItem(NOTRACK_KEY);
+  } catch {
+    /* storage blocked */
+  }
+  if (out) {
+    stopReader();
+    try {
+      ph?.opt_out_capturing();
+    } catch {
+      /* ignore */
+    }
+    if (gaLoaded) gtag("consent", "update", { analytics_storage: "denied" });
+  } else {
+    try {
+      if (ph?.has_opted_out_capturing()) ph.opt_in_capturing();
+    } catch {
+      /* ignore */
+    }
+    if (gaLoaded) gtag("consent", "update", { analytics_storage: privacySignal() ? "denied" : "granted" });
+  }
+  syncGates(currentPath());
+  if (!out) analyticsRoute(currentPath());
+  window.dispatchEvent(new Event(OPTOUT_EVENT));
+}
+
+/** Which third-party tools this build has configured (for the privacy page). */
+export const analyticsTools = () => ({ posthog: posthogEnabled(), ga: gaEnabled() });
+
+/** Test/QA hook: the loaded PostHog instance (null when dormant). */
+export const posthogInstance = () => ph;

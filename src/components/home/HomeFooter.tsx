@@ -5,6 +5,7 @@ import { levelProgress } from "@/game/catalog";
 import { EMAIL, SOCIALS } from "@/lib/socials";
 import SocialIcon from "@/components/site/SocialIcon";
 import { container } from "./ui";
+import AnalyticsOptOut from "@/components/analytics/AnalyticsOptOut";
 
 function Player() {
   const { xp, hydrated } = useGame();
@@ -47,7 +48,10 @@ export default function HomeFooter({ year }: { year: number }) {
             <SocialIcon name="email" className="h-[18px] w-[18px]" />
           </a>
         </nav>
-        <Player />
+        <span className="inline-flex flex-wrap items-center gap-x-4 gap-y-1">
+          <AnalyticsOptOut compact />
+          <Player />
+        </span>
       </div>
     </footer>
   );

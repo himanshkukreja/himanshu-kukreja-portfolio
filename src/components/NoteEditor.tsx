@@ -111,6 +111,7 @@ function Editor({ selectedText, lessonTitle, existingNote, onSave, onDelete, onC
           <label className="flex flex-col gap-1.5">
             <span className="font-mono text-[11px] tracking-label text-fg-3">YOUR NOTE</span>
             <textarea
+              data-ph-mask
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
               onKeyDown={(e) => {

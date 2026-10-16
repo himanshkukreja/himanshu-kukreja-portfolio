@@ -2,6 +2,7 @@
 
 import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { X, Mail, CheckCircle, AlertCircle } from "lucide-react";
 import { signInWithEmail, verifyOtp, signInWithGoogle } from "@/lib/supabase-client";
 import GoogleIdButton from "@/components/auth/GoogleIdButton";
@@ -252,6 +253,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                       <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-fg-4" />
                       <input
                         id="email"
+                        data-ph-mask
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
@@ -306,6 +308,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                     </label>
                     <input
                       id="otp"
+                      data-ph-mask
                       type="text"
                       value={otp}
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
@@ -367,7 +370,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           <div className="px-6 py-3 bg-raised border-t border-line text-center text-xs text-fg-3">
             By continuing, you agree to our{" "}
             <span className="text-fg-3">Terms of Service</span> and{" "}
-            <span className="text-fg-3">Privacy Policy</span>
+            <Link href="/privacy" onClick={handleClose} className="text-fg-2 underline underline-offset-2 hover:text-fg">Privacy Policy</Link>
           </div>
           </div>
         </div>

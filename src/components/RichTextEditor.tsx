@@ -228,6 +228,7 @@ export default function RichTextEditor({ value, onChange, placeholder = "Write y
       ) : (
         <div
           ref={editorRef}
+          data-ph-mask
           contentEditable
           role="textbox"
           aria-multiline="true"

@@ -17,6 +17,7 @@ import type {
 } from "./types";
 import { resolveLearnFixture, resolveLearnFixtureText } from "@/components/admin/learners/fixtures";
 import { resolveNewsletterFixture, resolveNewsletterFixtureText } from "@/components/admin/newsletter/fixtures";
+import { resolveJourneysFixture } from "@/components/admin/journeys/fixtures";
 
 if (process.env.NODE_ENV !== "development") {
   throw new Error("admin fixtures are dev-only");
@@ -225,6 +226,7 @@ ${stories.map((s) => `<div style="border-top:1px solid #eee;padding:14px 0"><b>$
 export function resolveFixture(url: string, init?: RequestInit): unknown {
   const u = new URL(url, "http://x");
   if (u.pathname.startsWith("/api/admin/newsletter")) return resolveNewsletterFixture(u, init);
+  if (u.pathname.startsWith("/api/admin/posthog/")) return resolveJourneysFixture(u, init);
   const method = (init?.method || "GET").toUpperCase();
   if (method !== "GET") return { ok: true, sent: 3, total: 3 };
   const range = u.searchParams.get("range") || "7d";

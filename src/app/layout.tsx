@@ -11,6 +11,7 @@ import XPToaster from "@/game/XPToaster";
 import Terminal from "@/game/Terminal";
 import { Analytics } from '@vercel/analytics/next';
 import AnalyticsTracker from "@/components/AnalyticsTracker";
+import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 import GlobalAuthModal from "@/components/GlobalAuthModal";
 import AuthHashHandler from "@/components/AuthHashHandler";
 import RouteProgress from "@/components/site/RouteProgress";
@@ -73,6 +74,7 @@ export default function RootLayout({
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON_LD) }} />
         <RouteProgress />
         <AnalyticsTracker />
+        <AnalyticsProvider />
         <AuthProvider>
           <AuthModalProvider>
             <ThemeProvider>

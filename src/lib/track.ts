@@ -20,6 +20,7 @@
  *   server verifies — a client-side user id is never trusted.
  */
 import { supabaseClient } from "@/lib/supabase-client";
+import { emitProduct } from "@/lib/analytics/bus";
 
 export type TrackProps = Record<string, string | number | boolean | null | undefined>;
 
@@ -431,4 +432,6 @@ export function track(name: string, props: TrackProps = {}) {
     if (typeof v === "string" || typeof v === "boolean" || (typeof v === "number" && Number.isFinite(v))) pr[k] = v;
   }
   enqueue({ k: "ev", n: name, p, pr, ts: Date.now(), ...(view ? { pv: view.id } : {}) });
+  // optional PostHog / GA4 mirror (no-op unless configured; see src/lib/analytics/client.ts)
+  emitProduct(name, pr);
 }
