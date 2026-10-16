@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "resume": "node scripts/resume/build.mjs"
+    "resume": "node scripts/resume/build.mjs",
+    "guide:shots": "node scripts/guide/shoot.mjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.1",

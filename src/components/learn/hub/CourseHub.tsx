@@ -18,6 +18,7 @@ import { useReviewCards } from "@/lib/learn/useReviewDue";
 import ContinueReadingBanner, { type ResumeStage } from "@/components/ContinueReadingBanner";
 import CourseProgressStats from "@/components/CourseProgressStats";
 import AuthPromptBanner from "@/components/AuthPromptBanner";
+import TourCard from "@/components/learn/guide/TourCard";
 import { SkillTreeList, SkillTreeRows } from "./SkillTree";
 import WeekDetail from "./WeekDetail";
 import WorldCleared from "./WorldCleared";
@@ -124,11 +125,16 @@ export default function CourseHub({ map }: { map: CourseMap }) {
             An {map.stats.worlds}-world campaign for backend engineers going from intermediate to advanced. Clear a world&apos;s lessons, beat its interview boss, pass the trial, and move on to the next. Nothing is locked.
           </p>
           <CourseProgressStats stats={map.stats} learner={counts} />
+          <Link href="/learn/guide" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            how the course works: stages, XP, trials, Arena →
+          </Link>
         </div>
         <div className="w-full flex-[1_1_360px] lg:max-w-[460px]">
           <ContinueReadingBanner ready={ready} resume={resume} stages={stages} dueCount={dueCount} dueReady={dueReady} streak={streak} />
         </div>
       </section>
+
+      <TourCard />
 
       {ready && !signedIn && <AuthPromptBanner variant="learn-page" />}
 

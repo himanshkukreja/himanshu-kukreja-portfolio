@@ -239,6 +239,9 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
         </span>
         <span className="font-mono text-sm text-signal-text">points table →</span>
       </Link>
+      <Link href="/learn/guide#arena" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg sm:-mt-8">
+        new to the Arena? XP vs points, leagues and streaks explained →
+      </Link>
     </main>
   );
 }

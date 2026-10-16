@@ -1,0 +1,1709 @@
+{
+  "hub-hero": {
+    "desktop": {
+      "src": "/guide/hub-hero-desktop.webp",
+      "w": 1760,
+      "h": 813,
+      "alt": "The course hub: the course tabs in the header, the course title with its numbers, and a Continue card for the lesson in progress with a daily standup link.",
+      "url": "/learn/system-design-mastery",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 15.92,
+          "y": 4.92
+        },
+        {
+          "n": 2,
+          "x": 70.77,
+          "y": 8.85
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 77.2
+        },
+        {
+          "n": 4,
+          "x": 63.33,
+          "y": 39.74
+        },
+        {
+          "n": 5,
+          "x": 65.23,
+          "y": 83.59
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Course tabs: course · arena · notebook · progress"
+        },
+        {
+          "n": 2,
+          "label": "Your level and XP. Click it for the quest log"
+        },
+        {
+          "n": 3,
+          "label": "What the course holds, and what you have done"
+        },
+        {
+          "n": 4,
+          "label": "Continue: the lesson and stage you were on"
+        },
+        {
+          "n": 5,
+          "label": "Daily standup: review cards due today"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/hub-hero-phone.webp",
+      "w": 780,
+      "h": 880,
+      "alt": "The Continue card on a phone, above the course dock.",
+      "url": "/learn/system-design-mastery",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 4
+        },
+        {
+          "n": 2,
+          "x": 10.51,
+          "y": 65.81
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Continue: the lesson and stage you were on"
+        },
+        {
+          "n": 2,
+          "label": "Daily standup: review cards due today"
+        }
+      ]
+    }
+  },
+  "hub-tree": {
+    "desktop": {
+      "src": "/guide/hub-tree-desktop.webp",
+      "w": 1760,
+      "h": 756,
+      "alt": "The skill tree: one row per world with a node for every lesson, a diamond for the boss and boxes for trial parts, next to the selected world's panel.",
+      "url": "/learn/system-design-mastery",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 18.75
+        },
+        {
+          "n": 2,
+          "x": 34.14,
+          "y": 20.18
+        },
+        {
+          "n": 3,
+          "x": 47.11,
+          "y": 20.54
+        },
+        {
+          "n": 4,
+          "x": 45.01,
+          "y": 34.29
+        },
+        {
+          "n": 5,
+          "x": 72.68,
+          "y": 4
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "A world (one week of the course)"
+        },
+        {
+          "n": 2,
+          "label": "Lessons: filled = done, orange = current, dashed = ahead"
+        },
+        {
+          "n": 3,
+          "label": "Trial parts (T1–T6): the week's MCQs"
+        },
+        {
+          "n": 4,
+          "label": "The boss: a timed interview at the end of the week"
+        },
+        {
+          "n": 5,
+          "label": "Selected world: its lessons with real minutes"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/hub-tree-phone.webp",
+      "w": 780,
+      "h": 1192,
+      "alt": "The skill tree on a phone: a list of worlds with their progress; tap one to open its lessons.",
+      "url": "/learn/system-design-mastery",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 16.23
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Tap a world to open its lessons, boss and trial"
+        }
+      ]
+    }
+  },
+  "hub-side": {
+    "desktop": {
+      "src": "/guide/hub-side-desktop.webp",
+      "w": 1760,
+      "h": 621,
+      "alt": "Side quests: eleven real systems (UPI, WhatsApp, Aadhaar, Netflix…) designed end to end, each worth 120 XP.",
+      "url": "/learn/system-design-mastery",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 20.33
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Side quests: open any time, +120 XP each"
+        }
+      ]
+    }
+  },
+  "lesson-top": {
+    "desktop": {
+      "src": "/guide/lesson-top-desktop.webp",
+      "w": 1760,
+      "h": 1100,
+      "alt": "The top of a lesson: breadcrumb, chips with reading time, stage and XP, the stage rail with Save checkpoint, the week list, contents and the reading tools.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 5.28,
+          "y": 11.64
+        },
+        {
+          "n": 2,
+          "x": 5.83,
+          "y": 15.17
+        },
+        {
+          "n": 3,
+          "x": 18.45,
+          "y": 63.74
+        },
+        {
+          "n": 4,
+          "x": 91.25,
+          "y": 64.52
+        },
+        {
+          "n": 5,
+          "x": 65,
+          "y": 54.52
+        },
+        {
+          "n": 6,
+          "x": 5.83,
+          "y": 76.18
+        },
+        {
+          "n": 8,
+          "x": 76.94,
+          "y": 76.18
+        },
+        {
+          "n": 7,
+          "x": 79.1,
+          "y": 91.33
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Breadcrumb: course › week › lesson"
+        },
+        {
+          "n": 2,
+          "label": "Reading time, where you are, and the +60 XP for finishing"
+        },
+        {
+          "n": 3,
+          "label": "Stage rail: each stage with its minutes; ✓ when read"
+        },
+        {
+          "n": 4,
+          "label": "Save checkpoint (reads “Read ✓” once the stage you're on is read)"
+        },
+        {
+          "n": 5,
+          "label": "Resume at the stage you were reading"
+        },
+        {
+          "n": 6,
+          "label": "Course path: this week's lessons, boss and trial"
+        },
+        {
+          "n": 8,
+          "label": "On this page: the lesson's contents"
+        },
+        {
+          "n": 7,
+          "label": "Reading tools: stage, Listen, Focus, text size"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/lesson-top-phone.webp",
+      "w": 780,
+      "h": 1328,
+      "alt": "A lesson on a phone: compact header, stage strip that opens the contents, and the reading toolbar at the bottom.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 18.07
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 53.93
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 92.17
+        },
+        {
+          "n": 4,
+          "x": 79.49,
+          "y": 92.17
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Lesson, time left, stage and XP in one line"
+        },
+        {
+          "n": 2,
+          "label": "Stage strip: tap for the contents sheet"
+        },
+        {
+          "n": 3,
+          "label": "Listen · Contents · Aa · Focus · Notebook"
+        },
+        {
+          "n": 4,
+          "label": "Save checkpoint for the current stage"
+        }
+      ]
+    }
+  },
+  "lesson-reading": {
+    "desktop": {
+      "src": "/guide/lesson-reading-desktop.webp",
+      "w": 1760,
+      "h": 636,
+      "alt": "Reading mid-lesson: the site header has slid away and a thin stage bar stays pinned at the top with the current stage, minutes left and Save checkpoint.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 5.83,
+          "y": 4.23
+        },
+        {
+          "n": 2,
+          "x": 47.29,
+          "y": 4
+        },
+        {
+          "n": 3,
+          "x": 84.19,
+          "y": 4.23
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Where you are and how much is left"
+        },
+        {
+          "n": 2,
+          "label": "Segments fill as you actually read each stage"
+        },
+        {
+          "n": 3,
+          "label": "Save checkpoint"
+        }
+      ]
+    }
+  },
+  "lesson-quiz": {
+    "desktop": {
+      "src": "/guide/lesson-quiz-desktop.webp",
+      "w": 1496,
+      "h": 1120,
+      "alt": "A quick check inside a lesson: the first question answered correctly with +5 XP and its explanation open.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 83.32,
+          "y": 5.58
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 66.68
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Quick check: a few questions, +5 XP each first try"
+        },
+        {
+          "n": 2,
+          "label": "Your pick, the answer and why"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/lesson-quiz-phone.webp",
+      "w": 764,
+      "h": 1120,
+      "alt": "A quick check inside a lesson: the first question answered correctly with +5 XP and its explanation open.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 67.34,
+          "y": 5.72
+        },
+        {
+          "n": 2,
+          "x": 4.97,
+          "y": 96
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Quick check: a few questions, +5 XP each first try"
+        },
+        {
+          "n": 2,
+          "label": "Your pick, the answer and why"
+        }
+      ]
+    }
+  },
+  "lesson-practice": {
+    "desktop": {
+      "src": "/guide/lesson-practice-desktop.webp",
+      "w": 1508,
+      "h": 326,
+      "alt": "A 'Practice this' card at the end of a lesson's last quick check, linking to the Latency Ladder game in the Arena.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 10.02
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Practice this: a game that drills what you just read"
+        }
+      ]
+    }
+  },
+  "lesson-diagram": {
+    "desktop": {
+      "src": "/guide/lesson-diagram-desktop.webp",
+      "w": 1496,
+      "h": 1120,
+      "alt": "A diagram in a lesson, drawn in the site's colours, with buttons to open it full screen or copy its source.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 6.62
+        },
+        {
+          "n": 2,
+          "x": 76.04,
+          "y": 4
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Diagrams follow the light / dark theme"
+        },
+        {
+          "n": 2,
+          "label": "Open it full screen (Esc closes)"
+        }
+      ]
+    }
+  },
+  "lesson-end": {
+    "desktop": {
+      "src": "/guide/lesson-end-desktop.webp",
+      "w": 1496,
+      "h": 1264,
+      "alt": "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it the next lesson and the trial part.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 65.86,
+          "y": 13.16
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 34.17
+        },
+        {
+          "n": 3,
+          "x": 50.67,
+          "y": 34.17
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Mark complete unlocks after enough real reading"
+        },
+        {
+          "n": 2,
+          "label": "Up next, across weeks"
+        },
+        {
+          "n": 3,
+          "label": "The trial part that tests this lesson"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/lesson-end-phone.webp",
+      "w": 764,
+      "h": 908,
+      "alt": "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it the next lesson and the trial part.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 7.59,
+          "y": 41.74
+        },
+        {
+          "n": 2,
+          "x": 3.14,
+          "y": 67.95
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Mark complete unlocks after enough real reading"
+        },
+        {
+          "n": 2,
+          "label": "Up next, across weeks"
+        }
+      ]
+    }
+  },
+  "notebook": {
+    "desktop": {
+      "src": "/guide/notebook-desktop.webp",
+      "w": 1760,
+      "h": 1333,
+      "alt": "The Notebook: tabs for highlights, notes and bookmarks, search and filters, and saved passages grouped by lesson with 'Open at' links.",
+      "url": "/learn/notebook",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 25.35
+        },
+        {
+          "n": 2,
+          "x": 72.27,
+          "y": 25.65
+        },
+        {
+          "n": 3,
+          "x": 9.24,
+          "y": 53.9
+        },
+        {
+          "n": 4,
+          "x": 46.32,
+          "y": 61
+        },
+        {
+          "n": 5,
+          "x": 65.34,
+          "y": 58.8
+        },
+        {
+          "n": 6,
+          "x": 83.9,
+          "y": 20.15
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Highlights · Notes · Bookmarks"
+        },
+        {
+          "n": 2,
+          "label": "Search, filter by week and colour"
+        },
+        {
+          "n": 3,
+          "label": "Grouped by lesson, in course order"
+        },
+        {
+          "n": 4,
+          "label": "Open at the stage you saved it from"
+        },
+        {
+          "n": 5,
+          "label": "Turn a highlight into a review card"
+        },
+        {
+          "n": 6,
+          "label": "Export everything as Markdown"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/notebook-phone.webp",
+      "w": 780,
+      "h": 2000,
+      "alt": "The Notebook on a phone: tabs, search and highlights grouped by lesson.",
+      "url": "/learn/notebook",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 43.51
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Highlights · Notes · Bookmarks"
+        }
+      ]
+    }
+  },
+  "review-boxes": {
+    "desktop": {
+      "src": "/guide/review-boxes-desktop.webp",
+      "w": 1760,
+      "h": 1316,
+      "alt": "The daily standup: today's numbers, a 7-day streak strip, the five Leitner boxes with how often each comes back, and where cards come from.",
+      "url": "/learn/review",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 23.25
+        },
+        {
+          "n": 2,
+          "x": 75.65,
+          "y": 12.56
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 41.79
+        },
+        {
+          "n": 4,
+          "x": 73.39,
+          "y": 43.92
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Cards due today and how long they take"
+        },
+        {
+          "n": 2,
+          "label": "Streak: a review or a finished stage counts the day"
+        },
+        {
+          "n": 3,
+          "label": "Leitner boxes: Box 1 daily → Box 5 monthly"
+        },
+        {
+          "n": 4,
+          "label": "Where cards come from"
+        }
+      ]
+    }
+  },
+  "review-card": {
+    "desktop": {
+      "src": "/guide/review-card-desktop.webp",
+      "w": 1760,
+      "h": 1032,
+      "alt": "A review card after 'Show answer': the question you missed in a trial, your pick, the right answer and why, and the four grade buttons that decide when it comes back.",
+      "url": "/learn/review",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 18.42
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 89.83
+        },
+        {
+          "n": 3,
+          "x": 75.91,
+          "y": 4
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Where the card came from"
+        },
+        {
+          "n": 2,
+          "label": "Again · Hard · Good · Easy: picks the next box"
+        },
+        {
+          "n": 3,
+          "label": "Today's queue"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/review-card-phone.webp",
+      "w": 764,
+      "h": 1800,
+      "alt": "A review card after 'Show answer': the question you missed in a trial, your pick, the right answer and why, and the four grade buttons that decide when it comes back.",
+      "url": "/learn/review",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 6.54,
+          "y": 18.11
+        },
+        {
+          "n": 2,
+          "x": 8.64,
+          "y": 88.73
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Where the card came from"
+        },
+        {
+          "n": 2,
+          "label": "Again · Hard · Good · Easy: picks the next box"
+        }
+      ]
+    }
+  },
+  "trial-hub": {
+    "desktop": {
+      "src": "/guide/trial-hub-desktop.webp",
+      "w": 1760,
+      "h": 953,
+      "alt": "A week's trial page: parts cleared, questions this week, the 80% pass mark, +100 XP per first pass, and a strip of parts marked passed, failed, current or locked.",
+      "url": "/learn/system-design-mastery/week-00-foundations/week-00-mcq-assessment",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 5.83,
+          "y": 31.72
+        },
+        {
+          "n": 2,
+          "x": 5.83,
+          "y": 47.04
+        },
+        {
+          "n": 3,
+          "x": 38.21,
+          "y": 47.04
+        },
+        {
+          "n": 4,
+          "x": 5.83,
+          "y": 72.36
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Pass mark 80% per part · +100 XP on the first pass"
+        },
+        {
+          "n": 2,
+          "label": "Start (or retry) the next part"
+        },
+        {
+          "n": 3,
+          "label": "Practice all questions untimed, no XP"
+        },
+        {
+          "n": 4,
+          "label": "One card per part: passed, failed, open or locked"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/trial-hub-phone.webp",
+      "w": 780,
+      "h": 1208,
+      "alt": "A week's trial page: parts cleared, questions this week, the 80% pass mark, +100 XP per first pass, and a strip of parts marked passed, failed, current or locked.",
+      "url": "/learn/system-design-mastery/week-00-foundations/week-00-mcq-assessment",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 47.06
+        },
+        {
+          "n": 2,
+          "x": 4.1,
+          "y": 83.15
+        },
+        {
+          "n": 3,
+          "x": 4.1,
+          "y": 94.41
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Pass mark 80% per part · +100 XP on the first pass"
+        },
+        {
+          "n": 2,
+          "label": "Start (or retry) the next part"
+        },
+        {
+          "n": 3,
+          "label": "Practice all questions untimed, no XP"
+        }
+      ]
+    }
+  },
+  "boss-entry": {
+    "desktop": {
+      "src": "/guide/boss-entry-desktop.webp",
+      "w": 1504,
+      "h": 478,
+      "alt": "The boss card at the top of a capstone lesson: fight it as a timed interview, or just read the model answer.",
+      "url": "/learn/system-design-mastery/week-01-data-at-scale/capstone-interview-week-1-url-shortner-at-scale",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 5.19,
+          "y": 63.64
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Fight the boss, or read the model answer"
+        }
+      ]
+    }
+  },
+  "boss-brief": {
+    "desktop": {
+      "src": "/guide/boss-brief-desktop.webp",
+      "w": 1760,
+      "h": 1653,
+      "alt": "The boss briefing: the timed phases, interview mode versus read mode, the rules of the fight and the +200 XP reward for a 70% rubric score.",
+      "url": "/learn/system-design-mastery/week-01-data-at-scale/capstone-interview-week-1-url-shortner-at-scale",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 22.65,
+          "y": 9.74
+        },
+        {
+          "n": 2,
+          "x": 21.52,
+          "y": 50.14
+        },
+        {
+          "n": 3,
+          "x": 49.39,
+          "y": 50.14
+        },
+        {
+          "n": 4,
+          "x": 21.52,
+          "y": 82.52
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Phases with their time budgets"
+        },
+        {
+          "n": 2,
+          "label": "Interview mode: answer hidden, earns XP"
+        },
+        {
+          "n": 3,
+          "label": "Read mode: model answer open, no XP"
+        },
+        {
+          "n": 4,
+          "label": "+200 XP at 70% of the rubric, once"
+        }
+      ]
+    }
+  },
+  "arena-hub": {
+    "desktop": {
+      "src": "/guide/arena-hub-desktop.webp",
+      "w": 1760,
+      "h": 1251,
+      "alt": "The Arena: your level, daily streak, weekly points and league; today's daily challenge; your league's top five this week; and the review queue.",
+      "url": "/learn/arena",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 69.37,
+          "y": 5.86
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 34.98
+        },
+        {
+          "n": 3,
+          "x": 55.89,
+          "y": 34.98
+        },
+        {
+          "n": 4,
+          "x": 3,
+          "y": 90.1
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Level · daily streak · this week's points · league"
+        },
+        {
+          "n": 2,
+          "label": "Today's daily challenge"
+        },
+        {
+          "n": 3,
+          "label": "Your league this week, promotion zone marked"
+        },
+        {
+          "n": 4,
+          "label": "Review queue · daily standup"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/arena-hub-phone.webp",
+      "w": 780,
+      "h": 1864,
+      "alt": "The Arena on a phone: today's daily challenge and your league.",
+      "url": "/learn/arena",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 4
+        },
+        {
+          "n": 2,
+          "x": 4.1,
+          "y": 35.12
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Today's daily challenge"
+        },
+        {
+          "n": 2,
+          "label": "Your league this week"
+        }
+      ]
+    }
+  },
+  "arena-games": {
+    "desktop": {
+      "src": "/guide/arena-games-desktop.webp",
+      "w": 1760,
+      "h": 1065,
+      "alt": "Arena games (60–90 second rounds) and the Engineering Playground, each tied to the lessons that teach it.",
+      "url": "/learn/arena",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 8.08
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 31.84
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 56.72
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Arena games: 60–90 s rounds, +40 XP on first clear"
+        },
+        {
+          "n": 2,
+          "label": "Taught in: the lessons behind each game"
+        },
+        {
+          "n": 3,
+          "label": "Playground boards, +60 XP each"
+        }
+      ]
+    }
+  },
+  "arena-daily": {
+    "desktop": {
+      "src": "/guide/arena-daily-desktop.webp",
+      "w": 1760,
+      "h": 915,
+      "alt": "The daily challenge running: question 1 of 5 with a 20-second timer bar and four options.",
+      "url": "/learn/arena/daily",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 28.01,
+          "y": 9.86
+        },
+        {
+          "n": 2,
+          "x": 50,
+          "y": 16.83
+        },
+        {
+          "n": 3,
+          "x": 8.6,
+          "y": 50.63
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "5 questions, the same for everyone today"
+        },
+        {
+          "n": 2,
+          "label": "20 seconds each; faster right answers score more"
+        },
+        {
+          "n": 3,
+          "label": "Pick an answer (keys A–D or 1–4)"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/arena-daily-phone.webp",
+      "w": 780,
+      "h": 1228,
+      "alt": "The daily challenge running: question 1 of 5 with a 20-second timer bar and four options.",
+      "url": "/learn/arena/daily",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 51.81,
+          "y": 8.84
+        },
+        {
+          "n": 2,
+          "x": 50,
+          "y": 14.74
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 45.22
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "5 questions, the same for everyone today"
+        },
+        {
+          "n": 2,
+          "label": "20 seconds each; faster right answers score more"
+        },
+        {
+          "n": 3,
+          "label": "Pick an answer (keys A–D or 1–4)"
+        }
+      ]
+    }
+  },
+  "leaderboard": {
+    "desktop": {
+      "src": "/guide/leaderboard-desktop.webp",
+      "w": 1760,
+      "h": 1533,
+      "alt": "The weekly leaderboard (example data): your rank, points and breakdown, league tabs L1 Intern to L6 Principal, and the ranked list with the promotion zone.",
+      "url": "/learn/arena/leaderboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 15.45,
+          "y": 22.56
+        },
+        {
+          "n": 2,
+          "x": 15.45,
+          "y": 29.87
+        },
+        {
+          "n": 3,
+          "x": 24,
+          "y": 43.04
+        },
+        {
+          "n": 4,
+          "x": 28.56,
+          "y": 53.56
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "This week or all time"
+        },
+        {
+          "n": 2,
+          "label": "Your points, rank and where they came from"
+        },
+        {
+          "n": 3,
+          "label": "Leagues follow the levels: L1 Intern → L6 Principal"
+        },
+        {
+          "n": 4,
+          "label": "Promotion zone: the top 20% move up on Monday"
+        }
+      ]
+    }
+  },
+  "leaderboard-points": {
+    "desktop": {
+      "src": "/guide/leaderboard-points-desktop.webp",
+      "w": 1760,
+      "h": 1058,
+      "alt": "How scoring works: the points table and the rules for caps, re-checks and leagues.",
+      "url": "/learn/arena/leaderboard",
+      "callouts": [],
+      "legend": []
+    }
+  },
+  "questlog": {
+    "desktop": {
+      "src": "/guide/questlog-desktop.webp",
+      "w": 864,
+      "h": 1692,
+      "alt": "The quest log opened from the level chip: the site's main quests with their XP, and every badge, earned ones in orange.",
+      "url": "/learn/system-design-mastery",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 7.46,
+          "y": 4
+        },
+        {
+          "n": 2,
+          "x": 13.19,
+          "y": 14.83
+        },
+        {
+          "n": 3,
+          "x": 13.19,
+          "y": 74.65
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Level chip: opens the quest log"
+        },
+        {
+          "n": 2,
+          "label": "Main quests with their XP"
+        },
+        {
+          "n": 3,
+          "label": "Badges: orange = earned (hover for how)"
+        }
+      ]
+    }
+  },
+  "progress-top": {
+    "desktop": {
+      "src": "/guide/progress-top-desktop.webp",
+      "w": 1760,
+      "h": 933,
+      "alt": "The Progress page overview: level and XP, course percentage, streak, reading time, lessons done, progress by week, the resume card, next trial and the daily standup.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 16.19
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 36.94
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 58.26
+        },
+        {
+          "n": 4,
+          "x": 66.36,
+          "y": 6.71
+        },
+        {
+          "n": 5,
+          "x": 3,
+          "y": 81.74
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Level, XP and what the next level unlocks"
+        },
+        {
+          "n": 2,
+          "label": "Course % · streak · reading time · lessons"
+        },
+        {
+          "n": 3,
+          "label": "Progress by week"
+        },
+        {
+          "n": 4,
+          "label": "Resume, next trial part and the standup"
+        },
+        {
+          "n": 5,
+          "label": "Jump to a section"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/progress-top-phone.webp",
+      "w": 780,
+      "h": 2200,
+      "alt": "The Progress page on a phone: level, course percentage, streak and the resume card.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 11.68
+        },
+        {
+          "n": 2,
+          "x": 4.1,
+          "y": 24.73
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Level, XP and what the next level unlocks"
+        },
+        {
+          "n": 2,
+          "label": "Course % · streak · reading time · lessons"
+        }
+      ]
+    }
+  },
+  "progress-map": {
+    "desktop": {
+      "src": "/guide/progress-map-desktop.webp",
+      "w": 1760,
+      "h": 1093,
+      "alt": "The course map grid: every lesson, boss, trial part and side quest of every week, coloured by status, trial cells showing your best score.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 19.56,
+          "y": 16.06
+        },
+        {
+          "n": 2,
+          "x": 48.71,
+          "y": 13.37
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "One row per week: done / total"
+        },
+        {
+          "n": 2,
+          "label": "Trial parts show your best score"
+        }
+      ]
+    }
+  },
+  "progress-activity": {
+    "desktop": {
+      "src": "/guide/progress-activity-desktop.webp",
+      "w": 1760,
+      "h": 785,
+      "alt": "Your rhythm: a 12-week activity heatmap, minutes per week, streak tiles and the XP log.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.42,
+          "y": 26.77
+        },
+        {
+          "n": 2,
+          "x": 54.46,
+          "y": 30.93
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 75.77
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Daily activity heatmap (12 weeks)"
+        },
+        {
+          "n": 2,
+          "label": "Minutes per week"
+        },
+        {
+          "n": 3,
+          "label": "Streak, best day, sessions this week"
+        }
+      ]
+    }
+  },
+  "progress-goals": {
+    "desktop": {
+      "src": "/guide/progress-goals-desktop.webp",
+      "w": 1760,
+      "h": 1013,
+      "alt": "Weekly goal with a projected finish date, and What stuck: trial scores per part, the review queue by box, notebook counts and badges.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 7.38
+        },
+        {
+          "n": 2,
+          "x": 50.15,
+          "y": 7.38
+        },
+        {
+          "n": 3,
+          "x": 52.5,
+          "y": 86.46
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Weekly goal: minutes or lessons, optional finish date"
+        },
+        {
+          "n": 2,
+          "label": "Best trial score per part"
+        },
+        {
+          "n": 3,
+          "label": "Badges: earned ones are outlined in orange"
+        }
+      ]
+    }
+  },
+  "progress-data": {
+    "desktop": {
+      "src": "/guide/progress-data-desktop.webp",
+      "w": 1760,
+      "h": 935,
+      "alt": "Your data: download everything as JSON, and reset one lesson, a week, the course or everything, choosing which kinds of data to clear.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3.41,
+          "y": 28.21
+        },
+        {
+          "n": 2,
+          "x": 42.68,
+          "y": 20.58
+        },
+        {
+          "n": 3,
+          "x": 42.08,
+          "y": 45.15
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Download my data (.json)"
+        },
+        {
+          "n": 2,
+          "label": "1 · What to reset: lesson, week, course, everything"
+        },
+        {
+          "n": 3,
+          "label": "2 · Which data: progress, quiz answers, notes…"
+        }
+      ]
+    }
+  },
+  "case-index": {
+    "desktop": {
+      "src": "/guide/case-index-desktop.webp",
+      "w": 1760,
+      "h": 747,
+      "alt": "The Case files index: your record of closed and solved cases, filters by type, search, and the latest case file.",
+      "url": "/stories",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 80.08,
+          "y": 28.92
+        },
+        {
+          "n": 2,
+          "x": 8.22,
+          "y": 60.17
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Your record: cases closed (read) and solved (activity)"
+        },
+        {
+          "n": 2,
+          "label": "Filter: incidents, system design, build logs"
+        }
+      ]
+    }
+  },
+  "case-activity": {
+    "desktop": {
+      "src": "/guide/case-activity-desktop.webp",
+      "w": 1448,
+      "h": 730,
+      "alt": "The interactive activity at the end of a case file: steps, the score needed to solve it and the XP it pays.",
+      "url": "/stories/irctc-tatkal-500-seats-2-million-users",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.56,
+          "y": 34.56
+        },
+        {
+          "n": 2,
+          "x": 32.63,
+          "y": 63.25
+        },
+        {
+          "n": 3,
+          "x": 4.01,
+          "y": 81.47
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "End-of-file activity: solve it at 70% for +25 XP"
+        },
+        {
+          "n": 2,
+          "label": "Score needed to solve it, and your best so far"
+        },
+        {
+          "n": 3,
+          "label": "Run (or rerun) the drill"
+        }
+      ]
+    }
+  },
+  "lesson-focus": {
+    "desktop": {
+      "src": "/guide/lesson-focus-desktop.webp",
+      "w": 1760,
+      "h": 684,
+      "alt": "Focus mode: only the article remains, with a hairline stage bar along the top and a quiet text-size and exit control.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 20.83,
+          "y": 4
+        },
+        {
+          "n": 2,
+          "x": 86.81,
+          "y": 5.89
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Hairline stage progress"
+        },
+        {
+          "n": 2,
+          "label": "Text size and exit (Esc)"
+        }
+      ]
+    }
+  },
+  "select-menu": {
+    "desktop": {
+      "src": "/guide/select-menu-desktop.webp",
+      "w": 1544,
+      "h": 880,
+      "alt": "Selecting a sentence in a lesson opens a toolbar: Highlight, Note, Bookmark, Ask AI and Copy link. Saved highlights show in colour in the text around it.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 7.9,
+          "y": 39.79
+        },
+        {
+          "n": 2,
+          "x": 21,
+          "y": 39.79
+        },
+        {
+          "n": 3,
+          "x": 34.62,
+          "y": 39.79
+        },
+        {
+          "n": 4,
+          "x": 48.87,
+          "y": 39.79
+        },
+        {
+          "n": 5,
+          "x": 62.75,
+          "y": 39.79
+        },
+        {
+          "n": 6,
+          "x": 3.11,
+          "y": 53.2
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Highlight (pick one of four colours)"
+        },
+        {
+          "n": 2,
+          "label": "Note: your words attached to the passage"
+        },
+        {
+          "n": 3,
+          "label": "Bookmark this exact passage"
+        },
+        {
+          "n": 4,
+          "label": "Ask AI: Claude or ChatGPT, with the context"
+        },
+        {
+          "n": 5,
+          "label": "Copy link: opens the page at this line"
+        },
+        {
+          "n": 6,
+          "label": "A saved highlight"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/select-menu-phone.webp",
+      "w": 780,
+      "h": 1328,
+      "alt": "On a phone, a long-press selection docks the toolbar at the bottom of the screen.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 89.46
+        },
+        {
+          "n": 2,
+          "x": 4.1,
+          "y": 35.54
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Toolbar docks at the bottom on touch screens"
+        },
+        {
+          "n": 2,
+          "label": "A saved highlight"
+        }
+      ]
+    }
+  },
+  "select-ask": {
+    "desktop": {
+      "src": "/guide/select-ask-desktop.webp",
+      "w": 1086,
+      "h": 328,
+      "alt": "The Ask AI panel of the selection toolbar: Ask Claude, Ask ChatGPT and Copy prompt.",
+      "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 23.3,
+          "y": 12.86
+        },
+        {
+          "n": 2,
+          "x": 73.76,
+          "y": 12.86
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Opens claude.ai / chatgpt.com with the passage and its lesson context"
+        },
+        {
+          "n": 2,
+          "label": "Copy the same prompt for any AI"
+        }
+      ]
+    }
+  },
+  "trial-question": {
+    "desktop": {
+      "src": "/guide/trial-question-desktop.webp",
+      "w": 1760,
+      "h": 929,
+      "alt": "A trial question: one per screen with a progress strip, a flag button, and Lock in to commit the answer.",
+      "url": "/learn/system-design-mastery/week-00-foundations/week-00-mcq-assessment",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 5.83,
+          "y": 39.34
+        },
+        {
+          "n": 2,
+          "x": 5.83,
+          "y": 92.29
+        },
+        {
+          "n": 3,
+          "x": 57.18,
+          "y": 92.02
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "One question per screen"
+        },
+        {
+          "n": 2,
+          "label": "Flag a guess: it joins your review queue"
+        },
+        {
+          "n": 3,
+          "label": "Lock in to see the answer and explanation"
+        }
+      ]
+    }
+  }
+}

@@ -13,7 +13,7 @@ export const COURSE_HREF = "/learn/system-design-mastery";
 
 export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/learn/");
 
-const isCourse = (p: string) => isLearnRoute(p) && !/^\/learn\/(arena|review|notebook|notes|bookmarks|dashboard)(\/|$)/.test(p);
+const isCourse = (p: string) => isLearnRoute(p) && !/^\/learn\/(arena|review|notebook|notes|bookmarks|dashboard|guide)(\/|$)/.test(p);
 
 /** The Arena tab also owns the review queue (/learn/review), so the due badge lives on it. */
 const isArena = (p: string) => /^\/learn\/(arena|review)(\/|$)/.test(p);
@@ -75,6 +75,15 @@ export function LearnTabs({ pathname }: { pathname: string }) {
           <TabPending />
         </Link>
       ))}
+      <Link
+        href="/learn/guide"
+        aria-current={pathname.startsWith("/learn/guide") ? "page" : undefined}
+        aria-label="How the course works"
+        title="How the course works"
+        className={`ml-1 grid h-7 w-7 place-items-center border text-[12px] ${pathname.startsWith("/learn/guide") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
+      >
+        ?
+      </Link>
     </nav>
   );
 }

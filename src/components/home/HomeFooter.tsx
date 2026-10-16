@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useGame } from "@/game/GameProvider";
 import { levelProgress } from "@/game/catalog";
 import { EMAIL, SOCIALS } from "@/lib/socials";
@@ -49,6 +50,9 @@ export default function HomeFooter({ year }: { year: number }) {
           </a>
         </nav>
         <span className="inline-flex flex-wrap items-center gap-x-4 gap-y-1">
+          <Link href="/learn/guide" className="inline-flex min-h-10 items-center text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+            how the course works
+          </Link>
           <AnalyticsOptOut compact />
           <Player />
         </span>
