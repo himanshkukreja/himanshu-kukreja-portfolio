@@ -25,6 +25,7 @@ const NOTRACK_KEY = "hk.notrack";
 
 export const ADMIN_NAV = [
   { href: "/admin", label: "Overview", key: "overview", match: (p: string) => p === "/admin" },
+  { href: "/admin/live", label: "Live", key: "live", match: (p: string) => p.startsWith("/admin/live") },
   { href: "/admin/learners", label: "Learners", key: "learners", match: (p: string) => p.startsWith("/admin/learners") },
   { href: "/admin/course", label: "Course", key: "course", match: (p: string) => p.startsWith("/admin/course") },
   { href: "/admin/traffic", label: "Traffic", key: "traffic", match: (p: string) => p.startsWith("/admin/traffic") },
@@ -226,7 +227,7 @@ function Frame({ email, children }: { email: string; children: ReactNode }) {
               className={`-mb-px flex min-h-12 flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap border-b-2 px-1.5 font-mono text-[13px] sm:flex-none sm:px-3 ${on ? "border-signal text-fg" : "border-transparent text-fg-3"}`}
             >
               {n.label.toLowerCase()}
-              {n.key === "traffic" && live != null && live > 0 && <span className="bg-signal px-1 text-[10px] font-semibold leading-4 text-on-signal">{live}</span>}
+              {n.key === "live" && live != null && live > 0 && <span className="bg-signal px-1 text-[10px] font-semibold leading-4 text-on-signal">{live}</span>}
             </Link>
           );
         })}
@@ -257,7 +258,7 @@ function Frame({ email, children }: { email: string; children: ReactNode }) {
                     {on && <span aria-hidden className="absolute inset-y-1.5 left-0 w-[3px] bg-signal" />}
                     <span className={`font-mono text-[11px] ${on ? "text-signal-text" : "text-fg-4"}`}>0{i + 1}</span>
                     <span className="flex-1">{n.label}</span>
-                    {n.key === "traffic" && live != null && (
+                    {n.key === "live" && live != null && (
                       <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-fg-3" title={`${live} live visitor${live === 1 ? "" : "s"} (last 5 min)`}>
                         <LiveDot on={live > 0} />
                         {live}

@@ -167,3 +167,73 @@ export type PageDetailRes = {
   toolbarUrl: string;
   siteUrl: string;
 };
+
+/* ───────────────────────────── /admin/live ───────────────────────────── */
+
+export type LiveWindow = "30m" | "24h" | "7d";
+export type LiveFilter = "all" | "signed" | "learn" | "recorded";
+
+export type LiveEvent = {
+  id: string;
+  t: string;
+  event: string;
+  kind: TimelineKind;
+  label: string;
+  detail: string | null;
+  path: string | null;
+};
+
+export type LiveSession = {
+  /** $session_id (also the recording id when a replay exists) */
+  id: string;
+  personId: string | null;
+  who: string;
+  identified: boolean;
+  start: string;
+  last: string;
+  /** seconds between first and last event */
+  duration: number;
+  events: number;
+  pageviews: number;
+  entry: { path: string; title: string | null } | null;
+  current: { path: string; title: string | null } | null;
+  country: string | null;
+  city: string | null;
+  device: string | null;
+  browser: string | null;
+  os: string | null;
+  referrer: string | null;
+  /** last event < 5 min ago */
+  active: boolean;
+  recording: { id: string; duration: number; active: number; ongoing: boolean } | null;
+  /** latest events, oldest first (capped; `events` is the full count) */
+  timeline: LiveEvent[];
+};
+
+export type LiveFeedRes = {
+  configured: true;
+  window: LiveWindow;
+  filter: LiveFilter;
+  generatedAt: string;
+  stats: { online: number; sessionsToday: number; peopleToday: number; eventsHour: number };
+  /** events per minute, last 30 minutes (oldest first) */
+  perMinute: number[];
+  pages: { path: string; title: string | null; n: number }[];
+  sessions: LiveSession[];
+  /** older sessions exist (pass `before` = last session's `last`) */
+  hasMore: boolean;
+  /** replay lookup failed (e.g. missing session_recording:read): sessions still show */
+  recordingsError: { error: string; scope: string | null } | null;
+};
+
+/** GET /api/admin/posthog/recordings/snapshots?id= → blob sources for our own player. */
+export type SnapshotSourcesRes = {
+  configured: true;
+  id: string;
+  /** blob_v2 sources in order (key = blob index) */
+  sources: { key: number; start: string | null; end: string | null }[];
+  start: string | null;
+  end: string | null;
+  /** blobs per chunk request (`from`..`to` inclusive, server-capped) */
+  chunk: number;
+};

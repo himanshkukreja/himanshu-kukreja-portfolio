@@ -17,7 +17,7 @@ import type {
 } from "./types";
 import { resolveLearnFixture, resolveLearnFixtureText } from "@/components/admin/learners/fixtures";
 import { resolveNewsletterFixture, resolveNewsletterFixtureText } from "@/components/admin/newsletter/fixtures";
-import { resolveJourneysFixture } from "@/components/admin/journeys/fixtures";
+import { resolveJourneysFixture, resolveJourneysFixtureText } from "@/components/admin/journeys/fixtures";
 
 if (process.env.NODE_ENV !== "development") {
   throw new Error("admin fixtures are dev-only");
@@ -271,6 +271,7 @@ export function resolveFixture(url: string, init?: RequestInit): unknown {
 export function resolveFixtureText(url: string): string | undefined {
   const path = new URL(url, "http://x").pathname;
   if (path.startsWith("/api/admin/newsletter")) return resolveNewsletterFixtureText(new URL(url, "http://x"));
+  if (path.startsWith("/api/admin/posthog/")) return resolveJourneysFixtureText(new URL(url, "http://x"));
   if (path === "/api/admin/preview-email") return PREVIEW_EMAIL_HTML;
   if (path === "/api/admin/export-csv")
     return ["Email,Subscribed Date,Status,City,Country", ...subscribers.map((s) => `"${s.email}","${s.created_at}","${s.unsubscribed ? "Unsubscribed" : "Active"}","${s.city}","${s.country}"`)].join("\n");

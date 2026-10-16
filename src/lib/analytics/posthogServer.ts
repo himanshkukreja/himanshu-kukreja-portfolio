@@ -125,6 +125,38 @@ export async function phFetch<T>(path: string, init: RequestInit = {}, timeoutMs
   return body as T;
 }
 
+/**
+ * GET a private API path and return the raw body (session replay snapshot blobs are JSONL, not
+ * JSON). Same auth, queue and error mapping as phFetch.
+ */
+export async function phFetchText(path: string, timeoutMs = 45_000): Promise<string> {
+  const url = `${apiHost()}/api/projects/${projectId()}${path}`;
+  return slot(async () => {
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${key()}` }, cache: "no-store", signal: AbortSignal.timeout(timeoutMs) }).catch((e: Error) => {
+      throw new PhError(e?.name === "TimeoutError" ? "PostHog took too long to answer" : `Can't reach PostHog: ${e?.message || e}`, 504);
+    });
+    const text = await res.text();
+    if (res.ok) return text;
+    let detail = text.slice(0, 200);
+    try {
+      const b = JSON.parse(text) as { detail?: string; error?: string };
+      detail = b?.detail || b?.error || detail;
+    } catch {
+      /* not JSON */
+    }
+    const u = res.status;
+    if (u === 401) throw new PhError("PostHog rejected POSTHOG_PERSONAL_API_KEY (revoked, or the wrong region?)", 502, u);
+    if (u === 403) {
+      const scope = (String(detail).match(/\b([a-z_]+:(?:read|write))\b/) || [])[1] || scopeFor(path, "GET");
+      throw new PhError(`The personal API key is missing the “${scope}” scope. Add it in PostHog → Account settings → Personal API keys → edit.`, 424, u, scope);
+    }
+    if (u === 404) throw new PhError(`PostHog: not found (${detail})`, 404, u);
+    if (u === 410) throw new PhError("This recording was deleted in PostHog", 410, u);
+    if (u === 429) throw new PhError("PostHog rate limit hit, try again in a minute", 429, u);
+    throw new PhError(`PostHog ${u}: ${detail}`, 502, u);
+  });
+}
+
 /* ───────────────────────────── cache ───────────────────────────── */
 
 const cache = new Map<string, { at: number; ttl: number; value: Promise<unknown> }>();

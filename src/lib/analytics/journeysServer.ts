@@ -7,7 +7,7 @@ import { titleResolver } from "./titles";
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.himanshukukreja.in").replace(/\/$/, "");
 
-const whoOf = (email: string | null, name: string | null, distinct: string | null, personId: string | null) =>
+export const whoOf = (email: string | null, name: string | null, distinct: string | null, personId: string | null) =>
   email || name || (distinct ? `anon ${distinct.slice(-6)}` : personId ? `anon ${personId.slice(-6)}` : "anonymous");
 
 /* ───────────────────────────── live ───────────────────────────── */
@@ -124,7 +124,7 @@ export async function getPeople(opts: { q: string; days: number; kind: "all" | "
 
 /* ───────────────────────────── recordings ───────────────────────────── */
 
-type ApiRecording = {
+export type ApiRecording = {
   id: string;
   distinct_id?: string;
   viewed?: boolean;

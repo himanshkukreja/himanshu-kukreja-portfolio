@@ -6,7 +6,8 @@ import type { LiveRes, NotConfigured, StreamEvent } from "@/lib/analytics/journe
 import { KindMark, Who, countryFlag, personHref, PhErrorState } from "./bits";
 import SetupCard from "./SetupCard";
 
-/** Live: visitors in the last 5 min + the latest events across the site (polls every 15 s). */
+/** Live: visitors in the last 5 min + the latest events across the site (polls every 15 s). The
+ * session-grouped feed with inline replays lives at /admin/live (linked from the stream card). */
 export default function LiveTab() {
   const { data, error, refresh } = useAdminData<LiveRes | NotConfigured>("/api/admin/posthog/live", { refreshMs: 15_000 });
   const now = useNow(15_000);
@@ -56,7 +57,19 @@ export default function LiveTab() {
         )}
       </Card>
 
-      <Card label="last 24 h" title="Event stream" pad={false} action={<span className="font-mono text-[11px] text-fg-4">60 latest</span>}>
+      <Card
+        label="last 24 h"
+        title="Event stream"
+        pad={false}
+        action={
+          <>
+            <span className="font-mono text-[11px] text-fg-4">60 latest</span>
+            <Link href="/admin/live" className="inline-flex min-h-9 items-center border border-signal px-2.5 font-mono text-[11px] text-signal-text hover:bg-signal/10">
+              sessions + replays → live
+            </Link>
+          </>
+        }
+      >
         {error ? (
           <PhErrorState className="m-4" error={error} onRetry={refresh} />
         ) : !live ? (

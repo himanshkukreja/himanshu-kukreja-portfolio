@@ -3,8 +3,9 @@
  * ../shell/fixtures.ts, which production bundles never load. Deterministic (seeded).
  * Add `&setup=1` to the page URL to preview the "not configured" setup card instead.
  */
-import type { EmbedRes, LiveRes, NotConfigured, PageDetailRes, PathsRes, PeopleRes, PersonRes, PersonRow, PhStatus, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "@/lib/analytics/journeys";
+import type { EmbedRes, LiveFeedRes, LiveFilter, LiveRes, LiveSession, LiveWindow, NotConfigured, PageDetailRes, PathsRes, PeopleRes, PersonRes, PersonRow, PhStatus, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "@/lib/analytics/journeys";
 import { computePaths, describe, type PathRow, type Props, type TitleOf } from "@/lib/analytics/journeysModel";
+import { replayFixtureChunk, replayFixtureSources } from "./replayFixture";
 
 if (process.env.NODE_ENV !== "development") {
   throw new Error("journeys fixtures are dev-only");
@@ -262,6 +263,85 @@ function live(): LiveRes {
   };
 }
 
+/** /admin/live: sessions re-timed so a few are live right now, older ones spread over the week. */
+const LIVE_AGO_MIN = [0.4, 1.5, 3.2, 8, 14, 22, 41, 75, 140, 260, 520, 900, 1500, 2600, 4300, 7000, 9100];
+
+function liveSessions(): LiveSession[] {
+  const out: LiveSession[] = [];
+  let k = 0;
+  for (let round = 0; round < 2; round++) {
+    PEOPLE.forEach((p, i) => {
+      if (round === 1 && i > 3) return;
+      const s = personSessions(p)[round];
+      // seeded ids can repeat across fixture people: keep each session id once
+      if (!s || k >= LIVE_AGO_MIN.length || out.some((o) => o.id === s.id)) return;
+      const ago = LIVE_AGO_MIN[k++];
+      const last0 = new Date(s.events[s.events.length - 1].t).getTime();
+      const shift = Date.now() - ago * MIN - last0;
+      const evs = s.events.map((e) => ({ id: e.id, t: new Date(new Date(e.t).getTime() + shift).toISOString(), event: e.event, kind: e.kind, label: e.label, detail: e.detail, path: e.path }));
+      const pages = evs.filter((e) => e.kind === "pageview" && e.path);
+      const start = evs[0].t;
+      const last = evs[evs.length - 1].t;
+      const dur = Math.round((new Date(last).getTime() - new Date(start).getTime()) / 1000);
+      const entry = pages[0]?.path ?? null;
+      const cur = pages[pages.length - 1]?.path ?? null;
+      const hasRec = k % 5 !== 3;
+      out.push({
+        id: s.id,
+        personId: p.id,
+        who: p.email || p.name || `anon ${p.distinctId.slice(-6)}`,
+        identified: p.identified,
+        start,
+        last,
+        duration: dur,
+        events: evs.length,
+        pageviews: pages.length,
+        entry: entry ? { path: entry, title: titleOf(entry) } : null,
+        current: cur ? { path: cur, title: titleOf(cur) } : null,
+        country: p.country,
+        city: p.city,
+        device: p.device,
+        browser: p.browser,
+        os: p.os,
+        referrer: p.referrer,
+        active: ago < 5,
+        recording: hasRec ? { id: s.id, duration: dur + 40, active: Math.round(dur * 0.6), ongoing: ago < 2 } : null,
+        timeline: evs,
+      });
+    });
+  }
+  return out.sort((a, b) => (a.last < b.last ? 1 : -1));
+}
+
+function liveFeed(u: URL): LiveFeedRes {
+  const w = (["30m", "24h", "7d"].includes(u.searchParams.get("window") || "") ? u.searchParams.get("window") : "24h") as LiveWindow;
+  const f = (["all", "signed", "learn", "recorded"].includes(u.searchParams.get("filter") || "") ? u.searchParams.get("filter") : "all") as LiveFilter;
+  const before = u.searchParams.get("before");
+  const span = { "30m": 30 * MIN, "24h": DAY, "7d": 7 * DAY }[w];
+  const all = liveSessions().filter(
+    (s) =>
+      Date.now() - new Date(s.last).getTime() < span &&
+      (f === "signed" ? s.identified : f === "learn" ? s.timeline.some((e) => e.path?.startsWith("/learn")) : f === "recorded" ? !!s.recording : true)
+  );
+  const page = all.filter((s) => !before || s.last < before);
+  const r = rng(Math.floor(Date.now() / 15_000));
+  return {
+    configured: true,
+    window: w,
+    filter: f,
+    generatedAt: new Date().toISOString(),
+    stats: { online: all.filter((s) => s.active).length, sessionsToday: 23 + Math.floor(r() * 3), peopleToday: 17, eventsHour: 180 + Math.floor(r() * 40) },
+    perMinute: Array.from({ length: 30 }, (_, i) => Math.round(3 + 4 * Math.sin(i / 4) + r() * 6 + (i > 24 ? 6 : 0))),
+    pages: [
+      { path: lessonPath(2), title: titleOf(lessonPath(2)), n: 2 },
+      { path: "/learn", title: "Learn hub", n: 1 },
+    ],
+    sessions: page.slice(0, 10),
+    hasMore: page.length > 10,
+    recordingsError: null,
+  };
+}
+
 function paths(days: number): PathsRes {
   const r = rng(days * 13);
   const rows: PathRow[] = [];
@@ -351,6 +431,10 @@ export function resolveJourneysFixture(u: URL, init?: RequestInit): unknown {
   switch (u.pathname) {
     case "/api/admin/posthog/live":
       return live();
+    case "/api/admin/posthog/feed":
+      return liveFeed(u);
+    case "/api/admin/posthog/recordings/snapshots":
+      return u.searchParams.has("from") ? undefined : replayFixtureSources(u.searchParams.get("id") || "");
     case "/api/admin/posthog/people": {
       const q = (u.searchParams.get("q") || "").toLowerCase();
       const kind = u.searchParams.get("kind");
@@ -382,4 +466,12 @@ export function resolveJourneysFixture(u: URL, init?: RequestInit): unknown {
     default:
       return undefined;
   }
+}
+
+/** Text endpoints: replay snapshot chunks (JSONL). */
+export function resolveJourneysFixtureText(u: URL): string | undefined {
+  if (u.pathname === "/api/admin/posthog/recordings/snapshots" && u.searchParams.has("from")) {
+    return replayFixtureChunk(Number(u.searchParams.get("from")) || 0, Number(u.searchParams.get("to") ?? u.searchParams.get("from")) || 0);
+  }
+  return undefined;
 }
