@@ -1,58 +1,57 @@
-// Server-only: builds the "Case files" ledger on top of the existing story loader.
-// getAllStories() stays the source of truth for which stories exist; this adds the
-// type, read time (word count ÷ 220) and CASE ids the redesign needs.
-import { getAllStories } from "@/lib/stories";
-import { assignCaseIds, parseDebrief, readMinutes, resolveCaseType, sortNewestFirst, type CaseFile } from "./case-types";
+// Server-only: builds the "Case files" ledger on top of the story loader.
+// listStorySources() (src/lib/stories.ts) is the source of truth for which stories exist (repo
+// markdown + published CMS case files); this adds the type, read time (word count ÷ 220) and CASE ids.
+import { listStorySources, type StorySource } from "@/lib/stories";
+import { assignCaseIds, formatCaseId, parseDebrief, readMinutes, resolveCaseType, sortNewestFirst, type CaseFile } from "./case-types";
 
-type RawMeta = { words: number; type?: unknown; hasDebrief: boolean };
+/** Count what a reader reads: drop HTML comments (image prompts) before counting. */
+export function storyWords(body: string): number {
+  const text = body.replace(/<!--[\s\S]*?-->/g, " ").trim();
+  return text ? text.split(/\s+/).length : 0;
+}
 
-async function readRawMeta(): Promise<Map<string, RawMeta>> {
-  const fs = await import("fs/promises");
-  const path = await import("path");
-  const matter = (await import("gray-matter")).default;
-  const dir = path.join(process.cwd(), "content", "stories");
-  const out = new Map<string, RawMeta>();
-  let names: string[] = [];
-  try {
-    names = (await fs.readdir(dir)).filter((n) => n.endsWith(".md"));
-  } catch {
-    return out;
+/**
+ * CASE ids. Repo stories keep the numbers they always had (date ascending among the repo files,
+ * CASE-001…), also when a CMS import overrides one. CMS case files carry the number they were given
+ * at first publish (the sequence continues after the repo stories, in publish order).
+ */
+export function caseIdsFor(sources: StorySource[]): Map<string, string> {
+  const repo = sources.filter((s) => s.origin === "file" || s.fileDate !== undefined);
+  const ids = assignCaseIds(repo.map((s) => ({ slug: s.slug, date: s.fileDate ?? s.date })));
+  let next = repo.length;
+  const cms = sources.filter((s) => !ids.has(s.slug)).sort((a, b) => (a.caseNumber ?? 1e9) - (b.caseNumber ?? 1e9) || a.slug.localeCompare(b.slug));
+  for (const s of cms) {
+    const n = s.caseNumber && s.caseNumber > next ? s.caseNumber : next + 1;
+    next = Math.max(next, n);
+    ids.set(s.slug, formatCaseId(n));
   }
-  await Promise.all(
-    names.map(async (name) => {
-      try {
-        const raw = await fs.readFile(path.join(dir, name), "utf8");
-        const { data, content } = matter(raw);
-        const slug = (typeof data.slug === "string" && data.slug) || path.basename(name, ".md");
-        // Count what a reader reads: drop HTML comments (image prompts) before counting.
-        const text = content.replace(/<!--[\s\S]*?-->/g, " ").trim();
-        const words = text ? text.split(/\s+/).length : 0;
-        out.set(slug, { words, type: data.type, hasDebrief: !!parseDebrief(data.debrief) });
-      } catch {
-        // unreadable file: it simply gets a default read time
-      }
-    })
-  );
-  return out;
+  return ids;
+}
+
+export function toCaseFile(s: StorySource, caseId: string): CaseFile {
+  // CMS-only fields are left out (not undefined) for repo stories, so their props/HTML stay byte-identical.
+  const extra: Partial<CaseFile> = {};
+  if (s.coverAlt) extra.coverAlt = s.coverAlt;
+  if (s.motionCover) extra.motionCover = s.motionCover;
+  if (s.origin === "db") extra.origin = "db";
+  return {
+    slug: s.slug,
+    caseId,
+    title: s.title,
+    excerpt: s.excerpt,
+    cover: s.cover,
+    date: s.date,
+    tags: Array.from(new Set(Array.isArray(s.tags) ? s.tags : [])),
+    type: resolveCaseType(s.slug, s.type),
+    mins: readMinutes(storyWords(s.body)),
+    hasDebrief: !!parseDebrief(s.debrief),
+    ...extra,
+  };
 }
 
 /** All case files, newest first. */
 export async function getCaseFiles(): Promise<CaseFile[]> {
-  const [stories, meta] = await Promise.all([getAllStories(), readRawMeta()]);
-  const ids = assignCaseIds(stories);
-  return sortNewestFirst(stories).map((s) => {
-    const m = meta.get(s.slug);
-    return {
-      slug: s.slug,
-      caseId: ids.get(s.slug) || "CASE-000",
-      title: s.title,
-      excerpt: s.excerpt,
-      cover: s.cover,
-      date: s.date,
-      tags: Array.from(new Set(Array.isArray(s.tags) ? s.tags : [])),
-      type: resolveCaseType(s.slug, m?.type),
-      mins: readMinutes(m?.words || 0),
-      hasDebrief: !!m?.hasDebrief,
-    };
-  });
+  const sources = await listStorySources();
+  const ids = caseIdsFor(sources);
+  return sortNewestFirst(sources).map((s) => toCaseFile(s, ids.get(s.slug) || "CASE-000"));
 }

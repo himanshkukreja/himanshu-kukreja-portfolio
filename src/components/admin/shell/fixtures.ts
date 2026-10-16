@@ -225,6 +225,8 @@ ${stories.map((s) => `<div style="border-top:1px solid #eee;padding:14px 0"><b>$
 /** Resolve a GET to mock data; writes (non-GET) succeed. Unknown URLs → undefined (falls through). */
 export function resolveFixture(url: string, init?: RequestInit): unknown {
   const u = new URL(url, "http://x");
+  // case files: no mock data, the dev JSON store answers (CASE_FILES_STORE=file, see lib/case-files/api.ts)
+  if (u.pathname.startsWith("/api/admin/case-files")) return undefined;
   if (u.pathname.startsWith("/api/admin/newsletter")) return resolveNewsletterFixture(u, init);
   if (u.pathname.startsWith("/api/admin/posthog/")) return resolveJourneysFixture(u, init);
   const method = (init?.method || "GET").toUpperCase();

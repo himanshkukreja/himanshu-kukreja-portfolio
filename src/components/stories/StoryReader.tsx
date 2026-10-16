@@ -11,6 +11,7 @@ import CourseEnhancer from "@/components/learn/content/CourseEnhancer";
 import { useGame } from "@/game/GameProvider";
 import DebriefCard from "./DebriefCard";
 import CaseActivity from "./activities/registry";
+import type { CaseActivityData } from "./activities/data";
 import styles from "./reader.module.css";
 import { useReadAloudBridge } from "./useReadAloudBridge";
 import StorySelectionAsk from "./StorySelectionAsk";
@@ -43,6 +44,10 @@ type Props = {
   totalCases: number;
   views: ReactNode;
   comments: ReactNode;
+  /** CMS case files: the data-driven end-of-file activity (repo stories use their TSX activity) */
+  activity?: CaseActivityData | null;
+  /** admin preview: no reading record, no "case closed" XP */
+  preview?: boolean;
 };
 
 const CHIP = "border border-line-strong px-2 py-1 text-fg-2";
@@ -51,7 +56,7 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export default function StoryReader({ meta, checkpoints, htmlContent, debrief, prev, next, totalCases, views, comments }: Props) {
+export default function StoryReader({ meta, checkpoints, htmlContent, debrief, prev, next, totalCases, views, comments, activity, preview }: Props) {
   const { hydrated, flags, done, setFlag, award } = useGame();
   const contentRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -166,16 +171,16 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
 
   const closeCase = useCallback(() => {
     const { hydrated: h, isClosed: closed, readList: list } = live.current;
-    if (!h || closed) return;
+    if (!h || closed || preview) return;
     const secs = Object.values(rec.current.d).reduce((a, b) => a + b, 0);
     track("case_closed", { slug: meta.slug, minutes: Math.round(secs / 60) });
     // award() before setFlag(): award writes a whole state snapshot, setFlag is a functional update on top of it.
     award("read");
     if (!list.includes(meta.slug)) setFlag(READ_FLAG, [...list, meta.slug]);
-  }, [meta.slug, award, setFlag]);
+  }, [meta.slug, award, setFlag, preview]);
 
   useEffect(() => {
-    if (!sections.length) return;
+    if (!sections.length || preview) return;
     let ticks = 0;
     const flush = () => writeStoryRecord(meta.slug, rec.current);
     const stop = startReadingProbe(() => {
@@ -225,7 +230,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", flush);
     };
-  }, [sections, meta.slug, closeCase]);
+  }, [sections, meta.slug, closeCase, preview]);
 
   const readSet = useMemo(() => new Set(snap.r), [snap.r]);
   const nRead = sections.filter((x) => readSet.has(x.id)).length;
@@ -509,7 +514,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
 
             {meta.cover && (
               <figure className="m-0 flex flex-col gap-2.5">
-                <CaseCover src={meta.cover} alt={meta.title} width={1536} height={1024} priority sizes="(min-width: 1280px) 760px, 100vw" />
+                <CaseCover src={meta.cover} motionSrc={meta.motionCover} alt={meta.coverAlt || meta.title} width={1536} height={1024} priority sizes="(min-width: 1280px) 760px, 100vw" />
                 <figcaption className="font-mono text-xs text-fg-3">FIG. 1 · Blueprint · {meta.caseId}</figcaption>
               </figure>
             )}
@@ -575,7 +580,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
             {debrief && <DebriefCard slug={meta.slug} caseId={meta.caseId} debrief={debrief} />}
 
             {/* End-of-file activity (lazy, per story): after the article, so it never affects checkpoints or progress. */}
-            <CaseActivity slug={meta.slug} caseId={meta.caseId} />
+            <CaseActivity slug={meta.slug} caseId={meta.caseId} data={activity} />
 
             {meta.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 xl:hidden" aria-label="Tags">

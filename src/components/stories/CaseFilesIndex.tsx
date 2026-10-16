@@ -257,7 +257,7 @@ function Featured({ c, s, readDone }: { c: CaseFile; s: Status; readDone: boolea
         <span className="relative block aspect-[3/2] w-full overflow-hidden">
           {c.cover ? (
             <span className={`absolute inset-0 ${HOVER_ZOOM}`}>
-              <CaseCover src={c.cover} alt="" fill priority sizes="(min-width: 1320px) 740px, (min-width: 1024px) 56vw, 100vw" className="h-full w-full" />
+              <CaseCover src={c.cover} motionSrc={c.motionCover} alt="" fill priority sizes="(min-width: 1320px) 740px, (min-width: 1024px) 56vw, 100vw" className="h-full w-full" />
             </span>
           ) : (
             <span className="absolute inset-0 grid place-items-center font-mono text-[13px] text-fg-3">{c.caseId}</span>

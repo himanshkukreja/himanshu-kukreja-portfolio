@@ -2,6 +2,7 @@
 
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
+import type { CaseActivityData } from "./data";
 
 export type ActivityProps = { slug: string; caseId: string };
 
@@ -28,8 +29,12 @@ const ACTIVITIES: Record<string, ComponentType<ActivityProps>> = {
   "bridgelink-remote-android-testing": dynamic(() => import("./WireTheTunnel"), { loading: Loading }),
 };
 
+// CMS case files (admin → Case files) carry their activity as data; one shared chunk renders all of them.
+const DataActivity = dynamic(() => import("./DataActivity"), { loading: Loading });
+
 /** The interactive debrief at the end of a case file, or nothing if the story has none. */
-export default function CaseActivity({ slug, caseId }: ActivityProps) {
+export default function CaseActivity({ slug, caseId, data }: ActivityProps & { data?: CaseActivityData | null }) {
+  if (data && data.steps.length) return <DataActivity slug={slug} caseId={caseId} data={data} />;
   const Activity = ACTIVITIES[slug];
   if (!Activity) return null;
   return <Activity slug={slug} caseId={caseId} />;

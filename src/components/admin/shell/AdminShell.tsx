@@ -30,6 +30,7 @@ export const ADMIN_NAV = [
   { href: "/admin/traffic", label: "Traffic", key: "traffic", match: (p: string) => p.startsWith("/admin/traffic") },
   { href: "/admin/journeys", label: "Journeys", key: "journeys", match: (p: string) => p.startsWith("/admin/journeys") },
   { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
+  { href: "/admin/case-files", label: "Case files", key: "case-files", match: (p: string) => p.startsWith("/admin/case-files") },
   { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
 ] as const;
 
@@ -83,6 +84,10 @@ function usePreviewFlag() {
 
 export default function AdminShell({ children }: { children: ReactNode }) {
   const preview = usePreviewFlag();
+  // Case files preview frame (iframe inside the editor): renders only what the parent editor posts
+  // to it, so it needs no gate and no chrome.
+  const bare = (usePathname() || "").startsWith("/admin/case-files/frame");
+  if (bare) return <>{children}</>;
   if (DEV && preview) return <PreviewRuntime>{children}</PreviewRuntime>;
   return <GatedRuntime>{children}</GatedRuntime>;
 }

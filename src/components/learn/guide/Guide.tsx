@@ -70,7 +70,8 @@ const LOOP = [
   { t: "Climb leagues", d: "Signed in, your activity scores weekly points. The top of each league moves up." },
 ];
 
-export default function Guide({ map }: { map: CourseMap | null }) {
+/** `caseActivities`: live count (repo TSX activities + published CMS ones); falls back to the repo count. */
+export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: CourseMap | null; caseActivities?: number }) {
   const s = map?.stats;
   const trialWeeks = map ? map.weeks.filter((w) => w.trial) : [];
   const lessonsPerWorld = map?.weeks[1] ? map.weeks[1].lessons.length : 6;
@@ -640,7 +641,7 @@ export default function Guide({ map }: { map: CourseMap | null }) {
                 file to the end is a quest (+{quest("read")} XP) and earns the On-call badge. A case can also end with a <strong>debrief question</strong> (the Tatkal case does): make the right call for +{DEBRIEF_XP} XP, one answer per case.
               </p>
               <p>
-                {CASE_ACTIVITIES} case files end with an <strong>interactive activity</strong>: a simulation or spot-the-bug drill in a few steps. Score {CASE_ACTIVITY_PASS_PCT}% to <strong>solve</strong> it for +{CASE_ACTIVITY_XP} XP; rerun
+                {caseActivities} case files end with an <strong>interactive activity</strong>: a simulation or spot-the-bug drill in a few steps. Score {CASE_ACTIVITY_PASS_PCT}% to <strong>solve</strong> it for +{CASE_ACTIVITY_XP} XP; rerun
                 it as often as you like to raise your best. Solve all of them for the Case cracker quest (+{quest("cases:all")} XP) and badge.
               </p>
             </div>

@@ -34,7 +34,9 @@ type GameContextValue = {
   setTerminalOpen: (open: boolean) => void;
 };
 
-const GameContext = createContext<GameContextValue | null>(null);
+/** Exported for sandboxes (admin case-file preview) that need an in-memory game state. */
+export type { GameContextValue };
+export const GameContext = createContext<GameContextValue | null>(null);
 
 const EMPTY: Persisted = { xp: 0, done: {}, flags: {} };
 

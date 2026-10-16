@@ -96,11 +96,17 @@ export type CaseFile = {
   title: string;
   excerpt?: string;
   cover?: string;
+  /** CMS case files: the cover's alt text (repo stories use the title) */
+  coverAlt?: string;
+  /** CMS case files: explicit animated cover layer (repo covers derive /covers/<name>.motion.svg) */
+  motionCover?: string;
   date?: string;
   tags: string[];
   type: CaseType;
   mins: number;
   hasDebrief: boolean;
+  /** repo markdown or the admin CMS */
+  origin?: "file" | "db";
 };
 
 export type Debrief = {

@@ -1,20 +1,23 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getStoryBySlug, getAllStories, getStoryMarkdown } from "@/lib/stories";
-import { renderLesson } from "@/lib/course/render";
-import { extractHeadings, addHeadingIds } from "@/lib/toc";
+import { getAllStories, getStorySource } from "@/lib/stories";
 import { resolveCoverUrl } from "@/lib/utils";
 import StoryViewsClient from "./views-client";
 import StoryComments from "@/components/StoryComments";
 import ScrollToDiscussion from "@/components/ScrollToDiscussion";
-import StoryReader, { type CaseLink, type Checkpoint } from "@/components/stories/StoryReader";
+import StoryReader, { type CaseLink } from "@/components/stories/StoryReader";
+import { renderStoryBody } from "@/components/stories/render-story";
 import { getCaseFiles } from "@/components/stories/case-files";
 import { parseDebrief, resolveCaseType, type CaseFile } from "@/components/stories/case-types";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
-// Every story is known at build time; any other slug is a real 404 (not a streamed soft 404).
-export const dynamicParams = false;
+// Repo stories (and CMS case files published before the build) are prerendered. Case files
+// published later from the admin render on first request and are cached like the rest (ISR): the
+// admin's publish / unpublish / edit calls revalidatePath for them. Unknown slugs: notFound()
+// before anything streams, so it stays a real HTTP 404 (checked in the prod build).
+export const dynamicParams = true;
+export const revalidate = false;
 
 export async function generateStaticParams() {
   const list = await getAllStories();
@@ -23,27 +26,19 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
-  const story = (await getAllStories()).find((s) => s.slug === slug);
+  const story = await getStorySource(slug);
   if (!story) return {};
   // Local covers stay relative so metadataBase (www) makes them absolute; remote covers pass through.
   const cover = resolveCoverUrl(story.cover);
-  const images = cover ? [{ url: cover, width: 1536, height: 1024, alt: story.title }] : undefined;
+  const title = story.seoTitle || story.title;
+  const description = story.seoDescription || story.excerpt;
+  const images = cover ? [{ url: cover, width: 1536, height: 1024, alt: story.coverAlt || story.title }] : undefined;
   return {
-    title: `${story.title} · Case files`,
-    description: story.excerpt,
-    openGraph: { type: "article", title: story.title, description: story.excerpt, url: `/stories/${slug}`, ...(images ? { images } : {}) },
-    twitter: { card: "summary_large_image", title: story.title, description: story.excerpt, ...(cover ? { images: [cover] } : {}) },
+    title: `${title} · Case files`,
+    description,
+    openGraph: { type: "article", title, description, url: `/stories/${slug}`, ...(images ? { images } : {}) },
+    twitter: { card: "summary_large_image", title, description, ...(cover ? { images: [cover] } : {}) },
   };
-}
-
-/** "Crisis Scenario: The 10 Seconds That Decide Everything" → "The 10 Seconds That Decide Everything" */
-function checkpointLabel(text: string): string {
-  const i = text.indexOf(": ");
-  if (i > 0 && i < text.length - 2) {
-    const rest = text.slice(i + 2).trim();
-    if (rest.length >= 8) return rest;
-  }
-  return text;
 }
 
 function toLink(c: CaseFile | undefined): CaseLink | null {
@@ -52,19 +47,12 @@ function toLink(c: CaseFile | undefined): CaseLink | null {
 
 export default async function StoryReadPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const story = await getStoryBySlug(slug);
+  const story = await getStorySource(slug);
   if (!story) return notFound();
 
   // Stories go through the same rich renderer as course lessons (diagrams, callouts, numbers sheets,
-  // compare cards, highlighted code…); the plain pipeline stays as a fallback.
-  const markdown = await getStoryMarkdown(slug);
-  const rendered = markdown ? await renderLesson(markdown, { kind: "day-content" }).catch(() => null) : null;
-  const htmlContent = rendered ? rendered.html : addHeadingIds(story.content);
-  const checkpoints: Checkpoint[] = rendered
-    ? rendered.toc.filter((t) => t.level === 2).map((t) => ({ id: t.id, label: checkpointLabel(t.text) }))
-    : extractHeadings(htmlContent)
-        .filter((h) => h.level === 2)
-        .map((h) => ({ id: h.id, label: checkpointLabel(h.text) }));
+  // compare cards, highlighted code…); the plain pipeline stays as a fallback (render-story.ts).
+  const { htmlContent, checkpoints } = await renderStoryBody(story.body);
 
   const cases = await getCaseFiles();
   const index = cases.findIndex((c) => c.slug === slug);
@@ -102,6 +90,7 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
         totalCases={cases.length}
         views={<StoryViewsClient slug={slug} />}
         comments={<StoryComments storySlug={slug} />}
+        activity={story.activity || undefined}
       />
     </main>
   );

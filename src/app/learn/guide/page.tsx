@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getCourseMap } from "@/lib/learn/course";
 import Guide from "@/components/learn/guide/Guide";
+import { listStorySources } from "@/lib/stories";
+import { ACTIVITY_SLUGS } from "@/components/stories/activities/types";
 
 export const runtime = "nodejs";
 // the course map (real numbers) is cached by getCourseMap; refresh the page hourly
@@ -19,6 +21,13 @@ export const metadata: Metadata = {
 };
 
 export default async function GuidePage() {
-  const map = await getCourseMap().catch(() => null);
-  return <Guide map={map} />;
+  const [map, caseActivities] = await Promise.all([getCourseMap().catch(() => null), countCaseActivities().catch(() => undefined)]);
+  return <Guide map={map} caseActivities={caseActivities} />;
+}
+
+/** Repo stories with a TSX activity + published CMS case files with a data activity. */
+async function countCaseActivities(): Promise<number> {
+  const sources = await listStorySources();
+  const repo = new Set<string>(ACTIVITY_SLUGS);
+  return sources.filter((s) => (s.activity && s.activity.steps.length) || repo.has(s.slug)).length;
 }

@@ -47,6 +47,14 @@ if (!remotePatterns) {
   domains = domains ? [...domains, "lh3.googleusercontent.com"] : ["lh3.googleusercontent.com"];
 }
 
+// Case files CMS covers / images live in the public Supabase Storage bucket "case-files".
+try {
+  const sb = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : null;
+  if (sb) remotePatterns.push({ protocol: "https", hostname: sb.hostname, pathname: "/storage/v1/object/public/case-files/**" });
+} catch {
+  // ignore env parse errors
+}
+
 // PostHog first-party proxy (ad-blocker proof), per posthog.com/docs/advanced/proxy/nextjs.
 // Registered only when a PostHog project key is configured; otherwise /hkr/* is a plain 404.
 const PH = POSTHOG_PROXY_PATH; // "/hkr"
@@ -87,6 +95,10 @@ const nextConfig: NextConfig = {
     "remark-rehype",
     "rehype-stringify",
     "nodemailer",
+    // case files validator: mermaid.parse() in Node (src/lib/case-files/mermaid-check.ts) must share
+    // one DOMPurify instance with mermaid, so neither is bundled into the server build
+    "mermaid",
+    "dompurify",
   ],
   images: {
     remotePatterns,

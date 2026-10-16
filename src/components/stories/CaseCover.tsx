@@ -12,9 +12,10 @@ export function coverMotionSrc(src?: string): string | null {
   return src && /^\/covers\/[\w-]+\.png$/.test(src) ? src.replace(/\.png$/, ".motion.svg") : null;
 }
 
-export default function CaseCover(props: CoverImageProps) {
+/** `motionSrc`: an explicit animated layer (CMS case files upload one); otherwise derived from /covers/<name>.png. */
+export default function CaseCover({ motionSrc, ...props }: CoverImageProps & { motionSrc?: string }) {
   const reduced = useReducedMotion();
-  const motion = reduced ? null : coverMotionSrc(props.src);
+  const motion = reduced ? null : motionSrc || coverMotionSrc(props.src);
   if (!motion) return <CoverImage {...props} />;
   return (
     <div className={props.fill ? "absolute inset-0" : "relative"}>
