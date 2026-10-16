@@ -314,4 +314,3 @@ Leader-follower replication isn't just about copying data—it's about **enginee
 - **Learn from Others** → PostgreSQL and MongoDB have solved these problems at scale
 
 The next time disaster strikes your database cluster, you'll be ready with battle-tested strategies that keep your users streaming, your payments processing, and your business running smoothly.
----

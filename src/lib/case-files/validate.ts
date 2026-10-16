@@ -71,9 +71,18 @@ async function headStatus(url: string): Promise<number> {
   return status;
 }
 
+/** Style rules that only warn on imported repo stories (area:rule). */
+const GRANDFATHERED = new Set(["body:emoji", "body:lessons", "body:summary", "debrief:debrief-required"]);
+
 export async function validateCaseFile(f: CaseFileFields, ctx: ValidateCtx): Promise<Validation> {
   const problems: Problem[] = [];
   const add = (level: Problem["level"], area: ProblemArea, rule: string, message: string, extra: { field?: string; line?: number } = {}): void => {
+    // Imported repo stories predate the CMS style rules (they end on their own TSX game, not a
+    // debrief, and some use emoji / an older chapter shape): those rules advise, never block.
+    if (level === "error" && ctx.overridesFile && GRANDFATHERED.has(`${area}:${rule}`)) {
+      level = "warning";
+      message = `${message} (Existing story: advisory, doesn't block publishing.)`;
+    }
     problems.push({ level, area, rule, message, ...extra });
   };
   const error = (area: ProblemArea, rule: string, message: string, extra?: { field?: string; line?: number }) => add("error", area, rule, message, extra);
