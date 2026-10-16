@@ -47,7 +47,7 @@ const KINDS: { kind: Kind; label: string; hint: string }[] = [
 export default function DataControls(p: Props) {
   return (
     <section aria-labelledby="data-h" id="data" className="flex scroll-mt-28 flex-col gap-4">
-      <SectionHead id="data-h" n="05" kicker="your data" title="Export, import, reset" />
+      <SectionHead id="data-h" n="06" kicker="your data" title="Export, import, reset" />
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)]">
         <div className="flex min-w-0 flex-col gap-4">
           <ExportCard {...p} />

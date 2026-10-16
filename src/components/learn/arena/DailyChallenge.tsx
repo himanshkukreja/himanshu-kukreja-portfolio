@@ -14,6 +14,9 @@ import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import { DAILY_SECONDS, dailyQuestionScore, dailyShare, type DailySet } from "@/lib/learn/arena/shared";
 import Inline from "./Inline";
+import ShareButton from "@/components/share/ShareButton";
+import { useShare } from "@/components/share/useShare";
+import { shareText as buildShareText } from "@/lib/share/model";
 import { dailyStreakLocal, readArena, useArenaLocal, useBoard, useToday, writeArena, type DailyRun } from "./store";
 import { BackLink, BTN, BTN_GHOST, fmtMs, Kicker, LABEL, msToIstMidnight, PageTitle, ResultSquares } from "./ui";
 
@@ -175,20 +178,23 @@ export default function DailyChallenge() {
     return () => window.removeEventListener("keydown", onKey);
   }, [phase, set, answer]);
 
+  // with a public page, the challenge link carries ?ref=<handle> (friends who start get attributed)
+  const shareState = useShare().state;
+  const myHandle = shareState?.settings?.enabled ? shareState.settings.handle : null;
   const shareText = useMemo(() => {
     if (!set || phase.kind !== "done") return "";
     const results = phase.answers.map((a) => a.correct);
     const score = phase.answers.reduce((s, a) => s + dailyQuestionScore(a.correct, a.ms), 0);
     const ms = phase.answers.reduce((s, a) => s + a.ms, 0);
     const origin = typeof window !== "undefined" ? window.location.host : "himanshukukreja.in";
-    return dailyShare(set, results, score, ms, `${origin}/learn/arena/daily`);
-  }, [set, phase]);
+    return dailyShare(set, results, score, ms, `${origin}/learn/arena/daily${myHandle ? `?ref=${myHandle}` : ""}`);
+  }, [set, phase, myHandle]);
 
   const playedShare = useMemo(() => {
     if (!set || !played) return "";
     const origin = typeof window !== "undefined" ? window.location.host : "himanshukukreja.in";
-    return dailyShare(set, played.results, played.score, played.ms, `${origin}/learn/arena/daily`);
-  }, [set, played]);
+    return dailyShare(set, played.results, played.score, played.ms, `${origin}/learn/arena/daily${myHandle ? `?ref=${myHandle}` : ""}`);
+  }, [set, played, myHandle]);
 
   const copy = async (text: string) => {
     try {
@@ -433,13 +439,16 @@ export default function DailyChallenge() {
 
 function SharePanel({ text, copied, onCopy }: { text: string; copied: boolean; onCopy: () => void }) {
   if (!text) return null;
+  // the sheet adds the link per channel, so it gets the grid without the trailing URL line
+  const grid = text.split("\n").slice(0, -1).join("\n");
   return (
     <div className="flex flex-col gap-2">
       <pre className="m-0 overflow-x-auto whitespace-pre border border-line bg-bg p-3 font-mono text-[13px] leading-relaxed text-fg">{text}</pre>
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <button type="button" onClick={onCopy} className={BTN_GHOST}>
           {copied ? "Copied" : "Copy result"}
         </button>
+        <ShareButton kind="daily" variant="solid" label="Challenge a friend" url={() => "/learn/arena/daily"} text={() => buildShareText({ kind: "daily", detail: grid })} />
         <span aria-live="polite" className="font-mono text-xs text-fg-3">
           {copied ? "paste it anywhere" : ""}
         </span>

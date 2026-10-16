@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Overlay from "./Overlay";
+import ShareButton from "@/components/share/ShareButton";
 import { LEVELS, levelProgress } from "@/game/catalog";
 import { useGame } from "@/game/GameProvider";
 import { useAuth } from "@/contexts/AuthContext";
@@ -129,6 +130,7 @@ export default function LevelUp({ from, reason, onClose }: { from: number; reaso
           <button type="button" onClick={onClose} data-autofocus className="min-h-[52px] border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
             {hofUnlocked && state !== "saved" ? "Not now" : "Keep going"}
           </button>
+          <ShareButton kind="level" achievement={`level-${p.index + 1}`} title={`${p.level.code} ${p.level.name}`} label="Share it" className="min-h-[52px] text-[14px]" />
           {hofUnlocked && <span className="text-xs text-fg-3">Hide it any time from your profile.</span>}
         </div>
       </div>

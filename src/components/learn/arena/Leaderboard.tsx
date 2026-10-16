@@ -11,6 +11,7 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useGame } from "@/game/GameProvider";
 import { LEAGUE_RULES, LEAGUES, POINTS, POINTS_TABLE, type BoardResponse, type BoardRow, type Breakdown } from "@/lib/learn/arena/shared";
 import { useArenaLocal, useBoard } from "./store";
+import ShareButton from "@/components/share/ShareButton";
 import { BackLink, BTN, Kicker, LABEL, PageTitle, SectionTitle, TierBadge } from "./ui";
 
 function shortDay(day: string) {
@@ -49,6 +50,7 @@ function Row({ r, promoteLine }: { r: BoardRow; promoteLine?: boolean }) {
       <span className="flex min-w-0 items-center gap-2">
         <span className={`truncate text-[15px] ${r.me ? "font-semibold text-fg" : "text-fg"}`}>{r.name}</span>
         {r.me && <span className="shrink-0 bg-signal px-1.5 py-0.5 font-mono text-[10px] font-semibold uppercase text-on-signal">you</span>}
+        {r.me && <ShareButton kind="leaderboard" achievement="league" variant="icon" label="Share your rank" className="-my-1.5" />}
         {r.zone === "promote" && (
           <span className="shrink-0 font-mono text-[11px] text-signal-text" title="Promotion zone">
             ▲

@@ -29,6 +29,7 @@ import {
   type Range,
 } from "@/components/admin/ui";
 import type { ContactQuery, LearnersSummary, Subscriber, TrafficLive, TrafficOverview } from "@/components/admin/shell/types";
+import ReferralsCard from "@/components/admin/ReferralsCard";
 
 const tz = () => {
   try {
@@ -193,6 +194,9 @@ export default function AdminOverview() {
           )}
         </Card>
       </div>
+
+      {/* ── Referrals (share my progress) ── */}
+      <ReferralsCard range={range} />
 
       {/* ── Inbox ── */}
       <div className="grid gap-3 xl:grid-cols-2">

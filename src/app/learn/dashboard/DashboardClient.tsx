@@ -29,6 +29,7 @@ import Mastery from "@/components/learn/progress/Mastery";
 import DataControls from "@/components/learn/progress/DataControls";
 import SectionNav from "@/components/learn/progress/SectionNav";
 import ArenaStatsCard from "@/components/learn/arena/ArenaStatsCard";
+import ShareProgress from "@/components/learn/progress/ShareProgress";
 
 export default function DashboardClient({ map }: { map: CourseMap }) {
   const d = useProgressData(map);
@@ -226,6 +227,8 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
       </div>
 
       <ArenaStatsCard />
+
+      <ShareProgress />
 
       {!d.signedIn && <AuthPromptBanner variant="profile" />}
 

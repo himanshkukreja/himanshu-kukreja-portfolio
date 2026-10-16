@@ -1,6 +1,7 @@
 "use client";
 
 import { BOSS_XP, mmss, type Phase } from "./shared";
+import ShareButton from "@/components/share/ShareButton";
 
 const PASS = 0.7;
 
@@ -135,6 +136,7 @@ export default function BossDebrief(props: {
               >
                 {props.defeated ? `Claimed · +${BOSS_XP} XP ✓` : `Claim +${BOSS_XP} XP`}
               </button>
+              {props.defeated && props.weekNum && <ShareButton kind="boss" achievement={`boss-${props.weekNum}`} title={props.weekNum} detail={props.name} label="Share the win" className="min-h-[52px]" />}
             </div>
           ) : passed ? (
             <div className="flex flex-col gap-3.5 border border-line-strong bg-surface p-6">

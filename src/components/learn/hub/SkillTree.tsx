@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import type { HTMLAttributes, ReactNode } from "react";
 import type { CourseLesson } from "@/lib/learn/types";
 import { lessonKey } from "@/lib/learn/types";
 import type { LessonProgress, WeekState } from "@/lib/learn/progress";
@@ -42,11 +43,23 @@ function nodesFor(s: WeekState, lessons: Record<string, LessonProgress>, current
   return out;
 }
 
-function NodeBox({ n, size = "md" }: { n: Node; size?: "md" | "sm" }) {
+/** A node link; a plain span on the read-only (public profile) tree. */
+function Box({ readOnly, href, children, ...rest }: { readOnly: boolean; href: string; children: ReactNode } & HTMLAttributes<HTMLElement>) {
+  return readOnly ? (
+    <span {...rest}>{children}</span>
+  ) : (
+    <Link href={href} {...rest}>
+      {children}
+    </Link>
+  );
+}
+
+function NodeBox({ n, size = "md", readOnly = false }: { n: Node; size?: "md" | "sm"; readOnly?: boolean }) {
   const sm = size === "sm";
   if (n.kind === "boss") {
     return (
-      <Link
+      <Box
+        readOnly={readOnly}
         href={n.href}
         title={n.label}
         aria-label={`${n.label}${n.state === "done" ? ", defeated" : ""}`}
@@ -59,7 +72,7 @@ function NodeBox({ n, size = "md" }: { n: Node; size?: "md" | "sm" }) {
         >
           <span className="-rotate-45">{sm ? "" : "B"}</span>
         </span>
-      </Link>
+      </Box>
     );
   }
   const base = `grid shrink-0 place-items-center font-mono font-semibold ${sm ? "h-6 min-w-6 px-0.5 text-[9px]" : n.kind === "trial" ? "h-9 min-w-[38px] px-1 text-[11px]" : "h-10 w-10 text-[11px]"}`;
@@ -74,9 +87,9 @@ function NodeBox({ n, size = "md" }: { n: Node; size?: "md" | "sm" }) {
           ? "animate-hk-pulse border-2 border-signal text-signal-text"
           : "border border-dashed border-line-strong text-fg-4";
   return (
-    <Link href={n.href} title={n.label} aria-label={`${n.label}${n.state === "done" ? ", done" : n.state === "current" ? ", current" : ""}`} className={`${base} ${look} hover:outline hover:outline-1 hover:outline-fg-3`}>
+    <Box readOnly={readOnly} href={n.href} title={n.label} aria-label={`${n.label}${n.state === "done" ? ", done" : n.state === "current" ? ", current" : ""}`} className={`${base} ${look} ${readOnly ? "" : "hover:outline hover:outline-1 hover:outline-fg-3"}`}>
       {n.text}
-    </Link>
+    </Box>
   );
 }
 
@@ -88,13 +101,16 @@ export function SkillTreeRows({
   currentWeek,
   selected,
   onSelect,
+  readOnly = false,
 }: {
   states: WeekState[];
   lessons: Record<string, LessonProgress>;
   currentKey: string | null;
   currentWeek: string | null;
   selected: string;
-  onSelect: (week: string) => void;
+  onSelect?: (week: string) => void;
+  /** public profile: no links, no selection */
+  readOnly?: boolean;
 }) {
   return (
     <div className="overflow-x-auto border border-line bg-raised">
@@ -108,17 +124,26 @@ export function SkillTreeRows({
               key={s.week.key}
               className={`flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 ${on ? "bg-surface-2 shadow-[inset_3px_0_0_var(--c-signal)]" : ""} ${s.status === "ahead" ? "text-fg-2" : ""}`}
             >
-              <button
-                type="button"
-                onClick={() => onSelect(s.week.key)}
-                aria-pressed={on}
-                className="flex min-h-14 w-[210px] shrink-0 flex-col items-start justify-center gap-1 pr-2 text-left"
-              >
-                <span className={`font-mono text-[11px] tracking-label ${cur ? "text-signal-text" : "text-fg-3"}`}>
-                  WEEK {s.week.code} · {cur && s.status === "ahead" ? "START HERE" : s.status.toUpperCase()}
+              {readOnly ? (
+                <span className="flex min-h-14 w-[210px] shrink-0 flex-col items-start justify-center gap-1 pr-2 text-left">
+                  <span className={`font-mono text-[11px] tracking-label ${cur ? "text-signal-text" : "text-fg-3"}`}>
+                    WEEK {s.week.code} · {s.status.toUpperCase()}
+                  </span>
+                  <span className="text-base font-semibold leading-tight text-fg">{s.week.title}</span>
                 </span>
-                <span className="text-base font-semibold leading-tight text-fg">{s.week.title}</span>
-              </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onSelect?.(s.week.key)}
+                  aria-pressed={on}
+                  className="flex min-h-14 w-[210px] shrink-0 flex-col items-start justify-center gap-1 pr-2 text-left"
+                >
+                  <span className={`font-mono text-[11px] tracking-label ${cur ? "text-signal-text" : "text-fg-3"}`}>
+                    WEEK {s.week.code} · {cur && s.status === "ahead" ? "START HERE" : s.status.toUpperCase()}
+                  </span>
+                  <span className="text-base font-semibold leading-tight text-fg">{s.week.title}</span>
+                </button>
+              )}
               <div className="flex flex-1 items-center">
                 {nodes.map((n, k) => (
                   <span key={n.key} className="contents">
@@ -128,7 +153,7 @@ export function SkillTreeRows({
                         className={`h-0.5 min-w-1.5 flex-1 ${n.state === "done" ? "bg-fg" : "bg-[repeating-linear-gradient(90deg,var(--c-line-strong)_0_4px,transparent_4px_8px)]"}`}
                       />
                     )}
-                    <NodeBox n={n} />
+                    <NodeBox n={n} readOnly={readOnly} />
                   </span>
                 ))}
               </div>
@@ -147,13 +172,17 @@ export function SkillTreeList({
   currentKey,
   currentWeek,
   onOpen,
+  readOnly = false,
 }: {
   states: WeekState[];
   lessons: Record<string, LessonProgress>;
   currentKey: string | null;
   currentWeek: string | null;
-  onOpen: (week: string) => void;
+  onOpen?: (week: string) => void;
+  /** public profile: no sheet, no links */
+  readOnly?: boolean;
 }) {
+  const Row = readOnly ? "div" : "button";
   return (
     <ol className="relative flex flex-col">
       {states.map((s, i) => {
@@ -176,9 +205,8 @@ export function SkillTreeList({
             >
               {s.cleared ? "✓" : s.week.code}
             </span>
-            <button
-              type="button"
-              onClick={() => onOpen(s.week.key)}
+            <Row
+              {...(readOnly ? {} : { type: "button" as const, onClick: () => onOpen?.(s.week.key) })}
               className={`flex min-h-11 min-w-0 flex-1 flex-col gap-2 text-left ${cur ? "border border-line-strong bg-surface px-3 py-2.5" : "justify-center"}`}
             >
               <span className="flex flex-col gap-0.5">
@@ -212,8 +240,8 @@ export function SkillTreeList({
                   ))}
                 </span>
               )}
-              {cur && <span className="text-xs text-fg-3">Tap for lessons, boss and trial parts</span>}
-            </button>
+              {cur && !readOnly && <span className="text-xs text-fg-3">Tap for lessons, boss and trial parts</span>}
+            </Row>
           </li>
         );
       })}

@@ -24,6 +24,7 @@ import WeekDetail from "./WeekDetail";
 import WorldCleared from "./WorldCleared";
 import LevelUp from "./LevelUp";
 import Overlay from "./Overlay";
+import ShareButton from "@/components/share/ShareButton";
 
 export default function CourseHub({ map }: { map: CourseMap }) {
   const { ready, signedIn, lessons, done } = useLearnProgress(map.courseId);
@@ -142,9 +143,12 @@ export default function CourseHub({ map }: { map: CourseMap }) {
       <section aria-labelledby="tree-h" className="flex flex-wrap items-start gap-6">
         <div className="flex min-w-0 flex-[999_1_680px] flex-col gap-4">
           <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 id="tree-h" className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
-              Skill tree
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 id="tree-h" className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
+                Skill tree
+              </h2>
+              <ShareButton kind="tree" label="Share" className="min-h-10 px-3" />
+            </div>
             <div className="flex flex-wrap items-center gap-3.5 text-xs text-fg-3">
               <span className="inline-flex items-center gap-1.5">
                 <span aria-hidden className="h-3 w-3 bg-fg" />

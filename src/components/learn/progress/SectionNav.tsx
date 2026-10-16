@@ -8,6 +8,7 @@ const SECTIONS = [
   ["activity", "activity"],
   ["goals", "goals"],
   ["mastery", "mastery"],
+  ["share", "share"],
   ["data", "data"],
 ] as const;
 

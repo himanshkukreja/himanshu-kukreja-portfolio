@@ -5,6 +5,7 @@ import type { CourseMap } from "@/lib/learn/types";
 import { addDays, localDate, type ReviewCard } from "@/lib/learn/review";
 import type { trialScores } from "./derive";
 import { Label, SectionHead } from "./ui";
+import ShareButton from "@/components/share/ShareButton";
 
 type Props = {
   map: CourseMap;
@@ -166,8 +167,9 @@ export default function Mastery(p: Props) {
       <div className="flex flex-col gap-2.5 border border-line bg-surface p-4 sm:p-5">
         <div className="flex items-baseline justify-between gap-2">
           <Label>badges</Label>
-          <span className="font-mono text-[11px] text-fg-3">
+          <span className="flex items-center gap-3 font-mono text-[11px] text-fg-3">
             {earned} of {p.badges.length}
+            {earned > 0 && <ShareButton kind="badges" variant="link" label="share" className="min-h-8 text-[12px]" />}
           </span>
         </div>
         <ul className="flex flex-wrap gap-1.5">

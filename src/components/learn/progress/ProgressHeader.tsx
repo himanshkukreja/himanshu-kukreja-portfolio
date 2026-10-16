@@ -6,6 +6,7 @@ import type { Resume, WeekState } from "@/lib/learn/progress";
 import { resumeDetails, type ResumeStage } from "@/components/ContinueReadingBanner";
 import { fmtMinutes } from "./derive";
 import { Bar, Label, Stat } from "./ui";
+import ShareButton from "@/components/share/ShareButton";
 
 type Props = {
   name: string;
@@ -46,6 +47,7 @@ export default function ProgressHeader(p: Props) {
             <span className="font-mono text-[12px] text-fg-2">
               {p.xp} XP{lp.next ? ` · ${lp.next.min - p.xp} to ${lp.next.code} ${lp.next.name}` : " · max level"}
             </span>
+            <ShareButton kind="profile" variant="link" label="share my progress" className="sm:ml-auto" />
           </div>
           <Bar pct={lp.pct} className="h-1.5 max-w-[560px]" label="Progress to the next level" />
           {lp.next && <span className="text-[13px] text-fg-3">Next unlock: {LEVELS[lp.index + 1]?.unlock}</span>}

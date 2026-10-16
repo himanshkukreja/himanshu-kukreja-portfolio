@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Overlay from "./Overlay";
+import ShareButton from "@/components/share/ShareButton";
 import type { CourseWeek } from "@/lib/learn/types";
 import { LEARN_XP } from "@/lib/learn/types";
 import { hoursLabel } from "@/lib/learn/progress";
@@ -117,6 +118,7 @@ export default function WorldCleared({
             See your profile →
           </Link>
         )}
+        <ShareButton kind="world" achievement={`world-${week.code}`} title={week.code} detail={week.title} label="Share it" className="min-h-[52px] text-[14px]" />
         <Link href="/learn/review" onClick={onClose} className="inline-flex min-h-[52px] items-center border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
           {dueCount ? `Review ${dueCount} due card${dueCount === 1 ? "" : "s"}` : "Open the daily standup"}
         </Link>

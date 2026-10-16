@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
+import ShareButton from "@/components/share/ShareButton";
 import { doneCount, numberedStages } from "./stageText";
 import type { NavLink, ReaderMeta, TrialPartLink } from "./types";
 
@@ -55,6 +56,7 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
         >
           {completed ? "Completed ✓" : canComplete ? `Mark ${name} complete · +60 XP` : `Keep reading · ~${completeLeftMin} min left`}
         </button>
+        {completed && <ShareButton kind="lesson" title={meta.title} label="Share" className="min-h-[52px] w-full sm:w-auto" />}
       </div>
 
       {(next || trial) && (
