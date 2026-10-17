@@ -3,7 +3,7 @@
 /**
  * Offline reading, app side: registers the service worker (public/sw.js), knows what is saved in
  * this browser, whether we're really online, whether the app can be installed, keeps saved copies
- * up to date in the background, and renders the offline strip, the save progress toast and the
+ * up to date in the background, and renders the save progress toast and the
  * progress sync. Mounted once in the root layout.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -12,7 +12,11 @@ import type { Catalog, CatalogItem, SavedMeta } from "@/lib/offline/types";
 import { APP_BUILD, askWorker, listSaved, offlineSupported, onLibraryChanged, pathOf, type SaveInput } from "@/lib/offline/store";
 import { ping, setPageSource, startConnectivity, useConnectivity, type PageSource } from "@/lib/offline/connectivity";
 import { enqueueSave } from "@/lib/offline/jobs";
-import OfflineStrip from "./OfflineStrip";
+import { trackOpen } from "@/lib/offline/analytics";
+import { setAnalyticsContext } from "@/lib/analytics/client";
+import { isInstalledMode, platformOf, type DisplayMode } from "@/lib/pwa/displayMode";
+import { track } from "@/lib/track";
+import AppWindow, { markInstalled } from "./AppWindow";
 import SaveToast from "./SaveToast";
 import OfflineSync from "./OfflineSync";
 
@@ -109,10 +113,6 @@ function isIos() {
   return /iPad|iPhone|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 }
 
-function isStandalone() {
-  return window.matchMedia?.("(display-mode: standalone)").matches || (navigator as Navigator & { standalone?: boolean }).standalone === true;
-}
-
 const SW_OFF = process.env.NEXT_PUBLIC_OFFLINE_DISABLED === "1";
 
 export default function OfflineProvider({ children }: { children: React.ReactNode }) {
@@ -123,7 +123,9 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
   const [saved, setSaved] = useState<Map<string, SavedMeta>>(() => new Map());
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [deferred, setDeferred] = useState<BeforeInstallPromptEvent | null>(null);
-  const [installed, setInstalled] = useState(false);
+  const [display, setDisplay] = useState<DisplayMode | null>(null);
+  const [justInstalled, setJustInstalled] = useState(false);
+  const installed = justInstalled || (!!display && isInstalledMode(display));
   const [ios, setIos] = useState(false);
   const { offline, source } = useConnectivity();
   const catalogReq = useRef<Promise<Catalog | null> | null>(null);
@@ -142,7 +144,6 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     setSupported(ok && !SW_OFF);
     setChecked(true);
     setIos(isIos());
-    setInstalled(isStandalone());
     if (!("serviceWorker" in navigator)) return;
     if (SW_OFF) {
       void navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => void r.unregister()));
@@ -162,7 +163,16 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     void askWorker<{ source: PageSource; url: string; at: number } | null>({ type: "hk:source", url: window.location.href }, 1500).then((rec) => {
       if (rec && rec.url === window.location.href && rec.at >= performance.timeOrigin - 2000) {
         setPageSource(rec.source);
-        if (rec.source !== "network") void ping();
+        if (rec.source !== "network") {
+          void ping();
+          // opened from this device's copy (analytics: offline_open)
+          const path = window.location.pathname;
+          const src = rec.source === "shell" ? (path.startsWith("/learn/offline") ? "library" : "fallback") : rec.source === "recent" ? "recent" : "saved";
+          void listSaved().then((list) => {
+            const p = pathOf(path);
+            trackOpen(src, path, list.find((m) => m.url === p) ?? null);
+          });
+        }
       }
     });
   }, []);
@@ -182,8 +192,11 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
       setDeferred(e as BeforeInstallPromptEvent);
     };
     const onInstalled = () => {
-      setInstalled(true);
+      setJustInstalled(true);
       setDeferred(null);
+      // the installed app shares this storage on Chrome/Edge/Android: its first launch isn't another install
+      markInstalled();
+      track("pwa_installed", { platform: platformOf(), via: "appinstalled" });
     };
     window.addEventListener("beforeinstallprompt", onPrompt);
     window.addEventListener("appinstalled", onInstalled);
@@ -195,8 +208,11 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
 
   const prompt = useCallback(async () => {
     if (!deferred) return false;
+    const platform = platformOf();
+    track("pwa_install_prompt", { outcome: "shown", via: "prompt", platform });
     await deferred.prompt();
     const { outcome } = await deferred.userChoice.catch(() => ({ outcome: "dismissed" as const }));
+    track("pwa_install_prompt", { outcome, via: "prompt", platform });
     setDeferred(null);
     return outcome === "accepted";
   }, [deferred]);
@@ -245,6 +261,14 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     return catalogReq.current;
   }, [catalog]);
 
+  // analytics: what this browser keeps offline, as super/person properties (cohorts)
+  useEffect(() => {
+    if (!supported || !ready) return;
+    let bytes = 0;
+    for (const m of saved.values()) bytes += m.size || 0;
+    setAnalyticsContext({ offline_saved_count: saved.size, offline_saved_bytes: bytes });
+  }, [supported, ready, saved]);
+
   const updates = useMemo(() => {
     const out = new Set<string>();
     if (!catalog) return out;
@@ -287,7 +311,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
         const item = findItem(cat, m.url);
         if (item && (item.version !== m.version || stale(m))) todo.push(item);
       }
-      if (todo.length) enqueueSave("Updating saved lessons", todo.slice(0, AUTO_MAX));
+      if (todo.length) enqueueSave("Updating saved lessons", todo.slice(0, AUTO_MAX), { scope: "update", trigger: "auto" });
     }, 4000);
     return () => window.clearTimeout(t);
   }, [supported, ready, offline, saved, pathname, loadCatalog]);
@@ -310,7 +334,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
 
   return (
     <Ctx.Provider value={value}>
-      <OfflineStrip />
+      <AppWindow onMode={setDisplay} />
       {children}
       <SaveToast />
       <OfflineSync />

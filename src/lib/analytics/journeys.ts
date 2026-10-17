@@ -237,3 +237,38 @@ export type SnapshotSourcesRes = {
   /** blobs per chunk request (`from`..`to` inclusive, server-capped) */
   chunk: number;
 };
+
+/* ───────────────────────────── offline reading (/admin Overview card) ───────────────────────────── */
+
+export type OfflinePerson = {
+  personId: string;
+  who: string;
+  identified: boolean;
+  lastAt: string;
+  opens: number;
+  reads: number;
+  saves: number;
+  mode: string | null;
+  device: string | null;
+  country: string | null;
+};
+
+export type OfflineRes = {
+  configured: true;
+  days: number;
+  /** people with at least one successful save: last 7 days / 30 days / all time */
+  savers: { d7: number; d30: number; all: number; bytesAll: number };
+  /** person properties right now: people whose browser keeps something saved, and how much */
+  stored: { people: number; bytes: number } | null;
+  totals: { saves: number; bytes: number; updates: number; removes: number; opens: number; reads: number; offlinePeople: number; installs: number };
+  byScope: { scope: string; saves: number; people: number; bytes: number }[];
+  topArticles: { slug: string; week: string | null; kind: string | null; title: string | null; people: number; saves: number }[];
+  topWorlds: { group: string; title: string | null; people: number; saves: number }[];
+  installs: { platform: string; via: string; people: number }[];
+  prompts: { outcome: string; n: number }[];
+  modes: { mode: string; people: number }[];
+  series: { t: string; opens: number; reads: number; saves: number }[];
+  recent: OfflinePerson[];
+  /** sections that failed (the rest still render) */
+  errors: Record<string, string>;
+};

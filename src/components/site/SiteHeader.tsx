@@ -12,6 +12,7 @@ import SearchBar from "@/components/SearchBar";
 import { LearnBrand, LearnDock, LearnTabs, isLearnRoute } from "./LearnNav";
 import { useAutoHideChrome, useChromeHidden } from "./readerChrome";
 import { DockDot, TabPending } from "./LinkPending";
+import OfflineStrip from "@/components/offline/OfflineStrip";
 
 const NAV = [
   { href: "/#career", label: "career", match: (p: string) => p === "/" },
@@ -66,7 +67,7 @@ function QuestLog({ onClose }: { onClose: () => void }) {
   }, [onClose]);
   const doneCount = MAIN_QUESTS.filter((q) => done[q.id]).length;
   return (
-    <div ref={ref} className="absolute right-4 top-[calc(100%+8px)] z-50 flex w-[min(380px,calc(100vw-32px))] animate-hk-in flex-col gap-3.5 border border-line-strong bg-surface p-5">
+    <div ref={ref} data-no-drag className="absolute right-4 top-[calc(100%+8px)] z-50 flex w-[min(380px,calc(100vw-32px))] animate-hk-in flex-col gap-3.5 border border-line-strong bg-surface p-5">
       <div className="flex items-baseline justify-between">
         <span className="font-mono text-[15px] font-semibold">$ cat quests.todo</span>
         <span className="font-mono text-xs text-fg-3">
@@ -134,19 +135,21 @@ export default function SiteHeader() {
   useAutoHideChrome(lesson && !questsOpen);
   const hidden = useChromeHidden() && lesson;
   // Lesson pages bring their own phone reading toolbar, which takes the dock's place.
-  const dockClass = `${lesson ? "hidden" : "grid lg:hidden"} fixed inset-x-0 bottom-0 z-50 grid-cols-5 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`;
+  const dockClass = `${lesson ? "hidden" : "grid lg:hidden"} hk-safe-x fixed inset-x-0 bottom-0 z-50 grid-cols-5 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`;
 
   return (
     <>
+      {/* the installed app's title-bar area / iPhone status bar while the header is slid away (globals.css) */}
+      <div aria-hidden data-top-inset className="hk-top-fill" data-on={hidden || undefined} />
       <header
         ref={headerRef}
         data-focus-hide
         data-hidden={hidden || undefined}
         aria-hidden={hidden || undefined}
         inert={hidden || undefined}
-        className={`sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
+        className={`hk-header hk-titlebar sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
       >
-        <div className="relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6">
+        <div className="hk-titlebar-row relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6">
           {learn ? (
             <>
               <LearnBrand />
@@ -183,9 +186,9 @@ export default function SiteHeader() {
               className="min-h-10 whitespace-nowrap border border-signal px-2 font-mono text-xs tracking-label text-signal-text"
             >
               {p.level.code}
-              <span className="hidden sm:inline"> · {p.level.name}</span>
+              <span data-wco-compact className="hidden sm:inline"> · {p.level.name}</span>
             </button>
-            <div className={`${learn ? "hidden xl:flex" : "hidden sm:flex"} w-[150px] flex-col gap-1.5`}>
+            <div data-wco-hide className={`${learn ? "hidden xl:flex" : "hidden sm:flex"} w-[150px] flex-col gap-1.5`}>
               <div className="h-1.5 bg-surface-2">
                 <div className="h-1.5 bg-signal transition-[width] duration-500" style={{ width: `${p.pct}%` }} />
               </div>
@@ -198,6 +201,7 @@ export default function SiteHeader() {
                 <button
                   type="button"
                   data-quest-toggle
+                  data-wco-hide
                   onClick={() => setQuestsOpen((o) => !o)}
                   aria-expanded={questsOpen}
                   className="hidden min-h-10 border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2 sm:block"
@@ -219,6 +223,7 @@ export default function SiteHeader() {
           <div className="h-[3px] bg-signal" style={{ width: `${p.pct}%` }} />
         </div>
       </header>
+      <OfflineStrip />
 
       {learn ? (
         <LearnDock pathname={pathname} className={dockClass} />

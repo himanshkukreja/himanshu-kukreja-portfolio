@@ -16,12 +16,22 @@
  *
  * PostHog talks to /hkr (first-party proxy, see next.config.ts) so ad blockers don't drop it.
  * GA cannot be proxied without server-side GTM, so it is blockable by design.
+ *
+ * Offline reading: product events that happen with no connection (lib/offline/connectivity says
+ * so) never go to posthog-js, whose retry queue lives in memory, gives up after a few failed
+ * tries and is gone with the page. They are flagged `offline: true` and kept in a durable queue
+ * (./offlineQueue) with their original time and a fixed uuid, then sent once the site is reachable
+ * straight to PostHog's batch endpoint through the same proxy, with `timestamp` = when they
+ * happened. (posthog.capture() with a past timestamp would also move the live session's activity
+ * clock back and split the reader's current session, so the flush builds the events itself.)
  */
 import type { CaptureResult, PostHog, Properties } from "posthog-js";
 import { supabaseClient } from "@/lib/supabase-client";
 import { startEngagedClock, type EngagedClock } from "@/lib/learn/engagedClock";
+import { isOffline, pageSource, reportNetworkFailure } from "@/lib/offline/connectivity";
 import { onProduct, onRouteStart, type ProductProps } from "./bus";
 import { GA_ID, POSTHOG_KEY, POSTHOG_PROXY_PATH, POSTHOG_UI_HOST, gaEnabled, posthogEnabled } from "./config";
+import { clearEvents, enqueueEvent, newEventId, pendingEvents, removeEvents, withFlushLock, type QueuedEvent } from "./offlineQueue";
 
 export const NOTRACK_KEY = "hk.notrack";
 /** Fired on window when the visitor's opt-out state changes (for toggles). */
@@ -92,6 +102,8 @@ function beforeSend(ev: CaptureResult | null): CaptureResult | null {
   if (!ev) return ev;
   const path = currentPath();
   if (isAdminPath(path) || !allowed()) return null;
+  // posthog-js's own events ($pageview, autocapture…) while offline: best effort, but labelled
+  if (isOffline() && ev.properties && ev.properties.offline === undefined) ev.properties = { ...ev.properties, offline: true };
   if (ev.event === "$pageview" || ev.event === "$pageleave") {
     const p = (ev.properties?.$pathname as string | undefined) || path;
     ev.properties = { ...ev.properties, ...pageContext(p) };
@@ -129,9 +141,15 @@ function loadPosthog(): Promise<PostHog | null> {
       });
       ph = posthog;
       syncGates(currentPath());
+      applyContext();
+      if (pendingEvents().length) scheduleFlush(2000);
       return posthog;
     })
-    .catch(() => null);
+    .catch(() => {
+      // offline and the chunk isn't cached: try again once the connection is back
+      phLoading = null;
+      return null;
+    });
   return phLoading;
 }
 
@@ -329,10 +347,187 @@ function toGa(name: string, p: ProductProps) {
 
 function onProductEvent(name: string, props: ProductProps) {
   if (isAdminPath(currentPath()) || !allowed()) return;
-  // events fired while posthog-js is still downloading (e.g. lesson_open on load) wait for it
+  capture(name, props);
+  // GA4 can't take events late with their real time: online moments only
+  if (!isOffline()) toGa(name, props);
+}
+
+/* ───────────────────────────── offline queue ───────────────────────────── */
+
+/** Context added to every event captured with no connection. */
+function offlineProps(): Properties {
+  const src = pageSource();
+  const shell = window.location.pathname.startsWith("/learn/offline") ? "library" : "fallback";
+  return { offline: true, ...(src && src !== "network" ? { offline_source: src === "shell" ? shell : src } : {}) };
+}
+
+/**
+ * One path per event: online → posthog-js (events fired while it is still downloading wait for
+ * it); offline, or posthog-js couldn't load → the durable queue, sent later with the real time.
+ */
+function capture(name: string, props: Properties) {
+  if (isAdminPath(currentPath()) || !allowed()) return;
+  if (isOffline()) {
+    queueEvent(name, { ...props, ...offlineProps() });
+    return;
+  }
   if (ph) ph.capture(name, props);
-  else if (phLoading) void phLoading.then((p) => p?.capture(name, props));
-  toGa(name, props);
+  // (the connection may have gone while it loaded: a page answered from the saved copy says so late)
+  else if (phLoading) void phLoading.then((p) => (p && !isOffline() ? p.capture(name, props) : queueEvent(name, isOffline() ? { ...props, ...offlineProps() } : props)));
+  else queueEvent(name, props);
+}
+
+function queueEvent(name: string, props: Properties) {
+  const id = newEventId();
+  const ts = Date.now();
+  let p: Properties = { ...ctx, ...props, $current_url: window.location.href, $pathname: window.location.pathname };
+  let full = false;
+  if (ph) {
+    try {
+      // the full property set of this moment (session, device, super properties); read-only, so
+      // the live session is untouched
+      p = ph.calculateEventProperties(name, p, new Date(ts), id, true);
+      full = true;
+    } catch {
+      /* fall back to the basics, completed at flush time */
+    }
+  }
+  enqueueEvent({ id, e: name, p, ts, ...(full ? { full: 1 as const } : {}) });
+  scheduleFlush();
+}
+
+let flushTimer: number | null = null;
+let flushing: Promise<number> | null = null;
+
+function scheduleFlush(delayMs = 1500) {
+  if (flushTimer) return;
+  flushTimer = window.setTimeout(() => {
+    flushTimer = null;
+    void flushOffline();
+  }, delayMs);
+}
+
+function batchItem(q: QueuedEvent, p: PostHog) {
+  let properties = q.p as Properties;
+  if (!q.full) {
+    try {
+      properties = p.calculateEventProperties(q.e, q.p as Properties, new Date(), q.id, true);
+    } catch {
+      properties = { ...q.p, distinct_id: p.get_distinct_id(), token: POSTHOG_KEY, $lib: "web" };
+    }
+    // computed now, not then: today's session/window ids don't belong to an event from earlier
+    const { $session_id: _s, $window_id: _w, ...rest } = properties;
+    void _s;
+    void _w;
+    properties = { ...rest, ...q.p };
+  }
+  return { event: q.e, properties, timestamp: new Date(q.ts).toISOString(), uuid: q.id };
+}
+
+async function postBatch(batch: ReturnType<typeof batchItem>[]): Promise<"ok" | "retry" | "drop"> {
+  try {
+    const res = await fetch(`${POSTHOG_PROXY_PATH}/batch/`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "omit",
+      // sent_at lets PostHog correct the device clock against its own (timestamps stay relative)
+      body: JSON.stringify({ api_key: POSTHOG_KEY, sent_at: new Date().toISOString(), batch }),
+    });
+    if (res.ok) return "ok";
+    // a malformed batch never gets better: drop it instead of retrying forever
+    return res.status >= 400 && res.status < 500 && res.status !== 408 && res.status !== 429 ? "drop" : "retry";
+  } catch {
+    reportNetworkFailure();
+    return "retry";
+  }
+}
+
+/** Send what was queued offline, once (resolves to how many were sent). */
+export function flushOffline(): Promise<number> {
+  if (flushing) return flushing;
+  if (!isBrowser()) return Promise.resolve(0);
+  if (!allowed()) {
+    clearEvents();
+    return Promise.resolve(0);
+  }
+  const p = ph;
+  // posthog-js drops bot traffic (headless browsers, crawlers); the direct flush does the same
+  if (p && (p as PostHog & { _is_bot?: () => boolean })._is_bot?.()) {
+    clearEvents();
+    return Promise.resolve(0);
+  }
+  if (!p || isOffline() || isAdminPath(currentPath()) || !pendingEvents().length) {
+    if (p && !isOffline()) syncPersonProps();
+    return Promise.resolve(0);
+  }
+  flushing = (async () => {
+    let sent = 0;
+    await withFlushLock(async () => {
+      const list = pendingEvents(); // re-read under the lock: another tab may have sent some
+      for (let i = 0; i < list.length; i += 50) {
+        const chunk = list.slice(i, i + 50);
+        const result = await postBatch(chunk.map((q) => batchItem(q, p)));
+        if (result === "retry") break;
+        removeEvents(chunk.map((q) => q.id));
+        if (result === "ok") sent += chunk.length;
+      }
+    });
+    syncPersonProps();
+    return sent;
+  })().finally(() => {
+    flushing = null;
+  });
+  return flushing;
+}
+
+/* ───────────────────────────── analytics context ───────────────────────────── */
+
+/** Super + person properties: how the site is shown, what's saved for offline reading. */
+export type AnalyticsContext = { display_mode?: string; offline_saved_count?: number; offline_saved_bytes?: number };
+
+const ctx: Record<string, string | number> = {};
+const PERSON_KEY = "hk.an.pp";
+let personTimer: number | null = null;
+
+export function setAnalyticsContext(patch: AnalyticsContext) {
+  let changed = false;
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === undefined || ctx[k] === v) continue;
+    ctx[k] = v;
+    changed = true;
+  }
+  if (changed) applyContext();
+}
+
+function applyContext() {
+  if (!ph || !Object.keys(ctx).length || isAdminPath(currentPath()) || !allowed()) return;
+  try {
+    ph.register({ ...ctx }); // local only (posthog persistence): rides on every later event
+  } catch {
+    /* ignore */
+  }
+  if (personTimer) window.clearTimeout(personTimer);
+  personTimer = window.setTimeout(syncPersonProps, 3000);
+}
+
+/** Person properties for cohorts, sent only when they changed (each $set is a billable event). */
+function syncPersonProps() {
+  if (!ph || isOffline() || !Object.keys(ctx).length || isAdminPath(currentPath()) || !allowed()) return;
+  const set: Properties = { ...ctx };
+  if (ctx.display_mode && ctx.display_mode !== "browser" && ctx.display_mode !== "fullscreen") set.pwa_installed = true;
+  let sig = "";
+  try {
+    sig = `${ph.get_distinct_id()}|${JSON.stringify(set)}`;
+    if (window.localStorage.getItem(PERSON_KEY) === sig) return;
+  } catch {
+    /* ignore */
+  }
+  try {
+    ph.setPersonProperties(set);
+    window.localStorage.setItem(PERSON_KEY, sig);
+  } catch {
+    /* ignore */
+  }
 }
 
 /* ───────────────────────────── reading depth ───────────────────────────── */
@@ -364,7 +559,7 @@ function articleDepth(): { pct: number; minutes: number } | null {
 
 function checkReader() {
   const rd = reader;
-  if (!rd || !ph) return;
+  if (!rd) return;
   const d = articleDepth();
   if (!d) return;
   const secs = rd.clock.seconds();
@@ -375,7 +570,7 @@ function checkReader() {
     const need = Math.min(120 * (m / 25), Math.max(8 * (m / 25), d.minutes * 60 * 0.25 * (m / 100)));
     if (secs < need) break;
     rd.sent.add(m);
-    if (!isAdminPath(currentPath()) && allowed()) ph.capture("read_progress", { ...rd.ref, pct: m, engaged_sec: secs, est_minutes: Math.round(d.minutes) });
+    capture("read_progress", { ...rd.ref, pct: m, engaged_sec: secs, est_minutes: Math.round(d.minutes) });
   }
 }
 
@@ -410,6 +605,16 @@ function wire() {
     syncGates(path);
   });
   window.addEventListener("pagehide", flushQuiz);
+  // back online: load posthog-js if it couldn't load offline, then send the queue
+  const back = (delayMs: number) => () => {
+    if (!ph && !phLoading && !isOffline()) void loadPosthog();
+    scheduleFlush(delayMs);
+  };
+  window.addEventListener("hk:reconnected", back(800));
+  window.addEventListener("online", back(3000));
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && pendingEvents().length) back(1000)();
+  });
   watchAuth();
 }
 
@@ -439,6 +644,7 @@ export function setAnalyticsOptOut(out: boolean) {
   }
   if (out) {
     stopReader();
+    clearEvents();
     try {
       ph?.opt_out_capturing();
     } catch {

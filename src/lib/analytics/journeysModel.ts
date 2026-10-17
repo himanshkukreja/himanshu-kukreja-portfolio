@@ -50,6 +50,18 @@ export const EVENT_PROPS = [
   "$geoip_city_name",
   "$device_type",
   "$browser",
+  // offline reading / installed app (src/lib/offline/analytics.ts)
+  "offline",
+  "offline_source",
+  "source",
+  "items",
+  "bytes",
+  "outcome",
+  "via",
+  "platform",
+  "trigger",
+  "count",
+  "display_mode",
 ] as const;
 
 export type EventProp = (typeof EVENT_PROPS)[number];
@@ -111,8 +123,20 @@ function storyName(p: Props, titleOf: TitleOf): string {
   return (slug && titleOf(`/stories/${slug}`)) || slug || "a case file";
 }
 
-/** Human label + category for one event. */
+const mb = (v: unknown) => {
+  const n = Number(v);
+  return Number.isFinite(n) && n > 0 ? (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`) : null;
+};
+const SAVE_SCOPE: Record<string, string> = { world: "a world", collection: "a collection", course: "the entire course" };
+
+/** Human label + category for one event (learning events read offline say so). */
 export function describe(event: string, p: Props, chain: string | null, titleOf: TitleOf): { kind: TimelineKind; label: string; detail: string | null } {
+  const d = describeEvent(event, p, chain, titleOf);
+  if ((p.offline === true || p.offline === "true") && !event.startsWith("offline_")) return { ...d, label: `${d.label} · offline` };
+  return d;
+}
+
+function describeEvent(event: string, p: Props, chain: string | null, titleOf: TitleOf): { kind: TimelineKind; label: string; detail: string | null } {
   const path = (p.$pathname as string) || null;
   const pageTitle = titleOf(path) || (p.page_title as string) || (p.title as string) || null;
   const el = () => {
@@ -181,6 +205,21 @@ export function describe(event: string, p: Props, chain: string | null, titleOf:
       return { kind: "error", label: "Hit a JS error", detail: p.$exception_message ? clip(String(p.$exception_message), 90) : path };
     case "reset":
       return { kind: "event", label: `Reset progress (${s(p.scope)})`, detail: null };
+    case "offline_save": {
+      const what = p.scope === "article" || !p.scope ? `“${clip(s(p.title || p.slug) || "a page", 70)}”` : `${SAVE_SCOPE[s(p.scope)] ?? s(p.scope)}${p.title ? ` “${clip(s(p.title), 60)}”` : ""}`;
+      const bits = [p.items != null && p.scope !== "article" ? `${s(p.items)} articles` : null, mb(p.bytes), p.result && p.result !== "ok" ? `${s(p.result)}${p.error ? ` (${s(p.error)})` : ""}` : null];
+      return { kind: "read", label: `Saved ${what} for offline`, detail: bits.filter(Boolean).join(" · ") || null };
+    }
+    case "offline_update":
+      return { kind: "read", label: `Updated ${s(p.count) || "0"} saved ${p.count === 1 ? "copy" : "copies"} (${s(p.trigger) || "manual"})`, detail: mb(p.bytes) };
+    case "offline_remove":
+      return { kind: "event", label: p.scope === "all" ? "Removed everything saved offline" : `Removed ${p.scope === "world" ? `a world` : `“${clip(s(p.title || p.slug), 70)}”`} from offline`, detail: p.items ? `${s(p.items)} articles` : null };
+    case "offline_open":
+      return { kind: "read", label: `Opened ${p.source === "fallback" ? "the offline page" : p.source === "library" ? "the offline library" : `the ${s(p.source) || "saved"} copy of “${clip(s(p.title || p.slug), 60)}”`} with no connection`, detail: path };
+    case "pwa_install_prompt":
+      return { kind: "event", label: `Install prompt ${s(p.outcome)}`, detail: [p.via, p.platform].filter(Boolean).join(" · ") || null };
+    case "pwa_installed":
+      return { kind: "event", label: "Installed the app", detail: [p.platform, p.via].filter(Boolean).join(" · ") || null };
     default:
       return { kind: "event", label: event.replace(/^\$/, "").replace(/_/g, " "), detail: path };
   }

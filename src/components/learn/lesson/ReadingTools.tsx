@@ -122,7 +122,7 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
       data-reader-ui
       data-focus-hide
       inert={hidden || undefined}
-      className={`fixed inset-x-0 z-40 flex flex-col gap-1.5 border-t border-line bg-bg/95 px-2.5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] backdrop-blur transition-transform duration-200 lg:hidden ${hidden ? "translate-y-full" : ""}`}
+      className={`hk-safe-x fixed inset-x-0 z-40 flex flex-col gap-1.5 border-t border-line bg-bg/95 px-2.5 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] backdrop-blur transition-transform duration-200 lg:hidden ${hidden ? "translate-y-full" : ""}`}
       style={{ bottom: "var(--site-dock, 0px)" }}
     >
       <ReadAloudBar controller={readAloud} className="self-end" />
@@ -169,11 +169,11 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
 export function FocusControls({ stages, size, onSize, onExit }: { stages: Stage[]; size: number; onSize: () => void; onExit: () => void }) {
   return (
     <>
-      <StageSegments stages={stages} height="h-[3px]" className="fixed inset-x-0 top-0 z-[60]" />
+      <StageSegments stages={stages} height="h-[3px]" className="fixed inset-x-0 top-[var(--hk-top-inset,0px)] z-[60]" />
       <div
         role="toolbar"
         aria-label="Focus mode"
-        className="fixed right-3 top-[calc(env(safe-area-inset-top,0px)+12px)] z-[60] flex items-stretch border border-line bg-bg/80 opacity-60 backdrop-blur transition-opacity hover:opacity-100 focus-within:opacity-100"
+        className="fixed right-3 top-[calc(var(--hk-top-inset,0px)+12px)] z-[60] flex items-stretch border border-line bg-bg/80 opacity-60 backdrop-blur transition-opacity hover:opacity-100 focus-within:opacity-100"
       >
         <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="grid h-10 w-11 place-items-center border-r border-line font-display text-[15px] font-bold text-fg hover:bg-surface-2">
           Aa

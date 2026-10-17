@@ -23,7 +23,7 @@
  */
 import { track } from "@/lib/track";
 import { copyText } from "@/lib/learn/askAi";
-import { headerStackBottom, stageRailHeight } from "@/components/learn/lesson/layout";
+import { headerStackBottom, stageRailHeight, topInset } from "@/components/learn/lesson/layout";
 
 export const AT_PARAM = "at";
 export const LINK_COPIED = "Link copied — opens at this line";
@@ -564,7 +564,7 @@ function jumpTo(top: number, gap: (chrome: number) => number, behavior: ScrollBe
     const headerH = header ? header.offsetHeight : 0;
     const goingDown = top > chrome;
     const y = window.scrollY + top - rail;
-    chrome = goingDown && y > 200 ? rail : headerH + rail;
+    chrome = goingDown && y > 200 ? topInset() + rail : headerH + rail;
   }
   const delta = top - chrome - gap(chrome);
   if (Math.abs(delta) < 2) return;

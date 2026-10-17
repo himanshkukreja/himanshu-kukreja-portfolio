@@ -8,6 +8,7 @@
 import { useState } from "react";
 import { Share, Smartphone, SquarePlus } from "lucide-react";
 import Overlay from "@/components/learn/hub/Overlay";
+import { track } from "@/lib/track";
 import { useOffline } from "./OfflineProvider";
 
 export function useCanInstall() {
@@ -24,7 +25,15 @@ export function InstallButton({ className = "", label = "Install the app" }: { c
     <>
       <button
         type="button"
-        onClick={() => (install.canPrompt ? void install.prompt() : setSheet(true))}
+        onClick={() => {
+          if (install.canPrompt) {
+            void install.prompt();
+            return;
+          }
+          // Safari can't say whether the steps were followed: the app's first launch reports the install
+          track("pwa_install_prompt", { outcome: "shown", via: "ios_sheet", platform: "ios" });
+          setSheet(true);
+        }}
         className={`inline-flex min-h-11 items-center justify-center gap-2 border border-line-strong px-3.5 text-sm font-medium text-fg hover:bg-surface-2 ${className}`}
       >
         <Smartphone className="h-4 w-4" aria-hidden />

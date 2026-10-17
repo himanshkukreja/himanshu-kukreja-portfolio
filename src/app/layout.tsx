@@ -67,9 +67,12 @@ export const metadata: Metadata = {
 };
 
 // Browser chrome colour: the default (dark) theme's black; the offline provider re-points it when
-// the reader picks light (the site's theme ignores the OS setting).
+// the reader picks light (the site's theme ignores the OS setting). viewport-fit=cover lets the
+// installed iPhone app draw under the status bar and the home indicator: the header, docks and
+// toolbars pad themselves with the safe-area insets (globals.css "Installed app window").
 export const viewport: Viewport = {
   themeColor: "#000000",
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -89,7 +92,9 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="SD Mastery" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        {/* white status text over the page (the header pads under it): the dark default theme
+            continues behind it, the light theme gets a black strip there (globals.css) */}
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         {/* build that rendered this page: a saved copy keeps that build's app files */}
         <meta name="hk-build" content={process.env.NEXT_PUBLIC_HK_BUILD || "dev"} />
       </head>

@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Stage, TocItem } from "@/lib/course/types";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { buildTocGroups, useActiveHeading } from "@/components/TableOfContents";
-import { stageRailHeight } from "./layout";
+import { stageRailHeight, topInset } from "./layout";
 import { isOptionalStage, numberedStages } from "./stageText";
 import styles from "./reader.module.css";
 
@@ -29,7 +29,7 @@ function jumpTo(id: string) {
   const rail = stageRailHeight();
   const top = el.getBoundingClientRect().top;
   const up = top < headerH + rail;
-  let y = window.scrollY + top - (up ? headerH + rail : rail) - 12;
+  let y = window.scrollY + top - (up ? headerH + rail : topInset() + rail) - 12;
   // near the top of the page the header always shows and the stage bar is not pinned yet
   if (y < 160) y = window.scrollY + top - headerH - 12;
   const far = Math.abs(y - window.scrollY) > window.innerHeight * 4;

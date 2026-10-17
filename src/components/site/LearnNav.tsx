@@ -48,7 +48,7 @@ export function LearnBrand() {
     <span className="inline-flex shrink-0 items-center gap-1.5 sm:gap-2">
       <Link href="/" aria-label="Back to the portfolio" className="inline-flex min-h-10 min-w-10 items-center justify-center py-2 font-mono sm:min-w-0 text-[15px] font-semibold text-fg-3 hover:text-fg sm:text-base">
         <span className="text-signal-text">~</span>
-        <span className="hidden sm:inline">/himanshu</span>
+        <span data-wco-compact className="hidden sm:inline">/himanshu</span>
       </Link>
       <span aria-hidden className="font-mono text-line-strong">
         /

@@ -15,6 +15,7 @@ import { autoUpdateOn, findItem, setAutoUpdate, useOffline, withHub } from "./Of
 import { SaveGroupButton } from "./SaveOfflineButton";
 import { InstallButton, useCanInstall } from "./Install";
 import { fmtBytes, fmtSaved } from "./format";
+import { trackRemove } from "@/lib/offline/analytics";
 
 const COURSE_GROUPS = (c: Catalog) => c.groups.filter((g) => g.kind !== "case-files");
 
@@ -36,7 +37,7 @@ export function SaveCourseButton({ className = "" }: { className?: string }) {
     <button
       type="button"
       disabled={!catalog || offline || running || done}
-      onClick={() => enqueueSave("The entire course", withHub(catalog, saved, missing))}
+      onClick={() => enqueueSave("The entire course", withHub(catalog, saved, missing), { scope: "course" })}
       className={`inline-flex min-h-[52px] items-center justify-center gap-2 px-5 text-[15px] font-semibold disabled:cursor-default ${
         done ? "border border-line-strong text-fg-2" : "bg-signal text-on-signal disabled:opacity-60"
       } ${className}`}
@@ -141,7 +142,10 @@ function SavedRow({ m, update, onUpdate }: { m: SavedMeta; update: boolean; onUp
         )}
         <button
           type="button"
-          onClick={() => void removeSaved(m.url)}
+          onClick={() => {
+            trackRemove("article", [m]);
+            void removeSaved(m.url);
+          }}
           aria-label={`Remove ${m.title} from this device`}
           className="grid h-10 w-10 place-items-center border border-line-strong text-fg-3 hover:text-fg"
         >
@@ -183,7 +187,7 @@ export default function OfflineLibrary() {
 
   const updateOne = (m: SavedMeta) => {
     const item = findItem(catalog, m.url);
-    if (item) enqueueSave(item.title, [item]);
+    if (item) enqueueSave(item.title, [item], { scope: "update", trigger: "manual" });
   };
   const staleItems = [...saved.values()].filter((m) => updates.has(m.url));
   const total = [...saved.values()].reduce((a, m) => a + m.size, 0);
@@ -229,7 +233,7 @@ export default function OfflineLibrary() {
                 type="button"
                 onClick={() => {
                   const items = staleItems.map((m) => findItem(catalog, m.url)).filter((i): i is NonNullable<typeof i> => !!i);
-                  if (items.length) enqueueSave("Updating saved lessons", items);
+                  if (items.length) enqueueSave("Updating saved lessons", items, { scope: "update", trigger: "manual" });
                 }}
                 className="min-h-11 self-start border border-signal px-4 font-mono text-xs text-signal-text hover:bg-surface-2"
               >
@@ -247,7 +251,10 @@ export default function OfflineLibrary() {
                   <h3 className="m-0 text-base font-semibold text-fg">{g.title}</h3>
                   <button
                     type="button"
-                    onClick={() => void Promise.all(g.items.map((m) => removeSaved(m.url)))}
+                    onClick={() => {
+                      trackRemove(g.items.length === 1 ? "article" : "world", g.items, { id: g.id, title: g.title });
+                      void Promise.all(g.items.map((m) => removeSaved(m.url)));
+                    }}
                     className="min-h-9 px-2 font-mono text-[11px] text-fg-3 hover:text-fg"
                   >
                     remove {g.items.length === 1 ? "it" : `all ${g.items.length}`}
@@ -321,6 +328,7 @@ export default function OfflineLibrary() {
                     type="button"
                     onClick={() => {
                       setConfirmAll(false);
+                      trackRemove("all", [...saved.values()]);
                       void removeAll();
                     }}
                     className="min-h-10 border border-bad px-3 font-mono text-xs text-bad-text"

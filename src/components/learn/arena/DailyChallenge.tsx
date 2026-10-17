@@ -232,7 +232,7 @@ export default function DailyChallenge() {
     const pct = (left / (DAILY_SECONDS * 1000)) * 100;
     return (
       <main className="mx-auto flex max-w-[860px] flex-col gap-5 px-4 pb-28 pt-4 sm:px-6 sm:pt-8">
-        <div className="sticky top-[calc(var(--hk-header-h,61px)+env(safe-area-inset-top,0px))] z-20 -mx-4 flex flex-col gap-2.5 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+        <div className="sticky top-[var(--hk-header-h,61px)] z-20 -mx-4 flex flex-col gap-2.5 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
         <div className="flex items-center justify-between gap-3">
           <span className={LABEL}>
             {phase.practice ? "practice · unscored" : `daily #${set.number}`} · question {phase.i + 1}/{set.questions.length}

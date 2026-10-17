@@ -902,7 +902,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             <div className={PROSE}>
               <p>
                 <strong>Android, Chrome or Edge on a laptop:</strong> press <strong>Install the app</strong> in the offline library or the Read offline card (or the install icon in the address bar). The course opens from your home screen or
-                dock, full screen, with your saved lessons.
+                dock, full screen, with your saved lessons. On a laptop the course header doubles as the window&apos;s title bar (drag it by any empty spot); the small arrow next to the window buttons brings the usual title bar back.
               </p>
               <p>
                 <strong>iPhone and iPad:</strong> Safari has no install button, so the library shows the steps: <strong>Share</strong> → <strong>Add to Home Screen</strong>. Do this if you rely on saved lessons: Safari can clear a

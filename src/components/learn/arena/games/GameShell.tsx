@@ -127,7 +127,7 @@ export default function GameShell({
 
       {phase === "run" && (
         <>
-          <div className="sticky top-[calc(var(--hk-header-h,61px)+env(safe-area-inset-top,0px))] z-20 -mx-4 flex flex-col gap-2 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
+          <div className="sticky top-[var(--hk-header-h,61px)] z-20 -mx-4 flex flex-col gap-2 border-b border-line bg-bg/95 px-4 py-3 backdrop-blur sm:-mx-6 sm:px-6">
             <div className="flex items-center justify-between gap-3">
               <span className="font-mono text-[13px] text-fg-2">{game.name}</span>
               <span className="flex items-baseline gap-3">

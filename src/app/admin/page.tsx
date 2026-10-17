@@ -2,7 +2,7 @@
 
 /**
  * /admin — Overview: traffic + learning KPIs, traffic trend, live now, where learners are right
- * now, top lessons, latest contact queries and newsletter signups.
+ * now, top lessons, referrals, offline reading, latest contact queries and newsletter signups.
  */
 import Link from "next/link";
 import { useMemo } from "react";
@@ -30,6 +30,7 @@ import {
 } from "@/components/admin/ui";
 import type { ContactQuery, LearnersSummary, Subscriber, TrafficLive, TrafficOverview } from "@/components/admin/shell/types";
 import ReferralsCard from "@/components/admin/ReferralsCard";
+import OfflineCard from "@/components/admin/OfflineCard";
 
 const tz = () => {
   try {
@@ -197,6 +198,9 @@ export default function AdminOverview() {
 
       {/* ── Referrals (share my progress) ── */}
       <ReferralsCard range={range} />
+
+      {/* ── Offline reading (saves, installs, reading with no connection) ── */}
+      <OfflineCard range={range} />
 
       {/* ── Inbox ── */}
       <div className="grid gap-3 xl:grid-cols-2">

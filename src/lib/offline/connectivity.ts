@@ -89,6 +89,9 @@ export function isOffline(): boolean {
   return !navigator.onLine || state.reachable === false;
 }
 
+/** Where this page came from (null until the service worker answered). */
+export const pageSource = (): PageSource => state.source;
+
 function subscribe(l: () => void) {
   listeners.add(l);
   return () => listeners.delete(l);

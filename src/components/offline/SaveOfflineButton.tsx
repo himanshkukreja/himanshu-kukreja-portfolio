@@ -11,6 +11,7 @@ import { Check, CloudDownload, Loader2, RefreshCw, WifiOff } from "lucide-react"
 import type { OfflineKind } from "@/lib/offline/types";
 import { isQueued, enqueueSave, useSaveJob } from "@/lib/offline/jobs";
 import { pathOf, removeSaved } from "@/lib/offline/store";
+import { trackRemove } from "@/lib/offline/analytics";
 import { findItem, useOffline, withHub } from "./OfflineProvider";
 import { fmtBytes, fmtSaved } from "./format";
 
@@ -58,7 +59,7 @@ export default function SaveOfflineButton({ title, kind, url, compact = false, c
     try {
       const cat = await loadCatalog();
       const item = findItem(cat, key) ?? { url: key, title, kind, tag: "", group: kind === "story" ? "case-files" : "saved", groupTitle: kind === "story" ? "Case files" : "Saved", version: "unknown", bytes: 0 };
-      enqueueSave(item.title || title, withHub(cat, saved, [item]));
+      enqueueSave(item.title || title, withHub(cat, saved, [item]), update ? { scope: "update", trigger: "manual" } : { scope: "article" });
     } finally {
       setBusy(false);
     }
@@ -108,6 +109,7 @@ export default function SaveOfflineButton({ title, kind, url, compact = false, c
               type="button"
               onClick={() => {
                 setOpen(false);
+                trackRemove("article", [rec]);
                 void removeSaved(key);
               }}
               className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg-3 hover:text-fg"
@@ -144,7 +146,8 @@ export function SaveGroupButton({ group, label, className = "" }: { group: strin
   const go = () => {
     if (!g) return;
     const todo = [...missing, ...stale].map((i) => ({ ...i, groupTitle: g.title }));
-    if (todo.length) enqueueSave(g.title, withHub(catalog, saved, todo));
+    if (todo.length)
+      enqueueSave(g.title, withHub(catalog, saved, todo), missing.length ? { scope: g.kind === "world" ? "world" : "collection", group: { id: g.id, title: g.title } } : { scope: "update", trigger: "manual" });
   };
 
   let text: string;

@@ -62,6 +62,11 @@ export default function PrivacyPage() {
             text), shares, &quot;Ask AI&quot; clicks, games played.
           </li>
           <li>
+            <strong>Offline reading</strong>: what you save for offline reading (which article or world, and its size), opening saved copies and
+            installing the app. Events from while you&apos;re offline, like stages cleared, wait on your device and are sent when you&apos;re back
+            online.
+          </li>
+          <li>
             <strong>If you sign in</strong>: your email, name and avatar from the sign-in provider, plus your progress, streaks, notes, bookmarks
             and comments, so they follow you across devices.
           </li>

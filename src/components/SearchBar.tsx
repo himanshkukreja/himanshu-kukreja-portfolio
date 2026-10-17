@@ -530,13 +530,14 @@ export default function SearchBar({ variant = "bar", hotkey = false }: SearchBar
             ref={triggerRef}
             type="button"
             onClick={() => setIsOpen(true)}
+            data-wco-search="full"
             className="hidden min-h-10 w-[240px] items-center gap-2.5 border border-line-strong bg-bg px-3 text-left text-sm text-fg-4 hover:text-fg-3 md:flex"
           >
             <Search className="h-[15px] w-[15px] text-fg-3" aria-hidden />
             <span className="flex-1">Search lessons, topics…</span>
             <kbd className="border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-fg-3">⌘K</kbd>
           </button>
-          <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg md:hidden">
+          <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" data-wco-search="icon" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg md:hidden">
             <Search className="h-4 w-4" aria-hidden />
           </button>
         </>

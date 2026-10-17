@@ -5,13 +5,24 @@
  * reports top 0).
  */
 
+/**
+ * The system area at the very top that stays covered while the header is slid away: the installed
+ * desktop app's title-bar overlay or the iPhone home-screen app's status bar (0 in a browser tab).
+ * Measured from .hk-top-fill (always laid out at that height, see globals.css).
+ */
+export function topInset(): number {
+  if (typeof document === "undefined") return 0;
+  const el = document.querySelector<HTMLElement>("[data-top-inset]");
+  return el ? el.offsetHeight : 0;
+}
+
 /** Bottom edge (px from viewport top) of the sticky/fixed chrome above the reader (site header). */
 export function headerStackBottom(): number {
   if (typeof document === "undefined") return 0;
   // the site header publishes its height on <html>; it slides away (data-hidden) while reading
   const header = document.querySelector<HTMLElement>("header[data-focus-hide]");
   const headerH = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue("--hk-header-h"));
-  let bottom = header?.hasAttribute("data-hidden") || Number.isNaN(headerH) ? 0 : headerH;
+  let bottom = header?.hasAttribute("data-hidden") || Number.isNaN(headerH) ? topInset() : Math.max(headerH, topInset());
   document.querySelectorAll<HTMLElement>("header, nav, [data-sticky-header]").forEach((el) => {
     if (el.closest("[data-reader-ui]") || el.closest("[data-hidden]")) return;
     const cs = window.getComputedStyle(el);
@@ -53,7 +64,7 @@ export function scrollToId(id: string, behavior: ScrollBehavior = "smooth"): boo
   const headerH = header ? header.offsetHeight : 0;
   const top = el.getBoundingClientRect().top;
   const down = top > headerStackBottom() + stageRailHeight();
-  const offset = down && window.scrollY + top > 200 ? stageRailHeight() : headerH + stageRailHeight();
+  const offset = down && window.scrollY + top > 200 ? topInset() + stageRailHeight() : headerH + stageRailHeight();
   const delta = top - offset - 12;
   // long jumps go straight there; a multi-second smooth scroll through a 2-hour lesson helps no one
   const far = Math.abs(delta) > window.innerHeight * 4;

@@ -136,7 +136,7 @@ function CompactStageBar({ show, onOpenContents }: { show: boolean; onOpenConten
       aria-hidden={!show || undefined}
       inert={!show || undefined}
       className={`fixed inset-x-0 z-40 border-b border-line bg-bg/95 backdrop-blur transition-[top,opacity] duration-200 ${show ? "opacity-100" : "pointer-events-none opacity-0"}`}
-      style={{ top: headerHidden ? 0 : "var(--hk-header-h, 61px)" }}
+      style={{ top: headerHidden ? "var(--hk-top-inset, 0px)" : "var(--hk-header-h, 61px)" }}
     >
       <button
         type="button"

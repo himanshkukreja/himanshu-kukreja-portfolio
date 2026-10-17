@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * A slim line above the site header while offline ("Offline · saved copy") and for a moment after
+ * A slim line under the site header while offline ("Offline · saved copy") and for a moment after
  * the connection comes back ("Back online · 3 progress updates synced"). In the page flow, so it
- * scrolls away with the page instead of covering the reader.
+ * scrolls away with the page instead of covering the reader. (Under, not above: in the installed
+ * app the header is the window's title bar and sits under the iPhone status bar.)
  */
 import Link from "next/link";
 import { usePathname } from "next/navigation";

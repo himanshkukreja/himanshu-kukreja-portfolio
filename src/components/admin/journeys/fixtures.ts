@@ -3,7 +3,7 @@
  * ../shell/fixtures.ts, which production bundles never load. Deterministic (seeded).
  * Add `&setup=1` to the page URL to preview the "not configured" setup card instead.
  */
-import type { EmbedRes, LiveFeedRes, LiveFilter, LiveRes, LiveSession, LiveWindow, NotConfigured, PageDetailRes, PathsRes, PeopleRes, PersonRes, PersonRow, PhStatus, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "@/lib/analytics/journeys";
+import type { EmbedRes, LiveFeedRes, LiveFilter, LiveRes, LiveSession, LiveWindow, NotConfigured, OfflineRes, PageDetailRes, PathsRes, PeopleRes, PersonRes, PersonRow, PhStatus, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "@/lib/analytics/journeys";
 import { computePaths, describe, type PathRow, type Props, type TitleOf } from "@/lib/analytics/journeysModel";
 import { replayFixtureChunk, replayFixtureSources } from "./replayFixture";
 
@@ -423,6 +423,73 @@ function status(): PhStatus {
   };
 }
 
+/** /api/admin/posthog/offline: saves, installs and offline reading (Overview card). */
+function offline(days: number): OfflineRes {
+  const r = rng(days * 13 + 5);
+  const n = days <= 1 ? 24 : days > 90 ? Math.ceil(days / 7) : days;
+  const step = days <= 1 ? HOUR : days > 90 ? 7 * DAY : DAY;
+  const series = Array.from({ length: n }, (_, i) => {
+    const wave = 1 + 0.5 * Math.sin(i / 1.7);
+    return { t: new Date(Date.now() - (n - 1 - i) * step).toISOString(), opens: Math.round(r() * 9 * wave), reads: Math.round(r() * 26 * wave), saves: Math.round(r() * 5 * wave) };
+  });
+  const sum = (k: "opens" | "reads" | "saves") => series.reduce((a, p) => a + p[k], 0);
+  const MB = 1024 * 1024;
+  return {
+    configured: true,
+    days,
+    savers: { d7: 9, d30: 31, all: 58, bytesAll: 1310 * MB },
+    stored: { people: 44, bytes: 978 * MB },
+    totals: { saves: sum("saves"), bytes: sum("saves") * 6.4 * MB, updates: Math.round(sum("saves") / 3), removes: 4, opens: sum("opens"), reads: sum("reads"), offlinePeople: 17, installs: 12 },
+    byScope: [
+      { scope: "article", saves: 61, people: 24, bytes: 38 * MB },
+      { scope: "world", saves: 22, people: 13, bytes: 214 * MB },
+      { scope: "course", saves: 6, people: 6, bytes: 402 * MB },
+      { scope: "collection", saves: 5, people: 4, bytes: 41 * MB },
+    ],
+    topArticles: [
+      { slug: "day-03-circuit-breakers", week: "week-02-resilience", kind: "lesson", title: "Circuit breakers", people: 11, saves: 14 },
+      { slug: "day-01-consistent-hashing", week: "week-01-foundations", kind: "lesson", title: "Consistent hashing", people: 9, saves: 10 },
+      { slug: "boss-design-a-url-shortener", week: "week-01-foundations", kind: "boss", title: "Boss · Design a URL shortener", people: 6, saves: 6 },
+      { slug: "mock-03", week: null, kind: "mock", title: "Mock interview 03 · Fintech payments", people: 4, saves: 5 },
+      { slug: "the-thundering-herd", week: null, kind: "case_file", title: "The thundering herd", people: 3, saves: 3 },
+    ],
+    topWorlds: [
+      { group: "week-01-foundations", title: "World 01 · Foundations", people: 9, saves: 10 },
+      { group: "week-02-resilience", title: "World 02 · Resilience", people: 6, saves: 7 },
+      { group: "side-quests", title: "Side quests", people: 3, saves: 3 },
+    ],
+    installs: [
+      { platform: "android", via: "appinstalled", people: 6 },
+      { platform: "ios", via: "first_launch", people: 4 },
+      { platform: "macos", via: "appinstalled", people: 2 },
+    ],
+    prompts: [
+      { outcome: "shown", n: 19 },
+      { outcome: "accepted", n: 8 },
+      { outcome: "dismissed", n: 9 },
+    ],
+    modes: [
+      { mode: "browser", people: 312 },
+      { mode: "standalone", people: 14 },
+      { mode: "window-controls-overlay", people: 3 },
+    ],
+    series,
+    recent: PEOPLE.slice(0, 6).map((p, i) => ({
+      personId: p.id,
+      who: p.email || p.name || `anon ${p.distinctId.slice(-6)}`,
+      identified: p.identified,
+      lastAt: new Date(Date.now() - (i * 3 + 1) * HOUR).toISOString(),
+      opens: 2 + ((i * 3) % 7),
+      reads: 4 + ((i * 5) % 11),
+      saves: i % 3,
+      mode: i % 2 ? "standalone" : "browser",
+      device: p.device,
+      country: p.country,
+    })),
+    errors: {},
+  };
+}
+
 export function resolveJourneysFixture(u: URL, init?: RequestInit): unknown {
   const st = status();
   if (u.pathname === "/api/admin/posthog/status") return st;
@@ -461,6 +528,8 @@ export function resolveJourneysFixture(u: URL, init?: RequestInit): unknown {
     }
     case "/api/admin/posthog/paths":
       return paths(days);
+    case "/api/admin/posthog/offline":
+      return offline(days);
     case "/api/admin/posthog/page":
       return page(u.searchParams.get("path") || "/", days);
     default:
