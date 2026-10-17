@@ -36,9 +36,9 @@ const isLessonRoute = (p: string) => /^\/learn\/[^/]+\/[^/]+\/[^/]+/.test(p);
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
   // true on the client, false during SSR — avoids a theme-icon hydration mismatch.
-  // Light is the default theme, so the server renders the light-mode icon.
+  // Dark is the default theme, so the server renders the dark-mode icon.
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const dark = mounted && resolvedTheme === "dark";
+  const dark = mounted ? resolvedTheme === "dark" : true;
   return (
     <button
       type="button"
