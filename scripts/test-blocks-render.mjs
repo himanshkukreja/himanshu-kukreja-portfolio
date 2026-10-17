@@ -77,6 +77,7 @@ function courseText(html) {
   return out;
 }
 const words = (s) => s.match(/[\p{L}\p{N}]+/gu) || [];
+const MISSION_BLOCK = /^:{3,}mission\b[^\n]*\n[\s\S]*?^:{3,}\s*$/m;
 const FENCE_LINE = /^\s*:{3,}([a-z]+)?(?:\[([^\]]*)\])?(?:\{[^}]*\})?\s*$/gm;
 
 let identical = 0;
@@ -87,7 +88,7 @@ let strayFiles = 0;
 const t0 = Date.now();
 for (const file of files) {
   const md = fs.readFileSync(file, "utf8").replace(/^---\n[\s\S]*?\n---\n/, "");
-  const kind = /capstone/i.test(file) ? "capstone" : /foundations/i.test(file) ? "foundations" : /preview|overview/i.test(file) ? "week-preview" : "day-content";
+  const kind = /bonus-problems/i.test(file) ? "bonus" : /capstone/i.test(file) ? "capstone" : /foundations/i.test(file) ? "foundations" : /preview|overview/i.test(file) ? "week-preview" : "day-content";
   let before, after;
   try {
     before = await renderLessonDetailed(md, { kind, directives: false });
@@ -117,7 +118,8 @@ for (const file of files) {
   }
   withBlocks++;
   // old pipeline: fence lines are literal text — drop the fence syntax, keep the [title]
-  const beforeMd = md.replace(FENCE_LINE, (_m, _name, title) => (title ? `\n\n${title.replace(/^(\d+)([.)])/, "$1\\$2")}\n\n` : "\n\n"));
+  // a top-level :::mission is lifted out of the body into RenderedLesson.mission (the quest hero)
+  const beforeMd = md.replace(MISSION_BLOCK, "\n\n").replace(FENCE_LINE, (_m, _name, title) => (title ? `\n\n${title.replace(/^(\d+)([.)])/, "$1\\$2")}\n\n` : "\n\n"));
   const ref = await renderLessonDetailed(beforeMd, { kind, directives: false });
   const wa = words(courseText(ref.lesson.html));
   const wb = words(courseText(after.lesson.html));

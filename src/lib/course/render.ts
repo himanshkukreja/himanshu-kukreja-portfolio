@@ -15,12 +15,13 @@
 import { createHash } from "crypto";
 import type { Code, Heading, Paragraph, Root, RootContent } from "mdast";
 import type { Element as HastElement, ElementContent, Root as HastRoot, RootContent as HastRootContent } from "hast";
-import type { LessonKind, RenderedLesson, Stage, TocItem } from "./types";
+import type { LessonKind, QuestMission, RenderedLesson, Stage, TocItem } from "./types";
 import { chrome, el, h, hastText, rawHast, startsWithEmoji, stripEmoji, text, toText, wordCount, type AnyNode, type SdEl, type SdHast } from "./md";
 import { IdRegistry, intToRoman, romanToInt, slugify } from "./slug";
 import { cleanHr, count, isEndMarker, isTomorrow, processBlocks, renderNestedCode, type BlockCtx } from "./detect/blocks";
 import { practiceCard } from "./detect/quiz";
-import { neutralizeDirectives } from "./detect/directives";
+import { missionFrom, neutralizeDirectives } from "./detect/directives";
+import type { ContainerDirective } from "mdast-util-directive";
 import { practiceFor, type PracticeGame } from "@/lib/learn/arena/games";
 
 export type RenderStats = Record<string, number>;
@@ -37,6 +38,9 @@ function majorStage(textRaw: string, kind: LessonKind): StageHead | null {
   if (kind === "capstone" || kind === "bonus") {
     m = t.match(/^Phase\s+(\d+)\s*[:.–—-]\s*(.+?)(?:\s*\((\d+)\s*min(?:ute)?s?\))?\s*$/i);
     if (m) return { id: `phase-${m[1]}`, label: `Phase ${m[1]}`, title: m[2].trim(), budget: m[3] ? parseInt(m[3], 10) : undefined, core: true, numeral: m[1] };
+    // a side quest's closing challenge: a required stage of its own, after the phases
+    m = kind === "bonus" ? t.match(/^Final\s+Challenge\s*(?:[:.–—-]\s*(.+))?$/i) : null;
+    if (m) return { id: "final-challenge", label: "Final challenge", title: (m[1] || "Final Challenge").trim(), core: true, numeral: "◆" };
     return null;
   }
   if (kind === "overview") {
@@ -103,7 +107,7 @@ function splitStages(nodes: RootContent[], kind: LessonKind): RawStage[] {
         wrapOpened = true;
       }
       if (head) {
-        if (head.id.startsWith("phase-")) lastPhaseSeen = true;
+        if (head.id.startsWith("phase-") || head.id === "final-challenge") lastPhaseSeen = true;
         stages.push({ head, heading: n, nodes: [] });
         continue;
       }
@@ -353,6 +357,16 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
   const parser = opts.directives === false ? unified().use(remarkParse).use(remarkGfm) : unified().use(remarkParse).use(remarkGfm).use((await import("remark-directive")).default);
   const mdast = (await parser.run(parser.parse(markdown))) as Root;
   if (opts.directives !== false) stats.strayDirectives = neutralizeDirectives(mdast, markdown);
+  // A top-level :::mission is the side quest's brief: lifted out for the quest hero, not rendered in the body.
+  let mission: QuestMission | undefined;
+  {
+    const at = mdast.children.findIndex((n) => (n as { type: string; name?: string }).type === "containerDirective" && (n as { name?: string }).name === "mission");
+    if (at >= 0) {
+      mission = missionFrom(mdast.children[at] as unknown as ContainerDirective);
+      mdast.children.splice(at, 1);
+      stats.mission = 1;
+    }
+  }
   // Image URLs: same ImageKit rewrite the stories pipeline uses (local /covers/, /case-files/, /learn-art/ stay local).
   {
     const { visit, SKIP } = await import("unist-util-visit");
@@ -552,6 +566,7 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
       toc,
       readingMinutes,
       contentVersion: createHash("sha1").update(markdown).digest("hex").slice(0, 12),
+      ...(mission ? { mission } : {}),
     },
     stats,
   };

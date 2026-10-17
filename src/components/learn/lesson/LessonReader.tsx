@@ -12,6 +12,9 @@ import SearchHighlight from "@/components/SearchHighlight";
 import DeepLinkResolver from "@/components/DeepLinkResolver";
 import { useReadAloud } from "@/components/ReadAloud";
 import LessonHero from "./LessonHero";
+import QuestHero from "@/components/learn/sidequest/QuestHero";
+import { questBrand } from "@/components/learn/sidequest/brands";
+import QuestRunEntry from "@/components/learn/sidequest/QuestRunEntry";
 import StageRail from "./StageRail";
 import ContentsSheet from "./ContentsSheet";
 import EndOfLesson from "./EndOfLesson";
@@ -162,11 +165,15 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
 
   return (
     <LessonProgressProvider courseId={meta.course} week={meta.week} lessonSlug={meta.slug} title={meta.title} stages={stages} contentVersion={meta.contentVersion}>
-      <div ref={rootRef} className="min-h-screen">
+      <div
+        ref={rootRef}
+        className="min-h-screen"
+        style={meta.kind === "bonus" ? ({ ["--quest-accent" as string]: questBrand(meta.slug).accent } as React.CSSProperties) : undefined}
+      >
         <Suspense fallback={null}>
           <SearchHighlight />
         </Suspense>
-        <LessonHero meta={meta} />
+        {meta.kind === "bonus" ? <QuestHero meta={meta} /> : <LessonHero meta={meta} />}
         <StageRail onOpenContents={openSheet} />
 
         <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 sm:px-6 lg:pt-10">
@@ -178,6 +185,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             sidebarRight={<TableOfContents toc={toc} stages={stages} />}
           >
             {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
+            {meta.kind === "bonus" && <QuestRunEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} />}
 
             <LessonContentWrapper
               ref={contentRef}

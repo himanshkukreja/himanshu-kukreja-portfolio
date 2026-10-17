@@ -6,6 +6,8 @@
  * world-cleared / level-up moments. Progress: one batched load (useLearnProgress).
  */
 import Link from "next/link";
+import QuestEmblem from "@/components/learn/sidequest/QuestEmblem";
+import { questBrand } from "@/components/learn/sidequest/brands";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/game/GameProvider";
@@ -19,7 +21,8 @@ import ContinueReadingBanner, { type ResumeStage } from "@/components/ContinueRe
 import CourseProgressStats from "@/components/CourseProgressStats";
 import AuthPromptBanner from "@/components/AuthPromptBanner";
 import TourCard from "@/components/learn/guide/TourCard";
-import { SkillTreeList, SkillTreeRows } from "./SkillTree";
+import { MockGlyph, SkillTreeList, SkillTreeRows } from "./SkillTree";
+import { useMockStatus } from "@/lib/learn/mock/store";
 import WeekDetail from "./WeekDetail";
 import WorldCleared from "./WorldCleared";
 import LevelUp from "./LevelUp";
@@ -39,6 +42,9 @@ export default function CourseHub({ map }: { map: CourseMap }) {
   const currentKey = resume ? lessonKey(resume.lesson.week, resume.lesson.slug) : null;
   const currentWeek = resume && resume.lesson.kind !== "bonus" ? resume.lesson.week : null;
   const states = useMemo(() => weekStates(map, lessons, done, currentWeek), [map, lessons, done, currentWeek]);
+  const startedWeeks = useMemo(() => (ready ? new Set(states.filter((s) => s.status !== "ahead").map((s) => s.week.key)) : null), [ready, states]);
+  const mocks = useMockStatus(map.mocks, startedWeeks);
+  const mockAfter = (week: string) => mocks.find((m) => m.mock.after === week) || null;
   const selected = picked || currentWeek || map.weeks[0]?.key || "";
   const selState = states.find((s) => s.week.key === selected) || states[0];
 
@@ -123,7 +129,7 @@ export default function CourseHub({ map }: { map: CourseMap }) {
             <span className="text-signal-text">.</span>
           </h1>
           <p className="max-w-[640px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
-            An {map.stats.worlds}-world campaign for backend engineers going from intermediate to advanced. Clear a world&apos;s lessons, beat its interview boss, pass the trial, and move on to the next. Nothing is locked.
+            An {map.stats.worlds}-world campaign for backend engineers going from intermediate to advanced. Clear a world&apos;s lessons, beat its interview boss, pass the trial, and move on to the next.{map.mocks?.length ? " Every few worlds, a timed mock interview loop checks it all under real interview pressure." : ""} Nothing is locked.
           </p>
           <CourseProgressStats stats={map.stats} learner={counts} />
           <Link href="/learn/guide" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
@@ -170,18 +176,24 @@ export default function CourseHub({ map }: { map: CourseMap }) {
                 <span aria-hidden className="h-3 w-4 border border-signal" />
                 trial part
               </span>
+              {mocks.length > 0 && (
+                <span className="inline-flex items-center gap-1.5">
+                  <MockGlyph state="ready" size="sm" text="" />
+                  mock interview
+                </span>
+              )}
             </div>
           </div>
           <div className="hidden lg:block">
-            <SkillTreeRows states={states} lessons={lessons} currentKey={currentKey} currentWeek={currentWeek} selected={selected} onSelect={setPicked} />
+            <SkillTreeRows states={states} lessons={lessons} currentKey={currentKey} currentWeek={currentWeek} selected={selected} onSelect={setPicked} mocks={mocks} />
           </div>
           <div className="lg:hidden">
-            <SkillTreeList states={states} lessons={lessons} currentKey={currentKey} currentWeek={currentWeek} onOpen={setSheet} />
+            <SkillTreeList states={states} lessons={lessons} currentKey={currentKey} currentWeek={currentWeek} onOpen={setSheet} mocks={mocks} />
           </div>
         </div>
         {selState && (
           <aside aria-label="Selected week" className="hidden min-w-0 flex-[1_1_340px] border border-line-strong bg-surface p-6 lg:block">
-            <WeekDetail state={selState} lessons={lessons} currentKey={currentKey} current={selState.week.key === currentWeek} done={done} />
+            <WeekDetail state={selState} lessons={lessons} currentKey={currentKey} current={selState.week.key === currentWeek} done={done} mock={mockAfter(selState.week.key)} />
           </aside>
         )}
       </section>
@@ -204,9 +216,12 @@ export default function CourseHub({ map }: { map: CourseMap }) {
                 href={q.href}
                 className={`flex flex-col gap-1.5 p-4 hover:border-fg-4 sm:min-h-[140px] sm:gap-2.5 sm:p-[18px] ${isDone ? "border border-line-strong bg-surface-2" : "border border-line bg-bg"}`}
               >
-                <span className="flex justify-between font-mono text-[11px] tracking-label text-fg-3">
-                  <span>{q.code}</span>
-                  <span>{q.minutes} MIN</span>
+                <span className="flex items-start justify-between gap-3 font-mono text-[11px] tracking-label text-fg-3">
+                  <QuestEmblem brand={questBrand(q.slug)} size={40} />
+                  <span className="flex flex-col items-end gap-0.5">
+                    <span>{q.code}</span>
+                    <span>{q.minutes} MIN</span>
+                  </span>
                 </span>
                 <span className="font-display text-[19px] font-bold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[22px] sm:leading-[1.05]">{q.title}</span>
                 <span className={`mt-auto pt-1 font-mono text-xs ${isDone ? "text-fg" : "text-signal-text"}`}>
@@ -237,6 +252,7 @@ export default function CourseHub({ map }: { map: CourseMap }) {
             currentKey={currentKey}
             current={sheetState.week.key === currentWeek}
             done={done}
+            mock={mockAfter(sheetState.week.key)}
             onClose={() => setSheet(null)}
             headingId="world-sheet-h"
           />

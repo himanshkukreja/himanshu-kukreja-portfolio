@@ -1,4 +1,4 @@
-import type { LessonKind } from "@/lib/course/types";
+import type { LessonKind, QuestMission } from "@/lib/course/types";
 
 export type RailEntry = {
   week: string;
@@ -60,4 +60,16 @@ export type ReaderMeta = {
   readingMinutes: number;
   contentVersion: string;
   stats: ReaderStat[];
+  /** side quests only: the mission brief and the interactive pieces the quest hero counts */
+  quest?: QuestMeta | null;
+};
+
+export type QuestMeta = {
+  mission: QuestMission | null;
+  checkpoints: number;
+  quizzes: number;
+  /** timed interview phases (stages with a budget) */
+  phases: number;
+  /** minutes of interview the phases budget */
+  budgetMinutes: number;
 };

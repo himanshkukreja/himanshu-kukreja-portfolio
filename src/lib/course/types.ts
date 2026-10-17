@@ -7,7 +7,10 @@
 
 export type LessonKind = "week-preview" | "day-content" | "capstone" | "foundations" | "overview" | "bonus" | "mcq";
 
-/** A stage is a resumable chunk of a lesson: Preface, Part I…VI, Exercises, Appendix, or a capstone Phase. */
+/**
+ * A stage is a resumable chunk of a lesson: Preface, Part I…VI, Exercises, Appendix, a capstone
+ * Phase, or a side quest's Final Challenge (id "final-challenge").
+ */
 export type Stage = {
   /** stable id, e.g. "preface", "part-1", "phase-3", "exercises" — also the section element id */
   id: string;
@@ -51,4 +54,19 @@ export type RenderedLesson = {
   readingMinutes: number;
   /** hash of the source markdown; stored with highlights/bookmarks to detect content changes */
   contentVersion: string;
+  /**
+   * Side quests: the `:::mission[Objective]{level="…"}` block, lifted out of the body (it is not in
+   * `html`) so the quest hero can show it as the mission brief. Absent for lessons without one.
+   */
+  mission?: QuestMission;
+};
+
+/** A side quest's mission brief: the objective, an optional one-line brief and its key numbers. */
+export type QuestMission = {
+  objective: string;
+  /** difficulty as written in the block, e.g. "Hard" */
+  level?: string;
+  brief?: string;
+  /** "**10M** concurrent streams" → { value: "10M", label: "concurrent streams" } */
+  numbers: { value: string; label: string }[];
 };

@@ -13,7 +13,7 @@ export type LearnerCounts = {
 
 function Cell({ n, of, label, accent, wide }: { n: React.ReactNode; of?: number; label: string; accent?: boolean; wide?: boolean }) {
   return (
-    <div className={`flex items-baseline gap-2 bg-bg px-4 py-3 sm:px-[18px] ${wide ? "col-span-2" : ""}`}>
+    <div className={`flex items-baseline gap-2 bg-bg px-4 py-3 sm:grow sm:px-[18px] ${wide ? "col-span-2" : ""}`}>
       <span className={`font-mono text-[22px] font-semibold ${accent ? "text-signal-text" : "text-fg"}`}>
         {n}
         {of !== undefined && <span className="text-sm text-fg-3">/{of}</span>}
@@ -32,7 +32,8 @@ export default function CourseProgressStats({ stats, learner }: { stats: CourseS
         <Cell n={stats.coreLessons} label="core lessons" />
         <Cell n={stats.bosses} label="bosses" />
         <Cell n={stats.sideQuests} label="side quests" />
-        <Cell n={`~${stats.coreHours}h`} label="of reading" wide />
+        {!!stats.mocks && <Cell n={stats.mocks} label="mock interviews" />}
+        <Cell n={`~${stats.coreHours}h`} label="of reading" wide={!stats.mocks} />
       </div>
       {started && learner && (
         <p className="font-mono text-xs text-fg-3">

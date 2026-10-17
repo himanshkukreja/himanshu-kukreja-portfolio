@@ -34,6 +34,7 @@ export async function GET(request: NextRequest) {
             // Extract plain text from markdown (remove markdown syntax)
             const plainText = content
               .replace(/```[\s\S]*?```/g, '') // Remove code blocks
+              .replace(/^:{3,}[^\n]*$/gm, '') // Remove ::: block fence lines
               .replace(/`([^`]+)`/g, '$1') // Remove inline code
               .replace(/#+\s/g, '') // Remove headers
               .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove bold

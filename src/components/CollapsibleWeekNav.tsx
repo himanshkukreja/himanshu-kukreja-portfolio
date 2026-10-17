@@ -130,7 +130,7 @@ export default function CollapsibleWeekNav({ course, rail }: Props) {
         )}
 
         <span className="hidden px-0 pb-1.5 pt-4 font-mono text-xs uppercase tracking-label text-fg-3 xl:block">
-          {rail.week.label} · world
+          {rail.week.week === "bonus-problems" ? "Side quests" : `${rail.week.label} · world`}
         </span>
         <ol className="m-0 flex list-none flex-col gap-0.5 p-0">{rail.week.entries.map(row)}</ol>
 

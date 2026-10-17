@@ -6,6 +6,9 @@ import type { CourseLesson } from "@/lib/learn/types";
 import { lessonKey } from "@/lib/learn/types";
 import type { LessonProgress, WeekState } from "@/lib/learn/progress";
 import { hoursLabel } from "@/lib/learn/progress";
+import type { MockStatus } from "@/lib/learn/mock/store";
+import { LEVEL_LABEL } from "@/lib/learn/mock/types";
+import { VERDICT_LABEL } from "@/lib/learn/mock/score";
 
 type Node = { key: string; text: string; label: string; href: string; kind: "lesson" | "boss" | "trial"; state: "done" | "current" | "ahead" };
 
@@ -93,6 +96,84 @@ function NodeBox({ n, size = "md", readOnly = false }: { n: Node; size?: "md" | 
   );
 }
 
+/** The mock interview glyph: a call window (square, with a live corner). Distinct from lessons, the boss diamond and trial boxes. */
+export function MockGlyph({ state, size = "md", text }: { state: MockStatus["state"]; size?: "md" | "sm"; text: string }) {
+  const sm = size === "sm";
+  const look =
+    state === "done"
+      ? "bg-fg text-bg"
+      : state === "live"
+        ? "animate-hk-pulse border-2 border-signal bg-bg text-signal-text"
+        : state === "ready"
+          ? "border-2 border-fg bg-bg text-fg"
+          : "border-[1.5px] border-dashed border-fg-3 bg-bg text-fg-3";
+  return (
+    <span aria-hidden className={`relative grid shrink-0 place-items-center font-mono font-semibold ${sm ? "h-6 w-6 text-[9px]" : "h-11 w-11 text-[11px]"} ${look}`}>
+      {sm ? "" : text}
+      <span className={`absolute -right-[3px] -top-[3px] ${sm ? "h-2 w-2" : "h-2.5 w-2.5"} ${state === "ahead" ? "border border-fg-3 bg-bg" : "bg-signal"}`} />
+    </span>
+  );
+}
+
+export function mockStateText(m: MockStatus): string {
+  if (m.state === "done") return m.result ? `DONE · ${VERDICT_LABEL[m.result.best.verdict].toUpperCase()} · ${LEVEL_LABEL[m.result.best.level].toUpperCase()}` : "DONE";
+  if (m.state === "live") return "IN PROGRESS";
+  if (m.state === "ready") return "UP NEXT";
+  return "AHEAD";
+}
+
+function MockRow({ m }: { m: MockStatus }) {
+  const k = m.mock;
+  return (
+    <li className="flex items-center gap-3 border-b border-line bg-[repeating-linear-gradient(135deg,transparent_0_10px,color-mix(in_srgb,var(--c-signal)_6%,transparent)_10px_11px)] px-4 py-3 last:border-b-0">
+      <span className="flex min-h-14 w-[210px] shrink-0 flex-col items-start justify-center gap-1 pr-2">
+        <span className="font-mono text-[11px] tracking-label text-signal-text">MOCK {String(k.n).padStart(2, "0")} · INTERVIEW LOOP</span>
+        <span className="text-base font-semibold leading-tight text-fg">{k.company}</span>
+      </span>
+      <Link
+        href={k.href}
+        aria-label={`Mock interview ${k.n}: ${k.company}, ${k.title}. ${k.minutes} minutes, covers ${k.coversLabel}. ${mockStateText(m).toLowerCase()}`}
+        className="group flex min-w-0 flex-1 items-center gap-4 border border-line-strong bg-surface px-3 py-2 hover:border-fg-3"
+      >
+        <MockGlyph state={m.state} text={k.code} />
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-[15px] font-semibold text-fg">{k.title}</span>
+          <span className="truncate font-mono text-[11px] text-fg-3">
+            {k.minutes} min · {k.phases} phases · {k.curveballs} curveball{k.curveballs === 1 ? "" : "s"} · covers {k.coversLabel} · with {k.interviewer}
+          </span>
+        </span>
+        <span className={`hidden shrink-0 font-mono text-[11px] tracking-label xl:inline ${m.state === "done" ? "text-fg" : m.state === "ahead" ? "text-fg-3" : "text-signal-text"}`}>{mockStateText(m)}</span>
+        <span aria-hidden className="shrink-0 font-mono text-sm text-signal-text group-hover:translate-x-0.5">
+          ❯
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+function MockItem({ m, last }: { m: MockStatus; last: boolean }) {
+  const k = m.mock;
+  return (
+    <li className="relative flex gap-3.5 py-1.5">
+      {!last && <span aria-hidden className={`absolute bottom-[-6px] left-[21px] top-[50px] w-0.5 ${m.state === "done" ? "bg-fg" : "bg-[repeating-linear-gradient(180deg,var(--c-line-strong)_0_4px,transparent_4px_8px)]"}`} />}
+      <MockGlyph state={m.state} text={k.code} />
+      <Link href={k.href} className="flex min-h-11 min-w-0 flex-1 flex-col justify-center gap-0.5 border border-dashed border-signal/70 px-3 py-2 text-left">
+        <span className="font-mono text-[10px] tracking-label text-signal-text">
+          MOCK INTERVIEW {String(k.n).padStart(2, "0")} · {mockStateText(m)}
+        </span>
+        <span className="text-[15px] font-semibold text-fg">
+          {k.company} · {k.title}
+        </span>
+        <span className="font-mono text-[11px] text-fg-3">
+          {k.minutes} min · covers {k.coversLabel}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+const mocksAfter = (mocks: MockStatus[] | undefined, week: string) => (mocks || []).filter((m) => m.mock.after === week);
+
 /** Desktop: one row per world with every node. */
 export function SkillTreeRows({
   states,
@@ -102,6 +183,7 @@ export function SkillTreeRows({
   selected,
   onSelect,
   readOnly = false,
+  mocks,
 }: {
   states: WeekState[];
   lessons: Record<string, LessonProgress>;
@@ -111,6 +193,8 @@ export function SkillTreeRows({
   onSelect?: (week: string) => void;
   /** public profile: no links, no selection */
   readOnly?: boolean;
+  /** mock interviews, placed after the world they follow (hub only) */
+  mocks?: MockStatus[];
 }) {
   return (
     <div className="overflow-x-auto border border-line bg-raised">
@@ -119,7 +203,7 @@ export function SkillTreeRows({
           const on = s.week.key === selected;
           const cur = s.week.key === currentWeek;
           const nodes = nodesFor(s, lessons, currentKey);
-          return (
+          return [
             <li
               key={s.week.key}
               className={`flex items-center gap-3 border-b border-line px-4 py-3 last:border-b-0 ${on ? "bg-surface-2 shadow-[inset_3px_0_0_var(--c-signal)]" : ""} ${s.status === "ahead" ? "text-fg-2" : ""}`}
@@ -157,8 +241,9 @@ export function SkillTreeRows({
                   </span>
                 ))}
               </div>
-            </li>
-          );
+            </li>,
+            ...mocksAfter(mocks, s.week.key).map((m) => <MockRow key={`mock-${m.mock.id}`} m={m} />),
+          ];
         })}
       </ol>
     </div>
@@ -173,6 +258,7 @@ export function SkillTreeList({
   currentWeek,
   onOpen,
   readOnly = false,
+  mocks,
 }: {
   states: WeekState[];
   lessons: Record<string, LessonProgress>;
@@ -181,6 +267,8 @@ export function SkillTreeList({
   onOpen?: (week: string) => void;
   /** public profile: no sheet, no links */
   readOnly?: boolean;
+  /** mock interviews, placed after the world they follow (hub only) */
+  mocks?: MockStatus[];
 }) {
   const Row = readOnly ? "div" : "button";
   return (
@@ -188,8 +276,9 @@ export function SkillTreeList({
       {states.map((s, i) => {
         const cur = s.week.key === currentWeek;
         const nodes = nodesFor(s, lessons, currentKey);
-        const last = i === states.length - 1;
-        return (
+        const after = mocksAfter(mocks, s.week.key);
+        const last = i === states.length - 1 && after.length === 0;
+        return [
           <li key={s.week.key} className="relative flex gap-3.5 py-1.5">
             {!last && (
               <span
@@ -242,8 +331,9 @@ export function SkillTreeList({
               )}
               {cur && !readOnly && <span className="text-xs text-fg-3">Tap for lessons, boss and trial parts</span>}
             </Row>
-          </li>
-        );
+          </li>,
+          ...after.map((m, j) => <MockItem key={`mock-${m.mock.id}`} m={m} last={i === states.length - 1 && j === after.length - 1} />),
+        ];
       })}
     </ol>
   );

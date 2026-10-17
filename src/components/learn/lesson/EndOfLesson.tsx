@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import ShareButton from "@/components/share/ShareButton";
+import QuestClear from "@/components/learn/sidequest/QuestClear";
 import { doneCount, numberedStages } from "./stageText";
 import type { NavLink, ReaderMeta, TrialPartLink } from "./types";
 
@@ -31,6 +32,9 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
         <span aria-hidden className="h-px flex-1 bg-line" />
       </div>
 
+      {meta.kind === "bonus" ? (
+        <QuestClear meta={meta} />
+      ) : (
       <div className={`flex flex-wrap items-center gap-x-4 gap-y-3 border bg-surface p-4 sm:px-5 sm:py-5 ${completed ? "border-line-strong" : "border-signal"}`}>
         <span className="flex min-w-0 flex-[1_1_300px] flex-col gap-1">
           <span className="text-[17px] font-semibold">{completed ? `${name} cleared` : `Finish ${name}`}</span>
@@ -58,6 +62,7 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
         </button>
         {completed && <ShareButton kind="lesson" title={meta.title} label="Share" className="min-h-[52px] w-full sm:w-auto" />}
       </div>
+      )}
 
       {(next || trial) && (
         <div className="flex flex-col gap-2.5">

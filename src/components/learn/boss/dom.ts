@@ -51,6 +51,20 @@ const clean = (el: Element) => (el.textContent || "").replace(/\s+/g, " ").trim(
 
 /** First whiteboard / problem / blueprint block before the first phase. */
 export function findProblem(root: HTMLElement, firstPhase: HTMLElement | null): Problem | null {
+  // The whiteboard as a `:::panel[Design …]` block (how the capstones and side quests write it now)
+  const board = Array.from(root.querySelectorAll<HTMLElement>('figure[data-sd="panel"]')).find(
+    (f) => before(f, firstPhase) && /^design\b/i.test(clean(f.querySelector(".sdb-title") || f)),
+  );
+  if (board) {
+    const title = clean(board.querySelector(".sdb-title") as HTMLElement).replace(/^design:\s*/i, "Design ");
+    const body = board.querySelector(".sdb-body") || board;
+    const lines = Array.from(body.querySelectorAll<HTMLElement>("p"))
+      .filter((b) => !b.closest("li") && !b.closest("[data-sd-chrome]"))
+      .map(clean)
+      .filter(Boolean);
+    const bullets = Array.from(body.querySelectorAll("li")).map(clean).filter(Boolean);
+    return { title, lines, bullets, raw: clean(board) };
+  }
   const candidates = Array.from(root.querySelectorAll<HTMLElement>('[data-sd="whiteboard"], [data-sd="problem"], [data-sd="blueprint"], pre'));
   const el = candidates.find((c) => before(c, firstPhase) && (c.textContent || "").trim().length > 40);
   if (!el) return null;

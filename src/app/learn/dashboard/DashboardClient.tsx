@@ -30,6 +30,7 @@ import DataControls from "@/components/learn/progress/DataControls";
 import SectionNav from "@/components/learn/progress/SectionNav";
 import ArenaStatsCard from "@/components/learn/arena/ArenaStatsCard";
 import ShareProgress from "@/components/learn/progress/ShareProgress";
+import { useMockStatus } from "@/lib/learn/mock/store";
 
 export default function DashboardClient({ map }: { map: CourseMap }) {
   const d = useProgressData(map);
@@ -49,6 +50,8 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
   const states = useMemo(() => weekStates(map, lessons, done, currentWeek), [map, lessons, done, currentWeek]);
   const scores = useMemo(() => trialScores(map, done, summary?.trials || null, local?.trials || {}), [map, done, summary, local]);
   const rows = useMemo(() => states.map((s) => ({ state: s, cells: weekCells(s.week, lessons, s, scores) })), [states, lessons, scores]);
+  const startedWeeks = useMemo(() => (d.ready ? new Set(states.filter((s) => s.status !== "ahead").map((s) => s.week.key)) : null), [d.ready, states]);
+  const mocks = useMockStatus(map.mocks, startedWeeks);
 
   // stages of the resume lesson for "Stage 2 of 5 · ~18 min left"
   useEffect(() => {
@@ -140,8 +143,9 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
     () => [
       ...BADGES.map((b) => ({ id: b.id, name: b.name, how: b.how, earned: b.earned(done) })),
       ...states.map((s) => ({ id: `world:${s.week.key}`, name: s.week.badge, how: `Clear Week ${s.week.code} · ${s.week.title}.`, earned: s.cleared })),
+      ...(map.mocks || []).map((m) => ({ id: `mock:${m.id}`, name: m.badge, how: `Finish mock interview ${m.n} · ${m.company} with a scored debrief.`, earned: !!done[`mock:${m.id}`] })),
     ],
-    [done, states]
+    [done, states, map.mocks]
   );
 
   const nextTrial = useMemo(() => {
@@ -217,7 +221,7 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
         what do these numbers mean? read the guide →
       </Link>
 
-      <CourseMapGrid rows={rows} side={map.sideQuests} lessons={lessons} currentWeek={currentWeek} />
+      <CourseMapGrid rows={rows} side={map.sideQuests} lessons={lessons} currentWeek={currentWeek} mocks={mocks} />
 
       <Activity days={activity.days} series={series} goalMinutes={d.goal?.unit === "minutes" ? d.goal.perWeek : null} streak={streak} rhythm={rhythmStats} estimated={!timeTracked} log={log} />
 

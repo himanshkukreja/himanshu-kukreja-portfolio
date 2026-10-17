@@ -95,5 +95,7 @@ export const BADGES: Badge[] = [
   { id: "daily7", name: "Daily streak 7", how: "Play the Arena daily challenge seven days in a row.", earned: (d) => !!d["arena:streak7"] },
   { id: "top10", name: "Top 10", how: "Reach the top 10 of the weekly Arena leaderboard.", earned: (d) => !!d["arena:top10"] },
   { id: "arena", name: "Arena regular", how: "Clear all three Arena games.", earned: (d) => !!d["arena:latency"] && !!d["arena:store"] && !!d["arena:outage"] },
+  { id: "offer", name: "Offer letter", how: "Get a Hire or better verdict in any mock interview.", earned: (d) => Object.keys(d).some((k) => k.startsWith("offer:")) },
+  { id: "loops", name: "Interview ready", how: "Finish four mock interview loops.", earned: (d) => Object.keys(d).filter((k) => k.startsWith("mock:")).length >= 4 },
   { id: "snake", name: "Snake charmer", how: "Eat 500+ contributions in one game of the contribution snake.", earned: (d) => !!d["snake:500"] },
 ];

@@ -5,10 +5,20 @@ import { useGame } from "@/game/GameProvider";
 import type { Stage } from "@/lib/course/types";
 import { articleRoot, findChecklist, findProblem, findTurns, phasePrompt, sectionFor, stageSections, type Problem } from "./dom";
 import BossHud from "./BossHud";
-import { BOSS_XP, bossKey, type Phase } from "./shared";
+import { BOSS_COPY, BOSS_XP, bossKey, type Phase, type RunCopy } from "./shared";
+import { LEARN_XP } from "@/lib/learn/types";
+import QuestEmblem from "@/components/learn/sidequest/QuestEmblem";
+import { questBrand } from "@/components/learn/sidequest/brands";
 import BossDebrief from "./BossDebrief";
 
-export type BossModeProps = { week: string; slug: string; stages: Stage[]; title: string };
+export type BossModeProps = {
+  week: string;
+  slug: string;
+  stages: Stage[];
+  title: string;
+  /** "quest": a side quest's timed run, paying the side-quest bonus instead of a boss key */
+  variant?: "boss" | "quest";
+};
 
 
 type Screen = "brief" | "fight" | "debrief";
@@ -27,6 +37,8 @@ type Saved = {
   attempts: number;
   /** a fight in progress (started and not yet debriefed) */
   live: boolean;
+  /** side quests: a timed run passed at least once (kept here, since its XP key is shared with completion) */
+  cleared?: boolean;
 };
 
 const FRESH: Saved = { screen: "brief", mode: "interview", phase: 0, maxPhase: 0, used: {}, revealed: {}, rub: [], attempts: 0, live: false };
@@ -58,7 +70,12 @@ function topChrome(): number {
 const isPhase = (s: Stage) => /^phase[-\s]?\d/i.test(s.id) || /^phase\b/i.test(s.label);
 const words = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
 
-export default function BossMode({ week, slug, stages = [], title }: BossModeProps) {
+export default function BossMode({ week, slug, stages = [], title, variant = "boss" }: BossModeProps) {
+  const quest = variant === "quest";
+  const copy: RunCopy = quest
+    ? { quest: true, xp: LEARN_XP.sideQuest - LEARN_XP.lesson, noun: "Timed run", win: "Quest run cleared", badge: "CLEARED ✓", source: "side quest", art: <QuestEmblem brand={questBrand(slug)} size={132} /> }
+    : BOSS_COPY;
+  const rewardKey = quest ? `sidequest:${slug}` : bossKey(week);
   const { awardOnce, done, hydrated } = useGame();
   const storeKey = `hk.boss.v1:${week}/${slug}`;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -74,7 +91,8 @@ export default function BossMode({ week, slug, stages = [], title }: BossModePro
   const totalMin = phases.reduce((a, p) => a + (p.budgetMinutes || 0), 0);
   const readMin = stages.reduce((a, s) => a + (s.minutes || 0), 0);
   const simple = phases.length === 0;
-  const defeated = hydrated && !!done[bossKey(week)];
+  const defeated = quest ? !!state.cleared : hydrated && !!done[bossKey(week)];
+  const bonusPaid = hydrated && !!done[rewardKey];
   const rubricN = found?.checklist.length ?? 0;
 
   // ---------------------------------------------------------- load / save
@@ -258,7 +276,11 @@ export default function BossMode({ week, slug, stages = [], title }: BossModePro
     setScrollTo("__panel");
   };
 
-  const claim = () => awardOnce(bossKey(week), BOSS_XP, `Boss defeated · ${found?.problem?.title || title}`);
+  const claim = () => {
+    if (!quest) return awardOnce(bossKey(week), BOSS_XP, `Boss defeated · ${found?.problem?.title || title}`);
+    setState((s) => ({ ...s, cleared: true }));
+    return awardOnce(rewardKey, copy.xp, `Side quest timed run cleared · ${title}`);
+  };
 
   // ---------------------------------------------------------- render
 
@@ -273,16 +295,18 @@ export default function BossMode({ week, slug, stages = [], title }: BossModePro
       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-2 text-sm">
         <span className="inline-flex items-center gap-2.5 font-semibold text-fg">
           <span aria-hidden="true" className="h-[11px] w-[11px] rotate-45 border-[1.5px] border-fg" />
-          Boss · {name}
+          {copy.noun} · {name}
         </span>
         <span className="border border-line-strong px-2 py-1 font-mono text-[11px] tracking-label text-fg-2">
           {state.screen === "brief" ? "BRIEFING" : state.screen === "debrief" ? "DEBRIEF" : state.mode === "interview" ? "INTERVIEW MODE" : "READ MODE"}
         </span>
-        {defeated && <span className="bg-signal px-2 py-1 font-mono text-[11px] font-semibold tracking-label text-on-signal">DEFEATED ✓</span>}
+        {defeated && <span className="bg-signal px-2 py-1 font-mono text-[11px] font-semibold tracking-label text-on-signal">{copy.badge}</span>}
       </div>
 
       {state.screen === "brief" && (
         <Briefing
+          copy={copy}
+          bonusPaid={bonusPaid}
           name={name}
           title={title}
           weekNum={weekNum}
@@ -368,6 +392,8 @@ export default function BossMode({ week, slug, stages = [], title }: BossModePro
 
       {state.screen === "debrief" && (
         <BossDebrief
+          copy={copy}
+          bonusPaid={bonusPaid}
           name={name}
           weekNum={weekNum}
           mode={simple ? "read" : state.mode}
@@ -403,6 +429,8 @@ function bossName(problemTitle?: string | null): string | null {
 // ---------------------------------------------------------------------------------------------
 
 function Briefing(props: {
+  copy: RunCopy;
+  bonusPaid: boolean;
   name: string;
   title: string;
   weekNum: string;
@@ -430,9 +458,16 @@ function Briefing(props: {
       <div className="flex flex-wrap items-stretch gap-6">
         <section aria-labelledby="boss-h" className="flex min-w-0 flex-[1_1_380px] flex-col gap-5 border border-line-strong bg-surface p-6 sm:p-7">
           <div className="flex items-start justify-between gap-4">
-            <span className="font-mono text-xs uppercase tracking-label text-signal-text">Boss{props.weekNum ? ` · Week ${props.weekNum} capstone` : " · capstone"}</span>
+            <span className="font-mono text-xs uppercase tracking-label text-signal-text">
+              {props.copy.quest ? "Side quest · timed run" : `Boss${props.weekNum ? ` · Week ${props.weekNum} capstone` : " · capstone"}`}
+            </span>
             {props.readMin > 0 && <span className="font-mono text-xs text-fg-3">{props.readMin} min read</span>}
           </div>
+          {props.copy.art ? (
+            <div aria-hidden="true" className="hidden h-[190px] place-items-center sm:grid">
+              {props.copy.art}
+            </div>
+          ) : (
           <div aria-hidden="true" className="hidden h-[190px] place-items-center sm:grid">
             <div className="relative grid h-[104px] w-[104px] rotate-45 place-items-center border-2 border-fg sm:h-[132px] sm:w-[132px]">
               <div className="grid h-[70px] w-[70px] place-items-center border border-dashed border-line-strong sm:h-[88px] sm:w-[88px]">
@@ -444,6 +479,7 @@ function Briefing(props: {
               <span className="absolute -bottom-[5px] -right-[5px] h-2 w-2 bg-fg" />
             </div>
           </div>
+          )}
           <div className="flex flex-col gap-2.5">
             <h2 id="boss-h" className="m-0 font-display text-[clamp(34px,4.6vw,60px)] font-extrabold leading-[0.92] tracking-[-0.05em] text-fg">
               {props.name}
@@ -501,10 +537,10 @@ function Briefing(props: {
         <section aria-labelledby="map-h" className="flex flex-col gap-4 border border-line bg-surface p-5 sm:p-6">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
             <h2 id="map-h" className="m-0 font-display text-[28px] font-bold tracking-[-0.025em] text-fg">
-              The fight · {phases.length} phases{timed ? `, ${totalMin} minutes` : ""}
+              {props.copy.quest ? "The run" : "The fight"} · {phases.length} phases{timed ? `, ${totalMin} minutes` : ""}
             </h2>
             <span className="max-w-[620px] text-sm text-fg-3">
-              {timed ? `Budgets are the capstone's own and add up to ${totalMin} min. The clock runs over budget, not out.` : "This capstone gives no time budgets, so the phases are untimed."}
+              {timed ? `Budgets are the ${props.copy.source}'s own and add up to ${totalMin} min. The clock runs over budget, not out.` : `This ${props.copy.source} gives no time budgets, so the phases are untimed.`}
             </span>
           </div>
           <div aria-hidden="true" className="flex gap-[3px]">
@@ -547,7 +583,7 @@ function Briefing(props: {
                   on={mode === "interview"}
                   onPick={() => props.setMode("interview")}
                   name="Interview mode"
-                  tag={`${timed ? "TIMED" : "UNTIMED"} · ANSWER HIDDEN · +${BOSS_XP} XP`}
+                  tag={`${timed ? "TIMED" : "UNTIMED"} · ANSWER HIDDEN · ${props.copy.quest && props.bonusPaid ? "BONUS BANKED" : `+${props.copy.xp} XP`}`}
                   text={`${timed ? "A clock per phase. " : ""}You write your answer in the scratchpad first; the model answer in the lesson stays hidden until you reveal it.`}
                   accent
                 />
@@ -560,14 +596,14 @@ function Briefing(props: {
                 />
               </div>
               <div className="flex flex-col gap-3 border border-line px-5 py-5">
-                <span className="font-mono text-xs uppercase tracking-label text-fg-3">Rules of the fight</span>
+                <span className="font-mono text-xs uppercase tracking-label text-fg-3">{props.copy.quest ? "Rules of the run" : "Rules of the fight"}</span>
                 <ol className="m-0 flex flex-col gap-2 pl-[22px] text-[15px] leading-normal text-fg-2">
                   {timed && <li>The clock runs over budget, not out. Overtime is recorded, never cut off.</li>}
                   <li>Write before you reveal. Each phase of the model answer stays hidden until you submit it.</li>
                   <li>After the reveal, compare honestly. Nobody is watching but you.</li>
                   <li>
-                    Debrief against the capstone&apos;s own Self-Assessment Checklist.{" "}
-                    {props.rubricN ? `${Math.ceil(props.rubricN * 0.7)} of ${props.rubricN} defeats the boss.` : "70% defeats the boss."}
+                    Debrief against the {props.copy.source}&apos;s own Self-Assessment Checklist.{" "}
+                    {props.rubricN ? `${Math.ceil(props.rubricN * 0.7)} of ${props.rubricN} ${props.copy.quest ? "clears the run" : "defeats the boss"}.` : `70% ${props.copy.quest ? "clears the run" : "defeats the boss"}.`}
                   </li>
                 </ol>
               </div>
@@ -582,11 +618,23 @@ function Briefing(props: {
               <span className="-rotate-45 font-mono text-xs font-semibold text-on-signal">{props.defeated ? "✓" : props.weekNum || "◆"}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <span className="font-mono text-[30px] font-semibold text-fg">+{BOSS_XP} XP</span>
-              <span className="text-[15px] text-fg-2">{props.defeated ? "Boss already defeated" : "first defeat of this boss"}</span>
+              <span className="font-mono text-[30px] font-semibold text-fg">{props.copy.quest && props.bonusPaid ? "Banked" : `+${props.copy.xp} XP`}</span>
+              <span className="text-[15px] text-fg-2">
+                {props.copy.quest
+                  ? props.bonusPaid
+                    ? "side-quest bonus already earned"
+                    : "the side-quest bonus, early"
+                  : props.defeated
+                    ? "Boss already defeated"
+                    : "first defeat of this boss"}
+              </span>
             </div>
           </div>
-          <span className="text-sm leading-normal text-fg-3">Clears the boss node on this week&apos;s skill tree. Awarded once, in interview mode, at 70% or better on the rubric.</span>
+          <span className="text-sm leading-normal text-fg-3">
+            {props.copy.quest
+              ? "Pays the quest's side-quest bonus (otherwise paid when you finish reading), once, in interview mode at 70% or better. Finishing the quest still adds the lesson's own XP."
+              : "Clears the boss node on this week's skill tree. Awarded once, in interview mode, at 70% or better on the rubric."}
+          </span>
           <div className="flex-grow" />
           {props.live && interview ? (
             <>
@@ -600,7 +648,7 @@ function Briefing(props: {
             </>
           ) : (
             <button type="button" onClick={props.onStart} className="flex min-h-[56px] items-center justify-between gap-3 bg-signal px-5 text-[17px] font-semibold text-on-signal hover:opacity-90">
-              <span>{interview ? "Start the interview ❯" : "Open the model answer ❯"}</span>
+              <span>{interview ? (props.copy.quest ? "Start the timed run ❯" : "Start the interview ❯") : "Open the model answer ❯"}</span>
               <span className="font-mono text-sm">{interview ? (timed ? `${totalMin}:00` : "untimed") : "untimed"}</span>
             </button>
           )}

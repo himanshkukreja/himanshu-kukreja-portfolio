@@ -1,3 +1,5 @@
+import type { CourseMock } from "./mock/types";
+
 /**
  * Course map: the shape of the course the Learn screens render (hub, profile, notebook, review).
  * Built on the server from the real markdown (src/lib/learn/course.ts) and passed to client
@@ -65,6 +67,8 @@ export type CourseWeek = {
 
 export type CourseStats = {
   worlds: number;
+  /** mock interview checkpoints between worlds */
+  mocks?: number;
   coreLessons: number;
   bosses: number;
   sideQuests: number;
@@ -82,6 +86,8 @@ export type CourseMap = {
   plan: CourseLesson | null;
   weeks: CourseWeek[];
   sideQuests: CourseLesson[];
+  /** mock interviews placed between worlds (resources/mock-interviews); absent on old cached maps */
+  mocks?: CourseMock[];
   stats: CourseStats;
 };
 
@@ -95,6 +101,10 @@ export const LEARN_XP = {
   world: 300,
   sideQuest: 120,
   reviewCard: 5,
+  /** finish a mock interview loop, debrief scored (key `mock:<id>`) */
+  mock: 150,
+  /** Hire or better in a mock interview (key `offer:<id>`) */
+  mockOffer: 100,
 } as const;
 
 export const lessonKey = (week: string, slug: string) => `${week}/${slug}`;

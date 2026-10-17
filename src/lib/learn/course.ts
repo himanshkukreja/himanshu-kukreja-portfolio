@@ -3,6 +3,8 @@ import { unstable_cache } from "next/cache";
 import { calculateReadingTime } from "@/lib/reading-time";
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
 import type { CourseLesson, CourseMap, CourseTrial, CourseWeek } from "./types";
+import type { CourseMock } from "./mock/types";
+import { loadMockSources, summarize } from "./mock/load";
 
 export const COURSE_ID = "system-design-mastery";
 
@@ -129,6 +131,18 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
   });
 
   const sideQuests = resources.filter((r) => r.type === "bonus").map(lessonOf);
+  // Mock interviews between worlds; a missing folder or a broken file just means fewer mocks.
+  const mocks: CourseMock[] = (await loadMockSources().catch(() => []))
+    .map((src) => {
+      try {
+        const { covers: _covers, ...m } = summarize(src, { weeks, sideQuests });
+        void _covers;
+        return m;
+      } catch {
+        return null;
+      }
+    })
+    .filter((m): m is CourseMock => !!m && m.phases > 0);
   const planRes = resources.find((r) => r.type === "overview");
   const plan = planRes ? lessonOf(planRes) : null;
 
@@ -144,8 +158,10 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
     plan,
     weeks,
     sideQuests,
+    mocks,
     stats: {
       worlds: weeks.length,
+      mocks: mocks.length,
       coreLessons,
       bosses: weeks.filter((w) => w.boss).length,
       sideQuests: sideQuests.length,
@@ -161,7 +177,7 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
 // /api/revalidate-courses clears it via the "course-map" tag. The in-memory layer below
 // de-duplicates concurrent builds within one instance.
 export const COURSE_MAP_TAG = "course-map";
-const buildCached = unstable_cache((courseId: string) => buildCourseMap(courseId), ["course-map-v1"], {
+const buildCached = unstable_cache((courseId: string) => buildCourseMap(courseId), ["course-map-v2"], {
   revalidate: 300,
   tags: [COURSE_MAP_TAG],
 });

@@ -25,6 +25,8 @@ function xpOfKey(key: string): number {
   if (p === "boss") return LEARN_XP.boss;
   if (p === "world") return LEARN_XP.world;
   if (p === "sidequest") return LEARN_XP.sideQuest - LEARN_XP.lesson;
+  if (p === "mock") return LEARN_XP.mock;
+  if (p === "offer") return LEARN_XP.mockOffer;
   return 0;
 }
 

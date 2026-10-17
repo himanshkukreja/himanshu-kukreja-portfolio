@@ -1,0 +1,25 @@
+import { notFound } from "next/navigation";
+import { getMockInterview } from "@/lib/learn/mock/page-data";
+import MockInterviewRoom from "@/components/learn/mock/MockInterview";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+type Props = { params: Promise<{ slug: string }> };
+
+export async function generateMetadata({ params }: Props) {
+  const { slug } = await params;
+  const mock = await getMockInterview(slug).catch(() => null);
+  if (!mock) return { title: "Not Found" };
+  return {
+    title: `Mock interview ${String(mock.n).padStart(2, "0")} · ${mock.company.name} · System Design Mastery`,
+    description: `A timed ${mock.minutes}-minute system design interview with ${mock.interviewer.name} at ${mock.company.name} (fictional): ${mock.title}. Covers ${mock.coversLabel}. Free practice with a levelled rubric and verdict.`,
+  };
+}
+
+export default async function MockInterviewPage({ params }: Props) {
+  const { slug } = await params;
+  const mock = await getMockInterview(slug);
+  if (!mock) notFound();
+  return <MockInterviewRoom mock={mock} />;
+}

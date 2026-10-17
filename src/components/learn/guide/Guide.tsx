@@ -9,6 +9,7 @@ import Shot, { Marker, Thumb } from "./Shot";
 import ReadingFact from "./ReadingFact";
 import { GuideTocChips, GuideTocSide, type TocItem } from "./GuideToc";
 import { A, Kbd, LABEL, Note, Pair, PROSE, Section, Steps, Sub, Table, Where } from "./ui";
+import { BAND_RULES, MIN_WORDS, RED_FLAG_RULES, VERDICT_LABEL } from "@/lib/learn/mock/score";
 import {
   ARENA_GAMES,
   BOSS_PASS_PCT,
@@ -57,14 +58,15 @@ const TOC: TocItem[] = [
   { id: "notebook", n: "04", label: "Notebook" },
   { id: "review", n: "05", label: "Review & standup" },
   { id: "trials", n: "06", label: "Trials & bosses" },
-  { id: "arena", n: "07", label: "The Arena" },
-  { id: "xp", n: "08", label: "XP, levels, badges" },
-  { id: "progress", n: "09", label: "Progress page" },
-  { id: "share", n: "10", label: "Share your progress" },
-  { id: "cases", n: "11", label: "Case files" },
-  { id: "account", n: "12", label: "Account & data" },
-  { id: "faq", n: "13", label: "FAQ" },
-  { id: "glossary", n: "14", label: "Glossary" },
+  { id: "mocks", n: "07", label: "Mock interviews" },
+  { id: "arena", n: "08", label: "The Arena" },
+  { id: "xp", n: "09", label: "XP, levels, badges" },
+  { id: "progress", n: "10", label: "Progress page" },
+  { id: "share", n: "11", label: "Share your progress" },
+  { id: "cases", n: "12", label: "Case files" },
+  { id: "account", n: "13", label: "Account & data" },
+  { id: "faq", n: "14", label: "FAQ" },
+  { id: "glossary", n: "15", label: "Glossary" },
 ];
 
 const LOOP = [
@@ -72,7 +74,7 @@ const LOOP = [
   { t: "Clear stages", d: "A stage clears after real reading. Quick checks inside test you as you go." },
   { t: "Earn XP", d: `+${LEARN_XP.stage} a stage, +${LEARN_XP.lesson} a lesson, +${QUIZ_XP} per quick check right first time.` },
   { t: "Review", d: "What you miss comes back in the daily standup, right before you forget it." },
-  { t: "Beat the boss & trial", d: "End each world with a timed interview and the week's MCQ parts." },
+  { t: "Beat the boss & trial", d: "End each world with a timed interview and the week's MCQ parts. Every few worlds, a full mock interview loop." },
   { t: "Climb leagues", d: "Signed in, your activity scores weekly points. The top of each league moves up." },
 ];
 
@@ -81,6 +83,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
   const s = map?.stats;
   const trialWeeks = map ? map.weeks.filter((w) => w.trial) : [];
   const lessonsPerWorld = map?.weeks[1] ? map.weeks[1].lessons.length : 6;
+  const mocks = map?.mocks || [];
 
   return (
     <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-32 pt-8 sm:px-6 sm:pt-14 lg:pb-24">
@@ -495,8 +498,95 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Where>
           </Section>
 
+          {/* ------------------------------------------------------------ g0) mock interviews */}
+          <Section
+            id="mocks"
+            n="07"
+            kicker="mock interviews"
+            title="Mock interviews: the real loop, between worlds"
+            lead="Every few worlds the course stops teaching and interviews you: an unseen problem, a fictional company, a named interviewer and one clock."
+          >
+            <div className={PROSE}>
+              <p>
+                {mocks.length ? (
+                  <>
+                    There {mocks.length === 1 ? "is" : "are"} <strong>{mocks.length} mock interview{mocks.length === 1 ? "" : "s"}</strong>, one after{" "}
+                    {mocks.map((m, i) => (
+                      <span key={m.id}>
+                        {i > 0 ? (i === mocks.length - 1 ? " and " : ", ") : ""}World {m.afterCode} ({m.company})
+                      </span>
+                    ))}
+                    .
+                  </>
+                ) : (
+                  <>Mock interviews sit after Worlds 02, 05, 08 and 10.</>
+                )}{" "}
+                Each closes an arc of the course and covers <strong>everything taught up to that point</strong>, not just the last week. They appear on the <A href={COURSE}>skill tree</A> as their own rows between worlds (the square
+                node with an orange corner), in the &ldquo;After this world&rdquo; card of a world&apos;s panel, and all together at <A href="/learn/mock">/learn/mock</A>.
+              </p>
+            </div>
+            <Table
+              caption="Boss fight versus mock interview"
+              head={["", "Boss fight", "Mock interview"]}
+              rows={[
+                ["Problem", "The week's capstone, inside the lesson", "Unseen, mixes every week so far"],
+                ["Interviewer", "The capstone's dialogue", "A named persona with a style, at a fictional company (Indian and global)"],
+                ["During the round", "Write, reveal, compare, phase by phase", "One clock; follow-ups and curveballs arrive on their own; answers stay hidden"],
+                ["Scoring", `Capstone checklist, ${BOSS_PASS_PCT}% to defeat`, "Levelled rubric (Junior → Staff) and a hire / no-hire verdict"],
+                ["Reward", `+${BOSS_XP} XP`, `+${LEARN_XP.mock} XP and a badge, +${LEARN_XP.mockOffer} for an offer`],
+              ]}
+            />
+            <Sub>In the room</Sub>
+            <Steps
+              items={[
+                { title: "Lobby", body: "Read the recruiter's note, meet the interviewer, see the phases and their budgets, and pick the level you are interviewing for: Junior, SDE, Senior or Staff." },
+                { title: "Join the call", body: "One clock starts. The bar at the top shows the phase clock, the total clock and a strip with every phase's budget. It runs over budget, never out; pausing is allowed but counted." },
+                {
+                  title: "Work through the phases",
+                  body: "Clarify requirements, estimates, API and data model, high-level design, deep dives, trade-offs, wrap-up. Write in the answer box; draw boxes and arrows on the shared whiteboard tab. Everything autosaves in this browser.",
+                },
+                {
+                  title: "The interviewer talks back",
+                  body: "Follow-ups arrive at set times in a phase; pressing Done can trigger a reply (the answers to your clarifying questions, for example) before you move on. The interviewer also keeps time and nudges you along.",
+                },
+                { title: "Curveballs", body: "Mid-round changes like \u201cnow traffic is 10\u00d7\u201d or \u201cthe payment provider is down\u201d. Each gets its own answer box; leaving one unanswered is a red flag." },
+                { title: "Hints", body: "Ask for one when you're stuck. The interviewer notes every hint, and four or more count against you." },
+              ]}
+            />
+            <Sub>The debrief and your verdict</Sub>
+            <div className={PROSE}>
+              <p>
+                When the call ends you see what happened (time used, phases over budget, curveballs answered, hints), then each phase: what you wrote, the <strong>model answer</strong> behind a reveal button, and the rubric. Every rubric
+                signal is tagged with the lowest level at which interviewers expect it. Score each one <strong>missed, partly or nailed</strong>. Signals at or below your target level are expected; the ones above it are a bonus.
+              </p>
+            </div>
+            <Table caption="Verdict bands" head={["Verdict", "Expected signals scored"]} rows={BAND_RULES.map((b) => [VERDICT_LABEL[b.verdict], b.rule])} />
+            <div className={PROSE}>
+              <p>
+                <strong>Red flags</strong> from how the round went drop the verdict one band each, two at most: {RED_FLAG_RULES.map((r) => r.charAt(0).toLowerCase() + r.slice(1)).join("; ")}. You also see the level your answers read like,
+                what a hire looks like at each level for that problem, and the <strong>lessons behind the signals you missed</strong>.
+              </p>
+              <p>
+                <strong>Second opinion:</strong> &ldquo;Ask Claude&rdquo; or &ldquo;Ask ChatGPT&rdquo; opens a new tab with your answers, the curveballs, the rubric and your self-scores prefilled, asking for interviewer-style feedback and
+                its own verdict. A round too long for a link goes through your clipboard. Nothing is sent to this site.
+              </p>
+              <p>
+                <strong>Submit scorecard</strong> once every expected signal is scored (and you wrote at least {MIN_WORDS} words in the round): <strong>+{LEARN_XP.mock} XP</strong> and the loop&apos;s badge, plus{" "}
+                <strong>+{LEARN_XP.mockOffer} XP</strong> the first time a verdict is Hire or better. Each is paid once; retakes go into your history and can raise your best verdict.
+              </p>
+            </div>
+            <Note title="Where your answers live">
+              <p>
+                The round itself (notes, whiteboard, clock, self-scores) stays in this browser. The result (finished, offer, best verdict) goes with your XP, so signed in it follows you to other devices.
+              </p>
+            </Note>
+            <Where>
+              the mock rows between worlds on the <A href={COURSE}>skill tree</A>; <A href="/learn/mock">all mock interviews</A>; the &ldquo;between worlds&rdquo; row of the <A href="/learn/dashboard#map">progress page&apos;s course map</A>.
+            </Where>
+          </Section>
+
           {/* ------------------------------------------------------------ g) arena */}
-          <Section id="arena" n="07" kicker="the arena" title="Daily challenge, leagues and games" lead="The fun part of the course, built from the same questions and lessons. Two minutes a day keeps a streak alive.">
+          <Section id="arena" n="08" kicker="the arena" title="Daily challenge, leagues and games" lead="The fun part of the course, built from the same questions and lessons. Two minutes a day keeps a streak alive.">
             <Shot id="arena-hub" />
             <Sub>Daily challenge</Sub>
             <Pair>
@@ -545,7 +635,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ h) xp */}
-          <Section id="xp" n="08" kicker="xp, levels, quests & badges" title="What earns XP" lead="XP is your running total. Every amount below comes straight from the code; each one-time reward is paid once, however often you repeat the thing.">
+          <Section id="xp" n="09" kicker="xp, levels, quests & badges" title="What earns XP" lead="XP is your running total. Every amount below comes straight from the code; each one-time reward is paid once, however often you repeat the thing.">
             <Table
               caption="How XP is earned"
               head={["Action", "XP", "How often"]}
@@ -557,6 +647,8 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 ["Every quick check in a stage right first try", `+${STAGE_ACE_XP}`, "once per stage"],
                 ["Pass a trial part", `+${LEARN_XP.trial}`, "first pass of each part"],
                 ["Defeat a boss (interview mode, 70%+)", `+${BOSS_XP}`, "once per boss"],
+                ["Finish a mock interview (scored debrief)", `+${LEARN_XP.mock}`, "once per mock, with its badge"],
+                ["Hire or better in a mock interview", `+${LEARN_XP.mockOffer}`, "once per mock"],
                 ["Clear a world (lessons + boss + trial parts)", `+${LEARN_XP.world}`, "once per world, with its badge"],
                 ["Finish a side quest", `+${LEARN_XP.sideQuest}`, `once (${LEARN_XP.lesson} for the lesson + ${LEARN_XP.sideQuest - LEARN_XP.lesson} bonus)`],
                 ["Grade a review card", `+${REVIEW_XP_PER_CARD}`, "every card, every day"],
@@ -586,7 +678,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ i) progress */}
-          <Section id="progress" n="09" kicker="your progress page" title="Everything you've done, in one place" lead="The Progress tab answers “where am I, how am I doing, what next”. Guests see this browser's data; signed in, your account merged with it.">
+          <Section id="progress" n="10" kicker="your progress page" title="Everything you've done, in one place" lead="The Progress tab answers “where am I, how am I doing, what next”. Guests see this browser's data; signed in, your account merged with it.">
             <Shot id="progress-top" wide />
             <div className={PROSE}>
               <p>
@@ -648,7 +740,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ i2) share */}
           <Section
             id="share"
-            n="10"
+            n="11"
             kicker="share your progress"
             title="Show your run to friends"
             lead="Your progress is private. Turn on a public page and you get one link, showing only the parts you pick, to send on WhatsApp, LinkedIn or X."
@@ -754,7 +846,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ j) cases */}
-          <Section id="cases" n="11" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
+          <Section id="cases" n="12" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
             <Shot id="case-index" only="desktop" />
             <div className={PROSE}>
               <p>
@@ -773,7 +865,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ k) account */}
-          <Section id="account" n="12" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
+          <Section id="account" n="13" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
             <ul className="m-0 grid max-w-[72ch] list-none gap-px border border-line bg-line p-0 sm:grid-cols-2">
               {[
                 ["Progress on every device", "Lessons, stages, XP, review cards and trial attempts follow you instead of living in one browser."],
@@ -803,7 +895,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ l) faq */}
-          <Section id="faq" n="13" kicker="faq" title="Questions people actually ask">
+          <Section id="faq" n="14" kicker="faq" title="Questions people actually ask">
             <div className="flex max-w-[78ch] flex-col border-t border-line">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group border-b border-line">
@@ -820,7 +912,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ glossary */}
-          <Section id="glossary" n="14" kicker="glossary" title="Words the course uses">
+          <Section id="glossary" n="15" kicker="glossary" title="Words the course uses">
             <dl className="m-0 grid max-w-[78ch] gap-px border border-line bg-line sm:grid-cols-2">
               {GLOSSARY.map(([t, d]) => (
                 <div key={t} className="flex flex-col gap-1 bg-bg p-4">
@@ -899,6 +991,13 @@ const FAQ: [string, React.ReactNode][] = [
       the daily challenge works without an account.
     </>,
   ],
+  [
+    "Is the mock interview verdict real?",
+    <>
+      It&apos;s as honest as your self-scores: the rubric and the bands are what interviewers use, but you do the scoring. For an outside view, use <strong>Ask Claude</strong> or <strong>Ask ChatGPT</strong> in the debrief, which sends your
+      answers and the rubric for an independent verdict. Red flags (no clarifying questions, blank phases, unanswered curveballs, running long) are detected for you.
+    </>,
+  ],
   ["Does replaying the daily challenge count?", <>No, only your first run of the day counts for XP, points and the streak. Replays are practice.</>],
   ["Does re-reading a lesson reset it?", <>Never. Completed stays completed and percentages never go down. Only the Reset on the progress page removes progress.</>],
   ["Does listening count as reading?", <>Yes. While Listen is reading the lesson aloud, the time counts even if you don&apos;t touch the screen.</>],
@@ -917,6 +1016,8 @@ const GLOSSARY: [string, string][] = [
   ["Quick check", "A short multiple-choice block inside a lesson. The first try is the one that pays XP."],
   ["Trial", "A world's multiple-choice test, split into parts. Each part tests one lesson; pass mark 80%."],
   ["Boss", "The world's capstone: a full system design interview with timed phases, fought in interview mode or read."],
+  ["Mock interview", "A timed interview loop between worlds: an unseen problem from a fictional company, a named interviewer, curveballs, then a debrief with a levelled rubric and a verdict."],
+  ["Verdict", "A mock interview's result band, from Strong no hire to Strong hire, for the level you picked."],
   ["Side quest", "A bonus problem: a real system (UPI, Netflix, Uber…) designed end to end. Open any time."],
   ["XP", "Experience points: your personal total from everything you do. Sets your level."],
   ["Level", "L1 Intern to L6 Principal, from your XP. Shown in the header."],

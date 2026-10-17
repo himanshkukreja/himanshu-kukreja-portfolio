@@ -19,11 +19,16 @@ const SPEC = {
   stats: { attrs: [], list: "bullet", boldFirst: true },
   calc: { attrs: [], listOrTable: true },
   timeline: { attrs: [], list: "bullet", boldFirst: true },
+  // side quests: "your turn" prompt with a hidden answer, and the mission brief the quest hero shows
+  checkpoint: { attrs: [], title: true, child: "answer" },
+  answer: { attrs: [], parent: "checkpoint" },
+  mission: { attrs: ["level"], title: true, list: "bullet", boldFirst: true },
 };
 const VALUES = {
   tone: ["core", "info", "ok", "bad", "warn", "note"],
   type: ["tip", "key", "warn", "bad", "ok", "info"],
   dir: ["down", "right"],
+  level: ["Medium", "Hard", "Expert"],
 };
 const BOX = /[┌┐└┘│─═║╔╗╚╝├┤┬┴┼]/;
 
@@ -61,6 +66,11 @@ for (const file of files) {
       if (cols.length < 2 || cols.length > 4) errs.push(`${at(node)} ${node.name}: ${cols.length} :::${spec.children} (need 2-4)`);
       if (kids.length !== cols.length) errs.push(`${at(node)} ${node.name}: only :::${spec.children} blocks allowed directly inside (check colon counts)`);
     }
+    if (spec.child) {
+      const n = kids.filter((c) => c.type === "containerDirective" && c.name === spec.child).length;
+      if (n !== 1) errs.push(`${at(node)} ${node.name}: needs exactly one :::${spec.child} inside (found ${n}; the outer fence needs more colons)`);
+    }
+    if (node.name === "mission" && parent?.type !== "root") errs.push(`${at(node)} mission: must be a top-level block (the quest hero lifts it out)`);
     if (spec.list) {
       const lists = kids.filter((c) => c.type === "list");
       const want = spec.list === "ordered";

@@ -10,6 +10,7 @@
  *   boss:<week>                     boss defeated (+200)
  *   world:<week>                    world cleared bonus (+300, awarded by the hub)
  *   sidequest:<slug>                side quest bonus (+60 on top of the lesson's +60, awarded by the hub)
+ *   mock:<id> / offer:<id>          mock interview finished (+150) / Hire or better (+100)
  * Columns added by the 20261014 migration (completed_stages, last_stage, max_progress) are read when
  * present and ignored when not.
  */
@@ -253,7 +254,7 @@ export function logReviewActivity(cards = 1) {
   }
 }
 
-const LEARN_PREFIX = /^(lesson|stage|trial|boss|world|sidequest):/;
+const LEARN_PREFIX = /^(lesson|stage|trial|boss|world|sidequest|mock):/;
 
 /** Learning activity per local day (count of learn events), from the done record + review log. */
 export function activityByDay(done: Record<string, number>, extra: Record<string, number> = {}): Record<string, number> {
@@ -337,6 +338,11 @@ export function xpLog(done: Record<string, number>, map: CourseMap | null): XpEn
     } else if (key.startsWith("world:")) {
       const w = weekBy.get(key.slice(6));
       out.push({ key, xp: LEARN_XP.world, what: `World cleared · ${w ? `W${w.code} · ${w.badge}` : key.slice(6)}`, at });
+    } else if (key.startsWith("mock:") || key.startsWith("offer:")) {
+      const offer = key.startsWith("offer:");
+      const m = map?.mocks?.find((x) => x.id === key.slice(offer ? 6 : 5));
+      const name = m ? `M${m.n} · ${m.company}` : key.slice(offer ? 6 : 5);
+      out.push({ key, xp: offer ? LEARN_XP.mockOffer : LEARN_XP.mock, what: offer ? `Offer · mock interview ${name}` : `Mock interview finished · ${name}`, at, href: m?.href });
     } else if (key.startsWith("sidequest:")) {
       const l = map?.sideQuests.find((s) => s.slug === key.slice(10));
       out.push({ key, xp: LEARN_XP.sideQuest - LEARN_XP.lesson, what: `Side quest bonus · ${l ? l.title : key.slice(10)}`, at, href: l?.href });

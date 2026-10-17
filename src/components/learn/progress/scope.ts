@@ -116,6 +116,8 @@ export function learnKeyXp(key: string): number {
   if (p === "boss") return LEARN_XP.boss;
   if (p === "world") return LEARN_XP.world;
   if (p === "sidequest") return LEARN_XP.sideQuest - LEARN_XP.lesson;
+  if (p === "mock") return LEARN_XP.mock;
+  if (p === "offer") return LEARN_XP.mockOffer;
   return 0;
 }
 
@@ -146,6 +148,8 @@ export function dropGameKey(key: string, ctx: ScopeCtx, scope: ResetScope, parts
     const week = rest.split("/")[0];
     return !!parts.mcq && inScope(scope, c, week, ctx.trial[week] ?? null);
   }
+  // mock interviews span the whole course: they go with a course-wide progress reset
+  if (kind === "mock" || kind === "offer") return !!parts.progress && (scope.kind === "all" || (scope.kind === "course" && scope.course === c));
   if (kind === "world") {
     return (!!parts.progress && weekTouched(scope, c, rest)) || (!!parts.mcq && inScope(scope, c, rest, ctx.trial[rest] ?? null));
   }

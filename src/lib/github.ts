@@ -278,6 +278,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-dead-letters-and-poison-pills': 'Dead Letters and Poison Pills',
   'day-05-audit-log-system': 'Audit Log System',
   'capstone-interview-week-3-event-driven-order-system': 'Event-Driven Food Delivery Order System',
+  'week-03-mcq-assessment': 'Week 3 Messaging and Async Processing - MCQ Assessment',
   // Week 4
   'day-01-caching-patterns': 'Caching Patterns',
   'day-02-cache-invalidation': 'Invalidation Strategies',
@@ -285,6 +286,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-feed-caching': 'Feed Caching',
   'day-05-multi-tier-caching': 'Multi-Tier Caching',
   'capstone-interview-week-4-ecommerce-product-catalog': 'Design a Global E-Commerce Product Catalog System',
+  'week-04-mcq-assessment': 'Week 4 Caching - MCQ Assessment',
   // Week 5
   'day-01-consistency-models': 'Consistency Models',
   'day-02-saga-pattern': 'Distributed Transactions — The Saga Pattern',
@@ -292,6 +294,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-conflict-resolution': 'Conflict Resolution',
   'day-05-leader-election': 'Leader Election and Coordination',
   'capstone-interview-week-5-multiplayer-game-matchmaking-system': 'Multiplayer Game Matchmaking System',
+  'week-05-mcq-assessment': 'Week 5 Consistency and Coordination - MCQ Assessment',
   // Week 6
   'day-01-notification-platform-design': 'Notification Platform — Problem Understanding & High-Level Design',
   'day-02-core-notification-flow': 'Core Notification Flow',
@@ -299,6 +302,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-scale-reliability-edge-cases': 'Scale, Reliability & Edge Cases',
   'day-05-operations-monitoring-interview': 'Operations, Monitoring & Interview Mastery',
   'capstone-interview-week-6-food-delivery-system': 'Food Delivery Order System',
+  'week-06-mcq-assessment': 'Week 6 Designing a Notification Platform - MCQ Assessment',
   // Week 7
   'day-01-search-fundamentals': 'Search Fundamentals & Architecture',
   'day-02-indexing-pipeline': 'Indexing Pipeline',
@@ -306,6 +310,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-advanced-search-features': 'Advanced Search Features',
   'day-05-search-operations-scale': 'Search Operations & Scale',
   'capstone-interview-week-7-legal-document-search': 'Designing a Legal Document Search System',
+  'week-07-mcq-assessment': 'Week 7 Designing a Search System - MCQ Assessment',
   // Week 8
   'day-01-event-ingestion': 'Event Ingestion at Scale',
   'day-02-streaming-vs-batch': 'Streaming vs Batch Processing',
@@ -313,6 +318,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-late-data': 'Late-Arriving Data and Correctness',
   'day-05-query-optimization': 'Query Layer and Optimization',
   'capstone-interview-week-8-streaming-analytics': 'Real-Time Analytics for Video Streaming Platform',
+  'week-08-mcq-assessment': 'Week 8 Designing an Analytics Pipeline - MCQ Assessment',
   // Week 9
   'day-01-tenant-isolation': 'Tenant Isolation Strategies',
   'day-02-noisy-neighbour': 'Noisy Neighbor Prevention',
@@ -320,6 +326,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-right-to-deletion': 'Right to Deletion',
   'day-05-security-architecture': 'Security Architecture',
   'capstone-interview-week-9-multi-tenant-saas': 'Design a Multi-Tenant Enterprise SaaS Platform',
+  'week-09-mcq-assessment': 'Week 9 Multi-Tenancy and Security - MCQ Assessment',
   // Week 10
   'day-01-slis-slos-slas': 'SLIs, SLOs and SLAs',
   'day-02-observability': 'Observability',
@@ -327,6 +334,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-04-capacity-planning': 'Capacity Planning',
   'day-05-incident-management': 'Incident Management',
   'capstone-interview-week-10-the-grand-finale': 'The Grand Finale',
+  'week-10-mcq-assessment': 'Week 10 Production Readiness and Operational Excellence - MCQ Assessment',
 };
 
 /** Week folder topic names, with the folder typos corrected. */

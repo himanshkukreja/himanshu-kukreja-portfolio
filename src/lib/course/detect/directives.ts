@@ -17,10 +17,12 @@ import type { Code, Heading, List, ListItem, Paragraph, Parent, PhrasingContent,
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import type { Element as HastElement, Properties } from "hast";
 import { chrome, el, h, isNode, rawHast, text, toText, type AnyNode, type SdEl } from "../md";
+import type { QuestMission } from "../types";
+import { slugify } from "../slug";
 import type { BlockCtx } from "./blocks";
 import { renderCode } from "./code";
 
-export const BLOCK_NAMES = new Set(["panel", "compare", "col", "steps", "tree", "callout", "stats", "calc", "timeline"]);
+export const BLOCK_NAMES = new Set(["panel", "compare", "col", "steps", "tree", "callout", "stats", "calc", "timeline", "checkpoint", "answer", "mission"]);
 const TONES = new Set(["core", "info", "ok", "bad", "warn", "note"]);
 const CALLOUT_TYPES = new Set(["tip", "key", "warn", "bad", "ok", "info"]);
 
@@ -623,6 +625,99 @@ async function timeline(node: ContainerDirective, ctx: BlockCtx, opts: Opts): Pr
   ]);
 }
 
+/**
+ * "Your turn" checkpoint: a think-before-you-read prompt whose answer stays behind a reveal.
+ *
+ *   ::::checkpoint[Where should the video bytes come from?]
+ *   Prompt (paragraphs, lists…)
+ *   :::answer
+ *   The answer.
+ *   :::
+ *   ::::
+ *
+ * It is a reveal card (data-sd="reveal", the same gate / verdict chrome and CourseEnhancer wiring as
+ * the interview questions) marked data-variant="checkpoint", with a stable data-qid ("cp-<slug>")
+ * so verdicts survive edits elsewhere in the lesson. Without an :::answer it is a plain prompt card.
+ */
+async function checkpoint(node: ContainerDirective, ctx: BlockCtx, opts: Opts): Promise<SdEl> {
+  const kids = body(node);
+  const answers = kids.filter((c): c is ContainerDirective => c.type === "containerDirective" && c.name === "answer");
+  const prompt = kids.filter((c) => !answers.includes(c as ContainerDirective));
+  const title = label(node);
+  const n = (ctx.stats.checkpoint = (ctx.stats.checkpoint || 0) + 1);
+  const titleText = title ? toText({ type: "paragraph", children: title }).trim() : `Checkpoint ${n}`;
+  const qid = ctx.ids.claim(`cp-${slugify(titleText, 40) || n}`, [ctx.stageId]);
+  const head = rawHast(
+    chrome("div", { className: ["sd-rv-head"] }, [
+      h("span", { className: ["sd-rv-kicker"] }, [`Your turn · checkpoint ${n}`]),
+      h("span", { className: ["sd-rv-status"], ariaLive: "polite" }, [answers.length ? "not answered" : "think first"]),
+    ]),
+  );
+  const q = title ? [el("p", { className: ["sd-rv-q", "sd-cp-q"] }, title as AnyNode[])] : [];
+  const promptOut = prompt.length ? [el("div", { className: ["sd-cp-prompt"] }, await inner(prompt, ctx, opts))] : [];
+  if (!answers.length) {
+    return el("section", { className: ["sd-checkpoint", "sd-cp-plain"], dataSd: "checkpoint", id: qid }, [head, ...q, ...promptOut], { component: "checkpoint" });
+  }
+  const answerOut: AnyNode[] = [];
+  for (const a of answers) answerOut.push(...(await inner(body(a), ctx, opts)));
+  return el(
+    "section",
+    { className: ["sd-reveal", "sd-checkpoint"], dataSd: "reveal", dataVariant: "checkpoint", dataQid: qid, dataQuestion: titleText.slice(0, 200), id: qid },
+    [
+      head,
+      ...q,
+      ...promptOut,
+      rawHast(
+        chrome("div", { className: ["sd-rv-gate"] }, [
+          h("span", { className: ["sd-rv-hint"] }, ["Think it through, or jot it down. Then compare."]),
+          h("button", { type: "button", className: ["sd-btn", "sd-btn-solid"], dataSdAction: "reveal", ariaExpanded: "false" }, ["Reveal the answer"]),
+        ]),
+      ),
+      el("div", { className: ["sd-rv-answer"], dataSdAnswer: "" }, [rawHast(chrome("p", { className: ["sd-cp-answer-tag"] }, ["One strong answer"])), ...answerOut]),
+      rawHast(
+        chrome("div", { className: ["sd-rv-verdict"], role: "group", ariaLabel: "How did you do?" }, [
+          h("button", { type: "button", className: ["sd-btn"], dataSdAction: "knew", ariaPressed: "false" }, ["✓ I had it"]),
+          h("button", { type: "button", className: ["sd-btn"], dataSdAction: "review", ariaPressed: "false" }, ["↻ Missed some"]),
+          h("button", { type: "button", className: ["sd-btn", "sd-btn-quiet"], dataSdAction: "hide" }, ["Hide answer"]),
+        ]),
+      ),
+    ],
+    { component: "checkpoint" },
+  );
+}
+
+/** Mission text pieces shared by the renderer (lifted into RenderedLesson.mission) and the in-body fallback. */
+export function missionFrom(node: ContainerDirective): QuestMission {
+  const t = label(node);
+  const objective = t ? toText({ type: "paragraph", children: t }).trim() : "";
+  const kids = body(node);
+  const brief = kids
+    .filter((c) => c.type === "paragraph")
+    .map((p) => toText(p).replace(/\s+/g, " ").trim())
+    .filter(Boolean)
+    .join(" ");
+  const numbers: QuestMission["numbers"] = [];
+  const list = kids.find((c): c is List => c.type === "list");
+  list?.children.forEach((li) => {
+    const { head } = itemParts(li);
+    const { lead, rest } = splitLead(head);
+    if (!lead) return;
+    const value = toText(lead).trim();
+    const lbl = toText({ type: "paragraph", children: rest }).replace(/\s+/g, " ").trim();
+    if (value) numbers.push({ value, label: lbl });
+  });
+  const level = attr(node, "level");
+  return { objective, ...(level ? { level } : {}), ...(brief ? { brief } : {}), numbers };
+}
+
+/** A :::mission that wasn't lifted into the hero (nested somewhere): a stats card, nothing lost. */
+async function mission(node: ContainerDirective, ctx: BlockCtx, opts: Opts): Promise<SdEl> {
+  const kids = body(node);
+  const listIdx = kids.findIndex((c) => c.type === "list");
+  if (listIdx < 0) return generic("mission", node, ctx, opts);
+  return stats(node, ctx, opts);
+}
+
 /** structure didn't match the spec: still a themed card, never lost content */
 async function generic(name: string, node: ContainerDirective, ctx: BlockCtx, opts: Opts): Promise<SdEl> {
   return figure(name, { dataTone: "note", dataFallback: "true" }, [...caption(label(node)), el("div", { className: ["sdb-body"] }, await inner(body(node), ctx, opts))]);
@@ -648,6 +743,12 @@ export async function renderBlock(node: ContainerDirective, ctx: BlockCtx, opts:
       return calc(node, ctx, opts);
     case "timeline":
       return timeline(node, ctx, opts);
+    case "checkpoint":
+      return checkpoint(node, ctx, opts);
+    case "answer": // an answer outside a checkpoint reads as a panel
+      return panel(node, ctx, opts);
+    case "mission":
+      return mission(node, ctx, opts);
     default:
       return generic(node.name, node, ctx, opts);
   }

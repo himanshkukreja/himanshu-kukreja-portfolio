@@ -53,6 +53,9 @@ export async function generateMetadata({ params }: Props) {
 
 /** Capstones open with a whiteboard frame: "Design a Global Flash Sale System for …". */
 function capstoneTeaser(markdown: string): string | null {
+  // the whiteboard is a `:::panel[Design …]` block now; older box art is still read
+  const p = markdown.match(/^:{3,}panel\[(Design\b[^\]\n]{8,})\]/m);
+  if (p) return p[1].replace(/^Design:\s*/i, "Design ").replace(/\s+/g, " ").trim();
   const m = markdown.match(/[║|]\s*(Design[^║|\n]{8,}?)\s*[║|]/);
   return m ? m[1].replace(/\s+/g, " ").trim() : null;
 }
@@ -159,6 +162,16 @@ export default async function LearningResourcePage({ params }: Props) {
     readingMinutes: rendered.readingMinutes,
     contentVersion: rendered.contentVersion,
     stats: lessonStats(rendered, numbered),
+    quest:
+      resource.type === "bonus"
+        ? {
+            mission: rendered.mission ?? null,
+            checkpoints: (rendered.html.match(/data-variant="checkpoint"/g) || []).length,
+            quizzes: (rendered.html.match(/data-sd="quiz"/g) || []).length,
+            phases: rendered.stages.filter((s) => s.id.startsWith("phase-")).length,
+            budgetMinutes: rendered.stages.reduce((a, s) => a + (s.budgetMinutes || 0), 0),
+          }
+        : null,
   };
 
   return (

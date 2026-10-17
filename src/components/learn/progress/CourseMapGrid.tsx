@@ -6,6 +6,8 @@ import type { CourseLesson } from "@/lib/learn/types";
 import { lessonKey } from "@/lib/learn/types";
 import type { LessonProgress, WeekState } from "@/lib/learn/progress";
 import type { Cell } from "./derive";
+import type { MockStatus } from "@/lib/learn/mock/store";
+import { VERDICT_LABEL } from "@/lib/learn/mock/score";
 import { SectionHead } from "./ui";
 
 type Row = { state: WeekState; cells: Cell[] };
@@ -64,11 +66,14 @@ export default function CourseMapGrid({
   side,
   lessons,
   currentWeek,
+  mocks = [],
 }: {
   rows: Row[];
   side: CourseLesson[];
   lessons: Record<string, LessonProgress>;
   currentWeek: string | null;
+  /** mock interview loops between worlds */
+  mocks?: MockStatus[];
 }) {
   const [open, setOpen] = useState<Record<string, boolean>>({});
   const isOpen = (k: string) => open[k] ?? k === currentWeek;
@@ -90,6 +95,18 @@ export default function CourseMapGrid({
     };
   });
   const sideDone = sideCells.filter((c) => c.status === "done").length;
+  const mockCells: Cell[] = mocks.map((m) => ({
+    id: `mock/${m.mock.id}`,
+    code: m.mock.code,
+    label: `Mock interview ${m.mock.n} · ${m.mock.company}${m.result ? ` · best ${VERDICT_LABEL[m.result.best.verdict]}` : ""}`,
+    href: m.mock.href,
+    kind: "lesson",
+    status: m.state === "done" ? "done" : m.state === "live" ? "progress" : "none",
+    pct: m.state === "done" ? 100 : m.state === "live" ? 50 : 0,
+    week: m.mock.after,
+    slug: m.mock.slug,
+  }));
+  const mocksDone = mockCells.filter((c) => c.status === "done").length;
 
   return (
     <section aria-labelledby="map-h" id="map" className="flex scroll-mt-28 flex-col gap-4">
@@ -160,6 +177,33 @@ export default function CourseMapGrid({
             </li>
           );
         })}
+        {mockCells.length > 0 && (
+          <li id="map-mocks" className="scroll-mt-28 border-b border-line lg:flex lg:items-center lg:gap-4 lg:px-4 lg:py-3">
+            <button
+              type="button"
+              onClick={() => toggle("mocks")}
+              aria-expanded={isOpen("mocks")}
+              aria-controls="cells-mocks"
+              className="flex min-h-14 w-full items-center gap-3 px-4 py-2 text-left lg:pointer-events-none lg:w-[260px] lg:shrink-0 lg:px-0"
+            >
+              <span className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">between worlds · mock interviews</span>
+                <span className="truncate text-[15px] font-semibold leading-tight text-fg">Timed interview loops</span>
+              </span>
+              <span className="font-mono text-[12px] text-fg-3">
+                {mocksDone}/{mockCells.length}
+              </span>
+              <span aria-hidden className={`font-mono text-fg-3 transition-transform lg:hidden ${isOpen("mocks") ? "rotate-90" : ""}`}>
+                ›
+              </span>
+            </button>
+            <div id="cells-mocks" className={`${isOpen("mocks") ? "flex" : "hidden"} flex-wrap gap-1.5 px-4 pb-4 lg:flex lg:flex-1 lg:p-0`}>
+              {mockCells.map((c) => (
+                <CellBox key={c.id} c={c} />
+              ))}
+            </div>
+          </li>
+        )}
         {sideCells.length > 0 && (
           <li id="map-side" className="scroll-mt-28 lg:flex lg:items-center lg:gap-4 lg:px-4 lg:py-3">
             <button

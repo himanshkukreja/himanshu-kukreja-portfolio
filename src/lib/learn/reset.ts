@@ -78,7 +78,7 @@ async function del(table: string, build: (q: Filterable) => Filterable, optional
 function gameKeyInScope(key: string, scope: ResetScope): boolean {
   if (scope.kind === "all" || scope.kind === "course") {
     // the course's learn keys (other game quests stay unless the whole game is reset)
-    return /^(lesson|stage|trial|boss|world|sidequest):/.test(key);
+    return /^(lesson|stage|trial|boss|world|sidequest|mock|offer):/.test(key);
   }
   if (scope.kind === "week") {
     const w = scope.week;
@@ -110,6 +110,10 @@ function xpForKey(key: string): number {
       return LEARN_XP.world;
     case "sidequest":
       return LEARN_XP.sideQuest - LEARN_XP.lesson;
+    case "mock":
+      return LEARN_XP.mock;
+    case "offer":
+      return LEARN_XP.mockOffer;
     default:
       return 0;
   }

@@ -5,6 +5,8 @@ import type { CourseLesson } from "@/lib/learn/types";
 import { LEARN_XP, lessonKey } from "@/lib/learn/types";
 import type { LessonProgress, WeekState } from "@/lib/learn/progress";
 import { hoursLabel } from "@/lib/learn/progress";
+import type { MockStatus } from "@/lib/learn/mock/store";
+import { MockGlyph, mockStateText } from "./SkillTree";
 
 /** Selected-world panel: lessons with real titles + minutes, boss, trial parts, reward, CTA. */
 export default function WeekDetail({
@@ -15,6 +17,7 @@ export default function WeekDetail({
   done,
   onClose,
   headingId,
+  mock,
 }: {
   state: WeekState;
   lessons: Record<string, LessonProgress>;
@@ -24,6 +27,8 @@ export default function WeekDetail({
   done: Record<string, number>;
   onClose?: () => void;
   headingId?: string;
+  /** the mock interview that follows this world, if any */
+  mock?: MockStatus | null;
 }) {
   const w = state.week;
   const st = (l: CourseLesson) => lessons[lessonKey(l.week, l.slug)];
@@ -142,6 +147,24 @@ export default function WeekDetail({
           {worldEarned ? `EARNED ✓ · ${w.badge}` : `+${LEARN_XP.world} XP · ${w.badge} badge`}
         </span>
       </div>
+
+      {mock && (
+        <Link href={mock.mock.href} className="flex items-center gap-3 border border-dashed border-signal px-3.5 py-3 hover:bg-surface-2">
+          <MockGlyph state={mock.state} text={mock.mock.code} />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="font-mono text-[11px] tracking-label text-signal-text">AFTER THIS WORLD · {mockStateText(mock)}</span>
+            <span className="text-[15px] font-semibold text-fg">
+              Mock interview · {mock.mock.company}
+            </span>
+            <span className="text-xs text-fg-3">
+              {mock.mock.minutes} min · covers {mock.mock.coversLabel} · +{LEARN_XP.mock} XP
+            </span>
+          </span>
+          <span aria-hidden className="font-mono text-sm text-signal-text">
+            ❯
+          </span>
+        </Link>
+      )}
 
       {ctaLesson && ctaLabel && (
         <Link href={ctaLesson.href} className="flex min-h-[52px] items-center justify-center bg-signal px-5 text-[15px] font-semibold text-on-signal">

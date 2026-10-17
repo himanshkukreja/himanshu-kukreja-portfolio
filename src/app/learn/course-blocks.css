@@ -1291,3 +1291,83 @@
   border-top: 0;
   color: var(--c-fg-3);
 }
+
+/* ------------------------------------------------------------ side quests: "your turn" checkpoints
+ * :::checkpoint renders as a reveal card (data-sd="reveal" data-variant="checkpoint", wired by
+ * CourseEnhancer). The quest's accent (--quest-accent, set by the reader on side quests) marks the
+ * edge; elsewhere it falls back to the signal colour. */
+.course-content .sd-checkpoint {
+  position: relative;
+  margin: 28px 0;
+  padding: 18px 18px 18px 22px;
+  border: 1px solid var(--c-line-strong);
+  border-left: 4px solid var(--quest-accent, var(--c-signal));
+  background: var(--c-surface);
+}
+.course-content .sd-checkpoint .sd-rv-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--c-fg);
+  font-weight: 600;
+}
+.course-content .sd-checkpoint .sd-rv-kicker::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border: 1.5px solid var(--c-signal);
+}
+.course-content .sd-checkpoint[data-verdict] .sd-rv-kicker::before {
+  background: var(--c-signal);
+}
+.course-content .sd-cp-q {
+  margin: 4px 0 10px;
+  font-family: var(--sd-display);
+  font-size: 1.25em;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--c-fg);
+}
+.course-content .sd-cp-prompt > :last-child {
+  margin-bottom: 14px;
+}
+.course-content .sd-cp-answer-tag {
+  margin: 0 0 8px;
+  font-family: var(--sd-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-ok);
+}
+.course-content .sd-checkpoint .sd-rv-gate {
+  border-style: dashed;
+  border-color: var(--c-line-strong);
+}
+.course-content .sd-cp-plain .sd-cp-prompt > :last-child {
+  margin-bottom: 0;
+}
+/* the final challenge stage carries the quest's diamond in signal */
+.course-content section[data-stage-id="final-challenge"] .sd-stage-num {
+  -webkit-text-stroke: 0;
+  color: var(--c-signal);
+}
+@media (max-width: 640px) {
+  .course-content .sd-checkpoint {
+    margin: 22px -4px;
+    padding: 14px 14px 14px 16px;
+  }
+  .course-content .sd-checkpoint .sd-rv-gate .sd-btn {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+/* dark accents (a near-black brand colour) would vanish on true black: lift the edge a little */
+.dark .course-content .sd-checkpoint {
+  border-left-color: color-mix(in srgb, var(--quest-accent, var(--c-signal)) 78%, #ffffff 22%);
+}
+/* the quest hero's accent edge, lifted on true black like the checkpoints */
+.dark .quest-brief > :first-child {
+  border-top-color: color-mix(in srgb, var(--quest-accent) 78%, #ffffff 22%) !important;
+}

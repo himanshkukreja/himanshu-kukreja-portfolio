@@ -119,7 +119,8 @@ export function cleanTitle(rendered: RenderedLesson | null, fallback: string): s
  * plain text, cut at a sentence boundary.
  */
 export function lede(markdown: string, max = 200): string | null {
-  const lines = markdown.split("\n");
+  // a side quest's :::mission block is hero data, not prose
+  const lines = markdown.replace(/^:{3,}mission\b[^\n]*\n[\s\S]*?^:{3,}[ \t]*$/m, "").split("\n");
   let inFence = false;
   let para: string[] = [];
   const flush = () => {
@@ -140,7 +141,7 @@ export function lede(markdown: string, max = 200): string | null {
       if (isProse(text)) return trimSentence(plain(text), max);
       continue;
     }
-    if (/^(#|---|\*\*\*|\||[-*+] |\d+\. |<)/.test(t)) {
+    if (/^(#|---|\*\*\*|\||[-*+] |\d+\. |<|:{3,})/.test(t)) {
       if (para.length) flush();
       continue;
     }

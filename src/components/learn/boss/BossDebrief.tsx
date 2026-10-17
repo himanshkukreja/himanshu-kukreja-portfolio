@@ -1,11 +1,13 @@
 "use client";
 
-import { BOSS_XP, mmss, type Phase } from "./shared";
+import { mmss, type Phase, type RunCopy } from "./shared";
 import ShareButton from "@/components/share/ShareButton";
 
 const PASS = 0.7;
 
 export default function BossDebrief(props: {
+  copy: RunCopy;
+  bonusPaid: boolean;
   name: string;
   weekNum: string;
   mode: "interview" | "read";
@@ -25,7 +27,8 @@ export default function BossDebrief(props: {
   onBack?: () => void;
   onBrief: () => void;
 }) {
-  const { phases, used, revealed, drafts, checklist, rub, mode } = props;
+  const { phases, used, revealed, drafts, checklist, rub, mode, copy } = props;
+  const reward = copy.quest && props.bonusPaid && !props.defeated ? "Mark cleared · bonus already banked" : `Claim +${copy.xp} XP`;
   const interview = mode === "interview";
   // The capstone's own checklist; without one, the phases themselves are the rubric
   const items = checklist.length ? checklist : phases.map((p) => `I covered Phase ${p.n}: ${p.title}`);
@@ -50,7 +53,7 @@ export default function BossDebrief(props: {
     <div className="flex flex-col gap-7">
       <div className="flex flex-col gap-3">
         <span className="font-mono text-xs uppercase tracking-label text-signal-text">
-          Debrief{props.weekNum ? ` · Week ${props.weekNum} boss` : ""} · {interview ? "interview mode" : "read mode"}
+          Debrief{copy.quest ? " · side quest timed run" : props.weekNum ? ` · Week ${props.weekNum} boss` : ""} · {interview ? "interview mode" : "read mode"}
         </span>
         <h2 className="m-0 font-display text-[clamp(38px,5.4vw,76px)] font-extrabold leading-[0.92] tracking-[-0.05em] text-fg">
           {quote ? (
@@ -65,7 +68,7 @@ export default function BossDebrief(props: {
           )}
         </h2>
         <p className="m-0 max-w-[760px] text-[17px] leading-relaxed text-fg-2">
-          Score yourself against {checklist.length ? "the capstone's Self-Assessment Checklist" : "the phases you worked through"}. Tick only what you could do without the model answer open. You have the final word.
+          Score yourself against {checklist.length ? `the ${copy.source}'s Self-Assessment Checklist` : "the phases you worked through"}. Tick only what you could do without the model answer open. You have the final word.
         </p>
       </div>
 
@@ -82,7 +85,7 @@ export default function BossDebrief(props: {
           <div className="flex flex-col gap-1 border-b border-line px-5 py-[18px]">
             <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Rubric · {checklist.length ? "Self-Assessment Checklist" : "phases"}</span>
             <h3 id="rub-h" className="m-0 font-display text-2xl font-bold tracking-[-0.02em] text-fg">
-              {checklist.length ? "After this capstone, I can…" : "In this fight, I…"}
+              {checklist.length ? `After this ${copy.source}, I can…` : copy.quest ? "In this run, I…" : "In this fight, I…"}
             </h3>
           </div>
           <ul className="m-0 flex list-none flex-col px-3 py-2">
@@ -120,13 +123,17 @@ export default function BossDebrief(props: {
                   <span className="-rotate-45 font-mono text-lg font-semibold text-on-signal">✓</span>
                 </div>
                 <span className="font-display text-[38px] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
-                  Boss defeated<span className="text-signal-text">.</span>
+                  {copy.win}<span className="text-signal-text">.</span>
                 </span>
               </div>
               <span className="text-[15px] leading-relaxed text-fg-2">
-                {props.defeated
-                  ? "The boss node on this week's skill tree is cleared and the XP is yours."
-                  : `${ticked} of ${n} on the checklist. Claim the reward to clear the boss node on your skill tree.`}
+                {copy.quest
+                  ? props.defeated
+                    ? "Cleared under interview conditions. The side-quest bonus is yours."
+                    : `${ticked} of ${n} on the checklist. Claim it to bank the side-quest bonus.`
+                  : props.defeated
+                    ? "The boss node on this week's skill tree is cleared and the XP is yours."
+                    : `${ticked} of ${n} on the checklist. Claim the reward to clear the boss node on your skill tree.`}
               </span>
               <button
                 type="button"
@@ -134,9 +141,9 @@ export default function BossDebrief(props: {
                 disabled={props.defeated}
                 className="min-h-[52px] bg-signal px-5 text-base font-semibold text-on-signal hover:opacity-90 disabled:cursor-default disabled:bg-surface-2 disabled:text-fg-2"
               >
-                {props.defeated ? `Claimed · +${BOSS_XP} XP ✓` : `Claim +${BOSS_XP} XP`}
+                {props.defeated ? (copy.quest ? "Cleared ✓" : `Claimed · +${copy.xp} XP ✓`) : reward}
               </button>
-              {props.defeated && props.weekNum && <ShareButton kind="boss" achievement={`boss-${props.weekNum}`} title={props.weekNum} detail={props.name} label="Share the win" className="min-h-[52px]" />}
+              {props.defeated && !copy.quest && props.weekNum && <ShareButton kind="boss" achievement={`boss-${props.weekNum}`} title={props.weekNum} detail={props.name} label="Share the win" className="min-h-[52px]" />}
             </div>
           ) : passed ? (
             <div className="flex flex-col gap-3.5 border border-line-strong bg-surface p-6">
@@ -145,18 +152,18 @@ export default function BossDebrief(props: {
               </span>
               <span className="text-[15px] leading-relaxed text-fg-2">
                 You cleared the rubric in read mode.{" "}
-                {props.onRetry ? `Run it in interview mode, answers hidden${props.timed ? " and clock on" : ""}, to claim the +${BOSS_XP} XP.` : "XP is only awarded in a timed interview."}
+                {props.onRetry ? `Run it in interview mode, answers hidden${props.timed ? " and clock on" : ""}, to claim the +${copy.xp} XP.` : "XP is only awarded in a timed interview."}
               </span>
               {props.onRetry && (
                 <button type="button" onClick={props.onRetry} className="min-h-[52px] bg-signal px-5 text-base font-semibold text-on-signal hover:opacity-90">
-                  Fight it in interview mode
+                  {copy.quest ? "Run it in interview mode" : "Fight it in interview mode"}
                 </button>
               )}
             </div>
           ) : (
             <div className="flex flex-col gap-3.5 border border-bad bg-surface p-6">
               <span className="font-mono text-xs tracking-label text-bad-text">
-                BOSS STILL STANDING · {ticked}/{n}
+                {copy.quest ? "NOT CLEARED YET" : "BOSS STILL STANDING"} · {ticked}/{n}
               </span>
               <span className="font-display text-[34px] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
                 Not yet<span className="text-signal-text">.</span>

@@ -10,6 +10,7 @@
  *   hk.reveal.v1                      interview "review again" marks (imported into the queue)
  *   hk.trial.v1:<course>:<week>       trial records + run in progress
  *   hk.boss.v1:<week>/<slug>[:draft:<phase>]  boss mode state and drafts
+ *   hk.mock.v1:<mock id>              mock interview round: notes, whiteboard, clock, self-scores
  *   mcq-answers:<course>:<week>:<slug>        guest MCQ answers
  *   sd:check:<week>/<slug>, sd:verdict:<week>/<slug>  lesson checklists / interview verdicts
  *   hk.goal.v1                        weekly goal (guests)
@@ -30,7 +31,7 @@ export const KEYS = {
   goal: GOAL_STORAGE_KEY,
 } as const;
 
-const PREFIXES = ["hk.trial.v1:", "hk.boss.v1:", "mcq-answers:", "sd:check:", "sd:verdict:"];
+const PREFIXES = ["hk.trial.v1:", "hk.boss.v1:", "hk.mock.v1:", "mcq-answers:", "sd:check:", "sd:verdict:"];
 
 export type GuestLesson = { stages?: string[]; last?: string | null; completed?: boolean; completedAt?: number; max?: number; updatedAt?: number };
 export type GameState = { xp: number; done: Record<string, number>; flags: Record<string, unknown> };
@@ -178,10 +179,11 @@ export function resetLocal(map: CourseMap, scope: ResetScope, parts: ResetParts,
       const xp = Math.max(0, game.xp - res.xp);
       const flags = { ...game.flags };
       res.dropped.filter((k) => k.startsWith("world:")).forEach((k) => delete flags[`learn:cleared:${k.slice(6)}`]);
+      res.dropped.filter((k) => k.startsWith("mock:")).forEach((k) => delete flags[k]);
       if (typeof flags["learn:levelSeen"] === "number") flags["learn:levelSeen"] = Math.min(flags["learn:levelSeen"] as number, levelIndex(xp));
       write(KEYS.game, { xp, done: res.done, flags });
       bump(r, "checkpoints", res.dropped.filter((k) => k.startsWith("stage:")).length);
-      bump(r, "completions", res.dropped.filter((k) => /^(lesson|boss|sidequest|world):/.test(k)).length);
+      bump(r, "completions", res.dropped.filter((k) => /^(lesson|boss|sidequest|world|mock):/.test(k)).length);
       bump(r, "trial parts", res.dropped.filter((k) => k.startsWith("trial:")).length);
       bump(r, "XP", game.xp - xp);
     }
@@ -189,7 +191,10 @@ export function resetLocal(map: CourseMap, scope: ResetScope, parts: ResetParts,
 
   // per-lesson stores
   allKeys().forEach((k) => {
-    if (parts.progress && k.startsWith("hk.boss.v1:")) {
+    if (parts.progress && k.startsWith("hk.mock.v1:") && (scope.kind === "all" || (scope.kind === "course" && scope.course === c))) {
+      remove(k);
+      bump(r, "mock interview rounds");
+    } else if (parts.progress && k.startsWith("hk.boss.v1:")) {
       const wl = splitLesson(k.slice(11).split(":draft:")[0]);
       if (wl && inScope(scope, c, wl[0], wl[1])) {
         remove(k);
