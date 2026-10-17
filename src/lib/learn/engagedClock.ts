@@ -65,8 +65,8 @@ export function lessonTimeCap(readingMinutes: number | undefined): number {
 // ---------------------------------------------------------------------------------------------
 // Reading rules: when does a lesson stage / case-file section count as read?
 //
-// A stage is read only after real engaged reading time IN that stage (≥ 35% of its estimated
-// minutes, 20 s – 6 min) AND after most of it (80%) has been on screen during those reading
+// A stage is read only after real engaged reading time IN that stage (≥ 25% of its estimated
+// minutes, 20 s – 6 min) AND after most of it (60%) has been on screen during those reading
 // seconds. A reading second needs: tab visible, input in the last 60 s (or read-aloud playing),
 // the scroll position settled (moving < 1 viewport height per second, and not in the second right
 // after a jump), and the reading line inside the stage. Jumps (anchors, TOC, "discussion", End,
@@ -74,11 +74,11 @@ export function lessonTimeCap(readingMinutes: number | undefined): number {
 
 export const READING = {
   /** engaged time needed in a stage, as a share of its estimated reading time */
-  share: 0.35,
+  share: 0.25,
   minSec: 20,
   maxSec: 360,
   /** share of the stage that must have been on screen while reading */
-  coverage: 0.8,
+  coverage: 0.6,
   /** coverage resolution: each stage is split into this many slices (bitmask) */
   bins: 20,
   /** explicit "mark complete" unlocks at this share of the summed stage requirement */

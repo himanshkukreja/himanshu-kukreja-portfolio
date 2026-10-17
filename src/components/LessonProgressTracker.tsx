@@ -3,8 +3,8 @@
 /**
  * Stage-based lesson progress, earned by reading time.
  *
- * - A stage counts as read only after real engaged reading time IN it (≥ 35% of its estimated
- *   minutes, 20 s – 6 min) with 80% of it on screen while reading — see READING in
+ * - A stage counts as read only after real engaged reading time IN it (≥ 25% of its estimated
+ *   minutes, 20 s – 6 min) with 60% of it on screen while reading — see READING in
  *   lib/learn/engagedClock. Jumping or scrolling past (anchors, TOC, "discussion", End/PageDown,
  *   flicks) never completes anything, and time below the article (end card, discussion) counts
  *   for no stage. Reading seconds per stage persist on this device (`hk.lesson.v1` → dwell/seen).

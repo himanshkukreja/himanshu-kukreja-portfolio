@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useLessonProgress, isOptionalStage } from "@/components/LessonProgressTracker";
+import { useLessonProgress, isOptionalStage, type StageReading } from "@/components/LessonProgressTracker";
+import { READING } from "@/lib/learn/engagedClock";
 import { useChromeHidden } from "@/components/site/readerChrome";
 import type { Stage } from "@/lib/course/types";
 import { scrollToId } from "./layout";
@@ -16,11 +17,31 @@ function stageState(id: string, current: string, done: ReadonlySet<string>, comp
   return id === current ? "cur" : "ahead";
 }
 
+/** "~40 s", "~3 min": reading time still needed (10 s steps under 90 s, so it visibly counts down). */
+function leftText(seconds: number): string {
+  return seconds > 90 ? `~${Math.ceil(seconds / 60)} min` : `~${Math.max(10, Math.ceil(seconds / 10) * 10)} s`;
+}
+
+/**
+ * What the current stage still needs before it clears, so it never looks stuck: "~40 s more"
+ * while reading time is short, "read to the end" once the time is in but too little of it has been
+ * on screen, null when it's done (or there's nothing to say yet).
+ */
+export function stageHint(r: StageReading | undefined, isDone: boolean): string | null {
+  if (isDone) return "read ✓";
+  if (!r) return null;
+  const left = r.need - r.seconds;
+  if (left > 0) return `${leftText(left)} more`;
+  if (r.coverage < READING.coverage) return "read to the end";
+  return null;
+}
+
 /** Tooltip for "Save checkpoint": a bookmark, which also clears the stage once its reading time is met. */
-export function checkpointHint(r: { seconds: number; need: number } | undefined): string {
+export function checkpointHint(r: StageReading | undefined): string {
   if (!r) return "Save checkpoint";
   const left = r.need - r.seconds;
-  return left <= 0 ? "Save checkpoint · clears this stage" : `Save checkpoint · resume here. The stage clears after ~${Math.max(1, Math.ceil(left / 60))} more min of reading`;
+  if (left > 0) return `Save checkpoint · resume here. The stage clears after ${leftText(left)} more of reading`;
+  return r.coverage < READING.coverage ? "Save checkpoint · read on through this stage to clear it" : "Save checkpoint · clears this stage";
 }
 
 const glyphBase = "grid h-[18px] w-[18px] shrink-0 place-items-center text-[10px]";
@@ -106,6 +127,7 @@ function CompactStageBar({ show, onOpenContents }: { show: boolean; onOpenConten
   const nDone = doneCount(p);
   const curDone = completed || done.has(current);
   const st = stageState(current, current, done, completed);
+  const hint = completed ? null : stageHint(reading[current], curDone);
   return (
     <div
       data-stage-rail
@@ -126,6 +148,7 @@ function CompactStageBar({ show, onOpenContents }: { show: boolean; onOpenConten
         <span className="flex w-full items-center justify-between gap-3 font-mono text-[11px] text-fg-2">
           <span className="truncate">
             {line}
+            {hint && <span className={curDone ? "text-fg-3" : "text-signal-text"}> · {hint}</span>}
             {!completed && ` · ~${minutesLeft} min left`}
           </span>
           <span className="shrink-0 text-fg-3">contents ▾</span>
@@ -135,6 +158,7 @@ function CompactStageBar({ show, onOpenContents }: { show: boolean; onOpenConten
         <span className="flex min-w-0 shrink-0 items-center gap-2">
           <StageGlyph state={st} />
           <span className="truncate font-mono text-xs font-semibold text-fg">{line}</span>
+          {hint && <span className={`whitespace-nowrap font-mono text-[11px] ${curDone ? "text-fg-3" : "text-signal-text"}`} aria-live="polite">{hint}</span>}
           <span className="whitespace-nowrap font-mono text-[11px] text-fg-3">{completed ? "all cleared" : `~${minutesLeft} min left · ${nDone}/${numbered.length}`}</span>
         </span>
         <ol aria-label="Lesson stages" className="m-0 flex min-w-0 flex-1 list-none gap-[3px] p-0">
@@ -178,6 +202,7 @@ export default function StageRail({ onOpenContents }: { onOpenContents: () => vo
   const nDone = doneCount(p);
   const curDone = completed || done.has(current);
   const leftLine = completed ? "all stages cleared" : `~${minutesLeft} min left · ${nDone}/${numbered.length} done`;
+  const hint = completed ? null : stageHint(reading[current], curDone);
 
   return (
     <>
@@ -188,6 +213,7 @@ export default function StageRail({ onOpenContents }: { onOpenContents: () => vo
           <span className="flex w-full items-center justify-between gap-3 font-mono text-[11px] text-fg-2">
             <span className="truncate">
               {line}
+              {hint && <span className={curDone ? "text-fg-3" : "text-signal-text"}> · {hint}</span>}
               {!completed && ` · ~${minutesLeft} min left`}
             </span>
             <span className="shrink-0 text-fg-3">contents ▾</span>
@@ -228,6 +254,7 @@ export default function StageRail({ onOpenContents }: { onOpenContents: () => vo
                         <span className="whitespace-nowrap font-mono text-[11px] text-fg-3">{s.budgetMinutes ?? s.minutes} min</span>
                       </span>
                       <span className="line-clamp-1 text-[13px] leading-tight">{s.title}</span>
+                      {s.id === current && hint && st === "cur" && <span className="font-mono text-[10px] leading-none text-signal-text" aria-live="polite">{hint}</span>}
                     </button>
                   </li>
                 );
