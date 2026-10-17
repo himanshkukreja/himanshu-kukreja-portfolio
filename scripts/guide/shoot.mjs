@@ -471,7 +471,7 @@ shot("hub-side", () =>
       const sec = await rectOf(page, 'section[aria-labelledby="side-h"]');
       await capture(page, "hub-side", v, {
         clip: { x: sec.x - 16, y: sec.y - 16, width: sec.width + 32, height: Math.min(460, sec.height + 32) },
-        alt: "Side quests: eleven real systems (UPI, WhatsApp, Aadhaar, Netflix…) designed end to end, each worth 120 XP.",
+        alt: "Side quests: twelve real systems (UPI, WhatsApp, Aadhaar, Netflix…) designed end to end, each worth 120 XP.",
         callouts: [{ n: 1, label: "Side quests: open any time, +120 XP each", sel: 'section[aria-labelledby="side-h"] a', at: "tl" }],
       });
     },

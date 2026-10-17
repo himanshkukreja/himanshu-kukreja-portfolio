@@ -246,7 +246,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 <strong>+{LEARN_XP.world} XP</strong> and that world&apos;s badge. On a phone, tap a world to open the same panel as a sheet.
               </p>
               <p>
-                <strong>Side quests</strong> ({s?.sideQuests ?? 11} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each. The
+                <strong>Side quests</strong> ({s?.sideQuests ?? 12} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each. The
                 dashed card at the bottom of the hub, <strong>The Plan</strong>, is the 10-week roadmap.
               </p>
             </div>

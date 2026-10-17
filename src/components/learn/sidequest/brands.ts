@@ -3,10 +3,10 @@
  *
  * These are NOT the companies' logos or brand artwork. Each quest gets an original emblem drawn
  * for this course (QuestEmblem.tsx) that evokes the product's engineering problem (a QR finder
- * for UPI, a play tile for streaming video, a train for IRCTC…), tinted with the product's general
+ * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit…), tinted with the product's general
  * colour as an accent. The product is always named in text.
  */
-export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train";
+export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt";
 
 export type QuestBrand = {
   /** bonus number, 1-based */
@@ -34,6 +34,7 @@ const BRANDS: Record<number, QuestBrand> = {
   9: { n: 9, product: "Uber", field: "Ride-hailing", emblem: "map", accent: "#141414", ink: "#FFFFFF" },
   10: { n: 10, product: "Twitter / X", field: "Social timelines", emblem: "fanout", accent: "#1D9BF0", ink: "#FFFFFF" },
   11: { n: 11, product: "IRCTC Tatkal", field: "Ticket booking", emblem: "train", accent: "#1F3C88", ink: "#FFFFFF" },
+  12: { n: 12, product: "Blinkit", field: "Quick commerce", emblem: "bolt", accent: "#F8C51C", ink: "#1A1600" },
 };
 
 const FALLBACK: Omit<QuestBrand, "n"> = { product: "Side quest", field: "System design", emblem: "fanout", accent: "#0B0B0B", ink: "#FFFFFF" };

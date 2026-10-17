@@ -155,6 +155,15 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <path d="M24 45l-8 11M40 45l8 11M19 52h26" {...S} />
         </>
       );
+    case "bolt": // a grocery bag stamped with a lightning bolt, speed lines behind it
+      return (
+        <>
+          <rect x={17} y={24} width={34} height={30} {...S} />
+          <path d="M27 24v-5a7 7 0 0 1 14 0v5" {...S} />
+          <path d="M37 29l-10 13h7l-3 9 10-13h-7z" {...F} />
+          <path d="M6 33h7M4 39h9M7 45h6" {...S} strokeWidth={2} />
+        </>
+      );
   }
 }
 

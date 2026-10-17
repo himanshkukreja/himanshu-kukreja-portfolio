@@ -438,7 +438,9 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
   while (k < nodes.length && nodes[k].type === "thematicBreak") k++;
   let body = nodes.slice(k).filter((n) => !(n.type === "heading" && n.depth === 2 && SERIES_RE.test(stripEmoji(toText(n)))));
   let lede: SdEl | null = null;
-  if (body[0]?.type === "heading" && (body[0] as Heading).depth === 1 && startsWithEmoji(toText(body[0])) && !majorStage(toText(body[0]), kind)) {
+  // The lede is an h1 marked with a leading emoji; side quests may instead open with an emoji-free h1 question.
+  const ledeText = body[0]?.type === "heading" && (body[0] as Heading).depth === 1 ? toText(body[0]) : "";
+  if (ledeText && (startsWithEmoji(ledeText) || (kind === "bonus" && /\?\s*$/.test(ledeText))) && !majorStage(ledeText, kind)) {
     lede = el("p", { className: ["sd-lede"], dataSd: "lede" }, [text(stripEmoji(toText(body[0])))], { component: "lede" });
     body = body.slice(1);
   }
