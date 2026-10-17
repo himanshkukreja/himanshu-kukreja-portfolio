@@ -70,6 +70,14 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" suppressHydrationWarning={true}>
+      {/* Icons in <head> on every page. Pages with an async generateMetadata behind a loading.tsx
+          (lessons, side quests) get their metadata streamed into <body>, where browsers ignore
+          favicons, so the file-convention <link>s alone left those tabs without an icon. */}
+      <head>
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-icon.png" />
+      </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased pb-24 lg:pb-0`}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON_LD) }} />
         <RouteProgress />
