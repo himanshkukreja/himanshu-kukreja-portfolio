@@ -5,7 +5,7 @@
  * so what the owner previews is exactly what a new learner gets.
  *
  * Every claim is checked against what ships: course map (src/lib/learn/course.ts: 11 worlds, 66 core
- * lessons, 10 bosses, 12 side quests), quick checks (src/app/learn/page.tsx "1,000+"), Arena daily
+ * lessons, 10 bosses, 13 side quests), quick checks (src/app/learn/page.tsx "1,000+"), Arena daily
  * (DAILY_N = 5, DAILY_SECONDS = 20, Asia/Kolkata day), leagues/leaderboard, games (60-90 s), progress
  * page (/learn/dashboard: course map, streaks, weekly goal), review (/learn/review), notebook
  * (/learn/notebook: highlights, notes, bookmarks), Ask Claude / ChatGPT (src/lib/learn/askAi.ts),
@@ -230,7 +230,7 @@ export function welcomeHtml({ email, name }: WelcomeInput): string {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${C.line};background:${C.raised};">
               <tr>${STATS.map(statCell).join("")}</tr>
             </table>
-            <div style="${LABEL_CSS}color:${C.ink3};margin:10px 0 0 0;"><span style="white-space:nowrap;">+ 12 side quests</span> &nbsp;·&nbsp; <span style="white-space:nowrap;">themed diagrams</span> &nbsp;·&nbsp; <span style="white-space:nowrap;">no paywall</span></div>
+            <div style="${LABEL_CSS}color:${C.ink3};margin:10px 0 0 0;"><span style="white-space:nowrap;">+ 13 side quests</span> &nbsp;·&nbsp; <span style="white-space:nowrap;">themed diagrams</span> &nbsp;·&nbsp; <span style="white-space:nowrap;">no paywall</span></div>
           </td>
         </tr>
 
@@ -310,7 +310,7 @@ export function welcomeText({ email, name }: WelcomeInput): string {
     "",
     "Reading is open to everyone. Your account turns it into something you can work through: your progress, streak and notes now follow you to any device.",
     "",
-    STATS.map((s) => `${s.n} ${s.label}`).join(" · ") + " · + 12 side quests",
+    STATS.map((s) => `${s.n} ${s.label}`).join(" · ") + " · + 13 side quests",
     "",
     `Start lesson 1 (World 00, Part 1: System Design Fundamentals):`,
     WELCOME_LINKS.firstLesson,

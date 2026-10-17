@@ -164,6 +164,16 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <path d="M6 33h7M4 39h9M7 45h6" {...S} strokeWidth={2} />
         </>
       );
+    case "candles": // three rising candlesticks over a baseline, the last one lit by the open
+      return (
+        <>
+          <path d="M18 29v6M18 47v5M32 20v6M32 40v6M46 10v6M46 31v5" {...S} strokeWidth={2} />
+          <rect x={13} y={35} width={10} height={12} {...S} />
+          <rect x={27} y={26} width={10} height={14} {...F} />
+          <rect x={41} y={16} width={10} height={15} {...F} />
+          <path d="M8 56h48" {...S} />
+        </>
+      );
   }
 }
 
