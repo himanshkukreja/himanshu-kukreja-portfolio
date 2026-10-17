@@ -1,6 +1,7 @@
 /**
- * Starting points for a campaign. The learn-revamp announcement and the welcome email are generated
- * from their source modules (src/lib/announce/learn-revamp.ts, src/lib/email/welcome.ts), so edits to
+ * Starting points for a campaign. The learn-revamp and offline-app announcements and the welcome email
+ * are generated from their source modules (src/lib/announce/learn-revamp.ts, src/lib/announce/
+ * offline-app.ts, src/lib/email/welcome.ts), so edits to
  * those files flow through and a campaign sends exactly the approved design:
  *
  *   render once with a sentinel name and once without → line diff → name-dependent lines become
@@ -10,6 +11,7 @@
  * The blank newsletter is a block document in the same layout.
  */
 import { ANNOUNCE_KEY, announceSubject, learnRevampHtml, learnRevampText, unsubscribeUrl } from "@/lib/announce/learn-revamp";
+import { OFFLINE_APP_KEY, OFFLINE_APP_PREHEADER, offlineAppHtml, offlineAppSubject, offlineAppText } from "@/lib/announce/offline-app";
 import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
 import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
 import type { TemplateInfo } from "./types";
@@ -84,6 +86,20 @@ function learnRevampTemplate(): TemplateInfo {
   };
 }
 
+function offlineAppTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/offline-app.ts", html: fromSource(offlineAppHtml, unsub), text: fromSource(offlineAppText, unsub) };
+  return {
+    id: "offline-app",
+    name: "Offline course + app",
+    description: "Announces the installable app and offline reading, with a 5-step setup guide and screenshots (iPhone, Android, laptop). Generated from src/lib/announce/offline-app.ts.",
+    topic: OFFLINE_APP_KEY,
+    ...subjectTemplate(offlineAppSubject),
+    preheader: OFFLINE_APP_PREHEADER,
+    doc,
+  };
+}
+
 function welcomeTemplate(): TemplateInfo {
   const unsub = welcomeUnsubscribeUrl(S_EMAIL);
   const doc: RawDoc = { layout: "raw", source: "src/lib/email/welcome.ts", html: fromSource(welcomeHtml, unsub), text: fromSource(welcomeText, unsub) };
@@ -144,7 +160,7 @@ function storyTemplate(): TemplateInfo {
 
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [storyTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [storyTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {
