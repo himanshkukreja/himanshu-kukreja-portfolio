@@ -12,7 +12,7 @@ import { useMemo, useState } from "react";
 import { Card, ConfirmButton, ErrorState, PageHead, Skeleton, Tabs, fmtDate, useAdminClient, useAdminData } from "@/components/admin/ui";
 import { Field, FlashLine, btnCls, inputCls, primaryBtnCls, useFlash } from "@/components/admin/content/common";
 import { contentProblems } from "@/lib/campaigns/validate";
-import type { Campaign, CampaignSummary, EventRow, NewsletterInfo, RecipientPreview, StoryOption, TemplateInfo } from "@/lib/campaigns/types";
+import type { Campaign, CampaignSummary, EventRow, NamedPerson, NewsletterInfo, RecipientPreview, StoryOption, TemplateInfo } from "@/lib/campaigns/types";
 import AudiencePicker from "./AudiencePicker";
 import Composer from "./Composer";
 import EmailPreview, { RecipientPicker } from "./EmailPreview";
@@ -20,6 +20,7 @@ import Report from "./Report";
 import SendPanel from "./SendPanel";
 import { CampaignBadge, Note, SetupBanners, jsonInit } from "./bits";
 import StoryPicker from "./StoryPicker";
+import { RecipientNamesDrawer } from "./RecipientNames";
 import { applyStory, draftFromCampaign, draftFromTemplate, type Draft } from "./types";
 
 type DraftTab = "compose" | "audience" | "preview" | "send";
@@ -56,6 +57,16 @@ export default function CampaignPage({ id }: { id: string }) {
   const draft = edits ?? base;
   const dirty = isNew || edits !== null;
   const [as, setAs] = useState<RecipientPreview | null>(null);
+  const [nameFor, setNameFor] = useState<string | null>(null);
+  const [namesVersion, setNamesVersion] = useState(0);
+  // a name saved in the Recipients panel shows up in "preview as" (and its search list) right away
+  const onNamesSaved = (people: NamedPerson[]) => {
+    setNamesVersion((v) => v + 1);
+    setAs((cur) => {
+      const p = cur && people.find((x) => x.email === cur.email);
+      return p && cur ? { ...cur, name: p.name, nameSource: p.source, vars: { ...cur.vars, name: p.name || "", first_name: p.firstName } } : cur;
+    });
+  };
   const [saving, setSaving] = useState(false);
   const [testTo, setTestTo] = useState("");
   const [testing, setTesting] = useState(false);
@@ -215,11 +226,19 @@ export default function CampaignPage({ id }: { id: string }) {
         </div>
       )}
 
-      {tab === "audience" && <AudiencePicker spec={draft.audience} onChange={(audience) => set({ ...draft, audience })} campaignId={campaign?.id} storySlug={draft.doc.layout === "blocks" ? (draft.doc.story?.slug ?? null) : null} />}
+      {tab === "audience" && (
+        <AudiencePicker
+          spec={draft.audience}
+          onChange={(audience) => set({ ...draft, audience })}
+          campaignId={campaign?.id}
+          storySlug={draft.doc.layout === "blocks" ? (draft.doc.story?.slug ?? null) : null}
+          onNamesSaved={onNamesSaved}
+        />
+      )}
 
       {tab === "preview" && (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
-          <EmailPreview draft={draft} base={trackingBase} as={as} setAs={setAs} />
+          <EmailPreview draft={draft} base={trackingBase} as={as} setAs={setAs} onEditName={(r) => setNameFor(r.email)} namesVersion={namesVersion} />
           <div className="flex flex-col gap-4">
             <Card label="test send" title="Send a [test] copy">
               <div className="flex flex-col gap-3">
@@ -260,6 +279,7 @@ export default function CampaignPage({ id }: { id: string }) {
             info.refresh();
           }}
           say={say}
+          onNamesSaved={onNamesSaved}
         />
       )}
 
@@ -279,6 +299,7 @@ export default function CampaignPage({ id }: { id: string }) {
         </div>
       )}
 
+      <RecipientNamesDrawer open={!!nameFor} onClose={() => setNameFor(null)} scope={{ spec: null }} query={nameFor || undefined} onSaved={onNamesSaved} title="Recipient name" />
       <FlashLine flash={flash} onDismiss={clear} />
     </div>
   );

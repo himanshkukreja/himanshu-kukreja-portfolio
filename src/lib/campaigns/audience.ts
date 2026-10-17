@@ -12,6 +12,10 @@
  * Always excluded: unsubscribed (newsletter_subscribers), suppressed (bounces, email_suppressions),
  * banned accounts. Addresses are lower-cased and de-duplicated. Base data is cached for 60 s so the
  * composer's live counts are cheap.
+ *
+ * Names (names-core.ts): admin override (email_names) → user_profiles.full_name → auth metadata name
+ * → none. Applied to recipients, "preview as", test sends and per-batch merge vars at send time (the
+ * batch re-reads overrides fresh, so names saved after queuing reach not-yet-sent messages).
  */
 import { supabase } from "@/lib/supabase";
 import { learnActiveUserIds } from "@/lib/announce/audience";
@@ -19,7 +23,9 @@ import { COURSE_ID } from "@/lib/learn/course";
 import { SITE } from "./links";
 import { firstNameOf, type MergeVars } from "./tags";
 import { getStore } from "./store";
-import type { AudienceCount, AudienceSpec, Recipient, RecipientPreview } from "./types";
+import { getNamesStore, type NameOverride } from "./names";
+import { resolveName, type NameSource } from "./names-core";
+import type { AudienceCount, AudienceSpec, NamedPerson, Recipient, RecipientPreview } from "./types";
 
 const PAGE = 1000;
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
@@ -28,7 +34,10 @@ const lc = (s: string) => s.toLowerCase().trim();
 type Person = {
   userId: string;
   email: string;
-  name: string | null;
+  /** user_profiles.full_name */
+  profileName: string | null;
+  /** auth user_metadata.full_name / name */
+  metaName: string | null;
   createdAt: string | null;
   streak: number;
   completed: number;
@@ -44,6 +53,9 @@ type Base = {
   unsubscribed: Set<string>;
   suppressed: Set<string>;
   titles: Map<string, { title: string; href: string }>;
+  /** admin-set names (email_names); empty until the migration is applied */
+  overrides: Map<string, NameOverride>;
+  namesReady: boolean;
 };
 
 async function pageAll<T>(fn: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { message: string } | null }>, soft = true): Promise<T[]> {
@@ -91,7 +103,7 @@ let baseCache: { at: number; value: Promise<Base> } | null = null;
 async function buildBase(): Promise<Base> {
   type Prof = { id: string; full_name: string | null; current_streak?: number | null; total_lessons_completed?: number | null };
   type Prog = { user_id: string; course_id: string | null; week: string; lesson_slug: string; status: string | null; last_accessed_at: string | null; updated_at: string | null; completed_at: string | null };
-  const [users, active, profiles, progress, streaks, subs, blocked, titles] = await Promise.all([
+  const [users, active, profiles, progress, streaks, subs, blocked, titles, names] = await Promise.all([
     authUsers(),
     learnActiveUserIds(),
     pageAll<Prof>((a, b) => supabase.from("user_profiles").select("id, full_name, current_streak, total_lessons_completed").range(a, b)).then(async (rows) =>
@@ -102,6 +114,9 @@ async function buildBase(): Promise<Base> {
     pageAll<{ email: string; unsubscribed: boolean | null }>((a, b) => supabase.from("newsletter_subscribers").select("email, unsubscribed").range(a, b), false),
     getStore().allBlocked(),
     lessonTitles(),
+    getNamesStore()
+      .all()
+      .catch(() => ({ ready: false, map: new Map<string, NameOverride>() })),
   ]);
 
   const prof = new Map(profiles.map((p) => [p.id, p]));
@@ -138,7 +153,8 @@ async function buildBase(): Promise<Base> {
     people.set(email, {
       userId: u.id,
       email,
-      name: p?.full_name || metaName || null,
+      profileName: p?.full_name || null,
+      metaName,
       createdAt: u.created_at || null,
       streak: Number(p?.current_streak || 0),
       completed: Math.max(s?.done.size || 0, Number(p?.total_lessons_completed || 0)),
@@ -149,7 +165,18 @@ async function buildBase(): Promise<Base> {
   }
   const subscribers = new Set<string>();
   for (const r of subs) if (r.email && !r.unsubscribed) subscribers.add(lc(r.email));
-  return { at: now, people, subscribers, unsubscribed: blocked.unsubscribed, suppressed: blocked.suppressed, titles };
+  return { at: now, people, subscribers, unsubscribed: blocked.unsubscribed, suppressed: blocked.suppressed, titles, overrides: names.map, namesReady: names.ready };
+}
+
+/**
+ * The name the campaign service uses for an address: override → profile → metadata → none. Always
+ * from live data, never from the name frozen into the queue, so a name saved (or cleared) after
+ * queuing is what not-yet-sent messages use.
+ */
+function nameOf(b: Base, email: string, overrides: Map<string, NameOverride> = b.overrides): { name: string | null; source: NameSource } {
+  const e = lc(email);
+  const p = b.people.get(e);
+  return resolveName({ override: overrides.get(e)?.name, profile: p?.profileName, metadata: p?.metaName });
 }
 
 async function base(): Promise<Base> {
@@ -242,7 +269,7 @@ export async function resolveAudience(spec: AudienceSpec, opts: { exclude?: Set<
       continue;
     }
     const p = b.people.get(e);
-    recipients.push({ email: e, name: p?.name || null, userId: p?.userId || null });
+    recipients.push({ email: e, name: nameOf(b, e).name, userId: p?.userId || null });
   }
   recipients.sort((x, y) => x.email.localeCompare(y.email));
   return { recipients, count: { eligible: recipients.length, unsubscribed, suppressed, invalid, duplicates, alreadyQueued, alreadyGotStory, sample: recipients.slice(0, 6).map((r) => r.email) } };
@@ -254,9 +281,9 @@ export async function presetCounts(): Promise<Record<"all" | "learners" | "subsc
   return { all: all.count.eligible, learners: learners.count.eligible, subscribers: subscribers.count.eligible, subscribers_learners: both.count.eligible, never_started: never.count.eligible };
 }
 
-function varsFromBase(b: Base, email: string, fallbackName?: string | null): MergeVars {
+function varsFromBase(b: Base, email: string, overrides?: Map<string, NameOverride>): MergeVars {
   const p = b.people.get(lc(email));
-  const name = (p?.name || fallbackName || "").trim();
+  const name = (nameOf(b, email, overrides).name || "").trim();
   let current = "";
   let resume = `${SITE}/learn`;
   if (p?.current) {
@@ -277,10 +304,25 @@ function varsFromBase(b: Base, email: string, fallbackName?: string | null): Mer
   };
 }
 
-/** Merge data for a batch (fresh within 60 s). `unsubscribe_url` is filled in by the sender. */
-export async function mergeVarsFor(list: { email: string; name?: string | null }[]): Promise<Map<string, MergeVars>> {
+/**
+ * Merge data for a batch (progress fresh within 60 s; names re-read for these addresses on every
+ * call, so a name saved in the Recipients panel after queuing — on any server instance — is used for
+ * every message not yet sent). `unsubscribe_url` is filled in by the sender.
+ */
+export async function mergeVarsFor(list: { email: string }[]): Promise<Map<string, MergeVars>> {
   const b = await base();
-  return new Map(list.map((r) => [lc(r.email), varsFromBase(b, r.email, r.name)]));
+  const emails = list.map((r) => lc(r.email));
+  const fresh = b.namesReady ? await getNamesStore().get(emails).catch(() => null) : null;
+  let overrides = b.overrides;
+  if (fresh) {
+    overrides = new Map(b.overrides);
+    for (const e of emails) {
+      const o = fresh.get(e);
+      if (o) overrides.set(e, o);
+      else overrides.delete(e);
+    }
+  }
+  return new Map(list.map((r) => [lc(r.email), varsFromBase(b, r.email, overrides)]));
 }
 
 /** "Preview as": search accounts + subscribers by email or name. */
@@ -290,8 +332,10 @@ export async function searchRecipients(q: string, limit = 8): Promise<RecipientP
   const out: RecipientPreview[] = [];
   const push = (email: string, source: RecipientPreview["source"]) => {
     const p = b.people.get(email);
-    out.push({ email, name: p?.name || null, userId: p?.userId || null, vars: varsFromBase(b, email), source });
+    const n = nameOf(b, email);
+    out.push({ email, name: n.name, nameSource: n.source, userId: p?.userId || null, vars: varsFromBase(b, email), source });
   };
+  const hit = (email: string) => !term || email.includes(term) || (nameOf(b, email).name || "").toLowerCase().includes(term);
   if (EMAIL_RE.test(term) && !b.people.has(term) && !b.subscribers.has(term)) {
     push(term, "custom");
     return out;
@@ -299,11 +343,69 @@ export async function searchRecipients(q: string, limit = 8): Promise<RecipientP
   const people = [...b.people.values()].sort((x, y) => y.lastActivity - x.lastActivity);
   for (const p of people) {
     if (out.length >= limit) break;
-    if (!term || p.email.includes(term) || (p.name || "").toLowerCase().includes(term)) push(p.email, "account");
+    if (hit(p.email)) push(p.email, "account");
   }
   for (const e of b.subscribers) {
     if (out.length >= limit) break;
-    if (!b.people.has(e) && (!term || e.includes(term))) push(e, "subscriber");
+    if (!b.people.has(e) && hit(e)) push(e, "subscriber");
   }
   return out;
+}
+
+/** One address as the Recipients panel shows it. */
+function namedPerson(b: Base, email: string): NamedPerson {
+  const e = lc(email);
+  const p = b.people.get(e);
+  const n = nameOf(b, e);
+  const o = b.overrides.get(e);
+  return {
+    email: e,
+    name: n.name,
+    source: n.source,
+    firstName: firstNameOf(n.name),
+    profileName: p?.profileName || null,
+    metaName: p?.metaName || null,
+    override: o ? { name: o.name, updatedAt: o.updatedAt, updatedBy: o.updatedBy } : null,
+    userId: p?.userId || null,
+    kind: p ? "account" : b.subscribers.has(e) ? "subscriber" : "other",
+    blocked: b.unsubscribed.has(e) ? "unsubscribed" : b.suppressed.has(e) ? "suppressed" : null,
+  };
+}
+
+export type NamesQuery = {
+  /** an audience (recipients only) or null = everyone: accounts + subscribers + named addresses */
+  spec: AudienceSpec | null;
+  exclude?: Set<string>;
+  storyExclude?: Set<string>;
+  q?: string;
+  missingOnly?: boolean;
+  limit?: number;
+  offset?: number;
+};
+
+/** Recipients panel listing: names + source, missing-name counts, search + "missing only" filter, paged. */
+export async function listNamedPeople(query: NamesQuery): Promise<{ people: NamedPerson[]; total: number; matched: number; missing: number; bySource: Record<NameSource, number>; namesReady: boolean }> {
+  const b = await base();
+  let emails: string[];
+  if (query.spec) emails = (await resolveAudience(query.spec, { exclude: query.exclude, storyExclude: query.storyExclude })).recipients.map((r) => r.email);
+  else {
+    const set = new Set<string>([...b.people.keys(), ...b.subscribers, ...b.overrides.keys()]);
+    emails = [...set].sort();
+  }
+  const all = emails.map((e) => namedPerson(b, e));
+  const bySource: Record<NameSource, number> = { override: 0, profile: 0, metadata: 0, none: 0 };
+  for (const p of all) bySource[p.source]++;
+  const term = lc(query.q || "");
+  const filtered = all.filter((p) => (!query.missingOnly || p.source === "none") && (!term || p.email.includes(term) || (p.name || "").toLowerCase().includes(term)));
+  // people without a name first (what the panel is for), then by address
+  filtered.sort((x, y) => Number(x.source !== "none") - Number(y.source !== "none") || x.email.localeCompare(y.email));
+  const offset = Math.max(0, query.offset || 0);
+  const limit = Math.min(Math.max(query.limit || 100, 1), 500);
+  return { people: filtered.slice(offset, offset + limit), total: all.length, matched: filtered.length, missing: bySource.none, bySource, namesReady: b.namesReady };
+}
+
+/** Fresh rows for a few addresses (after a save / clear). Call invalidateAudience() first. */
+export async function namedPeople(emails: string[]): Promise<NamedPerson[]> {
+  const b = await base();
+  return emails.map((e) => namedPerson(b, e));
 }

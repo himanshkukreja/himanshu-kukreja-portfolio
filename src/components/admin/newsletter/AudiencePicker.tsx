@@ -7,8 +7,9 @@
 import { useEffect, useState } from "react";
 import { Card, Kpi, LABEL, fmtNum, useAdminClient } from "@/components/admin/ui";
 import { Field, inputCls } from "@/components/admin/content/common";
-import type { AudienceCount, AudienceKind, AudienceSpec } from "@/lib/campaigns/types";
+import type { AudienceCount, AudienceKind, AudienceSpec, NamedPerson } from "@/lib/campaigns/types";
 import { Note, cx, jsonInit, textareaCls, useDebounced } from "./bits";
+import RecipientNames from "./RecipientNames";
 
 type Presets = Record<"all" | "learners" | "subscribers" | "subscribers_learners" | "never_started", number>;
 export type AudienceReply = { count: AudienceCount; presets: Presets };
@@ -48,7 +49,22 @@ export function useAudienceCount(spec: AudienceSpec, campaignId?: string | null,
   return { data: state.data, error: state.key === dkey ? state.error : undefined, loading: state.key !== key, refresh: () => setNonce((n) => n + 1) };
 }
 
-export default function AudiencePicker({ spec, onChange, readOnly, campaignId, storySlug }: { spec: AudienceSpec; onChange: (s: AudienceSpec) => void; readOnly?: boolean; campaignId?: string | null; storySlug?: string | null }) {
+export default function AudiencePicker({
+  spec,
+  onChange,
+  readOnly,
+  campaignId,
+  storySlug,
+  onNamesSaved,
+}: {
+  spec: AudienceSpec;
+  onChange: (s: AudienceSpec) => void;
+  readOnly?: boolean;
+  campaignId?: string | null;
+  storySlug?: string | null;
+  /** a name was added / changed in the Recipients panel (keeps "preview as" in sync) */
+  onNamesSaved?: (people: NamedPerson[]) => void;
+}) {
   const live = useAudienceCount(spec, campaignId, storySlug);
   const c = live.data?.count;
   const presets = live.data?.presets;
@@ -115,6 +131,7 @@ export default function AudiencePicker({ spec, onChange, readOnly, campaignId, s
         </p>
       )}
       {live.error && <Note tone="bad" title="count failed">{live.error}</Note>}
+      <RecipientNames scope={{ spec, storySlug }} onSaved={onNamesSaved} label="recipients · names" title="Who's in it, and what we call them" />
     </div>
   );
 }

@@ -14,6 +14,6 @@ export async function adminFetch(input: string, init: RequestInit = {}): Promise
 export async function adminJson<T>(input: string, init: RequestInit = {}): Promise<T> {
   const res = await adminFetch(input, init);
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw Object.assign(new Error(body?.error || `HTTP ${res.status}`), { status: res.status });
+  if (!res.ok) throw Object.assign(new Error(body?.error || `HTTP ${res.status}`), { status: res.status, ...(typeof body?.code === "string" ? { code: body.code } : {}), ...(Array.isArray(body?.errors) ? { errors: body.errors } : {}) });
   return body as T;
 }

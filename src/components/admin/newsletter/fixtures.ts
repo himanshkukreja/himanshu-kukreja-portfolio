@@ -9,6 +9,9 @@ import type { AudienceCount, AudienceSpec, Campaign, CampaignCounts, CampaignSum
 import { displayStatus } from "@/lib/campaigns/types";
 import type { StoryOption } from "@/lib/campaigns/types";
 import { storyContent } from "@/lib/campaigns/story-doc";
+import { checkName, isRecipientEmail, resolveName } from "@/lib/campaigns/names-core";
+import { firstNameOf } from "@/lib/campaigns/tags";
+import type { NamedPerson, NamesReply } from "@/lib/campaigns/types";
 
 if (process.env.NODE_ENV !== "development") throw new Error("newsletter fixtures are dev-only");
 
@@ -27,18 +30,27 @@ const DAY = 24 * HOUR;
 
 const FIRST = ["Aarav", "Priya", "Rohan", "Sara", "Kabir", "Ananya", "Dev", "Meera", "Ishaan", "Tara", "Neil", "Zoya", "Arjun", "Diya", "Vikram", "Nisha", "Karan", "Riya", "Aditya", "Sneha"];
 const LAST = ["Mehta", "Nair", "Gupta", "Iqbal", "Singh", "Rao", "Patel", "Joshi", "Verma", "Kapoor", "D'Souza", "Khan"];
-const DOMAINS = ["gmail.com", "outlook.com", "proton.me", "company.dev", "icloud.com"];
+// example domains only (RFC 2606): fixture addresses must never be real inboxes
+const DOMAINS = ["example.com", "example.org", "example.net", "mail.example.com", "example.dev"];
 const LESSONS = ["Consistent hashing", "Caching patterns that survive prod", "Rate limiting at the edge", "Message queues and backpressure", "Back-of-the-envelope estimation", ""];
 
-type Person = { email: string; name: string | null; userId: string | null; active: boolean; completed: number; streak: number; lastDays: number; subscriber: boolean; lesson: string };
+/** `name` = the account's own name (profile, else sign-in metadata); admin overrides live in NAME_OVERRIDES. */
+type Person = { email: string; name: string | null; nameSrc?: "profile" | "metadata" | null; userId: string | null; active: boolean; completed: number; streak: number; lastDays: number; subscriber: boolean; lesson: string };
 const PEOPLE: Person[] = Array.from({ length: 214 }, (_, i) => {
   const f = FIRST[i % FIRST.length];
   const l = LAST[(i * 7) % LAST.length];
-  const named = i % 9 !== 4;
+  const account = i < 196;
+  // subscriber-only addresses never have a name; some email-OTP accounts don't either
+  const named = account && i % 9 !== 4;
   const active = i % 11 !== 3;
+  const fl = f.toLowerCase();
+  const ll = l.toLowerCase().replace(/[^a-z]/g, "");
+  // a few address shapes so "suggest from email" has easy, unsure and impossible cases
+  const local = named || i % 3 === 0 ? `${fl}.${ll}${i > 19 ? i : ""}` : i % 3 === 1 ? `${fl}${100 + i}` : `${fl[0]}${ll}${i}`;
   return {
-    email: `${f.toLowerCase()}.${l.toLowerCase().replace(/[^a-z]/g, "")}${i > 19 ? i : ""}@${DOMAINS[i % DOMAINS.length]}`,
+    email: `${local}@${DOMAINS[i % DOMAINS.length]}`,
     name: named ? `${f} ${l}` : null,
+    nameSrc: named ? (i % 5 === 2 ? "metadata" : "profile") : null,
     userId: i < 196 ? `u-${i + 1}` : null,
     active: i < 196 && active,
     completed: active ? Math.floor(r() * 30) : 0,
@@ -51,9 +63,36 @@ const PEOPLE: Person[] = Array.from({ length: 214 }, (_, i) => {
 const UNSUB = new Set(PEOPLE.filter((_, i) => i % 37 === 5).map((p) => p.email));
 const BOUNCED = new Set(PEOPLE.filter((_, i) => i % 53 === 7).map((p) => p.email));
 
+/* ───────────── recipient names (admin overrides, like public.email_names) ───────────── */
+
+const NAME_OVERRIDES = new Map<string, { name: string; updatedAt: string; updatedBy: string | null }>([
+  [PEOPLE[1].email, { name: "Priya Joshi-Rao", updatedAt: ago(5 * DAY), updatedBy: "preview@localhost" }],
+  [PEOPLE[13].email, { name: "Diya Joshi", updatedAt: ago(3 * DAY), updatedBy: "preview@localhost" }],
+  [PEOPLE[198].email, { name: "Aditya", updatedAt: ago(1 * DAY), updatedBy: "preview@localhost" }],
+]);
+const personOf = (email: string): Person => PEOPLE.find((p) => p.email === email) || { email, name: null, userId: null, active: false, completed: 0, streak: 0, lastDays: 999, subscriber: false, lesson: "" };
+/** override → profile → metadata → none (names-core.ts, same as the server) */
+const nameOf = (p: Person) => resolveName({ override: NAME_OVERRIDES.get(p.email)?.name, profile: p.nameSrc === "profile" ? p.name : null, metadata: p.nameSrc === "metadata" ? p.name : null });
+const namedOf = (p: Person): NamedPerson => {
+  const n = nameOf(p);
+  const o = NAME_OVERRIDES.get(p.email);
+  return {
+    email: p.email,
+    name: n.name,
+    source: n.source,
+    firstName: firstNameOf(n.name),
+    profileName: p.nameSrc === "profile" ? p.name : null,
+    metaName: p.nameSrc === "metadata" ? p.name : null,
+    override: o ? { ...o } : null,
+    userId: p.userId,
+    kind: p.userId ? "account" : p.subscriber ? "subscriber" : "other",
+    blocked: UNSUB.has(p.email) ? "unsubscribed" : BOUNCED.has(p.email) ? "suppressed" : null,
+  };
+};
+
 const varsOf = (p: Person) => ({
-  first_name: p.name ? p.name.split(" ")[0] : "",
-  name: p.name || "",
+  first_name: firstNameOf(nameOf(p).name),
+  name: nameOf(p).name || "",
   email: p.email,
   streak: String(p.streak),
   lessons_completed: String(p.completed),
@@ -106,7 +145,7 @@ function audience(spec: AudienceSpec, exclude?: Set<string>, storyEx?: Set<strin
         else if (seen.has(e)) duplicates++;
         else {
           seen.add(e);
-          cands.push(PEOPLE.find((p) => p.email === e) || { email: e, name: null, userId: null, active: false, completed: 0, streak: 0, lastDays: 999, subscriber: false, lesson: "" });
+          cands.push(personOf(e));
         }
       }
     }
@@ -208,7 +247,7 @@ function makeMsgs(people: Person[]): Msg[] {
     id: seq++,
     token: tok(),
     email: p.email,
-    name: p.name,
+    name: nameOf(p).name,
     userId: p.userId,
     status: "queued",
     error: null,
@@ -413,6 +452,48 @@ function filterMsgs(e: Entry, filter: string, q: string) {
   });
 }
 
+/** /api/admin/newsletter/names: list (GET/POST), set (PUT/PATCH, all-or-nothing), clear (DELETE). */
+function namesFixture(u: URL, method: string, b: Record<string, unknown>): unknown {
+  if (method === "PUT" || method === "PATCH") {
+    const raw = (Array.isArray(b.items) ? b.items : [{ email: b.email, name: b.name }]) as { email?: unknown; name?: unknown }[];
+    const errors: { index: number; email: string; error: string }[] = [];
+    const ok: { email: string; name: string }[] = [];
+    raw.forEach((it, index) => {
+      const email = String(it?.email || "").trim().toLowerCase();
+      if (!isRecipientEmail(email)) return errors.push({ index, email, error: "Not a valid email address." });
+      const c = checkName(it?.name);
+      if (!c.ok) return errors.push({ index, email, error: c.error });
+      ok.push({ email, name: c.name });
+    });
+    if (errors.length) throw Object.assign(new Error(errors.length === 1 ? `${errors[0].email}: ${errors[0].error}` : `${errors.length} names aren't valid; nothing was saved.`), { status: 400, errors });
+    for (const x of ok) NAME_OVERRIDES.set(x.email, { name: x.name, updatedAt: new Date().toISOString(), updatedBy: "preview@localhost" });
+    return { saved: ok.length, people: ok.map((x) => namedOf(personOf(x.email))) };
+  }
+  if (method === "DELETE") {
+    const emails = (u.searchParams.get("email") ? [u.searchParams.get("email") as string] : Array.isArray(b.emails) ? (b.emails as string[]) : []).map((e) => e.toLowerCase());
+    let cleared = 0;
+    for (const e of emails) if (NAME_OVERRIDES.delete(e)) cleared++;
+    return { cleared, people: emails.map((e) => namedOf(personOf(e))) };
+  }
+  if (Array.isArray(b.lookup)) return { people: (b.lookup as string[]).slice(0, 1000).map((e) => namedOf(personOf(String(e).toLowerCase()))) };
+  const sp = u.searchParams;
+  const spec = (method === "POST" ? (b.audience as AudienceSpec | undefined) : sp.get("kind") && sp.get("kind") !== "everyone" ? ({ kind: sp.get("kind"), days: Number(sp.get("days")) || undefined, min: Number(sp.get("min")) || undefined, emails: sp.get("emails") || undefined } as AudienceSpec) : undefined) || null;
+  const q = String((method === "POST" ? b.q : sp.get("q")) || "").toLowerCase();
+  const missingOnly = method === "POST" ? b.missing === true : sp.get("missing") === "1";
+  const limit = Math.min(Number((method === "POST" ? b.limit : sp.get("limit")) || 100), 500);
+  const offset = Number((method === "POST" ? b.offset : sp.get("offset")) || 0);
+  const storySlug = String((method === "POST" ? b.storySlug : sp.get("storySlug")) || "");
+  const base = spec ? audience(spec, undefined, storySlug ? STORY_SENT.get(storySlug) : undefined).list : [...PEOPLE, ...[...NAME_OVERRIDES.keys()].filter((e) => !PEOPLE.some((p) => p.email === e)).map(personOf)];
+  const all = base.map(namedOf);
+  const bySource = { override: 0, profile: 0, metadata: 0, none: 0 };
+  for (const x of all) bySource[x.source]++;
+  const filtered = all
+    .filter((x) => (!missingOnly || x.source === "none") && (!q || x.email.includes(q) || (x.name || "").toLowerCase().includes(q)))
+    .sort((x, y) => Number(x.source !== "none") - Number(y.source !== "none") || x.email.localeCompare(y.email));
+  const reply: NamesReply = { people: filtered.slice(offset, offset + limit), total: all.length, matched: filtered.length, missing: bySource.none, bySource, namesReady: true, offset, limit };
+  return reply;
+}
+
 export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
   seed();
   cronSim();
@@ -425,12 +506,13 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
   if (p.startsWith("/senders/")) return { ok: true };
   if (p === "/recipients") {
     const q = (u.searchParams.get("q") || "").toLowerCase();
-    const list: RecipientPreview[] = PEOPLE.filter((x) => x.userId && (!q || x.email.includes(q) || (x.name || "").toLowerCase().includes(q)))
-      .sort((x, y) => x.lastDays - y.lastDays)
+    const list: RecipientPreview[] = PEOPLE.filter((x) => !q || x.email.includes(q) || (nameOf(x).name || "").toLowerCase().includes(q))
+      .sort((x, y) => Number(!x.userId) - Number(!y.userId) || x.lastDays - y.lastDays)
       .slice(0, 8)
-      .map((x) => ({ email: x.email, name: x.name, userId: x.userId, vars: varsOf(x), source: "account" }));
+      .map((x) => ({ email: x.email, name: nameOf(x).name, nameSource: nameOf(x).source, userId: x.userId, vars: varsOf(x), source: x.userId ? "account" : "subscriber" }));
     return { recipients: list };
   }
+  if (p === "/names") return namesFixture(u, method, body(init));
   if (p === "/audience") {
     const b = body(init);
     const e = b.campaignId ? state.get(b.campaignId) : undefined;
@@ -442,7 +524,7 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
   if (p === "/test") {
     const b = body(init);
     const as = PEOPLE.find((x) => x.email === b.asEmail);
-    const first = as?.name?.split(" ")[0];
+    const first = as ? firstNameOf(nameOf(as).name) : "";
     const subj = first ? String(b.subject || "").replace(/\{\{\s*first_name[^}]*\}\}/g, first) : b.subjectFallback || b.subject;
     return { ok: true, mode: "console", to: b.to || "preview@localhost", as: b.asEmail || "preview@localhost", subject: `[test] ${subj}`, bytes: 16_000 };
   }
@@ -519,6 +601,7 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
             } else {
               x.status = "sent";
               x.sentAt = new Date().toISOString();
+              x.name = nameOf(personOf(x.email)).name; // names re-read per batch, like the server
             }
           }
           const left = e.msgs.some((x) => x.status === "queued");

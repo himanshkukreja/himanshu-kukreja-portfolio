@@ -1,6 +1,7 @@
 /** Shapes shared by the campaign APIs and the /admin/newsletter screens (client-safe, no I/O). */
 import type { EmailDoc } from "./render";
 import type { MergeVars } from "./tags";
+import type { NameSource } from "./names-core";
 
 export type AudienceKind = "all" | "learners" | "subscribers" | "subscribers_learners" | "active" | "never_started" | "completed" | "custom";
 
@@ -148,7 +149,38 @@ export type TemplateInfo = {
 };
 
 export type Recipient = { email: string; name: string | null; userId: string | null };
-export type RecipientPreview = Recipient & { vars: MergeVars; source: "account" | "subscriber" | "custom" };
+export type RecipientPreview = Recipient & { vars: MergeVars; source: "account" | "subscriber" | "custom"; nameSource?: NameSource };
+
+/** A person in the Recipients panel: the name the campaign service uses + where it came from. */
+export type NamedPerson = {
+  email: string;
+  /** resolved: override → profile → metadata → null */
+  name: string | null;
+  source: NameSource;
+  /** what {{first_name}} becomes ("" → the fallback greeting) */
+  firstName: string;
+  profileName: string | null;
+  metaName: string | null;
+  override: { name: string; updatedAt: string; updatedBy: string | null } | null;
+  userId: string | null;
+  kind: "account" | "subscriber" | "other";
+  blocked: "unsubscribed" | "suppressed" | null;
+};
+
+/** GET/POST /api/admin/newsletter/names */
+export type NamesReply = {
+  people: NamedPerson[];
+  /** everyone in the audience / overall */
+  total: number;
+  /** after search + "missing only" */
+  matched: number;
+  missing: number;
+  bySource: Record<NameSource, number>;
+  /** email_names exists (false → overrides can't be saved yet) */
+  namesReady: boolean;
+  offset: number;
+  limit: number;
+};
 
 /** GET /api/admin/newsletter */
 export type NewsletterInfo = {

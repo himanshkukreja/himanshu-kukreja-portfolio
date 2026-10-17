@@ -12,14 +12,15 @@ import { FlashLine, useFlash } from "@/components/admin/content/common";
 import type { CampaignSummary, NewsletterInfo, TemplateInfo } from "@/lib/campaigns/types";
 import { CampaignBadge, SetupBanners, cx, fmtCountdown, pct } from "./bits";
 import SendersPanel from "./SendersPanel";
+import RecipientNames from "./RecipientNames";
 
-type Tab = "campaigns" | "senders";
+type Tab = "campaigns" | "recipients" | "senders";
 
 export default function NewsletterHome() {
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const tab: Tab = params.get("tab") === "senders" ? "senders" : "campaigns";
+  const tab: Tab = params.get("tab") === "senders" ? "senders" : params.get("tab") === "recipients" ? "recipients" : "campaigns";
   // refresh so countdowns turn into "sending" / "sent" as the Supabase cron picks campaigns up
   const info = useAdminData<NewsletterInfo>("/api/admin/newsletter", { refreshMs: 15_000 });
   const templates = useAdminData<{ templates: TemplateInfo[] }>("/api/admin/newsletter/templates");
@@ -87,6 +88,7 @@ export default function NewsletterHome() {
         label="Newsletter sections"
         tabs={[
           { id: "campaigns" as Tab, label: "campaigns", count: d ? campaigns.length : null },
+          { id: "recipients" as Tab, label: "recipients · names" },
           { id: "senders" as Tab, label: "senders", count: d ? d.senders.length : null },
         ]}
         value={tab}
@@ -143,6 +145,19 @@ export default function NewsletterHome() {
         </div>
       )}
 
+      {tab === "recipients" && (
+        <RecipientNames
+          scope={{ spec: null }}
+          label="everyone · accounts + subscribers"
+          title="Recipient names"
+          intro={
+            <p className="m-0 text-sm text-fg-3">
+              Newsletter subscribers and email-code sign-ins often have no name. Add one here (or in a campaign&apos;s audience step) and every future email uses it for{" "}
+              <code className="font-mono text-xs">{"{{first_name}}"}</code>.
+            </p>
+          }
+        />
+      )}
       {tab === "senders" && d && <SendersPanel info={d} onChanged={info.refresh} say={say} />}
       <FlashLine flash={flash} onDismiss={clear} />
     </div>

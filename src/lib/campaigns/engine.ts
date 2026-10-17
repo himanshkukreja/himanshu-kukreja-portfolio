@@ -354,6 +354,7 @@ export async function tick(id: string, budgetMs = BUDGET_MS): Promise<TickResult
       }
       const claimed = await store.claim(next.filter((m) => !blocked.has(m.email)).map((m) => m.id));
       if (!claimed.length) continue;
+      // names are re-read for this batch: overrides saved after queuing apply to everyone not yet sent
       const vars = await mergeVarsFor(claimed);
       for (let i = 0; i < claimed.length; i++) {
         const m: DbMessage = claimed[i];
@@ -366,7 +367,8 @@ export async function tick(id: string, budgetMs = BUDGET_MS): Promise<TickResult
           const r = renderFor(c0, v, m.token);
           const info = await transport.t.sendMail(mailFor(sender, m.email, r, c0.id));
           if (transport.mode === "console") console.log(`[campaigns:console] ${c0.id.slice(0, 8)} → ${m.email} · "${r.subject}" · not sent`);
-          await store.updateMessage(m.id, { status: "sent", sentAt: new Date().toISOString(), providerId: info.messageId || null, vars: v, error: null });
+          // name: the one actually used (an override saved after queuing replaces the queued snapshot in the report)
+          await store.updateMessage(m.id, { status: "sent", sentAt: new Date().toISOString(), providerId: info.messageId || null, vars: v, error: null, name: v.name || null });
           sentNow++;
         } catch (e) {
           const msg = (e instanceof Error ? e.message : String(e)).slice(0, 400);

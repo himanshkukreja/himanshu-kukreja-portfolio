@@ -6,10 +6,18 @@ import type { AudienceKind, AudienceSpec } from "./types";
 
 export function apiError(e: unknown): NextResponse {
   if (e instanceof TablesMissingError) return NextResponse.json({ error: e.message, code: "tables-missing", missing: e.missing }, { status: 503 });
-  const err = e as Error & { status?: number; expected?: string };
+  const err = e as Error & { status?: number; expected?: string; code?: unknown; errors?: unknown };
   const status = err?.status && err.status >= 400 && err.status < 600 ? err.status : 500;
   if (status === 500) console.error("[campaigns]", err);
-  return NextResponse.json({ error: err?.message || "Request failed", ...(err?.expected ? { expected: err.expected } : {}) }, { status });
+  return NextResponse.json(
+    {
+      error: err?.message || "Request failed",
+      ...(err?.expected ? { expected: err.expected } : {}),
+      ...(typeof err?.code === "string" && status !== 500 ? { code: err.code } : {}),
+      ...(Array.isArray(err?.errors) ? { errors: err.errors } : {}),
+    },
+    { status }
+  );
 }
 
 export const bad = (message: string, status = 400) => Object.assign(new Error(message), { status });

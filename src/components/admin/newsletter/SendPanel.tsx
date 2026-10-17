@@ -10,10 +10,11 @@ import { useRef, useState } from "react";
 import { Segmented } from "@/components/admin/content/common";
 import { Badge, Card, ConfirmButton, LABEL, fmtNum, useAdminClient, useNow } from "@/components/admin/ui";
 import { Field, btnCls, inputCls, primaryBtnCls, type useFlash } from "@/components/admin/content/common";
-import type { CampaignCounts, CampaignSummary, NewsletterInfo, TickResult } from "@/lib/campaigns/types";
+import type { CampaignCounts, CampaignSummary, NamedPerson, NewsletterInfo, TickResult } from "@/lib/campaigns/types";
 import type { TagProblem } from "@/lib/campaigns/tags";
 import { CampaignBadge, Note, fmtCountdown, jsonInit, pct, zoned } from "./bits";
 import { useAudienceCount } from "./AudiencePicker";
+import { NamesBanner } from "./RecipientNames";
 
 type Say = ReturnType<typeof useFlash>["say"];
 type Run = { state: "running" | "waiting" | "stopped" | "done" | "error"; sent: number; failed: { email: string; error: string }[]; skipped: number; error?: string; counts?: CampaignCounts; status?: CampaignSummary["status"] };
@@ -56,6 +57,7 @@ export default function SendPanel({
   onSave,
   onChanged,
   say,
+  onNamesSaved,
 }: {
   campaign: CampaignSummary | null;
   info: NewsletterInfo | undefined;
@@ -64,6 +66,7 @@ export default function SendPanel({
   onSave: () => Promise<string | null>;
   onChanged: () => void;
   say: Say;
+  onNamesSaved?: (people: NamedPerson[]) => void;
 }) {
   const client = useAdminClient();
   const [typed, setTyped] = useState("");
@@ -361,6 +364,8 @@ export default function SendPanel({
           </div>
         </Card>
       )}
+
+      {status !== "cancelled" && status !== "sent" && <NamesBanner scope={{ spec: campaign.audience, storySlug: campaign.storySlug }} onSaved={onNamesSaved} />}
 
       {status !== "cancelled" && status !== "scheduled" && !running && (status === "draft" || n > 0) && (
         <Card label={isTop ? "top up" : "confirm"} title={isTop ? `${fmtNum(n)} new people match this audience` : "Typed confirmation"}>

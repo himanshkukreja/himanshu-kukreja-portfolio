@@ -12,6 +12,7 @@ import { SearchInput, Segmented } from "@/components/admin/content/common";
 import { unsubscribeUrlFor } from "@/lib/campaigns/links";
 import { renderEmail } from "@/lib/campaigns/render";
 import { MERGE_TAGS, SAMPLE_VARS, resolveTags, type MergeVars } from "@/lib/campaigns/tags";
+import { NAME_SOURCE_LABEL } from "@/lib/campaigns/names-core";
 import type { RecipientPreview } from "@/lib/campaigns/types";
 import { cx, useDebounced } from "./bits";
 import type { Draft } from "./types";
@@ -51,10 +52,22 @@ function ScaledFrame({ html, frameWidth, height }: { html: string; frameWidth: n
   );
 }
 
-export function RecipientPicker({ as, setAs }: { as: RecipientPreview | null; setAs: (r: RecipientPreview | null) => void }) {
+export function RecipientPicker({
+  as,
+  setAs,
+  onEditName,
+  namesVersion = 0,
+}: {
+  as: RecipientPreview | null;
+  setAs: (r: RecipientPreview | null) => void;
+  /** opens the Recipients panel for the picked person */
+  onEditName?: (r: RecipientPreview) => void;
+  /** bump after a name is saved so the search list refetches */
+  namesVersion?: number;
+}) {
   const [q, setQ] = useState("");
   const dq = useDebounced(q.trim(), 300);
-  const res = useAdminData<{ recipients: RecipientPreview[] }>(`/api/admin/newsletter/recipients?q=${encodeURIComponent(dq)}`);
+  const res = useAdminData<{ recipients: RecipientPreview[] }>(`/api/admin/newsletter/recipients?q=${encodeURIComponent(dq)}${namesVersion ? `&v=${namesVersion}` : ""}`);
   const list = res.data?.recipients ?? [];
   return (
     <div className="flex min-w-0 flex-col gap-2">
@@ -67,7 +80,13 @@ export function RecipientPicker({ as, setAs }: { as: RecipientPreview | null; se
           <span className="inline-flex min-h-10 min-w-0 items-center gap-2 border border-signal bg-signal/10 px-3 text-sm">
             <span className="truncate font-semibold text-fg">{as.name || as.email}</span>
             <span className="hidden truncate font-mono text-[11px] text-fg-3 sm:inline">{as.email}</span>
+            {as.nameSource && <span className="hidden shrink-0 font-mono text-[10px] text-fg-4 md:inline">· {NAME_SOURCE_LABEL[as.nameSource]}</span>}
           </span>
+        )}
+        {as && onEditName && (
+          <button type="button" onClick={() => onEditName(as)} className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg-2 hover:bg-surface-2">
+            ✎ {as.name ? "change name" : "add name"}
+          </button>
         )}
       </div>
       <SearchInput value={q} onChange={setQ} placeholder="search a learner by name or email…" label="Search recipients" />
@@ -81,7 +100,7 @@ export function RecipientPicker({ as, setAs }: { as: RecipientPreview | null; se
                 className={cx("flex min-h-11 w-full min-w-0 items-center justify-between gap-3 px-3 py-1.5 text-left hover:bg-surface-2", as?.email === r.email && "bg-surface-2")}
               >
                 <span className="min-w-0">
-                  <span className="block truncate text-sm text-fg">{r.name || "—"}</span>
+                  <span className={cx("block truncate text-sm", r.name ? "text-fg" : "text-fg-4")}>{r.name || "no name · fallback greeting"}</span>
                   <span className="block truncate font-mono text-[11px] text-fg-3">{r.email}</span>
                 </span>
                 <span className="shrink-0 font-mono text-[11px] text-fg-4">
@@ -104,6 +123,8 @@ export default function EmailPreview({
   setAs,
   compact,
   defaultWidth = "desktop",
+  onEditName,
+  namesVersion,
 }: {
   draft: Draft;
   base: string;
@@ -111,6 +132,8 @@ export default function EmailPreview({
   setAs?: (r: RecipientPreview | null) => void;
   compact?: boolean;
   defaultWidth?: Width;
+  onEditName?: (r: RecipientPreview) => void;
+  namesVersion?: number;
 }) {
   const [view, setView] = useState<View>("html");
   const [width, setWidth] = useState<Width>(defaultWidth);
@@ -123,7 +146,7 @@ export default function EmailPreview({
       title={<span className="whitespace-normal break-words">{out.subject || "(no subject)"}</span>}
       bodyClassName="flex flex-col gap-3 p-3 sm:p-4"
     >
-      {!compact && setAs && <RecipientPicker as={as} setAs={setAs} />}
+      {!compact && setAs && <RecipientPicker as={as} setAs={setAs} onEditName={onEditName} namesVersion={namesVersion} />}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Segmented
           label="Preview format"
