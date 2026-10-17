@@ -195,7 +195,7 @@ export default function Hero() {
                 <Linkedin className="h-4.5 w-4.5" />
               </a>
               <a
-                href="https://www.instagram.com/himanshukreja_?igsh=dm84OHlyZTJyeXZl&utm_source=qr"
+                href="https://www.instagram.com/himanshukukreja_"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="group inline-flex items-center justify-center h-8 w-8 rounded-full border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"

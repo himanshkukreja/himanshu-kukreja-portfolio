@@ -9,6 +9,6 @@ export const SOCIALS: Social[] = [
   { id: "github", label: "github", handle: "@himanshkukreja", href: "https://github.com/himanshkukreja", icon: "github" },
   { id: "linkedin", label: "linkedin", handle: "in/himanshukukreja", href: "https://www.linkedin.com/in/himanshukukreja/", icon: "linkedin" },
   { id: "x", label: "x.com", handle: "@hi_kukreja", href: "https://x.com/hi_kukreja", icon: "x" },
-  { id: "instagram", label: "instagram", handle: "@himanshukreja_", href: "https://www.instagram.com/himanshukreja_", icon: "instagram" },
+  { id: "instagram", label: "instagram", handle: "@himanshukukreja_", href: "https://www.instagram.com/himanshukukreja_", icon: "instagram" },
   { id: "markdrop", label: "markdrop.in", handle: "markdrop.in", href: "https://markdrop.in", icon: "markdrop" },
 ];
