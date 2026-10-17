@@ -1,5 +1,6 @@
 "use client";
 
+import { useConnectivity } from "@/lib/offline/connectivity";
 import { useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -20,6 +21,7 @@ type Busy = null | "google" | "email" | "otp";
 const noopSubscribe = () => () => {};
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+  const { offline } = useConnectivity();
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
   const [otp, setOtp] = useState("");
@@ -161,6 +163,12 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
               </div>
             )}
 
+            {offline && (
+              <div role="note" className="mb-4 border border-dashed border-line-strong p-3 text-sm leading-relaxed text-fg-2">
+                <b className="text-fg">Sign-in needs a connection.</b> Reading, quick checks and XP keep working offline on this device; sign in when you&apos;re back online and they join your account.
+              </div>
+            )}
+
             {error && (
               <div className="mb-4 p-3 border border-bad flex items-center gap-2">
                 <AlertCircle className="w-5 h-5 text-bad-text flex-shrink-0" />
@@ -199,7 +207,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 ) : (
                 <button
                   onClick={handleGoogleSignIn}
-                  disabled={loading}
+                  disabled={loading || offline}
                   className="w-full flex items-center justify-center gap-3 px-4 py-3.5 bg-fg text-bg hover:opacity-90 transition-opacity font-semibold min-h-12 disabled:opacity-50 disabled:cursor-not-allowed mb-4"
                 >
                   {busy === "google" ? (

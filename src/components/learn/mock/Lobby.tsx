@@ -2,6 +2,7 @@
 
 /** Lobby: the recruiter's note, who you'll meet, the format, the level you're interviewing for. */
 import Link from "next/link";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { useState } from "react";
 import { LEARN_XP } from "@/lib/learn/types";
 import { LEVEL_HINT, LEVEL_LABEL, MOCK_LEVELS, type MockInterview, type MockLevel } from "@/lib/learn/mock/types";
@@ -33,17 +34,20 @@ export default function Lobby({
 
   return (
     <main className="mx-auto flex max-w-[1320px] flex-col gap-10 px-4 pb-32 pt-8 sm:px-6 sm:pt-12 lg:pb-24">
-      <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[12px] text-fg-3">
-        <Link href="/learn/system-design-mastery" className="hover:text-fg">
-          course
-        </Link>
-        <span aria-hidden>/</span>
-        <Link href="/learn/mock" className="hover:text-fg">
-          mock interviews
-        </Link>
-        <span aria-hidden>/</span>
-        <span className="text-fg-2">M{mock.n}</span>
-      </nav>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[12px] text-fg-3">
+          <Link href="/learn/system-design-mastery" className="hover:text-fg">
+            course
+          </Link>
+          <span aria-hidden>/</span>
+          <Link href="/learn/mock" className="hover:text-fg">
+            mock interviews
+          </Link>
+          <span aria-hidden>/</span>
+          <span className="text-fg-2">M{mock.n}</span>
+        </nav>
+        <SaveOfflineButton title={`Mock interview ${num} · ${mock.company.name}`} kind="mock" url={mock.href} />
+      </div>
 
       <header className="flex flex-col gap-5">
         <span className="font-mono text-xs uppercase tracking-label text-signal-text">

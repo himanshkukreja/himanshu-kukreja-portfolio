@@ -3,10 +3,12 @@
 import { useState } from "react";
 import dynamic from "next/dynamic";
 import type { Stage } from "@/lib/course/types";
+import { loadBossMode } from "@/lib/offline/lazy";
 import { useGame } from "@/game/GameProvider";
 
-// Boss mode controls the stage sections inside .course-content by DOM; loaded on demand.
-const BossMode = dynamic(() => import("@/components/learn/boss/BossMode"), { ssr: false });
+// Boss mode controls the stage sections inside .course-content by DOM; loaded on demand
+// (through lib/offline/lazy, so offline saving caches the same chunk).
+const BossMode = dynamic(loadBossMode, { ssr: false });
 
 type Props = { week: string; slug: string; stages: Stage[]; title: string; weekCode: string };
 

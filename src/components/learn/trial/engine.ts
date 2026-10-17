@@ -316,8 +316,9 @@ export async function updateRemoteAttempt(
  * progress = parts passed / parts. Never goes down, and "completed" is never undone.
  * Also marks today active for the streak (record_learning_activity, when it exists).
  */
-export async function writeTrialProgress(userId: string, courseId: string, week: string, lessonSlug: string, passedParts: number, totalParts: number) {
-  if (!totalParts) return;
+export async function writeTrialProgress(userId: string, courseId: string, week: string, lessonSlug: string, passedParts: number, totalParts: number): Promise<boolean> {
+  if (!totalParts) return true;
+  let ok = false;
   try {
     const { data: prev, error: readError } = await supabaseClient
       .from("learning_progress")
@@ -346,15 +347,17 @@ export async function writeTrialProgress(userId: string, courseId: string, week:
     };
     if (!prev?.started_at) row.started_at = now;
     if (completed && !wasCompleted) row.completed_at = now;
-    await supabaseClient.from("learning_progress").upsert(row, { onConflict: "user_id,course_id,week,lesson_slug" });
+    const { error } = await supabaseClient.from("learning_progress").upsert(row, { onConflict: "user_id,course_id,week,lesson_slug" });
+    ok = !error;
   } catch {
-    // progress is a mirror; the trial record itself is already saved
+    // progress is a mirror; the trial record itself is already saved (offline: queued by the caller)
   }
   try {
     await supabaseClient.rpc("record_learning_activity", { p_user: userId });
   } catch {
     // function not deployed yet
   }
+  return ok;
 }
 
 /** Lessons in this week the signed-in learner has completed (learning_progress). */

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabaseClient } from "@/lib/supabase-client";
+import { isNetworkError, isOffline } from "@/lib/offline/connectivity";
 import { LEARN_XP } from "@/lib/learn/types";
 import { QUEST_BY_ID } from "./catalog";
 
@@ -70,17 +71,39 @@ function writeOwner(userId: string) {
   }
 }
 
-async function pull(userId: string): Promise<{ snap: Snapshot | null; error: boolean }> {
-  const { data, error } = await supabaseClient.from("user_profiles").select("xp, game_done, game_flags").eq("id", userId).maybeSingle();
-  if (error) return { snap: null, error: true };
-  return {
-    snap: {
-      xp: Number(data?.xp) || 0,
-      done: (data?.game_done as Record<string, number>) || {},
-      flags: (data?.game_flags as Record<string, unknown>) || {},
-    },
-    error: false,
-  };
+/** `offline`: the request never reached the server (no connection) — retry on reconnect, don't give up. */
+async function pull(userId: string): Promise<{ snap: Snapshot | null; error: boolean; offline: boolean }> {
+  try {
+    const { data, error } = await supabaseClient.from("user_profiles").select("xp, game_done, game_flags").eq("id", userId).maybeSingle();
+    if (error) return { snap: null, error: true, offline: isOffline() || isNetworkError(error) };
+    return {
+      snap: {
+        xp: Number(data?.xp) || 0,
+        done: (data?.game_done as Record<string, number>) || {},
+        flags: (data?.game_flags as Record<string, unknown>) || {},
+      },
+      error: false,
+      offline: false,
+    };
+  } catch {
+    // supabase-js throws only when the request itself failed
+    return { snap: null, error: true, offline: true };
+  }
+}
+
+/** Bumps when the connection comes back, so a sync that failed offline runs again. */
+function useReconnectTick() {
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setTick((t) => t + 1);
+    window.addEventListener("online", bump);
+    window.addEventListener("hk:reconnected", bump);
+    return () => {
+      window.removeEventListener("online", bump);
+      window.removeEventListener("hk:reconnected", bump);
+    };
+  }, []);
+  return tick;
 }
 
 /**
@@ -95,6 +118,9 @@ async function pull(userId: string): Promise<{ snap: Snapshot | null; error: boo
  * - pushes re-read the account first and write the merge, instead of overwriting it with this
  *   tab's snapshot (two devices kept erasing each other's quests);
  * - quests older than the account's last reset are not merged back (see RESET_AT_FLAG).
+ * - offline (plane wifi, no signal) the game keeps running on the local copy; a failed pull or push
+ *   for network reasons is retried when the connection comes back (the merge makes it safe), it
+ *   no longer switches sync off for the session.
  */
 export function useGameSync(
   userId: string | null,
@@ -105,16 +131,17 @@ export function useGameSync(
   const disabled = useRef(false);
   const mergedFor = useRef<string | null>(null);
   const lastPushed = useRef<string>("");
+  const reconnect = useReconnectTick();
 
   // Pull + merge once per signed-in user.
   useEffect(() => {
     if (!hydrated || !userId || disabled.current || mergedFor.current === userId) return;
     let cancelled = false;
     (async () => {
-      const { snap: remote, error } = await pull(userId);
+      const { snap: remote, error, offline } = await pull(userId);
       if (cancelled) return;
       if (error || !remote) {
-        disabled.current = true;
+        if (!offline) disabled.current = true;
         return;
       }
       mergedFor.current = userId;
@@ -129,7 +156,7 @@ export function useGameSync(
     };
     // state is read once at merge time on purpose; later changes are pushed by the effect below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hydrated, userId, replace]);
+  }, [hydrated, userId, replace, reconnect]);
 
   // Push changes (debounced) after the merge: read the account, merge, write the merge.
   useEffect(() => {
@@ -137,9 +164,9 @@ export function useGameSync(
     const body = JSON.stringify(state);
     if (body === lastPushed.current) return;
     const t = window.setTimeout(async () => {
-      const { snap: remote, error: readError } = await pull(userId);
+      const { snap: remote, error: readError, offline } = await pull(userId);
       if (readError || !remote) {
-        disabled.current = true;
+        if (!offline) disabled.current = true;
         return;
       }
       const next = mergeGame(remote, state);
@@ -148,7 +175,7 @@ export function useGameSync(
         .update({ xp: next.xp, game_done: next.done, game_flags: next.flags })
         .eq("id", userId);
       if (error) {
-        disabled.current = true;
+        if (!(isOffline() || isNetworkError(error))) disabled.current = true;
         return;
       }
       const nextBody = JSON.stringify(next);
@@ -157,5 +184,5 @@ export function useGameSync(
       if (nextBody !== body) replace(next);
     }, 1200);
     return () => window.clearTimeout(t);
-  }, [userId, state, replace]);
+  }, [userId, state, replace, reconnect]);
 }

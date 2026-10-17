@@ -7,6 +7,7 @@
  */
 import { askUrl, copyText, MAX_URL, type AskClient } from "@/lib/learn/askAi";
 import { track } from "@/lib/track";
+import { isOffline } from "@/lib/offline/connectivity";
 import { LEVEL_HINT, LEVEL_LABEL, mmss, type MockInterview } from "./types";
 import type { MockRun } from "./store";
 import { SCORE_LABEL, VERDICT_LABEL, type LoopScore } from "./score";
@@ -72,7 +73,11 @@ export function buildFeedbackPrompt(mock: MockInterview, run: MockRun, score: Lo
 }
 
 /** Open the client with the prompt; very long prompts go through the clipboard. */
-export function openFeedback(client: AskClient, prompt: string, company: string): "opened" | "clipboard" {
+export function openFeedback(client: AskClient, prompt: string, company: string): "opened" | "clipboard" | "offline" {
+  if (isOffline()) {
+    void copyText(prompt);
+    return "offline";
+  }
   let text = prompt;
   let mode: "opened" | "clipboard" = "opened";
   if (askUrl(client, prompt).length > MAX_URL) {

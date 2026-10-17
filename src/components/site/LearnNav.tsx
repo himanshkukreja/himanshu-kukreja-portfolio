@@ -6,6 +6,7 @@
  * becomes the course dock with a way back to the site.
  */
 import Link from "next/link";
+import { CloudDownload } from "lucide-react";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { DockDot, TabPending } from "./LinkPending";
 
@@ -13,7 +14,7 @@ export const COURSE_HREF = "/learn/system-design-mastery";
 
 export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/learn/");
 
-const isCourse = (p: string) => isLearnRoute(p) && !/^\/learn\/(arena|review|notebook|notes|bookmarks|dashboard|guide)(\/|$)/.test(p);
+const isCourse = (p: string) => isLearnRoute(p) && !/^\/learn\/(arena|review|notebook|notes|bookmarks|dashboard|guide|offline)(\/|$)/.test(p);
 
 /** The Arena tab also owns the review queue (/learn/review), so the due badge lives on it. */
 const isArena = (p: string) => /^\/learn\/(arena|review)(\/|$)/.test(p);
@@ -83,6 +84,15 @@ export function LearnTabs({ pathname }: { pathname: string }) {
         className={`ml-1 grid h-7 w-7 place-items-center border text-[12px] ${pathname.startsWith("/learn/guide") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
       >
         ?
+      </Link>
+      <Link
+        href="/learn/offline"
+        aria-current={pathname.startsWith("/learn/offline") ? "page" : undefined}
+        aria-label="Offline library: save lessons to read without internet"
+        title="Offline library: save lessons to read without internet"
+        className={`ml-1 grid h-7 w-7 place-items-center border ${pathname.startsWith("/learn/offline") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
+      >
+        <CloudDownload className="h-3.5 w-3.5" aria-hidden />
       </Link>
     </nav>
   );

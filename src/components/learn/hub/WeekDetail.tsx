@@ -7,6 +7,7 @@ import type { LessonProgress, WeekState } from "@/lib/learn/progress";
 import { hoursLabel } from "@/lib/learn/progress";
 import type { MockStatus } from "@/lib/learn/mock/store";
 import { MockGlyph, mockStateText } from "./SkillTree";
+import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
 
 /** Selected-world panel: lessons with real titles + minutes, boss, trial parts, reward, CTA. */
 export default function WeekDetail({
@@ -171,6 +172,9 @@ export default function WeekDetail({
           {ctaLabel}
         </Link>
       )}
+
+      {/* every lesson, the boss and the trial of this world, for reading with no internet */}
+      <SaveGroupButton group={w.key} label="Save this world offline" className="w-full" />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { formatWeekTopic, getWeekResources, type LearningResource } from "@/lib/github";
 import type { MCQAssessment } from "@/lib/mcq-parser";
 import LessonComments from "./LessonComments";
+import OnlineOnly from "@/components/offline/OnlineOnly";
 import TrialApp from "./learn/trial/TrialApp";
 import type { TrialLesson, TrialPart } from "./learn/trial/engine";
 
@@ -109,7 +110,13 @@ export default async function MCQAssessmentWrapper({
         parts={parts}
         nextResource={nextResource ?? null}
         nextLabel={nextLabel}
-        comments={showComments ? <LessonComments courseId={courseId} week={week} lessonSlug={lessonSlug} /> : null}
+        comments={
+          showComments ? (
+            <OnlineOnly what="The discussion">
+              <LessonComments courseId={courseId} week={week} lessonSlug={lessonSlug} />
+            </OnlineOnly>
+          ) : null
+        }
       />
     </Suspense>
   );

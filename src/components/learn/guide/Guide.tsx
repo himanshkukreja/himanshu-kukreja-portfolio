@@ -63,10 +63,11 @@ const TOC: TocItem[] = [
   { id: "xp", n: "09", label: "XP, levels, badges" },
   { id: "progress", n: "10", label: "Progress page" },
   { id: "share", n: "11", label: "Share your progress" },
-  { id: "cases", n: "12", label: "Case files" },
-  { id: "account", n: "13", label: "Account & data" },
-  { id: "faq", n: "14", label: "FAQ" },
-  { id: "glossary", n: "15", label: "Glossary" },
+  { id: "offline", n: "12", label: "Offline reading" },
+  { id: "cases", n: "13", label: "Case files" },
+  { id: "account", n: "14", label: "Account & data" },
+  { id: "faq", n: "15", label: "FAQ" },
+  { id: "glossary", n: "16", label: "Glossary" },
 ];
 
 const LOOP = [
@@ -846,7 +847,77 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ j) cases */}
-          <Section id="cases" n="12" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
+          <Section
+            id="offline"
+            n="12"
+            kicker="offline reading & the app"
+            title="Read with no internet"
+            lead="Save lessons on your phone or laptop and read them on a flight, on the metro, anywhere. No app store: the website saves them, and it can be installed like an app."
+          >
+            <Steps
+              items={[
+                {
+                  title: (
+                    <>
+                      Tap <strong>Save offline</strong>
+                    </>
+                  ),
+                  body: (
+                    <>
+                      It sits next to the title of every lesson, preview, boss, side quest, trial, mock interview and case file (the cloud icon on a phone). To save more at once, open a world on the course map and press <strong>Save this world offline</strong>, or use{" "}
+                      <strong>Save the entire course</strong> in the <strong>Read offline</strong> card on the course map. Sizes are shown before you start; the whole course is large, so do it on wifi.
+                    </>
+                  ),
+                },
+                {
+                  title: <>Read anywhere</>,
+                  body: (
+                    <>
+                      With no connection, a saved page opens from its usual link, from the course map or from the <A href="/learn/offline">offline library</A> (the cloud icon next to <strong>?</strong> in the course header). A line at the top says{" "}
+                      <strong>Offline · saved copy</strong>. Diagrams, code, quick checks, trials, stage clears and XP all work; a page you didn&apos;t save shows a short &ldquo;you&apos;re offline&rdquo; page with a link to your library.
+                    </>
+                  ),
+                },
+                {
+                  title: <>Land and sync</>,
+                  body: (
+                    <>
+                      Progress made offline stays on the device and, if you&apos;re signed in, goes up to your account when you&apos;re back online, merged so nothing is lost or counted twice. Saved copies refresh themselves in the background when a
+                      lesson changes (the library marks them <strong>update available</strong> until then).
+                    </>
+                  ),
+                },
+              ]}
+            />
+            <Table
+              caption="What works offline"
+              head={["Works offline", "Needs a connection"]}
+              rows={[
+                ["Reading, diagrams, highlighted code, :::blocks", "Comments and the discussion"],
+                ["Quick checks, trials, boss fights, mock interviews", "Ask Claude / ChatGPT (the prompt is copied for later)"],
+                ["Stage clears, XP, streak days on this device", "Search, the leaderboard, sign-in, sharing"],
+              ]}
+            />
+            <Sub>Install it as an app</Sub>
+            <div className={PROSE}>
+              <p>
+                <strong>Android, Chrome or Edge on a laptop:</strong> press <strong>Install the app</strong> in the offline library or the Read offline card (or the install icon in the address bar). The course opens from your home screen or
+                dock, full screen, with your saved lessons.
+              </p>
+              <p>
+                <strong>iPhone and iPad:</strong> Safari has no install button, so the library shows the steps: <strong>Share</strong> → <strong>Add to Home Screen</strong>. Do this if you rely on saved lessons: Safari can clear a
+                website&apos;s data after about a week without a visit, but an app on the home screen keeps it. Lessons saved in Safari don&apos;t carry over into the home-screen app, so save them from the app.
+              </p>
+            </div>
+            <Note title="Space on your device">
+              <p>
+                The library shows how much is used and how much the browser allows. A lesson takes about 100 KB, the reader app about 3 MB once (shared by everything you save). If the device runs out of space, saving stops with a clear message and
+                what is already saved stays; remove things from the library to make room.
+              </p>
+            </Note>
+          </Section>
+
+          <Section id="cases" n="13" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
             <Shot id="case-index" only="desktop" />
             <div className={PROSE}>
               <p>
@@ -865,7 +936,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ k) account */}
-          <Section id="account" n="13" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
+          <Section id="account" n="14" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
             <ul className="m-0 grid max-w-[72ch] list-none gap-px border border-line bg-line p-0 sm:grid-cols-2">
               {[
                 ["Progress on every device", "Lessons, stages, XP, review cards and trial attempts follow you instead of living in one browser."],
@@ -895,7 +966,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ l) faq */}
-          <Section id="faq" n="14" kicker="faq" title="Questions people actually ask">
+          <Section id="faq" n="15" kicker="faq" title="Questions people actually ask">
             <div className="flex max-w-[78ch] flex-col border-t border-line">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group border-b border-line">
@@ -912,7 +983,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ glossary */}
-          <Section id="glossary" n="15" kicker="glossary" title="Words the course uses">
+          <Section id="glossary" n="16" kicker="glossary" title="Words the course uses">
             <dl className="m-0 grid max-w-[78ch] gap-px border border-line bg-line sm:grid-cols-2">
               {GLOSSARY.map(([t, d]) => (
                 <div key={t} className="flex flex-col gap-1 bg-bg p-4">

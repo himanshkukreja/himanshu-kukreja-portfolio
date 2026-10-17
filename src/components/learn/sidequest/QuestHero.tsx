@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import BookmarkButton from "@/components/BookmarkButton";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { LEARN_XP } from "@/lib/learn/types";
 import { scrollToId } from "../lesson/layout";
 import { fmtMin } from "../lesson/stageText";
@@ -57,6 +58,7 @@ export default function QuestHero({ meta }: { meta: ReaderMeta }) {
             SQ-{code}
           </span>
         </nav>
+        <SaveOfflineButton title={meta.title} kind="sidequest" compact className="shrink-0" />
         <div className="shrink-0 max-lg:[&>button>span]:sr-only max-lg:[&>button]:h-11 max-lg:[&>button]:w-11 max-lg:[&>button]:justify-center max-lg:[&>button]:px-0">
           <BookmarkButton courseId={meta.course} week={meta.week} lessonSlug={meta.slug} lessonTitle={meta.title} />
         </div>

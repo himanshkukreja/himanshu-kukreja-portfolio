@@ -8,6 +8,7 @@ import FocusMode from "@/components/FocusMode";
 import TableOfContents from "@/components/TableOfContents";
 import CollapsibleWeekNav from "@/components/CollapsibleWeekNav";
 import LessonComments from "@/components/LessonComments";
+import OnlineOnly from "@/components/offline/OnlineOnly";
 import SearchHighlight from "@/components/SearchHighlight";
 import DeepLinkResolver from "@/components/DeepLinkResolver";
 import { useReadAloud } from "@/components/ReadAloud";
@@ -200,7 +201,9 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
 
             <EndOfLesson meta={meta} prev={prev} next={next} trial={trial} />
 
-            <LessonComments courseId={meta.course} week={meta.week} lessonSlug={meta.slug} />
+            <OnlineOnly what="The discussion" note="You're reading a saved copy. Comments load again when you're back online.">
+              <LessonComments courseId={meta.course} week={meta.week} lessonSlug={meta.slug} />
+            </OnlineOnly>
           </FocusMode>
         </div>
 

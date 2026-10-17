@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useGame } from "@/game/GameProvider";
 import { addReviewCard } from "@/lib/learn/review";
 import { track } from "@/lib/track";
+import { queueTrialAttempt, queueTrialProgress, syncUserId } from "@/lib/offline/syncQueue";
 import type { MCQQuestion } from "@/lib/mcq-parser";
 import {
   TRIAL_XP,
@@ -235,10 +236,37 @@ export default function TrialRun(props: Props) {
     };
     props.onRecord(part.n, rec);
 
-    if (r.remoteId) void updateRemoteAttempt(r.remoteId, { answers: r.picks, score, passed, finished: true });
-    if (userId) {
+    // Offline (or a write that fails): the attempt and the progress mirror wait in the sync queue
+    // (lib/offline/syncQueue) and go up when the connection is back. The attempt keeps one id, so
+    // a retry can't create a second row.
+    const syncUser = syncUserId(userId);
+    const queueAttempt = (id: string) => {
+      if (!syncUser) return;
+      queueTrialAttempt(syncUser, {
+        id,
+        course: courseId,
+        week,
+        part: part.n,
+        seed: r.seed,
+        total: N,
+        answers: r.picks,
+        score,
+        passed,
+        startedAt: new Date(r.startedAt).toISOString(),
+        finishedAt: new Date().toISOString(),
+      });
+    };
+    if (r.remoteId) {
+      const id = r.remoteId;
+      void updateRemoteAttempt(id, { answers: r.picks, score, passed, finished: true }).then((ok) => ok || queueAttempt(id));
+    } else if (syncUser && typeof crypto !== "undefined" && "randomUUID" in crypto) {
+      queueAttempt(crypto.randomUUID());
+    }
+    if (syncUser) {
       const passedParts = props.views.filter((v) => (v.part.n === part.n ? rec.passed : v.state === "pass")).length;
-      void writeTrialProgress(userId, courseId, week, lessonSlug, passedParts, props.partsCount);
+      const queueProgress = () => queueTrialProgress(syncUser, { course: courseId, week, slug: lessonSlug, passedParts, totalParts: props.partsCount });
+      if (userId) void writeTrialProgress(userId, courseId, week, lessonSlug, passedParts, props.partsCount).then((ok) => ok || queueProgress());
+      else queueProgress();
     }
 
     setResult({

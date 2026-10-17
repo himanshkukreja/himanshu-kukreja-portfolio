@@ -8,6 +8,7 @@
  * too long the full prompt goes to the clipboard and the client opens with a short note saying so.
  */
 import { track } from "@/lib/track";
+import { isOffline } from "@/lib/offline/connectivity";
 
 export type AskClient = "claude" | "chatgpt";
 
@@ -132,7 +133,12 @@ export async function copyText(text: string): Promise<boolean> {
  * needs the user gesture). Returns "opened" or "clipboard" (prompt too long for a URL: the full
  * prompt was copied and the client opened with a short note).
  */
-export function askAi(client: AskClient, selected: string, ctx: AskContext): "opened" | "clipboard" {
+export function askAi(client: AskClient, selected: string, ctx: AskContext): "opened" | "clipboard" | "offline" {
+  // no connection: Claude / ChatGPT can't open, so hand over the prompt for later
+  if (isOffline()) {
+    void copyText(buildAskPrompt(selected, ctx, { selectionMax: 12_000 }));
+    return "offline";
+  }
   // a selection longer than MAX_SELECTION would be cut: send it whole through the clipboard instead
   let prompt = squash(selected).length <= MAX_SELECTION ? fittingPrompt(client, selected, ctx) : null;
   let mode: "opened" | "clipboard" = "opened";

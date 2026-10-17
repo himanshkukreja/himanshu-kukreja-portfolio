@@ -19,6 +19,7 @@ import DeepLinkResolver from "@/components/DeepLinkResolver";
 import { buildSections, readStoryRecord, sectionRects, writeStoryRecord, type Section, type StoryRecord } from "./storyReading";
 import { completeNeedSeconds, isStageRead, readProgress, startReadingProbe, visibleBins } from "@/lib/learn/engagedClock";
 import { track } from "@/lib/track";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import {
   CASE_TYPE_LABEL,
   DEBRIEF_FLAG,
@@ -467,6 +468,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
               </span>
               <span className="grow" />
               <div className="flex flex-wrap gap-1.5">
+                <SaveOfflineButton title={meta.title} kind="story" url={`/stories/${meta.slug}`} />
                 {readAloud.state !== "unsupported" && (
                   <button
                     type="button"

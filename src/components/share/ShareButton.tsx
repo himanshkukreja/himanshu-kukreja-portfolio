@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { Share2 } from "lucide-react";
 import ShareSheet, { type ShareTarget } from "./ShareSheet";
 import { useShare } from "./useShare";
+import { useConnectivity } from "@/lib/offline/connectivity";
 
 type Variant = "ghost" | "solid" | "link" | "icon";
 
@@ -19,19 +20,22 @@ const LOOK: Record<Variant, string> = {
 export default function ShareButton({ label = "Share", variant = "ghost", className = "", ...target }: ShareTarget & { label?: string; variant?: Variant; className?: string }) {
   const [open, setOpen] = useState(false);
   const share = useShare();
+  // a share link points at a public page that has to be published: needs the server
+  const { offline } = useConnectivity();
   return (
     <>
       <button
         type="button"
+        disabled={offline}
         onClick={() => {
           setOpen(true);
           // drop the cached public page so a just-earned achievement is on the page the link opens
           if (share.state?.settings?.enabled) void share.refresh(true);
         }}
         aria-label={variant === "icon" ? label : undefined}
-        title={variant === "icon" ? label : undefined}
+        title={offline ? "Sharing needs a connection" : variant === "icon" ? label : undefined}
         data-share={target.kind}
-        className={`${LOOK[variant]} ${className}`}
+        className={`${LOOK[variant]} disabled:cursor-not-allowed disabled:opacity-50 ${className}`}
       >
         <Share2 className="h-4 w-4" aria-hidden />
         {variant !== "icon" && label}

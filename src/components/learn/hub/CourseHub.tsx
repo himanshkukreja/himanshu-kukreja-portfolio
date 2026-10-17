@@ -28,6 +28,9 @@ import WorldCleared from "./WorldCleared";
 import LevelUp from "./LevelUp";
 import Overlay from "./Overlay";
 import ShareButton from "@/components/share/ShareButton";
+import { SaveCourseButton } from "@/components/offline/OfflineLibrary";
+import { InstallButton } from "@/components/offline/Install";
+import { useOffline } from "@/components/offline/OfflineProvider";
 
 export default function CourseHub({ map }: { map: CourseMap }) {
   const { ready, signedIn, lessons, done } = useLearnProgress(map.courseId);
@@ -233,6 +236,8 @@ export default function CourseHub({ map }: { map: CourseMap }) {
         </div>
       </section>
 
+      <ReadOffline />
+
       {map.plan && (
         <Link href={map.plan.href} className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line-strong px-5 py-4 hover:border-fg-4">
           <span className="flex flex-col gap-1">
@@ -262,5 +267,32 @@ export default function CourseHub({ map }: { map: CourseMap }) {
       {worldMoment && <WorldCleared week={worldMoment.week} next={nextOf(worldMoment.week.key)} done={done} dueCount={dueCount} onClose={closeWorld} />}
       {levelMoment !== null && <LevelUp from={levelMoment} onClose={closeLevel} />}
     </main>
+  );
+}
+
+/** Offline reading: save the whole course (or open the library), install the app. */
+function ReadOffline() {
+  const { checked, supported, saved } = useOffline();
+  if (checked && !supported) return null;
+  return (
+    <section aria-labelledby="offline-h" className="flex flex-col gap-4 border border-line-strong bg-surface p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+      <div className="flex min-w-0 flex-col gap-2">
+        <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">No internet? No problem</span>
+        <h2 id="offline-h" className="m-0 font-display text-[28px] font-bold leading-[1.05] tracking-[-0.025em] text-fg sm:text-[32px]">
+          Read offline
+        </h2>
+        <p className="m-0 max-w-[620px] text-[15px] leading-relaxed text-fg-2">
+          Save a lesson, a world or the whole course and read it on a flight. Diagrams, code, quick checks and trials work with no connection, and your progress syncs when you land.
+          {saved.size > 0 && ` ${saved.size} saved on this device.`}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
+        <SaveCourseButton />
+        <Link href="/learn/offline" className="inline-flex min-h-[52px] items-center border border-line-strong px-4 text-[15px] font-medium text-fg hover:bg-surface-2">
+          Offline library
+        </Link>
+        <InstallButton className="min-h-[52px]" />
+      </div>
+    </section>
   );
 }

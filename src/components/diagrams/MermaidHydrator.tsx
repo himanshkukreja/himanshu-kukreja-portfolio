@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { mermaidConfig, prepareMermaidSource, type DiagramTheme } from "@/lib/diagrams/mermaid-theme";
+import { loadMermaid as importMermaid } from "@/lib/offline/lazy";
 
 type MermaidApi = typeof import("mermaid").default;
 
@@ -10,7 +11,8 @@ let configuredFor: DiagramTheme | null = null;
 let seq = 0;
 
 function loadMermaid(): Promise<MermaidApi> {
-  if (!mermaidPromise) mermaidPromise = import("mermaid").then((m) => m.default);
+  // one import site (lib/offline/lazy) so "save for offline" caches this exact chunk
+  if (!mermaidPromise) mermaidPromise = importMermaid();
   return mermaidPromise;
 }
 

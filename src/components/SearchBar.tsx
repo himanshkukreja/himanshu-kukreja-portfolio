@@ -10,6 +10,7 @@
  * for ⌘K / Ctrl+K and for the `hk:course-search` window event.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Search } from "lucide-react";
@@ -112,6 +113,8 @@ function Palette({ onClose }: { onClose: () => void }) {
   const [filter, setFilter] = useState<"all" | Group>("all");
   const [sel, setSel] = useState(0);
   const [recent, setRecent] = useState<string[]>([]);
+  // the course index couldn't load (offline): say so instead of "nothing matches"
+  const [failed, setFailed] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -130,7 +133,10 @@ function Palette({ onClose }: { onClose: () => void }) {
         if (!off) setDocs((d.results || []) as Doc[]);
       })
       .catch(() => {
-        if (!off) setDocs([]);
+        if (!off) {
+          setDocs([]);
+          setFailed(true);
+        }
       });
     return () => {
       off = true;
@@ -383,7 +389,16 @@ function Palette({ onClose }: { onClose: () => void }) {
             </p>
           )}
           {q.trim() && docs === null && <p className="px-2 py-6"><InlineLoader label="loading the course index" /></p>}
-          {q.trim() && docs && visible.length === 0 && (
+          {q.trim() && failed && visible.length === 0 && (
+            <p className="px-2 py-6 text-sm leading-relaxed text-fg-3">
+              Search needs a connection. Lessons saved on this device are in the{" "}
+              <Link href="/learn/offline" onClick={onClose} className="text-signal-text underline decoration-line-strong underline-offset-4">
+                offline library
+              </Link>
+              .
+            </p>
+          )}
+          {q.trim() && docs && !failed && visible.length === 0 && (
             <p className="px-2 py-6 text-sm text-fg-3">
               Nothing matches <span className="text-fg">“{q.trim()}”</span>. Search looks at lesson titles and text{user ? ", interview questions and your notes" : " and interview questions"}.
             </p>

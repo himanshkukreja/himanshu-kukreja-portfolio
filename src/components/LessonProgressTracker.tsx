@@ -19,6 +19,8 @@
  *
  * Signed in → `learning_progress` (stage columns when the level-up migration is applied, the
  * original columns otherwise; `time_spent` = engaged seconds on the page). Guests → localStorage.
+ * Offline (or a write that fails), signed-in progress goes to the sync queue (lib/offline/syncQueue),
+ * which merges it into the server row when the connection is back.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Stage } from "@/lib/course/types";
@@ -37,6 +39,7 @@ import {
 import { headerStackBottom, stageElement, stageRailHeight } from "@/components/learn/lesson/layout";
 import { isOptionalStage } from "@/components/learn/lesson/stageText";
 import { track } from "@/lib/track";
+import { queueLesson, syncUserId } from "@/lib/offline/syncQueue";
 import {
   completeNeedSeconds,
   coverageOf,
@@ -176,6 +179,10 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
   const readyRef = useRef(false);
   const saveTimer = useRef<number | null>(null);
   const noticeId = useRef(0);
+  // this page view (sync queue: engaged seconds are kept per view, so re-queuing never double counts)
+  const viewId = useRef("");
+  // a stage or the lesson was cleared in this view (the queued write also marks the streak day)
+  const clearedRef = useRef(false);
 
   const stageKey = useCallback((id: string) => `stage:${week}/${lessonSlug}/${id}`, [week, lessonSlug]);
   const lessonXpKey = `lesson:${week}/${lessonSlug}`;
@@ -294,10 +301,34 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
         updatedAt: Date.now(),
       });
 
-      if (!userId || !remoteOk.current) return;
+      const syncUser = syncUserId(userId);
+      if (!syncUser) return;
       const seconds = clock.current?.seconds() ?? 0;
       // a row is worth writing once there is progress, or a minute of real reading
       if (!next.completed && next.done.length === 0 && !next.lastStage && seconds < 60) return;
+      const queue = () =>
+        queueLesson(syncUser, {
+          course: courseId,
+          week,
+          slug: lessonSlug,
+          stages: next.done,
+          lastStage: next.lastStage,
+          completed: next.completed,
+          completedAt: next.completedAt,
+          progress,
+          startedAt: next.startedAt,
+          contentVersion,
+          baseTime: remoteOk.current ? next.timeSpent : 0,
+          sessions: { [viewId.current || "view"]: Math.min(timeCap, seconds) },
+          timeCap,
+          activity: clearedRef.current,
+          localAt: Date.now(),
+        });
+      // offline, or the row couldn't be read (a write now could clobber it): queue a merge for later
+      if (!userId || !remoteOk.current) {
+        queue();
+        return;
+      }
       void saveRemoteLesson({
         userId,
         course: courseId,
@@ -312,7 +343,8 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
         completedAt: next.completedAt,
         contentVersion,
       }).then((ok) => {
-        if (ok && !storedRef.current.startedAt) storedRef.current = { ...storedRef.current, startedAt: new Date().toISOString() };
+        if (!ok) queue();
+        else if (!storedRef.current.startedAt) storedRef.current = { ...storedRef.current, startedAt: new Date().toISOString() };
       });
     },
     [required, courseId, week, lessonSlug, userId, contentVersion, timeCap]
@@ -334,6 +366,7 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
   useEffect(() => {
     const c = startEngagedClock();
     clock.current = c;
+    viewId.current = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
     let sent = 0;
     const flush = () => {
       flushDwellRef.current();
@@ -385,6 +418,7 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     if (!storedRef.current.completed) {
       const secs = Math.min(timeCap, storedRef.current.timeSpent + (clock.current?.seconds() ?? 0));
       track("lesson_complete", { ...trackCtx.current, minutes: Math.round(secs / 60) });
+      clearedRef.current = true;
       update((s) => ({ ...s, completed: true, completedAt: s.completedAt ?? new Date().toISOString() }), { immediate: true });
       flushDwell();
       if (userId) void recordLearningActivity(userId);
@@ -399,6 +433,7 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       if (!stage) return;
       if (!isDone(id)) {
         track("stage_done", { ...trackCtx.current, stage: id, index: stages.indexOf(stage), total: stages.length });
+        clearedRef.current = true;
         update((s) => (s.done.includes(id) ? s : { ...s, done: [...s.done, id] }), { immediate: true });
         flushDwell();
         if (userId) void recordLearningActivity(userId);

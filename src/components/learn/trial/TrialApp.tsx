@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGame } from "@/game/GameProvider";
 import type { MCQAssessment } from "@/lib/mcq-parser";
@@ -283,6 +284,7 @@ function TrialHub({
           >
             Practice all {total} on one page
           </Link>
+          <SaveOfflineButton title={`${weekLabel} trials`} kind="trial" url={base} />
         </div>
         <span className="text-[13px] text-fg-3">Practice mode is untimed and awards no XP. Its answers are kept separately from your trial attempts.</span>
       </section>

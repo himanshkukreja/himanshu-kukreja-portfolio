@@ -66,7 +66,16 @@ const posthogRewrites = POSTHOG_KEY
     ]
   : [];
 
+// One id per deploy for offline reading: the service worker is registered as /sw.js?v=<id> (a new id
+// installs a new worker) and saved pages record the build whose app files they need. Set once here
+// so the build's worker processes (which inherit process.env) all inline the same value.
+process.env.HK_BUILD_ID ||=
+  process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || `local-${Date.now().toString(36)}`;
+
 const nextConfig: NextConfig = {
+  env: {
+    NEXT_PUBLIC_HK_BUILD: process.env.HK_BUILD_ID,
+  },
   // PostHog API paths end in a slash (/e/, /flags/?v=2): don't 308 them away (only needed, and
   // only switched on, when the proxy is live).
   skipTrailingSlashRedirect: posthogRewrites.length > 0,
@@ -107,6 +116,14 @@ const nextConfig: NextConfig = {
   // Add headers to allow Supabase API calls
   async headers() {
     return [
+      {
+        // the offline service worker: always revalidated, allowed to control the whole site
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
       {
         // everything except the PostHog proxy (it forwards PostHog's own headers)
         source: `/((?!${PH.slice(1)}/).*)`,

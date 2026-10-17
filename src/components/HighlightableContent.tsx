@@ -614,6 +614,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     const mode = askAi(client, text, ctx);
     setMenu(null);
     if (mode === "clipboard") setToast({ message: `Long selection: the full prompt is on your clipboard. Paste it into ${CLIENT_LABEL[client]}.`, type: "info" });
+    else if (mode === "offline") setToast({ message: `You're offline, so ${CLIENT_LABEL[client]} can't open. The prompt is on your clipboard: paste it in when you're back online.`, type: "info" });
   };
 
   const handleCopyPrompt = async () => {

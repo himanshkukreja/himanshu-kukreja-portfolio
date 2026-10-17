@@ -3,9 +3,13 @@
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import BookmarkButton from "@/components/BookmarkButton";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
+import type { OfflineKind } from "@/lib/offline/types";
 import { scrollToId } from "./layout";
 import { stagePosition, fmtMin } from "./stageText";
 import type { ReaderMeta } from "./types";
+
+const OFFLINE_KIND: Record<string, OfflineKind> = { "week-preview": "preview", capstone: "capstone", bonus: "sidequest", overview: "plan" };
 
 /** Phone labels for the inline stat row ("29 code" instead of "29 code blocks"). */
 const SHORT_STAT: Record<string, string> = { "code blocks": "code", "code block": "code", "interview Qs": "Qs", "timed phases": "phases" };
@@ -146,9 +150,12 @@ export default function LessonHero({ meta }: { meta: ReaderMeta }) {
             </span>
           )}
           <span className="hidden flex-1 lg:block" />
-          {/* phones: icon-only bookmark beside the breadcrumb */}
-          <div className="col-start-2 row-start-1 max-lg:[&>button>span]:sr-only max-lg:[&>button]:h-11 max-lg:[&>button]:w-11 max-lg:[&>button]:justify-center max-lg:[&>button]:px-0">
-            <BookmarkButton courseId={meta.course} week={meta.week} lessonSlug={meta.slug} lessonTitle={meta.title} />
+          {/* phones: icon-only save + bookmark beside the breadcrumb */}
+          <div className="col-start-2 row-start-1 flex items-center gap-1.5 lg:gap-2.5">
+            <SaveOfflineButton title={meta.title} kind={OFFLINE_KIND[meta.kind] ?? "lesson"} compact />
+            <div className="max-lg:[&>button>span]:sr-only max-lg:[&>button]:h-11 max-lg:[&>button]:w-11 max-lg:[&>button]:justify-center max-lg:[&>button]:px-0">
+              <BookmarkButton courseId={meta.course} week={meta.week} lessonSlug={meta.slug} lessonTitle={meta.title} />
+            </div>
           </div>
         </div>
       </div>

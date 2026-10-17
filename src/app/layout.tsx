@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { EMAIL, SOCIALS } from "@/lib/socials";
 import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
@@ -15,6 +15,7 @@ import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 import GlobalAuthModal from "@/components/GlobalAuthModal";
 import AuthHashHandler from "@/components/AuthHashHandler";
 import RouteProgress from "@/components/site/RouteProgress";
+import OfflineProvider from "@/components/offline/OfflineProvider";
 
 
 
@@ -65,6 +66,12 @@ export const metadata: Metadata = {
   },
 };
 
+// Browser chrome colour: the default (dark) theme's black; the offline provider re-points it when
+// the reader picks light (the site's theme ignores the OS setting).
+export const viewport: Viewport = {
+  themeColor: "#000000",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -77,6 +84,14 @@ export default function RootLayout({
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
+        {/* Offline reading / installable app (src/app/manifest.ts, public/sw.js); in <head> for the same reason. */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-title" content="SD Mastery" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        {/* build that rendered this page: a saved copy keeps that build's app files */}
+        <meta name="hk-build" content={process.env.NEXT_PUBLIC_HK_BUILD || "dev"} />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased pb-24 lg:pb-0`}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON_LD) }} />
@@ -87,12 +102,14 @@ export default function RootLayout({
           <AuthModalProvider>
             <ThemeProvider>
               <GameProvider>
-                <AuthHashHandler />
-                <SiteHeader />
-                {children}
-                <XPToaster />
-                <Terminal />
-                <GlobalAuthModal />
+                <OfflineProvider>
+                  <AuthHashHandler />
+                  <SiteHeader />
+                  {children}
+                  <XPToaster />
+                  <Terminal />
+                  <GlobalAuthModal />
+                </OfflineProvider>
               </GameProvider>
             </ThemeProvider>
           </AuthModalProvider>

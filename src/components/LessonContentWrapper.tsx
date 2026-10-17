@@ -4,10 +4,12 @@ import { forwardRef } from "react";
 import dynamic from "next/dynamic";
 import HighlightableContent from "./HighlightableContent";
 import styles from "@/components/learn/lesson/reader.module.css";
+import { loadCourseEnhancer } from "@/lib/offline/lazy";
 
 // Interactive chrome for the rendered course components (blueprints, code, reveals, checklists…).
 // Client-only; it never changes text content, so highlight / bookmark offsets stay valid.
-const CourseEnhancer = dynamic(() => import("@/components/learn/content/CourseEnhancer"), { ssr: false });
+// (loaded through lib/offline/lazy so "save for offline" caches this exact chunk)
+const CourseEnhancer = dynamic(loadCourseEnhancer, { ssr: false });
 
 type LessonContentWrapperProps = {
   htmlContent: string;

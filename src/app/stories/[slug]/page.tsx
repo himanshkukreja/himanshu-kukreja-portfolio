@@ -4,6 +4,7 @@ import { getAllStories, getStorySource } from "@/lib/stories";
 import { resolveCoverUrl } from "@/lib/utils";
 import StoryViewsClient from "./views-client";
 import StoryComments from "@/components/StoryComments";
+import OnlineOnly from "@/components/offline/OnlineOnly";
 import ScrollToDiscussion from "@/components/ScrollToDiscussion";
 import StoryReader, { type CaseLink } from "@/components/stories/StoryReader";
 import { renderStoryBody } from "@/components/stories/render-story";
@@ -89,7 +90,11 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
         next={next}
         totalCases={cases.length}
         views={<StoryViewsClient slug={slug} />}
-        comments={<StoryComments storySlug={slug} />}
+        comments={
+          <OnlineOnly what="The discussion">
+            <StoryComments storySlug={slug} />
+          </OnlineOnly>
+        }
         activity={story.activity || undefined}
       />
     </main>

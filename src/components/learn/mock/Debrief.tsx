@@ -369,7 +369,13 @@ function AskForFeedback({ mock, run, score }: Props) {
   const url = () => `${window.location.origin}${mock.href}`;
   const ask = (client: AskClient) => {
     const mode = openFeedback(client, buildFeedbackPrompt(mock, run, score.complete ? score : null, url()), mock.company.name);
-    setNote(mode === "clipboard" ? `Your round was too long for a link, so the full prompt is on your clipboard: paste it into ${CLIENT_LABEL[client]} after its first reply.` : `Opened ${CLIENT_LABEL[client]} with your round prefilled.`);
+    setNote(
+      mode === "offline"
+        ? `You're offline, so ${CLIENT_LABEL[client]} can't open. Your round is on your clipboard: paste it in when you're back online.`
+        : mode === "clipboard"
+          ? `Your round was too long for a link, so the full prompt is on your clipboard: paste it into ${CLIENT_LABEL[client]} after its first reply.`
+          : `Opened ${CLIENT_LABEL[client]} with your round prefilled.`
+    );
   };
   const copy = async () => {
     const ok = await copyText(buildFeedbackPrompt(mock, run, score.complete ? score : null, url()));
