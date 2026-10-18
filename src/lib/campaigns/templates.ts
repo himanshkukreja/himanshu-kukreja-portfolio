@@ -1,7 +1,7 @@
 /**
- * Starting points for a campaign. The learn-revamp and offline-app announcements and the welcome email
- * are generated from their source modules (src/lib/announce/learn-revamp.ts, src/lib/announce/
- * offline-app.ts, src/lib/email/welcome.ts), so edits to
+ * Starting points for a campaign. The learn-revamp, offline-app and practice-toolkit announcements and
+ * the welcome email are generated from their source modules (src/lib/announce/learn-revamp.ts,
+ * src/lib/announce/offline-app.ts, src/lib/announce/practice-toolkit.ts, src/lib/email/welcome.ts), so edits to
  * those files flow through and a campaign sends exactly the approved design:
  *
  *   render once with a sentinel name and once without → line diff → name-dependent lines become
@@ -12,6 +12,7 @@
  */
 import { ANNOUNCE_KEY, announceSubject, learnRevampHtml, learnRevampText, unsubscribeUrl } from "@/lib/announce/learn-revamp";
 import { OFFLINE_APP_KEY, OFFLINE_APP_PREHEADER, offlineAppHtml, offlineAppSubject, offlineAppText } from "@/lib/announce/offline-app";
+import { PRACTICE_TOOLKIT_KEY, PRACTICE_TOOLKIT_PREHEADER, practiceToolkitHtml, practiceToolkitSubject, practiceToolkitText } from "@/lib/announce/practice-toolkit";
 import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
 import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
 import type { TemplateInfo } from "./types";
@@ -100,6 +101,21 @@ function offlineAppTemplate(): TemplateInfo {
   };
 }
 
+function practiceToolkitTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/practice-toolkit.ts", html: fromSource(practiceToolkitHtml, unsub), text: fromSource(practiceToolkitText, unsub) };
+  return {
+    id: "practice-toolkit",
+    name: "What's new: practice toolkit, trials, mocks, explainers",
+    description:
+      "The Practice tab (revision decks, cheat sheets, code labs, mock interviews, Design of the week, numbers, planner, concept map, reading trail), trials for weeks 3-10, explainers and side quests 12-15, with screenshots. Generated from src/lib/announce/practice-toolkit.ts.",
+    topic: PRACTICE_TOOLKIT_KEY,
+    ...subjectTemplate(practiceToolkitSubject),
+    preheader: PRACTICE_TOOLKIT_PREHEADER,
+    doc,
+  };
+}
+
 function welcomeTemplate(): TemplateInfo {
   const unsub = welcomeUnsubscribeUrl(S_EMAIL);
   const doc: RawDoc = { layout: "raw", source: "src/lib/email/welcome.ts", html: fromSource(welcomeHtml, unsub), text: fromSource(welcomeText, unsub) };
@@ -160,7 +176,7 @@ function storyTemplate(): TemplateInfo {
 
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [storyTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [storyTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {

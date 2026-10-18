@@ -4,7 +4,7 @@
  * Missing folder or a broken file never breaks the course: it just yields fewer mocks.
  */
 import { createHash } from "crypto";
-import { fetchGitHubContent, fetchMarkdownContent } from "@/lib/github";
+import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetchError } from "@/lib/github";
 import { renderLesson } from "@/lib/course/render";
 import type { CourseLesson, CourseWeek } from "@/lib/learn/types";
 import { parseMock, type RawMock } from "./parse";
@@ -20,8 +20,9 @@ export async function loadMockSources(): Promise<MockSource[]> {
   let files: { name: string; path: string; type: string }[] = [];
   try {
     files = await fetchGitHubContent(MOCK_DIR);
-  } catch {
-    return [];
+  } catch (e) {
+    if (isContentMissing(e)) return [];
+    throw e; // transient (rate limit, 5xx): never cache an empty mock list
   }
   const picked = files.filter((f) => f.type === "file" && FILE_RE.test(f.name));
   const out = await Promise.all(
@@ -29,7 +30,8 @@ export async function loadMockSources(): Promise<MockSource[]> {
       try {
         const md = await fetchMarkdownContent(f.path);
         return { slug: f.name.replace(/\.md$/, ""), n: parseInt(f.name.match(FILE_RE)![1], 10), path: f.path, md };
-      } catch {
+      } catch (e) {
+        if (e instanceof ContentFetchError && !isContentMissing(e)) throw e;
         return null;
       }
     })

@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { unstable_cache } from "next/cache";
-import { fetchGitHubContent, fetchMarkdownContent } from "@/lib/github";
+import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetchError } from "@/lib/github";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import type { CourseLesson, CourseWeek } from "@/lib/learn/types";
 import { parseRevision, type RevCard, type RevWeek } from "./parse";
@@ -53,8 +53,9 @@ async function readAll(): Promise<Source[]> {
   let files: { name: string; path: string; type: string }[] = [];
   try {
     files = await fetchGitHubContent(DIR);
-  } catch {
-    return [];
+  } catch (e) {
+    if (isContentMissing(e)) return [];
+    throw e; // transient (rate limit, 5xx): never cache an empty deck list
   }
   const picked = files.filter((f) => f.type === "file" && /^week-\d+\.md$/.test(f.name));
   const out = await Promise.all(
@@ -64,7 +65,8 @@ async function readAll(): Promise<Source[]> {
         const { week } = parseRevision(md);
         if (!week || !week.lessons.length) return null;
         return { week, hash: createHash("sha1").update(md).digest("hex").slice(0, 12) };
-      } catch {
+      } catch (e) {
+        if (e instanceof ContentFetchError && !isContentMissing(e)) throw e;
         return null;
       }
     })

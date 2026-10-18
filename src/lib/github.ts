@@ -64,6 +64,25 @@ export type LearningResource = {
 };
 
 /**
+ * A failed content fetch, with its HTTP status. Loaders that cache their result must only treat a
+ * 404 (the folder/file really isn't there) as "empty"; anything else (rate limit, 5xx, network) has
+ * to throw, so a cache never stores an empty course and the last good copy keeps being served.
+ */
+export class ContentFetchError extends Error {
+  constructor(message: string, readonly status: number) {
+    super(message);
+    this.name = "ContentFetchError";
+  }
+}
+
+/** True when the content genuinely doesn't exist (GitHub 404, or a missing local file). */
+export function isContentMissing(e: unknown): boolean {
+  if (e instanceof ContentFetchError) return e.status === 404;
+  const code = (e as { code?: string } | null)?.code;
+  return code === "ENOENT" || code === "ENOTDIR";
+}
+
+/**
  * Fetch file or directory contents from GitHub
  */
 export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
@@ -89,10 +108,10 @@ export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
     const errorText = await response.text();
     // Provide a clearer message for unauthenticated requests
     if (response.status === 401 || response.status === 403) {
-      throw new Error(`GitHub API authentication error (${response.status}). If your repository is private, set GITHUB_PERSONAL_ACCESS_TOKEN in the environment. ${errorText}`);
+      throw new ContentFetchError(`GitHub API authentication error (${response.status}). If your repository is private, set GITHUB_PERSONAL_ACCESS_TOKEN in the environment. ${errorText}`, response.status);
     }
 
-    throw new Error(`GitHub API error (${response.status}): ${errorText}`);
+    throw new ContentFetchError(`GitHub API error (${response.status}): ${errorText}`, response.status);
   }
 
   const data = await response.json();
@@ -128,9 +147,9 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
   if (!response.ok) {
     const errorText = await response.text();
     if (response.status === 401 || response.status === 403) {
-      throw new Error(`GitHub API authentication error (${response.status}) when fetching markdown. If private, set GITHUB_PERSONAL_ACCESS_TOKEN. ${errorText}`);
+      throw new ContentFetchError(`GitHub API authentication error (${response.status}) when fetching markdown. If private, set GITHUB_PERSONAL_ACCESS_TOKEN. ${errorText}`, response.status);
     }
-    throw new Error(`Failed to fetch markdown (${response.status}): ${errorText}`);
+    throw new ContentFetchError(`Failed to fetch markdown (${response.status}): ${errorText}`, response.status);
   }
 
   return response.text();

@@ -1,4 +1,4 @@
-import { fetchMarkdownContent, formatWeekTopic, getAllLearningResources, type LearningResource } from "@/lib/github";
+import { fetchMarkdownContent, formatWeekTopic, getAllLearningResources, type LearningResource, ContentFetchError, isContentMissing } from "@/lib/github";
 import { unstable_cache } from "next/cache";
 import { calculateReadingTime } from "@/lib/reading-time";
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
@@ -102,8 +102,10 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
           return;
         }
         minutes[`${r.week}/${r.slug}`] = calculateReadingTime(md).minutes;
-      } catch {
-        // a file that can't be read keeps a zero estimate; never fail the page
+      } catch (e) {
+        // a file that's gone keeps a zero estimate; a transient fetch failure (rate limit, 5xx)
+        // throws so the cached course map is never rebuilt without its trials and estimates
+        if (e instanceof ContentFetchError && !isContentMissing(e)) throw e;
       }
     })
   );
@@ -132,7 +134,10 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
 
   const sideQuests = resources.filter((r) => r.type === "bonus").map(lessonOf);
   // Mock interviews between worlds; a missing folder or a broken file just means fewer mocks.
-  const mocks: CourseMock[] = (await loadMockSources().catch(() => []))
+  const mocks: CourseMock[] = (await loadMockSources().catch((e) => {
+    if (e instanceof ContentFetchError && !isContentMissing(e)) throw e;
+    return [];
+  }))
     .map((src) => {
       try {
         const { covers: _covers, ...m } = summarize(src, { weeks, sideQuests });

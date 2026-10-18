@@ -7,7 +7,7 @@ import "server-only";
  * labs (broken files are logged in development).
  */
 import { unstable_cache } from "next/cache";
-import { fetchGitHubContent, fetchMarkdownContent } from "@/lib/github";
+import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetchError } from "@/lib/github";
 import { renderLesson } from "@/lib/course/render";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import { resolveStudy, type MockCtx } from "@/lib/learn/mock/load";
@@ -23,8 +23,9 @@ export async function loadLabSources(): Promise<LabSource[]> {
   let files: { name: string; path: string; type: string }[] = [];
   try {
     files = await fetchGitHubContent(LABS_DIR);
-  } catch {
-    return [];
+  } catch (e) {
+    if (isContentMissing(e)) return [];
+    throw e; // transient (rate limit, 5xx): never cache an empty lab list
   }
   const picked = files.filter((f) => f.type === "file" && FILE_RE.test(f.name) && f.name.toLowerCase() !== "readme.md");
   const out = await Promise.all(
@@ -32,6 +33,7 @@ export async function loadLabSources(): Promise<LabSource[]> {
       try {
         return parseLab(await fetchMarkdownContent(f.path), f.name);
       } catch (e) {
+        if (e instanceof ContentFetchError && !isContentMissing(e)) throw e;
         if (process.env.NODE_ENV !== "production") console.warn(`[labs] ${f.name}: ${(e as Error).message}`);
         return null;
       }

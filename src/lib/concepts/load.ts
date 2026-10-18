@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { unstable_cache } from "next/cache";
-import { fetchMarkdownContent } from "@/lib/github";
+import { fetchMarkdownContent, isContentMissing } from "@/lib/github";
 import { COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import type { CourseMap } from "@/lib/learn/types";
 import type { TermsOpts } from "@/lib/course/terms";
@@ -19,7 +19,8 @@ async function load(): Promise<{ catalogue: Catalogue; errors: string[]; hash: s
   let text = "";
   try {
     text = await fetchMarkdownContent(CATALOGUE_PATH);
-  } catch {
+  } catch (e) {
+    if (!isContentMissing(e)) throw e; // transient: keep serving the last good catalogue
     return { catalogue: EMPTY, errors: ["catalogue not found"], hash: "none" };
   }
   const { catalogue, errors } = parseCatalogue(text);

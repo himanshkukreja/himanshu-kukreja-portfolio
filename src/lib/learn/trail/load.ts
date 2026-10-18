@@ -6,7 +6,7 @@ import "server-only";
  * broken file never breaks a page: lessons just render without a trail.
  */
 import { unstable_cache } from "next/cache";
-import { fetchGitHubContent, fetchMarkdownContent } from "@/lib/github";
+import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetchError } from "@/lib/github";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import type { CourseLesson, CourseMap } from "@/lib/learn/types";
 import { mergeTrailFiles, parseTrailFile, TRAIL_DIR, TRAIL_FILE_RE, type ParsedFile, type ParsedLesson } from "./parse";
@@ -16,15 +16,17 @@ async function readFiles(): Promise<Record<string, ParsedLesson>> {
   let files: { name: string; path: string; type: string }[] = [];
   try {
     files = await fetchGitHubContent(TRAIL_DIR);
-  } catch {
-    return {};
+  } catch (e) {
+    if (isContentMissing(e)) return {};
+    throw e; // transient (rate limit, 5xx): never cache an empty trail
   }
   const picked = files.filter((f) => f.type === "file" && TRAIL_FILE_RE.test(f.name)).sort((a, b) => a.name.localeCompare(b.name));
   const parsed = await Promise.all(
     picked.map(async (f): Promise<{ name: string; parsed: ParsedFile } | null> => {
       try {
         return { name: f.name, parsed: parseTrailFile(await fetchMarkdownContent(f.path), f.name) };
-      } catch {
+      } catch (e) {
+        if (e instanceof ContentFetchError && !isContentMissing(e)) throw e;
         return null;
       }
     })
