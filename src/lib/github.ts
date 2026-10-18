@@ -249,6 +249,8 @@ const LESSON_TITLES: Record<string, string> = {
   'bonus-11-irctc-booking-system': 'IRCTC Tatkal Ticket Booking System',
   'bonus-12-blinkit-quick-commerce': 'Blinkit Quick Commerce',
   'bonus-13-zerodha-kite-trading': 'Zerodha Kite Trading Platform',
+  'bonus-14-chatgpt-llm-serving': 'ChatGPT LLM Serving',
+  'bonus-15-figma-multiplayer': 'Figma Multiplayer Editing',
   // Week 0
   'foundations-part-1-basic-concepts': 'Part 1: System Design Fundamentals',
   'foundations-part-2-infrastructure-building-blocks': 'Part 2: Infrastructure Building Blocks',

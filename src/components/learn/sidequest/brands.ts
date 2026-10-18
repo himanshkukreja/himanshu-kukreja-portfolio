@@ -3,10 +3,10 @@
  *
  * These are NOT the companies' logos or brand artwork. Each quest gets an original emblem drawn
  * for this course (QuestEmblem.tsx) that evokes the product's engineering problem (a QR finder
- * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for Zerodha Kite…), tinted with the product's general
+ * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for Zerodha Kite, a GPU chip streaming tokens for ChatGPT, two cursors on a frame for Figma…), tinted with the product's general
  * colour as an accent. The product is always named in text.
  */
-export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles";
+export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles" | "tokens" | "cursors";
 
 export type QuestBrand = {
   /** bonus number, 1-based */
@@ -36,6 +36,8 @@ const BRANDS: Record<number, QuestBrand> = {
   11: { n: 11, product: "IRCTC Tatkal", field: "Ticket booking", emblem: "train", accent: "#1F3C88", ink: "#FFFFFF" },
   12: { n: 12, product: "Blinkit", field: "Quick commerce", emblem: "bolt", accent: "#F8C51C", ink: "#1A1600" },
   13: { n: 13, product: "Zerodha Kite", field: "Stock trading", emblem: "candles", accent: "#387ED1", ink: "#FFFFFF" },
+  14: { n: 14, product: "ChatGPT", field: "LLM serving", emblem: "tokens", accent: "#0D8C6D", ink: "#FFFFFF" },
+  15: { n: 15, product: "Figma", field: "Multiplayer editing", emblem: "cursors", accent: "#FF7262", ink: "#2A0A05" },
 };
 
 const FALLBACK: Omit<QuestBrand, "n"> = { product: "Side quest", field: "System design", emblem: "fanout", accent: "#0B0B0B", ink: "#FFFFFF" };

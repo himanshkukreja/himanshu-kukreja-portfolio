@@ -174,6 +174,36 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <path d="M8 56h48" {...S} />
         </>
       );
+    case "tokens": // a GPU chip streaming tokens out one at a time, above a line being typed with a cursor
+      return (
+        <>
+          <rect x={10} y={17} width={24} height={24} {...S} />
+          <path d="M10 23H5M10 29H5M10 35H5M16 17v-5M22 17v-5M28 17v-5M16 41v5M22 41v5M28 41v5" {...S} strokeWidth={2} />
+          <rect x={17} y={24} width={10} height={10} {...F} />
+          <rect x={38} y={26} width={6} height={6} {...F} />
+          <rect x={47} y={26.5} width={5} height={5} {...F} opacity={0.8} />
+          <rect x={55} y={27} width={4} height={4} {...F} opacity={0.6} />
+          <path d="M14 53h16M34 53h8" {...S} />
+          <rect x={45} y={48} width={2.5} height={9} {...F} />
+        </>
+      );
+    case "cursors": // a selected frame with corner handles, two people's cursors editing it at once, one name tag
+      return (
+        <>
+          <rect x={8} y={10} width={34} height={27} {...S} strokeDasharray="4 3" />
+          {[
+            [8, 10],
+            [42, 10],
+            [8, 37],
+            [42, 37],
+          ].map(([x, y]) => (
+            <rect key={`h${x}-${y}`} x={x - 3} y={y - 3} width={6} height={6} {...F} />
+          ))}
+          <path d="M20 16v19l5-5 4 9 4-2-4-9h7z" {...F} />
+          <path d="M42 33v20l5-5 4 9 4-2-4-9h7z" {...S} strokeWidth={2} />
+          <rect x={22} y={48} width={15} height={7} {...F} />
+        </>
+      );
   }
 }
 
