@@ -1,0 +1,28 @@
+/* Code labs: editor syntax colours (light / dark). No purple, per the site palette. */
+.editor {
+  --lab-kw: #c2410c;
+  --lab-str: #15803d;
+  --lab-num: #b45309;
+  --lab-com: #6b6b72;
+  --lab-fn: #1d4ed8;
+  --lab-type: #0f766e;
+  --lab-self: #9a3412;
+  --lab-prop: #2e2e33;
+  --lab-op: #55555b;
+}
+
+:global(.dark) .editor {
+  --lab-kw: #ff8a4c;
+  --lab-str: #7ee2a8;
+  --lab-num: #f5b971;
+  --lab-com: #8a8a91;
+  --lab-fn: #79b8ff;
+  --lab-type: #5eead4;
+  --lab-self: #ffb38a;
+  --lab-prop: #e2e1dd;
+  --lab-op: #a3a3a8;
+}
+
+.editor :global(.cm-editor) {
+  height: 100%;
+}

@@ -14,29 +14,29 @@
         },
         {
           "n": 2,
-          "x": 70.77,
+          "x": 71.27,
           "y": 8.85
         },
         {
           "n": 3,
           "x": 3,
-          "y": 77.2
+          "y": 82.26
         },
         {
           "n": 4,
           "x": 63.33,
-          "y": 39.74
+          "y": 54.31
         },
         {
           "n": 5,
           "x": 65.23,
-          "y": 83.59
+          "y": 96
         }
       ],
       "legend": [
         {
           "n": 1,
-          "label": "Course tabs: course · arena · notebook · progress"
+          "label": "Course tabs: course · arena · practice · notebook · progress"
         },
         {
           "n": 2,
@@ -71,7 +71,7 @@
         {
           "n": 2,
           "x": 10.51,
-          "y": 65.81
+          "y": 65.86
         }
       ],
       "legend": [
@@ -217,7 +217,7 @@
         {
           "n": 5,
           "x": 65,
-          "y": 54.52
+          "y": 48.52
         },
         {
           "n": 6,
@@ -231,7 +231,7 @@
         },
         {
           "n": 7,
-          "x": 79.1,
+          "x": 75.21,
           "y": 91.33
         }
       ],
@@ -2106,6 +2106,273 @@
         {
           "n": 2,
           "label": "Back to the learner's full page"
+        }
+      ]
+    }
+  },
+  "practice-hub": {
+    "desktop": {
+      "src": "/guide/practice-hub-desktop.webp",
+      "w": 1760,
+      "h": 1269,
+      "alt": "The Practice page: the practice tab in the course header, a row with lessons revised, labs cleared, mocks done and the study plan, then the revision decks and cheat sheets with a chip per world.",
+      "url": "/learn/practice",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 30.54,
+          "y": 6.28
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 40.16
+        },
+        {
+          "n": 3,
+          "x": 41.2,
+          "y": 72.91
+        },
+        {
+          "n": 4,
+          "x": 3.41,
+          "y": 87.85
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "The practice tab: lit on every tool it lists"
+        },
+        {
+          "n": 2,
+          "label": "Where you stand: revised, cleared, done, your plan"
+        },
+        {
+          "n": 3,
+          "label": "Each tool with its live state"
+        },
+        {
+          "n": 4,
+          "label": "One chip per world: ✓ when that world is revised"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/practice-hub-phone.webp",
+      "w": 780,
+      "h": 1328,
+      "alt": "The Practice page on a phone, with practice lit in the course dock at the bottom.",
+      "url": "/learn/practice",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 54.34
+        },
+        {
+          "n": 2,
+          "x": 56.02,
+          "y": 90.96
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Where you stand"
+        },
+        {
+          "n": 2,
+          "label": "Practice in the course dock"
+        }
+      ]
+    }
+  },
+  "revise-deck": {
+    "phone": {
+      "src": "/guide/revise-deck-phone.webp",
+      "w": 780,
+      "h": 1328,
+      "alt": "A revision deck on a phone: the lesson at the top with a five-minute clock, one card (a key idea) and Again / Got it at the bottom.",
+      "url": "/learn/revise/week-00/foundations-part-2-infrastructure-building-blocks",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 89.74,
+          "y": 6.93
+        },
+        {
+          "n": 2,
+          "x": 5.38,
+          "y": 16.38
+        },
+        {
+          "n": 3,
+          "x": 33.21,
+          "y": 86.07
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Minutes left of the 5-minute target (it runs over, never out)"
+        },
+        {
+          "n": 2,
+          "label": "The kind of card: key idea, numbers, trade-off, mistakes, if asked"
+        },
+        {
+          "n": 3,
+          "label": "Again goes to your daily standup; Got it moves on"
+        }
+      ]
+    }
+  },
+  "lab-room": {
+    "desktop": {
+      "src": "/guide/lab-room-desktop.webp",
+      "w": 1760,
+      "h": 1446,
+      "alt": "A code lab: the brief with tabs for tests, given code, hints and solution on the left; the Python editor, Run tests and the test results on the right.",
+      "url": "/learn/labs/token-bucket",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 4
+        },
+        {
+          "n": 2,
+          "x": 43.44,
+          "y": 7.44
+        },
+        {
+          "n": 3,
+          "x": 43.02,
+          "y": 81.97
+        },
+        {
+          "n": 4,
+          "x": 88.13,
+          "y": 87.78
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "The brief, example tests, hints, and the solution after 3 runs"
+        },
+        {
+          "n": 2,
+          "label": "Your Python, autosaved in this browser"
+        },
+        {
+          "n": 3,
+          "label": "Run tests (⌘/Ctrl + Enter): runs on your device"
+        },
+        {
+          "n": 4,
+          "label": "Results: example tests, then the hidden edge cases"
+        }
+      ]
+    }
+  },
+  "numbers-calc": {
+    "desktop": {
+      "src": "/guide/numbers-calc-desktop.webp",
+      "w": 1760,
+      "h": 933,
+      "alt": "The numbers playground calculator: 50k QPS × 2 KB × 30 days typed as text, the answer in large type and the working step by step.",
+      "url": "/learn/numbers",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 16.47
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 67.22
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Type it the way you'd say it"
+        },
+        {
+          "n": 2,
+          "label": "The answer, and the working line by line"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/numbers-calc-phone.webp",
+      "w": 780,
+      "h": 1192,
+      "alt": "The numbers playground calculator: 50k QPS × 2 KB × 30 days typed as text, the answer in large type and the working step by step.",
+      "url": "/learn/numbers",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 14.09
+        },
+        {
+          "n": 2,
+          "x": 6.41,
+          "y": 84.86
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Type it the way you'd say it"
+        },
+        {
+          "n": 2,
+          "label": "The answer, and the working line by line"
+        }
+      ]
+    }
+  },
+  "mastery-map": {
+    "desktop": {
+      "src": "/guide/mastery-map-desktop.webp",
+      "w": 1760,
+      "h": 1200,
+      "alt": "The concept map: a count of concepts per state (not started, seen, shaky, solid, mastered) and every concept as a tile, grouped by world.",
+      "url": "/learn/mastery",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 17.94,
+          "y": 23.85
+        },
+        {
+          "n": 2,
+          "x": 71.59,
+          "y": 40.57
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 57.35
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "How many concepts are in each state; tap one to filter"
+        },
+        {
+          "n": 2,
+          "label": "The term-card switch for lessons"
+        },
+        {
+          "n": 3,
+          "label": "Each concept; tap for a two-minute refresher"
         }
       ]
     }

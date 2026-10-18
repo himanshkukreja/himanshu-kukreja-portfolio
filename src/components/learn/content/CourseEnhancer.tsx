@@ -16,7 +16,9 @@
  *   "sd:checklist" detail { lessonKey, done: number, total: number }
  */
 import MermaidHydrator from "@/components/diagrams/MermaidHydrator";
+import AnimHydrator from "@/components/learn/anim/AnimHydrator";
 import QuizHydrator from "@/components/learn/quiz/QuizHydrator";
+import TermCards from "@/components/learn/concepts/TermCards";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -422,6 +424,8 @@ export default function CourseEnhancer({ lessonKey, onVerdict, onChecklist }: Pr
       <span ref={markerRef} hidden data-sd-chrome="" />
       <MermaidHydrator rootSelector=".course-content" />
       <QuizHydrator lessonKey={lessonKey} />
+      <TermCards lessonKey={lessonKey} />
+      <AnimHydrator />
       {fs &&
         createPortal(
           <div className="sd-fs" role="dialog" aria-modal="true" aria-label={`${fs.caption} fullscreen`}>

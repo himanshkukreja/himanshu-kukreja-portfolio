@@ -31,8 +31,9 @@ const DOCK = [
   { href: "/learn", label: "learn", match: (p: string) => p.startsWith("/learn") },
 ];
 
-// /learn/<course>/<week>/<slug>
-const isLessonRoute = (p: string) => /^\/learn\/[^/]+\/[^/]+\/[^/]+/.test(p);
+// /learn/<course>/<week>/<slug> (not the three-level practice routes: a design of the week entry or
+// its editor, a lesson's revision deck, which keep the header and the phone dock)
+const isLessonRoute = (p: string) => /^\/learn\/(?!(?:design-week|revise)\/)[^/]+\/[^/]+\/[^/]+/.test(p);
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -135,7 +136,7 @@ export default function SiteHeader() {
   useAutoHideChrome(lesson && !questsOpen);
   const hidden = useChromeHidden() && lesson;
   // Lesson pages bring their own phone reading toolbar, which takes the dock's place.
-  const dockClass = `${lesson ? "hidden" : "grid lg:hidden"} hk-safe-x fixed inset-x-0 bottom-0 z-50 grid-cols-5 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`;
+  const dockClass = `${lesson ? "hidden" : "grid lg:hidden"} hk-safe-x fixed inset-x-0 bottom-0 z-50 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`;
 
   return (
     <>
@@ -175,7 +176,8 @@ export default function SiteHeader() {
             </>
           )}
           <div className="flex-1" />
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          {/* min-w-0: in learn mode the search box gives up width before the row overflows */}
+          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             {learn && <SearchBar variant="nav" hotkey />}
             <button
               type="button"
@@ -188,7 +190,7 @@ export default function SiteHeader() {
               {p.level.code}
               <span data-wco-compact className="hidden sm:inline"> · {p.level.name}</span>
             </button>
-            <div data-wco-hide className={`${learn ? "hidden xl:flex" : "hidden sm:flex"} w-[150px] flex-col gap-1.5`}>
+            <div data-wco-hide className={`${learn ? "hidden min-[1360px]:flex" : "hidden sm:flex"} w-[150px] shrink-0 flex-col gap-1.5`}>
               <div className="h-1.5 bg-surface-2">
                 <div className="h-1.5 bg-signal transition-[width] duration-500" style={{ width: `${p.pct}%` }} />
               </div>
@@ -228,7 +230,7 @@ export default function SiteHeader() {
       {learn ? (
         <LearnDock pathname={pathname} className={dockClass} />
       ) : (
-        <nav aria-label="Sections" className={dockClass}>
+        <nav aria-label="Sections" className={`${dockClass} grid-cols-5`}>
           {DOCK.map((d) => {
             const on = d.match(pathname);
             return (

@@ -41,10 +41,10 @@ flowchart TD
 
     subgraph USES["Real-World Use Cases"]
         direction TB
-        E["Emergency Services"]:::external
-        F["Logistics & Delivery"]:::external
-        G["Navigation Apps"]:::external
-        H["Social Check-ins"]:::external
+        E@{ icon: "sd:ambulance", label: "Emergency Services" }
+        F@{ icon: "sd:truck", label: "Logistics & Delivery" }
+        G@{ icon: "sd:map", label: "Navigation Apps" }
+        H@{ icon: "sd:users", label: "Social Check-ins" }
     end
 
     A --> B --> C --> D
@@ -52,6 +52,7 @@ flowchart TD
     D --> F
     D --> G
     D --> H
+    class E,F,G,H external
 ```
 
 ---
@@ -344,23 +345,23 @@ def find_digipins_by_prefix(geohash_prefix: str, max_results: int = 1000):
 %% title: Multi-layer caching architecture
 flowchart TD
     subgraph CL["Client Layer"]
-        A["Mobile App Cache"]:::client
-        B["Browser Cache"]:::client
+        A@{ icon: "sd:phone", label: "Mobile App Cache" }
+        B@{ icon: "sd:browser", label: "Browser Cache" }
     end
 
     subgraph CDNL["CDN Layer (CloudFlare)"]
-        C["Edge Locations"]:::edge
+        C@{ icon: "tech:cloudflare", label: "Edge Locations" }
         D["Regional Cache"]:::cache
     end
 
     subgraph AL["Application Layer"]
-        E[("Redis Cluster")]:::cache
+        E@{ icon: "tech:redis", label: "Redis Cluster" }
         F["Application Cache"]:::cache
     end
 
     subgraph DL["Database Layer"]
-        G[("PostgreSQL + PostGIS")]:::store
-        H[("Read Replicas")]:::store
+        G@{ icon: "tech:postgresql", label: "PostgreSQL + PostGIS" }
+        H@{ icon: "tech:postgresql", label: "Read Replicas" }
     end
 
     A --> C
@@ -370,6 +371,10 @@ flowchart TD
     E --> G
     F --> G
     G --> H
+    class A,B client
+    class C edge
+    class E cache
+    class G,H store
 ```
 
 ### Redis-Based Spatial Caching
@@ -627,26 +632,26 @@ mumbai_digipins = bulk_generate_delivery_zone_digipins({
 %% title: Multi-region deployment strategy
 flowchart TD
     subgraph R1["Region 1: Mumbai (Primary)"]
-        A1["Load Balancer"]:::edge
+        A1@{ icon: "sd:load-balancer", label: "Load Balancer" }
         B1["API Servers × 4"]:::core
-        C1[("Redis Cluster")]:::cache
-        D1[("PostgreSQL Master")]:::store
-        E1[("PostGIS Replicas × 2")]:::store
+        C1@{ icon: "tech:redis", label: "Redis Cluster" }
+        D1@{ icon: "tech:postgresql", label: "PostgreSQL Master" }
+        E1@{ icon: "tech:postgresql", label: "PostGIS Replicas × 2" }
     end
 
     subgraph R2["Region 2: Bangalore (DR)"]
-        A2["Load Balancer"]:::edge
+        A2@{ icon: "sd:load-balancer", label: "Load Balancer" }
         B2["API Servers × 2"]:::core
-        C2[("Redis Cluster")]:::cache
-        D2[("PostgreSQL Standby")]:::store
-        E2[("PostGIS Replicas × 2")]:::store
+        C2@{ icon: "tech:redis", label: "Redis Cluster" }
+        D2@{ icon: "tech:postgresql", label: "PostgreSQL Standby" }
+        E2@{ icon: "tech:postgresql", label: "PostGIS Replicas × 2" }
     end
 
     subgraph R3["Region 3: Delhi (Read-Only)"]
-        A3["Load Balancer"]:::edge
+        A3@{ icon: "sd:load-balancer", label: "Load Balancer" }
         B3["API Servers × 2"]:::core
-        C3[("Redis Cluster")]:::cache
-        E3[("PostGIS Replicas × 2")]:::store
+        C3@{ icon: "tech:redis", label: "Redis Cluster" }
+        E3@{ icon: "tech:postgresql", label: "PostGIS Replicas × 2" }
     end
 
     A1 --> B1 --> C1
@@ -661,6 +666,9 @@ flowchart TD
 
     E1 ~~~ A2
     C2 ~~~ A3
+    class A1,A2,A3 edge
+    class C1,C2,C3 cache
+    class D1,E1,D2,E2,E3 store
 ```
 
 ### Disaster Recovery Playbook

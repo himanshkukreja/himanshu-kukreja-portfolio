@@ -25,6 +25,7 @@ import LessonProgressTracker from "./LessonProgressTracker";
 import NoteEditor from "./NoteEditor";
 import { askAi, CLIENT_LABEL, cleanText, copyAskPrompt, courseName, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
+import { liftTerms, restoreTerms } from "@/lib/concepts/dom";
 
 type HighlightableContentProps = {
   htmlContent: string;
@@ -643,6 +644,8 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     if ((highlights.length === 0 && notes.length === 0) || typeof document === "undefined") return html;
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
+    // concept term marks split text nodes: lift them so a highlight spanning a term still applies
+    const terms = liftTerms(tempDiv);
     const plainText = contentText(tempDiv);
 
     type Item = { id: string; color: string; isNote: boolean };
@@ -670,6 +673,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     for (const [needle, occurrences] of byText.entries()) {
       highlightTextInNode(tempDiv, needle, occurrences, { count: 0 });
     }
+    restoreTerms(tempDiv, terms);
     return tempDiv.innerHTML;
   };
 

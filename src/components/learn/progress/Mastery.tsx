@@ -37,6 +37,16 @@ export default function Mastery(p: Props) {
     <section aria-labelledby="mastery-h" id="mastery" className="flex min-w-0 scroll-mt-28 flex-col gap-4">
       <SectionHead id="mastery-h" n="04" kicker="mastery" title="What stuck" />
 
+      {/* concept map (/learn/mastery) */}
+      <Link href="/learn/mastery" className="group flex min-w-0 items-center justify-between gap-4 border border-line bg-surface p-4 hover:border-line-strong sm:p-5">
+        <span className="flex min-w-0 flex-col gap-1">
+          <Label>concept map</Label>
+          <span className="text-[15px] font-semibold text-fg">Every concept, coloured by how well you know it</span>
+          <span className="text-[12px] leading-snug text-fg-3">From your quick checks, trials and reviews. Tap a shaky one for a two-minute refresher.</span>
+        </span>
+        <span className="shrink-0 font-mono text-[12px] text-signal-text group-hover:underline">open →</span>
+      </Link>
+
       {/* trials */}
       <div className="flex min-w-0 flex-col gap-3 border border-line bg-surface p-4 sm:p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">

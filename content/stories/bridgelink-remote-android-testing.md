@@ -61,14 +61,17 @@ Monday 10:00 AM - User reports UPI payment crash on Redmi Note 11
 flowchart LR
     subgraph TR["Traditional approach"]
         direction TB
-        D1(["Developer"]):::client --> U["USB cable"]:::edge --> P1["One physical device<br/>on the same desk"]:::external
+        D1@{ icon: "sd:user", label: "Developer" } --> U@{ icon: "sd:usb", label: "USB cable" } --> P1@{ icon: "sd:phone", label: "One physical device<br/>on the same desk" }
     end
     subgraph BL["BridgeLink approach"]
         direction TB
-        D2(["Developer anywhere<br/>Windows · macOS · Linux"]):::client --> I["Internet"]:::edge
+        D2@{ icon: "sd:laptop", label: "Developer anywhere<br/>Windows · macOS · Linux" } --> I@{ icon: "sd:globe", label: "Internet" }
         I --> T["Secure bore tunnel"]:::core
-        T --> P2["Physical devices anywhere<br/>Redmi · Realme · Vivo · Pixel"]:::external
+        T --> P2@{ icon: "sd:phone", label: "Physical devices anywhere<br/>Redmi · Realme · Vivo · Pixel" }
     end
+    class D1,D2 client
+    class U,I edge
+    class P1,P2 external
 ```
 <!-- IMAGE PROMPT: A clean technical diagram showing the transformation from traditional to BridgeLink approach. Top section labeled "Traditional Approach": Simple linear flow with developer icon → USB cable → single Android phone icon. Bottom section labeled "BridgeLink Approach": Developer icon (multiple platforms - Windows, Mac, Linux) → cloud/internet symbol with lock/security icon → network lines branching to multiple Android devices (5-6 phones of different brands) placed globally. Use isometric 3D style, modern gradients (blue to purple), with glowing connection lines. Include small location pins on devices to show global distribution. -->
 
@@ -178,9 +181,12 @@ echo "adb connect bore.pub:15750"
 ```mermaid
 %% title: The weekend-1 prototype path
 flowchart TD
-    DEV(["Developer anywhere<br/>adb connect bore.pub:15750"]):::client --> BP["bore.pub:15750"]:::edge
+    DEV@{ icon: "sd:laptop", label: "Developer anywhere<br/>adb connect bore.pub:15750" } --> BP@{ icon: "sd:cloud", label: "bore.pub:15750" }
     BP -->|"bore local 5000 --to bore.pub"| L["Local port 5000"]:::service
-    L -->|"adb forward tcp:5000 tcp:5555"| D["Device 1d752b81<br/>adb tcpip 5555"]:::core
+    L -->|"adb forward tcp:5000 tcp:5555"| D@{ icon: "sd:phone", label: "Device 1d752b81<br/>adb tcpip 5555" }
+    class DEV client
+    class BP edge
+    class D core
 ```
 
 ![First success: a terminal running adb connect bore.pub:15750 and getting connected, while the Samsung S21 sits in another room on WiFi](/case-files/bridgelink-prototype.png)
@@ -537,8 +543,8 @@ click.echo(click.style("bridgelink.io:15750", fg='magenta', bold=True))
 flowchart TD
     subgraph DT["Developer tier"]
         direction TB
-        D1["CLI Commands<br/>Python Click framework"]:::client
-        D2["Dashboard Interface<br/>Web-based device management"]:::client
+        D1@{ icon: "sd:terminal", label: "CLI Commands<br/>Python Click framework" }
+        D2@{ icon: "sd:dashboard", label: "Dashboard Interface<br/>Web-based device management" }
         D3["Remote ADB Access<br/>Global device connectivity"]:::client
         D4["Auto-Activation<br/>Set-and-forget device management"]:::client
         D1 ~~~ D3
@@ -550,14 +556,14 @@ flowchart TD
         M2["Health Monitor<br/>1-second device health checks"]:::service
         M3["Connection Monitor<br/>Auto-activation for reconnected devices"]:::service
         M4["Session Persistence<br/>Survive restarts and failures"]:::service
-        M5[("State Management<br/>~/.bridgelink/ state storage")]:::store
+        M5@{ icon: "sd:file", label: "State Management<br/>~/.bridgelink/ state storage" }
         M1 ~~~ M4
         M2 ~~~ M5
     end
     subgraph PT["Platform tier (NativeBridge)"]
         direction TB
-        P1[("Device Registry<br/>Central database of all devices")]:::store
-        P2["User Authentication<br/>API key-based access control"]:::edge
+        P1@{ icon: "sd:database", label: "Device Registry<br/>Central database of all devices" }
+        P2@{ icon: "sd:key", label: "User Authentication<br/>API key-based access control" }
         P3["State Synchronization<br/>Keep device status in sync"]:::service
         P4["Dashboard URL<br/>Web interface for device control"]:::service
         P5["Remote Session API<br/>Start sessions from dashboard"]:::service
@@ -566,14 +572,18 @@ flowchart TD
     end
     subgraph DVT["Device tier"]
         direction TB
-        V1["Physical Devices<br/>Samsung, Pixel, OnePlus, etc."]:::external
-        V2["ADB Connectivity<br/>USB or WiFi connection"]:::external
+        V1@{ icon: "tech:android", label: "Physical Devices<br/>Samsung, Pixel, OnePlus, etc." }
+        V2@{ icon: "sd:usb", label: "ADB Connectivity<br/>USB or WiFi connection" }
         V3["TCP Mode<br/>Port 5555 forwarding"]:::external
         V4["Global Accessibility<br/>via secure bore tunnels"]:::external
         V1 ~~~ V3
         V2 ~~~ V4
     end
     DT --> MT --> PT --> DVT
+    class D1,D2 client
+    class M5,P1 store
+    class P2 edge
+    class V1,V2 external
 ```
 
 ### Core Components

@@ -255,11 +255,13 @@ const cacheKey = `${url_path}:${authorization_header}:${user_id}`;
 ```mermaid
 %% title: The misconfiguration chain of disasters
 flowchart TD
-    R["CDN rule · pattern /api/*<br/>cache_ttl: 300 · cache_key: url_path"]:::edge --> IG["respect_origin_headers: false"]:::bad
+    R@{ icon: "sd:cdn", label: "CDN rule · pattern /api/*<br/>cache_ttl: 300 · cache_key: url_path" } --> IG["respect_origin_headers: false"]:::bad
     BE["Backend sends<br/>Cache-Control: private, no-cache<br/>Vary: Authorization"]:::core -->|"ignored"| IG
     IG --> K["URL-only cache key"]:::cache
-    U(["User A · Bearer token_A<br/>User B · Bearer token_B<br/>User C · Bearer token_C"]):::client -->|"GET /api/user/cart"| K
+    U@{ icon: "sd:users", label: "User A · Bearer token_A<br/>User B · Bearer token_B<br/>User C · Bearer token_C" } -->|"GET /api/user/cart"| K
     K --> SAME(["Same cached response<br/>for every user"]):::bad
+    class R edge
+    class U client
 ```
 
 ### The Perfect Storm Conditions

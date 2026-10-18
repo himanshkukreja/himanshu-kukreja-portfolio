@@ -32,6 +32,7 @@ export const ADMIN_NAV = [
   { href: "/admin/journeys", label: "Journeys", key: "journeys", match: (p: string) => p.startsWith("/admin/journeys") },
   { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
   { href: "/admin/case-files", label: "Case files", key: "case-files", match: (p: string) => p.startsWith("/admin/case-files") },
+  { href: "/admin/design-week", label: "Design week", key: "design-week", match: (p: string) => p.startsWith("/admin/design-week") },
   { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
 ] as const;
 

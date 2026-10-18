@@ -234,6 +234,14 @@ export const SNIPPETS: Snippet[] = [
     hint: "classes: core hot client edge service store cache queue external ok bad note",
   },
   {
+    id: "architecture",
+    label: "Architecture (icons)",
+    group: "diagram",
+    block: true,
+    text: '```mermaid\n%% title: {{Diagram title}}\nflowchart TD\n  U@{ icon: "sd:users", label: "{{Users}}" } --> LB@{ icon: "sd:load-balancer", label: "{{Load balancer}}" }\n  LB --> S["{{Service}}"]:::core\n  S --> DB@{ icon: "tech:postgresql", label: "{{PostgreSQL}}" }\n  S --> Q@{ icon: "tech:kafka", label: "{{Kafka topic}}" }\n  class U client\n  class LB edge\n  class DB store\n  class Q queue\n```\n',
+    hint: "tech:<logo> for a real technology, sd:<icon> for roles and generic parts (list: course DIAGRAMS.md); colour icon nodes with class lines",
+  },
+  {
     id: "sequence",
     label: "Sequence",
     group: "diagram",

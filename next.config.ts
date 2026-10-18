@@ -125,6 +125,11 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // code labs' Python runtime: versioned folders (public/pyodide/<version>/), never change in place
+        source: "/pyodide/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
         // everything except the PostHog proxy (it forwards PostHog's own headers)
         source: `/((?!${PH.slice(1)}/).*)`,
         headers: [

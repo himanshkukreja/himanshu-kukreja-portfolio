@@ -323,26 +323,26 @@ ios-bridge terminate  # Smart session detection
 flowchart TD
     subgraph CT["Client tier"]
         direction TB
-        C1["Windows Desktop App<br/>Electron + WebRTC client"]:::client
-        C2["Linux Desktop App<br/>Electron + WebRTC client"]:::client
-        C3["macOS Desktop App<br/>Electron + WebRTC client"]:::client
-        C4["Web Interface<br/>Browser + JavaScript client"]:::client
-        C5["CLI Tools<br/>Python + REST client"]:::client
+        C1@{ icon: "tech:windows", label: "Windows Desktop App<br/>Electron + WebRTC client" }
+        C2@{ icon: "tech:linux", label: "Linux Desktop App<br/>Electron + WebRTC client" }
+        C3@{ icon: "tech:apple", label: "macOS Desktop App<br/>Electron + WebRTC client" }
+        C4@{ icon: "sd:browser", label: "Web Interface<br/>Browser + JavaScript client" }
+        C5@{ icon: "sd:terminal", label: "CLI Tools<br/>Python + REST client" }
         C1 ~~~ C4
         C2 ~~~ C5
     end
     subgraph COM["Communication tier"]
         direction TB
         M1["REST APIs<br/>Session CRUD, file operations"]:::edge
-        M2["WebSocket Streams<br/>Real-time video + control"]:::edge
-        M3["WebRTC Streams<br/>Ultra-low latency streaming"]:::edge
+        M2@{ icon: "tech:websocket", label: "WebSocket Streams<br/>Real-time video + control" }
+        M3@{ icon: "tech:webrtc", label: "WebRTC Streams<br/>Ultra-low latency streaming" }
         M4["HTTP Endpoints<br/>Static assets, documentation"]:::edge
         M1 ~~~ M3
         M2 ~~~ M4
     end
     subgraph SV["Server tier (macOS)"]
         direction TB
-        S1["FastAPI Application<br/>Async web framework"]:::core
+        S1@{ icon: "tech:fastapi", label: "FastAPI Application<br/>Async web framework" }
         S2["Session Manager<br/>Multi-simulator orchestration"]:::service
         S3["WebSocket Hub<br/>Real-time connection management"]:::service
         S4["Recording Service<br/>MP4 video capture"]:::service
@@ -354,7 +354,7 @@ flowchart TD
     end
     subgraph SIM["Simulator tier"]
         direction TB
-        I1["iOS Simulators<br/>Multiple concurrent instances"]:::store
+        I1@{ icon: "sd:phone", label: "iOS Simulators<br/>Multiple concurrent instances" }
         I2["Device Types<br/>iPhone, iPad variants"]:::store
         I3["iOS Versions<br/>14.0 - 18.2+ support"]:::store
         I4["App Instances<br/>Installed user applications"]:::store
@@ -362,6 +362,10 @@ flowchart TD
         I2 ~~~ I4
     end
     CT --> COM --> SV --> SIM
+    class C1,C2,C3,C4,C5 client
+    class M2,M3 edge
+    class S1 core
+    class I1 store
 ```
 
 ### Core Components

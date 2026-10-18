@@ -7,6 +7,7 @@ import { useChromeHidden } from "@/components/site/readerChrome";
 import type { Stage } from "@/lib/course/types";
 import { StageSegments } from "./StageRail";
 import { stagePosition, stageShort } from "./stageText";
+import TermsToggle from "@/components/learn/concepts/TermsToggle";
 
 export const TEXT_SIZES = [17, 19, 21] as const;
 
@@ -66,6 +67,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
           <FocusIcon />
           <span className="font-mono text-[10px] tracking-[0.06em]">FOCUS</span>
         </button>
+        <TermsToggle variant="dock" />
         <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] text-fg hover:bg-surface-2">
           <span aria-hidden className="font-display text-base font-bold leading-none">
             Aa

@@ -96,6 +96,8 @@ export function quizFigureFrom(quiz: QuizBlock, opts: { index: number; sig: stri
     {
       className: ["sd-quiz"],
       dataSd: "quiz",
+      // deep-link target (the concept map's "practise" opens …/lesson#sd-quiz-<n>)
+      id: base,
       dataQuizBlock: String(index),
       dataQuizSig: sig,
       dataQuizCount: String(n),

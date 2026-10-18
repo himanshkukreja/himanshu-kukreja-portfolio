@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import ShareButton from "@/components/share/ShareButton";
 import QuestClear from "@/components/learn/sidequest/QuestClear";
+import ReviseLink from "@/components/learn/revise/ReviseLink";
+import LessonLabs from "@/components/learn/labs/LessonLabs";
+import ReadingTrail from "@/components/learn/trail/ReadingTrail";
 import { doneCount, numberedStages } from "./stageText";
 import type { NavLink, ReaderMeta, TrialPartLink } from "./types";
 
@@ -63,6 +66,12 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
         {completed && <ShareButton kind="lesson" title={meta.title} label="Share" className="min-h-[52px] w-full sm:w-auto" />}
       </div>
       )}
+
+      {(meta.kind === "day-content" || meta.kind === "foundations" || meta.kind === "capstone") && <ReviseLink week={meta.week} slug={meta.slug} label={meta.kind === "capstone" ? "the boss" : name} />}
+
+      {meta.labs?.length ? <LessonLabs labs={meta.labs} /> : null}
+
+      {meta.trail?.length ? <ReadingTrail lesson={`${meta.week}/${meta.slug}`} entries={meta.trail} /> : null}
 
       {(next || trial) && (
         <div className="flex flex-col gap-2.5">

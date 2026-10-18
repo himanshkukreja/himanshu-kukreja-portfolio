@@ -23,6 +23,7 @@ import { verifyDaily } from "@/lib/learn/arena/daily";
 import { addDays, dailyNumber, istDate, isDay, LEAGUES } from "@/lib/learn/arena/shared";
 import { settingsForHandle, shareFixtures } from "./store";
 import { fixtureRaw } from "./fixtures";
+import { designWeekDone } from "@/lib/design-week/wins";
 import type { Milestone, ProfileWeek, PublicProfile, ShareSummary, TreeLesson, Visibility } from "./model";
 import { DEFAULT_VISIBILITY } from "./model";
 
@@ -138,6 +139,14 @@ async function dailiesFor(userId: string): Promise<Raw["dailies"]> {
 }
 
 export async function loadRaw(userId: string, map: CourseMap): Promise<Raw> {
+  // Design of the week wins come from their own tables, so the badge shows before the winner's next visit
+  const [raw, dow] = await Promise.all([loadRawBase(userId, map), designWeekDone(userId)]);
+  if (!Object.keys(dow).length) return raw;
+  const profile: RawProfile = raw.profile ?? { full_name: null, avatar_url: null, created_at: null };
+  return { ...raw, profile: { ...profile, game_done: { ...dow, ...(profile.game_done || {}) } } };
+}
+
+async function loadRawBase(userId: string, map: CourseMap): Promise<Raw> {
   // dev QA: fixture learners only, never the database
   if (shareFixtures()) return fixtureRaw(userId, map) ?? { profile: null, rows: [], streakDays: [], trialsPassed: new Set(), dailies: [], arena: null };
   const [profile, rows, streaks, trials, dailies, arena] = await Promise.all([

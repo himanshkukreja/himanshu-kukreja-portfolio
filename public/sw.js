@@ -14,6 +14,9 @@
  *   hk-pages      saved article documents (gzip) — only ever changed by the page (save/update/remove)
  *   hk-meta       one JSON record per saved article (title, kind, version, assets, …)
  *   hk-recent     the last few course pages opened online (gzip), a safety net; cleared per build
+ *   hk-runtime    code labs' Python runtime (/pyodide/<version>/**, /labs-runtime/**): cache first,
+ *                 filled on first use and by saving a lab; other versions pruned unless a saved lab
+ *                 still lists them
  *
  * Requests:
  *   navigations     network first (4 s timeout when a saved copy exists) → saved copy → recent copy
@@ -35,6 +38,11 @@ const MEDIA = "hk-media";
 const PAGES = "hk-pages";
 const META = "hk-meta";
 const RECENT = "hk-recent";
+const RUNTIME = "hk-runtime";
+// keep in sync with PYODIDE_VERSION in src/lib/learn/labs/runtime.ts (scripts/labs/vendor-pyodide.mjs checks)
+const RUNTIME_VERSION = "314.0.7";
+const RUNTIME_PREFIX = "/pyodide/" + RUNTIME_VERSION + "/";
+const RUNTIME_PATH = /^\/(?:pyodide|labs-runtime)\//;
 const SHELL_PAGES = ["/offline", "/learn/offline"];
 const SHELL_FILES = ["/manifest.webmanifest", "/icon.svg", "/favicon.ico", "/apple-icon.png", "/icons/icon-192.png", "/icons/icon-512.png"];
 const COURSE_START = /^\/learn(?:\/system-design-mastery)?\/?$/;
@@ -42,7 +50,9 @@ const HUB = "/learn/system-design-mastery";
 const NAV_TIMEOUT_MS = 4000;
 const RECENT_MAX = 10;
 const BYPASS = /^\/(?:api|admin|auth|hkr|_vercel|monitoring)(?:\/|$)|^\/sw\.js$|\/(?:opengraph|twitter)-image(?:[/-]|$)/;
-const ARTICLE = /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/stories\/[^/]+\/?$/;
+const ARTICLE = /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/learn\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/learn\/(?:numbers|plan|practice|reading|revise|mock|mastery)\/?$|^\/learn\/labs(?:\/[^/]+)?\/?$|^\/stories\/[^/]+\/?$/;
+// never kept as a "recent" copy: design of the week is live (phases, votes, drafts) and needs a connection
+const NO_RECENT = /^\/learn\/design-week(?:\/|$)/;
 const IMAGE_HOSTS = /(?:^|\.)imagekit\.io$|(?:^|\.)githubusercontent\.com$/;
 
 /** where each navigation was answered from, by the client it created (asked for by the page) */
@@ -223,6 +233,7 @@ async function prune() {
   const meta = await caches.open(META);
   const keepStatic = new Set();
   const keepMedia = new Set();
+  const keepRuntime = new Set();
   for (const req of await meta.keys()) {
     const path = new URL(req.url).pathname;
     try {
@@ -230,6 +241,7 @@ async function prune() {
         const m = await (await meta.match(req)).json();
         (m.assets || []).forEach((a) => keepStatic.add(staticKey(a)));
         (m.media || []).forEach((a) => keepMedia.add(new URL(a, self.location.origin).href));
+        (m.runtime || []).forEach((a) => keepRuntime.add(new URL(a, self.location.origin).href));
       } else if (path.startsWith("/__hk/shell/")) {
         if (path === "/__hk/shell/" + VERSION) {
           const m = await (await meta.match(req)).json();
@@ -244,6 +256,13 @@ async function prune() {
   for (const req of await st.keys()) if (!keepStatic.has(staticKey(req.url))) await st.delete(req);
   const media = await caches.open(MEDIA);
   for (const req of await media.keys()) if (!keepMedia.has(req.url)) await media.delete(req);
+  // the current Python runtime stays (it is the HTTP cache for labs too); older ones only for saved labs
+  const rt = await caches.open(RUNTIME);
+  for (const req of await rt.keys()) {
+    const u = new URL(req.url);
+    const current = u.pathname.startsWith(RUNTIME_PREFIX) || (u.pathname.startsWith("/labs-runtime/") && u.search.indexOf(RUNTIME_VERSION) >= 0);
+    if (!current && !keepRuntime.has(req.url)) await rt.delete(req);
+  }
 }
 
 // ------------------------------------------------------------------------------------------------
@@ -270,6 +289,10 @@ self.addEventListener("fetch", (event) => {
   }
   if (req.headers.get("RSC") === "1" || url.searchParams.has("_rsc")) {
     event.respondWith(rsc(req));
+    return;
+  }
+  if (RUNTIME_PATH.test(path)) {
+    event.respondWith(runtimeFirst(req));
     return;
   }
   if (path.startsWith("/_next/static/")) {
@@ -299,7 +322,7 @@ async function navigate(event, url) {
   // the network answered (pages, redirects, 404s as they are); a 5xx falls back to a saved copy
   if (net && (net.status < 500 || !saved)) {
     mark(event, url.href, "network");
-    if (net.ok && net.status === 200 && (ARTICLE.test(url.pathname) || url.pathname === HUB) && !saved && (net.headers.get("content-type") || "").includes("text/html")) {
+    if (net.ok && net.status === 200 && (ARTICLE.test(url.pathname) || url.pathname === HUB) && !NO_RECENT.test(url.pathname) && !saved && (net.headers.get("content-type") || "").includes("text/html")) {
       event.waitUntil(remember(url, net.clone()).catch(() => {}));
     }
     return net;
@@ -361,6 +384,19 @@ async function staticFirst(req) {
   if (res.ok && res.type === "basic") {
     const copy = res.clone();
     cache.put(key, copy).catch(() => {});
+  }
+  return res;
+}
+
+/** Code labs' Python runtime: versioned files, cache first, kept for offline runs. */
+async function runtimeFirst(req) {
+  const cache = await caches.open(RUNTIME);
+  const hit = await cache.match(req.url);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok && res.status === 200 && res.type === "basic") {
+    const copy = res.clone();
+    cache.put(req.url, copy).catch(() => {});
   }
   return res;
 }

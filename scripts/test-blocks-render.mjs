@@ -79,6 +79,8 @@ function courseText(html) {
 const words = (s) => s.match(/[\p{L}\p{N}]+/gu) || [];
 const MISSION_BLOCK = /^:{3,}mission\b[^\n]*\n[\s\S]*?^:{3,}\s*$/m;
 const FENCE_LINE = /^\s*:{3,}([a-z]+)?(?:\[([^\]]*)\])?(?:\{[^}]*\})?\s*$/gm;
+// `::anim[name]` explainer lines: the old pipeline reads them as text; their figure is all chrome
+const ANIM_LINE = /^[ \t]*::anim\[[^\]\n]*\](?:\{[^}\n]*\})?[ \t]*$/gm;
 
 let identical = 0;
 let withBlocks = 0;
@@ -102,7 +104,7 @@ for (const file of files) {
     stray += after.stats.strayDirectives;
     strayFiles++;
   }
-  const hasBlocks = /^\s*:{3,}[a-z]/m.test(md);
+  const hasBlocks = /^\s*:{3,}[a-z]/m.test(md) || /^[ \t]*::anim\[/m.test(md);
   const rel = path.relative(process.cwd(), file);
   if (!hasBlocks) {
     if (before.lesson.html === after.lesson.html && JSON.stringify(before.lesson.toc) === JSON.stringify(after.lesson.toc)) identical++;
@@ -119,7 +121,7 @@ for (const file of files) {
   withBlocks++;
   // old pipeline: fence lines are literal text — drop the fence syntax, keep the [title]
   // a top-level :::mission is lifted out of the body into RenderedLesson.mission (the quest hero)
-  const beforeMd = md.replace(MISSION_BLOCK, "\n\n").replace(FENCE_LINE, (_m, _name, title) => (title ? `\n\n${title.replace(/^(\d+)([.)])/, "$1\\$2")}\n\n` : "\n\n"));
+  const beforeMd = md.replace(MISSION_BLOCK, "\n\n").replace(ANIM_LINE, "\n").replace(FENCE_LINE, (_m, _name, title) => (title ? `\n\n${title.replace(/^(\d+)([.)])/, "$1\\$2")}\n\n` : "\n\n"));
   const ref = await renderLessonDetailed(beforeMd, { kind, directives: false });
   const wa = words(courseText(ref.lesson.html));
   const wb = words(courseText(after.lesson.html));

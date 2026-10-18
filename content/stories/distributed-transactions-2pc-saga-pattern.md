@@ -39,9 +39,10 @@ Customer Journey:
 ```mermaid
 %% title: WonderTravel's system architecture
 flowchart TD
-    F["Flight Service<br/>US-East"]:::core --> PG[("PostgreSQL<br/>Seats DB")]:::store
-    H["Hotel Service<br/>Europe"]:::core --> MG[("MongoDB<br/>Rooms DB")]:::store
-    C["Car Service<br/>Asia-Pacific"]:::core --> MY[("MySQL<br/>Cars DB")]:::store
+    F["Flight Service<br/>US-East"]:::core --> PG@{ icon: "tech:postgresql", label: "PostgreSQL<br/>Seats DB" }
+    H["Hotel Service<br/>Europe"]:::core --> MG@{ icon: "tech:mongodb", label: "MongoDB<br/>Rooms DB" }
+    C["Car Service<br/>Asia-Pacific"]:::core --> MY@{ icon: "tech:mysql", label: "MySQL<br/>Cars DB" }
+    class PG,MG,MY store
 ```
 
 **The Atomic Requirement:**
@@ -1360,18 +1361,19 @@ class DistributedIdempotencyManager:
 ```mermaid
 %% title: Distributed idempotency with Redis
 flowchart TD
-    IN(["with_idempotency · idempotency_key"]):::client --> CK[("GET idempotency:result:key")]:::cache
+    IN(["with_idempotency · idempotency_key"]):::client --> CK@{ icon: "tech:redis", label: "GET idempotency:result:key" }
     CK --> R1{"Cached?"}
     R1 -->|"yes"| RET(["Return cached result"]):::ok
-    R1 -->|"no"| LK[("SET idempotency:lock:key<br/>nx · ex=300 (5 min lock)")]:::cache
+    R1 -->|"no"| LK@{ icon: "tech:redis", label: "SET idempotency:lock:key<br/>nx · ex=300 (5 min lock)" }
     LK --> L{"Lock acquired?"}
     L -->|"not acquired · another instance"| POLL["Poll for result<br/>up to 30 seconds"]:::queue
     POLL -->|"result appears"| RET
     POLL -->|"no result"| TO(["Operation timeout<br/>retry_after 60"]):::bad
     L -->|"acquired"| EX["Execute the operation"]:::core
-    EX --> CA[("Cache the result<br/>ttl 86400 · 24 hours")]:::cache
+    EX --> CA@{ icon: "tech:redis", label: "Cache the result<br/>ttl 86400 · 24 hours" }
     CA --> REL["Always release the lock"]:::service
     REL --> RET2(["Return result"]):::ok
+    class CK,LK,CA cache
 ```
 
 ---

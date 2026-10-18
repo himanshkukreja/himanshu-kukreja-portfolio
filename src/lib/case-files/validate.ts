@@ -14,6 +14,7 @@ import { lintBlocks } from "./blocks-lint";
 import { checkMermaid } from "./mermaid-check";
 import { RESERVED_SLUGS, SLUG_RE, type CaseFileFields, type Problem, type ProblemArea, type Validation } from "./types";
 import palette from "@/lib/diagrams/palette.json";
+import { unknownDiagramIcons } from "@/lib/diagrams/icon-check";
 
 export type ValidateCtx = {
   /** this row's id (excluded from the slug-uniqueness check) */
@@ -299,8 +300,10 @@ export async function validateCaseFile(f: CaseFileFields, ctx: ValidateCtx): Pro
           break;
         }
       }
+      const badIcons = unknownDiagramIcons(d.src);
+      if (badIcons.length) error("body", "mermaid-icon", `Unknown diagram icon ${badIcons.map((x) => `"${x}"`).join(", ")}: use a tech:… or sd:… icon from the course's DIAGRAMS.md list.`, { line: d.line });
       if (/^(flowchart|graph)\s+LR\b/.test(header)) {
-        const nodes = new Set([...d.src.matchAll(/^\s*([A-Za-z][\w]*)\s*[[({]/gm)].map((m) => m[1]));
+        const nodes = new Set([...d.src.matchAll(/^\s*([A-Za-z][\w]*)\s*(?:[[({]|@\{)/gm)].map((m) => m[1]));
         if (nodes.size > 5) warn("body", "mermaid-direction", `flowchart LR with ${nodes.size} nodes: use TD so it fits a phone.`, { line: d.line });
       }
       const res = await checkMermaid(d.src);

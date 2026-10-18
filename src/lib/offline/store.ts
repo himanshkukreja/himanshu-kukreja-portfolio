@@ -7,7 +7,8 @@
  *   hk-pages   the article documents, gzip-compressed (a lesson is ~1 MB of HTML, ~100 KB gzip)
  *   hk-meta    /__hk/page/<path> → SavedMeta JSON (what the library lists)
  *   hk-static  the /_next/static files the page needs: its own scripts/CSS/fonts plus the reader's
- *              on-demand chunks (Mermaid, content chrome, boss mode) loaded by warmReader()
+ *              on-demand chunks (Mermaid, content chrome, boss mode, the explainers a page embeds)
+ *              loaded by warmReader()
  *   hk-media   its images
  *
  * A save fetches everything first and writes the documents and the record last, so a failed save
@@ -16,6 +17,7 @@
  */
 import { OFFLINE_CACHES as C, type CatalogItem, type SavedMeta } from "./types";
 import { warmReader } from "./warm";
+import { cacheLabRuntime } from "./labs";
 
 export const APP_BUILD = process.env.NEXT_PUBLIC_HK_BUILD || "dev";
 
@@ -282,7 +284,9 @@ export async function saveArticle(item: SaveInput): Promise<SavedMeta> {
   const build = /<meta name="hk-build" content="([^"]+)"/.exec(docs[0].html)?.[1] || APP_BUILD;
   // the page's on-demand chunks are only knowable from a document of the same build
   if (build !== APP_BUILD) throw new OfflineSaveError("stale-build", "The site was just updated. Reload this page, then save again.");
-  await warmReader();
+  await warmReader(docs.map((d) => d.html));
+  // code labs: the editor chunk + the Python runtime (shared by every lab, stored once)
+  const runtime = item.kind === "lab" && /^\/learn\/labs\/[^/]+/.test(pathOf(item.url)) ? await cacheLabRuntime() : null;
 
   const assets = new Set<string>(loadedStatics());
   const media = new Set<string>();
@@ -361,6 +365,7 @@ export async function saveArticle(item: SaveInput): Promise<SavedMeta> {
     size,
     assets: [...assets],
     media: [...media],
+    ...(runtime ? { runtime } : {}),
   };
   await put(await caches.open(C.meta), metaKey(item.url), new Response(JSON.stringify(rec), { headers: { "content-type": "application/json" } }));
 

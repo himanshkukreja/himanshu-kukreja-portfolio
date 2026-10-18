@@ -149,6 +149,18 @@ export default function WeekDetail({
         </span>
       </div>
 
+      {/* interview night: the world as 5-minute cards, and on one printable page */}
+      <div className="grid grid-cols-2 gap-1.5">
+        <Link href={`/learn/revise/week-${w.code}`} className="flex min-h-11 flex-col justify-center gap-0.5 border border-line-strong px-3 py-2 hover:bg-surface-2">
+          <span className="font-mono text-[11px] tracking-label text-signal-text">REVISE THIS WORLD</span>
+          <span className="text-xs text-fg-2">5-min cards a lesson · offline</span>
+        </Link>
+        <Link href={`/learn/cheatsheet/week-${w.code}`} className="flex min-h-11 flex-col justify-center gap-0.5 border border-line-strong px-3 py-2 hover:bg-surface-2">
+          <span className="font-mono text-[11px] tracking-label text-fg">CHEAT SHEET</span>
+          <span className="text-xs text-fg-2">one page · PDF</span>
+        </Link>
+      </div>
+
       {mock && (
         <Link href={mock.mock.href} className="flex items-center gap-3 border border-dashed border-signal px-3.5 py-3 hover:bg-surface-2">
           <MockGlyph state={mock.state} text={mock.mock.code} />

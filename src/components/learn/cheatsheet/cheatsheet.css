@@ -1,0 +1,426 @@
+/*
+ * One-page cheat sheet per world (/learn/cheatsheet/<week>).
+ *
+ * The sheet (.cs-paper) is always paper: light ground, ink text, one signal colour, whatever the
+ * site theme, because that is what prints and what people share. Its default layout IS the print
+ * layout (194 × 262 mm of content: fits A4 and US Letter with 8 mm margins, three columns, pt sizes
+ * relative to --cs-fs). FitToPage measures a hidden copy and sets --cs-fs so the world fits one page.
+ * Phones get a fluid, single-column, readable version on screen; printing still uses the paper.
+ * Every selector is scoped to the sheet, so visiting it changes nothing on other pages.
+ */
+
+@page {
+  size: auto;
+  margin: 8mm;
+}
+
+.cs-paper {
+  --ink: #0b0b0b;
+  --ink-2: #2e2e33;
+  --ink-3: #55555b;
+  --ink-4: #6b6b72;
+  --rule: #dddbd4;
+  --rule-strong: #c9c7bf;
+  --tint: #f5f4f0;
+  --signal: #ff6b2b;
+  --signal-ink: #c2410c;
+  --bad-ink: #b91c1c;
+  box-sizing: border-box;
+  width: 194mm;
+  font-family: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--cs-fs, 7.4pt);
+  line-height: 1.28;
+  color: var(--ink-2);
+  background: #fff;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+  text-rendering: optimizeLegibility;
+}
+
+.cs-paper *,
+.cs-paper *::before,
+.cs-paper *::after {
+  box-sizing: border-box;
+}
+
+.cs-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4mm;
+  padding-bottom: 1.6mm;
+  border-bottom: 0.6mm solid var(--ink);
+}
+
+.cs-kicker {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.86em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--signal-ink);
+}
+
+.cs-title {
+  margin: 0.4mm 0 0;
+  font-family: var(--font-display), ui-sans-serif, system-ui, sans-serif;
+  font-weight: 800;
+  font-size: 2.9em;
+  line-height: 0.95;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+}
+
+.cs-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.6mm;
+  text-align: right;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.86em;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.cs-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cs-mark i {
+  display: inline-block;
+  width: 0.5em;
+  height: 0.95em;
+  background: var(--signal);
+}
+
+.cs-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1mm 4mm;
+  padding: 1.2mm 0 0;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.8em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.cs-cols {
+  column-count: 3;
+  column-gap: 4mm;
+  column-rule: 0.2mm solid var(--rule);
+  padding-top: 2mm;
+}
+
+.cs-lesson {
+  margin: 0 0 2.4mm;
+}
+
+.cs-lesson-head {
+  display: flex;
+  align-items: baseline;
+  gap: 1.4mm;
+  margin: 0 0 1mm;
+  padding: 0.8mm 1.2mm;
+  background: var(--ink);
+  color: #fff;
+  break-inside: avoid;
+  break-after: avoid;
+}
+
+.cs-lesson-head b {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--signal);
+  white-space: nowrap;
+}
+
+.cs-lesson-head span {
+  font-weight: 600;
+  font-size: 1.04em;
+  line-height: 1.15;
+}
+
+.cs-idea {
+  margin: 0 0 0.9mm;
+  break-inside: avoid;
+}
+
+.cs-idea strong,
+.cs-paper strong {
+  color: var(--ink);
+  font-weight: 650;
+}
+
+.cs-paper code,
+.cs-num-v {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.92em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+
+.cs-sub {
+  display: block;
+  margin: 1.2mm 0 0.5mm;
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.74em;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-4);
+  break-after: avoid;
+}
+
+.cs-nums {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.35mm 1.6mm;
+  margin: 0 0 0.6mm;
+  padding: 0.9mm 1.2mm;
+  background: var(--tint);
+  border-left: 0.6mm solid var(--signal);
+  break-inside: avoid;
+}
+
+.cs-num-v {
+  font-size: 1em;
+  font-weight: 600;
+  color: var(--signal-ink);
+  white-space: nowrap;
+}
+
+.cs-trade {
+  width: 100%;
+  margin: 0 0 0.6mm;
+  border-collapse: collapse;
+  font-size: 0.94em;
+  line-height: 1.22;
+  break-inside: avoid;
+}
+
+.cs-trade th,
+.cs-trade td {
+  padding: 0.45mm 0.8mm;
+  vertical-align: top;
+  text-align: left;
+  border-bottom: 0.15mm solid var(--rule);
+}
+
+.cs-trade thead th {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.86em;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink);
+  border-bottom: 0.35mm solid var(--ink);
+}
+
+.cs-trade tbody th {
+  font-weight: 600;
+  color: var(--ink-3);
+  padding-left: 0;
+}
+
+.cs-trade-title {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.cs-mistakes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  break-inside: avoid;
+}
+
+.cs-mistakes li {
+  display: flex;
+  gap: 1mm;
+  margin: 0 0 0.5mm;
+}
+
+.cs-mistakes li::before {
+  content: "✕";
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-weight: 600;
+  color: var(--bad-ink);
+}
+
+.cs-foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 1mm 4mm;
+  margin-top: 1mm;
+  padding-top: 1.4mm;
+  border-top: 0.6mm solid var(--ink);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 0.82em;
+  color: var(--ink-3);
+}
+
+.cs-foot b {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.cs-foot em {
+  font-style: normal;
+  color: var(--signal-ink);
+  font-weight: 600;
+}
+
+/* FitToPage trims the lowest-priority lines (a third mistake, a fifth idea, the legend) before it
+   shrinks the type below a readable size; the phone view always shows everything */
+.cs-trim-1 [data-drop="1"],
+.cs-trim-2 [data-drop="1"],
+.cs-trim-2 [data-drop="2"] {
+  display: none;
+}
+
+/* the hidden copy FitToPage measures */
+.cs-measure {
+  position: absolute !important;
+  left: -10000px !important;
+  top: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  width: 194mm !important;
+  min-height: 0 !important;
+}
+
+/* ---- on screen ------------------------------------------------------------------------------ */
+
+@media screen {
+  .cs-paper {
+    margin: 0 auto;
+    padding: 8mm;
+    width: 210mm;
+    min-height: 297mm;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05), 0 24px 60px rgba(0, 0, 0, 0.35);
+  }
+}
+
+/* phones and small tablets: the same sheet, fluid and readable (printing still uses the paper) */
+@media screen and (max-width: 899px) {
+  .cs-paper:not(.cs-measure) {
+    width: auto;
+    min-height: 0;
+    padding: 18px 16px 20px;
+    font-size: 14.5px;
+    line-height: 1.45;
+    box-shadow: none;
+  }
+  .cs-paper:not(.cs-measure) .cs-cols {
+    column-count: 1;
+    column-rule: none;
+  }
+  .cs-paper:not(.cs-measure) .cs-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .cs-paper:not(.cs-measure) .cs-brand {
+    align-items: flex-start;
+    text-align: left;
+    white-space: normal;
+  }
+  .cs-paper:not(.cs-measure) .cs-title {
+    font-size: 2.3em;
+  }
+  .cs-paper:not(.cs-measure) .cs-lesson {
+    margin-bottom: 18px;
+  }
+  .cs-paper:not(.cs-measure) .cs-lesson-head {
+    padding: 6px 8px;
+    margin-bottom: 8px;
+  }
+  .cs-paper:not(.cs-measure) .cs-idea {
+    margin-bottom: 7px;
+  }
+  .cs-paper:not(.cs-measure) .cs-nums {
+    padding: 8px 10px;
+    gap: 4px 12px;
+  }
+  .cs-paper:not(.cs-measure) .cs-trade th,
+  .cs-paper:not(.cs-measure) .cs-trade td {
+    padding: 4px 6px;
+  }
+  .cs-paper:not(.cs-measure) .cs-sub {
+    margin: 10px 0 4px;
+  }
+  .cs-paper:not(.cs-measure) .cs-mistakes li {
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .cs-paper:not(.cs-measure) p[data-drop] {
+    display: block;
+  }
+  .cs-paper:not(.cs-measure) li[data-drop],
+  .cs-paper:not(.cs-measure) .cs-legend[data-drop] {
+    display: flex;
+  }
+  .cs-paper:not(.cs-measure) .cs-foot {
+    margin-top: 6px;
+    padding-top: 10px;
+  }
+}
+
+/* ---- print: only the sheet, on white ------------------------------------------------------- */
+
+@media print {
+  /* a dark theme's color-scheme would paint the page margins black */
+  :root:has(.cs-root) {
+    color-scheme: light !important;
+  }
+  html,
+  body:has(.cs-root) {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  body:has(.cs-root) {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body:has(.cs-root) > :not(.cs-root) {
+    display: none !important;
+  }
+  .cs-root {
+    display: block !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+  .cs-root .cs-noprint,
+  .cs-root > :not(.cs-stage) {
+    display: none !important;
+  }
+  .cs-stage {
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: none !important;
+  }
+  .cs-paper {
+    width: 194mm;
+    margin: 0 auto;
+    padding: 0;
+    min-height: 0;
+    box-shadow: none;
+    overflow: hidden;
+  }
+}

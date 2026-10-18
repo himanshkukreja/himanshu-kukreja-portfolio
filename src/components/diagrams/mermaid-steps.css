@@ -1,0 +1,66 @@
+/*
+ * Step-through for Mermaid diagrams (player: mermaidSteps.ts). Only applies while a diagram plays
+ * (svg[data-sd-steps]); the current hop glows in signal orange, past hops stay readable, the rest dims.
+ */
+.sd-mermaid-steps { display: none; }
+.sd-mermaid:not([data-mermaid-state="ok"]) .sd-mermaid-steps:has(ol) { display: block; padding: 0 16px 14px; }
+.sd-mermaid[data-steps-on] .sd-mermaid-steps { display: block; }
+.sd-mermaid[data-mermaid-state="ok"] .sd-mermaid-steplist { display: none; }
+.sd-mermaid-steplist { margin: 0; padding: 0 0 0 1.4em; font-size: 13px; line-height: 1.55; color: var(--c-fg-2); }
+.sd-mermaid-play { color: var(--c-signal-text); border-color: var(--c-signal); }
+.sd-mermaid-play[aria-pressed="true"] { background: var(--c-signal); color: var(--c-on-signal); }
+
+.sd-st-bar { border-top: 1px solid var(--c-line); background: var(--c-surface); padding: 8px 12px 10px; }
+.sd-st-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sd-st-btn { min-width: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+.sd-st-btn:disabled { opacity: 0.35; cursor: default; }
+.sd-st-btn:focus-visible, .sd-st-dot:focus-visible { outline: 2px solid var(--c-signal); outline-offset: 2px; }
+.sd-st-play { min-width: 84px; color: var(--c-on-signal); background: var(--c-signal); border-color: var(--c-signal); font-weight: 600; }
+.sd-st-play:hover { color: var(--c-on-signal); border-color: var(--c-signal); filter: brightness(1.08); }
+.sd-st-count { font-family: var(--font-geist-mono), ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; color: var(--c-fg-3); padding: 0 4px; }
+.sd-st-dots { display: flex; flex: 1 1 120px; gap: 3px; min-width: 80px; }
+.sd-st-dot { flex: 1; height: 6px; min-width: 6px; padding: 0; border: 0; background: var(--c-line-strong); cursor: pointer; }
+.sd-st-dot[data-past] { background: var(--c-fg-4); }
+.sd-st-dot[data-on] { background: var(--c-signal); }
+.sd-st-done { margin-left: auto; }
+.sd-st-caption { margin: 8px 0 0; min-height: 1.55em; font-size: 14.5px; line-height: 1.55; color: var(--c-fg); }
+.sd-st-caption::before { content: "▸ "; color: var(--c-signal); }
+
+@media (max-width: 560px) {
+  .sd-st-dots { order: 9; flex-basis: 100%; }
+  .sd-st-done { margin-left: 0; }
+}
+
+/* the diagram while playing */
+svg[data-sd-steps] .sd-st-dim { opacity: 0.16; transition: opacity 0.25s ease; }
+svg[data-sd-steps] .sd-st-past { opacity: 0.62; transition: opacity 0.25s ease; }
+svg[data-sd-steps] .sd-st-on { opacity: 1; transition: opacity 0.25s ease; }
+
+/* flowchart */
+svg[data-sd-steps] path.sd-st-on { stroke: var(--c-signal) !important; stroke-width: 3px !important; stroke-dasharray: 9 6; animation: sd-st-flow 0.8s linear infinite; }
+svg[data-sd-steps] g.node.sd-st-on :is(rect, polygon, path, circle, ellipse),
+svg[data-sd-steps] g.cluster.sd-st-on > rect { stroke: var(--c-signal) !important; stroke-width: 2.5px !important; }
+svg[data-sd-steps] g.node.sd-st-on { filter: drop-shadow(0 0 6px rgba(255, 107, 43, 0.55)); }
+svg[data-sd-steps] .edgeLabel.sd-st-on :is(span, p, div) { color: var(--c-signal-text) !important; }
+
+/* sequence */
+svg[data-sd-steps] :is(line, path)[data-et="message"].sd-st-on { stroke: var(--c-signal) !important; stroke-width: 3px !important; }
+svg[data-sd-steps] text.messageText.sd-st-on { fill: var(--c-signal-text) !important; font-weight: 600 !important; }
+svg[data-sd-steps] g[data-et="participant"].sd-st-on rect,
+svg[data-sd-steps] g.sd-st-on > rect.actor-bottom { stroke: var(--c-signal) !important; stroke-width: 2px !important; }
+svg[data-sd-steps] line[data-et="life-line"].sd-st-on { stroke: var(--c-signal) !important; stroke-width: 1.5px !important; }
+svg[data-sd-steps] g[data-et="note"].sd-st-on rect { stroke: var(--c-signal) !important; }
+
+@keyframes sd-st-flow { to { stroke-dashoffset: -30; } }
+@media (prefers-reduced-motion: reduce) {
+  svg[data-sd-steps] path.sd-st-on { animation: none; stroke-dasharray: none; }
+  svg[data-sd-steps] * { transition: none !important; }
+}
+
+.sd-mermaid[data-fullscreen] .sd-st-bar { padding-bottom: max(10px, env(safe-area-inset-bottom, 0px)); }
+
+@media print {
+  .sd-st-bar { display: none; }
+  .sd-mermaid[data-mermaid-state="ok"] .sd-mermaid-steplist { display: block; }
+  .sd-mermaid-steps { display: block; padding: 0 16px 12px; }
+}

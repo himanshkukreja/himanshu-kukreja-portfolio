@@ -8,6 +8,16 @@ import remarkParse from "remark-parse";
 import remarkGfm from "remark-gfm";
 import remarkDirective from "remark-directive";
 import { visit } from "unist-util-visit";
+import path from "path";
+import { fileURLToPath } from "url";
+import { createJiti } from "jiti";
+
+// `::anim[name]` explainers (src/lib/course/anim/catalog.ts) and `%% steps:` diagram annotations
+// (src/lib/diagrams/steps.ts) are checked against the site's own sources
+const siteRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const jiti = createJiti(import.meta.url, { alias: { "@": path.join(siteRoot, "src") } });
+const { ANIMS, COMMON_ANIM_OPTS } = await jiti.import(path.join(siteRoot, "src/lib/course/anim/catalog.ts"));
+const { parseSteps, diagramKind, countSequenceMessages } = await jiti.import(path.join(siteRoot, "src/lib/diagrams/steps.ts"));
 
 const SPEC = {
   panel: { attrs: ["tone"] },
@@ -31,6 +41,9 @@ const VALUES = {
   level: ["Medium", "Hard", "Expert"],
 };
 const BOX = /[┌┐└┘│─═║╔╗╚╝├┤┬┴┼]/;
+const ICON_NAMES = JSON.parse(fs.readFileSync(new URL("../src/lib/diagrams/icons/names.json", import.meta.url), "utf8"));
+const ICONS = Object.fromEntries(Object.entries(ICON_NAMES).map(([k, v]) => [k, new Set(v)]));
+const ICON_REF = /@\{(?:[^}"]|"[^"]*")*?\bicon\s*:\s*"([^"]*)"/g;
 
 const args = process.argv.slice(2);
 const listAscii = args.includes("--ascii");
@@ -44,6 +57,23 @@ for (const file of files) {
   const errs = [];
   const at = (n) => `${file}:${n.position?.start.line ?? "?"}`;
   visit(tree, (node, _i, parent) => {
+    if (node.type === "leafDirective" && node.name === "anim") {
+      const name = node.children.map((c) => c.value || "").join("").trim();
+      const meta = ANIMS[name];
+      if (!meta) {
+        errs.push(`${at(node)} ::anim[${name}]: unknown explainer (known: ${Object.keys(ANIMS).join(", ")})`);
+        return;
+      }
+      const allowed = { ...COMMON_ANIM_OPTS, ...(meta.opts || {}) };
+      for (const [k, v] of Object.entries(node.attributes || {})) {
+        const spec = allowed[k];
+        if (!spec) errs.push(`${at(node)} ::anim[${name}]: unknown attribute ${k} (allowed: ${Object.keys(allowed).join(", ")})`);
+        else if (Array.isArray(spec) && !spec.includes(v)) errs.push(`${at(node)} ::anim[${name}]: ${k}="${v}" not in ${spec.join("|")}`);
+        else if (spec === "int" && !/^\d+$/.test(v)) errs.push(`${at(node)} ::anim[${name}]: ${k} must be a whole number`);
+      }
+      if (parent?.type !== "root" && parent?.type !== "containerDirective") errs.push(`${at(node)} ::anim[${name}]: put explainers on their own line at the top level (or inside a ::: block), not in a list or quote`);
+      return;
+    }
     if (node.type === "textDirective" || node.type === "leafDirective") {
       // prose like "ratio:high" parses as a text directive; the site turns these back into text
       if (node.type === "leafDirective" || SPEC[node.name]) errs.push(`${at(node)} stray ${node.type} "${node.name}" — only ::: containers are allowed`);
@@ -97,6 +127,55 @@ for (const file of files) {
   visit(tree, "paragraph", (p) => {
     const t = p.children.map((c) => c.value || "").join("");
     if (/^:{3,}/.test(t)) errs.push(`${at(p)} literal "${t.slice(0, 30)}" — unbalanced ::: fence?`);
+  });
+  // step-through annotations: every step parses and names nodes / edges / messages the diagram has
+  visit(tree, "code", (c) => {
+    if (c.lang !== "mermaid" || !/%%\s*steps\s*:/i.test(c.value)) return;
+    const perrs = [];
+    const spec = parseSteps(c.value, perrs);
+    perrs.forEach((e) => errs.push(`${at(c)} mermaid steps: ${e}`));
+    if (!spec || spec.mode !== "manual") return;
+    const body = c.value.split("\n").filter((l) => !l.trim().startsWith("%%"));
+    const has = (id) => body.some((l) => new RegExp(`(^|[^\\w-])${id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}([^\\w-]|$)`).test(l));
+    const msgs = diagramKind(c.value) === "sequenceDiagram" ? countSequenceMessages(c.value) : 0;
+    spec.steps.forEach((st, i) => {
+      for (const t of st.targets) {
+        if (t.kind === "msg" && t.to > msgs) errs.push(`${at(c)} mermaid steps: step ${i + 1} names message ${t.to}, the diagram has ${msgs}`);
+        if (t.kind === "node" && !has(t.id)) errs.push(`${at(c)} mermaid steps: step ${i + 1}: no node or subgraph "${t.id}"`);
+        if (t.kind === "edge") {
+          if (!has(t.from) || !has(t.to)) errs.push(`${at(c)} mermaid steps: step ${i + 1}: edge ${t.from} --> ${t.to} names a missing node`);
+          else if (!body.some((l) => { const a = l.search(new RegExp(`(^|[^\\w-])${t.from}([^\\w-]|$)`)); const b = l.lastIndexOf(t.to); return a >= 0 && b > a && /--|==|-\./.test(l.slice(a, b)); }))
+            errs.push(`${at(c)} mermaid steps: step ${i + 1}: no edge ${t.from} --> ${t.to} in the diagram`);
+        }
+      }
+    });
+  });
+  // diagram icons: every `icon: "pack:name"` must exist in the site's packs (Mermaid draws "?" otherwise)
+  visit(tree, "code", (c) => {
+    if (c.lang !== "mermaid") return;
+    for (const m of c.value.matchAll(ICON_REF)) {
+      const [pack, name] = m[1].split(":");
+      if (!ICONS[pack]?.has(name)) errs.push(`${at(c)} mermaid: unknown icon "${m[1]}" (see DIAGRAMS.md; add it in scripts/build-diagram-icons.mjs)`);
+    }
+  });
+  // unclosed ``` fences: remark runs an unclosed fence to the end of its container (file, list item,
+  // quote), and a ```quiz / ```mermaid that swallows the next section can still look closed when it
+  // happens to end at another block's closer, so also flag headings or fence openers inside them
+  visit(tree, "code", (c, _i, parent) => {
+    if (!c.position) return;
+    const lines = src.slice(c.position.start.offset, c.position.end.offset).split("\n");
+    const strip = (l) => l.replace(/^[\s>]*/, "");
+    const open = strip(lines[0]).match(/^(`{3,}|~{3,})/);
+    if (!open) return; // indented code block, no fence
+    const closer = new RegExp(`^\\${open[1][0]}{${open[1].length},}\\s*$`);
+    if (lines.length < 2 || !closer.test(strip(lines[lines.length - 1])))
+      errs.push(`${at(c)} unclosed \`\`\`${c.lang ?? ""} fence: no closing ${open[1]} before the end of the ${parent?.type === "root" ? "file" : parent?.type ?? "file"}`);
+    if (c.lang !== "quiz" && c.lang !== "mermaid") return;
+    c.value.split("\n").forEach((l, i) => {
+      const line = c.position.start.line + 1 + i;
+      if (/^#{1,2} /.test(l)) errs.push(`${at(c)} \`\`\`${c.lang} block contains a markdown heading at line ${line} ("${l.slice(0, 40)}") — unclosed fence?`);
+      else if (/^\s*(`{3,}|~{3,})\S/.test(l)) errs.push(`${at(c)} \`\`\`${c.lang} block contains a fence opener at line ${line} ("${l.trim().slice(0, 30)}") — unclosed fence?`);
+    });
   });
   if (listAscii) {
     visit(tree, "code", (c) => {

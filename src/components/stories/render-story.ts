@@ -1,6 +1,7 @@
 // Server-only: story markdown → the article HTML + checkpoints StoryReader shows. Shared by the public
 // reader (/stories/[slug]) and the admin CMS preview, so a draft previews exactly as it will publish.
 import { renderLessonDetailed, type RenderStats } from "@/lib/course/render";
+import type { TermsOpts } from "@/lib/course/terms";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";
 import { markdownToHtml } from "@/lib/markdown";
 import type { Checkpoint } from "./StoryReader";
@@ -19,8 +20,8 @@ export function checkpointLabel(text: string): string {
 export type RenderedStory = { htmlContent: string; checkpoints: Checkpoint[]; toc: TocItem[]; stats: RenderStats | null };
 
 /** Stories go through the same rich renderer as course lessons; the plain pipeline stays as a fallback. */
-export async function renderStoryBody(markdown: string): Promise<RenderedStory> {
-  const rendered = markdown ? await renderLessonDetailed(markdown, { kind: "day-content" }).catch(() => null) : null;
+export async function renderStoryBody(markdown: string, opts: { terms?: TermsOpts } = {}): Promise<RenderedStory> {
+  const rendered = markdown ? await renderLessonDetailed(markdown, { kind: "day-content", terms: opts.terms }).catch(() => null) : null;
   if (rendered) {
     const { lesson, stats } = rendered;
     return {

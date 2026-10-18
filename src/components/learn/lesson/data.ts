@@ -141,7 +141,8 @@ export function lede(markdown: string, max = 200): string | null {
       if (isProse(text)) return trimSentence(plain(text), max);
       continue;
     }
-    if (/^(#|---|\*\*\*|\||[-*+] |\d+\. |<|:{3,})/.test(t)) {
+    // `:::` fences and `::anim[…]` explainer lines are never prose
+    if (/^(#|---|\*\*\*|\||[-*+] |\d+\. |<|:{2,})/.test(t)) {
       if (para.length) flush();
       continue;
     }

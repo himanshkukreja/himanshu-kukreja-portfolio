@@ -227,6 +227,8 @@ export function resolveFixture(url: string, init?: RequestInit): unknown {
   const u = new URL(url, "http://x");
   // case files: no mock data, the dev JSON store answers (CASE_FILES_STORE=file, see lib/case-files/api.ts)
   if (u.pathname.startsWith("/api/admin/case-files")) return undefined;
+  // design of the week: the dev in-memory store answers (DOW_FIXTURES=1, see lib/design-week/api.ts)
+  if (u.pathname.startsWith("/api/admin/design-week")) return undefined;
   if (u.pathname.startsWith("/api/admin/newsletter")) return resolveNewsletterFixture(u, init);
   if (u.pathname.startsWith("/api/admin/posthog/")) return resolveJourneysFixture(u, init);
   const method = (init?.method || "GET").toUpperCase();

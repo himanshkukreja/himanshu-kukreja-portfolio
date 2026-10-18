@@ -31,7 +31,24 @@ export function prepareMermaidSource(src: string, theme: DiagramTheme): string {
   while (i < lines.length && (!lines[i].trim() || lines[i].trim().startsWith("%%"))) i++;
   const header = (lines[i] || "").trim();
   if (!CLASSDEF_KINDS.test(header)) return src;
-  return [...lines.slice(0, i + 1), ...classDefs(theme), ...lines.slice(i + 1)].join("\n");
+  const body = /^(flowchart|graph)\b/.test(header) ? lines.slice(i + 1).map(squareIcons) : lines.slice(i + 1);
+  return [...lines.slice(0, i + 1), ...classDefs(theme), ...body].join("\n");
+}
+
+/** `A@{ … }` shape data; quoted values may contain braces. */
+const SHAPE_DATA = /@\{((?:[^}"]|"[^"]*")*)\}/g;
+
+/**
+ * Icon nodes (`A@{ icon: "tech:kafka", label: "Kafka" }`) are drawn as a square tile filled with the
+ * node's semantic class colour (the icon itself takes the class stroke colour), unless the content
+ * picked another `form:`. Content names the icon; the site decides how it looks.
+ */
+function squareIcons(line: string): string {
+  if (!line.includes("@{")) return line;
+  return line.replace(SHAPE_DATA, (m, inner: string) => {
+    if (!/\bicon\s*:/.test(inner) || /\bform\s*:/.test(inner)) return m;
+    return `@{ ${inner.trim().replace(/,\s*$/, "")}, form: "square" }`;
+  });
 }
 
 export function mermaidConfig(theme: DiagramTheme) {

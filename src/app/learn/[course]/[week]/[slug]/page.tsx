@@ -9,6 +9,9 @@ import {
 } from "@/lib/github";
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
 import { renderLesson } from "@/lib/course/render";
+import { termsFor } from "@/lib/concepts/load";
+import { getLabsForLesson } from "@/lib/learn/labs/load";
+import { getTrailForLesson } from "@/lib/learn/trail/load";
 import { isOptionalStage } from "@/components/learn/lesson/stageText";
 import MCQAssessmentWrapper from "@/components/MCQAssessmentWrapper";
 import ReadingProgress from "@/components/ReadingProgress";
@@ -142,7 +145,9 @@ export default async function LearningResourcePage({ params }: Props) {
     );
   }
 
-  const rendered = await renderLesson(content, { kind: resource.type });
+  // hover definitions: concept terms marked in the HTML, with their cards (src/lib/course/terms.ts)
+  const terms = await termsFor(`${week}/${slug}`);
+  const rendered = await renderLesson(content, { kind: resource.type, terms });
   const title = cleanTitle(rendered, resource.title);
   const requiredStages = rendered.stages.filter((s) => !isOptionalStage(s));
   const numbered = requiredStages.filter((s) => s.id !== "preface" && s.id !== "intro").length || requiredStages.length;
@@ -172,6 +177,8 @@ export default async function LearningResourcePage({ params }: Props) {
             budgetMinutes: rendered.stages.reduce((a, s) => a + (s.budgetMinutes || 0), 0),
           }
         : null,
+    labs: await getLabsForLesson(course, week, slug).catch(() => []),
+    trail: await getTrailForLesson(week, slug).catch(() => []),
   };
 
   return (

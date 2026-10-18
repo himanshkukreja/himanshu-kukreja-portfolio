@@ -1,0 +1,64 @@
+/*
+ * The light-DOM frame of an `::anim` explainer figure (the scene itself lives in a shadow root,
+ * styled by player.tsx). Same family as the Mermaid figure: 1px frame, blueprint grid, mono head.
+ */
+.sd-anim {
+  margin: 2rem 0;
+  border: 1px solid var(--c-line);
+  background: var(--c-raised);
+  background-image: linear-gradient(var(--c-dot) 1px, transparent 1px), linear-gradient(90deg, var(--c-dot) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.sd-anim-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--c-line);
+  background: var(--c-surface);
+}
+.sd-anim-tag {
+  padding: 2px 6px;
+  background: var(--c-signal);
+  color: var(--c-on-signal);
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.sd-anim-title {
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c-fg-2);
+}
+.sd-anim-sum {
+  margin: 0;
+  padding: 14px 16px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--c-fg-2);
+}
+.sd-anim[data-anim-state="loading"] .sd-anim-stage {
+  min-height: 240px;
+}
+.sd-anim[data-anim-state="ready"] .sd-anim-sum {
+  display: none;
+}
+@media (max-width: 639px) {
+  .course-content .sd-anim {
+    margin-left: -16px;
+    margin-right: -16px;
+    border-left: 0;
+    border-right: 0;
+  }
+}
+@media print {
+  .sd-anim {
+    break-inside: avoid;
+    background-image: none;
+  }
+}

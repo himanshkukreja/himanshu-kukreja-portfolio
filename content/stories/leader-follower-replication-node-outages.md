@@ -33,10 +33,10 @@ flowchart TD
     end
 
     subgraph SC["StreamFlix Database Cluster"]
-        L[("Leader Node<br/>US-East<br/>Writes Only")]:::core
-        F1[("Follower 1<br/>US-West<br/>Reads")]:::store
-        F2[("Follower 2<br/>Europe<br/>Reads")]:::store
-        F3[("Follower 3<br/>US-East<br/>Reads")]:::store
+        L@{ icon: "sd:database", label: "Leader Node<br/>US-East<br/>Writes Only" }
+        F1@{ icon: "sd:database", label: "Follower 1<br/>US-West<br/>Reads" }
+        F2@{ icon: "sd:database", label: "Follower 2<br/>Europe<br/>Reads" }
+        F3@{ icon: "sd:database", label: "Follower 3<br/>US-East<br/>Reads" }
     end
 
     W --> L
@@ -47,6 +47,8 @@ flowchart TD
     L -.->|"Replication"| F1
     L -.->|"Replication"| F2
     L -.->|"Replication"| F3
+    class L core
+    class F1,F2,F3 store
 ```
 
 ---
@@ -258,8 +260,10 @@ flowchart TD
 ```mermaid
 %% title: Geographic distribution strategy
 flowchart LR
-    E[("US-East<br/>Leader")]:::core <-->|"sync"| W[("US-West<br/>Sync Follower")]:::store
-    W <-.->|"async"| EU[("Europe<br/>Async Follower")]:::store
+    E@{ icon: "sd:database", label: "US-East<br/>Leader" } <-->|"sync"| W@{ icon: "sd:database", label: "US-West<br/>Sync Follower" }
+    W <-.->|"async"| EU@{ icon: "sd:database", label: "Europe<br/>Async Follower" }
+    class E core
+    class W,EU store
 ```
 
 - **Regional Writes** → Synchronous to nearby follower

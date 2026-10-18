@@ -1,0 +1,67 @@
+/* Interview-night revision deck: card enter animations and the swipe surface. */
+
+.card,
+.card * {
+  /* the card's own scroll area must not claim horizontal pans, or the browser cancels the swipe */
+  touch-action: pan-y;
+}
+
+.card {
+  user-select: none;
+  -webkit-user-select: none;
+  will-change: transform;
+}
+
+.fromRight {
+  animation: fromRight 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.fromLeft {
+  animation: fromLeft 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.settle {
+  transition: transform 180ms ease-out;
+}
+
+@keyframes fromRight {
+  from {
+    transform: translateX(48px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@keyframes fromLeft {
+  from {
+    transform: translateX(-48px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.reveal {
+  animation: reveal 200ms ease-out both;
+}
+
+@keyframes reveal {
+  from {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* the five-minute fuse under the top bar */
+.fuse {
+  transition: width 1s linear;
+}

@@ -410,7 +410,7 @@ shot("hub-hero", () =>
         clip: { x: 60, y: 0, width: 1320, height: 610 },
         alt: "The course hub: the course tabs in the header, the course title with its numbers, and a Continue card for the lesson in progress with a daily standup link.",
         callouts: [
-          { n: 1, label: "Course tabs: course · arena · notebook · progress", sel: 'header nav[aria-label="Course"]', at: "l", dx: -8 },
+          { n: 1, label: "Course tabs: course · arena · practice · notebook · progress", sel: 'header nav[aria-label="Course"]', at: "l", dx: -8 },
           { n: 2, label: "Your level and XP. Click it for the quest log", sel: "button[data-quest-toggle]", at: "bl", dx: 6, dy: 4 },
           { n: 3, label: "What the course holds, and what you have done", sel: "main section .grid", at: "tl" },
           { n: 4, label: "Continue: the lesson and stage you were on", sel: "main section .border-signal", at: "tl" },
@@ -901,6 +901,136 @@ shot("boss", () =>
           { n: 2, label: "Interview mode: answer hidden, earns XP", sel: "fieldset button, fieldset label", text: "Interview mode", at: "tl" },
           { n: 3, label: "Read mode: model answer open, no XP", sel: "fieldset button, fieldset label", text: "Read mode", at: "tl" },
           { n: 4, label: "+200 XP at 70% of the rubric, once", sel: 'aside[aria-label="Reward"]', at: "tl" },
+        ],
+      });
+    },
+    { only: "desktop" },
+  ),
+);
+
+/* ---------- g1) practice toolkit */
+
+shot("practice-hub", () =>
+  both(async (ctx, v) => {
+    const page = await open(ctx, "/learn/practice", "#night-h");
+    // live state is read after hydration (revised decks, plan, labs)
+    await page.waitForFunction(() => /\d+\/\d+ revised/.test(document.body.textContent || ""), null, { timeout: 20_000 }).catch(() => console.warn("  ! practice: revision state not shown"));
+    if (v === "desktop") {
+      await page.setViewportSize({ width: 1440, height: 1240 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+      const grp = await rectOf(page, 'section[aria-labelledby="night-h"]');
+      await capture(page, "practice-hub", v, {
+        header: true,
+        clip: { x: 60, y: 0, width: 1320, height: grp.y + grp.height + 16 },
+        alt: "The Practice page: the practice tab in the course header, a row with lessons revised, labs cleared, mocks done and the study plan, then the revision decks and cheat sheets with a chip per world.",
+        callouts: [
+          { n: 1, label: "The practice tab: lit on every tool it lists", sel: 'header nav[aria-label="Course"] a[href="/learn/practice"]', at: "b", dy: 10 },
+          { n: 2, label: "Where you stand: revised, cleared, done, your plan", sel: "main dl", at: "tl" },
+          { n: 3, label: "Each tool with its live state", sel: "main article span.font-mono.text-\\[11px\\].text-fg-3", at: "l", dx: -10 },
+          { n: 4, label: "One chip per world: ✓ when that world is revised", sel: 'main a[href^="/learn/revise/week-"]', at: "tl" },
+        ],
+      });
+    } else {
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(400);
+      await capture(page, "practice-hub", v, {
+        header: true,
+        alt: "The Practice page on a phone, with practice lit in the course dock at the bottom.",
+        callouts: [
+          { n: 1, label: "Where you stand", sel: "main dl", at: "tl" },
+          { n: 2, label: "Practice in the course dock", sel: 'nav[aria-label="Course"] a[href="/learn/practice"]', at: "t", dy: -2 },
+        ],
+      });
+    }
+  }),
+);
+
+shot("revise-deck", () =>
+  both(
+    async (ctx, v) => {
+      const page = await open(ctx, `/learn/revise/week-00/${LESSONS.p2}`, '[role="dialog"][aria-label^="Revision deck"]');
+      // the "ask" card shows its answer on tap; stay on the first card (a key idea) and flip once
+      await page.keyboard.press("ArrowRight");
+      await page.waitForTimeout(700);
+      await capture(page, "revise-deck", v, {
+        header: true,
+        alt: "A revision deck on a phone: the lesson at the top with a five-minute clock, one card (a key idea) and Again / Got it at the bottom.",
+        callouts: [
+          { n: 1, label: "Minutes left of the 5-minute target (it runs over, never out)", sel: '[role="dialog"] span[aria-label*="left of"], [role="dialog"] span[aria-label*="over the"]', at: "b", dy: 8 },
+          { n: 2, label: "The kind of card: key idea, numbers, trade-off, mistakes, if asked", find: "Key idea", at: "l", dx: -8 },
+          { n: 3, label: "Again goes to your daily standup; Got it moves on", sel: '[role="dialog"] button', text: "Again", at: "t", dy: -4 },
+        ],
+      });
+    },
+    { only: "phone" },
+  ),
+);
+
+shot("lab-room", () =>
+  both(
+    async (ctx, v) => {
+      const page = await open(ctx, "/learn/labs/token-bucket", 'section[aria-label="Code and tests"]');
+      await page.setViewportSize({ width: 1440, height: 1240 });
+      await page.waitForSelector(".cm-editor", { timeout: 60_000 }).catch(() => console.warn("  ! lab editor did not load"));
+      // run the starter code once so the results panel shows example and hidden tests
+      const run = page.getByRole("button", { name: /Run tests/ });
+      if (await run.count()) {
+        await run.first().click();
+        await page.waitForFunction(() => !/Loading Python|Running…/.test(document.body.textContent || ""), null, { timeout: 120_000 }).catch(() => console.warn("  ! lab run did not finish"));
+        await page.waitForTimeout(800);
+      }
+      await scrollTo(page, '[aria-label="Lab sections"]', 90);
+      const tabs = await rectOf(page, '[aria-label="Lab sections"]');
+      const main = await rectOf(page, "main");
+      const vp = page.viewportSize();
+      await capture(page, "lab-room", v, {
+        clip: { x: main.x + 8, y: tabs.y - 20, width: main.width - 16, height: vp.height - (tabs.y - 20) },
+        alt: "A code lab: the brief with tabs for tests, given code, hints and solution on the left; the Python editor, Run tests and the test results on the right.",
+        callouts: [
+          { n: 1, label: "The brief, example tests, hints, and the solution after 3 runs", sel: 'nav[aria-label="Lab sections"], [aria-label="Lab sections"]', at: "tl" },
+          { n: 2, label: "Your Python, autosaved in this browser", sel: ".cm-editor", at: "tl", dx: 10, dy: 10 },
+          { n: 3, label: "Run tests (⌘/Ctrl + Enter): runs on your device", sel: "button", text: "Run tests", at: "l", dx: -8 },
+          { n: 4, label: "Results: example tests, then the hidden edge cases", find: "passed", at: "l", dx: -8 },
+        ],
+      });
+    },
+    { only: "desktop" },
+  ),
+);
+
+shot("numbers-calc", () =>
+  both(async (ctx, v) => {
+    const page = await open(ctx, "/learn/numbers", "#calc-h");
+    await page.waitForTimeout(600);
+    await scrollTo(page, "#calc-h", v === "desktop" ? 90 : 76);
+    const sec = await rectOf(page, 'section[aria-labelledby="calc-h"]');
+    const vp = page.viewportSize();
+    await capture(page, "numbers-calc", v, {
+      clip: v === "desktop" ? { x: sec.x - 16, y: sec.y - 16, width: sec.width + 32, height: Math.min(sec.height + 32, 700) } : { x: 0, y: sec.y - 12, width: vp.width, height: Math.min(vp.height - (sec.y - 12), sec.height + 24) },
+      alt: "The numbers playground calculator: 50k QPS × 2 KB × 30 days typed as text, the answer in large type and the working step by step.",
+      callouts: [
+        { n: 1, label: "Type it the way you'd say it", sel: 'section[aria-labelledby="calc-h"] textarea', at: "tl" },
+        { n: 2, label: "The answer, and the working line by line", find: "TB", at: "l", dx: -8 },
+      ],
+    });
+  }),
+);
+
+shot("mastery-map", () =>
+  both(
+    async (ctx, v) => {
+      const page = await open(ctx, "/learn/mastery", "main h1");
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.waitForTimeout(1500);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await capture(page, "mastery-map", v, {
+        clip: { x: 60, y: 62, width: 1320, height: 900 },
+        alt: "The concept map: a count of concepts per state (not started, seen, shaky, solid, mastered) and every concept as a tile, grouped by world.",
+        callouts: [
+          { n: 1, label: "How many concepts are in each state; tap one to filter", sel: "main button[aria-pressed]", at: "tl" },
+          { n: 2, label: "The term-card switch for lessons", find: "Term cards in lessons", at: "l", dx: -8 },
+          { n: 3, label: "Each concept; tap for a two-minute refresher", sel: 'main button[aria-label*="Open the refresher"]', at: "tl" },
         ],
       });
     },

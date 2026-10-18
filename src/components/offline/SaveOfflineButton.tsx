@@ -14,6 +14,7 @@ import { pathOf, removeSaved } from "@/lib/offline/store";
 import { trackRemove } from "@/lib/offline/analytics";
 import { findItem, useOffline, withHub } from "./OfflineProvider";
 import { fmtBytes, fmtSaved } from "./format";
+import { labRuntimeExtra } from "@/lib/offline/labs";
 
 type Props = {
   title: string;
@@ -139,7 +140,8 @@ export function SaveGroupButton({ group, label, className = "" }: { group: strin
   const have = items.filter((i) => saved.has(pathOf(i.url)));
   const stale = have.filter((i) => updates.has(pathOf(i.url)));
   const missing = items.filter((i) => !saved.has(pathOf(i.url)));
-  const est = missing.reduce((a, i) => a + i.bytes, 0);
+  // a world with code labs also stores the Python runtime (once per device)
+  const est = missing.reduce((a, i) => a + i.bytes, 0) + labRuntimeExtra(catalog, saved, missing);
   const running = !!job && job.status === "running" && items.some((i) => isQueued(pathOf(i.url)));
   const all = items.length > 0 && !missing.length;
 

@@ -15,6 +15,7 @@ import { autoUpdateOn, findItem, setAutoUpdate, useOffline, withHub } from "./Of
 import { SaveGroupButton } from "./SaveOfflineButton";
 import { InstallButton, useCanInstall } from "./Install";
 import { fmtBytes, fmtSaved } from "./format";
+import { labRuntimeExtra } from "@/lib/offline/labs";
 import { trackRemove } from "@/lib/offline/analytics";
 
 const COURSE_GROUPS = (c: Catalog) => c.groups.filter((g) => g.kind !== "case-files");
@@ -30,7 +31,7 @@ export function SaveCourseButton({ className = "" }: { className?: string }) {
   const groups = catalog ? COURSE_GROUPS(catalog) : [];
   const items = groups.flatMap((g) => g.items.map((i) => ({ ...i, groupTitle: g.title })));
   const missing = items.filter((i) => !saved.has(pathOf(i.url)) || updates.has(pathOf(i.url)));
-  const est = missing.reduce((a, i) => a + i.bytes, 0) + (catalog && saved.size === 0 ? catalog.appBytes : 0);
+  const est = missing.reduce((a, i) => a + i.bytes, 0) + (catalog && saved.size === 0 ? catalog.appBytes : 0) + labRuntimeExtra(catalog, saved, missing);
   const running = !!job && job.status === "running" && items.some((i) => isQueued(pathOf(i.url)));
   const done = !!catalog && items.length > 0 && !missing.length;
   return (
@@ -296,6 +297,7 @@ export default function OfflineLibrary() {
                             <span className="text-[15px] font-medium text-fg">{g.title}</span>
                             <span className="font-mono text-[11px] text-fg-3">
                               {g.items.length} {g.items.length === 1 ? "article" : "articles"} · ~{fmtBytes(g.items.reduce((a, i) => a + i.bytes, 0))}
+                              {g.items.some((i) => i.kind === "lab") && catalog.runtimeBytes ? ` · code labs add the Python runtime, ~${fmtBytes(catalog.runtimeBytes)} once` : ""}
                             </span>
                           </span>
                           <SaveGroupButton group={g.id} label={g.kind === "world" ? "Save world" : "Save all"} />

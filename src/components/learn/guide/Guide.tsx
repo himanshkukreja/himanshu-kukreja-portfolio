@@ -44,6 +44,16 @@ import {
   TRIAL_PASS_PCT,
   partsFor,
   quest,
+  DIFFICULTY_LABEL,
+  DOW_XP,
+  LAB_REVEAL_AFTER_RUNS,
+  LAB_XP,
+  MASTERY_STATES,
+  PYTHON_VERSION,
+  REVISE_MIN_PER_LESSON,
+  REVISE_WEEK_XP,
+  RUNTIME_DOWNLOAD_LABEL,
+  RUNTIME_STORED_LABEL,
 } from "./facts";
 
 const COURSE = "/learn/system-design-mastery";
@@ -59,15 +69,16 @@ const TOC: TocItem[] = [
   { id: "review", n: "05", label: "Review & standup" },
   { id: "trials", n: "06", label: "Trials & bosses" },
   { id: "mocks", n: "07", label: "Mock interviews" },
-  { id: "arena", n: "08", label: "The Arena" },
-  { id: "xp", n: "09", label: "XP, levels, badges" },
-  { id: "progress", n: "10", label: "Progress page" },
-  { id: "share", n: "11", label: "Share your progress" },
-  { id: "offline", n: "12", label: "Offline reading" },
-  { id: "cases", n: "13", label: "Case files" },
-  { id: "account", n: "14", label: "Account & data" },
-  { id: "faq", n: "15", label: "FAQ" },
-  { id: "glossary", n: "16", label: "Glossary" },
+  { id: "practice", n: "08", label: "Practice toolkit" },
+  { id: "arena", n: "09", label: "The Arena" },
+  { id: "xp", n: "10", label: "XP, levels, badges" },
+  { id: "progress", n: "11", label: "Progress page" },
+  { id: "share", n: "12", label: "Share your progress" },
+  { id: "offline", n: "13", label: "Offline reading" },
+  { id: "cases", n: "14", label: "Case files" },
+  { id: "account", n: "15", label: "Account & data" },
+  { id: "faq", n: "16", label: "FAQ" },
+  { id: "glossary", n: "17", label: "Glossary" },
 ];
 
 const LOOP = [
@@ -246,8 +257,11 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 <strong>+{LEARN_XP.world} XP</strong> and that world&apos;s badge. On a phone, tap a world to open the same panel as a sheet.
               </p>
               <p>
-                <strong>Side quests</strong> ({s?.sideQuests ?? 15} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each. The
-                dashed card at the bottom of the hub, <strong>The Plan</strong>, is the 10-week roadmap.
+                <strong>Side quests</strong> ({s?.sideQuests ?? 15} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each. Below them, the hub&apos;s <strong>Practice</strong> block shows this week&apos;s design challenge, the study planner and the numbers playground, with a link to{" "}
+                <a href="#practice" className="text-signal-text underline underline-offset-4">
+                  the whole toolkit
+                </a>
+                . The dashed card at the bottom of the hub, <strong>The Plan</strong>, is the 10-week roadmap.
               </p>
             </div>
             <Shot id="hub-side" />
@@ -267,7 +281,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             <Shot id="lesson-top" wide />
             <div className={PROSE}>
               <p>
-                <strong>Header and course tabs.</strong> On every Learn page the site header turns into the course header: <em>course · arena · notebook · progress</em>, a search box (<Kbd>⌘K</Kbd>), your level chip and the light/dark
+                <strong>Header and course tabs.</strong> On every Learn page the site header turns into the course header: <em>course · arena · practice · notebook · progress</em>, a search box (<Kbd>⌘K</Kbd>), your level chip and the light/dark
                 switch. On phones the same tabs live in the dock at the bottom, with a way back to the rest of the site.
               </p>
               <p>
@@ -286,7 +300,11 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               </p>
               <p>
                 <strong>Reading tools</strong> (bottom right on desktop, the bottom toolbar on phones): <strong>Listen</strong> reads the lesson aloud with your browser&apos;s voice; <strong>Focus</strong> hides everything but the
-                article and goes full screen where the browser allows it (<Kbd>Esc</Kbd> to leave); <strong>Aa</strong> cycles the text size 17 → 19 → 21 px and remembers it. Phones also get Contents and a shortcut to the Notebook.
+                article and goes full screen where the browser allows it (<Kbd>Esc</Kbd> to leave); <strong>Aa</strong> cycles the text size 17 → 19 → 21 px and remembers it; <strong>TERMS</strong> turns the term cards on or off (more in{" "}
+                <a href="#practice-concepts" className="text-signal-text underline underline-offset-4">
+                  the concept map
+                </a>
+                ). Phones also get Contents (with the same term-card switch) and a shortcut to the Notebook.
               </p>
             </div>
             <Shot id="lesson-focus" only="desktop" />
@@ -300,6 +318,15 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               <p>
                 <strong>Diagrams</strong> are drawn in the site&apos;s colours and follow the light/dark theme; open any of them full screen. Code blocks have Copy and collapse long listings; interview questions have a reveal card where you can
                 mark &ldquo;knew it&rdquo; or &ldquo;review again&rdquo;.
+              </p>
+              <p>
+                <strong>Step-through diagrams</strong> have a <strong>&#9654; Steps</strong> button: it lights one hop at a time in orange, with a caption, and you move with &#9664; &#9654; or the arrow keys (also full screen).{" "}
+                <strong>Explainers</strong> are small animations of a core idea, like a hash ring gaining a node or a circuit breaker tripping. They play when you scroll to them; pause, step, switch scenarios or change the speed. With
+                reduced motion turned on in your system they don&apos;t auto-play: you step through them yourself. Both work offline in saved lessons.
+              </p>
+              <p>
+                <strong>Diagram icons.</strong> Boxes that stand for a real technology carry its logo (Kafka, PostgreSQL, Redis…) and generic parts get a simple icon (a user, a phone, a queue, a load balancer). The label stays under every
+                icon, and monochrome icons take the theme&apos;s colours in light and dark.
               </p>
               <p>
                 <strong>Practice this</strong> cards appear at the end of lessons that have a matching game, for example the Latency Ladder after Networking. They open an Arena game or a Playground board.
@@ -586,8 +613,126 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Where>
           </Section>
 
+          {/* ------------------------------------------------------------ g1) practice toolkit */}
+          <Section
+            id="practice"
+            n="08"
+            kicker="the practice toolkit"
+            title="Practice: everything outside the lessons"
+            lead="The Practice tab collects the interview-prep tools in one place: revise, build, sit a mock, estimate, plan and check what you know. Every card shows where you stand."
+          >
+            <Shot id="practice-hub" wide example />
+            <div className={PROSE}>
+              <p>
+                The <A href="/learn/practice">Practice</A> page groups the tools as <strong>interview night</strong> (revision decks, cheat sheets), <strong>build and drill</strong> (code labs, mock interviews, design of the week) and{" "}
+                <strong>tools</strong> (numbers playground, study planner, concept map, reading trail). The row under the title counts what you have revised, the labs you cleared, the mocks you finished and your study plan. All of it
+                works as a guest. Saved for offline use, each card says whether its page is saved on this device; the rest show <strong>needs a connection</strong>.
+              </p>
+            </div>
+
+            <Sub id="practice-revise">Revision decks and cheat sheets</Sub>
+            <Shot id="revise-deck" size="medium" />
+            <div className={PROSE}>
+              <p>
+                A <strong>revision deck</strong> boils a lesson down to about {REVISE_MIN_PER_LESSON} minutes of cards: <strong>key ideas</strong>, <strong>numbers to remember</strong>, a <strong>trade-off</strong> table, the{" "}
+                <strong>classic mistakes</strong> and <strong>if the interviewer asks</strong> (the answer stays hidden until you show it). Open one lesson&apos;s deck or <strong>Revise this world</strong> for all of them in a row. The
+                clock at the top counts down {REVISE_MIN_PER_LESSON} minutes a lesson; it keeps going past zero, it never stops you.
+              </p>
+              <p>
+                Swipe, use the arrows or the buttons. Mark each card <strong>Got it</strong> or <strong>Again</strong>: cards marked Again join your <a href="#review" className="text-signal-text underline underline-offset-4">daily standup</a>.
+                Finish every lesson deck of a world (in one go or one at a time) for <strong>+{REVISE_WEEK_XP} XP</strong>, once per world. Keys: <Kbd>←</Kbd> <Kbd>→</Kbd> flip, <Kbd>Space</Kbd> next or show the answer,{" "}
+                <Kbd>G</Kbd> got it, <Kbd>A</Kbd> again, <Kbd>S</Kbd> shuffle, <Kbd>Esc</Kbd> exit.
+              </p>
+              <p>
+                A <strong>cheat sheet</strong> is the same material for a whole world on one page. It sizes itself to print on a single A4 or Letter sheet; <strong>Download PDF</strong> opens your browser&apos;s print dialog (choose
+                &ldquo;Save as PDF&rdquo;), and Share sends the link. Day lessons, Foundations parts and bosses end with a <strong>Revise … in 5 min</strong> card and a link to their world&apos;s sheet.
+              </p>
+            </div>
+
+            <Sub id="practice-labs">Code labs</Sub>
+            <Shot id="lab-room" only="desktop" />
+            <div className={PROSE}>
+              <p>
+                Some interviews have an &ldquo;implement this component&rdquo; round. A <strong>code lab</strong> is one of those, taken from a lesson: a token bucket, an LRU cache, a consistent hashing ring, an outbox relay and more. Read the
+                brief, write Python {PYTHON_VERSION} in the editor and press <strong>Run tests</strong> (<Kbd>⌘</Kbd>/<Kbd>Ctrl</Kbd> + <Kbd>Enter</Kbd>). Python runs on your device, in the browser: no install and no server. The first run
+                downloads it once ({RUNTIME_DOWNLOAD_LABEL}).
+              </p>
+              <p>
+                Each lab has example tests you can read and <strong>hidden tests</strong> for the edge cases, shown after a run (they ship with the page, so they are practice, not an exam). Hints are there when you&apos;re stuck; the solution
+                unlocks after {LAB_REVEAL_AFTER_RUNS} runs, or earlier if you insist. Pass every test to <strong>clear</strong> the lab: +{LAB_XP.easy}, +{LAB_XP.medium} or +{LAB_XP.hard} XP by difficulty, once, even after peeking. Your
+                code autosaves in this browser. Lessons with a lab end with a <strong>Try it in code</strong> card.
+              </p>
+            </div>
+
+            <Sub id="practice-numbers">Numbers playground</Sub>
+            <Shot id="numbers-calc" />
+            <div className={PROSE}>
+              <p>
+                Type an estimate the way you would say it in an interview, like <em>50k QPS × 2 KB × 30 days</em>, and get the answer with the working: each step, the units, an &ldquo;interview shortcut&rdquo; version and the
+                bandwidth or storage it implies. Write one step per line and name results (<em>peak = 3 × avg</em>); presets cover the classic questions, and <strong>copy link</strong> shares your sums.
+              </p>
+              <p>
+                Below it are the latency, throughput and size numbers the course teaches, each linked to its lesson (<strong>work it out</strong> sends one to the calculator), and a drill: Week 00&apos;s trial has an estimation part. Data units
+                are decimal, as in the lessons: 1 KB = 1,000 bytes.
+              </p>
+            </div>
+
+            <Sub id="practice-plan">Study planner</Sub>
+            <div className={PROSE}>
+              <p>
+                Pick your <strong>interview date</strong>, the days you can study and the minutes per day, and choose what to include (core lessons, bosses, trials, mock interviews, side quests), how many revision days to keep at the end
+                and whether to leave a catch-up day each week. You get a day-by-day plan from your real progress. Fall behind or race ahead and the plan moves; the page says by how much and offers to keep the adjusted plan.
+              </p>
+              <p>
+                <strong>Download .ics</strong> puts every session in Apple Calendar or Outlook (re-download after a change and the sessions move); <strong>Add to Google Calendar</strong> explains the import and has a link for each day. The plan&apos;s settings
+                are saved with your XP, so signed in it follows you. The progress page shows today&apos;s session next to your weekly goal.
+              </p>
+            </div>
+
+            <Sub id="practice-concepts">Concept map and term cards</Sub>
+            <Shot id="mastery-map" only="desktop" example />
+            <div className={PROSE}>
+              <p>
+                The <strong>concept map</strong> lists every concept the course teaches, grouped by world and coloured by how well you know it, from your quick checks, trial answers and review cards (nothing extra to do):{" "}
+                {MASTERY_STATES.map((st, i) => (
+                  <span key={st.id}>
+                    {i > 0 ? (i === MASTERY_STATES.length - 1 ? " and " : ", ") : ""}
+                    <strong>{st.label.toLowerCase()}</strong>
+                  </span>
+                ))}
+                . Tap a concept for a <strong>two-minute refresher</strong>: the definition, the key points, your evidence, the lesson that teaches it and a way to practise it.
+              </p>
+              <p>
+                <strong>Term cards:</strong> in lessons, course terms have a dotted underline. Hover (or tap) one for its one-line definition, where it&apos;s taught and related terms. Don&apos;t want them? <strong>TERMS</strong> in the reading
+                dock, the switch in the phone Contents sheet or the one on the concept map turns them off for this browser.
+              </p>
+            </div>
+
+            <Sub id="practice-dow">Design of the week</Sub>
+            <div className={PROSE}>
+              <p>
+                One open system design problem a week. Read the brief and its constraints, write your design in markdown with Mermaid diagrams (it autosaves and stays private while you write), then vote on the community&apos;s designs once the
+                gallery opens. Winners are featured on the page, on the course hub and on their profile. Submitting is worth <strong>+{DOW_XP.submit} XP</strong>, a featured design <strong>+{DOW_XP.featured}</strong> and the winner{" "}
+                <strong>+{DOW_XP.win}</strong>. Reading is open to everyone; submitting and voting need an account and a connection. Until the first challenge opens, the page says &ldquo;coming soon&rdquo;.
+              </p>
+            </div>
+
+            <Sub id="practice-reading">Reading trail</Sub>
+            <div className={PROSE}>
+              <p>
+                At the end of a lesson, <strong>Go deeper · reading trail</strong> shows two or three real write-ups (company engineering blogs, papers, talks, postmortems), each in three lines: what it is, the key idea and why it&apos;s
+                here. <strong>Mark read</strong> keeps track (signed in, it follows you). The <A href="/learn/reading">reading trail</A> page lists them all by world, with search and company and type filters. The cards work offline in a saved
+                copy; only the links out need a connection.
+              </p>
+            </div>
+
+            <Where>
+              the <A href="/learn/practice">practice</A> tab (top of every Learn page; bottom dock on phones). The hub&apos;s Practice block and the end of each lesson link to the tools too.
+            </Where>
+          </Section>
+
           {/* ------------------------------------------------------------ g) arena */}
-          <Section id="arena" n="08" kicker="the arena" title="Daily challenge, leagues and games" lead="The fun part of the course, built from the same questions and lessons. Two minutes a day keeps a streak alive.">
+          <Section id="arena" n="09" kicker="the arena" title="Daily challenge, leagues and games" lead="The fun part of the course, built from the same questions and lessons. Two minutes a day keeps a streak alive.">
             <Shot id="arena-hub" />
             <Sub>Daily challenge</Sub>
             <Pair>
@@ -636,7 +781,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ h) xp */}
-          <Section id="xp" n="09" kicker="xp, levels, quests & badges" title="What earns XP" lead="XP is your running total. Every amount below comes straight from the code; each one-time reward is paid once, however often you repeat the thing.">
+          <Section id="xp" n="10" kicker="xp, levels, quests & badges" title="What earns XP" lead="XP is your running total. Every amount below comes straight from the code; each one-time reward is paid once, however often you repeat the thing.">
             <Table
               caption="How XP is earned"
               head={["Action", "XP", "How often"]}
@@ -652,6 +797,9 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 ["Hire or better in a mock interview", `+${LEARN_XP.mockOffer}`, "once per mock"],
                 ["Clear a world (lessons + boss + trial parts)", `+${LEARN_XP.world}`, "once per world, with its badge"],
                 ["Finish a side quest", `+${LEARN_XP.sideQuest}`, `once (${LEARN_XP.lesson} for the lesson + ${LEARN_XP.sideQuest - LEARN_XP.lesson} bonus)`],
+                ["Revise a whole world (every lesson deck finished)", `+${REVISE_WEEK_XP}`, "once per world"],
+                ["Clear a code lab (every test passes)", `+${LAB_XP.easy} / +${LAB_XP.medium} / +${LAB_XP.hard}`, `once per lab (${DIFFICULTY_LABEL.easy} / ${DIFFICULTY_LABEL.medium} / ${DIFFICULTY_LABEL.hard})`],
+                ["Design of the week: submit / featured / winner", `+${DOW_XP.submit} / +${DOW_XP.featured} / +${DOW_XP.win}`, "once per challenge each"],
                 ["Grade a review card", `+${REVIEW_XP_PER_CARD}`, "every card, every day"],
                 ["Daily challenge", `+${DAILY_XP_PER_RIGHT} / right`, `first run of the day, +${DAILY_XP_PERFECT} for 5/5`],
                 ["Arena game / Playground board", `+${quest("arena:latency")} / +${quest("play:cache")}`, "first clear of each"],
@@ -679,7 +827,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ i) progress */}
-          <Section id="progress" n="10" kicker="your progress page" title="Everything you've done, in one place" lead="The Progress tab answers “where am I, how am I doing, what next”. Guests see this browser's data; signed in, your account merged with it.">
+          <Section id="progress" n="11" kicker="your progress page" title="Everything you've done, in one place" lead="The Progress tab answers “where am I, how am I doing, what next”. Guests see this browser's data; signed in, your account merged with it.">
             <Shot id="progress-top" wide />
             <div className={PROSE}>
               <p>
@@ -741,7 +889,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ i2) share */}
           <Section
             id="share"
-            n="11"
+            n="12"
             kicker="share your progress"
             title="Show your run to friends"
             lead="Your progress is private. Turn on a public page and you get one link, showing only the parts you pick, to send on WhatsApp, LinkedIn or X."
@@ -849,7 +997,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ j) cases */}
           <Section
             id="offline"
-            n="12"
+            n="13"
             kicker="offline reading & the app"
             title="Read with no internet"
             lead="Save lessons on your phone or laptop and read them on a flight, on the metro, anywhere. No app store: the website saves them, and it can be installed like an app."
@@ -864,7 +1012,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                   ),
                   body: (
                     <>
-                      It sits next to the title of every lesson, preview, boss, side quest, trial, mock interview and case file (the cloud icon on a phone). To save more at once, open a world on the course map and press <strong>Save this world offline</strong>, or use{" "}
+                      It sits next to the title of every lesson, preview, boss, side quest, trial, mock interview and case file, and on cheat sheets, code labs, the numbers playground, the study planner and the Practice page (the cloud icon on a phone). Revision decks are saved with their world. To save more at once, open a world on the course map and press <strong>Save this world offline</strong>, or use{" "}
                       <strong>Save the entire course</strong> in the <strong>Read offline</strong> card on the course map. Sizes are shown before you start; the whole course is large, so do it on wifi.
                     </>
                   ),
@@ -896,6 +1044,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 ["Reading, diagrams, highlighted code, :::blocks", "Comments and the discussion"],
                 ["Quick checks, trials, boss fights, mock interviews", "Ask Claude / ChatGPT (the prompt is copied for later)"],
                 ["Stage clears, XP, streak days on this device", "Search, the leaderboard, sign-in, sharing"],
+                ["Revision decks, cheat sheets, code labs, numbers playground, study planner, reading-trail summaries", "Design of the week (submitting, voting, the gallery); the articles the reading trail links to"],
               ]}
             />
             <Sub>Install it as an app</Sub>
@@ -917,7 +1066,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Note>
           </Section>
 
-          <Section id="cases" n="13" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
+          <Section id="cases" n="14" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
             <Shot id="case-index" only="desktop" />
             <div className={PROSE}>
               <p>
@@ -936,7 +1085,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ k) account */}
-          <Section id="account" n="14" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
+          <Section id="account" n="15" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
             <ul className="m-0 grid max-w-[72ch] list-none gap-px border border-line bg-line p-0 sm:grid-cols-2">
               {[
                 ["Progress on every device", "Lessons, stages, XP, review cards and trial attempts follow you instead of living in one browser."],
@@ -966,7 +1115,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ l) faq */}
-          <Section id="faq" n="15" kicker="faq" title="Questions people actually ask">
+          <Section id="faq" n="16" kicker="faq" title="Questions people actually ask">
             <div className="flex max-w-[78ch] flex-col border-t border-line">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group border-b border-line">
@@ -983,7 +1132,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ glossary */}
-          <Section id="glossary" n="16" kicker="glossary" title="Words the course uses">
+          <Section id="glossary" n="17" kicker="glossary" title="Words the course uses">
             <dl className="m-0 grid max-w-[78ch] gap-px border border-line bg-line sm:grid-cols-2">
               {GLOSSARY.map(([t, d]) => (
                 <div key={t} className="flex flex-col gap-1 bg-bg p-4">
@@ -1069,6 +1218,19 @@ const FAQ: [string, React.ReactNode][] = [
       answers and the rubric for an independent verdict. Red flags (no clarifying questions, blank phases, unanswered curveballs, running long) are detected for you.
     </>,
   ],
+  [
+    "Do code labs need Python on my computer?",
+    <>
+      No. Python runs inside the browser on your device, and your code is never sent to a server. The first run downloads it once ({RUNTIME_DOWNLOAD_LABEL}). Save a lab for offline use and Python is stored with it (about {RUNTIME_STORED_LABEL}, once for every lab).
+    </>,
+  ],
+  [
+    "Where do I find revision decks, labs and the other tools?",
+    <>
+      In the <Link href="/learn/practice">Practice</Link> tab. Lessons also end with their revision deck and any code lab that practises them, and the course hub&apos;s Practice block has the planner, the numbers playground and this
+      week&apos;s design challenge.
+    </>,
+  ],
   ["Does replaying the daily challenge count?", <>No, only your first run of the day counts for XP, points and the streak. Replays are practice.</>],
   ["Does re-reading a lesson reset it?", <>Never. Completed stays completed and percentages never go down. Only the Reset on the progress page removes progress.</>],
   ["Does listening count as reading?", <>Yes. While Listen is reading the lesson aloud, the time counts even if you don&apos;t touch the screen.</>],
@@ -1101,4 +1263,11 @@ const GLOSSARY: [string, string][] = [
   ["Public page", "Your optional page at /u/<handle>, showing the parts of your progress you chose. Off until you turn it on."],
   ["Handle", "The name in your public link: lowercase letters, numbers and hyphens, picked in Progress → share."],
   ["Case file", "A story from real production work, outside the course, often ending with an interactive activity."],
+  ["Practice", "The tab with the interview-prep tools outside the lessons: revision decks, cheat sheets, code labs, mocks, design of the week and more."],
+  ["Revision deck", "A lesson boiled down to about five minutes of cards. Cards you mark Again join the daily standup."],
+  ["Cheat sheet", "One world's key ideas, numbers, trade-offs and mistakes on a single printable page."],
+  ["Code lab", "Implement a component (a rate limiter, an LRU cache…) in Python in the browser, against example and hidden tests."],
+  ["Concept map", "Every concept of the course, coloured from Not started to Mastered by your answers, each with a two-minute refresher."],
+  ["Term card", "The small card a dotted term in a lesson opens: a one-line definition and where it's taught."],
+  ["Design of the week", "One open design problem a week: submit a design, vote on the community's, winners featured."],
 ];

@@ -174,32 +174,32 @@ Result: 2.15GB memory vs. 120GB+ for full URL storage!
 %% title: Core architecture overview
 flowchart TD
     subgraph UL["User Layer"]
-        U(["User Posts Message"]):::client
-        APP["Mobile/Web App"]:::client
+        U@{ icon: "sd:user", label: "User Posts Message" }
+        APP@{ icon: "sd:phone", label: "Mobile/Web App" }
     end
 
     subgraph GW["API Gateway"]
-        LB["Load Balancer"]:::edge
+        LB@{ icon: "sd:load-balancer", label: "Load Balancer" }
         API["Message API"]:::service
         EXTRACT["URL Extractor"]:::service
     end
 
     subgraph SD["Spam Detection Layer"]
         BF["Bloom Filter Service"]:::hot
-        CACHE[("Redis Cache")]:::cache
+        CACHE@{ icon: "tech:redis", label: "Redis Cache" }
         VERIFY["Verification Service"]:::core
     end
 
     subgraph DS["Data Sources"]
-        FEEDS["Threat Intelligence Feeds"]:::external
-        ML["ML Spam Detection"]:::service
-        REPORTS["User Reports"]:::client
+        FEEDS@{ icon: "sd:feed", label: "Threat Intelligence Feeds" }
+        ML@{ icon: "sd:ml", label: "ML Spam Detection" }
+        REPORTS@{ icon: "sd:users", label: "User Reports" }
         UPDATE["Update Service"]:::queue
     end
 
     subgraph ST["Storage"]
-        DB[("PostgreSQL")]:::store
-        BACKUP[("Backup Storage")]:::store
+        DB@{ icon: "tech:postgresql", label: "PostgreSQL" }
+        BACKUP@{ icon: "sd:object-storage", label: "Backup Storage" }
     end
 
     U --> APP --> LB --> API --> EXTRACT
@@ -216,6 +216,12 @@ flowchart TD
 
     BF -.->|"99.9% queries<br/>end here"| API
     VERIFY -.->|"0.1% false positives<br/>verified here"| API
+    class U,APP,REPORTS client
+    class LB edge
+    class CACHE cache
+    class FEEDS external
+    class ML service
+    class DB,BACKUP store
 ```
 
 ### The Complete Flow: From URL to Decision
@@ -690,19 +696,23 @@ class ThreatIntelligenceService:
 flowchart TD
     subgraph FEEDS["Threat feeds · polled every 5 minutes"]
         direction TB
-        G["google_safe_browsing"]:::external
-        PT["phishtank"]:::external
-        ML["internal_ml"]:::service
-        UR["user_reports"]:::client
+        G@{ icon: "sd:shield", label: "google_safe_browsing" }
+        PT@{ icon: "sd:feed", label: "phishtank" }
+        ML@{ icon: "sd:ml", label: "internal_ml" }
+        UR@{ icon: "sd:users", label: "user_reports" }
         G ~~~ ML
         PT ~~~ UR
     end
     FEEDS -->|"add_new_threats · immediately"| UB[("Update buffer<br/>Bloom filter · 10M items")]:::cache
     FEEDS -.->|"scheduled batch update"| PF[("Primary filter<br/>1.2B items")]:::cache
-    DB[("Authoritative database")]:::store -->|"rebuild every 24 hours<br/>batches of 100,000"| NF["New filter"]:::core
+    DB@{ icon: "sd:database", label: "Authoritative database" } -->|"rebuild every 24 hours<br/>batches of 100,000"| NF["New filter"]:::core
     NF -->|"atomic swap · then clear update buffer"| PF
     Q(["check_url_multi_layer"]):::client -->|"1 · primary filter first"| PF
     PF -->|"2 · not found · check recent updates buffer"| UB
+    class G,PT external
+    class ML service
+    class UR client
+    class DB store
 ```
 
 ---

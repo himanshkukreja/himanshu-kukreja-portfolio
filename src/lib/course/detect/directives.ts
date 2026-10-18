@@ -16,11 +16,12 @@
 import type { Code, Heading, List, ListItem, Paragraph, Parent, PhrasingContent, Root, RootContent, Text } from "mdast";
 import type { ContainerDirective, LeafDirective, TextDirective } from "mdast-util-directive";
 import type { Element as HastElement, Properties } from "hast";
-import { chrome, el, h, isNode, rawHast, text, toText, type AnyNode, type SdEl } from "../md";
+import { chrome, el, h, isNode, rawHast, text, toText, type AnyNode, type SdEl, type SdHast } from "../md";
 import type { QuestMission } from "../types";
 import { slugify } from "../slug";
 import type { BlockCtx } from "./blocks";
 import { renderCode } from "./code";
+import { ANIMS, COMMON_ANIM_OPTS } from "../anim/catalog";
 
 export const BLOCK_NAMES = new Set(["panel", "compare", "col", "steps", "tree", "callout", "stats", "calc", "timeline", "checkpoint", "answer", "mission"]);
 const TONES = new Set(["core", "info", "ok", "bad", "warn", "note"]);
@@ -72,6 +73,7 @@ export function neutralizeDirectives(tree: Root, src: string): number {
     let touched = false;
     for (let i = 0; i < kids.length; i++) {
       const c = kids[i] as RootContent | Directive;
+      if (c.type === "leafDirective" && isAnim(c)) continue; // `::anim[name]` explainer (animFigure)
       if (c.type === "textDirective" || c.type === "leafDirective") {
         n++;
         touched = true;
@@ -103,6 +105,37 @@ export function neutralizeDirectives(tree: Root, src: string): number {
   };
   walk(tree);
   return n;
+}
+
+/* ------------------------------------------------------------------ ::anim explainers */
+
+/** `::anim[name]{…}` naming a registered explainer (src/lib/course/anim/catalog.ts). */
+export function isAnim(node: { type: string; name?: string; children?: unknown[] }): boolean {
+  if (node.type !== "leafDirective" || node.name !== "anim") return false;
+  return Object.prototype.hasOwnProperty.call(ANIMS, toText(node as LeafDirective).trim());
+}
+
+/**
+ * An animated concept explainer: an empty stage the client fills (src/components/learn/anim/), with
+ * the catalog title and summary as its readable fallback (no JS, print, still loading). All of it
+ * is chrome: it isn't course text, so highlights, search and the lede never see it.
+ */
+export function animFigure(node: LeafDirective, ctx: BlockCtx): SdHast {
+  const name = toText(node).trim();
+  const meta = ANIMS[name];
+  const allowed = { ...COMMON_ANIM_OPTS, ...(meta.opts || {}) };
+  const opts: Record<string, string> = {};
+  for (const [k, v] of Object.entries(node.attributes || {})) if (typeof v === "string" && k in allowed) opts[k] = v;
+  const title = opts.title || meta.title;
+  ctx.stats.anim = (ctx.stats.anim || 0) + 1;
+  return rawHast(
+    chrome("figure", { className: ["sd-anim"], dataSd: "anim", dataAnim: name, dataAnimOpts: Object.keys(opts).length ? JSON.stringify(opts) : undefined }, [
+      h("figcaption", { className: ["sd-anim-head"] }, [h("span", { className: ["sd-anim-tag"] }, ["Explainer"]), h("span", { className: ["sd-anim-title"] }, [title])]),
+      h("div", { className: ["sd-anim-stage"], role: "group", ariaLabel: `Animated explainer: ${title}` }, []),
+      h("p", { className: ["sd-anim-sum"] }, [meta.summary]),
+    ]),
+    { component: "anim" },
+  );
 }
 
 /* ------------------------------------------------------------------ helpers */
@@ -220,6 +253,10 @@ async function inner(nodes: RootContent[], ctx: BlockCtx, opts: Opts): Promise<A
     const n = nodes[i];
     if (n.type === "containerDirective") {
       out.push(await renderBlock(n, ctx, opts));
+      continue;
+    }
+    if (isAnim(n)) {
+      out.push(animFigure(n as unknown as LeafDirective, ctx));
       continue;
     }
     if (n.type === "heading") {

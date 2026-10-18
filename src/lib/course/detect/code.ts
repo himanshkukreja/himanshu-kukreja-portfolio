@@ -14,6 +14,7 @@ import { highlightLines, plainLines } from "../highlight";
 import type { LessonKind } from "../types";
 import type { PracticeGame } from "@/lib/learn/arena/games";
 import { quizFigure } from "./quiz";
+import { parseSteps } from "@/lib/diagrams/steps";
 
 export type CodeKind =
   | "whiteboard"
@@ -701,11 +702,18 @@ export function mermaidFigure(value: string, ctx: CodeCtx): HastElement {
   ctx.count("mermaid");
   const title = value.match(/^\s*%%\s*title:\s*(.+)$/m)?.[1]?.trim();
   const kind = (value.split("\n").find((l) => l.trim() && !l.trim().startsWith("%%")) || "").trim().split(/\s/)[0];
-  return h("figure", { className: ["sd-mermaid"], dataSd: "mermaid", dataKind: kind || "diagram" }, [
+  // step-through (src/lib/diagrams/steps.ts): annotated flowcharts / sequence diagrams get a ▶ Steps player
+  const steps = parseSteps(value);
+  const playable = !!steps && steps.mode !== "off";
+  if (playable) ctx.count("mermaidSteps");
+  return h("figure", { className: ["sd-mermaid"], dataSd: "mermaid", dataKind: kind || "diagram", dataSteps: playable ? steps.mode : undefined }, [
     chrome("div", { className: ["sd-mermaid-head"] }, [
       h("span", { className: ["sd-mermaid-label"] }, ["Diagram"]),
       title ? h("span", { className: ["sd-mermaid-title"] }, [title]) : null,
       h("span", { className: ["sd-mermaid-tools"] }, [
+        playable
+          ? h("button", { type: "button", className: ["sd-mermaid-btn", "sd-mermaid-play"], dataMermaidAction: "steps", ariaPressed: "false", title: "Play this diagram one step at a time" }, ["▶ Steps"])
+          : null,
         h("button", { type: "button", className: ["sd-mermaid-btn"], dataMermaidAction: "zoom", ariaPressed: "false" }, ["1:1"]),
         h("button", { type: "button", className: ["sd-mermaid-btn"], dataMermaidAction: "full" }, ["Fullscreen"]),
         h("button", { type: "button", className: ["sd-mermaid-btn"], dataMermaidAction: "copy" }, ["Copy source"]),
@@ -713,6 +721,12 @@ export function mermaidFigure(value: string, ctx: CodeCtx): HastElement {
     ]),
     h("pre", { className: ["sd-mermaid-src"] }, [value]),
     chrome("div", { className: ["sd-mermaid-canvas"], role: "img", ariaLabel: title ? `Diagram: ${title}` : "Diagram" }, []),
+    // the player's bar (filled on the client); annotated captions are listed for print and no-JS
+    playable
+      ? chrome("div", { className: ["sd-mermaid-steps"], dataStepsBar: "" }, [
+          steps.mode === "manual" ? h("ol", { className: ["sd-mermaid-steplist"] }, steps.steps.map((st) => h("li", {}, [st.caption]))) : null,
+        ])
+      : null,
   ]);
 }
 

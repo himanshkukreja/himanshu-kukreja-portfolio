@@ -99,11 +99,12 @@ Only the roughly 500 people who get a "yes" ever reach the actual booking system
 ```mermaid
 %% title: The bouncer and the booking system
 flowchart TD
-  P(["~2,000,000 people"]):::client --> BC["Bouncer · counter starts at 500"]:::hot
+  P@{ icon: "sd:users", label: "~2,000,000 people" } --> BC["Bouncer · counter starts at 500"]:::hot
   BC --> B{"Still above zero?"}
   B -->|"yes · counter ticks down by one"| BK["Booking system<br/>passenger details · berth · payment"]:::core
   B -->|"no · in milliseconds"| N(["Told no<br/>1,999,500 people"]):::bad
   BK --> S(["~500 seats confirmed"]):::ok
+  class P client
 ```
 
 This is the secret that makes the whole system survivable: **the number of people you reject is unlimited, but the work of rejecting them must cost almost nothing.**
@@ -127,12 +128,14 @@ This single idea — a smart front door that adapts to the crowd, instead of a s
 ```mermaid
 %% title: A waiting room that breathes
 flowchart TD
-  U(["Booking attempts at 10:00:00 AM"]):::client --> WR["Virtual waiting room<br/>You are number 84,213"]:::edge
+  U@{ icon: "sd:users", label: "Booking attempts at 10:00:00 AM" } --> WR["Virtual waiting room<br/>You are number 84,213"]:::edge
   WR -->|"small, steady trickle"| BO{"Bouncer counter"}:::hot
   BO -->|"yes"| BK["Booking system"]:::core
-  BK --> DB[("Database")]:::store
+  BK --> DB@{ icon: "sd:database", label: "Database" }
   DB -.->|"coping well · admit faster"| WR
   DB -.->|"response times climbing · tighten within a second"| WR
+  class U client
+  class DB store
 ```
 
 ![The waiting room: a queue ticket reading you are number 84,213, a gate letting a steady trickle into booking, and a database response-time gauge that widens or tightens the flow](/case-files/irctc-waiting-room.png)
@@ -210,11 +213,13 @@ The recurring lesson across these incidents is almost always the same one: when 
 ```mermaid
 %% title: When looking and buying share servers
 flowchart TD
-  C(["Curious person<br/>refreshing a hundred times"]):::client --> AV["Checking availability<br/>~4,00,000 enquiries/minute capacity"]:::service
-  R(["Real booking attempt"]):::client --> BK["Actually booking<br/>~32,000 tickets/minute capacity"]:::core
-  AV --> SH["Same overloaded servers"]:::bad
+  C@{ icon: "sd:user", label: "Curious person<br/>refreshing a hundred times" } --> AV["Checking availability<br/>~4,00,000 enquiries/minute capacity"]:::service
+  R@{ icon: "sd:user", label: "Real booking attempt" } --> BK["Actually booking<br/>~32,000 tickets/minute capacity"]:::core
+  AV --> SH@{ icon: "sd:servers", label: "Same overloaded servers" }
   BK --> SH
   SH -->|"a spike in one drags down the other"| SL(["Booking attempts slower<br/>server errors in the Tatkal window"]):::bad
+  class C,R client
+  class SH bad
 ```
 
 It's a humbling reminder that even a platform processing over a million tickets a day, with genuinely sophisticated engineering behind it, is still fighting an ongoing battle against its own popularity — and against a clock that refuses to give it any warm-up time.

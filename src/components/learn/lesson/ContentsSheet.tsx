@@ -7,6 +7,7 @@ import { buildTocGroups, useActiveHeading } from "@/components/TableOfContents";
 import { stageRailHeight, topInset } from "./layout";
 import { isOptionalStage, numberedStages } from "./stageText";
 import styles from "./reader.module.css";
+import TermsToggle from "@/components/learn/concepts/TermsToggle";
 
 type Props = {
   open: boolean;
@@ -189,6 +190,10 @@ export default function ContentsSheet({ open, onClose, toc, stages, kicker, titl
           {q && groups.every((g) => !g.items.some((i) => i.text.toLowerCase().includes(q)) && !g.title.toLowerCase().includes(q)) && (
             <p className="py-6 text-sm text-fg-3">No headings match “{query}”.</p>
           )}
+        </div>
+        {/* reader setting: hover cards for course terms (the desktop dock has its own toggle) */}
+        <div className="mt-3 lg:hidden">
+          <TermsToggle />
         </div>
       </div>
     </div>

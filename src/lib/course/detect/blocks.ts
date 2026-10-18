@@ -12,7 +12,8 @@ import type { LessonKind, TocItem, TocKind } from "../types";
 import { chrome, el, h, isNode, rawHast, stripEmoji, text, toText, type AnyNode, type SdEl } from "../md";
 import { IdRegistry, slugify } from "../slug";
 import { renderCode } from "./code";
-import { renderBlock } from "./directives";
+import { animFigure, isAnim, renderBlock } from "./directives";
+import type { LeafDirective } from "mdast-util-directive";
 
 export type BlockCtx = {
   kind: LessonKind;
@@ -624,6 +625,11 @@ export async function processBlocks(nodes: AnyNode[], ctx: BlockCtx, opts: Opts 
     // `:::` blocks (detect/directives.ts); stray directives were already turned back into text
     if (n.type === "containerDirective") {
       out.push(await renderBlock(n, ctx, opts));
+      continue;
+    }
+    // `::anim[name]` animated explainer (unknown names were already turned back into text)
+    if (isAnim(n)) {
+      out.push(animFigure(n as unknown as LeafDirective, ctx));
       continue;
     }
 

@@ -9,7 +9,8 @@
  * (DAILY_N = 5, DAILY_SECONDS = 20, Asia/Kolkata day), leagues/leaderboard, games (60-90 s), progress
  * page (/learn/dashboard: course map, streaks, weekly goal), review (/learn/review), notebook
  * (/learn/notebook: highlights, notes, bookmarks), Ask Claude / ChatGPT (src/lib/learn/askAi.ts),
- * case files with end-of-case activities (/stories).
+ * case files with end-of-case activities (/stories), the practice toolkit (/learn/practice: revision
+ * decks, cheat sheets, Python code labs, mock interviews).
  */
 import { EMAIL, SOCIALS } from "@/lib/socials";
 
@@ -33,6 +34,7 @@ export const WELCOME_LINKS = {
   daily: withUtm("/learn/arena/daily"),
   leaderboard: withUtm("/learn/arena/leaderboard"),
   progress: withUtm("/learn/dashboard"),
+  practice: withUtm("/learn/practice"),
   stories: withUtm("/stories"),
   site: withUtm("/"),
 };
@@ -78,6 +80,13 @@ const FEATURES: Feature[] = [
     title: "Pick up exactly where you stopped",
     body: "Your place in every lesson is saved as you read, and it resumes on any device you sign in on. The progress page shows your course map, streak and weekly goal.",
     link: { label: "Open your progress page", href: WELCOME_LINKS.progress },
+  },
+  {
+    glyph: "&#8801;", // ≡
+    tag: "practice",
+    title: "Interview prep, beyond the lessons",
+    body: "Five-minute revision decks, one-page cheat sheets, Python code labs and timed mock interviews, all in one practice toolkit.",
+    link: { label: "Open the practice toolkit", href: WELCOME_LINKS.practice },
   },
   {
     glyph: "&para;", // ¶

@@ -13,7 +13,12 @@ import { PRACTICE_GAMES } from "@/lib/learn/arena/games";
 import { PART_INFO, partsFor } from "@/components/learn/progress/scope";
 import { HANDLE_MAX, HANDLE_MIN } from "@/lib/share/handle";
 import { DEFAULT_VISIBILITY, VISIBILITY_KEYS } from "@/lib/share/model";
+import { DIFFICULTY_LABEL, LAB_XP } from "@/lib/learn/labs/types";
+import { PYTHON_VERSION, RUNTIME_DOWNLOAD_LABEL, RUNTIME_STORED_LABEL } from "@/lib/learn/labs/runtime";
+import { XP as DOW_XP } from "@/lib/design-week/core";
+import { STATES as MASTERY_STATES } from "@/lib/concepts/mastery";
 
+export { DIFFICULTY_LABEL, LAB_XP, PYTHON_VERSION, RUNTIME_DOWNLOAD_LABEL, RUNTIME_STORED_LABEL, DOW_XP, MASTERY_STATES };
 export { LEVELS, LEARN_XP, DAILY_N, DAILY_SECONDS, LEAGUE_RULES, POINTS, POINTS_TABLE, BOSS_XP, LEITNER_INTERVALS, REVIEW_XP_PER_CARD, PART_INFO, partsFor, HANDLE_MIN, HANDLE_MAX };
 
 /** src/components/learn/quiz/QuizHydrator.tsx (a client module): QUIZ_XP and STAGE_ACE_XP. */
@@ -49,3 +54,9 @@ export const SHARE_DEFAULT_NAME = DEFAULT_VISIBILITY.name === "full" ? "full nam
 export const SHARE_ALL_ON = VISIBILITY_KEYS.every((k) => DEFAULT_VISIBILITY[k]);
 /** src/components/share/RefCapture.tsx: a referral is remembered for TTL = 30 days (first link wins). */
 export const REF_DAYS = 30;
+
+/** src/components/learn/revise/store.ts (a client module): REVISE_WEEK_XP; RevisionDeck.tsx: 300 s a lesson. */
+export const REVISE_WEEK_XP = 40;
+export const REVISE_MIN_PER_LESSON = 5;
+/** src/components/learn/labs/LabRoom.tsx (a client module): the solution unlocks after REVEAL_AFTER_RUNS runs. */
+export const LAB_REVEAL_AFTER_RUNS = 3;

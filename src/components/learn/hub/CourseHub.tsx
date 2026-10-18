@@ -31,6 +31,8 @@ import ShareButton from "@/components/share/ShareButton";
 import { SaveCourseButton } from "@/components/offline/OfflineLibrary";
 import { InstallButton } from "@/components/offline/Install";
 import { useOffline } from "@/components/offline/OfflineProvider";
+import LearnTools from "@/components/learn/plan/LearnTools";
+import DesignWeekCard from "@/components/learn/design-week/DesignWeekCard";
 
 export default function CourseHub({ map }: { map: CourseMap }) {
   const { ready, signedIn, lessons, done } = useLearnProgress(map.courseId);
@@ -233,6 +235,22 @@ export default function CourseHub({ map }: { map: CourseMap }) {
               </Link>
             );
           })}
+        </div>
+      </section>
+
+      {/* Practice: this week's design challenge and the prep tools, with the rest of the toolkit one click away */}
+      <section aria-labelledby="practice-h" className="flex flex-col gap-[18px]">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h2 id="practice-h" className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
+            Practice
+          </h2>
+          <Link href="/learn/practice" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            revision decks, cheat sheets, code labs, mocks · all practice →
+          </Link>
+        </div>
+        <div className="flex flex-col gap-2">
+          <DesignWeekCard />
+          <LearnTools />
         </div>
       </section>
 

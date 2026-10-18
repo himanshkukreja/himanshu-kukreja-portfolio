@@ -3,7 +3,9 @@
  *
  * Persona: about three weeks in. World 00 Parts 1-3 cleared, Part 4 (Networking) in progress at
  * Part II, trial parts 1-2 passed and part 3 failed once, a 2-day daily-challenge streak, a few
- * review cards due, one case file read and its end-of-file activity solved.
+ * review cards due, one case file read and its end-of-file activity solved. Practice: the revision
+ * decks of Parts 1-3 done, two failed runs on the token bucket lab, a study plan to an interview in
+ * eight weeks.
  *
  * Every value uses the app's real storage keys and shapes (see src/components/learn/progress/
  * localData.ts for the list). Nothing here talks to a server.
@@ -182,8 +184,31 @@ export function buildSeed({ stages, questions, now = Date.now(), userId = null }
   xp += XP.quizStage;
   const level = LEVEL_MIN.filter((m) => xp >= m).length - 1;
 
+  // study plan (src/lib/learn/plan/schedule.ts PlanRecord), weekdays, an hour a day, made a week ago
+  const plan = {
+    v: 1,
+    id: "guideplan01",
+    settings: {
+      target: localDate(now + 54 * DAY),
+      days: [0, 1, 2, 3, 4],
+      minutes: 60,
+      time: "20:00",
+      include: { core: true, bosses: true, trials: true, sideQuests: false, mocks: true },
+      mocksAt: "worlds",
+      revision: 3,
+      buffer: true,
+      startWeek: null,
+      reminder: 15,
+    },
+    baseStart: localDate(t(7)),
+    baseAt: t(7),
+    createdAt: t(7),
+    updatedAt: t(7),
+  };
+
   const flags = {
     "learn:levelSeen": level,
+    "plan:sdm": plan,
     caseActivities: { [STORY]: { best: 10, max: 11, runs: 2 } },
     readStories: [STORY],
   };
@@ -200,6 +225,18 @@ export function buildSeed({ stages, questions, now = Date.now(), userId = null }
     "sd:arena:v1": JSON.stringify(arena),
     "hk.goal.v1": JSON.stringify({ unit: "minutes", perWeek: 150, target: localDate(now + 330 * DAY), setAt: t(14) }),
     "hk.guest.id": "guide-demo",
+    // revision decks finished (src/components/learn/revise/store.ts) and lab runs (src/lib/learn/labs/progress.ts)
+    "hk.revise.v1": JSON.stringify({
+      lessons: Object.fromEntries(
+        [
+          [LESSONS.p1, 17, 9, 0],
+          [LESSONS.p2, 12, 8, 1],
+          [LESSONS.p3, 2, 7, 1],
+        ].map(([slug, d, got, again]) => [`${W00}/${slug}`, { at: t(d, 1), got, again, seconds: 260 }]),
+      ),
+      weeks: {},
+    }),
+    "hk.labs.v1": JSON.stringify({ "token-bucket": { runs: 2, failedRuns: 2 } }),
   };
   if (userId) {
     store["hk.lesson.owner"] = userId;

@@ -1,4 +1,6 @@
 import type { LessonKind, QuestMission } from "@/lib/course/types";
+import type { LessonLabLink } from "@/lib/learn/labs/types";
+import type { TrailEntry } from "@/lib/learn/trail/types";
 
 export type RailEntry = {
   week: string;
@@ -62,6 +64,10 @@ export type ReaderMeta = {
   stats: ReaderStat[];
   /** side quests only: the mission brief and the interactive pieces the quest hero counts */
   quest?: QuestMeta | null;
+  /** code labs that practise this lesson ("Try it in code" at the end) */
+  labs?: LessonLabLink[] | null;
+  /** engineering-blog reading trail ("Go deeper" at the end) */
+  trail?: TrailEntry[] | null;
 };
 
 export type QuestMeta = {

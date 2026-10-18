@@ -30,18 +30,20 @@ At 3 AM during a crucial investor demo preparation, disaster strikes. Their vide
 ```mermaid
 %% title: ConnectNow's original WebSocket architecture
 flowchart TD
-    A["User A (Browser)<br/>Video Stream & Capture"]:::client --> WS["WebSocket Server (Relay Hub)<br/>Process & Forward All Video"]:::bad
-    WS --> B["User B (Browser)<br/>Video Stream Display"]:::client
+    A@{ icon: "sd:browser", label: "User A (Browser)<br/>Video Stream & Capture" } --> WS["WebSocket Server (Relay Hub)<br/>Process & Forward All Video"]:::bad
+    WS --> B@{ icon: "sd:browser", label: "User B (Browser)<br/>Video Stream Display" }
     WS -.- N["BOTTLENECK: Every video packet<br/>flows through server"]:::note
+    class A,B client
 ```
 
 **The Better WebRTC Architecture:**
 ```mermaid
 %% title: The better WebRTC architecture
 flowchart TD
-    A["User A (Browser)"]:::client <==>|"Direct P2P Video Communication<br/>Video Stream (Direct)"| B["User B (Browser)"]:::client
+    A@{ icon: "sd:browser", label: "User A (Browser)" } <==>|"Direct P2P Video Communication<br/>Video Stream (Direct)"| B@{ icon: "sd:browser", label: "User B (Browser)" }
     A -.->|"Setup Handshake"| S["Signaling Server (Setup Only)<br/>Lightweight · No video data processing"]:::service
     B -.->|"Setup Handshake"| S
+    class A,B client
 ```
 
 ---
@@ -226,9 +228,10 @@ Most devices sit behind NAT (Network Address Translation) firewalls that block d
 ```mermaid
 %% title: Live trading platform · real-time stock price updates
 flowchart TD
-    T["Trading Server"]:::core -->|"Price Feed"| B1["Browser 1"]:::client
-    T -->|"Price Feed"| B2["Browser 2"]:::client
-    T -->|"Price Feed"| BN["Browser N"]:::client
+    T["Trading Server"]:::core -->|"Price Feed"| B1@{ icon: "sd:browser", label: "Browser 1" }
+    T -->|"Price Feed"| B2@{ icon: "sd:browser", label: "Browser 2" }
+    T -->|"Price Feed"| BN@{ icon: "sd:browser", label: "Browser N" }
+    class B1,B2,BN client
 ```
 
 WebSocket Use Case: Real-time stock price updates
@@ -258,14 +261,15 @@ Advantages:
 ```mermaid
 %% title: Video conferencing · 4-person call
 flowchart TD
-    A["User A"]:::client <--> B["User B"]:::client
-    A <--> D["User D"]:::client
-    B <--> C["User C"]:::client
+    A@{ icon: "sd:user", label: "User A" } <--> B@{ icon: "sd:user", label: "User B" }
+    A <--> D@{ icon: "sd:user", label: "User D" }
+    B <--> C@{ icon: "sd:user", label: "User C" }
     D <--> C
     A <--> C
     B <--> D
     S["Signaling Server (WebSocket/HTTP)<br/>manages setup only"]:::service
     C ~~~ S
+    class A,B,C,D client
 ```
 
 WebRTC Use Case: 4-person video call
@@ -476,10 +480,11 @@ Emergency services require ultra-low latency for life-or-death situations:
 ```mermaid
 %% title: SFU architecture
 flowchart TD
-    A["User A"]:::client <--> SFU["SFU (Server)<br/>Receives all feeds<br/>Forwards without encoding"]:::core
-    B["User B"]:::client <--> SFU
-    SFU <--> C["User C"]:::client
-    SFU <--> D["User D"]:::client
+    A@{ icon: "sd:user", label: "User A" } <--> SFU["SFU (Server)<br/>Receives all feeds<br/>Forwards without encoding"]:::core
+    B@{ icon: "sd:user", label: "User B" } <--> SFU
+    SFU <--> C@{ icon: "sd:user", label: "User C" }
+    SFU <--> D@{ icon: "sd:user", label: "User D" }
+    class A,B,C,D client
 ```
 
 Advantages:
@@ -492,10 +497,11 @@ Advantages:
 ```mermaid
 %% title: MCU architecture
 flowchart TD
-    A["User A"]:::client <--> MCU["MCU (Server)<br/>Mixes all video streams<br/>Produces a single combined stream"]:::core
-    B["User B"]:::client <--> MCU
-    MCU <--> C["User C"]:::client
-    MCU <--> D["User D"]:::client
+    A@{ icon: "sd:user", label: "User A" } <--> MCU["MCU (Server)<br/>Mixes all video streams<br/>Produces a single combined stream"]:::core
+    B@{ icon: "sd:user", label: "User B" } <--> MCU
+    MCU <--> C@{ icon: "sd:user", label: "User C" }
+    MCU <--> D@{ icon: "sd:user", label: "User D" }
+    class A,B,C,D client
 ```
 
 Advantages:

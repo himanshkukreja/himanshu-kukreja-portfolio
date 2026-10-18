@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { mermaidConfig, prepareMermaidSource, type DiagramTheme } from "@/lib/diagrams/mermaid-theme";
 import { loadMermaid as importMermaid } from "@/lib/offline/lazy";
+import { refreshSteps, stepsAction } from "./mermaidSteps";
 
 type MermaidApi = typeof import("mermaid").default;
 
@@ -39,6 +40,7 @@ async function renderFigure(fig: HTMLElement, theme: DiagramTheme) {
     canvas.innerHTML = svg;
     fig.dataset.mermaidTheme = theme;
     fig.dataset.mermaidState = "ok";
+    refreshSteps(fig); // a playing step-through keeps its step across re-renders (theme switch)
   } catch (err) {
     fig.dataset.mermaidState = "error";
     canvas.textContent = "";
@@ -52,7 +54,8 @@ function onClick(e: MouseEvent) {
   const fig = btn.closest<HTMLElement>("figure.sd-mermaid");
   if (!fig) return;
   const action = btn.dataset.mermaidAction;
-  if (action === "zoom") {
+  if (action?.startsWith("steps")) stepsAction(fig, action, btn);
+  else if (action === "zoom") {
     const on = fig.toggleAttribute("data-natural");
     btn.setAttribute("aria-pressed", String(on));
     btn.textContent = on ? "Fit" : "1:1";

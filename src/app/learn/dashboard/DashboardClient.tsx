@@ -25,6 +25,7 @@ import ProgressHeader from "@/components/learn/progress/ProgressHeader";
 import CourseMapGrid from "@/components/learn/progress/CourseMapGrid";
 import Activity from "@/components/learn/progress/Activity";
 import Goals from "@/components/learn/progress/Goals";
+import PlanCard from "@/components/learn/plan/PlanCard";
 import Mastery from "@/components/learn/progress/Mastery";
 import DataControls from "@/components/learn/progress/DataControls";
 import SectionNav from "@/components/learn/progress/SectionNav";
@@ -226,7 +227,10 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
       <Activity days={activity.days} series={series} goalMinutes={d.goal?.unit === "minutes" ? d.goal.perWeek : null} streak={streak} rhythm={rhythmStats} estimated={!timeTracked} log={log} />
 
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-6">
-        <Goals goal={d.goal} fallback={d.defaultGoal} source={d.goalSource} signedIn={d.signedIn} thisWeek={thisWeek} pace={pace} remaining={remaining} avgLessonMinutes={avgLessonMinutes} estimated={!timeTracked} onSaved={d.refresh} />
+        <div className="flex min-w-0 flex-col gap-4">
+          <Goals goal={d.goal} fallback={d.defaultGoal} source={d.goalSource} signedIn={d.signedIn} thisWeek={thisWeek} pace={pace} remaining={remaining} avgLessonMinutes={avgLessonMinutes} estimated={!timeTracked} onSaved={d.refresh} />
+          <PlanCard map={map} lessons={lessons} done={done} goalTarget={d.goal?.target ?? null} />
+        </div>
         <Mastery map={map} scores={scores} cards={cards} cardsReady={cardsReady} notebook={summary?.notebook || null} signedIn={d.signedIn} onSignIn={openAuthModal} badges={badges} />
       </div>
 

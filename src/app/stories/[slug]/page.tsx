@@ -8,6 +8,7 @@ import OnlineOnly from "@/components/offline/OnlineOnly";
 import ScrollToDiscussion from "@/components/ScrollToDiscussion";
 import StoryReader, { type CaseLink } from "@/components/stories/StoryReader";
 import { renderStoryBody } from "@/components/stories/render-story";
+import { termsFor } from "@/lib/concepts/load";
 import { getCaseFiles } from "@/components/stories/case-files";
 import { parseDebrief, resolveCaseType, type CaseFile } from "@/components/stories/case-types";
 
@@ -53,7 +54,8 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
 
   // Stories go through the same rich renderer as course lessons (diagrams, callouts, numbers sheets,
   // compare cards, highlighted code…); the plain pipeline stays as a fallback (render-story.ts).
-  const { htmlContent, checkpoints } = await renderStoryBody(story.body);
+  // hover definitions for course concepts the case file mentions (cards link into the course)
+  const { htmlContent, checkpoints } = await renderStoryBody(story.body, { terms: await termsFor() });
 
   const cases = await getCaseFiles();
   const index = cases.findIndex((c) => c.slug === slug);

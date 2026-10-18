@@ -88,11 +88,12 @@ flowchart TD
 ```mermaid
 %% title: The table split strategy
 flowchart TD
-    APP["Application<br/>writes to both tables temporarily"]:::core --> OLD[("event_log<br/>INT ID")]:::store
-    APP --> NEW[("event_log_v2<br/>BIGINT ID from a high number")]:::store
+    APP["Application<br/>writes to both tables temporarily"]:::core --> OLD@{ icon: "sd:database", label: "event_log<br/>INT ID" }
+    APP --> NEW@{ icon: "sd:database", label: "event_log_v2<br/>BIGINT ID from a high number" }
     Q["Read queries<br/>gradually union both tables"]:::service --> OLD
     Q --> NEW
     OLD -.->|"eventually migrate historical data<br/>and deprecate old table"| NEW
+    class OLD,NEW store
 ```
 
 ### Option 3: The Reset and Restart (High Risk)

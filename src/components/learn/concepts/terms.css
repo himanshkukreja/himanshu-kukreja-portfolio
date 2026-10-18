@@ -1,0 +1,31 @@
+/*
+ * Concept terms in course HTML (src/lib/course/terms.ts). The marks render as plain text until
+ * <TermCards/> turns them on (data-sd-terms="on" on .course-content): a text decoration only, so
+ * nothing moves when it appears.
+ */
+.course-content[data-sd-terms="on"] .sd-term {
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-decoration-thickness: 1.5px;
+  text-decoration-color: color-mix(in srgb, var(--c-fg-3) 75%, transparent);
+  text-underline-offset: 0.22em;
+  text-decoration-skip-ink: auto;
+  cursor: help;
+  border-radius: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.course-content[data-sd-terms="on"] .sd-term:hover,
+.course-content[data-sd-terms="on"] .sd-term[aria-expanded="true"] {
+  text-decoration-color: var(--c-signal);
+  text-decoration-style: solid;
+  color: var(--c-fg);
+}
+.course-content[data-sd-terms="on"] .sd-term:focus-visible {
+  outline: 2px solid var(--c-signal);
+  outline-offset: 2px;
+}
+@media print {
+  .course-content .sd-term {
+    text-decoration: none !important;
+  }
+}

@@ -23,6 +23,7 @@ import { practiceCard } from "./detect/quiz";
 import { missionFrom, neutralizeDirectives } from "./detect/directives";
 import type { ContainerDirective } from "mdast-util-directive";
 import { practiceFor, type PracticeGame } from "@/lib/learn/arena/games";
+import { markTerms, type TermsOpts } from "./terms";
 
 export type RenderStats = Record<string, number>;
 
@@ -30,9 +31,9 @@ const SERIES_RE = /^System Design Mastery Series$/i;
 
 /* ------------------------------------------------------------------ stages */
 
-type StageHead = { id: string; label: string; title: string; budget?: number; core: boolean; numeral?: string };
+export type StageHead = { id: string; label: string; title: string; budget?: number; core: boolean; numeral?: string };
 
-function majorStage(textRaw: string, kind: LessonKind): StageHead | null {
+export function majorStage(textRaw: string, kind: LessonKind): StageHead | null {
   const t = stripEmoji(textRaw).trim();
   let m: RegExpMatchArray | null;
   if (kind === "capstone" || kind === "bonus") {
@@ -67,7 +68,7 @@ function majorStage(textRaw: string, kind: LessonKind): StageHead | null {
   return null;
 }
 
-type RawStage = { head: StageHead; heading: Heading | null; nodes: RootContent[] };
+export type RawStage = { head: StageHead; heading: Heading | null; nodes: RootContent[] };
 
 function previewMajors(nodes: RootContent[]): Set<number> {
   // h1 sections that hold "Concept N" / "Day N" h2s
@@ -80,7 +81,7 @@ function previewMajors(nodes: RootContent[]): Set<number> {
   return majors;
 }
 
-function splitStages(nodes: RootContent[], kind: LessonKind): RawStage[] {
+export function splitStages(nodes: RootContent[], kind: LessonKind): RawStage[] {
   const stages: RawStage[] = [];
   const leading: RootContent[] = [];
   const h1s = nodes.map((n, i) => (n.type === "heading" && n.depth === 1 ? i : -1)).filter((i) => i >= 0);
@@ -139,6 +140,11 @@ function stageSeconds(nodes: RootContent[]): { seconds: number; words: number; d
       return;
     }
     if (x.type === "html") return;
+    // an animated explainer reads like a diagram (and its label is a name, not prose)
+    if (x.type === "leafDirective") {
+      if ((x as { name?: string }).name === "anim") diagrams++;
+      return;
+    }
     if (x.type === "text" || x.type === "inlineCode") {
       words += wordCount(x.value || "");
       return;
@@ -341,6 +347,8 @@ export type RenderOpts = {
   kind: LessonKind;
   /** parse `:::` blocks (default true; false = the pre-blocks pipeline, used by the text-diff test) */
   directives?: boolean;
+  /** hover definitions: mark concept terms (src/lib/course/terms.ts); off when absent */
+  terms?: TermsOpts;
 };
 
 export async function renderLessonDetailed(markdown: string, opts: RenderOpts): Promise<{ lesson: RenderedLesson; stats: RenderStats }> {
@@ -556,6 +564,7 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
   const outRoot = { type: "root", children: sections } as unknown as Root;
   const hast = (await toHast.run(outRoot)) as HastRoot;
   hastPass(hast, stats, { check: 0 });
+  if (opts.terms) stats.terms = markTerms(hast, opts.terms).marks;
   const html = unified().use(rehypeStringify).stringify(hast);
 
   const readingMinutes = stages.reduce((a, s) => a + s.minutes, 0);
