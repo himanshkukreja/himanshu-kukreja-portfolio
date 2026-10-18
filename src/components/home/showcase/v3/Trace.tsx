@@ -36,6 +36,7 @@ const LOG: Log[] = [
   { t: "2026-03", lvl: "INFO", src: "markdrop", msg: "init · docs and files as links that render" },
   { t: "2026-03", lvl: "INFO", src: "pcloudy", msg: "streaming research · 5,000+ device cloud" },
   { t: "2026-04", lvl: "INFO", src: "senseloaf", msg: "senior swe · engineering lead" },
+  { t: "2026-10", lvl: "SHIP", src: "chukta", msg: "android beta · split bills, settle over UPI" },
   { t: "now", lvl: "RUN", src: "senseloaf", msg: "building SIA + its MCP server" },
 ];
 
@@ -129,7 +130,7 @@ function useNowIdx() {
   return mIndex(nowYm());
 }
 
-const ORDER: EraId[] = ["thapar", "ikarus", "autoflow", "nativebridge", "pcloudy", "markdrop", "senseloaf"];
+const ORDER: EraId[] = ["thapar", "ikarus", "autoflow", "nativebridge", "pcloudy", "markdrop", "senseloaf", "chukta"];
 const YEARS = [2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026];
 
 function heat(skill: SkillId, year: number) {

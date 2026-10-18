@@ -48,6 +48,7 @@ export const QUESTS: Quest[] = [
   // Project Arcade cartridges
   { id: "arcade:sia", label: "SIA · deliver a shortlist", xp: 40, group: "arcade" },
   { id: "arcade:markdrop", label: "Markdrop · drop a doc", xp: 40, group: "arcade" },
+  { id: "arcade:chukta", label: "Chukta · split it, settle it", xp: 40, group: "arcade" },
   { id: "arcade:ios-bridge", label: "iOS Bridge · tap from another OS", xp: 40, group: "arcade" },
   { id: "arcade:bridgelink", label: "BridgeLink · connect a remote phone", xp: 40, group: "arcade" },
   { id: "arcade:waygate", label: "Waygate · expose localhost", xp: 40, group: "arcade" },

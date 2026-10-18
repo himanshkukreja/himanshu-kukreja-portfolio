@@ -1,4 +1,4 @@
-export type CartridgeId = "sia" | "markdrop" | "ios-bridge" | "bridgelink" | "waygate" | "obscura" | "codeflow";
+export type CartridgeId = "sia" | "markdrop" | "chukta" | "ios-bridge" | "bridgelink" | "waygate" | "obscura" | "codeflow";
 
 export type Cartridge = {
   id: CartridgeId;
@@ -16,6 +16,8 @@ export type Cartridge = {
   pitch: string;
   url: string;
   cta: string;
+  /** A second link under the main one (e.g. a beta download page). */
+  extra?: { label: string; url: string };
   points: string[];
   stack: string[];
 };
@@ -62,8 +64,31 @@ export const CARTRIDGES: Cartridge[] = [
     stack: ["TypeScript", "Next.js", "VS Code API", "CLI"],
   },
   {
-    id: "ios-bridge",
+    id: "chukta",
     code: "CART-03",
+    rarity: "NEW · BETA",
+    name: "Chukta",
+    short: "Chukta",
+    shelfTag: "beta",
+    genre: "Bill splitting · side project",
+    stars: "beta",
+    objective: "Split the dinner, settle over UPI",
+    role: "Solo builder · Android beta",
+    pitch: "Split it. Settle it. Chukta.",
+    url: "https://getchukta.in",
+    cta: "getchukta.in →",
+    extra: { label: "Android beta →", url: "https://getchukta.in/#android" },
+    points: [
+      "Free, ad-free bill splitting for friends in India: Splitwise’s features with no Pro plan, plus one-tap UPI settle-up.",
+      "Scan a receipt and tap who had what; tax and service charge are shared by what each person had. Equal, exact, percent, shares and adjustments too.",
+      "Simplify debts, any currency, works offline, WhatsApp reminders, pay-me links, recurring bills and a Splitwise import.",
+      "Android beta for Android 7 and newer; on iPhone it is a web app you add to the Home Screen from Safari.",
+    ],
+    stack: ["Expo", "React Native", "NativeWind", "TypeScript", "Supabase", "Vitest"],
+  },
+  {
+    id: "ios-bridge",
+    code: "CART-04",
     rarity: "LEGENDARY",
     name: "iOS Bridge",
     short: "iOS Bridge",
@@ -84,7 +109,7 @@ export const CARTRIDGES: Cartridge[] = [
   },
   {
     id: "bridgelink",
-    code: "CART-04",
+    code: "CART-05",
     rarity: "RARE",
     name: "BridgeLink",
     short: "BridgeLink",
@@ -104,7 +129,7 @@ export const CARTRIDGES: Cartridge[] = [
   },
   {
     id: "waygate",
-    code: "CART-05",
+    code: "CART-06",
     rarity: "RARE",
     name: "Waygate",
     short: "Waygate",
@@ -120,7 +145,7 @@ export const CARTRIDGES: Cartridge[] = [
   },
   {
     id: "obscura",
-    code: "CART-06",
+    code: "CART-07",
     rarity: "RARE",
     name: "Obscura",
     short: "Obscura",
@@ -139,7 +164,7 @@ export const CARTRIDGES: Cartridge[] = [
   },
   {
     id: "codeflow",
-    code: "CART-07",
+    code: "CART-08",
     rarity: "COMMON",
     name: "codeflow-analyzer",
     short: "codeflow",

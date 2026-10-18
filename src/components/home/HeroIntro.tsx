@@ -190,6 +190,34 @@ function PlayerCard() {
           <span className="text-[15px] font-semibold">Markdrop ↗</span>
           <span className="text-[13px] text-fg-3">docs and files as links that render</span>
         </a>
+        <div className="flex flex-wrap items-stretch gap-px bg-line min-[440px]:col-span-2">
+          <a
+            href={PERSON.chukta}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-w-0 flex-[1_1_240px] items-center gap-3 bg-surface p-3.5 text-fg no-underline hover:bg-surface-2 sm:p-4"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/projects/chukta/mark.svg" alt="" width={40} height={40} className="h-10 w-10 shrink-0" />
+            <span className="flex min-w-0 flex-col gap-1">
+              <span className={label}>side quest · since oct 2026 · new</span>
+              <span className="text-[15px] font-semibold">Chukta ↗</span>
+              <span className="text-[13px] text-fg-3">split bills with friends, settle up over UPI in one tap</span>
+            </span>
+          </a>
+          <a
+            href={PERSON.chuktaBeta}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Chukta Android beta: install it from getchukta.in"
+            className="flex min-h-12 flex-[1_1_140px] flex-col justify-center gap-0.5 bg-surface px-3.5 py-2.5 text-fg no-underline hover:bg-surface-2 sm:px-4"
+          >
+            <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-label text-fg-3">
+              <span aria-hidden className="h-2 w-2 bg-ok motion-safe:animate-hk-blink" /> beta live
+            </span>
+            <span className="whitespace-nowrap text-[15px] font-semibold">Android beta ↗</span>
+          </a>
+        </div>
       </div>
       <Zombie />
     </div>

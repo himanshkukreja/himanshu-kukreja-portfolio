@@ -8,15 +8,15 @@ import { Chip, label } from "./showcase/parts";
 import { WORLD_EVT, openSkill } from "./showcase/bus";
 
 // The career as a platformer campaign: each job is a world with a boss, the stairs climb with time,
-// and Markdrop runs alongside as a bonus stage.
+// and the side projects (Markdrop, Chukta) run alongside as bonus stages.
 const WORLDS = ERAS.filter((e) => e.kind !== "venture");
-const BONUS = ERAS.find((e) => e.kind === "venture")!;
-const ALL: Era[] = [...WORLDS, BONUS];
+const BONUSES = ERAS.filter((e) => e.kind === "venture");
+const ALL: Era[] = [...WORLDS, ...BONUSES];
 const STEP_MS = 1300;
 
 const worldCode = (e: Era) => {
   const i = WORLDS.indexOf(e);
-  return i >= 0 ? `W${i}` : "B";
+  return i >= 0 ? `W${i}` : `B${BONUSES.indexOf(e) + 1}`;
 };
 
 function Detail({ era, headingId }: { era: Era; headingId?: string }) {
@@ -76,6 +76,24 @@ function Detail({ era, headingId }: { era: Era; headingId?: string }) {
               ))}
             </div>
           </div>
+          {era.links && (
+            <div className="flex flex-col gap-1.5">
+              <span className={label}>play it</span>
+              <div className="flex flex-wrap gap-1.5">
+                {era.links.map((l) => (
+                  <a
+                    key={l.href}
+                    href={l.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex min-h-10 items-center border border-fg px-2.5 font-mono text-xs text-fg no-underline hover:bg-fg hover:text-bg"
+                  >
+                    {l.label}
+                  </a>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -154,8 +172,8 @@ export default function CareerReplay() {
             <Dot />
           </h2>
           <p className="m-0 text-base leading-relaxed text-fg-2 sm:text-[17px]">
-            Every job was a level with a boss. The stairs climb with time; Markdrop runs alongside as a bonus stage. Open a
-            world to see how it was cleared.
+            Every job was a level with a boss. The stairs climb with time; Markdrop and Chukta run alongside as bonus
+            stages. Open a world to see how it was cleared.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -224,35 +242,42 @@ export default function CareerReplay() {
               </div>
             );
           })}
-          <div className="flex min-w-0 flex-col items-stretch self-start pt-3">
-            <span aria-hidden className="flex h-8 items-end pb-1.5">
-              {sel === BONUS.id && (
-                <span className="grid h-5 w-5 place-items-center bg-fg font-mono text-[9px] font-bold text-bg motion-safe:animate-bounce">
-                  P1
-                </span>
-              )}
-            </span>
-            <button
-              id={`world-d-${BONUS.id}`}
-              type="button"
-              aria-pressed={sel === BONUS.id}
-              aria-label={`Bonus stage: ${BONUS.org}, ${BONUS.role}, ${BONUS.period}`}
-              onClick={() => open(BONUS.id)}
-              className={`flex min-h-[112px] flex-col gap-1 border border-dashed p-3 text-left transition-colors ${
-                sel === BONUS.id ? "border-signal bg-signal text-on-signal" : "border-signal bg-bg text-fg hover:bg-surface"
-              }`}
-            >
-              <span className="flex items-center justify-between font-mono text-[11px] opacity-75">
-                <span>bonus · parallel</span>
-                {seen.has(BONUS.id) && sel !== BONUS.id && <span className="text-signal-text opacity-100">✓</span>}
-              </span>
-              <span className="text-[15px] font-semibold leading-tight">{BONUS.org}</span>
-              <span className="font-mono text-[11px] opacity-75">{BONUS.period}</span>
-              <span className="mt-auto font-mono text-[11px] opacity-75">my own venture</span>
-            </button>
-            <span aria-hidden className="mx-auto h-16 border-l border-dashed border-signal" />
+          <div className="flex min-w-0 flex-col items-stretch self-start pt-1">
+            {BONUSES.map((b) => {
+              const on = sel === b.id;
+              return (
+                <div key={b.id} className="flex flex-col items-stretch">
+                  <span aria-hidden className="flex h-7 items-end pb-1.5">
+                    {on && (
+                      <span className="grid h-5 w-5 place-items-center bg-fg font-mono text-[9px] font-bold text-bg motion-safe:animate-bounce">
+                        P1
+                      </span>
+                    )}
+                  </span>
+                  <button
+                    id={`world-d-${b.id}`}
+                    type="button"
+                    aria-pressed={on}
+                    aria-label={`Bonus stage: ${b.org}, ${b.role}, ${b.period}`}
+                    onClick={() => open(b.id)}
+                    className={`flex min-h-[104px] flex-col gap-1 border border-dashed p-3 text-left transition-colors ${
+                      on ? "border-signal bg-signal text-on-signal" : "border-signal bg-bg text-fg hover:bg-surface"
+                    }`}
+                  >
+                    <span className="flex items-center justify-between font-mono text-[11px] opacity-75">
+                      <span>{worldCode(b)} · bonus</span>
+                      {seen.has(b.id) && !on && <span className="text-signal-text opacity-100">✓</span>}
+                    </span>
+                    <span className="text-[15px] font-semibold leading-tight">{b.org}</span>
+                    <span className="font-mono text-[11px] opacity-75">{b.period}</span>
+                    <span className="mt-auto truncate font-mono text-[11px] opacity-75">{b.tag}</span>
+                  </button>
+                </div>
+              );
+            })}
+            <span aria-hidden className="mx-auto h-8 border-l border-dashed border-signal" />
             <span aria-hidden className="text-center font-mono text-[10px] uppercase tracking-label text-fg-4">
-              floating platform
+              floating platforms
             </span>
           </div>
         </div>
@@ -260,7 +285,7 @@ export default function CareerReplay() {
 
       {/* phones + tablets: the same climb, as a compact strip */}
       <div className="flex flex-col gap-2 lg:hidden">
-        <div role="group" aria-label="Career worlds" className="grid grid-cols-7 items-end gap-1 border-b border-line-strong">
+        <div role="group" aria-label="Career worlds" className="grid grid-cols-8 items-end gap-1 border-b border-line-strong">
           {ALL.map((w, i) => {
             const on = sel === w.id;
             const bonus = w.kind === "venture";

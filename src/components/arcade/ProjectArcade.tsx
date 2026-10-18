@@ -7,15 +7,20 @@ import { CARTRIDGES, questId, type CartridgeId } from "./cartridges";
 import type { DemoProps } from "./useTicker";
 import SiaDemo from "./demos/SiaDemo";
 import MarkdropDemo from "./demos/MarkdropDemo";
+import ChuktaDemo from "./demos/ChuktaDemo";
 import IosBridgeDemo from "./demos/IosBridgeDemo";
 import BridgeLinkDemo from "./demos/BridgeLinkDemo";
 import WaygateDemo from "./demos/WaygateDemo";
 import ObscuraDemo from "./demos/ObscuraDemo";
 import CodeflowDemo from "./demos/CodeflowDemo";
 
+const TOTAL = CARTRIDGES.length;
+const TOTAL_WORD = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"][TOTAL] ?? String(TOTAL);
+
 const DEMOS: Record<CartridgeId, ComponentType<DemoProps>> = {
   sia: SiaDemo,
   markdrop: MarkdropDemo,
+  chukta: ChuktaDemo,
   "ios-bridge": IosBridgeDemo,
   bridgelink: BridgeLinkDemo,
   waygate: WaygateDemo,
@@ -60,18 +65,19 @@ export default function ProjectArcade() {
           </h1>
           <p className="max-w-[620px] text-base leading-[1.55] text-fg-2 sm:text-[19px]">
             Every project is a cartridge. Insert one and play a 30-second demo of what it actually does. Clear all
-            seven for the Completionist badge.
+            {` ${TOTAL_WORD} `}for the Completionist badge.
           </p>
         </div>
         <div className="flex w-full flex-col gap-2.5 border border-line bg-surface p-5 sm:w-auto sm:flex-[0_1_380px]">
           <div className="flex justify-between font-mono text-xs uppercase tracking-label">
             <span className="text-fg-3">Save file</span>
-            <span className="text-signal-text">{clearedCount} / 7 cleared</span>
+            <span className="text-signal-text">{clearedCount} / {TOTAL} cleared</span>
           </div>
           <div
-            className="grid grid-cols-7 gap-1"
+            className="grid gap-1"
+            style={{ gridTemplateColumns: `repeat(${TOTAL}, minmax(0, 1fr))` }}
             role="img"
-            aria-label={`${clearedCount} of 7 cartridges cleared`}
+            aria-label={`${clearedCount} of ${TOTAL} cartridges cleared`}
           >
             {CARTRIDGES.map((c) => (
               <span key={c.id} className={`h-3 ${cleared(c.id) ? "bg-signal" : "border border-line-strong"}`} />
@@ -105,7 +111,7 @@ export default function ProjectArcade() {
                   aria-selected={on}
                   tabIndex={on ? 0 : -1}
                   onClick={() => setSel(c.id)}
-                  className={`flex w-[132px] shrink-0 flex-col border p-0 text-left transition-transform duration-150 lg:w-full ${
+                  className={`relative flex w-[132px] shrink-0 flex-col border p-0 text-left transition-transform duration-150 lg:w-full ${
                     on ? "border-signal bg-signal text-on-signal lg:translate-x-2" : "border-line bg-surface text-fg hover:border-line-strong"
                   }`}
                 >
@@ -202,6 +208,16 @@ export default function ProjectArcade() {
               >
                 {cur.cta}
               </a>
+              {cur.extra && (
+                <a
+                  href={cur.extra.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex min-h-12 items-center justify-center border border-line-strong font-mono text-sm text-fg-2 hover:border-fg hover:text-fg"
+                >
+                  {cur.extra.label}
+                </a>
+              )}
             </div>
           </div>
 

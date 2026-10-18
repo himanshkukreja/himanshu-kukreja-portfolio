@@ -82,6 +82,7 @@ export default function Terminal() {
         "git log         the career, one line each",
         "ls repos        open source, by stars",
         "npx markdrop    what markdrop does",
+        "npx chukta      split bills, settle over UPI",
         "cat resume      open the résumé",
         "socials         where to find me",
         "clear · exit",
@@ -116,6 +117,14 @@ export default function Terminal() {
       out = ["ios-bridge        ★75  python", "bridgelink        ★6   python", "markdrop          ★5   typescript", "ios-web-streamer  ★5   webrtc", "waygate           ★4   go", "obscura           ★3   typescript"];
     } else if (c === "npx markdrop" || c === "markdrop") {
       out = ["markdrop: docs and files as links that render.", "paste markdown → link. no account. → https://markdrop.in"];
+    } else if (c === "npx chukta" || c === "chukta") {
+      out = [
+        "chukta: split it. settle it. chukta.",
+        "free, ad-free bill splitting for friends in India. settle up over UPI in one tap.",
+        "android beta   https://getchukta.in/#android",
+        "iphone · web   https://app.getchukta.in",
+        "→ https://getchukta.in",
+      ];
     } else if (c === "cat resume" || c === "cat resume.pdf") {
       window.open("/resume.pdf", "_blank", "noopener");
       out = ["opening /resume.pdf in a new tab…"];

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useGame } from "@/game/GameProvider";
 import { Dot, container } from "./ui";
 
-const TYPES = ["hiring", "consulting", "markdrop", "just saying hi"] as const;
+const TYPES = ["hiring", "consulting", "markdrop", "chukta", "just saying hi"] as const;
 type HireType = (typeof TYPES)[number];
 
 type Field = "name" | "email" | "message";
@@ -160,8 +160,8 @@ export default function HireApi() {
             <Dot />
           </h2>
           <p className="m-0 text-base leading-relaxed text-fg-2 sm:text-[17px]">
-            Hiring, a backend that has to survive a spike, a question about a case file, or Markdrop. Fill the body, send it,
-            read the response.
+            Hiring, a backend that has to survive a spike, a question about a case file, Markdrop, or feedback on the
+            Chukta beta. Fill the body, send it, read the response.
           </p>
         </div>
 

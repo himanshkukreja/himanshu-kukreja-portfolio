@@ -1,7 +1,7 @@
 // Single source of truth for who Himanshu is, what he can do and where he has been.
 // Every concept in /lab/showcase and the shipped home sections read from here, so dates stay exact everywhere.
 
-export type EraId = "thapar" | "ikarus" | "autoflow" | "nativebridge" | "pcloudy" | "senseloaf" | "markdrop";
+export type EraId = "thapar" | "ikarus" | "autoflow" | "nativebridge" | "pcloudy" | "senseloaf" | "markdrop" | "chukta";
 
 export type Ym = [number, number]; // [year, month 1-12]
 
@@ -17,6 +17,10 @@ export type Era = {
   period: string;
   place?: string;
   href?: string;
+  /** Extra links shown under the chapter (a side project's app, beta, web app). */
+  links?: { label: string; href: string }[];
+  /** Short tag on a bonus-stage card. */
+  tag?: string;
   /** One line: what this chapter was. */
   line: string;
   points: string[];
@@ -75,11 +79,15 @@ export const PERSON = {
   city: "Bengaluru",
   degree: "B.E. Computer Science, Thapar Institute · CGPA 9.04",
   now: "Building SIA and its MCP server",
-  side: "Markdrop, nights and weekends",
+  side: "Markdrop and Chukta, nights and weekends",
   github: "https://github.com/himanshkukreja",
   linkedin: "https://www.linkedin.com/in/himanshukukreja/",
   x: "https://x.com/hi_kukreja",
   markdrop: "https://markdrop.in",
+  chukta: "https://getchukta.in",
+  /** The landing page's Android card: install hint + the APK download (/download/chukta.apk). */
+  chuktaBeta: "https://getchukta.in/#android",
+  chuktaWeb: "https://app.getchukta.in",
   stars: 99,
 };
 
@@ -213,6 +221,7 @@ export const ERAS: Era[] = [
     end: null,
     period: "Mar 2026 – present",
     href: "https://markdrop.in",
+    tag: "my own venture",
     line: "Publish markdown, AI docs and files as links that render.",
     points: [
       "Publish markdown and AI docs and files as links that render.",
@@ -223,6 +232,34 @@ export const ERAS: Era[] = [
     bossNote: "Nights and weekends. Product, code, distribution, all of it.",
     loot: "In progress",
     skills: ["typescript", "devtools", "ui"],
+  },
+  {
+    id: "chukta",
+    org: "Chukta",
+    role: "Solo builder · side project",
+    kind: "venture",
+    start: [2026, 10],
+    end: null,
+    period: "Oct 2026 – present",
+    href: "https://getchukta.in",
+    links: [
+      { label: "getchukta.in ↗", href: "https://getchukta.in" },
+      { label: "Android beta ↗", href: "https://getchukta.in/#android" },
+      { label: "web app ↗", href: "https://app.getchukta.in" },
+    ],
+    tag: "android beta · live",
+    line: "Free, ad-free bill splitting for friends in India, settled over UPI in one tap.",
+    points: [
+      "Splitwise’s features with no Pro plan, no ads and no limits, plus one-tap UPI settle-up, pay-me links and WhatsApp reminders.",
+      "Receipt scanning with item-by-item splits, simplify debts, any currency, works offline, and a Splitwise import that checks every balance before it saves.",
+      "Android app and iPhone web app from one Expo + React Native codebase on Supabase. The money maths is a pure TypeScript package in whole paise, tested with Vitest.",
+      "Building since Oct 2026. The first beta, 0.2.0, shipped on 18 Oct 2026.",
+    ],
+    wins: ["Android beta · Oct 2026", "one-tap UPI", "offline-first", "Splitwise import"],
+    boss: "Never lose a paisa",
+    bossNote: "Every amount in whole paise, every split checked again on the server, and offline edits that replay safely.",
+    loot: "In progress",
+    skills: ["typescript", "react", "postgres", "ui"],
   },
 ];
 
@@ -258,6 +295,7 @@ export const SKILLS: Skill[] = [
   { id: "postgres", name: "SQL: Postgres, MySQL", branch: "backend", proof: [
     { era: "ikarus", text: "MySQL with Liquibase migrations, not hand edits" },
     { era: "autoflow", text: "PostgreSQL, the default store" },
+    { era: "chukta", text: "Supabase Postgres: RLS, balance views, expense RPCs" },
   ] },
   { id: "redis", name: "Redis", branch: "backend", proof: [{ era: "stack", text: "locks, queues and rate limits" }] },
   { id: "go", name: "Go", branch: "backend", proof: [{ era: "oss", text: "waygate, a self-hosted tunnel" }] },
@@ -311,13 +349,16 @@ export const SKILLS: Skill[] = [
   { id: "typescript", name: "TypeScript", branch: "product", proof: [
     { era: "markdrop", text: "web app, VS Code extension, CLI" },
     { era: "senseloaf", text: "SIA’s chat interface" },
+    { era: "chukta", text: "an Expo app and a pure-TS money package, Vitest" },
   ] },
   { id: "react", name: "React / Next.js", branch: "product", proof: [
     { era: "writing", text: "this site, its six games and the course reader (Next.js)" },
+    { era: "chukta", text: "one React Native codebase for Android and the iPhone web app" },
   ] },
   { id: "ui", name: "UI design", branch: "product", proof: [
     { era: "senseloaf", text: "owns features from research to UI to infra" },
     { era: "markdrop", text: "designed and built solo" },
+    { era: "chukta", text: "designed solo, phones first, light and dark" },
   ] },
   { id: "devtools", name: "Dev tools & CLIs", branch: "product", proof: [
     { era: "markdrop", text: "CLI on Homebrew and Scoop, a VS Code extension" },
@@ -347,6 +388,7 @@ export const PROOF_LABEL: Record<Proof["era"], string> = {
   pcloudy: "pCloudy",
   senseloaf: "Senseloaf AI",
   markdrop: "Markdrop",
+  chukta: "Chukta",
   oss: "open source",
   writing: "this site",
   stack: "daily stack",

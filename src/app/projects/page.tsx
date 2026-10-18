@@ -4,7 +4,7 @@ import ProjectArcade from "@/components/arcade/ProjectArcade";
 export const metadata: Metadata = {
   title: "Project Arcade · Himanshu Kukreja",
   description:
-    "Every project is a cartridge: SIA, Markdrop, iOS Bridge, BridgeLink, Waygate, Obscura and codeflow-analyzer, each with a 30-second playable demo.",
+    "Every project is a cartridge: SIA, Markdrop, Chukta, iOS Bridge, BridgeLink, Waygate, Obscura and codeflow-analyzer, each with a 30-second playable demo.",
 };
 
 export default function ProjectsPage() {
