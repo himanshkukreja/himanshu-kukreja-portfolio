@@ -152,6 +152,8 @@ sequenceDiagram
 - ✅ **Better Availability** → Slow followers don't block operations
 - ❌ **Potential Data Loss** → Recent changes may be lost if leader fails
 
+::anim[case-failover-lag]
+
 ---
 
 ## Real-World Battle Stories: How Giants Handle Failures

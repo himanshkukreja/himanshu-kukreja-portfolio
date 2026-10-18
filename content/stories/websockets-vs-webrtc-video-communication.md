@@ -158,6 +158,8 @@ Most devices sit behind NAT (Network Address Translation) firewalls that block d
 - Used as fallback (~10-20% of connections)
 - More expensive but ensures connectivity
 
+::anim[case-ws-vs-webrtc]
+
 ### WebRTC Strengths: Built for Media
 
 **Optimized for Real-Time Media:**

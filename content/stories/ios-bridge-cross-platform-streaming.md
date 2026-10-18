@@ -205,6 +205,8 @@ flowchart TD
 - **WebRTC**: 60-90 FPS with 50-100ms latency
 - **Quality**: Pixelated → Crystal clear HD streaming
 
+::anim[case-ios-bridge-pipeline]
+
 ### Challenge 2: Cross-Platform Desktop Apps
 
 **The Electron Solution:**

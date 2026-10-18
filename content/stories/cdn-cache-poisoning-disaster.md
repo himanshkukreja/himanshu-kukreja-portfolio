@@ -264,6 +264,8 @@ flowchart TD
     class U client
 ```
 
+::anim[case-cdn-cache-key]
+
 ### The Perfect Storm Conditions
 
 **Why It Happened on Black Friday:**

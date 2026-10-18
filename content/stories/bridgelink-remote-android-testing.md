@@ -480,6 +480,8 @@ stateDiagram-v2
     class Inactive bad
 ```
 
+::anim[case-bridgelink-tunnel]
+
 ![Auto-activation timeline: device unplugged, health monitor marks it inactive a second later, device plugged back in, connection monitor re-activates it a second later](/case-files/bridgelink-auto-activation.png)
 <!-- IMAGE PROMPT: A circular flow diagram showing auto-activation cycle. Show 4 states clockwise: 1) Green phone icon labeled "Device Active" with checkmark, 2) Phone with X mark and red indicator "Device Disconnected", 3) Gray phone with refresh icon "Health Monitor Detects (1 sec)", 4) Phone reconnecting with green arrow "Auto-Activation". In the center, show a daemon/robot icon labeled "Background Monitor" with 1-second timer. Use circular arrows connecting each state. Include time labels "1 sec" on detection and activation steps. Modern, clean design with status colors (green=active, red=disconnected, orange=detecting, blue=reconnecting). -->
 

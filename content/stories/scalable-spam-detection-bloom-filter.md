@@ -136,6 +136,8 @@ Bits:   [0 0 1 0 0 0 1 0 0 0 1 0 0 0 0 0]
 Result: "DEFINITELY NOT MALICIOUS" (at least one bit is 0)
 ```
 
+::anim[case-bloom-check]
+
 ### Bloom Filter Mathematics: Tuning for Perfection
 
 **Key Parameters:**

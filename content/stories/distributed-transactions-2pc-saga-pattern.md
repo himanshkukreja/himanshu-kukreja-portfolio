@@ -654,6 +654,8 @@ Failure Scenario:
 ✅ Recovery: System self-heals through compensation
 ```
 
+::anim[case-2pc-saga]
+
 ### Orchestration vs Choreography: Two Saga Styles
 
 #### Option 1: Orchestrated Saga (Centralized)

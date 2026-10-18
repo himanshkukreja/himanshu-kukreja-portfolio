@@ -176,6 +176,8 @@ stateDiagram-v2
 
 That last part matters more than it sounds. In a system moving this fast, the one rule that can never, ever bend is: **money and seats must always match up, exactly, for every single person, every single time.**
 
+::anim[case-tatkal-bouncer]
+
 ---
 
 ## The War Against Bots

@@ -114,6 +114,8 @@ Step 4: Convert to Base32
 3. **Sortable**: Lexicographic sorting maintains spatial locality
 4. **Compact**: 9 characters give ~4.8 m cells (about 4.5 m wide at Indian latitudes), the closest GeoHash level to our 4m target; a 10th character carries a checksum
 
+::anim[case-digipin-zoom]
+
 ---
 
 ## DIGIPIN Architecture: The Complete System Design

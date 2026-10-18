@@ -51,6 +51,8 @@ flowchart TD
     INS --> A["Analytics dead<br/>Recommendation engine failing<br/>Revenue tracking broken"]:::bad
 ```
 
+::anim[case-int-overflow]
+
 ---
 
 ## Short-Term Emergency Fixes
