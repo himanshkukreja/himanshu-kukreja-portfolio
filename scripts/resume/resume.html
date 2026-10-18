@@ -187,6 +187,8 @@
         <li>Created <a class="lnk" href="https://github.com/himanshkukreja/ios-bridge"><b>iOS Bridge</b></a> (open source, <span class="metric">75★</span>, 10 forks): a <b>FastAPI</b> server on macOS that drives iOS simulators through <b>simctl and idb</b> and streams them to Electron desktop apps (Windows, Linux, macOS), a browser client and a pip-installable CLI. Sessions survive server restarts; app install, MP4 recording and location simulation over REST and WebSocket APIs.</li>
         <li>Replaced screenshot-over-WebSocket streaming (<span class="metric">2–5 FPS</span>, ~2 s lag) with a <b>WebRTC video track</b> fed from a one-frame buffer that always keeps the newest frame: <span class="metric">60–90 FPS</span> at <span class="metric">50–100 ms</span>.</li>
         <li>Built <a class="lnk" href="https://github.com/himanshkukreja/bridgelink"><b>BridgeLink</b></a> (open source, on PyPI and Homebrew): a Python CLI that exposes USB or Wi-Fi Android devices to the NativeBridge platform through <b>API-key-authenticated bore tunnels</b>, so a remote developer runs <b>adb</b> as if the phone were plugged in. Background daemons health-check every device <b>each second</b> and re-activate it when it reconnects.</li>
+        <li>Built the cloud infrastructure for <b>concurrent streaming sessions</b> on AWS and GCP: automatic resource allocation, <b>container orchestration</b> and <b>connection pooling</b>.</li>
+        <li>Led product architecture, feature priorities and the technical roadmap from <b>MVP to production</b>, and mentored team members.</li>
       </ul>
     </div>
 
@@ -209,7 +211,8 @@
       </div>
       <ul class="points">
         <li>Led design and development of <b>3 business-critical applications</b>: carts and orders, the authentication system and the FDM slicer.</li>
-        <li>Migrated the online FDM slicer from <b>AWS ECS and EFS to GCP Cloud Run</b>, solving runtime vertical scaling and cutting its cost by <span class="metric">90%</span>.</li>
+        <li>Migrated the online FDM slicer from <b>AWS ECS and EFS to GCP Cloud Run</b>, solving runtime vertical scaling and cutting its cost by <span class="metric">90%</span>; designed it as a <b>serverless</b> service on Cloud Run, AWS Lambda and EFS.</li>
+        <li>Wrote <b>Go</b> utilities for container lifecycle automation and persistent state storage, and added <b>noVNC</b> desktop streaming for the slicer applications.</li>
         <li>Set up the company’s <b>first CI/CD pipelines</b> for business applications: faster deploys, fewer build failures and integration issues.</li>
         <li>Extended authentication with <b>device-ID tracking</b>, new sign-in notifications, password recovery and email change.</li>
         <li>Researched <b>3D generative AI</b> with Dr. Sahil Sharma, turning text and 2D images into 3D models with NeRF, BLIP and DreamFusion: <span class="metric">48%</span> accuracy within 30 days.</li>
@@ -290,8 +293,8 @@
       <dt>Languages</dt><dd>Python, TypeScript, JavaScript, Go, SQL, Bash, C++</dd>
       <dt>Backend</dt><dd>FastAPI, Flask, Django, Node.js, Bun, microservices, REST, gRPC, WebSockets, JWT and social auth</dd>
       <dt>Data</dt><dd>PostgreSQL, MySQL, MongoDB, Redis, Elasticsearch, RabbitMQ, Supabase, Liquibase</dd>
-      <dt>Cloud &amp; infra</dt><dd>AWS (ECS, EFS, ECR), GCP Cloud Run, Docker, CI/CD, GitHub Actions, Nginx, Terraform, Ansible, Linux</dd>
-      <dt>Realtime &amp; devices</dt><dd>WebRTC, Android (ADB) and iOS (simctl, idb) device control, secure TCP tunnels, HLS video</dd>
+      <dt>Cloud &amp; infra</dt><dd>AWS (ECS, EFS, ECR, Lambda), GCP Cloud Run, Docker, CI/CD, GitHub Actions, Nginx, Terraform, Ansible, Linux</dd>
+      <dt>Realtime &amp; devices</dt><dd>WebRTC, Android (ADB) and iOS (simctl, idb) device control, secure TCP tunnels, HLS video, noVNC</dd>
       <dt>AI &amp; agents</dt><dd>LLM agents, MCP, Playwright automation, on-device OCR, TensorFlow</dd>
       <dt>Mobile &amp; frontend</dt><dd>React Native, Expo, React, Next.js, Electron, Tailwind / NativeWind, PWAs, CLIs and VS Code extensions</dd>
       <dt>Testing</dt><dd>Vitest, fast-check (property tests), pgTAP, Playwright</dd>
