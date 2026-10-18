@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <title>Himanshu Kukreja — Resume</title>
 <meta name="author" content="Himanshu Kukreja">
-<meta name="description" content="Senior Software Engineer and Engineering Lead. Resume.">
+<meta name="description" content="Himanshu Kukreja, Senior Software Engineer and Engineering Lead: experience, ventures, open source, skills and education.">
 <style>
   /* Fonts: the same static TTF instances the site's share cards use. Chromium embeds (subsets) them in the PDF. */
   @font-face { font-family: "Bricolage"; font-weight: 700; src: url("../../src/lib/og/fonts/Bricolage-700.ttf") format("truetype"); }
@@ -35,8 +35,8 @@
   body {
     color: var(--ink);
     font-family: "Geist", ui-sans-serif, system-ui, sans-serif;
-    font-size: 8.9pt;
-    line-height: 1.38;
+    font-size: 8.75pt;
+    line-height: 1.35;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
@@ -48,6 +48,8 @@
   }
 
   a { color: inherit; text-decoration: none; }
+  /* In-body links: a quiet underline so they read as clickable on paper and on screen. */
+  a.lnk { text-decoration: underline; text-decoration-color: #c9c7bf; text-decoration-thickness: .5pt; text-underline-offset: 1.2pt; }
   .mono { font-family: "Geist Mono", ui-monospace, monospace; }
 
   /* ---------- header ---------- */
@@ -84,8 +86,11 @@
   }
   h2::before { content: ""; width: 2.2mm; height: 2.2mm; background: var(--signal); flex: none; }
   h2::after { content: ""; flex: 1; height: 0; border-top: .6pt solid var(--rule); }
+  h2, .role-head, .sub { break-after: avoid; }
+  section.keep { break-inside: avoid; }
 
-  .role { margin-top: 2.5mm; break-inside: avoid; }
+  .role { margin-top: 2.3mm; }
+  ul.points li, ul.plain li, .grid2 > div { break-inside: avoid; }
   .role:first-of-type { margin-top: 0; }
   .role-head { display: flex; justify-content: space-between; align-items: baseline; gap: 4mm; }
   h3 { margin: 0; font-family: "Bricolage", sans-serif; font-weight: 700; font-size: 10.8pt; letter-spacing: -0.015em; line-height: 1.2; }
@@ -102,7 +107,7 @@
   .metric { font-family: "Geist Mono", monospace; font-weight: 600; font-size: 8.6pt; color: var(--signal-text); }
 
   /* ---------- skills ---------- */
-  dl.skills { margin: 0; display: grid; grid-template-columns: 27mm 1fr; row-gap: .9mm; column-gap: 3mm; }
+  dl.skills { margin: 0; display: grid; grid-template-columns: 31mm 1fr; row-gap: .9mm; column-gap: 3mm; }
   dl.skills dt { font-family: "Geist Mono", monospace; font-size: 7.6pt; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); padding-top: .35mm; white-space: nowrap; }
   dl.skills dd { margin: 0; color: var(--ink-2); }
 
@@ -110,6 +115,15 @@
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 7mm; }
   .edu-line { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; }
   .small { font-size: 8.6pt; color: var(--ink-3); }
+  .row2 h2 { margin-bottom: 1.6mm; }
+  ul.plain { margin: 0; padding: 0; list-style: none; }
+  ul.plain li { margin-top: .7mm; color: var(--ink-2); }
+  ul.plain li:first-child { margin-top: 0; }
+  ul.plain b { color: var(--ink); font-weight: 600; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; column-gap: 7mm; row-gap: .7mm; margin-top: .9mm; color: var(--ink-2); }
+  .grid2 b { color: var(--ink); font-weight: 600; }
+  .line { display: flex; justify-content: space-between; align-items: baseline; gap: 3mm; }
+  .line .when { font-size: 7.6pt; }
 
   footer { margin-top: 4mm; padding-top: 2mm; border-top: .6pt solid var(--rule); display: flex; justify-content: space-between; font-family: "Geist Mono", monospace; font-size: 7.2pt; color: var(--ink-4); }
 </style>
@@ -133,8 +147,9 @@
 
   <p class="summary">
     Engineering lead who owns product <b>end to end</b>: product research, UI design, frontend, backend and infra.
-    Founding engineer twice. Builds <b>agentic AI products</b>, <b>real-time device streaming over WebRTC</b> and
-    <b>developer tools</b>; open-sources the tools and teaches system design to backend engineers.
+    Founding engineer twice (AutoFlow, NativeBridge). Builds <b>agentic AI products</b>, <b>real-time device streaming over WebRTC</b>
+    and <b>developer tools</b>; ships products of his own on the side (<b>Chukta</b>, <b>Markdrop</b>), open-sources the tools and
+    teaches system design to backend engineers.
   </p>
 
   <section>
@@ -142,13 +157,13 @@
 
     <div class="role">
       <div class="role-head">
-        <h3>Senior Software Engineer &amp; Engineering Lead <span class="at">· Senseloaf AI</span></h3>
+        <h3>Senior Software Engineer &amp; Engineering Lead <span class="at">· <a class="lnk" href="https://senseloaf.ai">Senseloaf AI</a></span></h3>
         <span class="when"><span class="now">Apr 2026 – Present</span> · Bengaluru</span>
       </div>
       <ul class="points">
-        <li>Lead engineering of an <b>agentic hiring platform</b> used by enterprises and startups, with AI agents for sourcing, resume-to-job matching, profile verification, prescreening and AI interviews.</li>
-        <li>Own features end to end: product research, UI design, frontend, backend and infra scaling.</li>
-        <li>Building <b>SIA (Senseloaf Intelligent Agent)</b>, a chat interface where a recruiter runs hiring end to end, and its <b>MCP server</b>.</li>
+        <li>Lead engineering of an <b>agentic hiring platform</b> used by enterprises and startups, with AI agents for <b>sourcing, resume-to-job matching, profile verification, prescreening and AI interviews</b>.</li>
+        <li>Building <b>SIA (Senseloaf Intelligent Agent)</b>, a chat interface where a recruiter runs hiring end to end from one conversation, and the <b>MCP server</b> behind it.</li>
+        <li>Own features end to end: product research, UI design, frontend, backend and <b>infra scaling</b>.</li>
       </ul>
     </div>
 
@@ -158,7 +173,7 @@
         <span class="when">Mar 2026 – Jun 2026 · Remote</span>
       </div>
       <ul class="points">
-        <li>Device-streaming research for a <span class="metric">5,000+</span> device cloud; built mobile app testing solutions.</li>
+        <li>Researched <b>device streaming</b> for a cloud of <span class="metric">5,000+</span> devices, and built mobile app testing solutions.</li>
       </ul>
     </div>
 
@@ -168,8 +183,10 @@
         <span class="when">Jan 2025 – Mar 2026 · Bengaluru</span>
       </div>
       <ul class="points">
-        <li>Built cloud <b>Android and iOS devices streamed to the browser over WebRTC</b> at <span class="metric">&lt;100 ms</span>, with touch, rotation, clipboard and file transfer.</li>
-        <li>Open-sourced <b>iOS Bridge</b> (<span class="metric">75★</span>, iOS simulators from any OS) and <b>BridgeLink</b> (remote Android over secure tunnels).</li>
+        <li>Built cloud <b>Android and iOS devices streamed to the browser over WebRTC</b> at <span class="metric">&lt;100 ms</span>, with remote touch, rotation, clipboard sync and file transfer.</li>
+        <li>Created <a class="lnk" href="https://github.com/himanshkukreja/ios-bridge"><b>iOS Bridge</b></a> (open source, <span class="metric">75★</span>, 10 forks): a <b>FastAPI</b> server on macOS that drives iOS simulators through <b>simctl and idb</b> and streams them to Electron desktop apps (Windows, Linux, macOS), a browser client and a pip-installable CLI. Sessions survive server restarts; app install, MP4 recording and location simulation over REST and WebSocket APIs.</li>
+        <li>Replaced screenshot-over-WebSocket streaming (<span class="metric">2–5 FPS</span>, ~2 s lag) with a <b>WebRTC video track</b> fed from a one-frame buffer that always keeps the newest frame: <span class="metric">60–90 FPS</span> at <span class="metric">50–100 ms</span>.</li>
+        <li>Built <a class="lnk" href="https://github.com/himanshkukreja/bridgelink"><b>BridgeLink</b></a> (open source, on PyPI and Homebrew): a Python CLI that exposes USB or Wi-Fi Android devices to the NativeBridge platform through <b>API-key-authenticated bore tunnels</b>, so a remote developer runs <b>adb</b> as if the phone were plugged in. Background daemons health-check every device <b>each second</b> and re-activate it when it reconnects.</li>
       </ul>
     </div>
 
@@ -179,75 +196,134 @@
         <span class="when">Jan 2024 – Dec 2024 · Bengaluru</span>
       </div>
       <ul class="points">
-        <li>Employee #1: built the backend from an empty repo in <b>FastAPI</b> on PostgreSQL, plus a <b>Bun WebSocket gateway</b>.</li>
-        <li>Shipped AI-driven <b>autonomous UI testing</b> on a fleet of <b>Playwright runners</b> across AWS and GCP; launched on Product Hunt as <b>Product of the Day</b>.</li>
+        <li>Employee #1: built the <b>whole backend from an empty repo</b> in <b>FastAPI</b> on PostgreSQL, plus a <b>Bun WebSocket gateway</b>.</li>
+        <li>Shipped <b>AI-driven autonomous UI testing</b>: LLM agents that write and run UI tests on a fleet of <b>Playwright runners</b>, with runner workers across <b>AWS and GCP</b>.</li>
+        <li>Launched on Product Hunt as <b>Product of the Day</b>.</li>
       </ul>
     </div>
 
     <div class="role">
       <div class="role-head">
-        <h3>SDA → SDE 1 <span class="at">· Ikarus 3D</span></h3>
-        <span class="when">Jan 2023 – Oct 2023 · Chandigarh</span>
+        <h3>Software Development Engineer 1 <span class="at">· Ikarus 3D</span></h3>
+        <span class="when">Jul 2023 – Oct 2023 · Chandigarh</span>
       </div>
       <ul class="points">
-        <li>Led the backend for <b>IkarusNest</b>: <span class="metric">7+</span> microservices (auth, carts, orders, slicer), JWT service auth, caching.</li>
-        <li>Moved the slicer from AWS ECS/EFS to <b>GCP Cloud Run</b> (<span class="metric">−90%</span> infra cost); cut API latency <span class="metric">−50%</span> and login time <span class="metric">−30%</span>.</li>
-        <li>Set up the company’s first CI/CD pipelines; mentored 3 interns.</li>
+        <li>Led design and development of <b>3 business-critical applications</b>: carts and orders, the authentication system and the FDM slicer.</li>
+        <li>Migrated the online FDM slicer from <b>AWS ECS and EFS to GCP Cloud Run</b>, solving runtime vertical scaling and cutting its cost by <span class="metric">90%</span>.</li>
+        <li>Set up the company’s <b>first CI/CD pipelines</b> for business applications: faster deploys, fewer build failures and integration issues.</li>
+        <li>Extended authentication with <b>device-ID tracking</b>, new sign-in notifications, password recovery and email change.</li>
+        <li>Researched <b>3D generative AI</b> with Dr. Sahil Sharma, turning text and 2D images into 3D models with NeRF, BLIP and DreamFusion: <span class="metric">48%</span> accuracy within 30 days.</li>
+        <li>Automated the company’s <b>HRMS</b> with biometric hardware integration over APIs and webhooks, saving <span class="metric">132 hours</span> a year of HR work; mentored <b>3 interns</b>.</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>Software Developer Associate <span class="at">· Ikarus 3D</span></h3>
+        <span class="when">Jan 2023 – Jun 2023 · Chandigarh</span>
+      </div>
+      <ul class="points">
+        <li>Led key backend microservices for the launch of <b>IkarusNest</b>: authentication, carts, orders and slicer.</li>
+        <li>Built email/password and social login with <b>JWT sessions</b>, cutting login time by <span class="metric">30%</span>.</li>
+        <li>Added <b>JWT header-based service-to-service auth</b> and caching for REST calls, cutting API latency by <span class="metric">50%</span>.</li>
+        <li>Built a <b>roles and permissions</b> API, integrated with the UI, that secures all <span class="metric">7+</span> backend services.</li>
+        <li>Deployed 7+ backend services and UI frontends (React, Next.js, FastAPI); added <b>Liquibase</b> migrations to the auth MySQL database, cutting manual schema-change time by <span class="metric">20%</span>; ran three <b>gRPC</b> proofs of concept for moving services off REST.</li>
       </ul>
     </div>
   </section>
 
   <section>
-    <h2>Building &amp; teaching</h2>
+    <h2>Ventures &amp; teaching</h2>
 
     <div class="role">
       <div class="role-head">
-        <h3>Markdrop <span class="at">· Founder, personal venture · markdrop.in</span></h3>
-        <span class="when"><span class="now">Mar 2026 – Present</span></span>
+        <h3>Chukta <span class="at">· Solo builder, side project · <a class="lnk" href="https://getchukta.in">getchukta.in</a></span></h3>
+        <span class="when"><span class="now">Oct 2026 – Present</span> · Android beta</span>
       </div>
       <ul class="points">
-        <li>Publish markdown and AI docs with no account, or upload HTML, PDFs, sheets, Word docs, video and zipped sites: <b>one link that renders in any browser</b>.</li>
-        <li>Web app, <b>VS Code extension</b> and a <b>CLI on Homebrew and Scoop</b>; TypeScript, designed and built solo.</li>
+        <li>A <b>free, ad-free Splitwise alternative</b> for friends in India: <b>one-tap UPI settle-up</b>, receipt scanning with item-by-item splits, offline use, Splitwise import, WhatsApp reminders and pay-me links. <b>Android beta live</b> (Oct 2026); iPhone web app at <a class="lnk" href="https://app.getchukta.in">app.getchukta.in</a>.</li>
+        <li>One <b>Expo / React Native</b> codebase (TypeScript, NativeWind) for the Android app and the iPhone PWA, on <b>Supabase</b>: Postgres with row-level security, Auth, Edge Functions and pg_cron.</li>
+        <li>Money in <b>integer paise</b>, never floats. Every split is recomputed on the server by a PL/pgSQL port of the TypeScript split logic; a differential test compares the two on <span class="metric">2,000</span> random groups to the paisa, alongside pgTAP, Vitest and fast-check tests.</li>
+        <li><b>On-device OCR</b> (ML Kit, Apple Vision, Tesseract.js on web) with an optional AI check verified to the paisa; a <b>replay-safe offline outbox</b>; a Splitwise import that rolls back unless every balance matches the file.</li>
       </ul>
     </div>
 
     <div class="role">
       <div class="role-head">
-        <h3>System Design Mastery <span class="at">· free course · himanshukukreja.in/learn</span></h3>
+        <h3>Markdrop <span class="at">· Founder, side venture · <a class="lnk" href="https://markdrop.in">markdrop.in</a></span></h3>
+        <span class="when"><span class="now">Mar 2026 – Present</span></span>
+      </div>
+      <ul class="points">
+        <li>Publish markdown and AI docs with no account, or upload HTML, PDFs, sheets, Word docs, video and zipped sites: <b>one link that renders in any browser</b>.</li>
+        <li>Web app, <b>VS Code extension</b> and a <b>CLI on Homebrew and Scoop</b>; TypeScript and Next.js, designed and built solo.</li>
+      </ul>
+    </div>
+
+    <div class="role">
+      <div class="role-head">
+        <h3>System Design Mastery <span class="at">· free course · <a class="lnk" href="https://www.himanshukukreja.in/learn">himanshukukreja.in/learn</a></span></h3>
       </div>
       <ul class="points">
         <li>Free course for backend engineers with <span class="metric">1,000+</span> quick-check questions, plus long-form <b>engineering case files</b>.</li>
       </ul>
     </div>
-
-    <div class="role">
-      <div class="role-head">
-        <h3>Open source <span class="at">· github.com/himanshkukreja</span></h3>
-      </div>
-      <ul class="points">
-        <li><b>iOS Bridge</b> (75★) · <b>BridgeLink</b> · <b>waygate</b> (self-hosted tunnel, Go) · <b>obscura</b> (encrypted HLS from S3) · <b>ios-web-streamer</b></li>
-      </ul>
-    </div>
   </section>
 
   <section>
+    <h2>Open source &amp; projects</h2>
+    <div class="grid2">
+      <div><a class="lnk" href="https://github.com/himanshkukreja/ios-web-streamer"><b>ios-web-streamer</b></a> <span class="small">WebRTC</span> · Stream and control a real iOS device from a browser.</div>
+      <div><a class="lnk" href="https://github.com/himanshkukreja/waygate"><b>waygate</b></a> <span class="small">Go</span> · Self-hosted tunnel for exposing local services through your own infra.</div>
+      <div><a class="lnk" href="https://github.com/himanshkukreja/obscura"><b>obscura</b></a> <span class="small">TypeScript · HLS</span> · Private video: self-hostable HLS from S3 with encrypted segments.</div>
+      <div><a class="lnk" href="https://www.npmjs.com/package/codeflow-analyzer"><b>codeflow-analyzer</b></a> <span class="small">npm</span> · CLI that statically analyzes React and Next.js codebases into behavior reports.</div>
+    </div>
+    <ul class="points">
+      <li><b>LogIngestor</b> <span class="small">Nov 2023</span> · Scalable log ingestion on FastAPI, RabbitMQ, MongoDB and Elasticsearch, with JWT auth, asyncio concurrency and rate limiting; Docker on AWS ECS and ECR.</li>
+      <li><b>AI-powered smart glasses</b> <span class="small">Oct – Dec 2022 · team of 5</span> · For visually impaired people: face recognition, image captioning, currency and traffic/object detection on a NodeMCU ESP8266 with Python and TensorFlow.</li>
+      <li><b>SmartAgri Solutions</b> <span class="small">Mar 2022</span> · Crop recommendations with a Random Forest at <span class="metric">96%</span> accuracy, fertilizer prediction and TensorFlow plant-disease detection (up to 80%); Flask on GCP.</li>
+    </ul>
+  </section>
+
+  <section class="keep">
     <h2>Skills</h2>
     <dl class="skills">
-      <dt>Backend</dt><dd>Python, FastAPI, Go, Bun, microservices, PostgreSQL, MySQL, Redis</dd>
-      <dt>Realtime</dt><dd>WebRTC, Android and iOS device control, secure tunnels, HLS video</dd>
-      <dt>AI &amp; agents</dt><dd>LLM agents, MCP, Playwright automation, TensorFlow</dd>
-      <dt>Cloud &amp; infra</dt><dd>AWS (ECS, EFS), GCP Cloud Run, Docker, CI/CD</dd>
-      <dt>Product &amp; UI</dt><dd>TypeScript, React, Next.js, UI design, CLIs and VS Code extensions</dd>
+      <dt>Languages</dt><dd>Python, TypeScript, JavaScript, Go, SQL, Bash, C++</dd>
+      <dt>Backend</dt><dd>FastAPI, Flask, Django, Node.js, Bun, microservices, REST, gRPC, WebSockets, JWT and social auth</dd>
+      <dt>Data</dt><dd>PostgreSQL, MySQL, MongoDB, Redis, Elasticsearch, RabbitMQ, Supabase, Liquibase</dd>
+      <dt>Cloud &amp; infra</dt><dd>AWS (ECS, EFS, ECR), GCP Cloud Run, Docker, CI/CD, GitHub Actions, Nginx, Terraform, Ansible, Linux</dd>
+      <dt>Realtime &amp; devices</dt><dd>WebRTC, Android (ADB) and iOS (simctl, idb) device control, secure TCP tunnels, HLS video</dd>
+      <dt>AI &amp; agents</dt><dd>LLM agents, MCP, Playwright automation, on-device OCR, TensorFlow</dd>
+      <dt>Mobile &amp; frontend</dt><dd>React Native, Expo, React, Next.js, Electron, Tailwind / NativeWind, PWAs, CLIs and VS Code extensions</dd>
+      <dt>Testing</dt><dd>Vitest, fast-check (property tests), pgTAP, Playwright</dd>
     </dl>
   </section>
 
-  <section>
+  <section class="keep">
     <h2>Education</h2>
     <div class="edu-line">
       <h3>B.E. Computer Science <span class="at">· Thapar Institute of Engineering &amp; Technology</span></h3>
-      <span class="when">2019 – 2023 · CGPA <b>9.04</b>/10</span>
+      <span class="when">Aug 2019 – Jul 2023 · CGPA <b>9.04</b>/10</span>
     </div>
   </section>
+
+  <div class="row2">
+    <section class="keep">
+      <h2>Courses</h2>
+      <ul class="plain">
+        <li><b>Using Databases with Python</b><br><span class="small">University of Michigan · Sep – Dec 2022</span></li>
+        <li><b>Web Application Technologies and Django</b><br><span class="small">University of Michigan · May – Jul 2020</span></li>
+      </ul>
+    </section>
+
+    <section class="keep">
+      <h2>Awards</h2>
+      <ul class="plain">
+        <li><b>3rd place</b>, Web Set Go Hackathon, Thapar University.</li>
+        <li><b>Inspire Award</b>, State Level Exhibition and Project Competition, Chandigarh University.</li>
+        <li><b>10th rank</b> in the Punjab state matriculation exams among 3.3 lakh students.</li>
+      </ul>
+    </section>
+  </div>
 
   <footer>
     <span>~/himanshu · himanshukukreja.in</span>
