@@ -1,8 +1,8 @@
 /**
  * Case file "The iOS Bridge Story": the prototype's per-frame cost (simctl subprocess ~50 ms, PNG
- * ~30 ms, base64 ~20 ms = ~100 ms, so 10 FPS at best; 2-5 FPS in practice over a WebSocket) against
+ * ~30 ms, base64 ~20 ms = ~100 ms, so 10 FPS at best; a few FPS in practice over a WebSocket) against
  * the WebRTC engine: a one-frame queue that drops the old frame and keeps the newest, a paced
- * FastVideoTrack at 60-90 FPS, and taps going back over the control WebSocket.
+ * FastVideoTrack at the 45-90 FPS presets, and taps going back over the control WebSocket.
  */
 import { Box, defineExplainer, lerp, seg, Token, Txt, Wire, type SceneProps, type Tone } from "../kit";
 
@@ -23,7 +23,7 @@ function Prototype({ step, t, clock, narrow }: SceneProps) {
   const total = SEGS.reduce((s, x, i) => s + x.ms * fill[i], 0);
   const frames: { x: number; y: number; tone: Tone }[] = [];
   if (step === 2) {
-    // a slow trickle of frames over the WebSocket: ~2-5 FPS
+    // a slow trickle of frames over the WebSocket: a few FPS
     const n = 2;
     for (let i = 0; i < n; i++) {
       const p = clock > 0 ? (clock * 0.22 + i / n) % 1 : 0.3 + i * 0.4;
@@ -37,7 +37,7 @@ function Prototype({ step, t, clock, narrow }: SceneProps) {
         {narrow ? "weekend 1 · screenshots" : "weekend 1 prototype · screenshot per frame"}
       </Txt>
       <Box x={SIM.x} y={SIM.y} w={SIM.w} h={SIM.h} label="Simulator" sub={narrow ? "Mac" : "on the Mac"} />
-      <Box x={CLI.x} y={CLI.y} w={CLI.w} h={CLI.h} label="Client" sub={step === 2 ? "2-5 FPS" : narrow ? "Windows" : "Windows dev"} tone={step === 2 ? "bad" : undefined} />
+      <Box x={CLI.x} y={CLI.y} w={CLI.w} h={CLI.h} label="Client" sub={step === 2 ? "few FPS" : narrow ? "Windows" : "Windows dev"} tone={step === 2 ? "bad" : undefined} />
       <Wire d={`M${SIM.x + SIM.w} ${SIM.y + SIM.h / 2}H${CLI.x}`} arrow tone={step === 2 ? "warn" : undefined} />
       <Txt x={W / 2} y={SIM.y + SIM.h / 2 - 10} k="s" tone={step === 2 ? "warn" : "mute"}>
         {narrow ? "WebSocket · JSON" : "WebSocket · base64 frame in JSON"}
@@ -64,10 +64,10 @@ function Prototype({ step, t, clock, narrow }: SceneProps) {
         );
       })}
       <Txt x={W / 2} y={262} k="d" tone={step === 2 ? "bad" : step === 1 && t > 0.95 ? "warn" : "mute"}>
-        {step === 0 ? "" : step === 1 ? (t > 0.95 ? "≤ 10 FPS" : "") : "2-5 FPS"}
+        {step === 0 ? "" : step === 1 ? (t > 0.95 ? "≤ 10 FPS" : "") : "a few FPS"}
       </Txt>
       <Txt x={W / 2} y={292} k="s" tone={step === 2 ? "bad" : "mute"}>
-        {step === 2 ? (narrow ? "~2 s latency" : "measured · ~2 s latency") : step === 1 && t > 0.95 ? (narrow ? "theoretical max" : "1,000 ms ÷ 100 ms: theoretical max") : ""}
+        {step === 2 ? (narrow ? "lags behind" : "visibly behind the simulator") : step === 1 && t > 0.95 ? (narrow ? "theoretical max" : "1,000 ms ÷ 100 ms: theoretical max") : ""}
       </Txt>
       {frames.map((f, i) => (
         <Token key={i} x={f.x} y={f.y} s={12} tone={f.tone} />
@@ -152,10 +152,10 @@ function Engine({ step, t, clock, narrow }: SceneProps) {
       <Wire d={`M${Q.x + Q.w / 2} ${Q.y + Q.h}V${TRK.y}`} arrow tone={step >= 2 ? "ok" : undefined} />
       <Box x={TRK.x} y={TRK.y} w={TRK.w} h={TRK.h} label={narrow ? "VideoTrack" : "FastVideoTrack"} sub={narrow ? "paced" : "paced · WebRTC"} tone={step === 2 ? "ok" : undefined} />
       <Wire d={`M${TRK.x + TRK.w} ${TRK.y + TRK.h / 2}H${CLI2.x}`} arrow tone={step === 2 ? "ok" : undefined} />
-      <Box x={CLI2.x} y={CLI2.y} w={CLI2.w} h={CLI2.h} label="Client" sub={step >= 2 ? "60-90 FPS" : "Windows"} tone={step === 2 ? "ok" : tap ? "sky" : undefined} />
+      <Box x={CLI2.x} y={CLI2.y} w={CLI2.w} h={CLI2.h} label="Client" sub={step >= 2 ? "45-90 FPS" : "Windows"} tone={step === 2 ? "ok" : tap ? "sky" : undefined} />
       {step === 2 && (
         <Txt x={CLI2.x + CLI2.w / 2} y={CLI2.y - 12} k="s" tone="ok">
-          50-100 ms
+          newest frame
         </Txt>
       )}
       <path className={`ib-ctl${tap ? " on" : ""}`} d={`M${route[0].x} ${route[0].y}V${route[1].y}H${route[2].x}`} />
@@ -191,7 +191,7 @@ export default defineExplainer({
       steps: [
         { caption: "Prototype: every frame starts with an xcrun simctl screenshot subprocess, about 50 ms of overhead.", tween: 1400, ms: 2600 },
         { caption: "PNG encoding adds ~30 ms and base64 ~20 ms: ~100 ms a frame, so 10 FPS at best.", tween: 1800, ms: 2800 },
-        { caption: "Sent as JSON over a WebSocket, the stream crawled at 2-5 FPS with about 2 seconds of latency.", tween: 900, ms: 3400, loop: true },
+        { caption: "Sent as JSON over a WebSocket, the stream crawled at a few frames a second, visibly behind the simulator.", tween: 900, ms: 3400, loop: true },
       ],
     },
     {
@@ -200,7 +200,7 @@ export default defineExplainer({
       steps: [
         { caption: "The capture loop puts each optimized screenshot into a frame queue that holds exactly one frame.", tween: 1600, ms: 2400 },
         { caption: "Queue full? Drop the old frame and keep the newest, so the stream never falls behind.", tween: 1400, ms: 3000, loop: true },
-        { caption: "FastVideoTrack paces frames out over WebRTC: 60-90 FPS at 50-100 ms latency.", tween: 900, ms: 3000, loop: true },
+        { caption: "FastVideoTrack paces frames out over WebRTC at the preset rate: 45, 60, 75 or 90 FPS.", tween: 900, ms: 3000, loop: true },
         { caption: "Clicks go back on the control WebSocket, scaled to simulator coordinates, and become taps.", tween: 2000, ms: 3400 },
       ],
     },
