@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     if (!sp.has("from")) return NextResponse.json(await getSnapshotSources(id));
     const body = await getSnapshotChunk(id, Number(sp.get("from")), Number(sp.get("to") ?? sp.get("from")));
-    const headers: Record<string, string> = { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "private, no-store" };
+    const headers: Record<string, string> = { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "private, max-age=86400, immutable" }; // a blob range never changes once written
     // Inflated DOM JSON compresses ~8×; gzip it ourselves so big chunks stay small on the wire.
     if (/\bgzip\b/.test(request.headers.get("accept-encoding") || "") && body.length > 2048) {
       headers["Content-Encoding"] = "gzip";

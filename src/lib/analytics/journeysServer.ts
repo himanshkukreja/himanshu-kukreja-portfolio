@@ -43,14 +43,14 @@ function streamEvent(r: Row, titleOf: TitleOf): StreamEvent {
 export async function getLive(): Promise<LiveRes> {
   const [titleOf, liveRows, pageRows, eventRows] = await Promise.all([
     titleResolver(),
-    hogql("SELECT count(DISTINCT person_id) FROM events WHERE timestamp > now() - INTERVAL 5 MINUTE", { name: "live_count", ttlMs: 10_000 }),
+    hogql("SELECT count(DISTINCT person_id) FROM events WHERE timestamp > now() - INTERVAL 5 MINUTE", { name: "live_count", ttlMs: 25_000 }),
     hogql(
       "SELECT properties.$pathname AS path, count(DISTINCT person_id) AS n FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 5 MINUTE GROUP BY path ORDER BY n DESC LIMIT 10",
-      { name: "live_pages", ttlMs: 10_000 }
+      { name: "live_pages", ttlMs: 25_000 }
     ),
     hogql(`SELECT ${STREAM_HEAD}, ${eventPropsSelect()} FROM events WHERE timestamp > now() - INTERVAL 1 DAY AND event NOT IN ${NOISE} ORDER BY timestamp DESC LIMIT 60`, {
       name: "live_stream",
-      ttlMs: 10_000,
+      ttlMs: 25_000,
     }),
   ]);
   return {

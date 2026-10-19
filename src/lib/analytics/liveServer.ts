@@ -53,17 +53,17 @@ async function stats() {
           uniqIf(person_id, timestamp >= toStartOfDay(now())),
           countIf(timestamp > now() - INTERVAL 1 HOUR AND event NOT IN ${NOISE})
         FROM events WHERE timestamp > now() - INTERVAL 1 DAY`,
-      { name: "live_stats", ttlMs: 10_000 }
+      { name: "live_stats", ttlMs: 25_000 }
     ),
     hogql(
       `SELECT dateDiff('minute', toStartOfMinute(timestamp), toStartOfMinute(now())) AS ago, count()
         FROM events WHERE timestamp > now() - INTERVAL 30 MINUTE AND event NOT IN ${NOISE}
         GROUP BY ago`,
-      { name: "live_per_minute", ttlMs: 10_000 }
+      { name: "live_per_minute", ttlMs: 25_000 }
     ),
     hogql(
       "SELECT properties.$pathname AS path, count(DISTINCT person_id) AS n FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 5 MINUTE GROUP BY path ORDER BY n DESC LIMIT 8",
-      { name: "live_pages", ttlMs: 10_000 }
+      { name: "live_pages", ttlMs: 25_000 }
     ),
   ]);
   const perMinute = Array.from({ length: 30 }, () => 0);
@@ -103,7 +103,7 @@ async function timelines(ids: string[], window: LiveWindow, titleOf: TitleOf): P
         AND timestamp > now() - ${LIVE_WINDOWS[window].sql} - INTERVAL 1 DAY AND event NOT IN ${NOISE}
       ORDER BY timestamp DESC
       LIMIT ${TIMELINE} BY sid`,
-    { name: "live_timelines", ttlMs: 10_000 }
+    { name: "live_timelines", ttlMs: 25_000 }
   );
   for (const r of rows) {
     const sid = String(r[0]);
@@ -143,7 +143,7 @@ export async function getLiveFeed(opts: { window: LiveWindow; filter: LiveFilter
         HAVING ${having.join(" AND ")}
         ORDER BY last DESC
         LIMIT ${limit + 1}`,
-      { name: `live_sessions_${window}_${filter}`, values: before ? { before } : undefined, ttlMs: 10_000 }
+      { name: `live_sessions_${window}_${filter}`, values: before ? { before } : undefined, ttlMs: 25_000 }
     ),
   ]);
 

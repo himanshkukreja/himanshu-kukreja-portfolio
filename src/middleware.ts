@@ -9,11 +9,11 @@ import { shareGate } from "@/lib/share/gate";
  * (dynamicParams = true), so an unknown slug would also stream a 200 "not found" page. Gate it
  * here against the published list (repo stories + live CMS case files, from /api/stories): known
  * slugs pass straight through, unknown ones get a real 404. The list is cached per instance and
- * re-read on a miss (at most 4×/s), so a story published a moment ago opens at once.
+ * re-read on a miss (at most every 5 s), so a story published a moment ago opens within a few seconds.
  */
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-const FRESH_MS = 5_000;
-const MISS_REFRESH_MS = 250;
+const FRESH_MS = 30_000;
+const MISS_REFRESH_MS = 5_000;
 let known: { at: number; slugs: Set<string> } | null = null;
 let inflight: Promise<Set<string> | null> | null = null;
 

@@ -5,7 +5,7 @@
  * the pages people are on, then every recent session (events grouped by $session_id, newest /
  * ongoing first) with a compact event timeline and its replay inline.
  *
- * Polls /api/admin/posthog/feed every 15 s while the tab is visible (refreshes on return). While the
+ * Polls /api/admin/posthog/feed every 30 s while the tab is visible (refreshes on return). While the
  * admin is reading (scrolled into the feed, a row expanded or a replay playing) the list freezes
  * and a "new activity" pill offers the update instead of jumping the list; the stats strip always
  * stays live.
@@ -19,7 +19,7 @@ import { ExtLink, PhErrorState, cx, useSetParams } from "@/components/admin/jour
 import SetupCard from "@/components/admin/journeys/SetupCard";
 import SessionRow, { ReplaySheet } from "./SessionRow";
 
-const POLL_MS = 15_000;
+const POLL_MS = 30_000;
 
 const WINDOWS: { id: LiveWindow; label: string }[] = [
   { id: "30m", label: "live · 30 min" },
@@ -82,7 +82,7 @@ export default function LivePage() {
                   paused ? "border-line-strong text-fg-3 hover:bg-surface-2" : "border-signal text-signal-text hover:bg-signal/10"
                 )}
               >
-                {paused ? "❚❚ paused · resume" : "● live · ↻ 15s"}
+                {paused ? "❚❚ paused · resume" : "● live · ↻ 30s"}
               </button>
               <Link href="/admin/journeys" className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-xs text-fg-2 hover:border-signal hover:text-signal-text">
                 journeys →
