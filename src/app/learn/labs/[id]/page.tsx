@@ -3,7 +3,13 @@ import { getLab, getLabSummaries } from "@/lib/learn/labs/load";
 import LabRoom from "@/components/learn/labs/LabRoom";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
+export const revalidate = 86400;
+export const dynamicParams = true;
+/** None at build: each path renders on its first visit, then is cached (on-demand ISR). */
+export function generateStaticParams() {
+  return [];
+}
 
 type Props = { params: Promise<{ id: string }> };
 

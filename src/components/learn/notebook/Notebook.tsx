@@ -82,6 +82,13 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   const metaOf = useCallback((week: string, slug: string) => index.get(lessonKey(week, slug)) || fallbackMeta(map.courseId, week, slug), [index, map.courseId]);
 
   const [tab, setTab] = useState<NotebookTab>(initialTab);
+  // The page is served from the cache (one HTML for everyone), so the ?tab= deep link is applied
+  // here on the client after hydration rather than read on the server.
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the deep link after mount
+    if (t === "highlights" || t === "notes" || t === "bookmarks") setTab(t);
+  }, []);
   const [q, setQ] = useState("");
   const [week, setWeek] = useState<string>("all");
   const [colour, setColour] = useState<"all" | NoteColor>("all");

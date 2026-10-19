@@ -4,8 +4,8 @@ import NewsletterStrip from "@/components/stories/NewsletterStrip";
 import { getCaseFiles } from "@/components/stories/case-files";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
+// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
+export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: "Case files · Himanshu Kukreja",

@@ -5,7 +5,13 @@ import { loadSubmission } from "@/lib/design-week/server";
 import { dowFixtures } from "@/lib/design-week/store";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Rendered once and served from the cache, refreshed every 5 minutes (state changes over time) and on save; per-visitor state (progress, notes, sign-in) loads on the client.
+export const revalidate = 300;
+export const dynamicParams = true;
+/** None at build: each path renders on its first visit, then is cached (on-demand ISR). */
+export function generateStaticParams() {
+  return [];
+}
 
 type Params = { params: Promise<{ slug: string; id: string }> };
 

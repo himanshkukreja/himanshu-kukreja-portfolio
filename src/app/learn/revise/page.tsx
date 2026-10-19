@@ -3,7 +3,8 @@ import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import ReviseIndex from "@/components/learn/revise/ReviseIndex";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
+export const revalidate = 86400;
 
 export const metadata = {
   title: "Interview-night revision · System Design Mastery",

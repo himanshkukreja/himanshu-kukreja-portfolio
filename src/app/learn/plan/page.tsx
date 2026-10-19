@@ -2,7 +2,8 @@ import { getCourseMap } from "@/lib/learn/course";
 import PlannerClient from "@/components/learn/plan/PlannerClient";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
+export const revalidate = 86400;
 
 export const metadata = {
   title: "Study planner · Learn · Himanshu Kukreja",
