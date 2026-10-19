@@ -1,0 +1,81 @@
+/*
+ * Certificates: a 1200 × 848 design (A4 landscape) scaled to its box with container units.
+ * --cu is one design pixel; every size in CertificateArt.tsx is calc(var(--cu) * n).
+ */
+.cert-box {
+  container-type: inline-size;
+  width: 100%;
+}
+
+.cert-sheet {
+  --cu: calc(100cqw / 1200);
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1200 / 848;
+  overflow: hidden;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.cert-sheet h1 {
+  text-wrap: balance;
+}
+
+/* ---- the print route: exactly one A4 landscape page, the certificate only ---- */
+
+.cert-print-root {
+  page: certificate;
+}
+
+@page certificate {
+  size: A4 landscape;
+  margin: 0;
+}
+
+@media print {
+  :root:has(.cert-print-root) {
+    color-scheme: light !important;
+  }
+  html:has(.cert-print-root),
+  body:has(.cert-print-root) {
+    background: #fff !important;
+    background-image: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 297mm;
+    height: 210mm;
+    overflow: hidden;
+  }
+  body:has(.cert-print-root) > :not(.cert-print-root):not(:has(.cert-print-root)) {
+    display: none !important;
+  }
+  .cert-print-root {
+    display: block !important;
+    max-width: none !important;
+    width: 297mm !important;
+    height: 210mm !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden;
+    break-inside: avoid;
+  }
+  .cert-print-root .cert-noprint {
+    display: none !important;
+  }
+  .cert-print-root .cert-print-stage {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 297mm !important;
+    max-width: none !important;
+    box-shadow: none !important;
+    border: 0 !important;
+  }
+  .cert-print-root .cert-box {
+    width: 297mm !important;
+  }
+  .cert-print-root .cert-sheet {
+    width: 297mm !important;
+    height: 209.9mm !important;
+    aspect-ratio: auto;
+  }
+}

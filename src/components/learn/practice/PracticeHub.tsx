@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { BookOpen, CalendarDays, Calculator, Code2, FileText, Layers, Mic, Network, PenTool } from "lucide-react";
+import { Award, BookOpen, CalendarDays, Calculator, Code2, FileText, Layers, Mic, Network, PenTool } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useLabProgress } from "@/lib/learn/labs/progress";
 import { labKey } from "@/lib/learn/labs/types";
@@ -210,6 +210,16 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           reach={reach("/learn/mock")}
         />
         <DesignWeekCard dow={dow} />
+        <Card
+          href="/learn/certificate"
+          icon={Award}
+          kicker="certificates"
+          state={hydrated ? (done["cert:course"] ? "certified ✓" : `${Object.keys(done).filter((k) => k.startsWith("cert:world:")).length} world certificate${Object.keys(done).filter((k) => k.startsWith("cert:world:")).length === 1 ? "" : "s"}`) : null}
+          title="Earn the certificate"
+          pitch="Every lesson, every trial part, every boss and a mock interview at Hire: a certificate for the course and one per world, each with a verification page."
+          meta="needs an account · PDF · LinkedIn"
+          reach={offline ? "away" : "online"}
+        />
       </Group>
 
       {/* tools */}

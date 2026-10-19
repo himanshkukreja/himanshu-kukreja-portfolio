@@ -22,6 +22,7 @@ import { QUEST_BY_ID } from "@/game/catalog";
 import type { CourseLesson, CourseMap, CourseWeek } from "./types";
 import { LEARN_XP, lessonKey } from "./types";
 import { localDate } from "./review";
+import { CERT_XP } from "@/lib/certificates/core";
 
 export type LessonProgress = {
   status: "not_started" | "in_progress" | "completed";
@@ -343,6 +344,9 @@ export function xpLog(done: Record<string, number>, map: CourseMap | null): XpEn
       const m = map?.mocks?.find((x) => x.id === key.slice(offer ? 6 : 5));
       const name = m ? `M${m.n} · ${m.company}` : key.slice(offer ? 6 : 5);
       out.push({ key, xp: offer ? LEARN_XP.mockOffer : LEARN_XP.mock, what: offer ? `Offer · mock interview ${name}` : `Mock interview finished · ${name}`, at, href: m?.href });
+    } else if (key.startsWith("cert:")) {
+      const w = key.startsWith("cert:world:") ? weekBy.get(key.slice(11)) : null;
+      out.push({ key, xp: key === "cert:course" ? CERT_XP.course : CERT_XP.world, what: key === "cert:course" ? "Certified · System Design Mastery" : `World certificate · ${w ? `W${w.code} · ${w.title}` : key.slice(11)}`, at, href: "/learn/certificate" });
     } else if (key.startsWith("sidequest:")) {
       const l = map?.sideQuests.find((s) => s.slug === key.slice(10));
       out.push({ key, xp: LEARN_XP.sideQuest - LEARN_XP.lesson, what: `Side quest bonus · ${l ? l.title : key.slice(10)}`, at, href: l?.href });

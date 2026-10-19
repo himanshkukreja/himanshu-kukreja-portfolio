@@ -31,6 +31,7 @@ import DataControls from "@/components/learn/progress/DataControls";
 import SectionNav from "@/components/learn/progress/SectionNav";
 import ArenaStatsCard from "@/components/learn/arena/ArenaStatsCard";
 import ShareProgress from "@/components/learn/progress/ShareProgress";
+import CertificateEntry from "@/components/learn/certificate/CertificateEntry";
 import { useMockStatus } from "@/lib/learn/mock/store";
 
 export default function DashboardClient({ map }: { map: CourseMap }) {
@@ -235,6 +236,8 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
       </div>
 
       <ArenaStatsCard />
+
+      <CertificateEntry states={states} done={done} signedIn={d.signedIn} />
 
       <ShareProgress />
 

@@ -166,7 +166,7 @@ export function achievementFor(p: PublicProfile, id: string): Achievement | null
 
 /* ------------------------------------------------------------------ share copy + links */
 
-export type ShareKind = "profile" | "tree" | "daily" | "world" | "boss" | "level" | "lesson" | "badge" | "badges" | "leaderboard" | "streak";
+export type ShareKind = "profile" | "tree" | "daily" | "world" | "boss" | "level" | "lesson" | "badge" | "badges" | "leaderboard" | "streak" | "certificate";
 
 export type ShareContext = {
   kind: ShareKind;
@@ -203,6 +203,8 @@ export function shareText(c: ShareContext): string {
         : `I'm on the ${COURSE_NAME} weekly leaderboard. Think you can catch me?`;
     case "streak":
       return `${s?.streak || 0}-day learning streak on ${COURSE_NAME}. ${hook} Can you beat my streak?`;
+    case "certificate":
+      return `I earned the ${COURSE_NAME} ${c.title || "certificate of completion"}. Verify it here:`;
     case "tree":
       return `My ${COURSE_NAME} skill tree · ${pctPart(s)}${s?.worldsCleared ? ` · ${s.worldsCleared} world${s.worldsCleared === 1 ? "" : "s"} cleared` : ""}. ${hook} Can you beat my streak?`;
     default:

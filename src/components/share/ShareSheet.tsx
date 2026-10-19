@@ -39,6 +39,7 @@ const KIND_LABEL: Record<ShareKind, string> = {
   badges: "your badges",
   leaderboard: "your rank",
   streak: "your streak",
+  certificate: "your certificate",
 };
 
 const origin = () => (typeof window !== "undefined" ? window.location.origin : "https://himanshukukreja.in");

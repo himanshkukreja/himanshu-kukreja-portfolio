@@ -33,6 +33,7 @@ export const ADMIN_NAV = [
   { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
   { href: "/admin/case-files", label: "Case files", key: "case-files", match: (p: string) => p.startsWith("/admin/case-files") },
   { href: "/admin/design-week", label: "Design week", key: "design-week", match: (p: string) => p.startsWith("/admin/design-week") },
+  { href: "/admin/certificates", label: "Certificates", key: "certificates", match: (p: string) => p.startsWith("/admin/certificates") },
   { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
 ] as const;
 
@@ -257,7 +258,7 @@ function Frame({ email, children }: { email: string; children: ReactNode }) {
                     className={`relative flex min-h-10 items-center gap-3 px-3.5 text-sm ${on ? "bg-surface-2 font-semibold text-fg" : "text-fg-2 hover:bg-surface-2/60 hover:text-fg"}`}
                   >
                     {on && <span aria-hidden className="absolute inset-y-1.5 left-0 w-[3px] bg-signal" />}
-                    <span className={`font-mono text-[11px] ${on ? "text-signal-text" : "text-fg-4"}`}>0{i + 1}</span>
+                    <span className={`font-mono text-[11px] ${on ? "text-signal-text" : "text-fg-4"}`}>{String(i + 1).padStart(2, "0")}</span>
                     <span className="flex-1">{n.label}</span>
                     {n.key === "live" && live != null && (
                       <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-fg-3" title={`${live} live visitor${live === 1 ? "" : "s"} (last 5 min)`}>

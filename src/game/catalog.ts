@@ -99,6 +99,8 @@ export const BADGES: Badge[] = [
   { id: "offer", name: "Offer letter", how: "Get a Hire or better verdict in any mock interview.", earned: (d) => Object.keys(d).some((k) => k.startsWith("offer:")) },
   { id: "loops", name: "Interview ready", how: "Finish four mock interview loops.", earned: (d) => Object.keys(d).filter((k) => k.startsWith("mock:")).length >= 4 },
   { id: "snake", name: "Snake charmer", how: "Eat 500+ contributions in one game of the contribution snake.", earned: (d) => !!d["snake:500"] },
+  // Certificates (/learn/certificate): claimed on the server, the XP key is `cert:course`
+  { id: "certified", name: "Certified", how: "Earn the System Design Mastery certificate of completion.", earned: (d) => !!d["cert:course"] },
   // Design of the week (/learn/design-week): awarded per winning challenge as `dow:win:<slug>`
   { id: "dow", name: "Design of the week", how: "Have your design voted Design of the week by the community.", earned: (d) => !!d.dow || Object.keys(d).some((k) => k.startsWith("dow:win:")) },
 ];

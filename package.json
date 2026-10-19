@@ -34,6 +34,7 @@
     "nodemailer": "^7.0.12",
     "posthog-js": "^1.438.12",
     "pyodide": "314.0.7",
+    "qrcode-generator": "^2.0.4",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
@@ -59,6 +60,7 @@
     "autoprefixer": "^10.4.20",
     "eslint": "^9",
     "eslint-config-next": "^16.1.1",
+    "jsqr": "^1.4.0",
     "postcss": "^8.5.0",
     "tailwindcss": "^3.4.14",
     "typescript": "^5"

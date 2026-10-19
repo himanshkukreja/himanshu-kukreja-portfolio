@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { shareGate } from "@/lib/share/gate";
+import { certGate } from "@/lib/certificates/gate";
 
 /**
  * Dev-only routes (design lab, quiz fixture) must be a hard 404 in production. Their pages also
@@ -52,6 +53,8 @@ async function storyGate(req: NextRequest, slug: string) {
 export async function middleware(req: NextRequest) {
   // shared learner pages: unpublished / unknown handles get a real 404 (src/lib/share/gate.ts)
   if (req.nextUrl.pathname.startsWith("/u/")) return shareGate(req);
+  // certificate verification pages: unknown or private codes get a real 404 (src/lib/certificates/gate.ts)
+  if (req.nextUrl.pathname.startsWith("/cert/")) return certGate(req);
   const story = /^\/stories\/([^/]+)\/?$/.exec(req.nextUrl.pathname);
   if (story) return storyGate(req, decodeURIComponent(story[1]));
   if (process.env.NODE_ENV === "production") {
@@ -60,4 +63,4 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next({ request: req });
 }
 
-export const config = { matcher: ["/lab/:path*", "/learn/arena/dev/:path*", "/stories/:slug", "/u/:path*"] };
+export const config = { matcher: ["/lab/:path*", "/learn/arena/dev/:path*", "/stories/:slug", "/u/:path*", "/cert/:path*"] };

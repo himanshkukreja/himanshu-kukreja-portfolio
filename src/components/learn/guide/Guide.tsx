@@ -55,6 +55,7 @@ import {
   RUNTIME_DOWNLOAD_LABEL,
   RUNTIME_STORED_LABEL,
 } from "./facts";
+import { CERT_XP, NAME_MAX as CERT_NAME_MAX, TRIAL_PASS_PCT as CERT_PASS_PCT } from "@/lib/certificates/core";
 
 const COURSE = "/learn/system-design-mastery";
 
@@ -74,11 +75,12 @@ const TOC: TocItem[] = [
   { id: "xp", n: "10", label: "XP, levels, badges" },
   { id: "progress", n: "11", label: "Progress page" },
   { id: "share", n: "12", label: "Share your progress" },
-  { id: "offline", n: "13", label: "Offline reading" },
-  { id: "cases", n: "14", label: "Case files" },
-  { id: "account", n: "15", label: "Account & data" },
-  { id: "faq", n: "16", label: "FAQ" },
-  { id: "glossary", n: "17", label: "Glossary" },
+  { id: "certificates", n: "13", label: "Certificates" },
+  { id: "offline", n: "14", label: "Offline reading" },
+  { id: "cases", n: "15", label: "Case files" },
+  { id: "account", n: "16", label: "Account & data" },
+  { id: "faq", n: "17", label: "FAQ" },
+  { id: "glossary", n: "18", label: "Glossary" },
 ];
 
 const LOOP = [
@@ -994,10 +996,64 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Where>
           </Section>
 
+          {/* ------------------------------------------------------------ i3) certificates */}
+          <Section
+            id="certificates"
+            n="13"
+            kicker="certificates"
+            title="Earn a certificate, prove it with a link"
+            lead="A certificate of completion for the whole course and one for each world, each with an ID, a QR code and a public page anyone can use to check it."
+          >
+            <Table
+              caption="What each certificate needs"
+              head={["Certificate", "Requirements (all of them)"]}
+              rows={[
+                [
+                  "System Design Mastery · Certificate of Completion",
+                  <>
+                    every core lesson completed{s ? ` (${s.coreLessons})` : ""}; every trial part passed at {CERT_PASS_PCT}%+{s ? ` (${s.trialParts})` : ""}; every interview boss beaten in boss mode{s ? ` (${s.bosses})` : ""}; one mock
+                    interview scored Hire or better
+                  </>,
+                ],
+                ["World NN · <title>", <>every lesson of that world; its trial parts at {CERT_PASS_PCT}%+; its boss (World 00 has no boss)</>],
+              ]}
+            />
+            <div className={PROSE}>
+              <p>
+                <strong>Where:</strong> the <A href="/learn/certificate">certificate page</A> (from the Progress page or the Practice hub). It shows a checklist with what&apos;s done, what&apos;s left and a link to finish each item. It needs an
+                account and a connection: your progress is checked on the server, from your account&apos;s records, when you claim. Progress made as a guest lives in that browser, so sign in and import it from the Progress page first.
+              </p>
+              <p>
+                <strong>What counts.</strong> Lessons count once they&apos;re completed in your account. Trial parts count from your saved attempts: the answers are marked again on the server against the answer key, so a part counts only if
+                those answers really reach {CERT_PASS_PCT}%. If an older pass doesn&apos;t (the questions changed since), the checklist says so: retake that part. Bosses count when you win them in boss mode. The mock interview counts
+                when its scorecard (you score yourself against the levelled rubric) comes out at Hire or Strong hire.
+              </p>
+              <p>
+                <strong>Claiming.</strong> Press <strong>Claim my certificate</strong>, check the name (2–{CERT_NAME_MAX} characters, letters, spaces, apostrophes, hyphens and periods; it&apos;s signed into the certificate and can&apos;t be
+                changed later) and choose whether it gets a public page (on by default). Claiming again never makes a second one. The course certificate pays +{CERT_XP.course} XP and the <strong>Certified</strong> badge, a world certificate
+                +{CERT_XP.world} XP.
+              </p>
+              <p>
+                <strong>Then:</strong> <strong>Add to LinkedIn profile</strong> opens LinkedIn with the certificate&apos;s name, issuer, date, ID and link filled in; <strong>Download PDF</strong> opens a one-page A4 landscape version
+                (choose “Save as PDF”); <strong>Share link</strong> opens the share sheet. The course certificate is paper-style with a QR code; world certificates are drawn as blueprints.
+              </p>
+            </div>
+            <Note title="Checking a certificate" tone="signal">
+              <p>
+                Every certificate has an ID like <strong>SDM-7F3K-92QX</strong> (course) or <strong>W02-4QX8</strong> (world), using 2–9 and A–Z without I or O. Its page at himanshukukreja.in/cert/&lt;ID&gt; says whether it&apos;s valid,
+                shows the name, the date, the numbers and how it was earned, and links to the holder&apos;s public progress page only if that page is on. Each record is signed when it&apos;s issued, and the page checks the signature. A
+                hidden or unknown ID is a 404. A revoked certificate says so, with the date; the reason is never shown.
+              </p>
+            </Note>
+            <Where>
+              <A href="/learn/certificate">learn → certificate</A>; the entry card on the <A href="/learn/dashboard#certificate">progress page</A>; the certificates card in <A href="/learn/practice">practice</A>.
+            </Where>
+          </Section>
+
           {/* ------------------------------------------------------------ j) cases */}
           <Section
             id="offline"
-            n="13"
+            n="14"
             kicker="offline reading & the app"
             title="Read with no internet"
             lead="Save lessons on your phone or laptop and read them on a flight, on the metro, anywhere. No app store: the website saves them, and it can be installed like an app."
@@ -1066,7 +1122,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Note>
           </Section>
 
-          <Section id="cases" n="14" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
+          <Section id="cases" n="15" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
             <Shot id="case-index" only="desktop" />
             <div className={PROSE}>
               <p>
@@ -1085,7 +1141,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ k) account */}
-          <Section id="account" n="15" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
+          <Section id="account" n="16" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
             <ul className="m-0 grid max-w-[72ch] list-none gap-px border border-line bg-line p-0 sm:grid-cols-2">
               {[
                 ["Progress on every device", "Lessons, stages, XP, review cards and trial attempts follow you instead of living in one browser."],
@@ -1115,7 +1171,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ l) faq */}
-          <Section id="faq" n="16" kicker="faq" title="Questions people actually ask">
+          <Section id="faq" n="17" kicker="faq" title="Questions people actually ask">
             <div className="flex max-w-[78ch] flex-col border-t border-line">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group border-b border-line">
@@ -1132,7 +1188,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ glossary */}
-          <Section id="glossary" n="17" kicker="glossary" title="Words the course uses">
+          <Section id="glossary" n="18" kicker="glossary" title="Words the course uses">
             <dl className="m-0 grid max-w-[78ch] gap-px border border-line bg-line sm:grid-cols-2">
               {GLOSSARY.map(([t, d]) => (
                 <div key={t} className="flex flex-col gap-1 bg-bg p-4">
@@ -1157,6 +1213,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
 }
 
 const FAQ: [string, React.ReactNode][] = [
+  [
+    "Is the certificate accredited?",
+    <>
+      No. It certifies that you completed an online course: every lesson, trial, boss and a mock interview, checked from your account&apos;s records and verifiable at its own link. It is not an accredited academic qualification, and no
+      institution or employer stands behind it. What it does show is real: the numbers on it come from your own work, and anyone can check the ID. See <a href="#certificates">certificates</a>.
+    </>,
+  ],
   [
     "Why didn't my lesson complete?",
     <>

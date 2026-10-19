@@ -229,6 +229,8 @@ export function resolveFixture(url: string, init?: RequestInit): unknown {
   if (u.pathname.startsWith("/api/admin/case-files")) return undefined;
   // design of the week: the dev in-memory store answers (DOW_FIXTURES=1, see lib/design-week/api.ts)
   if (u.pathname.startsWith("/api/admin/design-week")) return undefined;
+  // certificates: the dev in-memory store answers (CERT_FIXTURES=1, see lib/certificates/store.ts)
+  if (u.pathname.startsWith("/api/admin/certificates")) return undefined;
   if (u.pathname.startsWith("/api/admin/newsletter")) return resolveNewsletterFixture(u, init);
   if (u.pathname.startsWith("/api/admin/posthog/")) return resolveJourneysFixture(u, init);
   const method = (init?.method || "GET").toUpperCase();
@@ -272,6 +274,7 @@ export function resolveFixture(url: string, init?: RequestInit): unknown {
 /** Text endpoints (email preview HTML, CSV export). */
 export function resolveFixtureText(url: string): string | undefined {
   const path = new URL(url, "http://x").pathname;
+  if (path.startsWith("/api/admin/certificates")) return undefined;
   if (path.startsWith("/api/admin/newsletter")) return resolveNewsletterFixtureText(new URL(url, "http://x"));
   if (path.startsWith("/api/admin/posthog/")) return resolveJourneysFixtureText(new URL(url, "http://x"));
   if (path === "/api/admin/preview-email") return PREVIEW_EMAIL_HTML;
