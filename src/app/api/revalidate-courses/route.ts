@@ -1,5 +1,6 @@
 import { revalidatePath, revalidateTag } from 'next/cache';
 import { COURSE_MAP_TAG } from '@/lib/learn/course';
+import { SDM_CONTENT_TAG } from '@/lib/github';
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { getAdmin } from '@/lib/admin/auth';
@@ -37,6 +38,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate all course-related paths
     revalidateTag(COURSE_MAP_TAG);
+    revalidateTag(SDM_CONTENT_TAG); // the raw GitHub fetches behind every cached course page
     revalidatePath('/learn', 'layout');
     revalidatePath('/learn/[course]', 'page');
     revalidatePath('/learn/[course]/[week]/[slug]', 'page');

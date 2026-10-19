@@ -120,7 +120,7 @@ async function build(): Promise<Built> {
   return { summaries, labs };
 }
 
-const cached = unstable_cache(() => build(), ["code-labs-v1"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache(() => build(), ["code-labs-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
 
 async function data(): Promise<Built> {
   try {

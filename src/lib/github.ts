@@ -4,6 +4,8 @@
  */
 
 const GITHUB_TOKEN = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
+/** Cache tag on every GitHub content fetch (see /api/revalidate-courses). */
+export const SDM_CONTENT_TAG = "sdm-content";
 const REPO_OWNER = 'himanshkukreja';
 const REPO_NAME = 'system-design-mastery';
 // Content branch of the course repo (override e.g. to preview a content branch before merging).
@@ -100,8 +102,8 @@ export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
 
   const response = await fetch(url, {
     headers,
-    // Cache for 60 seconds (1 minute) for fresh content
-    next: { revalidate: 60 }
+    // Cached for an hour (tag "sdm-content"); POST /api/revalidate-courses refreshes it at once
+    next: { revalidate: 3600, tags: [SDM_CONTENT_TAG] }
   });
 
   if (!response.ok) {
@@ -140,8 +142,8 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
 
   const response = await fetch(url, {
     headers,
-    // Cache for 60 seconds (1 minute) for fresh content
-    next: { revalidate: 60 }
+    // Cached for an hour (tag "sdm-content"); POST /api/revalidate-courses refreshes it at once
+    next: { revalidate: 3600, tags: [SDM_CONTENT_TAG] }
   });
 
   if (!response.ok) {

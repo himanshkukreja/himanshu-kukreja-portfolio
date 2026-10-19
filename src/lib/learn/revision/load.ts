@@ -74,7 +74,7 @@ async function readAll(): Promise<Source[]> {
   return out.filter((x): x is Source => !!x);
 }
 
-const cachedSources = unstable_cache(readAll, ["revision-v1"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
+const cachedSources = unstable_cache(readAll, ["revision-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
 
 const pad = (n: number) => String(n).padStart(2, "0");
 export const weekId = (num: number) => `week-${pad(num)}`;

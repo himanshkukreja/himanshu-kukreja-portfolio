@@ -36,7 +36,7 @@ async function readFiles(): Promise<Record<string, ParsedLesson>> {
   return Object.fromEntries(lessons);
 }
 
-const cached = unstable_cache(readFiles, ["reading-trail-v1"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache(readFiles, ["reading-trail-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
 
 async function sources(): Promise<Record<string, ParsedLesson>> {
   try {

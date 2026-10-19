@@ -28,7 +28,7 @@ async function load(): Promise<{ catalogue: Catalogue; errors: string[]; hash: s
   return { catalogue, errors, hash: createHash("sha1").update(text).digest("hex").slice(0, 12) };
 }
 
-const cachedLoad = unstable_cache(load, ["concept-catalogue-v1"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
+const cachedLoad = unstable_cache(load, ["concept-catalogue-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
 
 export async function getCatalogue(): Promise<{ catalogue: Catalogue; hash: string }> {
   try {

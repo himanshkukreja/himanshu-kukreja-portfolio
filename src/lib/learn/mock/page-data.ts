@@ -16,7 +16,7 @@ async function build(slug: string): Promise<MockInterview | null> {
   return mock.phases.length ? mock : null;
 }
 
-const cached = unstable_cache((slug: string) => build(slug), ["mock-interview-v1"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache((slug: string) => build(slug), ["mock-interview-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
 
 export async function getMockInterview(slug: string): Promise<MockInterview | null> {
   if (!/^mock-\d+-[\w-]+$/.test(slug)) return null;
