@@ -42,6 +42,10 @@ export async function POST(request: NextRequest) {
     revalidatePath('/learn', 'layout');
     revalidatePath('/learn/[course]', 'page');
     revalidatePath('/learn/[course]/[week]/[slug]', 'page');
+    // case files: same pages the CMS publish refreshes (for scripted fixes to published bodies)
+    revalidatePath('/stories');
+    revalidatePath('/stories/[slug]', 'page');
+    revalidatePath('/');
 
     console.log('[Revalidate] Successfully revalidated course pages');
 
