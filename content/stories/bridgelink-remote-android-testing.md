@@ -21,7 +21,7 @@ Office device shelf (illustrative):
 ├── Google Pixel (reference devices)
 ├── Xiaomi Redmi Note, Realme, Vivo, OnePlus
 ├── A foldable and a tablet or two
-└── ~20 phones, a few lakh rupees of hardware
+└── 50+ phones, several lakh rupees of hardware
 ```
 
 Then the team goes hybrid. The shelf is in Koramangala; the developers are in HSR Layout, Whitefield and Indiranagar. A user reports a crash that only happens on one Redmi model. The fix takes ten minutes to write and an afternoon to verify, because verifying it means getting to the office.
