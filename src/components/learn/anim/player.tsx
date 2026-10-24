@@ -41,6 +41,7 @@ const BASE_CSS = `
 .ax-btn:focus-visible,.ax-tab:focus-visible,.ax-seg:focus-visible{outline:2px solid var(--ax-accent);outline-offset:2px}
 .ax-play{min-width:86px;background:var(--ax-accent);border-color:var(--ax-accent);color:var(--ax-on-accent);font-weight:600}
 .ax-play:hover:not(:disabled){color:var(--ax-on-accent);border-color:var(--ax-accent);filter:brightness(1.08)}
+.ax-narrate[aria-pressed=true]{border-color:var(--ax-accent);color:var(--ax-accent-text);box-shadow:inset 0 -2px 0 var(--ax-accent)}
 .ax-track{display:flex;flex:1 1 140px;gap:3px;min-width:96px;align-self:stretch;align-items:center}
 .ax-seg{position:relative;flex:1;height:28px;padding:0;border:0;background:transparent;cursor:pointer}
 .ax-seg::before{content:"";position:absolute;left:0;right:0;top:11px;height:6px;background:var(--ax-line)}
@@ -95,6 +96,20 @@ const useReducedMotion = () =>
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
+/* ------------------------------------------------------------------ narration (browser text-to-speech) */
+
+const NARRATE_EVENT = "hk:narrate";
+let narratorSeq = 0;
+const canSpeak = () => typeof window !== "undefined" && "speechSynthesis" in window && typeof SpeechSynthesisUtterance !== "undefined";
+
+/** A clear English voice: Indian English first (the course's readers), then British, then any. */
+function pickVoice(): SpeechSynthesisVoice | null {
+  const voices = window.speechSynthesis.getVoices();
+  const by = (re: RegExp) => voices.filter((v) => re.test(v.lang));
+  const pool = by(/^en[-_]IN/i).concat(by(/^en[-_]GB/i), by(/^en[-_]US/i), by(/^en/i));
+  return pool.find((v) => v.localService) || pool[0] || null;
+}
+
 /* ------------------------------------------------------------------ the player */
 
 type PlayerProps = { def: ExplainerDef; title: string; opts: Record<string, string>; observe: HTMLElement };
@@ -109,6 +124,11 @@ function Player({ def, title, opts, observe }: PlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [speedIdx, setSpeedIdx] = useState(0);
   const [narrow, setNarrow] = useState(false);
+  // narration: captions read aloud, each step advancing when its caption has been spoken, through every tab
+  const [narrating, setNarrating] = useState(false);
+  const [speakable] = useState(canSpeak);
+  const narratorId = useRef(0);
+  if (!narratorId.current) narratorId.current = ++narratorSeq;
   // when the current step started (performance.now()); handlers and the frame loop share it
   const clock = useRef(0);
   const flags = useRef({ started: false, userPaused: false, resumeOnView: false });
@@ -119,6 +139,7 @@ function Player({ def, title, opts, observe }: PlayerProps) {
   const hold = (steps[step]?.ms ?? HOLD) / speed;
   const tween = reduced ? 0 : (steps[step]?.tween ?? TWEEN) / speed;
   const loop = !reduced && !!steps[step]?.loop;
+  const running = playing || narrating;
 
   /* frame loop: tween t to 1, then (while playing) hold and advance */
   useEffect(() => {
@@ -128,7 +149,8 @@ function Player({ def, title, opts, observe }: PlayerProps) {
       const tt = tween ? Math.min(1, e / tween) : 1;
       setT(tt);
       if (!reduced && (tt < 1 || loop)) setClk((e * speed) / 1000);
-      if (playing && e >= tween + hold) {
+      // while narrating, the spoken caption (not the timer) decides when to move on
+      if (playing && !narrating && e >= tween + hold) {
         if (step >= steps.length - 1) {
           setPlaying(false);
           return;
@@ -139,11 +161,11 @@ function Player({ def, title, opts, observe }: PlayerProps) {
         setClk(0);
         return;
       }
-      if (tt < 1 || playing) raf = requestAnimationFrame(tick);
+      if (tt < 1 || running) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [step, vi, playing, tween, hold, loop, reduced, speed, steps.length]);
+  }, [step, vi, playing, narrating, running, tween, hold, loop, reduced, speed, steps.length]);
 
   const go = useCallback(
     (i: number, play?: boolean) => {
@@ -157,7 +179,17 @@ function Player({ def, title, opts, observe }: PlayerProps) {
     [steps.length, reduced],
   );
 
+  const stopNarration = useCallback(() => {
+    setNarrating(false);
+    if (canSpeak()) window.speechSynthesis.cancel();
+  }, []);
+
   const togglePlay = useCallback(() => {
+    if (narrating) {
+      flags.current.userPaused = true;
+      stopNarration();
+      return;
+    }
     if (reduced) return;
     if (playing) {
       flags.current.userPaused = true;
@@ -172,7 +204,7 @@ function Player({ def, title, opts, observe }: PlayerProps) {
       clock.current = performance.now() - Math.max(tween * t, (clk * 1000) / speed);
       setPlaying(true);
     }
-  }, [reduced, playing, step, steps.length, go, tween, t, clk, speed]);
+  }, [narrating, stopNarration, reduced, playing, step, steps.length, go, tween, t, clk, speed]);
 
   const pickVariant = useCallback(
     (k: number) => {
@@ -182,10 +214,86 @@ function Player({ def, title, opts, observe }: PlayerProps) {
       setStep(0);
       setT(reduced ? 1 : 0);
       setClk(0);
-      setPlaying(!reduced);
+      setPlaying(!reduced && !narrating);
     },
-    [reduced],
+    [reduced, narrating],
   );
+
+  const toggleNarration = useCallback(() => {
+    if (narrating) {
+      flags.current.userPaused = true;
+      stopNarration();
+      return;
+    }
+    // one narrator at a time on the page (other explainers, the lesson's read-aloud)
+    window.dispatchEvent(new CustomEvent(NARRATE_EVENT, { detail: narratorId.current }));
+    window.speechSynthesis.cancel();
+    flags.current.started = true;
+    flags.current.userPaused = false;
+    setPlaying(false);
+    // from the start of the story, unless the reader is part-way through a later step
+    if (step >= steps.length - 1 && vi >= def.variants.length - 1) {
+      setVi(0);
+      clock.current = performance.now();
+      setStep(0);
+      setT(reduced ? 1 : 0);
+      setClk(0);
+    }
+    setNarrating(true);
+  }, [narrating, stopNarration, step, steps.length, vi, def.variants.length, reduced]);
+
+  useEffect(() => {
+    const onOther = (e: Event) => {
+      if ((e as CustomEvent).detail !== narratorId.current) setNarrating(false);
+    };
+    window.addEventListener(NARRATE_EVENT, onOther);
+    return () => window.removeEventListener(NARRATE_EVENT, onOther);
+  }, []);
+
+  /* speak the current caption; when it ends, a short beat, then the next step (then the next tab) */
+  useEffect(() => {
+    if (!narrating || !canSpeak()) return;
+    const synth = window.speechSynthesis;
+    const text = steps[step]?.caption || "";
+    let done = false;
+    let timer = 0;
+    const advance = () => {
+      if (done) return;
+      done = true;
+      timer = window.setTimeout(() => {
+        if (step < steps.length - 1) {
+          clock.current = performance.now();
+          setStep(step + 1);
+          setT(reduced ? 1 : 0);
+          setClk(0);
+        } else if (vi < def.variants.length - 1) {
+          clock.current = performance.now();
+          setVi(vi + 1);
+          setStep(0);
+          setT(reduced ? 1 : 0);
+          setClk(0);
+        } else setNarrating(false);
+      }, Math.max(250, 600 / speed));
+    };
+    const u = new SpeechSynthesisUtterance(text);
+    const voice = pickVoice();
+    if (voice) u.voice = voice;
+    u.lang = voice?.lang || "en-IN";
+    u.rate = Math.min(1.8, 0.98 * speed);
+    u.onend = advance;
+    u.onerror = (ev) => {
+      if (ev.error !== "interrupted" && ev.error !== "canceled") advance();
+    };
+    synth.cancel();
+    synth.speak(u);
+    return () => {
+      done = true;
+      window.clearTimeout(timer);
+      u.onend = null;
+      u.onerror = null;
+      synth.cancel();
+    };
+  }, [narrating, step, vi, steps, def.variants.length, speed, reduced]);
 
   /* autoplay once it is half in view; pause off-screen, resume when back (unless the reader paused) */
   useEffect(() => {
@@ -202,6 +310,10 @@ function Player({ def, title, opts, observe }: PlayerProps) {
             setPlaying(true);
           }
         } else if (!e.isIntersecting) {
+          setNarrating((n) => {
+            if (n && canSpeak()) window.speechSynthesis.cancel();
+            return false;
+          });
           setPlaying((p) => {
             if (p) f.resumeOnView = true;
             return false;
@@ -272,8 +384,13 @@ function Player({ def, title, opts, observe }: PlayerProps) {
       </svg>
       <div className="ax-bar">
         {!reduced && (
-          <button type="button" className="ax-btn ax-play" onClick={togglePlay} aria-label={playing ? "Pause" : atEnd ? "Replay from the start" : "Play"}>
-            {playing ? "❚❚ Pause" : atEnd ? "↻ Replay" : "▶ Play"}
+          <button type="button" className="ax-btn ax-play" onClick={togglePlay} aria-label={running ? "Pause" : atEnd ? "Replay from the start" : "Play"}>
+            {running ? "❚❚ Pause" : atEnd ? "↻ Replay" : "▶ Play"}
+          </button>
+        )}
+        {speakable && (
+          <button type="button" className="ax-btn ax-narrate" onClick={toggleNarration} aria-pressed={narrating} aria-label={narrating ? "Stop narration" : "Narrate: play with the captions read aloud"} title="Play with the captions read aloud">
+            {narrating ? "■ Narrating" : "🔊 Narrate"}
           </button>
         )}
         <button type="button" className="ax-btn" onClick={() => go(step - 1, false)} disabled={step === 0} aria-label="Previous step">

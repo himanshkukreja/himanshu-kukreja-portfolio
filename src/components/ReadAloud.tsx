@@ -265,7 +265,17 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): R
     [restartIfPlaying]
   );
 
+  // one voice at a time: an explainer's narration stops the lesson read-aloud, and vice versa
+  useEffect(() => {
+    const onNarrate = (e: Event) => {
+      if ((e as CustomEvent).detail !== 0 && playing) stop();
+    };
+    window.addEventListener("hk:narrate", onNarrate);
+    return () => window.removeEventListener("hk:narrate", onNarrate);
+  }, [playing, stop]);
+
   const toggle = useCallback(() => {
+    if (!playing) window.dispatchEvent(new CustomEvent("hk:narrate", { detail: 0 }));
     if (!playing) speak();
     else if (paused) resume();
     else pause();
