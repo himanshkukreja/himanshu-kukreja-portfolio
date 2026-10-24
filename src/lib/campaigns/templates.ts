@@ -13,6 +13,7 @@
 import { ANNOUNCE_KEY, announceSubject, learnRevampHtml, learnRevampText, unsubscribeUrl } from "@/lib/announce/learn-revamp";
 import { OFFLINE_APP_KEY, OFFLINE_APP_PREHEADER, offlineAppHtml, offlineAppSubject, offlineAppText } from "@/lib/announce/offline-app";
 import { PRACTICE_TOOLKIT_KEY, PRACTICE_TOOLKIT_PREHEADER, practiceToolkitHtml, practiceToolkitSubject, practiceToolkitText } from "@/lib/announce/practice-toolkit";
+import { WATCH_TRY_KEY, WATCH_TRY_PREHEADER, watchTryHtml, watchTrySubject, watchTryText } from "@/lib/announce/watch-and-try";
 import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
 import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
 import type { TemplateInfo } from "./types";
@@ -116,6 +117,21 @@ function practiceToolkitTemplate(): TemplateInfo {
   };
 }
 
+function watchTryTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/watch-and-try.ts", html: fromSource(watchTryHtml, unsub), text: fromSource(watchTryText, unsub) };
+  return {
+    id: "watch-and-try",
+    name: "What's new: narrated explainers, labs, problem bank, LLD, peer mocks",
+    description:
+      "Whole-article explainers with narration (107), break-it slider labs, the interview problem bank (20), the low-level design track (8), company prep tracks, concepts A–Z, peer mock interviews, streak reminders and PDF/Anki exports, with screenshots. Generated from src/lib/announce/watch-and-try.ts.",
+    topic: WATCH_TRY_KEY,
+    ...subjectTemplate(watchTrySubject),
+    preheader: WATCH_TRY_PREHEADER,
+    doc,
+  };
+}
+
 function welcomeTemplate(): TemplateInfo {
   const unsub = welcomeUnsubscribeUrl(S_EMAIL);
   const doc: RawDoc = { layout: "raw", source: "src/lib/email/welcome.ts", html: fromSource(welcomeHtml, unsub), text: fromSource(welcomeText, unsub) };
@@ -176,7 +192,7 @@ function storyTemplate(): TemplateInfo {
 
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [storyTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [storyTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {
