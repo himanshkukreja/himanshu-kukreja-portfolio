@@ -291,6 +291,12 @@ const LESSON_TITLES: Record<string, string> = {
   'bonus-13-zerodha-kite-trading': 'Zerodha Kite Trading Platform',
   'bonus-14-chatgpt-llm-serving': 'ChatGPT LLM Serving',
   'bonus-15-figma-multiplayer': 'Figma Multiplayer Editing',
+  'bonus-16-bookmyshow-seat-booking': 'BookMyShow Seat Booking',
+  'bonus-17-swiggy-food-delivery': 'Swiggy Food Delivery',
+  'bonus-18-razorpay-payment-gateway': 'Razorpay Payment Gateway',
+  'bonus-19-youtube-video-platform': 'YouTube Video Platform',
+  'bonus-20-google-docs-collaboration': 'Google Docs Collaboration',
+  'bonus-21-instagram-feed': 'Instagram Feed and Stories',
   // Week 0
   'foundations-part-1-basic-concepts': 'Part 1: System Design Fundamentals',
   'foundations-part-2-infrastructure-building-blocks': 'Part 2: Infrastructure Building Blocks',

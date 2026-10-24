@@ -11,7 +11,7 @@ export default function LearnCta() {
         <span className="flex max-w-[720px] flex-col gap-2.5">
           <span className="font-mono text-[13px] text-signal-text">❯ ./learn --course system-design-mastery</span>
           <span id="learn-h" className="font-display text-[clamp(26px,4vw,48px)] font-extrabold leading-none tracking-[-0.035em]">
-            A free 11-week system design campaign: 91 lessons, 10 interview bosses, 15 side quests.
+            A free 11-week system design campaign: 97 lessons, 10 interview bosses, 21 side quests.
           </span>
           <span className="text-[15px] leading-relaxed text-fg-2">Plus a practice toolkit: revision decks, cheat sheets, code labs and mock interviews.</span>
         </span>

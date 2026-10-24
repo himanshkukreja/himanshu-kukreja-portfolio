@@ -204,6 +204,84 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <rect x={22} y={48} width={15} height={7} {...F} />
         </>
       );
+    case "seats": // a screen above three rows of seats, two of them held together, one taken
+      return (
+        <>
+          <path d="M11 14q21-7 42 0" {...S} />
+          {[22, 33, 44].map((y) =>
+            [11, 22, 33, 44].map((x) =>
+              y === 33 && (x === 22 || x === 33) ? (
+                <rect key={`${x}-${y}`} x={x} y={y} width={9} height={8} {...F} />
+              ) : y === 44 && x === 44 ? (
+                <rect key={`${x}-${y}`} x={x} y={y} width={9} height={8} {...F} opacity={0.4} />
+              ) : (
+                <rect key={`${x}-${y}`} x={x + 0.5} y={y + 0.5} width={8} height={7} {...S} strokeWidth={1.8} />
+              ),
+            ),
+          )}
+        </>
+      );
+    case "route": // a takeaway bag at the start of a dashed route that ends at a drop pin
+      return (
+        <>
+          <rect x={9} y={33} width={22} height={21} {...S} />
+          <path d="M15 33v-4a5 5 0 0 1 10 0v4" {...S} strokeWidth={2} />
+          <path d="M31 47h6a7 7 0 0 0 7-7V31" {...S} strokeWidth={2} strokeDasharray="3 3" />
+          <path d="M44 8a8 8 0 0 1 8 8c0 7-8 15-8 15s-8-8-8-15a8 8 0 0 1 8-8z" {...F} />
+          <rect x={41.5} y={13.5} width={5} height={5} fill={accent} />
+        </>
+      );
+    case "shield": // a shield carrying a check mark: every payment settled exactly once
+      return (
+        <>
+          <path d="M32 8l20 7v14c0 13-9 21-20 27C21 50 12 42 12 29V15z" {...S} />
+          <path d="M22 31l7 7 13-14" {...S} strokeWidth={3.5} />
+        </>
+      );
+    case "upload": // an upload arrow rising out of a film strip
+      return (
+        <>
+          <rect x={9} y={34} width={46} height={22} {...S} />
+          {[13, 22, 31, 40, 49].map((x) => (
+            <g key={x}>
+              <rect x={x - 1} y={36.5} width={4} height={2.5} {...F} />
+              <rect x={x - 1} y={51} width={4} height={2.5} {...F} />
+            </g>
+          ))}
+          <rect x={13} y={41.5} width={17} height={7} {...F} opacity={0.75} />
+          <rect x={34} y={41.5} width={17} height={7} {...F} opacity={0.75} />
+          <path d="M32 27V8M22 18l10-10 10 10" {...S} strokeWidth={3} />
+        </>
+      );
+    case "carets": // a page of text with a folded corner and two people's carets typing in it
+      return (
+        <>
+          <path d="M13 8h27l11 11v38H13z" {...S} />
+          <path d="M40 8v11h11" {...S} strokeWidth={2} />
+          <path d="M19 28h11M19 38h26M19 48h17" {...S} strokeWidth={2} opacity={0.7} />
+          <rect x={32} y={22} width={2.5} height={11} {...F} />
+          <rect x={32} y={18} width={9} height={5} {...F} />
+          <rect x={38} y={42} width={2.5} height={11} {...F} />
+          <rect x={38.8} y={52.8} width={8} height={4.2} {...S} strokeWidth={1.6} />
+        </>
+      );
+    case "grid": // a story ring around an avatar above a square photo grid
+      return (
+        <>
+          <circle cx={32} cy={17} r={10} {...S} />
+          <circle cx={32} cy={17} r={5.5} {...F} />
+          {[
+            [9, 33, 1],
+            [25, 33, 0],
+            [41, 33, 1],
+            [9, 46, 0],
+            [25, 46, 1],
+            [41, 46, 0],
+          ].map(([x, y, f]) =>
+            f ? <rect key={`${x}-${y}`} x={x} y={y} width={14} height={11} {...F} /> : <rect key={`${x}-${y}`} x={x + 1} y={y + 1} width={12} height={9} {...S} strokeWidth={2} />,
+          )}
+        </>
+      );
   }
 }
 
