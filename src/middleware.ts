@@ -55,6 +55,8 @@ export async function middleware(req: NextRequest) {
   if (req.nextUrl.pathname.startsWith("/u/")) return shareGate(req);
   // certificate verification pages: unknown or private codes get a real 404 (src/lib/certificates/gate.ts)
   if (req.nextUrl.pathname.startsWith("/cert/")) return certGate(req);
+  // the case-file RSS feed sits beside the stories, not a story
+  if (req.nextUrl.pathname === "/stories/feed.xml") return NextResponse.next({ request: req });
   const story = /^\/stories\/([^/]+)\/?$/.exec(req.nextUrl.pathname);
   if (story) return storyGate(req, decodeURIComponent(story[1]));
   if (process.env.NODE_ENV === "production") {

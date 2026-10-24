@@ -1,5 +1,6 @@
 "use client";
 
+import AppBack from "@/components/site/AppBack";
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { ReadAloudBar, type ReadAloudController } from "@/components/ReadAloud";
@@ -129,6 +130,8 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
     >
       <ReadAloudBar controller={readAloud} className="self-end" />
       <div role="toolbar" aria-label="Reading tools" className="flex gap-1.5">
+        {/* installed app only: no browser back button there (renders nothing in a browser tab) */}
+        <AppBack className="h-11" />
         {readAloud.supported && (
           <button type="button" onClick={readAloud.toggle} aria-pressed={listening} aria-label={listening ? "Pause reading aloud" : "Listen to this lesson"} className={`${sq} ${listening ? "border-signal bg-signal text-on-signal" : ""}`}>
             {listening ? <PauseIcon /> : <ListenIcon />}

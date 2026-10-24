@@ -32,6 +32,7 @@ import {
   weekTopic,
 } from "@/components/learn/lesson/data";
 import type { NavLink, ReaderMeta } from "@/components/learn/lesson/types";
+import { JsonLd, breadcrumbs, lessonArticle } from "@/lib/seo/jsonld";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
@@ -51,12 +52,18 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props) {
-  const { week, slug } = await params;
+  const { course, week, slug } = await params;
   const data = await getLearningResource(week, slug);
   if (!data) return { title: "Not Found" };
+  // the lesson's own opening line makes a better search snippet than a generic one
+  const teaser = await teaserFor(data.resource);
+  const where = `${weekLabel(week)} · ${weekTopic(week)} · free System Design Mastery course.`;
+  const path = `/learn/${course}/${week}/${slug}`;
   return {
     title: `${data.resource.title} | System Design Mastery`,
-    description: `${data.resource.title} · ${weekLabel(week)} · ${weekTopic(week)}. Part of the System Design Mastery course.`,
+    description: teaser ? `${teaser.replace(/[.\s]+$/, "")}. ${where}` : `${data.resource.title} · ${where}`,
+    alternates: { canonical: path },
+    openGraph: { type: "article", url: path },
   };
 }
 
@@ -187,8 +194,20 @@ export default async function LearningResourcePage({ params }: Props) {
     trail: await getTrailForLesson(week, slug).catch(() => []),
   };
 
+  const path = `/learn/${course}/${week}/${slug}`;
+  const ld = [
+    lessonArticle({ title, description: meta.subtitle ?? null, path, coursePath: `/learn/${course}`, section: `${weekLabel(week)} · ${weekTopic(week)}` }),
+    breadcrumbs([
+      { name: "Learn", path: "/learn" },
+      { name: "System Design Mastery", path: `/learn/${course}` },
+      { name: resource.type === "bonus" ? "Side quests" : `${weekLabel(week)} · ${weekTopic(week)}`, path: `/learn/${course}` },
+      { name: title, path },
+    ]),
+  ];
+
   return (
     <main className="pb-16">
+      <JsonLd data={ld} />
       <LessonReader
         meta={meta}
         html={rendered.html}

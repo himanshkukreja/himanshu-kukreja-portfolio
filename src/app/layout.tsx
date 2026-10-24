@@ -52,6 +52,7 @@ export const metadata: Metadata = {
     "Senior software engineer leading engineering at Senseloaf AI. Ships product end to end, streams real devices to browsers, open-sources the tools, writes case files and teaches system design.",
   // Apex 307-redirects to www, so absolute OG/Twitter image URLs point straight at www.
   metadataBase: new URL("https://www.himanshukukreja.in"),
+  alternates: { types: { "application/rss+xml": [{ url: "/stories/feed.xml", title: "Case files · Himanshu Kukreja" }] } },
   // No title/description/images here on purpose: og:title/description fall back to each page's own
   // title/description, and the card images come from the opengraph-image / twitter-image routes
   // (src/app, src/app/learn, src/app/learn/[course]/[week]/[slug]); /stories/[slug] sets its cover.

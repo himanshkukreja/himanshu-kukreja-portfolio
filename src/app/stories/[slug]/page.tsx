@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { JsonLd, breadcrumbs, caseFileArticle } from "@/lib/seo/jsonld";
 import { notFound } from "next/navigation";
 import { getAllStories, getStorySource } from "@/lib/stories";
 import { resolveCoverUrl } from "@/lib/utils";
@@ -38,6 +39,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${title} · Case files`,
     description,
+    alternates: { canonical: `/stories/${slug}` },
     openGraph: { type: "article", title, description, url: `/stories/${slug}`, ...(images ? { images } : {}) },
     twitter: { card: "summary_large_image", title, description, ...(cover ? { images: [cover] } : {}) },
   };
@@ -81,6 +83,15 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
 
   return (
     <main className="min-h-screen">
+      <JsonLd
+        data={[
+          caseFileArticle({ title: story.title, description: story.seoDescription || story.excerpt || "", path: `/stories/${slug}`, date: story.date, image: resolveCoverUrl(story.cover) || undefined }),
+          breadcrumbs([
+            { name: "Case files", path: "/stories" },
+            { name: story.title, path: `/stories/${slug}` },
+          ]),
+        ]}
+      />
       <ScrollToDiscussion />
       <StoryReader
         key={slug}

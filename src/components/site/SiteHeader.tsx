@@ -13,6 +13,7 @@ import { LearnBrand, LearnDock, LearnTabs, isLearnRoute } from "./LearnNav";
 import { useAutoHideChrome, useChromeHidden } from "./readerChrome";
 import { DockDot, TabPending } from "./LinkPending";
 import OfflineStrip from "@/components/offline/OfflineStrip";
+import AppBack, { useAppDepth } from "./AppBack";
 
 const NAV = [
   { href: "/#career", label: "career", match: (p: string) => p === "/" },
@@ -128,6 +129,7 @@ export default function SiteHeader() {
   const { xp, hydrated, done, setTerminalOpen } = useGame();
   const [questsOpen, setQuestsOpen] = useState(false);
   const headerRef = useHeaderHeightVar();
+  useAppDepth();
   const p = levelProgress(hydrated ? xp : 0);
   const doneCount = MAIN_QUESTS.filter((q) => done[q.id]).length;
   const learn = isLearnRoute(pathname);
@@ -151,6 +153,7 @@ export default function SiteHeader() {
         className={`hk-header hk-titlebar sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
       >
         <div className="hk-titlebar-row relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6">
+          <AppBack />
           {learn ? (
             <>
               <LearnBrand />
