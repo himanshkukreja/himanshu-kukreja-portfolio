@@ -39,6 +39,8 @@ export type CaseFileRow = CaseFileFields & {
   caseNumber: number | null;
   publishedAt: string | null;
   lastPublishedAt: string | null;
+  /** drafts only: when the scheduler publishes it (hourly, supabase pg_cron → /api/cron/publish-case-files) */
+  publishAt: string | null;
   archivedAt: string | null;
   version: number;
   /** working version that `live` was copied from */
@@ -105,6 +107,8 @@ export type CaseFileListItem = {
   unpublishedChanges: boolean;
   /** published at least once (its case number is public and can't be freed) */
   everPublished: boolean;
+  /** drafts: scheduled publish time (ISO) */
+  publishAt: string | null;
   /** CMS row that overrides this repo story / repo story this CMS row overrides */
   overrides: boolean;
   overriddenBy: string | null;

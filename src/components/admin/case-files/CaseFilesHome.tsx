@@ -266,6 +266,11 @@ function StatusCell({ r }: { r: CaseFileListItem }) {
     <span className="flex flex-wrap items-center gap-1">
       <StatusBadge status={r.status} />
       {r.unpublishedChanges && <Badge tone="signal">changes</Badge>}
+      {r.publishAt && (
+        <Badge tone="signal" title={`Publishes automatically at ${new Date(r.publishAt).toLocaleString("en-IN")}`}>
+          ⏱ {new Date(r.publishAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}
+        </Badge>
+      )}
       {r.overrides && <Badge tone="neutral" title="Imported from content/stories: while published it replaces the repo file">import</Badge>}
       {r.overriddenBy && <Badge tone="muted" title="Imported into the CMS">in cms</Badge>}
       {r.errors ? (

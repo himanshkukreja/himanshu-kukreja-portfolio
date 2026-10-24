@@ -252,6 +252,30 @@ function Editor({ initial }: { initial: CaseFileDetail }) {
   }, [preview, caseId]);
 
   /* ───────────── actions ───────────── */
+  const schedule = async (publishAt: string | null) => {
+    setBusy("schedule");
+    setNotice(null);
+    try {
+      if (dirty && !readOnly) {
+        const ok = await save(false);
+        if (!ok) throw new Error("Save failed: fix that first.");
+      }
+      const d = await client.json<CaseFileDetail>(`/api/admin/case-files/${row.id}/action`, jsonInit("POST", { action: "schedule", publishAt }));
+      live.current.version = d.row.version;
+      setRow(d.row);
+      setServerValidation(d.validation);
+      setNotice(
+        d.row.publishAt
+          ? { tone: "neutral", text: `Scheduled: publishes automatically on ${new Date(d.row.publishAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })} (checked hourly). Keep it free of errors until then.` }
+          : { tone: "neutral", text: "Schedule cancelled: it stays a draft until you publish it." },
+      );
+    } catch (e) {
+      setNotice({ tone: "bad", text: (e as Error).message });
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const act = async (action: "publish" | "unpublish" | "archive" | "restore") => {
     setBusy(action);
     setNotice(null);
@@ -442,6 +466,7 @@ function Editor({ initial }: { initial: CaseFileDetail }) {
           {row.status === "published" && <Confirm label="unpublish" busy={busy === "unpublish"} onConfirm={() => act("unpublish")} danger />}
           {row.status !== "archived" ? <Confirm label="archive" busy={busy === "archive"} onConfirm={() => act("archive")} danger /> : <Confirm label="restore" busy={busy === "restore"} onConfirm={() => act("restore")} />}
           {row.status !== "published" && !row.publishedAt && <Confirm label="delete draft" busy={busy === "delete"} onConfirm={remove} danger />}
+          {!readOnly && row.status === "draft" && errors === 0 && <ScheduleControl publishAt={row.publishAt} busy={busy === "schedule"} onSave={schedule} />}
           {!readOnly &&
             (errors > 0 ? (
               <button type="button" className={cx(BTN, "border-bad/60 text-bad-text")} onClick={() => setTab("checks")} title="Publishing is blocked until every error is fixed">
@@ -534,6 +559,55 @@ function Editor({ initial }: { initial: CaseFileDetail }) {
 
       <HistoryDrawer id={row.id} open={history} onClose={() => setHistory(false)} onRestore={restoreRevision} currentVersion={row.version} readOnly={readOnly} />
     </div>
+  );
+}
+
+/** Drafts: pick a date and time to publish automatically (the scheduler runs hourly), or cancel it. */
+function ScheduleControl({ publishAt, busy, onSave }: { publishAt: string | null; busy: boolean; onSave: (iso: string | null) => void }) {
+  const [open, setOpen] = useState(false);
+  const toLocal = (iso: string) => {
+    const d = new Date(iso);
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+  };
+  const [value, setValue] = useState(() => (publishAt ? toLocal(publishAt) : ""));
+  if (!open)
+    return publishAt ? (
+      <span className="inline-flex items-center gap-1.5">
+        <span className="font-mono text-xs text-signal-text">⏱ {new Date(publishAt).toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" })}</span>
+        <button type="button" className={BTN} onClick={() => setOpen(true)}>
+          change
+        </button>
+        <button type="button" className={BTN} disabled={busy} onClick={() => onSave(null)}>
+          {busy ? "…" : "cancel schedule"}
+        </button>
+      </span>
+    ) : (
+      <button type="button" className={BTN} onClick={() => setOpen(true)} title="Publish automatically at a date and time">
+        schedule…
+      </button>
+    );
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <label className="sr-only" htmlFor="cf-publish-at">
+        Publish at
+      </label>
+      <input id="cf-publish-at" type="datetime-local" value={value} onChange={(e) => setValue(e.target.value)} className="min-h-10 border border-line-strong bg-bg px-2 font-mono text-xs text-fg" />
+      <button
+        type="button"
+        className={BTN}
+        disabled={busy || !value}
+        onClick={() => {
+          onSave(new Date(value).toISOString());
+          setOpen(false);
+        }}
+      >
+        {busy ? "saving…" : "save schedule"}
+      </button>
+      <button type="button" className={BTN} onClick={() => setOpen(false)}>
+        close
+      </button>
+    </span>
   );
 }
 

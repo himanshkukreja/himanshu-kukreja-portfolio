@@ -188,6 +188,7 @@ export async function listCaseFiles(): Promise<CaseFilesList> {
       version: r.version,
       unpublishedChanges: r.status === "published" && r.liveVersion !== r.version && !sameFields(r.live, fieldsOf(r)),
       everPublished: !!r.publishedAt,
+      publishAt: r.status === "draft" ? r.publishAt : null,
       overrides: r.overridesFile,
       overriddenBy: null,
       views: v?.total ?? null,
@@ -212,6 +213,7 @@ export async function listCaseFiles(): Promise<CaseFilesList> {
       updatedAt: null,
       updatedBy: null,
       version: null,
+      publishAt: null,
       unpublishedChanges: false,
       everPublished: true,
       overrides: false,
@@ -376,6 +378,7 @@ export async function runAction(id: string, action: Action, admin: AdminUser, or
       publishedAt: row.publishedAt || now,
       lastPublishedAt: now,
       archivedAt: null,
+      publishAt: null,
       validation,
       updatedBy: admin.email,
     };
@@ -387,7 +390,7 @@ export async function runAction(id: string, action: Action, admin: AdminUser, or
   } else if (action === "archive") {
     if (row.status === "archived") throw httpError("Already archived.", 409);
     revalidate = row.status === "published";
-    patch = { status: "archived", live: null, liveVersion: null, archivedAt: now, updatedBy: admin.email };
+    patch = { status: "archived", live: null, liveVersion: null, archivedAt: now, publishAt: null, updatedBy: admin.email };
   } else if (action === "restore") {
     if (row.status !== "archived") throw httpError("Only archived case files can be restored.", 409);
     patch = { status: "draft", archivedAt: null, updatedBy: admin.email };
@@ -400,6 +403,52 @@ export async function runAction(id: string, action: Action, admin: AdminUser, or
   const { caseId, pending } = await caseIdFor(saved);
   const validation = saved.validation || (await validateCaseFile(fields, await context(await store().list(), id, saved.overridesFile, origin)));
   return { row: publicRow(saved), validation, caseId: pending ? null : caseId, setup };
+}
+
+/* ─────────────────────────────── scheduled publishing ─────────────────────────────── */
+
+/** Set (ISO time) or clear (null) a draft's scheduled publish. The hourly scheduler publishes it. */
+export async function scheduleCaseFile(id: string, publishAt: string | null, admin: AdminUser, origin?: string): Promise<CaseFileDetail> {
+  const setup = await getSetup();
+  if (!setup.ready) throw new TablesMissingError(setup.missing);
+  const row = await store().get(id);
+  if (!row) throw httpError("Case file not found", 404);
+  if (row.status !== "draft") throw httpError("Only drafts can be scheduled. Published case files are already live.", 409);
+  let when: string | null = null;
+  if (publishAt) {
+    const t = new Date(publishAt);
+    if (Number.isNaN(t.getTime())) throw httpError("That isn't a valid date and time.");
+    if (t.getTime() < Date.now() - 60_000) throw httpError("Pick a time in the future, or publish it now instead.");
+    when = t.toISOString();
+  }
+  const saved = await store().update(id, { publishAt: when, updatedBy: admin.email });
+  if (!saved) throw httpError("Case file not found", 404);
+  const { caseId, pending } = await caseIdFor(saved);
+  const validation = saved.validation || (await validateCaseFile(fieldsOf(saved), await context(await store().list(), id, saved.overridesFile, origin)));
+  return { row: publicRow(saved), validation, caseId: pending ? null : caseId, setup };
+}
+
+const SCHEDULER: AdminUser = { id: "scheduler", email: "scheduler" };
+
+/**
+ * Publish every draft whose scheduled time has passed (the cron route calls this). A draft that fails
+ * validation stays a draft and loses its schedule, so it isn't retried every hour; the reason is returned.
+ */
+export async function publishDueCaseFiles(now = new Date()): Promise<{ published: string[]; failed: { slug: string; error: string }[] }> {
+  const rows = await store().list();
+  const due = rows.filter((r) => r.status === "draft" && r.publishAt && new Date(r.publishAt).getTime() <= now.getTime());
+  const published: string[] = [];
+  const failed: { slug: string; error: string }[] = [];
+  for (const r of due) {
+    try {
+      await runAction(r.id, "publish", SCHEDULER);
+      published.push(r.slug);
+    } catch (e) {
+      failed.push({ slug: r.slug, error: (e as Error).message });
+      await store().update(r.id, { publishAt: null }).catch(() => null);
+    }
+  }
+  return { published, failed };
 }
 
 export async function deleteCaseFile(id: string): Promise<void> {

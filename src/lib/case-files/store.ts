@@ -104,6 +104,7 @@ function fromDb(r: DbRow): StoredRow {
     caseNumber: n(r.case_number),
     publishedAt: (r.published_at as string) || null,
     lastPublishedAt: (r.last_published_at as string) || null,
+    publishAt: (r.publish_at as string) || null,
     archivedAt: (r.archived_at as string) || null,
     version: n(r.version) ?? 1,
     liveVersion: n(r.live_version),
@@ -138,6 +139,7 @@ const META_COLS: Record<string, string> = {
   caseNumber: "case_number",
   publishedAt: "published_at",
   lastPublishedAt: "last_published_at",
+  publishAt: "publish_at",
   archivedAt: "archived_at",
   version: "version",
   liveVersion: "live_version",
@@ -169,7 +171,7 @@ function fail(e: { code?: string; message?: string }, table: string): never {
 /* ─────────────────────────────── supabase ─────────────────────────────── */
 
 const LIST_COLS =
-  "id,slug,status,title,excerpt,type,tags,date,cover_url,cover_alt,motion_cover_url,overrides_file,case_number,published_at,last_published_at,archived_at,version,live_version,created_by,updated_by,created_at,updated_at,validation";
+  "id,slug,status,title,excerpt,type,tags,date,cover_url,cover_alt,motion_cover_url,overrides_file,case_number,published_at,last_published_at,publish_at,archived_at,version,live_version,created_by,updated_by,created_at,updated_at,validation";
 
 function supabaseStore(): CaseFileStore {
   const t = () => supabase.from("case_files");
@@ -337,6 +339,7 @@ function fileStore(path: string): CaseFileStore {
         caseNumber: null,
         publishedAt: null,
         lastPublishedAt: null,
+        publishAt: null,
         archivedAt: null,
         version: 1,
         liveVersion: null,
