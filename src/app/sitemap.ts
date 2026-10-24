@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getCourseMap, COURSE_ID } from "@/lib/learn/course";
 import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import { getLabSummaries } from "@/lib/learn/labs/load";
+import { getSheetSummaries } from "@/lib/learn/sheets/load";
 import { getAllStories } from "@/lib/stories";
 import { SITE_URL } from "@/lib/site";
 import { TRACKS } from "@/lib/learn/tracks";
@@ -22,6 +23,7 @@ const STATIC: { path: string; priority: number; freq: Entry["changeFrequency"] }
   { path: "/learn/practice", priority: 0.6, freq: "weekly" },
   { path: "/learn/revise", priority: 0.6, freq: "weekly" },
   { path: "/learn/labs", priority: 0.6, freq: "monthly" },
+  { path: "/learn/sheets", priority: 0.6, freq: "monthly" },
   { path: "/learn/numbers", priority: 0.5, freq: "monthly" },
   { path: "/learn/mastery", priority: 0.5, freq: "monthly" },
   { path: "/learn/mock", priority: 0.6, freq: "monthly" },
@@ -47,12 +49,13 @@ async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [map, decks, labs, stories, concepts] = await Promise.all([
+  const [map, decks, labs, stories, concepts, sheets] = await Promise.all([
     safe(getCourseMap(), null),
     safe(getRevisionWeeks(), []),
     safe(getLabSummaries(), []),
     safe(getAllStories(), []),
     safe(getCatalogue().then((c) => c.catalogue.concepts), []),
+    safe(getSheetSummaries(), []),
   ]);
   const url = (path: string) => `${SITE_URL}${path}`;
   const out: MetadataRoute.Sitemap = STATIC.map((s) => ({ url: url(s.path), changeFrequency: s.freq, priority: s.priority }));
@@ -75,6 +78,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const c of concepts) out.push({ url: url(`/learn/concepts/${c.id}`), changeFrequency: "monthly", priority: 0.5 });
   for (const t of TRACKS) out.push({ url: url(`/learn/tracks/${t.slug}`), changeFrequency: "monthly", priority: 0.7 });
   for (const l of labs) out.push({ url: url(`/learn/labs/${l.id}`), changeFrequency: "monthly", priority: 0.5 });
+  for (const s of sheets) out.push({ url: url(s.href), changeFrequency: "monthly", priority: 0.6 });
   for (const s of stories) {
     out.push({ url: url(`/stories/${s.slug}`), changeFrequency: "monthly", priority: 0.7, ...(s.date ? { lastModified: new Date(s.date) } : {}) });
   }

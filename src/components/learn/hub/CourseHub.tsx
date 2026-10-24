@@ -209,7 +209,12 @@ export default function CourseHub({ map }: { map: CourseMap }) {
           <h2 id="side-h" className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
             Side quests
           </h2>
-          <span className="text-[15px] text-fg-3">Real systems, designed end to end. All open. +{LEARN_XP.sideQuest} XP each.</span>
+          <span className="text-[15px] text-fg-3">
+            Real systems, designed end to end. All open. +{LEARN_XP.sideQuest} XP each.{" "}
+            <Link href="/learn/sheets" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
+              design sheets →
+            </Link>
+          </span>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] gap-2">
           {map.sideQuests.map((q) => {

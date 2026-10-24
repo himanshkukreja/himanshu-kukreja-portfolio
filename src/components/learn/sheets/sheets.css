@@ -1,0 +1,82 @@
+/* Side-quest design sheets (/learn/sheets/*): the course article styles, a little tighter, and a
+   multi-page A4/Letter print layout where no diagram or table is split across pages. */
+
+.ds-sheet .sd-h2 {
+  scroll-margin-top: 96px;
+}
+.ds-sheet .sd-mermaid {
+  margin: 1.25rem 0;
+}
+.ds-print-head {
+  display: none;
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 11mm;
+  }
+  /* a dark theme's color-scheme would paint the page margins black */
+  :root:has(.ds-root) {
+    color-scheme: light !important;
+  }
+  html,
+  body:has(.ds-root) {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  body:has(.ds-root) {
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  body:has(.ds-root) > :not(.ds-root) {
+    display: none !important;
+  }
+  .ds-root {
+    display: block !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .ds-root .ds-noprint {
+    display: none !important;
+  }
+  .ds-print-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 12px;
+    border-bottom: 2px solid currentColor;
+    padding-bottom: 6px;
+    margin-bottom: 10px;
+  }
+  .ds-sheet {
+    font-size: 10pt;
+  }
+  .ds-sheet .sd-h2 {
+    break-after: avoid;
+    margin-top: 14pt !important;
+  }
+  .ds-sheet .sd-mermaid,
+  .ds-sheet table,
+  .ds-sheet blockquote,
+  .ds-sheet li {
+    break-inside: avoid;
+  }
+  .ds-sheet .sd-mermaid {
+    background-image: none !important;
+  }
+  /* toolbar buttons (steps, fullscreen, copy) mean nothing on paper */
+  .ds-sheet .sd-mermaid button,
+  .ds-sheet .sd-mermaid [data-mermaid-action] {
+    display: none !important;
+  }
+  .ds-sheet .sd-mermaid-canvas svg {
+    max-height: 235mm;
+    width: auto;
+    max-width: 100%;
+  }
+  .ds-sheet a {
+    text-decoration: none !important;
+  }
+}

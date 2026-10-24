@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Award, BookOpen, CalendarDays, Calculator, Code2, FileText, Layers, Mic, Network, PenTool } from "lucide-react";
+import { Award, BookOpen, CalendarDays, Calculator, Code2, FileText, Layers, Map as MapIcon, Mic, Network, PenTool } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useLabProgress } from "@/lib/learn/labs/progress";
 import { labKey } from "@/lib/learn/labs/types";
@@ -34,6 +34,8 @@ export type PracticeData = {
   labs: { id: string; xp: number }[];
   mocks: CourseMock[];
   concepts: number;
+  /** side-quest design sheets */
+  sheets: { slug: string; code: string; title: string; href: string; diagrams: number }[];
 };
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label";
@@ -185,6 +187,25 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
             )
           }
         />
+        {data.sheets.length > 0 && (
+          <Card
+            href="/learn/sheets"
+            icon={MapIcon}
+            kicker="design sheets"
+            state={`${data.sheets.length} side quest${data.sheets.length === 1 ? "" : "s"}`}
+            title="A whole design in ten minutes"
+            pitch="Each side quest on a few pages: the numbers, the architecture with real tech icons, sequence, class and state diagrams, the decisions and what breaks."
+            meta={`${data.sheets.reduce((a, s) => a + s.diagrams, 0)} diagrams · PDF · share`}
+            reach={reach("/learn/sheets")}
+            footer={
+              <WorldChips
+                label="open a sheet"
+                items={data.sheets.map((s) => ({ href: s.href, code: s.code.replace(/^SQ-/, ""), title: `${s.code} · ${s.title} design sheet` }))}
+                reach={reach}
+              />
+            }
+          />
+        )}
       </Group>
 
       {/* build & drill */}

@@ -8,12 +8,15 @@ const CLASSES = palette.classes as Record<string, Record<DiagramTheme, Style>>;
 /** Diagram kinds that accept `classDef` (sequence diagrams style through themeVariables only). */
 const CLASSDEF_KINDS = /^(flowchart|graph|stateDiagram(-v2)?|classDiagram)\b/;
 
-function classDefs(theme: DiagramTheme): string[] {
-  return Object.entries(CLASSES).map(([name, t]) => {
-    const s = t[theme];
-    const parts = Object.entries(s).map(([k, v]) => `${k}:${v}`);
-    return `  classDef ${name} ${parts.join(",")}`;
-  });
+/** `note` is a keyword in class diagrams (`note for X "…"`), so a classDef by that name breaks them. */
+function classDefs(theme: DiagramTheme, classDiagram = false): string[] {
+  return Object.entries(CLASSES)
+    .filter(([name]) => !(classDiagram && name === "note"))
+    .map(([name, t]) => {
+      const s = t[theme];
+      const parts = Object.entries(s).map(([k, v]) => `${k}:${v}`);
+      return `  classDef ${name} ${parts.join(",")}`;
+    });
 }
 
 /**
@@ -28,11 +31,21 @@ export function prepareMermaidSource(src: string, theme: DiagramTheme): string {
   if (lines[0]?.trim() === "---") {
     i = lines.findIndex((l, k) => k > 0 && l.trim() === "---") + 1;
   }
-  while (i < lines.length && (!lines[i].trim() || lines[i].trim().startsWith("%%"))) i++;
+  while (
+    i < lines.length &&
+    (!lines[i].trim() || lines[i].trim().startsWith("%%"))
+  )
+    i++;
   const header = (lines[i] || "").trim();
   if (!CLASSDEF_KINDS.test(header)) return src;
-  const body = /^(flowchart|graph)\b/.test(header) ? lines.slice(i + 1).map(squareIcons) : lines.slice(i + 1);
-  return [...lines.slice(0, i + 1), ...classDefs(theme), ...body].join("\n");
+  const body = /^(flowchart|graph)\b/.test(header)
+    ? lines.slice(i + 1).map(squareIcons)
+    : lines.slice(i + 1);
+  return [
+    ...lines.slice(0, i + 1),
+    ...classDefs(theme, /^classDiagram\b/.test(header)),
+    ...body,
+  ].join("\n");
 }
 
 /** `A@{ … }` shape data; quoted values may contain braces. */
@@ -57,8 +70,18 @@ export function mermaidConfig(theme: DiagramTheme) {
     securityLevel: "strict" as const,
     theme: "base" as const,
     themeVariables: (palette.theme as Record<DiagramTheme, Style>)[theme],
-    flowchart: { curve: "basis" as const, padding: 14, htmlLabels: true, useMaxWidth: true },
-    sequence: { useMaxWidth: true, mirrorActors: false, showSequenceNumbers: false, actorMargin: 60 },
+    flowchart: {
+      curve: "basis" as const,
+      padding: 14,
+      htmlLabels: true,
+      useMaxWidth: true,
+    },
+    sequence: {
+      useMaxWidth: true,
+      mirrorActors: false,
+      showSequenceNumbers: false,
+      actorMargin: 60,
+    },
     state: { useMaxWidth: true },
   };
 }

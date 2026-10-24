@@ -178,7 +178,12 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
             </Link>
           </div>
           {board.loading ? (
-            <div className="h-[200px] animate-pulse border border-line bg-surface" aria-label="Loading" />
+            // the first request after a quiet spell rebuilds the board and can take a few seconds
+            <div role="status" className="flex h-[200px] flex-col justify-center gap-2 border border-line bg-surface px-4">
+              <span className="h-3 w-2/3 animate-pulse bg-line" />
+              <span className="h-3 w-1/2 animate-pulse bg-line" />
+              <span className="mt-2 font-mono text-xs text-fg-3">Tallying this week&apos;s league…</span>
+            </div>
           ) : board.error ? (
             <p className="m-0 text-[15px] text-fg-3">The board is resting. Try again in a minute.</p>
           ) : (

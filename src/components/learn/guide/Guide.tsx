@@ -265,6 +265,11 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 </a>
                 . The dashed card at the bottom of the hub, <strong>The Plan</strong>, is the 10-week roadmap.
               </p>
+              <p>
+                Under the side quests, the <strong>interview problem bank</strong> has the classic questions (URL shortener, rate limiter, chat, news feed…), each a short walkthrough that links into the full lessons, and{" "}
+                <strong>low-level design</strong> covers machine-coding rounds (parking lot, LRU cache, Splitwise…): the classes, interfaces and patterns interviewers look for. Both open with a <strong>mission</strong>: the brief and the
+                numbers you design for. Every side quest also has a <a href="#practice-sheets" className="text-signal-text underline underline-offset-4">design sheet</a> for revising it later.
+              </p>
             </div>
             <Shot id="hub-side" />
             <Note title="Recommended order">
@@ -283,8 +288,8 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             <Shot id="lesson-top" wide />
             <div className={PROSE}>
               <p>
-                <strong>Header and course tabs.</strong> On every Learn page the site header turns into the course header: <em>course · arena · practice · notebook · progress</em>, a search box (<Kbd>⌘K</Kbd>), your level chip and the light/dark
-                switch. On phones the same tabs live in the dock at the bottom, with a way back to the rest of the site.
+                <strong>Header and course tabs.</strong> On every Learn page the site header turns into the course header: <em>course · arena · practice · notebook · progress</em>, a search box (<Kbd>⌘K</Kbd>: lessons, side quests, problems,
+                low-level design and case files), your level chip and the light/dark switch. On phones the same tabs live in the dock at the bottom, with a way back to the rest of the site.
               </p>
               <p>
                 <strong>Stage rail.</strong> One card per stage with its minutes. ✓ means read, the orange outline is where you are, dashed is ahead. Optional stages (exercises, appendix, further reading, summary) sit in a separate box: they
@@ -323,8 +328,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               </p>
               <p>
                 <strong>Step-through diagrams</strong> have a <strong>&#9654; Steps</strong> button: it lights one hop at a time in orange, with a caption, and you move with &#9664; &#9654; or the arrow keys (also full screen).{" "}
-                <strong>Explainers</strong> are small animations of a core idea, like a hash ring gaining a node or a circuit breaker tripping. They play when you scroll to them; pause, step, switch scenarios or change the speed. With
-                reduced motion turned on in your system they don&apos;t auto-play: you step through them yourself. Both work offline in saved lessons.
+                <strong>Explainers</strong> are animations that walk you through an idea step by step. Every lesson and side quest opens with one that walks the <strong>whole article</strong> (its tabs are the article&apos;s parts), and
+                smaller ones show a single idea, like a hash ring gaining a node or a circuit breaker tripping. They play when you scroll to them; pause, step, switch tabs or change the speed. With reduced motion turned on in your system
+                they don&apos;t auto-play: you step through them yourself. Both work offline in saved lessons.
+              </p>
+              <p>
+                <strong>&#128266; Narrate</strong> plays an explainer with its captions read aloud by your browser&apos;s voice, moving through the steps and tabs by itself, like a short video. Only one explainer talks at a time, and
+                starting one stops <strong>Listen</strong>. <strong>Break it</strong> labs add sliders under the animation (traffic, cache TTL, replicas, timeouts…): push a number until the system falls over and watch where it breaks.
               </p>
               <p>
                 <strong>Diagram icons.</strong> Boxes that stand for a real technology carry its logo (Kafka, PostgreSQL, Redis…) and generic parts get a simple icon (a user, a phone, a queue, a load balancer). The label stays under every
@@ -605,6 +615,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 <strong>+{LEARN_XP.mockOffer} XP</strong> the first time a verdict is Hire or better. Each is paid once; retakes go into your history and can raise your best verdict.
               </p>
             </div>
+            <div className={PROSE}>
+              <p>
+                <strong>Practise with a real person:</strong> on <A href="/learn/mock/peers">peer mock interviews</A>, post a time slot and pick one of the course&apos;s mocks and a role (candidate, interviewer or either). When another
+                learner pairs up, you both get an email with a free video room; the interviewer runs the round from the mock&apos;s page (phases, curveballs, the rubric), then you swap. Only your first name and email go to your partner;
+                times show in your own time zone. Posting and pairing need an account.
+              </p>
+            </div>
             <Note title="Where your answers live">
               <p>
                 The round itself (notes, whiteboard, clock, self-scores) stays in this browser. The result (finished, offer, best verdict) goes with your XP, so signed in it follows you to other devices.
@@ -648,6 +665,22 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               <p>
                 A <strong>cheat sheet</strong> is the same material for a whole world on one page. It sizes itself to print on a single A4 or Letter sheet; <strong>Download PDF</strong> opens your browser&apos;s print dialog (choose
                 &ldquo;Save as PDF&rdquo;), and Share sends the link. Day lessons, Foundations parts and bosses end with a <strong>Revise … in 5 min</strong> card and a link to their world&apos;s sheet.
+              </p>
+              <p>
+                <strong>Everything at once:</strong> <A href="/learn/cheatsheet/all">every cheat sheet as one PDF</A>, one world per page, and an <A href="/learn/revise/anki.txt">Anki export</A> of all the revision cards (in Anki, File → Import: one deck,
+                tagged by world and lesson) to keep revising in your own spaced-repetition app.
+              </p>
+            </div>
+
+            <Sub id="practice-sheets">Design sheets</Sub>
+            <div className={PROSE}>
+              <p>
+                A <strong>design sheet</strong> is a side quest&apos;s whole design on a few pages: the numbers at a glance, the architecture with real tech icons, the key flows as sequence diagrams, the data model as a class diagram,
+                the core entity&apos;s state machine, the decisions (chose, over, because), what breaks and how it&apos;s contained, and the lines to say in the interview. Read the quest once; revise it from the sheet in about ten minutes.
+              </p>
+              <p>
+                <strong>Download PDF</strong> prints it in the light theme with every diagram drawn, no diagram split across pages. Each side quest ends with an <strong>open the sheet</strong> card, and the{" "}
+                <A href="/learn/sheets">design sheets</A> page lists them all.
               </p>
             </div>
 
@@ -716,6 +749,18 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 One open system design problem a week. Read the brief and its constraints, write your design in markdown with Mermaid diagrams (it autosaves and stays private while you write), then vote on the community&apos;s designs once the
                 gallery opens. Winners are featured on the page, on the course hub and on their profile. Submitting is worth <strong>+{DOW_XP.submit} XP</strong>, a featured design <strong>+{DOW_XP.featured}</strong> and the winner{" "}
                 <strong>+{DOW_XP.win}</strong>. Reading is open to everyone; submitting and voting need an account and a connection. Until the first challenge opens, the page says &ldquo;coming soon&rdquo;.
+              </p>
+            </div>
+
+            <Sub id="practice-tracks">Company tracks and concepts A–Z</Sub>
+            <div className={PROSE}>
+              <p>
+                <A href="/learn/tracks">Company prep tracks</A> (Flipkart, Razorpay, Swiggy, Zerodha, PhonePe, Amazon) put the lessons, side quests and problems that company&apos;s rounds lean on in one ordered list: what its
+                interviews tend to focus on, then each item with a line on why it&apos;s there.
+              </p>
+              <p>
+                <A href="/learn/concepts">Concepts A–Z</A> gives every concept the course teaches its own page: the definition, the key points, the lessons that teach it and related concepts. Good for a quick lookup, and the same
+                definitions as the term cards.
               </p>
             </div>
 
@@ -845,6 +890,10 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             <Shot id="progress-activity" only="desktop" />
             <p className="m-0 max-w-[70ch] text-[15px] leading-relaxed text-fg-2">
               <strong className="text-fg">Your rhythm:</strong> a 12-week heatmap (darker = more done that day; tap a day for details), minutes per week against your goal, current and longest streak, best day and time, and the XP log.
+            </p>
+            <p className="m-0 max-w-[70ch] text-[15px] leading-relaxed text-fg-2">
+              <strong className="text-fg">Streak reminders</strong> (signed in, off until you switch them on): a push notification on this device and/or an email at 7:30 PM, only on a day you haven&apos;t learned yet while a streak is
+              running. Never more than one a day; every email has an unsubscribe link, and you can switch either off here any time.
             </p>
             <Shot id="progress-goals" only="desktop" />
             <p className="m-0 max-w-[70ch] text-[15px] leading-relaxed text-fg-2">
@@ -1107,7 +1156,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             <div className={PROSE}>
               <p>
                 <strong>Android, Chrome or Edge on a laptop:</strong> press <strong>Install the app</strong> in the offline library or the Read offline card (or the install icon in the address bar). The course opens from your home screen or
-                dock, full screen, with your saved lessons. On a laptop the course header doubles as the window&apos;s title bar (drag it by any empty spot); the small arrow next to the window buttons brings the usual title bar back.
+                dock, full screen, with your saved lessons. With no browser bar around it, the app shows its own <strong>back</strong> arrow in the header (and in the reading toolbar on a phone). On a laptop the course header doubles as the window&apos;s title bar (drag it by any empty spot); the small arrow next to the window buttons brings the usual title bar back.
               </p>
               <p>
                 <strong>iPhone and iPad:</strong> Safari has no install button, so the library shows the steps: <strong>Share</strong> → <strong>Add to Home Screen</strong>. Do this if you rely on saved lessons: Safari can clear a
@@ -1132,6 +1181,9 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               <p>
                 {caseActivities} case files end with an <strong>interactive activity</strong>: a simulation or spot-the-bug drill in a few steps. Score {CASE_ACTIVITY_PASS_PCT}% to <strong>solve</strong> it for +{CASE_ACTIVITY_XP} XP; rerun
                 it as often as you like to raise your best. Solve all of them for the Case cracker quest (+{quest("cases:all")} XP) and badge.
+              </p>
+              <p>
+                Every case file opens with an explainer that plays the whole story (with Narrate), and a new case file comes out every <strong>Monday</strong>. Follow the <A href="/stories/feed.xml">RSS feed</A> to hear about each one.
               </p>
             </div>
             <Shot id="case-activity" only="desktop" size="medium" />
@@ -1333,4 +1385,11 @@ const GLOSSARY: [string, string][] = [
   ["Concept map", "Every concept of the course, coloured from Not started to Mastered by your answers, each with a two-minute refresher."],
   ["Term card", "The small card a dotted term in a lesson opens: a one-line definition and where it's taught."],
   ["Design of the week", "One open design problem a week: submit a design, vote on the community's, winners featured."],
+  ["Design sheet", "A side quest's whole design on a few printable pages: numbers, architecture, UML flows, data model, state machine, decisions and failure modes."],
+  ["Explainer", "An animation that walks through an idea or a whole article step by step; Narrate reads its captions aloud."],
+  ["Break-it lab", "An explainer with sliders: change the load or a setting and watch where the system breaks."],
+  ["Problem bank", "The classic interview questions (URL shortener, chat, news feed…), each a short walkthrough linking into the lessons."],
+  ["Low-level design", "Machine-coding problems (parking lot, LRU cache, Splitwise…): the classes, interfaces and patterns."],
+  ["Company track", "An ordered list of the lessons, quests and problems a company's interviews lean on."],
+  ["Peer mock", "A mock interview with another learner: post or join a slot, meet in a free video room, swap roles."],
 ];

@@ -70,6 +70,20 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
 
       {(meta.kind === "day-content" || meta.kind === "foundations" || meta.kind === "capstone") && <ReviseLink week={meta.week} slug={meta.slug} label={meta.kind === "capstone" ? "the boss" : name} />}
 
+      {meta.sheet && (
+        <Link
+          href={meta.sheet.href}
+          className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-line-strong bg-surface p-4 text-fg no-underline hover:border-fg-3 sm:px-5"
+        >
+          <span className="flex min-w-0 flex-[1_1_300px] flex-col gap-1">
+            <span className="font-mono text-xs uppercase tracking-label text-signal-text">design sheet · {meta.sheet.diagrams} diagrams · pdf</span>
+            <span className="text-[17px] font-semibold">Revise the whole design in ten minutes</span>
+            <span className="text-sm leading-normal text-fg-2">The numbers, architecture, sequence, class and state diagrams, decisions and failure modes of this quest on a few printable pages.</span>
+          </span>
+          <span className="font-mono text-sm text-signal-text">open the sheet →</span>
+        </Link>
+      )}
+
       {meta.labs?.length ? <LessonLabs labs={meta.labs} /> : null}
 
       {meta.trail?.length ? <ReadingTrail lesson={`${meta.week}/${meta.slug}`} entries={meta.trail} /> : null}

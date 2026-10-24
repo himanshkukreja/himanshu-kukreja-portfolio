@@ -12,6 +12,7 @@ import { renderLesson } from "@/lib/course/render";
 import { termsFor } from "@/lib/concepts/load";
 import { getLabsForLesson } from "@/lib/learn/labs/load";
 import { getTrailForLesson } from "@/lib/learn/trail/load";
+import { getSheet } from "@/lib/learn/sheets/load";
 import { isOptionalStage } from "@/components/learn/lesson/stageText";
 import MCQAssessmentWrapper from "@/components/MCQAssessmentWrapper";
 import ReadingProgress from "@/components/ReadingProgress";
@@ -196,6 +197,7 @@ export default async function LearningResourcePage({ params }: Props) {
         : null,
     labs: await getLabsForLesson(course, week, slug).catch(() => []),
     trail: await getTrailForLesson(week, slug).catch(() => []),
+    sheet: resource.type === "bonus" ? await getSheet(slug).then((x) => (x ? { href: x.href, diagrams: x.diagrams } : null)).catch(() => null) : null,
   };
 
   const path = `/learn/${course}/${week}/${slug}`;

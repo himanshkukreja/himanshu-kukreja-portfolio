@@ -70,6 +70,8 @@ export type ReaderMeta = {
   labs?: LessonLabLink[] | null;
   /** engineering-blog reading trail ("Go deeper" at the end) */
   trail?: TrailEntry[] | null;
+  /** a side quest's design sheet ("Revise the whole design" at the end) */
+  sheet?: { href: string; diagrams: number } | null;
 };
 
 export type QuestMeta = {
