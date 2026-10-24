@@ -19,7 +19,7 @@ export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/lear
  * cheat sheets, code labs, mock interviews, design of the week, the numbers playground, the study
  * planner, the concept map and the reading trail. Keep in sync with src/components/learn/practice.
  */
-export const PRACTICE_ROUTES = ["practice", "revise", "cheatsheet", "labs", "mock", "design-week", "numbers", "plan", "mastery", "reading"] as const;
+export const PRACTICE_ROUTES = ["practice", "revise", "cheatsheet", "labs", "mock", "design-week", "numbers", "plan", "mastery", "reading", "tracks", "concepts"] as const;
 const PRACTICE_RE = new RegExp(`^/learn/(?:${PRACTICE_ROUTES.join("|")})(?:/|$)`);
 export const isPractice = (p: string) => PRACTICE_RE.test(p);
 

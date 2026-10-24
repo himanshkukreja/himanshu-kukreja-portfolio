@@ -279,6 +279,12 @@ export default function CourseHub({ map }: { map: CourseMap }) {
           <Link href="/learn/practice" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             revision decks, cheat sheets, code labs, mocks · all practice →
           </Link>
+          <Link href="/learn/tracks" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            company prep tracks: Flipkart, Razorpay, Swiggy… →
+          </Link>
+          <Link href="/learn/concepts" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            concepts A–Z →
+          </Link>
         </div>
         <div className="flex flex-col gap-2">
           <DesignWeekCard />
