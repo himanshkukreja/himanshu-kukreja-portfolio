@@ -40,9 +40,14 @@ export default function MockIndex({ map }: { map: CourseMap }) {
             +{LEARN_XP.mock} XP each · +{LEARN_XP.mockOffer} for an offer
           </span>
         </div>
-        <Link href="/learn/guide#mocks" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
-          how mock interviews work →
-        </Link>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <Link href="/learn/mock/peers" className="inline-flex min-h-11 items-center border border-signal px-4 font-mono text-[13px] font-semibold text-signal-text hover:bg-surface-2">
+            practise with a real person: peer mocks →
+          </Link>
+          <Link href="/learn/guide#mocks" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            how mock interviews work →
+          </Link>
+        </div>
       </header>
 
       <ol className="m-0 grid list-none gap-3 p-0 md:grid-cols-2">

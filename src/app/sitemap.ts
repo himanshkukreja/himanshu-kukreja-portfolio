@@ -23,6 +23,7 @@ const STATIC: { path: string; priority: number; freq: Entry["changeFrequency"] }
   { path: "/learn/numbers", priority: 0.5, freq: "monthly" },
   { path: "/learn/mastery", priority: 0.5, freq: "monthly" },
   { path: "/learn/mock", priority: 0.6, freq: "monthly" },
+  { path: "/learn/mock/peers", priority: 0.5, freq: "weekly" },
   { path: "/learn/design-week", priority: 0.6, freq: "weekly" },
   { path: "/learn/plan", priority: 0.4, freq: "monthly" },
   { path: "/learn/arena", priority: 0.5, freq: "weekly" },
@@ -56,6 +57,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       ...(map.plan ? [map.plan] : []),
       ...map.weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])]),
       ...map.sideQuests,
+      ...(map.problems || []),
+      ...(map.lld || []),
     ];
     for (const l of lessons) out.push({ url: url(l.href), changeFrequency: "monthly", priority: l.kind === "bonus" ? 0.7 : 0.8 });
     for (const m of map.mocks || []) out.push({ url: url(`/learn/mock/${m.slug}`), changeFrequency: "monthly", priority: 0.5 });

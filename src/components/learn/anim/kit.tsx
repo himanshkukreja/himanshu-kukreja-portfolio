@@ -23,6 +23,22 @@ export type Step = {
 
 export type Variant = { id: string; label: string; steps: Step[] };
 
+/** A "break it" slider under the scene: the reader drags it and the scene redraws from `values`. */
+export type Control = {
+  id: string;
+  /** short label, e.g. "Cache TTL" */
+  label: string;
+  min: number;
+  max: number;
+  step?: number;
+  /** starting value (the lesson's own example) */
+  value: number;
+  /** unit shown after the value, e.g. "s", "%", "req/s" */
+  unit?: string;
+  /** optional formatter for the shown value */
+  format?: (v: number) => string;
+};
+
 export type SceneProps = {
   /** current variant id */
   variant: string;
@@ -38,6 +54,8 @@ export type SceneProps = {
   reduced: boolean;
   /** attributes from the `::anim[name]{…}` directive */
   opts: Readonly<Record<string, string>>;
+  /** current slider values, by control id (only for explainers that define `controls`) */
+  values: Readonly<Record<string, number>>;
 };
 
 export type ExplainerDef = {
@@ -48,6 +66,8 @@ export type ExplainerDef = {
   variants: Variant[];
   /** extra CSS for the scene, scoped to this explainer's shadow root */
   css?: string;
+  /** "break it" sliders shown under the scene; the scene reads them from `values` (keep it pure) */
+  controls?: Control[];
   /** draws one frame as SVG children; must be a pure function of its props */
   Scene: (p: SceneProps) => ReactNode;
 };

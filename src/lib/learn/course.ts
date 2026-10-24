@@ -1,4 +1,4 @@
-import { fetchMarkdownContent, formatWeekTopic, getAllLearningResources, type LearningResource, ContentFetchError, isContentMissing } from "@/lib/github";
+import { fetchMarkdownContent, formatWeekTopic, getAllLearningResources, titleFromMarkdown, type LearningResource, ContentFetchError, isContentMissing } from "@/lib/github";
 import { unstable_cache } from "next/cache";
 import { calculateReadingTime } from "@/lib/reading-time";
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
@@ -54,6 +54,11 @@ function toLesson(r: LearningResource, courseId: string, minutes: number): Cours
   if (r.type === "capstone") {
     return { week: r.week, slug: r.slug, title: r.title, kind: "capstone", minutes, code: "B", label: `Boss · ${r.title}`, tag: `${W} · BOSS`, href };
   }
+  if (r.type === "problem" || r.type === "lld") {
+    const k = parseInt(r.slug.match(/^(?:problem|lld)-(\d+)/)?.[1] || "0", 10);
+    const code = r.type === "problem" ? `IP-${pad(k)}` : `LLD-${pad(k)}`;
+    return { week: r.week, slug: r.slug, title: r.title, kind: r.type, minutes, code, label: r.title, tag: code, href };
+  }
   if (r.type === "bonus") {
     const k = parseInt(r.slug.match(/bonus-(\d+)/)?.[1] || "0", 10);
     return { week: r.week, slug: r.slug, title: r.title, kind: "bonus", minutes, code: `SQ-${pad(k)}`, label: r.title, tag: `SQ-${pad(k)}`, href };
@@ -70,6 +75,8 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
 
   // One read per file: minutes for lessons, parts for MCQs.
   const minutes: Record<string, number> = {};
+  // the problem bank and LLD track take their titles from each file's H1
+  const titles: Record<string, string> = {};
   const trials: Record<string, CourseTrial> = {};
   await Promise.all(
     resources.map(async (r) => {
@@ -102,6 +109,10 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
           return;
         }
         minutes[`${r.week}/${r.slug}`] = calculateReadingTime(md).minutes;
+        if (r.type === "problem" || r.type === "lld") {
+          const h1 = titleFromMarkdown(md);
+          if (h1) titles[`${r.week}/${r.slug}`] = h1.replace(/^(Interview Problem|Problem|LLD|Low-Level Design)\s*\d*\s*[:·—-]\s*/i, "");
+        }
       } catch (e) {
         // a file that's gone keeps a zero estimate; a transient fetch failure (rate limit, 5xx)
         // throws so the cached course map is never rebuilt without its trials and estimates
@@ -133,6 +144,9 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
   });
 
   const sideQuests = resources.filter((r) => r.type === "bonus").map(lessonOf);
+  const extra = (t: "problem" | "lld") => resources.filter((r) => r.type === t).map((r) => ({ ...lessonOf(r), ...(titles[`${r.week}/${r.slug}`] ? { title: titles[`${r.week}/${r.slug}`], label: titles[`${r.week}/${r.slug}`] } : {}) }));
+  const problems = extra("problem");
+  const lld = extra("lld");
   // Mock interviews between worlds; a missing folder or a broken file just means fewer mocks.
   const mocks: CourseMock[] = (await loadMockSources().catch((e) => {
     if (e instanceof ContentFetchError && !isContentMissing(e)) throw e;
@@ -164,12 +178,16 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
     weeks,
     sideQuests,
     mocks,
+    problems,
+    lld,
     stats: {
       worlds: weeks.length,
       mocks: mocks.length,
       coreLessons,
       bosses: weeks.filter((w) => w.boss).length,
       sideQuests: sideQuests.length,
+      problems: problems.length,
+      lld: lld.length,
       trialParts: weeks.reduce((a, w) => a + (w.trial?.parts.length || 0), 0),
       coreHours: Math.round(coreMinutes / 60),
       totalHours: Math.round(totalMinutes / 60),

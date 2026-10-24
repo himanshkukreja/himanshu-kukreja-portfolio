@@ -15,6 +15,8 @@ export const weekCode = (week: string) => {
   const n = weekNumber(week);
   if (n !== null) return `W${String(n).padStart(2, "0")}`;
   if (week === "bonus-problems") return "BONUS";
+  if (week === "problem-bank") return "PROBLEMS";
+  if (week === "low-level-design") return "LLD";
   return "PLAN";
 };
 
@@ -22,6 +24,8 @@ export const weekLabel = (week: string) => {
   const n = weekNumber(week);
   if (n !== null) return `Week ${String(n).padStart(2, "0")}`;
   if (week === "bonus-problems") return "Bonus problems";
+  if (week === "problem-bank") return "Interview problems";
+  if (week === "low-level-design") return "Low-level design";
   return "Overview";
 };
 
@@ -32,6 +36,7 @@ const pad = (n: string | number) => String(n).padStart(2, "0");
 const partNumber = (slug: string) => slug.match(/part-(\d+)/)?.[1] ?? null;
 const dayNumber = (r: LearningResource) => r.day?.match(/day-(\d+)/)?.[1] ?? r.slug.match(/^day-(\d+)/)?.[1] ?? null;
 const bonusNumber = (slug: string) => slug.match(/^bonus-(\d+)/)?.[1] ?? null;
+const extraNumber = (slug: string) => slug.match(/^(?:problem|lld)-(\d+)/)?.[1] ?? null;
 
 /** Kind badge in the hero, e.g. "DAY LESSON · 03". */
 export function kindBadge(r: LearningResource): string {
@@ -51,6 +56,14 @@ export function kindBadge(r: LearningResource): string {
     case "bonus": {
       const b = bonusNumber(r.slug);
       return b ? `SIDE QUEST · ${pad(b)}` : "SIDE QUEST";
+    }
+    case "problem": {
+      const n = extraNumber(r.slug);
+      return n ? `INTERVIEW PROBLEM · ${pad(n)}` : "INTERVIEW PROBLEM";
+    }
+    case "lld": {
+      const n = extraNumber(r.slug);
+      return n ? `LOW-LEVEL DESIGN · ${pad(n)}` : "LOW-LEVEL DESIGN";
     }
     case "overview":
       return "COURSE PLAN";
@@ -77,6 +90,14 @@ export function shortLabel(r: LearningResource): string {
     case "bonus": {
       const b = bonusNumber(r.slug);
       return b ? `Side quest ${pad(b)}` : "Side quest";
+    }
+    case "problem": {
+      const n = extraNumber(r.slug);
+      return n ? `Problem ${pad(n)}` : "Problem";
+    }
+    case "lld": {
+      const n = extraNumber(r.slug);
+      return n ? `LLD ${pad(n)}` : "LLD";
     }
     case "overview":
       return "Plan";

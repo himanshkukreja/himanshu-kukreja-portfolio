@@ -49,6 +49,8 @@ function badgeFor(d: { week: string; slug: string; type?: string }) {
   const n = weekNum(d.week);
   const W = n === null ? "" : `W${pad(n)}`;
   if (d.type === "bonus" || d.week === "bonus-problems") return `SQ-${pad(parseInt(d.slug.match(/bonus-(\d+)/)?.[1] || "0", 10))}`;
+  if (d.week === "problem-bank") return `IP-${pad(parseInt(d.slug.match(/-(\d+)/)?.[1] || "0", 10))}`;
+  if (d.week === "low-level-design") return `LLD-${pad(parseInt(d.slug.match(/-(\d+)/)?.[1] || "0", 10))}`;
   if (d.type === "overview" || d.week === "overview") return "PLAN";
   if (d.type === "capstone" || d.slug.includes("capstone")) return `${W}·B`;
   if (d.type === "week-preview" || d.slug.includes("preview")) return `${W}·PRE`;
@@ -63,6 +65,8 @@ function badgeFor(d: { week: string; slug: string; type?: string }) {
 function topicFor(week: string) {
   if (week === "overview") return "Course plan";
   if (week === "bonus-problems") return "Side quests";
+  if (week === "problem-bank") return "Interview problems";
+  if (week === "low-level-design") return "Low-level design";
   const m = week.match(/week-(\d+)-(.+)/);
   if (!m) return week;
   return `Week ${pad(parseInt(m[1], 10))} · ${m[2].replace(/-/g, " ").replace("tanency", "tenancy")}`;

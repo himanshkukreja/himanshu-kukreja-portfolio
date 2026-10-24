@@ -5,7 +5,7 @@
  * for capstone boss mode.
  */
 
-export type LessonKind = "week-preview" | "day-content" | "capstone" | "foundations" | "overview" | "bonus" | "mcq";
+export type LessonKind = "week-preview" | "day-content" | "capstone" | "foundations" | "overview" | "bonus" | "mcq" | "problem" | "lld";
 
 /**
  * A stage is a resumable chunk of a lesson: Preface, Part I…VI, Exercises, Appendix, a capstone

@@ -238,6 +238,38 @@ export default function CourseHub({ map }: { map: CourseMap }) {
         </div>
       </section>
 
+      {/* The classic interview problem bank and the low-level design (machine coding) track */}
+      {[
+        { id: "problems", title: "Interview problem bank", blurb: "The classic questions, each a 15-minute walkthrough that links into the full lessons.", items: map.problems || [] },
+        { id: "lld", title: "Low-level design", blurb: "Machine-coding rounds: classes, interfaces and the patterns interviewers look for.", items: map.lld || [] },
+      ]
+        .filter((sec) => sec.items.length > 0)
+        .map((sec) => (
+          <section key={sec.id} aria-labelledby={`${sec.id}-h`} className="flex flex-col gap-[18px]">
+            <div className="flex flex-wrap items-baseline justify-between gap-3">
+              <h2 id={`${sec.id}-h`} className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
+                {sec.title}
+              </h2>
+              <span className="text-[15px] text-fg-3">{sec.blurb}</span>
+            </div>
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] gap-2">
+              {sec.items.map((q) => {
+                const isDone = lessons[lessonKey(q.week, q.slug)]?.status === "completed";
+                return (
+                  <Link key={q.slug} href={q.href} className={`flex flex-col gap-1.5 p-4 hover:border-fg-4 sm:min-h-[120px] sm:gap-2 sm:p-[18px] ${isDone ? "border border-line-strong bg-surface-2" : "border border-line bg-bg"}`}>
+                    <span className="flex items-start justify-between gap-3 font-mono text-[11px] tracking-label text-fg-3">
+                      <span>{q.code}</span>
+                      <span>{q.minutes} MIN</span>
+                    </span>
+                    <span className="font-display text-[19px] font-bold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[21px]">{q.title}</span>
+                    <span className={`mt-auto pt-1 font-mono text-xs ${isDone ? "text-fg" : "text-signal-text"}`}>{isDone ? "COMPLETED ✓" : "START →"}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          </section>
+        ))}
+
       {/* Practice: this week's design challenge and the prep tools, with the rest of the toolkit one click away */}
       <section aria-labelledby="practice-h" className="flex flex-col gap-[18px]">
         <div className="flex flex-wrap items-baseline justify-between gap-3">

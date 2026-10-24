@@ -55,6 +55,11 @@ const BASE_CSS = `
 .ax-cap{margin:0;padding:10px 14px 12px;min-height:3.3em;border-top:1px solid var(--ax-line-soft);font-size:15px;line-height:1.55;color:var(--ax-fg);background:var(--c-bg,#000)}
 .ax-cap .ax-n{margin-right:10px;color:var(--ax-accent-text)}
 .ax-story{display:none}
+.ax-ctrls{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px 18px;padding:10px 14px 12px;border-top:1px solid var(--ax-line-soft)}
+.ax-ctrl{display:flex;flex-direction:column;gap:4px;font:12px var(--ax-mono);letter-spacing:.04em;color:var(--ax-fg2)}
+.ax-ctrl b{color:var(--ax-accent-text);font-weight:600}
+.ax-ctrl input{width:100%;accent-color:var(--ax-accent);min-height:28px}
+.ax-ctrl-head{display:flex;justify-content:space-between;gap:8px}
 @container ax (max-width:560px){.ax-track{order:9;flex-basis:100%}.ax-cap{font-size:14.5px}}
 /* scene vocabulary (kit.tsx) */
 .ax-grid{stroke:var(--ax-grid);stroke-width:1;fill:none}
@@ -124,6 +129,7 @@ function Player({ def, title, opts, observe }: PlayerProps) {
   const [playing, setPlaying] = useState(false);
   const [speedIdx, setSpeedIdx] = useState(0);
   const [narrow, setNarrow] = useState(false);
+  const [values, setValues] = useState<Record<string, number>>(() => Object.fromEntries((def.controls || []).map((c) => [c.id, c.value])));
   // narration: captions read aloud, each step advancing when its caption has been spoken, through every tab
   const [narrating, setNarrating] = useState(false);
   const [speakable] = useState(canSpeak);
@@ -337,6 +343,8 @@ function Player({ def, title, opts, observe }: PlayerProps) {
 
   const onKey = (e: ReactKeyboardEvent) => {
     if (e.altKey || e.ctrlKey || e.metaKey) return;
+    // a focused slider keeps its own arrow keys
+    if ((e.target as HTMLElement).tagName === "INPUT") return;
     const onButton = (e.target as HTMLElement).tagName === "BUTTON";
     let handled = true;
     if (e.key === "ArrowRight") go(step + 1, false);
@@ -380,7 +388,7 @@ function Player({ def, title, opts, observe }: PlayerProps) {
           </marker>
         </defs>
         <rect width={def.w} height={def.h} fill="url(#ax-g)" />
-        <Scene variant={variant.id} step={step} t={t} clock={reduced ? 0 : clk} narrow={narrow} reduced={reduced} opts={frozen} />
+        <Scene variant={variant.id} step={step} t={t} clock={reduced ? 0 : clk} narrow={narrow} reduced={reduced} opts={frozen} values={values} />
       </svg>
       <div className="ax-bar">
         {!reduced && (
@@ -426,6 +434,31 @@ function Player({ def, title, opts, observe }: PlayerProps) {
           </button>
         )}
       </div>
+      {def.controls && def.controls.length > 0 && (
+        <div className="ax-ctrls" role="group" aria-label="Try it: change the inputs">
+          {def.controls.map((c) => {
+            const v = values[c.id] ?? c.value;
+            const shown = c.format ? c.format(v) : `${v}${c.unit ? ` ${c.unit}` : ""}`;
+            return (
+              <label key={c.id} className="ax-ctrl">
+                <span className="ax-ctrl-head">
+                  <span>{c.label}</span>
+                  <b>{shown}</b>
+                </span>
+                <input
+                  type="range"
+                  min={c.min}
+                  max={c.max}
+                  step={c.step ?? 1}
+                  value={v}
+                  aria-valuetext={shown}
+                  onChange={(e) => setValues((o) => ({ ...o, [c.id]: Number(e.target.value) }))}
+                />
+              </label>
+            );
+          })}
+        </div>
+      )}
       <p className="ax-cap" aria-live="polite">
         <span className="ax-n">
           {pad(step + 1)}/{pad(steps.length)}

@@ -72,6 +72,32 @@ export default defineExplainer({
 - `narrow` is true below ~520px, where labels render ~35% larger: drop secondary labels or use
   shorter text there. No text outside the viewBox, no overlaps at either size.
 
+### "Break it" labs: sliders the reader drags
+
+Add `controls` to the definition and the player draws labelled sliders under the scene; the scene
+reads the current values from `values` (still a pure function of its props):
+
+```tsx
+export default defineExplainer({
+  w: 600, h: 320,
+  controls: [
+    { id: "ttl", label: "Cache TTL", min: 0, max: 600, step: 30, value: 300, unit: "s" },
+    { id: "rps", label: "Traffic", min: 100, max: 20000, step: 100, value: 5000, unit: "req/s" },
+  ],
+  variants: [{ id: "lab", label: "Lab", steps: [
+    { caption: "Drag the TTL down: the hit rate drops and the database takes the misses.", loop: true },
+    { caption: "Now push traffic up: past ~12,000 req/s the database saturates and p99 explodes.", loop: true },
+  ] }],
+  Scene: ({ values, clock }) => /* derive every number from values (+ clock for motion) */ null,
+});
+```
+
+- Name them `lab-<topic>`. Starting values are the lesson's own example; the captions say what to
+  try and what should break. Show the consequence as numbers on the scene (hit rate, p99, cost, errors)
+  computed from a simple, honest model stated in the summary; never present a toy model as measured data.
+- Steps of a lab are prompts ("now try…"), usually `loop: true` so traffic keeps flowing while dragging.
+- The arrow keys move a focused slider (the player only steps when the focus isn't on a slider).
+
 ### Visual language (match the learn-art plates)
 
 - Square corners only, 1.5px rules, the 40px blueprint grid (drawn by the player), mono labels.

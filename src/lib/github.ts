@@ -61,7 +61,7 @@ export type LearningResource = {
   week: string;
   day?: string;
   path: string;
-  type: 'week-preview' | 'day-content' | 'capstone' | 'foundations' | 'overview' | 'bonus' | 'mcq';
+  type: 'week-preview' | 'day-content' | 'capstone' | 'foundations' | 'overview' | 'bonus' | 'mcq' | 'problem' | 'lld';
   order: number;
 };
 
@@ -246,8 +246,27 @@ export async function getAllLearningResources(): Promise<LearningResource[]> {
     console.log('[GitHub] No bonus problems found or error fetching:', error);
   }
 
+  // Extra collections, like the side quests: the interview problem bank and the low-level design
+  // (machine coding) track. A missing folder just means the collection is empty.
+  for (const folder of EXTRA_COLLECTIONS) {
+    try {
+      const files = await fetchGitHubContent(`${BASE_PATH}/${folder}`);
+      for (const file of files) {
+        if (file.type === 'file' && file.name.endsWith('.md') && !/^readme/i.test(file.name)) {
+          const resource = parseFileToResource(file, folder);
+          if (resource) resources.push(resource);
+        }
+      }
+    } catch (error) {
+      if (error instanceof ContentFetchError && !isContentMissing(error)) throw error;
+    }
+  }
+
   return resources.sort((a, b) => a.order - b.order || a.path.localeCompare(b.path));
 }
+
+/** Content folders outside the weeks: folder → resource type (files are "<prefix>-NN-<slug>.md"). */
+export const EXTRA_COLLECTIONS = ['problem-bank', 'low-level-design'] as const;
 
 /**
  * Real lesson titles, taken from each markdown file's first H1 (minus the "Week N — Day N:" /
@@ -404,6 +423,8 @@ export function formatWeekTopic(week: string): string {
   if (WEEK_TOPICS[week]) return WEEK_TOPICS[week];
   if (week === 'overview') return 'Overview';
   if (week === 'bonus-problems') return 'Bonus Problems';
+  if (week === 'problem-bank') return 'Interview Problems';
+  if (week === 'low-level-design') return 'Low-Level Design';
   const match = week.match(/week-(\d+)-(.+)/);
   return match ? humanizeSlug(match[2]) : week.replace('week-', 'Week ');
 }
@@ -437,7 +458,12 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
 
   // Within a week: preview (+0) -> days (+1..+n) -> capstone (+90) -> MCQ (+95).
   // Every value stays below the next week's preview ((week + 1) * 100).
-  if (week === 'bonus-problems') {
+  if (week === 'problem-bank' || week === 'low-level-design') {
+    type = week === 'problem-bank' ? 'problem' : 'lld';
+    title = extractTitle(fileName);
+    const n = fileName.match(/^[a-z]+-(\d+)/)?.[1];
+    order = (week === 'problem-bank' ? 20000 : 30000) + parseInt(n || '1', 10);
+  } else if (week === 'bonus-problems') {
     type = 'bonus';
     title = extractTitle(fileName);
     const bonusNum = fileName.match(/bonus-(\d+)/)?.[1];
@@ -488,7 +514,7 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
 function extractTitle(fileName: string): string {
   if (LESSON_TITLES[fileName]) return LESSON_TITLES[fileName];
   // Remove day-XX- / week-XX- / capstone-interview-week-N- / foundations- / bonus-XX- prefixes
-  const rest = fileName.replace(/^(day-\d+-|week-\d+-|capstone-(?:interview-)?(?:week-\d+-)?|foundations-|bonus-\d+-)/, '');
+  const rest = fileName.replace(/^(day-\d+-|week-\d+-|capstone-(?:interview-)?(?:week-\d+-)?|foundations-|bonus-\d+-|problem-\d+-|lld-\d+-)/, '');
   return humanizeSlug(rest);
 }
 

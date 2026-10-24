@@ -36,7 +36,7 @@ export type StageHead = { id: string; label: string; title: string; budget?: num
 export function majorStage(textRaw: string, kind: LessonKind): StageHead | null {
   const t = stripEmoji(textRaw).trim();
   let m: RegExpMatchArray | null;
-  if (kind === "capstone" || kind === "bonus") {
+  if (kind === "capstone" || kind === "bonus" || kind === "problem") {
     m = t.match(/^Phase\s+(\d+)\s*[:.–—-]\s*(.+?)(?:\s*\((\d+)\s*min(?:ute)?s?\))?\s*$/i);
     if (m) return { id: `phase-${m[1]}`, label: `Phase ${m[1]}`, title: m[2].trim(), budget: m[3] ? parseInt(m[3], 10) : undefined, core: true, numeral: m[1] };
     // a side quest's closing challenge: a required stage of its own, after the phases
@@ -103,7 +103,7 @@ export function splitStages(nodes: RootContent[], kind: LessonKind): RawStage[] 
     if (n.type === "heading" && n.depth === 1) {
       const t = toText(n);
       let head = fallback ? { id: slugify(t, 40) || "section", label: stripEmoji(t), title: stripEmoji(t), core: true } : isMajor(i);
-      if (!head && (kind === "capstone" || kind === "bonus") && lastPhaseSeen && !wrapOpened) {
+      if (!head && (kind === "capstone" || kind === "bonus" || kind === "problem") && lastPhaseSeen && !wrapOpened) {
         head = { id: "wrap-up", label: "Wrap-up", title: stripEmoji(t), core: false };
         wrapOpened = true;
       }

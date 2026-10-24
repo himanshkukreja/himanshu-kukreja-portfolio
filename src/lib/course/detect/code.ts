@@ -272,7 +272,7 @@ function renderPanelBlocks(blocks: PanelBlock[], variant: "note" | "whiteboard",
 function detectWhiteboard(lines: string[], ctx: CodeCtx): HastElement | null {
   const frame = parseSingleFrame(lines);
   if (!frame || !frame.double) return null;
-  const capstoneLike = ctx.kind === "capstone" || ctx.kind === "bonus" || /whiteboard/i.test(ctx.prevText || "");
+  const capstoneLike = ctx.kind === "capstone" || ctx.kind === "bonus" || ctx.kind === "problem" || /whiteboard/i.test(ctx.prevText || "");
   if (!capstoneLike) return null;
   let i0 = 0;
   while (i0 < frame.inner.length && !frame.inner[i0].trim()) i0++;

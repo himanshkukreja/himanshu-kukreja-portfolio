@@ -29,6 +29,7 @@ import PlanCard from "@/components/learn/plan/PlanCard";
 import Mastery from "@/components/learn/progress/Mastery";
 import DataControls from "@/components/learn/progress/DataControls";
 import SectionNav from "@/components/learn/progress/SectionNav";
+import Reminders from "@/components/learn/progress/Reminders";
 import ArenaStatsCard from "@/components/learn/arena/ArenaStatsCard";
 import ShareProgress from "@/components/learn/progress/ShareProgress";
 import CertificateEntry from "@/components/learn/certificate/CertificateEntry";
@@ -236,6 +237,8 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
       </div>
 
       <ArenaStatsCard />
+
+      <Reminders signedIn={d.signedIn} onSignIn={openAuthModal} />
 
       <CertificateEntry states={states} done={done} signedIn={d.signedIn} />
 

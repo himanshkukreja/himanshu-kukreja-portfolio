@@ -6,7 +6,7 @@ import type { CourseMock } from "./mock/types";
  * components as plain JSON. Nothing in here is learner data.
  */
 
-export type CourseLessonKind = "foundations" | "week-preview" | "day-content" | "capstone" | "bonus" | "overview";
+export type CourseLessonKind = "foundations" | "week-preview" | "day-content" | "capstone" | "bonus" | "overview" | "problem" | "lld";
 
 export type CourseLesson = {
   /** folder name, e.g. "week-02-failure-first-design" */
@@ -72,6 +72,9 @@ export type CourseStats = {
   coreLessons: number;
   bosses: number;
   sideQuests: number;
+  /** interview problem bank and low-level design track (absent on old cached maps) */
+  problems?: number;
+  lld?: number;
   trialParts: number;
   /** core lessons + bosses, rounded hours */
   coreHours: number;
@@ -88,6 +91,10 @@ export type CourseMap = {
   sideQuests: CourseLesson[];
   /** mock interviews placed between worlds (resources/mock-interviews); absent on old cached maps */
   mocks?: CourseMock[];
+  /** the classic interview problem bank (resources/problem-bank); absent on old cached maps */
+  problems?: CourseLesson[];
+  /** low-level design / machine coding track (resources/low-level-design) */
+  lld?: CourseLesson[];
   stats: CourseStats;
 };
 
