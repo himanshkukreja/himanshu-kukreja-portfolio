@@ -424,3 +424,10 @@
     overflow: hidden;
   }
 }
+
+/* ---- every cheat sheet (/learn/cheatsheet/all): one sheet per printed page ---------------- */
+@media print {
+  .cs-all .cs-stage + .cs-stage {
+    break-before: page;
+  }
+}

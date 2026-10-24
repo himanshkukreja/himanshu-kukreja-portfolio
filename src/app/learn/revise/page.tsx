@@ -31,6 +31,14 @@ export default async function RevisePage() {
             cards you mark &quot;again&quot; join your Daily standup
           </Link>
         </span>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/learn/cheatsheet/all" className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg hover:border-fg-3">
+            Every cheat sheet as one PDF
+          </Link>
+          <a href="/learn/revise/anki.txt" download className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg hover:border-fg-3">
+            Download all {cards} cards for Anki
+          </a>
+        </div>
       </header>
       <ReviseIndex
         weeks={weeks.map((w) => ({
