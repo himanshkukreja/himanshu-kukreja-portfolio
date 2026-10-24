@@ -4,10 +4,28 @@ import { useState } from "react";
 import { useGame } from "@/game/GameProvider";
 import { Dot, container } from "./ui";
 
-const TYPES = ["hiring", "consulting", "markdrop", "chukta", "just saying hi"] as const;
+const TYPES = ["hiring", "freelance backend", "design review", "markdrop", "chukta", "just saying hi"] as const;
 type HireType = (typeof TYPES)[number];
 
 type Field = "name" | "email" | "message";
+
+/** What I take on outside my full-time role (the "work with me" cards above the form). */
+const OFFERS: { type: HireType; kicker: string; title: string; body: string; points: string[] }[] = [
+  {
+    type: "freelance backend",
+    kicker: "freelance",
+    title: "Backend work",
+    body: "APIs, data models and real-time systems that have to hold up under load: Python/FastAPI, Go, Postgres, Redis, queues, WebSockets and WebRTC.",
+    points: ["new services or a rescue of a slow one", "real-time and device-streaming features", "scoped, async, clear milestones"],
+  },
+  {
+    type: "design review",
+    kicker: "review",
+    title: "System design reviews",
+    body: "A second pair of eyes on an architecture before you build it, or after it starts to creak: bottlenecks, failure modes, cost and the trade-offs you're making.",
+    points: ["a written review with concrete fixes", "capacity and failure-mode checks", "one or two calls to walk through it"],
+  },
+];
 
 type Res =
   | { kind: "idle" }
@@ -165,6 +183,44 @@ export default function HireApi() {
           </p>
         </div>
 
+        <div aria-labelledby="work-h" className="flex flex-col gap-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+            <h3 id="work-h" className="m-0 font-display text-[28px] font-bold tracking-[-0.02em] text-fg">
+              Work with me
+            </h3>
+            <span className="font-mono text-xs text-fg-3">
+              <span aria-hidden className="mr-1.5 inline-block h-2 w-2 bg-signal" />
+              limited availability · part-time, alongside my full-time role
+            </span>
+          </div>
+          <div className="grid gap-px border border-line-strong bg-line sm:grid-cols-2">
+            {OFFERS.map((o) => (
+              <div key={o.type} className="flex flex-col gap-3 bg-bg p-5">
+                <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">{o.kicker}</span>
+                <span className="font-display text-2xl font-bold tracking-[-0.02em] text-fg">{o.title}</span>
+                <p className="m-0 text-[15px] leading-relaxed text-fg-2">{o.body}</p>
+                <ul className="m-0 flex list-none flex-col gap-1 p-0 font-mono text-[13px] text-fg-3">
+                  {o.points.map((pt) => (
+                    <li key={pt}>
+                      <span className="text-signal-text">+</span> {pt}
+                    </li>
+                  ))}
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setType(o.type);
+                    document.getElementById("hire-message")?.focus();
+                  }}
+                  className="mt-auto inline-flex min-h-11 items-center justify-center self-start border border-line-strong px-4 font-mono text-xs text-fg hover:bg-surface-2"
+                >
+                  {`POST /api/hire {"type": "${o.type}"} →`}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="flex flex-wrap gap-px border border-line-strong bg-line">
           <form noValidate onSubmit={send} aria-label="POST /api/hire request body" className="flex min-w-0 flex-[1_1_520px] flex-col bg-bg">
             <div className="flex flex-wrap items-center gap-2.5 border-b border-line px-3 py-3 font-mono text-[13px] sm:px-4">
@@ -237,6 +293,7 @@ export default function HireApi() {
                 <span className="text-signal-text sm:pt-1">&quot;message&quot;</span>
                 <span aria-hidden className="hidden sm:inline sm:pt-1">:</span>
                 <textarea
+                  id="hire-message"
                   rows={3}
                   name="message"
                   value={msg}
