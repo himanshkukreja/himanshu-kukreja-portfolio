@@ -51,6 +51,8 @@ export type ReaderMeta = {
   slug: string;
   title: string;
   subtitle?: string | null;
+  /** interview problems / LLD: the :::mission's key numbers, shown as chips under the title */
+  missionNumbers?: { value: string; label: string }[];
   kind: LessonKind;
   /** "DAY LESSON · 03" */
   kindBadge: string;

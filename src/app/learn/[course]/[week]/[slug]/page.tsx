@@ -170,7 +170,11 @@ export default async function LearningResourcePage({ params }: Props) {
     week,
     slug,
     title,
-    subtitle: rendered.subtitle ?? (resource.type === "capstone" ? capstoneTeaser(content) : lede(content)),
+    subtitle:
+      (resource.type === "problem" || resource.type === "lld" ? rendered.mission?.objective : undefined) ??
+      rendered.subtitle ??
+      (resource.type === "capstone" ? capstoneTeaser(content) : lede(content)),
+    ...((resource.type === "problem" || resource.type === "lld") && rendered.mission?.numbers.length ? { missionNumbers: rendered.mission.numbers.slice(0, 4) } : {}),
     kind: resource.type,
     kindBadge: kindBadge(resource),
     shortLabel: shortLabel(resource),

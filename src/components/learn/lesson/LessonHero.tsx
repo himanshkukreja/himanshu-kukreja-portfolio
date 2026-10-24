@@ -105,6 +105,15 @@ export default function LessonHero({ meta }: { meta: ReaderMeta }) {
             {meta.subtitle}
           </p>
         )}
+        {meta.missionNumbers && meta.missionNumbers.length > 0 && (
+          <ul className="m-0 mt-3 hidden list-none flex-wrap gap-1.5 p-0 lg:flex">
+            {meta.missionNumbers.map((n) => (
+              <li key={`${n.value}${n.label}`} className="border border-line-strong px-2.5 py-1.5 font-mono text-xs text-fg-2">
+                <b className="text-signal-text">{n.value}</b> {n.label}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="contents lg:flex lg:min-w-0 lg:flex-[0_1_420px] lg:flex-col lg:gap-2.5">
