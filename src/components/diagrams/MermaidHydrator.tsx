@@ -74,21 +74,50 @@ function onClick(e: MouseEvent) {
 }
 
 /**
- * Renders every `figure.sd-mermaid` inside `rootSelector` (course lessons and stories), loading
- * mermaid only when a diagram is present, and re-renders on theme switches and when the article
- * HTML is re-rendered (highlights re-inject the content).
+ * Renders the `figure.sd-mermaid` diagrams inside `rootSelector` (course lessons and stories) as they
+ * come near the viewport, loading mermaid only when a diagram is about to be seen (rendering all of
+ * them at load cost phones ~0.5 s of blocked main thread). Re-renders drawn diagrams on theme
+ * switches and when the article HTML is re-rendered (highlights re-inject the content), and draws
+ * everything before printing.
  */
 export default function MermaidHydrator({ rootSelector = "body" }: { rootSelector?: string }) {
   useEffect(() => {
     const root = document.querySelector<HTMLElement>(rootSelector) || document.body;
     let scheduled = 0;
+    let queue: Promise<void> = Promise.resolve();
+    const enqueue = (f: HTMLElement) => {
+      queue = queue.then(() => renderFigure(f, currentTheme()));
+    };
+    // embedded (the CMS editor's live preview frame): draw everything, so failed diagrams are reported
+    const eager = window.self !== window.top;
+    const io =
+      !eager && "IntersectionObserver" in window
+        ? new IntersectionObserver(
+            (entries) => {
+              for (const e of entries) {
+                if (!e.isIntersecting) continue;
+                io?.unobserve(e.target);
+                enqueue(e.target as HTMLElement);
+              }
+            },
+            { rootMargin: "600px 0px" },
+          )
+        : null;
     const run = () => {
       scheduled = 0;
       const figs = Array.from(root.querySelectorAll<HTMLElement>("figure.sd-mermaid"));
       if (!figs.length) return;
       const theme = currentTheme();
-      figs.reduce((p, f) => p.then(() => renderFigure(f, theme)), Promise.resolve());
+      for (const f of figs) {
+        const drawn = !!f.querySelector(".sd-mermaid-canvas svg");
+        if (drawn) {
+          if (f.dataset.mermaidTheme !== theme) enqueue(f); // theme switch: redraw what was drawn
+        } else if (io) io.observe(f); // drawn when it nears the viewport (observe is idempotent)
+        else enqueue(f);
+      }
     };
+    const printAll = () => root.querySelectorAll<HTMLElement>("figure.sd-mermaid").forEach(enqueue);
+    window.addEventListener("beforeprint", printAll);
     const schedule = () => {
       if (!scheduled) scheduled = window.setTimeout(run, 60);
     };
@@ -114,6 +143,8 @@ export default function MermaidHydrator({ rootSelector = "body" }: { rootSelecto
     window.addEventListener("keydown", onKey);
     return () => {
       if (scheduled) window.clearTimeout(scheduled);
+      io?.disconnect();
+      window.removeEventListener("beforeprint", printAll);
       contentObserver.disconnect();
       themeObserver.disconnect();
       root.removeEventListener("click", onClick);

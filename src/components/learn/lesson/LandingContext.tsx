@@ -2,8 +2,8 @@
 
 /**
  * First-visit context for readers who land on a lesson from outside (search, a shared link): most of
- * them read one page and leave without knowing it is part of a free course. One slim strip under the
- * hero says where they are and offers the course map or the start. Shown once per browser, never to
+ * them read one page and leave without knowing it is part of a free course. A small floating card
+ * says where they are and offers the course map or the start. Shown once per browser, never to
  * someone who has already opened another course page; dismissible.
  */
 import Link from "next/link";
@@ -36,7 +36,12 @@ export default function LandingContext({ meta }: { meta: ReaderMeta }) {
     track("landing_context", { action: "dismiss" });
   };
   return (
-    <aside aria-label="About this course" className="mx-auto mt-4 flex max-w-[760px] flex-wrap items-center gap-x-4 gap-y-2 border border-signal/50 bg-surface px-4 py-3 text-sm text-fg-2">
+    // floating, not in the page flow: appearing after load must not push the lesson down (layout shift)
+    <aside
+      aria-label="About this course"
+      className="hk-safe-x fixed inset-x-3 z-40 mx-auto flex max-w-[760px] flex-wrap items-center gap-x-4 gap-y-2 border border-signal/60 bg-surface/95 px-4 py-3 text-sm text-fg-2 shadow-lg backdrop-blur lg:inset-x-auto lg:right-6 lg:max-w-[520px]"
+      style={{ bottom: "calc(var(--site-dock, 0px) + 88px)" }}
+    >
       <p className="m-0 min-w-0 flex-[1_1_300px]">
         You&apos;re reading <span className="text-fg">{where}</span> in <span className="text-fg">System Design Mastery</span>, a free course with interview bosses, trials and mock interviews. No sign-up needed.
       </p>
