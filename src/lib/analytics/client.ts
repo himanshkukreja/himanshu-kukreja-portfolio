@@ -111,6 +111,30 @@ function beforeSend(ev: CaptureResult | null): CaptureResult | null {
   return ev;
 }
 
+/**
+ * posthog-js is ~300 KB of script: fetching and running it while the page is still loading cost
+ * mobile visitors ~0.5 s of blocked main thread. So it starts once the page has loaded and the
+ * browser is idle (at most ~1.5 s later). Nothing is lost meanwhile: capture() puts events fired
+ * before it's ready in the durable queue, sent with their real time once posthog-js is up.
+ */
+/** Run once the page has loaded and the browser is idle (at most ~1.5 s later). */
+function afterLoadIdle(fn: () => void) {
+  const go = () => {
+    const idle = (window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+    if (idle) idle(fn, { timeout: 1500 });
+    else window.setTimeout(fn, 300);
+  };
+  if (document.readyState === "complete") go();
+  else window.addEventListener("load", go, { once: true });
+}
+
+let phScheduled = false;
+function schedulePosthog() {
+  if (ph || phLoading || phScheduled) return;
+  phScheduled = true;
+  afterLoadIdle(() => void loadPosthog());
+}
+
 function loadPosthog(): Promise<PostHog | null> {
   if (!posthogEnabled()) return Promise.resolve(null);
   if (phLoading) return phLoading;
@@ -185,10 +209,13 @@ function loadGa() {
   // Initial page_view comes from config; later app-router navigations are counted by GA4's
   // Enhanced measurement → "Page changes based on browser history events" (on by default).
   gtag("config", GA_ID);
-  const s = document.createElement("script");
-  s.async = true;
-  s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`;
-  document.head.appendChild(s);
+  // the queue (dataLayer) is live now; only the script download waits for an idle moment after load
+  afterLoadIdle(() => {
+    const s = document.createElement("script");
+    s.async = true;
+    s.src = `https://www.googletagmanager.com/gtag/js?id=${encodeURIComponent(GA_ID)}`;
+    document.head.appendChild(s);
+  });
 }
 
 function setGaDisabled(off: boolean) {
@@ -628,7 +655,7 @@ export function analyticsRoute(pathname: string) {
     return;
   }
   wire();
-  void loadPosthog();
+  schedulePosthog();
   loadGa();
   startReader(pathname);
 }

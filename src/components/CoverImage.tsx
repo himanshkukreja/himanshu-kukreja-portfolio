@@ -57,7 +57,7 @@ export default function CoverImage({
         .filter(Boolean)
         .join(" ")}
     >
-      {!loaded && (
+      {!loaded && !priority && (
         <div
           aria-hidden
           className="absolute inset-0 animate-pulse bg-[linear-gradient(var(--c-line)_1px,transparent_1px),linear-gradient(90deg,var(--c-line)_1px,transparent_1px)] bg-[size:24px_24px] opacity-60"
@@ -70,7 +70,7 @@ export default function CoverImage({
           alt={alt}
           fill
           sizes={sizes || "(min-width: 1024px) 760px, 100vw"}
-          className={["object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0", imgClassName].filter(Boolean).join(" ")}
+          className={["object-cover transition-opacity duration-300", loaded || priority ? "opacity-100" : "opacity-0", imgClassName].filter(Boolean).join(" ")}
           priority={priority}
           onLoad={handleLoad}
           onError={handleError}
@@ -82,7 +82,7 @@ export default function CoverImage({
           width={width}
           height={height}
           sizes={sizes}
-          className={["h-auto w-full object-cover transition-opacity duration-300", loaded ? "opacity-100" : "opacity-0", imgClassName].filter(Boolean).join(" ")}
+          className={["h-auto w-full object-cover transition-opacity duration-300", loaded || priority ? "opacity-100" : "opacity-0", imgClassName].filter(Boolean).join(" ")}
           priority={priority}
           onLoad={handleLoad}
           onError={handleError}

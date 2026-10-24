@@ -20,8 +20,17 @@ export default function CaseCover({ motionSrc, ...props }: CoverImageProps & { m
   return (
     <div className={props.fill ? "absolute inset-0" : "relative"}>
       <CoverImage {...props} className={[props.className, props.fill ? "h-full w-full" : ""].filter(Boolean).join(" ")} />
+      {/* above the fold (priority) it loads with the cover: it's the largest paint there, so a lazy load delayed LCP by seconds */}
       {/* eslint-disable-next-line @next/next/no-img-element -- animated SVG: next/image would rasterise it */}
-      <img src={motion} alt="" aria-hidden loading="lazy" decoding="async" className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      <img
+        src={motion}
+        alt=""
+        aria-hidden
+        loading={props.priority ? "eager" : "lazy"}
+        fetchPriority={props.priority ? "high" : "auto"}
+        decoding="async"
+        className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+      />
     </div>
   );
 }
