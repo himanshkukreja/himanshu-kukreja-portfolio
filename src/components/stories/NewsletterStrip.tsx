@@ -7,7 +7,11 @@ import { zodResolver } from "@hookform/resolvers/zod";
 const schema = z.object({ email: z.string().email("Enter a valid email address") });
 
 /** "Get the next case file by email" — same subscribe API as NewsletterForm, Level Up styling. */
-export default function NewsletterStrip() {
+export default function NewsletterStrip({
+  id = "case-news-h",
+  title = "Get the next case file by email",
+  body = "One story when it ships. No digest, no spam.",
+}: { id?: string; title?: string; body?: string } = {}) {
   const {
     register,
     handleSubmit,
@@ -38,12 +42,12 @@ export default function NewsletterStrip() {
   };
 
   return (
-    <section aria-labelledby="case-news-h" className="flex flex-wrap items-center justify-between gap-6 border border-line bg-surface p-5 sm:p-8">
+    <section aria-labelledby={id} className="flex flex-wrap items-center justify-between gap-6 border border-line bg-surface p-5 sm:p-8">
       <div className="flex max-w-[560px] flex-col gap-2">
-        <h2 id="case-news-h" className="m-0 font-display text-[28px] font-bold tracking-[-0.02em]">
-          Get the next case file by email
+        <h2 id={id} className="m-0 font-display text-[28px] font-bold tracking-[-0.02em]">
+          {title}
         </h2>
-        <p className="m-0 text-[15px] text-fg-2">One story when it ships. No digest, no spam.</p>
+        <p className="m-0 text-[15px] text-fg-2">{body}</p>
       </div>
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="flex max-w-[520px] flex-[1_1_360px] flex-col gap-2">
         <div className="flex flex-wrap gap-2">

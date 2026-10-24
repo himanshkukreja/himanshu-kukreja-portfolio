@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import NewsletterStrip from "@/components/stories/NewsletterStrip";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import ShareButton from "@/components/share/ShareButton";
 import QuestClear from "@/components/learn/sidequest/QuestClear";
@@ -109,6 +110,8 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
           </div>
         </div>
       )}
+
+      <NewsletterStrip id="lesson-news-h" title="New lessons by email" body="New lessons, side quests and case files as they ship, at most once a week. No spam, unsubscribe anytime." />
 
       <nav aria-label="Previous and next lesson" className="grid grid-cols-1 gap-2.5 border-t border-line pt-6 sm:grid-cols-2">
         {prev ? (

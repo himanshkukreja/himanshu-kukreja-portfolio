@@ -19,6 +19,7 @@ import QuestRunEntry from "@/components/learn/sidequest/QuestRunEntry";
 import StageRail from "./StageRail";
 import ContentsSheet from "./ContentsSheet";
 import EndOfLesson from "./EndOfLesson";
+import LandingContext from "./LandingContext";
 import BossEntry from "./BossEntry";
 import { FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
 import { headerStackBottom, stageRailHeight } from "./layout";
@@ -175,6 +176,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
           <SearchHighlight />
         </Suspense>
         {meta.kind === "bonus" ? <QuestHero meta={meta} /> : <LessonHero meta={meta} />}
+        <LandingContext meta={meta} />
         <StageRail onOpenContents={openSheet} />
 
         <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 sm:px-6 lg:pt-10">
