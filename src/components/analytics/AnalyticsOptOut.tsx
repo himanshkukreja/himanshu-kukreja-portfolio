@@ -44,6 +44,9 @@ export default function AnalyticsOptOut({ compact = false }: { compact?: boolean
   if (compact)
     return (
       <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
+        <Link href="/now" className="min-h-10 content-center hover:text-fg">
+          now
+        </Link>
         <Link href="/privacy" className="min-h-10 content-center hover:text-fg">
           privacy &amp; analytics
         </Link>
