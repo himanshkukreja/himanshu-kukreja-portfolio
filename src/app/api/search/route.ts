@@ -1,26 +1,30 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getAllLearningResources, fetchMarkdownContent } from "@/lib/github";
+import { listStorySources } from "@/lib/stories";
 
 export const runtime = "nodejs";
+// The palette's search index: built once and served from the cache (CDN), refreshed daily and on every
+// content push (revalidate-courses). Filtering happens in the browser, so the request takes no query.
+export const revalidate = 86400;
 
-// Cache for resources with content (in-memory cache for better performance)
-let cachedResourcesWithContent: any[] | null = null;
-let cacheTimestamp = 0;
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const plain = (md: string) =>
+  md
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/^[ \t]*:{2,}[^\n]*$/gm, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/#+\s/g, "")
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/\*([^*]+)\*/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/\n+/g, " ")
+    .trim();
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const { searchParams } = new URL(request.url);
-    const query = searchParams.get("q");
-
-    // Check if cache is valid
-    const now = Date.now();
-    const isCacheValid = cachedResourcesWithContent && (now - cacheTimestamp < CACHE_DURATION);
-
-    let resourcesWithContent = cachedResourcesWithContent;
-
-    // Fetch and enrich resources with content if cache is invalid
-    if (!isCacheValid) {
+    let resourcesWithContent: unknown[] = [];
+    {
       console.log("[Search API] Fetching resources with content...");
       const resources = await getAllLearningResources();
 
@@ -65,13 +69,12 @@ export async function GET(request: NextRequest) {
         })
       );
 
-      // Update cache
-      cachedResourcesWithContent = resourcesWithContent;
-      cacheTimestamp = now;
-      console.log("[Search API] Cache updated with content for", resourcesWithContent.length, "resources");
     }
 
-    return NextResponse.json({ results: resourcesWithContent || [] });
+    // case files (repo stories + published CMS ones), searched alongside the lessons
+    const cases = (await listStorySources().catch(() => [])).map((c) => ({ slug: c.slug, title: c.title, excerpt: c.excerpt || "", content: plain(c.body || "").slice(0, 20000) }));
+
+    return NextResponse.json({ results: resourcesWithContent, cases });
   } catch (error) {
     console.error("[Search API] Error:", error);
     return NextResponse.json(

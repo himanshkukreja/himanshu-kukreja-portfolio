@@ -22,7 +22,8 @@ import { track } from "@/lib/track";
 import { InlineLoader } from "@/components/ui/loader";
 
 type Doc = LearningResource & { content?: string; excerpt?: string };
-type Group = "lessons" | "questions" | "notes";
+type Group = "lessons" | "cases" | "questions" | "notes";
+type CaseDoc = { slug: string; title: string; excerpt: string; content: string };
 type Hit = {
   id: string;
   group: Group;
@@ -108,6 +109,7 @@ function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { user } = useAuth();
   const [docs, setDocs] = useState<Doc[] | null>(null);
+  const [cases, setCases] = useState<CaseDoc[]>([]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | Group>("all");
@@ -130,7 +132,9 @@ function Palette({ onClose }: { onClose: () => void }) {
     fetch("/api/search")
       .then((r) => r.json())
       .then((d) => {
-        if (!off) setDocs((d.results || []) as Doc[]);
+        if (off) return;
+        setDocs((d.results || []) as Doc[]);
+        setCases((d.cases || []) as CaseDoc[]);
       })
       .catch(() => {
         if (!off) {
@@ -194,6 +198,23 @@ function Palette({ onClose }: { onClose: () => void }) {
     [docs]
   );
 
+  const caseFuse = useMemo(
+    () =>
+      cases.length
+        ? new Fuse(cases, {
+            keys: [
+              { name: "title", weight: 3 },
+              { name: "excerpt", weight: 1.5 },
+              { name: "content", weight: 1 },
+            ],
+            threshold: 0.35,
+            ignoreLocation: true,
+            minMatchCharLength: 2,
+          })
+        : null,
+    [cases]
+  );
+
   const { hits, ms } = useMemo(() => {
     const t = q.trim();
     if (!t || !docs) return { hits: [] as Hit[], ms: 0 };
@@ -233,13 +254,22 @@ function Palette({ onClose }: { onClose: () => void }) {
           href: `/learn/${COURSE}/${n.week}/${n.lesson_slug}${n.highlight_offset !== null ? `#note-${n.highlight_offset}` : ""}`,
         };
       });
-    return { hits: [...lessonHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
-  }, [q, docs, fuse, questions, notes, titleOf]);
+    const cHits: Hit[] = (caseFuse?.search(t).slice(0, 5) || []).map(({ item: c }) => ({
+      id: `c:${c.slug}`,
+      group: "cases",
+      badge: "CASE",
+      title: c.title,
+      sub: snippet(c.content || c.excerpt, t, 60) || c.excerpt.slice(0, 90),
+      href: `/stories/${c.slug}`,
+    }));
+    return { hits: [...lessonHits, ...cHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
+  }, [q, docs, fuse, caseFuse, questions, notes, titleOf]);
 
   const counts = useMemo(
     () => ({
       all: hits.length,
       lessons: hits.filter((h) => h.group === "lessons").length,
+      cases: hits.filter((h) => h.group === "cases").length,
       questions: hits.filter((h) => h.group === "questions").length,
       notes: hits.filter((h) => h.group === "notes").length,
     }),
@@ -305,10 +335,10 @@ function Palette({ onClose }: { onClose: () => void }) {
       // tab jumps to the first result of the next group
       e.preventDefault();
       const cur = visible[sel]?.group;
-      const order: Group[] = ["lessons", "questions", "notes"];
+      const order: Group[] = ["lessons", "cases", "questions", "notes"];
       const start = cur ? order.indexOf(cur) : -1;
-      for (let k = 1; k <= 3; k++) {
-        const g = order[(start + (e.shiftKey ? -k + 3 : k)) % 3];
+      for (let k = 1; k <= order.length; k++) {
+        const g = order[(start + (e.shiftKey ? -k + order.length : k)) % order.length];
         const idx = visible.findIndex((h) => h.group === g);
         if (idx >= 0) {
           setSel(idx);
@@ -320,6 +350,7 @@ function Palette({ onClose }: { onClose: () => void }) {
 
   const groups: { key: Group; label: string; more?: { label: string; href: string } }[] = [
     { key: "lessons", label: "Lessons" },
+    { key: "cases", label: "Case files", more: { label: "all case files →", href: "/stories" } },
     { key: "questions", label: "Interview questions" },
     { key: "notes", label: "Your notes", more: { label: "open notebook →", href: "/learn/notebook?tab=notes" } },
   ];
@@ -359,6 +390,7 @@ function Palette({ onClose }: { onClose: () => void }) {
               [
                 ["all", "all"],
                 ["lessons", "lessons"],
+                ["cases", "case files"],
                 ["questions", "interview qs"],
                 ...(user ? [["notes", "your notes"]] : []),
               ] as [("all" | Group), string][]
@@ -400,7 +432,7 @@ function Palette({ onClose }: { onClose: () => void }) {
           )}
           {q.trim() && docs && !failed && visible.length === 0 && (
             <p className="px-2 py-6 text-sm text-fg-3">
-              Nothing matches <span className="text-fg">“{q.trim()}”</span>. Search looks at lesson titles and text{user ? ", interview questions and your notes" : " and interview questions"}.
+              Nothing matches <span className="text-fg">“{q.trim()}”</span>. Search looks at lesson and case file text{user ? ", interview questions and your notes" : " and interview questions"}.
             </p>
           )}
           {groups.map((g) => {

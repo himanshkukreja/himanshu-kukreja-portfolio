@@ -142,6 +142,7 @@ export function revalidatePublic(slug: string) {
     revalidatePath("/");
     revalidatePath("/learn/guide");
     revalidatePath("/api/stories");
+    revalidatePath("/api/search");
   } catch (e) {
     console.warn("[case-files] revalidate failed:", (e as Error)?.message);
   }
