@@ -14,7 +14,8 @@ import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import type { CourseLesson } from "@/lib/learn/types";
 
 export const SHEETS_DIR = "resources/design-sheets";
-const FILE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
+// quest slugs keep their file name's case (bonus-08-AWS-S3)
+const FILE_RE = /^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*\.md$/;
 
 export type SheetSummary = {
   /** the side quest's slug, also the sheet's URL segment */
@@ -138,6 +139,6 @@ export async function getSheetSummaries(): Promise<SheetSummary[]> {
 }
 
 export async function getSheet(slug: string): Promise<DesignSheet | null> {
-  if (!/^[a-z0-9-]{1,100}$/.test(slug)) return null;
+  if (!/^[A-Za-z0-9-]{1,100}$/.test(slug)) return null;
   return (await data()).sheets[slug] ?? null;
 }
