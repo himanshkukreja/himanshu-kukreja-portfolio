@@ -67,7 +67,10 @@ export default function AskLessonPanel({
     };
   }, [open, onClose]);
 
-  useEffect(() => endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }), [turns]);
+  // braces matter: smooth scrollIntoView returns a Promise in current Chrome, and an effect may only return a cleanup
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [turns]);
 
   if (!open) return null;
   const busy = turns.some((t) => t.pending);
