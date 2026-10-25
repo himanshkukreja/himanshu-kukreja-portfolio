@@ -122,9 +122,9 @@ function watchTryTemplate(): TemplateInfo {
   const doc: RawDoc = { layout: "raw", source: "src/lib/announce/watch-and-try.ts", html: fromSource(watchTryHtml, unsub), text: fromSource(watchTryText, unsub) };
   return {
     id: "watch-and-try",
-    name: "What's new: narrated explainers, labs, problem bank, LLD, peer mocks",
+    name: "What's new: five tabs, prep by company, war stories, side quests 16-21",
     description:
-      "Whole-article explainers with narration (107), break-it slider labs, the interview problem bank (20), the low-level design track (8), company prep tracks, concepts A–Z, peer mock interviews, streak reminders and PDF/Anki exports, with screenshots. Generated from src/lib/announce/watch-and-try.ts.",
+      "The five tabs; Interview prep (45 company pages, 452 reported questions with sources, the question bank); War stories (20 real stories, 5 war rooms); side quests 16-21 and a design sheet for every quest; 141 narrated explainers and break-it labs; peer mocks; reminders, PDF/Anki. With screenshots. Generated from src/lib/announce/watch-and-try.ts.",
     topic: WATCH_TRY_KEY,
     ...subjectTemplate(watchTrySubject),
     preheader: WATCH_TRY_PREHEADER,

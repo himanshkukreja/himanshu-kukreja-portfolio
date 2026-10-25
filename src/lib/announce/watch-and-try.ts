@@ -1,53 +1,58 @@
 /**
- * "What's new: watch it, try it" announcement (late October 2026): whole-article animated
- * explainers with narration in every lesson, side quest and case file; "break it" slider labs; the
- * interview problem bank; the low-level design track (Splitwise via Chukta); company prep tracks;
- * concepts A–Z; peer mock interviews; streak reminders; PDF and Anki exports. HTML (table layout,
- * inline styles, 600px, phone-safe) + plain-text twin. Pure function, no I/O:
- * src/lib/campaigns/templates.ts turns it into the "watch-and-try" campaign template.
+ * "What's new" announcement (late October 2026): the five tabs (course · prep · arena · stories ·
+ * you); Interview prep with company pages (questions candidates reported, with sources) and the
+ * question bank; War stories (sourced real stories, war-room incident simulations); six new side
+ * quests and a design sheet for every quest; narrated whole-article explainers and break-it labs;
+ * peer mocks; reminders, PDF and Anki exports. HTML (table layout, inline styles, 600px, phone-safe) +
+ * plain-text twin. Pure function, no I/O: src/lib/campaigns/templates.ts turns it into the
+ * "watch-and-try" campaign template.
  *
  * Links are plain (no UTM): the campaign engine adds utm_* and click tracking per send.
- * Screenshots: public/email/whats-new-oct-2/ (captured from the live site at 528 CSS px, 2x, dark
+ * Screenshots: public/email/whats-new-oct-3/ (captured from the live site at 528 CSS px, 2x, dark
  * theme, analytics blocked), referenced by absolute URL.
  *
- * Facts checked against the live site on 25 Oct 2026: 107 whole-article explainers (76 lessons,
- * 15 side quests, 16 case files), 10 break-it labs, /learn/system-design-mastery problem bank (20)
- * and low-level design (8), /learn/tracks (6 companies), /learn/concepts (213), /learn/mock/peers,
- * reminders on /learn/dashboard, /learn/cheatsheet/all and /learn/revise/anki.txt.
+ * Facts checked against the content on 25 Oct 2026: 45 company pages, 581 questions, 452 reported
+ * with a source (scripts/check-prep.mjs); 20 real stories, 5 war rooms; 21 side quests, 21 design
+ * sheets, 141 diagrams (scripts/check-sheets.mjs); 141 whole-article explainers (76 lessons, 21 side
+ * quests, 16 case files, 20 problems, 8 low-level design), 10 break-it labs; problem bank 20, LLD 8.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
 
 export const WATCH_TRY_KEY = "announce:watch-and-try-2026-10";
-export const WATCH_TRY_SUBJECT = "Every lesson now explains itself, out loud";
+export const WATCH_TRY_SUBJECT = "Prep by company, war stories and six new side quests";
 export function watchTrySubject(name?: string | null): string {
   const first = firstName(name);
-  return first ? `${first}, every lesson now explains itself` : WATCH_TRY_SUBJECT;
+  return first ? `${first}, prep by company, war stories and six new side quests` : WATCH_TRY_SUBJECT;
 }
 export const WATCH_TRY_PREHEADER =
-  "A narrated animated walkthrough in every lesson, sliders you drag to break a system, 20 classic interview problems, a low-level design track and peer mock interviews.";
+  "45 company pages with the questions candidates reported, war rooms where you're on call, six new side quests with design sheets, and five tabs that make it all easy to find.";
 
 const SITE = "https://www.himanshukukreja.in";
 const L = `${SITE}/learn`;
 const C_ = `${L}/system-design-mastery`;
 export const WATCH_TRY_LINKS = {
   hub: C_,
+  prep: `${L}/prep`,
+  companies: `${L}/prep/companies`,
+  razorpay: `${L}/prep/companies/razorpay`,
+  questions: `${L}/prep/questions`,
+  stories: `${L}/war-stories`,
+  warRoom: `${L}/war-stories/war-room/one-regex-takes-down-the-edge`,
+  discord: `${L}/war-stories/discord-trillions-of-messages`,
+  sheets: `${L}/sheets`,
+  bookmyshow: `${C_}/bonus-problems/bonus-16-bookmyshow-seat-booking`,
+  bookmyshowSheet: `${L}/sheets/bonus-16-bookmyshow-seat-booking`,
   explainer: `${C_}/week-04-caching/day-03-thundering-herd`,
   lab: `${C_}/week-04-caching/day-03-thundering-herd`,
-  labTtl: `${C_}/week-04-caching/day-01-caching-patterns`,
-  problems: `${C_}#problems-h`,
-  problemChat: `${C_}/problem-bank/problem-08-chat-system`,
-  lld: `${C_}#lld-h`,
-  splitwise: `${C_}/low-level-design/lld-06-splitwise`,
-  tracks: `${L}/tracks`,
-  razorpay: `${L}/tracks/razorpay`,
-  concepts: `${L}/concepts`,
   peers: `${L}/mock/peers`,
   dashboard: `${L}/dashboard`,
+  arena: `${L}/arena`,
+  concepts: `${L}/concepts`,
   pdf: `${L}/cheatsheet/all`,
   revise: `${L}/revise`,
-  stories: `${SITE}/stories`,
+  caseFiles: `${SITE}/stories`,
 };
-const IMG_BASE = `${SITE}/email/whats-new-oct-2`;
+const IMG_BASE = `${SITE}/email/whats-new-oct-3`;
 
 export type WatchTryInput = { email: string; name?: string | null };
 
@@ -61,13 +66,13 @@ const C = { paper: "#F5F4F0", card: "#FFFFFF", ink: "#0B0B0B", ink2: "#2E2E33", 
 /** Screenshot: 528 CSS px wide (the card's content width), 1056 px files. */
 type Shot = { file: string; w: number; h: number; alt: string };
 const SHOTS = {
-  explainer: { file: "explainer-overview.jpg", w: 528, h: 544, alt: "The whole-lesson explainer for Thundering Herd: tabs The herd, Protections, Choose + edges; the five things that trigger a herd; Play and Narrate buttons and the caption." },
+  warRoom: { file: "war-room.jpg", w: 496, h: 760, alt: "A war room: the page at 19:15, every region failing, request and CPU charts, the on-call engineer's ack, and the first call: what do you look at first?" },
+  company: { file: "company-razorpay.jpg", w: 528, h: 760, alt: "The Razorpay page in Interview prep: what Razorpay builds, the rounds as candidates describe them, and questions reported by candidates with their sources and the lessons that teach them." },
+  questions: { file: "question-bank.jpg", w: 528, h: 700, alt: "The question bank: every company's questions merged, most-reported first, with filters for type, company and reported only." },
+  stories: { file: "war-stories.jpg", w: 528, h: 760, alt: "War stories: the story of the day and the war rooms, fictional companies modelled on real public postmortems." },
+  sheet: { file: "design-sheet.jpg", w: 496, h: 900, alt: "The BookMyShow design sheet's architecture: customers, the CDN, the waiting room, the API gateway, the booking saga, the hold service, payment gateways, the seat store and the seat change stream." },
   lab: { file: "lab-thundering-herd.jpg", w: 528, h: 720, alt: "Break it: the thundering herd lab. One hot key at 5,000 requests a second expires: peak database load 5,100/s, 5.1× its capacity. Sliders for keys expiring together, traffic and TTL jitter." },
-  problems: { file: "problem-bank.jpg", w: 496, h: 640, alt: "The interview problem bank on the course map: Design a URL Shortener, a Rate Limiter, a Distributed Key-Value Store, a Unique ID Generator, a Web Crawler, a Notification System, a News Feed and a Chat System." },
-  lld: { file: "lld-splitwise.jpg", w: 528, h: 580, alt: "The whole-design explainer for the bill-splitting (Splitwise) problem: members, the split service and strategy, money in integer paise, and a ₹100 split three ways that must still add up." },
-  track: { file: "company-track.jpg", w: 528, h: 700, alt: "The Razorpay prep track: what Razorpay builds, the focus (idempotency, webhooks, sagas, consistency, audit) and the first stops: Idempotency in Practice, Webhook Delivery System, Timeout Hell, Distributed Transactions." },
   peers: { file: "peer-mocks.jpg", w: 528, h: 620, alt: "Peer mock interviews: pick a time and a mock interview; when another learner pairs up you both get an email with a free video room, and the interviewer runs it from the mock's page." },
-  concept: { file: "concept-page.jpg", w: 528, h: 640, alt: "The concept page for Idempotency: a one-line definition, the two-minute refresher and where the course teaches it." },
 } satisfies Record<string, Shot>;
 
 const b = (s: string) => `<strong style="color:${C.ink};">${s}</strong>`;
@@ -78,72 +83,73 @@ type Block = { tag: string; title: string; html: string; text: string; shot: Sho
 
 const BLOCKS: Block[] = [
   {
-    tag: "practice · break it",
-    title: "Drag a slider, watch it break",
-    html: `Ten lessons now have a ${b("lab with sliders")}: change a cache TTL, the traffic, the retries or the replica lag and watch the numbers react. Make one hot key expire at 5,000 requests a second and the database takes 5.1× its capacity; switch on single flight and it drops to about 101. Each lab starts from the lesson's own example.`,
-    text: "Ten lessons now have a lab with sliders: change a cache TTL, the traffic, the retries or the replica lag and watch the numbers react. Make one hot key expire at 5,000 requests a second and the database takes 5.1x its capacity; switch on single flight and it drops to about 101. Each lab starts from the lesson's own example.",
+    tag: "prep · companies",
+    title: "Prepping for a company? Start on its page",
+    html: `${b("45 companies")}, from Flipkart, Razorpay and Swiggy to Google, Amazon and Goldman Sachs. Each page has what the company builds, the rounds as candidates describe them, and the questions candidates ${b("reported")} after interviewing there: 452 in all, every one linked to the write-up it came from. Questions that only fit the company's products are labelled as our pick. Every question links the lessons that teach it.`,
+    text: "45 companies, from Flipkart, Razorpay and Swiggy to Google, Amazon and Goldman Sachs. Each page has what the company builds, the rounds as candidates describe them, and the questions candidates reported after interviewing there: 452 in all, every one linked to the write-up it came from. Questions that only fit the company's products are labelled as our pick. Every question links the lessons that teach it.",
+    shot: SHOTS.company,
+    links: [
+      { href: WATCH_TRY_LINKS.companies, label: "Find your company" },
+      { href: WATCH_TRY_LINKS.razorpay, label: "see Razorpay's page" },
+    ],
+  },
+  {
+    tag: "prep · question bank",
+    title: "Every question, most-asked first",
+    html: `The ${b("question bank")} merges all the company pages into ${b("353 questions")}, the most-reported first (the URL shortener was reported at 16 companies): filter by system design, low-level design or concept, by company, or to reported questions only. Next to it on the Prep tab: the 20 classic problems, the 8 machine-coding rounds, timed mocks, revision decks and cheat sheets.`,
+    text: "The question bank merges all the company pages into 353 questions, the most-reported first (the URL shortener was reported at 16 companies): filter by system design, low-level design or concept, by company, or to reported questions only. Next to it on the Prep tab: the 20 classic problems, the 8 machine-coding rounds, timed mocks, revision decks and cheat sheets.",
+    shot: SHOTS.questions,
+    links: [
+      { href: WATCH_TRY_LINKS.questions, label: "Open the question bank" },
+      { href: WATCH_TRY_LINKS.prep, label: "the whole Prep tab" },
+    ],
+  },
+  {
+    tag: "stories · real ones",
+    title: "True stories, two minutes each",
+    html: `${b("20 real stories")} from real systems at their limits, written for anyone: Discord moving trillions of messages in nine days, Pokémon GO hitting 50 times its traffic estimate, CoWIN's first registration day, a lightning strike that cost Google a tiny bit of data. Each lists its sources, and a new story of the day comes up every morning.`,
+    text: "20 real stories from real systems at their limits, written for anyone: Discord moving trillions of messages in nine days, Pokemon GO hitting 50 times its traffic estimate, CoWIN's first registration day, a lightning strike that cost Google a tiny bit of data. Each lists its sources, and a new story of the day comes up every morning.",
+    shot: SHOTS.stories,
+    links: [
+      { href: WATCH_TRY_LINKS.stories, label: "Read today's story" },
+      { href: WATCH_TRY_LINKS.discord, label: "start with Discord" },
+    ],
+  },
+  {
+    tag: "course · side quests 16–21",
+    title: "Six new side quests, and a sheet for every quest",
+    html: `${b("BookMyShow, Swiggy, Razorpay, YouTube, Google Docs and Instagram")} joined the side quests, so there are 21. And every quest now has a ${b("design sheet")}: the numbers, the architecture with real tech icons, sequence, class and state diagrams, the decisions and what breaks, on a few pages you can download as a PDF and revise in ten minutes.`,
+    text: "BookMyShow, Swiggy, Razorpay, YouTube, Google Docs and Instagram joined the side quests, so there are 21. And every quest now has a design sheet: the numbers, the architecture with real tech icons, sequence, class and state diagrams, the decisions and what breaks, on a few pages you can download as a PDF and revise in ten minutes.",
+    shot: SHOTS.sheet,
+    links: [
+      { href: WATCH_TRY_LINKS.bookmyshow, label: "Design BookMyShow" },
+      { href: WATCH_TRY_LINKS.sheets, label: "all 21 design sheets" },
+    ],
+  },
+  {
+    tag: "course · watch it, break it",
+    title: "Every article explains itself, out loud",
+    html: `${b("141 animated walkthroughs")}, one at the top of every lesson, side quest, case file and problem: press ${b("Narrate")} and it reads each step aloud like a short video. Ten lessons also have a ${b("lab with sliders")}: make one hot key expire at 5,000 requests a second and the database takes 5.1× its capacity; switch on single flight and it drops to about 101.`,
+    text: "141 animated walkthroughs, one at the top of every lesson, side quest, case file and problem: press Narrate and it reads each step aloud like a short video. Ten lessons also have a lab with sliders: make one hot key expire at 5,000 requests a second and the database takes 5.1x its capacity; switch on single flight and it drops to about 101.",
     shot: SHOTS.lab,
-    links: [
-      { href: WATCH_TRY_LINKS.lab, label: "Break the thundering herd" },
-      { href: WATCH_TRY_LINKS.labTtl, label: "the cache TTL lab" },
-    ],
+    links: [{ href: WATCH_TRY_LINKS.lab, label: "Watch it, then break it" }],
   },
   {
-    tag: "new · interview problem bank",
-    title: "The 20 questions everyone gets asked",
-    html: `URL shortener, rate limiter, key-value store, chat, news feed, typeahead, payments and 13 more, each a ${b("15-minute walkthrough")}: requirements, the estimate, the API, the design, the two deep dives interviewers push on, and a quiz. Every one links into the full lessons and has its own animated walkthrough.`,
-    text: "URL shortener, rate limiter, key-value store, chat, news feed, typeahead, payments and 13 more, each a 15-minute walkthrough: requirements, the estimate, the API, the design, the two deep dives interviewers push on, and a quiz. Every one links into the full lessons and has its own animated walkthrough.",
-    shot: SHOTS.problems,
-    links: [
-      { href: WATCH_TRY_LINKS.problems, label: "Open the problem bank" },
-      { href: WATCH_TRY_LINKS.problemChat, label: "start with Design a Chat System" },
-    ],
-  },
-  {
-    tag: "new · low-level design",
-    title: "A machine-coding track",
-    html: `Many product companies in India run a machine-coding round: classes, interfaces and working code in 90 minutes. ${b("Eight problems")} now cover it, from a parking lot and an LRU cache to an elevator, a ticket booking system and a vending machine, each with a class diagram, the patterns and why, the concurrency traps and runnable Python. The bill-splitting one is built around ${a("https://getchukta.in", "Chukta")}, the app I'm building.`,
-    text: "Many product companies in India run a machine-coding round: classes, interfaces and working code in 90 minutes. Eight problems now cover it, from a parking lot and an LRU cache to an elevator, a ticket booking system and a vending machine, each with a class diagram, the patterns and why, the concurrency traps and runnable Python. The bill-splitting one is built around Chukta (getchukta.in), the app I'm building.",
-    shot: SHOTS.lld,
-    links: [
-      { href: WATCH_TRY_LINKS.splitwise, label: "Design a bill-splitting app" },
-      { href: WATCH_TRY_LINKS.lld, label: "all eight" },
-    ],
-  },
-  {
-    tag: "new · company prep tracks",
-    title: "Prepping for a specific company?",
-    html: `Six ordered paths through the course for ${b("Flipkart, Razorpay, Swiggy, Zerodha, PhonePe and Amazon India")}, built around what each company builds: payments and webhooks for Razorpay, dispatch and maps for Swiggy, the 9:15 market open for Zerodha. They're the topics those systems force you to know, not leaked questions.`,
-    text: "Six ordered paths through the course for Flipkart, Razorpay, Swiggy, Zerodha, PhonePe and Amazon India, built around what each company builds: payments and webhooks for Razorpay, dispatch and maps for Swiggy, the 9:15 market open for Zerodha. They're the topics those systems force you to know, not leaked questions.",
-    shot: SHOTS.track,
-    links: [
-      { href: WATCH_TRY_LINKS.tracks, label: "Pick your company" },
-      { href: WATCH_TRY_LINKS.razorpay, label: "the Razorpay track" },
-    ],
-  },
-  {
-    tag: "new · peer mock interviews",
+    tag: "prep · peer mocks",
     title: "Practise with a real person",
     html: `Post a time and one of the course's mock interviews, or pair up with someone who has. You both get an email with ${b("a free video room")}, and the interviewer runs it from the mock's page with its curveballs and levelled rubric. Then you swap. Your name and email go to your partner only.`,
     text: "Post a time and one of the course's mock interviews, or pair up with someone who has. You both get an email with a free video room, and the interviewer runs it from the mock's page with its curveballs and levelled rubric. Then you swap. Your name and email go to your partner only.",
     shot: SHOTS.peers,
     links: [{ href: WATCH_TRY_LINKS.peers, label: "Post or join a slot" }],
   },
-  {
-    tag: "new · concepts a–z",
-    title: "Every concept on one page",
-    html: `${b("213 concepts")}, from consistent hashing to fencing tokens, each with a one-line definition, a two-minute refresher, where the course teaches it and what it's related to. Handy for the "wait, what was that again?" moments.`,
-    text: "213 concepts, from consistent hashing to fencing tokens, each with a one-line definition, a two-minute refresher, where the course teaches it and what it's related to. Handy for the \"wait, what was that again?\" moments.",
-    shot: SHOTS.concept,
-    links: [{ href: WATCH_TRY_LINKS.concepts, label: "Browse the concepts" }],
-  },
 ];
 
 const OVERVIEW = [
-  { tag: "lessons", title: "Every article explains itself", body: "A narrated, animated walkthrough of the whole article in every lesson, side quest and case file: 107 of them." },
-  { tag: "practice", title: "Labs you can break", body: "Ten slider labs: drag the traffic, the TTL or the retries and watch the system bend." },
-  { tag: "new", title: "Problem bank and machine coding", body: "20 classic interview problems and an 8-problem low-level design track." },
-  { tag: "community", title: "Peer mocks and company tracks", body: "Practise live with another learner, or follow a prep path for the company you're targeting." },
+  { tag: "course · learn it", title: "Lessons, side quests, design sheets", body: "Six new side quests (21 now), a design sheet for each, and a narrated walkthrough in every article." },
+  { tag: "prep · get hired", title: "Companies, the question bank, mocks", body: "45 company pages with 452 questions candidates reported, each with its source, plus problems, mocks and revision." },
+  { tag: "arena · play", title: "Daily challenge, leagues, games", body: "Now with design of the week, the weekly community challenge." },
+  { tag: "stories · see it for real", title: "Real stories and war rooms", body: "20 true stories with sources, and 5 incidents where you're the one on call." },
+  { tag: "you · your stuff", title: "Progress, notebook, mastery, certificates", body: "Everything that's yours, under one tab." },
 ];
 
 const ALSO = [
@@ -158,21 +164,26 @@ const ALSO = [
     text: `Every cheat sheet as one PDF for the night before an interview (${WATCH_TRY_LINKS.pdf}), and every revision card as an Anki deck from Revise (${WATCH_TRY_LINKS.revise}).`,
   },
   {
+    title: "Concepts A–Z.",
+    html: `${a(WATCH_TRY_LINKS.concepts, "213 concepts")}, each with its own page: a one-line definition, a two-minute refresher and where the course teaches it.`,
+    text: `213 concepts, each with its own page: a one-line definition, a two-minute refresher and where the course teaches it (${WATCH_TRY_LINKS.concepts}).`,
+  },
+  {
     title: "Checked numbers.",
-    html: "Every real-world figure in the side quests and case files was checked against its source and dated, and the architecture diagrams in every week now use real technology icons.",
-    text: "Every real-world figure in the side quests and case files was checked against its source and dated, and the architecture diagrams in every week now use real technology icons.",
+    html: "Every real-world figure in the side quests and case files was checked against its source and dated.",
+    text: "Every real-world figure in the side quests and case files was checked against its source and dated.",
   },
   {
     title: "A new case file every Monday.",
-    html: `Starting with how Hotstar served 25 million people watching one match. ${a(WATCH_TRY_LINKS.stories, "All case files")}.`,
-    text: `Starting with how Hotstar served 25 million people watching one match: ${WATCH_TRY_LINKS.stories}`,
+    html: `Starting with how Hotstar served 25 million people watching one match. ${a(WATCH_TRY_LINKS.caseFiles, "All case files")}.`,
+    text: `Starting with how Hotstar served 25 million people watching one match: ${WATCH_TRY_LINKS.caseFiles}`,
   },
 ];
 
 const START = [
-  { lead: "Got two minutes?", html: `Press ${b("Narrate")} on the ${a(WATCH_TRY_LINKS.explainer, "thundering herd walkthrough")}.`, text: `Press Narrate on the thundering herd walkthrough: ${WATCH_TRY_LINKS.explainer}` },
-  { lead: "Interview soon?", html: `Do one problem a day from the ${a(WATCH_TRY_LINKS.problems, "problem bank")}.`, text: `Do one problem a day from the problem bank: ${WATCH_TRY_LINKS.problems}` },
-  { lead: "Machine-coding round?", html: `Start with the ${a(WATCH_TRY_LINKS.splitwise, "bill-splitting design")}.`, text: `Start with the bill-splitting design: ${WATCH_TRY_LINKS.splitwise}` },
+  { lead: "Got ten minutes?", html: `Take the page in the ${a(WATCH_TRY_LINKS.warRoom, "first war room")}.`, text: `Take the page in the first war room: ${WATCH_TRY_LINKS.warRoom}` },
+  { lead: "Interviewing somewhere?", html: `Open ${a(WATCH_TRY_LINKS.companies, "that company's page")} and work down its reported questions.`, text: `Open that company's page and work down its reported questions: ${WATCH_TRY_LINKS.companies}` },
+  { lead: "Revising a design?", html: `Download a ${a(WATCH_TRY_LINKS.sheets, "design sheet")} and go through it in ten minutes.`, text: `Download a design sheet and go through it in ten minutes: ${WATCH_TRY_LINKS.sheets}` },
   { lead: "Want feedback?", html: `Book a ${a(WATCH_TRY_LINKS.peers, "peer mock interview")} this week.`, text: `Book a peer mock interview this week: ${WATCH_TRY_LINKS.peers}` },
 ];
 
@@ -252,7 +263,7 @@ export function watchTryHtml({ email, name }: WatchTryInput): string {
           <td class="pad" style="background:${C.black};padding:18px 36px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
               <td style="font-family:${F_MONO};font-size:15px;font-weight:600;color:#F3F2EE;"><span style="color:${C.signal};">~</span>/himanshu</td>
-              <td align="right" style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#A3A3A8;">new · watch it, try it</td>
+              <td align="right" style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#A3A3A8;">new · five tabs</td>
             </tr></table>
           </td>
         </tr>
@@ -261,9 +272,9 @@ export function watchTryHtml({ email, name }: WatchTryInput): string {
         <tr>
           <td class="pad" style="padding:36px 36px 8px 36px;">
             <div style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.ink3};margin:0 0 12px 0;">❯ system design mastery · what's new</div>
-            <h1 class="h1" style="margin:0;font-family:${F_DISPLAY};font-weight:800;font-size:40px;line-height:1.04;letter-spacing:-0.03em;color:${C.ink};">Watch it. Then break it<span style="color:${C.signal};">.</span></h1>
+            <h1 class="h1" style="margin:0;font-family:${F_DISPLAY};font-weight:800;font-size:40px;line-height:1.04;letter-spacing:-0.03em;color:${C.ink};">Learn it. Get hired. See it for real<span style="color:${C.signal};">.</span></h1>
             <p style="margin:18px 0 0 0;font-family:${F_BODY};font-size:16px;line-height:1.6;color:${C.ink2};">${hi ? `Hi ${esc(hi)},` : "Hi there,"}</p>
-            <p style="margin:10px 0 0 0;font-family:${F_BODY};font-size:16px;line-height:1.6;color:${C.ink2};">Reading about a thundering herd is one thing; watching one take a database down, and then causing one yourself, is how it sticks. So this round is about seeing and doing: every article now has an animated walkthrough you can play with narration, and the trickiest lessons have labs you can break. Plus 28 new problems to practise on.</p>
+            <p style="margin:10px 0 0 0;font-family:${F_BODY};font-size:16px;line-height:1.6;color:${C.ink2};">The course grew a lot this month, so it now has five tabs, each answering one question: course (learn it), prep (get hired), arena (play), stories (see it for real) and you (your progress and notes). The two new ones are the big news: a page for each company you might interview at, and war stories, including war rooms where you are the one on call.</p>
           </td>
         </tr>
         <!-- overview -->
@@ -276,25 +287,25 @@ export function watchTryHtml({ email, name }: WatchTryInput): string {
         <!-- CTA -->
         <tr>
           <td class="pad btn" style="padding:8px 36px 30px 36px;">
-            ${button(WATCH_TRY_LINKS.explainer, "Watch a lesson explain itself →")}
+            ${button(WATCH_TRY_LINKS.companies, "Find your company →")}
           </td>
         </tr>
-        <!-- featured: whole-article explainers -->
+        <!-- featured: the war room -->
         <tr>
           <td class="pad" style="padding:0 36px 34px 36px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${C.black};">
               <tr>
                 <td style="padding:20px 22px 0 22px;">
-                  <div style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.signal};margin:0 0 8px 0;">every lesson · every side quest · every case file</div>
-                  <div style="font-family:${F_DISPLAY};font-weight:800;font-size:22px;line-height:1.2;letter-spacing:-0.01em;color:#F3F2EE;margin:0 0 14px 0;">The whole article in two minutes, out loud</div>
-                  ${img(SHOTS.explainer, 484)}
+                  <div style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${C.signal};margin:0 0 8px 0;">new · stories · war room</div>
+                  <div style="font-family:${F_DISPLAY};font-weight:800;font-size:22px;line-height:1.2;letter-spacing:-0.01em;color:#F3F2EE;margin:0 0 14px 0;">It's 19:15 and every website behind you is down</div>
+                  ${img(SHOTS.warRoom, 484)}
                 </td>
               </tr>
               <tr>
                 <td style="padding:16px 22px 20px 22px;font-family:${F_BODY};font-size:14px;line-height:1.6;color:#C9C8C2;">
-                  <p style="margin:0 0 10px 0;">At the top of every article there's now an animated walkthrough of the whole thing, in chapters: the problem, how the fix works, where it breaks. 107 of them, one per lesson, side quest and case file.</p>
-                  <p style="margin:0 0 10px 0;">Press <strong style="color:#F3F2EE;">Narrate</strong> and it reads each step aloud and moves on by itself, like a short video. It works offline too, so you can watch on a flight.</p>
-                  <p style="margin:0;font-family:${F_MONO};font-size:13px;"><a href="${WATCH_TRY_LINKS.explainer}" style="color:${C.signal};text-decoration:underline;font-weight:600;">Play the thundering herd walkthrough →</a></p>
+                  <p style="margin:0 0 10px 0;">A war room drops you into an incident as the on-call engineer. The channel fills up: the page, the graphs, the logs, the incident commander, the experts, and later the CTO asking what to tell customers. You make the calls; a wrong one costs minutes and users, and someone tells you why.</p>
+                  <p style="margin:0 0 10px 0;">Five of them, each modelled on a real public postmortem (Cloudflare 2019, GitLab 2017, AWS S3 2017, Roblox 2021 and the April 2025 UPI outage) and named only at the end, after your postmortem.</p>
+                  <p style="margin:0;font-family:${F_MONO};font-size:13px;"><a href="${WATCH_TRY_LINKS.warRoom}" style="color:${C.signal};text-decoration:underline;font-weight:600;">Take the page →</a></p>
                 </td>
               </tr>
             </table>
@@ -358,14 +369,14 @@ export function watchTryText({ email, name }: WatchTryInput): string {
   const lines = [
     hi ? `Hi ${hi},` : "Hi there,",
     "",
-    "Reading about a thundering herd is one thing; watching one take a database down, and then causing one yourself, is how it sticks. So this round is about seeing and doing: every article now has an animated walkthrough you can play with narration, and the trickiest lessons have labs you can break. Plus 28 new problems to practise on.",
+    "The course grew a lot this month, so it now has five tabs, each answering one question: course (learn it), prep (get hired), arena (play), stories (see it for real) and you (your progress and notes). The two new ones are the big news: a page for each company you might interview at, and war stories, including war rooms where you are the one on call.",
     "",
-    ...OVERVIEW.map((f) => `- ${f.title}: ${f.body}`),
+    ...OVERVIEW.map((f) => `- ${f.tag.toUpperCase()}: ${f.title}. ${f.body}`),
     "",
-    "THE WHOLE ARTICLE IN TWO MINUTES, OUT LOUD",
-    "At the top of every article there's now an animated walkthrough of the whole thing, in chapters: the problem, how the fix works, where it breaks. 107 of them, one per lesson, side quest and case file.",
-    "Press Narrate and it reads each step aloud and moves on by itself, like a short video. It works offline too, so you can watch on a flight.",
-    `Play the thundering herd walkthrough: ${WATCH_TRY_LINKS.explainer}`,
+    "IT'S 19:15 AND EVERY WEBSITE BEHIND YOU IS DOWN",
+    "A war room drops you into an incident as the on-call engineer. The channel fills up: the page, the graphs, the logs, the incident commander, the experts, and later the CTO asking what to tell customers. You make the calls; a wrong one costs minutes and users, and someone tells you why.",
+    "Five of them, each modelled on a real public postmortem (Cloudflare 2019, GitLab 2017, AWS S3 2017, Roblox 2021 and the April 2025 UPI outage) and named only at the end, after your postmortem.",
+    `Take the page: ${WATCH_TRY_LINKS.warRoom}`,
     "",
     "WHAT'S NEW, ONE BY ONE",
     "",
