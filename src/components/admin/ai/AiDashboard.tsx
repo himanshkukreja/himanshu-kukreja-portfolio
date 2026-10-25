@@ -6,7 +6,7 @@
  */
 import { useState } from "react";
 import { adminJson } from "@/lib/admin/fetch";
-import { Badge, Card, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData } from "@/components/admin/ui";
+import { Badge, Card, Drawer, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData } from "@/components/admin/ui";
 
 type FeatureRow = { id: string; label: string; enabled: boolean; model: string; defaultModel: string; perDay: number; live: boolean; maxTokens: number };
 type Dash = {
@@ -198,12 +198,38 @@ function FeatureTable({ rows, dash, models, settings, onSaved }: { rows: Feature
   );
 }
 
+function TranscriptDrawer({ call, onClose }: { call: Call | null; onClose: () => void }) {
+  const { data, loading } = useAdminData<{ transcript: { input: string; output: string | null; created_at: string } | null }>(call ? `/api/admin/ai/transcript?id=${call.id}` : null);
+  return (
+    <Drawer open={!!call} onClose={onClose} label={call ? `${call.feature} · ${shortModel(call.model)} · ${usd(call.cost_usd, 4)}` : ""} title={call ? call.email || "system" : ""}>
+      {loading && !data ? (
+        <p className="m-0 font-mono text-xs text-fg-3">loading…</p>
+      ) : data?.transcript ? (
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-1">
+            <span className={LABEL}>sent</span>
+            <pre className="m-0 whitespace-pre-wrap border border-line bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-fg-2">{data.transcript.input}</pre>
+          </div>
+          <div className="flex flex-col gap-1">
+            <span className={LABEL}>answer</span>
+            <pre className="m-0 whitespace-pre-wrap border border-line bg-surface-2 p-3 font-mono text-[12px] leading-relaxed text-fg-2">{data.transcript.output}</pre>
+          </div>
+          <span className="font-mono text-[11px] text-fg-4">Kept 30 days for abuse checks, then deleted automatically.</span>
+        </div>
+      ) : (
+        <p className="m-0 text-[14px] text-fg-3">No conversation text for this call: it was refused, it&apos;s a content job or evaluation, or it&apos;s older than 30 days.</p>
+      )}
+    </Drawer>
+  );
+}
+
 function CallLog({ feature, onFeature, user, onUser }: { feature: string; onFeature: (f: string) => void; user: string; onUser: (u: string) => void }) {
   const [status, setStatus] = useState("");
   const [email, setEmail] = useState("");
   const [page, setPage] = useState(1);
   const qs = new URLSearchParams({ page: String(page), ...(feature ? { feature } : {}), ...(status ? { status } : {}), ...(user ? { user } : {}), ...(email ? { email } : {}) });
   const { data, error, loading, refresh } = useAdminData<{ rows: Call[]; total: number; page: number }>(`/api/admin/ai/calls?${qs}`, { refreshMs: 30_000 });
+  const [open, setOpen] = useState<Call | null>(null);
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / 50));
   return (
     <Card
@@ -234,6 +260,7 @@ function CallLog({ feature, onFeature, user, onUser }: { feature: string; onFeat
           rowKey={(r) => String(r.id)}
           rows={data?.rows ?? []}
           loading={loading && !data}
+          onRowClick={(r) => setOpen(r)}
           dense
           minWidth={980}
           empty={<EmptyState title="No AI calls yet" hint="Every call, allowed or refused, shows up here." />}
@@ -250,6 +277,7 @@ function CallLog({ feature, onFeature, user, onUser }: { feature: string; onFeat
           ]}
         />
       )}
+      <TranscriptDrawer call={open} onClose={() => setOpen(null)} />
       {pages > 1 && (
         <div className="flex items-center justify-between border-t border-line px-4 py-2.5 font-mono text-xs text-fg-3">
           <button type="button" disabled={page <= 1} onClick={() => setPage(page - 1)} className="disabled:opacity-40">← newer</button>
