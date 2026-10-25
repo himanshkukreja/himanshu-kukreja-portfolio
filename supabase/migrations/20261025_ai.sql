@@ -154,3 +154,16 @@ returns bigint
 language sql stable security definer set search_path = public as $$
   select count(distinct user_id) from ai_calls where created_at >= p_from and user_id is not null and not byok;
 $$;
+
+-- off-topic answers (the model replied OFF_TOPIC) still cost tokens: the budget counts them
+create or replace function public.ai_spend_v2(p_from timestamptz, p_live boolean default null, p_user uuid default null)
+returns table (cost numeric, calls bigint)
+language sql stable security definer set search_path = public as $$
+  select coalesce(sum(cost_usd), 0), count(*)
+  from ai_calls
+  where created_at >= p_from
+    and status in ('ok', 'off_topic')
+    and not byok
+    and (p_user is null or user_id = p_user)
+    and (p_live is null or (p_live = (feature not in ('eval', 'batch'))));
+$$;

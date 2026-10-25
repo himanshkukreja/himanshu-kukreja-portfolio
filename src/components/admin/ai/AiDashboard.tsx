@@ -241,7 +241,7 @@ function CallLog({ feature, onFeature, user, onUser }: { feature: string; onFeat
           <input placeholder="email" value={email} onChange={(e) => (setEmail(e.target.value), setPage(1))} className="min-h-8 w-40 border border-line-strong bg-bg px-2 font-mono text-xs text-fg" />
           <select value={status} onChange={(e) => (setStatus(e.target.value), setPage(1))} className="min-h-8 border border-line-strong bg-bg px-2 font-mono text-xs text-fg">
             <option value="">all statuses</option>
-            {["ok", "over_quota", "rate_limited", "blocked", "disabled", "too_long", "error"].map((x) => (
+            {["ok", "off_topic", "over_quota", "rate_limited", "blocked", "disabled", "too_long", "error"].map((x) => (
               <option key={x}>{x}</option>
             ))}
           </select>

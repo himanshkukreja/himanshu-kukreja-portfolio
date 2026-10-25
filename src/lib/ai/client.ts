@@ -42,7 +42,12 @@ export function ownKey(request: Request): string | null {
 }
 export type AiResult =
   | { ok: true; text: string; model: string; costUsd: number; credits: number; mode: Mode; creditsLeft: number | null; callId: number | null }
-  | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "error" | "too_long"; message: string; mode: Mode; creditsLeft: number | null };
+  | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "error" | "too_long" | "off_topic"; message: string; mode: Mode; creditsLeft: number | null };
+
+/** What a learner sees when a request is outside the course's scope (the model answered OFF_TOPIC). */
+export const OFF_TOPIC_MESSAGE = "I can only help with system design and this course. Ask about the lesson, your code, the interview or the design.";
+/** Off-topic requests a learner may make in a day before AI pauses for them until midnight UTC. */
+const OFF_TOPIC_PER_DAY = 5;
 
 async function log(row: Record<string, unknown>): Promise<number | null> {
   const { data, error } = await supabase.from("ai_calls").insert(row).select("id").single();
@@ -60,15 +65,17 @@ export async function saveTranscript(callId: number | null, userId: string | nul
 /** The user's spend today and the feature's calls today (one query each, both indexed). */
 async function userToday(userId: string, feature: FeatureId) {
   const today = startOfToday().toISOString();
-  const [spend, featureCalls, lastMinute] = await Promise.all([
+  const [spend, featureCalls, lastMinute, offTopic] = await Promise.all([
     supabase.rpc("ai_spend_v2", { p_from: today, p_live: true, p_user: userId }),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("feature", feature).eq("status", "ok").gte("created_at", today),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(Date.now() - 60_000).toISOString()),
+    supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "off_topic").gte("created_at", today),
   ]);
   return {
     spent: Number((spend.data as { cost?: number }[] | null)?.[0]?.cost ?? 0),
     featureCalls: featureCalls.count ?? 0,
     lastMinute: lastMinute.count ?? 0,
+    offTopic: offTopic.count ?? 0,
   };
 }
 
@@ -116,6 +123,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const t = await userToday(uid, req.feature);
     creditsLeft = Math.max(0, Math.floor((budget.userDailyUsd - t.spent) / 0.001));
     if (t.lastMinute >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute");
+    if (t.offTopic >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.");
     if (!byok && cfg.perDay && t.featureCalls >= cfg.perDay) return refuse("over_quota", `You've used today's ${cfg.perDay} ${def.label.toLowerCase()} calls. They refill at midnight UTC, or add your own key under You → AI`);
     if (!byok && t.spent >= budget.userDailyUsd) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
   }
@@ -140,10 +148,12 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const u = body.usage ?? {};
     const cost = costOf(model, u);
     const credits = creditsFor(cost);
+    const raw = (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
+    const offTopic = /^\s*OFF_TOPIC\b/.test(raw);
     const callId = await log({
       ...base,
       model,
-      status: "ok",
+      status: offTopic ? "off_topic" : "ok",
       input_tokens: u.input_tokens ?? 0,
       output_tokens: u.output_tokens ?? 0,
       cache_read_tokens: u.cache_read_input_tokens ?? 0,
@@ -153,7 +163,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
       latency_ms: latency,
       request_id: requestId,
     });
-    const text = (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
+    if (offTopic) return { ok: false, status: "off_topic", message: OFF_TOPIC_MESSAGE, mode: budget.mode, creditsLeft };
+    const text = raw;
     return { ok: true, text, model, costUsd: cost, credits, mode: budget.mode, creditsLeft: creditsLeft === null ? null : Math.max(0, creditsLeft - credits), callId };
   } catch (e) {
     await log({ ...base, model, status: "error", error: (e as Error).message.slice(0, 300), latency_ms: Date.now() - t0 });
