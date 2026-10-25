@@ -54,15 +54,16 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight, focus, 
       )}
 
       <div
+        data-reader-grid
         className={
           isFocus
             ? "grid grid-cols-1 gap-8"
             : "grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_240px] xl:grid-cols-[220px_minmax(0,1fr)_248px] xl:gap-10"
         }
       >
-        {sidebarLeft && !isFocus && <aside className={`${leftOnMobile ? "" : "hidden"} min-w-0 lg:hidden xl:block`}>{sidebarLeft}</aside>}
+        {sidebarLeft && !isFocus && <aside data-reader-left className={`${leftOnMobile ? "" : "hidden"} min-w-0 lg:hidden xl:block`}>{sidebarLeft}</aside>}
         <article className="w-full min-w-0 max-w-[740px] justify-self-center">{children}</article>
-        {sidebarRight && !isFocus && <aside className="hidden min-w-0 lg:block">{sidebarRight}</aside>}
+        {sidebarRight && !isFocus && <aside data-reader-right className="hidden min-w-0 lg:block">{sidebarRight}</aside>}
       </div>
     </>
   );

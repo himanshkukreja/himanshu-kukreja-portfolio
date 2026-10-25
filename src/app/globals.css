@@ -675,3 +675,32 @@ html.hk-focus .hk-top-fill {
     padding-right: max(var(--hk-px), calc(100% - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100%) + 12px - max(0px, (100% - 1320px) / 2)));
   }
 }
+
+/* "Ask this lesson" docked on the right (desktop): the page makes room instead of being covered */
+:root {
+  --hk-ask-w: 440px;
+}
+@media (min-width: 1024px) {
+  html.hk-ask-open body {
+    padding-right: var(--hk-ask-w);
+  }
+  html.hk-ask-open [data-ask-shift] {
+    right: calc(var(--hk-ask-w) + 24px) !important;
+  }
+  /* the panel replaces "On this page"; the course path comes back only on wide screens */
+  html.hk-ask-open [data-reader-right],
+  html.hk-ask-open [data-reader-left] {
+    display: none !important;
+  }
+  html.hk-ask-open [data-reader-grid] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+@media (min-width: 1600px) {
+  html.hk-ask-open [data-reader-left] {
+    display: block !important;
+  }
+  html.hk-ask-open [data-reader-grid] {
+    grid-template-columns: 220px minmax(0, 1fr) !important;
+  }
+}

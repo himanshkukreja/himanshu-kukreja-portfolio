@@ -59,7 +59,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
   const btn = (on: boolean) =>
     `flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] border-r border-line px-1 ${on ? "bg-signal text-on-signal" : "text-fg hover:bg-surface-2"}`;
   return (
-    <div data-reader-ui data-focus-hide className="fixed bottom-6 right-6 z-40 hidden flex-col items-end gap-2 lg:flex">
+    <div data-reader-ui data-focus-hide data-ask-shift className="fixed bottom-6 right-6 z-40 hidden flex-col items-end gap-2 lg:flex">
       <ReadAloudBar controller={readAloud} />
       <div role="toolbar" aria-label="Reading tools" className="flex items-stretch border border-line-strong bg-surface">
         <div className="flex min-w-[92px] flex-col justify-center gap-1 border-r border-line px-3 py-1.5">

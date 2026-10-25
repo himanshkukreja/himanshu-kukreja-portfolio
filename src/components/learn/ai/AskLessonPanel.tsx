@@ -56,6 +56,13 @@ export default function AskLessonPanel({
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
 
+  // desktop: the panel docks to the right and the page makes room for it (html.hk-ask-open, globals.css)
+  useEffect(() => {
+    if (!open) return;
+    document.documentElement.classList.add("hk-ask-open");
+    return () => document.documentElement.classList.remove("hk-ask-open");
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     const id = window.setTimeout(() => inputRef.current?.focus(), 50);
@@ -102,11 +109,14 @@ export default function AskLessonPanel({
   };
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-end justify-end bg-black/40 lg:items-stretch lg:bg-transparent" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="fixed inset-0 z-[75] flex items-end justify-end bg-black/40 lg:pointer-events-none lg:top-[var(--hk-header-h,61px)] lg:items-stretch lg:bg-transparent"
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
       <aside
         role="dialog"
         aria-label="Ask this lesson"
-        className="flex max-h-[88dvh] w-full flex-col border-t border-line-strong bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.5)] lg:max-h-none lg:w-[460px] lg:border-l lg:border-t-0"
+        className="flex max-h-[88dvh] w-full flex-col border-t border-line-strong bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.5)] lg:pointer-events-auto lg:max-h-none lg:w-[var(--hk-ask-w)] lg:border-l lg:border-t-0 lg:shadow-none"
       >
         <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
           <div className="flex min-w-0 flex-col gap-1">
