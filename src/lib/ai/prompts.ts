@@ -182,3 +182,27 @@ ${p.candidate || "(nothing written)"}
   )
   .join("\n")}`;
 }
+
+/** War room free-text: judge the learner's own move against the decision's options, reply in character. */
+export function warRoomSystem(w: { title: string; company: string; cast: string; story: string; question: string; options: { text: string; best: boolean; reply: string }[] }): string {
+  return `You run an incident simulation for a system design course: "${w.title}" at ${w.company} (fictional). The learner is the on-call engineer. Instead of picking an option, they typed what they would do.
+
+Decide which option their move is closest to in intent (not wording), or "none" if it matches none. Then reply as the most fitting person in the channel, in character, in 1-3 short sentences: if it's the best move, confirm and say why briefly; if it matches a wrong option, react as that option's reply does; if it's none, react realistically (useful but not enough, unsafe, or off-track) and nudge toward what matters now, without naming the best option outright.
+
+Reply in exactly this format:
+MATCH: <option number, or none>
+REPLY: <Name>: <what they say>
+
+${GUARD}
+
+<cast>
+${w.cast}
+</cast>
+<channel_so_far>
+${w.story}
+</channel_so_far>
+<decision>
+${w.question}
+${w.options.map((o, i) => `${i + 1}. ${o.text}${o.best ? " [BEST MOVE]" : ""}\n   reply if chosen: ${o.reply}`).join("\n")}
+</decision>`;
+}

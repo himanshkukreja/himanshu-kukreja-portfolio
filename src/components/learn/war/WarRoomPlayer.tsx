@@ -13,6 +13,8 @@ import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import { WAR_ROOM_XP, warRoomKey, type Beat, type CastMember, type WarRoom } from "@/lib/learn/war/types";
 import { readRuns, saveRun, WAR_EVENT } from "./store";
+import { userFetch } from "@/components/learn/progress/userFetch";
+import { setAiCredits, useAiStatus } from "@/components/learn/ai/useAiStatus";
 
 const subscribe = (cb: () => void) => {
   window.addEventListener(WAR_EVENT, cb);
@@ -144,6 +146,7 @@ function Decision({
   onPick,
   open,
   seed,
+  ai,
 }: {
   beat: Extract<Beat, { kind: "decision" }>;
   picks: Pick[];
@@ -151,9 +154,34 @@ function Decision({
   onPick: (i: number) => void;
   open: boolean;
   seed: string;
+  /** free-text mode (AI): the room's slug and this decision's index in the script */
+  ai?: { slug: string; beat: number } | null;
 }) {
   const tried = new Set(picks.map((p) => p.option));
   const shown = order(beat.options.length, seed);
+  const [free, setFree] = useState("");
+  const [freeBusy, setFreeBusy] = useState(false);
+  const [freeLog, setFreeLog] = useState<{ you: string; who: string; reply: string }[]>([]);
+  const sendFree = async () => {
+    if (!ai || !free.trim() || freeBusy) return;
+    setFreeBusy(true);
+    const you = free.trim();
+    setFree("");
+    try {
+      const r = await userFetch("/api/learn/ai/war-room", { method: "POST", body: JSON.stringify({ slug: ai.slug, beat: ai.beat, text: you }) });
+      const b = (await r.json().catch(() => ({}))) as { match?: number | null; who?: string; reply?: string; error?: string; creditsLeft?: number | null };
+      setAiCredits(b.creditsLeft);
+      if (!r.ok) setFreeLog((l) => [...l, { you, who: "", reply: b.error || "Something went wrong." }]);
+      else {
+        setFreeLog((l) => [...l, { you, who: b.who || "", reply: b.reply || "" }]);
+        // a move that matches an option plays out exactly like picking it (costs included)
+        if (typeof b.match === "number" && !tried.has(b.match)) onPick(b.match);
+      }
+    } catch {
+      setFreeLog((l) => [...l, { you, who: "", reply: "You seem to be offline." }]);
+    }
+    setFreeBusy(false);
+  };
   return (
     <div className={`flex flex-col gap-3 border p-4 sm:p-5 ${open ? "border-signal bg-surface" : "border-line bg-bg"}`}>
       <span className={`${LABEL} ${open ? "text-signal-text" : "text-fg-3"}`}>your call</span>
@@ -180,6 +208,36 @@ function Decision({
           );
         })}
       </div>
+      {freeLog.map((f, k) => (
+        <div key={`f${k}`} className="flex flex-col gap-1 border-l-2 border-signal pl-3 text-[14px] leading-relaxed">
+          <span className="text-fg">
+            <strong>You: </strong>
+            {f.you}
+          </span>
+          <span className="text-fg-2">
+            {f.who && <strong className="text-fg">{f.who}: </strong>}
+            {f.reply}
+          </span>
+        </div>
+      ))}
+      {open && ai && (
+        <div className="flex flex-col gap-2 border-t border-line pt-3">
+          <span className="font-mono text-[11px] text-fg-3">or type what you&apos;d actually do (ai)</span>
+          <div className="flex gap-2">
+            <input
+              value={free}
+              onChange={(e) => setFree(e.target.value.slice(0, 600))}
+              onKeyDown={(e) => e.key === "Enter" && void sendFree()}
+              placeholder="e.g. check what changed in the last hour"
+              aria-label="Your move, in your own words"
+              className="min-h-11 min-w-0 flex-1 border border-line-strong bg-bg px-3 text-[15px] text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
+            />
+            <button type="button" disabled={freeBusy || !free.trim()} onClick={() => void sendFree()} className="min-h-11 bg-signal px-4 font-mono text-xs font-semibold text-on-signal disabled:opacity-50">
+              {freeBusy ? "…" : "Do it"}
+            </button>
+          </div>
+        </div>
+      )}
       {picks.map((p) => (
         <div key={p.option} className="flex flex-col gap-2 border-l-2 border-line-strong pl-3">
           {beat.options[p.option].replies.map((r, k) => {
@@ -205,6 +263,8 @@ function rating(wrong: number): { title: string; line: string } {
 
 export default function WarRoomPlayer({ room }: { room: WarRoom }) {
   const { awardOnce } = useGame();
+  const aiStatus = useAiStatus();
+  const freeText = !!(aiStatus?.signedIn && aiStatus.features["war-room"]);
   const [shown, setShown] = useState(0);
   const [picks, setPicks] = useState<Record<number, Pick[]>>({});
   const [fast, setFast] = useState(false);
@@ -350,7 +410,7 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
       <div role="log" aria-live="polite" aria-label="Incident channel" className="flex flex-col gap-4">
         {beats.slice(0, shown).map((b, i) =>
           b.kind === "decision" ? (
-            <Decision key={i} beat={b} picks={picks[i] || []} cast={room.cast} open={!resolved(i)} onPick={(o) => pick(i, o)} seed={`${room.slug}:${i}`} />
+            <Decision key={i} beat={b} picks={picks[i] || []} cast={room.cast} open={!resolved(i)} onPick={(o) => pick(i, o)} seed={`${room.slug}:${i}`} ai={freeText ? { slug: room.slug, beat: i } : null} />
           ) : (
             <Message key={i} beat={b} cast={room.cast} />
           ),

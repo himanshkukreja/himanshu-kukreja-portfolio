@@ -5,6 +5,7 @@
  * renderer as the public page, Mermaid included), autosave to the server (and a local backup in
  * case the connection drops), submit, keep editing until submissions close, withdraw or delete.
  */
+import DesignReview from "@/components/learn/ai/DesignReview";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 import Link from "next/link";
@@ -409,6 +410,7 @@ function Writer({ c, initial, who }: { c: ChallengeView; initial: MySubmission |
           <span className="ml-auto text-[13px] text-fg-3">Edits are allowed until {fmtIst(c.submissionsCloseAt)}. Images aren&apos;t shown; draw diagrams in Mermaid.</span>
         </div>
       </div>
+      <DesignReview slug={c.slug} body={body} />
     </div>
   );
 }
