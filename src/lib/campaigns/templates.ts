@@ -14,6 +14,7 @@ import { ANNOUNCE_KEY, announceSubject, learnRevampHtml, learnRevampText, unsubs
 import { OFFLINE_APP_KEY, OFFLINE_APP_PREHEADER, offlineAppHtml, offlineAppSubject, offlineAppText } from "@/lib/announce/offline-app";
 import { PRACTICE_TOOLKIT_KEY, PRACTICE_TOOLKIT_PREHEADER, practiceToolkitHtml, practiceToolkitSubject, practiceToolkitText } from "@/lib/announce/practice-toolkit";
 import { WATCH_TRY_KEY, WATCH_TRY_PREHEADER, watchTryHtml, watchTrySubject, watchTryText } from "@/lib/announce/watch-and-try";
+import { AI_TUTOR_KEY, AI_TUTOR_PREHEADER, aiTutorHtml, aiTutorSubject, aiTutorText } from "@/lib/announce/ai-tutor";
 import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
 import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
 import type { TemplateInfo } from "./types";
@@ -132,6 +133,21 @@ function watchTryTemplate(): TemplateInfo {
   };
 }
 
+function aiTutorTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/ai-tutor.ts", html: fromSource(aiTutorHtml, unsub), text: fromSource(aiTutorText, unsub) };
+  return {
+    id: "ai-tutor",
+    name: "What's new: the AI tutor",
+    description:
+      "The AI features only (free for signed-in learners for a limited time): ask this lesson, code-lab hints and review, explain it back, the AI mock interviewer and scorecard, war-room moves, plus questions learners ask, design review and privacy. Each with a screenshot of a real answer. Generated from src/lib/announce/ai-tutor.ts.",
+    topic: AI_TUTOR_KEY,
+    ...subjectTemplate(aiTutorSubject),
+    preheader: AI_TUTOR_PREHEADER,
+    doc,
+  };
+}
+
 function welcomeTemplate(): TemplateInfo {
   const unsub = welcomeUnsubscribeUrl(S_EMAIL);
   const doc: RawDoc = { layout: "raw", source: "src/lib/email/welcome.ts", html: fromSource(welcomeHtml, unsub), text: fromSource(welcomeText, unsub) };
@@ -192,7 +208,7 @@ function storyTemplate(): TemplateInfo {
 
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [storyTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [storyTemplate, aiTutorTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {
