@@ -516,7 +516,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         lecture={lecture}
         flat={flat}
         i={i}
-        t={asking ? Math.max(t, dur - 0.05) : playing || time > 0 ? t : 99}
+        t={asking ? Math.max(t, dur - 0.05) : playing || (cur.s.kind === "quiz" && cur.step === 0) ? t : Math.max(t, 2)}
         dur={dur}
         quest={quest}
         interactive
@@ -763,7 +763,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           )}
           {quest && (
             <Link href={quest.href} className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
-              ← read the full quest: {quest.title}
+              ← read the full {lecture.lesson ? "lesson" : "quest"}: {quest.title}
             </Link>
           )}
           <Link href="/learn/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
