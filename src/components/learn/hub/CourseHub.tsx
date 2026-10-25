@@ -5,6 +5,7 @@
  * every world (nodes per lesson, boss, trial parts), selected-world panel, side quests, and the
  * world-cleared / level-up moments. Progress: one batched load (useLearnProgress).
  */
+import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 import Link from "next/link";
 import QuestEmblem from "@/components/learn/sidequest/QuestEmblem";
 import { questBrand } from "@/components/learn/sidequest/brands";
@@ -213,6 +214,7 @@ export default function CourseHub({ map }: { map: CourseMap }) {
               design sheets →
             </Link>
           </span>
+          <span className="basis-full text-[11px] text-fg-4">{LOGO_NOTE}</span>
         </div>
         <div className="grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] gap-2">
           {map.sideQuests.map((q) => {

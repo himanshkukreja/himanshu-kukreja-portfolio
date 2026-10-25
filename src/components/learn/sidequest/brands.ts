@@ -1,8 +1,8 @@
 /**
  * Side quest identities: one per bonus problem (resources/bonus-problems/bonus-NN-*.md).
  *
- * These are NOT the companies' logos or brand artwork. Each quest gets an original emblem drawn
- * for this course (QuestEmblem.tsx) that evokes the product's engineering problem (a QR finder
+ * QuestEmblem.tsx draws the product's real mark on the tile where Simple Icons has a fitting one
+ * (16 quests); the others keep an original emblem drawn for this course that evokes the product's engineering problem (a QR finder
  * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for Zerodha Kite, a GPU chip streaming tokens for ChatGPT, two cursors on a frame for Figma, an upload arrow over a film strip for YouTube, a page with two carets for Google Docs, a photo grid under a story ring for Instagram, a seat grid with a held pair for BookMyShow, a takeaway bag on a route to a pin for Swiggy, a shield with a check for Razorpay…), tinted with the product's general
  * colour as an accent. The product is always named in text.
  */

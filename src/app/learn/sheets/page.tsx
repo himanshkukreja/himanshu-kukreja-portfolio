@@ -3,6 +3,7 @@ import { getSheetSummaries } from "@/lib/learn/sheets/load";
 import { getCourseMap, COURSE_ID } from "@/lib/learn/course";
 import QuestEmblem from "@/components/learn/sidequest/QuestEmblem";
 import { questBrand } from "@/components/learn/sidequest/brands";
+import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 
 export const runtime = "nodejs";
 export const revalidate = 86400;
@@ -66,6 +67,7 @@ export default async function SheetsIndex() {
           ))}
         </ul>
       )}
+      <p className="m-0 text-[11px] text-fg-4">{LOGO_NOTE}</p>
     </main>
   );
 }

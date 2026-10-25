@@ -1,5 +1,6 @@
 "use client";
 
+import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import BookmarkButton from "@/components/BookmarkButton";
@@ -167,6 +168,7 @@ export default function QuestHero({ meta }: { meta: ReaderMeta }) {
           </dl>
         )}
       </div>
+      <p className="m-0 mt-2 text-[11px] leading-snug text-fg-4">{LOGO_NOTE}</p>
     </section>
   );
 }

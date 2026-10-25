@@ -1,10 +1,13 @@
 import type { ReactNode } from "react";
 import type { QuestBrand } from "./brands";
+import MARKS_JSON from "./marks.json";
 
 /**
- * Original quest emblems, drawn for this course (64×64, square tile, 2.5px square-capped strokes).
- * They evoke each product's engineering problem; none reproduces a company logo or trademark.
- * Decorative: the product is always named next to it, so the SVG is aria-hidden.
+ * Quest emblems (64×64 square tile in the product's colour). Where Simple Icons has a fitting mark,
+ * the product's real logo is drawn on the tile to identify it (a trademark of its owner; see
+ * scripts/build-quest-logos.mjs); otherwise an original emblem drawn for this course (2.5px
+ * square-capped strokes) that evokes the product's engineering problem. Decorative: the product is
+ * always named next to it, so the SVG is aria-hidden.
  */
 
 /** flat-top hexagon path */
@@ -285,7 +288,13 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
   }
 }
 
+/** Real product marks (Simple Icons, via scripts/build-quest-logos.mjs), by quest number. */
+const MARKS = MARKS_JSON as Record<string, { body: string; size: number }>;
+
 export default function QuestEmblem({ brand, size = 72, className = "" }: { brand: QuestBrand; size?: number; className?: string }) {
+  const mark = MARKS[String(brand.n)];
+  // the product's mark at 60% of the tile, centred
+  const k = mark ? (64 * 0.6) / mark.size : 1;
   return (
     <svg
       viewBox="0 0 64 64"
@@ -297,7 +306,11 @@ export default function QuestEmblem({ brand, size = 72, className = "" }: { bran
     >
       <rect width={64} height={64} fill={brand.accent} />
       <rect x={3} y={3} width={58} height={58} fill="none" stroke={brand.ink} strokeOpacity={0.28} strokeWidth={1} />
-      {glyph(brand.emblem, brand.ink, brand.accent)}
+      {mark ? (
+        <g transform={`translate(${(64 - mark.size * k) / 2} ${(64 - mark.size * k) / 2}) scale(${k})`} color={brand.ink} dangerouslySetInnerHTML={{ __html: mark.body }} />
+      ) : (
+        glyph(brand.emblem, brand.ink, brand.accent)
+      )}
     </svg>
   );
 }
