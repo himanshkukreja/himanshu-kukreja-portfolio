@@ -22,8 +22,9 @@ import { track } from "@/lib/track";
 import { InlineLoader } from "@/components/ui/loader";
 
 type Doc = LearningResource & { content?: string; excerpt?: string };
-type Group = "lessons" | "cases" | "questions" | "notes";
+type Group = "companies" | "lessons" | "cases" | "questions" | "notes";
 type CaseDoc = { slug: string; title: string; excerpt: string; content: string };
+type CompanyDoc = { slug: string; name: string; category: string; builds: string; focus: string; questions: string; count: number; reported: number };
 type Hit = {
   id: string;
   group: Group;
@@ -114,6 +115,7 @@ function Palette({ onClose }: { onClose: () => void }) {
   const { user } = useAuth();
   const [docs, setDocs] = useState<Doc[] | null>(null);
   const [cases, setCases] = useState<CaseDoc[]>([]);
+  const [companies, setCompanies] = useState<CompanyDoc[]>([]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | Group>("all");
@@ -139,6 +141,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         if (off) return;
         setDocs((d.results || []) as Doc[]);
         setCases((d.cases || []) as CaseDoc[]);
+        setCompanies((d.companies || []) as CompanyDoc[]);
       })
       .catch(() => {
         if (!off) {
@@ -219,6 +222,24 @@ function Palette({ onClose }: { onClose: () => void }) {
     [cases]
   );
 
+  const companyFuse = useMemo(
+    () =>
+      companies.length
+        ? new Fuse(companies, {
+            keys: [
+              { name: "name", weight: 5 },
+              { name: "focus", weight: 1.5 },
+              { name: "builds", weight: 1 },
+              { name: "questions", weight: 1 },
+            ],
+            threshold: 0.3,
+            ignoreLocation: true,
+            minMatchCharLength: 2,
+          })
+        : null,
+    [companies]
+  );
+
   const { hits, ms } = useMemo(() => {
     const t = q.trim();
     if (!t || !docs) return { hits: [] as Hit[], ms: 0 };
@@ -266,12 +287,21 @@ function Palette({ onClose }: { onClose: () => void }) {
       sub: snippet(c.content || c.excerpt, t, 60) || c.excerpt.slice(0, 90),
       href: `/stories/${c.slug}`,
     }));
-    return { hits: [...lessonHits, ...cHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
-  }, [q, docs, fuse, caseFuse, questions, notes, titleOf]);
+    const coHits: Hit[] = (companyFuse?.search(t).slice(0, 4) || []).map(({ item: c }) => ({
+      id: `co:${c.slug}`,
+      group: "companies",
+      badge: "CO",
+      title: `${c.name} · interview prep`,
+      sub: `${c.count} questions${c.reported ? `, ${c.reported} reported by candidates` : ""} · ${c.builds}`.slice(0, 140),
+      href: `/learn/prep/companies/${c.slug}`,
+    }));
+    return { hits: [...coHits, ...lessonHits, ...cHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
+  }, [q, docs, fuse, caseFuse, companyFuse, questions, notes, titleOf]);
 
   const counts = useMemo(
     () => ({
       all: hits.length,
+      companies: hits.filter((h) => h.group === "companies").length,
       lessons: hits.filter((h) => h.group === "lessons").length,
       cases: hits.filter((h) => h.group === "cases").length,
       questions: hits.filter((h) => h.group === "questions").length,
@@ -339,7 +369,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       // tab jumps to the first result of the next group
       e.preventDefault();
       const cur = visible[sel]?.group;
-      const order: Group[] = ["lessons", "cases", "questions", "notes"];
+      const order: Group[] = ["companies", "lessons", "cases", "questions", "notes"];
       const start = cur ? order.indexOf(cur) : -1;
       for (let k = 1; k <= order.length; k++) {
         const g = order[(start + (e.shiftKey ? -k + order.length : k)) % order.length];
@@ -353,6 +383,7 @@ function Palette({ onClose }: { onClose: () => void }) {
   };
 
   const groups: { key: Group; label: string; more?: { label: string; href: string } }[] = [
+    { key: "companies", label: "Companies", more: { label: "all companies →", href: "/learn/prep/companies" } },
     { key: "lessons", label: "Lessons" },
     { key: "cases", label: "Case files", more: { label: "all case files →", href: "/stories" } },
     { key: "questions", label: "Interview questions" },
@@ -367,7 +398,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Search the course" className="flex max-h-[calc(100dvh-8vh-110px)] w-full max-w-[700px] lg:max-h-[84vh] animate-hk-in flex-col border border-line-strong bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
         <label className="flex min-h-[60px] items-center gap-3 border-b border-line px-4 focus-within:shadow-[inset_0_-2px_0_var(--c-signal)]">
           <Search className="h-[18px] w-[18px] shrink-0 text-signal-text" aria-hidden />
-          <span className="sr-only">Search lessons, interview questions and your notes</span>
+          <span className="sr-only">Search lessons, companies, interview questions and your notes</span>
           <input
             ref={inputRef}
             type="search"
@@ -375,7 +406,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
             aria-controls="course-search-results"
-            placeholder="Search lessons, questions, notes…"
+            placeholder="Search lessons, companies, questions, notes…"
             className="min-h-11 min-w-0 flex-1 appearance-none bg-transparent text-lg text-fg outline-none placeholder:text-fg-4 focus-visible:outline-none sm:text-xl [&::-webkit-search-cancel-button]:hidden"
           />
           {q.trim() && docs && (
@@ -394,6 +425,7 @@ function Palette({ onClose }: { onClose: () => void }) {
               [
                 ["all", "all"],
                 ["lessons", "lessons"],
+                ["companies", "companies"],
                 ["cases", "case files"],
                 ["questions", "interview qs"],
                 ...(user ? [["notes", "your notes"]] : []),

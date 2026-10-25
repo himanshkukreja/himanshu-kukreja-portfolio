@@ -20,6 +20,7 @@ import { useMockStatus } from "@/lib/learn/mock/store";
 import type { CourseMock } from "@/lib/learn/mock/types";
 import type { CompanySummary } from "@/lib/learn/prep/types";
 import CompanyGrid from "./CompanyGrid";
+import { LOGO_NOTE } from "./CompanyLogo";
 import { daysBetween } from "@/lib/learn/plan/schedule";
 import { fmtDate } from "@/components/learn/progress/derive";
 import { usePlanRecord, useToday } from "@/components/learn/plan/usePlan";
@@ -143,6 +144,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
               <ListChecks className="h-4 w-4" aria-hidden /> Question bank · {data.bank.questions} questions{data.bank.reported ? ` · ${data.bank.reported} reported` : ""}
             </Link>
           </div>
+          <p className="m-0 max-w-[700px] text-[12px] leading-relaxed text-fg-4">{LOGO_NOTE}</p>
         </div>
       </Group>
 

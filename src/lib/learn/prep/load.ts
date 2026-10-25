@@ -87,7 +87,13 @@ async function build(): Promise<Built> {
             .sort((a, b) => (a.evidence === b.evidence ? 0 : a.evidence === "reported" ? -1 : 1));
           const seen = new Set<string>();
           const path: ArticleLink[] = [];
-          for (const q of list) for (const l of q.links) if (!seen.has(l.href)) (seen.add(l.href), path.push(l));
+          for (const q of list) {
+            for (const l of q.links) {
+              if (seen.has(l.href)) continue;
+              seen.add(l.href);
+              path.push(l);
+            }
+          }
           const slug = f.name.replace(/\.md$/, "");
           return {
             slug,
@@ -152,6 +158,20 @@ export async function getCompanies(): Promise<CompanySummary[]> {
 export async function getCompany(slug: string): Promise<Company | null> {
   if (!/^[a-z0-9-]{1,80}$/.test(slug)) return null;
   return (await data()).bySlug[slug] ?? null;
+}
+
+/** The search palette's company index: name, what it builds, its focus and its question titles. */
+export async function getCompanySearchDocs(): Promise<{ slug: string; name: string; category: string; builds: string; focus: string; questions: string; count: number; reported: number }[]> {
+  return Object.values((await data()).bySlug).map((c) => ({
+    slug: c.slug,
+    name: c.name,
+    category: c.category,
+    builds: c.builds,
+    focus: c.focus.join(", "),
+    questions: c.list.map((q) => q.q).join(" · "),
+    count: c.questions,
+    reported: c.reported,
+  }));
 }
 
 export async function getQuestionBank(): Promise<BankQuestion[]> {

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAllLearningResources, fetchMarkdownContent } from "@/lib/github";
 import { listStorySources } from "@/lib/stories";
+import { getCompanySearchDocs } from "@/lib/learn/prep/load";
 
 export const runtime = "nodejs";
 // The palette's search index: built once and served from the cache (CDN), refreshed daily and on every
@@ -74,7 +75,10 @@ export async function GET() {
     // case files (repo stories + published CMS ones), searched alongside the lessons
     const cases = (await listStorySources().catch(() => [])).map((c) => ({ slug: c.slug, title: c.title, excerpt: c.excerpt || "", content: plain(c.body || "").slice(0, 20000) }));
 
-    return NextResponse.json({ results: resourcesWithContent, cases });
+    // interview-prep companies: found by name, what they build, their focus and their questions
+    const companies = await getCompanySearchDocs().catch(() => []);
+
+    return NextResponse.json({ results: resourcesWithContent, cases, companies });
   } catch (error) {
     console.error("[Search API] Error:", error);
     return NextResponse.json(

@@ -6,6 +6,7 @@ import { trackBySlug } from "@/lib/learn/tracks";
 import { resolveTrack } from "@/components/learn/tracks/resolve";
 import { CATEGORY_LABEL, TYPE_LABEL, type CompanyQuestion } from "@/lib/learn/prep/types";
 import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
+import CompanyLogo, { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses).
@@ -97,10 +98,13 @@ export default async function CompanyPage({ params }: Props) {
           {CATEGORY_LABEL[c.category]}
           {c.hq ? ` · ${c.hq}` : ""}
         </span>
-        <h1 className="m-0 font-display text-[clamp(40px,7vw,72px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
-          {c.name}
-          <span className="text-signal-text">.</span>
-        </h1>
+        <div className="flex items-center gap-4">
+          <CompanyLogo slug={c.slug} name={c.name} size={64} />
+          <h1 className="m-0 font-display text-[clamp(40px,7vw,72px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
+            {c.name}
+            <span className="text-signal-text">.</span>
+          </h1>
+        </div>
         {c.builds && <p className="m-0 max-w-[680px] text-[17px] leading-relaxed text-fg-2">{c.builds}</p>}
         {c.focus.length > 0 && (
           <div className="flex flex-col gap-1.5">
@@ -194,6 +198,7 @@ export default async function CompanyPage({ params }: Props) {
         </section>
       )}
 
+      <p className="m-0 text-[12px] leading-relaxed text-fg-4">{LOGO_NOTE}</p>
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
         <Link href="/learn/prep/companies" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
           ← all companies

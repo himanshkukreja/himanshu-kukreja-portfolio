@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCompanies } from "@/lib/learn/prep/load";
 import CompanyGrid from "@/components/learn/prep/CompanyGrid";
+import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 
 export const runtime = "nodejs";
 export const revalidate = 86400;
@@ -40,6 +41,7 @@ export default async function CompaniesPage() {
         </p>
       </header>
       {companies.length ? <CompanyGrid companies={companies} /> : <p className="m-0 border border-dashed border-line p-5 text-fg-3">The company pages are being researched.</p>}
+      <p className="m-0 max-w-[700px] text-[12px] leading-relaxed text-fg-4">{LOGO_NOTE}</p>
     </main>
   );
 }
