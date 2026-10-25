@@ -16,6 +16,7 @@ import LessonHero from "./LessonHero";
 import QuestHero from "@/components/learn/sidequest/QuestHero";
 import { questBrand } from "@/components/learn/sidequest/brands";
 import QuestRunEntry from "@/components/learn/sidequest/QuestRunEntry";
+import LectureEntry from "@/components/learn/sidequest/LectureEntry";
 import StageRail from "./StageRail";
 import ContentsSheet from "./ContentsSheet";
 import EndOfLesson from "./EndOfLesson";
@@ -188,6 +189,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             sidebarRight={<TableOfContents toc={toc} stages={stages} />}
           >
             {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
+            {meta.kind === "bonus" && meta.lecture && <LectureEntry lecture={meta.lecture} />}
             {meta.kind === "bonus" && <QuestRunEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} />}
 
             <AskPrompt />

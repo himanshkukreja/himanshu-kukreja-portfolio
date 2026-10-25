@@ -1,17 +1,65 @@
-/** Experimental video lectures (resources/lectures/<quest slug>.json): scenes of diagrams that build up and light up as the narrator speaks. */
-export type LectureStep = { say: string; highlight?: string[]; upto?: number; caption?: string };
+/**
+ * Side-quest lectures (resources/lectures/<quest slug>.json, format in that folder's README): scenes
+ * that build up and animate as the narrator speaks. v2 adds list, compare, quiz, chart, timeline and
+ * phone scenes, and per-step packets (`flow`), camera (`focus`), reveals and pauses.
+ */
+export type Tone = "bad" | "good" | "hot" | "neutral";
+export type LectureStep = {
+  say: string;
+  caption?: string;
+  highlight?: string[];
+  upto?: number;
+  reveal?: number;
+  pause?: number;
+  flow?: string[];
+  focus?: string[];
+  screen?: number;
+};
+export type SceneKind = "title" | "numbers" | "flowchart" | "sequence" | "state" | "list" | "compare" | "quiz" | "chart" | "timeline" | "phone";
 export type LectureScene = {
   id: string;
   title: string;
-  kind: "title" | "numbers" | "flowchart" | "sequence" | "state";
+  kind: SceneKind;
   heading?: string;
   numbers?: { value: string; label: string }[];
   diagram?: string;
+  points?: string[] | { label: string; value: number; tone?: Tone }[];
+  left?: { title: string; points: string[]; tone?: Tone };
+  right?: { title: string; points: string[]; tone?: Tone };
+  question?: string;
+  options?: string[];
+  answer?: number;
+  explain?: string;
+  type?: "bar" | "line";
+  unit?: string;
+  events?: { at: string; text: string; tone?: Tone }[];
+  app?: string;
+  screens?: { title: string; rows: { text: string; meta?: string; tone?: Tone }[]; toast?: string }[];
   steps: LectureStep[];
 };
-export type Lecture = { quest: string; title: string; summary: string; scenes: LectureScene[] };
+export type Lecture = { v?: number; quest: string; title: string; summary: string; scenes: LectureScene[] };
 
-/** The Mermaid source for one step: flowchart/state nodes lit up, or a sequence cut to its first `upto` messages. */
+/** One step of the whole lecture, in order. */
+export type FlatStep = { n: number; scene: number; step: number; s: LectureScene; st: LectureStep };
+export const flatten = (l: Lecture): FlatStep[] => {
+  let n = 0;
+  return l.scenes.flatMap((s, scene) => s.steps.map((st, step) => ({ n: n++, scene, step, s, st })));
+};
+
+/** Recorded narration for a lecture: where each step starts in the audio (seconds). */
+export type LectureMedia = {
+  /** hash of the lecture JSON the audio was made from; a mismatch means the audio is stale */
+  source: string;
+  audio: string;
+  /** soft background music, looped under the narration */
+  music?: string;
+  video?: string;
+  poster?: string;
+  captions?: string;
+  duration: number;
+  starts: number[];
+};
+
 export function stepSource(scene: LectureScene, step: LectureStep): string | null {
   const src = scene.diagram?.trim();
   if (!src) return null;

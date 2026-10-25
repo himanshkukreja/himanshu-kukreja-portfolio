@@ -72,6 +72,8 @@ export type ReaderMeta = {
   trail?: TrailEntry[] | null;
   /** a side quest's design sheet ("Revise the whole design" at the end) */
   sheet?: { href: string; diagrams: number } | null;
+  /** a side quest's interactive lecture (v2): shown as "Watch it first" at the top */
+  lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 };
 
 export type QuestMeta = {

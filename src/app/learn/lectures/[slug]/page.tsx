@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getLecture } from "@/lib/learn/lecture/load";
+import { getLecture, lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
 
@@ -15,8 +15,8 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props) {
   const l = await getLecture((await params).slug);
   if (!l) return { title: "Not Found" };
-  // experimental: kept out of search until the format is decided
-  return { title: `${l.title} · Lecture (beta)`, description: l.summary, robots: { index: false, follow: false } };
+  // v2 lectures are the released format; the v1 experiments stay out of search
+  return { title: `${l.title} · Lecture`, description: l.summary, alternates: { canonical: `/learn/lectures/${l.quest}` }, ...(l.v === 2 ? {} : { robots: { index: false, follow: false } }) };
 }
 
 export default async function LecturePage({ params }: Props) {
@@ -24,5 +24,5 @@ export default async function LecturePage({ params }: Props) {
   const [l, map] = await Promise.all([getLecture(slug), getCourseMap(COURSE_ID).catch(() => null)]);
   if (!l) notFound();
   const q = map?.sideQuests.find((x) => x.slug === l.quest) ?? null;
-  return <LecturePlayer lecture={l} quest={q ? { title: q.title, href: q.href, code: q.code } : null} />;
+  return <LecturePlayer lecture={l} quest={q ? { title: q.title, href: q.href, code: q.code } : null} source={lectureHash(l)} mediaBase={lectureMediaBase()} />;
 }

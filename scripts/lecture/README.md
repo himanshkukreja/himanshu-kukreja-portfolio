@@ -18,6 +18,32 @@ curl -LO https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-fil
 cd <site repo> && npm i --no-save puppeteer-core
 ```
 
+## Make a lecture (v2: interactive in the course, MP4 for sharing)
+
+Script format and rules: `resources/lectures/README.md` in the content repo.
+
+```sh
+node scripts/lecture/check.mjs ../system-design-mastery/resources/lectures/<slug>.json      # must print no ERROR / warnings
+python3 scripts/lecture/music.py out/music.wav 196 7 && ffmpeg -i out/music.wav -b:a 128k out/music.mp3   # once: the soft music loop
+npx next dev -p 3100                                                                          # the exporter draws frames from this
+node scripts/lecture/export.mjs ../system-design-mastery/resources/lectures/<slug>.json out/<slug> --music out/music.mp3
+~/.cache/kokoro/venv/bin/python scripts/lecture/asrcheck.py out/<slug>                         # transcribes the voice, flags garbled words
+node --env-file=.env.local scripts/lecture/publish.mjs out/<slug>                              # uploads to R2: lectures/<slug>/
+```
+
+`out/<slug>/` gets `video.mp4` (1080p, music ducked under the voice, watermark), and the course
+player's media: `narration.mp3`, `music.mp3`, `media.json` (where each step starts; tied to the
+script by hash, so an edited script falls back to the browser voice until re-exported),
+`captions.vtt`, `chapters.json`, `poster.jpg`. The site reads them from `NEXT_PUBLIC_LECTURE_MEDIA`
+(the R2 public URL + `/lectures`), or `public/lecture-media/` in development.
+
+How the frames work: the page in record mode (`?record=1`) draws any moment on request
+(`window.__LECTURE_SET(step, t, …)`); each step's motion (about 1.6 s, or the whole step when packets
+loop or a quiz counts down) is captured at 25 fps and the last frame held for the rest of the step's
+audio, so picture and voice can't drift. About 10 minutes per lecture.
+
+## v1 (the first experiment)
+
 ## Make a video
 
 ```sh

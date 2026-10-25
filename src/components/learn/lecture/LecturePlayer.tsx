@@ -1,308 +1,557 @@
 "use client";
 
 /**
- * Experimental side-quest lecture: a 16:9 stage where each scene's diagram builds up (sequence
- * diagrams one arrow at a time) and lights up (flowchart / state nodes) as the narrator speaks, with
- * captions, chapters, play / pause, step and speed.
+ * Interactive side-quest lecture (Scrimba-style: it's live, not a flat video). The stage is drawn
+ * in the page from the lecture JSON and kept in step with recorded narration, so the learner can
+ * pause on any diagram, ask the AI about that exact moment, answer quiz checkpoints (the lecture
+ * waits), toggle captions and music, change speed, jump by chapter, pop the stage out
+ * (picture-in-picture) and pick up where they left off.
  *
- * Voice: pre-recorded audio when the lecture has it (audio/<quest>/<scene>-<step>.mp3, written by
- * scripts/lecture/render.ts), else the browser's own voice (Indian English preferred).
- * Record mode (?record=1, used by the MP4 exporter): no voice, no controls, and each step lasts the
- * duration the exporter passes in window.__LECTURE_DURATIONS (seconds per step, in order, pause
- * included); the exporter starts playback with window.__LECTURE_START() once recording runs.
- * Frame by frame (what the exporter uses now: exact sync): window.__LECTURE_GOTO(i) shows step i,
- * and window.__LECTURE_SHOWN becomes i once that step's diagram is on screen.
+ * Narration: `media` (made by scripts/lecture/export.mjs: one audio file + where each step starts).
+ * Without it (or if it was made from an older script) the lecture still plays on a timer with the
+ * browser's own voice.
+ *
+ * Record mode (?record=1, for the MP4 exporter): just the stage, full screen. The exporter calls
+ * window.__LECTURE_SET(i, t, dur, token) for every frame and screenshots once
+ * window.__LECTURE_FRAME === token; window.__LECTURE_PLAN lists each step's motion length.
  */
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { mermaidConfig, prepareMermaidSource } from "@/lib/diagrams/mermaid-theme";
-import { loadMermaid } from "@/lib/offline/lazy";
-import { stepSource, type Lecture, type LectureScene, type LectureStep } from "@/lib/learn/lecture/types";
-
-type Flat = { scene: number; step: number; s: LectureScene; st: LectureStep };
-type MermaidApi = Awaited<ReturnType<typeof loadMermaid>>;
-
-let mermaidP: Promise<MermaidApi> | null = null;
-let seq = 0;
-const svgCache = new Map<string, string>();
-
-async function renderSvg(src: string): Promise<string> {
-  const hit = svgCache.get(src);
-  if (hit) return hit;
-  if (!mermaidP) {
-    mermaidP = loadMermaid().then((m) => {
-      const cfg = mermaidConfig("dark");
-      const font = window.getComputedStyle(document.body).fontFamily;
-      m.initialize({ ...cfg, themeVariables: { ...cfg.themeVariables, fontFamily: font } });
-      return m;
-    });
-  }
-  const m = await mermaidP;
-  const { svg } = await m.render(`lec-${++seq}`, prepareMermaidSource(src, "dark"));
-  svgCache.set(src, svg);
-  return svg;
-}
-
-function pickVoice(): SpeechSynthesisVoice | null {
-  const vs = typeof window !== "undefined" && "speechSynthesis" in window ? window.speechSynthesis.getVoices() : [];
-  return vs.find((v) => v.lang === "en-IN") || vs.find((v) => v.lang.startsWith("en-GB")) || vs.find((v) => v.lang.startsWith("en")) || null;
-}
+import { createPortal } from "react-dom";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
+import AskLessonPanel from "@/components/learn/ai/AskLessonPanel";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+import { useGame } from "@/game/GameProvider";
+import { track } from "@/lib/track";
+import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
+import { INTRO } from "./anim";
 
 declare global {
   interface Window {
-    __LECTURE_DURATIONS?: number[];
-    __LECTURE_DONE?: boolean;
-    __LECTURE_START?: () => void;
     __LECTURE_READY?: boolean;
-    __LECTURE_GOTO?: (i: number) => void;
-    __LECTURE_SHOWN?: number;
+    __LECTURE_PLAN?: { anim: number; quiz: boolean }[];
+    __LECTURE_SET?: (i: number, t: number, dur: number, token: number) => void;
+    __LECTURE_FRAME?: number;
+    documentPictureInPicture?: { requestWindow: (o: { width: number; height: number }) => Promise<Window> };
   }
 }
 
-export default function LecturePlayer({ lecture, quest, audioBase }: { lecture: Lecture; quest: { title: string; href: string; code: string } | null; audioBase?: string | null }) {
-  const flat = useMemo<Flat[]>(() => lecture.scenes.flatMap((s, scene) => s.steps.map((st, step) => ({ scene, step, s, st }))), [lecture]);
-  const [i, setI] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [rate, setRate] = useState(1);
-  const [svg, setSvg] = useState<string>("");
-  // the step whose diagram is on screen now (record mode tells the exporter)
-  const [shown, setShown] = useState(-1);
-  const [record, setRecord] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const timer = useRef<number | undefined>(undefined);
-  const cur = flat[i];
+const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
+const QUIZ_XP = 10;
 
+/** seconds a step lasts without recorded audio: reading pace plus its pause */
+const estimate = (say: string, pause = 0) => say.split(/\s+/).length / 2.6 + 0.5 + pause;
+
+/** the caption line for this moment: the step's text split into sentences, timed by length */
+function captionAt(say: string, f: number): string {
+  const parts = say.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g)?.map((x) => x.trim()) || [say];
+  const total = parts.reduce((a, p) => a + p.length, 0) || 1;
+  let acc = 0;
+  for (const p of parts) {
+    acc += p.length;
+    if (f <= acc / total) return p;
+  }
+  return parts[parts.length - 1];
+}
+
+const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
+
+type Flat = ReturnType<typeof flatten>;
+type Quest = { title: string; href: string; code: string } | null;
+type Props = {
+  lecture: Lecture;
+  quest: Quest;
+  /** content hash of this lecture JSON: recorded media must match it */
+  source: string;
+  /** where recorded media lives (R2 public URL or a local folder); null: none */
+  mediaBase: string | null;
+};
+
+export default function LecturePlayer({ lecture, quest, source, mediaBase }: Props) {
+  const flat = useMemo(() => flatten(lecture), [lecture]);
+  const [record, setRecord] = useState(false);
   useEffect(() => {
     const id = window.setTimeout(() => setRecord(new URLSearchParams(window.location.search).has("record")), 0);
     return () => window.clearTimeout(id);
   }, []);
+  if (record) return <RecordStage lecture={lecture} flat={flat} quest={quest} />;
+  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} />;
+}
 
-  // draw the step's diagram (cached per source)
-  useEffect(() => {
-    let off = false;
-    const src = cur ? stepSource(cur.s, cur.st) : null;
-    if (!src) {
-      const id = window.setTimeout(() => {
-        if (off) return;
-        setSvg("");
-        setShown(i);
-      }, 0);
-      return () => {
-        off = true;
-        window.clearTimeout(id);
-      };
-    }
-    renderSvg(src)
-      .then((x) => !off && setSvg(x))
-      .catch(() => !off && setSvg(""))
-      .finally(() => !off && setShown(i));
-    return () => {
-      off = true;
-    };
-  }, [cur, i]);
+/* ---------- record mode: the exporter drives every frame ---------- */
 
-  const iRef = useRef(i);
-  const shownRef = useRef(shown);
-  useEffect(() => {
-    iRef.current = i;
-    shownRef.current = shown;
-    if (record) window.__LECTURE_SHOWN = shown;
-  }, [record, shown, i]);
-
-  const stop = useCallback(() => {
-    window.clearTimeout(timer.current);
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-    audioRef.current?.pause();
-  }, []);
-
-  const next = useCallback(() => {
-    setI((k) => {
-      if (k + 1 >= flat.length) {
-        setPlaying(false);
-        window.__LECTURE_DONE = true;
-        return k;
-      }
-      return k + 1;
+function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; quest: Quest }) {
+  const [frame, setFrame] = useState({ i: 0, t: 0, dur: 1, token: -1 });
+  const readyFor = useRef(-1);
+  const pending = useRef<{ i: number; token: number } | null>(null);
+  const signal = useCallback(() => {
+    const p = pending.current;
+    if (!p) return;
+    pending.current = null;
+    requestAnimationFrame(() => {
+      window.__LECTURE_FRAME = p.token;
     });
-  }, [flat.length]);
-
-  // narrate the current step, then move on
+  }, []);
   useEffect(() => {
-    if (!playing || !cur) return;
-    const after = () => {
-      timer.current = window.setTimeout(next, 450);
-    };
-    if (record) {
-      const d = window.__LECTURE_DURATIONS?.[i];
-      timer.current = window.setTimeout(next, Math.max(0.6, d ?? cur.st.say.split(/\s+/).length / 2.5 + 0.45) * 1000);
-      return () => window.clearTimeout(timer.current);
-    }
-    if (audioBase) {
-      const a = new Audio(`${audioBase}/${cur.s.id}-${cur.step}.mp3`);
-      audioRef.current = a;
-      a.playbackRate = rate;
-      a.onended = after;
-      a.onerror = after;
-      void a.play().catch(() => setPlaying(false));
-      return () => {
-        a.onended = null;
-        a.pause();
-      };
-    }
-    const synth = typeof window.speechSynthesis === "undefined" ? null : window.speechSynthesis;
-    if (!synth) {
-      timer.current = window.setTimeout(next, (cur.st.say.split(/\s+/).length / 2.5 / rate) * 1000);
-      return () => window.clearTimeout(timer.current);
-    }
-    const u = new SpeechSynthesisUtterance(cur.st.say);
-    const v = pickVoice();
-    if (v) u.voice = v;
-    u.lang = v?.lang || "en-IN";
-    u.rate = rate;
-    u.onend = after;
-    synth.cancel();
-    synth.speak(u);
-    return () => {
-      u.onend = null;
-      synth.cancel();
-      window.clearTimeout(timer.current);
-    };
-  }, [playing, cur, i, rate, record, audioBase, next]);
-
-  // record mode: the exporter starts playback itself (window.__LECTURE_START) once the screen recording runs
-  useEffect(() => {
-    if (!record) return;
     let off = false;
-    // draw every step's diagram first, so highlights land on time in the recording
-    void Promise.all(flat.map((f) => stepSource(f.s, f.st)).filter((x): x is string => !!x).map((src) => renderSvg(src).catch(() => ""))).then(() => {
+    void Promise.all(
+      flat
+        .map((f) => diagramFor(f.s, f.st))
+        .filter((x): x is string => !!x)
+        .map((src) => renderSvg(src).catch(() => "")),
+    ).then(() => {
       if (!off) window.__LECTURE_READY = true;
     });
-    window.__LECTURE_START = () => setPlaying(true);
-    window.__LECTURE_GOTO = (k: number) => {
-      const to = Math.max(0, Math.min(flat.length - 1, k));
-      // already there: it's on screen as soon as its diagram is
-      window.__LECTURE_SHOWN = to === iRef.current ? shownRef.current : -1;
-      setI(to);
+    // -1: moving for the whole step (packets loop, quiz countdown), else seconds of motion
+    window.__LECTURE_PLAN = flat.map((f) => ({ anim: f.st.flow?.length || (f.s.kind === "quiz" && f.step === 0) ? -1 : INTRO, quiz: f.s.kind === "quiz" }));
+    window.__LECTURE_SET = (i, t, dur, token) => {
+      readyFor.current = -1;
+      pending.current = null;
+      setFrame({ i, t, dur, token });
     };
     return () => {
       off = true;
-      delete window.__LECTURE_START;
-      delete window.__LECTURE_GOTO;
+      delete window.__LECTURE_SET;
     };
-  }, [record, flat]);
+  }, [flat]);
+  // a diagram can finish drawing after this frame's commit: it reports in, and the frame is done then
+  const onReady = useCallback(
+    (i: number) => {
+      readyFor.current = i;
+      if (pending.current?.i === i) signal();
+    },
+    [signal],
+  );
+  useLayoutEffect(() => {
+    if (frame.token < 0) return;
+    const kind = flat[frame.i]?.s.kind;
+    const diagram = kind === "flowchart" || kind === "state" || kind === "sequence";
+    pending.current = { i: frame.i, token: frame.token };
+    if (!diagram || readyFor.current === frame.i) signal();
+  }, [frame, flat, signal]);
+  const f = flat[frame.i];
+  return (
+    <div className="fixed inset-0 z-[200] bg-[#0b0b0c]">
+      <Stage lecture={lecture} flat={flat} i={frame.i} t={frame.t} dur={frame.dur} quest={quest} onReady={onReady} caption={null} quiz={f?.s.kind === "quiz" ? { picked: null } : undefined} />
+    </div>
+  );
+}
 
-  useEffect(() => () => stop(), [stop]);
+/* ---------- the learner's player ---------- */
 
-  const go = (k: number) => {
-    stop();
-    setI(Math.max(0, Math.min(flat.length - 1, k)));
+function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Flat }) {
+  const slug = lecture.quest;
+  const { awardOnce } = useGame();
+  const ai = useAiStatus();
+  const [media, setMedia] = useState<LectureMedia | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const musicRef = useRef<HTMLAudioElement | null>(null);
+  const shellRef = useRef<HTMLDivElement>(null);
+  const [time, setTime] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [rate, setRate] = useState(1);
+  const [cc, setCc] = useState(true);
+  const [music, setMusic] = useState(true);
+  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [ask, setAsk] = useState<{ n: number; selection: string } | null>(null);
+  const [pip, setPip] = useState<Window | null>(null);
+  const [resumeAt, setResumeAt] = useState<number | null>(null);
+  const [canPip, setCanPip] = useState(false);
+  const clockBase = useRef({ wall: 0, time: 0 });
+
+  // recorded narration, only if it was made from this exact script
+  useEffect(() => {
+    if (!mediaBase) return;
+    let off = false;
+    const base = `${mediaBase.replace(/\/$/, "")}/${slug}/`;
+    fetch(`${base}media.json`, { cache: "no-cache" })
+      .then((r) => (r.ok ? (r.json() as Promise<LectureMedia>) : null))
+      .then((m) => {
+        if (off || !m || m.source !== source) return;
+        const abs = (u?: string) => (u ? new URL(u, new URL(base, window.location.href)).href : undefined);
+        setMedia({ ...m, audio: abs(m.audio)!, music: abs(m.music) });
+      })
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+  }, [mediaBase, slug, source]);
+
+  // timeline: where each step starts (recorded audio, else an estimate)
+  const starts = useMemo(() => {
+    if (media && media.starts.length === flat.length) return media.starts;
+    const out: number[] = [];
+    let acc = 0;
+    for (const f of flat) {
+      out.push(acc);
+      acc += estimate(f.st.say, f.st.pause);
+    }
+    return out;
+  }, [media, flat]);
+  const duration = media && media.starts.length === flat.length ? media.duration : flat.length ? starts[starts.length - 1] + estimate(flat[flat.length - 1].st.say) : 0;
+  const stepAt = useCallback(
+    (tm: number) => {
+      let lo = 0;
+      for (let k = 0; k < starts.length; k++) if (starts[k] <= tm + 1e-3) lo = k;
+      return lo;
+    },
+    [starts],
+  );
+  const i = stepAt(time);
+  const cur = flat[i];
+  const dur = (i + 1 < starts.length ? starts[i + 1] : duration) - starts[i];
+  const t = time - starts[i];
+
+  // prefs, resume point, picture-in-picture support
+  useEffect(() => {
+    const id = window.setTimeout(() => {
+      setCanPip(!!window.documentPictureInPicture);
+      try {
+        const p = JSON.parse(localStorage.getItem("hk.lecture.prefs") || "{}") as { cc?: boolean; music?: boolean; rate?: number };
+        if (typeof p.cc === "boolean") setCc(p.cc);
+        if (typeof p.music === "boolean") setMusic(p.music);
+        if (p.rate && SPEEDS.includes(p.rate)) setRate(p.rate);
+        const at = Number(localStorage.getItem(`hk.lecture.pos.${slug}`));
+        if (at > 15) setResumeAt(at);
+      } catch {}
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [slug]);
+  useEffect(() => {
+    try {
+      localStorage.setItem("hk.lecture.prefs", JSON.stringify({ cc, music, rate }));
+    } catch {}
+  }, [cc, music, rate]);
+  const timeRef = useRef(0);
+  useEffect(() => {
+    timeRef.current = time;
+  }, [time]);
+  useEffect(() => {
+    if (!playing) return;
+    const id = window.setInterval(() => {
+      try {
+        localStorage.setItem(`hk.lecture.pos.${slug}`, String(Math.floor(timeRef.current)));
+      } catch {}
+    }, 5000);
+    return () => window.clearInterval(id);
+  }, [playing, slug]);
+
+  const pause = useCallback((at?: number) => {
+    audioRef.current?.pause();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (at != null && audioRef.current) audioRef.current.currentTime = Math.max(0, at);
+    setPlaying(false);
+  }, []);
+
+  // the clock: the audio's time when there is audio, else wall time
+  useEffect(() => {
+    if (!playing) return;
+    let raf = 0;
+    const tick = () => {
+      let tm: number;
+      if (media && audioRef.current) tm = audioRef.current.currentTime;
+      else tm = clockBase.current.time + ((performance.now() - clockBase.current.wall) / 1000) * rate;
+      // a quiz's answer step waits for the learner's answer
+      const k = stepAt(tm);
+      const q = flat[k];
+      if (q.s.kind === "quiz" && q.step === 1 && answers[q.s.id] == null) {
+        const at = starts[k] - 0.05;
+        pause(at);
+        setTime(at);
+        return;
+      }
+      if (tm >= duration) {
+        pause(duration - 0.01);
+        setTime(duration - 0.01);
+        return;
+      }
+      setTime(tm);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [playing, media, rate, starts, duration, answers, flat, stepAt, pause]);
+
+  // the browser's voice when there's no recording: speak each step as it starts
+  const spoken = useRef(-1);
+  useEffect(() => {
+    if (media || !playing || spoken.current === i || !("speechSynthesis" in window)) return;
+    spoken.current = i;
+    const u = new SpeechSynthesisUtterance(cur.st.say);
+    u.rate = rate;
+    u.lang = "en-IN";
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(u);
+  }, [i, playing, media, cur, rate]);
+
+  useEffect(() => {
+    if (audioRef.current) audioRef.current.playbackRate = rate;
+  }, [rate, media]);
+  useEffect(() => {
+    const m = musicRef.current;
+    if (!m) return;
+    m.volume = 0.16;
+    if (playing && music) void m.play().catch(() => {});
+    else m.pause();
+  }, [playing, music, media]);
+
+  const seek = useCallback(
+    (tm: number) => {
+      const to = Math.max(0, Math.min(duration - 0.05, tm));
+      if (audioRef.current) audioRef.current.currentTime = to;
+      clockBase.current = { wall: performance.now(), time: to };
+      spoken.current = -1;
+      setTime(to);
+    },
+    [duration],
+  );
+  const play = useCallback(() => {
+    let from = timeRef.current;
+    if (from >= duration - 0.1) {
+      from = 0;
+      seek(0);
+    }
+    if (media && audioRef.current) void audioRef.current.play().catch(() => setPlaying(false));
+    clockBase.current = { wall: performance.now(), time: from };
+    setPlaying(true);
+    track("lecture_play", { quest: slug, at: Math.round(from) });
+  }, [duration, media, seek, slug]);
+  const goStep = (k: number) => seek(starts[Math.max(0, Math.min(flat.length - 1, k))] + 0.01);
+  const toggle = () => (playing ? pause() : play());
+
+  const pick = (k: number) => {
+    const q = cur.s;
+    if (q.kind !== "quiz" || answers[q.id] != null) return;
+    setAnswers((a) => ({ ...a, [q.id]: k }));
+    const right = k === q.answer;
+    if (right) awardOnce(`lecture-quiz:${slug}:${q.id}`, QUIZ_XP, `Lecture checkpoint · ${quest?.title ?? lecture.title}`);
+    track("lecture_quiz", { quest: slug, scene: q.id, right });
+    window.setTimeout(() => {
+      seek(starts[Math.min(flat.length - 1, i + 1)] + 0.01);
+      play();
+    }, 1100);
   };
-  const sceneStarts = lecture.scenes.map((_, sc) => flat.findIndex((f) => f.scene === sc));
-  const total = flat.length;
 
-  if (!cur) return null;
-  const { s, st } = cur;
+  const askHere = () => {
+    pause();
+    setAsk({ n: Date.now(), selection: `From the lecture, "${cur.s.title}": ${cur.st.say}` });
+    track("lecture_ask", { quest: slug, scene: cur.s.id });
+  };
+
+  const fullscreen = () => {
+    const el = shellRef.current;
+    if (!el) return;
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void el.requestFullscreen?.();
+  };
+  const togglePip = async () => {
+    if (pip) return pip.close();
+    const w = await window.documentPictureInPicture!.requestWindow({ width: 640, height: 360 });
+    for (const n of document.querySelectorAll('style, link[rel="stylesheet"]')) w.document.head.appendChild(n.cloneNode(true));
+    w.document.body.style.margin = "0";
+    w.document.body.style.background = "#0b0b0c";
+    w.addEventListener("pagehide", () => setPip(null));
+    setPip(w);
+  };
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (ask || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
+      const k = e.key.toLowerCase();
+      if (k === " " || k === "k") {
+        e.preventDefault();
+        toggle();
+      } else if (k === "j") seek(timeRef.current - 10);
+      else if (k === "l") seek(timeRef.current + 10);
+      else if (k === "arrowleft") {
+        e.preventDefault();
+        goStep(i - 1);
+      } else if (k === "arrowright") {
+        e.preventDefault();
+        goStep(i + 1);
+      } else if (k === "c") setCc((x) => !x);
+      else if (k === "m") setMusic((x) => !x);
+      else if (k === "f") fullscreen();
+      else if (k === "a" && ai?.features["lesson-qa"]) askHere();
+      else if (k === ">" || k === ".") setRate((r) => SPEEDS[Math.min(SPEEDS.length - 1, SPEEDS.indexOf(r) + 1)] ?? r);
+      else if (k === "<" || k === ",") setRate((r) => SPEEDS[Math.max(0, SPEEDS.indexOf(r) - 1)] ?? r);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const chapters = lecture.scenes.map((s, k) => ({ k, s, at: starts[flat.findIndex((f) => f.scene === k)] ?? 0 }));
+  const quizzes = lecture.scenes.filter((s) => s.kind === "quiz");
+  const right = quizzes.filter((q) => answers[q.id] === q.answer).length;
+  const waitingQuiz = cur.s.kind === "quiz" && cur.step === 0 && answers[cur.s.id] == null && !playing && t > dur - 0.4;
+  const speakingFor = Math.max(0.1, dur - (cur.st.pause ?? 0) - 0.45);
 
   const stage = (
-    <div className={`relative overflow-hidden bg-[#0b0b0c] ${record ? "h-screen w-screen" : "aspect-video w-full border border-line-strong"}`}>
-      {/* chapter label */}
-      <div className="absolute left-[3%] top-[4%] z-10 flex items-center gap-3 font-mono text-[clamp(10px,1.1vw,16px)] uppercase tracking-[0.12em] text-[#ff6b2b]">
-        <span>
-          {String(cur.scene + 1).padStart(2, "0")} · {s.title}
-        </span>
-      </div>
-      {quest && <div className="absolute right-[3%] top-[4%] z-10 font-mono text-[clamp(10px,1vw,14px)] uppercase tracking-[0.12em] text-[#8a8a90]">{quest.code} · {quest.title}</div>}
-
-      <div className="absolute inset-x-[4%] bottom-[18%] top-[11%] flex items-center justify-center">
-        {s.kind === "title" ? (
-          <h2 className="m-0 max-w-[80%] text-center font-display text-[clamp(28px,5.2vw,84px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-[#f3f2ee]">
-            {(s.heading || lecture.title).replace(/[.!?]$/, "")}
-            <span className="text-[#ff6b2b]">{/[!?]$/.test(s.heading || lecture.title) ? (s.heading || lecture.title).slice(-1) : "."}</span>
-          </h2>
-        ) : s.kind === "numbers" ? (
-          <div className="flex w-full flex-col items-center gap-[4%]">
-            {s.heading && <h2 className="m-0 text-center font-display text-[clamp(22px,3.4vw,54px)] font-extrabold tracking-[-0.03em] text-[#f3f2ee]">{s.heading}</h2>}
-            <div className="grid w-full grid-cols-2 gap-[2%] sm:grid-cols-3">
-              {(s.numbers || []).map((n, k) => (
-                <div key={k} className={`flex flex-col gap-1 border p-[4%] transition-colors duration-500 ${k <= cur.step ? "border-[#ff6b2b] bg-[#1a0f08]" : "border-[#2a2a2e] opacity-40"}`}>
-                  <span className="font-display text-[clamp(20px,3.2vw,52px)] font-extrabold leading-none tracking-[-0.03em] text-[#f3f2ee]">{n.value}</span>
-                  <span className="text-[clamp(11px,1.2vw,18px)] text-[#a3a3a8]">{n.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div
-            className={`lecture-svg flex h-full w-full items-center justify-center ${
-              // flowcharts and state machines fill the stage (Mermaid's inline max-width would keep them small);
-              // sequences keep one scale, so the diagram doesn't jump as messages are added
-              s.kind === "sequence" ? "[&_svg]:h-full [&_svg]:max-h-full [&_svg]:w-auto [&_svg]:max-w-full" : "[&_svg]:!h-full [&_svg]:!w-full [&_svg]:!max-w-none"
-            }`}
-            dangerouslySetInnerHTML={{ __html: svg }}
-          />
-        )}
-      </div>
-
-      {/* caption */}
-      <div className="absolute inset-x-[6%] bottom-[5%] flex flex-col items-center gap-2">
-        {st.caption && <span className="bg-[#ff6b2b] px-3 py-1 font-mono text-[clamp(10px,1.1vw,16px)] font-semibold uppercase tracking-[0.08em] text-[#120700]">{st.caption}</span>}
-        <p className="m-0 max-w-[92%] text-center text-[clamp(13px,1.55vw,24px)] leading-snug text-[#f3f2ee] [text-shadow:0_1px_8px_rgba(0,0,0,0.9)]">{st.say}</p>
-      </div>
-      {/* progress */}
-      <div className="absolute inset-x-0 bottom-0 h-[3px] bg-[#1d1d20]">
-        <div className="h-full bg-[#ff6b2b] transition-[width] duration-500" style={{ width: `${((i + 1) / total) * 100}%` }} />
-      </div>
+    <div className="relative aspect-video w-full select-none" onDoubleClick={fullscreen}>
+      <Stage
+        lecture={lecture}
+        flat={flat}
+        i={i}
+        t={playing || time > 0 ? t : 99}
+        dur={dur}
+        quest={quest}
+        interactive
+        quiz={cur.s.kind === "quiz" ? ({ picked: answers[cur.s.id] ?? null } satisfies QuizState) : undefined}
+        onPick={pick}
+        caption={cc ? captionAt(cur.st.say, Math.min(1, t / speakingFor)) : null}
+      />
+      {!playing && !waitingQuiz && (
+        <button type="button" onClick={toggle} aria-label={time > 0 ? "Resume" : "Play the lecture"} className="absolute inset-0 grid place-items-center bg-black/30">
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-[#ff6b2b] text-[#120700] shadow-[0_0_40px_rgba(255,107,43,0.5)]">
+            <svg viewBox="0 0 24 24" className="h-7 w-7 translate-x-[2px]" fill="currentColor" aria-hidden>
+              <path d="M7 4l13 8-13 8z" />
+            </svg>
+          </span>
+        </button>
+      )}
     </div>
   );
 
-  if (record) return <div className="fixed inset-0 z-[200] bg-[#0b0b0c]">{stage}</div>;
-
+  const btn = "grid h-10 min-w-10 place-items-center px-2 font-mono text-xs text-fg-2 hover:text-fg";
   return (
-    <main className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 pb-28 pt-6 sm:px-6 sm:pt-10">
+    <main className="mx-auto flex max-w-[1360px] flex-col gap-5 px-4 pb-28 pt-6 sm:px-6 sm:pt-10">
       <header className="flex flex-col gap-2">
-        <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">lecture · beta</span>
-        <h1 className="m-0 font-display text-[clamp(30px,5vw,52px)] font-extrabold leading-none tracking-[-0.04em] text-fg">{lecture.title}</h1>
-        <p className="m-0 max-w-[760px] text-[16px] text-fg-2">{lecture.summary}</p>
-      </header>
-      {stage}
-      <div className="flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => (playing ? (stop(), setPlaying(false)) : setPlaying(true))} className="min-h-11 bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
-          {playing ? "❚❚ Pause" : i > 0 ? "▶ Resume" : "▶ Play the lecture"}
-        </button>
-        <button type="button" onClick={() => go(i - 1)} className="min-h-11 border border-line-strong px-3 font-mono text-sm text-fg" aria-label="Previous step">
-          ◀
-        </button>
-        <button type="button" onClick={() => go(i + 1)} className="min-h-11 border border-line-strong px-3 font-mono text-sm text-fg" aria-label="Next step">
-          ▶
-        </button>
-        <select value={rate} onChange={(e) => setRate(Number(e.target.value))} aria-label="Speed" className="min-h-11 border border-line-strong bg-bg px-2 font-mono text-sm text-fg">
-          {[0.85, 1, 1.15, 1.3].map((r) => (
-            <option key={r} value={r}>
-              {r}×
-            </option>
-          ))}
-        </select>
-        <span className="ml-auto font-mono text-xs text-fg-3">
-          step {i + 1} / {total} · {audioBase ? "recorded voice" : "your browser's voice"}
+        <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
+          lecture · {fmt(duration)} · {quizzes.length} checkpoints{media ? "" : " · browser voice"}
         </span>
-      </div>
-      <nav aria-label="Chapters" className="flex flex-wrap gap-1.5">
-        {lecture.scenes.map((sc, k) => (
-          <button
-            key={sc.id}
-            type="button"
-            onClick={() => go(sceneStarts[k])}
-            className={`min-h-9 border px-3 font-mono text-xs ${cur.scene === k ? "border-signal bg-signal text-on-signal" : "border-line-strong text-fg-2 hover:text-fg"}`}
+        <h1 className="m-0 font-display text-[clamp(30px,5vw,52px)] font-extrabold leading-none tracking-[-0.04em] text-fg">{lecture.title}</h1>
+        <p className="m-0 max-w-[820px] text-[16px] text-fg-2">{lecture.summary}</p>
+      </header>
+
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+        <div ref={shellRef} className="flex flex-col bg-[#0b0b0c] [&:fullscreen]:justify-center">
+          {pip ? (
+            <div className="grid aspect-video w-full place-items-center border border-line-strong font-mono text-sm text-fg-3">
+              playing in picture-in-picture
+              {createPortal(<div className="h-screen w-screen">{stage}</div>, pip.document.body)}
+            </div>
+          ) : (
+            <div className="border border-line-strong">{stage}</div>
+          )}
+
+          <div
+            role="slider"
+            tabIndex={0}
+            aria-label="Seek"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(duration)}
+            aria-valuenow={Math.round(time)}
+            className="relative h-6 cursor-pointer"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              seek(((e.clientX - r.left) / r.width) * duration);
+            }}
           >
-            {String(k + 1).padStart(2, "0")} {sc.title}
-          </button>
-        ))}
-      </nav>
-      {quest && (
-        <Link href={quest.href} className="self-start font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
-          ← read the full quest: {quest.title}
-        </Link>
+            <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-surface-2" />
+            <div className="absolute left-0 top-1/2 h-1 -translate-y-1/2 bg-signal" style={{ width: `${(time / Math.max(1, duration)) * 100}%` }} />
+            {chapters.map((c) => (
+              <span key={c.k} title={c.s.title} className={`absolute top-1/2 h-3 w-[2px] -translate-y-1/2 ${c.s.kind === "quiz" ? "bg-[#7ee2a8]" : "bg-fg-4"}`} style={{ left: `${(c.at / Math.max(1, duration)) * 100}%` }} />
+            ))}
+          </div>
+
+          <div role="toolbar" aria-label="Lecture controls" className="flex flex-wrap items-center gap-1 border border-line-strong bg-surface px-2 py-1">
+            <button type="button" onClick={toggle} className="h-10 min-w-20 bg-signal px-3 font-mono text-xs font-semibold text-on-signal">
+              {playing ? "❚❚ pause" : time > 0 ? "▶ resume" : "▶ play"}
+            </button>
+            <button type="button" onClick={() => seek(time - 10)} className={btn} aria-label="Back 10 seconds" title="Back 10 s (J)">
+              −10s
+            </button>
+            <button type="button" onClick={() => seek(time + 10)} className={btn} aria-label="Forward 10 seconds" title="Forward 10 s (L)">
+              +10s
+            </button>
+            <span className="px-2 font-mono text-xs tabular-nums text-fg-3">
+              {fmt(time)} / {fmt(duration)}
+            </span>
+            <span className="mx-1 hidden min-w-0 truncate font-mono text-xs text-fg-2 md:inline">{cur.s.title}</span>
+            <span className="ml-auto" />
+            {ai?.features["lesson-qa"] && (
+              <button type="button" onClick={askHere} className="h-10 border border-signal px-3 font-mono text-xs text-signal-text hover:bg-signal hover:text-on-signal" title="Ask AI about this moment (A)">
+                ✦ ask about this
+              </button>
+            )}
+            <button type="button" onClick={() => setCc((x) => !x)} aria-pressed={cc} className={`${btn} ${cc ? "!text-signal-text" : ""}`} title="Captions (C)">
+              CC
+            </button>
+            {media?.music && (
+              <button type="button" onClick={() => setMusic((x) => !x)} aria-pressed={music} className={`${btn} ${music ? "!text-signal-text" : ""}`} title="Music (M)" aria-label="Music">
+                ♪
+              </button>
+            )}
+            <select value={rate} onChange={(e) => setRate(Number(e.target.value))} aria-label="Speed" className="h-10 border border-line bg-bg px-1 font-mono text-xs text-fg">
+              {SPEEDS.map((r) => (
+                <option key={r} value={r}>
+                  {r}×
+                </option>
+              ))}
+            </select>
+            {canPip && (
+              <button type="button" onClick={() => void togglePip()} className={btn} title="Picture in picture" aria-label="Picture in picture">
+                ⧉
+              </button>
+            )}
+            <button type="button" onClick={fullscreen} className={btn} title="Full screen (F)" aria-label="Full screen">
+              ⛶
+            </button>
+          </div>
+          {resumeAt != null && time === 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                seek(resumeAt);
+                setResumeAt(null);
+              }}
+              className="mt-2 self-start font-mono text-xs text-signal-text underline underline-offset-4"
+            >
+              resume from {fmt(resumeAt)}
+            </button>
+          )}
+        </div>
+
+        <aside className="flex flex-col gap-3">
+          <h2 className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3">chapters</h2>
+          <ol className="m-0 flex list-none flex-col gap-0.5 p-0">
+            {chapters.map((c) => {
+              const on = cur.scene === c.k;
+              const q = c.s.kind === "quiz";
+              const a = answers[c.s.id];
+              return (
+                <li key={c.k}>
+                  <button type="button" onClick={() => seek(c.at + 0.01)} className={`flex w-full items-baseline gap-2 border px-2.5 py-1.5 text-left text-[13px] ${on ? "border-signal bg-surface text-fg" : "border-transparent text-fg-2 hover:border-line"}`}>
+                    <span className="font-mono text-[11px] tabular-nums text-fg-4">{fmt(c.at)}</span>
+                    <span className="min-w-0 flex-1">{q ? "Checkpoint" : c.s.title}</span>
+                    {q && a != null && <span className={a === c.s.answer ? "text-[#30a46c]" : "text-[#e5484d]"}>{a === c.s.answer ? "✓" : "✕"}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          {quizzes.length > 0 && (
+            <p className="m-0 font-mono text-[11px] text-fg-3">
+              checkpoints {right}/{quizzes.length} right · +{QUIZ_XP} XP each
+            </p>
+          )}
+          <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-4">space play · ←/→ step · J/L 10 s · C captions · M music · F full screen · &lt; &gt; speed{ai?.features["lesson-qa"] ? " · A ask" : ""}</p>
+          {quest && (
+            <Link href={quest.href} className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
+              ← read the full quest: {quest.title}
+            </Link>
+          )}
+        </aside>
+      </div>
+
+      {media && (
+        <>
+          <audio ref={audioRef} src={media.audio} preload="auto" />
+          {media.music && <audio ref={musicRef} src={media.music} preload="none" loop />}
+        </>
       )}
+      {ask && <AskLessonPanel key={ask.n} open onClose={() => setAsk(null)} week="bonus-problems" slug={slug} lessonTitle={quest?.title ?? lecture.title} selection={ask.selection} />}
     </main>
   );
 }

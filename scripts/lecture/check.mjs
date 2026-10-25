@@ -4,13 +4,41 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone"];
+// flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
+function edgesOf(src) {
+  const out = new Set();
+  for (let line of src.split("\n")) {
+    line = line.replace(/@\{[^}]*\}/g, "").replace(/\["[^"]*"\]|\[[^\]]*\]/g, "").replace(/\(\[[^\]]*\]\)|\(\([^)]*\)\)|\([^)]*\)/g, "").replace(/\{"[^"]*"\}|\{[^}]*\}/g, "").replace(/:::[\w-]+/g, "").replace(/\|[^|]*\|/g, "");
+    const parts = line.split(/\s*(?:-\.->|==>|-->|---|-\.-|<-->|~~~)\s*/);
+    if (parts.length < 2) continue;
+    for (let k = 0; k + 1 < parts.length; k++)
+      for (const a of parts[k].split("&").map((x) => x.trim()).filter(Boolean))
+        for (const b of parts[k + 1].split("&").map((x) => x.trim()).filter(Boolean)) out.add(`${a}>${b}`);
+  }
+  return out;
+}
+let quizzes = 0;
 let words = 0, steps = 0;
 for (const s of L.scenes || []) {
   if (!KINDS.includes(s.kind)) errs.push(`${s.id}: bad kind ${s.kind}`);
   if (!s.id || !s.title || !Array.isArray(s.steps) || !s.steps.length) errs.push(`${s.id}: needs id, title, steps`);
   if (["flowchart", "sequence", "state"].includes(s.kind) && !s.diagram) errs.push(`${s.id}: ${s.kind} needs diagram`);
   if (s.kind === "numbers" && !(s.numbers || []).length) errs.push(`${s.id}: numbers scene needs numbers[]`);
+  if (s.kind === "list" && !(s.points || []).length) errs.push(`${s.id}: list scene needs points[]`);
+  if (s.kind === "compare" && !(s.left?.points?.length && s.right?.points?.length)) errs.push(`${s.id}: compare needs left/right with points[]`);
+  if (s.kind === "chart" && (!["bar", "line"].includes(s.type) || !(s.points || []).length || s.points.some((p) => typeof p.value !== "number"))) errs.push(`${s.id}: chart needs type bar|line and numeric points[]`);
+  if (s.kind === "timeline" && !(s.events || []).length) errs.push(`${s.id}: timeline needs events[]`);
+  if (s.kind === "phone" && !(s.app && (s.screens || []).length && s.screens.every((x) => x.title && Array.isArray(x.rows)))) errs.push(`${s.id}: phone needs app and screens[{title, rows[]}]`);
+  const edges = s.kind === "flowchart" ? edgesOf(s.diagram || "") : new Set();
+  if (s.kind === "quiz") {
+    quizzes++;
+    if (!s.question || !Array.isArray(s.options) || s.options.length < 3 || s.options.length > 4) errs.push(`${s.id}: quiz needs a question and 3-4 options`);
+    if (!(Number.isInteger(s.answer) && s.answer >= 0 && s.answer < (s.options || []).length)) errs.push(`${s.id}: quiz answer must index options`);
+    if (!s.explain) errs.push(`${s.id}: quiz needs explain`);
+    if (s.steps.length !== 2) errs.push(`${s.id}: quiz needs exactly 2 steps (ask, answer)`);
+  }
+  const revealMax = s.kind === "list" || s.kind === "chart" ? (s.points || []).length : s.kind === "timeline" ? (s.events || []).length : s.kind === "phone" ? Math.max(0, ...(s.screens || []).map((x) => x.rows.length)) : s.kind === "compare" ? (s.left?.points?.length || 0) + (s.right?.points?.length || 0) : 0;
   const src = s.diagram || "";
   const msgs = src.split("\n").filter((l) => /(-{1,2}>>|-{1,2}x|-{1,2}\)|-{1,2}>)/.test(l.trim()) || /^Note\s/i.test(l.trim())).length;
   const ids = new Set([...src.matchAll(/(?:^|[\s>|&-])([A-Za-z][A-Za-z0-9_]*)(?=\s*(?:\[|\(|\{|@\{|-->|==>|-\.->|:::|$|\s*&))/gm)].map((m) => m[1]));
@@ -26,6 +54,15 @@ for (const s of L.scenes || []) {
     if (/[→·~₹%$€&<>{}\[\]=*_#|\\]/.test(st.say || "")) warns.push(`${s.id}#${k}: symbol in narration: ${(st.say.match(/[→·~₹%$€&<>{}\[\]=*_#|\\]/g) || []).join(" ")}`);
     if (st.caption && st.caption.split(/\s+/).length > 9) warns.push(`${s.id}#${k}: caption over 9 words`);
     for (const h of st.highlight || []) if (!ids.has(h)) errs.push(`${s.id}#${k}: highlight "${h}" isn't a node id in the diagram`);
+    if (st.reveal != null && !["list", "compare", "chart", "timeline", "phone"].includes(s.kind)) warns.push(`${s.id}#${k}: reveal only applies to list/compare/chart/timeline/phone`);
+    if (st.flow) {
+      if (s.kind !== "flowchart") warns.push(`${s.id}#${k}: flow only applies to flowcharts`);
+      else for (let j = 0; j + 1 < st.flow.length; j++) if (!edges.has(`${st.flow[j]}>${st.flow[j + 1]}`)) errs.push(`${s.id}#${k}: flow ${st.flow[j]} -> ${st.flow[j + 1]} isn't an edge in the diagram`);
+    }
+    for (const h of st.focus || []) if (!ids.has(h)) errs.push(`${s.id}#${k}: focus "${h}" isn't a node id`);
+    if (s.kind === "phone" && st.screen != null && !(st.screen >= 0 && st.screen < (s.screens || []).length)) errs.push(`${s.id}#${k}: screen ${st.screen} out of range`);
+    if (st.reveal != null && (st.reveal < 0 || st.reveal > revealMax)) errs.push(`${s.id}#${k}: reveal ${st.reveal} outside 0..${revealMax}`);
+    if (st.pause != null && !(st.pause >= 0 && st.pause <= 3)) errs.push(`${s.id}#${k}: pause must be 0-3 s`);
     if (s.kind === "sequence" && st.upto) {
       if (st.upto > msgs) errs.push(`${s.id}#${k}: upto ${st.upto} > ${msgs} messages`);
       if (st.upto < lastUpto) warns.push(`${s.id}#${k}: upto goes backwards`);
@@ -33,7 +70,13 @@ for (const s of L.scenes || []) {
     }
   }
 }
-console.log(`${f.split("/").pop()}: ${L.scenes?.length} scenes, ${steps} steps, ${words} words (~${(words / 150).toFixed(1)} min)`);
+if (L.v === 2) {
+  if (words < 1700 || words > 2300) warns.push(`narration is ${words} words (v2 target 1,700-2,300)`);
+  if (quizzes < 3 || quizzes > 4) warns.push(`${quizzes} quiz checkpoints (v2 target 3-4)`);
+  for (const s of L.scenes || []) if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(TD|TB)/m.test(s.diagram || "")) warns.push(`${s.id}: flowchart should be LR for video`);
+  for (const s of L.scenes || []) if (s.kind === "flowchart" && /<br\/?>/.test(s.diagram || "")) warns.push(`${s.id}: flowchart labels should be one line (no <br/>)`);
+}
+console.log(`${f.split("/").pop()}: ${L.scenes?.length} scenes, ${steps} steps, ${words} words (~${(words / 150).toFixed(1)} min), ${quizzes} quizzes`);
 for (const w of warns) console.log("  warn:", w);
 for (const e of errs) console.log("  ERROR:", e);
 process.exit(errs.length ? 1 : 0);
