@@ -58,6 +58,7 @@ const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.flo
 
 type Flat = ReturnType<typeof flatten>;
 type Quest = { title: string; href: string; code: string } | null;
+type Next = { href: string; title: string; code: string } | null;
 type Props = {
   lecture: Lecture;
   quest: Quest;
@@ -65,9 +66,11 @@ type Props = {
   source: string;
   /** where recorded media lives (R2 public URL or a local folder); null: none */
   mediaBase: string | null;
+  /** the next lecture in the playlist */
+  next?: Next;
 };
 
-export default function LecturePlayer({ lecture, quest, source, mediaBase }: Props) {
+export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null }: Props) {
   const flat = useMemo(() => flatten(lecture), [lecture]);
   const [record, setRecord] = useState(false);
   useEffect(() => {
@@ -75,7 +78,7 @@ export default function LecturePlayer({ lecture, quest, source, mediaBase }: Pro
     return () => window.clearTimeout(id);
   }, []);
   if (record) return <RecordStage lecture={lecture} flat={flat} quest={quest} />;
-  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} />;
+  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} />;
 }
 
 /* ---------- record mode: the exporter drives every frame ---------- */
@@ -139,7 +142,7 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
 
 /* ---------- the learner's player ---------- */
 
-function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Flat }) {
+function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { flat: Flat }) {
   const slug = lecture.quest;
   const { awardOnce } = useGame();
   const ai = useAiStatus();
@@ -160,6 +163,15 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
   const clockBase = useRef({ wall: 0, time: 0 });
   // seek-bar hover: where the pointer is (px in the bar) and the moment under it
   const [hover, setHover] = useState<{ x: number; w: number; tm: number } | null>(null);
+  const [shellH, setShellH] = useState<number | null>(null);
+  const listRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    const el = shellRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(() => setShellH(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   // full screen: the stage fills the screen and the controls float over it, fading out when idle
   const [fs, setFs] = useState(false);
   const [idle, setIdle] = useState(false);
@@ -404,6 +416,15 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
   });
 
   const chapters = lecture.scenes.map((s, k) => ({ k, s, at: starts[flat.findIndex((f) => f.scene === k)] ?? 0 }));
+  const ended = !playing && time >= duration - 0.1 && duration > 0;
+  const curScene = cur.scene;
+  useEffect(() => {
+    const list = listRef.current;
+    const li = list?.querySelector<HTMLElement>("li[data-on]");
+    if (!list || !li) return;
+    const top = li.offsetTop - list.offsetTop;
+    if (top < list.scrollTop || top + li.offsetHeight > list.scrollTop + list.clientHeight) list.scrollTo({ top: top - list.clientHeight / 3, behavior: "smooth" });
+  }, [curScene]);
   const quizzes = lecture.scenes.filter((s) => s.kind === "quiz");
   const right = quizzes.filter((q) => answers[q.id] === q.answer).length;
   const waitingQuiz = cur.s.kind === "quiz" && cur.step === 0 && answers[cur.s.id] == null && !playing && t > dur - 0.4;
@@ -423,7 +444,22 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
         onPick={pick}
         caption={cc ? captionAt(cur.st.say, Math.min(1, t / speakingFor)) : null}
       />
-      {!playing && !waitingQuiz && (
+      {ended && next ? (
+        <div className="absolute inset-0 z-10 grid place-items-center bg-black/75 p-6 text-center">
+          <div className="flex flex-col items-center gap-3">
+            <span className="font-mono text-[12px] uppercase tracking-label text-signal-text">up next · {next.code}</span>
+            <span className="max-w-[560px] font-display text-[clamp(20px,3vw,34px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">{next.title}</span>
+            <div className="flex flex-wrap justify-center gap-2">
+              <Link href={next.href} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
+                ▶ play next
+              </Link>
+              <button type="button" onClick={() => seek(0)} className="min-h-11 border border-[#3a3a40] px-4 font-mono text-sm text-[#f3f2ee]">
+                ↺ watch again
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : !playing && !waitingQuiz && (
         <button type="button" onClick={toggle} aria-label={time > 0 ? "Resume" : "Play the lecture"} className="absolute inset-0 grid place-items-center bg-black/30">
           <span className="grid h-16 w-16 place-items-center rounded-full bg-[#ff6b2b] text-[#120700] shadow-[0_0_40px_rgba(255,107,43,0.5)]">
             <svg viewBox="0 0 24 24" className="h-7 w-7 translate-x-[2px]" fill="currentColor" aria-hidden>
@@ -446,7 +482,7 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
         <p className="m-0 max-w-[820px] text-[16px] text-fg-2">{lecture.summary}</p>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div
           ref={shellRef}
           onPointerMove={fs ? wake : undefined}
@@ -582,15 +618,20 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
           )}
         </div>
 
-        <aside className="flex flex-col gap-3">
-          <h2 className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3">chapters</h2>
-          <ol className="m-0 flex list-none flex-col gap-0.5 p-0">
+        <aside className="flex min-h-0 flex-col gap-3 lg:overflow-hidden" style={shellH && !fs ? { maxHeight: shellH } : undefined}>
+          <h2 className="m-0 flex items-baseline justify-between font-mono text-[11px] uppercase tracking-label text-fg-3">
+            chapters
+            <span className="normal-case tracking-normal text-fg-4">
+              {cur.scene + 1}/{chapters.length}
+            </span>
+          </h2>
+          <ol ref={listRef} className="m-0 flex max-h-[50vh] min-h-0 list-none flex-col gap-0.5 overflow-y-auto overscroll-contain p-0 pr-1 lg:max-h-none lg:flex-1">
             {chapters.map((c) => {
               const on = cur.scene === c.k;
               const q = c.s.kind === "quiz";
               const a = answers[c.s.id];
               return (
-                <li key={c.k}>
+                <li key={c.k} data-on={on || undefined}>
                   <button type="button" onClick={() => seek(c.at + 0.01)} className={`flex w-full items-baseline gap-2 border px-2.5 py-1.5 text-left text-[13px] ${on ? "border-signal bg-surface text-fg" : "border-transparent text-fg-2 hover:border-line"}`}>
                     <span className="font-mono text-[11px] tabular-nums text-fg-4">{fmt(c.at)}</span>
                     <span className="min-w-0 flex-1">{q ? "Checkpoint" : c.s.title}</span>
@@ -606,11 +647,21 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
             </p>
           )}
           <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-4">space play · ←/→ step · J/L 10 s · C captions · M music · F full screen · &lt; &gt; speed{ai?.features["lesson-qa"] ? " · A ask" : ""}</p>
+          {next && (
+            <Link href={next.href} className="group flex items-baseline gap-2 border border-line px-2.5 py-2 hover:border-signal">
+              <span className="font-mono text-[11px] uppercase tracking-label text-fg-4">up next</span>
+              <span className="min-w-0 flex-1 truncate text-[13px] text-fg-2 group-hover:text-fg">{next.title}</span>
+              <span className="text-signal-text">→</span>
+            </Link>
+          )}
           {quest && (
             <Link href={quest.href} className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
               ← read the full quest: {quest.title}
             </Link>
           )}
+          <Link href="/learn/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
+            all lectures
+          </Link>
         </aside>
       </div>
 

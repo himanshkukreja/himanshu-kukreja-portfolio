@@ -1,6 +1,7 @@
 import "server-only";
 import crypto from "crypto";
 import { fetchMarkdownContent, isContentMissing } from "@/lib/github";
+import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import type { Lecture } from "./types";
 
 /** The lecture for a side quest, or null (none yet, or a broken file). */
@@ -27,4 +28,20 @@ export function lectureCard(l: Lecture | null) {
   if (!l || l.v !== 2) return null;
   const words = l.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
   return { href: `/learn/lectures/${l.quest}`, minutes: Math.max(1, Math.round((words / 150) * 1.08)), checkpoints: l.scenes.filter((s) => s.kind === "quiz").length, chapters: l.scenes.length };
+}
+
+export type LectureSummary = { slug: string; code: string; title: string; quest: string; summary: string; href: string; questHref: string; minutes: number; checkpoints: number; chapters: number };
+
+/** Every side quest's released (v2) lecture, in quest order: the Prep tab's lecture playlist. */
+export async function listLectures(): Promise<LectureSummary[]> {
+  const map = await getCourseMap(COURSE_ID).catch(() => null);
+  const quests = map?.sideQuests ?? [];
+  const all = await Promise.all(
+    quests.map(async (q) => {
+      const l = await getLecture(q.slug).catch(() => null);
+      const card = lectureCard(l);
+      return l && card ? { slug: q.slug, code: q.code, title: l.title, quest: q.title, summary: l.summary, href: card.href, questHref: q.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters } : null;
+    }),
+  );
+  return all.filter((x): x is LectureSummary => !!x);
 }

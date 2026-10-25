@@ -4,6 +4,7 @@ import { getLabSummaries } from "@/lib/learn/labs/load";
 import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import { getSheetSummaries } from "@/lib/learn/sheets/load";
 import { getCompanies, getQuestionBank } from "@/lib/learn/prep/load";
+import { listLectures } from "@/lib/learn/lecture/load";
 import PrepHub, { type PracticeData } from "@/components/learn/prep/PrepHub";
 
 export const runtime = "nodejs";
@@ -23,13 +24,14 @@ export const metadata: Metadata = {
  * works offline.
  */
 export default async function PrepPage() {
-  const [map, labs, revision, sheets, companies, bank] = await Promise.all([
+  const [map, labs, revision, sheets, companies, bank, lectures] = await Promise.all([
     getCourseMap(COURSE_ID).catch(() => null),
     getLabSummaries().catch(() => []),
     getRevisionWeeks().catch(() => []),
     getSheetSummaries().catch(() => []),
     getCompanies().catch(() => []),
     getQuestionBank().catch(() => []),
+    listLectures().catch(() => []),
   ]);
   const decks = revision.filter((w) => w.lessons.length > 0);
   const data: PracticeData = {
@@ -45,6 +47,7 @@ export default async function PrepPage() {
     problems: (map?.problems ?? []).map((l) => ({ code: l.code, title: l.title, href: l.href })),
     lld: (map?.lld ?? []).map((l) => ({ code: l.code, title: l.title, href: l.href })),
     sheets: sheets.map((s) => ({ slug: s.slug, code: s.code, title: s.title, href: s.href, diagrams: s.diagrams })),
+    lectures: { count: lectures.length, minutes: lectures.reduce((a, l) => a + l.minutes, 0) },
   };
   return <PrepHub data={data} />;
 }

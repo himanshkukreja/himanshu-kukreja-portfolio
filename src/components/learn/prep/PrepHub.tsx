@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CalendarDays, Calculator, Code2, FileText, Layers, ListChecks, Map as MapIcon, Mic, Users } from "lucide-react";
+import { Building2, CalendarDays, Calculator, Code2, FileText, Layers, ListChecks, Map as MapIcon, Mic, PlayCircle, Users } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useLabProgress } from "@/lib/learn/labs/progress";
 import { labKey } from "@/lib/learn/labs/types";
@@ -41,6 +41,7 @@ export type PracticeData = {
   lld: { code: string; title: string; href: string }[];
   /** side-quest design sheets */
   sheets: { slug: string; code: string; title: string; href: string; diagrams: number }[];
+  lectures: { count: number; minutes: number };
 };
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label";
@@ -197,6 +198,18 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
             )
           }
         />
+        {data.lectures.count > 0 && (
+          <Card
+            href="/learn/prep/lectures"
+            icon={PlayCircle}
+            kicker="lectures"
+            state={`${data.lectures.count} side quest${data.lectures.count === 1 ? "" : "s"}`}
+            title="Watch the whole design"
+            pitch="Animated, narrated lectures: the scale, the naive design and where it breaks, the real one, and what to say. Quiz checkpoints, and ask the AI about any moment."
+            meta={`about ${Math.round(data.lectures.minutes / data.lectures.count)} min each · captions · chapters`}
+            reach={reach("/learn/prep/lectures")}
+          />
+        )}
         {data.sheets.length > 0 && (
           <Card
             href="/learn/sheets"

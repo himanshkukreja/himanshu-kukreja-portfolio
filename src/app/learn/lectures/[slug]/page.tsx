@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { getLecture, lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
+import { getLecture, lectureHash, lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
 
@@ -21,8 +21,10 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function LecturePage({ params }: Props) {
   const { slug } = await params;
-  const [l, map] = await Promise.all([getLecture(slug), getCourseMap(COURSE_ID).catch(() => null)]);
+  const [l, map, all] = await Promise.all([getLecture(slug), getCourseMap(COURSE_ID).catch(() => null), listLectures().catch(() => [])]);
   if (!l) notFound();
   const q = map?.sideQuests.find((x) => x.slug === l.quest) ?? null;
-  return <LecturePlayer lecture={l} quest={q ? { title: q.title, href: q.href, code: q.code } : null} source={lectureHash(l)} mediaBase={lectureMediaBase()} />;
+  const at = all.findIndex((x) => x.slug === l.quest);
+  const nx = at >= 0 && at + 1 < all.length ? all[at + 1] : null;
+  return <LecturePlayer lecture={l} quest={q ? { title: q.title, href: q.href, code: q.code } : null} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={nx ? { href: nx.href, title: nx.title, code: nx.code } : null} />;
 }
