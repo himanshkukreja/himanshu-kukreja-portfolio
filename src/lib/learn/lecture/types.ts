@@ -14,6 +14,8 @@ export type LectureStep = {
   flow?: string[];
   focus?: string[];
   screen?: number;
+  /** leans on an earlier lesson: "↩ Recall · label", and in the course player a link to its lecture */
+  ref?: { lecture: string; label: string };
 };
 export type SceneKind = "title" | "numbers" | "flowchart" | "sequence" | "state" | "list" | "compare" | "quiz" | "chart" | "timeline" | "phone";
 export type LectureScene = {
@@ -37,7 +39,19 @@ export type LectureScene = {
   screens?: { title: string; rows: { text: string; meta?: string; tone?: Tone }[]; toast?: string }[];
   steps: LectureStep[];
 };
-export type Lecture = { v?: number; quest: string; title: string; summary: string; scenes: LectureScene[] };
+export type Lecture = {
+  v?: number;
+  /** the lecture's id: a side quest's slug, or "<week>--<lesson slug>" for a course lesson */
+  quest: string;
+  /** course lessons only: which lesson this teaches */
+  lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" };
+  title: string;
+  summary: string;
+  scenes: LectureScene[];
+};
+
+/** A course lesson's lecture id (side quests use their slug). */
+export const lessonLectureId = (week: string, slug: string) => `${week}--${slug}`;
 
 /** One step of the whole lecture, in order. */
 export type FlatStep = { n: number; scene: number; step: number; s: LectureScene; st: LectureStep };

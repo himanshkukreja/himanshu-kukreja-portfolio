@@ -69,12 +69,14 @@ type Props = {
   /** the Ask panel's [[show]]: these flowchart/state nodes are lit instead of the step's highlight and
    *  focus (no packets), easing in with CSS; unset (always, in record mode) means the step as authored */
   extraHighlight?: string[];
+  /** course player: open the lecture a "↩ Recall" chip points to */
+  onRef?: (lecture: string) => void;
   /** the share of the stage's width a panel covers on the right (Ask): the scene shrinks into what is
    *  still visible, and the captions move clear of it */
   cover?: number;
 };
 
-export default function Stage({ lecture, flat, i, t, dur, quest, interactive, quiz, onPick, onReady, caption, extraHighlight, cover = 0 }: Props) {
+export default function Stage({ lecture, flat, i, t, dur, quest, interactive, quiz, onPick, onReady, caption, extraHighlight, onRef, cover = 0 }: Props) {
   const cur = flat[i];
   const prev = i > 0 && flat[i - 1].scene === cur.scene ? flat[i - 1] : null;
   const s = cur.s;
@@ -125,6 +127,9 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
       </div>
 
       <div className="absolute inset-x-[6%] bottom-[4.5%] flex flex-col items-center gap-[0.8cqh]" style={cover > 0 ? { right: `${cover * 100 + 2}%`, left: "2%" } : undefined}>
+        {st.ref && (
+          <RefChip label={st.ref.label} e={prog(t, 0.35, 0.4)} onClick={interactive && onRef ? () => onRef(st.ref!.lecture) : undefined} />
+        )}
         {st.caption && (
           <span
             className="bg-[#ff6b2b] px-[1cqw] py-[0.4cqh] font-mono text-[1.15cqw] font-semibold uppercase tracking-[0.08em] text-[#120700]"
@@ -144,6 +149,29 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         <div className="h-full bg-[#ff6b2b]" style={{ width: `${((i + Math.min(1, t / Math.max(dur, 0.1))) / total) * 100}%` }} />
       </div>
     </div>
+  );
+}
+
+/** "↩ Recall · label": this step leans on an earlier lesson (a link in the course player) */
+function RefChip({ label, e, onClick }: { label: string; e: number; onClick?: () => void }) {
+  const cls = "flex items-center gap-[0.6cqw] border border-[#3a3a40] bg-[#141416]/90 px-[0.9cqw] py-[0.35cqh] font-mono text-[1cqw] tracking-[0.04em] text-[#d6d5d0]";
+  const body = (
+    <>
+      <span className="text-[#ff6b2b]">↩ recall</span>
+      <span>·</span>
+      <span>{label}</span>
+      {onClick && <span className="text-[#ff6b2b]">→</span>}
+    </>
+  );
+  const style = { opacity: e, transform: `translateY(${(1 - e) * 0.8}cqh)` };
+  return onClick ? (
+    <button type="button" onClick={onClick} className={`${cls} cursor-pointer hover:border-[#ff6b2b]`} style={style} title="Open that lecture">
+      {body}
+    </button>
+  ) : (
+    <span className={cls} style={style}>
+      {body}
+    </span>
   );
 }
 

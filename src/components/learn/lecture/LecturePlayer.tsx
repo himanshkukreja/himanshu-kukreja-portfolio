@@ -17,6 +17,7 @@
  * window.__LECTURE_FRAME === token; window.__LECTURE_PLAN lists each step's motion length.
  */
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
@@ -367,6 +368,33 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     setPlaying(true);
     track("lecture_play", { quest: slug, at: Math.round(from) });
   }, [duration, media, seek, slug]);
+  // "↩ Recall" chips open the earlier lecture
+  const router = useRouter();
+  const openRef = (id: string) => {
+    pause();
+    track("lecture_ref", { from: slug, to: id });
+    router.push(`/learn/lectures/${id}`);
+  };
+  // deep links: ?at=<scene id> or ?t=<seconds>, once the timeline is known
+  const linked = useRef(false);
+  useEffect(() => {
+    if (linked.current || !starts.length) return;
+    const q = new URLSearchParams(window.location.search);
+    const at = q.get("at");
+    const tm = Number(q.get("t"));
+    if (!at && !tm) return;
+    if (mediaBase && !media) return; // wait for the recording's timings
+    linked.current = true;
+    const k = at ? flat.findIndex((f) => f.s.id === at) : -1;
+    const to = k >= 0 ? starts[k] + 0.01 : tm > 0 ? tm : null;
+    if (to != null) {
+      const id = window.setTimeout(() => {
+        seek(to);
+        setResumeAt(null);
+      }, 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [starts, flat, media, mediaBase, seek]);
   const goStep = (k: number) => seek(starts[Math.max(0, Math.min(flat.length - 1, k))] + 0.01);
   const toggle = () => (playing ? pause() : play());
 
@@ -496,6 +524,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         onPick={pick}
         caption={cc && !ask ? captionAt(cur.st.say, Math.min(1, t / speakingFor)) : null}
         extraHighlight={ask && shown?.scene === cur.s.id ? shown.ids : undefined}
+        onRef={openRef}
         cover={ask?.cover ?? 0}
       />
       {ask ? (

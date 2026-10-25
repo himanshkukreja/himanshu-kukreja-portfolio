@@ -31,8 +31,10 @@ export async function POST(request: Request) {
   if (!SLUG.test(slug) || !SLUG.test(sceneId)) return NextResponse.json({ error: "Unknown lecture" }, { status: 400 });
   if (!question && !preset) return NextResponse.json({ error: "Ask a question" }, { status: 400 });
 
-  const [lecture, quest] = await Promise.all([getLecture(slug), getLearningResource("bonus-problems", slug).catch(() => null)]);
+  const lecture = await getLecture(slug);
   if (!lecture) return NextResponse.json({ error: "Unknown lecture" }, { status: 404 });
+  // what the lecture teaches: a course lesson, or a side quest
+  const quest = await (lecture.lesson ? getLearningResource(lecture.lesson.week, lecture.lesson.slug) : getLearningResource("bonus-problems", slug)).catch(() => null);
   const prev = body.previous && typeof body.previous.q === "string" && typeof body.previous.a === "string" ? { q: body.previous.q, a: body.previous.a } : null;
   const built = buildLectureQa({
     lecture,

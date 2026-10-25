@@ -1,5 +1,6 @@
 // usage: node scripts/lecture/check.mjs <lecture.json>  — structure, highlight ids, sequence cut points, narration length
 import fs from "fs";
+import path from "path";
 const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
@@ -70,9 +71,37 @@ for (const s of L.scenes || []) {
     }
   }
 }
+// course lessons have their own ranges (resources/lectures/README.md, "Course lessons")
+const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38] };
+const kind = L.lesson ? L.lesson.kind : "quest";
+if (L.lesson) {
+  if (!["preview", "lesson", "capstone"].includes(L.lesson.kind) || !L.lesson.week || !L.lesson.slug) errs.push("lesson needs week, slug and kind preview|lesson|capstone");
+  if (L.quest !== `${L.lesson.week}--${L.lesson.slug}`) errs.push(`quest must be "${L.lesson.week}--${L.lesson.slug}"`);
+}
+let index = null;
+try {
+  index = JSON.parse(fs.readFileSync(new URL("lesson-index.json", `file://${path.resolve(f)}`), "utf8"));
+} catch {}
+let refs = 0;
+for (const s of L.scenes || [])
+  for (const [k, st] of s.steps.entries()) {
+    if (!st.ref) continue;
+    refs++;
+    if (!st.ref.lecture || !st.ref.label) errs.push(`${s.id}#${k}: ref needs lecture and label`);
+    else if (st.ref.label.split(/\s+/).length > 6) warns.push(`${s.id}#${k}: ref label over 6 words`);
+    if (index && st.ref.lecture) {
+      const at = index.findIndex((x) => x.id === st.ref.lecture);
+      const me = index.findIndex((x) => x.id === L.quest);
+      if (at < 0) errs.push(`${s.id}#${k}: ref lecture "${st.ref.lecture}" isn't in lesson-index.json`);
+      else if (me >= 0 && at >= me) errs.push(`${s.id}#${k}: ref must point to an earlier lesson`);
+    }
+  }
+if (L.lesson && L.lesson.kind !== "preview" && index && index.findIndex((x) => x.id === L.quest) > 0 && (refs < 2 || refs > 6)) warns.push(`${refs} refs (target 2-6)`);
 if (L.v === 2) {
-  if (words < 1700 || words > 2300) warns.push(`narration is ${words} words (v2 target 1,700-2,300)`);
-  if (quizzes < 3 || quizzes > 4) warns.push(`${quizzes} quiz checkpoints (v2 target 3-4)`);
+  const [wMin, wMax, qMin, qMax, sMin, sMax] = RANGES[kind];
+  if (words < wMin || words > wMax) warns.push(`narration is ${words} words (${kind} target ${wMin}-${wMax})`);
+  if (quizzes < qMin || quizzes > qMax) warns.push(`${quizzes} quiz checkpoints (${kind} target ${qMin}-${qMax})`);
+  if ((L.scenes || []).length < sMin || (L.scenes || []).length > sMax) warns.push(`${(L.scenes || []).length} scenes (${kind} target ${sMin}-${sMax})`);
   for (const s of L.scenes || []) if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(TD|TB)/m.test(s.diagram || "")) warns.push(`${s.id}: flowchart should be LR for video`);
   for (const s of L.scenes || []) if (s.kind === "flowchart" && /<br\/?>/.test(s.diagram || "")) warns.push(`${s.id}: flowchart labels should be one line (no <br/>)`);
 }

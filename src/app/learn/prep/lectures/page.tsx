@@ -8,7 +8,7 @@ export const revalidate = 86400;
 
 export const metadata: Metadata = {
   title: "Lectures · Interview prep · System Design Mastery",
-  description: "Animated, narrated system design lectures, one per side quest: the whole design in about 15 minutes, with quiz checkpoints and an AI you can ask about any moment.",
+  description: "Animated, narrated system design lectures for the course's lessons and side quests, with quiz checkpoints, chapters, captions and an AI you can ask about any moment.",
   alternates: { canonical: "/learn/prep/lectures" },
 };
 
@@ -29,7 +29,7 @@ export default async function LecturesPage() {
           Watch the whole design<span className="text-signal">.</span>
         </h1>
         <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
-          One animated lecture per side quest: the scale, the naive design and where it breaks, the real architecture, the hard part, and what to say in the interview. It stops for quick checkpoints, and you can ask the AI about any moment.
+          Animated, narrated lectures that walk through each lesson and side quest: the idea, where the obvious design breaks, the real one, and what to say in the interview. Each one links back to what it builds on, stops for quick checkpoints, and lets you ask the AI about any moment.
         </p>
       </header>
       {lectures.length ? <LectureGrid lectures={lectures} mediaBase={lectureMediaBase()} /> : <p className="m-0 text-fg-3">The first lectures are on their way.</p>}

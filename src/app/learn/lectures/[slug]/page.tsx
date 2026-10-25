@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
-import { getLecture, lectureHash, lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
+import { getLecture, lectureHash, lectureMediaBase, lectureSubject, listLectures } from "@/lib/learn/lecture/load";
 import { getLectureFaq } from "@/lib/learn/lecture/faq";
-import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
 
 export const runtime = "nodejs";
@@ -22,10 +21,11 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function LecturePage({ params }: Props) {
   const { slug } = await params;
-  const [l, map, all, faq] = await Promise.all([getLecture(slug), getCourseMap(COURSE_ID).catch(() => null), listLectures().catch(() => []), getLectureFaq(slug).catch(() => null)]);
+  const [l, all, faq] = await Promise.all([getLecture(slug), listLectures().catch(() => []), getLectureFaq(slug).catch(() => null)]);
   if (!l) notFound();
-  const q = map?.sideQuests.find((x) => x.slug === l.quest) ?? null;
+  const q = await lectureSubject(l);
   const at = all.findIndex((x) => x.slug === l.quest);
-  const nx = at >= 0 && at + 1 < all.length ? all[at + 1] : null;
-  return <LecturePlayer lecture={l} quest={q ? { title: q.title, href: q.href, code: q.code } : null} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={nx ? { href: nx.href, title: nx.title, code: nx.code } : null} faq={faq?.scenes ?? null} />;
+  // up next: the next lecture in the same track (course lessons, or side quests)
+  const nx = at >= 0 && at + 1 < all.length && (all[at + 1].group === "Side quests") === (all[at].group === "Side quests") ? all[at + 1] : null;
+  return <LecturePlayer lecture={l} quest={q} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={nx ? { href: nx.href, title: nx.title, code: nx.code } : null} faq={faq?.scenes ?? null} />;
 }
