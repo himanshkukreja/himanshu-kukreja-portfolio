@@ -24,7 +24,7 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "lab-review": { label: "Code review after a pass", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 10, maxTokens: 900, maxInputChars: 8000, live: true },
   "explain-back": { label: "Explain-it-back grade", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 40, maxTokens: 400, maxInputChars: 1500, live: true },
   "mock-interviewer": { label: "AI mock interviewer (turn)", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 80, maxTokens: 450, maxInputChars: 4000, live: true },
-  "mock-scorecard": { label: "AI mock scorecard", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 3, maxTokens: 1500, maxInputChars: 60000, live: true },
+  "mock-scorecard": { label: "AI mock scorecard", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 3, maxTokens: 3000, maxInputChars: 60000, live: true },
   "design-review": { label: "Design review", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 5, maxTokens: 1500, maxInputChars: 15000, live: true },
   "war-room": { label: "War room free-text", model: MODELS.sonnet, amberModel: null, perDay: 40, maxTokens: 350, maxInputChars: 600, live: true },
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 2000, maxInputChars: 200000, live: false },

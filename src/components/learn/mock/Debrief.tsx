@@ -5,6 +5,7 @@
  * self-scores, the verdict band, what to study next, a second opinion from Claude / ChatGPT,
  * and the reward.
  */
+import AiScorecard from "@/components/learn/ai/AiScorecard";
 import Link from "next/link";
 import { useState } from "react";
 import { LEARN_XP } from "@/lib/learn/types";
@@ -104,6 +105,7 @@ export default function Debrief(props: Props) {
         <Scorecard {...props} />
       </div>
 
+      <AiScorecard mock={mock} run={run} />
       <StudyNext score={score} />
       <AskForFeedback {...props} />
       <LevelGuide mock={mock} level={run.level} />

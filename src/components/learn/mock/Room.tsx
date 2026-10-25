@@ -5,6 +5,7 @@
  * the call transcript (prompts, follow-ups, curveballs, hints, time-keeping) and the workspace
  * (curveball answers, notes per phase, a shared plain-text whiteboard, Done / Next).
  */
+import AiInterviewer from "@/components/learn/ai/AiInterviewer";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MockInterview, MockPhase } from "@/lib/learn/mock/types";
 import { mmss } from "@/lib/learn/mock/types";
@@ -352,6 +353,8 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
           </div>
         );
       })}
+
+      <AiInterviewer slug={mock.slug} startedAt={run.startedAt} phaseId={phase.id} interviewer={mock.interviewer.name} notes={note} />
 
       <div className="flex flex-col gap-3">
         <div role="tablist" aria-label="Workspace" className="flex gap-1 border-b border-line">

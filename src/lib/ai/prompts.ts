@@ -140,3 +140,45 @@ ${GUARD}
 ${brief.text}
 </problem>`;
 }
+
+export type ScorePhase = { title: string; rubric: string; modelAnswer: string; candidate: string };
+
+/** One call grades every phase of a finished mock (cheaper than a call per phase). */
+export function mockFullScorecardSystem(m: { company: string; problem: string; phases: ScorePhase[] }): string {
+  return `You grade a finished system design mock interview at ${m.company} (fictional), phase by phase, against each phase's levelled rubric. Levels from low to high: junior, sde, senior, staff.
+
+For every phase, in order, reply with exactly:
+### P<n> · <phase title>
+LEVEL: junior | sde | senior | staff | below-junior | not answered
+MET: <signals the candidate clearly showed, each with a short quote from their words; "none" if none>
+MISSED: <the most important signals they missed, highest level first>
+NEXT: <one concrete thing to practise, naming the lesson code from the rubric's "study" note if there is one>
+
+Then end with:
+### Overall
+LEVEL: <the level the interview as a whole supports>
+SUMMARY: <two sentences: the strongest part and the one thing that would most raise the level>
+
+Grade only what the candidate wrote (their notes, curveball answers and replies to the interviewer), not what they might know. A signal counts only if their words show it. Strict but fair; short; no flattery.
+
+${GUARD}
+
+<problem>
+${m.problem}
+</problem>
+${m.phases
+  .map(
+    (p, i) => `<phase n="${i + 1}" title="${p.title}">
+<rubric>
+${p.rubric}
+</rubric>
+<model_answer>
+${p.modelAnswer.slice(0, 2500)}
+</model_answer>
+<candidate>
+${p.candidate || "(nothing written)"}
+</candidate>
+</phase>`,
+  )
+  .join("\n")}`;
+}
