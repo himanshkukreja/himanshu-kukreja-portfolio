@@ -53,7 +53,13 @@ function lessons(): Lesson[] {
 }
 
 const outFile = (key: string) => path.join(OUT, `${key}.md`);
-const upToDate = (l: Lesson) => fs.existsSync(outFile(l.key)) && fs.readFileSync(outFile(l.key), "utf8").includes(`source: ${l.hash}`);
+/** current source hash and every answer complete (ends with its [section]); otherwise the next run replaces it */
+const upToDate = (l: Lesson) => {
+  if (!fs.existsSync(outFile(l.key))) return false;
+  const t = fs.readFileSync(outFile(l.key), "utf8");
+  const last = t.trim().split("\n").filter((x) => x.trim()).pop() || "";
+  return t.includes(`source: ${l.hash}`) && /\]\s*$/.test(last);
+};
 
 async function submit(only: string | null, force: boolean) {
   const all = lessons().filter((l) => (!only || l.key === only) && (force || !upToDate(l)));
@@ -62,7 +68,7 @@ async function submit(only: string | null, force: boolean) {
   console.log(`${all.length} lessons · estimated ~$${estimate.toFixed(2)} (batch price)`);
   const requests = all.map((l, i) => ({
     custom_id: `faq-${i}`,
-    params: { model: MODEL, max_tokens: 3000, system: SYSTEM, messages: [{ role: "user", content: `<lesson title="${l.title}">\n${l.text}\n</lesson>` }] },
+    params: { model: MODEL, max_tokens: 6000, system: SYSTEM, messages: [{ role: "user", content: `<lesson title="${l.title}">\n${l.text}\n</lesson>` }] },
   }));
   const r = await fetch(API, { method: "POST", headers: H, body: JSON.stringify({ requests }) });
   const b = (await r.json()) as { id?: string; error?: { message?: string } };
@@ -83,7 +89,7 @@ async function poll(batchId: string) {
       let ok = 0;
       let total = 0;
       for (const line of jsonl.split("\n").filter(Boolean)) {
-        const row = JSON.parse(line) as { custom_id: string; result: { type: string; message?: { content: { type: string; text?: string }[]; usage: Usage }; error?: unknown } };
+        const row = JSON.parse(line) as { custom_id: string; result: { type: string; message?: { content: { type: string; text?: string }[]; usage: Usage; stop_reason?: string }; error?: unknown } };
         const m = map.find((x) => x.id === row.custom_id);
         if (!m) continue;
         if (row.result.type !== "succeeded" || !row.result.message) {
@@ -110,9 +116,21 @@ async function poll(batchId: string) {
           console.log(`  ✗ ${m.key}: unexpected format`);
           continue;
         }
+        // every published answer must be complete: if the output was cut off, drop the unfinished last
+        // question; keep the result only with at least five complete answers (else it's retried next run)
+        let body = text;
+        if (msg.stop_reason !== "end_turn") {
+          const blocks = text.split(/\n(?=###\s)/);
+          while (blocks.length && !/\]\s*$/.test(blocks[blocks.length - 1].trim())) blocks.pop();
+          if (blocks.length < 5) {
+            console.log(`  ✗ ${m.key}: stopped early (${msg.stop_reason}), only ${blocks.length} complete`);
+            continue;
+          }
+          body = blocks.join("\n").trim();
+        }
         const file = outFile(m.key);
         fs.mkdirSync(path.dirname(file), { recursive: true });
-        fs.writeFileSync(file, `---\nlesson: ${m.key}\ntitle: ${JSON.stringify(m.title)}\nmodel: ${MODEL}\ngenerated: ${new Date().toISOString().slice(0, 10)}\nsource: ${m.hash}\n---\n\n${text}\n`);
+        fs.writeFileSync(file, `---\nlesson: ${m.key}\ntitle: ${JSON.stringify(m.title)}\nmodel: ${MODEL}\ngenerated: ${new Date().toISOString().slice(0, 10)}\nsource: ${m.hash}\n---\n\n${body}\n`);
         ok++;
       }
       console.log(`wrote ${ok}/${map.length} FAQ files · actual cost $${total.toFixed(2)}`);

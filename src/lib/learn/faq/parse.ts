@@ -18,7 +18,8 @@ export function parseFaq(raw: string): LessonFaq | null {
       if (m) a = a.slice(0, m.index).trim();
       return { q: q.trim(), a, section };
     })
-    .filter((x) => x.q && x.a);
+    // every complete answer ends with its section in brackets: one without it was cut off, so it isn't shown
+    .filter((x) => x.q && x.a && x.section);
   if (!items.length) return null;
   return { lesson: String(data.lesson || ""), model: String(data.model || ""), generated: String(data.generated || ""), items };
 }
