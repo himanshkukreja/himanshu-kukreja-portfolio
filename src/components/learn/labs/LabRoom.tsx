@@ -7,6 +7,7 @@
  * in this browser; passing every test awards the lab's XP once (game key "lab:<id>").
  */
 import Link from "next/link";
+import LabTutor from "@/components/learn/ai/LabTutor";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Check, ChevronDown, Eye, Lightbulb, Loader2, Minus, Play, Plus, RotateCcw, X } from "lucide-react";
@@ -418,6 +419,12 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
               setEditorOpen(true);
               editor.current?.goToLine(line);
             }}
+          />
+          <LabTutor
+            labId={lab.id}
+            getCode={() => code.current}
+            result={run?.outcome.kind === "done" ? run.outcome.result : null}
+            passed={passedAll}
           />
           {prev && !next && (
             <Link href={prev.href} className="self-start font-mono text-xs text-fg-3 hover:text-fg">
