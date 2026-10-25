@@ -1,0 +1,33 @@
+/** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
+import { MODELS } from "./prices";
+
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-scorecard" | "design-review" | "war-room" | "eval" | "batch";
+
+export type FeatureDef = {
+  label: string;
+  /** default model; the eval decides, the admin can change it */
+  model: string;
+  /** cheaper model used in amber mode (null: the feature pauses in amber) */
+  amberModel: string | null;
+  /** calls per user per day (0 = not a learner-facing feature) */
+  perDay: number;
+  /** hard cap on the answer length */
+  maxTokens: number;
+  /** cap on what the learner sends, in characters */
+  maxInputChars: number;
+  live: boolean;
+};
+
+export const FEATURES: Record<FeatureId, FeatureDef> = {
+  "lesson-qa": { label: "Ask this lesson", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 40, maxTokens: 700, maxInputChars: 1000, live: true },
+  "lab-hint": { label: "Code-lab hint", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 30, maxTokens: 500, maxInputChars: 8000, live: true },
+  "lab-review": { label: "Code review after a pass", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 10, maxTokens: 900, maxInputChars: 8000, live: true },
+  "explain-back": { label: "Explain-it-back grade", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 40, maxTokens: 400, maxInputChars: 1500, live: true },
+  "mock-interviewer": { label: "AI mock interviewer (turn)", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 80, maxTokens: 450, maxInputChars: 4000, live: true },
+  "mock-scorecard": { label: "AI mock scorecard", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 3, maxTokens: 1500, maxInputChars: 60000, live: true },
+  "design-review": { label: "Design review", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 5, maxTokens: 1500, maxInputChars: 15000, live: true },
+  "war-room": { label: "War room free-text", model: MODELS.haiku, amberModel: null, perDay: 40, maxTokens: 350, maxInputChars: 600, live: true },
+  eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 2000, maxInputChars: 200000, live: false },
+  batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, live: false },
+};
+export const FEATURE_IDS = Object.keys(FEATURES) as FeatureId[];

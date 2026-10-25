@@ -35,6 +35,7 @@ export const ADMIN_NAV = [
   { href: "/admin/design-week", label: "Design week", key: "design-week", match: (p: string) => p.startsWith("/admin/design-week") },
   { href: "/admin/certificates", label: "Certificates", key: "certificates", match: (p: string) => p.startsWith("/admin/certificates") },
   { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
+  { href: "/admin/ai", label: "AI", key: "ai", match: (p: string) => p.startsWith("/admin/ai") },
 ] as const;
 
 /* ─────────────── tiny storage stores (useSyncExternalStore) ─────────────── */
