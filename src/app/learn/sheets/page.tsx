@@ -21,8 +21,8 @@ export default async function SheetsIndex() {
     <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-14">
       <header className="flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/practice" className="hover:text-fg">
-            Practice
+          <Link href="/learn/prep" className="hover:text-fg">
+            Prep
           </Link>
           <span aria-hidden>/</span>
           <span className="text-signal-text">Design sheets</span>

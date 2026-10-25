@@ -1,26 +1,25 @@
 "use client";
 
 /**
- * /learn/practice: the interview-prep toolkit in one place, grouped as interview night (revision
- * decks, cheat sheets), build and drill (code labs, mock interviews, design of the week) and tools
- * (numbers playground, study planner, concept map, reading trail). Each card carries this browser's
- * state where it is cheap to read (localStorage / game state, no extra requests), and Design of the
- * week asks its public summary endpoint when online.
+ * /learn/prep: everything for the interview itself, grouped as who's hiring (companies, the question
+ * bank), classic problems (problem bank, low-level design), interview night (revision decks, cheat
+ * sheets, design sheets), the real loop (mock interviews solo and with a peer, code labs) and tools
+ * (numbers playground, study planner). Each card carries this browser's state where it is cheap to read
+ * (localStorage / game state, no extra requests).
  *
- * Offline (a saved copy of this page): every card says whether its page is saved on this device;
- * Design of the week always needs a connection.
+ * Offline (a saved copy of this page): every card says whether its page is saved on this device.
  */
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Award, BookOpen, CalendarDays, Calculator, Code2, FileText, Layers, Map as MapIcon, Mic, Network, PenTool } from "lucide-react";
+import { Building2, CalendarDays, Calculator, Code2, FileText, Layers, ListChecks, Map as MapIcon, Mic, Users } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useLabProgress } from "@/lib/learn/labs/progress";
 import { labKey } from "@/lib/learn/labs/types";
 import { useMockStatus } from "@/lib/learn/mock/store";
 import type { CourseMock } from "@/lib/learn/mock/types";
-import { PHASE_LABEL } from "@/lib/design-week/core";
-import type { HubSummary } from "@/lib/design-week/views";
+import type { CompanySummary } from "@/lib/learn/prep/types";
+import CompanyGrid from "./CompanyGrid";
 import { daysBetween } from "@/lib/learn/plan/schedule";
 import { fmtDate } from "@/components/learn/progress/derive";
 import { usePlanRecord, useToday } from "@/components/learn/plan/usePlan";
@@ -33,7 +32,12 @@ export type PracticeData = {
   revision: { weeks: { key: string; id: string; code: string; title: string; lessons: string[] }[]; lessons: number; cards: number };
   labs: { id: string; xp: number }[];
   mocks: CourseMock[];
-  concepts: number;
+  /** companies with a prep page, and the question bank's size */
+  companies: CompanySummary[];
+  bank: { questions: number; reported: number };
+  /** the problem bank and the low-level design track (lessons) */
+  problems: { code: string; title: string; href: string }[];
+  lld: { code: string; title: string; href: string }[];
   /** side-quest design sheets */
   sheets: { slug: string; code: string; title: string; href: string; diagrams: number }[];
 };
@@ -55,28 +59,6 @@ function useRevised(): ReviseState | null {
     };
   }, []);
   return s;
-}
-
-type Dow = { state: "loading" } | { state: "offline" } | { state: "error" } | { state: "ok"; data: HubSummary };
-
-function useDesignWeek(offline: boolean): Dow {
-  const [res, setRes] = useState<Dow>({ state: "loading" });
-  useEffect(() => {
-    if (offline) return;
-    let off = false;
-    fetch("/api/learn/design-week/summary")
-      .then((r) => (r.ok ? (r.json() as Promise<HubSummary>) : null))
-      .then((d) => {
-        if (!off) setRes(d ? { state: "ok", data: d } : { state: "error" });
-      })
-      .catch(() => {
-        if (!off) setRes({ state: "error" });
-      });
-    return () => {
-      off = true;
-    };
-  }, [offline]);
-  return offline ? { state: "offline" } : res;
 }
 
 /** Offline: is this page saved on the device? Online everything is reachable. */
@@ -103,7 +85,6 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
   const today = useToday();
   const { record } = usePlanRecord();
   const { offline } = useOffline();
-  const dow = useDesignWeek(offline);
   const reach = useReach();
 
   const ready = hydrated && revised !== null;
@@ -122,12 +103,12 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
     <main className="mx-auto flex max-w-[1320px] flex-col gap-12 px-4 pb-32 pt-10 sm:px-6 sm:pt-16 lg:pb-24">
       {/* hero */}
       <header className="flex flex-col gap-5">
-        <span className="font-mono text-xs uppercase tracking-label text-signal-text">Learn · practice · free, no sign-up</span>
+        <span className="font-mono text-xs uppercase tracking-label text-signal-text">Learn · interview prep · free, no sign-up</span>
         <h1 className="font-display text-[clamp(44px,7vw,104px)] font-extrabold leading-[0.88] tracking-tightest text-fg">
-          Practice<span className="text-signal-text">.</span>
+          Interview prep<span className="text-signal-text">.</span>
         </h1>
         <p className="max-w-[720px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
-          The lessons teach it; these get you interview-ready. Revise a world in minutes, implement the components interviewers ask for, sit a timed mock, and keep your numbers and your schedule straight.
+          The course teaches it; this gets you hired. See what each company asks, work the classic problems, sit a timed mock (alone or with a real person), and revise the night before.
         </p>
         <dl className="m-0 grid grid-cols-2 gap-px self-start border border-line bg-line font-mono sm:flex sm:flex-wrap">
           <Stat label="lessons revised" value={ready ? `${lessonsRevised}` : "–"} of={data.revision.lessons} />
@@ -139,12 +120,39 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           </div>
         </dl>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <SaveOfflineButton title="Practice toolkit" kind="tool" url="/learn/practice" />
+          <SaveOfflineButton title="Interview prep" kind="tool" url="/learn/prep" />
           <Link href="/learn/guide#practice" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             how each tool works →
           </Link>
         </div>
       </header>
+
+      {/* who's hiring */}
+      <Group id="hiring" kicker="who's hiring" title="Prep for a company" aside="What candidates reported, with sources, and the lessons that teach it.">
+        <div className="col-span-full flex flex-col gap-4">
+          {data.companies.length > 0 ? (
+            <CompanyGrid companies={data.companies} limit={12} />
+          ) : (
+            <p className="m-0 border border-dashed border-line p-5 text-[15px] text-fg-3">The company pages are being researched.</p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Link href="/learn/prep/companies" className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-medium text-fg hover:border-fg-3">
+              <Building2 className="h-4 w-4" aria-hidden /> All {data.companies.length} companies
+            </Link>
+            <Link href="/learn/prep/questions" className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-medium text-fg hover:border-fg-3">
+              <ListChecks className="h-4 w-4" aria-hidden /> Question bank · {data.bank.questions} questions{data.bank.reported ? ` · ${data.bank.reported} reported` : ""}
+            </Link>
+          </div>
+        </div>
+      </Group>
+
+      {/* classic problems */}
+      {(data.problems.length > 0 || data.lld.length > 0) && (
+        <Group id="problems" kicker="classic problems" title="The questions everyone asks" aside="Short walkthroughs that link into the full lessons.">
+          {data.problems.length > 0 && <ProblemList title="Problem bank" sub="High-level design, 15–30 min each" items={data.problems} reach={reach} />}
+          {data.lld.length > 0 && <ProblemList title="Low-level design" sub="Machine coding: classes, interfaces, patterns" items={data.lld} reach={reach} />}
+        </Group>
+      )}
 
       {/* interview night */}
       <Group id="night" kicker="interview night" title="Revise fast" aside="For the evening before, or the train to the office.">
@@ -209,7 +217,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
       </Group>
 
       {/* build & drill */}
-      <Group id="drill" kicker="build and drill" title="Do it for real" aside="The rounds that need more than recall.">
+      <Group id="drill" kicker="the real loop" title="Do it for real" aside="Timed rounds, a real person, working code.">
         <Card
           href="/learn/labs"
           icon={Code2}
@@ -230,21 +238,20 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           meta={`${data.mocks.length} loops between worlds`}
           reach={reach("/learn/mock")}
         />
-        <DesignWeekCard dow={dow} />
         <Card
-          href="/learn/certificate"
-          icon={Award}
-          kicker="certificates"
-          state={hydrated ? (done["cert:course"] ? "certified ✓" : `${Object.keys(done).filter((k) => k.startsWith("cert:world:")).length} world certificate${Object.keys(done).filter((k) => k.startsWith("cert:world:")).length === 1 ? "" : "s"}`) : null}
-          title="Earn the certificate"
-          pitch="Every lesson, every trial part, every boss and a mock interview at Hire: a certificate for the course and one per world, each with a verification page."
-          meta="needs an account · PDF · LinkedIn"
+          href="/learn/mock/peers"
+          icon={Users}
+          kicker="peer mocks"
+          state="with a real person"
+          title="Practise with another learner"
+          pitch="Post a time and a mock, someone pairs up, you both get a free video room. One interviews, then you swap."
+          meta="needs an account"
           reach={offline ? "away" : "online"}
         />
       </Group>
 
       {/* tools */}
-      <Group id="tools" kicker="tools" title="Keep it straight" aside="Small tools you will come back to.">
+      <Group id="tools" kicker="tools" title="Numbers and a plan" aside="Estimate out loud; plan to your interview date.">
         <Card
           href="/learn/numbers"
           icon={Calculator}
@@ -265,32 +272,34 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           meta="calendar file · Google Calendar"
           reach={reach("/learn/plan")}
         />
-        <Card
-          href="/learn/mastery"
-          icon={Network}
-          kicker="concept map"
-          state={data.concepts ? `${data.concepts} concepts` : null}
-          title="What you know, concept by concept"
-          pitch="Every concept coloured by your quick checks, trials and reviews, with a two-minute refresher for the shaky ones."
-          meta="+ term cards in lessons"
-          reach={reach("/learn/mastery")}
-        />
-        <Card
-          href="/learn/reading"
-          icon={BookOpen}
-          kicker="reading trail"
-          state="papers · posts · talks"
-          title="Read what the engineers wrote"
-          pitch="Engineering-blog posts and papers picked for each lesson, each with the one idea to take from it."
-          meta="for after a lesson"
-          reach={reach("/learn/reading")}
-        />
       </Group>
     </main>
   );
 }
 
 /* ------------------------------------------------------------------ pieces */
+
+function ProblemList({ title, sub, items, reach }: { title: string; sub: string; items: { code: string; title: string; href: string }[]; reach: (href: string) => Reach }) {
+  return (
+    <section className="flex flex-col gap-3 border border-line bg-surface p-4 sm:p-[18px]">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="m-0 font-display text-[20px] font-bold tracking-[-0.02em] text-fg">{title}</h3>
+        <span className={`${LABEL} text-fg-3`}>{items.length}</span>
+      </div>
+      <p className="m-0 text-[13px] text-fg-3">{sub}</p>
+      <ul className="m-0 flex list-none flex-col p-0">
+        {items.map((it) => (
+          <li key={it.href} className="border-t border-line first:border-t-0">
+            <Link href={it.href} className={`flex items-baseline gap-3 py-2 text-[15px] hover:text-signal-text ${reach(it.href) === "away" ? "text-fg-4" : "text-fg"}`}>
+              <span className="w-14 shrink-0 font-mono text-xs text-fg-3">{it.code}</span>
+              <span>{it.title}</span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 function Stat({ label, value, of }: { label: string; value: string; of: number }) {
   return (
@@ -411,37 +420,3 @@ function WorldChips({ label, items, reach }: { label: string; items: { href: str
   );
 }
 
-function DesignWeekCard({ dow }: { dow: Dow }) {
-  const c = dow.state === "ok" ? dow.data.current : null;
-  const state =
-    dow.state === "offline"
-      ? null
-      : dow.state === "loading"
-        ? "…"
-        : dow.state === "error" || !dow.data.available
-          ? "coming soon"
-          : c
-            ? PHASE_LABEL[c.phase].toLowerCase()
-            : "between challenges";
-  const title = c ? c.title : "One open problem a week";
-  const pitch = c
-    ? c.phase === "open"
-      ? "Submissions are open: write your design in markdown with Mermaid diagrams. Designs stay private until the gallery opens."
-      : c.phase === "voting"
-        ? "The gallery is open: vote for the designs you'd hire. Winners are featured with their profile."
-        : "Read the brief, then the designs the community submitted."
-    : "A new system design problem every Monday. Submit your design, vote on everyone else's, get featured.";
-  const meta = c && c.phase !== "upcoming" ? `${c.submitted} design${c.submitted === 1 ? "" : "s"} in` : "submit · vote · get featured";
-  return (
-    <Card
-      href="/learn/design-week"
-      icon={PenTool}
-      kicker="design of the week"
-      state={state}
-      title={title}
-      pitch={pitch}
-      meta={meta}
-      reach={dow.state === "offline" ? "away" : "online"}
-    />
-  );
-}

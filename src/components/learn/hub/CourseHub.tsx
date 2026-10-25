@@ -31,8 +31,6 @@ import ShareButton from "@/components/share/ShareButton";
 import { SaveCourseButton } from "@/components/offline/OfflineLibrary";
 import { InstallButton } from "@/components/offline/Install";
 import { useOffline } from "@/components/offline/OfflineProvider";
-import LearnTools from "@/components/learn/plan/LearnTools";
-import DesignWeekCard from "@/components/learn/design-week/DesignWeekCard";
 
 export default function CourseHub({ map }: { map: CourseMap }) {
   const { ready, signedIn, lessons, done } = useLearnProgress(map.courseId);
@@ -243,58 +241,41 @@ export default function CourseHub({ map }: { map: CourseMap }) {
         </div>
       </section>
 
-      {/* The classic interview problem bank and the low-level design (machine coding) track */}
-      {[
-        { id: "problems", title: "Interview problem bank", blurb: "The classic questions, each a 15-minute walkthrough that links into the full lessons.", items: map.problems || [] },
-        { id: "lld", title: "Low-level design", blurb: "Machine-coding rounds: classes, interfaces and the patterns interviewers look for.", items: map.lld || [] },
-      ]
-        .filter((sec) => sec.items.length > 0)
-        .map((sec) => (
-          <section key={sec.id} aria-labelledby={`${sec.id}-h`} className="flex flex-col gap-[18px]">
-            <div className="flex flex-wrap items-baseline justify-between gap-3">
-              <h2 id={`${sec.id}-h`} className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
-                {sec.title}
-              </h2>
-              <span className="text-[15px] text-fg-3">{sec.blurb}</span>
-            </div>
-            <div className="grid grid-cols-[repeat(auto-fit,minmax(min(220px,100%),1fr))] gap-2">
-              {sec.items.map((q) => {
-                const isDone = lessons[lessonKey(q.week, q.slug)]?.status === "completed";
-                return (
-                  <Link key={q.slug} href={q.href} className={`flex flex-col gap-1.5 p-4 hover:border-fg-4 sm:min-h-[120px] sm:gap-2 sm:p-[18px] ${isDone ? "border border-line-strong bg-surface-2" : "border border-line bg-bg"}`}>
-                    <span className="flex items-start justify-between gap-3 font-mono text-[11px] tracking-label text-fg-3">
-                      <span>{q.code}</span>
-                      <span>{q.minutes} MIN</span>
-                    </span>
-                    <span className="font-display text-[19px] font-bold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[21px]">{q.title}</span>
-                    <span className={`mt-auto pt-1 font-mono text-xs ${isDone ? "text-fg" : "text-signal-text"}`}>{isDone ? "COMPLETED ✓" : "START →"}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          </section>
-        ))}
-
-      {/* Practice: this week's design challenge and the prep tools, with the rest of the toolkit one click away */}
-      <section aria-labelledby="practice-h" className="flex flex-col gap-[18px]">
-        <div className="flex flex-wrap items-baseline justify-between gap-3">
-          <h2 id="practice-h" className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
-            Practice
-          </h2>
-          <Link href="/learn/practice" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
-            revision decks, cheat sheets, code labs, mocks · all practice →
-          </Link>
-          <Link href="/learn/tracks" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
-            company prep tracks: Flipkart, Razorpay, Swiggy… →
-          </Link>
-          <Link href="/learn/concepts" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+      {/* Beyond the course: the other tabs, so the hub says where each thing lives */}
+      <section aria-labelledby="beyond-h" className="flex flex-col gap-[18px]">
+        <h2 id="beyond-h" className="font-display text-[34px] font-bold tracking-[-0.03em] text-fg sm:text-[40px]">
+          Beyond the course
+        </h2>
+        <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))]">
+          {[
+            {
+              href: "/learn/prep",
+              tab: "prep · get hired",
+              title: "Interview prep",
+              body: `Company pages with what candidates were asked, the question bank, ${(map.problems || []).length} classic problems, ${(map.lld || []).length} low-level design rounds, timed mocks, cheat and design sheets.`,
+            },
+            { href: "/learn/arena", tab: "arena · play", title: "Arena", body: "The daily challenge, weekly leagues, quick games, your review queue and design of the week." },
+            { href: "/learn/war-stories", tab: "stories · see it for real", title: "War stories", body: "True stories of real systems at their limits, and war rooms where you take the page." },
+          ].map((c) => (
+            <Link key={c.href} href={c.href} className="group flex flex-col gap-2 border border-line bg-surface p-5 hover:border-fg-3">
+              <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">{c.tab}</span>
+              <span className="font-display text-[24px] font-bold leading-none tracking-[-0.02em] text-fg group-hover:text-signal-text">{c.title} →</span>
+              <span className="text-[14px] leading-snug text-fg-2">{c.body}</span>
+            </Link>
+          ))}
+        </div>
+        <p className="m-0 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[13px]">
+          <span className="text-fg-3">in the course too:</span>
+          <Link href="/learn/concepts" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             concepts A–Z →
           </Link>
-        </div>
-        <div className="flex flex-col gap-2">
-          <DesignWeekCard />
-          <LearnTools />
-        </div>
+          <Link href="/learn/reading" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            reading trail →
+          </Link>
+          <Link href="/learn/sheets" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            side-quest design sheets →
+          </Link>
+        </p>
       </section>
 
       <ReadOffline />

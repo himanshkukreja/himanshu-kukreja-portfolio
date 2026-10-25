@@ -84,9 +84,15 @@ const nextConfig: NextConfig = {
   },
   // ...but keep the site's own canonical URLs: /learn/ → /learn as before (proxy paths excluded).
   async redirects() {
+    // The Practice tab became Interview prep; company tracks became its company pages.
+    const moved = [
+      { source: "/learn/practice", destination: "/learn/prep", permanent: true },
+      { source: "/learn/tracks", destination: "/learn/prep/companies", permanent: true },
+      { source: "/learn/tracks/:company", destination: "/learn/prep/companies/:company", permanent: true },
+    ];
     return posthogRewrites.length
-      ? [{ source: `/:path((?!${PH.slice(1)}(?:/|$)).+)/`, destination: "/:path", permanent: true }]
-      : [];
+      ? [...moved, { source: `/:path((?!${PH.slice(1)}(?:/|$)).+)/`, destination: "/:path", permanent: true }]
+      : moved;
   },
   outputFileTracingIncludes: {
     "/*": ["./content/**/*"],

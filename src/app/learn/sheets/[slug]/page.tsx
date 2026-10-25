@@ -41,15 +41,15 @@ export default async function SheetPage({ params }: Props) {
     <main className="ds-root mx-auto flex w-full max-w-[920px] flex-col gap-6 px-4 pb-24 pt-6 sm:px-6 sm:pt-10">
       <JsonLd
         data={breadcrumbs([
-          { name: "Practice", path: "/learn/practice" },
+          { name: "Interview prep", path: "/learn/prep" },
           { name: "Design sheets", path: "/learn/sheets" },
           { name: s.title, path: s.href },
         ])}
       />
       <div className="ds-noprint flex flex-col gap-5">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/practice" className="hover:text-fg">
-            Practice
+          <Link href="/learn/prep" className="hover:text-fg">
+            Prep
           </Link>
           <span aria-hidden>/</span>
           <Link href="/learn/sheets" className="hover:text-fg">

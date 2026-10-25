@@ -15,26 +15,34 @@ export const COURSE_HREF = "/learn/system-design-mastery";
 export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/learn/");
 
 /**
- * The Practice tab owns its hub (/learn/practice) and every tool the hub lists: revision decks,
- * cheat sheets, code labs, mock interviews, design of the week, the numbers playground, the study
- * planner, the concept map and the reading trail. Keep in sync with src/components/learn/practice.
+ * Five tabs, one question each:
+ *   course  · learn it    the course hub, lessons, side quests, concepts A–Z, the reading trail
+ *   prep    · get hired   companies, the question bank, problem bank + low-level design, mock interviews,
+ *                         revision decks, cheat and design sheets, code labs, numbers, the study planner
+ *   arena   · play        daily challenge, leagues, games, the review queue, design of the week
+ *   stories · see it real real stories and the war room
+ *   you     · your stuff  progress, notebook, bookmarks, concept mastery, certificates
+ * Keep in sync with the Prep hub (src/components/learn/prep) and the You sub-nav (src/components/learn/you).
  */
-export const PRACTICE_ROUTES = ["practice", "revise", "cheatsheet", "labs", "mock", "design-week", "numbers", "plan", "mastery", "reading", "tracks", "concepts"] as const;
-const PRACTICE_RE = new RegExp(`^/learn/(?:${PRACTICE_ROUTES.join("|")})(?:/|$)`);
-export const isPractice = (p: string) => PRACTICE_RE.test(p);
+export const PREP_ROUTES = ["prep", "practice", "revise", "cheatsheet", "sheets", "labs", "mock", "numbers", "plan", "tracks"] as const;
+const PREP_RE = new RegExp(`^/learn/(?:${PREP_ROUTES.join("|")})(?:/|$)`);
+/** the problem bank and the low-level design track are lessons, but they belong to interview prep */
+const PREP_LESSON_RE = /^\/learn\/[^/]+\/(?:problem-bank|low-level-design)\//;
+export const isPrep = (p: string) => PREP_RE.test(p) || PREP_LESSON_RE.test(p);
 
-const isCourse = (p: string) => isLearnRoute(p) && !isPractice(p) && !/^\/learn\/(arena|review|notebook|notes|bookmarks|dashboard|guide|offline)(\/|$)/.test(p);
-
-/** The Arena tab also owns the review queue (/learn/review), so the due badge lives on it. */
-const isArena = (p: string) => /^\/learn\/(arena|review)(\/|$)/.test(p);
+const isArena = (p: string) => /^\/learn\/(arena|review|design-week)(\/|$)/.test(p);
+const isStories = (p: string) => /^\/learn\/war-stories(\/|$)/.test(p);
+export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "mastery", "certificate"] as const;
+const isYou = (p: string) => new RegExp(`^/learn/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
+const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isYou(p) && !/^\/learn\/(guide|offline)(\/|$)/.test(p);
 
 function tabs(pathname: string) {
   return [
     { href: COURSE_HREF, label: "course", on: isCourse(pathname) },
+    { href: "/learn/prep", label: "prep", on: isPrep(pathname) },
     { href: "/learn/arena", label: "arena", on: isArena(pathname), badge: true },
-    { href: "/learn/practice", label: "practice", on: isPractice(pathname) },
-    { href: "/learn/notebook", label: "notebook", on: /^\/learn\/(notebook|notes|bookmarks)(\/|$)/.test(pathname) },
-    { href: "/learn/dashboard", label: "progress", on: /^\/learn\/dashboard(\/|$)/.test(pathname) },
+    { href: "/learn/war-stories", label: "stories", on: isStories(pathname) },
+    { href: "/learn/dashboard", label: "you", on: isYou(pathname) },
   ];
 }
 

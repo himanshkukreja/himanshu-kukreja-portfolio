@@ -94,7 +94,7 @@ async function build(course: string): Promise<Catalog> {
   const labs = await getLabSummaries().catch(() => []);
   if (labs.length) courseItems.push({ url: "/learn/labs", title: `Code labs · ${labs.length} labs`, kind: "lab", tag: "LABS", group: "course", version: hash(labs.map((l) => l.version).join()), bytes: 40_000 });
   // the practice hub: links to every tool, live state from this browser (counts ship in the page)
-  courseItems.push({ url: "/learn/practice", title: "Practice toolkit", kind: "tool", tag: "PRACTICE", group: "course", version: hash([courseItems[0].version, ...labs.map((l) => l.version)].join()), bytes: 15_000 });
+  courseItems.push({ url: "/learn/prep", title: "Interview prep", kind: "tool", tag: "PRACTICE", group: "course", version: hash([courseItems[0].version, ...labs.map((l) => l.version)].join()), bytes: 15_000 });
   // the other toolkit indexes the practice hub links to (small pages; their data ships in the page)
   courseItems.push({ url: "/learn/revise", title: "Revision decks", kind: "tool", tag: "REVISE", group: "course", version: courseItems[0].version, bytes: 20_000 });
   courseItems.push({ url: "/learn/mock", title: "Mock interviews", kind: "tool", tag: "MOCKS", group: "course", version: courseItems[0].version, bytes: 20_000 });

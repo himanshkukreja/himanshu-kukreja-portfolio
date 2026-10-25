@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/arena — the fun centre of the course: today's challenge, your league, the review queue and
+ * /learn/arena — the fun centre of the course: today's challenge, your league, design of the week, the review queue and
  * the practice games (Arena games + the Engineering Playground boards, each tied to the lessons that
  * teach it).
  */
@@ -14,6 +14,7 @@ import { ARENA_COURSE, lessonHref, PRACTICE_GAMES, type PracticeGame } from "@/l
 import { DAILY_N, DAILY_SECONDS, dailyNumber } from "@/lib/learn/arena/shared";
 import { dailyStreakLocal, useArenaLocal, useBoard, useToday } from "./store";
 import { BoardList, GuestRankCard } from "./Leaderboard";
+import DesignWeekPanel from "./DesignWeekPanel";
 import { BTN, BTN_GHOST, fmtMs, Kicker, LABEL, msToIstMidnight, PageTitle, ResultSquares, SectionTitle, TierBadge } from "./ui";
 
 function Countdown() {
@@ -195,6 +196,9 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
 
       {/* phones: your numbers after today's challenge */}
       <div className="-mt-6 lg:hidden">{stats}</div>
+
+      {/* Design of the week: the weekly community challenge */}
+      <DesignWeekPanel />
 
       {/* Review */}
       <Link

@@ -34,7 +34,7 @@ export const WELCOME_LINKS = {
   daily: withUtm("/learn/arena/daily"),
   leaderboard: withUtm("/learn/arena/leaderboard"),
   progress: withUtm("/learn/dashboard"),
-  practice: withUtm("/learn/practice"),
+  practice: withUtm("/learn/prep"),
   stories: withUtm("/stories"),
   site: withUtm("/"),
 };
