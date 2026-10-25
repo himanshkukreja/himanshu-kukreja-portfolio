@@ -21,7 +21,7 @@ import ContentsSheet from "./ContentsSheet";
 import EndOfLesson from "./EndOfLesson";
 import LandingContext from "./LandingContext";
 import BossEntry from "./BossEntry";
-import { FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
+import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
 import { headerStackBottom, stageRailHeight } from "./layout";
 import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
 
@@ -190,6 +190,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
             {meta.kind === "bonus" && <QuestRunEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} />}
 
+            <AskPrompt />
             <LessonContentWrapper
               ref={contentRef}
               htmlContent={html}

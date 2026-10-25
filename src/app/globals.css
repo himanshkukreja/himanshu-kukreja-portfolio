@@ -680,6 +680,9 @@ html.hk-focus .hk-top-fill {
 :root {
   --hk-ask-w: 440px;
 }
+html.hk-ask-open [data-ask-fab] {
+  display: none !important;
+}
 @media (min-width: 1024px) {
   html.hk-ask-open body {
     padding-right: var(--hk-ask-w);
