@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { userFetch } from "@/components/learn/progress/userFetch";
+import { aiFetch } from "./aiFetch";
 import type { HarnessResult } from "@/lib/learn/labs/harness";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
@@ -45,7 +45,7 @@ export default function LabTutor({ labId, getCode, result, passed }: { labId: st
     setItems((x) => [...x, item]);
     track("ai_ask", { feature: kind === "hint" ? "lab-hint" : "lab-review", lab: labId, level: item.level });
     try {
-      const res = await userFetch("/api/learn/ai/lab", {
+      const res = await aiFetch("/api/learn/ai/lab", {
         method: "POST",
         body: JSON.stringify({ labId, kind, level: item.level, code: getCode(), failures, setup: result.setup?.message }),
       });

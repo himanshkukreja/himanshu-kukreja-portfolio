@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getWarRoom } from "@/lib/learn/war/load";
-import { callClaude, saveTranscript } from "@/lib/ai/client";
+import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { warRoomSystem } from "@/lib/ai/prompts";
 
@@ -37,6 +37,7 @@ export async function POST(request: Request) {
     feature: "war-room",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
+    userKey: ownKey(request),
     system: warRoomSystem({
       title: room.title,
       company: room.company,

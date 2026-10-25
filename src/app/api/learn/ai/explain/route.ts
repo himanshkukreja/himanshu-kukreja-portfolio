@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getCatalogue } from "@/lib/concepts/load";
-import { callClaude, saveTranscript } from "@/lib/ai/client";
+import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { explainBackSystem } from "@/lib/ai/prompts";
 
@@ -24,6 +24,7 @@ export async function POST(request: Request) {
     feature: "explain-back",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
+    userKey: ownKey(request),
     system: explainBackSystem({ term: c.term, keyPoints }),
     messages: [{ role: "user", content: text }],
     meta: { concept: c.id },

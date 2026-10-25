@@ -31,7 +31,15 @@ export type AiRequest = {
   meta?: Record<string, string | number | boolean | null>;
   /** an admin trying a feature while it is switched off for learners (still metered, still within budget) */
   adminPreview?: boolean;
+  /** the learner's own Anthropic key (bring your own key): their cost, so no budget or daily limits; never stored */
+  userKey?: string | null;
 };
+
+/** A plausible Anthropic key from the x-anthropic-key header, or null. */
+export function ownKey(request: Request): string | null {
+  const k = (request.headers.get("x-anthropic-key") || "").trim();
+  return /^sk-ant-[A-Za-z0-9_-]{20,200}$/.test(k) ? k : null;
+}
 export type AiResult =
   | { ok: true; text: string; model: string; costUsd: number; credits: number; mode: Mode; creditsLeft: number | null; callId: number | null }
   | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "error" | "too_long"; message: string; mode: Mode; creditsLeft: number | null };
@@ -75,7 +83,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   const cfg = featureConfig(s, req.feature);
   const budget = await getBudget(s);
   const learner = def.live && !!req.userId;
-  const base = { user_id: req.userId ?? null, feature: req.feature, meta: req.meta ?? {} };
+  const byok = !!req.userKey;
+  const base = { user_id: req.userId ?? null, feature: req.feature, meta: req.meta ?? {}, byok };
   let creditsLeft: number | null = null;
 
   const refuse = async (status: Exclude<AiResult, { ok: true }>["status"], message: string, model = cfg.model): Promise<AiResult> => {
@@ -83,16 +92,17 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     return { ok: false, status, message, mode: budget.mode, creditsLeft };
   };
 
-  if (!process.env.ANTHROPIC_API_KEY) return refuse("disabled", "AI is not configured");
+  const apiKey = req.userKey || process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) return refuse("disabled", "AI is not configured");
   // content jobs need the key and budget, not the learner switch; learner features need everything
-  const switchedOn = (s.enabled && cfg.enabled) || !!req.adminPreview;
+  const switchedOn = (s.enabled && cfg.enabled) || !!req.adminPreview || byok;
   if (def.live && !switchedOn) return refuse("disabled", "AI is switched off");
   // "off" because the learner switch is off doesn't stop content jobs or an admin preview; a used-up budget or the end date does
-  if (budget.mode === "off" && !(budget.reason === "switched off" && (!def.live || req.adminPreview))) return refuse("disabled", budget.reason);
-  if (def.live && budget.mode === "red") return refuse("over_quota", "AI is resting for today: the day's share of the budget is used");
+  if (!byok && budget.mode === "off" && !(budget.reason === "switched off" && (!def.live || req.adminPreview))) return refuse("disabled", budget.reason);
+  if (!byok && def.live && budget.mode === "red") return refuse("over_quota", "AI is resting for today: the day's share of the budget is used");
 
   let model = req.model || cfg.model;
-  if (def.live && budget.mode === "amber") {
+  if (!byok && def.live && budget.mode === "amber") {
     if (!def.amberModel) return refuse("over_quota", "This feature pauses when the budget runs ahead of pace");
     model = def.amberModel;
   }
@@ -106,8 +116,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const t = await userToday(uid, req.feature);
     creditsLeft = Math.max(0, Math.floor((budget.userDailyUsd - t.spent) / 0.001));
     if (t.lastMinute >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute");
-    if (cfg.perDay && t.featureCalls >= cfg.perDay) return refuse("over_quota", `You've used today's ${cfg.perDay} ${def.label.toLowerCase()} calls. They refill at midnight UTC`);
-    if (t.spent >= budget.userDailyUsd) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC");
+    if (!byok && cfg.perDay && t.featureCalls >= cfg.perDay) return refuse("over_quota", `You've used today's ${cfg.perDay} ${def.label.toLowerCase()} calls. They refill at midnight UTC, or add your own key under You → AI`);
+    if (!byok && t.spent >= budget.userDailyUsd) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
   }
 
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up
@@ -116,7 +126,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   try {
     const res = await fetch(API, {
       method: "POST",
-      headers: { "content-type": "application/json", "x-api-key": process.env.ANTHROPIC_API_KEY, "anthropic-version": "2023-06-01" },
+      headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({ model, max_tokens: Math.min(req.maxTokens ?? cfg.maxTokens, def.maxTokens), system, messages: req.messages }),
     });
     const latency = Date.now() - t0;
@@ -124,7 +134,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const body = (await res.json().catch(() => null)) as { content?: { type: string; text?: string }[]; usage?: Usage; error?: { message?: string } } | null;
     if (!res.ok || !body) {
       await log({ ...base, model, status: "error", error: body?.error?.message?.slice(0, 300) || `HTTP ${res.status}`, latency_ms: latency, request_id: requestId });
-      return { ok: false, status: "error", message: "The AI didn't answer. Try again in a moment.", mode: budget.mode, creditsLeft };
+      const badKey = byok && (res.status === 401 || res.status === 403);
+      return { ok: false, status: "error", message: badKey ? "Your Anthropic key was refused. Check it under You → AI." : "The AI didn't answer. Try again in a moment.", mode: budget.mode, creditsLeft };
     }
     const u = body.usage ?? {};
     const cost = costOf(model, u);

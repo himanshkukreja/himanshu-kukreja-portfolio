@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getLearningResource } from "@/lib/github";
-import { callClaude, saveTranscript } from "@/lib/ai/client";
+import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { lessonQaSystem } from "@/lib/ai/prompts";
 import { lessonContext } from "@/lib/ai/retrieve";
@@ -42,6 +42,7 @@ export async function POST(request: Request) {
     feature: "lesson-qa",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
+    userKey: ownKey(request),
     system,
     messages: [{ role: "user", content: ask }],
     meta: { week, slug, mode: body.mode ?? null, selection: !!selection },

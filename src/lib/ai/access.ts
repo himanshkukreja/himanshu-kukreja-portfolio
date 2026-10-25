@@ -20,11 +20,13 @@ export type AiStatus = {
   features: Partial<Record<FeatureId, boolean>>;
   creditsLeft: number | null;
   creditsPerDay: number;
+  /** answering with the learner's own key */
+  ownKey: boolean;
 };
 
 export const isAdminEmail = (email: string | null | undefined) => !!email && adminEmails().includes(email.toLowerCase());
 
-export async function aiStatus(user: { id: string; email: string | null } | null): Promise<AiStatus> {
+export async function aiStatus(user: { id: string; email: string | null } | null, ownKey = false): Promise<AiStatus> {
   const s = await getAiSettings();
   const b = await getBudget(s);
   const admin = isAdminEmail(user?.email);
@@ -35,7 +37,8 @@ export async function aiStatus(user: { id: string; email: string | null } | null
     if (!FEATURES[id].live) continue;
     const cfg = featureConfig(s, id);
     const on = (s.enabled && cfg.enabled) || admin;
-    features[id] = usable && on && !(b.mode === "amber" && !FEATURES[id].amberModel);
+    // with their own key a signed-in learner can use every feature, whatever the switch or budget says
+    features[id] = (ownKey && !!user) || (usable && on && !(b.mode === "amber" && !FEATURES[id].amberModel));
   }
   let creditsLeft: number | null = null;
   if (user) {
@@ -44,5 +47,5 @@ export async function aiStatus(user: { id: string; email: string | null } | null
     creditsLeft = Math.max(0, Math.floor((b.userDailyUsd - spent) / USD_PER_CREDIT));
   }
   const available = Object.values(features).some(Boolean);
-  return { available, preview: available && !s.enabled && admin, signedIn: !!user, mode: b.mode, features, creditsLeft, creditsPerDay: b.userDailyCredits };
+  return { available, preview: available && !s.enabled && admin && !ownKey, signedIn: !!user, mode: b.mode, features, creditsLeft, creditsPerDay: b.userDailyCredits, ownKey: ownKey && !!user };
 }

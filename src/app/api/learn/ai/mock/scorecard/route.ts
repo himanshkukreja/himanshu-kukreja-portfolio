@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
-import { callClaude, saveTranscript } from "@/lib/ai/client";
+import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { mockFullScorecardSystem } from "@/lib/ai/prompts";
 import { problemText, promptPhase } from "@/lib/ai/mock";
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     feature: "mock-scorecard",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
+    userKey: ownKey(request),
     system: mockFullScorecardSystem({ company: mock.company.name, problem: problemText(mock), phases }),
     messages: [{ role: "user", content: "Grade my interview." }],
     meta: { mock: mock.slug },

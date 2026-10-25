@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getLab } from "@/lib/learn/labs/load";
-import { callClaude, saveTranscript } from "@/lib/ai/client";
+import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { labHintSystem, labReviewSystem } from "@/lib/ai/prompts";
 
@@ -40,6 +40,7 @@ export async function POST(request: Request) {
     feature: review ? "lab-review" : "lab-hint",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
+    userKey: ownKey(request),
     system: review ? labReviewSystem({ title: lab.title, brief }) : labHintSystem({ title: lab.title, brief }),
     messages: [{ role: "user", content: user }],
     meta: { lab: lab.id, kind: review ? "review" : "hint", level: review ? null : level },

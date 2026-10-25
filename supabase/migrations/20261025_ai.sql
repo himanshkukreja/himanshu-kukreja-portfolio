@@ -135,3 +135,22 @@ language sql stable security definer set search_path = public, auth as $$
   limit least(greatest(p_limit, 1), 200) offset greatest(p_offset, 0);
 $$;
 revoke all on function public.ai_calls_page(text, text, uuid, text, int, int) from public, anon, authenticated;
+
+-- bring-your-own-key calls: logged like any call but paid by the learner, so the budget ignores them
+alter table public.ai_calls add column if not exists byok boolean not null default false;
+create or replace function public.ai_spend_v2(p_from timestamptz, p_live boolean default null, p_user uuid default null)
+returns table (cost numeric, calls bigint)
+language sql stable security definer set search_path = public as $$
+  select coalesce(sum(cost_usd), 0), count(*)
+  from ai_calls
+  where created_at >= p_from
+    and status = 'ok'
+    and not byok
+    and (p_user is null or user_id = p_user)
+    and (p_live is null or (p_live = (feature not in ('eval', 'batch'))));
+$$;
+create or replace function public.ai_active_users(p_from timestamptz)
+returns bigint
+language sql stable security definer set search_path = public as $$
+  select count(distinct user_id) from ai_calls where created_at >= p_from and user_id is not null and not byok;
+$$;

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
-import { callClaude, saveTranscript } from "@/lib/ai/client";
+import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { mockInterviewerSystem } from "@/lib/ai/prompts";
 import { problemText, promptPhase } from "@/lib/ai/mock";
@@ -35,6 +35,7 @@ export async function POST(request: Request) {
     feature: "mock-interviewer",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
+    userKey: ownKey(request),
     system: mockInterviewerSystem({ company: mock.company.name, interviewer: `${mock.interviewer.name}, ${mock.interviewer.title}`, problem: problemText(mock), phase: promptPhase(phase) }),
     messages: [...history, { role: "user", content: answer }],
     meta: { mock: mock.slug, phase: phase.id, turn: history.filter((m) => m.role === "user").length + 1 },

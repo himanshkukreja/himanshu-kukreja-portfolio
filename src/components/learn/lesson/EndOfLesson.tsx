@@ -8,6 +8,7 @@ import QuestClear from "@/components/learn/sidequest/QuestClear";
 import ReviseLink from "@/components/learn/revise/ReviseLink";
 import LessonLabs from "@/components/learn/labs/LessonLabs";
 import ReadingTrail from "@/components/learn/trail/ReadingTrail";
+import LessonFaq from "@/components/learn/ai/LessonFaq";
 import { doneCount, numberedStages } from "./stageText";
 import type { NavLink, ReaderMeta, TrialPartLink } from "./types";
 
@@ -85,6 +86,8 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
       )}
 
       {meta.labs?.length ? <LessonLabs labs={meta.labs} /> : null}
+
+      <LessonFaq week={meta.week} slug={meta.slug} />
 
       {meta.trail?.length ? <ReadingTrail lesson={`${meta.week}/${meta.slug}`} entries={meta.trail} /> : null}
 

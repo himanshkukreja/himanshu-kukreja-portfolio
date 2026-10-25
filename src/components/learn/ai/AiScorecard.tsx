@@ -7,7 +7,7 @@
  */
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
-import { userFetch } from "@/components/learn/progress/userFetch";
+import { aiFetch } from "./aiFetch";
 import type { MockInterview } from "@/lib/learn/mock/types";
 import type { MockRun } from "@/lib/learn/mock/store";
 import { track } from "@/lib/track";
@@ -53,7 +53,7 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
       chat: chats[p.id] || [],
     }));
     try {
-      const r = await userFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases }) });
+      const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases }) });
       const body = (await r.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) setParts(parse(body.text || ""));

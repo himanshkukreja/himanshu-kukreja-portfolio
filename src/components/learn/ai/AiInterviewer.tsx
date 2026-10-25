@@ -8,7 +8,7 @@
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { userFetch } from "@/components/learn/progress/userFetch";
+import { aiFetch } from "./aiFetch";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
 import AiText from "./AiText";
@@ -36,7 +36,7 @@ export default function AiInterviewer({ slug, startedAt, phaseId, interviewer, n
     setText("");
     track("ai_ask", { feature: "mock-interviewer", mock: slug, phase: phaseId, turn: next.filter((m) => m.role === "user").length });
     try {
-      const r = await userFetch("/api/learn/ai/mock/turn", { method: "POST", body: JSON.stringify({ slug, phaseId, history: msgs, answer: answer.trim() }) });
+      const r = await aiFetch("/api/learn/ai/mock/turn", { method: "POST", body: JSON.stringify({ slug, phaseId, history: msgs, answer: answer.trim() }) });
       const body = (await r.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) setPhase(phaseId, [...next, { role: "assistant", content: body.text || "" }]);

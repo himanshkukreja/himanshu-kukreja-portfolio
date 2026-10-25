@@ -3,7 +3,7 @@
 /** Design of the week editor: "Get AI feedback on this draft", a staff-engineer review (strengths, risks worst first, next questions). */
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
-import { userFetch } from "@/components/learn/progress/userFetch";
+import { aiFetch } from "./aiFetch";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
 import AiText from "./AiText";
@@ -23,7 +23,7 @@ export default function DesignReview({ slug, body }: { slug: string; body: strin
     setError("");
     track("ai_ask", { feature: "design-review", challenge: slug, words });
     try {
-      const r = await userFetch("/api/learn/ai/design-review", { method: "POST", body: JSON.stringify({ slug, md: body }) });
+      const r = await aiFetch("/api/learn/ai/design-review", { method: "POST", body: JSON.stringify({ slug, md: body }) });
       const b = (await r.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(b.creditsLeft);
       if (r.ok) setText(b.text || "");

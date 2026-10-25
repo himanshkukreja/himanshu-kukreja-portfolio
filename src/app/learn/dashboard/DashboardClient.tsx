@@ -6,6 +6,7 @@
  * (trials, review queue, notebook, badges) and data controls (export, import, reset).
  * Guests see this browser's data; signed-in learners see their account merged with this browser.
  */
+import AiSettings from "@/components/learn/ai/AiSettings";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -239,6 +240,7 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
       <ArenaStatsCard />
 
       <Reminders signedIn={d.signedIn} onSignIn={openAuthModal} />
+      <AiSettings signedIn={d.signedIn} onSignIn={openAuthModal} />
 
       <CertificateEntry states={states} done={done} signedIn={d.signedIn} />
 

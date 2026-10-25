@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
-import { userFetch } from "@/components/learn/progress/userFetch";
+import { aiFetch } from "./aiFetch";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
 import { AI_PRIVACY } from "./AskLessonPanel";
@@ -36,7 +36,7 @@ export default function ExplainBack({ conceptId, term }: { conceptId: string; te
     setError("");
     track("ai_ask", { feature: "explain-back", concept: conceptId });
     try {
-      const r = await userFetch("/api/learn/ai/explain", { method: "POST", body: JSON.stringify({ conceptId, text }) });
+      const r = await aiFetch("/api/learn/ai/explain", { method: "POST", body: JSON.stringify({ conceptId, text }) });
       const body = (await r.json().catch(() => ({}))) as { verdict?: string | null; text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) setRes({ verdict: body.verdict ?? null, text: body.text || "" });

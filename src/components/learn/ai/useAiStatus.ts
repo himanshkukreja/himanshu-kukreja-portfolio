@@ -7,7 +7,7 @@
  */
 import { useEffect, useSyncExternalStore } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { userFetch } from "@/components/learn/progress/userFetch";
+import { aiFetch, AI_KEY_EVENT, readOwnKey } from "./aiFetch";
 
 export type AiStatus = {
   available: boolean;
@@ -17,6 +17,7 @@ export type AiStatus = {
   features: Partial<Record<string, boolean>>;
   creditsLeft: number | null;
   creditsPerDay: number;
+  ownKey: boolean;
 };
 
 let state: { key: string; s: AiStatus | null } = { key: "", s: null };
@@ -27,7 +28,7 @@ let inflight: string | null = null;
 function load(key: string) {
   if (inflight === key || state.key === key) return;
   inflight = key;
-  userFetch("/api/learn/ai/status")
+  aiFetch("/api/learn/ai/status")
     .then((r) => (r.ok ? (r.json() as Promise<AiStatus>) : null))
     .then((s) => {
       state = { key, s };
@@ -50,7 +51,13 @@ export function setAiCredits(creditsLeft: number | null | undefined) {
 
 export function useAiStatus(): AiStatus | null {
   const { user, loading } = useAuth();
-  const key = loading ? "" : user?.id || "guest";
+  // the cache key changes when the learner adds or removes their own key
+  const own = useSyncExternalStore(
+    (cb) => (window.addEventListener(AI_KEY_EVENT, cb), () => window.removeEventListener(AI_KEY_EVENT, cb)),
+    () => (readOwnKey() ? "own" : "site"),
+    () => "site",
+  );
+  const key = loading ? "" : `${user?.id || "guest"}:${own}`;
   useEffect(() => {
     if (key) load(key);
   }, [key]);

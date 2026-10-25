@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getStore } from "@/lib/design-week/store";
-import { callClaude, saveTranscript } from "@/lib/ai/client";
+import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { designReviewSystem } from "@/lib/ai/prompts";
 
@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     feature: "design-review",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
+    userKey: ownKey(request),
     system: designReviewSystem({ title: c.title, text: problem }),
     messages: [{ role: "user", content: md.slice(0, 15000) }],
     meta: { challenge: c.slug },

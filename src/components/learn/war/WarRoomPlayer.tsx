@@ -13,7 +13,7 @@ import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import { WAR_ROOM_XP, warRoomKey, type Beat, type CastMember, type WarRoom } from "@/lib/learn/war/types";
 import { readRuns, saveRun, WAR_EVENT } from "./store";
-import { userFetch } from "@/components/learn/progress/userFetch";
+import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { setAiCredits, useAiStatus } from "@/components/learn/ai/useAiStatus";
 
 const subscribe = (cb: () => void) => {
@@ -168,7 +168,7 @@ function Decision({
     const you = free.trim();
     setFree("");
     try {
-      const r = await userFetch("/api/learn/ai/war-room", { method: "POST", body: JSON.stringify({ slug: ai.slug, beat: ai.beat, text: you }) });
+      const r = await aiFetch("/api/learn/ai/war-room", { method: "POST", body: JSON.stringify({ slug: ai.slug, beat: ai.beat, text: you }) });
       const b = (await r.json().catch(() => ({}))) as { match?: number | null; who?: string; reply?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(b.creditsLeft);
       if (!r.ok) setFreeLog((l) => [...l, { you, who: "", reply: b.error || "Something went wrong." }]);

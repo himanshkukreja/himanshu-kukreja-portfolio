@@ -80,9 +80,10 @@ const TOC: TocItem[] = [
   { id: "offline", n: "14", label: "Offline reading" },
   { id: "cases", n: "15", label: "Case files" },
   { id: "war-stories", n: "16", label: "War stories" },
-  { id: "account", n: "17", label: "Account & data" },
-  { id: "faq", n: "18", label: "FAQ" },
-  { id: "glossary", n: "19", label: "Glossary" },
+  { id: "ai", n: "17", label: "AI in the course" },
+  { id: "account", n: "18", label: "Account & data" },
+  { id: "faq", n: "19", label: "FAQ" },
+  { id: "glossary", n: "20", label: "Glossary" },
 ];
 
 const LOOP = [
@@ -1254,8 +1255,47 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Where>
           </Section>
 
+          {/* ------------------------------------------------------------ ai */}
+          <Section
+            id="ai"
+            n="17"
+            kicker="ai in the course"
+            title="AI that knows this course"
+            lead="AI features are free for every signed-in learner, for a limited time. They answer from the course itself, and each one is built to teach, not to hand you answers."
+          >
+            <Table
+              caption="The AI features"
+              head={["Feature", "Where", "What it does"]}
+              rows={[
+                ["Ask this lesson", "Select text → Ask here, or Ask AI in the reading toolbar", "Answers from the lesson's own sections and names the one it used. Modes: explain simply, an example, say it in an interview, Hinglish."],
+                ["Questions learners ask", "End of every lesson, and in the Ask panel", "Common questions answered from the lesson, free to read (no credits)."],
+                ["Code-lab tutor", "Under the test results in a code lab", "Hints after a failing run, from a nudge to the exact fix in words, never the solution. After a pass: a code review."],
+                ["Explain it back", "Concept pages", "Explain a concept in your own words; get a strict verdict (solid, partial, misconception) and the one thing to fix."],
+                ["AI interviewer", "Inside a mock interview", "The named interviewer answers what you said, pushes on the gaps and throws the mock's curveballs."],
+                ["AI scorecard", "Mock interview debrief", "Every phase graded against its rubric, quoting your words. It sits beside your own scores and doesn't change XP."],
+                ["Design review", "Design of the week editor", "A private review of your draft: strengths, the risks that would sink it, worst first, and the next questions."],
+                ["Free-text moves", "War rooms", "Type what you'd actually do; the channel answers in character, and a move that matches an option plays out like it."],
+              ]}
+            />
+            <div className={PROSE}>
+              <p>
+                <strong>AI credits.</strong> Each signed-in learner gets a daily allowance (shown in the AI panels and on the Progress page), refilled at midnight UTC. A lesson question uses about 10–20 credits, a mock interview turn about 10.
+                When many people use AI on the same day the allowance shrinks a little so it lasts for everyone; if it runs out for the day, the Ask Claude / ChatGPT links and the free questions still work.
+              </p>
+              <p>
+                <strong>Use your own key.</strong> On the Progress page you can add your own Anthropic API key. It stays in your browser, is sent only with AI requests and is never stored on our side; your Anthropic account is billed and the daily limit doesn&apos;t apply.
+              </p>
+              <p>
+                <strong>What&apos;s sent.</strong> What you type into an AI feature (a question, your code, your answers) goes to Anthropic&apos;s AI to answer it. It isn&apos;t used to train models. We keep the conversation text for 30 days to stop abuse, then it&apos;s deleted. AI needs an account.
+              </p>
+            </div>
+            <Where>
+              the AI panels inside lessons, code labs, concept pages, mock interviews, Design of the week and war rooms; your credits and your own key on the <A href="/learn/dashboard">Progress</A> page.
+            </Where>
+          </Section>
+
           {/* ------------------------------------------------------------ k) account */}
-          <Section id="account" n="17" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
+          <Section id="account" n="18" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
             <ul className="m-0 grid max-w-[72ch] list-none gap-px border border-line bg-line p-0 sm:grid-cols-2">
               {[
                 ["Progress on every device", "Lessons, stages, XP, review cards and trial attempts follow you instead of living in one browser."],
@@ -1285,7 +1325,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ l) faq */}
-          <Section id="faq" n="18" kicker="faq" title="Questions people actually ask">
+          <Section id="faq" n="19" kicker="faq" title="Questions people actually ask">
             <div className="flex max-w-[78ch] flex-col border-t border-line">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group border-b border-line">
@@ -1302,7 +1342,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ glossary */}
-          <Section id="glossary" n="19" kicker="glossary" title="Words the course uses">
+          <Section id="glossary" n="20" kicker="glossary" title="Words the course uses">
             <dl className="m-0 grid max-w-[78ch] gap-px border border-line bg-line sm:grid-cols-2">
               {GLOSSARY.map(([t, d]) => (
                 <div key={t} className="flex flex-col gap-1 bg-bg p-4">
@@ -1456,4 +1496,5 @@ const GLOSSARY: [string, string][] = [
   ["Question bank", "Every company's questions merged into one list, most-reported first, each linked to its lessons."],
   ["War room", "An incident played as its chat channel: you're on call and make the calls; ends with the postmortem and the real incident."],
   ["Peer mock", "A mock interview with another learner: post or join a slot, meet in a free video room, swap roles."],
+  ["AI credits", "Your daily allowance for the course's AI features; 1 credit is a tiny slice of the cost, refilled at midnight UTC."],
 ];
