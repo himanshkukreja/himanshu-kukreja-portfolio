@@ -51,6 +51,7 @@ module.exports = {
         "hk-pulse": { "0%,100%": { boxShadow: "0 0 0 0 rgba(255,107,43,0.45)" }, "50%": { boxShadow: "0 0 0 8px rgba(255,107,43,0)" } },
         "hk-type": { from: { maxWidth: "0" }, to: { maxWidth: "60ch" } },
         "hk-flow": { from: { left: "0%" }, to: { left: "100%" } },
+        "hk-slide": { from: { transform: "translateX(100%)" }, to: { transform: "none" } },
       },
       animation: {
         shimmer: "shimmer 1.2s infinite",
@@ -59,6 +60,7 @@ module.exports = {
         "hk-pulse": "hk-pulse 2.4s ease-in-out infinite",
         "hk-type": "hk-type 2.4s steps(52) both",
         "hk-flow": "hk-flow 0.9s linear infinite",
+        "hk-slide": "hk-slide 0.24s cubic-bezier(0.2,0.8,0.2,1)",
       },
     },
   },

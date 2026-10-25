@@ -66,9 +66,15 @@ type Props = {
   /** tells the exporter the step's diagram is drawn */
   onReady?: (i: number) => void;
   caption?: string | null;
+  /** the Ask panel's [[show]]: these flowchart/state nodes are lit instead of the step's highlight and
+   *  focus (no packets), easing in with CSS; unset (always, in record mode) means the step as authored */
+  extraHighlight?: string[];
+  /** the share of the stage's width a panel covers on the right (Ask): the scene shrinks into what is
+   *  still visible, and the captions move clear of it */
+  cover?: number;
 };
 
-export default function Stage({ lecture, flat, i, t, dur, quest, interactive, quiz, onPick, onReady, caption }: Props) {
+export default function Stage({ lecture, flat, i, t, dur, quest, interactive, quiz, onPick, onReady, caption, extraHighlight, cover = 0 }: Props) {
   const cur = flat[i];
   const prev = i > 0 && flat[i - 1].scene === cur.scene ? flat[i - 1] : null;
   const s = cur.s;
@@ -80,6 +86,8 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
   useEffect(() => {
     if (!hasDiagram) onReady?.(i);
   }, [hasDiagram, i, onReady]);
+  // fit the scene's box (4%..96% of the width) into the part left of the panel
+  const fit = cover > 0 ? Math.max(0.4, (1 - cover - 0.05) / 0.92) : 1;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] [container-type:size]">
@@ -97,7 +105,14 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         </div>
       )}
 
-      <div className="absolute inset-x-[4%] bottom-[17%] top-[10%] flex items-center justify-center" style={{ opacity: enter, transform: `translateY(${(1 - enter) * 1.2}cqh) scale(${0.985 + 0.015 * enter})` }}>
+      <div
+        className="absolute inset-x-[4%] bottom-[17%] top-[10%] flex items-center justify-center"
+        style={{
+          opacity: enter,
+          transform: `translateY(${(1 - enter) * 1.2}cqh) scale(${(0.985 + 0.015 * enter) * fit})`,
+          ...(fit < 1 ? { transformOrigin: "0 50%", transition: "transform .3s ease" } : {}),
+        }}
+      >
         {s.kind === "title" && <TitleScene s={s} st={st} t={t} first={cur.step === 0} fallback={lecture.title} />}
         {s.kind === "numbers" && <NumbersScene s={s} k={cur.step} t={t} />}
         {s.kind === "list" && <ListScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
@@ -106,10 +121,10 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         {s.kind === "chart" && <ChartScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "timeline" && <TimelineScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "phone" && <PhoneScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
-        {hasDiagram && <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} />}
+        {hasDiagram && <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} show={extraHighlight} />}
       </div>
 
-      <div className="absolute inset-x-[6%] bottom-[4.5%] flex flex-col items-center gap-[0.8cqh]">
+      <div className="absolute inset-x-[6%] bottom-[4.5%] flex flex-col items-center gap-[0.8cqh]" style={cover > 0 ? { right: `${cover * 100 + 2}%`, left: "2%" } : undefined}>
         {st.caption && (
           <span
             className="bg-[#ff6b2b] px-[1cqw] py-[0.4cqh] font-mono text-[1.15cqw] font-semibold uppercase tracking-[0.08em] text-[#120700]"
@@ -455,7 +470,7 @@ function PhoneScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pr
 type Box = { x: number; y: number; w: number; h: number };
 type Cam = { s: number; x: number; y: number };
 
-function DiagramScene({ s, st, prevSt, t, i, onReady }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; i: number; onReady?: (i: number) => void }) {
+function DiagramScene({ s, st, prevSt, t, i, onReady, show }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; i: number; onReady?: (i: number) => void; show?: string[] }) {
   const src = diagramFor(s, st);
   const [svg, setSvg] = useState<{ src: string; html: string } | null>(null);
   const camRef = useRef<HTMLDivElement>(null);
@@ -475,29 +490,40 @@ function DiagramScene({ s, st, prevSt, t, i, onReady }: { s: LectureScene; st: L
   }, [src]);
   const ready = svg?.src === src;
 
-  // measure every node at camera rest, once per drawn SVG
-  useLayoutEffect(() => {
+  // measure every node at camera rest, once per drawn SVG (and again if the stage changes size, e.g.
+  // full screen). In the stage's own pixels: a scaled ancestor (the Ask panel's fit) is divided out.
+  const measure = () => {
     const cam = camRef.current;
     const host = hostRef.current;
-    if (!ready || !cam || !host) return;
+    if (!cam || !host) return;
     const keep = cam.style.transform;
+    const keepT = cam.style.transition;
+    cam.style.transition = "none";
     cam.style.transform = "none";
     const base = cam.getBoundingClientRect();
     size.current = { w: cam.offsetWidth || 1, h: cam.offsetHeight || 1 };
+    const k = base.width / size.current.w || 1;
     const m = new Map<string, Box>();
     for (const g of host.querySelectorAll<SVGGElement>("g.node")) {
       const id = nodeId(g);
       if (!id) continue;
       const r = g.getBoundingClientRect();
-      m.set(id, { x: r.left - base.left, y: r.top - base.top, w: r.width, h: r.height });
+      m.set(id, { x: (r.left - base.left) / k, y: (r.top - base.top) / k, w: r.width / k, h: r.height / k });
     }
     boxes.current = m;
     cam.style.transform = keep;
+    void cam.offsetWidth;
+    cam.style.transition = keepT;
+  };
+  useLayoutEffect(() => {
+    if (ready) measure();
   }, [ready, svg]);
 
   const isSeq = s.kind === "sequence";
-  const lit = useMemo(() => st.highlight || [], [st.highlight]);
-  const litBefore = useMemo(() => prevSt?.highlight || [], [prevSt]);
+  // an Ask answer's [[show]] replaces the step's highlight outright (no lerp from the step before)
+  const asked = !isSeq && !!show?.length;
+  const lit = useMemo(() => (asked ? show! : st.highlight || []), [asked, show, st.highlight]);
+  const litBefore = useMemo(() => (asked ? show! : prevSt?.highlight || []), [asked, show, prevSt]);
 
   // apply this moment: dimming, glow, packets, camera, sequence draw-in
   useLayoutEffect(() => {
@@ -509,12 +535,16 @@ function DiagramScene({ s, st, prevSt, t, i, onReady }: { s: LectureScene; st: L
     if (isSeq) {
       drawSequence(root, st.upto ?? null, prevSt?.upto ?? 0, t);
     } else {
-      const e = easeOut(t / 0.6);
+      if (cam.offsetWidth !== size.current.w || cam.offsetHeight !== size.current.h) measure();
+      const e = asked ? 1 : easeOut(t / 0.6);
+      // only while the Ask panel lights nodes: ease into it (the authored steps stay a pure function of t)
+      const ease = asked ? "opacity .45s ease, filter .45s ease" : "";
       const op = (set: string[], id: string) => (set.length ? (set.includes(id) ? 1 : 0.32) : 1);
       const nodes = [...root.querySelectorAll<SVGGElement>("g.node")];
       for (const g of nodes) {
         const id = nodeId(g);
         if (!id) continue;
+        g.style.transition = ease;
         g.style.opacity = String(lerp(op(litBefore, id), op(lit, id), e));
         const glowNow = lit.includes(id) ? 1 : 0;
         const glowBefore = litBefore.includes(id) ? 1 : 0;
@@ -524,21 +554,24 @@ function DiagramScene({ s, st, prevSt, t, i, onReady }: { s: LectureScene; st: L
       }
       const ids = new Set(nodes.map(nodeId).filter(Boolean) as string[]);
       const flowPairs = new Set<string>();
-      for (let k = 0; k + 1 < (st.flow || []).length; k++) flowPairs.add(`${st.flow![k]}>${st.flow![k + 1]}`);
+      const flow = asked ? [] : st.flow || [];
+      for (let k = 0; k + 1 < flow.length; k++) flowPairs.add(`${flow[k]}>${flow[k + 1]}`);
       const edges = edgeEls(root, ids);
       for (const ed of edges) {
+        ed.el.style.transition = ease;
         const both = (set: string[]) => (set.length ? (set.includes(ed.a) && set.includes(ed.b) ? 1 : 0.28) : 1);
         const onFlow = flowPairs.has(`${ed.a}>${ed.b}`);
         ed.el.style.opacity = String(onFlow ? 1 : lerp(both(litBefore), both(lit), e));
         ed.el.style.stroke = onFlow ? "#ff6b2b" : "";
         ed.el.style.strokeWidth = onFlow ? "3px" : "";
       }
-      packets(root, edges, st.flow || [], t);
+      packets(root, edges, flow, t);
       // camera
       const maxZoom = s.kind === "state" ? 2.3 : 1.8;
-      const target = camFor(st.focus ?? st.highlight ?? [], boxes.current, size.current, maxZoom);
-      const from = prevSt ? camFor(prevSt.focus ?? prevSt.highlight ?? [], boxes.current, size.current, maxZoom) : { s: 1, x: 0, y: 0 };
+      const target = camFor(asked ? show! : (st.focus ?? st.highlight ?? []), boxes.current, size.current, maxZoom);
+      const from = asked ? target : prevSt ? camFor(prevSt.focus ?? prevSt.highlight ?? [], boxes.current, size.current, maxZoom) : { s: 1, x: 0, y: 0 };
       const c = easeInOut(t / 0.95);
+      cam.style.transition = asked ? "transform .7s cubic-bezier(.4,0,.2,1)" : "";
       cam.style.transform = `translate(${lerp(from.x, target.x, c)}px, ${lerp(from.y, target.y, c)}px) scale(${lerp(from.s, target.s, c)})`;
     }
     onReady?.(i);

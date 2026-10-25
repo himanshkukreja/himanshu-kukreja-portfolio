@@ -3,7 +3,8 @@
 /**
  * Interactive side-quest lecture (Scrimba-style: it's live, not a flat video). The stage is drawn
  * in the page from the lecture JSON and kept in step with recorded narration, so the learner can
- * pause on any diagram, ask the AI about that exact moment, answer quiz checkpoints (the lecture
+ * pause on any diagram, ask the AI about that exact moment (LectureAsk, over the stage; answers can
+ * light nodes and point to another chapter), answer quiz checkpoints (the lecture
  * waits), toggle captions and music, change speed, jump by chapter, pop the stage out
  * (picture-in-picture) and pick up where they left off.
  *
@@ -19,11 +20,11 @@ import Link from "next/link";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
-import AskLessonPanel from "@/components/learn/ai/AskLessonPanel";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
+import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
 import { INTRO } from "./anim";
 
 declare global {
@@ -68,9 +69,11 @@ type Props = {
   mediaBase: string | null;
   /** the next lecture in the playlist */
   next?: Next;
+  /** "Learners often ask here": pre-answered questions per scene id (null: none written yet) */
+  faq?: Record<string, FaqEntry[]> | null;
 };
 
-export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null }: Props) {
+export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null, faq = null }: Props) {
   const flat = useMemo(() => flatten(lecture), [lecture]);
   const [record, setRecord] = useState(false);
   useEffect(() => {
@@ -78,7 +81,7 @@ export default function LecturePlayer({ lecture, quest, source, mediaBase, next 
     return () => window.clearTimeout(id);
   }, []);
   if (record) return <RecordStage lecture={lecture} flat={flat} quest={quest} />;
-  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} />;
+  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} faq={faq} />;
 }
 
 /* ---------- record mode: the exporter drives every frame ---------- */
@@ -142,7 +145,7 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
 
 /* ---------- the learner's player ---------- */
 
-function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { flat: Flat }) {
+function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & { flat: Flat }) {
   const slug = lecture.quest;
   const { awardOnce } = useGame();
   const ai = useAiStatus();
@@ -156,7 +159,11 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
   const [cc, setCc] = useState(true);
   const [music, setMusic] = useState(true);
   const [answers, setAnswers] = useState<Record<string, number>>({});
-  const [ask, setAsk] = useState<{ n: number; selection: string } | null>(null);
+  // the Ask panel: open (and whether to resume on close, and how much of the stage it covers)
+  const [ask, setAsk] = useState<{ resume: boolean; cover: number } | null>(null);
+  const [askTurns, setAskTurns] = useState<AskTurn[]>([]);
+  // nodes an answer lit ([[show]]), for the scene it was about
+  const [shown, setShown] = useState<{ scene: string; ids: string[] } | null>(null);
   const [pip, setPip] = useState<Window | null>(null);
   const [resumeAt, setResumeAt] = useState<number | null>(null);
   const [canPip, setCanPip] = useState(false);
@@ -247,6 +254,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
         if (p.rate && SPEEDS.includes(p.rate)) setRate(p.rate);
         const at = Number(localStorage.getItem(`hk.lecture.pos.${slug}`));
         if (at > 15) setResumeAt(at);
+        const saved = JSON.parse(sessionStorage.getItem(`hk.lecture.ask.${slug}`) || "[]") as AskTurn[];
+        if (Array.isArray(saved)) setAskTurns(saved.filter((x) => x && typeof x.q === "string" && !x.pending));
       } catch {}
     }, 0);
     return () => window.clearTimeout(id);
@@ -256,6 +265,14 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
       localStorage.setItem("hk.lecture.prefs", JSON.stringify({ cc, music, rate }));
     } catch {}
   }, [cc, music, rate]);
+  // this tab's questions, kept for the session
+  useEffect(() => {
+    try {
+      const keep = askTurns.filter((x) => !x.pending);
+      if (keep.length) sessionStorage.setItem(`hk.lecture.ask.${slug}`, JSON.stringify(keep.slice(-30)));
+      else sessionStorage.removeItem(`hk.lecture.ask.${slug}`);
+    } catch {}
+  }, [askTurns, slug]);
   const timeRef = useRef(0);
   useEffect(() => {
     timeRef.current = time;
@@ -360,16 +377,45 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
     const right = k === q.answer;
     if (right) awardOnce(`lecture-quiz:${slug}:${q.id}`, QUIZ_XP, `Lecture checkpoint · ${quest?.title ?? lecture.title}`);
     track("lecture_quiz", { quest: slug, scene: q.id, right });
+    // answered with the Ask panel open: stay on the reveal, carry on when the panel closes
+    if (ask) return setAsk({ ...ask, resume: true });
     window.setTimeout(() => {
       seek(starts[Math.min(flat.length - 1, i + 1)] + 0.01);
       play();
     }, 1100);
   };
 
-  const askHere = () => {
+  // the panel pauses the lecture; closing it resumes only if it was playing
+  const openAsk = () => {
+    if (ask) return;
+    const w = (pip ?? window).innerWidth;
+    setAsk({ resume: playing, cover: w >= 640 ? 0.4 : 0 });
     pause();
-    setAsk({ n: Date.now(), selection: `From the lecture, "${cur.s.title}": ${cur.st.say}` });
     track("lecture_ask", { quest: slug, scene: cur.s.id });
+  };
+  const closeAsk = () => {
+    const resume = ask?.resume && !playing;
+    setAsk(null);
+    setShown(null);
+    if (resume) play();
+  };
+  const showNodes = (scene: string, step: number, ids: string[]) => {
+    const k = flat.findIndex((f) => f.s.id === scene && f.step === step);
+    if (cur.s.id !== scene && k >= 0) goStep(k);
+    setShown({ scene, ids });
+  };
+  // a [[jump]] chip: watch that chapter (the panel keeps its answers for next time)
+  const jumpTo = (scene: string) => {
+    const k = flat.findIndex((f) => f.s.id === scene);
+    if (k < 0) return;
+    setAsk(null);
+    setShown(null);
+    seek(starts[k] + 0.01);
+    play();
+  };
+  const sceneAt = (id: string) => {
+    const k = flat.findIndex((f) => f.s.id === id);
+    return k >= 0 ? starts[k] : null;
   };
 
   const fullscreen = () => {
@@ -391,6 +437,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
+      if (ask && e.key === "Escape") return closeAsk();
       if (ask || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
       if (k === " " || k === "k") {
@@ -407,7 +454,10 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
       } else if (k === "c") setCc((x) => !x);
       else if (k === "m") setMusic((x) => !x);
       else if (k === "f") fullscreen();
-      else if (k === "a" && ai?.features["lesson-qa"]) askHere();
+      else if (k === "a" && ai?.features["lesson-qa"]) {
+        e.preventDefault();
+        openAsk();
+      }
       else if (k === ">" || k === ".") setRate((r) => SPEEDS[Math.min(SPEEDS.length - 1, SPEEDS.indexOf(r) + 1)] ?? r);
       else if (k === "<" || k === ",") setRate((r) => SPEEDS[Math.max(0, SPEEDS.indexOf(r) - 1)] ?? r);
     };
@@ -430,21 +480,43 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
   const waitingQuiz = cur.s.kind === "quiz" && cur.step === 0 && answers[cur.s.id] == null && !playing && t > dur - 0.4;
   const speakingFor = Math.max(0.1, dur - (cur.st.pause ?? 0) - 0.45);
 
+  // with the panel open (paused) the step is shown settled, without the caption the panel would cut off
+  const asking = !!ask && !playing;
   const stage = (
     <div className="relative aspect-video w-full select-none [&>div:first-child>div:last-child]:hidden" onDoubleClick={fullscreen}>
       <Stage
         lecture={lecture}
         flat={flat}
         i={i}
-        t={playing || time > 0 ? t : 99}
+        t={asking ? Math.max(t, dur - 0.05) : playing || time > 0 ? t : 99}
         dur={dur}
         quest={quest}
         interactive
         quiz={cur.s.kind === "quiz" ? ({ picked: answers[cur.s.id] ?? null } satisfies QuizState) : undefined}
         onPick={pick}
-        caption={cc ? captionAt(cur.st.say, Math.min(1, t / speakingFor)) : null}
+        caption={cc && !ask ? captionAt(cur.st.say, Math.min(1, t / speakingFor)) : null}
+        extraHighlight={ask && shown?.scene === cur.s.id ? shown.ids : undefined}
+        cover={ask?.cover ?? 0}
       />
-      {ended && next ? (
+      {ask ? (
+        <LectureAsk
+          lecture={lecture}
+          scene={cur.s}
+          sceneNo={cur.scene}
+          step={cur.step}
+          at={time}
+          picked={cur.s.kind === "quiz" ? (answers[cur.s.id] ?? null) : null}
+          faq={faq?.[cur.s.id] ?? null}
+          turns={askTurns}
+          setTurns={setAskTurns}
+          shown={shown}
+          onShow={showNodes}
+          onJump={jumpTo}
+          sceneAt={sceneAt}
+          onClose={closeAsk}
+          fs={fs && !pip}
+        />
+      ) : ended && next ? (
         <div className="absolute inset-0 z-10 grid place-items-center bg-black/75 p-6 text-center">
           <div className="flex flex-col items-center gap-3">
             <span className="font-mono text-[12px] uppercase tracking-label text-signal-text">up next · {next.code}</span>
@@ -482,7 +554,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
         <p className="m-0 max-w-[820px] text-[16px] text-fg-2">{lecture.summary}</p>
       </header>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
         <div
           ref={shellRef}
           onPointerMove={fs ? wake : undefined}
@@ -575,7 +647,13 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
             <span className="mx-1 hidden min-w-0 truncate font-mono text-xs text-fg-2 md:inline">{cur.s.title}</span>
             <span className="ml-auto" />
             {ai?.features["lesson-qa"] && (
-              <button type="button" onClick={askHere} className="h-10 border border-signal px-3 font-mono text-xs text-signal-text hover:bg-signal hover:text-on-signal" title="Ask AI about this moment (A)">
+              <button
+                type="button"
+                onClick={() => (ask ? closeAsk() : openAsk())}
+                aria-pressed={!!ask}
+                className={`h-10 border border-signal px-3 font-mono text-xs ${ask ? "bg-signal text-on-signal" : "text-signal-text hover:bg-signal hover:text-on-signal"}`}
+                title="Ask AI about this moment (A)"
+              >
                 ✦ ask about this
               </button>
             )}
@@ -671,7 +749,6 @@ function Player({ lecture, flat, quest, source, mediaBase, next }: Props & { fla
           {media.music && <audio ref={musicRef} src={media.music} preload="none" loop />}
         </>
       )}
-      {ask && <AskLessonPanel key={ask.n} open onClose={() => setAsk(null)} week="bonus-problems" slug={slug} lessonTitle={quest?.title ?? lecture.title} selection={ask.selection} />}
     </main>
   );
 }
