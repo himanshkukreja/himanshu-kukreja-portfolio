@@ -158,6 +158,28 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
   const [resumeAt, setResumeAt] = useState<number | null>(null);
   const [canPip, setCanPip] = useState(false);
   const clockBase = useRef({ wall: 0, time: 0 });
+  // seek-bar hover: where the pointer is (px in the bar) and the moment under it
+  const [hover, setHover] = useState<{ x: number; w: number; tm: number } | null>(null);
+  // full screen: the stage fills the screen and the controls float over it, fading out when idle
+  const [fs, setFs] = useState(false);
+  const [idle, setIdle] = useState(false);
+  const idleTimer = useRef<number | undefined>(undefined);
+  const wake = useCallback(() => {
+    setIdle(false);
+    window.clearTimeout(idleTimer.current);
+    idleTimer.current = window.setTimeout(() => setIdle(true), 2500);
+  }, []);
+  useEffect(() => {
+    const on = () => {
+      setFs(document.fullscreenElement === shellRef.current);
+      wake();
+    };
+    document.addEventListener("fullscreenchange", on);
+    return () => {
+      document.removeEventListener("fullscreenchange", on);
+      window.clearTimeout(idleTimer.current);
+    };
+  }, [wake]);
 
   // recorded narration, only if it was made from this exact script
   useEffect(() => {
@@ -388,7 +410,7 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
   const speakingFor = Math.max(0.1, dur - (cur.st.pause ?? 0) - 0.45);
 
   const stage = (
-    <div className="relative aspect-video w-full select-none" onDoubleClick={fullscreen}>
+    <div className="relative aspect-video w-full select-none [&>div:first-child>div:last-child]:hidden" onDoubleClick={fullscreen}>
       <Stage
         lecture={lecture}
         flat={flat}
@@ -425,16 +447,22 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
       </header>
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
-        <div ref={shellRef} className="flex flex-col bg-[#0b0b0c] [&:fullscreen]:justify-center">
+        <div
+          ref={shellRef}
+          onPointerMove={fs ? wake : undefined}
+          onPointerDown={fs ? wake : undefined}
+          className={`flex flex-col bg-[#0b0b0c] ${fs ? `relative h-screen w-screen items-center justify-center ${idle && playing ? "cursor-none" : ""}` : ""}`}
+        >
           {pip ? (
             <div className="grid aspect-video w-full place-items-center border border-line-strong font-mono text-sm text-fg-3">
               playing in picture-in-picture
               {createPortal(<div className="h-screen w-screen">{stage}</div>, pip.document.body)}
             </div>
           ) : (
-            <div className="border border-line-strong">{stage}</div>
+            <div className={fs ? "w-[min(100vw,calc(100vh*16/9))]" : "border border-line-strong"}>{stage}</div>
           )}
 
+          <div className={fs ? `absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pb-3 pt-10 transition-opacity duration-300 ${idle && playing && !hover ? "pointer-events-none opacity-0" : "opacity-100"}` : "contents"}>
           <div
             role="slider"
             tabIndex={0}
@@ -442,17 +470,57 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
             aria-valuemin={0}
             aria-valuemax={Math.round(duration)}
             aria-valuenow={Math.round(time)}
-            className="relative h-6 cursor-pointer"
+            aria-valuetext={`${fmt(time)}, ${cur.s.title}`}
+            className="group relative h-7 cursor-pointer touch-none"
             onClick={(e) => {
               const r = e.currentTarget.getBoundingClientRect();
               seek(((e.clientX - r.left) / r.width) * duration);
             }}
+            onPointerMove={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              const x = Math.max(0, Math.min(r.width, e.clientX - r.left));
+              setHover({ x, w: r.width, tm: (x / r.width) * duration });
+            }}
+            onPointerLeave={() => setHover(null)}
+            onKeyDown={(e) => {
+              if (e.key === "ArrowLeft" || e.key === "ArrowRight") e.stopPropagation();
+              if (e.key === "ArrowLeft") seek(time - 5);
+              if (e.key === "ArrowRight") seek(time + 5);
+            }}
           >
-            <div className="absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 bg-surface-2" />
-            <div className="absolute left-0 top-1/2 h-1 -translate-y-1/2 bg-signal" style={{ width: `${(time / Math.max(1, duration)) * 100}%` }} />
-            {chapters.map((c) => (
-              <span key={c.k} title={c.s.title} className={`absolute top-1/2 h-3 w-[2px] -translate-y-1/2 ${c.s.kind === "quiz" ? "bg-[#7ee2a8]" : "bg-fg-4"}`} style={{ left: `${(c.at / Math.max(1, duration)) * 100}%` }} />
-            ))}
+            {/* one segment per chapter, with a gap between, like the big video sites */}
+            {chapters.map((c, k) => {
+              const end = k + 1 < chapters.length ? chapters[k + 1].at : duration;
+              const left = (c.at / Math.max(1, duration)) * 100;
+              const width = ((end - c.at) / Math.max(1, duration)) * 100;
+              const filled = Math.max(0, Math.min(1, (time - c.at) / Math.max(0.01, end - c.at)));
+              const hot = hover && hover.tm >= c.at && hover.tm < end;
+              return (
+                <div key={c.k} className={`absolute top-1/2 -translate-y-1/2 overflow-hidden transition-[height] ${hot ? "h-2" : "h-1 group-hover:h-1.5"} ${c.s.kind === "quiz" ? "bg-[#1e3a2a]" : "bg-surface-2"}`} style={{ left: `calc(${left}% + 1px)`, width: `calc(${width}% - 2px)` }}>
+                  <div className="h-full bg-signal" style={{ width: `${filled * 100}%` }} />
+                </div>
+              );
+            })}
+            {hover && (() => {
+              const k = stepAt(hover.tm);
+              const f = flat[k];
+              const ch = chapters[f.scene];
+              const W = 256;
+              const left = Math.max(0, Math.min(hover.w - W, hover.x - W / 2));
+              return (
+                <div className="pointer-events-none absolute bottom-full z-20 mb-2 flex flex-col gap-1 border border-line-strong bg-[#0b0b0c] p-1.5 shadow-[0_8px_30px_rgba(0,0,0,0.6)]" style={{ left, width: W }}>
+                  <div className="aspect-video w-full overflow-hidden [&>div>div:last-child]:hidden">
+                    <Stage lecture={lecture} flat={flat} i={k} t={99} dur={1} quest={null} caption={null} quiz={f.s.kind === "quiz" ? { picked: null } : undefined} />
+                  </div>
+                  <div className="flex items-baseline gap-2 px-1">
+                    <span className="font-mono text-[11px] tabular-nums text-signal-text">{fmt(hover.tm)}</span>
+                    <span className="min-w-0 truncate text-[12px] font-semibold text-fg">{f.s.kind === "quiz" ? "Checkpoint" : ch.s.title}</span>
+                  </div>
+                  {f.st.caption && <span className="truncate px-1 pb-0.5 font-mono text-[10px] uppercase tracking-[0.06em] text-fg-3">{f.st.caption}</span>}
+                </div>
+              );
+            })()}
+            <span className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal opacity-0 shadow-[0_0_10px_rgba(255,107,43,0.7)] transition-opacity group-hover:opacity-100" style={{ left: `${(time / Math.max(1, duration)) * 100}%` }} />
           </div>
 
           <div role="toolbar" aria-label="Lecture controls" className="flex flex-wrap items-center gap-1 border border-line-strong bg-surface px-2 py-1">
@@ -498,6 +566,7 @@ function Player({ lecture, flat, quest, source, mediaBase }: Props & { flat: Fla
             <button type="button" onClick={fullscreen} className={btn} title="Full screen (F)" aria-label="Full screen">
               ⛶
             </button>
+          </div>
           </div>
           {resumeAt != null && time === 0 && (
             <button
