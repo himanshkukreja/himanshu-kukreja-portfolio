@@ -17,6 +17,16 @@ import { getBudget, startOfToday, type Mode } from "./governor";
 
 const API = "https://api.anthropic.com/v1/messages";
 const RATE_PER_MIN = 10;
+/** Sonnet/Opus 5.x think before answering by default, and thinking counts against max_tokens:
+ *  thinking features get this much room on top of their answer cap so the answer isn't cut off */
+const THINK_HEADROOM = 3000;
+
+/** an answer that hit max_tokens: keep it up to its last complete sentence */
+function trimCutOff(text: string): string {
+  const t = text.trimEnd();
+  const m = t.match(/^[\s\S]*[.!?)\]`](?=\s|$)/);
+  return m && m[0].length > t.length * 0.4 ? m[0] : `${t}…`;
+}
 
 export type AiMessage = { role: "user" | "assistant"; content: string };
 export type AiRequest = {
@@ -130,16 +140,22 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
 
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up
   const system = req.system.length > 4000 ? [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }] : req.system;
+  // Haiku doesn't think; Sonnet 5.x can be told not to; others (Opus) always may, so they get the room
+  const haiku = /haiku/.test(model);
+  const canSkip = /sonnet-5/.test(model);
+  const thinks = !haiku && (def.think || !canSkip);
+  const answerCap = Math.min(req.maxTokens ?? cfg.maxTokens, def.maxTokens);
+  const maxTokens = thinks ? answerCap + THINK_HEADROOM : answerCap;
   const t0 = Date.now();
   try {
     const res = await fetch(API, {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: Math.min(req.maxTokens ?? cfg.maxTokens, def.maxTokens), system, messages: req.messages }),
+      body: JSON.stringify({ model, max_tokens: maxTokens, ...(!thinks && canSkip ? { thinking: { type: "between_tools" } } : {}), system, messages: req.messages }),
     });
     const latency = Date.now() - t0;
     const requestId = res.headers.get("request-id");
-    const body = (await res.json().catch(() => null)) as { content?: { type: string; text?: string }[]; usage?: Usage; error?: { message?: string } } | null;
+    const body = (await res.json().catch(() => null)) as { content?: { type: string; text?: string }[]; usage?: Usage; stop_reason?: string; error?: { message?: string } } | null;
     if (!res.ok || !body) {
       await log({ ...base, model, status: "error", error: body?.error?.message?.slice(0, 300) || `HTTP ${res.status}`, latency_ms: latency, request_id: requestId });
       const badKey = byok && (res.status === 401 || res.status === 403);
@@ -164,7 +180,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
       request_id: requestId,
     });
     if (offTopic) return { ok: false, status: "off_topic", message: OFF_TOPIC_MESSAGE, mode: budget.mode, creditsLeft };
-    const text = raw;
+    const text = body.stop_reason === "max_tokens" ? trimCutOff(raw) : raw;
     return { ok: true, text, model, costUsd: cost, credits, mode: budget.mode, creditsLeft: creditsLeft === null ? null : Math.max(0, creditsLeft - credits), callId };
   } catch (e) {
     await log({ ...base, model, status: "error", error: (e as Error).message.slice(0, 300), latency_ms: Date.now() - t0 });
