@@ -9,6 +9,17 @@ import type { Stage } from "@/lib/course/types";
 import { StageSegments } from "./StageRail";
 import { stagePosition, stageShort } from "./stageText";
 import TermsToggle from "@/components/learn/concepts/TermsToggle";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+import { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
+
+const openAsk = () => window.dispatchEvent(new Event(ASK_LESSON_EVENT));
+
+const AskIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
+    <path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
+  </svg>
+);
 
 export const TEXT_SIZES = [17, 19, 21] as const;
 
@@ -43,6 +54,7 @@ const FocusIcon = () => (
 /** Desktop reading tools: stage indicator · Listen · Focus · Aa. Bottom right, lg and up. */
 export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) {
   const p = useLessonProgress();
+  const ai = useAiStatus();
   const listening = readAloud.playing && !readAloud.paused;
   const btn = (on: boolean) =>
     `flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] border-r border-line px-1 ${on ? "bg-signal text-on-signal" : "text-fg hover:bg-surface-2"}`;
@@ -62,6 +74,12 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
           <button type="button" onClick={readAloud.toggle} aria-pressed={listening} className={btn(listening)}>
             {listening ? <PauseIcon /> : <ListenIcon />}
             <span className="font-mono text-[10px] tracking-[0.06em]">{listening ? "PAUSE" : readAloud.paused ? "RESUME" : "LISTEN"}</span>
+          </button>
+        )}
+        {ai?.features["lesson-qa"] && (
+          <button type="button" onClick={openAsk} title="Ask this lesson (AI)" className={btn(false)}>
+            <AskIcon />
+            <span className="font-mono text-[10px] tracking-[0.06em]">ASK AI</span>
           </button>
         )}
         <button type="button" onClick={onFocus} aria-pressed={focus} title="Focus (F)" className={btn(focus)}>
@@ -86,6 +104,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
  */
 export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus }: Props) {
   const p = useLessonProgress();
+  const ai = useAiStatus();
   // slides away with the header while reading down
   const hidden = useChromeHidden();
   const { current, done, completed, stages, required, saveCheckpoint, complete, ready, canComplete } = p;
@@ -145,9 +164,15 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
         <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className={`${sq} font-display text-[15px] font-bold`}>
           Aa
         </button>
-        <button type="button" onClick={onFocus} aria-label="Focus: just the lesson, full screen" className={sq}>
-          <FocusIcon />
-        </button>
+        {ai?.features["lesson-qa"] ? (
+          <button type="button" onClick={openAsk} aria-label="Ask this lesson (AI)" className={sq}>
+            <AskIcon />
+          </button>
+        ) : (
+          <button type="button" onClick={onFocus} aria-label="Focus: just the lesson, full screen" className={sq}>
+            <FocusIcon />
+          </button>
+        )}
         <Link href="/learn/notebook" aria-label="Notebook: highlights and notes" className={sq}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
             <path d="M4 20h4L19 9l-4-4L4 16z" />

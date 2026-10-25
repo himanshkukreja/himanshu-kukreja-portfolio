@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, ChevronLeft, ClipboardCopy, Highlighter, Link2, MessageCircleQuestion, Share2, StickyNote, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ClipboardCopy, Highlighter, Link2, MessageCircleQuestion, Share2, Sparkles, StickyNote, X } from "lucide-react";
 import { HIGHLIGHT_COLOURS } from "@/lib/learn/notebook";
 import type { AskClient } from "@/lib/learn/askAi";
 
@@ -68,6 +68,8 @@ type TextSelectionMenuProps = {
   onNote?: () => void;
   /** "Ask Claude" / "Ask ChatGPT": open the client with the selection and its context */
   onAsk?: (client: AskClient) => void;
+  /** "Ask here": the course's own AI, answered from this lesson (only when AI is available) */
+  onAskHere?: () => void;
   /** "Copy as prompt" */
   onCopyPrompt?: () => void;
   /** "Copy link": a deep link that reopens the page at this exact passage */
@@ -85,9 +87,9 @@ type TextSelectionMenuProps = {
 type Panel = "main" | "colors" | "ask" | "link";
 
 export default function TextSelectionMenu(props: TextSelectionMenuProps) {
-  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, autoFocus } = props;
+  const { onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, autoFocus } = props;
   const notes = !!(onHighlight || onNote || onBookmark);
-  const ask = !!(onAsk || onCopyPrompt);
+  const ask = !!(onAsk || onAskHere || onCopyPrompt);
   const [panel, setPanel] = useState<Panel>("main");
   // with no notebook actions (case files) the Ask actions are the main panel
   const view: Panel = !notes && ask && panel === "main" ? "ask" : panel;
@@ -120,6 +122,9 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       if (view === "colors" && onHighlight && /^[1-4]$/.test(k)) {
         e.preventDefault();
         onHighlight(HIGHLIGHT_COLORS[Number(k) - 1].value);
+      } else if (view === "ask" && onAskHere && k === "i") {
+        e.preventDefault();
+        onAskHere();
       } else if (view === "ask" && onAsk && (k === "c" || k === "g")) {
         e.preventDefault();
         onAsk(k === "c" ? "claude" : "chatgpt");
@@ -152,7 +157,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, panel, view, ask, notes]);
+  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, panel, view, ask, notes]);
 
   useEffect(() => {
     if (!mounted || !ref.current) return;
@@ -246,6 +251,13 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
           {notes && (
             <button type="button" className={`${btn} px-2 ${sheet ? "!w-11 !flex-none" : ""}`} onClick={() => setPanel("main")} aria-label="Back to actions">
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
+          {onAskHere && (
+            <button type="button" className={btn} onClick={onAskHere} aria-keyshortcuts="I" aria-label="Ask the course AI about this (answered from this lesson)">
+              <Sparkles className="w-3.5 h-3.5 text-signal-text" aria-hidden="true" />
+              {sheet ? "Ask AI" : "Ask here"}
+              <span className={key}>I</span>
             </button>
           )}
           {onAsk && (

@@ -29,14 +29,24 @@ export type AiRequest = {
   model?: string;
   maxTokens?: number;
   meta?: Record<string, string | number | boolean | null>;
+  /** an admin trying a feature while it is switched off for learners (still metered, still within budget) */
+  adminPreview?: boolean;
 };
 export type AiResult =
-  | { ok: true; text: string; model: string; costUsd: number; credits: number; mode: Mode; creditsLeft: number | null }
+  | { ok: true; text: string; model: string; costUsd: number; credits: number; mode: Mode; creditsLeft: number | null; callId: number | null }
   | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "error" | "too_long"; message: string; mode: Mode; creditsLeft: number | null };
 
-async function log(row: Record<string, unknown>) {
-  const { error } = await supabase.from("ai_calls").insert(row);
+async function log(row: Record<string, unknown>): Promise<number | null> {
+  const { data, error } = await supabase.from("ai_calls").insert(row).select("id").single();
   if (error) console.error("[ai] log failed", error.message);
+  return (data as { id: number } | null)?.id ?? null;
+}
+
+/** Conversation text, kept 30 days for abuse checks (deleted by the ai-transcripts-cleanup cron). */
+export async function saveTranscript(callId: number | null, userId: string | null, feature: string, input: string, output: string) {
+  if (!callId) return;
+  const { error } = await supabase.from("ai_transcripts").insert({ call_id: callId, user_id: userId, feature, input: input.slice(0, 20000), output: output.slice(0, 20000) });
+  if (error) console.error("[ai] transcript failed", error.message);
 }
 
 /** The user's spend today and the feature's calls today (one query each, both indexed). */
@@ -75,8 +85,10 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
 
   if (!process.env.ANTHROPIC_API_KEY) return refuse("disabled", "AI is not configured");
   // content jobs need the key and budget, not the learner switch; learner features need everything
-  if (def.live && (!s.enabled || !cfg.enabled)) return refuse("disabled", "AI is switched off");
-  if (budget.mode === "off" && !(budget.reason === "switched off" && !def.live)) return refuse("disabled", budget.reason);
+  const switchedOn = (s.enabled && cfg.enabled) || !!req.adminPreview;
+  if (def.live && !switchedOn) return refuse("disabled", "AI is switched off");
+  // "off" because the learner switch is off doesn't stop content jobs or an admin preview; a used-up budget or the end date does
+  if (budget.mode === "off" && !(budget.reason === "switched off" && (!def.live || req.adminPreview))) return refuse("disabled", budget.reason);
   if (def.live && budget.mode === "red") return refuse("over_quota", "AI is resting for today: the day's share of the budget is used");
 
   let model = req.model || cfg.model;
@@ -117,7 +129,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const u = body.usage ?? {};
     const cost = costOf(model, u);
     const credits = creditsFor(cost);
-    await log({
+    const callId = await log({
       ...base,
       model,
       status: "ok",
@@ -131,7 +143,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
       request_id: requestId,
     });
     const text = (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
-    return { ok: true, text, model, costUsd: cost, credits, mode: budget.mode, creditsLeft: creditsLeft === null ? null : Math.max(0, creditsLeft - credits) };
+    return { ok: true, text, model, costUsd: cost, credits, mode: budget.mode, creditsLeft: creditsLeft === null ? null : Math.max(0, creditsLeft - credits), callId };
   } catch (e) {
     await log({ ...base, model, status: "error", error: (e as Error).message.slice(0, 300), latency_ms: Date.now() - t0 });
     return { ok: false, status: "error", message: "The AI didn't answer. Try again in a moment.", mode: budget.mode, creditsLeft };

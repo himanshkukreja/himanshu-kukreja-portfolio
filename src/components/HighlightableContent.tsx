@@ -23,6 +23,8 @@ import Toast from "./Toast";
 import ConfirmDialog from "./ConfirmDialog";
 import LessonProgressTracker from "./LessonProgressTracker";
 import NoteEditor from "./NoteEditor";
+import AskLessonPanel, { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { askAi, CLIENT_LABEL, cleanText, copyAskPrompt, courseName, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
 import { liftTerms, restoreTerms } from "@/lib/concepts/dom";
@@ -618,6 +620,20 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     else if (mode === "offline") setToast({ message: `You're offline, so ${CLIENT_LABEL[client]} can't open. The prompt is on your clipboard: paste it in when you're back online.`, type: "info" });
   };
 
+  /* ---------------- ask the course's own AI (answered from this lesson) */
+  const aiStatus = useAiStatus();
+  const [askHere, setAskHere] = useState<{ open: boolean; selection: string }>({ open: false, selection: "" });
+  useEffect(() => {
+    const open = () => setAskHere({ open: true, selection: "" });
+    window.addEventListener(ASK_LESSON_EVENT, open);
+    return () => window.removeEventListener(ASK_LESSON_EVENT, open);
+  }, []);
+  const handleAskHere = () => {
+    const text = selectedTextRef.current || selectedText;
+    setMenu(null);
+    setAskHere({ open: true, selection: text });
+  };
+
   const handleCopyPrompt = async () => {
     const text = selectedTextRef.current || selectedText;
     const ctx = askContext();
@@ -795,6 +811,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           onBookmark={handleBookmark}
           onNote={handleNote}
           onAsk={handleAsk}
+          onAskHere={aiStatus?.features["lesson-qa"] ? handleAskHere : undefined}
           onCopyPrompt={handleCopyPrompt}
           onCopyLink={() => void handleLink("copy")}
           onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void handleLink("share") : undefined}
@@ -803,6 +820,17 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
       )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      <AskLessonPanel
+        // remounted per opening, so it starts from the passage that was selected
+        key={askHere.open ? `open:${askHere.selection}` : "closed"}
+        open={askHere.open}
+        onClose={() => setAskHere({ open: false, selection: "" })}
+        week={week}
+        slug={lessonSlug}
+        lessonTitle={lessonTitle || ""}
+        selection={askHere.selection}
+      />
 
       <ConfirmDialog
         isOpen={confirmDialog.isOpen}
