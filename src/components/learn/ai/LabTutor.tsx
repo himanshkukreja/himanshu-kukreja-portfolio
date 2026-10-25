@@ -23,8 +23,9 @@ export default function LabTutor({ labId, getCode, result, passed }: { labId: st
   const status = useAiStatus();
   const { openAuthModal } = useAuthModal();
   const [items, setItems] = useState<Item[]>([]);
-  if (!status?.features["lab-hint"] && !status?.features["lab-review"]) {
-    if (!status || status.signedIn || !result) return null;
+  // for guests the feature flags say whether AI is on for learners: pitch sign-in only then
+  if (!status || (!status.features["lab-hint"] && !status.features["lab-review"]) || !result) return null;
+  if (!status.signedIn) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line-strong px-4 py-3">
         <span className="text-[14px] text-fg-2">Stuck? Signed-in learners get AI hints that point the way without giving the answer.</span>
@@ -34,8 +35,6 @@ export default function LabTutor({ labId, getCode, result, passed }: { labId: st
       </div>
     );
   }
-  if (!result) return null;
-
   const hints = items.filter((i) => i.kind === "hint");
   const nextLevel = Math.min(3, hints.length + 1);
   const busy = items.some((i) => i.pending);

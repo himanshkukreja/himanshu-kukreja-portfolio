@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ExplainBack from "@/components/learn/ai/ExplainBack";
 import { notFound } from "next/navigation";
 import { getCatalogue, lessonLabels } from "@/lib/concepts/load";
 import { refCode, refHref, type ConceptRef } from "@/lib/concepts/match";
@@ -69,6 +70,7 @@ export default async function ConceptPage({ params }: Props) {
         {c.aliases.length > 0 && <span className="font-mono text-xs text-fg-3">also: {c.aliases.join(" · ")}</span>}
         <p className="m-0 text-[19px] leading-relaxed text-fg">{c.definition}</p>
       </header>
+      <ExplainBack conceptId={c.id} term={c.term} />
       {c.refresher.length > 0 && (
         <section aria-labelledby="refresh-h" className="flex flex-col gap-3 border border-line bg-surface p-5">
           <h2 id="refresh-h" className="m-0 font-mono text-[11px] uppercase tracking-label text-signal-text">
