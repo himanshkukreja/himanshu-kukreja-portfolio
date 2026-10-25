@@ -10,6 +10,8 @@
  * Record mode (?record=1, used by the MP4 exporter): no voice, no controls, and each step lasts the
  * duration the exporter passes in window.__LECTURE_DURATIONS (seconds per step, in order, pause
  * included); the exporter starts playback with window.__LECTURE_START() once recording runs.
+ * Frame by frame (what the exporter uses now: exact sync): window.__LECTURE_GOTO(i) shows step i,
+ * and window.__LECTURE_SHOWN becomes i once that step's diagram is on screen.
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -52,6 +54,8 @@ declare global {
     __LECTURE_DONE?: boolean;
     __LECTURE_START?: () => void;
     __LECTURE_READY?: boolean;
+    __LECTURE_GOTO?: (i: number) => void;
+    __LECTURE_SHOWN?: number;
   }
 }
 
@@ -61,6 +65,8 @@ export default function LecturePlayer({ lecture, quest, audioBase }: { lecture: 
   const [playing, setPlaying] = useState(false);
   const [rate, setRate] = useState(1);
   const [svg, setSvg] = useState<string>("");
+  // the step whose diagram is on screen now (record mode tells the exporter)
+  const [shown, setShown] = useState(-1);
   const [record, setRecord] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const timer = useRef<number | undefined>(undefined);
@@ -76,7 +82,11 @@ export default function LecturePlayer({ lecture, quest, audioBase }: { lecture: 
     let off = false;
     const src = cur ? stepSource(cur.s, cur.st) : null;
     if (!src) {
-      const id = window.setTimeout(() => !off && setSvg(""), 0);
+      const id = window.setTimeout(() => {
+        if (off) return;
+        setSvg("");
+        setShown(i);
+      }, 0);
       return () => {
         off = true;
         window.clearTimeout(id);
@@ -84,11 +94,20 @@ export default function LecturePlayer({ lecture, quest, audioBase }: { lecture: 
     }
     renderSvg(src)
       .then((x) => !off && setSvg(x))
-      .catch(() => !off && setSvg(""));
+      .catch(() => !off && setSvg(""))
+      .finally(() => !off && setShown(i));
     return () => {
       off = true;
     };
-  }, [cur]);
+  }, [cur, i]);
+
+  const iRef = useRef(i);
+  const shownRef = useRef(shown);
+  useEffect(() => {
+    iRef.current = i;
+    shownRef.current = shown;
+    if (record) window.__LECTURE_SHOWN = shown;
+  }, [record, shown, i]);
 
   const stop = useCallback(() => {
     window.clearTimeout(timer.current);
@@ -159,9 +178,16 @@ export default function LecturePlayer({ lecture, quest, audioBase }: { lecture: 
       if (!off) window.__LECTURE_READY = true;
     });
     window.__LECTURE_START = () => setPlaying(true);
+    window.__LECTURE_GOTO = (k: number) => {
+      const to = Math.max(0, Math.min(flat.length - 1, k));
+      // already there: it's on screen as soon as its diagram is
+      window.__LECTURE_SHOWN = to === iRef.current ? shownRef.current : -1;
+      setI(to);
+    };
     return () => {
       off = true;
       delete window.__LECTURE_START;
+      delete window.__LECTURE_GOTO;
     };
   }, [record, flat]);
 
@@ -190,8 +216,8 @@ export default function LecturePlayer({ lecture, quest, audioBase }: { lecture: 
       <div className="absolute inset-x-[4%] bottom-[18%] top-[11%] flex items-center justify-center">
         {s.kind === "title" ? (
           <h2 className="m-0 max-w-[80%] text-center font-display text-[clamp(28px,5.2vw,84px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-[#f3f2ee]">
-            {s.heading || lecture.title}
-            <span className="text-[#ff6b2b]">.</span>
+            {(s.heading || lecture.title).replace(/[.!?]$/, "")}
+            <span className="text-[#ff6b2b]">{/[!?]$/.test(s.heading || lecture.title) ? (s.heading || lecture.title).slice(-1) : "."}</span>
           </h2>
         ) : s.kind === "numbers" ? (
           <div className="flex w-full flex-col items-center gap-[4%]">
@@ -206,7 +232,14 @@ export default function LecturePlayer({ lecture, quest, audioBase }: { lecture: 
             </div>
           </div>
         ) : (
-          <div className="lecture-svg flex h-full w-full items-center justify-center [&_svg]:h-full [&_svg]:max-h-full [&_svg]:w-auto [&_svg]:max-w-full" dangerouslySetInnerHTML={{ __html: svg }} />
+          <div
+            className={`lecture-svg flex h-full w-full items-center justify-center ${
+              // flowcharts and state machines fill the stage (Mermaid's inline max-width would keep them small);
+              // sequences keep one scale, so the diagram doesn't jump as messages are added
+              s.kind === "sequence" ? "[&_svg]:h-full [&_svg]:max-h-full [&_svg]:w-auto [&_svg]:max-w-full" : "[&_svg]:!h-full [&_svg]:!w-full [&_svg]:!max-w-none"
+            }`}
+            dangerouslySetInnerHTML={{ __html: svg }}
+          />
         )}
       </div>
 
