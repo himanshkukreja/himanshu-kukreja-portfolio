@@ -4,6 +4,7 @@ import { fetchMarkdownContent, isContentMissing } from "@/lib/github";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import { getCaseFiles } from "@/components/stories/case-files";
 import { lessonLectureId, type Lecture } from "./types";
+import type { Level } from "@/lib/learn/level";
 
 /** The lecture for a side quest, or null (none yet, or a broken file). */
 export async function getLecture(slug: string): Promise<Lecture | null> {
@@ -48,6 +49,8 @@ export type LectureSummary = {
   group: string;
   /** "up next" stays inside a track */
   track: "course" | "quests" | "problems" | "lld" | "cases";
+  /** difficulty (lib/learn/level.ts) */
+  level?: Level;
 };
 
 /**
@@ -62,32 +65,32 @@ export async function listLectures(): Promise<LectureSummary[]> {
   const quests = map.sideQuests.map((l) => ({ id: l.slug, l, group: "Side quests", track: "quests" as const }));
   const problems = (map.problems ?? []).map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: "Interview problems", track: "problems" as const }));
   const lld = (map.lld ?? []).map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: "Low-level design", track: "lld" as const }));
-  const files = [...cases].reverse().map((c) => ({ id: lessonLectureId("case-files", c.slug), l: { tag: c.caseId, code: c.caseId, title: c.title, href: `/stories/${c.slug}` }, group: "Case files", track: "cases" as const }));
+  const files = [...cases].reverse().map((c) => ({ id: lessonLectureId("case-files", c.slug), l: { tag: c.caseId, code: c.caseId, title: c.title, href: `/stories/${c.slug}`, level: "Intermediate" as Level }, group: "Case files", track: "cases" as const }));
   const all = await Promise.all(
     [...course, ...quests, ...problems, ...lld, ...files].map(async ({ id, l, group, track }) => {
       const lec = await getLecture(id).catch(() => null);
       const card = lectureCard(lec);
-      return lec && card ? { slug: id, code: l.tag || l.code, title: lec.title, quest: l.title, summary: lec.summary, href: card.href, questHref: l.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters, group, track } : null;
+      return lec && card ? { slug: id, code: l.tag || l.code, title: lec.title, quest: l.title, summary: lec.summary, href: card.href, questHref: l.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters, group, track, ...(l.level ? { level: l.level } : {}) } : null;
     }),
   );
   return all.filter((x): x is LectureSummary => !!x);
 }
 
 /** The course page a lecture teaches (its side quest or lesson), for the player's header and links. */
-export async function lectureSubject(l: Lecture): Promise<{ title: string; href: string; code: string } | null> {
+export async function lectureSubject(l: Lecture): Promise<{ title: string; href: string; code: string; level?: Level } | null> {
   const map = await getCourseMap(COURSE_ID).catch(() => null);
   if (!map) return null;
   if (l.lesson?.week === "case-files") {
     const c = (await getCaseFiles().catch(() => [])).find((x) => x.slug === l.lesson!.slug);
-    return c ? { title: c.title, href: `/stories/${c.slug}`, code: c.caseId } : null;
+    return c ? { title: c.title, href: `/stories/${c.slug}`, code: c.caseId, level: "Intermediate" } : null;
   }
   if (l.lesson) {
     const { week, slug } = l.lesson;
     const w = map.weeks.find((x) => x.key === week);
     const pool = w ? [...w.lessons, ...(w.boss ? [w.boss] : [])] : week === "problem-bank" ? (map.problems ?? []) : week === "low-level-design" ? (map.lld ?? []) : [];
     const hit = pool.find((x) => x.slug === slug);
-    return hit ? { title: hit.title, href: hit.href, code: hit.tag || hit.code } : null;
+    return hit ? { title: hit.title, href: hit.href, code: hit.tag || hit.code, level: hit.level } : null;
   }
   const q = map.sideQuests.find((x) => x.slug === l.quest);
-  return q ? { title: q.title, href: q.href, code: q.code } : null;
+  return q ? { title: q.title, href: q.href, code: q.code, level: q.level } : null;
 }

@@ -5,6 +5,7 @@ import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
 import type { CourseLesson, CourseMap, CourseTrial, CourseWeek } from "./types";
 import type { CourseMock } from "./mock/types";
 import { loadMockSources, summarize } from "./mock/load";
+import { levelForWeek, levelFromMarkdown, type Level } from "./level";
 
 export const COURSE_ID = "system-design-mastery";
 
@@ -77,6 +78,7 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
   const minutes: Record<string, number> = {};
   // the problem bank and LLD track take their titles from each file's H1
   const titles: Record<string, string> = {};
+  const levels: Record<string, Level> = {};
   const trials: Record<string, CourseTrial> = {};
   await Promise.all(
     resources.map(async (r) => {
@@ -109,6 +111,8 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
           return;
         }
         minutes[`${r.week}/${r.slug}`] = calculateReadingTime(md).minutes;
+        const lv = levelFromMarkdown(md);
+        if (lv) levels[`${r.week}/${r.slug}`] = lv;
         if (r.type === "problem" || r.type === "lld") {
           const h1 = titleFromMarkdown(md);
           if (h1) titles[`${r.week}/${r.slug}`] = h1.replace(/^(Interview Problem|Problem|LLD|Low-Level Design)\s*\d*\s*[:·—-]\s*/i, "");
@@ -121,7 +125,12 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
     })
   );
 
-  const lessonOf = (r: LearningResource) => toLesson(r, courseId, minutes[`${r.week}/${r.slug}`] || 0);
+  const lessonOf = (r: LearningResource) => {
+    const l = toLesson(r, courseId, minutes[`${r.week}/${r.slug}`] || 0);
+    const n = weekNum(r.week);
+    const level = levels[`${r.week}/${r.slug}`] ?? (n >= 0 ? levelForWeek(n, r.type === "capstone") : undefined);
+    return level ? { ...l, level } : l;
+  };
 
   const weekKeys = Array.from(new Set(resources.filter((r) => r.week.startsWith("week-")).map((r) => r.week))).sort();
   const weeks: CourseWeek[] = weekKeys.map((key) => {

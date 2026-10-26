@@ -24,6 +24,8 @@ export type CourseLesson = {
   /** compact context tag: "W02 · DAY 03", "W00 · PART 1", "W02 · BOSS", "SQ-01" */
   tag: string;
   href: string;
+  /** difficulty: from the article's mission block, else by week (see lib/learn/level.ts) */
+  level?: import("./level").Level;
 };
 
 export type TrialPart = {

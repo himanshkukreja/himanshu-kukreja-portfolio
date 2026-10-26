@@ -27,6 +27,8 @@ import { track } from "@/lib/track";
 import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
 import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
 import { INTRO } from "./anim";
+import { nextProgress, progressKey, readProgress } from "@/lib/learn/lecture/progress";
+import { LEVEL_TONE, type Level } from "@/lib/learn/level";
 
 declare global {
   interface Window {
@@ -59,7 +61,7 @@ function captionAt(say: string, f: number): string {
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
 
 type Flat = ReturnType<typeof flatten>;
-type Quest = { title: string; href: string; code: string } | null;
+type Quest = { title: string; href: string; code: string; level?: Level } | null;
 type Next = { href: string; title: string; code: string } | null;
 type Props = {
   lecture: Lecture;
@@ -86,6 +88,21 @@ export default function LecturePlayer({ lecture, quest, source, mediaBase, next 
 }
 
 /* ---------- record mode: the exporter drives every frame ---------- */
+
+/** What the written source is called, for "Read the …" links. */
+function readLabel(lecture: Lecture): string {
+  const k = lecture.lesson?.kind;
+  return k === "case" ? "Read the case file" : k === "problem" ? "Read the problem write-up" : k === "lld" ? "Read the LLD article" : k ? "Read the lesson" : "Read the side quest";
+}
+
+export function LevelBadge({ level }: { level: Level }) {
+  const t = LEVEL_TONE[level];
+  return (
+    <span className="inline-flex items-center border px-1.5 py-px font-mono text-[10px] uppercase tracking-label" style={{ color: t.fg, borderColor: t.border }} title={`Difficulty: ${level}`}>
+      {level}
+    </span>
+  );
+}
 
 function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; quest: Quest }) {
   const [frame, setFrame] = useState({ i: 0, t: 0, dur: 1, token: -1 });
@@ -148,7 +165,7 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
 
 function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & { flat: Flat }) {
   const slug = lecture.quest;
-  const { awardOnce } = useGame();
+  const { awardOnce, flags, setFlag, hydrated } = useGame();
   const ai = useAiStatus();
   const [media, setMedia] = useState<LectureMedia | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -278,15 +295,57 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   useEffect(() => {
     timeRef.current = time;
   }, [time]);
+
+  // progress for the playlist (continue watching, % watched): a game flag, synced for signed-in
+  // learners. Written every 30 s while playing, on pause, at the end and when the tab is hidden.
+  const flagsRef = useRef(flags);
+  useEffect(() => {
+    flagsRef.current = flags;
+  }, [flags]);
+  const durRef = useRef(0);
+  useEffect(() => {
+    durRef.current = duration;
+  }, [duration]);
+  const saveProgress = useCallback(
+    (ended = false) => {
+      const at = timeRef.current;
+      const prev = readProgress(flagsRef.current, slug);
+      if (!durRef.current || (!prev && at < 10 && !ended)) return;
+      setFlag(progressKey(slug), nextProgress(prev, at, durRef.current, ended));
+    },
+    [slug, setFlag]
+  );
+  // resume on another device: this browser has no position yet, the synced progress does
+  useEffect(() => {
+    if (!hydrated) return;
+    const p = readProgress(flagsRef.current, slug);
+    const t = window.setTimeout(() => {
+      let local = 0;
+      try {
+        local = Number(localStorage.getItem(`hk.lecture.pos.${slug}`)) || 0;
+      } catch {}
+      if (!local && p && !p.w && p.t > 15) setResumeAt(p.t);
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [hydrated, slug]);
   useEffect(() => {
     if (!playing) return;
+    let n = 0;
     const id = window.setInterval(() => {
       try {
         localStorage.setItem(`hk.lecture.pos.${slug}`, String(Math.floor(timeRef.current)));
       } catch {}
+      if (++n % 6 === 0) saveProgress();
     }, 5000);
-    return () => window.clearInterval(id);
-  }, [playing, slug]);
+    const hide = () => document.visibilityState === "hidden" && saveProgress();
+    document.addEventListener("visibilitychange", hide);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", hide);
+      // paused, ended or left the page
+      saveProgress();
+    };
+  }, [playing, slug, saveProgress]);
 
   const pause = useCallback((at?: number) => {
     audioRef.current?.pause();
@@ -495,6 +554,9 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
 
   const chapters = lecture.scenes.map((s, k) => ({ k, s, at: starts[flat.findIndex((f) => f.scene === k)] ?? 0 }));
   const ended = !playing && time >= duration - 0.1 && duration > 0;
+  useEffect(() => {
+    if (ended) saveProgress(true);
+  }, [ended, saveProgress]);
   const curScene = cur.scene;
   useEffect(() => {
     const list = listRef.current;
@@ -576,11 +638,29 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   return (
     <main className="mx-auto flex max-w-[1360px] flex-col gap-5 px-4 pb-28 pt-6 sm:px-6 sm:pt-10">
       <header className="flex flex-col gap-2">
-        <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
-          lecture · {fmt(duration)} · {quizzes.length} checkpoints{media ? "" : " · browser voice"}
+        <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] uppercase tracking-label text-signal-text">
+          <span>
+            lecture · {fmt(duration)} · {quizzes.length} checkpoints{media ? "" : " · browser voice"}
+          </span>
+          {quest?.level && <LevelBadge level={quest.level} />}
         </span>
         <h1 className="m-0 font-display text-[clamp(30px,5vw,52px)] font-extrabold leading-none tracking-[-0.04em] text-fg">{lecture.title}</h1>
         <p className="m-0 max-w-[820px] text-[16px] text-fg-2">{lecture.summary}</p>
+        {quest && (
+          // came straight from the playlist? the written version is one tap away
+          <Link
+            href={quest.href}
+            className="mt-1 inline-flex min-h-11 max-w-full items-center gap-2 self-start border border-line-strong px-3.5 text-[14px] text-fg hover:border-signal"
+          >
+            <span aria-hidden>📄</span>
+            <span className="min-w-0 truncate">
+              {readLabel(lecture)}: <span className="text-fg-2">{quest.title}</span>
+            </span>
+            <span aria-hidden className="text-signal-text">
+              →
+            </span>
+          </Link>
+        )}
       </header>
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -771,7 +851,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           )}
           {quest && (
             <Link href={quest.href} className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
-              ← read the full {lecture.lesson?.kind === "case" ? "case file" : lecture.lesson ? "lesson" : "quest"}: {quest.title}
+              ← {readLabel(lecture).toLowerCase()}: {quest.title}
             </Link>
           )}
           <Link href="/learn/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
