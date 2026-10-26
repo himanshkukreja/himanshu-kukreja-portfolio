@@ -2,6 +2,7 @@
 
 /** Lobby: the recruiter's note, who you'll meet, the format, the level you're interviewing for. */
 import Link from "next/link";
+import MockCover, { hasMockCover } from "./MockCover";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { useState } from "react";
 import { LEARN_XP } from "@/lib/learn/types";
@@ -74,19 +75,22 @@ export default function Lobby({
         <SaveOfflineButton title={`Mock interview ${num} · ${mock.company.name}`} kind="mock" url={mock.href} />
       </div>
 
-      <header className="flex flex-col gap-5">
-        <span className="font-mono text-xs uppercase tracking-label text-signal-text">
-          Mock interview {num} · after world {mock.afterCode} · covers {mock.coversLabel}
-        </span>
-        <h1 className="font-display text-[clamp(40px,6.4vw,96px)] font-extrabold leading-[0.9] tracking-tightest text-fg">
-          {mock.company.name}
-          <span className="text-signal-text">.</span>
-          <span className="block text-[0.5em] font-bold leading-[1.05] tracking-[-0.035em] text-fg-2">{mock.title}</span>
-        </h1>
-        <p className="max-w-[720px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
-          A real interview loop, timed: an unseen problem from a fictional company that mixes everything from {mock.coversLabel}. The interviewer talks while you work, throws curveballs, and keeps time. The model answer, the rubric and
-          your verdict wait for the debrief.
-        </p>
+      <header className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,500px)]">
+        <div className="flex min-w-0 flex-col gap-5">
+          <span className="font-mono text-xs uppercase tracking-label text-signal-text">
+            Mock interview {num} · after world {mock.afterCode} · covers {mock.coversLabel}
+          </span>
+          <h1 className="font-display text-[clamp(40px,6.4vw,96px)] font-extrabold leading-[0.9] tracking-tightest text-fg">
+            {mock.company.name}
+            <span className="text-signal-text">.</span>
+            <span className="block text-[0.5em] font-bold leading-[1.05] tracking-[-0.035em] text-fg-2">{mock.title}</span>
+          </h1>
+          <p className="max-w-[720px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
+            A real interview loop, timed: an unseen problem from a fictional company that mixes everything from {mock.coversLabel}. The interviewer talks while you work, throws curveballs, and keeps time. The model answer, the rubric and
+            your verdict wait for the debrief.
+          </p>
+        </div>
+        {hasMockCover(mock.id) && <MockCover id={mock.id} n={mock.n} company={mock.company.name} className="hidden lg:block" />}
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
