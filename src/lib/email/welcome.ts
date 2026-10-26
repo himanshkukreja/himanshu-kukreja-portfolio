@@ -25,7 +25,7 @@ export function welcomeSubject(name?: string | null): string {
 export const WELCOME_PREHEADER = "130+ video lectures, an AI mock interviewer, design sheets and 66 free lessons. Your progress follows you to any device.";
 
 /** side quests in the course map (update with the course) */
-const SIDE_QUESTS = 21;
+const SIDE_QUESTS = 25;
 
 const SITE = "https://www.himanshukukreja.in";
 const UTM = "utm_source=email&utm_medium=welcome&utm_campaign=welcome";

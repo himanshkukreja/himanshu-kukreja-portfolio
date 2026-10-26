@@ -333,6 +333,10 @@ const LESSON_TITLES: Record<string, string> = {
   'bonus-19-youtube-video-platform': 'YouTube Video Platform',
   'bonus-20-google-docs-collaboration': 'Google Docs Collaboration',
   'bonus-21-instagram-feed': 'Instagram Feed and Stories',
+  'bonus-22-google-maps': 'Google Maps Routing, Traffic and Tiles',
+  'bonus-23-zoom-video-meetings': 'Zoom Video Meetings at Scale',
+  'bonus-24-airbnb-stays-marketplace': 'Airbnb Stays Marketplace',
+  'bonus-25-dream11-fantasy-sports': 'Dream11 Fantasy Sports',
   // Week 0
   'foundations-part-1-basic-concepts': 'Part 1: System Design Fundamentals',
   'foundations-part-2-infrastructure-building-blocks': 'Part 2: Infrastructure Building Blocks',

@@ -292,7 +292,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 <strong>+{LEARN_XP.world} XP</strong> and that world&apos;s badge. On a phone, tap a world to open the same panel as a sheet.
               </p>
               <p>
-                <strong>Side quests</strong> ({s?.sideQuests ?? 21} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each. Below them, the hub&apos;s <strong>Practice</strong> block shows this week&apos;s design challenge, the study planner and the numbers playground, with a link to{" "}
+                <strong>Side quests</strong> ({s?.sideQuests ?? 25} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each. Below them, the hub&apos;s <strong>Practice</strong> block shows this week&apos;s design challenge, the study planner and the numbers playground, with a link to{" "}
                 <a href="#practice" className="text-signal-text underline underline-offset-4">
                   the whole toolkit
                 </a>

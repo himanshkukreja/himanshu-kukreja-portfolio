@@ -268,6 +268,61 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <rect x={38.8} y={52.8} width={8} height={4.2} {...S} strokeWidth={1.6} />
         </>
       );
+    case "tiles": // a route crossing a 2×2 block of map tiles to a drop pin
+      return (
+        <>
+          <rect x={9} y={21} width={17} height={17} {...S} strokeWidth={1.8} opacity={0.7} />
+          <rect x={26} y={21} width={17} height={17} {...S} strokeWidth={1.8} opacity={0.7} />
+          <rect x={9} y={38} width={17} height={17} {...S} strokeWidth={1.8} opacity={0.7} />
+          <rect x={26} y={38} width={17} height={17} {...S} strokeWidth={1.8} opacity={0.7} />
+          <path d="M13 51h9v-9h12v-9h12" {...S} strokeWidth={3} />
+          <rect x={10.5} y={48.5} width={5} height={5} {...F} />
+          <path d="M47 7a8 8 0 0 1 8 8c0 7-8 15-8 15s-8-8-8-15a8 8 0 0 1 8-8z" {...F} />
+          <rect x={44.5} y={12.5} width={5} height={5} fill={accent} />
+        </>
+      );
+    case "gallery": // a camera above a 2×2 gallery of video tiles, the active speaker's tile lit with a level meter
+      return (
+        <>
+          <rect x={12} y={8} width={24} height={15} {...S} />
+          <path d="M36 15.5l11-6v12z" {...F} />
+          <rect x={9} y={30} width={22} height={13} {...F} />
+          <rect x={13} y={36} width={2.5} height={4} fill={accent} />
+          <rect x={17.5} y={33} width={2.5} height={7} fill={accent} />
+          <rect x={22} y={35} width={2.5} height={5} fill={accent} />
+          <rect x={34} y={31} width={20} height={11} {...S} strokeWidth={2} />
+          <rect x={10} y={47} width={20} height={11} {...S} strokeWidth={2} />
+          <rect x={34} y={47} width={20} height={11} {...S} strokeWidth={2} />
+        </>
+      );
+    case "stay": // a house whose walls are a calendar, three nights in a row booked
+      return (
+        <>
+          <path d="M10 31L32 11l22 20" {...S} />
+          <rect x={16} y={30} width={32} height={25} {...S} />
+          <rect x={20} y={35} width={6} height={6} {...S} strokeWidth={1.6} />
+          <rect x={29} y={35} width={6} height={6} {...F} />
+          <rect x={38} y={35} width={6} height={6} {...F} />
+          <rect x={20} y={45} width={6} height={6} {...F} />
+          <rect x={29} y={45} width={6} height={6} {...S} strokeWidth={1.6} />
+          <rect x={38} y={45} width={6} height={6} {...S} strokeWidth={1.6} />
+          <rect x={31} y={37} width={2} height={2} fill={accent} />
+        </>
+      );
+    case "stumps": // a ball flying in at three stumps with bails, beside a three-row leaderboard whose top row is lit
+      return (
+        <>
+          <circle cx={21} cy={11} r={5} {...F} />
+          <path d="M30 8h7M31 13.5h4" {...S} strokeWidth={1.8} opacity={0.7} />
+          <path d="M10 23h6.5M19.5 23h6.5" {...S} strokeWidth={2} />
+          <path d="M11 27v27M18 27v27M25 27v27" {...S} />
+          <path d="M7 56h22" {...S} strokeWidth={1.8} opacity={0.7} />
+          <rect x={35} y={21} width={21} height={8} {...F} />
+          <rect x={37.5} y={24} width={2.5} height={2.5} fill={accent} />
+          <rect x={35.9} y={34.9} width={15} height={6.2} {...S} strokeWidth={1.8} />
+          <rect x={35.9} y={46.9} width={10} height={6.2} {...S} strokeWidth={1.8} />
+        </>
+      );
     case "grid": // a story ring around an avatar above a square photo grid
       return (
         <>

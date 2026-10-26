@@ -8,7 +8,7 @@ import fs from "fs";
 import path from "path";
 
 const si = JSON.parse(fs.readFileSync(path.join(process.cwd(), "node_modules/@iconify-json/simple-icons/icons.json"), "utf8"));
-const MARKS = { 2: "whatsapp", 5: "google", 6: "netflix", 7: "spotify", 8: "amazons3", 9: "uber", 10: "x", 13: "zerodha", 14: "openai", 15: "figma", 16: "bookmyshow", 17: "swiggy", 18: "razorpay", 19: "youtube", 20: "googledocs", 21: "instagram" };
+const MARKS = { 2: "whatsapp", 5: "google", 6: "netflix", 7: "spotify", 8: "amazons3", 9: "uber", 10: "x", 13: "zerodha", 14: "openai", 15: "figma", 16: "bookmyshow", 17: "swiggy", 18: "razorpay", 19: "youtube", 20: "googledocs", 21: "instagram", 22: "googlemaps", 23: "zoom", 24: "airbnb" };
 const out = {};
 for (const [n, key] of Object.entries(MARKS)) {
   const icon = si.icons[key];

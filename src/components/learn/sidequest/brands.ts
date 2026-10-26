@@ -2,11 +2,11 @@
  * Side quest identities: one per bonus problem (resources/bonus-problems/bonus-NN-*.md).
  *
  * QuestEmblem.tsx draws the product's real mark on the tile where Simple Icons has a fitting one
- * (16 quests); the others keep an original emblem drawn for this course that evokes the product's engineering problem (a QR finder
- * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for Zerodha Kite, a GPU chip streaming tokens for ChatGPT, two cursors on a frame for Figma, an upload arrow over a film strip for YouTube, a page with two carets for Google Docs, a photo grid under a story ring for Instagram, a seat grid with a held pair for BookMyShow, a takeaway bag on a route to a pin for Swiggy, a shield with a check for Razorpay…), tinted with the product's general
+ * (19 quests); the others keep an original emblem drawn for this course that evokes the product's engineering problem (a QR finder
+ * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for Zerodha Kite, a GPU chip streaming tokens for ChatGPT, two cursors on a frame for Figma, an upload arrow over a film strip for YouTube, a page with two carets for Google Docs, a photo grid under a story ring for Instagram, a route across map tiles to a pin for Google Maps, a camera above a gallery of video tiles for Zoom, a house whose walls are a calendar with three nights booked for Airbnb, a ball flying at three stumps beside a leaderboard for Dream11, a seat grid with a held pair for BookMyShow, a takeaway bag on a route to a pin for Swiggy, a shield with a check for Razorpay…), tinted with the product's general
  * colour as an accent. The product is always named in text.
  */
-export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles" | "tokens" | "cursors" | "upload" | "carets" | "grid" | "seats" | "route" | "shield";
+export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles" | "tokens" | "cursors" | "upload" | "carets" | "grid" | "seats" | "route" | "shield" | "tiles" | "gallery" | "stay" | "stumps";
 
 export type QuestBrand = {
   /** bonus number, 1-based */
@@ -44,6 +44,10 @@ const BRANDS: Record<number, QuestBrand> = {
   19: { n: 19, product: "YouTube", field: "Video uploads", emblem: "upload", accent: "#E62117", ink: "#FFFFFF" },
   20: { n: 20, product: "Google Docs", field: "Collaborative editing", emblem: "carets", accent: "#1A73E8", ink: "#FFFFFF" },
   21: { n: 21, product: "Instagram", field: "Feed and stories", emblem: "grid", accent: "#E1306C", ink: "#FFFFFF" },
+  22: { n: 22, product: "Google Maps", field: "Routing and live traffic", emblem: "tiles", accent: "#1E8E3E", ink: "#FFFFFF" },
+  23: { n: 23, product: "Zoom", field: "Video meetings", emblem: "gallery", accent: "#0B5CFF", ink: "#FFFFFF" },
+  24: { n: 24, product: "Airbnb", field: "Stays marketplace", emblem: "stay", accent: "#FF385C", ink: "#FFFFFF" },
+  25: { n: 25, product: "Dream11", field: "Fantasy sports", emblem: "stumps", accent: "#D3202A", ink: "#FFFFFF" },
 };
 
 const FALLBACK: Omit<QuestBrand, "n"> = { product: "Side quest", field: "System design", emblem: "fanout", accent: "#0B0B0B", ink: "#FFFFFF" };
