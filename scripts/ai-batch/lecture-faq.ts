@@ -25,6 +25,8 @@ const RES = path.join(CONTENT, "resources");
 const LECTURES = process.env.LECTURES_DIR || path.join(RES, "lectures");
 const OUT = process.env.FAQ_DIR || path.join(RES, "lecture-faq");
 const STATE = path.join(process.cwd(), "scripts/ai-batch/.state");
+// case files live in the CMS: CASES_DIR holds their markdown, dumped from listStorySources()
+const CASES = process.env.CASES_DIR || path.join(process.cwd(), "content/stories");
 const MODEL = MODELS.opus;
 const MAX_TOKENS = 20000;
 const MAX_USD = 6;
@@ -33,7 +35,7 @@ const H = { "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2
 
 const SYSTEM = `You write the "Learners often ask here" questions for one interactive system design lecture. The lecture is split into chapters (scenes); the player shows a few questions with ready answers next to the chapter the learner has paused on.
 
-You get the written lesson the lecture teaches (a side quest with its design sheet, or a course lesson), and the lecture script, scene by scene with each scene's id.
+You get the written lesson the lecture teaches (a side quest with its design sheet, a course lesson, or a case file: an engineering story), and the lecture script, scene by scene with each scene's id.
 
 For every scene listed under "Write FAQs for", write 2 or 3 questions a learner pausing at that chapter would really ask: what confuses people there, "why not just X?", "what if Y fails?", how it connects to an earlier chapter. Make them specific to that chapter, not generic, and don't repeat a question across chapters. For the scenes listed under "At most one", write 1 question or none. Write nothing for checkpoint (quiz) scenes.
 
@@ -88,7 +90,9 @@ function jobs(): Job[] {
       if (!Array.isArray(l.scenes)) return null;
       const hash = crypto.createHash("sha1").update(JSON.stringify(l)).digest("hex").slice(0, 12);
       const { teach, light } = sceneRoles(l);
-      const source = l.lesson
+      const source = l.lesson?.kind === "case"
+        ? [`<case_file>\n${read(path.join(CASES, `${l.lesson.slug}.md`))}\n</case_file>`]
+        : l.lesson
         ? [`<lesson>\n${read(path.join(RES, l.lesson.week, `${l.lesson.slug}.md`))}\n</lesson>`]
         : [`<side_quest>\n${read(path.join(RES, "bonus-problems", `${slug}.md`))}\n</side_quest>`, `<design_sheet>\n${read(path.join(RES, "design-sheets", `${slug}.md`)) || "(none)"}\n</design_sheet>`];
       const prompt = [

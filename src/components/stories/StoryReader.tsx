@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
+import LectureEntry from "@/components/learn/sidequest/LectureEntry";
 import { Bookmark } from "lucide-react";
 import CaseCover from "./CaseCover";
 import ReadAloud from "@/components/ReadAloud";
@@ -49,6 +50,8 @@ type Props = {
   activity?: CaseActivityData | null;
   /** admin preview: no reading record, no "case closed" XP */
   preview?: boolean;
+  /** the case file's animated lecture, when it has one */
+  lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 };
 
 const CHIP = "border border-line-strong px-2 py-1 text-fg-2";
@@ -57,7 +60,7 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export default function StoryReader({ meta, checkpoints, htmlContent, debrief, prev, next, totalCases, views, comments, activity, preview }: Props) {
+export default function StoryReader({ meta, checkpoints, htmlContent, debrief, prev, next, totalCases, views, comments, activity, preview, lecture }: Props) {
   const { hydrated, flags, done, setFlag, award } = useGame();
   const contentRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -520,6 +523,8 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                 <figcaption className="font-mono text-xs text-fg-3">FIG. 1 · Blueprint · {meta.caseId}</figcaption>
               </figure>
             )}
+
+            {lecture && <LectureEntry lecture={lecture} what="The whole case" className="m-0" />}
 
             <div className="course-content story-content">
               <StoryContentWrapper htmlContent={htmlContent} contentRef={contentRef} className={styles.prose} withReadAloud={false} />

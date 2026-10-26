@@ -12,6 +12,8 @@ import { renderStoryBody } from "@/components/stories/render-story";
 import { termsFor } from "@/lib/concepts/load";
 import { getCaseFiles } from "@/components/stories/case-files";
 import { parseDebrief, resolveCaseType, type CaseFile } from "@/components/stories/case-types";
+import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
+import { lessonLectureId } from "@/lib/learn/lecture/types";
 
 export const runtime = "nodejs"; // required for fs access on Vercel
 
@@ -59,7 +61,7 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
   // hover definitions for course concepts the case file mentions (cards link into the course)
   const { htmlContent, checkpoints } = await renderStoryBody(story.body, { terms: await termsFor() });
 
-  const cases = await getCaseFiles();
+  const [cases, lecture] = await Promise.all([getCaseFiles(), getLecture(lessonLectureId("case-files", slug)).then(lectureCard).catch(() => null)]);
   const index = cases.findIndex((c) => c.slug === slug);
   const raw = story as unknown as Record<string, unknown>;
   const meta: CaseFile =
@@ -109,6 +111,7 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
           </OnlineOnly>
         }
         activity={story.activity || undefined}
+        lecture={lecture}
       />
     </main>
   );
