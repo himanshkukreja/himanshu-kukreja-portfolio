@@ -129,7 +129,9 @@ function StorageCard() {
   const mine = videos + articles;
   const used = info?.usage != null ? Math.max(info.usage, mine) : mine;
   const other = Math.max(0, used - mine);
-  const pct = (n: number) => (used ? `${Math.max(n > 0 ? 1 : 0, (n / used) * 100)}%` : "0%");
+  // the bar is the browser's allowance, so it fills as the device fills (not always 100% of what's used)
+  const cap = info?.quota ? Math.max(info.quota, used) : used;
+  const pct = (n: number) => (cap ? `${Math.max(n > 0 ? 1 : 0, (n / cap) * 100)}%` : "0%");
   const quotaPct = info?.usage && info.quota ? Math.min(100, Math.max(1, Math.round((info.usage / info.quota) * 100))) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3 border border-line-strong bg-surface p-5">
@@ -141,13 +143,18 @@ function StorageCard() {
       </span>
       <span className="font-display text-[30px] font-bold leading-none tracking-[-0.02em] text-fg">
         {fmtBytes(used)}
-        {info?.quota ? <span className="ml-2 font-mono text-xs font-normal tracking-normal text-fg-3">of {fmtBytes(info.quota)} allowed</span> : null}
+        {info?.quota ? <span className="ml-2 font-mono text-xs font-normal tracking-normal text-fg-3">used · {fmtBytes(Math.max(0, info.quota - used))} free</span> : null}
       </span>
       <div className="flex h-2 w-full overflow-hidden bg-surface-2" role="img" aria-label={`Videos ${fmtBytes(videos)}, articles ${fmtBytes(articles)}, app files and other ${fmtBytes(other)}`}>
         <span className="h-2 bg-signal" style={{ width: pct(videos) }} />
         <span className="h-2 bg-fg-2" style={{ width: pct(articles) }} />
         <span className="h-2 bg-fg-4" style={{ width: pct(other) }} />
       </div>
+      {info?.quota ? (
+        <span className="-mt-1 text-xs text-fg-3">
+          The browser lets this site use up to ~{fmtBytes(info.quota)} right now. It sets that from your free disk space and may raise it as you save more.
+        </span>
+      ) : null}
       <dl className="m-0 grid grid-cols-3 gap-2 font-mono text-[11px] text-fg-3">
         {[
           ["bg-signal", "Videos", videos],
