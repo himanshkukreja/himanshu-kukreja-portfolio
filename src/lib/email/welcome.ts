@@ -4,13 +4,15 @@
  * Pure function, no I/O: the route, the admin preview and the admin test send all render through here,
  * so what the owner previews is exactly what a new learner gets.
  *
- * Every claim is checked against what ships: course map (src/lib/learn/course.ts: 11 worlds, 66 core
- * lessons, 10 bosses, 21 side quests), quick checks (src/app/learn/page.tsx "1,000+"), Arena daily
- * (DAILY_N = 5, DAILY_SECONDS = 20, Asia/Kolkata day), leagues/leaderboard, games (60-90 s), progress
- * page (/learn/dashboard: course map, streaks, weekly goal), review (/learn/review), notebook
- * (/learn/notebook: highlights, notes, bookmarks), Ask Claude / ChatGPT (src/lib/learn/askAi.ts),
- * case files with end-of-case activities (/stories), the practice toolkit (/learn/practice: revision
- * decks, cheat sheets, Python code labs, mock interviews).
+ * Every claim is checked against what ships (Oct 2026): course map (src/lib/learn/course.ts: 66 core
+ * lessons, 10 bosses, SIDE_QUESTS side quests), video lectures (/learn/prep/lectures: 137 live, so "130+",
+ * quiz checkpoints, ask the AI, save offline), the 4 mock interviews (/learn/mock: AI interviewer turns,
+ * dictation, whiteboard, per-phase coach, AI scorecard with a hire / no-hire verdict), design sheets
+ * (/learn/sheets: one per side quest, PDF), cheat sheets and revision decks (/learn/cheatsheet,
+ * /learn/revise), war stories (/learn/war-stories: 20 stories + war rooms), case files (/stories: 12),
+ * quick checks ("1,000+"), Arena daily (DAILY_N = 5, DAILY_SECONDS = 20, Asia/Kolkata day), leagues,
+ * progress page, review, notebook, the in-lesson AI (lesson-qa: signed-in, free for now with a daily
+ * allowance) and Ask Claude / ChatGPT (src/lib/learn/askAi.ts). Round counts down when they grow.
  */
 import { EMAIL, SOCIALS } from "@/lib/socials";
 
@@ -20,7 +22,10 @@ export function welcomeSubject(name?: string | null): string {
   const first = (name || "").trim().split(/\s+/)[0];
   return first ? `You're in, ${first}. Your first lesson is ready` : WELCOME_SUBJECT;
 }
-export const WELCOME_PREHEADER = "66 free lessons, 1,000+ quick checks and a daily challenge. Your progress follows you to any device.";
+export const WELCOME_PREHEADER = "130+ video lectures, an AI mock interviewer, design sheets and 66 free lessons. Your progress follows you to any device.";
+
+/** side quests in the course map (update with the course) */
+const SIDE_QUESTS = 21;
 
 const SITE = "https://www.himanshukukreja.in";
 const UTM = "utm_source=email&utm_medium=welcome&utm_campaign=welcome";
@@ -35,6 +40,10 @@ export const WELCOME_LINKS = {
   leaderboard: withUtm("/learn/arena/leaderboard"),
   progress: withUtm("/learn/dashboard"),
   practice: withUtm("/learn/prep"),
+  lectures: withUtm("/learn/prep/lectures"),
+  mock: withUtm("/learn/mock"),
+  sheets: withUtm("/learn/sheets"),
+  warStories: withUtm("/learn/war-stories"),
   stories: withUtm("/stories"),
   site: withUtm("/"),
 };
@@ -52,20 +61,54 @@ export function welcomeFirstName(full?: string | null): string | null {
 }
 
 const STATS: { n: string; label: string }[] = [
-  { n: "11", label: "worlds" },
   { n: "66", label: "core lessons" },
-  { n: "10", label: "interview bosses" },
+  { n: "130+", label: "video lectures" },
+  { n: "4", label: "AI mock interviews" },
   { n: "1,000+", label: "quick checks" },
 ];
+const MORE = [`+ ${SIDE_QUESTS} side quests`, "20 war stories", "10 interview bosses", "no paywall"];
 
-type Feature = { glyph: string; tag: string; title: string; body: string; link?: { label: string; href: string } };
+type Feature = { glyph: string; tag: string; title: string; body: string; fresh?: boolean; link?: { label: string; href: string } };
 
 const FEATURES: Feature[] = [
   {
-    glyph: "&#10003;", // ✓
-    tag: "learn",
-    title: "Quick checks inside every lesson",
-    body: "Short questions sit right in the lessons, so you know an idea landed before you move on. Each world ends with an interview boss and a trial.",
+    glyph: "&#9654;", // ▶
+    tag: "video lectures",
+    fresh: true,
+    title: "130+ animated video lectures",
+    body: "Every lesson and side quest comes as a narrated, animated lecture: the idea, where the obvious design breaks, and the real one. Quiz checkpoints along the way, ask the AI about any moment, and save lectures offline for the commute.",
+    link: { label: "Open the playlist", href: WELCOME_LINKS.lectures },
+  },
+  {
+    glyph: "AI",
+    tag: "mock interviews",
+    fresh: true,
+    title: "Rehearse with an AI interviewer",
+    body: "Four timed mocks, each an unseen problem with an interviewer who keeps time and throws curveballs. Talk your answer out loud or type it, sketch on a whiteboard, get a coach's note after every phase and a scorecard with a hire / no-hire verdict.",
+    link: { label: "Start a mock interview", href: WELCOME_LINKS.mock },
+  },
+  {
+    glyph: "&sect;", // §
+    tag: "design sheets",
+    fresh: true,
+    title: "Design sheets and cheat sheets",
+    body: "Each side quest's whole design on a few pages: the numbers, the architecture, the key flows, the data model and what breaks, as a PDF you can keep. Plus one-page cheat sheets and five-minute revision decks for the night before.",
+    link: { label: "Browse the design sheets", href: WELCOME_LINKS.sheets },
+  },
+  {
+    glyph: "!",
+    tag: "war stories",
+    fresh: true,
+    title: "War stories, then you're on call",
+    body: "20 true stories of real systems hitting real limits, two minutes each, with sources. Then take the page yourself: a SEV-1 played out in the channel, modelled on a real postmortem, where you make the calls.",
+    link: { label: "Read a war story", href: WELCOME_LINKS.warStories },
+  },
+  {
+    glyph: "#",
+    tag: "case files",
+    title: "Engineering case files",
+    body: "Real production incidents and builds, told as stories with blueprints, like how Hotstar got ready for 25 million people watching one cricket match. Each one ends with a hands-on challenge.",
+    link: { label: "Browse the case files", href: WELCOME_LINKS.stories },
   },
   {
     glyph: "&#9650;", // ▲
@@ -78,34 +121,14 @@ const FEATURES: Feature[] = [
     glyph: "&#8594;", // →
     tag: "progress",
     title: "Pick up exactly where you stopped",
-    body: "Your place in every lesson is saved as you read, and it resumes on any device you sign in on. The progress page shows your course map, streak and weekly goal.",
+    body: "Your place in every lesson and lecture is saved and resumes on any device. Questions you miss come back in a five-minute review, and your highlights and notes collect in one notebook.",
     link: { label: "Open your progress page", href: WELCOME_LINKS.progress },
-  },
-  {
-    glyph: "&#8801;", // ≡
-    tag: "practice",
-    title: "Interview prep, beyond the lessons",
-    body: "Five-minute revision decks, one-page cheat sheets, Python code labs and timed mock interviews, all in one practice toolkit.",
-    link: { label: "Open the practice toolkit", href: WELCOME_LINKS.practice },
-  },
-  {
-    glyph: "&para;", // ¶
-    tag: "review + notebook",
-    title: "A review queue and a notebook",
-    body: "Questions you miss come back in a five-minute spaced-repetition review. Your highlights, notes and bookmarks collect in one notebook, grouped by lesson.",
   },
   {
     glyph: "?",
     tag: "ask",
-    title: "Ask about any line",
-    body: "Select any text to ask Claude or ChatGPT about it, with the lesson's context already in the prompt. Or copy a link to that exact line and send it to a friend.",
-  },
-  {
-    glyph: "#",
-    tag: "case files",
-    title: "Engineering case files",
-    body: "Real production incidents and builds, told as stories with themed diagrams. Each one ends with a hands-on challenge, so you get to try the idea yourself.",
-    link: { label: "Browse the case files", href: WELCOME_LINKS.stories },
+    title: "Ask the AI about any line",
+    body: "Select any text and ask the built-in AI, with the lesson already in its context. It comes with your account, free for now with a daily allowance. Or send the passage to Claude or ChatGPT.",
   },
 ];
 
@@ -155,7 +178,7 @@ export function welcomeHtml({ email, name }: WelcomeInput): string {
                   </tr></table>
                 </td>
                 <td valign="top" style="padding:${i ? "20px" : "0"} 0 20px 0;${i < FEATURES.length - 1 ? `border-bottom:1px solid ${C.line};` : ""}">
-                  <div style="${LABEL_CSS}color:${C.signalText};margin:0 0 4px 0;">${String(i + 1).padStart(2, "0")} · ${esc(f.tag)}</div>
+                  <div style="${LABEL_CSS}color:${C.signalText};margin:0 0 4px 0;">${String(i + 1).padStart(2, "0")} · ${esc(f.tag)}${f.fresh ? `&nbsp; <span style="display:inline-block;background:${C.signal};color:${C.onSignal};font-weight:600;padding:1px 5px;letter-spacing:0.08em;">new</span>` : ""}</div>
                   <div style="font-family:${F_DISPLAY};font-weight:800;font-size:18px;line-height:1.25;letter-spacing:-0.01em;color:${C.ink};margin:0 0 6px 0;">${esc(f.title)}</div>
                   <div style="font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">${esc(f.body)}</div>${
                     f.link
@@ -229,7 +252,7 @@ export function welcomeHtml({ email, name }: WelcomeInput): string {
             <div style="${LABEL_CSS}color:${C.ink3};margin:0 0 14px 0;"><span style="color:${C.signalText};">&#9679;</span>&nbsp; system design mastery · free course</div>
             <h1 class="h1" style="margin:0;font-family:${F_DISPLAY};font-weight:800;font-size:40px;line-height:1.04;letter-spacing:-0.035em;color:${C.ink};">You're in${hi ? `, ${esc(hi)}` : ""}.<br><span style="color:${C.signalText};">Here's what you can do now.</span></h1>
             <p style="margin:22px 0 0 0;font-family:${F_BODY};font-size:16px;line-height:1.65;color:${C.ink2};">${hi ? `Hi ${esc(hi)}, I'm Himanshu.` : "Hi, I'm Himanshu."} Thanks for signing up. I wrote System Design Mastery as the course I wish I'd had when I moved from shipping features to designing the systems behind them: free, practical, and built from real production work.</p>
-            <p style="margin:12px 0 0 0;font-family:${F_BODY};font-size:16px;line-height:1.65;color:${C.ink2};">Reading is open to everyone. Your account turns it into something you can work through: your progress, streak and notes now follow you to any device.</p>
+            <p style="margin:12px 0 0 0;font-family:${F_BODY};font-size:16px;line-height:1.65;color:${C.ink2};">Reading is open to everyone. Your account unlocks the rest: an AI interviewer and coach to rehearse with, and your progress, streak, notes and watch time following you to any device.</p>
           </td>
         </tr>
 
@@ -239,7 +262,7 @@ export function welcomeHtml({ email, name }: WelcomeInput): string {
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="border:1px solid ${C.line};background:${C.raised};">
               <tr>${STATS.map(statCell).join("")}</tr>
             </table>
-            <div style="${LABEL_CSS}color:${C.ink3};margin:10px 0 0 0;"><span style="white-space:nowrap;">+ 21 side quests</span> &nbsp;·&nbsp; <span style="white-space:nowrap;">themed diagrams</span> &nbsp;·&nbsp; <span style="white-space:nowrap;">no paywall</span></div>
+            <div style="${LABEL_CSS}color:${C.ink3};margin:10px 0 0 0;">${MORE.map((m) => `<span style="white-space:nowrap;">${esc(m)}</span>`).join(" &nbsp;·&nbsp; ")}</div>
           </td>
         </tr>
 
@@ -317,9 +340,9 @@ export function welcomeText({ email, name }: WelcomeInput): string {
     "",
     `${hi ? `Hi ${hi}, I'm Himanshu.` : "Hi, I'm Himanshu."} Thanks for signing up. I wrote System Design Mastery as the course I wish I'd had when I moved from shipping features to designing the systems behind them: free, practical, and built from real production work.`,
     "",
-    "Reading is open to everyone. Your account turns it into something you can work through: your progress, streak and notes now follow you to any device.",
+    "Reading is open to everyone. Your account unlocks the rest: an AI interviewer and coach to rehearse with, and your progress, streak, notes and watch time following you to any device.",
     "",
-    STATS.map((s) => `${s.n} ${s.label}`).join(" · ") + " · + 21 side quests",
+    [...STATS.map((s) => `${s.n} ${s.label}`), ...MORE].join(" · "),
     "",
     `Start lesson 1 (World 00, Part 1: System Design Fundamentals):`,
     WELCOME_LINKS.firstLesson,
@@ -327,7 +350,7 @@ export function welcomeText({ email, name }: WelcomeInput): string {
     "",
     "WHAT YOUR ACCOUNT UNLOCKS",
     "",
-    ...FEATURES.flatMap((f, i) => [`${String(i + 1).padStart(2, "0")}. ${f.title}`, f.body, ...(f.link ? [`${f.link.label}: ${f.link.href}`] : []), ""]),
+    ...FEATURES.flatMap((f, i) => [`${String(i + 1).padStart(2, "0")}. ${f.title}${f.fresh ? " (new)" : ""}`, f.body, ...(f.link ? [`${f.link.label}: ${f.link.href}`] : []), ""]),
     "TODAY'S DAILY CHALLENGE",
     "Five questions, twenty seconds each. Everyone gets the same five, and a new set drops at midnight IST.",
     `Play: ${WELCOME_LINKS.daily}`,
