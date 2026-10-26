@@ -6,9 +6,13 @@
  * with the case title, the checkpoint heading and the surrounding paragraphs as context.
  * Same triggers as the lesson reader: mouse up, a touch long-press (toolbar docked to the bottom,
  * clear of the native selection UI), Shift + arrows, or Shift+F10.
+ * "Ask here" (and the page's Ask AI buttons, via ASK_LESSON_EVENT) open the built-in AI panel, which
+ * answers from this case file.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import TextSelectionMenu from "@/components/TextSelectionMenu";
+import AskLessonPanel, { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import Toast from "@/components/Toast";
 import { askAi, CLIENT_LABEL, copyAskPrompt, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
@@ -20,8 +24,15 @@ function inChrome(n: Node | null) {
   return !!el?.closest("[data-sd-chrome]");
 }
 
-export default function StorySelectionAsk({ rootRef, title }: { rootRef: React.RefObject<HTMLDivElement | null>; title: string }) {
+export default function StorySelectionAsk({ rootRef, title, slug }: { rootRef: React.RefObject<HTMLDivElement | null>; title: string; slug: string }) {
   const [menu, setMenu] = useState<Menu | null>(null);
+  const ai = useAiStatus();
+  const [askHere, setAskHere] = useState<{ open: boolean; selection: string }>({ open: false, selection: "" });
+  useEffect(() => {
+    const open = () => setAskHere({ open: true, selection: "" });
+    window.addEventListener(ASK_LESSON_EVENT, open);
+    return () => window.removeEventListener(ASK_LESSON_EVENT, open);
+  }, []);
   const [text, setText] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const rangeRef = useRef<Range | null>(null);
@@ -191,6 +202,14 @@ export default function StorySelectionAsk({ rootRef, title }: { rootRef: React.R
           placement={menu.placement}
           autoFocus={menu.autoFocus}
           onAsk={onAsk}
+          onAskHere={
+            ai?.features["lesson-qa"]
+              ? () => {
+                  setMenu(null);
+                  setAskHere({ open: true, selection: text });
+                }
+              : undefined
+          }
           onCopyPrompt={onCopyPrompt}
           onCopyLink={() => void onLink("copy")}
           onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void onLink("share") : undefined}
@@ -198,6 +217,17 @@ export default function StorySelectionAsk({ rootRef, title }: { rootRef: React.R
         />
       )}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <AskLessonPanel
+        // remounted per opening, so it starts from the passage that was selected
+        key={askHere.open ? `open:${askHere.selection}` : "closed"}
+        open={askHere.open}
+        onClose={() => setAskHere({ open: false, selection: "" })}
+        week="stories"
+        slug={slug}
+        lessonTitle={title}
+        selection={askHere.selection}
+        story
+      />
     </>
   );
 }

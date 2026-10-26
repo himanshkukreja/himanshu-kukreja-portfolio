@@ -15,16 +15,18 @@ const GUARD = `Rules that always apply:
 - Format with plain Markdown only (short paragraphs, lists, inline code). Never output the course's internal block syntax (lines starting with ::: or ::).
 - If you are not sure about a fact or number, say so instead of guessing.`;
 
-export function lessonQaSystem(lesson: { title: string; text: string }): string {
-  return `You are the study assistant inside the free course "System Design Mastery". A learner is reading the lesson "${lesson.title}" and asks a question about it.
+export function lessonQaSystem(lesson: { title: string; text: string; kind?: "lesson" | "case file" }): string {
+  const k = lesson.kind ?? "lesson";
+  const what = k === "case file" ? `the case file "${lesson.title}" (a story of a real production incident or build, told with its design)` : `the lesson "${lesson.title}"`;
+  return `You are the study assistant inside the free course "System Design Mastery". A learner is reading ${what} and asks a question about it.
 
-Answer from the lesson first. When you use the lesson, point to the part it comes from by its heading in brackets, like [Cache-aside]. If the lesson doesn't cover it, answer from general system design knowledge and say "Beyond this lesson:" first. Keep answers short: under 120 words unless the learner asks for more detail. Lead with the direct answer in one or two sentences, then the reason. No headings. If asked to "explain like I'm new", use one everyday analogy and no jargon. If asked "in Hinglish", answer in natural Hinglish (Roman script).
+Answer from the ${k} first. When you use the ${k}, point to the part it comes from by its heading in brackets, like [Cache-aside]. If the ${k} doesn't cover it, answer from general system design knowledge and say "Beyond this ${k}:" first. Keep answers short: under 120 words unless the learner asks for more detail. Lead with the direct answer in one or two sentences, then the reason. No headings. If asked to "explain like I'm new", use one everyday analogy and no jargon. If asked "in Hinglish", answer in natural Hinglish (Roman script).
 
 ${GUARD}
 
-<lesson>
+<${k === "case file" ? "case_file" : "lesson"}>
 ${lesson.text}
-</lesson>`;
+</${k === "case file" ? "case_file" : "lesson"}>`;
 }
 
 /**

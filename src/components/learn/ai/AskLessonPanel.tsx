@@ -38,6 +38,7 @@ export default function AskLessonPanel({
   slug,
   lessonTitle,
   selection,
+  story = false,
 }: {
   open: boolean;
   onClose: () => void;
@@ -45,9 +46,12 @@ export default function AskLessonPanel({
   slug: string;
   lessonTitle: string;
   selection: string;
+  /** a case file (/stories/<slug>) rather than a course lesson; `week` is ignored */
+  story?: boolean;
 }) {
   const status = useAiStatus();
-  const faq = useLessonFaq(week, slug);
+  const faq = useLessonFaq(story ? null : week, slug);
+  const noun = story ? "case file" : "lesson";
   const { openAuthModal } = useAuthModal();
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(selection);
@@ -96,9 +100,9 @@ export default function AskLessonPanel({
     const turn: Turn = { q: q.trim(), selection: sel, mode, pending: true };
     setTurns((t) => [...t, turn]);
     setQ("");
-    track("ai_ask", { feature: "lesson-qa", mode: mode || "plain", selection: !!sel });
+    track("ai_ask", { feature: "lesson-qa", mode: mode || "plain", selection: !!sel, ...(story ? { story: slug } : {}) });
     try {
-      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ week, slug, question: turn.q, selection: turn.selection, mode: turn.mode || undefined }) });
+      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined }) });
       const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       setTurns((t) => t.map((x) => (x === turn ? { ...x, pending: false, ...(res.ok ? { answer: body.text || "" } : { error: body.error || "Something went wrong. Try again." }) } : x)));
@@ -115,13 +119,13 @@ export default function AskLessonPanel({
     >
       <aside
         role="dialog"
-        aria-label="Ask this lesson"
+        aria-label={`Ask this ${noun}`}
         className="flex max-h-[88dvh] w-full flex-col border-t border-line-strong bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.5)] lg:pointer-events-auto lg:max-h-none lg:w-[var(--hk-ask-w)] lg:border-l lg:border-t-0 lg:shadow-none"
       >
         <header className="flex items-start justify-between gap-3 border-b border-line px-4 py-3">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-label text-signal-text">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden /> ask this lesson
+              <Sparkles className="h-3.5 w-3.5" aria-hidden /> ask this {noun}
               {status?.preview && <span className="border border-line-strong px-1.5 text-fg-3">admin preview</span>}
             </span>
             <span className="truncate text-[15px] font-semibold text-fg">{lessonTitle}</span>
@@ -133,7 +137,7 @@ export default function AskLessonPanel({
 
         <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
           <AiFreeNote />
-          {turns.length === 0 && <p className="m-0 text-[14px] text-fg-3">Ask anything about this lesson. Answers come from the lesson itself and point to the section they use.</p>}
+          {turns.length === 0 && <p className="m-0 text-[14px] text-fg-3">Ask anything about this {noun}. Answers come from the {noun} itself and point to the section they use.</p>}
           {turns.length === 0 && faq && (
             <div className="flex flex-col gap-1.5">
               <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">questions learners ask · free</span>
@@ -154,7 +158,7 @@ export default function AskLessonPanel({
               {t.saved && <span className="font-mono text-[11px] text-fg-4">saved answer · no credits used</span>}
               {t.pending ? (
                 <p className="m-0 flex items-center gap-2 font-mono text-xs text-fg-3">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> reading the lesson…
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> reading the {noun}…
                 </p>
               ) : t.error ? (
                 <p className="m-0 border border-bad/50 px-3 py-2 text-[14px] text-fg-2">{t.error}</p>
@@ -202,7 +206,7 @@ export default function AskLessonPanel({
                     }
                   }}
                   rows={2}
-                  placeholder={sel ? "What about it? (or just press Ask)" : "Ask about this lesson…"}
+                  placeholder={sel ? "What about it? (or just press Ask)" : `Ask about this ${noun}…`}
                   aria-label="Your question"
                   className="min-h-[52px] flex-1 resize-none border border-line-strong bg-bg px-3 py-2 text-[15px] text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
                 />

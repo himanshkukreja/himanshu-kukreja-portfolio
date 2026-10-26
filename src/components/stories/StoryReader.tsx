@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, 
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import LectureEntry from "@/components/learn/sidequest/LectureEntry";
-import { Bookmark } from "lucide-react";
+import { Bookmark, Sparkles } from "lucide-react";
+import { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import CaseCover from "./CaseCover";
 import ReadAloud from "@/components/ReadAloud";
 import StoryContentWrapper from "@/components/StoryContentWrapper";
@@ -81,6 +83,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
   const debriefPick = hydrated ? (flags[DEBRIEF_FLAG] as Record<string, number> | undefined)?.[meta.slug] : undefined;
   const debriefDone = typeof debriefPick === "number";
   const readAloud = useReadAloudBridge(dockRef);
+  const ai = useAiStatus();
 
   // Sit the reader bar right under the global (sticky) site header, whatever its height.
   useEffect(() => {
@@ -472,6 +475,15 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
               <span className="grow" />
               <div className="flex flex-wrap gap-1.5">
                 <SaveOfflineButton title={meta.title} kind="story" url={`/stories/${meta.slug}`} />
+                {ai?.features["lesson-qa"] && (
+                  <button
+                    type="button"
+                    onClick={() => window.dispatchEvent(new Event(ASK_LESSON_EVENT))}
+                    className="inline-flex min-h-11 items-center gap-2 border border-signal px-3.5 text-sm text-signal-text hover:bg-signal hover:text-on-signal"
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden /> Ask AI
+                  </button>
+                )}
                 {readAloud.state !== "unsupported" && (
                   <button
                     type="button"
@@ -659,7 +671,20 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
         </div>
       </div>
 
-      <StorySelectionAsk rootRef={contentRef} title={meta.title} />
+      <StorySelectionAsk rootRef={contentRef} title={meta.title} slug={meta.slug} />
+      {/* the built-in AI, always at hand while reading (out of the way while read-aloud's controls show) */}
+      {ai?.features["lesson-qa"] && readAloud.state !== "playing" && readAloud.state !== "paused" && (
+        <button
+          type="button"
+          onClick={() => window.dispatchEvent(new Event(ASK_LESSON_EVENT))}
+          data-ask-fab
+          aria-label="Ask AI about this case file"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] right-4 z-40 flex h-11 items-center gap-2 bg-signal px-3.5 font-mono text-[12px] font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] transition hover:brightness-110 lg:bottom-6 lg:right-6 lg:h-12 lg:px-4 lg:text-[13px]"
+        >
+          <Sparkles className="h-4 w-4" aria-hidden />
+          Ask AI<span className="hidden font-normal opacity-80 lg:inline">about this case</span>
+        </button>
+      )}
       <DeepLinkResolver rootRef={contentRef} />
 
       {/* Existing ReadAloud controls, restyled from the outside and driven by the toolbar button. */}
