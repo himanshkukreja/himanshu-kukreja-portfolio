@@ -922,7 +922,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           )}
         </div>
 
-        <aside className="flex min-h-0 flex-col gap-3 lg:overflow-hidden" style={shellH && !fs ? { maxHeight: shellH } : undefined}>
+        {/* beside the player (lg) the column matches its height; below it on phones and tablets it doesn't, and the list scrolls in its own 50vh */}
+        <aside className="flex min-h-0 flex-col gap-3 lg:max-h-[var(--shell-h)] lg:overflow-hidden" style={shellH && !fs ? ({ "--shell-h": `${shellH}px` } as React.CSSProperties) : undefined}>
           <h2 className="m-0 flex items-baseline justify-between font-mono text-[11px] uppercase tracking-label text-fg-3">
             chapters
             <span className="normal-case tracking-normal text-fg-4">

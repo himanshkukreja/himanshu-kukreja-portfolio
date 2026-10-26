@@ -36,7 +36,15 @@ export async function loadMockSources(): Promise<MockSource[]> {
       }
     })
   );
-  return out.filter((x): x is MockSource => !!x).sort((a, b) => a.n - b.n);
+  // Numbered in course order, not by file: the file number is fixed once published (later mocks can sit
+  // between earlier ones), so `n` (shown as "Mock 03", "M3") is the mock's place after its world.
+  // Progress and badges are keyed by the front matter `id`, never by `n`.
+  const after = (md: string) => weekNumOf(md.match(/^after:\s*["']?([\w-]+)/m)?.[1] || "");
+  return out
+    .filter((x): x is MockSource => !!x)
+    .map((x) => ({ x, file: x.n, w: after(x.md) }))
+    .sort((a, b) => (a.w < 0 ? 99 : a.w) - (b.w < 0 ? 99 : b.w) || a.file - b.file)
+    .map(({ x }, k) => ({ ...x, n: k + 1 }));
 }
 
 export type MockCtx = { weeks: Pick<CourseWeek, "key" | "num" | "code" | "lessons" | "boss" | "trial">[]; sideQuests: CourseLesson[] };
