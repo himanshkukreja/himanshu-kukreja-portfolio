@@ -9,6 +9,7 @@ import { FEATURE_IDS, FEATURES, type FeatureId } from "./features";
 import { featureConfig, getAiSettings } from "./settings";
 import { getBudget, startOfToday, type Mode } from "./governor";
 import { USD_PER_CREDIT } from "./prices";
+import { dailyAllowanceUsd } from "./limits";
 
 export type AiStatus = {
   /** any AI feature usable by this person right now */
@@ -41,11 +42,16 @@ export async function aiStatus(user: { id: string; email: string | null } | null
     features[id] = (ownKey && !!user) || (usable && on && !(b.mode === "amber" && !FEATURES[id].amberModel));
   }
   let creditsLeft: number | null = null;
+  let creditsPerDay = b.userDailyCredits;
   if (user) {
-    const { data } = await supabase.rpc("ai_spend_v2", { p_from: startOfToday().toISOString(), p_live: true, p_user: user.id });
+    const [{ data }, allowance] = await Promise.all([
+      supabase.rpc("ai_spend_v2", { p_from: startOfToday().toISOString(), p_live: true, p_user: user.id }),
+      dailyAllowanceUsd(user.id, b.userDailyUsd),
+    ]);
     const spent = Number((data as { cost?: number }[] | null)?.[0]?.cost ?? 0);
-    creditsLeft = Math.max(0, Math.floor((b.userDailyUsd - spent) / USD_PER_CREDIT));
+    creditsLeft = Math.max(0, Math.floor((allowance.usd - spent) / USD_PER_CREDIT));
+    creditsPerDay = Math.floor(allowance.usd / USD_PER_CREDIT);
   }
   const available = Object.values(features).some(Boolean);
-  return { available, preview: available && !s.enabled && admin && !ownKey, signedIn: !!user, mode: b.mode, features, creditsLeft, creditsPerDay: b.userDailyCredits, ownKey: ownKey && !!user };
+  return { available, preview: available && !s.enabled && admin && !ownKey, signedIn: !!user, mode: b.mode, features, creditsLeft, creditsPerDay, ownKey: ownKey && !!user };
 }

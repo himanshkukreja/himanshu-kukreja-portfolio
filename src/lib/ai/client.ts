@@ -14,6 +14,7 @@ import { costOf, creditsFor, type Usage } from "./prices";
 import { FEATURES, type FeatureId } from "./features";
 import { featureConfig, getAiSettings } from "./settings";
 import { getBudget, startOfToday, type Mode } from "./governor";
+import { dailyAllowanceUsd } from "./limits";
 
 const API = "https://api.anthropic.com/v1/messages";
 const RATE_PER_MIN = 10;
@@ -131,11 +132,13 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const uid = req.userId!;
     if (await isBlocked(uid)) return refuse("blocked", "AI features are turned off for this account");
     const t = await userToday(uid, req.feature);
-    creditsLeft = Math.max(0, Math.floor((budget.userDailyUsd - t.spent) / 0.001));
+    // an admin may have set this learner's own daily allowance (ai_user_limits)
+    const allowance = (await dailyAllowanceUsd(uid, budget.userDailyUsd)).usd;
+    creditsLeft = Math.max(0, Math.floor((allowance - t.spent) / 0.001));
     if (t.lastMinute >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute");
     if (t.offTopic >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.");
     if (!byok && cfg.perDay && t.featureCalls >= cfg.perDay) return refuse("over_quota", `You've used today's ${cfg.perDay} ${def.label.toLowerCase()} calls. They refill at midnight UTC, or add your own key under You → AI`);
-    if (!byok && t.spent >= budget.userDailyUsd) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
+    if (!byok && t.spent >= allowance) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
   }
 
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up

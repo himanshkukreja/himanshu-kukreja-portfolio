@@ -4,7 +4,7 @@
  * /admin/ai: the switch and budget, the governor's view of this credit cycle, spend by day, feature,
  * model and user, per-feature switches/models/limits, AI blocks, and the full call log.
  */
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { adminJson } from "@/lib/admin/fetch";
 import { Badge, Card, Drawer, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData } from "@/components/admin/ui";
 
@@ -198,6 +198,123 @@ function FeatureTable({ rows, dash, models, settings, onSaved }: { rows: Feature
   );
 }
 
+type LimitRow = { userId: string; email: string | null; dailyCredits: number; note: string | null; updatedAt: string; updatedBy: string | null };
+
+/**
+ * Per-learner daily credits: give one account more (or fewer) credits a day than the shared
+ * allowance. The monthly budget still applies to everyone. 1 credit = $0.001.
+ */
+function UserLimits({ prefill, onChanged }: { prefill: { email: string; key: number } | null; onChanged: () => void }) {
+  const { data, error, loading, refresh } = useAdminData<{ shared: { credits: number; ceiling: number }; limits: LimitRow[] }>("/api/admin/ai/limits");
+  const [email, setEmail] = useState("");
+  const [credits, setCredits] = useState("1000");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const emailRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!prefill) return;
+    const t = window.setTimeout(() => {
+      setEmail(prefill.email);
+      emailRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+      emailRef.current?.focus();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [prefill]);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email.trim()) return;
+    setBusy(true);
+    setMsg(null);
+    try {
+      await adminJson("/api/admin/ai/limits", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ email: email.trim(), dailyCredits: Number(credits), note }) });
+      setMsg({ ok: true, text: `${email.trim()} now gets ${fmtNum(Number(credits))} credits a day.` });
+      setEmail("");
+      setNote("");
+      refresh();
+      onChanged();
+    } catch (err) {
+      setMsg({ ok: false, text: err instanceof Error ? err.message : "Couldn't save." });
+    }
+    setBusy(false);
+  };
+  const remove = async (r: LimitRow) => {
+    await adminJson(`/api/admin/ai/limits?userId=${encodeURIComponent(r.userId)}`, { method: "DELETE" });
+    refresh();
+    onChanged();
+  };
+  const input = "min-h-10 border border-line-strong bg-bg px-2.5 text-sm text-fg placeholder:text-fg-4";
+  return (
+    <Card label="per-learner credits" title="Give a learner their own daily credits" pad={false}>
+      <div className="flex flex-col gap-4 p-4 sm:p-5">
+        <p className="m-0 text-sm text-fg-3">
+          Everyone else gets the shared allowance{data ? <> (today {fmtNum(data.shared.credits)} credits, ceiling {fmtNum(data.shared.ceiling)})</> : null}. A custom number replaces it for that account, higher or lower; 0 stops their AI
+          for the day. The monthly budget and its slow-down modes still apply. 1 credit = $0.001; changes apply within 30 seconds.
+        </p>
+        <form onSubmit={save} className="flex flex-wrap items-end gap-2">
+          <label className="flex min-w-[220px] flex-[2] flex-col gap-1">
+            <span className={LABEL}>learner email</span>
+            <input ref={emailRef} type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@example.com" className={input} />
+          </label>
+          <label className="flex w-[140px] flex-col gap-1">
+            <span className={LABEL}>credits / day</span>
+            <input type="number" min={0} max={1000000} step={50} required value={credits} onChange={(e) => setCredits(e.target.value)} className={`${input} font-mono`} />
+          </label>
+          <label className="flex min-w-[180px] flex-[1] flex-col gap-1">
+            <span className={LABEL}>note (optional)</span>
+            <input value={note} maxLength={200} onChange={(e) => setNote(e.target.value)} placeholder="beta tester, mentor…" className={input} />
+          </label>
+          <button type="submit" disabled={busy || !email.trim()} className="min-h-10 bg-signal px-4 font-mono text-xs font-semibold text-on-signal disabled:opacity-50">
+            {busy ? "saving…" : "set limit"}
+          </button>
+        </form>
+        {msg && <p className={`m-0 font-mono text-xs ${msg.ok ? "text-ok" : "text-bad-text"}`}>{msg.text}</p>}
+      </div>
+      {error ? (
+        <ErrorState error={error} title="Couldn't load the limits" />
+      ) : (
+        <Table<LimitRow>
+          rowKey={(r) => r.userId}
+          rows={data?.limits ?? []}
+          loading={loading && !data}
+          minWidth={620}
+          initialSort={{ key: "email", dir: "asc" }}
+          empty={<EmptyState title="No custom limits" hint="Every learner gets the shared daily allowance." />}
+          columns={[
+            { key: "email", header: "Learner", sort: (r) => r.email || r.userId, render: (r) => r.email || r.userId.slice(0, 8) },
+            { key: "credits", header: "Credits / day", align: "right", sort: (r) => r.dailyCredits, render: (r) => <span className="font-mono">{fmtNum(r.dailyCredits)}</span> },
+            { key: "note", header: "Note", hideOnPhone: true, render: (r) => <span className="text-fg-3">{r.note || "–"}</span> },
+            { key: "updated", header: "Set", hideOnPhone: true, sort: (r) => r.updatedAt, render: (r) => <span className="text-fg-3" title={r.updatedBy || ""}>{timeAgo(r.updatedAt)}</span> },
+            {
+              key: "actions",
+              header: "",
+              render: (r) => (
+                <span className="flex justify-end gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail(r.email || "");
+                      setCredits(String(r.dailyCredits));
+                      setNote(r.note || "");
+                      emailRef.current?.focus();
+                    }}
+                    className="min-h-8 border border-line-strong px-2 font-mono text-xs text-fg-3 hover:text-fg"
+                  >
+                    edit
+                  </button>
+                  <button type="button" onClick={() => remove(r)} className="min-h-8 border border-line-strong px-2 font-mono text-xs text-fg-3 hover:text-bad">
+                    reset
+                  </button>
+                </span>
+              ),
+            },
+          ]}
+        />
+      )}
+    </Card>
+  );
+}
+
 function TranscriptDrawer({ call, onClose }: { call: Call | null; onClose: () => void }) {
   const { data, loading } = useAdminData<{ transcript: { input: string; output: string | null; created_at: string } | null }>(call ? `/api/admin/ai/transcript?id=${call.id}` : null);
   return (
@@ -291,6 +408,7 @@ function CallLog({ feature, onFeature, user, onUser }: { feature: string; onFeat
 
 export default function AiDashboard() {
   const { data, error, loading, refresh } = useAdminData<Resp>("/api/admin/ai", { refreshMs: 30_000 });
+  const [limitFor, setLimitFor] = useState<{ email: string; key: number } | null>(null);
   const [feature, setFeature] = useState("");
   const [user, setUser] = useState("");
   const block = async (userId: string, blocked: boolean) => {
@@ -344,6 +462,8 @@ export default function AiDashboard() {
 
       {data && d && <FeatureTable rows={data.features} dash={d} models={data.models} settings={data.settings} onSaved={refresh} />}
 
+      <UserLimits prefill={limitFor} onChanged={refresh} />
+
       <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
         <Card label="users" title="Who spends what (this cycle)" pad={false}>
           <Table<Dash["users"][number]>
@@ -360,6 +480,17 @@ export default function AiDashboard() {
               { key: "cost", header: "Cost", align: "right", sort: (r) => Number(r.cost), render: (r) => usd(r.cost, 3) },
               { key: "today", header: "Today", align: "right", sort: (r) => Number(r.today), render: (r) => usd(r.today, 3) },
               { key: "last", header: "Last", hideOnPhone: true, sort: (r) => r.last_at, render: (r) => timeAgo(r.last_at) },
+              {
+                key: "limit",
+                header: "",
+                hideOnPhone: true,
+                render: (r) =>
+                  r.email ? (
+                    <button type="button" onClick={() => setLimitFor({ email: r.email!, key: Date.now() })} className="min-h-8 border border-line-strong px-2 font-mono text-xs text-fg-3 hover:text-fg" title="Set this learner's daily credits">
+                      credits…
+                    </button>
+                  ) : null,
+              },
               {
                 key: "block",
                 header: "",
