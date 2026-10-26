@@ -3,6 +3,8 @@
  * Supports fetching directory listings and file contents
  */
 
+import { contentSnapshot } from './content-snapshot';
+
 const GITHUB_TOKEN = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
 /** Cache tag on every GitHub content fetch (see /api/revalidate-courses). */
 export const SDM_CONTENT_TAG = "sdm-content";
@@ -84,11 +86,43 @@ export function isContentMissing(e: unknown): boolean {
   return code === "ENOENT" || code === "ENOTDIR";
 }
 
+/* ── the repo snapshot (lib/content-snapshot): one API call per instance instead of one per file ── */
+
+const inSnapshot = (path: string) => path === BASE_PATH || path.startsWith(`${BASE_PATH}/`);
+
+/** A directory listing from the snapshot; null = not served from it (fall back to the API). */
+async function snapshotList(path: string): Promise<GitHubFile[] | null> {
+  if (!inSnapshot(path)) return null;
+  const s = await contentSnapshot(REPO_OWNER, REPO_NAME, BRANCH);
+  if (!s) return null;
+  const clean = path.replace(/\/+$/, '');
+  const entry = (rel: string): GitHubFile => {
+    const isDir = s.dirs.has(rel);
+    return { name: rel.split('/').pop() as string, path: rel, sha: '', size: isDir ? 0 : s.files.get(rel)?.length ?? 0, type: isDir ? 'dir' : 'file', download_url: null };
+  };
+  const names = s.dirs.get(clean);
+  if (names) return [...names].sort().map((n) => entry(`${clean}/${n}`));
+  if (s.files.has(clean)) return [entry(clean)];
+  throw new ContentFetchError(`Not found in content snapshot: ${clean}`, 404);
+}
+
+/** A file's text from the snapshot; null = not served from it (fall back to the API). */
+async function snapshotRead(path: string): Promise<string | null> {
+  if (!inSnapshot(path)) return null;
+  const s = await contentSnapshot(REPO_OWNER, REPO_NAME, BRANCH);
+  if (!s) return null;
+  const b = s.files.get(path.replace(/^\/+/, ''));
+  if (!b) throw new ContentFetchError(`Not found in content snapshot: ${path}`, 404);
+  return b.toString('utf8');
+}
+
 /**
  * Fetch file or directory contents from GitHub
  */
 export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
   if (LOCAL_DIR) return readLocalContent(path);
+  const fromSnap = await snapshotList(path);
+  if (fromSnap) return fromSnap;
   const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`;
 
   const headers: Record<string, string> = {
@@ -129,6 +163,8 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
     const nodePath = await import('path');
     return fs.readFile(nodePath.resolve(LOCAL_DIR, path), 'utf8');
   }
+  const fromSnap = await snapshotRead(path);
+  if (fromSnap != null) return fromSnap;
   const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`;
 
   const headers: Record<string, string> = {
