@@ -16,6 +16,7 @@ import { levelIndex, SCORE_LABEL, VERDICT_BLURB, VERDICT_LABEL, VERDICTS, type L
 import { buildFeedbackPrompt, openFeedback } from "@/lib/learn/mock/feedback";
 import { copyText, CLIENT_LABEL, type AskClient } from "@/lib/learn/askAi";
 import { CourseHtml, InlineHtml, LABEL, LevelChip, Stat } from "./ui";
+import BoardPreview from "./BoardPreview";
 
 type Props = {
   mock: MockInterview;
@@ -98,6 +99,7 @@ export default function Debrief(props: Props) {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)] lg:items-start">
         <div className="flex min-w-0 flex-col gap-6">
+          <BoardPreview sketch={run.sketch} notes={run.board} />
           {mock.phases.map((p) => (
             <PhaseReview key={p.id} {...props} phase={p} />
           ))}
