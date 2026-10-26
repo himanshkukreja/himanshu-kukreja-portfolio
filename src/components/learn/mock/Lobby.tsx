@@ -18,6 +18,7 @@ export default function Lobby({
   offer,
   onStart,
   onResume,
+  lecture = null,
 }: {
   mock: MockInterview;
   run: MockRun;
@@ -25,6 +26,8 @@ export default function Lobby({
   offer: boolean;
   onStart: (level: MockLevel) => void;
   onResume: () => void;
+  /** the recorded model interview for this mock, when there is one */
+  lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 }) {
   const [level, setLevel] = useState<MockLevel>(run.level || mock.level);
   // starting over clears the round in progress: ask once
@@ -110,6 +113,21 @@ export default function Lobby({
           </section>
         </div>
       </div>
+
+      {lecture && (
+        <Link href={lecture.href} className="group flex items-center gap-4 border border-line-strong bg-[#0b0b0c] p-4 hover:border-signal sm:gap-5 sm:p-5">
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_28px_rgba(255,107,43,0.45)] transition-transform group-hover:scale-105">
+            <svg viewBox="0 0 24 24" className="h-6 w-6 translate-x-[2px]" fill="currentColor" aria-hidden>
+              <path d="M7 4l13 8-13 8z" />
+            </svg>
+          </span>
+          <span className="flex min-w-0 flex-col gap-1">
+            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">watch it first · a model interview</span>
+            <span className="font-display text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-fg sm:text-[21px]">See this exact round done well: a {lecture.minutes}-minute recorded interview</span>
+            <span className="text-[13px] leading-snug text-fg-3">Two voices, start to finish: how it opens, the clarifying questions, the estimates, the design, the curveballs, the wrap-up. Then try it yourself below.</span>
+          </span>
+        </Link>
+      )}
 
       {/* format */}
       <section aria-labelledby="fmt-h" className="flex flex-col gap-4 border border-line bg-surface p-5 sm:p-6">

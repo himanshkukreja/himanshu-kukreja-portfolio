@@ -41,7 +41,7 @@ const raw = fs.readFileSync(file, "utf8");
 const lec = JSON.parse(raw);
 // same fingerprint as lectureHash() in src/lib/learn/lecture/load.ts
 const SOURCE = crypto.createHash("sha1").update(JSON.stringify(lec)).digest("hex").slice(0, 12);
-const steps = lec.scenes.flatMap((s) => s.steps.map((st, k) => ({ id: `${s.id}-${k}`, say: st.say, pause: st.pause || 0, quizAsk: s.kind === "quiz" && k === 0 })));
+const steps = lec.scenes.flatMap((s) => s.steps.map((st, k) => ({ id: `${s.id}-${k}`, say: st.say, who: st.who, pause: st.pause || 0, quizAsk: s.kind === "quiz" && k === 0 })));
 const GAP = 0.45;
 const QUIZ_WAIT = 3.2; // the video's countdown; the course player waits for an answer instead
 fs.mkdirSync(path.join(OUT, "audio"), { recursive: true });
@@ -69,7 +69,9 @@ const speakable = (t) =>
     .replace(/(\d+)\.(\d+)/g, (_, a, b) => `${a} point ${b.split("").join(" ")}`);
 
 // 1. voice per step (one Kokoro run for all of them), then the pause after it
-const items = steps.map((s) => ({ text: speakable(s.say), out: path.join(OUT, "audio", `${s.id}.raw.wav`) }));
+// mock interview videos: each line in its speaker's voice
+const voiceOf = (s) => (lec.cast && s.who && lec.cast[s.who]?.voice) || undefined;
+const items = steps.map((s) => ({ text: speakable(s.say), out: path.join(OUT, "audio", `${s.id}.raw.wav`), ...(voiceOf(s) ? { voice: voiceOf(s) } : {}) }));
 const itemsFile = path.join(OUT, "items.json");
 const same = fs.existsSync(itemsFile) && fs.readFileSync(itemsFile, "utf8") === JSON.stringify(items) && items.every((x) => fs.existsSync(x.out));
 if (!same) {
@@ -107,9 +109,11 @@ steps.forEach((s, k) => {
   const speak = Math.max(0.5, durations[k] - GAP - s.pause - (s.quizAsk ? QUIZ_WAIT : 0));
   const chars = parts.reduce((a, p) => a + p.length, 0) || 1;
   let at = starts[k];
+  // mock interviews: name the speaker (WebVTT voice span)
+  const who = lec.cast && s.who ? lec.cast[s.who]?.name : null;
   for (const p of parts) {
     const d = (p.length / chars) * speak;
-    cues.push(`${vttTime(at)} --> ${vttTime(at + d)}\n${p}`);
+    cues.push(`${vttTime(at)} --> ${vttTime(at + d)}\n${who ? `<v ${who}>` : ""}${p}`);
     at += d;
   }
 });

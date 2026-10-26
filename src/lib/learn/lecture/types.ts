@@ -6,6 +6,8 @@
 export type Tone = "bad" | "good" | "hot" | "neutral";
 export type LectureStep = {
   say: string;
+  /** mock interview videos: who says this line (the lecture's `cast`) */
+  who?: "interviewer" | "candidate";
   caption?: string;
   highlight?: string[];
   upto?: number;
@@ -39,13 +41,17 @@ export type LectureScene = {
   screens?: { title: string; rows: { text: string; meta?: string; tone?: Tone }[]; toast?: string }[];
   steps: LectureStep[];
 };
+export type CastMember = { name: string; title?: string; voice: string };
+
 export type Lecture = {
   v?: number;
   /** the lecture's id: a side quest's slug, or "<week>--<lesson slug>" for a course lesson (also
    * "problem-bank--<slug>", "low-level-design--<slug>" and "case-files--<story slug>") */
   quest: string;
   /** course lessons, interview problems, LLD and case files: which page this teaches */
-  lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" | "problem" | "lld" | "case" };
+  lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" | "problem" | "lld" | "case" | "interview" };
+  /** mock interview videos: the two people on the call, each with a Kokoro voice */
+  cast?: { interviewer: CastMember; candidate: CastMember };
   title: string;
   summary: string;
   scenes: LectureScene[];

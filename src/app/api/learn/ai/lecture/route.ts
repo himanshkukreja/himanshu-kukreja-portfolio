@@ -7,6 +7,7 @@ import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { buildLectureQa } from "@/lib/ai/lectureQa";
 import { getStorySource } from "@/lib/stories";
+import { fetchMarkdownContent } from "@/lib/github";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,8 +37,11 @@ export async function POST(request: Request) {
   if (!lecture) return NextResponse.json({ error: "Unknown lecture" }, { status: 404 });
   // what the lecture teaches: a course lesson, a side quest, or a case file (a story)
   const story = lecture.lesson?.kind === "case" ? await getStorySource(lecture.lesson.slug).catch(() => null) : null;
+  const mockMd = lecture.lesson?.kind === "interview" ? await fetchMarkdownContent(`resources/mock-interviews/${lecture.lesson.slug}.md`).catch(() => null) : null;
   const quest = story
     ? { resource: { title: story.title }, content: story.body }
+    : mockMd
+    ? { resource: { title: lecture.title }, content: mockMd }
     : await (lecture.lesson ? getLearningResource(lecture.lesson.week, lecture.lesson.slug) : getLearningResource("bonus-problems", slug)).catch(() => null);
   const prev = body.previous && typeof body.previous.q === "string" && typeof body.previous.a === "string" ? { q: body.previous.q, a: body.previous.a } : null;
   const built = buildLectureQa({

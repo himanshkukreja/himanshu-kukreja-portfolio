@@ -72,10 +72,10 @@ for (const s of L.scenes || []) {
   }
 }
 // course lessons have their own ranges (resources/lectures/README.md, "Course lessons")
-const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26] };
+const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80] };
 const kind = L.lesson ? L.lesson.kind : "quest";
 if (L.lesson) {
-  if (!["preview", "lesson", "capstone", "problem", "lld", "case"].includes(L.lesson.kind) || !L.lesson.week || !L.lesson.slug) errs.push("lesson needs week, slug and kind preview|lesson|capstone|problem|lld|case");
+  if (!["preview", "lesson", "capstone", "problem", "lld", "case", "interview"].includes(L.lesson.kind) || !L.lesson.week || !L.lesson.slug) errs.push("lesson needs week, slug and kind preview|lesson|capstone|problem|lld|case|interview");
   if (L.quest !== `${L.lesson.week}--${L.lesson.slug}`) errs.push(`quest must be "${L.lesson.week}--${L.lesson.slug}"`);
 }
 let index = null;
@@ -98,6 +98,13 @@ for (const s of L.scenes || [])
   }
 if (L.lesson && ["problem", "lld"].includes(L.lesson.kind) && (refs < 2 || refs > 5)) warns.push(`${refs} refs (target 2-5)`);
 if (L.lesson && L.lesson.kind === "case" && (refs < 1 || refs > 4)) warns.push(`${refs} refs (target 1-4)`);
+if (L.lesson?.kind === "interview" || L.cast) {
+  const VOICES = /^(af|am|bf|bm)_[a-z]+$/;
+  if (!L.cast?.interviewer?.name || !L.cast?.candidate?.name) errs.push("interview needs cast.interviewer and cast.candidate with name and voice");
+  else for (const r of ["interviewer", "candidate"]) if (!VOICES.test(L.cast[r].voice || "")) errs.push(`cast.${r}.voice must be a Kokoro English voice like am_michael`);
+  if (L.cast && L.cast.interviewer.voice === L.cast.candidate.voice) errs.push("interviewer and candidate need different voices");
+  for (const s of L.scenes || []) for (const [k, st] of s.steps.entries()) if (s.kind !== "quiz" && !["interviewer", "candidate"].includes(st.who)) errs.push(`${s.id}#${k}: who must be interviewer or candidate`);
+}
 if (L.lesson && L.lesson.kind !== "preview" && index && index.findIndex((x) => x.id === L.quest) > 0 && (refs < 2 || refs > 6)) warns.push(`${refs} refs (target 2-6)`);
 if (L.v === 2) {
   const [wMin, wMax, qMin, qMax, sMin, sMax] = RANGES[kind];

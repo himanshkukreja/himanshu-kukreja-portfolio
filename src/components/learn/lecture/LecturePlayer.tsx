@@ -89,10 +89,23 @@ export default function LecturePlayer({ lecture, quest, source, mediaBase, next 
 
 /* ---------- record mode: the exporter drives every frame ---------- */
 
+/** Mock interview videos: "Meera: " before the caption line. */
+const speakerPrefix = (lecture: Lecture, who?: "interviewer" | "candidate") => (lecture.cast && who ? `${lecture.cast[who].name}: ` : "");
+
 /** What the written source is called, for "Read the …" links. */
 function readLabel(lecture: Lecture): string {
   const k = lecture.lesson?.kind;
-  return k === "case" ? "Read the case file" : k === "problem" ? "Read the problem write-up" : k === "lld" ? "Read the LLD article" : k ? "Read the lesson" : "Read the side quest";
+  return k === "case"
+    ? "Read the case file"
+    : k === "problem"
+      ? "Read the problem write-up"
+      : k === "lld"
+        ? "Read the LLD article"
+        : k === "interview"
+          ? "Try this mock interview yourself"
+          : k
+            ? "Read the lesson"
+            : "Read the side quest";
 }
 
 export function LevelBadge({ level }: { level: Level }) {
@@ -584,7 +597,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         interactive
         quiz={cur.s.kind === "quiz" ? ({ picked: answers[cur.s.id] ?? null } satisfies QuizState) : undefined}
         onPick={pick}
-        caption={cc && !ask ? captionAt(cur.st.say, Math.min(1, t / speakingFor)) : null}
+        caption={cc && !ask ? speakerPrefix(lecture, cur.st.who) + captionAt(cur.st.say, Math.min(1, t / speakingFor)) : null}
         extraHighlight={ask && shown?.scene === cur.s.id ? shown.ids : undefined}
         onRef={openRef}
         cover={ask?.cover ?? 0}

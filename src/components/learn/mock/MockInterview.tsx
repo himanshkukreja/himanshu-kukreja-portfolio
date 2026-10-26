@@ -22,7 +22,9 @@ import Debrief from "./Debrief";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 
-export default function MockInterviewRoom({ mock }: { mock: MockInterview }) {
+type LectureCard = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
+
+export default function MockInterviewRoom({ mock, lecture = null }: { mock: MockInterview; lecture?: LectureCard }) {
   const { awardOnce, setFlag, flags, done, hydrated } = useGame();
   const rootRef = useRef<HTMLDivElement>(null);
   const [run, setRun] = useState<MockRun | null>(null);
@@ -238,7 +240,7 @@ export default function MockInterviewRoom({ mock }: { mock: MockInterview }) {
   return (
     <div ref={rootRef} data-mock-root data-mock-screen={run.screen} className="scroll-mt-24">
       <MermaidHydrator rootSelector="[data-mock-root]" />
-      {run.screen === "lobby" && <Lobby mock={mock} run={run} best={completed ? best : null} offer={hydrated && !!done[mockOfferKey(mock.id)]} onStart={start} onResume={resume} />}
+      {run.screen === "lobby" && <Lobby mock={mock} run={run} best={completed ? best : null} offer={hydrated && !!done[mockOfferKey(mock.id)]} onStart={start} onResume={resume} lecture={lecture} />}
       {run.screen === "room" && (
         <Room
           mock={mock}

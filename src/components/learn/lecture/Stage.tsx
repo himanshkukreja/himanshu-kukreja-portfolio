@@ -101,10 +101,14 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         <span className="inline-block h-[0.6cqw] w-[0.6cqw] bg-[#ff6b2b]" />
         {String(cur.scene + 1).padStart(2, "0")} · {s.title}
       </div>
-      {quest && (
-        <div className="absolute right-[3%] top-[4%] z-10 font-mono text-[1cqw] uppercase tracking-[0.12em] text-[#8a8a90]">
-          {quest.code} · {quest.title}
-        </div>
+      {lecture.cast ? (
+        <CallBar cast={lecture.cast} who={st.who} t={t} />
+      ) : (
+        quest && (
+          <div className="absolute right-[3%] top-[4%] z-10 font-mono text-[1cqw] uppercase tracking-[0.12em] text-[#8a8a90]">
+            {quest.code} · {quest.title}
+          </div>
+        )
       )}
 
       <div
@@ -148,6 +152,57 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
       <div className="absolute inset-x-0 bottom-0 h-[0.35cqh] bg-[#1d1d20]">
         <div className="h-full bg-[#ff6b2b]" style={{ width: `${((i + Math.min(1, t / Math.max(dur, 0.1))) / total) * 100}%` }} />
       </div>
+    </div>
+  );
+}
+
+/** Mock interview videos: the two people on the call, the one speaking lit up with a voice meter. */
+function CallBar({ cast, who, t }: { cast: NonNullable<Lecture["cast"]>; who?: "interviewer" | "candidate"; t: number }) {
+  const people = [
+    { key: "interviewer" as const, ...cast.interviewer, role: cast.interviewer.title || "Interviewer" },
+    { key: "candidate" as const, ...cast.candidate, role: cast.candidate.title || "Candidate" },
+  ];
+  return (
+    <div className="absolute right-[3%] top-[3%] z-10 flex gap-[0.8cqw]">
+      {people.map((p) => {
+        const on = who === p.key;
+        const initials = p.name
+          .split(/\s+/)
+          .map((w) => w[0])
+          .join("")
+          .slice(0, 2)
+          .toUpperCase();
+        return (
+          <div
+            key={p.key}
+            className="flex items-center gap-[0.7cqw] border px-[0.8cqw] py-[0.5cqh]"
+            style={{ borderColor: on ? "#ff6b2b" : "#2a2a2e", background: on ? "rgba(255,107,43,0.10)" : "rgba(20,20,22,0.85)", transition: "border-color .25s, background .25s" }}
+          >
+            <span
+              className="grid h-[2.6cqw] w-[2.6cqw] place-items-center rounded-full font-mono text-[1cqw] font-semibold"
+              style={{ background: p.key === "interviewer" ? "#2b2b30" : "#3a2418", color: on ? "#ff8a4c" : "#cfcfd4", boxShadow: on ? "0 0 0 0.18cqw #ff6b2b" : "none" }}
+            >
+              {initials}
+            </span>
+            <span className="flex flex-col leading-tight">
+              <span className="text-[1.05cqw] font-semibold" style={{ color: on ? "#f3f2ee" : "#a3a3a8" }}>
+                {p.name}
+              </span>
+              <span className="font-mono text-[0.8cqw] uppercase tracking-[0.1em] text-[#8a8a90]">{p.role}</span>
+            </span>
+            {/* voice meter: moves while this person speaks */}
+            <span className="flex h-[1.6cqw] items-end gap-[0.18cqw]" aria-hidden>
+              {[0, 1, 2, 3].map((b) => (
+                <span
+                  key={b}
+                  className="w-[0.28cqw]"
+                  style={{ background: on ? "#ff6b2b" : "#3a3a40", height: on ? `${30 + 70 * Math.abs(Math.sin(t * (6 + b * 1.7) + b))}%` : "20%" }}
+                />
+              ))}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
