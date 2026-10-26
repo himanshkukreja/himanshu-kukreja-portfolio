@@ -672,14 +672,14 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
       </div>
 
       <StorySelectionAsk rootRef={contentRef} title={meta.title} slug={meta.slug} />
-      {/* the built-in AI, always at hand while reading (out of the way while read-aloud's controls show) */}
+      {/* the built-in AI, always at hand while reading: stacked above the read-aloud buttons in the corner */}
       {ai?.features["lesson-qa"] && readAloud.state !== "playing" && readAloud.state !== "paused" && (
         <button
           type="button"
           onClick={() => window.dispatchEvent(new Event(ASK_LESSON_EVENT))}
           data-ask-fab
           aria-label="Ask AI about this case file"
-          className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] right-4 z-40 flex h-11 items-center gap-2 bg-signal px-3.5 font-mono text-[12px] font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] transition hover:brightness-110 lg:bottom-6 lg:right-6 lg:h-12 lg:px-4 lg:text-[13px]"
+          className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+152px)] right-4 z-40 flex h-11 items-center gap-2 bg-signal px-3.5 font-mono text-[12px] font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] transition hover:brightness-110 lg:bottom-[84px] lg:right-6 lg:h-12 lg:px-4 lg:text-[13px]"
         >
           <Sparkles className="h-4 w-4" aria-hidden />
           Ask AI<span className="hidden font-normal opacity-80 lg:inline">about this case</span>
