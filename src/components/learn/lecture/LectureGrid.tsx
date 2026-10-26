@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { LectureSummary } from "@/lib/learn/lecture/load";
+import { lectureGroupAnchor, lectureGroupCode } from "@/lib/learn/lecture/types";
 
 /** Lecture cards: poster, length, checkpoints, and how far this learner got (from the player's resume point). */
 export default function LectureGrid({ lectures, mediaBase }: { lectures: LectureSummary[]; mediaBase: string | null }) {
@@ -20,6 +21,13 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
     }, 0);
     return () => window.clearTimeout(id);
   }, [lectures]);
+  // opened with a section anchor (#w04-caching): the page loads at the top, so go there once laid out
+  useEffect(() => {
+    const id = decodeURIComponent(window.location.hash.slice(1));
+    if (!id) return;
+    const t = window.setTimeout(() => document.getElementById(id)?.scrollIntoView({ block: "start" }), 120);
+    return () => window.clearTimeout(t);
+  }, []);
   // one section per week (and one for the side quests), in course order
   const groups: { name: string; items: LectureSummary[] }[] = [];
   for (const l of lectures) {
@@ -30,8 +38,23 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
   let k = -1;
   return (
     <div className="flex flex-col gap-10">
+      {groups.length > 1 && (
+        <nav aria-label="Playlist sections" className="sticky top-[var(--hk-header-h,61px)] z-20 -mx-4 flex gap-1 overflow-x-auto border-b border-line bg-bg/95 px-4 py-2 backdrop-blur sm:mx-0 sm:flex-wrap sm:border sm:px-2">
+          {groups.map((g) => (
+            <a
+              key={g.name}
+              href={`#${lectureGroupAnchor(g.name)}`}
+              title={`${g.name} · ${g.items.length} lecture${g.items.length === 1 ? "" : "s"}`}
+              className="inline-flex min-h-9 shrink-0 items-center gap-1.5 border border-line-strong px-2 font-mono text-xs text-fg-2 hover:border-signal hover:text-fg"
+            >
+              {lectureGroupCode(g.name)}
+              <span className="text-fg-4">{g.items.length}</span>
+            </a>
+          ))}
+        </nav>
+      )}
       {groups.map((g) => (
-        <section key={g.name} className="flex flex-col gap-4">
+        <section key={g.name} id={lectureGroupAnchor(g.name)} className="flex scroll-mt-32 flex-col gap-4">
           <h2 className="m-0 flex items-baseline gap-3 font-mono text-[12px] uppercase tracking-label text-fg-3">
             <span className="text-signal-text">{g.name}</span>
             <span className="text-fg-4">
@@ -57,7 +80,9 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
                           onError={(e) => (e.currentTarget.style.display = "none")}
                         />
                       )}
-                      <span className="absolute left-2 top-2 bg-black/70 px-1.5 py-0.5 font-mono text-[11px] text-signal-text">{l.code}</span>
+                      <span className="absolute left-2 top-2 bg-black/70 px-1.5 py-0.5 font-mono text-[11px] text-signal-text">
+                        <span className="text-[#a3a3a8]">#{k + 1}</span> · {l.code}
+                      </span>
                       <span className="absolute bottom-2 right-2 bg-black/75 px-1.5 py-0.5 font-mono text-[11px] text-[#f3f2ee]">{l.minutes} min</span>
                       <span className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100">
                         <span className="grid h-12 w-12 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_24px_rgba(255,107,43,0.5)]">

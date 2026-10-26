@@ -6,6 +6,7 @@ import { getSheetSummaries } from "@/lib/learn/sheets/load";
 import { getCompanies, getQuestionBank } from "@/lib/learn/prep/load";
 import { listLectures } from "@/lib/learn/lecture/load";
 import PrepHub, { type PracticeData } from "@/components/learn/prep/PrepHub";
+import { lectureGroupAnchor, lectureGroupCode } from "@/lib/learn/lecture/types";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
@@ -47,7 +48,17 @@ export default async function PrepPage() {
     problems: (map?.problems ?? []).map((l) => ({ code: l.code, title: l.title, href: l.href })),
     lld: (map?.lld ?? []).map((l) => ({ code: l.code, title: l.title, href: l.href })),
     sheets: sheets.map((s) => ({ slug: s.slug, code: s.code, title: s.title, href: s.href, diagrams: s.diagrams })),
-    lectures: { count: lectures.length, minutes: lectures.reduce((a, l) => a + l.minutes, 0) },
+    lectures: {
+      count: lectures.length,
+      minutes: lectures.reduce((a, l) => a + l.minutes, 0),
+      first: lectures[0] ? { href: lectures[0].href, title: lectures[0].title } : null,
+      groups: lectures.reduce<{ name: string; anchor: string; code: string; count: number }[]>((out, l) => {
+        const g = out[out.length - 1];
+        if (g && g.name === l.group) g.count++;
+        else out.push({ name: l.group, anchor: lectureGroupAnchor(l.group), code: lectureGroupCode(l.group), count: 1 });
+        return out;
+      }, []),
+    },
   };
   return <PrepHub data={data} />;
 }

@@ -42,14 +42,21 @@ export type LectureScene = {
 export type Lecture = {
   v?: number;
   /** the lecture's id: a side quest's slug, or "<week>--<lesson slug>" for a course lesson (also
-   * "problem-bank--<slug>" and "low-level-design--<slug>" for the interview problems and LLD) */
+   * "problem-bank--<slug>", "low-level-design--<slug>" and "case-files--<story slug>") */
   quest: string;
-  /** course lessons, interview problems and LLD: which page this teaches */
-  lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" | "problem" | "lld" };
+  /** course lessons, interview problems, LLD and case files: which page this teaches */
+  lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" | "problem" | "lld" | "case" };
   title: string;
   summary: string;
   scenes: LectureScene[];
 };
+
+/** The playlist section's anchor: "W04 · Caching" → "w04-caching", "Side quests" → "side-quests". */
+export const lectureGroupAnchor = (group: string) => group.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+
+/** Short code for a playlist section: "W04", "SQ", "PB", "LLD", "CF". */
+export const lectureGroupCode = (group: string) =>
+  /^W\d+/.test(group) ? group.match(/^W\d+/)![0] : group === "Side quests" ? "SQ" : group === "Interview problems" ? "PB" : group === "Low-level design" ? "LLD" : group === "Case files" ? "CF" : group.slice(0, 3).toUpperCase();
 
 /** A course lesson's lecture id (side quests use their slug). */
 export const lessonLectureId = (week: string, slug: string) => `${week}--${slug}`;

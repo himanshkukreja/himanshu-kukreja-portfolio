@@ -12,7 +12,7 @@ export const metadata: Metadata = {
   alternates: { canonical: "/learn/prep/lectures" },
 };
 
-/** /learn/prep/lectures: the playlist of side-quest lectures. */
+/** /learn/prep/lectures: every lecture in sequence (course weeks, side quests, problems, LLD, case files). */
 export default async function LecturesPage() {
   const lectures = await listLectures().catch(() => []);
   const minutes = lectures.reduce((a, l) => a + l.minutes, 0);

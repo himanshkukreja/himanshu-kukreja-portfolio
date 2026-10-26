@@ -41,7 +41,7 @@ export type PracticeData = {
   lld: { code: string; title: string; href: string }[];
   /** side-quest design sheets */
   sheets: { slug: string; code: string; title: string; href: string; diagrams: number }[];
-  lectures: { count: number; minutes: number };
+  lectures: { count: number; minutes: number; first: { href: string; title: string } | null; groups: { name: string; anchor: string; code: string; count: number }[] };
 };
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label";
@@ -129,6 +129,41 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
         </div>
       </header>
 
+      {/* video lectures */}
+      {data.lectures.count > 0 && (
+        <Group id="lectures" kicker="video lectures" title="Watch it, in order" aside="Every lecture in course sequence, then the side quests and the rest.">
+          <Card
+            href="/learn/prep/lectures"
+            icon={PlayCircle}
+            kicker="all lectures"
+            state={`${data.lectures.count} lectures`}
+            title="The whole playlist"
+            pitch="Animated, narrated lectures for the course's lessons, the side quests and more: the idea, where the obvious design breaks, the real one, and what to say. Quiz checkpoints, and ask the AI about any moment."
+            meta={`${Math.floor(data.lectures.minutes / 60)} h ${data.lectures.minutes % 60} min · captions · chapters`}
+            reach={reach("/learn/prep/lectures")}
+            footer={
+              <WorldChips
+                label="jump to"
+                items={data.lectures.groups.map((g) => ({ href: `/learn/prep/lectures#${g.anchor}`, code: g.code, title: `${g.name} · ${g.count} lecture${g.count === 1 ? "" : "s"}` }))}
+                reach={reach}
+              />
+            }
+          />
+          {data.lectures.first && (
+            <Card
+              href={data.lectures.first.href}
+              icon={PlayCircle}
+              kicker="start here"
+              state="lecture 1"
+              title={data.lectures.first.title}
+              pitch="Begin at the first lecture and keep going: each one ends by playing the next, and picks up where you left off."
+              meta="in course order · resumes where you stopped"
+              reach={reach(data.lectures.first.href)}
+            />
+          )}
+        </Group>
+      )}
+
       {/* who's hiring */}
       <Group id="hiring" kicker="who's hiring" title="Prep for a company" aside="What candidates reported, with sources, and the lessons that teach it.">
         <div className="col-span-full flex flex-col gap-4">
@@ -198,18 +233,6 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
             )
           }
         />
-        {data.lectures.count > 0 && (
-          <Card
-            href="/learn/prep/lectures"
-            icon={PlayCircle}
-            kicker="lectures"
-            state={`${data.lectures.count} side quest${data.lectures.count === 1 ? "" : "s"}`}
-            title="Watch the whole design"
-            pitch="Animated, narrated lectures: the scale, the naive design and where it breaks, the real one, and what to say. Quiz checkpoints, and ask the AI about any moment."
-            meta={`about ${Math.round(data.lectures.minutes / data.lectures.count)} min each · captions · chapters`}
-            reach={reach("/learn/prep/lectures")}
-          />
-        )}
         {data.sheets.length > 0 && (
           <Card
             href="/learn/sheets"

@@ -572,7 +572,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     </div>
   );
 
-  const btn = "grid h-10 min-w-10 place-items-center px-2 font-mono text-xs text-fg-2 hover:text-fg";
+  const btn = "grid h-10 min-w-9 shrink-0 place-items-center px-1.5 font-mono text-xs text-fg-2 hover:text-fg sm:min-w-10 sm:px-2";
   return (
     <main className="mx-auto flex max-w-[1360px] flex-col gap-5 px-4 pb-28 pt-6 sm:px-6 sm:pt-10">
       <header className="flex flex-col gap-2">
@@ -660,30 +660,38 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
             <span className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal opacity-0 shadow-[0_0_10px_rgba(255,107,43,0.7)] transition-opacity group-hover:opacity-100" style={{ left: `${(time / Math.max(1, duration)) * 100}%` }} />
           </div>
 
-          <div role="toolbar" aria-label="Lecture controls" className="flex flex-wrap items-center gap-1 border border-line-strong bg-surface px-2 py-1">
-            <button type="button" onClick={toggle} className="h-10 min-w-20 bg-signal px-3 font-mono text-xs font-semibold text-on-signal">
-              {playing ? "❚❚ pause" : time > 0 ? "▶ resume" : "▶ play"}
+          {/* one row at every width: labels shorten and the least-needed buttons drop out on small screens */}
+          <div role="toolbar" aria-label="Lecture controls" className="flex flex-nowrap items-center gap-0.5 border border-line-strong bg-surface px-1 py-1 sm:gap-1 sm:px-2">
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={playing ? "Pause" : time > 0 ? "Resume" : "Play"}
+              className="h-10 min-w-11 shrink-0 bg-signal px-3 font-mono text-xs font-semibold text-on-signal sm:min-w-20"
+            >
+              <span aria-hidden>{playing ? "❚❚" : "▶"}</span>
+              <span aria-hidden className="hidden sm:inline"> {playing ? "pause" : time > 0 ? "resume" : "play"}</span>
             </button>
-            <button type="button" onClick={() => seek(time - 10)} className={btn} aria-label="Back 10 seconds" title="Back 10 s (J)">
+            <button type="button" onClick={() => seek(time - 10)} className={`${btn} !hidden min-[480px]:!grid`} aria-label="Back 10 seconds" title="Back 10 s (J)">
               −10s
             </button>
-            <button type="button" onClick={() => seek(time + 10)} className={btn} aria-label="Forward 10 seconds" title="Forward 10 s (L)">
+            <button type="button" onClick={() => seek(time + 10)} className={`${btn} !hidden min-[480px]:!grid`} aria-label="Forward 10 seconds" title="Forward 10 s (L)">
               +10s
             </button>
-            <span className="px-2 font-mono text-xs tabular-nums text-fg-3">
+            <span className="shrink-0 whitespace-nowrap px-1 font-mono text-[11px] tabular-nums text-fg-3 sm:px-2 sm:text-xs">
               {fmt(time)} / {fmt(duration)}
             </span>
-            <span className="mx-1 hidden min-w-0 truncate font-mono text-xs text-fg-2 md:inline">{cur.s.title}</span>
+            <span className="mx-1 hidden min-w-0 flex-1 truncate font-mono text-xs text-fg-2 xl:inline">{cur.s.title}</span>
             <span className="ml-auto" />
             {ai?.features["lesson-qa"] && (
               <button
                 type="button"
                 onClick={() => (ask ? closeAsk() : openAsk())}
                 aria-pressed={!!ask}
-                className={`h-10 border border-signal px-3 font-mono text-xs ${ask ? "bg-signal text-on-signal" : "text-signal-text hover:bg-signal hover:text-on-signal"}`}
+                className={`h-10 shrink-0 whitespace-nowrap border border-signal px-2 font-mono text-xs sm:px-3 ${ask ? "bg-signal text-on-signal" : "text-signal-text hover:bg-signal hover:text-on-signal"}`}
                 title="Ask AI about this moment (A)"
+                aria-label="Ask AI about this moment"
               >
-                ✦ ask about this
+                ✦ ask<span className="hidden lg:inline"> about this</span>
               </button>
             )}
             <button type="button" onClick={() => setCc((x) => !x)} aria-pressed={cc} className={`${btn} ${cc ? "!text-signal-text" : ""}`} title="Captions (C)">
@@ -694,7 +702,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
                 ♪
               </button>
             )}
-            <select value={rate} onChange={(e) => setRate(Number(e.target.value))} aria-label="Speed" className="h-10 border border-line bg-bg px-1 font-mono text-xs text-fg">
+            <select value={rate} onChange={(e) => setRate(Number(e.target.value))} aria-label="Speed" className="h-10 w-[54px] shrink-0 border border-line bg-bg px-1 font-mono text-xs text-fg sm:w-auto">
               {SPEEDS.map((r) => (
                 <option key={r} value={r}>
                   {r}×
@@ -702,7 +710,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
               ))}
             </select>
             {canPip && (
-              <button type="button" onClick={() => void togglePip()} className={btn} title="Picture in picture" aria-label="Picture in picture">
+              <button type="button" onClick={() => void togglePip()} className={`${btn} !hidden sm:!grid`} title="Picture in picture" aria-label="Picture in picture">
                 ⧉
               </button>
             )}
@@ -763,7 +771,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           )}
           {quest && (
             <Link href={quest.href} className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
-              ← read the full {lecture.lesson ? "lesson" : "quest"}: {quest.title}
+              ← read the full {lecture.lesson?.kind === "case" ? "case file" : lecture.lesson ? "lesson" : "quest"}: {quest.title}
             </Link>
           )}
           <Link href="/learn/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
