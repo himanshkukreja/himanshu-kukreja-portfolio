@@ -6,7 +6,7 @@
  *
  * Every claim is checked against what ships (Oct 2026): course map (src/lib/learn/course.ts: 66 core
  * lessons, 10 bosses, SIDE_QUESTS side quests), video lectures (/learn/prep/lectures: 137 live, so "130+",
- * quiz checkpoints, ask the AI, save offline), the 4 mock interviews (/learn/mock: AI interviewer turns,
+ * quiz checkpoints, ask the AI, save offline), the 8 mock interviews (/learn/mock: AI interviewer turns,
  * dictation, whiteboard, per-phase coach, AI scorecard with a hire / no-hire verdict), design sheets
  * (/learn/sheets: one per side quest, PDF), cheat sheets and revision decks (/learn/cheatsheet,
  * /learn/revise), war stories (/learn/war-stories: 20 stories + war rooms), case files (/stories: 12),
@@ -63,7 +63,7 @@ export function welcomeFirstName(full?: string | null): string | null {
 const STATS: { n: string; label: string }[] = [
   { n: "66", label: "core lessons" },
   { n: "130+", label: "video lectures" },
-  { n: "4", label: "AI mock interviews" },
+  { n: "8", label: "AI mock interviews" },
   { n: "1,000+", label: "quick checks" },
 ];
 const MORE = [`+ ${SIDE_QUESTS} side quests`, "20 war stories", "10 interview bosses", "no paywall"];
@@ -84,7 +84,7 @@ const FEATURES: Feature[] = [
     tag: "mock interviews",
     fresh: true,
     title: "Rehearse with an AI interviewer",
-    body: "Four timed mocks, each an unseen problem with an interviewer who keeps time and throws curveballs. Talk your answer out loud or type it, sketch on a whiteboard, get a coach's note after every phase and a scorecard with a hire / no-hire verdict.",
+    body: "Eight timed mocks, each an unseen problem with an interviewer who keeps time and throws curveballs. Talk your answer out loud or type it, sketch on a whiteboard, get a coach's note after every phase and a scorecard with a hire / no-hire verdict.",
     link: { label: "Start a mock interview", href: WELCOME_LINKS.mock },
   },
   {

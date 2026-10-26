@@ -170,7 +170,9 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
         return null;
       }
     })
-    .filter((m): m is CourseMock => !!m && m.phases > 0);
+    .filter((m): m is CourseMock => !!m && m.phases > 0)
+    // in course order: by the world each mock follows (mock numbers are ids, so later mocks can sit earlier)
+    .sort((a, b) => Number(a.afterCode) - Number(b.afterCode) || a.n - b.n);
   const planRes = resources.find((r) => r.type === "overview");
   const plan = planRes ? lessonOf(planRes) : null;
 
