@@ -783,7 +783,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
             <div className={fs ? "w-[min(100vw,calc(100vh*16/9))]" : "border border-line-strong"}>{stage}</div>
           )}
 
-          <div className={fs ? `absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pb-3 pt-10 transition-opacity duration-300 ${idle && playing && !hover ? "pointer-events-none opacity-0" : "opacity-100"}` : "contents"}>
+          <div className={fs ? `absolute inset-x-0 bottom-0 z-30 bg-gradient-to-t from-black/90 via-black/60 to-transparent px-4 pb-3 pt-10 transition-[opacity,visibility] duration-300 ${idle && playing && !hover ? "pointer-events-none invisible opacity-0" : "visible opacity-100"}` : "contents"}>
           <div
             role="slider"
             tabIndex={0}
@@ -803,6 +803,11 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
               setHover({ x, w: r.width, tm: (x / r.width) * duration });
             }}
             onPointerLeave={() => setHover(null)}
+            onPointerCancel={() => setHover(null)}
+            // a finger has no hover: once it lifts, the preview (which keeps the controls up) goes
+            onPointerUp={(e) => {
+              if (e.pointerType !== "mouse") setHover(null);
+            }}
             onKeyDown={(e) => {
               if (e.key === "ArrowLeft" || e.key === "ArrowRight") e.stopPropagation();
               if (e.key === "ArrowLeft") seek(time - 5);
