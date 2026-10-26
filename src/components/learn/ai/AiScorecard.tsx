@@ -5,6 +5,7 @@
  * candidate wrote (notes, curveball answers, replies to the AI interviewer), quoting their words.
  * Sits beside the self-scored rubric; it doesn't change XP or the verdict you claim.
  */
+import { sketchSummary } from "@/lib/learn/mock/sketch";
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { aiFetch } from "./aiFetch";
@@ -53,7 +54,9 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
       chat: chats[p.id] || [],
     }));
     try {
-      const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases }) });
+      // the whiteboard drawing, as text the grader can read ("API → Payments")
+      const board = [sketchSummary(run.sketch), run.board.trim()].filter(Boolean).join("\n");
+      const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases, board }) });
       const body = (await r.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) setParts(parse(body.text || ""));

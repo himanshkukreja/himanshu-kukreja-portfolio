@@ -190,6 +190,7 @@ export default function MockInterviewRoom({ mock }: { mock: MockInterview }) {
   const setNote = useCallback((pid: string, v: string) => setRun((r) => (r ? { ...r, notes: { ...r.notes, [pid]: v } } : r)), []);
   const setAnswer = useCallback((cid: string, v: string) => setRun((r) => (r ? { ...r, answers: { ...r.answers, [cid]: v } } : r)), []);
   const setBoard = useCallback((v: string) => setRun((r) => (r ? { ...r, board: v } : r)), []);
+  const setSketch = useCallback((v: string) => setRun((r) => (r ? { ...r, sketch: v } : r)), []);
   const setScore = useCallback((sid: string, v: SignalScore | null) => {
     setRun((r) => {
       if (!r || r.claimed) return r;
@@ -254,6 +255,7 @@ export default function MockInterviewRoom({ mock }: { mock: MockInterview }) {
           setNote={setNote}
           setAnswer={setAnswer}
           setBoard={setBoard}
+          setSketch={setSketch}
         />
       )}
       {run.screen === "debrief" && score && facts && (

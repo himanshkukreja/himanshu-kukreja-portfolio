@@ -5,6 +5,7 @@
  * when the prompt is too long for a URL it goes to the clipboard and the client opens with a note.
  * Nothing is sent to this site's server.
  */
+import { sketchSummary } from "./sketch";
 import { askUrl, copyText, MAX_URL, type AskClient } from "@/lib/learn/askAi";
 import { track } from "@/lib/track";
 import { isOffline } from "@/lib/offline/connectivity";
@@ -43,7 +44,9 @@ export function buildFeedbackPrompt(mock: MockInterview, run: MockRun, score: Lo
         lines.push(`Curveball${c.title ? ` (${c.title})` : ""}: ${c.text}`, "My answer:", ...block(run.answers[c.id] || ""));
       });
   });
-  if (run.board.trim()) lines.push("", "My whiteboard (diagram / notes):", ...block(run.board));
+  const drawn = sketchSummary(run.sketch);
+  if (drawn) lines.push("", "My whiteboard diagram (as text):", ...block(drawn));
+  if (run.board.trim()) lines.push("", "My whiteboard notes:", ...block(run.board));
 
   lines.push("", "The rubric interviewers use for this problem. Each signal is tagged with the lowest level at which it is expected; my self-score follows each one:");
   mock.phases.forEach((p) => {

@@ -6,6 +6,7 @@
  * (curveball answers, notes per phase, a shared plain-text whiteboard, Done / Next).
  */
 import AiInterviewer from "@/components/learn/ai/AiInterviewer";
+import dynamic from "next/dynamic";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MockInterview, MockPhase } from "@/lib/learn/mock/types";
 import { mmss } from "@/lib/learn/mock/types";
@@ -13,6 +14,12 @@ import type { MockRun } from "@/lib/learn/mock/store";
 import { firedCurveballs, firstName, pendingOnSubmit, placeholderFor, totalUsed, transcript, type FeedItem } from "@/lib/learn/mock/engine";
 import { words } from "@/lib/learn/mock/score";
 import { Avatar, CourseHtml, InlineHtml, LABEL, Pad } from "./ui";
+
+// the drawing board is a big library: load it only when the whiteboard tab is opened
+const BoardCanvas = dynamic(() => import("./BoardCanvas"), {
+  ssr: false,
+  loading: () => <div className="grid h-[min(560px,68vh)] place-items-center border border-line-strong font-mono text-xs text-fg-3">loading the whiteboard…</div>,
+});
 
 type Props = {
   mock: MockInterview;
@@ -29,6 +36,7 @@ type Props = {
   setNote: (pid: string, v: string) => void;
   setAnswer: (cid: string, v: string) => void;
   setBoard: (v: string) => void;
+  setSketch: (v: string) => void;
 };
 
 export default function Room(props: Props) {
@@ -249,16 +257,7 @@ function Transcript({ mock, run, items, running }: { mock: MockInterview; run: M
 // ---------------------------------------------------------------------------------------------
 // Workspace
 
-const SNIPPETS: { label: string; text: string }[] = [
-  { label: "box", text: "┌──────────┐\n│          │\n└──────────┘\n" },
-  { label: "──▶", text: " ──▶ " },
-  { label: "◀─▶", text: " ◀──▶ " },
-  { label: "▼", text: "\n     │\n     ▼\n" },
-  { label: "[db]", text: "[( db )]" },
-  { label: "[queue]", text: "[|||| queue ]" },
-];
-
-function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote, setAnswer, setBoard }: Props & { phase: MockPhase; items: FeedItem[] }) {
+function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote, setAnswer, setBoard, setSketch }: Props & { phase: MockPhase; items: FeedItem[] }) {
   const [tab, setTab] = useState<"notes" | "board">("notes");
   const latestRef = useRef<HTMLDivElement>(null);
   const wantScroll = useRef(false);
@@ -272,7 +271,6 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
     const el = latestRef.current;
     if (el && el.offsetParent !== null) window.setTimeout(() => el.scrollIntoView({ behavior: "smooth", block: "start" }), 50);
   }, [replied]);
-  const boardRef = useRef<HTMLTextAreaElement>(null);
   const who = firstName(mock.interviewer.name);
   const curveballs = firedCurveballs(phase, run);
   const pending = pendingOnSubmit(mock, run, run.phase);
@@ -284,18 +282,6 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
   const w = words(note);
   const openCurve = curveballs.filter((c) => words(run.answers[c.id] || "") < 5);
 
-  const insert = (text: string) => {
-    const el = boardRef.current;
-    const v = run.board;
-    const a = el ? el.selectionStart : v.length;
-    const b = el ? el.selectionEnd : v.length;
-    setBoard(v.slice(0, a) + text + v.slice(b));
-    window.requestAnimationFrame(() => {
-      if (!el) return;
-      el.focus();
-      el.setSelectionRange(a + text.length, a + text.length);
-    });
-  };
   const done = () => {
     if (pending.length && !run.submitted[phase.id]) wantScroll.current = true;
     onDone();
@@ -375,7 +361,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
               className={`-mb-px min-h-11 border-b-2 px-3.5 font-mono text-[12px] uppercase tracking-label ${tab === k ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
             >
               {label}
-              {k === "board" && run.board.trim() ? " ·" : ""}
+              {k === "board" && (run.board.trim() || (run.sketch && run.sketch.length > 20)) ? " ·" : ""}
             </button>
           ))}
         </div>
@@ -392,21 +378,14 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
           />
         </div>
         <div role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden={tab !== "board"} className="flex flex-col gap-2">
-          <div className="flex flex-wrap gap-1" aria-label="Insert a shape">
-            {SNIPPETS.map((s) => (
-              <button key={s.label} type="button" onClick={() => insert(s.text)} className="min-h-10 border border-line-strong px-2.5 font-mono text-[12px] text-fg-2 hover:border-fg-3 hover:text-fg">
-                {s.label}
-              </button>
-            ))}
-          </div>
+          {tab === "board" && <BoardCanvas value={run.sketch || ""} onChange={setSketch} />}
           <Pad
             id="mock-board"
-            inputRef={boardRef}
-            label="❯ Whiteboard · shared across phases"
+            label="❯ Notes on the board · shared across phases"
             value={run.board}
             onChange={setBoard}
-            rows={16}
-            placeholder={"Boxes and arrows in plain text, e.g.\n\napp ──▶ api ──▶ payments ──▶ [( db )]\n                    │\n                    ▼\n               [|||| queue ] ──▶ workers"}
+            rows={4}
+            placeholder={"Numbers, assumptions, open questions…"}
           />
         </div>
       </div>

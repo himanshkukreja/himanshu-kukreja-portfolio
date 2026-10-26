@@ -16,7 +16,7 @@ type PhaseIn = { id: string; notes?: string; curveballs?: string[]; chat?: { rol
 export async function POST(request: Request) {
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
-  const b = (await request.json().catch(() => ({}))) as { slug?: string; phases?: PhaseIn[] };
+  const b = (await request.json().catch(() => ({}))) as { slug?: string; phases?: PhaseIn[]; board?: string };
   const mock = await getMockInterview(String(b.slug || ""));
   if (!mock) return NextResponse.json({ error: "Unknown interview" }, { status: 404 });
   const given = new Map((Array.isArray(b.phases) ? b.phases : []).map((p) => [p.id, p]));
@@ -29,6 +29,13 @@ export async function POST(request: Request) {
     const pp = promptPhase(p);
     return { title: p.title, rubric: pp.rubric, modelAnswer: pp.modelAnswer, candidate };
   });
+  // the whiteboard (drawing summarised as text, plus its notes) belongs with the design phase
+  const board = String(b.board || "").trim().slice(0, 4000);
+  if (board) {
+    const k = phases.findIndex((p) => /high[- ]level|architecture|design/i.test(p.title));
+    const at = k >= 0 ? k : phases.length - 1;
+    phases[at] = { ...phases[at], candidate: [phases[at].candidate, `Whiteboard:\n${board}`].filter(Boolean).join("\n\n") };
+  }
   if (!phases.some((p) => p.candidate.trim().split(/\s+/).length >= 20)) return NextResponse.json({ error: "Write a bit more in at least one phase first." }, { status: 400 });
 
   const r = await callClaude({

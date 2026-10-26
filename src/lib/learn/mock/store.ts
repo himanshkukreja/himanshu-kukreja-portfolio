@@ -37,6 +37,8 @@ export type MockRun = {
   /** curveball id → answer */
   answers: Record<string, string>;
   board: string;
+  /** the whiteboard drawing (Excalidraw scene JSON); `board` keeps the text notes */
+  sketch?: string;
   /** phase id → hints shown */
   hints: Record<string, number>;
   pauses: number;
@@ -66,6 +68,7 @@ export const freshRun = (version: string, level: MockLevel, keep?: Pick<MockRun,
   notes: {},
   answers: {},
   board: "",
+  sketch: "",
   hints: {},
   pauses: 0,
   scores: {},

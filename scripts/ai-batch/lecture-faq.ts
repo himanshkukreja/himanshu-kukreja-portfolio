@@ -21,24 +21,25 @@ import type { Lecture, LectureScene } from "@/lib/learn/lecture/types";
 
 const CONTENT = process.env.SDM_LOCAL_DIR || path.resolve(process.cwd(), "..", "system-design-mastery");
 const RES = path.join(CONTENT, "resources");
-const LECTURES = path.join(RES, "lectures");
-const OUT = path.join(RES, "lecture-faq");
+// a phase staged for release: LECTURES_DIR=resources/lectures-next FAQ_DIR=resources/lecture-faq-next
+const LECTURES = process.env.LECTURES_DIR || path.join(RES, "lectures");
+const OUT = process.env.FAQ_DIR || path.join(RES, "lecture-faq");
 const STATE = path.join(process.cwd(), "scripts/ai-batch/.state");
 const MODEL = MODELS.opus;
-const MAX_TOKENS = 12000;
+const MAX_TOKENS = 20000;
 const MAX_USD = 6;
 const API = "https://api.anthropic.com/v1/messages/batches";
 const H = { "x-api-key": process.env.ANTHROPIC_API_KEY!, "anthropic-version": "2023-06-01", "content-type": "application/json" };
 
 const SYSTEM = `You write the "Learners often ask here" questions for one interactive system design lecture. The lecture is split into chapters (scenes); the player shows a few questions with ready answers next to the chapter the learner has paused on.
 
-You get the side quest (the full written lesson), its design sheet, and the lecture script, scene by scene with each scene's id.
+You get the written lesson the lecture teaches (a side quest with its design sheet, or a course lesson), and the lecture script, scene by scene with each scene's id.
 
 For every scene listed under "Write FAQs for", write 2 or 3 questions a learner pausing at that chapter would really ask: what confuses people there, "why not just X?", "what if Y fails?", how it connects to an earlier chapter. Make them specific to that chapter, not generic, and don't repeat a question across chapters. For the scenes listed under "At most one", write 1 question or none. Write nothing for checkpoint (quiz) scenes.
 
 Answers:
 - under 90 words, plain friendly English, talking to the learner ("you"); Markdown (bold, short lists, inline code) is fine, but no headings;
-- strictly from the lecture script, the side quest and the design sheet: no outside facts, numbers, products or claims that aren't in them. If the sources don't answer a question, choose another question;
+- strictly from the lecture script and the written lesson (and design sheet, if given): no outside facts, numbers, products or claims that aren't in them. If the sources don't answer a question, choose another question;
 - never give away a checkpoint: an FAQ for a scene that comes before a checkpoint must not answer that checkpoint's question, hint at its correct option or rule its options in or out. Ask about something else there.
 
 Reply with strict JSON only, nothing before or after, no code fences:
@@ -79,21 +80,25 @@ const read = (f: string) => (fs.existsSync(f) ? fs.readFileSync(f, "utf8") : "")
 function jobs(): Job[] {
   return fs
     .readdirSync(LECTURES)
-    .filter((f) => f.endsWith(".json"))
+    .filter((f) => f.endsWith(".json") && f !== "lesson-index.json")
     .sort()
     .map((f) => {
       const slug = f.replace(/\.json$/, "");
       const l = JSON.parse(fs.readFileSync(path.join(LECTURES, f), "utf8")) as Lecture;
+      if (!Array.isArray(l.scenes)) return null;
       const hash = crypto.createHash("sha1").update(JSON.stringify(l)).digest("hex").slice(0, 12);
       const { teach, light } = sceneRoles(l);
+      const source = l.lesson
+        ? [`<lesson>\n${read(path.join(RES, l.lesson.week, `${l.lesson.slug}.md`))}\n</lesson>`]
+        : [`<side_quest>\n${read(path.join(RES, "bonus-problems", `${slug}.md`))}\n</side_quest>`, `<design_sheet>\n${read(path.join(RES, "design-sheets", `${slug}.md`)) || "(none)"}\n</design_sheet>`];
       const prompt = [
-        `<side_quest>\n${read(path.join(RES, "bonus-problems", `${slug}.md`))}\n</side_quest>`,
-        `<design_sheet>\n${read(path.join(RES, "design-sheets", `${slug}.md`)) || "(none)"}\n</design_sheet>`,
+        ...source,
         `<lecture title="${l.title}">\nSummary: ${l.summary}\n\n${l.scenes.map(sceneText).join("\n\n")}\n</lecture>`,
         `Write FAQs for (2 or 3 each): ${teach.join(", ")}\nAt most one: ${light.join(", ") || "(none)"}\nNo FAQ (checkpoints): ${l.scenes.filter((s) => s.kind === "quiz").map((s) => s.id).join(", ") || "(none)"}`,
       ].join("\n\n");
       return { slug, title: l.title, hash, teach, light, prompt };
-    });
+    })
+    .filter((j): j is Job => !!j);
 }
 
 const outFile = (slug: string) => path.join(OUT, `${slug}.json`);
