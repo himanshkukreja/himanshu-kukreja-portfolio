@@ -399,7 +399,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     let raf = 0;
     const tick = () => {
       let tm: number;
-      if (media && audioRef.current) tm = audioRef.current.currentTime;
+      // the recording can stop a few ms short of the duration it lists: its own end is the end too
+      if (media && audioRef.current) tm = audioRef.current.ended ? duration : audioRef.current.currentTime;
       else tm = clockBase.current.time + ((performance.now() - clockBase.current.wall) / 1000) * rate;
       // a quiz's answer step waits for the learner's answer
       const k = stepAt(tm);
