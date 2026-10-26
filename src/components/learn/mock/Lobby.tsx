@@ -27,6 +27,8 @@ export default function Lobby({
   onResume: () => void;
 }) {
   const [level, setLevel] = useState<MockLevel>(run.level || mock.level);
+  // starting over clears the round in progress: ask once
+  const [confirmNew, setConfirmNew] = useState(false);
   const curveballs = mock.phases.reduce((a, p) => a + p.curveballs.length, 0);
   const signals = mock.phases.reduce((a, p) => a + p.rubric.length, 0);
   const num = String(mock.n).padStart(2, "0");
@@ -206,9 +208,23 @@ export default function Lobby({
                   ❯
                 </span>
               </button>
-              <button type="button" onClick={() => onStart(level)} className="min-h-[48px] border border-line-strong px-4 text-sm text-fg hover:border-fg-3">
-                Start a new round (attempt {run.attempt + 1}) at {LEVEL_LABEL[level]}
-              </button>
+              {confirmNew ? (
+                <div className="flex flex-col gap-2.5 border border-bad px-4 py-3">
+                  <span className="text-sm text-fg">Start over at {LEVEL_LABEL[level]}? The round in progress (answers, whiteboard, clock) is cleared.</span>
+                  <div className="flex gap-2">
+                    <button type="button" onClick={() => onStart(level)} className="min-h-11 bg-bad px-4 text-sm font-semibold text-white">
+                      Start over
+                    </button>
+                    <button type="button" onClick={() => setConfirmNew(false)} className="min-h-11 border border-line-strong px-4 text-sm text-fg hover:border-fg-3">
+                      Keep my round
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button type="button" onClick={() => setConfirmNew(true)} className="min-h-[48px] border border-line-strong px-4 text-sm text-fg hover:border-fg-3">
+                  Start over (attempt {run.attempt + 1}) at {LEVEL_LABEL[level]}
+                </button>
+              )}
             </>
           ) : (
             <button type="button" onClick={() => onStart(level)} className="flex min-h-[56px] items-center justify-between gap-3 bg-signal px-5 text-[17px] font-semibold text-on-signal hover:opacity-90">

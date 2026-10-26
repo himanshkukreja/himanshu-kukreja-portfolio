@@ -33,6 +33,8 @@ type Props = {
   onHint: () => void;
   onEnd: () => void;
   onLobby: () => void;
+  /** start this round again from phase 1 (clears this round's answers) */
+  onRestart: () => void;
   setNote: (pid: string, v: string) => void;
   setAnswer: (cid: string, v: string) => void;
   setBoard: (v: string) => void;
@@ -73,7 +75,7 @@ export default function Room(props: Props) {
 // ---------------------------------------------------------------------------------------------
 // Call bar
 
-function CallBar({ mock, run, running, phase, onToggle, onGo, onEnd }: Props & { phase: MockPhase }) {
+function CallBar({ mock, run, running, phase, onToggle, onGo, onEnd, onLobby, onRestart }: Props & { phase: MockPhase }) {
   const [confirmEnd, setConfirmEnd] = useState(false);
   useEffect(() => {
     if (!confirmEnd) return;
@@ -122,6 +124,7 @@ function CallBar({ mock, run, running, phase, onToggle, onGo, onEnd }: Props & {
         >
           {running ? "❚❚" : "▶"}
         </button>
+        <CallMenu onLobby={onLobby} onRestart={onRestart} />
         <button
           type="button"
           onClick={() => (confirmEnd ? onEnd() : setConfirmEnd(true))}
@@ -153,6 +156,88 @@ function CallBar({ mock, run, running, phase, onToggle, onGo, onEnd }: Props & {
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** "⋯" on the call bar: leave for the lobby (the round waits), or restart the round from phase 1. */
+function CallMenu({ onLobby, onRestart }: { onLobby: () => void; onRestart: () => void }) {
+  const [open, setOpen] = useState(false);
+  const [confirm, setConfirm] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    document.addEventListener("pointerdown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("pointerdown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [open]);
+  const item = "flex w-full flex-col items-start gap-0.5 px-3.5 py-2.5 text-left hover:bg-surface-2";
+  return (
+    <div ref={ref} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => {
+          setOpen((o) => !o);
+          setConfirm(false);
+        }}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Call options"
+        className="grid h-11 w-11 place-items-center border border-line-strong font-mono text-base text-fg hover:border-fg-3"
+      >
+        ⋯
+      </button>
+      {open && (
+        <div role="menu" className="absolute right-0 top-[calc(100%+6px)] z-50 flex w-[min(300px,calc(100vw-32px))] flex-col border border-line-strong bg-raised py-1 shadow-[0_12px_32px_rgba(0,0,0,0.5)]">
+          <button
+            type="button"
+            role="menuitem"
+            className={item}
+            onClick={() => {
+              setOpen(false);
+              onLobby();
+            }}
+          >
+            <span className="text-sm text-fg">Leave for the lobby</span>
+            <span className="text-[12px] text-fg-3">The clock pauses; your answers wait for you.</span>
+          </button>
+          {confirm ? (
+            <div className="flex flex-col gap-2 border-t border-line px-3.5 py-3">
+              <span className="text-sm text-fg">Restart from phase 1?</span>
+              <span className="text-[12px] text-fg-3">This round&apos;s answers, whiteboard and clock are cleared. Past results stay.</span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    setConfirm(false);
+                    onRestart();
+                  }}
+                  className="min-h-10 bg-bad px-3 text-sm font-semibold text-white"
+                >
+                  Restart
+                </button>
+                <button type="button" onClick={() => setConfirm(false)} className="min-h-10 border border-line-strong px-3 text-sm text-fg hover:border-fg-3">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button type="button" role="menuitem" className={item} onClick={() => setConfirm(true)}>
+              <span className="text-sm text-fg">Restart the round</span>
+              <span className="text-[12px] text-fg-3">Start again from phase 1 at the same level.</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -377,7 +462,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
             right={<span className="font-mono text-xs text-fg-3">{w} words</span>}
           />
         </div>
-        <div role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden={tab !== "board"} className="flex flex-col gap-2">
+        <div role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden={tab !== "board"} className={tab === "board" ? "flex flex-col gap-2" : "hidden"}>
           {tab === "board" && <BoardCanvas value={run.sketch || ""} onChange={setSketch} />}
           <Pad
             id="mock-board"

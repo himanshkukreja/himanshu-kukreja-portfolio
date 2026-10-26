@@ -252,6 +252,10 @@ export default function MockInterviewRoom({ mock }: { mock: MockInterview }) {
           onHint={hint}
           onEnd={endCall}
           onLobby={toLobby}
+          onRestart={() => {
+            track("play", { game: mock.id, result: "restarted", level: run.level });
+            start(run.level);
+          }}
           setNote={setNote}
           setAnswer={setAnswer}
           setBoard={setBoard}

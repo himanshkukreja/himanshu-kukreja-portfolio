@@ -13,9 +13,11 @@ type El = {
   boundElements?: { id: string; type: string }[] | null;
   startBinding?: { elementId: string } | null;
   endBinding?: { elementId: string } | null;
+  groupIds?: string[];
 };
 
-export type Sketch = { elements: El[] };
+/** elements, plus the icon images the blocks use (file id → Excalidraw file data) */
+export type Sketch = { elements: El[]; files?: Record<string, unknown> };
 
 export function parseSketch(raw: string | undefined | null): Sketch | null {
   if (!raw) return null;
@@ -41,6 +43,12 @@ export function sketchSummary(raw: string | undefined | null): string {
     const e = byId.get(id);
     if (!e) return "";
     if (e.type === "text") return clean(e.text || "");
+    // a block's icon: name it by the labelled shape in its group
+    if (e.type === "image" && e.groupIds?.length) {
+      const g = e.groupIds[e.groupIds.length - 1];
+      const owner = live.find((x) => x.id !== e.id && x.groupIds?.includes(g) && ["rectangle", "ellipse", "diamond"].includes(x.type));
+      if (owner) return label(owner.id);
+    }
     const t = (e.boundElements || []).map((b) => byId.get(b.id)).find((x) => x?.type === "text");
     return t ? clean(t.text || "") : `(${e.type})`;
   };
