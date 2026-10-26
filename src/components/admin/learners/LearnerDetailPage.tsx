@@ -244,6 +244,9 @@ function Actions({ id, email, onReset }: { id: string; email: string; onReset: (
         <button type="button" onClick={() => download("csv")} disabled={!!busy} className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-50">
           {busy === "csv" ? "…" : "↓ csv"}
         </button>
+        <Link href={`/admin/journeys/person/${encodeURIComponent(id)}`} className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-xs text-fg-2 hover:bg-surface-2 hover:text-fg">
+          journey + replays →
+        </Link>
         <button type="button" onClick={onReset} className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg-2 hover:border-bad hover:text-bad-text">
           reset…
         </button>
@@ -503,6 +506,52 @@ function TimelineCard({ items }: { items: TimelineItem[] }) {
   );
 }
 
+type SessionPage = Extract<TimelineItem, { kind: "session" }>["pages"][number];
+
+const fmtSecs = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s` : `${s}s`);
+
+/** The session's pages in order: time open, scroll depth and what happened there. */
+function SessionPages({ pages }: { pages: SessionPage[] }) {
+  const [all, setAll] = useState(false);
+  const shown = all ? pages : pages.slice(0, 6);
+  return (
+    <ol className="m-0 mt-1 flex list-none flex-col gap-1 p-0">
+      {shown.map((p, i) => (
+        <li key={i} className="min-w-0 text-xs text-fg-2">
+          <div className="flex min-w-0 items-baseline gap-2">
+            <span className="shrink-0 font-mono text-[10px] text-fg-4">{new Date(p.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false })}</span>
+            <span className="min-w-0 truncate" title={p.path}>
+              {p.title}
+            </span>
+            {(p.secs != null || p.depth != null) && (
+              <span className="ml-auto shrink-0 font-mono text-[10px] text-fg-3">
+                {p.secs != null ? fmtSecs(p.secs) : ""}
+                {p.depth != null ? ` · ${p.depth}%` : ""}
+              </span>
+            )}
+          </div>
+          {p.actions && p.actions.length > 0 && (
+            <div className="mt-0.5 flex flex-wrap gap-1 pl-10">
+              {p.actions.map((a, k) => (
+                <span key={k} className="border border-line px-1 font-mono text-[10px] text-fg-3">
+                  {a}
+                </span>
+              ))}
+            </div>
+          )}
+        </li>
+      ))}
+      {pages.length > 6 && (
+        <li>
+          <button type="button" onClick={() => setAll((x) => !x)} className="min-h-8 font-mono text-[11px] text-signal-text underline underline-offset-4">
+            {all ? "show fewer" : `show all ${pages.length} pages`}
+          </button>
+        </li>
+      )}
+    </ol>
+  );
+}
+
 function TimelineRow({ t }: { t: TimelineItem }) {
   const time = new Date(t.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false });
   const glyph = (
@@ -518,16 +567,7 @@ function TimelineRow({ t }: { t: TimelineItem }) {
           Session · {t.minutes < 1 ? "<1" : Math.round(t.minutes)} min · {t.pages.length} page{t.pages.length === 1 ? "" : "s"}
         </div>
         <div className="font-mono text-[11px] text-fg-3">{[t.device, [t.city, t.country].filter(Boolean).join(", ")].filter(Boolean).join(" · ")}</div>
-        {t.pages.length > 0 && (
-          <ul className="mt-1 flex flex-col gap-0.5">
-            {t.pages.slice(0, 6).map((p, i) => (
-              <li key={i} className="truncate text-xs text-fg-2" title={p.path}>
-                <span className="font-mono text-[10px] text-fg-4">{new Date(p.at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: false })}</span> {p.title}
-              </li>
-            ))}
-            {t.pages.length > 6 && <li className="font-mono text-[11px] text-fg-4">+{t.pages.length - 6} more</li>}
-          </ul>
-        )}
+        {t.pages.length > 0 && <SessionPages pages={t.pages} />}
       </>
     );
   } else if (t.kind === "started" || t.kind === "completed") {

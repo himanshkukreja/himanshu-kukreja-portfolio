@@ -138,8 +138,11 @@ function schedulePosthog() {
 function loadPosthog(): Promise<PostHog | null> {
   if (!posthogEnabled()) return Promise.resolve(null);
   if (phLoading) return phLoading;
-  phLoading = import("posthog-js")
-    .then(({ default: posthog }) => {
+  // The replay recorder ships in the same chunk: posthog-js would otherwise fetch it as a second
+  // script after its remote config arrives, and visits that end (or whose fetch fails) before then
+  // were never recorded.
+  phLoading = Promise.all([import("posthog-js"), import("posthog-js/dist/posthog-recorder")])
+    .then(([{ default: posthog }]) => {
       posthog.init(POSTHOG_KEY, {
         api_host: POSTHOG_PROXY_PATH,
         ui_host: POSTHOG_UI_HOST,
@@ -165,6 +168,15 @@ function loadPosthog(): Promise<PostHog | null> {
         before_send: beforeSend,
       });
       ph = posthog;
+      // Record from the start, without waiting for the remote config to switch replay on (the
+      // project records every session anyway: no sampling, triggers or linked flag)
+      if (!isAdminPath(currentPath()) && allowed()) {
+        try {
+          posthog.startSessionRecording(true);
+        } catch {
+          /* ignore */
+        }
+      }
       syncGates(currentPath());
       applyContext();
       if (pendingEvents().length) scheduleFlush(2000);

@@ -178,7 +178,8 @@ export type TimelineItem =
       device: string | null;
       country: string | null;
       city: string | null;
-      pages: { path: string; title: string; at: string }[];
+      /** every page view, in order: how long it was open, how far it was scrolled, what happened on it */
+      pages: { path: string; title: string; at: string; secs?: number; depth?: number; actions?: string[] }[];
     }
   | { kind: "started" | "completed"; at: string; week: string; lesson: string; title: string }
   | { kind: "mcq"; at: string; title: string; answered: number }

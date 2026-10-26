@@ -132,13 +132,46 @@ export async function getLearnerDetail(userId: string, tz: string): Promise<Lear
   sessionsOf(u.events).forEach((s) => {
     const first = s[0];
     const last = s[s.length - 1];
-    const pages: { path: string; title: string; at: string }[] = [];
+    const pages: { path: string; title: string; at: string; secs?: number; depth?: number; actions?: string[] }[] = [];
+    // page_leave rows (time open, scroll depth) and in-page events point at their view by metadata.pv
+    const byView = new Map<string, (typeof pages)[number]>();
     s.forEach((e) => {
       if (e.event_type !== "page_view" || !e.page_path) return;
       const l = eventLesson(e);
       const title = l ? `${lessonTag(idx, l.week, l.slug)} · ${lessonTitle(idx, l.week, l.slug)}` : e.page_title?.replace(/\s*\|.*$/, "") || e.page_path;
-      if (pages.length && pages[pages.length - 1].path === e.page_path) return;
-      pages.push({ path: e.page_path, title, at: e.created_at });
+      const pv = String(e.metadata?.pv || "");
+      const prev = pages[pages.length - 1];
+      if (prev && prev.path === e.page_path) {
+        if (pv) byView.set(pv, prev);
+        return;
+      }
+      const page = { path: e.page_path, title, at: e.created_at };
+      pages.push(page);
+      if (pv) byView.set(pv, page);
+    });
+    s.forEach((e) => {
+      const page = byView.get(String(e.metadata?.pv || ""));
+      if (!page) return;
+      if (e.event_type === "page_leave") {
+        page.secs = Math.max(page.secs || 0, Math.round((Number(e.duration) || 0) / 1000));
+        const d = Number(e.metadata?.depth);
+        if (Number.isFinite(d)) page.depth = Math.max(page.depth || 0, d);
+        return;
+      }
+      const name = eventName(e);
+      if (!name || name === "lesson_open") return;
+      const m = e.metadata || {};
+      const label =
+        name === "quiz_answer"
+          ? `quiz Q${Number(m.q ?? 0) + 1}${m.correct === true ? " ✓" : m.correct === false ? " ✗" : ""}${m.first === false ? " (retry)" : ""}`
+          : name === "stage_done"
+            ? `finished ${m.stage}`
+            : name === "stage_reach"
+              ? `reached ${m.stage}`
+              : name === "play"
+                ? `${String(m.game || "game").replace(/^arena:/, "")} ${m.result || ""}${m.score != null ? ` · ${m.score}` : ""}`.trim()
+                : name;
+      page.actions = [...(page.actions || []), label].slice(-12);
     });
     const ua = parseUA(first.user_agent);
     timeline.push({
