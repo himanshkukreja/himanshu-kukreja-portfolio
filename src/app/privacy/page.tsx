@@ -47,7 +47,7 @@ export default function PrivacyPage() {
       <div className="flex flex-col gap-2">
         <AnalyticsOptOut />
         <p className="font-mono text-[11px] leading-relaxed text-fg-4">
-          Stored in this browser only. Do Not Track and Global Privacy Control are honoured automatically.
+          Stored in this browser only. Global Privacy Control is honoured automatically. Do Not Track is not: it is a retired browser setting with no agreed meaning, so use the switch above instead.
         </p>
       </div>
 
@@ -104,7 +104,7 @@ export default function PrivacyPage() {
       <Section id="choices" label="04 · your choices" title="Opting out and deleting data">
         <ul>
           <li>Use the switch at the top of this page (or &quot;opt out&quot; in the footer). It stops all three analytics tools in this browser.</li>
-          <li>Turn on Do Not Track or Global Privacy Control in your browser: the site then sends nothing to PostHog or Google.</li>
+          <li>Turn on Global Privacy Control in your browser (built into Brave and Firefox, or an extension elsewhere): the site then sends nothing to PostHog or Google. The older Do Not Track setting doesn&apos;t switch analytics off; use the switch above.</li>
           <li>
             Reset your learning progress any time from <Link href="/learn/dashboard" className="text-fg underline underline-offset-4">your progress page</Link>.
           </li>

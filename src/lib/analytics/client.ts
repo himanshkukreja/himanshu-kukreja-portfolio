@@ -12,7 +12,7 @@
  *     into /admin, PostHog drops every event in before_send and pauses replay, GA is disabled
  *     with the official `ga-disable-<id>` flag before the navigation commits;
  *   - with localStorage hk.notrack=1 (admin "Exclude my visits", visitor opt-out on /privacy);
- *   - with Do Not Track or Global Privacy Control on.
+ *   - with Global Privacy Control on (Do Not Track is not treated as an opt-out).
  *
  * PostHog talks to /hkr (first-party proxy, see next.config.ts) so ad blockers don't drop it.
  * GA cannot be proxied without server-side GTM, so it is blockable by design.
@@ -45,9 +45,9 @@ export const isAdminPath = (p: string) => p === "/admin" || p.startsWith("/admin
 
 export function privacySignal(): boolean {
   if (!isBrowser()) return false;
-  const nav = navigator as Navigator & { globalPrivacyControl?: boolean; msDoNotTrack?: string };
-  const w = window as Window & { doNotTrack?: string };
-  return nav.globalPrivacyControl === true || nav.doNotTrack === "1" || nav.doNotTrack === "yes" || w.doNotTrack === "1" || nav.msDoNotTrack === "1";
+  // Global Privacy Control only: it is a legal opt-out signal in several places. Do Not Track is
+  // deprecated and carries no legal meaning, so it no longer switches analytics off.
+  return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
 }
 
 export function isOptedOut(): boolean {
@@ -154,7 +154,8 @@ function loadPosthog(): Promise<PostHog | null> {
         capture_heatmaps: { flush_interval_milliseconds: 5000 },
         // Every visitor gets a person profile so anonymous journeys show up in /admin/journeys.
         person_profiles: "always",
-        respect_dnt: true,
+        // GPC is checked above (privacySignal); Do Not Track alone doesn't turn analytics off
+        respect_dnt: false,
         disable_session_recording: false,
         session_recording: {
           maskAllInputs: true,
@@ -197,7 +198,7 @@ function loadGa() {
     (w.dataLayer as unknown[]).push(arguments);
   };
   w[`ga-disable-${GA_ID}`] = false;
-  // Consent Mode v2 defaults: analytics allowed (we only get here without DNT/GPC/opt-out),
+  // Consent Mode v2 defaults: analytics allowed (we only get here without GPC or an opt-out),
   // everything advertising-related denied.
   gtag("consent", "default", {
     analytics_storage: privacySignal() ? "denied" : "granted",

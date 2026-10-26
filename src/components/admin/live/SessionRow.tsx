@@ -133,7 +133,7 @@ export default function SessionRow({
                 {watching ? "■ close" : `▶ watch · ${clock(s.recording.duration)}`}
               </button>
             ) : (
-              <span className="inline-flex min-h-10 items-center border border-dashed border-line-strong px-3 font-mono text-[11px] text-fg-4" title="PostHog didn't record a replay for this session (too short, Do Not Track, or not sampled)">
+              <span className="inline-flex min-h-10 items-center border border-dashed border-line-strong px-3 font-mono text-[11px] text-fg-4" title="PostHog didn't record a replay for this session (too short, Global Privacy Control, or not sampled)">
                 no replay
               </span>
             )}

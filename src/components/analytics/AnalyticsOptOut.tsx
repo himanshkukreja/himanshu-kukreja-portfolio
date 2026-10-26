@@ -13,7 +13,7 @@ const subscribe = (cb: () => void) => {
   };
 };
 
-/** "out" | "signal" (DNT/GPC on: third parties off, first-party anonymous) | "in"; null on the server. */
+/** "out" | "signal" (GPC on: third parties off, first-party anonymous) | "in"; null on the server. */
 function useOptState(): "out" | "signal" | "in" | null {
   return useSyncExternalStore(
     subscribe,
@@ -36,7 +36,7 @@ export default function AnalyticsOptOut({ compact = false }: { compact?: boolean
     state == null
       ? "…"
       : state === "signal"
-        ? "limited · Do Not Track / GPC: no PostHog or Google, first-party stats without ids"
+        ? "limited · Global Privacy Control: no PostHog or Google, first-party stats without ids"
         : on
           ? `on · ${what}`
           : "off for this browser";

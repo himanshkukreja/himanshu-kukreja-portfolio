@@ -15,7 +15,7 @@
  *   and as a heartbeat every 30 s while engaged. The server upserts one row per view, so
  *   heartbeats never double count.
  * - product events are batched (flush after 1.5 s or at 20 items).
- * - privacy: GPC / DNT → ephemeral ids (nothing persisted); localStorage `hk.notrack=1` → nothing
+ * - privacy: GPC → ephemeral ids (nothing persisted); localStorage `hk.notrack=1` → nothing
  *   is sent at all; /admin is never tracked. Signed-in users send their access token, which the
  *   server verifies — a client-side user id is never trusted.
  */
@@ -99,9 +99,9 @@ function safeSet(store: Storage | undefined, key: string, value: string) {
 }
 
 function privacySignal(): boolean {
-  const nav = navigator as Navigator & { globalPrivacyControl?: boolean; msDoNotTrack?: string };
-  const w = window as Window & { doNotTrack?: string };
-  return nav.globalPrivacyControl === true || nav.doNotTrack === "1" || nav.doNotTrack === "yes" || w.doNotTrack === "1" || nav.msDoNotTrack === "1";
+  // Global Privacy Control only: it is a legal opt-out signal in several places. Do Not Track is
+  // deprecated and carries no legal meaning, so it no longer switches analytics off.
+  return (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
 }
 
 export function isNoTrack(): boolean {

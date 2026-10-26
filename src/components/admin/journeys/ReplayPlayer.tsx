@@ -137,7 +137,7 @@ function EmbedPlayer({ id, reason, fill, onClose }: { id: string; reason: string
           <span className="font-mono text-xs text-fg-3">$ replay → 404</span>
           <p className="text-sm font-semibold text-fg">No recording for this session</p>
           <p className="max-w-prose text-sm text-fg-3">
-            PostHog skips very short sessions (minimum duration), sessions from browsers with Do Not Track, and anything older than the replay retention (30 days on
+            PostHog skips very short sessions (minimum duration), sessions from browsers with Global Privacy Control, and anything older than the replay retention (30 days on
             the free plan).
           </p>
         </div>
