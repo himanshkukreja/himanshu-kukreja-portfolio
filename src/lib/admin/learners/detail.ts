@@ -4,6 +4,7 @@ import { parseUA } from "@/lib/analytics/ua";
 import { lessonTitle, lessonTag } from "./course";
 import { buildModel, cappedTime, dayKey, eventLesson, eventName, lastDays, sessionMinutes, sessionsOf, type Model, type UserModel } from "./compute";
 import type { LearnerDetail, MapCell, McqResult, TimelineItem } from "./types";
+import { listLectures } from "@/lib/learn/lecture/load";
 
 const ms = (s: string | null | undefined) => {
   const t = s ? Date.parse(s) : NaN;
@@ -78,6 +79,32 @@ function grade(model: Model, u: UserModel): McqResult[] {
     });
   });
   return out.sort((a, b) => a.week.localeCompare(b.week));
+}
+
+/** Video lectures this learner watched, from their lecture_watch / lecture_complete events. */
+async function lectureWatch(events: UserModel["events"]): Promise<{ lectures: LearnerDetail["lectures"]; lectureMinutes: number }> {
+  const by = new Map<string, { sec: number; pct: number; done: boolean; lastAt: string }>();
+  for (const e of events) {
+    const name = eventName(e);
+    if (name !== "lecture_watch" && name !== "lecture_complete") continue;
+    const m = (e.metadata || {}) as Record<string, unknown>;
+    const id = String(m.quest || "");
+    if (!id) continue;
+    const r = by.get(id) || { sec: 0, pct: 0, done: false, lastAt: e.created_at };
+    if (name === "lecture_watch") {
+      r.sec += Math.max(0, Math.min(600, Number(m.sec) || 0));
+      r.pct = Math.max(r.pct, Math.min(100, Number(m.pct) || 0));
+    } else r.done = true;
+    if (e.created_at > r.lastAt) r.lastAt = e.created_at;
+    by.set(id, r);
+  }
+  if (!by.size) return { lectures: [], lectureMinutes: 0 };
+  const all = await listLectures().catch(() => []);
+  const meta = new Map(all.map((l) => [l.slug, l]));
+  const lectures = [...by.entries()]
+    .map(([id, r]) => ({ id, title: meta.get(id)?.title || id, href: meta.get(id)?.href || `/learn/lectures/${id}`, minutes: Math.round((r.sec / 60) * 10) / 10, pct: r.done ? Math.max(r.pct, 90) : r.pct, done: r.done, lastAt: r.lastAt }))
+    .sort((a, b) => b.lastAt.localeCompare(a.lastAt));
+  return { lectures, lectureMinutes: Math.round(lectures.reduce((a, l) => a + l.minutes, 0)) };
 }
 
 export async function getLearnerDetail(userId: string, tz: string): Promise<LearnerDetail | null> {
@@ -159,7 +186,7 @@ export async function getLearnerDetail(userId: string, tz: string): Promise<Lear
         return;
       }
       const name = eventName(e);
-      if (!name || name === "lesson_open") return;
+      if (!name || name === "lesson_open" || name === "lecture_watch" || name === "lecture_play") return;
       const m = e.metadata || {};
       const label =
         name === "quiz_answer"
@@ -168,7 +195,9 @@ export async function getLearnerDetail(userId: string, tz: string): Promise<Lear
             ? `finished ${m.stage}`
             : name === "stage_reach"
               ? `reached ${m.stage}`
-              : name === "play"
+              : name === "lecture_complete"
+                ? "finished the lecture"
+                : name === "play"
                 ? `${String(m.game || "game").replace(/^arena:/, "")} ${m.result || ""}${m.score != null ? ` · ${m.score}` : ""}`.trim()
                 : name;
       page.actions = [...(page.actions || []), label].slice(-12);
@@ -187,7 +216,8 @@ export async function getLearnerDetail(userId: string, tz: string): Promise<Lear
   });
   u.events.forEach((e) => {
     const name = eventName(e);
-    if (!name || name === "lesson_open" || name === "stage_reach") return;
+    // lecture watch beats and plays are rolled up into the lectures card, not listed one by one
+    if (!name || name === "lesson_open" || name === "stage_reach" || name === "lecture_watch" || name === "lecture_play") return;
     const l = eventLesson(e);
     const m = e.metadata || {};
     const detail =
@@ -337,6 +367,7 @@ export async function getLearnerDetail(userId: string, tz: string): Promise<Lear
     sideQuests,
     calendar,
     timeline: timeline.slice(0, 300),
+    ...(await lectureWatch(u.events)),
     mcq,
     trials,
     notes,

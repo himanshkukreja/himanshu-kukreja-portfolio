@@ -195,6 +195,8 @@ export default function LearnerDetailPage({ id }: { id: string }) {
         </div>
       </div>
 
+      <LecturesCard lectures={data.lectures ?? []} minutes={data.lectureMinutes ?? 0} />
+
       <McqCard mcq={data.mcq} trials={data.trials} />
 
       <NotesCard data={data} />
@@ -606,6 +608,38 @@ function TimelineRow({ t }: { t: TimelineItem }) {
         <div className="min-w-0 flex-1">{body}</div>
       </div>
     </li>
+  );
+}
+
+// ------------------------------------------------------------------ video lectures
+
+function LecturesCard({ lectures, minutes }: { lectures: LearnerDetail["lectures"]; minutes: number }) {
+  const done = lectures.filter((l) => l.done).length;
+  return (
+    <Card label="video lectures" title={lectures.length ? `${fmtMinutes(minutes * 60)} watched · ${done} finished · ${lectures.length - done} in progress` : "No lectures watched"} className="mb-6" pad={false}>
+      {lectures.length === 0 ? (
+        <EmptyState title="Nothing watched yet" hint="Watch time appears once the learner plays a lecture (tracked from 26 Oct 2026)." />
+      ) : (
+        <ul className="m-0 flex list-none flex-col p-0">
+          {lectures.slice(0, 40).map((l) => (
+            <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-4 py-2.5 last:border-b-0">
+              <a href={l.href} target="_blank" rel="noreferrer" className="min-w-0 flex-[1_1_240px] truncate text-[13px] text-fg hover:underline">
+                {l.done && <span className="mr-1 text-signal-text">✓</span>}
+                {l.title}
+              </a>
+              <span className="flex w-[120px] items-center gap-2">
+                <span className="h-1 flex-1 bg-surface-2">
+                  <span className="block h-full bg-signal" style={{ width: `${l.pct}%` }} />
+                </span>
+                <span className="w-9 text-right font-mono text-[11px] text-fg-3">{l.pct}%</span>
+              </span>
+              <span className="w-[70px] text-right font-mono text-[11px] text-fg-2">{l.minutes} min</span>
+              <span className="w-[90px] text-right font-mono text-[11px] text-fg-4">{fmtDate(l.lastAt, true)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
   );
 }
 

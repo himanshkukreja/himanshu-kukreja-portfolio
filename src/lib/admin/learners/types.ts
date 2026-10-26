@@ -199,7 +199,13 @@ export type McqResult = {
   questions: { n: number; part: number; text: string; picked: string; correct: string | null; ok: boolean | null }[];
 };
 
+/** One lecture this learner watched (from lecture_watch / lecture_complete events). */
+export type LectureWatch = { id: string; title: string; href: string; minutes: number; pct: number; done: boolean; lastAt: string };
+
 export type LearnerDetail = {
+  /** video lectures watched, most recent first, and total watch minutes */
+  lectures: LectureWatch[];
+  lectureMinutes: number;
   generatedAt: string;
   tz: string;
   learner: LearnerRow;

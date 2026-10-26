@@ -320,15 +320,32 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   useEffect(() => {
     durRef.current = duration;
   }, [duration]);
+  // watch time: wall-clock seconds while playing in a visible tab, reported in beats with each save
+  const watchedRef = useRef(0);
   const saveProgress = useCallback(
     (ended = false) => {
       const at = timeRef.current;
       const prev = readProgress(flagsRef.current, slug);
-      if (!durRef.current || (!prev && at < 10 && !ended)) return;
-      setFlag(progressKey(slug), nextProgress(prev, at, durRef.current, ended));
+      const sec = Math.round(watchedRef.current);
+      if (!durRef.current || (!prev && at < 10 && !ended && sec < 10)) return;
+      watchedRef.current = 0;
+      const next = nextProgress(prev, at, durRef.current, ended, sec);
+      setFlag(progressKey(slug), next);
+      if (sec >= 3) track("lecture_watch", { quest: slug, sec, at: Math.round(at), dur: Math.round(durRef.current), pct: Math.round((Math.min(at, durRef.current) / Math.max(1, durRef.current)) * 100) });
+      if (next.w && !prev?.w) track("lecture_complete", { quest: slug, dur: Math.round(durRef.current), watched: next.s ?? 0 });
     },
     [slug, setFlag]
   );
+  useEffect(() => {
+    if (!playing) return;
+    let last = Date.now();
+    const id = window.setInterval(() => {
+      const now = Date.now();
+      if (document.visibilityState === "visible") watchedRef.current += Math.min(5, (now - last) / 1000);
+      last = now;
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [playing]);
   // resume on another device: this browser has no position yet, the synced progress does
   useEffect(() => {
     if (!hydrated) return;

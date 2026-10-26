@@ -6,6 +6,7 @@ const SECTIONS = [
   ["overview", "overview"],
   ["map", "map"],
   ["activity", "activity"],
+  ["videos", "videos"],
   ["goals", "goals"],
   ["mastery", "mastery"],
   ["share", "share"],

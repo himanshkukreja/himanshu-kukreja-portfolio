@@ -30,13 +30,14 @@ import PlanCard from "@/components/learn/plan/PlanCard";
 import Mastery from "@/components/learn/progress/Mastery";
 import DataControls from "@/components/learn/progress/DataControls";
 import SectionNav from "@/components/learn/progress/SectionNav";
+import LectureStats, { type LectureLite } from "@/components/learn/progress/LectureStats";
 import Reminders from "@/components/learn/progress/Reminders";
 import ArenaStatsCard from "@/components/learn/arena/ArenaStatsCard";
 import ShareProgress from "@/components/learn/progress/ShareProgress";
 import CertificateEntry from "@/components/learn/certificate/CertificateEntry";
 import { useMockStatus } from "@/lib/learn/mock/store";
 
-export default function DashboardClient({ map }: { map: CourseMap }) {
+export default function DashboardClient({ map, lectures = [] }: { map: CourseMap; lectures?: LectureLite[] }) {
   const d = useProgressData(map);
   const { openAuthModal } = useAuthModal();
   const { cards, ready: cardsReady } = useReviewCards();
@@ -228,6 +229,8 @@ export default function DashboardClient({ map }: { map: CourseMap }) {
       <CourseMapGrid rows={rows} side={map.sideQuests} lessons={lessons} currentWeek={currentWeek} mocks={mocks} />
 
       <Activity days={activity.days} series={series} goalMinutes={d.goal?.unit === "minutes" ? d.goal.perWeek : null} streak={streak} rhythm={rhythmStats} estimated={!timeTracked} log={log} />
+
+      {lectures.length > 0 && <LectureStats lectures={lectures} />}
 
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-6">
         <div className="flex min-w-0 flex-col gap-4">

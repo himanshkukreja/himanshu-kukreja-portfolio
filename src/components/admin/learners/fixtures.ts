@@ -262,6 +262,11 @@ function detail(id: string): LearnerDetail | undefined {
     return { n: p, title: p === 1 ? "Building Blocks" : "Estimation", total: 25, answered: q.length, correct, passed: correct / 25 >= 0.8 };
   });
   return {
+    lectures: [
+      { id: "week-04-caching--day-03-thundering-herd", title: "Thundering herd", href: "/learn/lectures/week-04-caching--day-03-thundering-herd", minutes: 17.5, pct: 100, done: true, lastAt: new Date(Date.now() - 3_600_000).toISOString() },
+      { id: "bonus-01-indian-upi-system", title: "India's UPI", href: "/learn/lectures/bonus-01-indian-upi-system", minutes: 6.2, pct: 41, done: false, lastAt: new Date(Date.now() - 86_400_000).toISOString() },
+    ],
+    lectureMinutes: 24,
     generatedAt: new Date().toISOString(),
     tz: "Asia/Kolkata",
     learner: row,
