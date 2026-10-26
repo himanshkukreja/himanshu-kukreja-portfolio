@@ -66,24 +66,25 @@ const TOC: TocItem[] = [
   { id: "xp-vs-points", label: "XP vs points" },
   { id: "map", n: "01", label: "The course map" },
   { id: "lesson", n: "02", label: "Reading a lesson" },
-  { id: "completion", n: "03", label: "Progress rules" },
-  { id: "notebook", n: "04", label: "Notebook" },
-  { id: "review", n: "05", label: "Review & standup" },
-  { id: "trials", n: "06", label: "Trials & bosses" },
-  { id: "mocks", n: "07", label: "Mock interviews" },
-  { id: "practice", n: "08", label: "Interview prep" },
-  { id: "arena", n: "09", label: "The Arena" },
-  { id: "xp", n: "10", label: "XP, levels, badges" },
-  { id: "progress", n: "11", label: "Progress page" },
-  { id: "share", n: "12", label: "Share your progress" },
-  { id: "certificates", n: "13", label: "Certificates" },
-  { id: "offline", n: "14", label: "Offline reading" },
-  { id: "cases", n: "15", label: "Case files" },
-  { id: "war-stories", n: "16", label: "War stories" },
-  { id: "ai", n: "17", label: "AI in the course" },
-  { id: "account", n: "18", label: "Account & data" },
-  { id: "faq", n: "19", label: "FAQ" },
-  { id: "glossary", n: "20", label: "Glossary" },
+  { id: "lectures", n: "03", label: "Video lectures" },
+  { id: "completion", n: "04", label: "Progress rules" },
+  { id: "notebook", n: "05", label: "Notebook" },
+  { id: "review", n: "06", label: "Review & standup" },
+  { id: "trials", n: "07", label: "Trials & bosses" },
+  { id: "mocks", n: "08", label: "Mock interviews" },
+  { id: "practice", n: "09", label: "Interview prep" },
+  { id: "arena", n: "10", label: "The Arena" },
+  { id: "xp", n: "11", label: "XP, levels, badges" },
+  { id: "progress", n: "12", label: "Progress page" },
+  { id: "share", n: "13", label: "Share your progress" },
+  { id: "certificates", n: "14", label: "Certificates" },
+  { id: "offline", n: "15", label: "Offline reading" },
+  { id: "cases", n: "16", label: "Case files" },
+  { id: "war-stories", n: "17", label: "War stories" },
+  { id: "ai", n: "18", label: "AI in the course" },
+  { id: "account", n: "19", label: "Account & data" },
+  { id: "faq", n: "20", label: "FAQ" },
+  { id: "glossary", n: "21", label: "Glossary" },
 ];
 
 const LOOP = [
@@ -96,7 +97,12 @@ const LOOP = [
 ];
 
 /** `caseActivities`: live count (repo TSX activities + published CMS ones); falls back to the repo count. */
-export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: CourseMap | null; caseActivities?: number }) {
+/** The lecture player's checkpoint reward (LecturePlayer's QUIZ_XP). */
+const LECTURE_QUIZ_XP = 10;
+
+export type GuideLectures = { total: number; minutes: number; parts: string };
+
+export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures = null }: { map: CourseMap | null; caseActivities?: number; lectures?: GuideLectures | null }) {
   const s = map?.stats;
   const trialWeeks = map ? map.weeks.filter((w) => w.trial) : [];
   const lessonsPerWorld = map?.weeks[1] ? map.weeks[1].lessons.length : 6;
@@ -390,8 +396,94 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Where>
           </Section>
 
+          {/* ------------------------------------------------------------ b2) video lectures */}
+          <Section
+            id="lectures"
+            n="03"
+            kicker="video lectures"
+            title="Watch it: an animated lecture for everything"
+            lead="Every lesson in Weeks 0–10, every side quest, interview problem, low-level design article and case file has a narrated, animated lecture: the same ideas, drawn as they are explained."
+          >
+            <div className={PROSE}>
+              <p>
+                {lectures ? (
+                  <>
+                    There are <strong>{lectures.total} lectures</strong> ({lectures.parts}), about {Math.round(lectures.minutes / 60)} hours in all.
+                  </>
+                ) : (
+                  <>Every piece of content has one.</>
+                )}{" "}
+                Diagrams build up while the narration explains them, requests travel through them, and the numbers, timelines and phone screens appear as they are mentioned. Each lecture ends by linking to the next one in order,
+                and the lectures link back to the earlier lessons they build on (the <strong>↩ recall</strong> chips).
+              </p>
+            </div>
+            <Sub>Where to find them</Sub>
+            <Steps
+              items={[
+                { title: "On the page you are reading", body: "A \u201cwatch it first\u201d card at the top of a lesson, side quest, problem, LLD article or case file opens its lecture." },
+                {
+                  title: "The playlist",
+                  body: (
+                    <>
+                      <A href="/learn/prep/lectures">Prep → Video lectures</A> lists every lecture in course order, then the side quests, interview problems, low-level design and case files. The sidebar (a menu on phones) jumps to any
+                      week or track.
+                    </>
+                  ),
+                },
+                { title: "Back to the text", body: "Arrived from the playlist? The button under the lecture's title opens the lesson, side quest, problem, LLD article or case file it teaches." },
+              ]}
+            />
+            <Sub>The player</Sub>
+            <Table
+              caption="Controls (keyboard in brackets)"
+              head={["Control", "What it does"]}
+              rows={[
+                ["Chapters", "Jump to any part from the list beside the video; hover the progress bar to preview a moment"],
+                ["Captions (C)", "On or off; the voice is matched word for word"],
+                ["Speed (< >)", "0.75× to 2×"],
+                ["Picture-in-picture", "Keep watching in a small window while you read or code (desktop browsers)"],
+                ["Full screen (F)", "The controls hide after a few seconds"],
+                ["Play (space), step (← →), 10 s (J L)", "Keyboard control without leaving the page"],
+              ]}
+            />
+            <Sub>Checkpoints, questions and answers</Sub>
+            <div className={PROSE}>
+              <p>
+                <strong>Quiz checkpoints</strong> pause the lecture and ask about what was just shown; a right answer earns <strong>+{LECTURE_QUIZ_XP} XP</strong> (once per question). <strong>Ask the AI about this moment</strong>{" "}
+                (A) answers with the lecture&apos;s current chapter in front of it, and can point you to a chapter or show you a step. Under each chapter, <strong>learners often ask here</strong> has the common questions already
+                answered.
+              </p>
+            </div>
+            <Sub>Progress and difficulty</Sub>
+            <div className={PROSE}>
+              <p>
+                The playlist shows how much you have watched overall and in each week or track, <strong>continue watching</strong> for lectures you started (or what comes next), and a <strong>✓ watched</strong> mark once you reach
+                90% of a lecture. A lecture resumes where you stopped; signed in, that follows you to other devices. Every lecture carries a difficulty tag:
+              </p>
+            </div>
+            <Table
+              caption="Difficulty tags"
+              head={["Tag", "Means"]}
+              rows={[
+                ["Beginner", "Week 0, the foundations"],
+                ["Intermediate", "Weeks 1–4, and problems or articles marked medium"],
+                ["Advanced", "Weeks 5–10, the first capstones, and problems or articles marked hard"],
+                ["Expert", "The later capstones, and problems or articles marked expert"],
+              ]}
+            />
+            <Note title="Recorded mock interviews">
+              <p>
+                Some mock interviews also come as a recorded round: a 40–50 minute call between the interviewer and a strong candidate, in two voices, from the greeting and the clarifying questions to the curveballs and the wrap-up.
+                The mock&apos;s lobby shows it as &ldquo;watch it first&rdquo;; watch it, then sit the same round yourself.
+              </p>
+            </Note>
+            <Where>
+              <A href="/learn/prep/lectures">the playlist</A>; the &ldquo;watch it first&rdquo; card at the top of any lesson; a mock interview&apos;s lobby.
+            </Where>
+          </Section>
+
           {/* ------------------------------------------------------------ c) completion */}
-          <Section id="completion" n="03" kicker="progress & completion" title="How a lesson counts as done" lead="Progress is earned by actually reading, not by scrolling to the bottom. Here are the rules in plain words.">
+          <Section id="completion" n="04" kicker="progress & completion" title="How a lesson counts as done" lead="Progress is earned by actually reading, not by scrolling to the bottom. Here are the rules in plain words.">
             <Steps
               items={[
                 {
@@ -458,7 +550,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ d) notebook */}
           <Section
             id="notebook"
-            n="04"
+            n="05"
             kicker="highlights, notes & bookmarks"
             title="Select text, keep it in your Notebook"
             lead="Select any sentence in a lesson (long-press on a phone) and a toolbar appears. Everything you save lands in the Notebook, grouped by lesson."
@@ -501,7 +593,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ e) review */}
           <Section
             id="review"
-            n="05"
+            n="06"
             kicker="review queue & daily standup"
             title="The daily standup brings back what you missed"
             lead="A few minutes a day on cards made from your own mistakes. Cards you know come back less and less often; cards you don't come back tomorrow."
@@ -538,7 +630,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ f) trials & bosses */}
-          <Section id="trials" n="06" kicker="trials & boss fights" title="Prove it: trials and bosses" lead="Two ways a world tests you. Trials check what you remember; the boss checks whether you can design under interview pressure.">
+          <Section id="trials" n="07" kicker="trials & boss fights" title="Prove it: trials and bosses" lead="Two ways a world tests you. Trials check what you remember; the boss checks whether you can design under interview pressure.">
             <Shot id="trial-hub" />
             <div className={PROSE}>
               <p>
@@ -577,7 +669,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ g0) mock interviews */}
           <Section
             id="mocks"
-            n="07"
+            n="08"
             kicker="mock interviews"
             title="Mock interviews: the real loop, between worlds"
             lead="Every few worlds the course stops teaching and interviews you: an unseen problem, a fictional company, a named interviewer and one clock."
@@ -619,8 +711,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
                 { title: "Join the call", body: "One clock starts. The bar at the top shows the phase clock, the total clock and a strip with every phase's budget. It runs over budget, never out; pausing is allowed but counted." },
                 {
                   title: "Work through the phases",
-                  body: "Clarify requirements, estimates, API and data model, high-level design, deep dives, trade-offs, wrap-up. Write in the answer box; draw boxes and arrows on the shared whiteboard tab. Everything autosaves in this browser.",
+                  body: "Clarify requirements, estimates, API and data model, high-level design, deep dives, trade-offs, wrap-up. Write in the answer box; draw the design on the whiteboard tab. Everything autosaves in this browser.",
                 },
+                {
+                  title: "The whiteboard",
+                  body: "A real diagram canvas: building blocks with icons (client, load balancer, API service, database, cache, queue, CDN and more) drop in with a click, a logo picker adds any technology (Redis, Kafka, PostgreSQL…), and custom blocks (your name, shape, colour and icon) can be kept for next time. Arrows drawn from one block to another stay attached; full screen gives it the whole window.",
+                },
+                { title: "Leave or restart", body: "The \u22ef menu on the call bar leaves for the lobby (the clock pauses, your answers wait) or restarts the round from phase 1 after asking you to confirm." },
                 {
                   title: "The interviewer talks back",
                   body: "Follow-ups arrive at set times in a phase; pressing Done can trigger a reply (the answers to your clarifying questions, for example) before you move on. The interviewer also keeps time and nudges you along.",
@@ -632,7 +729,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             <Sub>The debrief and your verdict</Sub>
             <div className={PROSE}>
               <p>
-                When the call ends you see what happened (time used, phases over budget, curveballs answered, hints), then each phase: what you wrote, the <strong>model answer</strong> behind a reveal button, and the rubric. Every rubric
+                When the call ends you see what happened (time used, phases over budget, curveballs answered, hints), <strong>your whiteboard</strong> as a picture with its boxes and arrows written out, then each phase: what you wrote, the <strong>model answer</strong> behind a reveal button, and the rubric. Every rubric
                 signal is tagged with the lowest level at which interviewers expect it. Score each one <strong>missed, partly or nailed</strong>. Signals at or below your target level are expected; the ones above it are a bonus.
               </p>
             </div>
@@ -671,7 +768,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ g1) practice toolkit */}
           <Section
             id="practice"
-            n="08"
+            n="09"
             kicker="the prep tab"
             title="Interview prep: everything for the interview itself"
             lead="The Prep tab is for getting hired: what each company asks, the classic problems, timed mocks, last-night revision, drills and a plan to your interview date. Every card shows where you stand."
@@ -679,7 +776,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             <Shot id="practice-hub" wide example />
             <div className={PROSE}>
               <p>
-                The <A href="/learn/prep">Prep</A> page groups it as <strong>who&apos;s hiring</strong> (company pages, the question bank), <strong>classic problems</strong> (the problem bank, low-level design),{" "}
+                The <A href="/learn/prep">Prep</A> page opens with the <strong>video lectures</strong> (the whole playlist and where you left off), then groups the rest as <strong>who&apos;s hiring</strong> (company pages, the question bank), <strong>classic problems</strong> (the problem bank, low-level design),{" "}
                 <strong>interview night</strong> (revision decks, cheat sheets, design sheets), <strong>the real loop</strong> (mock interviews, peer mocks, code labs) and <strong>tools</strong> (numbers playground, study planner). The row under the title counts what you have revised, the labs you cleared, the mocks you finished and your study plan. All of it
                 works as a guest. Saved for offline use, each card says whether its page is saved on this device; the rest show <strong>needs a connection</strong>.
               </p>
@@ -784,7 +881,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ g) arena */}
-          <Section id="arena" n="09" kicker="the arena" title="Daily challenge, leagues and games" lead="The fun part of the course, built from the same questions and lessons. Two minutes a day keeps a streak alive.">
+          <Section id="arena" n="10" kicker="the arena" title="Daily challenge, leagues and games" lead="The fun part of the course, built from the same questions and lessons. Two minutes a day keeps a streak alive.">
             <Shot id="arena-hub" />
             <Sub>Daily challenge</Sub>
             <Pair>
@@ -842,7 +939,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ h) xp */}
-          <Section id="xp" n="10" kicker="xp, levels, quests & badges" title="What earns XP" lead="XP is your running total. Every amount below comes straight from the code; each one-time reward is paid once, however often you repeat the thing.">
+          <Section id="xp" n="11" kicker="xp, levels, quests & badges" title="What earns XP" lead="XP is your running total. Every amount below comes straight from the code; each one-time reward is paid once, however often you repeat the thing.">
             <Table
               caption="How XP is earned"
               head={["Action", "XP", "How often"]}
@@ -888,7 +985,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ i) progress */}
-          <Section id="progress" n="11" kicker="the you tab · progress" title="Everything you've done, in one place" lead="The You tab starts on Progress, which answers “where am I, how am I doing, what next”; the row under the header switches to your notebook, concept mastery and certificates. Guests see this browser's data; signed in, your account merged with it.">
+          <Section id="progress" n="12" kicker="the you tab · progress" title="Everything you've done, in one place" lead="The You tab starts on Progress, which answers “where am I, how am I doing, what next”; the row under the header switches to your notebook, concept mastery and certificates. Guests see this browser's data; signed in, your account merged with it.">
             <Shot id="progress-top" wide />
             <div className={PROSE}>
               <p>
@@ -973,7 +1070,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ i2) share */}
           <Section
             id="share"
-            n="12"
+            n="13"
             kicker="share your progress"
             title="Show your run to friends"
             lead="Your progress is private. Turn on a public page and you get one link, showing only the parts you pick, to send on WhatsApp, LinkedIn or X."
@@ -1081,7 +1178,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ i3) certificates */}
           <Section
             id="certificates"
-            n="13"
+            n="14"
             kicker="certificates"
             title="Earn a certificate, prove it with a link"
             lead="A certificate of completion for the whole course and one for each world, each with an ID, a QR code and a public page anyone can use to check it."
@@ -1135,7 +1232,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ j) cases */}
           <Section
             id="offline"
-            n="14"
+            n="15"
             kicker="offline reading & the app"
             title="Read with no internet"
             lead="Save lessons on your phone or laptop and read them on a flight, on the metro, anywhere. No app store: the website saves them, and it can be installed like an app."
@@ -1204,7 +1301,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
             </Note>
           </Section>
 
-          <Section id="cases" n="15" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
+          <Section id="cases" n="16" kicker="case files" title="Case files: real stories, with a drill at the end" lead="Production incidents, rush hours and build logs told as stories with blueprints. They live outside the course, under Case files.">
             <Shot id="case-index" only="desktop" />
             <div className={PROSE}>
               <p>
@@ -1220,6 +1317,11 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
               </p>
             </div>
             <Shot id="case-activity" only="desktop" size="medium" />
+            <div className={PROSE}>
+              <p>
+                Every case file also has a <strong>lecture</strong>: the story told on screen, with the timeline, what users saw and the mechanism drawn out. The &ldquo;watch it first&rdquo; card sits under the cover.
+              </p>
+            </div>
             <Where>
               <A href="/stories">Case files</A> in the site header (outside the course). Your record (closed · solved) is at the top of the index.
             </Where>
@@ -1228,7 +1330,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ war stories */}
           <Section
             id="war-stories"
-            n="16"
+            n="17"
             kicker="the stories tab"
             title="War stories: real ones, and your turn on call"
             lead="Two halves. True stories of real systems at their limits, in two minutes each. And war rooms, where an incident plays out in its chat channel and you make the calls."
@@ -1258,7 +1360,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           {/* ------------------------------------------------------------ ai */}
           <Section
             id="ai"
-            n="17"
+            n="18"
             kicker="ai in the course"
             title="AI that knows this course"
             lead="AI features are free for every signed-in learner, for a limited time. They answer from the course itself, and each one is built to teach, not to hand you answers."
@@ -1295,7 +1397,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ k) account */}
-          <Section id="account" n="18" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
+          <Section id="account" n="19" kicker="accounts, privacy & data" title="Do you need an account?" lead="No. Every lesson, quick check, trial, boss, game and the daily challenge work without one. An account adds a few things.">
             <ul className="m-0 grid max-w-[72ch] list-none gap-px border border-line bg-line p-0 sm:grid-cols-2">
               {[
                 ["Progress on every device", "Lessons, stages, XP, review cards and trial attempts follow you instead of living in one browser."],
@@ -1325,7 +1427,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ l) faq */}
-          <Section id="faq" n="19" kicker="faq" title="Questions people actually ask">
+          <Section id="faq" n="20" kicker="faq" title="Questions people actually ask">
             <div className="flex max-w-[78ch] flex-col border-t border-line">
               {FAQ.map(([q, a]) => (
                 <details key={q} className="group border-b border-line">
@@ -1342,7 +1444,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
           </Section>
 
           {/* ------------------------------------------------------------ glossary */}
-          <Section id="glossary" n="20" kicker="glossary" title="Words the course uses">
+          <Section id="glossary" n="21" kicker="glossary" title="Words the course uses">
             <dl className="m-0 grid max-w-[78ch] gap-px border border-line bg-line sm:grid-cols-2">
               {GLOSSARY.map(([t, d]) => (
                 <div key={t} className="flex flex-col gap-1 bg-bg p-4">
@@ -1367,6 +1469,20 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES }: { map: 
 }
 
 const FAQ: [string, React.ReactNode][] = [
+  [
+    "Do the videos remember where I stopped?",
+    <>
+      Yes. Each lecture resumes where you left it, and the <A href="/learn/prep/lectures">playlist</A> shows continue watching, how much of each lecture you have seen and a watched mark at 90%. Signed in, this follows you to
+      your other devices.
+    </>,
+  ],
+  [
+    "Should I watch the lecture or read the lesson?",
+    <>
+      Either, or both. The lecture covers the lesson&apos;s core ideas, trade-offs and numbers in 7–25 minutes; the written lesson has every detail, the code and the stages that count toward completion. Many learners watch first,
+      then read.
+    </>,
+  ],
   [
     "Is the certificate accredited?",
     <>
