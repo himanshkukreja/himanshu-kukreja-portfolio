@@ -50,7 +50,7 @@ export default function SaveToast() {
       </div>
       <p className="m-0 mt-2 font-mono text-xs text-fg-3">
         {job.status === "running"
-          ? `${job.done} of ${total} · ${fmtBytes(job.bytes)}`
+          ? `${job.done} of ${total} · ${fmtBytes(job.bytes + (job.currentBytes || 0))}`
           : `${ok} of ${total} saved · ${fmtBytes(job.bytes)}${job.failed ? ` · ${job.failed} failed` : ""}`}
       </p>
       {job.error && <p className="m-0 mt-2 text-sm leading-snug text-fg">{job.error}</p>}

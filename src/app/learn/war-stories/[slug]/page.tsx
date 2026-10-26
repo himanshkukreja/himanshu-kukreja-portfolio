@@ -4,6 +4,7 @@ import { getStory, getWarStories } from "@/lib/learn/war/load";
 import { THEME_LABEL } from "@/lib/learn/war/types";
 import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
 import StoryRead from "@/components/learn/war/StoryRead";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 
@@ -55,6 +56,7 @@ export default async function StoryPage({ params }: Props) {
           {s.company}
           {s.when ? ` · ${s.when}` : ""} · {s.minutes} min read · a true story, sources below
         </p>
+        <SaveOfflineButton title={`War story · ${s.title}`} kind="warstory" url={s.href} className="self-start" />
       </header>
       <article className="course-content max-w-none" dangerouslySetInnerHTML={{ __html: s.html }} />
       <section aria-labelledby="src-h" className="flex flex-col gap-2 border-t border-line pt-5">

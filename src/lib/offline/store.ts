@@ -9,7 +9,7 @@
  *   hk-static  the /_next/static files the page needs: its own scripts/CSS/fonts plus the reader's
  *              on-demand chunks (Mermaid, content chrome, boss mode, the explainers a page embeds)
  *              loaded by warmReader()
- *   hk-media   its images
+ *   hk-media   its images, and a saved lecture's recorded media (content-addressed: see lectures.ts)
  *
  * A save fetches everything first and writes the documents and the record last, so a failed save
  * leaves nothing half-listed. Saved pages keep the app files of the build that rendered them, so
@@ -18,6 +18,8 @@
 import { OFFLINE_CACHES as C, type CatalogItem, type SavedMeta } from "./types";
 import { warmReader } from "./warm";
 import { cacheLabRuntime } from "./labs";
+import { cacheLectureMedia, pruneLectureFiles, repairLectureMedia } from "./lectures";
+import { defaultGroupOf, kindFromUrl } from "./sections";
 
 export const APP_BUILD = process.env.NEXT_PUBLIC_HK_BUILD || "dev";
 
@@ -75,10 +77,26 @@ export async function listSaved(): Promise<SavedMeta[]> {
         }
       })
     );
-    return out.filter((m): m is SavedMeta => !!m && typeof m.url === "string");
+    const list = out.filter((m): m is SavedMeta => !!m && typeof m.url === "string");
+    // records saved before the catalog knew their kind (problems, LLD… as "lesson" in group "saved")
+    const fixed = list.map(migrate);
+    await Promise.all(
+      fixed.map((m, i) => (m === list[i] ? null : cache.put(metaKey(m.url), new Response(JSON.stringify(m), { headers: { "content-type": "application/json" } })).catch(() => {})))
+    );
+    return fixed;
   } catch {
     return [];
   }
+}
+
+/** A saved record with its kind and group derived from its URL where the stored ones say nothing. */
+function migrate(m: SavedMeta): SavedMeta {
+  const k = kindFromUrl(m.url);
+  const vague = m.group === "saved" || !m.group || !m.groupTitle;
+  const wrongKind = !!k && k !== m.kind && (m.kind === "lesson" || vague);
+  if (!vague && !wrongKind) return m;
+  const kind = wrongKind && k ? k : m.kind;
+  return { ...m, kind, ...(vague || wrongKind ? defaultGroupOf(kind, m.url) : {}) };
 }
 
 export async function removeSaved(url: string): Promise<void> {
@@ -87,18 +105,27 @@ export async function removeSaved(url: string): Promise<void> {
   const pages = await caches.open(C.pages);
   for (const u of [url, ...(rec?.variants ?? [])]) await pages.delete(docKey(u));
   await meta.delete(metaKey(url));
+  if (rec?.files?.length) await pruneLectureFiles();
+  notifyChanged();
+  void askWorker({ type: "hk:prune" });
+}
+
+/** Remove several saved pages at once (one library refresh, one prune of their files). */
+export async function removeMany(urls: string[]): Promise<void> {
+  const meta = await caches.open(C.meta);
+  const pages = await caches.open(C.pages);
+  for (const url of urls) {
+    const rec = (await (await meta.match(metaKey(url)))?.json().catch(() => null)) as SavedMeta | null;
+    for (const u of [url, ...(rec?.variants ?? [])]) await pages.delete(docKey(u));
+    await meta.delete(metaKey(url));
+  }
+  await pruneLectureFiles();
   notifyChanged();
   void askWorker({ type: "hk:prune" });
 }
 
 export async function removeAll(): Promise<void> {
-  for (const m of await listSaved()) {
-    const pages = await caches.open(C.pages);
-    for (const u of [m.url, ...(m.variants ?? [])]) await pages.delete(docKey(u));
-    await (await caches.open(C.meta)).delete(metaKey(m.url));
-  }
-  notifyChanged();
-  void askWorker({ type: "hk:prune" });
+  await removeMany((await listSaved()).map((m) => m.url));
 }
 
 export type StorageInfo = { usage: number | null; quota: number | null; persisted: boolean | null };
@@ -271,11 +298,16 @@ async function compress(html: string): Promise<{ res: Response; size: number }> 
 
 export type SaveInput = CatalogItem & { groupTitle: string };
 
+export type SaveOptions = {
+  /** bytes downloaded so far for this item (a lecture's audio is ~10–15 MB) */
+  onBytes?: (n: number) => void;
+};
+
 /**
  * Save one article (and its variants) for offline reading. Throws OfflineSaveError for the
  * conditions the UI explains (offline, quota, site updated since this tab loaded).
  */
-export async function saveArticle(item: SaveInput): Promise<SavedMeta> {
+export async function saveArticle(item: SaveInput, opts: SaveOptions = {}): Promise<SavedMeta> {
   if (!offlineSupported()) throw new OfflineSaveError("unsupported", "This browser can't store pages for offline reading.");
   const urls = [item.url, ...(item.variants ?? [])];
   const docs: { url: string; html: string }[] = [];
@@ -340,6 +372,13 @@ export async function saveArticle(item: SaveInput): Promise<SavedMeta> {
     }
   });
 
+  // a lecture's recorded media (narration, music, captions, poster; never the rendered video)
+  const lecture = item.kind === "lecture" && item.mediaBase ? await cacheLectureMedia(item.mediaBase, item.version, opts.onBytes) : null;
+  if (lecture) {
+    lecture.keys.forEach((k) => media.add(k));
+    mediaBytes += lecture.bytes;
+  }
+
   // documents + record last
   const pages = await caches.open(C.pages);
   let size = mediaBytes;
@@ -366,6 +405,9 @@ export async function saveArticle(item: SaveInput): Promise<SavedMeta> {
     assets: [...assets],
     media: [...media],
     ...(runtime ? { runtime } : {}),
+    ...(lecture ? { files: lecture.files } : {}),
+    ...(item.subject ? { subject: item.subject } : {}),
+    ...(item.minutes ? { minutes: item.minutes } : {}),
   };
   await put(await caches.open(C.meta), metaKey(item.url), new Response(JSON.stringify(rec), { headers: { "content-type": "application/json" } }));
 
@@ -373,5 +415,6 @@ export async function saveArticle(item: SaveInput): Promise<SavedMeta> {
   const missing: string[] = [];
   for (const a of rec.assets) if (!(await st.match(staticKey(a)))) missing.push(a);
   if (missing.length) await pool(missing, 6, ensureStatic);
+  if (lecture) await repairLectureMedia(rec, item.mediaBase);
   return rec;
 }

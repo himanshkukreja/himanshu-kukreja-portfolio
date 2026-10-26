@@ -26,6 +26,7 @@ import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
 import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INTRO } from "./anim";
 import { nextProgress, progressKey, readProgress } from "@/lib/learn/lecture/progress";
 import { LEVEL_TONE, type Level } from "@/lib/learn/level";
@@ -659,21 +660,22 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         </span>
         <h1 className="m-0 font-display text-[clamp(30px,5vw,52px)] font-extrabold leading-none tracking-[-0.04em] text-fg">{lecture.title}</h1>
         <p className="m-0 max-w-[820px] text-[16px] text-fg-2">{lecture.summary}</p>
-        {quest && (
-          // came straight from the playlist? the written version is one tap away
-          <Link
-            href={quest.href}
-            className="mt-1 inline-flex min-h-11 max-w-full items-center gap-2 self-start border border-line-strong px-3.5 text-[14px] text-fg hover:border-signal"
-          >
-            <span aria-hidden>📄</span>
-            <span className="min-w-0 truncate">
-              {readLabel(lecture)}: <span className="text-fg-2">{quest.title}</span>
-            </span>
-            <span aria-hidden className="text-signal-text">
-              →
-            </span>
-          </Link>
-        )}
+        <div className="mt-1 flex max-w-full flex-wrap items-center gap-2">
+          {quest && (
+            // came straight from the playlist? the written version is one tap away
+            <Link href={quest.href} className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 border border-line-strong px-3.5 text-[14px] text-fg hover:border-signal">
+              <span aria-hidden>📄</span>
+              <span className="min-w-0 truncate">
+                {readLabel(lecture)}: <span className="text-fg-2">{quest.title}</span>
+              </span>
+              <span aria-hidden className="text-signal-text">
+                →
+              </span>
+            </Link>
+          )}
+          {/* the page + its recorded audio, captions and poster, to watch with no internet */}
+          <SaveOfflineButton title={lecture.title} kind="lecture" url={`/learn/lectures/${slug}`} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
+        </div>
       </header>
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">

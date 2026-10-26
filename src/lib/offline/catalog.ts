@@ -11,6 +11,10 @@ import { RUNTIME_BYTES } from "@/lib/learn/labs/runtime";
 import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import { REFERENCE_VERSION } from "@/lib/learn/numbers/reference";
 import { getTrailIndex } from "@/lib/learn/trail/load";
+import { getStory, getWarRoom, getWarStories } from "@/lib/learn/war/load";
+import { THEME_LABEL } from "@/lib/learn/war/types";
+import { getLecture, lectureHash, lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
+import { lectureGroupAnchor } from "@/lib/learn/lecture/types";
 import type { Catalog, CatalogGroup, CatalogItem, OfflineKind } from "./types";
 
 /**
@@ -39,6 +43,16 @@ function estimate(kind: OfflineKind, md: string, variants = 0): number {
       return Math.round(12_000 + md.length * 1.12 + images(md) * 20_000);
   }
 }
+
+/**
+ * Lectures: the page (the script ships in it, ~0.4 of its JSON gzip) plus the recorded media the
+ * player uses: narration at 96 kbps (12 000 B/s, ~0.425 s a word incl. pauses, both measured over
+ * the 137 published lectures), captions + poster (~120 KB). The background music is one file for
+ * every lecture (3.07 MB, same bytes everywhere), stored once: LECTURE_SHARED_BYTES.
+ */
+const LECTURE_BYTES_PER_WORD = 5_100;
+const LECTURE_FILES_BYTES = 120_000;
+const LECTURE_SHARED_BYTES = 3_072_878;
 
 /** Reader app files measured on a production build (JS incl. the Mermaid renderer, CSS, fonts). */
 const APP_BYTES = 3_400_000;
@@ -149,6 +163,15 @@ async function build(course: string): Promise<Catalog> {
     items: await Promise.all(map.sideQuests.map(async (q) => item(q.href, q.title, "sidequest", q.tag, "side-quests", await md(q.week, q.slug)))),
   });
 
+  // interview problems and low-level design: course articles outside the worlds
+  for (const [id, title, kind, list] of [
+    ["problems", "Interview problems", "problem", map.problems ?? []],
+    ["lld", "Low-level design", "lld", map.lld ?? []],
+  ] as const) {
+    if (!list.length) continue;
+    groups.push({ id, title, kind: id, items: await Promise.all(list.map(async (l) => item(l.href, l.title, kind, l.tag || l.code, id, await md(l.week, l.slug)))) });
+  }
+
   if (map.mocks?.length) {
     const sources = await loadMockSources().catch(() => []);
     const src = new Map(sources.map((s) => [s.slug, s.md]));
@@ -173,10 +196,65 @@ async function build(course: string): Promise<Catalog> {
     // case files unavailable: the course still saves
   }
 
-  return { course, build: "", generatedAt: Date.now(), appBytes: APP_BYTES, runtimeBytes: RUNTIME_BYTES, groups };
+  // war stories: the hub, each story (a two-minute read) and each war room (an incident simulation)
+  try {
+    const { stories, rooms } = await getWarStories();
+    if (stories.length || rooms.length) {
+      const [full, sims] = await Promise.all([Promise.all(stories.map((s) => getStory(s.slug))), Promise.all(rooms.map((r) => getWarRoom(r.slug)))]);
+      const items: CatalogItem[] = [
+        { url: "/learn/war-stories", title: `War stories · ${stories.length} stories, ${rooms.length} war rooms`, kind: "warstory", tag: "HUB", group: "war-stories", version: hash(JSON.stringify({ stories, rooms })), bytes: 30_000 },
+        ...stories.map((s, i) => {
+          const html = full[i]?.html || "";
+          return { url: s.href, title: s.title, kind: "warstory" as const, tag: (THEME_LABEL[s.theme] || "Story").toUpperCase(), group: "war-stories", version: hash(html || s.href), bytes: Math.round(14_000 + html.length * 0.45) };
+        }),
+        ...rooms.map((r, i) => {
+          const json = sims[i] ? JSON.stringify(sims[i]) : "";
+          return { url: r.href, title: `War room · ${r.title}`, kind: "warstory" as const, tag: `${r.sev} · WAR ROOM`.toUpperCase(), group: "war-stories", version: hash(json || r.href), bytes: Math.round(20_000 + json.length * 0.5) };
+        }),
+      ];
+      groups.push({ id: "war-stories", title: "War stories", kind: "war-stories", items });
+    }
+  } catch {
+    // war stories unavailable: the rest still saves
+  }
+
+  // video lectures, in playlist order and sections (course weeks, side quests, problems, LLD, case
+  // files, mocks). Saving the page also stores its recorded media (not the rendered video.mp4).
+  try {
+    const base = lectureMediaBase()?.replace(/\/$/, "") ?? null;
+    const lectures = await listLectures();
+    const scripts = await Promise.all(lectures.map((l) => getLecture(l.slug).catch(() => null)));
+    const bySection = new Map<string, CatalogGroup>();
+    lectures.forEach((l, i) => {
+      const lec = scripts[i];
+      if (!lec) return;
+      const json = JSON.stringify(lec);
+      const words = lec.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
+      const id = `lectures-${lectureGroupAnchor(l.group)}`;
+      const g = bySection.get(id) ?? { id, title: l.group, kind: "lectures" as const, items: [] };
+      g.items.push({
+        url: l.href,
+        title: l.title,
+        kind: "lecture",
+        tag: l.code,
+        group: id,
+        version: lectureHash(lec),
+        bytes: Math.round(40_000 + json.length * 0.4 + (base ? words * LECTURE_BYTES_PER_WORD + LECTURE_FILES_BYTES : 0)),
+        ...(base ? { mediaBase: `${base}/${l.slug}/` } : {}),
+        subject: l.questHref,
+        minutes: l.minutes,
+      });
+      bySection.set(id, g);
+    });
+    groups.push(...bySection.values());
+  } catch {
+    // lectures unavailable: the rest still saves
+  }
+
+  return { course, build: "", generatedAt: Date.now(), appBytes: APP_BYTES, runtimeBytes: RUNTIME_BYTES, lectureSharedBytes: lectureMediaBase() ? LECTURE_SHARED_BYTES : 0, groups };
 }
 
-const cached = unstable_cache((course: string) => build(course), ["offline-catalog-v1"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache((course: string) => build(course), ["offline-catalog-v2"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
 
 export async function getOfflineCatalog(course: string = COURSE_ID): Promise<Catalog | null> {
   if (course !== COURSE_ID) return null;

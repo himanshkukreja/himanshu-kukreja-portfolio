@@ -10,7 +10,10 @@
  *   hk-shell-<v>  offline fallback (/offline) + library (/learn/offline) HTML, icons, manifest; per build
  *   hk-static     /_next/static/** (content-hashed, immutable): cache-first, pruned on activate to
  *                 what saved pages still reference
- *   hk-media      images/fonts outside /_next/static: stale-while-revalidate + saved-page images
+ *   hk-media      images/fonts outside /_next/static: stale-while-revalidate + saved-page images,
+ *                 and saved lectures' media: a pointer at each file URL (x-hk-blob: <key>) and the
+ *                 bytes once under <origin>/__hk/blob/<content id> (shared files stored once; see
+ *                 src/lib/offline/lectures.ts)
  *   hk-pages      saved article documents (gzip) — only ever changed by the page (save/update/remove)
  *   hk-meta       one JSON record per saved article (title, kind, version, assets, …)
  *   hk-recent     the last few course pages opened online (gzip), a safety net; cleared per build
@@ -25,6 +28,9 @@
  *                   document navigation, which the navigation handler serves from the saved copy
  *   /_next/static   cache first
  *   /_next/image    network first, any cached width of the same image offline
+ *   lecture media   (any origin, LECTURE_FILE) saved: audio/captions/poster from the device (Range
+ *                   requests answered as 206 slices, so seeking works), media.json network first
+ *                   with the saved copy as fallback; not saved: the network as before
  *   never touched   non-GET, /api/**, /admin/**, /auth/**, /hkr/** (PostHog), /_vercel/**, OG and
  *                   Twitter images, Supabase/GA/any other origin (except saved images offline)
  *
@@ -50,7 +56,11 @@ const HUB = "/learn/system-design-mastery";
 const NAV_TIMEOUT_MS = 4000;
 const RECENT_MAX = 10;
 const BYPASS = /^\/(?:api|admin|auth|hkr|_vercel|monitoring)(?:\/|$)|^\/sw\.js$|\/(?:opengraph|twitter)-image(?:[/-]|$)/;
-const ARTICLE = /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/learn\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/learn\/(?:numbers|plan|practice|reading|revise|mock|mastery)\/?$|^\/learn\/labs(?:\/[^/]+)?\/?$|^\/stories\/[^/]+\/?$/;
+// keep in sync with SAVEABLE_PATH in src/lib/offline/types.ts (minus the course map, the HUB rule)
+const ARTICLE = /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/learn\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/learn\/labs(?:\/[^/]+)?\/?$|^\/learn\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/learn\/lectures\/[^/]+\/?$|^\/learn\/war-stories(?:\/[^/]+)?\/?$|^\/stories\/[^/]+\/?$/;
+// a lecture's recorded media, on R2 or /lecture-media (keep in sync with LECTURE_FILE in types.ts)
+const LECTURE_FILE = /\/[A-Za-z0-9-]+\/(?:media\.json|narration\.mp3|music\.mp3|captions\.vtt|poster\.jpg|chapters\.json)$/;
+const MEDIA_JSON_TIMEOUT_MS = 4000;
 // never kept as a "recent" copy: design of the week is live (phases, votes, drafts) and needs a connection
 const NO_RECENT = /^\/learn\/design-week(?:\/|$)/;
 const IMAGE_HOSTS = /(?:^|\.)imagekit\.io$|(?:^|\.)githubusercontent\.com$/;
@@ -273,6 +283,11 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
+  if (LECTURE_FILE.test(url.pathname) && (url.origin !== self.location.origin || url.pathname.startsWith("/lecture-media/"))) {
+    event.respondWith(lectureFile(req, url));
+    return;
+  }
+
   if (url.origin !== self.location.origin) {
     // saved case-file / lesson images hosted elsewhere: network, saved copy when offline
     if (req.destination === "image" && (IMAGE_HOSTS.test(url.hostname) || url.pathname.startsWith("/storage/v1/object/public/"))) {
@@ -399,6 +414,63 @@ async function runtimeFirst(req) {
     cache.put(req.url, copy).catch(() => {});
   }
   return res;
+}
+
+// ------------------------------------------------------------------------------------------------
+// saved lectures' media
+
+/** The stored bytes behind a saved lecture file (its pointer names a content-addressed blob). */
+async function savedLectureFile(url) {
+  const cache = await caches.open(MEDIA);
+  const ptr = await cache.match(url);
+  if (!ptr) return null;
+  const key = ptr.headers.get("x-hk-blob");
+  if (!key) return ptr;
+  return (await cache.match(key)) || null;
+}
+
+/** A full or partial (Range: bytes=a-b, a-, -n) answer from a stored response. */
+async function rangeAnswer(stored, req, url) {
+  const blob = await stored.blob();
+  const type = stored.headers.get("content-type") || blob.type || "application/octet-stream";
+  const size = blob.size;
+  const base = { "content-type": type, "accept-ranges": "bytes", "x-hk-offline": "saved", "cache-control": "no-store" };
+  const range = req.headers.get("range");
+  const m = range && /^bytes=(\d*)-(\d*)$/.exec(range.trim());
+  if (!m || (m[1] === "" && m[2] === "")) {
+    return new Response(blob, { status: 200, headers: { ...base, "content-length": String(size) } });
+  }
+  let start;
+  let end;
+  if (m[1] === "") {
+    start = Math.max(0, size - Number(m[2]));
+    end = size - 1;
+  } else {
+    start = Number(m[1]);
+    end = m[2] === "" ? size - 1 : Math.min(Number(m[2]), size - 1);
+  }
+  if (!(start <= end) || start >= size) {
+    return new Response(null, { status: 416, headers: { ...base, "content-range": "bytes */" + size } });
+  }
+  return new Response(blob.slice(start, end + 1, type), {
+    status: 206,
+    headers: { ...base, "content-length": String(end - start + 1), "content-range": "bytes " + start + "-" + end + "/" + size },
+  });
+}
+
+async function lectureFile(req, url) {
+  const saved = await savedLectureFile(req.url).catch(() => null);
+  if (!saved) return fetch(req);
+  // the manifest can change (a re-recorded lecture): network first, the saved copy offline
+  if (url.pathname.endsWith("/media.json")) {
+    try {
+      const net = await timeout(fetch(req), MEDIA_JSON_TIMEOUT_MS);
+      if (net.ok) return net;
+    } catch (e) {}
+    return rangeAnswer(saved, req, url);
+  }
+  // audio, captions, poster: their URLs carry the recording's version, so the saved bytes are right
+  return rangeAnswer(saved, req, url);
 }
 
 async function mediaFallback(req) {

@@ -20,6 +20,8 @@ export type SaveJob = {
   /** bytes stored so far in this run */
   bytes: number;
   current: string | null;
+  /** bytes downloaded so far for the current item (lectures report as their audio arrives) */
+  currentBytes?: number;
   status: "running" | "done" | "stopped";
   /** why the run stopped, in words for the reader */
   error: string | null;
@@ -162,10 +164,22 @@ async function run() {
       return;
     }
     const item = queue.shift()!;
-    emit({ ...job, current: item.url });
+    emit({ ...job, current: item.url, currentBytes: 0 });
     try {
-      const rec = await saveArticle(item);
-      emit({ ...job, done: job.done + 1, bytes: job.bytes + rec.size });
+      let got = 0;
+      let last = 0;
+      const rec = await saveArticle(item, {
+        onBytes: (n) => {
+          got += n;
+          // a few updates a second at most
+          const now = Date.now();
+          if (job && now - last > 250) {
+            last = now;
+            emit({ ...job, currentBytes: got });
+          }
+        },
+      });
+      emit({ ...job, done: job.done + 1, bytes: job.bytes + rec.size, currentBytes: 0 });
       settle(item.url, true, rec.size);
     } catch (e) {
       if (e instanceof OfflineSaveError && e.code !== "http") {

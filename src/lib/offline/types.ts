@@ -4,7 +4,24 @@
  * Plain JSON on both sides.
  */
 
-export type OfflineKind = "hub" | "plan" | "lesson" | "preview" | "capstone" | "sidequest" | "trial" | "mock" | "story" | "revision" | "cheatsheet" | "lab" | "tool";
+export type OfflineKind =
+  | "hub"
+  | "plan"
+  | "lesson"
+  | "preview"
+  | "capstone"
+  | "sidequest"
+  | "problem"
+  | "lld"
+  | "trial"
+  | "mock"
+  | "story"
+  | "warstory"
+  | "lecture"
+  | "revision"
+  | "cheatsheet"
+  | "lab"
+  | "tool";
 
 export type CatalogItem = {
   /** path, e.g. /learn/system-design-mastery/week-02-…/day-03-circuit-breakers */
@@ -21,12 +38,18 @@ export type CatalogItem = {
   bytes: number;
   /** extra URLs saved with it (a trial's ?part=N pages, a world deck's lesson decks) */
   variants?: string[];
+  /** lectures: the folder of its recorded media ("<base>/<id>/", absolute or same-origin), saved with the page */
+  mediaBase?: string;
+  /** lectures: the page it teaches (lesson, side quest, problem, case file, mock) */
+  subject?: string;
+  /** lectures: running time */
+  minutes?: number;
 };
 
 export type CatalogGroup = {
   id: string;
   title: string;
-  kind: "course" | "world" | "side-quests" | "mocks" | "case-files";
+  kind: "course" | "world" | "side-quests" | "problems" | "lld" | "mocks" | "case-files" | "war-stories" | "lectures";
   items: CatalogItem[];
 };
 
@@ -39,6 +62,8 @@ export type Catalog = {
   appBytes: number;
   /** code labs' Python runtime (Pyodide), stored once with the first saved lab */
   runtimeBytes?: number;
+  /** lectures' background music: the same file for every lecture, stored once (lecture `bytes` leave it out) */
+  lectureSharedBytes?: number;
   groups: CatalogGroup[];
 };
 
@@ -61,8 +86,13 @@ export type SavedMeta = {
   assets: string[];
   /** code labs: the Python runtime files it runs on (kept in hk-runtime while this copy exists) */
   runtime?: string[];
-  /** images it needs (same-origin paths or absolute URLs) */
+  /** images it needs (same-origin paths or absolute URLs); lectures: also their media files' keys in hk-media */
   media: string[];
+  /** lectures: the stored media files (content-addressed keys in hk-media, shared files stored once) */
+  files?: { url: string; key: string; bytes: number }[];
+  /** lectures: the page it teaches, and its running time */
+  subject?: string;
+  minutes?: number;
 };
 
 export const OFFLINE_CACHES = {
@@ -73,5 +103,12 @@ export const OFFLINE_CACHES = {
   runtime: "hk-runtime",
 } as const;
 
-/** A saved page is reachable at these app routes (kept in sync with ARTICLE in public/sw.js). */
-export const SAVEABLE_PATH = /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/learn\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/learn\/labs(?:\/[^/]+)?\/?$|^\/learn\/(?:numbers|plan|practice|reading|revise|mock|mastery)\/?$|^\/stories\/[^/]+\/?$|^\/learn\/system-design-mastery\/?$/;
+/**
+ * A saved page is reachable at these app routes (kept in sync with ARTICLE in public/sw.js, which
+ * leaves out only the course map: it is answered by its own HUB rule there).
+ */
+export const SAVEABLE_PATH =
+  /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/learn\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/learn\/labs(?:\/[^/]+)?\/?$|^\/learn\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/learn\/lectures\/[^/]+\/?$|^\/learn\/war-stories(?:\/[^/]+)?\/?$|^\/stories\/[^/]+\/?$|^\/learn\/system-design-mastery\/?$/;
+
+/** A lecture's recorded media file (any origin): the service worker answers saved ones from hk-media. */
+export const LECTURE_FILE = /\/[A-Za-z0-9-]+\/(?:media\.json|narration\.mp3|music\.mp3|captions\.vtt|poster\.jpg|chapters\.json)$/;
