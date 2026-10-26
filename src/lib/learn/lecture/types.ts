@@ -41,10 +41,11 @@ export type LectureScene = {
 };
 export type Lecture = {
   v?: number;
-  /** the lecture's id: a side quest's slug, or "<week>--<lesson slug>" for a course lesson */
+  /** the lecture's id: a side quest's slug, or "<week>--<lesson slug>" for a course lesson (also
+   * "problem-bank--<slug>" and "low-level-design--<slug>" for the interview problems and LLD) */
   quest: string;
-  /** course lessons only: which lesson this teaches */
-  lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" };
+  /** course lessons, interview problems and LLD: which page this teaches */
+  lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" | "problem" | "lld" };
   title: string;
   summary: string;
   scenes: LectureScene[];

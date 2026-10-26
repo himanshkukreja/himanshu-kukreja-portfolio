@@ -43,24 +43,28 @@ export type LectureSummary = {
   minutes: number;
   checkpoints: number;
   chapters: number;
-  /** playlist section: "W04 · Caching", or "Side quests" */
+  /** playlist section: "W04 · Caching", "Side quests", "Interview problems", "Low-level design" */
   group: string;
+  /** "up next" stays inside a track */
+  track: "course" | "quests" | "problems" | "lld";
 };
 
 /**
  * Every released (v2) lecture in course order: weeks 0–10 (preview, days, boss), then the side
- * quests. Also the order "up next" follows.
+ * quests, the interview problems and low-level design. Also the order "up next" follows.
  */
 export async function listLectures(): Promise<LectureSummary[]> {
   const map = await getCourseMap(COURSE_ID).catch(() => null);
   if (!map) return [];
-  const course = map.weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])].map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: `W${w.code} · ${w.title}` })));
-  const quests = map.sideQuests.map((l) => ({ id: l.slug, l, group: "Side quests" }));
+  const course = map.weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])].map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: `W${w.code} · ${w.title}`, track: "course" as const })));
+  const quests = map.sideQuests.map((l) => ({ id: l.slug, l, group: "Side quests", track: "quests" as const }));
+  const problems = (map.problems ?? []).map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: "Interview problems", track: "problems" as const }));
+  const lld = (map.lld ?? []).map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: "Low-level design", track: "lld" as const }));
   const all = await Promise.all(
-    [...course, ...quests].map(async ({ id, l, group }) => {
+    [...course, ...quests, ...problems, ...lld].map(async ({ id, l, group, track }) => {
       const lec = await getLecture(id).catch(() => null);
       const card = lectureCard(lec);
-      return lec && card ? { slug: id, code: l.tag || l.code, title: lec.title, quest: l.title, summary: lec.summary, href: card.href, questHref: l.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters, group } : null;
+      return lec && card ? { slug: id, code: l.tag || l.code, title: lec.title, quest: l.title, summary: lec.summary, href: card.href, questHref: l.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters, group, track } : null;
     }),
   );
   return all.filter((x): x is LectureSummary => !!x);
@@ -71,8 +75,10 @@ export async function lectureSubject(l: Lecture): Promise<{ title: string; href:
   const map = await getCourseMap(COURSE_ID).catch(() => null);
   if (!map) return null;
   if (l.lesson) {
-    const w = map.weeks.find((x) => x.key === l.lesson!.week);
-    const hit = w && [...w.lessons, ...(w.boss ? [w.boss] : [])].find((x) => x.slug === l.lesson!.slug);
+    const { week, slug } = l.lesson;
+    const w = map.weeks.find((x) => x.key === week);
+    const pool = w ? [...w.lessons, ...(w.boss ? [w.boss] : [])] : week === "problem-bank" ? (map.problems ?? []) : week === "low-level-design" ? (map.lld ?? []) : [];
+    const hit = pool.find((x) => x.slug === slug);
     return hit ? { title: hit.title, href: hit.href, code: hit.tag || hit.code } : null;
   }
   const q = map.sideQuests.find((x) => x.slug === l.quest);

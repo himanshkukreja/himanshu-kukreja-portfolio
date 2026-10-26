@@ -189,7 +189,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             sidebarRight={<TableOfContents toc={toc} stages={stages} />}
           >
             {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
-            {meta.lecture && <LectureEntry lecture={meta.lecture} quest={meta.kind === "bonus"} />}
+            {meta.lecture && <LectureEntry lecture={meta.lecture} quest={meta.kind === "bonus" || meta.kind === "problem" || meta.kind === "lld"} />}
             {meta.kind === "bonus" && <QuestRunEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} />}
 
             <AskPrompt />

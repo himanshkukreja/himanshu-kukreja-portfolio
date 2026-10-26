@@ -25,7 +25,7 @@ export default async function LecturePage({ params }: Props) {
   if (!l) notFound();
   const q = await lectureSubject(l);
   const at = all.findIndex((x) => x.slug === l.quest);
-  // up next: the next lecture in the same track (course lessons, or side quests)
-  const nx = at >= 0 && at + 1 < all.length && (all[at + 1].group === "Side quests") === (all[at].group === "Side quests") ? all[at + 1] : null;
+  // up next: the next lecture in the same track (course lessons, side quests, problems, LLD)
+  const nx = at >= 0 && at + 1 < all.length && all[at + 1].track === all[at].track ? all[at + 1] : null;
   return <LecturePlayer lecture={l} quest={q} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={nx ? { href: nx.href, title: nx.title, code: nx.code } : null} faq={faq?.scenes ?? null} />;
 }
