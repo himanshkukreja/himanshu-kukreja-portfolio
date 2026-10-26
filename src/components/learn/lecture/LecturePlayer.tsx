@@ -59,6 +59,9 @@ function captionAt(say: string, f: number): string {
   return parts[parts.length - 1];
 }
 
+/** seconds the end screen counts down before the next lecture plays itself */
+const AUTO_NEXT_S = 8;
+
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
 
 type Flat = ReturnType<typeof flatten>;
@@ -190,6 +193,10 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   const [rate, setRate] = useState(1);
   const [cc, setCc] = useState(true);
   const [music, setMusic] = useState(true);
+  // play the next lecture in the playlist by itself when this one ends (held: cancelled for this ending)
+  const [auto, setAuto] = useState(true);
+  const [held, setHeld] = useState(false);
+  const [left, setLeft] = useState(AUTO_NEXT_S);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   // the Ask panel: open (and whether to resume on close, and how much of the stage it covers)
   const [ask, setAsk] = useState<{ resume: boolean; cover: number } | null>(null);
@@ -280,8 +287,9 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     const id = window.setTimeout(() => {
       setCanPip(!!window.documentPictureInPicture);
       try {
-        const p = JSON.parse(localStorage.getItem("hk.lecture.prefs") || "{}") as { cc?: boolean; music?: boolean; rate?: number };
+        const p = JSON.parse(localStorage.getItem("hk.lecture.prefs") || "{}") as { cc?: boolean; music?: boolean; rate?: number; auto?: boolean };
         if (typeof p.cc === "boolean") setCc(p.cc);
+        if (typeof p.auto === "boolean") setAuto(p.auto);
         if (typeof p.music === "boolean") setMusic(p.music);
         if (p.rate && SPEEDS.includes(p.rate)) setRate(p.rate);
         const at = Number(localStorage.getItem(`hk.lecture.pos.${slug}`));
@@ -294,9 +302,9 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   }, [slug]);
   useEffect(() => {
     try {
-      localStorage.setItem("hk.lecture.prefs", JSON.stringify({ cc, music, rate }));
+      localStorage.setItem("hk.lecture.prefs", JSON.stringify({ cc, music, rate, auto }));
     } catch {}
-  }, [cc, music, rate]);
+  }, [cc, music, rate, auto]);
   // this tab's questions, kept for the session
   useEffect(() => {
     try {
@@ -456,6 +464,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     if (media && audioRef.current) void audioRef.current.play().catch(() => setPlaying(false));
     clockBase.current = { wall: performance.now(), time: from };
     setPlaying(true);
+    setHeld(false);
     track("lecture_play", { quest: slug, at: Math.round(from) });
   }, [duration, media, seek, slug]);
   // "↩ Recall" chips open the earlier lecture
@@ -485,6 +494,27 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
       return () => window.clearTimeout(id);
     }
   }, [starts, flat, media, mediaBase, seek]);
+  // arrived by autoplay (?autoplay=1): start once the recording's timings are in (or without them after a few seconds)
+  const autoStart = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (autoStart.current === null) {
+      const q = new URLSearchParams(window.location.search);
+      autoStart.current = q.get("autoplay") === "1";
+      if (autoStart.current) {
+        q.delete("autoplay");
+        const qs = q.toString();
+        window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`);
+      }
+    }
+    if (!autoStart.current || !starts.length) return;
+    const go = () => {
+      if (!autoStart.current) return;
+      autoStart.current = false;
+      play();
+    };
+    const id = window.setTimeout(go, !mediaBase || media ? 0 : 4000);
+    return () => window.clearTimeout(id);
+  }, [starts, media, mediaBase, play]);
   const goStep = (k: number) => seek(starts[Math.max(0, Math.min(flat.length - 1, k))] + 0.01);
   const toggle = () => (playing ? pause() : play());
 
@@ -588,6 +618,32 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   useEffect(() => {
     if (ended) saveProgress(true);
   }, [ended, saveProgress]);
+  // the end screen's countdown to the next lecture
+  const counting = ended && !!next && auto && !held && !ask;
+  const nextHref = next?.href;
+  useEffect(() => {
+    if (!counting || !nextHref) return;
+    const t0 = performance.now();
+    const id = window.setInterval(() => {
+      const l = Math.max(0, AUTO_NEXT_S - Math.floor((performance.now() - t0) / 1000));
+      setLeft(l);
+      if (l === 0) {
+        window.clearInterval(id);
+        track("lecture_autoplay", { from: slug, to: nextHref });
+        router.push(`${nextHref}${nextHref.includes("?") ? "&" : "?"}autoplay=1`);
+      }
+    }, 200);
+    return () => {
+      window.clearInterval(id);
+      setLeft(AUTO_NEXT_S);
+    };
+  }, [counting, nextHref, router, slug]);
+  const autoSwitch = (dark: boolean) => (
+    <label className={`inline-flex min-h-10 cursor-pointer items-center gap-2 font-mono text-[12px] ${dark ? "text-[#c9c8c2]" : "text-fg-3 hover:text-fg"}`}>
+      <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} className="h-4 w-4 accent-[#ff6b2b]" />
+      autoplay next
+    </label>
+  );
   const curScene = cur.scene;
   useEffect(() => {
     const list = listRef.current;
@@ -639,18 +695,33 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           fs={fs && !pip}
         />
       ) : ended && next ? (
-        <div className="absolute inset-0 z-10 grid place-items-center bg-black/75 p-6 text-center">
-          <div className="flex flex-col items-center gap-3">
-            <span className="font-mono text-[12px] uppercase tracking-label text-signal-text">up next · {next.code}</span>
-            <span className="max-w-[560px] font-display text-[clamp(20px,3vw,34px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">{next.title}</span>
+        <div className="absolute inset-0 z-10 grid place-items-center bg-black/75 p-4 text-center sm:p-6">
+          <div className="flex flex-col items-center gap-2 sm:gap-3">
+            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">
+              up next · {next.code}
+              {counting ? ` · playing in ${left} s` : ""}
+            </span>
+            <span className="max-w-[560px] font-display text-[clamp(18px,3vw,34px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">{next.title}</span>
+            {counting && (
+              <span className="block h-1 w-48 bg-[#2a2a30]" aria-hidden>
+                <span className="block h-full bg-signal transition-[width] duration-200 ease-linear" style={{ width: `${((AUTO_NEXT_S - left) / AUTO_NEXT_S) * 100}%` }} />
+              </span>
+            )}
             <div className="flex flex-wrap justify-center gap-2">
-              <Link href={next.href} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
-                ▶ play next
+              <Link href={`${next.href}${next.href.includes("?") ? "&" : "?"}autoplay=1`} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
+                ▶ {counting ? "play now" : "play next"}
               </Link>
-              <button type="button" onClick={() => seek(0)} className="min-h-11 border border-[#3a3a40] px-4 font-mono text-sm text-[#f3f2ee]">
-                ↺ watch again
-              </button>
+              {counting ? (
+                <button type="button" onClick={() => setHeld(true)} className="min-h-11 border border-[#3a3a40] px-4 font-mono text-sm text-[#f3f2ee]">
+                  cancel
+                </button>
+              ) : (
+                <button type="button" onClick={() => seek(0)} className="min-h-11 border border-[#3a3a40] px-4 font-mono text-sm text-[#f3f2ee]">
+                  ↺ watch again
+                </button>
+              )}
             </div>
+            {autoSwitch(true)}
           </div>
         </div>
       ) : !playing && !waitingQuiz && (
@@ -875,11 +946,14 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           )}
           <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-4">space play · ←/→ step · J/L 10 s · C captions · M music · F full screen · &lt; &gt; speed{ai?.features["lesson-qa"] ? " · A ask" : ""}</p>
           {next && (
-            <Link href={next.href} className="group flex items-baseline gap-2 border border-line px-2.5 py-2 hover:border-signal">
-              <span className="font-mono text-[11px] uppercase tracking-label text-fg-4">up next</span>
-              <span className="min-w-0 flex-1 truncate text-[13px] text-fg-2 group-hover:text-fg">{next.title}</span>
-              <span className="text-signal-text">→</span>
-            </Link>
+            <div className="flex flex-col">
+              <Link href={next.href} className="group flex items-baseline gap-2 border border-line px-2.5 py-2 hover:border-signal">
+                <span className="font-mono text-[11px] uppercase tracking-label text-fg-4">up next</span>
+                <span className="min-w-0 flex-1 truncate text-[13px] text-fg-2 group-hover:text-fg">{next.title}</span>
+                <span className="text-signal-text">→</span>
+              </Link>
+              {autoSwitch(false)}
+            </div>
           )}
           {quest && (
             <Link href={quest.href} className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
