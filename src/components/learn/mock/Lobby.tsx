@@ -10,6 +10,8 @@ import type { MockFlag, MockRun } from "@/lib/learn/mock/store";
 import { VERDICT_LABEL } from "@/lib/learn/mock/score";
 import { firstName } from "@/lib/learn/mock/engine";
 import { Avatar, CourseHtml, LABEL } from "./ui";
+import JoinBriefing, { briefingSkipped } from "./JoinBriefing";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 
 export default function Lobby({
   mock,
@@ -24,7 +26,7 @@ export default function Lobby({
   run: MockRun;
   best: MockFlag | null;
   offer: boolean;
-  onStart: (level: MockLevel) => void;
+  onStart: (level: MockLevel, opts?: { coach?: boolean }) => void;
   onResume: () => void;
   /** the recorded model interview for this mock, when there is one */
   lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
@@ -32,6 +34,11 @@ export default function Lobby({
   const [level, setLevel] = useState<MockLevel>(run.level || mock.level);
   // starting over clears the round in progress: ask once
   const [confirmNew, setConfirmNew] = useState(false);
+  // every start goes through the briefing (what happens next), unless the learner turned it off
+  const [brief, setBrief] = useState(false);
+  const ai = useAiStatus();
+  const coachAvailable = !!ai?.signedIn && !!ai?.features["mock-coach"];
+  const begin = () => (briefingSkipped() ? onStart(level, { coach: coachAvailable && run.coachOn !== false }) : setBrief(true));
   const curveballs = mock.phases.reduce((a, p) => a + p.curveballs.length, 0);
   const signals = mock.phases.reduce((a, p) => a + p.rubric.length, 0);
   const num = String(mock.n).padStart(2, "0");
@@ -39,6 +46,19 @@ export default function Lobby({
 
   return (
     <main className="mx-auto flex max-w-[1320px] flex-col gap-10 px-4 pb-32 pt-8 sm:px-6 sm:pt-12 lg:pb-24">
+      <JoinBriefing
+        mock={mock}
+        level={level}
+        open={brief}
+        coachAvailable={coachAvailable}
+        signedIn={!!ai?.signedIn}
+        coachDefault={run.coachOn !== false}
+        onCancel={() => setBrief(false)}
+        onJoin={(opts) => {
+          setBrief(false);
+          onStart(level, opts);
+        }}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[12px] text-fg-3">
           <Link href="/learn/system-design-mastery" className="hover:text-fg">
@@ -230,7 +250,7 @@ export default function Lobby({
                 <div className="flex flex-col gap-2.5 border border-bad px-4 py-3">
                   <span className="text-sm text-fg">Start over at {LEVEL_LABEL[level]}? The round in progress (answers, whiteboard, clock) is cleared.</span>
                   <div className="flex gap-2">
-                    <button type="button" onClick={() => onStart(level)} className="min-h-11 bg-bad px-4 text-sm font-semibold text-white">
+                    <button type="button" onClick={begin} className="min-h-11 bg-bad px-4 text-sm font-semibold text-white">
                       Start over
                     </button>
                     <button type="button" onClick={() => setConfirmNew(false)} className="min-h-11 border border-line-strong px-4 text-sm text-fg hover:border-fg-3">
@@ -245,7 +265,7 @@ export default function Lobby({
               )}
             </>
           ) : (
-            <button type="button" onClick={() => onStart(level)} className="flex min-h-[56px] items-center justify-between gap-3 bg-signal px-5 text-[17px] font-semibold text-on-signal hover:opacity-90">
+            <button type="button" onClick={begin} className="flex min-h-[56px] items-center justify-between gap-3 bg-signal px-5 text-[17px] font-semibold text-on-signal hover:opacity-90">
               <span>Join the call ❯</span>
               <span className="font-mono text-sm">
                 {mock.minutes}:00 · {LEVEL_LABEL[level]}

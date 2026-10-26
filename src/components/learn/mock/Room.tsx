@@ -35,6 +35,9 @@ type Props = {
   onLobby: () => void;
   /** start this round again from phase 1 (clears this round's answers) */
   onRestart: () => void;
+  /** the live AI coach can run for this learner (signed in, feature on) */
+  coachAvailable?: boolean;
+  onCoachToggle?: (on: boolean) => void;
   setNote: (pid: string, v: string) => void;
   setAnswer: (cid: string, v: string) => void;
   setBoard: (v: string) => void;
@@ -243,6 +246,68 @@ function CallMenu({ onLobby, onRestart }: { onLobby: () => void; onRestart: () =
 }
 
 // ---------------------------------------------------------------------------------------------
+// Live coach
+
+/** "READ: …\nWENT WELL: …" → labelled parts (the coach's reply format, see mockCoachSystem). */
+export function parseCoach(text: string): { label: string; body: string }[] {
+  const parts: { label: string; body: string }[] = [];
+  for (const line of text.split(/\n/)) {
+    const m = line.match(/^\s*(READ|WENT WELL|MISSING|TRY NEXT|NOTE)\s*:\s*(.*)$/i);
+    if (m) parts.push({ label: m[1].toUpperCase(), body: m[2] });
+    else if (parts.length && line.trim()) parts[parts.length - 1].body += `\n${line.trim()}`;
+  }
+  return parts.length ? parts : [{ label: "READ", body: text }];
+}
+
+const COACH_TONE = (read: string) => (/^\s*strong/i.test(read) ? "text-ok" : /^\s*needs work/i.test(read) ? "text-signal-text" : "text-fg");
+
+export function CoachNote({ text }: { text: string }) {
+  return (
+    <div className="flex flex-col gap-2">
+      {parseCoach(text).map((p, i) => (
+        <div key={i} className="flex flex-col gap-0.5">
+          <span className="font-mono text-[10px] uppercase tracking-label text-fg-3">{p.label === "NOTE" ? "note" : p.label.toLowerCase()}</span>
+          <div className={`whitespace-pre-wrap text-[14px] leading-relaxed ${p.label === "READ" ? COACH_TONE(p.body) : "text-fg-2"}`}>{p.body.replace(/^\s*[-•]\s*/gm, "· ")}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The coach's read on the phase just finished, at the top of the next one. */
+function CoachCard({ phase, text, on, onToggle }: { phase: MockPhase; text?: string; on: boolean; onToggle?: (on: boolean) => void }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <section aria-label="Live coach" className="flex flex-col gap-3 border border-line-strong bg-surface p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <button type="button" onClick={() => setOpen((o) => !o)} aria-expanded={open} className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-label text-signal-text">
+          <span aria-hidden>{open ? "▾" : "▸"}</span> live coach · ai · on P{phase.n} {phase.title}
+        </button>
+        {onToggle && (
+          <label className="flex items-center gap-2 font-mono text-[11px] text-fg-3">
+            <input type="checkbox" checked={on} onChange={(e) => onToggle(e.target.checked)} className="h-3.5 w-3.5 accent-[#FF6B2B]" />
+            coach after each phase
+          </label>
+        )}
+      </div>
+      {open &&
+        (!on ? (
+          <p className="m-0 text-[13px] text-fg-3">The coach is off for this round. Switch it back on for a short read after each phase.</p>
+        ) : !text ? (
+          <p className="m-0 text-[13px] text-fg-3">Nothing to read for that phase.</p>
+        ) : text === "…" ? (
+          <p className="m-0 flex items-center gap-2 font-mono text-xs text-fg-3">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-signal" aria-hidden /> reading what you said in that phase…
+          </p>
+        ) : (
+          <CoachNote text={text} />
+        ))}
+      <p className="m-0 text-[11px] leading-snug text-fg-4">A coach, not the interviewer: a real one wouldn&apos;t tell you this mid-round. The full verdict waits for the debrief.</p>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
 // Transcript
 
 function Bubble({ it, who, fresh }: { it: FeedItem; who: string; fresh: boolean }) {
@@ -342,7 +407,7 @@ function Transcript({ mock, run, items, running }: { mock: MockInterview; run: M
 // ---------------------------------------------------------------------------------------------
 // Workspace
 
-function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote, setAnswer, setBoard, setSketch }: Props & { phase: MockPhase; items: FeedItem[] }) {
+function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote, setAnswer, setBoard, setSketch, coachAvailable, onCoachToggle }: Props & { phase: MockPhase; items: FeedItem[] }) {
   const [tab, setTab] = useState<"notes" | "board">("notes");
   const latestRef = useRef<HTMLDivElement>(null);
   const wantScroll = useRef(false);
@@ -412,6 +477,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
             <InlineHtml html={c.html} className="text-[15px] leading-relaxed text-fg-2" />
             <Pad
               id={`cb-${c.id}`}
+              dictate
               label="❯ Your answer to this"
               value={v}
               onChange={(x) => setAnswer(c.id, x)}
@@ -424,6 +490,10 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
           </div>
         );
       })}
+
+      {coachAvailable && run.phase > 0 && (
+        <CoachCard phase={mock.phases[run.phase - 1]} text={run.coach?.[mock.phases[run.phase - 1].id]} on={run.coachOn !== false} onToggle={onCoachToggle} />
+      )}
 
       <AiInterviewer slug={mock.slug} startedAt={run.startedAt} phaseId={phase.id} interviewer={mock.interviewer.name} notes={note} />
 
@@ -453,6 +523,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
         <div role="tabpanel" id="panel-notes" aria-labelledby="tab-notes" hidden={tab !== "notes"}>
           <Pad
             id={`notes-${phase.id}`}
+            dictate
             label="❯ Your answer · autosaved"
             value={note}
             onChange={(v) => setNote(phase.id, v)}
@@ -466,6 +537,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
           {tab === "board" && <BoardCanvas value={run.sketch || ""} onChange={setSketch} />}
           <Pad
             id="mock-board"
+            dictate
             label="❯ Notes on the board · shared across phases"
             value={run.board}
             onChange={setBoard}

@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-scorecard" | "design-review" | "war-room" | "eval" | "batch";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "war-room" | "eval" | "batch";
 
 export type FeatureDef = {
   label: string;
@@ -27,6 +27,7 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "lab-review": { label: "Code review after a pass", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 10, maxTokens: 900, maxInputChars: 8000, think: true, live: true },
   "explain-back": { label: "Explain-it-back grade", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 40, maxTokens: 400, maxInputChars: 1500, think: true, live: true },
   "mock-interviewer": { label: "AI mock interviewer (turn)", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 80, maxTokens: 450, maxInputChars: 4000, think: false, live: true },
+  "mock-coach": { label: "AI mock live coach (per phase)", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 40, maxTokens: 500, maxInputChars: 14000, think: false, live: true },
   "mock-scorecard": { label: "AI mock scorecard", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 3, maxTokens: 3000, maxInputChars: 60000, think: true, live: true },
   "design-review": { label: "Design review", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 5, maxTokens: 1500, maxInputChars: 15000, think: true, live: true },
   "war-room": { label: "War room free-text", model: MODELS.sonnet, amberModel: null, perDay: 40, maxTokens: 350, maxInputChars: 600, think: false, live: true },

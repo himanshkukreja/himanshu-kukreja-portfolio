@@ -3,6 +3,7 @@
 /** Small shared pieces of the mock interview screens (Level Up: square corners, 1px rules, mono labels). */
 import type { ReactNode } from "react";
 import { LEVEL_LABEL, type MockLevel } from "@/lib/learn/mock/types";
+import { MicButton } from "./Dictate";
 
 export const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 
@@ -82,7 +83,10 @@ export function Pad({
   right,
   onKeyDown,
   inputRef,
+  dictate = false,
 }: {
+  /** a mic button: speak and the words are appended */
+  dictate?: boolean;
   id: string;
   value: string;
   onChange: (v: string) => void;
@@ -100,7 +104,10 @@ export function Pad({
         <label htmlFor={id} className="font-mono text-xs uppercase tracking-label text-fg">
           {label}
         </label>
-        {right}
+        <span className="flex min-w-0 items-center gap-3">
+          {dictate && <MicButton value={value} onChange={onChange} />}
+          {right}
+        </span>
       </div>
       <textarea
         id={id}

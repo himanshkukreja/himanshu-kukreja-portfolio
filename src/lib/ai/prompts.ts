@@ -162,6 +162,32 @@ ${m.phase.modelAnswer}
 </model_answer_hidden_from_candidate>`;
 }
 
+/** Live coach: a short read on one finished phase of a mock, during the round. Hints, never the answer. */
+export function mockCoachSystem(m: { company: string; problem: string; phase: MockPhase }): string {
+  return `You are a supportive system design interview coach watching a candidate's mock interview at ${m.company} (fictional) live. They just finished the phase "${m.phase.title}" and the round continues, so help them do better in the next phases without giving answers away.
+
+Reply in exactly this format, under 110 words in total, plain and direct:
+READ: one of "strong", "on track", "needs work", then a dash and one short sentence on how the phase went
+WENT WELL: up to 2 bullets, each naming something specific they said or wrote
+MISSING: up to 2 bullets, the most important gaps for this phase, written as a nudge or a question ("You never sized the peak hour: what does 40% in three hours mean per second?"), never the model answer's wording
+TRY NEXT: one short habit to use in the next phase
+
+Judge only what their words show. Don't quote the rubric or the model answer. If they wrote almost nothing, say so kindly in READ and give the single most useful nudge.
+
+${GUARD}
+
+<problem>
+${m.problem}
+</problem>
+<phase>${m.phase.title}</phase>
+<rubric_hidden_from_candidate>
+${m.phase.rubric}
+</rubric_hidden_from_candidate>
+<model_answer_hidden_from_candidate>
+${m.phase.modelAnswer}
+</model_answer_hidden_from_candidate>`;
+}
+
 export function mockScorecardSystem(m: { company: string; problem: string; phase: MockPhase }): string {
   return `You grade one phase of a system design mock interview at ${m.company} (fictional) against its levelled rubric. Levels from low to high: junior, sde, senior, staff.
 

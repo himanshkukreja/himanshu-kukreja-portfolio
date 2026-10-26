@@ -39,6 +39,10 @@ export type MockRun = {
   board: string;
   /** the whiteboard drawing (Excalidraw scene JSON); `board` keeps the text notes */
   sketch?: string;
+  /** live AI coach: phase id → its short read on that phase (or "…" while it is being asked) */
+  coach?: Record<string, string>;
+  /** the learner's choice for the live coach (default on) */
+  coachOn?: boolean;
   /** phase id → hints shown */
   hints: Record<string, number>;
   pauses: number;
@@ -69,6 +73,7 @@ export const freshRun = (version: string, level: MockLevel, keep?: Pick<MockRun,
   answers: {},
   board: "",
   sketch: "",
+  coach: {},
   hints: {},
   pauses: 0,
   scores: {},

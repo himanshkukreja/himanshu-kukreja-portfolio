@@ -16,6 +16,10 @@ import { mockDoneKey, mockFlagKey, mockOfferKey } from "@/lib/learn/mock/types";
 import { freshRun, nextFlag, readFlag, readRun, writeRun, type MockRun } from "@/lib/learn/mock/store";
 import { dueOnClock, enterPhase, firedCurveballs, hintId, pendingOnSubmit, roundFacts } from "@/lib/learn/mock/engine";
 import { MIN_WORDS, scoreLoop, VERDICT_LABEL, words, type SignalScore } from "@/lib/learn/mock/score";
+import { aiFetch } from "@/components/learn/ai/aiFetch";
+import { attemptKey, useMockChats } from "@/components/learn/ai/mockChat";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+import { sketchSummary } from "@/lib/learn/mock/sketch";
 import Lobby from "./Lobby";
 import Room from "./Room";
 import Debrief from "./Debrief";
@@ -99,10 +103,11 @@ export default function MockInterviewRoom({ mock, lecture = null }: { mock: Mock
   // ------------------------------------------------------------------ actions
 
   const start = useCallback(
-    (level: MockLevel) => {
+    (level: MockLevel, opts?: { coach?: boolean }) => {
       setRun((r) => {
         const base = freshRun(mock.version, level, { attempt: (r?.attempt || 0) + 1, history: r?.history || [] });
-        return enterPhase(mock, { ...base, screen: "room", live: true, startedAt: Date.now() }, 0);
+        const coachOn = opts?.coach ?? r?.coachOn ?? true;
+        return enterPhase(mock, { ...base, coachOn, screen: "room", live: true, startedAt: Date.now() }, 0);
       });
       setRunning(true);
       setAway(false);
@@ -148,6 +153,36 @@ export default function MockInterviewRoom({ mock, lecture = null }: { mock: Mock
     [mock]
   );
 
+  // ------------------------------------------------------------------ live AI coach (after each phase)
+
+  const ai = useAiStatus();
+  const coachAvailable = !!ai?.signedIn && !!ai?.features["mock-coach"];
+  const { chats } = useMockChats(attemptKey(mock.slug, run?.startedAt ?? null));
+  const askCoach = useCallback(
+    (k: number, r: MockRun) => {
+      const p = mock.phases[k];
+      if (!p || !coachAvailable || r.coachOn === false || r.coach?.[p.id]) return;
+      const design = /high[- ]level|architecture|design/i.test(p.title);
+      const body = {
+        slug: mock.slug,
+        phaseId: p.id,
+        notes: r.notes[p.id] || "",
+        curveballs: p.curveballs.map((c) => r.answers[c.id] || "").filter(Boolean),
+        chat: chats[p.id] || [],
+        board: design ? [sketchSummary(r.sketch), r.board.trim()].filter(Boolean).join("\n") : "",
+      };
+      setRun((x) => (x ? { ...x, coach: { ...x.coach, [p.id]: "…" } } : x));
+      void aiFetch("/api/learn/ai/mock/coach", { method: "POST", body: JSON.stringify(body) })
+        .then(async (res) => {
+          const j = (await res.json().catch(() => ({}))) as { text?: string; error?: string };
+          const text = res.ok && j.text ? j.text : `NOTE: ${j.error || "The coach couldn't read this phase."}`;
+          setRun((x) => (x ? { ...x, coach: { ...x.coach, [p.id]: text } } : x));
+        })
+        .catch(() => setRun((x) => (x ? { ...x, coach: { ...x.coach, [p.id]: "NOTE: You seem to be offline; the coach will be back with the connection." } } : x)));
+    },
+    [mock, coachAvailable, chats]
+  );
+
   const done_ = useCallback(() => {
     if (!run) return;
     const k = run.phase;
@@ -172,11 +207,13 @@ export default function MockInterviewRoom({ mock, lecture = null }: { mock: Mock
     if (k + 1 >= mock.phases.length) {
       setRun(marked);
       endCall();
+      askCoach(k, marked);
       return;
     }
     setRun(enterPhase(mock, marked, k + 1));
+    askCoach(k, marked);
     scrollTop();
-  }, [run, mock, skipWarn, endCall, scrollTop]);
+  }, [run, mock, skipWarn, endCall, scrollTop, askCoach]);
 
   const hint = useCallback(() => {
     setRun((r) => {
@@ -262,6 +299,8 @@ export default function MockInterviewRoom({ mock, lecture = null }: { mock: Mock
           setAnswer={setAnswer}
           setBoard={setBoard}
           setSketch={setSketch}
+          coachAvailable={coachAvailable}
+          onCoachToggle={(on) => setRun((r) => (r ? { ...r, coachOn: on } : r))}
         />
       )}
       {run.screen === "debrief" && score && facts && (

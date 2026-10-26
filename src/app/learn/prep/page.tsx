@@ -48,6 +48,9 @@ export default async function PrepPage() {
     problems: (map?.problems ?? []).map((l) => ({ code: l.code, title: l.title, href: l.href })),
     lld: (map?.lld ?? []).map((l) => ({ code: l.code, title: l.title, href: l.href })),
     sheets: sheets.map((s) => ({ slug: s.slug, code: s.code, title: s.title, href: s.href, diagrams: s.diagrams })),
+    mockVideos: Object.fromEntries(
+      lectures.filter((l) => l.track === "mocks").map((l) => [l.slug.replace(/^mock-interviews--/, ""), { href: l.href, minutes: l.minutes }])
+    ),
     lectures: {
       count: lectures.length,
       minutes: lectures.reduce((a, l) => a + l.minutes, 0),

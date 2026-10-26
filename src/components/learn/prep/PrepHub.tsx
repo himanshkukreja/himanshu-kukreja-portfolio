@@ -28,6 +28,7 @@ import { REVISE_EVENT, readRevise, weekRevised, type ReviseState } from "@/compo
 import { useOffline } from "@/components/offline/OfflineProvider";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { pathOf } from "@/lib/offline/store";
+import { VERDICT_LABEL } from "@/lib/learn/mock/score";
 
 export type PracticeData = {
   revision: { weeks: { key: string; id: string; code: string; title: string; lessons: string[] }[]; lessons: number; cards: number };
@@ -42,6 +43,8 @@ export type PracticeData = {
   /** side-quest design sheets */
   sheets: { slug: string; code: string; title: string; href: string; diagrams: number }[];
   lectures: { count: number; minutes: number; first: { href: string; title: string } | null; groups: { name: string; anchor: string; code: string; count: number }[] };
+  /** mock slug → its recorded model interview (lecture page), when there is one */
+  mockVideos?: Record<string, { href: string; minutes: number }>;
 };
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label";
@@ -161,6 +164,47 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
               reach={reach(data.lectures.first.href)}
             />
           )}
+        </Group>
+      )}
+
+      {/* mock interviews, one by one */}
+      {data.mocks.length > 0 && (
+        <Group id="mocks" kicker="mock interviews" title="Sit a real interview loop" aside="A timed round with an interviewer, curveballs, a rubric and a verdict. Watch the recorded one first if you like.">
+          {mocks.map(({ mock: m, state, result, offer }) => {
+            const video = data.mockVideos?.[m.slug];
+            return (
+              <div key={m.id} className="flex flex-col gap-3 border border-line-strong bg-surface p-5">
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex min-w-0 flex-col gap-1">
+                    <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
+                      {m.code} · after world {m.afterCode}
+                    </span>
+                    <span className="font-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-fg">{m.company}</span>
+                    <span className="text-[14px] leading-snug text-fg-2">{m.title}</span>
+                  </span>
+                  <span className={`shrink-0 font-mono text-[11px] ${state === "done" ? "text-ok" : state === "live" ? "text-signal-text" : "text-fg-3"}`}>
+                    {!hydrated ? "" : state === "done" ? `✓ ${result ? VERDICT_LABEL[result.best.verdict] : "done"}${offer ? " · offer" : ""}` : state === "live" ? "in progress" : ""}
+                  </span>
+                </div>
+                <span className="font-mono text-[11px] text-fg-3">
+                  {m.minutes} min · {m.phases} phases · {m.curveballs} curveball{m.curveballs === 1 ? "" : "s"} · with {m.interviewer}
+                </span>
+                <div className="mt-auto flex flex-wrap gap-2">
+                  <Link href={m.href} className="inline-flex min-h-10 items-center bg-signal px-3.5 text-[14px] font-semibold text-on-signal hover:opacity-90">
+                    {state === "live" ? "Rejoin" : state === "done" ? "Try again" : "Start the round"}
+                  </Link>
+                  {video && (
+                    <Link href={video.href} className="inline-flex min-h-10 items-center gap-1.5 border border-line-strong px-3.5 text-[14px] text-fg hover:border-signal">
+                      <span aria-hidden className="text-signal-text">
+                        ▶
+                      </span>
+                      Watch it done well · {video.minutes} min
+                    </Link>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </Group>
       )}
 

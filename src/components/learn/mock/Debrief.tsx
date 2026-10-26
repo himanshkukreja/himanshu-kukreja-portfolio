@@ -17,6 +17,7 @@ import { buildFeedbackPrompt, openFeedback } from "@/lib/learn/mock/feedback";
 import { copyText, CLIENT_LABEL, type AskClient } from "@/lib/learn/askAi";
 import { CourseHtml, InlineHtml, LABEL, LevelChip, Stat } from "./ui";
 import BoardPreview from "./BoardPreview";
+import { CoachNote } from "./Room";
 
 type Props = {
   mock: MockInterview;
@@ -184,6 +185,20 @@ function PhaseReview({ run, score, phase, setScore, setRevealed }: Props & { pha
           <p className="m-0 border border-dashed border-line-strong px-3.5 py-3 text-sm text-fg-3">Nothing written in this phase.</p>
         )}
       </div>
+
+      {run.coach?.[phase.id] && run.coach[phase.id] !== "…" && (
+        <details className="group border border-line bg-raised px-3.5 py-2.5">
+          <summary className="flex min-h-8 cursor-pointer list-none items-center gap-2 font-mono text-[11px] uppercase tracking-label text-fg-3">
+            <span aria-hidden className="transition-transform group-open:rotate-90">
+              ›
+            </span>
+            what the live coach said after this phase
+          </summary>
+          <div className="pt-2">
+            <CoachNote text={run.coach[phase.id]} />
+          </div>
+        </details>
+      )}
 
       {curve.map((c) => (
         <div key={c.id} className="flex flex-col gap-2 border-l-2 border-signal pl-3.5">
