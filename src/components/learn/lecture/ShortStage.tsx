@@ -176,19 +176,17 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
       {!dup && group.length > 0 && (
         <div className="absolute inset-x-[5%] top-[77%] flex justify-center">
           <p
-            className="m-0 text-center font-display text-[9cqw] font-extrabold uppercase leading-[1.04] tracking-[-0.01em] [word-spacing:0.12em]"
+            className="m-0 flex flex-wrap justify-center gap-x-[0.42em] text-center font-display text-[9cqw] font-extrabold uppercase leading-[1.04] tracking-[-0.01em]"
             style={{ transform: `scale(${0.86 + 0.14 * back(gIn)})`, opacity: clamp(gIn * 3), WebkitTextStroke: "0.5cqw #0b0b0c", paintOrder: "stroke fill", textShadow: "0 1cqw 3cqw rgba(0,0,0,0.7)" }}
           >
             {group.map((x, k) => {
               const on = t >= x.s - 0.03 && (t < x.e + 0.05 || k === group.length - 1);
               // Reels captions drop full stops and commas; ? and ! stay
               const word = x.w.replace(/[.,;:]+$/, "");
+              // words sit in a flex row with a fixed gap, so the lit word's pop can't close the space beside it
               return (
-                <span key={k}>
-                  <span className="inline-block" style={{ color: on ? "#ff6b2b" : "#f3f2ee", transform: `scale(${on ? 1.08 : 1})` }}>
-                    {word}
-                  </span>
-                  {k < group.length - 1 ? " " : ""}
+                <span key={k} className="inline-block" style={{ color: on ? "#ff6b2b" : "#f3f2ee", transform: `scale(${on ? 1.06 : 1})` }}>
+                  {word}
                 </span>
               );
             })}
