@@ -227,14 +227,17 @@ function PTitle({ s, t, first, fallback }: { s: LectureScene; t: number; first: 
           <span key={k}>
             <span className="inline-block" style={{ opacity: e, transform: `translateY(${(1 - e) * 1.6}cqh)` }}>
               {w}
+              {/* the full stop rides inside the last word, so it can never wrap onto a line of its own */}
+              {k === words.length - 1 && (
+                <span className="text-[#ff6b2b]" style={{ opacity: first ? prog(t, 0.2 + words.length * 0.06, 0.3) : 1 }}>
+                  {end}
+                </span>
+              )}
             </span>
             {k < words.length - 1 ? " " : ""}
           </span>
         );
       })}
-      <span className="text-[#ff6b2b]" style={{ opacity: first ? prog(t, 0.2 + words.length * 0.06, 0.3) : 1 }}>
-        {end}
-      </span>
     </h2>
   );
 }
