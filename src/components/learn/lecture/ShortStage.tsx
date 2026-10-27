@@ -122,7 +122,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
 
       {/* the scene */}
       <div
-        className="absolute inset-x-[6%] bottom-[37%] top-[9%] flex items-center justify-center"
+        className="absolute inset-x-[6%] bottom-[36%] top-[13.5%] flex items-center justify-center"
         style={{ opacity: clamp(enter * 1.4), transform: `translateY(${(1 - enter) * 6}cqh) scale(${(0.92 + 0.08 * enter) * punch * drift})` }}
       >
         {s.kind === "title" && <PTitle s={s} t={t} first={cur.step === 0} fallback={lecture.title} />}
@@ -144,7 +144,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
 
       {/* the beat's sticker: pops onto the visual, tilted */}
       {st.caption && (
-        <div className="absolute right-[5%] top-[7.5%] z-10 origin-top-right" style={{ transform: `rotate(-4deg) scale(${sticker})`, opacity: clamp(sticker * 2) }}>
+        <div className="absolute right-[5%] top-[6.6%] z-10 origin-top-right" style={{ transform: `rotate(-4deg) scale(${sticker})`, opacity: clamp(sticker * 2) }}>
           <span className="block bg-[#ff6b2b] px-[2.6cqw] py-[0.9cqh] font-mono text-[3.6cqw] font-bold uppercase tracking-[0.04em] text-[#120700] shadow-[0_1.4cqw_3cqw_rgba(0,0,0,0.55)]">
             {st.caption}
           </span>
