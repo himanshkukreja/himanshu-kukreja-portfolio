@@ -72,7 +72,7 @@ for (const s of L.scenes || []) {
   }
 }
 // course lessons have their own ranges (resources/lectures/README.md, "Course lessons")
-const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10], short: [300, 480, 0, 0, 5, 9] };
+const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10], short: [150, 270, 0, 0, 5, 9] };
 const kind = L.short ? "short" : L.lesson ? L.lesson.kind : "quest";
 // vertical shorts (resources/shorts/shorts--<long id>.json): portrait-friendly scenes only
 if (L.short) {
@@ -80,6 +80,7 @@ if (L.short) {
   if (!/^shorts--[A-Za-z0-9-]+$/.test(L.quest || "") || !(L.quest === `shorts--${L.short.of}` || (L.quest || "").startsWith(`shorts--${L.short.of}--`))) errs.push(`short quest must be "shorts--${L.short?.of}" or "shorts--${L.short?.of}--<part>"`);
   if (!L.short.of || !L.short.article || !L.short.label) errs.push("short needs of (the long lecture id), article (its page) and label");
   if (!Array.isArray(L.short.topics) || L.short.topics.length < 1 || L.short.topics.length > 3) errs.push("short needs 1-3 topics (lowercase tags like caching, databases, incidents)");
+  if (!["tension", "drive", "lofi", "playful", "bright"].includes(L.short.music)) errs.push("short needs music: tension | drive | lofi | playful | bright");
   else for (const tg of L.short.topics) if (!/^[a-z][a-z0-9-]{1,24}$/.test(tg)) errs.push(`topic "${tg}" must be a lowercase tag`);
   // `at` must be a scene of the long lecture (looked up next to this file: ../lectures or ../lectures-next)
   if (L.short.at) {
@@ -92,9 +93,10 @@ if (L.short) {
     if (["quiz"].includes(s.kind)) errs.push(`${s.id}: shorts have no quizzes`);
     // sequence diagrams lay out sideways: on a phone their text is unreadable. Use a top-down flowchart.
     if (s.kind === "sequence") errs.push(`${s.id}: no sequence diagrams in a short (use flowchart TB)`);
-    if (s.kind === "flowchart" && ((s.diagram || "").match(/^\s*[A-Za-z][\w-]*\s*[\[({]/gm) || []).length > 7) warns.push(`${s.id}: more than 7 nodes is too small on a phone`);
+    if (s.kind === "flowchart" && ((s.diagram || "").match(/^\s*[A-Za-z][\w-]*\s*[\[({]/gm) || []).length > 6) warns.push(`${s.id}: more than 6 nodes is too small on a phone`);
     if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(LR|RL)/m.test(s.diagram || "")) errs.push(`${s.id}: flowcharts in a short run top-down (flowchart TB)`);
-    if ((s.kind === "numbers" && (s.numbers || []).length > 4) || ((s.kind === "list" || s.kind === "chart") && (s.points || []).length > 5) || (s.kind === "timeline" && (s.events || []).length > 5)) warns.push(`${s.id}: too many items for a phone screen`);
+    if ((s.kind === "numbers" && (s.numbers || []).length > 3) || (s.kind === "list" && (s.points || []).length > 3) || (s.kind === "chart" && (s.points || []).length > 4) || (s.kind === "timeline" && (s.events || []).length > 4) || (s.kind === "compare" && Math.max(s.left?.points?.length || 0, s.right?.points?.length || 0) > 3)) errs.push(`${s.id}: too many items for a phone screen (numbers/list 3, chart/timeline 4, compare 3 a side)`);
+    for (const [k, st] of (s.steps || []).entries()) for (const sentence of (st.say || "").split(/(?<=[.!?])\s+/)) if (sentence.split(/\s+/).length > 14) warns.push(`${s.id}#${k}: a ${sentence.split(/\s+/).length}-word sentence (Reels lines are ≤ 12)`);
   }
 }
 if (L.lesson) {

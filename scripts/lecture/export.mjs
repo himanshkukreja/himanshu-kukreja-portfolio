@@ -29,20 +29,26 @@ for (let k = 0; k < argv.length; k++) {
 const [file, OUT_ARG] = pos;
 const SITE = opt("site", "http://localhost:3100");
 const VOICE = opt("voice", "af_heart");
-const SPEED = opt("speed", "1.0");
+let SPEED = opt("speed", "");
 const FPS = Number(opt("fps", "25"));
 const OUT = path.resolve(OUT_ARG);
 const KOKORO = (process.env.KOKORO_DIR || path.join(process.env.HOME, ".cache/kokoro")).replace(/\/?$/, "/");
 const PYTHON = process.env.KOKORO_PYTHON || path.join(KOKORO, "venv/bin/python");
 const HERE = path.dirname(new URL(import.meta.url).pathname);
-const MUSIC = opt("music", "");
+let MUSIC = opt("music", "");
+// shorts pick a track by mood from --music-dir (scripts/lecture/music_moods.py): <dir>/<mood>.mp3
+const MUSIC_DIR = opt("music-dir", "");
 
 const raw = fs.readFileSync(file, "utf8");
 const lec = JSON.parse(raw);
 // same fingerprint as lectureHash() in src/lib/learn/lecture/load.ts
 const SOURCE = crypto.createHash("sha1").update(JSON.stringify(lec)).digest("hex").slice(0, 12);
+// a vertical short: tight cuts (a beat between lines, not a pause), a slightly brisker voice, its mood's music
+const SHORT = !!lec.short;
+if (!SPEED) SPEED = SHORT ? "1.07" : "1.0";
+if (SHORT && MUSIC_DIR && lec.short.music && fs.existsSync(path.join(MUSIC_DIR, `${lec.short.music}.mp3`))) MUSIC = path.join(MUSIC_DIR, `${lec.short.music}.mp3`);
 const steps = lec.scenes.flatMap((s) => s.steps.map((st, k) => ({ id: `${s.id}-${k}`, say: st.say, who: st.who, pause: st.pause || 0, quizAsk: s.kind === "quiz" && k === 0 })));
-const GAP = 0.45;
+const GAP = SHORT ? 0.12 : 0.45;
 const QUIZ_WAIT = 3.2; // the video's countdown; the course player waits for an answer instead
 fs.mkdirSync(path.join(OUT, "audio"), { recursive: true });
 
@@ -88,6 +94,13 @@ for (const s of steps) {
   list.push(`file '${wav}'`);
 }
 fs.writeFileSync(path.join(OUT, "list.txt"), list.join("\n"));
+// shorts: every script word's timing, for the Reels-style captions (faster-whisper, aligned to the script)
+let WORDS = null;
+if (SHORT) {
+  fs.writeFileSync(path.join(OUT, "script-words.json"), JSON.stringify(steps.map((s) => s.say.split(/\s+/).filter(Boolean))));
+  execFileSync(PYTHON, [path.join(HERE, "words.py"), OUT], { stdio: ["ignore", "inherit", "inherit"] });
+  WORDS = JSON.parse(fs.readFileSync(path.join(OUT, "words.json"), "utf8"));
+}
 const narration = path.join(OUT, "narration.wav");
 ff("-f", "concat", "-safe", "0", "-i", path.join(OUT, "list.txt"), "-c", "copy", narration);
 const starts = durations.reduce((a, d, k) => (a.push(k ? a[k - 1] + durations[k - 1] : 0), a), []);
@@ -145,6 +158,7 @@ await page.evaluateOnNewDocument(() => {
 await page.goto(`${SITE}/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}?record=1`, { waitUntil: "networkidle2", timeout: 240000 });
 await page.addStyleTag({ content: "nextjs-portal{display:none!important} *{transition:none!important;animation:none!important;caret-color:transparent!important}" });
 await page.waitForFunction(() => window.__LECTURE_READY === true && typeof window.__LECTURE_SET === "function", { timeout: 180000 });
+if (WORDS) await page.evaluate((w) => (window.__SHORT_WORDS = w), WORDS);
 const plan = await page.evaluate(() => window.__LECTURE_PLAN);
 if (plan.length !== steps.length) throw new Error(`page has ${plan.length} steps, script ${steps.length}: is the dev server on the same content?`);
 const FR = path.join(OUT, "frames");
@@ -183,7 +197,7 @@ if (flag("no-video")) process.exit(0);
 // 4. the MP4: frames + narration + music ducked under the voice
 const mp4 = path.join(OUT, "video.mp4");
 const audioArgs = hasMusic
-  ? ["-stream_loop", "-1", "-i", MUSIC, "-filter_complex", "[2:a]volume=0.20,aformat=channel_layouts=stereo[m];[1:a]aformat=channel_layouts=stereo,asplit=2[v][key];[m][key]sidechaincompress=threshold=0.02:ratio=5:attack=30:release=600[md];[v][md]amix=inputs=2:duration=first:normalize=0,afade=t=out:st=" + Math.max(0, total - 2.5).toFixed(2) + ":d=2.5[a]", "-map", "0:v", "-map", "[a]"]
+  ? ["-stream_loop", "-1", "-i", MUSIC, "-filter_complex", `[2:a]volume=${SHORT ? "0.32" : "0.20"},aformat=channel_layouts=stereo[m];[1:a]aformat=channel_layouts=stereo,asplit=2[v][key];[m][key]sidechaincompress=threshold=0.02:ratio=5:attack=30:release=600[md];[v][md]amix=inputs=2:duration=first:normalize=0,afade=t=out:st=` + Math.max(0, total - 2.5).toFixed(2) + ":d=2.5[a]", "-map", "0:v", "-map", "[a]"]
   : ["-map", "0:v", "-map", "1:a"];
 ff("-f", "concat", "-safe", "0", "-i", path.join(OUT, "frames.txt"), "-i", narration, ...audioArgs, "-vf", `fps=${FPS},format=yuv420p`, "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-c:a", "aac", "-b:a", "160k", "-t", total.toFixed(3), "-movflags", "+faststart", mp4);
 writeMedia("video.mp4");

@@ -15,21 +15,53 @@ import { DiagramScene, Item, revealed } from "./Stage";
 
 const W = "text-[#f3f2ee]";
 
-/** this step's caption line: its sentences, timed by length. A sentence ends at . ! or ? followed by a
- *  space or the end, so "9.2", "GitLab.com" or "e.g" never cut a caption in half. */
-function captionAt(say: string, f: number): string {
-  const parts = say.split(/(?<=[.!?]["'’”]?)\s+/).map((x) => x.trim()).filter(Boolean);
-  if (!parts.length) return say;
-  const total = parts.reduce((a, p) => a + p.length, 0) || 1;
-  let acc = 0;
-  for (const p of parts) {
-    acc += p.length;
-    if (f <= acc / total) return p;
+type Props = { lecture: Lecture; flat: FlatStep[]; i: number; t: number; dur: number; onReady?: (i: number) => void };
+
+declare global {
+  interface Window {
+    /** export.mjs: every script word's [start, end] seconds within its step (faster-whisper, aligned) */
+    __SHORT_WORDS?: number[][][];
   }
-  return parts[parts.length - 1];
 }
 
-type Props = { lecture: Lecture; flat: FlatStep[]; i: number; t: number; dur: number; onReady?: (i: number) => void };
+/** a slight overshoot, for things that pop */
+const back = (x: number) => {
+  const c = 1.70158;
+  const y = clamp(x) - 1;
+  return 1 + (c + 1) * y * y * y + c * y * y;
+};
+
+/** the step's words with their timings: the exporter's (aligned to the voice) or an estimate by length */
+function timedWords(say: string, i: number, speaking: number): { w: string; s: number; e: number }[] {
+  const words = say.split(/\s+/).filter(Boolean);
+  const real = typeof window !== "undefined" ? window.__SHORT_WORDS?.[i] : undefined;
+  if (real && real.length === words.length) return words.map((w, k) => ({ w, s: real[k][0], e: real[k][1] }));
+  const total = words.reduce((a, w) => a + w.length + 1, 0) || 1;
+  let acc = 0;
+  return words.map((w) => {
+    const s0 = (acc / total) * speaking;
+    acc += w.length + 1;
+    return { w, s: s0, e: (acc / total) * speaking };
+  });
+}
+
+/** Reels captions: 2-3 words at a time, breaking after punctuation */
+function chunks(words: { w: string; s: number; e: number }[]) {
+  const out: { w: string; s: number; e: number }[][] = [];
+  let cur: typeof words = [];
+  for (const x of words) {
+    cur.push(x);
+    const len = cur.reduce((a, y) => a + y.w.length + 1, 0);
+    if (cur.length >= 3 || len >= 15 || /[.,!?;:]$/.test(x.w)) {
+      out.push(cur);
+      cur = [];
+    }
+  }
+  if (cur.length) out.push(cur);
+  return out;
+}
+
+const norm = (x: string) => x.toLowerCase().replace(/[^a-z0-9 ]/g, "").split(/\s+/).filter(Boolean);
 
 export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props) {
   const cur = flat[i];
@@ -37,34 +69,61 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
   const st = cur.st;
   const prev = i > 0 && flat[i - 1].scene === cur.scene ? flat[i - 1] : null;
   const firstOfScene = !prev;
-  const enter = firstOfScene ? prog(t, 0, 0.5) : 1;
-  const total = flat.length;
-  const speakingFor = Math.max(0.1, dur - (st.pause ?? 0) - 0.45);
-  const caption = captionAt(st.say, Math.min(1, t / speakingFor));
   const hasDiagram = s.kind === "flowchart" || s.kind === "state" || s.kind === "sequence";
   const label = lecture.short?.label || "";
-  const last = i === total - 1;
+  const scenes = lecture.scenes.length;
+
+  // motion: a new scene slides up with a flash cut; every beat punches in, then drifts slowly
+  const enter = firstOfScene ? back(t / 0.42) : 1;
+  const punch = 1 + 0.045 * (1 - clamp(t / 0.32));
+  const drift = 1 + 0.018 * clamp(t / Math.max(dur, 0.5));
+  const flash = firstOfScene && i > 0 ? 0.28 * (1 - clamp(t / 0.14)) : 0;
+
+  // captions: the chunk being spoken, its spoken word lit
+  const speaking = Math.max(0.3, dur - (st.pause ?? 0) - 0.12);
+  const words = timedWords(st.say, i, speaking);
+  const groups = chunks(words);
+  let g = 0;
+  for (let k = 0; k < groups.length; k++) if (groups[k][0].s <= t + 0.02) g = k;
+  const group = groups[g] || [];
+  const gIn = clamp((t - (group[0]?.s ?? 0)) / 0.12);
+  // a title scene shows its own giant words: no second copy as a caption when they say the same thing
+  const headingWords = new Set(norm(s.heading || ""));
+  const sayWords = norm(st.say);
+  const dup = s.kind === "title" && sayWords.length > 0 && sayWords.filter((w) => headingWords.has(w)).length / sayWords.length > 0.6;
+
+  const sticker = st.caption ? back((t - 0.06) / 0.3) : 0;
 
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] [container-type:size]">
-      {/* backdrop: the blueprint grid and a warm glow */}
-      <div aria-hidden className="absolute inset-0 opacity-[0.35] [background-image:linear-gradient(#1a1a1d_1px,transparent_1px),linear-gradient(90deg,#1a1a1d_1px,transparent_1px)] [background-size:6cqw_6cqw]" />
-      <div aria-hidden className="absolute -right-[30%] -top-[10%] h-[45%] w-[90%] rounded-full bg-[radial-gradient(closest-side,rgba(255,107,43,0.12),transparent)]" />
+      {/* backdrop: the blueprint grid, drifting, and a warm glow */}
+      <div
+        aria-hidden
+        className="absolute -inset-[4%] opacity-[0.35] [background-image:linear-gradient(#1a1a1d_1px,transparent_1px),linear-gradient(90deg,#1a1a1d_1px,transparent_1px)] [background-size:6cqw_6cqw]"
+        style={{ transform: `translateY(${(-((i + clamp(t / Math.max(dur, 0.5))) * 0.6) % 6)}cqw)` }}
+      />
+      <div aria-hidden className="absolute -right-[30%] -top-[10%] h-[50%] w-[100%] rounded-full bg-[radial-gradient(closest-side,rgba(255,107,43,0.16),transparent)]" />
 
-      {/* header */}
-      <div className="absolute inset-x-[6%] top-[3.2%] flex items-center justify-between gap-[3cqw] font-mono text-[2.5cqw] uppercase tracking-[0.12em]">
-        <span className="flex min-w-0 items-center gap-[1.6cqw] text-[#ff6b2b]">
-          <span className="inline-block h-[1.4cqw] w-[1.4cqw] shrink-0 bg-[#ff6b2b]" />
-          <span className="truncate">{label}</span>
-        </span>
-        <span className="shrink-0 text-[#8a8a90]">short</span>
+      {/* stories-style progress: one segment per scene */}
+      <div className="absolute inset-x-[4%] top-[1.6%] flex gap-[1cqw]">
+        {Array.from({ length: scenes }, (_, k) => {
+          const f = k < cur.scene ? 1 : k > cur.scene ? 0 : clamp((cur.step + clamp(t / Math.max(dur, 0.1))) / Math.max(1, s.steps.length));
+          return (
+            <span key={k} className="h-[0.45cqh] flex-1 bg-[#ffffff26]">
+              <span className="block h-full bg-[#f3f2ee]" style={{ width: `${f * 100}%` }} />
+            </span>
+          );
+        })}
       </div>
-      <div aria-hidden className="absolute inset-x-[6%] top-[6.4%] h-px bg-[#26262a]" />
+      <div className="absolute inset-x-[4%] top-[3.2%] flex items-center gap-[1.6cqw] font-mono text-[2.6cqw] uppercase tracking-[0.12em] text-[#ff6b2b]">
+        <span className="inline-block h-[1.4cqw] w-[1.4cqw] shrink-0 bg-[#ff6b2b]" />
+        <span className="truncate">{label}</span>
+      </div>
 
       {/* the scene */}
       <div
-        className="absolute inset-x-[6%] bottom-[30%] top-[9%] flex items-center justify-center"
-        style={{ opacity: enter, transform: `translateY(${(1 - enter) * 1.4}cqh)` }}
+        className="absolute inset-x-[6%] bottom-[37%] top-[9%] flex items-center justify-center"
+        style={{ opacity: clamp(enter * 1.4), transform: `translateY(${(1 - enter) * 6}cqh) scale(${(0.92 + 0.08 * enter) * punch * drift})` }}
       >
         {s.kind === "title" && <PTitle s={s} t={t} first={cur.step === 0} fallback={lecture.title} />}
         {s.kind === "numbers" && <PNumbers s={s} k={cur.step} t={t} />}
@@ -83,30 +142,41 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
         )}
       </div>
 
-      {/* the step's chip and the caption, big */}
-      <div className="absolute inset-x-[6%] bottom-[11%] top-[72%] flex flex-col items-center justify-start gap-[1.6cqh] text-center">
-        {st.caption && (
-          <span
-            className="bg-[#ff6b2b] px-[2.4cqw] py-[0.6cqh] font-mono text-[3cqw] font-semibold uppercase tracking-[0.06em] text-[#120700]"
-            style={{ opacity: prog(t, 0.1, 0.35), transform: `translateY(${(1 - prog(t, 0.1, 0.35)) * 0.8}cqh)` }}
-          >
+      {/* the beat's sticker: pops onto the visual, tilted */}
+      {st.caption && (
+        <div className="absolute right-[5%] top-[7.5%] z-10 origin-top-right" style={{ transform: `rotate(-4deg) scale(${sticker})`, opacity: clamp(sticker * 2) }}>
+          <span className="block bg-[#ff6b2b] px-[2.6cqw] py-[0.9cqh] font-mono text-[3.6cqw] font-bold uppercase tracking-[0.04em] text-[#120700] shadow-[0_1.4cqw_3cqw_rgba(0,0,0,0.55)]">
             {st.caption}
           </span>
-        )}
-        <p className={`m-0 text-[5.2cqw] font-semibold leading-[1.25] tracking-[-0.01em] ${W}`}>{caption}</p>
-      </div>
+        </div>
+      )}
 
-      {/* footer: progress and the full lecture */}
-      <div className="absolute inset-x-[6%] bottom-[4%] flex flex-col gap-[1.4cqh]">
-        <div className="h-[0.5cqh] w-full bg-[#1d1d20]">
-          <div className="h-full bg-[#ff6b2b]" style={{ width: `${((i + Math.min(1, t / Math.max(dur, 0.1))) / total) * 100}%` }} />
+      {/* Reels captions: big, a few words at a time, the spoken word lit */}
+      {!dup && group.length > 0 && (
+        <div className="absolute inset-x-[5%] top-[66%] flex justify-center">
+          <p
+            className="m-0 text-center font-display text-[9cqw] font-extrabold uppercase leading-[1.04] tracking-[-0.02em]"
+            style={{ transform: `scale(${0.86 + 0.14 * back(gIn)})`, opacity: clamp(gIn * 3), WebkitTextStroke: "0.5cqw #0b0b0c", paintOrder: "stroke fill", textShadow: "0 1cqw 3cqw rgba(0,0,0,0.7)" }}
+          >
+            {group.map((x, k) => {
+              const on = t >= x.s - 0.03 && (t < x.e + 0.05 || k === group.length - 1);
+              const said = t >= x.s - 0.03;
+              return (
+                <span key={k} className="inline-block" style={{ color: on ? "#ff6b2b" : said ? "#f3f2ee" : "#f3f2ee", transform: `scale(${on ? 1.08 : 1})`, margin: "0 0.8cqw" }}>
+                  {x.w}
+                </span>
+              );
+            })}
+          </p>
         </div>
-        <div className="flex items-center justify-between font-mono text-[2.5cqw] tracking-[0.06em]">
-          <span className={last ? "text-[#ff6b2b]" : "text-[#8a8a90]"}>▶ full lecture + article</span>
-          <span className="text-[#c9c8c4]">
-            <span className="text-[#ff6b2b]">~</span>/himanshukukreja.in/learn
-          </span>
-        </div>
+      )}
+
+      {/* a cut: a quick flash as a new scene lands */}
+      {flash > 0 && <div aria-hidden className="absolute inset-0 bg-[#ff6b2b]" style={{ opacity: flash }} />}
+
+      {/* the site, small */}
+      <div className="absolute inset-x-0 bottom-[3.2%] text-center font-mono text-[2.6cqw] tracking-[0.06em] text-[#8a8a90]">
+        <span className="text-[#ff6b2b]">~</span>/himanshukukreja.in/learn
       </div>
     </div>
   );

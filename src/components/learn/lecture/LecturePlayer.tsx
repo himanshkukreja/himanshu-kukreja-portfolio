@@ -155,7 +155,8 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
       if (!off) window.__LECTURE_READY = true;
     });
     // -1: moving for the whole step (packets loop, quiz countdown), else seconds of motion
-    window.__LECTURE_PLAN = flat.map((f) => ({ anim: f.st.flow?.length || (f.s.kind === "quiz" && f.step === 0) ? -1 : INTRO, quiz: f.s.kind === "quiz" }));
+    // shorts move for the whole step (word-by-word captions, the slow drift): capture every frame
+    window.__LECTURE_PLAN = flat.map((f) => ({ anim: lecture.short || f.st.flow?.length || (f.s.kind === "quiz" && f.step === 0) ? -1 : INTRO, quiz: f.s.kind === "quiz" }));
     window.__LECTURE_SET = (i, t, dur, token) => {
       readyFor.current = -1;
       pending.current = null;
@@ -165,7 +166,7 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
       off = true;
       delete window.__LECTURE_SET;
     };
-  }, [flat]);
+  }, [flat, lecture.short]);
   // a diagram can finish drawing after this frame's commit: it reports in, and the frame is done then
   const onReady = useCallback(
     (i: number) => {

@@ -62,6 +62,8 @@ export type Lecture = {
     topics?: string[];
     /** where this idea sits in the long lecture: a scene id there (the "full lecture" link opens at it) */
     at?: string;
+    /** background music mood (scripts/lecture/music_moods.py): tension, drive, lofi, playful, bright */
+    music?: "tension" | "drive" | "lofi" | "playful" | "bright";
   };
   title: string;
   summary: string;
