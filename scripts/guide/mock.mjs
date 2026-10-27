@@ -8,11 +8,25 @@
  *   writing a single row anywhere.
  * - The leaderboard API answers with example players (no real names or scores in the screenshots).
  * - The share settings API answers with the example share state (`o.share`); saves go nowhere.
+ * - Signed in, the AI status says what a signed-in learner sees (the panels show their inputs), and
+ *   the mock interview's live coach answers with an example note (`o.coach`). No AI is ever called.
  */
 export const DEMO_USER = {
   id: "0d1e6a8c-5b4f-4c1e-9a77-6c2f00000042",
   email: "demo.learner@example.com",
   name: "Demo Learner",
+};
+
+/** /api/learn/ai/status for the signed-in mock (shape: src/components/learn/ai/useAiStatus.ts). */
+const AI_STATUS = {
+  available: true,
+  preview: false,
+  signedIn: true,
+  mode: "green",
+  features: { "lesson-qa": true, "lab-hint": true, "lab-review": true, "explain-back": true, "mock-interviewer": true, "mock-coach": true, "mock-scorecard": true, "design-review": true, "war-room": true },
+  creditsLeft: 470,
+  creditsPerDay: 500,
+  ownKey: false,
 };
 
 const json = (body, status = 200, headers = {}) => ({ status, contentType: "application/json", headers: { "access-control-allow-origin": "*", ...headers }, body: JSON.stringify(body) });
@@ -115,6 +129,13 @@ export async function installRoutes(ctx, o) {
 
   if (o.signedIn) {
     await ctx.route(/\/api\/profile/, (r) => r.fulfill(json({ data: o.profile })));
+    // the fake session can't be checked by the server, so the AI panels are told what a signed-in
+    // learner sees; nothing is ever sent to the AI (asking is a write, refused above)
+    await ctx.route(/\/api\/learn\/ai\/status/, (r) => r.fulfill(json(AI_STATUS)));
+  }
+  // the mock interview's live coach (POST): an example note, so the room can show one
+  if (o.signedIn && o.coach) {
+    await ctx.route(/\/api\/learn\/ai\/mock\/coach/, (r) => r.fulfill(json({ text: o.coach, creditsLeft: AI_STATUS.creditsLeft })));
   }
 
   // Share my progress (signed-in mock): the settings, handle check and save answer from `o.share`,

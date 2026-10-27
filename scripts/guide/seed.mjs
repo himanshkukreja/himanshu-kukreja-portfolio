@@ -5,7 +5,8 @@
  * Part II, trial parts 1-2 passed and part 3 failed once, a 2-day daily-challenge streak, a few
  * review cards due, one case file read and its end-of-file activity solved. Practice: the revision
  * decks of Parts 1-3 done, two failed runs on the token bucket lab, a study plan to an interview in
- * eight weeks.
+ * eight weeks. Video lectures: Parts 1-3 watched, Part 4 half-way, the UPI side quest started.
+ * A mock interview round (MOCK below) is played in the browser by shoot.mjs, with these answers.
  *
  * Every value uses the app's real storage keys and shapes (see src/components/learn/progress/
  * localData.ts for the list). Nothing here talks to a server.
@@ -206,11 +207,23 @@ export function buildSeed({ stages, questions, now = Date.now(), userId = null }
     updatedAt: t(7),
   };
 
+  // video lectures (src/lib/learn/lecture/progress.ts, one flag `lec:<id>` each): Parts 1-3 watched to
+  // the end, Part 4 stopped at 6:58, the UPI side quest a quarter in. d = the recording's length (s).
+  const lec = (t, d, at, done, s) => ({ t, m: done ? d : t, d, at, ...(done ? { w: 1 } : {}), s });
+  const lectures = {
+    [`lec:${W00}--${LESSONS.p1}`]: lec(0, 924, t(17, 2), true, 960),
+    [`lec:${W00}--${LESSONS.p2}`]: lec(0, 1133, t(12, 3), true, 1190),
+    [`lec:${W00}--${LESSONS.p3}`]: lec(0, 998, t(5, 1), true, 1015),
+    [`lec:${W00}--${LESSONS.p4}`]: lec(418, 1164, t(0, 16), false, 430),
+    "lec:bonus-01-indian-upi-system": lec(236, 931, t(3, 5), false, 250),
+  };
+
   const flags = {
     "learn:levelSeen": level,
     "plan:sdm": plan,
     caseActivities: { [STORY]: { best: 10, max: 11, runs: 2 } },
     readStories: [STORY],
+    ...lectures,
   };
 
   const store = {
@@ -225,6 +238,8 @@ export function buildSeed({ stages, questions, now = Date.now(), userId = null }
     "sd:arena:v1": JSON.stringify(arena),
     "hk.goal.v1": JSON.stringify({ unit: "minutes", perWeek: 150, target: localDate(now + 330 * DAY), setAt: t(14) }),
     "hk.guest.id": "guide-demo",
+    // a returning reader: no first-visit "you're reading part N of…" card on lessons
+    "hk.learn.seen": String(t(18)),
     // revision decks finished (src/components/learn/revise/store.ts) and lab runs (src/lib/learn/labs/progress.ts)
     "hk.revise.v1": JSON.stringify({
       lessons: Object.fromEntries(
@@ -244,3 +259,30 @@ export function buildSeed({ stages, questions, now = Date.now(), userId = null }
   }
   return { store, game: { xp, done, flags }, level, cards };
 }
+
+/**
+ * The mock interview round the guide plays (shoot.mjs, mock-* shots): what the persona writes in
+ * each phase, the minutes each phase took (patched into the saved run so the debrief reads like a
+ * real 45-minute call), and the live coach's example note (answered by mock.mjs, no AI involved).
+ */
+export const MOCK = {
+  slug: "mock-05-paisly-otp-login",
+  notes: [
+    "Who signs in: 25M users, phone number + 6-digit OTP. First OTP creates the account?\nPeak: the Diwali sale evening. How many sign-ins a minute then?\nTwo SMS providers (Dakiya, SandeshNet): failover, or split the traffic?\nDevice binding: after the first OTP, that phone signs in silently.\nSessions: short access token + refresh token; list devices, sign out one or all.\nOut of scope: KYC, passwords, social login.",
+    "25M users, ~5M daily actives.\nOTP sends: new devices + re-logins ~1M a day; sale night 10x, ~120 a second at peak.\nSMS at ~Rs 0.15 each: ~Rs 1.5 lakh a day, so resends must be limited.\nSessions: 25M x 2 devices x ~500 B = ~25 GB.\nToken checks: 5M x 50 calls a day = ~3k/s, 30k/s at peak: verify JWTs locally, don't hit a store.",
+    "POST /otp/send {phone} -> 202 {request_id}\nPOST /otp/verify {request_id, code, device_id} -> access + refresh token\nPOST /token/refresh · GET /devices · DELETE /devices/{id}\nOTP in Redis: otp:{phone} -> hashed code, attempts, TTL 5 min.\nPostgres: users, devices, refresh_tokens (hashed).",
+    "Client -> LB -> Auth API.\nAuth API -> Redis (OTP + rate limits) -> SMS router -> Dakiya / SandeshNet.\nRefresh tokens and devices in Postgres; access tokens are JWTs checked at the gateway.\nLost phone: revoke its refresh tokens; access tokens live 1 minute.",
+    "Limits: 3 sends per phone per 10 min, plus per IP and per device, and a budget per provider.\nVerify reads the Redis primary, not a replica: a stale read fails a correct code.\nOne very hot number: cap attempts per phone so one key can't melt a shard.",
+    "Bottlenecks: SMS provider latency, the Redis primary.\nTrade-off: JWTs with a short life instead of a lookup on every call.\nNext: a WhatsApp OTP fallback, alerts on send spikes.",
+  ],
+  /** answers to the curveballs, in the order they arrive */
+  curveballs: [
+    "Watch delivery receipts, not the 200s: when Dakiya's 30-second delivery rate drops under 80%, the SMS router sends new OTPs through SandeshNet. A resend keeps the same code and expiry, so whichever SMS lands works. The user sees 'sent again by another network'.",
+    "Once that number's limit is used up, answer from a cache at the gateway: no Redis call at all. Block per phone for 10 minutes, then per IP and network. Keep the hot counter out of the shared shard so other phones aren't hit.",
+    "Refreshes go from ~6/s to ~80/s (25M x 2 sessions / 7 days): fine for Postgres. Bound devices refresh silently, so most users never see an OTP. Spread the first expiries out so they don't land on sale night.",
+  ],
+  /** seconds per phase, in phase order (budgets 5, 6, 8, 10, 11, 5 min) */
+  used: [292, 405, 471, 655, 610, 268],
+  coach:
+    "READ: Solid start: you sized the problem before designing anything.\nWENT WELL: You asked about the sale-night peak and both SMS providers, and said what is out of scope.\nMISSING: Who could abuse the send endpoint? Think about the attacker as well as the crowd.\nTRY NEXT: Turn the peak into requests per second before the estimates are done.",
+};

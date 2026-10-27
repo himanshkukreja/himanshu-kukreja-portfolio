@@ -147,8 +147,8 @@ export default function Lobby({
           </span>
           <span className="flex min-w-0 flex-col gap-1">
             <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">watch it first · a model interview</span>
-            <span className="font-display text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-fg sm:text-[21px]">See this exact round done well: a {lecture.minutes}-minute recorded interview</span>
-            <span className="text-[13px] leading-snug text-fg-3">Two voices, start to finish: how it opens, the clarifying questions, the estimates, the design, the curveballs, the wrap-up. Then try it yourself below.</span>
+            <span className="font-display text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee] sm:text-[21px]">See this exact round done well: a {lecture.minutes}-minute recorded interview</span>
+            <span className="text-[13px] leading-snug text-[#a3a3a8]">Two voices, start to finish: how it opens, the clarifying questions, the estimates, the design, the curveballs, the wrap-up. Then try it yourself below.</span>
           </span>
         </Link>
       )}

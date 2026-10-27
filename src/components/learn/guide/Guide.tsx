@@ -92,7 +92,7 @@ const LOOP = [
   { t: "Clear stages", d: "A stage clears after real reading. Quick checks inside test you as you go." },
   { t: "Earn XP", d: `+${LEARN_XP.stage} a stage, +${LEARN_XP.lesson} a lesson, +${QUIZ_XP} per quick check right first time.` },
   { t: "Review", d: "What you miss comes back in the daily standup, right before you forget it." },
-  { t: "Beat the boss & trial", d: "End each world with a timed interview and the week's MCQ parts. Every few worlds, a full mock interview loop." },
+  { t: "Beat the boss & trial", d: "End each world with a timed interview and the week's MCQ parts. After most worlds, a full mock interview loop." },
   { t: "Climb leagues", d: "Signed in, your activity scores weekly points. The top of each league moves up." },
 ];
 
@@ -170,7 +170,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               head={["Tab", "The question", "What's in it"]}
               rows={[
                 [<A key="c" href={COURSE}>course</A>, "Learn it", "The worlds and their lessons, bosses and trials, side quests and their design sheets, concepts A–Z, the reading trail."],
-                [<A key="p" href="/learn/prep">prep</A>, "Get hired", "Company pages and the question bank, the problem bank and low-level design, mock interviews (solo or with a peer), revision decks, cheat sheets, code labs, the numbers playground, the study planner."],
+                [<A key="p" href="/learn/prep">prep</A>, "Get hired", "The video lectures, mock interviews (solo or with a peer, each with a recorded model round), company pages and the question bank, the problem bank and low-level design, revision decks, cheat and design sheets, code labs, the numbers playground, the study planner."],
                 [<A key="a" href="/learn/arena">arena</A>, "Play", "The daily challenge, weekly leagues, quick games, your review queue (daily standup) and design of the week."],
                 [<A key="s" href="/learn/war-stories">stories</A>, "See it for real", "True stories of real systems at their limits, and war rooms: incidents you play as the on-call engineer."],
                 [<A key="y" href="/learn/dashboard">you</A>, "My stuff", "Progress, the notebook (highlights, notes, bookmarks), concept mastery and certificates."],
@@ -292,16 +292,17 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 <strong>+{LEARN_XP.world} XP</strong> and that world&apos;s badge. On a phone, tap a world to open the same panel as a sheet.
               </p>
               <p>
-                <strong>Side quests</strong> ({s?.sideQuests ?? 25} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each. Below them, the hub&apos;s <strong>Practice</strong> block shows this week&apos;s design challenge, the study planner and the numbers playground, with a link to{" "}
-                <a href="#practice" className="text-signal-text underline underline-offset-4">
-                  the whole toolkit
+                <strong>Side quests</strong> ({s?.sideQuests ?? 25} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each, and each has a video lecture. The <strong>design sheets →</strong> link next to their title opens{" "}
+                <a href="#practice-sheets" className="text-signal-text underline underline-offset-4">
+                  every side quest&apos;s design sheet
                 </a>
-                . The dashed card at the bottom of the hub, <strong>The Plan</strong>, is the 10-week roadmap.
+                , for revising it later.
               </p>
               <p>
-                Every side quest has a <a href="#practice-sheets" className="text-signal-text underline underline-offset-4">design sheet</a> for revising it later. The classic interview problems and low-level design live in the{" "}
-                <a href="#practice-companies" className="text-signal-text underline underline-offset-4">Prep tab</a>, next to the company pages. Under the side quests, <strong>Beyond the course</strong> points to Prep, the Arena and
-                War stories, plus <A href="/learn/concepts">concepts A–Z</A> (every concept with its own page: definition, key points, the lessons that teach it, related concepts) and the reading trail.
+                The classic interview problems and low-level design live in the <a href="#practice-companies" className="text-signal-text underline underline-offset-4">Prep tab</a>, next to the company pages. Under the side quests,{" "}
+                <strong>Beyond the course</strong> points to Prep, the Arena and War stories, plus <A href="/learn/concepts">concepts A–Z</A> (every concept with its own page: definition, key points, the lessons that teach it, related
+                concepts), the reading trail and the design sheets. Below that, <strong>Read offline</strong> saves the whole course or opens the{" "}
+                <a href="#offline" className="text-signal-text underline underline-offset-4">offline library</a>, and the dashed card at the bottom, <strong>The Plan</strong>, is the 10-week roadmap.
               </p>
             </div>
             <Shot id="hub-side" />
@@ -353,7 +354,11 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 <a href="#practice-concepts" className="text-signal-text underline underline-offset-4">
                   the concept map
                 </a>
-                ). Phones also get Contents (with the same term-card switch) and a shortcut to the Notebook.
+                ). Phones also get Contents (with the same term-card switch) and a shortcut to the Notebook. The orange <strong>Ask AI</strong> button above them opens the built-in AI for this lesson (more in{" "}
+                <a href="#ai" className="text-signal-text underline underline-offset-4">
+                  AI in the course
+                </a>
+                ).
               </p>
             </div>
             <Shot id="lesson-focus" only="desktop" />
@@ -392,7 +397,8 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             </Pair>
             <Shot id="lesson-end" size="medium" />
             <Where>
-              any lesson from the <A href={COURSE}>course hub</A>. Each lesson ends with the Finish card, what&apos;s up next (across weeks) and the trial part that tests it.
+              any lesson from the <A href={COURSE}>course hub</A>. Each lesson ends with the Finish card, a five-minute revision card, any code lab that practises it, questions learners ask (answered from the lesson,
+              free), the reading trail, then what&apos;s up next (across weeks) and the trial part that tests it.
             </Where>
           </Section>
 
@@ -402,7 +408,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             n="03"
             kicker="video lectures"
             title="Watch it: an animated lecture for everything"
-            lead="Every lesson in Weeks 0–10, every side quest, interview problem, low-level design article and case file has a narrated, animated lecture: the same ideas, drawn as they are explained."
+            lead="Every lesson in Weeks 0–10, every side quest, interview problem, low-level design article and case file has a narrated, animated lecture: the same ideas, drawn as they are explained. Every mock interview has a recorded model round."
           >
             <div className={PROSE}>
               <p>
@@ -413,24 +419,25 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 ) : (
                   <>Every piece of content has one.</>
                 )}{" "}
-                Diagrams build up while the narration explains them, requests travel through them, and the numbers, timelines and phone screens appear as they are mentioned. Each lecture ends by linking to the next one in order,
-                and the lectures link back to the earlier lessons they build on (the <strong>↩ recall</strong> chips).
+                Diagrams build up while the narration explains them, requests travel through them, and the numbers, timelines and phone screens appear as they are mentioned. The lectures link back to the earlier lessons they build on
+                (the <strong>↩ recall</strong> chips), and when one ends the next one in the same track starts by itself.
               </p>
             </div>
+            <Shot id="lecture-player" wide />
             <Sub>Where to find them</Sub>
             <Steps
               items={[
-                { title: "On the page you are reading", body: "A \u201cwatch it first\u201d card at the top of a lesson, side quest, problem, LLD article or case file opens its lecture." },
+                { title: "On the page you are reading", body: "A “watch it first” card at the top of a lesson, side quest, problem, LLD article or case file opens its lecture. A mock interview's lobby has one for its recorded round." },
                 {
                   title: "The playlist",
                   body: (
                     <>
-                      <A href="/learn/prep/lectures">Prep → Video lectures</A> lists every lecture in course order, then the side quests, interview problems, low-level design and case files. The sidebar (a menu on phones) jumps to any
-                      week or track.
+                      <A href="/learn/prep/lectures">Prep → Video lectures</A> lists every lecture in course order, then the recorded mock interviews, the side quests, interview problems, low-level design and case files. On a
+                      computer the sidebar lists every section with how many you have watched; on a phone the tracks are buttons, with a <strong>jump to</strong> menu for the sections.
                     </>
                   ),
                 },
-                { title: "Back to the text", body: "Arrived from the playlist? The button under the lecture's title opens the lesson, side quest, problem, LLD article or case file it teaches." },
+                { title: "Back to the text", body: "The button under the lecture's title opens the lesson, side quest, problem, LLD article, case file or mock interview it teaches." },
               ]}
             />
             <Sub>The player</Sub>
@@ -438,27 +445,51 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               caption="Controls (keyboard in brackets)"
               head={["Control", "What it does"]}
               rows={[
-                ["Chapters", "Jump to any part from the list beside the video; hover the progress bar to preview a moment"],
+                ["Chapters", "Jump to any part from the list beside the video (below it on phones). The seek bar has one segment per chapter; hover it to preview that moment"],
                 ["Captions (C)", "On or off; the voice is matched word for word"],
+                ["Music (M)", "The quiet background music on or off, when the recording has some"],
                 ["Speed (< >)", "0.75× to 2×"],
-                ["Picture-in-picture", "Keep watching in a small window while you read or code (desktop browsers)"],
+                ["Picture-in-picture", "Keep watching in a small window while you read or code (desktop browsers that support it)"],
                 ["Full screen (F)", "The controls hide after a few seconds"],
-                ["Play (space), step (← →), 10 s (J L)", "Keyboard control without leaving the page"],
+                ["Play (space or K), step (← →), 10 s (J L)", "Keyboard control without leaving the page"],
+                ["Save offline", "Under the title: the lecture with its recorded audio, captions and poster, to watch with no internet"],
               ]}
             />
+            <p className="m-0 max-w-[70ch] text-[15px] leading-relaxed text-fg-2">
+              Your captions, music, speed and autoplay choices are remembered in this browser. Opened again, a lecture offers <strong className="text-fg">resume from</strong> the point where you stopped.
+            </p>
+            <Sub id="lectures-autoplay">Up next and autoplay</Sub>
+            <Pair>
+              <Shot id="lecture-end" only="desktop" />
+              <div className={PROSE}>
+                <p>
+                  When a lecture ends, the end screen shows what comes next in the same track (the next lesson, the next side quest, the next problem) and plays it after an <strong>8-second countdown</strong>. <strong>Play now</strong>{" "}
+                  skips the wait, <strong>cancel</strong> stays on this lecture (then <strong>watch again</strong> starts it over).
+                </p>
+                <p>
+                  The <strong>autoplay next</strong> switch on the end screen and under <strong>up next</strong> in the chapter list turns it off, and the choice is remembered. The last lecture of a track has no up next.
+                </p>
+              </div>
+            </Pair>
             <Sub>Checkpoints, questions and answers</Sub>
             <div className={PROSE}>
               <p>
-                <strong>Quiz checkpoints</strong> pause the lecture and ask about what was just shown; a right answer earns <strong>+{LECTURE_QUIZ_XP} XP</strong> (once per question). <strong>Ask the AI about this moment</strong>{" "}
-                (A) answers with the lecture&apos;s current chapter in front of it, and can point you to a chapter or show you a step. Under each chapter, <strong>learners often ask here</strong> has the common questions already
-                answered.
+                <strong>Quiz checkpoints</strong> pause the lecture and ask about what was just shown; a right answer earns <strong>+{LECTURE_QUIZ_XP} XP</strong> (once per question), and the chapter list marks each one ✓ or ✕.
+              </p>
+              <p>
+                <strong>✦ Ask about this moment</strong> (<Kbd>A</Kbd>) pauses the lecture and opens a panel over the right of the stage (a sheet on phones). Under each chapter, <strong>learners often ask here</strong> has the common
+                questions already answered, free to read. Signed in, you can ask your own or tap a quick question (explain it simpler, a real example, why not the naive way, what an interviewer would ask, in Hinglish). The AI answers
+                with the paused moment in front of it, can light up part of the diagram and can offer a chip that jumps to another chapter. Closing the panel resumes the lecture if it was playing.
               </p>
             </div>
-            <Sub>Progress and difficulty</Sub>
+            <Shot id="lecture-ask" only="desktop" caption="Shown signed in." />
+            <Sub id="lectures-progress">Progress and difficulty</Sub>
+            <Shot id="lectures-playlist" />
             <div className={PROSE}>
               <p>
-                The playlist shows how much you have watched overall and in each week or track, <strong>continue watching</strong> for lectures you started (or what comes next), and a <strong>✓ watched</strong> mark once you reach
-                90% of a lecture. A lecture resumes where you stopped; signed in, that follows you to other devices. Every lecture carries a difficulty tag:
+                The playlist shows how much you have watched overall and in each section, <strong>continue watching</strong> for lectures you started (or what comes next), and a <strong>✓ watched</strong> mark once you reach 90% of a
+                lecture. A lecture resumes where you stopped; signed in, that follows you to other devices. The <a href="#progress" className="text-signal-text underline underline-offset-4">Progress page</a> adds your watch time.
+                Every lecture carries a difficulty tag:
               </p>
             </div>
             <Table
@@ -466,22 +497,21 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               head={["Tag", "Means"]}
               rows={[
                 ["Beginner", "Week 0, the foundations"],
-                ["Intermediate", "Weeks 1–4, and problems or articles marked medium"],
-                ["Advanced", "Weeks 5–10, the first capstones, and problems or articles marked hard"],
-                ["Expert", "The later capstones, and problems or articles marked expert"],
+                ["Intermediate", "Weeks 1–4, problems or articles marked medium, case files, and mock interviews set at Junior or SDE level"],
+                ["Advanced", "Weeks 5–10, the first capstones, problems or articles marked hard, and Senior-level mock interviews"],
+                ["Expert", "The later capstones, problems or articles marked expert, and Staff-level mock interviews"],
               ]}
             />
             <Note title="Recorded mock interviews">
               <p>
-                Some mock interviews also come as a recorded round: a 40–50 minute call between the interviewer and a strong candidate, in two voices, from the greeting and the clarifying questions to the curveballs and the wrap-up.
-                The mock&apos;s lobby shows it as &ldquo;watch it first&rdquo;; watch it, then sit the same round yourself.
+                Every mock interview also comes as a recorded round: a 40–50 minute call between the interviewer and a strong candidate, in two voices, from the greeting and the clarifying questions to the curveballs and the wrap-up.
+                The mock&apos;s lobby shows it as &ldquo;watch it first&rdquo; and the Prep page as &ldquo;watch it done well&rdquo;; watch it, then sit the same round yourself.
               </p>
             </Note>
             <Where>
-              <A href="/learn/prep/lectures">the playlist</A>; the &ldquo;watch it first&rdquo; card at the top of any lesson; a mock interview&apos;s lobby.
+              <A href="/learn/prep/lectures">the playlist</A>; the &ldquo;watch it first&rdquo; card at the top of any lesson; a mock interview&apos;s lobby; <A href="/learn/dashboard#videos">progress → videos</A> for your watch time.
             </Where>
           </Section>
-
           {/* ------------------------------------------------------------ c) completion */}
           <Section id="completion" n="04" kicker="progress & completion" title="How a lesson counts as done" lead="Progress is earned by actually reading, not by scrolling to the bottom. Here are the rules in plain words.">
             <Steps
@@ -537,6 +567,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 ["Lesson & stage progress, resume point", "This browser only", "Your account, on every device. Anything you read as a guest here is merged in when you first sign in"],
                 ["XP, quests, badges", "This browser only", "Your account (merged the same way)"],
                 ["Review cards, trial attempts", "This browser only", "Your account, with this browser as a backup if saving fails"],
+                ["Lecture progress: resume point, watched, watch time", "This browser only", "Your account, on every device"],
                 ["Highlights, notes, bookmarks", "Need an account", "Your account"],
                 ["Weekly goal", "This browser only", "Your account"],
                 ["Leaderboard rank", "Local points only (not ranked)", "Ranked every week"],
@@ -672,13 +703,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             n="08"
             kicker="mock interviews"
             title="Mock interviews: the real loop, between worlds"
-            lead="Every few worlds the course stops teaching and interviews you: an unseen problem, a fictional company, a named interviewer and one clock."
+            lead="After most worlds the course stops teaching and interviews you: an unseen problem, a fictional company, a named interviewer and one clock."
           >
             <div className={PROSE}>
               <p>
                 {mocks.length ? (
                   <>
-                    There {mocks.length === 1 ? "is" : "are"} <strong>{mocks.length} mock interview{mocks.length === 1 ? "" : "s"}</strong>, one after{" "}
+                    There {mocks.length === 1 ? "is" : "are"} <strong>{mocks.length} mock interview{mocks.length === 1 ? "" : "s"}</strong>, numbered in course order, one after{" "}
                     {mocks.map((m, i) => (
                       <span key={m.id}>
                         {i > 0 ? (i === mocks.length - 1 ? " and " : ", ") : ""}World {m.afterCode} ({m.company})
@@ -687,10 +718,10 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                     .
                   </>
                 ) : (
-                  <>Mock interviews sit after Worlds 02, 05, 08 and 10.</>
+                  <>Mock interviews sit between the worlds, numbered in course order.</>
                 )}{" "}
-                Each closes an arc of the course and covers <strong>everything taught up to that point</strong>, not just the last week. They appear on the <A href={COURSE}>skill tree</A> as their own rows between worlds (the square
-                node with an orange corner), in the &ldquo;After this world&rdquo; card of a world&apos;s panel, and all together at <A href="/learn/mock">/learn/mock</A>.
+                Each covers <strong>everything taught up to that point</strong>, not just the last week. They appear on the <A href={COURSE}>skill tree</A> as their own rows between worlds (the square node with an orange corner), in the
+                &ldquo;After this world&rdquo; card of a world&apos;s panel, on the Prep page and all together at <A href="/learn/mock">/learn/mock</A>.
               </p>
             </div>
             <Table
@@ -704,35 +735,74 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 ["Reward", `+${BOSS_XP} XP`, `+${LEARN_XP.mock} XP and a badge, +${LEARN_XP.mockOffer} for an offer`],
               ]}
             />
-            <Sub>In the room</Sub>
+            <Sub id="mocks-lobby">The lobby</Sub>
+            <Shot id="mock-lobby" only="desktop" />
+            <div className={PROSE}>
+              <p>
+                Each mock opens on its lobby: the recruiter&apos;s note, the interviewer and their style, the fictional company, and on a wide screen a <strong>cover</strong> that sketches the problem like a whiteboard. Below that,{" "}
+                <strong>watch it first</strong> plays the same round recorded: a model interview in two voices (see{" "}
+                <a href="#lectures" className="text-signal-text underline underline-offset-4">
+                  video lectures
+                </a>
+                ). Then the phases and their budgets, and the level you are interviewing for: Junior, SDE, Senior or Staff.
+              </p>
+            </div>
+            <Sub id="mocks-room">In the room</Sub>
+            <Pair>
+              <Shot id="mock-briefing" only="desktop" />
+              <div className={PROSE}>
+                <p>
+                  <strong>Join the call</strong> opens a short briefing first: the clock and the phase budgets, how the interviewer talks while you work, the ways to answer, the voice call, the live coach and what the debrief gives you.
+                  Tick <strong>don&apos;t show this again</strong> to skip it next time. The clock starts with <strong>I&apos;m ready</strong>.
+                </p>
+              </div>
+            </Pair>
+            <Shot id="mock-room" example caption="Shown signed in; the live coach's note is an example." />
             <Steps
               items={[
-                { title: "Lobby", body: "Read the recruiter's note, meet the interviewer, see the phases and their budgets, and pick the level you are interviewing for: Junior, SDE, Senior or Staff." },
-                { title: "Join the call", body: "One clock starts. The bar at the top shows the phase clock, the total clock and a strip with every phase's budget. It runs over budget, never out; pausing is allowed but counted." },
+                { title: "One clock", body: "The bar at the top shows the phase clock, the total clock and a strip with every phase's budget (tap an earlier phase to go back to it). It runs over budget, never out; pausing is allowed but counted. End asks once more before it ends the call." },
                 {
                   title: "Work through the phases",
-                  body: "Clarify requirements, estimates, API and data model, high-level design, deep dives, trade-offs, wrap-up. Write in the answer box; draw the design on the whiteboard tab. Everything autosaves in this browser.",
+                  body: "Clarify requirements, estimates, API and data model, high-level design, deep dives, trade-offs, wrap-up. Write in the answer box, or press Dictate to speak and let your browser type it (Chrome, Edge, Safari; nothing goes through this site). Everything autosaves in this browser.",
                 },
-                {
-                  title: "The whiteboard",
-                  body: "A real diagram canvas: building blocks with icons (client, load balancer, API service, database, cache, queue, CDN and more) drop in with a click, a logo picker adds any technology (Redis, Kafka, PostgreSQL…), and custom blocks (your name, shape, colour and icon) can be kept for next time. Arrows drawn from one block to another stay attached; full screen gives it the whole window.",
-                },
-                { title: "Leave or restart", body: "The \u22ef menu on the call bar leaves for the lobby (the clock pauses, your answers wait) or restarts the round from phase 1 after asking you to confirm." },
                 {
                   title: "The interviewer talks back",
                   body: "Follow-ups arrive at set times in a phase; pressing Done can trigger a reply (the answers to your clarifying questions, for example) before you move on. The interviewer also keeps time and nudges you along.",
                 },
-                { title: "Curveballs", body: "Mid-round changes like \u201cnow traffic is 10\u00d7\u201d or \u201cthe payment provider is down\u201d. Each gets its own answer box; leaving one unanswered is a red flag." },
+                { title: "Curveballs", body: "Mid-round changes like “now traffic is 10×” or “the SMS provider stops delivering”. Each gets its own answer box; leaving one unanswered is a red flag." },
                 { title: "Hints", body: "Ask for one when you're stuck. The interviewer notes every hint, and four or more count against you." },
+                {
+                  title: "Talk to the AI interviewer",
+                  body: "Signed in, the “live with” box answers what you said in character, pushes on the gaps and throws the curveballs. Type, send your notes for the phase, or start a voice call: you speak, the interviewer answers out loud, then listens again.",
+                },
+                {
+                  title: "The live coach",
+                  body: "Signed in, after each phase a short AI read sits at the top of the next one: what landed, the gaps as nudges (never the answer) and one thing to try. A real interviewer wouldn't do this, so switch it off in the briefing or on the card for a pure mock.",
+                },
+                { title: "Leave or restart", body: "The ⋯ menu on the call bar leaves for the lobby (the clock pauses, your answers wait) or restarts the round from phase 1 after asking you to confirm." },
               ]}
             />
-            <Sub>The debrief and your verdict</Sub>
+            <Sub id="mocks-board">The whiteboard</Sub>
+            <Shot id="mock-board" only="desktop" />
             <div className={PROSE}>
               <p>
-                When the call ends you see what happened (time used, phases over budget, curveballs answered, hints), <strong>your whiteboard</strong> as a picture with its boxes and arrows written out, then each phase: what you wrote, the <strong>model answer</strong> behind a reveal button, and the rubric. Every rubric
-                signal is tagged with the lowest level at which interviewers expect it. Score each one <strong>missed, partly or nailed</strong>. Signals at or below your target level are expected; the ones above it are a bonus.
+                The <strong>Whiteboard</strong> tab is a real diagram canvas. Building blocks with icons (client, users, CDN, load balancer, API gateway and service, worker, database, cache, queue, stream, object storage, search index,
+                scheduler, monitoring) drop in with a click, in a free spot. <strong>Tech logos</strong> adds any technology by name (Redis, Kafka, PostgreSQL…), and <strong>+ Custom block</strong> makes your own: a name, a shape, a colour
+                and an icon, kept in <strong>my blocks</strong> for next time. Draw an arrow from one block to another and it stays attached when you move them. <strong>Full screen</strong> gives it the whole window; the menu exports a
+                PNG. Notes under the board are shared across phases.
               </p>
             </div>
+            <Sub id="mocks-debrief">The debrief and your verdict</Sub>
+            <Shot id="mock-debrief" only="desktop" example caption="Shown signed in, mid-way through scoring an example round." />
+            <div className={PROSE}>
+              <p>
+                When the call ends you see what happened (time used, phases over budget, curveballs answered, hints, pauses, words written), any red flags, <strong>your whiteboard</strong> as a picture with its blocks and arrows written
+                out, then each phase: what you wrote, what the live coach said, the <strong>model answer</strong> behind a reveal button, and the rubric. Every rubric signal is tagged with the lowest level at which interviewers expect it,
+                with links to the lessons that teach it. Score each one <strong>missed, partly or nailed</strong>. Signals at or below your target level are expected; the ones above it are a bonus. Until you reveal a model answer,{" "}
+                <strong>← Back to the call</strong> returns to the round.
+              </p>
+            </div>
+            <Shot id="mock-rubric" only="desktop" size="medium" />
             <Table caption="Verdict bands" head={["Verdict", "Expected signals scored"]} rows={BAND_RULES.map((b) => [VERDICT_LABEL[b.verdict], b.rule])} />
             <div className={PROSE}>
               <p>
@@ -740,8 +810,9 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 what a hire looks like at each level for that problem, and the <strong>lessons behind the signals you missed</strong>.
               </p>
               <p>
-                <strong>Second opinion:</strong> &ldquo;Ask Claude&rdquo; or &ldquo;Ask ChatGPT&rdquo; opens a new tab with your answers, the curveballs, the rubric and your self-scores prefilled, asking for interviewer-style feedback and
-                its own verdict. A round too long for a link goes through your clipboard. Nothing is sent to this site.
+                <strong>Second opinions:</strong> signed in, the <strong>AI scorecard</strong> grades every phase against its rubric, quoting your words; it sits beside your own scores and doesn&apos;t change XP. &ldquo;Ask Claude&rdquo; or
+                &ldquo;Ask ChatGPT&rdquo; opens a new tab with your answers, the curveballs, the rubric and your self-scores prefilled, asking for interviewer-style feedback and its own verdict. A round too long for a link goes through
+                your clipboard.
               </p>
               <p>
                 <strong>Submit scorecard</strong> once every expected signal is scored (and you wrote at least {MIN_WORDS} words in the round): <strong>+{LEARN_XP.mock} XP</strong> and the loop&apos;s badge, plus{" "}
@@ -757,28 +828,31 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             </div>
             <Note title="Where your answers live">
               <p>
-                The round itself (notes, whiteboard, clock, self-scores) stays in this browser. The result (finished, offer, best verdict) goes with your XP, so signed in it follows you to other devices.
+                The round itself (notes, whiteboard, clock, self-scores) stays in this browser. The result (finished, offer, best verdict) goes with your XP, so signed in it follows you to other devices. What you send to the AI
+                interviewer, the coach or the AI scorecard goes to Anthropic&apos;s AI to answer it (more in <a href="#ai" className="text-signal-text underline underline-offset-4">AI in the course</a>).
               </p>
             </Note>
             <Where>
-              the mock rows between worlds on the <A href={COURSE}>skill tree</A>; <A href="/learn/mock">all mock interviews</A>; the &ldquo;between worlds&rdquo; row of the <A href="/learn/dashboard#map">progress page&apos;s course map</A>.
+              the mock rows between worlds on the <A href={COURSE}>skill tree</A>; <A href="/learn/mock">all mock interviews</A>; the mock interviews group on the <A href="/learn/prep">Prep page</A>; the &ldquo;between worlds&rdquo; row
+              of the <A href="/learn/dashboard#map">progress page&apos;s course map</A>.
             </Where>
           </Section>
-
           {/* ------------------------------------------------------------ g1) practice toolkit */}
           <Section
             id="practice"
             n="09"
             kicker="the prep tab"
             title="Interview prep: everything for the interview itself"
-            lead="The Prep tab is for getting hired: what each company asks, the classic problems, timed mocks, last-night revision, drills and a plan to your interview date. Every card shows where you stand."
+            lead="The Prep tab is for getting hired: the video lectures, what each company asks, the classic problems, timed mocks, last-night revision, drills and a plan to your interview date. Every card shows where you stand."
           >
             <Shot id="practice-hub" wide example />
             <div className={PROSE}>
               <p>
-                The <A href="/learn/prep">Prep</A> page opens with the <strong>video lectures</strong> (the whole playlist and where you left off), then groups the rest as <strong>who&apos;s hiring</strong> (company pages, the question bank), <strong>classic problems</strong> (the problem bank, low-level design),{" "}
-                <strong>interview night</strong> (revision decks, cheat sheets, design sheets), <strong>the real loop</strong> (mock interviews, peer mocks, code labs) and <strong>tools</strong> (numbers playground, study planner). The row under the title counts what you have revised, the labs you cleared, the mocks you finished and your study plan. All of it
-                works as a guest. Saved for offline use, each card says whether its page is saved on this device; the rest show <strong>needs a connection</strong>.
+                The <A href="/learn/prep">Prep</A> page opens with the <strong>video lectures</strong> (the whole playlist, a chip per section and where to start), then <strong>mock interviews</strong>, one card each: start the
+                round, or <strong>watch it done well</strong> in its recorded version. The rest is grouped as <strong>who&apos;s hiring</strong> (company pages, the question bank), <strong>classic problems</strong> (the problem bank, low-level
+                design), <strong>interview night</strong> (revision decks, cheat sheets, design sheets), <strong>the real loop</strong> (code labs, mock interviews, peer mocks) and <strong>tools</strong> (numbers playground, study planner). The
+                row under the title counts what you have revised, the labs you cleared, the mocks you finished and your study plan. All of it works as a guest. Saved for offline use, each card says whether its page is saved on this
+                device; the rest show <strong>needs a connection</strong>.
               </p>
             </div>
 
@@ -830,9 +904,10 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               </p>
               <p>
                 <strong>Download PDF</strong> prints it in the light theme with every diagram drawn, no diagram split across pages. Each side quest ends with an <strong>open the sheet</strong> card, and the{" "}
-                <A href="/learn/sheets">design sheets</A> page lists them all.
+                <A href="/learn/sheets">design sheets</A> page lists them all, with how many diagrams each holds.
               </p>
             </div>
+            <Shot id="sheets-index" />
 
             <Sub id="practice-labs">Code labs</Sub>
             <Shot id="lab-room" only="desktop" />
@@ -948,6 +1023,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 ["Read a stage", `+${LEARN_XP.stage}`, "once per stage"],
                 ["Finish a lesson", `+${LEARN_XP.lesson}`, "once per lesson"],
                 ["Quick check right on the first try", `+${QUIZ_XP}`, "once per question"],
+                ["Lecture checkpoint answered right", `+${LECTURE_QUIZ_XP}`, "once per question"],
                 ["Every quick check in a stage right first try", `+${STAGE_ACE_XP}`, "once per stage"],
                 ["Pass a trial part", `+${LEARN_XP.trial}`, "first pass of each part"],
                 ["Defeat a boss (interview mode, 70%+)", `+${BOSS_XP}`, "once per boss"],
@@ -1006,6 +1082,11 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               <strong className="text-fg">Streak reminders</strong> (signed in, off until you switch them on): a push notification on this device and/or an email at 7:30 PM, only on a day you haven&apos;t learned yet while a streak is
               running. Never more than one a day; every email has an unsubscribe link, and you can switch either off here any time.
             </p>
+            <Shot id="progress-videos" only="desktop" />
+            <p className="m-0 max-w-[70ch] text-[15px] leading-relaxed text-fg-2">
+              <strong className="text-fg">Videos:</strong> your watch time (minutes actually spent playing, so skipping ahead doesn&apos;t count), lectures finished (90% or more) out of all of them, the ones in progress and how many you
+              opened this week. Below, <strong className="text-fg">continue watching</strong> with a bar for each and the lectures you finished recently. Signed in, it follows you to every device.
+            </p>
             <Shot id="progress-goals" only="desktop" />
             <p className="m-0 max-w-[70ch] text-[15px] leading-relaxed text-fg-2">
               <strong className="text-fg">Weekly goal:</strong> pick minutes or lessons per week and, if you like, a finish date. The page projects when you&apos;ll finish at your recent pace and how much a week you need to make your date.{" "}
@@ -1063,7 +1144,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             </div>
 
             <Where>
-              the <A href="/learn/dashboard">progress</A> tab. Sections: overview · map · activity · goals · mastery · share · data (the sticky row under the header jumps between them).
+              the <A href="/learn/dashboard">progress</A> tab. Sections: overview · map · activity · videos · goals · mastery · share · data (the sticky row under the header jumps between them).
             </Where>
           </Section>
 
@@ -1199,7 +1280,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             />
             <div className={PROSE}>
               <p>
-                <strong>Where:</strong> the <A href="/learn/certificate">certificate page</A> (from the Progress page or the Practice hub). It shows a checklist with what&apos;s done, what&apos;s left and a link to finish each item. It needs an
+                <strong>Where:</strong> the <A href="/learn/certificate">certificate page</A> (from the Progress page or the row of links under the You tab). It shows a checklist with what&apos;s done, what&apos;s left and a link to finish each item. It needs an
                 account and a connection: your progress is checked on the server, from your account&apos;s records, when you claim. Progress made as a guest lives in that browser, so sign in and import it from the Progress page first.
               </p>
               <p>
@@ -1247,7 +1328,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                   ),
                   body: (
                     <>
-                      It sits next to the title of every lesson, preview, boss, side quest, trial, mock interview and case file, and on cheat sheets, code labs, the numbers playground, the study planner and the Practice page (the cloud icon on a phone). Revision decks are saved with their world. To save more at once, open a world on the course map and press <strong>Save this world offline</strong>, or use{" "}
+                      It sits next to the title of every lesson, preview, boss, side quest, trial, mock interview, case file and video lecture, and on cheat sheets, code labs, the numbers playground, the study planner and the Prep page (the cloud icon on a phone). Revision decks are saved with their world. To save more at once, open a world on the course map and press <strong>Save this world offline</strong>, or use{" "}
                       <strong>Save the entire course</strong> in the <strong>Read offline</strong> card on the course map. Sizes are shown before you start; the whole course is large, so do it on wifi.
                     </>
                   ),
@@ -1277,11 +1358,33 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               head={["Works offline", "Needs a connection"]}
               rows={[
                 ["Reading, diagrams, highlighted code, :::blocks", "Comments and the discussion"],
+                ["Saved video lectures: narration, captions, music, chapters, checkpoints", "Ask AI about a lecture moment, and every other AI feature"],
                 ["Quick checks, trials, boss fights, mock interviews", "Ask Claude / ChatGPT (the prompt is copied for later)"],
                 ["Stage clears, XP, streak days on this device", "Search, the leaderboard, sign-in, sharing"],
                 ["Revision decks, cheat sheets, code labs, numbers playground, study planner, reading-trail summaries", "Design of the week (submitting, voting, the gallery); the articles the reading trail links to"],
               ]}
             />
+            <Sub id="offline-library">The offline library</Sub>
+            <Shot id="offline-library" />
+            <div className={PROSE}>
+              <p>
+                The <A href="/learn/offline">offline library</A> lists everything saved on this device, by type: the course (by world), video lectures (by playlist section), side quests, interview problems, low-level design, mock
+                interviews, case files, war stories, revision and cheat sheets, code labs and tools. <strong>Everything saved</strong> shows it all with a search; pick a type to see what is saved out of what could be, switch between{" "}
+                <strong>on device</strong> and <strong>all</strong>, and save or remove a whole type or section at once. Each row has its size and when it was saved, and <strong>update</strong> when a newer version is online.
+              </p>
+              <p>
+                <strong>Storage on this device</strong> splits the space into videos, articles and app files, and shows how much the browser lets the site use. If the browser might clear it when space runs low, <strong>ask to keep it</strong>{" "}
+                asks it not to. Next to it, the app card says whether you are online and offers to install the course as an app.
+              </p>
+            </div>
+            <Sub id="offline-videos">Video lectures offline</Sub>
+            <div className={PROSE}>
+              <p>
+                <strong>Save offline</strong> under a lecture&apos;s title stores the page with its recorded narration, captions, music and poster, about 10–20 MB a lecture; the button shows the size before you save. A saved lesson&apos;s
+                Save offline panel offers its lecture too, and the library&apos;s <strong>Video lectures</strong> type saves a whole playlist section (anything over 300 MB asks first). Saving the entire course leaves the lectures out, because
+                together they are gigabytes. A saved lecture plays, shows its captions and asks its checkpoints with no connection; its progress syncs when you are back online.
+              </p>
+            </div>
             <Sub>Install it as an app</Sub>
             <div className={PROSE}>
               <p>
@@ -1290,12 +1393,12 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               </p>
               <p>
                 <strong>iPhone and iPad:</strong> Safari has no install button, so the library shows the steps: <strong>Share</strong> → <strong>Add to Home Screen</strong>. Do this if you rely on saved lessons: Safari can clear a
-                website&apos;s data after about a week without a visit, but an app on the home screen keeps it. Lessons saved in Safari don&apos;t carry over into the home-screen app, so save them from the app.
+                website&apos;s data after about a week without a visit, but an app on the home screen keeps it. Lessons saved in Safari don&apos;t carry over into the home-screen app, so save them from the app. After a save on an iPhone, the save message reminds you of this.
               </p>
             </div>
             <Note title="Space on your device">
               <p>
-                The library shows how much is used and how much the browser allows. A lesson takes about 100 KB, the reader app about 3 MB once (shared by everything you save). If the device runs out of space, saving stops with a clear message and
+                The library shows how much is used and how much the browser allows. A lesson takes about 100 KB, a video lecture about 10–20 MB, the reader app about 3 MB once (shared by everything you save). If the device runs out of space, saving stops with a clear message and
                 what is already saved stays; remove things from the library to make room.
               </p>
             </Note>
@@ -1320,6 +1423,24 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             <div className={PROSE}>
               <p>
                 Every case file also has a <strong>lecture</strong>: the story told on screen, with the timeline, what users saw and the mechanism drawn out. The &ldquo;watch it first&rdquo; card sits under the cover.
+              </p>
+            </div>
+            <Sub id="cases-ask">Ask AI about a case file</Sub>
+            <Shot id="case-ask" only="desktop" />
+            <Shot id="case-ask-panel" only="desktop" caption="Shown signed in." />
+            <div className={PROSE}>
+              <p>
+                The built-in AI answers from the case file you are reading. Open it three ways: <strong>Ask AI</strong> in the header next to Save offline, the <strong>Ask AI about this case</strong> button that stays in the corner while
+                you read, or select any passage and press <strong>Ask here</strong> in the toolbar, which quotes that passage in the question. Pick a style (just answer, explain simply, give an example, say it in an interview, in Hinglish)
+                and ask. On a computer the panel docks on the right and the page makes room for it; on a phone it opens as a sheet. Asking needs an account; credits work as described in{" "}
+                <a href="#ai" className="text-signal-text underline underline-offset-4">
+                  AI in the course
+                </a>
+                .
+              </p>
+              <p>
+                The same selection toolbar also has <strong>Ask Claude</strong> and <strong>Ask ChatGPT</strong> (a new tab with the passage and the case as context), <strong>Copy prompt</strong> and <strong>Copy link</strong>, which reopens
+                the case file at that passage.
               </p>
             </div>
             <Where>
@@ -1370,10 +1491,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               head={["Feature", "Where", "What it does"]}
               rows={[
                 ["Ask this lesson", "Select text → Ask here, or Ask AI in the reading toolbar", "Answers from the lesson's own sections and names the one it used. Modes: explain simply, an example, say it in an interview, Hinglish."],
+                ["Ask this case file", "Ask AI in a case file's header, the corner button, or select text → Ask here", "The same panel, answering from the case file you are reading."],
+                ["Ask about this moment", "The lecture player: \u2726 ask, or A", "Answers about the paused moment of a lecture; can light part of the diagram or jump to another chapter. Pre-answered questions per chapter are free."],
                 ["Questions learners ask", "End of every lesson, and in the Ask panel", "Common questions answered from the lesson, free to read (no credits)."],
                 ["Code-lab tutor", "Under the test results in a code lab", "Hints after a failing run, from a nudge to the exact fix in words, never the solution. After a pass: a code review."],
                 ["Explain it back", "Concept pages", "Explain a concept in your own words; get a strict verdict (solid, partial, misconception) and the one thing to fix."],
-                ["AI interviewer", "Inside a mock interview", "The named interviewer answers what you said, pushes on the gaps and throws the mock's curveballs."],
+                ["AI interviewer", "Inside a mock interview: the \u201clive with\u201d box", "The named interviewer answers what you said, pushes on the gaps and throws the mock's curveballs. Type, or start a voice call and talk."],
+                ["Live coach", "A mock interview, after each phase", "A short read on the phase you just finished: what landed, the gaps as nudges, one thing to try. Switch it off for a pure mock."],
                 ["AI scorecard", "Mock interview debrief", "Every phase graded against its rubric, quoting your words. It sits beside your own scores and doesn't change XP."],
                 ["Design review", "Design of the week editor", "A private review of your draft: strengths, the risks that would sink it, worst first, and the next questions."],
                 ["Free-text moves", "War rooms", "Type what you'd actually do; the channel answers in character, and a move that matches an option plays out like it."],
@@ -1392,7 +1516,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               </p>
             </div>
             <Where>
-              the AI panels inside lessons, code labs, concept pages, mock interviews, Design of the week and war rooms; your credits and your own key on the <A href="/learn/dashboard">Progress</A> page.
+              the AI panels inside lessons, video lectures, case files, code labs, concept pages, mock interviews, Design of the week and war rooms; your credits and your own key on the <A href="/learn/dashboard">Progress</A> page.
             </Where>
           </Section>
 
@@ -1474,6 +1598,20 @@ const FAQ: [string, React.ReactNode][] = [
     <>
       Yes. Each lecture resumes where you left it, and the <A href="/learn/prep/lectures">playlist</A> shows continue watching, how much of each lecture you have seen and a watched mark at 90%. Signed in, this follows you to
       your other devices.
+    </>,
+  ],
+  [
+    "Does the next lecture play by itself?",
+    <>
+      Yes, in the same track: when a lecture ends, the next lesson&apos;s (or side quest&apos;s, problem&apos;s…) lecture starts after an 8-second countdown. Press <strong>cancel</strong> to stay, or untick <strong>autoplay next</strong> on the
+      end screen or under up next to turn it off. See <a href="#lectures-autoplay">up next and autoplay</a>.
+    </>,
+  ],
+  [
+    "Can I watch the lectures offline?",
+    <>
+      Yes. Press <strong>Save offline</strong> under a lecture&apos;s title, or save a whole playlist section from the <Link href="/learn/offline#lectures">offline library</Link>. Each lecture is about 10–20 MB, so save them on wifi.
+      Asking the AI about a moment needs a connection.
     </>,
   ],
   [
@@ -1560,7 +1698,7 @@ const FAQ: [string, React.ReactNode][] = [
   [
     "Where do I find revision decks, labs and the other tools?",
     <>
-      In the <Link href="/learn/prep">Prep</Link> tab: revision decks, cheat and design sheets, code labs, mocks, the numbers playground and the planner. Lessons also end with their revision deck and any code lab that practises
+      In the <Link href="/learn/prep">Prep</Link> tab: the video lectures, mocks, revision decks, cheat and design sheets, code labs, the numbers playground and the planner. Lessons also end with their revision deck and any code lab that practises
       them. Design of the week is in the Arena; your concept mastery and certificates are under You.
     </>,
   ],
@@ -1582,7 +1720,11 @@ const GLOSSARY: [string, string][] = [
   ["Quick check", "A short multiple-choice block inside a lesson. The first try is the one that pays XP."],
   ["Trial", "A world's multiple-choice test, split into parts. Each part tests one lesson; pass mark 80%."],
   ["Boss", "The world's capstone: a full system design interview with timed phases, fought in interview mode or read."],
-  ["Mock interview", "A timed interview loop between worlds: an unseen problem from a fictional company, a named interviewer, curveballs, then a debrief with a levelled rubric and a verdict."],
+  ["Lecture", "A narrated, animated video of a lesson, side quest, problem, LLD article or case file, with chapters, captions and quiz checkpoints."],
+  ["Lecture checkpoint", `A question inside a lecture: it waits for your answer, and a right one pays +${LECTURE_QUIZ_XP} XP once.`],
+  ["Recorded mock interview", "A mock interview played out by an interviewer and a strong candidate in two voices: the same round, done well, to watch before you sit it."],
+  ["Live coach", "In a mock interview, a short AI read after each phase: what landed, what's missing, one thing to try. Can be switched off."],
+  ["Mock interview", "A timed interview loop between worlds: an unseen problem from a fictional company, a named interviewer, curveballs, a whiteboard, then a debrief with a levelled rubric and a verdict."],
   ["Verdict", "A mock interview's result band, from Strong no hire to Strong hire, for the level you picked."],
   ["Side quest", "A bonus problem: a real system (UPI, Netflix, Uber…) designed end to end. Open any time."],
   ["XP", "Experience points: your personal total from everything you do. Sets your level."],

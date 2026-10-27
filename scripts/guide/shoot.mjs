@@ -19,12 +19,14 @@
  * hk.notrack=1, blocks analytics and refuses every write (scripts/guide/mock.mjs), uses the LIGHT
  * theme, and saves WebP files + public/guide/shots.json (image sizes, numbered callout positions in
  * % of the image, legend text, alt text). The guide page overlays the callouts from that JSON.
+ * shots.json is written once, when the run ends: the guide imports it, so every write makes a dev
+ * server recompile (and answer some requests with a 404 meanwhile).
  */
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { createRequire } from "node:module";
-import { buildSeed, readTrialQuestions, COURSE, W00, W01, LESSONS, STORY } from "./seed.mjs";
+import { buildSeed, readTrialQuestions, COURSE, W00, W01, LESSONS, STORY, MOCK } from "./seed.mjs";
 import { installRoutes, sessionStorageEntry, DEMO_USER } from "./mock.mjs";
 import { exampleBoard } from "./board.mjs";
 
@@ -100,8 +102,9 @@ async function prodBrowser() {
  * @param {boolean} [o.prodHost]     open pages as http://himanshukukreja.in (served by BASE)
  * @param {boolean} [o.nativeShare]  phones: give the page a navigator.share, as real phones have
  * @param {any} [o.share]            ShareState the share API answers with (signed in)
+ * @param {string|null} [o.coach]    the mock interview live coach's example note (signed in)
  */
-async function makeContext({ phone = false, signedIn = false, seed = true, fixtures = {}, prodHost = false, nativeShare = false, share = null } = {}) {
+async function makeContext({ phone = false, signedIn = false, seed = true, fixtures = {}, prodHost = false, nativeShare = false, share = null, coach = null } = {}) {
   const device = phone ? { ...devices["iPhone 13"], deviceScaleFactor: 2 } : { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 2 };
   const ctx = await (prodHost ? await prodBrowser() : browser).newContext({ ...device, colorScheme: "light", locale: "en-IN", timezoneId: "Asia/Kolkata" });
   ctx.__base = prodHost ? `http://${PROD_HOST}` : BASE;
@@ -142,13 +145,19 @@ async function makeContext({ phone = false, signedIn = false, seed = true, fixtu
     longest_streak: 4,
   };
   ctx.__seeded = seed;
-  await installRoutes(ctx, { supabaseUrl: SUPABASE_URL, signedIn, fixtures, profile, user: sess?.user, game: s.game, board: (p, si) => exampleBoard(p, si), share });
+  await installRoutes(ctx, { supabaseUrl: SUPABASE_URL, signedIn, fixtures, profile, user: sess?.user, game: s.game, board: (p, si) => exampleBoard(p, si), share, coach });
   return ctx;
 }
 
 async function open(ctx, url, waitFor) {
   const page = await ctx.newPage();
-  await page.goto((ctx.__base || BASE) + url, { waitUntil: "networkidle", timeout: 180_000 }).catch(() => undefined);
+  // a dev server can answer one request with a 404/500 while it recompiles: try again
+  for (let k = 0; k < 3; k++) {
+    const res = await page.goto((ctx.__base || BASE) + url, { waitUntil: "networkidle", timeout: 180_000 }).catch(() => null);
+    if (!res || res.status() < 400 || k === 2) break;
+    console.warn(`  ! ${url}: HTTP ${res.status()}, retrying`);
+    await page.waitForTimeout(3000);
+  }
   if (waitFor) await page.waitForSelector(waitFor, { timeout: 60_000 }).catch(() => console.warn(`  ! ${waitFor} not found on ${url}`));
   // hydrated: the level chip shows the seeded level (L4 for the persona) instead of the SSR default L1
   if (ctx.__seeded) await page.waitForFunction(() => /L[2-6]/.test(document.querySelector("button[data-quest-toggle]")?.textContent || ""), null, { timeout: 30_000 }).catch(() => console.warn(`  ! ${url} did not hydrate`));
@@ -406,11 +415,13 @@ shot("hub-hero", () =>
     const page = await open(ctx, HUB, "#tree-h");
     if (v === "desktop") {
       await page.evaluate(() => window.scrollTo(0, 0));
+      // down to the bottom of the Continue card (the numbers grid ends about there)
+      const card = await rectOf(page, "main section .border-signal");
       await capture(page, "hub-hero", v, {
-        clip: { x: 60, y: 0, width: 1320, height: 610 },
+        clip: { x: 60, y: 0, width: 1320, height: Math.min(900, (card ? card.y + card.height : 610) + 20) },
         alt: "The course hub: the course tabs in the header, the course title with its numbers, and a Continue card for the lesson in progress with a daily standup link.",
         callouts: [
-          { n: 1, label: "Course tabs: course · arena · practice · notebook · progress", sel: 'header nav[aria-label="Course"]', at: "l", dx: -8 },
+          { n: 1, label: "Course tabs: course · prep · arena · stories · you", sel: 'header nav[aria-label="Course"]', at: "l", dx: -8 },
           { n: 2, label: "Your level and XP. Click it for the quest log", sel: "button[data-quest-toggle]", at: "bl", dx: 6, dy: 4 },
           { n: 3, label: "What the course holds, and what you have done", sel: "main section .grid", at: "tl" },
           { n: 4, label: "Continue: the lesson and stage you were on", sel: "main section .border-signal", at: "tl" },
@@ -471,8 +482,11 @@ shot("hub-side", () =>
       const sec = await rectOf(page, 'section[aria-labelledby="side-h"]');
       await capture(page, "hub-side", v, {
         clip: { x: sec.x - 16, y: sec.y - 16, width: sec.width + 32, height: Math.min(460, sec.height + 32) },
-        alt: "Side quests: fifteen real systems (UPI, WhatsApp, Aadhaar, Netflix…) designed end to end, each worth 120 XP.",
-        callouts: [{ n: 1, label: "Side quests: open any time, +120 XP each", sel: 'section[aria-labelledby="side-h"] a', at: "tl" }],
+        alt: "Side quests: real systems (UPI, WhatsApp, Aadhaar, Netflix…) designed end to end, each worth 120 XP, with a link to their design sheets.",
+        callouts: [
+          { n: 1, label: "Side quests: open any time, +120 XP each", sel: 'section[aria-labelledby="side-h"] a[href*="/bonus-"], section[aria-labelledby="side-h"] a[href*="side"]', at: "tl" },
+          { n: 2, label: "Every side quest's design sheet", sel: 'section[aria-labelledby="side-h"] a[href="/learn/sheets"]', at: "l", dx: -8 },
+        ],
       });
     },
     { only: "desktop" },
@@ -498,6 +512,7 @@ shot("lesson-top", () =>
           { n: 6, label: "Course path: this week's lessons, boss and trial", sel: 'nav[aria-label="Course path"]', at: "tl" },
           { n: 8, label: "On this page: the lesson's contents", sel: 'aside[aria-label="On this page"]', at: "tl" },
           { n: 7, label: "Reading tools: stage, Listen, Focus, text size", sel: 'div[role="toolbar"][aria-label="Reading tools"]', at: "tl" },
+          { n: 9, label: "Ask AI about this lesson: always on screen while reading", sel: "button[data-ask-fab]", at: "l", dx: -8 },
         ],
       });
     } else {
@@ -616,11 +631,11 @@ shot("lesson-end", () =>
     const vp = page.viewportSize();
     await capture(page, "lesson-end", v, {
       clip: { x: r.x - 12, y: r.y - 12, width: r.width + 24, height: Math.min(vp.height - r.y - (v === "phone" ? 150 : 0), r.height + 24) },
-      alt: "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it the next lesson and the trial part.",
+      alt: "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it a five-minute revision card with the world's cheat sheet, and questions learners ask, answered from the lesson.",
       callouts: [
         { n: 1, label: "Mark complete unlocks after enough real reading", sel: 'section[aria-label="End of lesson"] button', at: "tl" },
-        { n: 2, label: "Up next, across weeks", sel: 'section[aria-label="End of lesson"] a', at: "tl" },
-        { n: 3, label: "The trial part that tests this lesson", sel: 'section[aria-label="End of lesson"] a', text: "TRIAL", at: "tl" },
+        { n: 2, label: "Revise this lesson in 5 minutes, or the world's cheat sheet", find: /^Revise .+ in 5 min/, at: "l", dx: -10 },
+        { n: 3, label: "Questions learners ask: answered from the lesson, free", find: /^Questions learners ask$/i, at: "l", dx: -10 },
       ],
     });
   }),
@@ -644,6 +659,177 @@ shot("lesson-focus", () =>
     },
     { only: "desktop" },
   ),
+);
+
+/* ---------- b2) video lectures */
+
+/** The persona's lecture in progress (seed: stopped at 6:58), and the playlist. */
+const LEC = `/learn/lectures/${W00}--${LESSONS.p4}`;
+const LECTURES = "/learn/prep/lectures";
+
+async function lecturePage(ctx, url) {
+  const page = await open(ctx, url, 'div[role="toolbar"][aria-label="Lecture controls"]');
+  // the recording's timings (media.json) load after hydration; without them the header says "browser voice"
+  await page
+    .waitForFunction(() => !/browser voice/.test(document.querySelector("main header")?.textContent || ""), null, { timeout: 30_000 })
+    .catch(() => console.warn(`  ! ${url}: recorded media not found (served from public/lecture-media in dev)`));
+  await page.waitForTimeout(800);
+  return page;
+}
+
+/** The player box: the stage, the seek bar and the controls (not the chapter list). */
+const stageBox = (page) =>
+  page.evaluate(() => {
+    const bar = document.querySelector('div[role="toolbar"][aria-label="Lecture controls"]');
+    const stage = document.querySelector("main .aspect-video");
+    if (!bar || !stage) return null;
+    const a = stage.getBoundingClientRect(), b = bar.getBoundingClientRect();
+    return { x: a.left, y: a.top, width: a.width, height: b.bottom - a.top };
+  });
+
+shot("lecture-player", () =>
+  both(async (ctx, v) => {
+    const page = await lecturePage(ctx, LEC);
+    if (v === "desktop") await page.setViewportSize({ width: 1440, height: 1000 });
+    else await page.setViewportSize({ width: 390, height: 1100 });
+    // pick up where the persona stopped, and let it play a moment so the stage shows a live step
+    await page.getByRole("button", { name: /resume from/ }).first().click().catch(() => console.warn("  ! lecture: no resume button"));
+    await page.waitForTimeout(400);
+    await page.locator('div[role="toolbar"][aria-label="Lecture controls"] button').first().click();
+    await page.waitForTimeout(v === "desktop" ? 3500 : 3000);
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(300);
+    if (v === "desktop") {
+      // hover the seek bar: a still of that moment and its chapter
+      const bar = await rectOf(page, '[role="slider"][aria-label="Seek"]');
+      await page.mouse.move(bar.x + bar.width * 0.62, bar.y + bar.height / 2);
+      await page.waitForTimeout(700);
+      const main = await rectOf(page, "main");
+      const aside = await rectOf(page, "main aside");
+      await capture(page, "lecture-player", v, {
+        clip: { x: main.x + 8, y: 70, width: main.width - 16, height: Math.max(aside.y + aside.height, bar.y + 60) + 16 - 70 },
+        alt: "A video lecture playing: the title with Read the lesson and Save offline, the animated stage with captions, a seek bar split into chapters with a preview of the moment under the pointer, the controls, and the chapter list with checkpoints and up next.",
+        callouts: [
+          { n: 1, label: "Back to the text this lecture teaches", sel: "main header a", text: "Read the", at: "l", dx: -8 },
+          { n: 2, label: "Save offline: the lecture plays with no internet", sel: "main header button", text: "Save", at: "l", dx: -8 },
+          { n: 3, label: "One bar segment per chapter; hover to preview a moment", point: [bar.x + bar.width * 0.36, bar.y + bar.height / 2] },
+          { n: 4, label: "Ask AI about this moment (A)", sel: 'button[aria-label="Ask AI about this moment"]', at: "t", dy: -6 },
+          { n: 5, label: "Captions, speed, picture-in-picture, full screen", sel: 'select[aria-label="Speed"]', at: "t", dy: -6 },
+          { n: 6, label: "Chapters; checkpoints marked ✓ or ✕ once answered", sel: "main aside ol", at: "tl" },
+          { n: 7, label: "Checkpoints right, +10 XP each", find: "checkpoints 0/", at: "l", dx: -8 },
+          { n: 8, label: "Up next, and the autoplay switch", sel: "main aside a", text: "up next", at: "l", dx: -8 },
+        ],
+      });
+    } else {
+      const box = await stageBox(page);
+      const list = await rectOf(page, "main aside h2");
+      await capture(page, "lecture-player", v, {
+        clip: { x: 0, y: Math.max(0, box.y - 150), width: 390, height: Math.min(1040, list.y + 220 - Math.max(0, box.y - 150)) },
+        alt: "The same lecture on a phone: the stage, the controls in one row and the chapter list below it.",
+        callouts: [
+          { n: 1, label: "Back to the lesson, or save it offline", sel: "main header a", text: "Read the", at: "tl" },
+          { n: 2, label: "Ask AI about this moment", sel: 'button[aria-label="Ask AI about this moment"]', at: "t", dy: -6 },
+          { n: 3, label: "Chapters: tap one to jump", sel: "main aside h2", at: "l", dx: -6 },
+        ],
+      });
+    }
+  }),
+);
+
+shot("lecture-ask", () =>
+  both(
+    async (ctx, v) => {
+      const page = await lecturePage(ctx, `${LEC}?t=430`);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.getByRole("button", { name: "Ask AI about this moment" }).click();
+      await page.waitForSelector("text=learners often ask here", { timeout: 15_000 }).catch(() => console.warn("  ! lecture-ask: no pre-answered questions for this chapter"));
+      await page.waitForTimeout(600);
+      // open the first pre-answered question
+      await page.locator("main aside button[aria-expanded]").first().click().catch(() => undefined);
+      await page.waitForTimeout(500);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const box = await stageBox(page);
+      await capture(page, "lecture-ask", v, {
+        clip: { x: box.x - 12, y: box.y - 12, width: box.width + 24, height: box.height + 24 },
+        alt: "Ask AI about this moment: the lecture pauses and a panel over the right of the stage offers pre-answered questions for this chapter, quick questions and a box to ask your own.",
+        callouts: [
+          { n: 1, label: "The paused moment the AI answers about", point: [box.x + box.width * 0.22, box.y + box.height * 0.3] },
+          { n: 2, label: "Learners often ask here: answered already, free", find: "learners often ask here", at: "l", dx: -8 },
+          { n: 3, label: "Quick questions: simpler, an example, the interview angle, Hinglish", sel: 'main [role="group"][aria-label="Quick questions"]', at: "tl" },
+          { n: 4, label: "Or ask your own (signed in, uses AI credits)", sel: 'main textarea[aria-label="Your question"]', at: "l", dx: -8 },
+        ],
+      });
+    },
+    { only: "desktop", signedIn: true },
+  ),
+);
+
+shot("lecture-end", () =>
+  both(
+    async (ctx, v) => {
+      // jump to the end (near the end of the bar, then L: +10 s): the end screen counts down to the next one
+      const page = await lecturePage(ctx, LEC);
+      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const bar = await rectOf(page, '[role="slider"][aria-label="Seek"]');
+      await page.mouse.click(bar.x + bar.width * 0.998, bar.y + bar.height / 2);
+      await page.mouse.move(bar.x + bar.width / 2, bar.y - 300);
+      await page.keyboard.press("l");
+      await page.waitForSelector("text=/playing in \\d+ s/", { timeout: 10_000 });
+      await page.evaluate(() => document.activeElement?.blur());
+      await page.waitForTimeout(1200);
+      await page.evaluate(() => window.scrollTo(0, 0));
+      const box = await stageBox(page);
+      await capture(page, "lecture-end", v, {
+        clip: { x: box.x - 12, y: box.y - 12, width: box.width + 24, height: box.height + 24 },
+        alt: "The end of a lecture: up next, the next lecture in the same track, playing by itself in a few seconds, with play now, cancel and the autoplay switch.",
+        callouts: [
+          { n: 1, label: "The next lecture plays by itself after 8 seconds", find: /playing in \d+ s/, at: "r", dx: 14 },
+          { n: 2, label: "Play it now, or cancel to stay", sel: "main a", text: "play now", at: "l", dx: -10 },
+          { n: 3, label: "Autoplay next: on or off, remembered", sel: "main .aspect-video label", text: "autoplay next", at: "l", dx: -10 },
+        ],
+      });
+    },
+    { only: "desktop" },
+  ),
+);
+
+shot("lectures-playlist", () =>
+  both(async (ctx, v) => {
+    const page = await open(ctx, LECTURES, 'section[aria-label="Your progress"]');
+    await page.waitForSelector("text=continue watching", { timeout: 20_000 }).catch(() => console.warn("  ! playlist: no continue watching"));
+    if (v === "desktop") {
+      await page.setViewportSize({ width: 1440, height: 1240 });
+      await page.waitForTimeout(800);
+      await scrollTo(page, 'section[aria-label="Your progress"]', 90);
+      const prog = await rectOf(page, 'section[aria-label="Your progress"]');
+      await capture(page, "lectures-playlist", v, {
+        clip: { x: 60, y: prog.y - 16, width: 1320, height: 1240 - (prog.y - 16) - 10 },
+        alt: "The lecture playlist: how much you have watched, continue watching with resume points, the list of sections on the left with watched counts, and lecture cards with their number, difficulty, length and a watched mark.",
+        callouts: [
+          { n: 1, label: "Watched overall, in lectures and hours", sel: 'section[aria-label="Your progress"] span.font-mono.text-xs', at: "l", dx: -20 },
+          { n: 2, label: "Continue watching: resumes where you stopped", find: "continue watching", at: "l", dx: -8 },
+          { n: 3, label: "Every section, with how many you've watched", sel: 'nav[aria-label="Playlist sections"].lg\\:flex', at: "tl" },
+          { n: 4, label: "Difficulty: Beginner → Expert", sel: 'main [title^="Difficulty"]', at: "l", dx: -8 },
+          { n: 5, label: "✓ watched once you reach 90%", find: "✓ watched", exact: true, at: "r", dx: 10 },
+          { n: 6, label: "Checkpoints and chapters in each lecture", find: /^\d+ checkpoints · \d+ chapters/, at: "l", dx: -8 },
+        ],
+      });
+    } else {
+      await page.setViewportSize({ width: 390, height: 1000 });
+      await page.waitForTimeout(500);
+      await scrollTo(page, 'section[aria-label="Your progress"]', 70);
+      const prog = await rectOf(page, 'section[aria-label="Your progress"]');
+      await capture(page, "lectures-playlist", v, {
+        clip: { x: 0, y: prog.y - 12, width: 390, height: Math.min(1000 - (prog.y - 12), 900) },
+        alt: "The playlist on a phone: your progress, continue watching, then a bar of tracks and a jump-to menu above the lectures.",
+        callouts: [
+          { n: 1, label: "Continue watching", find: "continue watching", at: "l", dx: -6 },
+          { n: 2, label: "Tracks and a jump-to menu", sel: 'nav[aria-label="Playlist sections"].lg\\:hidden', at: "tl" },
+        ],
+      });
+    }
+  }),
 );
 
 /* ---------- d) highlights, notes, bookmarks */
@@ -908,27 +1094,313 @@ shot("boss", () =>
   ),
 );
 
+/* ---------- g0) mock interviews */
+
+/**
+ * One round of the persona's mock interview (seed.mjs MOCK), played in the browser: the lobby, the
+ * join briefing, the room (with the live coach's example note), the whiteboard and the debrief.
+ * The run lives in localStorage only. To make the clock read like a real 45-minute call, each phase's
+ * time is set in the saved run (by an init script, after the page's own save on unload) and the page
+ * reloads: the interviewer's timed follow-ups and curveballs then arrive as they would.
+ */
+const MOCK_URL = `/learn/mock/${MOCK.slug}`;
+const WS = 'section[aria-labelledby="ws-h"]';
+
+async function mockContext(phone) {
+  const ctx = await makeContext({ phone, signedIn: true, coach: MOCK.coach });
+  await ctx.addInitScript(() => {
+    try {
+      const p = sessionStorage.getItem("guide.mock.used");
+      if (!p) return;
+      sessionStorage.removeItem("guide.mock.used");
+      const k = Object.keys(localStorage).find((x) => x.startsWith("hk.mock.v1:"));
+      if (!k) return;
+      const r = JSON.parse(localStorage.getItem(k));
+      Object.assign(r.used, JSON.parse(p));
+      localStorage.setItem(k, JSON.stringify(r));
+    } catch {
+      // the round just keeps its real clock
+    }
+  });
+  return ctx;
+}
+
+const phaseId = (page) => page.evaluate(() => document.querySelector('textarea[id^="notes-"]')?.id.slice(6) || null);
+
+/** Put `seconds` on this phase's clock, reload and rejoin (prompts due by then arrive). */
+async function setClock(page, seconds) {
+  const pid = await phaseId(page);
+  if (!pid) return;
+  await page.waitForTimeout(700);
+  await page.evaluate(([pid, s]) => sessionStorage.setItem("guide.mock.used", JSON.stringify({ [pid]: s })), [pid, seconds]);
+  await page.reload({ waitUntil: "networkidle" }).catch(() => undefined);
+  await page.waitForSelector('div[role="status"] button', { timeout: 30_000 });
+  await page.locator('div[role="status"] button', { hasText: "Rejoin the call" }).click();
+  await page.waitForTimeout(2600);
+}
+
+/** Answer the curveballs on screen, then Done / Next until the phase changes (or the call ends). */
+async function finishPhase(page) {
+  const start = await page.locator("#ws-h").textContent();
+  for (let i = 0; i < 4; i++) {
+    const cbs = await page.locator(`${WS} textarea[id^="cb-"]`).all();
+    for (const [j, cb] of cbs.entries()) if (!(await cb.inputValue())) await cb.fill(MOCK.curveballs[j] || MOCK.curveballs[0]);
+    await page.locator(`${WS} button`, { hasText: /Done with this part|^Next ·|End the interview/ }).first().click();
+    await page.waitForTimeout(1100);
+    if (await page.locator('[data-mock-screen="debrief"]').count()) return;
+    if ((await page.locator("#ws-h").textContent().catch(() => start)) !== start) return;
+  }
+}
+
+/** The design on the whiteboard: blocks from the palette, two logos, a custom block, arrows between. */
+async function drawBoard(page) {
+  await page.getByRole("tab", { name: /Whiteboard/ }).click();
+  await page.waitForSelector(".hk-board .excalidraw canvas", { timeout: 60_000 });
+  await page.waitForTimeout(1500);
+  const block = (t) => page.locator(".hk-board button", { hasText: t }).first();
+  for (const t of ["Client", "Load balancer", "API service"]) {
+    await block(t).click();
+    await page.waitForTimeout(400);
+  }
+  await page.locator(".hk-board button", { hasText: "Tech logos" }).click();
+  for (const [q, name] of [["redis", "Redis"], ["postgres", "Postgre"]]) {
+    await page.fill('input[aria-label="Search technology logos"]', q);
+    await page.waitForTimeout(300);
+    await page.locator(".hk-board button", { hasText: name }).first().click();
+    await page.waitForTimeout(400);
+  }
+  await page.locator(".hk-board button", { hasText: "Tech logos" }).click();
+  await page.locator(".hk-board button", { hasText: "Custom block" }).click();
+  await page.fill('.hk-board input[placeholder^="Fraud check"]', "SMS router");
+  await page.fill('.hk-board input[aria-label="Search icons"]', "sms");
+  await page.waitForTimeout(300);
+  await page.locator('.hk-board input[aria-label="Search icons"] ~ div button[title]').first().click({ timeout: 5000 }).catch(() => console.warn("  ! board: no icon for the custom block"));
+  await page.locator(".hk-board button", { hasText: "Add to the board" }).click();
+  await page.waitForTimeout(400);
+  await page.locator(".hk-board button", { hasText: "Custom block" }).click();
+  await page.keyboard.press("Escape");
+  await page.waitForTimeout(400);
+  // arrows: blocks sit on a 2-column grid from (60, 90), 240 × 160 apart, 180 × 84 each
+  await scrollTo(page, ".hk-board .excalidraw", 180);
+  const arrows = [
+    [[200, 132], [340, 132]],
+    [[390, 165], [150, 262]],
+    [[200, 292], [340, 292]],
+    [[150, 325], [150, 420]],
+    [[220, 326], [330, 420]],
+  ];
+  let c = await rectOf(page, ".hk-board .excalidraw");
+  for (const [[x1, y1], [x2, y2]] of arrows) {
+    await page.locator('.hk-board label:has([data-testid="toolbar-arrow"])').click();
+    c = await rectOf(page, ".hk-board .excalidraw");
+    await page.mouse.move(c.x + x1, c.y + y1);
+    await page.mouse.down();
+    await page.mouse.move(c.x + (x1 + x2) / 2, c.y + (y1 + y2) / 2, { steps: 8 });
+    await page.mouse.move(c.x + x2, c.y + y2, { steps: 8 });
+    await page.mouse.up();
+    await page.waitForTimeout(300);
+    await page.keyboard.press("Escape");
+  }
+  await page.mouse.click(c.x + c.width - 60, c.y + 200);
+  await page.waitForTimeout(1500);
+}
+
+shot("mock", async () => {
+  // desktop: lobby → briefing → room → whiteboard → debrief
+  const ctx = await mockContext(false);
+  try {
+    const page = await open(ctx, MOCK_URL, 'aside[aria-label="Reward and start"]');
+    await page.setViewportSize({ width: 1440, height: 1320 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
+    const watch = await rectOf(page, 'main a[href^="/learn/lectures/"]');
+    await capture(page, "mock-lobby", "desktop", {
+      clip: { x: 60, y: 80, width: 1320, height: (watch ? watch.y + watch.height : 1100) + 18 - 80 },
+      alt: "A mock interview's lobby: which mock it is and what it covers, the company and the problem, a whiteboard cover sketch, the recruiter's note, the interviewer and the company, and a card to watch the recorded model interview first.",
+      callouts: [
+        { n: 1, label: "Mock number, the world it follows and what it covers", sel: "main header span.font-mono", at: "l", dx: -8 },
+        { n: 2, label: "The cover: the problem as a whiteboard sketch", sel: 'main header svg[aria-label^="Whiteboard sketch"]', at: "tl" },
+        { n: 3, label: "The recruiter's note: format, length, a tip", sel: 'section[aria-labelledby="note-h"]', at: "tl" },
+        { n: 4, label: "Your interviewer and their style", sel: 'section[aria-labelledby="who-h"]', at: "tl" },
+        { n: 5, label: "Watch it first: the same round, recorded, done well", sel: 'main a[href^="/learn/lectures/"]', at: "l", dx: -8 },
+        { n: 6, label: "Save the mock for offline", sel: "main button", text: "Save offline", at: "l", dx: -8 },
+      ],
+    });
+
+    await page.getByRole("button", { name: /Join the call/ }).click();
+    await page.waitForSelector('[role="dialog"][aria-labelledby="briefing-h"]');
+    await page.waitForTimeout(600);
+    const dlg = await rectOf(page, '[role="dialog"][aria-labelledby="briefing-h"]');
+    await capture(page, "mock-briefing", "desktop", {
+      header: true,
+      clip: { x: dlg.x - 20, y: dlg.y - 20, width: dlg.width + 40, height: dlg.height + 40 },
+      alt: "The briefing before the call starts: one clock and the phase budgets, the interviewer talking while you work, typing, dictating or drawing your answer, a voice call with the AI interviewer, the live coach switch, and what the debrief gives you.",
+      callouts: [
+        { n: 1, label: "One clock, the phase budgets", find: "One clock starts the moment you join", at: "l", dx: -26 },
+        { n: 2, label: "Type, dictate (mic) or draw on the whiteboard", find: "Answer however you think best:", at: "l", dx: -26 },
+        { n: 3, label: "Talk to the interviewer: a voice call with the AI", find: /^Talk to .+ out loud\.$/, at: "l", dx: -26 },
+        { n: 4, label: "Live coach after each phase (AI, signed in): on or off", find: "Coach me after each phase", at: "r", dx: 18 },
+        { n: 5, label: "Skip this next time", find: "don't show this again", at: "r", dx: 26 },
+        { n: 6, label: "Start the clock", sel: '[role="dialog"] button', text: "start the clock", at: "t", dy: -4 },
+      ],
+    });
+    await page.getByRole("button", { name: /start the clock/ }).click();
+    await page.waitForSelector(WS);
+    await page.waitForTimeout(1500);
+
+    for (let k = 0; k < 6; k++) {
+      await page.getByRole("tab", { name: /^Answer/ }).click();
+      await page.locator('textarea[id^="notes-"]').first().fill(MOCK.notes[k]);
+      await setClock(page, MOCK.used[k]);
+      if (k === 1) {
+        // phase 2: the coach's note on phase 1 at the top, the AI interviewer, the answer box
+        await page.setViewportSize({ width: 1440, height: 1250 });
+        await page.evaluate(() => window.scrollTo(0, 0));
+        await page.waitForTimeout(500);
+        const bar = await rectOf(page, "main div.sticky");
+        await capture(page, "mock-room", "desktop", {
+          clip: { x: 60, y: bar.y - 10, width: 1320, height: 1250 - (bar.y - 10) - 10 },
+          alt: "The interview room in phase 2: the call bar with the phase and total clocks and a strip of phase budgets, the call transcript with the problem and the interviewer's messages, the live coach's note on phase 1, the live AI interviewer with a voice call button, and the answer box with dictation.",
+          callouts: [
+            { n: 1, label: "Phase clock and total clock: they run over, never out", sel: 'main div.sticky [aria-label^="Phase clock"]', at: "b", dy: 14 },
+            { n: 2, label: "Every phase's budget; go back to an earlier one", sel: "main div.sticky button[aria-label^='Phase 1']", at: "tl" },
+            { n: 3, label: "⋯ Leave for the lobby, or restart the round", sel: 'button[aria-label="Call options"]', at: "b", dy: 8 },
+            { n: 4, label: "The call: the problem, prompts, follow-ups, curveballs", sel: 'section[aria-label="The call"]', at: "tl" },
+            { n: 5, label: "Live coach: a short read on the phase you just finished", sel: 'section[aria-label="Live coach"]', at: "tl" },
+            { n: 6, label: "Talk to the AI interviewer, typed or by voice call", sel: 'section[aria-label^="Talk to"]', at: "tl" },
+            { n: 7, label: "Your answer, autosaved; Dictate to speak it", sel: `${WS} [role="tablist"]`, at: "l", dx: -10 },
+          ],
+        });
+      }
+      if (k === 3) {
+        await drawBoard(page);
+        await page.setViewportSize({ width: 1440, height: 1100 });
+        await scrollTo(page, `${WS} [role="tablist"]`, 170);
+        const t2 = await rectOf(page, `${WS} [role="tablist"]`);
+        const hint = await rectOf(page, ".hk-board > p");
+        const cv = await rectOf(page, ".hk-board .excalidraw");
+        await capture(page, "mock-board", "desktop", {
+          clip: { x: t2.x - 16, y: t2.y - 12, width: t2.width + 32, height: hint.y + hint.height + 14 - (t2.y - 12) },
+          alt: "The mock interview whiteboard: a row of building blocks with icons, the tech logo picker, a custom block kept in my blocks, full screen, and a design drawn with blocks and attached arrows.",
+          callouts: [
+            { n: 1, label: "Building blocks: one click drops one in", sel: ".hk-board button", text: "Load balancer", at: "t", dy: -2 },
+            { n: 2, label: "Tech logos: Redis, Kafka, PostgreSQL…", sel: ".hk-board button", text: "Tech logos", at: "l", dx: -8 },
+            { n: 3, label: "Your own block (name, shape, colour, icon), kept for next time", sel: ".hk-board button[title='One of your blocks']", at: "t", dy: -2 },
+            { n: 4, label: "Full screen: the whole window to draw", sel: ".hk-board button", text: "full screen", at: "l", dx: -8 },
+            { n: 5, label: "Arrows stay attached when blocks move", point: [cv.x + 270, cv.y + 292] },
+          ],
+        });
+      }
+      await finishPhase(page);
+    }
+    await page.waitForSelector('[data-mock-screen="debrief"]', { timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    // as a learner would: phase 1 scored with its model answer open, phase 2 half scored
+    await page.locator("main section button", { hasText: "Reveal the model answer" }).first().click();
+    const phases = page.locator('main section[aria-labelledby^="rv-"]');
+    for (const [k, picks] of [
+      [0, [2, 2, 1, 2, 2]],
+      [1, [2, 1, 0]],
+    ]) {
+      const radios = phases.nth(k).locator('[role="radiogroup"]');
+      const n = Math.min(picks.length, await radios.count());
+      for (let i = 0; i < n; i++) await radios.nth(i).locator('[role="radio"]').nth(picks[i]).click();
+    }
+    await page.waitForTimeout(1200);
+    await page.setViewportSize({ width: 1440, height: 1500 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(800);
+    await page.waitForSelector('section[aria-labelledby="board-h"] svg', { timeout: 20_000 }).catch(() => console.warn("  ! debrief: board picture not drawn"));
+    const head = await rectOf(page, "main header");
+    await capture(page, "mock-debrief", "desktop", {
+      clip: { x: 60, y: head.y - 16, width: 1320, height: 1500 - (head.y - 16) - 10 },
+      alt: "The debrief: what happened in the round (time, phases over budget, curveballs answered, hints, pauses, words), your whiteboard as a picture, and the scorecard where you score each rubric signal for a verdict.",
+      callouts: [
+        { n: 1, label: "What happened: time, phases over budget, curveballs, hints", sel: "main div.grid.grid-cols-2", at: "tl" },
+        { n: 2, label: "Your whiteboard, as a picture and as text", sel: 'section[aria-labelledby="board-h"]', at: "tl" },
+        { n: 3, label: "Scorecard: signals left to score, then the verdict", sel: 'aside[aria-label="Scorecard"]', at: "tl" },
+      ],
+    });
+    // phase 2 in full: what you wrote, the coach's note, the model answer button, the rubric
+    await page.evaluate(() => {
+      const sec = document.querySelectorAll('main section[aria-labelledby^="rv-"]')[1];
+      window.scrollTo({ top: sec.getBoundingClientRect().top + window.scrollY - 90, behavior: "instant" });
+    });
+    await page.waitForTimeout(500);
+    const rv = await page.evaluate(() => {
+      const r = document.querySelectorAll('main section[aria-labelledby^="rv-"]')[1].getBoundingClientRect();
+      return { x: r.left, y: r.top, width: r.width, height: r.height };
+    });
+    const vp = page.viewportSize();
+    await capture(page, "mock-rubric", "desktop", {
+      clip: { x: rv.x - 14, y: rv.y - 14, width: rv.width + 28, height: Math.min(vp.height - (rv.y - 14), rv.height + 28) },
+      alt: "One phase in the debrief: what you wrote, what the live coach said after it, the button that reveals the model answer, and the rubric signals, each tagged with the level that should show it and the lessons that teach it, scored missed, partly or nailed.",
+      callouts: [
+        { n: 1, label: "What you wrote in this phase", find: /^you wrote$/i, at: "l", dx: -8 },
+        { n: 2, label: "What the live coach said after it", find: /what the live coach said/i, at: "l", dx: -8 },
+        { n: 3, label: "The model answer, behind a button", sel: "main section button", text: "model answer", at: "l", dx: -8 },
+        { n: 4, label: "Each signal: the level that should show it, and the lessons behind it", sel: 'main section[aria-labelledby^="rv-"] li span.flex', at: "l", dx: -8 },
+        { n: 5, label: "Score it: missed, partly or nailed", sel: 'main [role="radiogroup"]', at: "t", dy: -6 },
+      ],
+    });
+  } finally {
+    await ctx.close();
+  }
+
+  // phone: the room, a moment into phase 1
+  const pctx = await mockContext(true);
+  try {
+    const page = await open(pctx, MOCK_URL, 'aside[aria-label="Reward and start"]');
+    await page.getByRole("button", { name: /Join the call/ }).click();
+    await page.getByRole("button", { name: /start the clock/ }).click();
+    await page.waitForSelector(WS);
+    await page.locator('textarea[id^="notes-"]').first().fill(MOCK.notes[0]);
+    await setClock(page, 150);
+    await page.locator(`${WS} button`, { hasText: /Done with this part/ }).first().click();
+    await page.waitForTimeout(1500);
+    await page.setViewportSize({ width: 390, height: 1100 });
+    await scrollTo(page, "#ws-h", 150);
+    await capture(page, "mock-room", "phone", {
+      header: true,
+      clip: { x: 0, y: 0, width: 390, height: 900 },
+      alt: "The room on a phone: the call bar stays on top, and the newest line from the interviewer is repeated above the workspace.",
+      callouts: [
+        { n: 1, label: "The call bar: clock, pause, ⋯, End", sel: "main div.sticky", at: "tl" },
+        { n: 2, label: "The interviewer's newest line", find: /latest from/i, at: "l", dx: -6 },
+      ],
+    });
+  } finally {
+    await pctx.close();
+  }
+});
+
 /* ---------- g1) practice toolkit */
 
 shot("practice-hub", () =>
   both(async (ctx, v) => {
-    const page = await open(ctx, "/learn/practice", "#night-h");
+    const page = await open(ctx, "/learn/prep", "#night-h");
     // live state is read after hydration (revised decks, plan, labs)
-    await page.waitForFunction(() => /\d+\/\d+ revised/.test(document.body.textContent || ""), null, { timeout: 20_000 }).catch(() => console.warn("  ! practice: revision state not shown"));
+    await page.waitForFunction(() => /\d+\/\d+ revised/.test(document.body.textContent || ""), null, { timeout: 20_000 }).catch(() => console.warn("  ! prep: revision state not shown"));
     if (v === "desktop") {
-      await page.setViewportSize({ width: 1440, height: 1240 });
+      await page.setViewportSize({ width: 1440, height: 1500 });
       await page.evaluate(() => window.scrollTo(0, 0));
       await page.waitForTimeout(500);
-      const grp = await rectOf(page, 'section[aria-labelledby="night-h"]');
+      // down to the end of the first row of mock interview cards
+      const rowEnd = await page.evaluate(() => {
+        const a = [...document.querySelectorAll('section[aria-labelledby="mocks-h"] a')].find((x) => /Watch it done well/.test(x.textContent || ""));
+        const card = a?.closest("div.border");
+        return card ? card.getBoundingClientRect().bottom : 1200;
+      });
       await capture(page, "practice-hub", v, {
         header: true,
-        clip: { x: 60, y: 0, width: 1320, height: grp.y + grp.height + 16 },
-        alt: "The Practice page: the practice tab in the course header, a row with lessons revised, labs cleared, mocks done and the study plan, then the revision decks and cheat sheets with a chip per world.",
+        clip: { x: 60, y: 0, width: 1320, height: Math.min(1490, rowEnd + 16) },
+        alt: "The Prep page: the prep tab in the course header, a row with lessons revised, labs cleared, mocks done and the study plan, the video lectures (the whole playlist and where to start), then one card per mock interview with a link to its recorded model interview.",
         callouts: [
-          { n: 1, label: "The practice tab: lit on every tool it lists", sel: 'header nav[aria-label="Course"] a[href="/learn/practice"]', at: "b", dy: 10 },
+          { n: 1, label: "The prep tab: lit on every tool it lists", sel: 'header nav[aria-label="Course"] a[href="/learn/prep"]', at: "b", dy: 10 },
           { n: 2, label: "Where you stand: revised, cleared, done, your plan", sel: "main dl", at: "tl" },
-          { n: 3, label: "Each tool with its live state", sel: "main article span.font-mono.text-\\[11px\\].text-fg-3", at: "l", dx: -10 },
-          { n: 4, label: "One chip per world: ✓ when that world is revised", sel: 'main a[href^="/learn/revise/week-"]', at: "tl" },
+          { n: 3, label: "Video lectures: the playlist, and a chip per section", sel: "#lectures-h", at: "l", dx: -10 },
+          { n: 4, label: "Each mock interview: start the round, or watch it done well", sel: "#mocks-h", at: "l", dx: -10 },
+          { n: 5, label: "Each tool with its live state", sel: "main article span.font-mono.text-\\[11px\\].text-fg-3", at: "l", dx: -10 },
         ],
       });
     } else {
@@ -936,10 +1408,10 @@ shot("practice-hub", () =>
       await page.waitForTimeout(400);
       await capture(page, "practice-hub", v, {
         header: true,
-        alt: "The Practice page on a phone, with practice lit in the course dock at the bottom.",
+        alt: "The Prep page on a phone, with prep lit in the course dock at the bottom.",
         callouts: [
           { n: 1, label: "Where you stand", sel: "main dl", at: "tl" },
-          { n: 2, label: "Practice in the course dock", sel: 'nav[aria-label="Course"] a[href="/learn/practice"]', at: "t", dy: -2 },
+          { n: 2, label: "Prep in the course dock", sel: 'nav[aria-label="Course"] a[href="/learn/prep"]', at: "t", dy: -2 },
         ],
       });
     }
@@ -1045,8 +1517,9 @@ shot("arena-hub", () =>
     const page = await open(ctx, "/learn/arena", "#arena-h");
     await page.waitForTimeout(1200);
     if (v === "desktop") {
-      await page.setViewportSize({ width: 1440, height: 1000 });
+      await page.setViewportSize({ width: 1440, height: 1400 });
       await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(400);
       const rv = await rectOf(page, 'main a[href="/learn/review"]');
       await capture(page, "arena-hub", v, {
         clip: { x: 60, y: 62, width: 1320, height: rv.y + rv.height + 14 - 62 },
@@ -1187,10 +1660,16 @@ shot("progress", () =>
           { n: 2, label: "Minutes per week", sel: "#activity svg", at: "tl" },
           { n: 3, label: "Streak, best day, sessions this week", find: "current streak", at: "l", dx: -14 },
         ]],
-        ["progress-goals", "#goals", 760, "Weekly goal with a projected finish date, and What stuck: trial scores per part, the review queue by box, notebook counts and badges.", [
+        ["progress-videos", 'section[aria-labelledby="videos"]', 700, "Video lectures on the Progress page: watch time, lectures finished out of all of them, in progress and watched this week, then continue watching with a bar each and the lectures finished recently.", [
+          { n: 1, label: "Watch time: minutes actually spent playing", find: "watch time", exact: true, at: "l", dx: -10 },
+          { n: 2, label: "Finished (90% or more), in progress, this week", find: "finished", exact: true, at: "l", dx: -10 },
+          { n: 3, label: "Continue watching, with how far you got", find: "continue watching", at: "l", dx: -10 },
+          { n: 4, label: "Finished recently", find: "finished recently", at: "l", dx: -10 },
+        ]],
+        ["progress-goals", "#goals", 760, "Weekly goal with a projected finish date, and What stuck: the concept map and the best trial score per part.", [
           { n: 1, label: "Weekly goal: minutes or lessons, optional finish date", sel: "#goals-h", at: "l", dx: -10 },
           { n: 2, label: "Best trial score per part", sel: "#mastery-h", at: "l", dx: -10 },
-          { n: 3, label: "Badges: earned ones are outlined in orange", sel: "#mastery li", at: "tl" },
+          { n: 3, label: "The concept map: every concept, by how well you know it", find: "Every concept, coloured by how well you know it", at: "l", dx: -10 },
         ]],
         ["progress-data", "#data", 760, "Your data: download everything as JSON, and reset one lesson, a week, the course or everything, choosing which kinds of data to clear.", [
           { n: 1, label: "Download my data (.json)", sel: "#data button", text: "Download", at: "tl" },
@@ -1458,9 +1937,152 @@ shot("cases", () =>
   ),
 );
 
+shot("case-ask", () =>
+  both(
+    async (ctx, v) => {
+      const page = await open(ctx, `/stories/${STORY}`, "main");
+      await page.setViewportSize({ width: 1440, height: 940 });
+      // select a sentence of the story, then "Ask here" in the selection toolbar
+      const text = await page.evaluate(() => {
+        const ps = [...document.querySelectorAll("main article p, main p")].filter((p) => !p.closest("[data-sd-chrome], figure, aside") && (p.textContent || "").length > 160);
+        const t = (ps[3] || ps[0])?.textContent || "";
+        return (t.match(/[A-Z][^.!?]{50,140}[.!?]/) || [""])[0];
+      });
+      await page.evaluate((text) => {
+        const w = document.createTreeWalker(document.querySelector("main"), NodeFilter.SHOW_TEXT);
+        for (let n = w.nextNode(); n; n = w.nextNode()) {
+          const i = (n.nodeValue || "").indexOf(text);
+          if (i < 0) continue;
+          n.parentElement.scrollIntoView({ block: "center" });
+          const r = document.createRange();
+          r.setStart(n, i);
+          r.setEnd(n, i + text.length);
+          getSelection().removeAllRanges();
+          getSelection().addRange(r);
+          return;
+        }
+      }, text);
+      await page.waitForTimeout(400);
+      await page.keyboard.press("Shift+F10");
+      await page.waitForTimeout(700);
+      const bar = await rectOf(page, 'div[role="toolbar"]');
+      await capture(page, "case-ask", v, {
+        clip: { x: 0, y: Math.max(130, bar.y - 260), width: 1440, height: Math.min(940 - Math.max(130, bar.y - 260), 620) },
+        alt: "A passage selected in a case file: the selection toolbar with Ask here, Ask Claude, Ask ChatGPT, Copy prompt and Copy link, and the Ask AI button in the corner.",
+        callouts: [
+          { n: 1, label: "Ask here: the built-in AI, with this passage", sel: 'div[role="toolbar"] button', text: "Ask here", at: "t", dy: -4 },
+          { n: 2, label: "Or Claude / ChatGPT in a new tab, a prompt, a link to this line", sel: 'div[role="toolbar"] button', text: "Copy link", at: "t", dy: -4 },
+          { n: 3, label: "Ask AI about this case: always in the corner", sel: "button[data-ask-fab]", at: "l", dx: -8 },
+        ],
+      });
+      await page.locator('div[role="toolbar"] button', { hasText: "Ask here" }).first().click();
+      await page.waitForTimeout(1500);
+      const quote = await page.evaluate((start) => {
+        const els = [...document.querySelectorAll("aside *, [role='dialog'] *")].filter((e) => e.children.length === 0 && (e.textContent || "").includes(start));
+        const r = els[0]?.getBoundingClientRect();
+        return r ? [r.left, r.top] : null;
+      }, text.slice(0, 24));
+      await capture(page, "case-ask-panel", v, {
+        clip: { x: 0, y: 0, width: 1440, height: 940 },
+        header: true,
+        alt: "The built-in AI panel docked on the right of a case file, with the selected passage quoted, answer styles and a box for the question.",
+        callouts: [
+          { n: 1, label: "The passage you selected, quoted", point: quote, dx: -10 },
+          { n: 2, label: "Answer styles: simply, an example, for the interview, Hinglish", find: "explain simply", at: "l", dx: -8 },
+          { n: 3, label: "Your question, answered from this case file", sel: "textarea", at: "l", dx: -8 },
+        ].filter((c) => c.point !== null),
+      });
+    },
+    { only: "desktop", signedIn: true },
+  ),
+);
+
+shot("offline-library", () =>
+  both(async (ctx, v) => {
+    // save a lesson and its lecture the way a learner does, then open the library
+    for (const [url, wait] of [
+      [P4, 'section[data-sd="stage"]'],
+      [LEC, 'div[role="toolbar"][aria-label="Lecture controls"]'],
+      [LESSON(W00, LESSONS.p3), 'section[data-sd="stage"]'],
+    ]) {
+      const page = await open(ctx, url, wait);
+      const btn = page.locator("main button", { hasText: /^Save offline/ }).first();
+      await page.waitForTimeout(1500);
+      if (!(await btn.count())) {
+        console.warn(`  ! offline: no Save offline button on ${url}`);
+        await page.close();
+        continue;
+      }
+      await btn.click();
+      await page.waitForFunction(() => [...document.querySelectorAll("main button")].some((b) => /Saved offline/.test(b.textContent || "")), null, { timeout: 120_000 }).catch(() => console.warn(`  ! offline: ${url} did not finish saving`));
+      await page.waitForTimeout(800);
+      await page.close();
+    }
+    const page = await open(ctx, "/learn/offline", 'nav[aria-label="Types of saved things"]');
+    await page.waitForTimeout(2500);
+    if (v === "desktop") {
+      await page.setViewportSize({ width: 1440, height: 1200 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(500);
+      // down to the last saved row (a lecture), at most the window
+      const end = await page.evaluate(() => {
+        const row = document.querySelector('section[aria-label="Everything saved"] li:has(img)');
+        return row ? row.getBoundingClientRect().bottom : 900;
+      });
+      await capture(page, "offline-library", v, {
+        clip: { x: 60, y: 80, width: 1320, height: Math.min(1110, end + 24 - 80) },
+        alt: "The offline library: storage on this device split into videos, articles and app files, the reading app card, a list of types (the course, video lectures, side quests and more) with saved counts and sizes, and everything saved with its size and date.",
+        callouts: [
+          { n: 1, label: "Storage: videos, articles, app files, and how much the browser allows", sel: 'section[aria-label="This device"] > div', at: "tl" },
+          { n: 2, label: "Online or offline; install the course as an app", sel: 'section[aria-label="This device"] > div:nth-child(2)', at: "tl" },
+          { n: 3, label: "By type: saved / available, and the space each takes", sel: 'nav[aria-label="Types of saved things"] ul.lg\\:flex', at: "tl" },
+          { n: 4, label: "A saved video lecture, with its poster", sel: 'section[aria-label="Everything saved"] li:has(img)', at: "l", dx: -8 },
+          { n: 5, label: "Search everything saved", sel: 'section[aria-label="Everything saved"] input[type="search"]', at: "l", dx: -8 },
+        ],
+      });
+    } else {
+      await page.setViewportSize({ width: 390, height: 1100 });
+      await page.evaluate(() => window.scrollTo(0, 0));
+      await page.waitForTimeout(400);
+      await scrollTo(page, 'section[aria-label="This device"]', 70);
+      await capture(page, "offline-library", v, {
+        alt: "The offline library on a phone: storage, then the types as a row of chips and the saved list.",
+        callouts: [
+          { n: 1, label: "Storage on this device", sel: 'section[aria-label="This device"] > div', at: "tl" },
+          { n: 2, label: "Types: swipe the chips", sel: 'nav[aria-label="Types of saved things"] ul', at: "tl" },
+        ],
+      });
+    }
+  }),
+);
+
+shot("sheets-index", () =>
+  both(async (ctx, v) => {
+    const page = await open(ctx, "/learn/sheets", "main ul li");
+    if (v === "desktop") await page.setViewportSize({ width: 1440, height: 1000 });
+    await page.evaluate(() => window.scrollTo(0, 0));
+    await page.waitForTimeout(500);
+    await capture(page, "sheets-index", v, {
+      clip: v === "desktop" ? { x: 60, y: 62, width: 1320, height: 920 } : undefined,
+      alt: "The design sheets index: how many side quests have a sheet, and a card per sheet with the quest's emblem, its diagram count, a summary, the quest's reading time and an open sheet link.",
+      callouts: [
+        { n: 1, label: "Which side quests have a sheet", find: /side quests have a sheet/, at: "l", dx: -8 },
+        { n: 2, label: "One sheet per side quest, with its diagram count", sel: "main ul li", at: "tl" },
+        { n: 3, label: "Open the sheet, or read the quest first", sel: "main ul li a", text: "open sheet", at: "l", dx: -8 },
+      ],
+    });
+  }),
+);
+
 /* ------------------------------------------------------------------ run */
 
 fs.mkdirSync(OUT, { recursive: true });
+// stopped early: keep what was taken
+for (const sig of ["SIGINT", "SIGTERM"])
+  process.on(sig, () => {
+    fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
+    process.exit(130);
+  });
 browser = await chromium.launch();
 try {
   console.log(`guide shots → ${path.relative(ROOT, OUT)} from ${BASE}`);
@@ -1474,9 +2096,10 @@ try {
       console.error(`  ✗ ${s.id}: ${e.message}`);
       process.exitCode = 1;
     }
-    fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
   }
 } finally {
+  // once, at the end: the guide imports shots.json, so a dev server recompiles on every write
+  fs.writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + "\n");
   await browser.close();
   await hostBrowser?.close();
 }

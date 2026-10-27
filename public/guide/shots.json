@@ -3,40 +3,40 @@
     "desktop": {
       "src": "/guide/hub-hero-desktop.webp",
       "w": 1760,
-      "h": 813,
+      "h": 961,
       "alt": "The course hub: the course tabs in the header, the course title with its numbers, and a Continue card for the lesson in progress with a daily standup link.",
       "url": "/learn/system-design-mastery",
       "callouts": [
         {
           "n": 1,
           "x": 15.92,
-          "y": 4.92
+          "y": 4.16
         },
         {
           "n": 2,
-          "x": 71.27,
-          "y": 8.85
+          "x": 70.77,
+          "y": 7.49
         },
         {
           "n": 3,
           "x": 3,
-          "y": 82.26
+          "y": 69.6
         },
         {
           "n": 4,
           "x": 63.33,
-          "y": 54.31
+          "y": 45.95
         },
         {
           "n": 5,
           "x": 65.23,
-          "y": 96
+          "y": 83.05
         }
       ],
       "legend": [
         {
           "n": 1,
-          "label": "Course tabs: course · arena · practice · notebook · progress"
+          "label": "Course tabs: course · prep · arena · stories · you"
         },
         {
           "n": 2,
@@ -97,22 +97,22 @@
         {
           "n": 1,
           "x": 3,
-          "y": 18.75
+          "y": 18.73
         },
         {
           "n": 2,
           "x": 34.14,
-          "y": 20.18
+          "y": 20.16
         },
         {
           "n": 3,
           "x": 47.11,
-          "y": 20.54
+          "y": 20.52
         },
         {
           "n": 4,
           "x": 45.01,
-          "y": 34.29
+          "y": 34.27
         },
         {
           "n": 5,
@@ -153,7 +153,7 @@
         {
           "n": 1,
           "x": 4.1,
-          "y": 16.23
+          "y": 22.65
         }
       ],
       "legend": [
@@ -168,20 +168,29 @@
     "desktop": {
       "src": "/guide/hub-side-desktop.webp",
       "w": 1760,
-      "h": 621,
-      "alt": "Side quests: eleven real systems (UPI, WhatsApp, Aadhaar, Netflix…) designed end to end, each worth 120 XP.",
+      "h": 571,
+      "alt": "Side quests: real systems (UPI, WhatsApp, Aadhaar, Netflix…) designed end to end, each worth 120 XP, with a link to their design sheets.",
       "url": "/learn/system-design-mastery",
       "callouts": [
         {
           "n": 1,
           "x": 3,
-          "y": 20.33
+          "y": 20.31
+        },
+        {
+          "n": 2,
+          "x": 88.44,
+          "y": 4.23
         }
       ],
       "legend": [
         {
           "n": 1,
           "label": "Side quests: open any time, +120 XP each"
+        },
+        {
+          "n": 2,
+          "label": "Every side quest's design sheet"
         }
       ]
     }
@@ -233,6 +242,11 @@
           "n": 7,
           "x": 75.21,
           "y": 91.33
+        },
+        {
+          "n": 9,
+          "x": 80.87,
+          "y": 87.78
         }
       ],
       "legend": [
@@ -267,6 +281,10 @@
         {
           "n": 7,
           "label": "Reading tools: stage, Listen, Focus, text size"
+        },
+        {
+          "n": 9,
+          "label": "Ask AI about this lesson: always on screen while reading"
         }
       ]
     },
@@ -333,7 +351,7 @@
         },
         {
           "n": 2,
-          "x": 47.29,
+          "x": 51.01,
           "y": 4
         },
         {
@@ -369,12 +387,12 @@
         {
           "n": 1,
           "x": 83.32,
-          "y": 5.58
+          "y": 5.66
         },
         {
           "n": 2,
           "x": 3,
-          "y": 66.68
+          "y": 66.76
         }
       ],
       "legend": [
@@ -398,7 +416,7 @@
         {
           "n": 1,
           "x": 67.34,
-          "y": 5.72
+          "y": 5.62
         },
         {
           "n": 2,
@@ -429,7 +447,7 @@
         {
           "n": 1,
           "x": 3,
-          "y": 10.02
+          "y": 9.71
         }
       ],
       "legend": [
@@ -475,24 +493,24 @@
     "desktop": {
       "src": "/guide/lesson-end-desktop.webp",
       "w": 1496,
-      "h": 1264,
-      "alt": "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it the next lesson and the trial part.",
+      "h": 1620,
+      "alt": "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it a five-minute revision card with the world's cheat sheet, and questions learners ask, answered from the lesson.",
       "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
       "callouts": [
         {
           "n": 1,
           "x": 65.86,
-          "y": 13.16
+          "y": 10.22
         },
         {
           "n": 2,
-          "x": 3,
-          "y": 34.17
+          "x": 3.07,
+          "y": 29.6
         },
         {
           "n": 3,
-          "x": 50.67,
-          "y": 34.17
+          "x": 3,
+          "y": 42.91
         }
       ],
       "legend": [
@@ -502,11 +520,11 @@
         },
         {
           "n": 2,
-          "label": "Up next, across weeks"
+          "label": "Revise this lesson in 5 minutes, or the world's cheat sheet"
         },
         {
           "n": 3,
-          "label": "The trial part that tests this lesson"
+          "label": "Questions learners ask: answered from the lesson, free"
         }
       ]
     },
@@ -514,18 +532,18 @@
       "src": "/guide/lesson-end-phone.webp",
       "w": 764,
       "h": 908,
-      "alt": "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it the next lesson and the trial part.",
+      "alt": "The end of a lesson: the Finish card says 'Keep reading, about N minutes left' because not enough has been read yet; below it a five-minute revision card with the world's cheat sheet, and questions learners ask, answered from the lesson.",
       "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
       "callouts": [
         {
           "n": 1,
           "x": 7.59,
-          "y": 41.74
+          "y": 41.84
         },
         {
           "n": 2,
-          "x": 3.14,
-          "y": 67.95
+          "x": 4.97,
+          "y": 73.39
         }
       ],
       "legend": [
@@ -535,7 +553,7 @@
         },
         {
           "n": 2,
-          "label": "Up next, across weeks"
+          "label": "Revise this lesson in 5 minutes, or the world's cheat sheet"
         }
       ]
     }
@@ -551,32 +569,32 @@
         {
           "n": 1,
           "x": 3,
-          "y": 25.35
+          "y": 31.35
         },
         {
           "n": 2,
           "x": 72.27,
-          "y": 25.65
+          "y": 31.65
         },
         {
           "n": 3,
           "x": 9.24,
-          "y": 53.9
+          "y": 59.9
         },
         {
           "n": 4,
           "x": 46.32,
-          "y": 61
+          "y": 67
         },
         {
           "n": 5,
           "x": 65.34,
-          "y": 58.8
+          "y": 64.8
         },
         {
           "n": 6,
           "x": 83.9,
-          "y": 20.15
+          "y": 26.15
         }
       ],
       "legend": [
@@ -616,7 +634,7 @@
         {
           "n": 1,
           "x": 4.1,
-          "y": 43.51
+          "y": 49.51
         }
       ],
       "legend": [
@@ -843,7 +861,7 @@
         {
           "n": 1,
           "x": 5.19,
-          "y": 63.64
+          "y": 63.32
         }
       ],
       "legend": [
@@ -865,22 +883,22 @@
         {
           "n": 1,
           "x": 22.65,
-          "y": 9.74
+          "y": 9.75
         },
         {
           "n": 2,
           "x": 21.52,
-          "y": 50.14
+          "y": 50.15
         },
         {
           "n": 3,
           "x": 49.39,
-          "y": 50.14
+          "y": 50.15
         },
         {
           "n": 4,
           "x": 21.52,
-          "y": 82.52
+          "y": 82.53
         }
       ],
       "legend": [
@@ -907,29 +925,29 @@
     "desktop": {
       "src": "/guide/arena-hub-desktop.webp",
       "w": 1760,
-      "h": 1251,
+      "h": 1489,
       "alt": "The Arena: your level, daily streak, weekly points and league; today's daily challenge; your league's top five this week; and the review queue.",
       "url": "/learn/arena",
       "callouts": [
         {
           "n": 1,
           "x": 69.37,
-          "y": 5.86
+          "y": 4.92
         },
         {
           "n": 2,
           "x": 3,
-          "y": 34.98
+          "y": 29.37
         },
         {
           "n": 3,
           "x": 55.89,
-          "y": 34.98
+          "y": 29.37
         },
         {
           "n": 4,
           "x": 3,
-          "y": 90.1
+          "y": 89.35
         }
       ],
       "legend": [
@@ -1031,7 +1049,7 @@
       "callouts": [
         {
           "n": 1,
-          "x": 28.01,
+          "x": 28.75,
           "y": 9.86
         },
         {
@@ -1042,7 +1060,7 @@
         {
           "n": 3,
           "x": 8.6,
-          "y": 50.63
+          "y": 58.01
         }
       ],
       "legend": [
@@ -1069,7 +1087,7 @@
       "callouts": [
         {
           "n": 1,
-          "x": 51.81,
+          "x": 53.73,
           "y": 8.84
         },
         {
@@ -1080,7 +1098,7 @@
         {
           "n": 3,
           "x": 3,
-          "y": 45.22
+          "y": 49.52
         }
       ],
       "legend": [
@@ -1163,7 +1181,7 @@
     "desktop": {
       "src": "/guide/questlog-desktop.webp",
       "w": 864,
-      "h": 1692,
+      "h": 1756,
       "alt": "The quest log opened from the level chip: the site's main quests with their XP, and every badge, earned ones in orange.",
       "url": "/learn/system-design-mastery",
       "callouts": [
@@ -1175,12 +1193,12 @@
         {
           "n": 2,
           "x": 13.19,
-          "y": 14.83
+          "y": 14.29
         },
         {
           "n": 3,
           "x": 13.19,
-          "y": 74.65
+          "y": 71.92
         }
       ],
       "legend": [
@@ -1210,27 +1228,27 @@
         {
           "n": 1,
           "x": 3,
-          "y": 16.19
+          "y": 24.76
         },
         {
           "n": 2,
           "x": 3,
-          "y": 36.94
+          "y": 47.51
         },
         {
           "n": 3,
           "x": 3,
-          "y": 58.26
+          "y": 68.83
         },
         {
           "n": 4,
           "x": 66.36,
-          "y": 6.71
+          "y": 15.29
         },
         {
           "n": 5,
           "x": 3,
-          "y": 81.74
+          "y": 90.31
         }
       ],
       "legend": [
@@ -1266,12 +1284,12 @@
         {
           "n": 1,
           "x": 4.1,
-          "y": 11.68
+          "y": 17.14
         },
         {
           "n": 2,
           "x": 4.1,
-          "y": 24.73
+          "y": 34.55
         }
       ],
       "legend": [
@@ -1328,17 +1346,17 @@
         {
           "n": 1,
           "x": 4.42,
-          "y": 26.77
+          "y": 26.89
         },
         {
           "n": 2,
           "x": 54.46,
-          "y": 30.93
+          "y": 31.05
         },
         {
           "n": 3,
           "x": 3,
-          "y": 75.77
+          "y": 75.9
         }
       ],
       "legend": [
@@ -1361,24 +1379,24 @@
     "desktop": {
       "src": "/guide/progress-goals-desktop.webp",
       "w": 1760,
-      "h": 1013,
-      "alt": "Weekly goal with a projected finish date, and What stuck: trial scores per part, the review queue by box, notebook counts and badges.",
+      "h": 633,
+      "alt": "Weekly goal with a projected finish date, and What stuck: the concept map and the best trial score per part.",
       "url": "/learn/dashboard",
       "callouts": [
         {
           "n": 1,
           "x": 3,
-          "y": 7.38
+          "y": 11.96
         },
         {
           "n": 2,
           "x": 50.15,
-          "y": 7.38
+          "y": 11.96
         },
         {
           "n": 3,
-          "x": 52.5,
-          "y": 86.46
+          "x": 51.74,
+          "y": 30.22
         }
       ],
       "legend": [
@@ -1392,7 +1410,7 @@
         },
         {
           "n": 3,
-          "label": "Badges: earned ones are outlined in orange"
+          "label": "The concept map: every concept, by how well you know it"
         }
       ]
     }
@@ -1408,17 +1426,17 @@
         {
           "n": 1,
           "x": 3.41,
-          "y": 28.21
+          "y": 28.15
         },
         {
           "n": 2,
           "x": 42.68,
-          "y": 20.58
+          "y": 20.52
         },
         {
           "n": 3,
           "x": 42.08,
-          "y": 45.15
+          "y": 45.09
         }
       ],
       "legend": [
@@ -1479,17 +1497,17 @@
         {
           "n": 1,
           "x": 4.56,
-          "y": 34.56
+          "y": 34.52
         },
         {
           "n": 2,
           "x": 32.63,
-          "y": 63.25
+          "y": 63.22
         },
         {
           "n": 3,
           "x": 4.01,
-          "y": 81.47
+          "y": 81.44
         }
       ],
       "legend": [
@@ -1550,32 +1568,32 @@
         {
           "n": 1,
           "x": 7.9,
-          "y": 39.79
+          "y": 39.82
         },
         {
           "n": 2,
           "x": 21,
-          "y": 39.79
+          "y": 39.82
         },
         {
           "n": 3,
           "x": 34.62,
-          "y": 39.79
+          "y": 39.82
         },
         {
           "n": 4,
           "x": 48.87,
-          "y": 39.79
+          "y": 39.82
         },
         {
           "n": 5,
           "x": 62.75,
-          "y": 39.79
+          "y": 39.82
         },
         {
           "n": 6,
           "x": 3.11,
-          "y": 53.2
+          "y": 53.23
         }
       ],
       "legend": [
@@ -1608,19 +1626,19 @@
     "phone": {
       "src": "/guide/select-menu-phone.webp",
       "w": 780,
-      "h": 1328,
+      "h": 1192,
       "alt": "On a phone, a long-press selection docks the toolbar at the bottom of the screen.",
       "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
       "callouts": [
         {
           "n": 1,
           "x": 3,
-          "y": 89.46
+          "y": 88.26
         },
         {
           "n": 2,
           "x": 4.1,
-          "y": 35.54
+          "y": 37.54
         }
       ],
       "legend": [
@@ -1638,20 +1656,20 @@
   "select-ask": {
     "desktop": {
       "src": "/guide/select-ask-desktop.webp",
-      "w": 1086,
+      "w": 1312,
       "h": 328,
       "alt": "The Ask AI panel of the selection toolbar: Ask Claude, Ask ChatGPT and Copy prompt.",
       "url": "/learn/system-design-mastery/week-00-foundations/foundations-part-4-networking",
       "callouts": [
         {
           "n": 1,
-          "x": 23.3,
-          "y": 12.86
+          "x": 36.49,
+          "y": 12.94
         },
         {
           "n": 2,
-          "x": 73.76,
-          "y": 12.86
+          "x": 78.26,
+          "y": 12.94
         }
       ],
       "legend": [
@@ -2114,35 +2132,40 @@
     "desktop": {
       "src": "/guide/practice-hub-desktop.webp",
       "w": 1760,
-      "h": 1269,
-      "alt": "The Practice page: the practice tab in the course header, a row with lessons revised, labs cleared, mocks done and the study plan, then the revision decks and cheat sheets with a chip per world.",
-      "url": "/learn/practice",
+      "h": 1873,
+      "alt": "The Prep page: the prep tab in the course header, a row with lessons revised, labs cleared, mocks done and the study plan, the video lectures (the whole playlist and where to start), then one card per mock interview with a link to its recorded model interview.",
+      "url": "/learn/prep",
       "callouts": [
         {
           "n": 1,
-          "x": 30.54,
-          "y": 6.28
+          "x": 23.07,
+          "y": 4.25
         },
         {
           "n": 2,
           "x": 3,
-          "y": 40.16
+          "y": 27.21
         },
         {
           "n": 3,
-          "x": 41.2,
-          "y": 72.91
+          "x": 3,
+          "y": 41.85
         },
         {
           "n": 4,
-          "x": 3.41,
-          "y": 87.85
+          "x": 3,
+          "y": 76.46
+        },
+        {
+          "n": 5,
+          "x": 41.2,
+          "y": 49.4
         }
       ],
       "legend": [
         {
           "n": 1,
-          "label": "The practice tab: lit on every tool it lists"
+          "label": "The prep tab: lit on every tool it lists"
         },
         {
           "n": 2,
@@ -2150,11 +2173,15 @@
         },
         {
           "n": 3,
-          "label": "Each tool with its live state"
+          "label": "Video lectures: the playlist, and a chip per section"
         },
         {
           "n": 4,
-          "label": "One chip per world: ✓ when that world is revised"
+          "label": "Each mock interview: start the round, or watch it done well"
+        },
+        {
+          "n": 5,
+          "label": "Each tool with its live state"
         }
       ]
     },
@@ -2162,17 +2189,17 @@
       "src": "/guide/practice-hub-phone.webp",
       "w": 780,
       "h": 1328,
-      "alt": "The Practice page on a phone, with practice lit in the course dock at the bottom.",
-      "url": "/learn/practice",
+      "alt": "The Prep page on a phone, with prep lit in the course dock at the bottom.",
+      "url": "/learn/prep",
       "callouts": [
         {
           "n": 1,
           "x": 4.1,
-          "y": 54.34
+          "y": 50.18
         },
         {
           "n": 2,
-          "x": 56.02,
+          "x": 39.25,
           "y": 90.96
         }
       ],
@@ -2183,7 +2210,7 @@
         },
         {
           "n": 2,
-          "label": "Practice in the course dock"
+          "label": "Prep in the course dock"
         }
       ]
     }
@@ -2348,17 +2375,17 @@
         {
           "n": 1,
           "x": 17.94,
-          "y": 23.85
+          "y": 30.52
         },
         {
           "n": 2,
           "x": 71.59,
-          "y": 40.57
+          "y": 47.24
         },
         {
           "n": 3,
           "x": 3,
-          "y": 57.35
+          "y": 64.02
         }
       ],
       "legend": [
@@ -2373,6 +2400,1003 @@
         {
           "n": 3,
           "label": "Each concept; tap for a two-minute refresher"
+        }
+      ]
+    }
+  },
+  "lecture-player": {
+    "desktop": {
+      "src": "/guide/lecture-player-desktop.webp",
+      "w": 1760,
+      "h": 1203,
+      "alt": "A video lecture playing: the title with Read the lesson and Save offline, the animated stage with captions, a seek bar split into chapters with a preview of the moment under the pointer, the controls, and the chapter list with checkpoints and up next.",
+      "url": "/learn/lectures/week-00-foundations--foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 24.37
+        },
+        {
+          "n": 2,
+          "x": 36.83,
+          "y": 24.37
+        },
+        {
+          "n": 3,
+          "x": 27.76,
+          "y": 91.28
+        },
+        {
+          "n": 4,
+          "x": 50.77,
+          "y": 92.7
+        },
+        {
+          "n": 5,
+          "x": 65.33,
+          "y": 92.7
+        },
+        {
+          "n": 6,
+          "x": 76.49,
+          "y": 32.05
+        },
+        {
+          "n": 7,
+          "x": 75.89,
+          "y": 72.16
+        },
+        {
+          "n": 8,
+          "x": 75.89,
+          "y": 83.79
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Back to the text this lecture teaches"
+        },
+        {
+          "n": 2,
+          "label": "Save offline: the lecture plays with no internet"
+        },
+        {
+          "n": 3,
+          "label": "One bar segment per chapter; hover to preview a moment"
+        },
+        {
+          "n": 4,
+          "label": "Ask AI about this moment (A)"
+        },
+        {
+          "n": 5,
+          "label": "Captions, speed, picture-in-picture, full screen"
+        },
+        {
+          "n": 6,
+          "label": "Chapters; checkpoints marked ✓ or ✕ once answered"
+        },
+        {
+          "n": 7,
+          "label": "Checkpoints right, +10 XP each"
+        },
+        {
+          "n": 8,
+          "label": "Up next, and the autoplay switch"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/lecture-player-phone.webp",
+      "w": 780,
+      "h": 1338,
+      "alt": "The same lecture on a phone: the stage, the controls in one row and the chapter list below it.",
+      "url": "/learn/lectures/week-00-foundations--foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 4.93
+        },
+        {
+          "n": 2,
+          "x": 47.5,
+          "y": 56.54
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 68.39
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Back to the lesson, or save it offline"
+        },
+        {
+          "n": 2,
+          "label": "Ask AI about this moment"
+        },
+        {
+          "n": 3,
+          "label": "Chapters: tap one to jump"
+        }
+      ]
+    }
+  },
+  "lecture-ask": {
+    "desktop": {
+      "src": "/guide/lecture-ask-desktop.webp",
+      "w": 1760,
+      "h": 1146,
+      "alt": "Ask AI about this moment: the lecture pauses and a panel over the right of the stage offers pre-answered questions for this chapter, quick questions and a box to ask your own.",
+      "url": "/learn/lectures/week-00-foundations--foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 22.66,
+          "y": 30.72
+        },
+        {
+          "n": 2,
+          "x": 62.21,
+          "y": 13.16
+        },
+        {
+          "n": 3,
+          "x": 61.82,
+          "y": 59.2
+        },
+        {
+          "n": 4,
+          "x": 62.21,
+          "y": 67.69
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "The paused moment the AI answers about"
+        },
+        {
+          "n": 2,
+          "label": "Learners often ask here: answered already, free"
+        },
+        {
+          "n": 3,
+          "label": "Quick questions: simpler, an example, the interview angle, Hinglish"
+        },
+        {
+          "n": 4,
+          "label": "Or ask your own (signed in, uses AI credits)"
+        }
+      ]
+    }
+  },
+  "lecture-end": {
+    "desktop": {
+      "src": "/guide/lecture-end-desktop.webp",
+      "w": 1760,
+      "h": 1146,
+      "alt": "The end of a lecture: up next, the next lecture in the same track, playing by itself in a few seconds, with play now, cancel and the autoplay switch.",
+      "url": "/learn/lectures/week-00-foundations--foundations-part-4-networking",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 67.07,
+          "y": 27.26
+        },
+        {
+          "n": 2,
+          "x": 38.34,
+          "y": 50.9
+        },
+        {
+          "n": 3,
+          "x": 43.21,
+          "y": 59.08
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "The next lecture plays by itself after 8 seconds"
+        },
+        {
+          "n": 2,
+          "label": "Play it now, or cancel to stay"
+        },
+        {
+          "n": 3,
+          "label": "Autoplay next: on or off, remembered"
+        }
+      ]
+    }
+  },
+  "lectures-playlist": {
+    "desktop": {
+      "src": "/guide/lectures-playlist-desktop.webp",
+      "w": 1760,
+      "h": 1541,
+      "alt": "The lecture playlist: how much you have watched, continue watching with resume points, the list of sections on the left with watched counts, and lecture cards with their number, difficulty, length and a watched mark.",
+      "url": "/learn/prep/lectures",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 68.58,
+          "y": 4
+        },
+        {
+          "n": 2,
+          "x": 5.83,
+          "y": 8.83
+        },
+        {
+          "n": 3,
+          "x": 4.85,
+          "y": 24.66
+        },
+        {
+          "n": 4,
+          "x": 41.71,
+          "y": 30.32
+        },
+        {
+          "n": 5,
+          "x": 33.06,
+          "y": 41.16
+        },
+        {
+          "n": 6,
+          "x": 26.89,
+          "y": 57.42
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Watched overall, in lectures and hours"
+        },
+        {
+          "n": 2,
+          "label": "Continue watching: resumes where you stopped"
+        },
+        {
+          "n": 3,
+          "label": "Every section, with how many you've watched"
+        },
+        {
+          "n": 4,
+          "label": "Difficulty: Beginner → Expert"
+        },
+        {
+          "n": 5,
+          "label": "✓ watched once you reach 90%"
+        },
+        {
+          "n": 6,
+          "label": "Checkpoints and chapters in each lecture"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/lectures-playlist-phone.webp",
+      "w": 780,
+      "h": 1780,
+      "alt": "The playlist on a phone: your progress, continue watching, then a bar of tracks and a jump-to menu above the lectures.",
+      "url": "/learn/prep/lectures",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 6.92,
+          "y": 12.12
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 46.98
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Continue watching"
+        },
+        {
+          "n": 2,
+          "label": "Tracks and a jump-to menu"
+        }
+      ]
+    }
+  },
+  "mock-lobby": {
+    "desktop": {
+      "src": "/guide/mock-lobby-desktop.webp",
+      "w": 1760,
+      "h": 1532,
+      "alt": "A mock interview's lobby: which mock it is and what it covers, the company and the problem, a whiteboard cover sketch, the recruiter's note, the interviewer and the company, and a card to watch the recorded model interview first.",
+      "url": "/learn/mock/mock-05-paisly-otp-login",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 11.28
+        },
+        {
+          "n": 2,
+          "x": 60.3,
+          "y": 9.83
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 41.87
+        },
+        {
+          "n": 4,
+          "x": 58.79,
+          "y": 41.87
+        },
+        {
+          "n": 5,
+          "x": 3,
+          "y": 93.62
+        },
+        {
+          "n": 6,
+          "x": 87.65,
+          "y": 4.44
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Mock number, the world it follows and what it covers"
+        },
+        {
+          "n": 2,
+          "label": "The cover: the problem as a whiteboard sketch"
+        },
+        {
+          "n": 3,
+          "label": "The recruiter's note: format, length, a tip"
+        },
+        {
+          "n": 4,
+          "label": "Your interviewer and their style"
+        },
+        {
+          "n": 5,
+          "label": "Watch it first: the same round, recorded, done well"
+        },
+        {
+          "n": 6,
+          "label": "Save the mock for offline"
+        }
+      ]
+    }
+  },
+  "mock-briefing": {
+    "desktop": {
+      "src": "/guide/mock-briefing-desktop.webp",
+      "w": 1360,
+      "h": 1974,
+      "alt": "The briefing before the call starts: one clock and the phase budgets, the interviewer talking while you work, typing, dictating or drawing your answer, a voice call with the AI interviewer, the live coach switch, and what the debrief gives you.",
+      "url": "/learn/mock/mock-05-paisly-otp-login",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 6.91,
+          "y": 14.08
+        },
+        {
+          "n": 2,
+          "x": 6.91,
+          "y": 37.89
+        },
+        {
+          "n": 3,
+          "x": 6.91,
+          "y": 49.79
+        },
+        {
+          "n": 4,
+          "x": 93.82,
+          "y": 68.95
+        },
+        {
+          "n": 5,
+          "x": 35.91,
+          "y": 93.88
+        },
+        {
+          "n": 6,
+          "x": 77.14,
+          "y": 91.04
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "One clock, the phase budgets"
+        },
+        {
+          "n": 2,
+          "label": "Type, dictate (mic) or draw on the whiteboard"
+        },
+        {
+          "n": 3,
+          "label": "Talk to the interviewer: a voice call with the AI"
+        },
+        {
+          "n": 4,
+          "label": "Live coach after each phase (AI, signed in): on or off"
+        },
+        {
+          "n": 5,
+          "label": "Skip this next time"
+        },
+        {
+          "n": 6,
+          "label": "Start the clock"
+        }
+      ]
+    }
+  },
+  "mock-room": {
+    "desktop": {
+      "src": "/guide/mock-room-desktop.webp",
+      "w": 1760,
+      "h": 1559,
+      "alt": "The interview room in phase 2: the call bar with the phase and total clocks and a strip of phase budgets, the call transcript with the problem and the interviewer's messages, the live coach's note on phase 1, the live AI interviewer with a voice call button, and the answer box with dictation.",
+      "url": "/learn/mock/mock-05-paisly-otp-login",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 75.76,
+          "y": 6.59
+        },
+        {
+          "n": 2,
+          "x": 3.11,
+          "y": 6.42
+        },
+        {
+          "n": 3,
+          "x": 90.47,
+          "y": 6.24
+        },
+        {
+          "n": 4,
+          "x": 3,
+          "y": 10.09
+        },
+        {
+          "n": 5,
+          "x": 43.03,
+          "y": 18.08
+        },
+        {
+          "n": 6,
+          "x": 43.03,
+          "y": 43.12
+        },
+        {
+          "n": 7,
+          "x": 42.27,
+          "y": 80.73
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Phase clock and total clock: they run over, never out"
+        },
+        {
+          "n": 2,
+          "label": "Every phase's budget; go back to an earlier one"
+        },
+        {
+          "n": 3,
+          "label": "⋯ Leave for the lobby, or restart the round"
+        },
+        {
+          "n": 4,
+          "label": "The call: the problem, prompts, follow-ups, curveballs"
+        },
+        {
+          "n": 5,
+          "label": "Live coach: a short read on the phase you just finished"
+        },
+        {
+          "n": 6,
+          "label": "Talk to the AI interviewer, typed or by voice call"
+        },
+        {
+          "n": 7,
+          "label": "Your answer, autosaved; Dictate to speak it"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/mock-room-phone.webp",
+      "w": 780,
+      "h": 1800,
+      "alt": "The room on a phone: the call bar stays on top, and the newest line from the interviewer is repeated above the workspace.",
+      "url": "/learn/mock/mock-05-paisly-otp-login",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 7.56
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 22.94
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "The call bar: clock, pause, ⋯, End"
+        },
+        {
+          "n": 2,
+          "label": "The interviewer's newest line"
+        }
+      ]
+    }
+  },
+  "case-ask": {
+    "desktop": {
+      "src": "/guide/case-ask-desktop.webp",
+      "w": 1760,
+      "h": 607,
+      "alt": "A passage selected in a case file: the selection toolbar with Ask here, Ask Claude, Ask ChatGPT, Copy prompt and Copy link, and the Ask AI button in the corner.",
+      "url": "/stories/irctc-tatkal-500-seats-2-million-users",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 28.36,
+          "y": 52.6
+        },
+        {
+          "n": 2,
+          "x": 64.64,
+          "y": 52.6
+        },
+        {
+          "n": 3,
+          "x": 81.96,
+          "y": 78.27
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Ask here: the built-in AI, with this passage"
+        },
+        {
+          "n": 2,
+          "label": "Or Claude / ChatGPT in a new tab, a prompt, a link to this line"
+        },
+        {
+          "n": 3,
+          "label": "Ask AI about this case: always in the corner"
+        }
+      ]
+    }
+  },
+  "offline-library": {
+    "desktop": {
+      "src": "/guide/offline-library-desktop.webp",
+      "w": 1760,
+      "h": 1452,
+      "alt": "The offline library: storage on this device split into videos, articles and app files, the reading app card, a list of types (the course, video lectures, side quests and more) with saved counts and sizes, and everything saved with its size and date.",
+      "url": "/learn/offline",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 25.05
+        },
+        {
+          "n": 2,
+          "x": 61.35,
+          "y": 25.05
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 50.26
+        },
+        {
+          "n": 4,
+          "x": 23.94,
+          "y": 93.84
+        },
+        {
+          "n": 5,
+          "x": 23.94,
+          "y": 52.28
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Storage: videos, articles, app files, and how much the browser allows"
+        },
+        {
+          "n": 2,
+          "label": "Online or offline; install the course as an app"
+        },
+        {
+          "n": 3,
+          "label": "By type: saved / available, and the space each takes"
+        },
+        {
+          "n": 4,
+          "label": "A saved video lecture, with its poster"
+        },
+        {
+          "n": 5,
+          "label": "Search everything saved"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/offline-library-phone.webp",
+      "w": 780,
+      "h": 2064,
+      "alt": "The offline library on a phone: storage, then the types as a row of chips and the saved list.",
+      "url": "/learn/offline",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 4.1,
+          "y": 4
+        },
+        {
+          "n": 2,
+          "x": 4.1,
+          "y": 58.03
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Storage on this device"
+        },
+        {
+          "n": 2,
+          "label": "Types: swipe the chips"
+        }
+      ]
+    }
+  },
+  "mock-board": {
+    "desktop": {
+      "src": "/guide/mock-board-desktop.webp",
+      "w": 1520,
+      "h": 1710,
+      "alt": "The mock interview whiteboard: a row of building blocks with icons, the tech logo picker, a custom block kept in my blocks, full screen, and a design drawn with blocks and attached arrows.",
+      "url": "/learn/mock/mock-05-paisly-otp-login",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 47.64,
+          "y": 8.55
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 25.16
+        },
+        {
+          "n": 3,
+          "x": 44.05,
+          "y": 22.82
+        },
+        {
+          "n": 4,
+          "x": 80.1,
+          "y": 25.16
+        },
+        {
+          "n": 5,
+          "x": 37.76,
+          "y": 62.24
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Building blocks: one click drops one in"
+        },
+        {
+          "n": 2,
+          "label": "Tech logos: Redis, Kafka, PostgreSQL…"
+        },
+        {
+          "n": 3,
+          "label": "Your own block (name, shape, colour, icon), kept for next time"
+        },
+        {
+          "n": 4,
+          "label": "Full screen: the whole window to draw"
+        },
+        {
+          "n": 5,
+          "label": "Arrows stay attached when blocks move"
+        }
+      ]
+    }
+  },
+  "case-ask-panel": {
+    "desktop": {
+      "src": "/guide/case-ask-panel-desktop.webp",
+      "w": 1760,
+      "h": 1149,
+      "alt": "The built-in AI panel docked on the right of a case file, with the selected passage quoted, answer styles and a box for the question.",
+      "url": "/stories/irctc-tatkal-500-seats-2-million-users",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 70.63,
+          "y": 69.44
+        },
+        {
+          "n": 2,
+          "x": 77.06,
+          "y": 76.36
+        },
+        {
+          "n": 3,
+          "x": 70.07,
+          "y": 86.52
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "The passage you selected, quoted"
+        },
+        {
+          "n": 2,
+          "label": "Answer styles: simply, an example, for the interview, Hinglish"
+        },
+        {
+          "n": 3,
+          "label": "Your question, answered from this case file"
+        }
+      ]
+    }
+  },
+  "sheets-index": {
+    "desktop": {
+      "src": "/guide/sheets-index-desktop.webp",
+      "w": 1760,
+      "h": 1227,
+      "alt": "The design sheets index: how many side quests have a sheet, and a card per sheet with the quest's emblem, its diagram count, a summary, the quest's reading time and an open sheet link.",
+      "url": "/learn/sheets",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 36.23
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 40.58
+        },
+        {
+          "n": 3,
+          "x": 23.91,
+          "y": 61.54
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Which side quests have a sheet"
+        },
+        {
+          "n": 2,
+          "label": "One sheet per side quest, with its diagram count"
+        },
+        {
+          "n": 3,
+          "label": "Open the sheet, or read the quest first"
+        }
+      ]
+    },
+    "phone": {
+      "src": "/guide/sheets-index-phone.webp",
+      "w": 780,
+      "h": 1328,
+      "alt": "The design sheets index: how many side quests have a sheet, and a card per sheet with the quest's emblem, its diagram count, a summary, the quest's reading time and an open sheet link.",
+      "url": "/learn/sheets",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 59.78
+        },
+        {
+          "n": 2,
+          "x": 4.1,
+          "y": 65.81
+        },
+        {
+          "n": 3,
+          "x": 65.04,
+          "y": 94.25
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Which side quests have a sheet"
+        },
+        {
+          "n": 2,
+          "label": "One sheet per side quest, with its diagram count"
+        },
+        {
+          "n": 3,
+          "label": "Open the sheet, or read the quest first"
+        }
+      ]
+    }
+  },
+  "mock-debrief": {
+    "desktop": {
+      "src": "/guide/mock-debrief-desktop.webp",
+      "w": 1760,
+      "h": 1863,
+      "alt": "The debrief: what happened in the round (time, phases over budget, curveballs answered, hints, pauses, words), your whiteboard as a picture, and the scorecard where you score each rubric signal for a verdict.",
+      "url": "/learn/mock/mock-05-paisly-otp-login",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 27.18
+        },
+        {
+          "n": 2,
+          "x": 3,
+          "y": 34.62
+        },
+        {
+          "n": 3,
+          "x": 66.87,
+          "y": 34.62
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "What happened: time, phases over budget, curveballs, hints"
+        },
+        {
+          "n": 2,
+          "label": "Your whiteboard, as a picture and as text"
+        },
+        {
+          "n": 3,
+          "label": "Scorecard: signals left to score, then the verdict"
+        }
+      ]
+    }
+  },
+  "mock-rubric": {
+    "desktop": {
+      "src": "/guide/mock-rubric-desktop.webp",
+      "w": 1710,
+      "h": 2012,
+      "alt": "One phase in the debrief: what you wrote, what the live coach said after it, the button that reveals the model answer, and the rubric signals, each tagged with the level that should show it and the lessons that teach it, scored missed, partly or nailed.",
+      "url": "/learn/mock/mock-05-paisly-otp-login",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3.63,
+          "y": 10.02
+        },
+        {
+          "n": 2,
+          "x": 5.38,
+          "y": 31.98
+        },
+        {
+          "n": 3,
+          "x": 3.63,
+          "y": 40.33
+        },
+        {
+          "n": 4,
+          "x": 3.63,
+          "y": 49.12
+        },
+        {
+          "n": 5,
+          "x": 83.94,
+          "y": 47.33
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "What you wrote in this phase"
+        },
+        {
+          "n": 2,
+          "label": "What the live coach said after it"
+        },
+        {
+          "n": 3,
+          "label": "The model answer, behind a button"
+        },
+        {
+          "n": 4,
+          "label": "Each signal: the level that should show it, and the lessons behind it"
+        },
+        {
+          "n": 5,
+          "label": "Score it: missed, partly or nailed"
+        }
+      ]
+    }
+  },
+  "progress-videos": {
+    "desktop": {
+      "src": "/guide/progress-videos-desktop.webp",
+      "w": 1760,
+      "h": 576,
+      "alt": "Video lectures on the Progress page: watch time, lectures finished out of all of them, in progress and watched this week, then continue watching with a bar each and the lectures finished recently.",
+      "url": "/learn/dashboard",
+      "callouts": [
+        {
+          "n": 1,
+          "x": 3,
+          "y": 28.72
+        },
+        {
+          "n": 2,
+          "x": 26.72,
+          "y": 28.72
+        },
+        {
+          "n": 3,
+          "x": 3,
+          "y": 56.5
+        },
+        {
+          "n": 4,
+          "x": 50.15,
+          "y": 56.5
+        }
+      ],
+      "legend": [
+        {
+          "n": 1,
+          "label": "Watch time: minutes actually spent playing"
+        },
+        {
+          "n": 2,
+          "label": "Finished (90% or more), in progress, this week"
+        },
+        {
+          "n": 3,
+          "label": "Continue watching, with how far you got"
+        },
+        {
+          "n": 4,
+          "label": "Finished recently"
         }
       ]
     }
