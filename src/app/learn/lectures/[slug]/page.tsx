@@ -15,8 +15,15 @@ type Props = { params: Promise<{ slug: string }> };
 export async function generateMetadata({ params }: Props) {
   const l = await getLecture((await params).slug);
   if (!l) return { title: "Not Found" };
+  // a shared link (often ?t=<seconds>, from the player's Share) previews with the lecture's own poster frame
+  const base = lectureMediaBase();
+  const poster = base && /^https?:\/\//.test(base) ? `${base.replace(/\/$/, "")}/${l.quest}/poster.jpg` : null;
+  const title = `${l.title} · Lecture`;
+  const social = poster
+    ? { openGraph: { title, description: l.summary, type: "video.other" as const, images: [{ url: poster, width: 1920, height: 1080, alt: l.title }] }, twitter: { card: "summary_large_image" as const, title, description: l.summary, images: [poster] } }
+    : {};
   // v2 lectures are the released format; the v1 experiments stay out of search
-  return { title: `${l.title} · Lecture`, description: l.summary, alternates: { canonical: `/learn/lectures/${l.quest}` }, ...(l.v === 2 ? {} : { robots: { index: false, follow: false } }) };
+  return { title, description: l.summary, alternates: { canonical: `/learn/lectures/${l.quest}` }, ...social, ...(l.v === 2 ? {} : { robots: { index: false, follow: false } }) };
 }
 
 export default async function LecturePage({ params }: Props) {

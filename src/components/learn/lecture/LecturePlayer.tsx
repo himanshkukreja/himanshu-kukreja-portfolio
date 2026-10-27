@@ -26,6 +26,7 @@ import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
 import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
+import LectureShare from "./LectureShare";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INTRO } from "./anim";
 import { nextProgress, progressKey, readProgress } from "@/lib/learn/lecture/progress";
@@ -101,6 +102,8 @@ function readLabel(lecture: Lecture): string {
   const k = lecture.lesson?.kind;
   return k === "case"
     ? "Read the case file"
+    : k === "story"
+      ? "Read the war story"
     : k === "problem"
       ? "Read the problem write-up"
       : k === "lld"
@@ -898,6 +901,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
                 </option>
               ))}
             </select>
+            <LectureShare slug={slug} title={lecture.title} time={time} chapter={cur.s.title} />
             {canPip && (
               <button type="button" onClick={() => void togglePip()} className={`${btn} !hidden sm:!grid`} title="Picture in picture" aria-label="Picture in picture">
                 ⧉

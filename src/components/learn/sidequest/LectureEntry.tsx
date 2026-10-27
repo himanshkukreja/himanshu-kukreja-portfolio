@@ -16,7 +16,7 @@ export default function LectureEntry({ lecture, quest = true, what, className = 
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">watch it first · new</span>
         <span className="font-display text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee] sm:text-[21px]">{what ?? (quest ? "The whole design" : "The whole lesson")} in a {lecture.minutes}-minute animated lecture</span>
         <span className="text-[13px] leading-snug text-[#a3a3a8]">
-          {lecture.checkpoints} quiz checkpoints · ask the AI about any moment · captions, chapters and speed
+          {lecture.checkpoints ? `${lecture.checkpoints} quiz checkpoint${lecture.checkpoints === 1 ? "" : "s"} · ` : ""}ask the AI about any moment · captions, chapters and speed
         </span>
       </span>
     </Link>

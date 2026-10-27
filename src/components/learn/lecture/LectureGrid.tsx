@@ -54,6 +54,7 @@ const TRACK_LABEL: Record<LectureSummary["track"], string> = {
   problems: "Interview problems",
   lld: "Low-level design",
   cases: "Case files",
+  stories: "War stories",
 };
 
 /** "W04 · Caching" → "Week 4 · Caching"; other sections keep their names. */

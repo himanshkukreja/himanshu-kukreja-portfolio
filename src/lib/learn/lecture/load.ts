@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { fetchMarkdownContent, isContentMissing } from "@/lib/github";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import { getCaseFiles } from "@/components/stories/case-files";
+import { getStory, getWarStories } from "@/lib/learn/war/load";
 import { lessonLectureId, type Lecture } from "./types";
 import type { Level } from "@/lib/learn/level";
 
@@ -51,7 +52,7 @@ export type LectureSummary = {
   /** playlist section: "W04 · Caching", "Side quests", "Interview problems", "Low-level design", "Case files" */
   group: string;
   /** "up next" stays inside a track */
-  track: "course" | "quests" | "problems" | "lld" | "cases" | "mocks";
+  track: "course" | "quests" | "problems" | "lld" | "cases" | "mocks" | "stories";
   /** difficulty (lib/learn/level.ts) */
   level?: Level;
 };
@@ -62,7 +63,7 @@ export type LectureSummary = {
  * "up next" follows.
  */
 export async function listLectures(): Promise<LectureSummary[]> {
-  const [map, cases] = await Promise.all([getCourseMap(COURSE_ID).catch(() => null), getCaseFiles().catch(() => [])]);
+  const [map, cases, war] = await Promise.all([getCourseMap(COURSE_ID).catch(() => null), getCaseFiles().catch(() => []), getWarStories().catch(() => ({ stories: [] }))]);
   if (!map) return [];
   const course = map.weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])].map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: `W${w.code} · ${w.title}`, track: "course" as const })));
   const quests = map.sideQuests.map((l) => ({ id: l.slug, l, group: "Side quests", track: "quests" as const }));
@@ -70,8 +71,9 @@ export async function listLectures(): Promise<LectureSummary[]> {
   const lld = (map.lld ?? []).map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: "Low-level design", track: "lld" as const }));
   const mocks = (map.mocks ?? []).map((m) => ({ id: lessonLectureId("mock-interviews", m.slug), l: { tag: `M${String(m.n).padStart(2, "0")}`, code: `M${String(m.n).padStart(2, "0")}`, title: `${m.company} · ${m.title}`, href: m.href, level: mockLevel(m.level) }, group: "Mock interviews", track: "mocks" as const }));
   const files = [...cases].reverse().map((c) => ({ id: lessonLectureId("case-files", c.slug), l: { tag: c.caseId, code: c.caseId, title: c.title, href: `/stories/${c.slug}`, level: "Intermediate" as Level }, group: "Case files", track: "cases" as const }));
+  const stories = war.stories.map((w, k) => ({ id: lessonLectureId("war-stories", w.slug), l: { tag: `WS${String(k + 1).padStart(2, "0")}`, code: `WS${String(k + 1).padStart(2, "0")}`, title: w.title, href: w.href, level: "Beginner" as Level }, group: "War stories", track: "stories" as const }));
   const all = await Promise.all(
-    [...course, ...mocks, ...quests, ...problems, ...lld, ...files].map(async ({ id, l, group, track }) => {
+    [...course, ...mocks, ...quests, ...problems, ...lld, ...files, ...stories].map(async ({ id, l, group, track }) => {
       const lec = await getLecture(id).catch(() => null);
       const card = lectureCard(lec);
       return lec && card ? { slug: id, code: l.tag || l.code, title: lec.title, quest: l.title, summary: lec.summary, href: card.href, questHref: l.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters, group, track, ...(l.level ? { level: l.level } : {}) } : null;
@@ -87,6 +89,10 @@ export async function lectureSubject(l: Lecture): Promise<{ title: string; href:
   if (l.lesson?.week === "mock-interviews") {
     const m = (map.mocks ?? []).find((x) => x.slug === l.lesson!.slug);
     return m ? { title: `${m.company} · ${m.title}`, href: m.href, code: `M${String(m.n).padStart(2, "0")}`, level: mockLevel(m.level) } : null;
+  }
+  if (l.lesson?.week === "war-stories") {
+    const w = await getStory(l.lesson.slug).catch(() => null);
+    return w ? { title: w.title, href: w.href, code: "WS", level: "Beginner" } : null;
   }
   if (l.lesson?.week === "case-files") {
     const c = (await getCaseFiles().catch(() => [])).find((x) => x.slug === l.lesson!.slug);
