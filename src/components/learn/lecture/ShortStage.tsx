@@ -92,6 +92,9 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
   const firstOfScene = !prev;
   const hasDiagram = s.kind === "flowchart" || s.kind === "state" || s.kind === "sequence";
   const label = lecture.short?.label || "";
+  // charts group digits the way the voice counts: lakh/crore shorts in Indian style (54,00,000), the rest
+  // internationally (5,400,000), since most narrate in millions for a global feed
+  const locale = lecture.scenes.some((x) => x.steps.some((y) => /\b(lakh|crore)s?\b/i.test(y.say))) ? "en-IN" : "en-US";
   const scenes = lecture.scenes.length;
 
   // motion: a new scene slides up with a flash cut; every beat punches in, then drifts slowly
@@ -150,7 +153,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
         {s.kind === "numbers" && <PNumbers s={s} k={cur.step} t={t} />}
         {s.kind === "list" && <PList s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "compare" && <PCompare s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
-        {s.kind === "chart" && <PChart s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
+        {s.kind === "chart" && <PChart s={s} st={st} prevSt={prev?.st ?? null} t={t} locale={locale} />}
         {s.kind === "timeline" && <PTimeline s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "phone" && <PPhone s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {hasDiagram && (
@@ -318,12 +321,11 @@ function PCompare({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prev
   );
 }
 
-function PChart({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number }) {
+function PChart({ s, st, prevSt, t, locale }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; locale: string }) {
   const pts = (s.points || []) as { label: string; value: number; tone?: Tone }[];
   const [now, before] = revealed(st, prevSt, pts.length);
   const max = Math.max(...pts.map((p) => p.value), 1);
-  // shorts go to a global feed and their narration says "million": international grouping (5,400,000)
-  const fmt = (v: number) => `${v >= 1000 ? v.toLocaleString("en-US") : Number.isInteger(v) ? v : v.toFixed(1)}${s.unit ? ` ${s.unit}` : ""}`;
+  const fmt = (v: number) => `${v >= 1000 ? v.toLocaleString(locale) : Number.isInteger(v) ? v : v.toFixed(1)}${s.unit ? ` ${s.unit}` : ""}`;
   return (
     <div className="flex w-full flex-col gap-[2.6cqh]">
       <h2 className={`m-0 font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
