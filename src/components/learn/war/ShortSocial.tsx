@@ -3,13 +3,15 @@
 /**
  * Upvotes and discussion on shorts. Upvotes reuse lecture_votes keyed by the short's own id (counts from
  * /api/learn/lectures/stats); discussions reuse lesson_comments under course "shorts" (counts from
- * /api/learn/shorts/comments). Voting and commenting need an account: signed out, they open sign-in.
+ * /api/learn/shorts/comments). Saving reuses bookmarks (course "shorts"), listed in the notebook.
+ * Voting, commenting and saving need an account: signed out, they open sign-in.
  */
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { userFetch } from "@/components/learn/progress/userFetch";
+import { supabaseClient } from "@/lib/supabase-client";
 import { lectureStats } from "@/components/learn/lecture/LectureVote";
 import LessonComments from "@/components/LessonComments";
 import { track } from "@/lib/track";
@@ -77,6 +79,57 @@ export function useShortVote(id: string) {
   return { votes, mine, toggle };
 }
 
+/** one fetch per page load of the shorts this learner saved */
+let savedOnce: { user: string; p: Promise<Set<string>> } | null = null;
+function mySaved(user: string): Promise<Set<string>> {
+  if (savedOnce?.user !== user)
+    savedOnce = {
+      user,
+      p: Promise.resolve(supabaseClient.from("bookmarks").select("lesson_slug").eq("user_id", user).eq("course_id", "shorts").limit(2000))
+        .then(({ data }) => new Set((data || []).map((r) => r.lesson_slug as string)))
+        .catch(() => new Set<string>()),
+    };
+  return savedOnce.p;
+}
+
+/** save a short to the learner's library (the notebook's "saved shorts") */
+export function useShortSave(short: PlayableShort) {
+  const { user } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  const [saved, setSaved] = useState(false);
+  useEffect(() => {
+    if (!user) return;
+    let off = false;
+    void mySaved(user.id).then((s) => !off && setSaved(s.has(short.id)));
+    return () => {
+      off = true;
+    };
+  }, [user, short.id]);
+
+  const toggle = async () => {
+    if (!user) return openAuthModal();
+    const next = !saved;
+    setSaved(next);
+    const { error } = next
+      ? await supabaseClient.from("bookmarks").insert({
+          user_id: user.id,
+          course_id: "shorts",
+          week: "shorts",
+          lesson_slug: short.id,
+          custom_title: short.title,
+          bookmark_text: short.label,
+          bookmark_offset: 0,
+          tags: ["short"],
+        })
+      : await supabaseClient.from("bookmarks").delete().eq("user_id", user.id).eq("course_id", "shorts").eq("lesson_slug", short.id);
+    // already saved (from another tab) counts as saved
+    if (error && !(next && error.code === "23505")) return setSaved(!next);
+    void mySaved(user.id).then((s) => (next ? s.add(short.id) : s.delete(short.id)));
+    track("short_save", { short: short.id, saved: next });
+  };
+  return { saved, toggle };
+}
+
 /** comment counts for every short, shared by the feed */
 export function useCommentCounts() {
   const [counts, setCounts] = useState<Record<string, number>>({});
@@ -91,38 +144,39 @@ export function useCommentCounts() {
   return { counts, refresh: () => void load(true) };
 }
 
-/** the discussion: a bottom sheet on phones, a drawer on the right on laptops */
+/**
+ * The discussion, beside the short rather than over it (no backdrop, nothing dims, the short keeps playing):
+ * the bottom two thirds on phones and tablets, a column on the right on laptops.
+ */
 export function CommentsSheet({ short, onClose }: { short: PlayableShort; onClose: () => void }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", onKey);
-    track("short_comments_open", { short: short.id });
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose, short.id]);
+  }, [onClose]);
+  useEffect(() => {
+    track("short_comments_open", { short: short.id });
+  }, [short.id]);
 
   return (
-    <div className="fixed inset-0 z-[90] flex items-end bg-black/50 lg:items-stretch lg:justify-end" onClick={onClose} role="presentation">
-      <section
-        role="dialog"
-        aria-modal="true"
-        aria-label={`Discussion: ${short.title}`}
-        onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[78dvh] w-full animate-hk-in flex-col border-t border-line-strong bg-bg pb-[env(safe-area-inset-bottom,0px)] lg:max-h-none lg:w-[440px] lg:border-l lg:border-t-0"
-      >
-        <span className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line-strong lg:hidden" aria-hidden />
-        <div className="flex items-start gap-3 border-b border-line px-4 pb-3 pt-1 lg:pt-3">
-          <div className="min-w-0 flex-1">
-            <span className="block font-mono text-[11px] uppercase tracking-label text-signal-text">discussion</span>
-            <span className="line-clamp-2 font-display text-[17px] font-extrabold leading-tight text-fg">{short.title}</span>
-          </div>
-          <button type="button" onClick={onClose} aria-label="Close discussion" className="grid h-9 w-9 shrink-0 place-items-center border border-line-strong text-fg-2 hover:text-fg">
-            <X className="h-4 w-4" aria-hidden />
-          </button>
+    <section
+      role="dialog"
+      aria-label={`Discussion: ${short.title}`}
+      className="fixed inset-x-0 bottom-0 z-[70] flex h-[calc(100dvh-32dvh-env(safe-area-inset-top,0px)-20px)] animate-hk-in flex-col border-t border-line-strong bg-bg pb-[env(safe-area-inset-bottom,0px)] shadow-[0_-12px_40px_rgba(0,0,0,0.5)] lg:inset-x-auto lg:bottom-0 lg:right-0 lg:top-[var(--hk-header-h,61px)] lg:z-40 lg:h-auto lg:w-[420px] lg:border-l lg:border-t-0 lg:shadow-none"
+    >
+      <span className="mx-auto mt-2 h-1 w-10 shrink-0 rounded-full bg-line-strong lg:hidden" aria-hidden />
+      <div className="flex items-start gap-3 border-b border-line px-4 pb-3 pt-1 lg:pt-3">
+        <div className="min-w-0 flex-1">
+          <span className="block font-mono text-[11px] uppercase tracking-label text-signal-text">discussion</span>
+          <span className="line-clamp-2 font-display text-[17px] font-extrabold leading-tight text-fg">{short.title}</span>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-          <LessonComments courseId="shorts" week="shorts" lessonSlug={short.id} compact />
-        </div>
-      </section>
-    </div>
+        <button type="button" onClick={onClose} aria-label="Close discussion" className="grid h-9 w-9 shrink-0 place-items-center border border-line-strong text-fg-2 hover:text-fg">
+          <X className="h-4 w-4" aria-hidden />
+        </button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+        <LessonComments courseId="shorts" week="shorts" lessonSlug={short.id} compact />
+      </div>
+    </section>
   );
 }

@@ -12,18 +12,40 @@
  *   full-screen button asks the browser for real full screen; where a page can't have it (iPhone Safari),
  *   it keeps the controls hidden until a tap.
  * - Laptops: a centred 9:16 column with the details and actions beside it.
+ * Discussion opens beside the short, never over it, and nothing dims, so the short keeps playing: on laptops
+ * the feed slides left and the panel takes the right; on phones and tablets the short shrinks to the top and
+ * the panel takes the bottom (as Instagram does). It follows the short on screen.
+ * Every visit deals a fresh order: shorts this browser hasn't seen yet come first, shuffled, then the rest
+ * (?v= keeps the given short first). Any short can be saved to the learner's library (the notebook).
  * ?v=<id> opens at a short; ?cat= and ?topic= set the filters (shareable).
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { preconnect, preload } from "react-dom";
-import { ArrowLeft, BookOpen, Maximize, MessageCircle, Minimize, Share2, ThumbsUp, Volume2, VolumeX } from "lucide-react";
+import { preconnect } from "react-dom";
+import { ArrowLeft, BookOpen, Bookmark, Maximize, MessageCircle, Minimize, Share2, ThumbsUp, Volume2, VolumeX } from "lucide-react";
 import { track } from "@/lib/track";
 import { compact } from "@/components/learn/lecture/LectureVote";
 import { SHORT_CATEGORIES, type PlayableShort, type ShortCategory } from "@/lib/learn/shorts/types";
 import ShortPlayer, { type ShortHandle } from "./ShortPlayer";
-import { CommentsSheet, useCommentCounts, useShortVote } from "./ShortSocial";
+import { CommentsSheet, useCommentCounts, useShortSave, useShortVote } from "./ShortSocial";
+
+const SEEN_KEY = "hk.shorts.seen";
+const readSeen = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(SEEN_KEY) || "[]") as string[];
+  } catch {
+    return [];
+  }
+};
+const shuffle = <T,>(a: T[]) => {
+  const b = [...a];
+  for (let k = b.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [b[k], b[j]] = [b[j], b[k]];
+  }
+  return b;
+};
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 /** how long the controls stay up once a short is playing, on phones and tablets */
@@ -40,7 +62,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   const [cat, setCat] = useState<ShortCategory | "all">("all");
   const [topic, setTopic] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
-  const [talk, setTalk] = useState<PlayableShort | null>(null);
+  const [talk, setTalk] = useState(false);
   const { counts, refresh } = useCommentCounts();
   const players = useRef<Record<string, ShortHandle | null>>({});
   const items = useRef<Record<string, HTMLElement | null>>({});
@@ -91,7 +113,11 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     for (const s of shorts) if (cat === "all" || s.category === cat) for (const t of s.topics) n.set(t, (n.get(t) || 0) + 1);
     return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
   }, [shorts, cat]);
-  const list = useMemo(() => shorts.filter((s) => (cat === "all" || s.category === cat) && (!topic || s.topics.includes(topic))), [shorts, cat, topic]);
+  // the short that is mostly on screen is the active one: it plays, the rest pause (see ShortPlayer `active`)
+  const [activeId, setActiveId] = useState<string | null>(null);
+  // this visit's order (set on arrival); until then the server's order shows posters only
+  const [order, setOrder] = useState<PlayableShort[] | null>(null);
+  const list = useMemo(() => (order ?? shorts).filter((s) => (cat === "all" || s.category === cat) && (!topic || s.topics.includes(topic))), [order, shorts, cat, topic]);
 
   // ?cat= / ?topic= / ?v= on arrival
   useEffect(() => {
@@ -100,12 +126,28 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     const tp = q.get("topic");
     const v = q.get("v");
     const id = window.setTimeout(() => {
+      // a fresh deal: unseen shorts first (shuffled), then the seen ones (shuffled); ?v= leads
+      const seen = new Set(readSeen());
+      const dealt = [...shuffle(shorts.filter((s) => !seen.has(s.id))), ...shuffle(shorts.filter((s) => seen.has(s.id)))];
+      const lead = v ? dealt.find((s) => s.id === v) : undefined;
+      const next = lead ? [lead, ...dealt.filter((s) => s !== lead)] : dealt;
+      setOrder(next);
+      setActiveId(next[0]?.id ?? null);
       if (c && SHORT_CATEGORIES.some((x) => x.id === c)) setCat(c as ShortCategory);
       if (tp) setTopic(tp);
-      if (v) window.setTimeout(() => items.current[v]?.scrollIntoView({ block: "start" }), 50);
     }, 0);
     return () => window.clearTimeout(id);
-  }, []);
+  }, [shorts]);
+  // remember what was watched, so the next visit opens on something new
+  useEffect(() => {
+    if (!activeId) return;
+    try {
+      const seen = readSeen().filter((x) => x !== activeId);
+      localStorage.setItem(SEEN_KEY, JSON.stringify([...seen, activeId].slice(-500)));
+    } catch {
+      // private mode: every visit is just a fresh shuffle
+    }
+  }, [activeId]);
   // keep the filters in the address, so a filtered feed can be shared
   const setFilter = (c: ShortCategory | "all", tp: string | null) => {
     setCat(c);
@@ -118,15 +160,12 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     document.getElementById("shorts-list")?.scrollTo({ top: 0 });
   };
 
-  // the short that is mostly on screen is the active one: it plays, the rest pause (see ShortPlayer `active`)
-  const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdx = Math.max(0, list.findIndex((s) => s.id === activeId));
   // the media host: connect before the first <video> asks for it
-  if (shorts[0]) {
-    preconnect(new URL(shorts[0].src).origin);
-    preload(shorts[0].poster, { as: "image", fetchPriority: "high" });
-  }
+  if (shorts[0]) preconnect(new URL(shorts[0].src).origin);
   useEffect(() => {
+    // not before this visit's order is dealt: an observer on the server's order would report its first short
+    if (!order) return;
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries)
@@ -142,7 +181,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
       if (el) io.observe(el);
     }
     return () => io.disconnect();
-  }, [list]);
+  }, [list, order]);
 
   const share = async (s: PlayableShort) => {
     const url = `${window.location.origin}/learn/shorts?v=${encodeURIComponent(s.id)}`;
@@ -165,7 +204,10 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   const pill = (on: boolean) => `h-8 shrink-0 whitespace-nowrap border px-2.5 font-mono text-[11px] backdrop-blur-sm ${on ? "border-signal bg-signal text-on-signal" : "border-white/25 bg-black/40 text-[#f3f2ee]"}`;
 
   return (
-    <main ref={root} className="fixed inset-0 z-[60] flex flex-col bg-black lg:relative lg:inset-auto lg:z-auto lg:mx-auto lg:w-full lg:max-w-[1100px] lg:bg-transparent">
+    <main
+      ref={root}
+      className={`fixed inset-0 z-[60] flex flex-col bg-black lg:relative lg:inset-auto lg:z-auto lg:bg-transparent lg:transition-[margin] lg:duration-300 ${talk ? "lg:ml-0 lg:mr-[420px]" : "lg:mx-auto lg:w-full lg:max-w-[1100px]"}`}
+    >
       {/* laptops: filters above the feed */}
       <div className="hidden flex-col gap-1.5 border-b border-line px-6 py-2 lg:flex">
         <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Category">
@@ -191,10 +233,10 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
 
       {/* phones: back + filters float over the top of the video, one swipeable row */}
       <div
-        className={`pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/75 to-transparent pb-6 pt-[calc(env(safe-area-inset-top,0px)+8px)] transition-opacity duration-300 lg:hidden ${chrome ? "opacity-100" : "opacity-0"}`}
+        className={`pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/75 to-transparent pb-6 pt-[calc(env(safe-area-inset-top,0px)+8px)] transition-opacity duration-300 lg:hidden ${chrome && !talk ? "opacity-100" : "opacity-0"}`}
         onPointerDown={show}
       >
-        <div className={`${chrome ? "pointer-events-auto" : "pointer-events-none"} flex items-center gap-1.5 overflow-x-auto px-2 [scrollbar-width:none]`} role="group" aria-label="Filters">
+        <div className={`${chrome && !talk ? "pointer-events-auto" : "pointer-events-none"} flex items-center gap-1.5 overflow-x-auto px-2 [scrollbar-width:none]`} role="group" aria-label="Filters">
           <button type="button" onClick={back} aria-label="Back" className="grid h-8 w-8 shrink-0 place-items-center border border-white/25 bg-black/40 text-[#f3f2ee] backdrop-blur-sm">
             <ArrowLeft className="h-4 w-4" aria-hidden />
           </button>
@@ -219,7 +261,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
       <button
         type="button"
         onClick={() => setMuted((m) => !m)}
-        className="fixed bottom-6 right-6 z-40 hidden h-11 items-center gap-2 bg-signal px-3.5 font-mono text-xs font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] lg:inline-flex"
+        className={`fixed bottom-6 z-40 hidden h-11 items-center ${talk ? "right-[444px]" : "right-6"} gap-2 bg-signal px-3.5 font-mono text-xs font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] lg:inline-flex`}
         aria-pressed={!muted}
       >
         {muted ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
@@ -230,8 +272,10 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
         <p className="m-6 mt-20 border border-dashed border-line p-6 text-[15px] text-fg-3 lg:mt-6">No shorts here yet.</p>
       ) : (
         <ol
+          // a fresh list once this visit's order is dealt: scroll-snap would otherwise stay on the server's first short
+          key={order ? "dealt" : "server"}
           id="shorts-list"
-          className="m-0 h-[100dvh] list-none snap-y snap-mandatory overflow-y-auto overscroll-contain p-0 [scrollbar-width:none] lg:h-[calc(100dvh-var(--hk-header-h,61px)-84px)]"
+          className={`m-0 h-[100dvh] list-none snap-y snap-mandatory overflow-y-auto overscroll-contain p-0 [overflow-anchor:none] [scrollbar-width:none] lg:h-[calc(100dvh-var(--hk-header-h,61px)-84px)] ${talk ? "max-lg:overflow-hidden" : ""}`}
         >
           {list.map((s, k) => (
             <li
@@ -240,7 +284,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
               ref={(el) => {
                 items.current[s.id] = el;
               }}
-              className="relative flex h-full snap-start snap-always items-center justify-center [@media(min-aspect-ratio:9/16)]:pt-12 lg:gap-8 lg:px-6 lg:py-3 lg:[@media(min-aspect-ratio:9/16)]:pt-3"
+              className={`relative flex h-full snap-start snap-always justify-center lg:items-center lg:gap-8 lg:px-6 lg:py-3 lg:[@media(min-aspect-ratio:9/16)]:pt-3 ${talk && k === activeIdx ? "max-lg:items-start max-lg:pt-[calc(env(safe-area-inset-top,0px)+8px)]" : "items-center [@media(min-aspect-ratio:9/16)]:pt-12"}`}
             >
               <ShortPlayer
                 ref={(h) => {
@@ -250,17 +294,16 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
                 muted={muted}
                 onMutedChange={setMuted}
                 // Reels-style loading: a <video> only near the one on screen; it and the next buffer ahead
-                mounted={k >= activeIdx - 1 && k <= activeIdx + 2}
+                mounted={!!order && k >= activeIdx - 1 && k <= activeIdx + 2}
                 preload={k === activeIdx || k === activeIdx + 1 ? "auto" : k === activeIdx + 2 ? "metadata" : "none"}
                 active={k === activeIdx}
-                // the first one starts from the HTML (muted autoplay), before the page's JS has loaded
-                autoPlay={k === 0}
                 priority={k === 0}
-                className="h-full w-full lg:aspect-[9/16] lg:w-auto lg:max-w-full lg:border lg:border-line-strong"
+                // phones, discussing: the short shrinks into the top third, still playing, above the panel
+                className={`lg:aspect-[9/16] lg:h-full lg:w-auto lg:max-w-full lg:border lg:border-line-strong ${talk && k === activeIdx ? "aspect-[9/16] h-[32dvh] w-auto max-lg:border max-lg:border-line-strong" : "h-full w-full"}`}
                 muteClassName="hidden lg:grid"
                 // controls hidden: the first tap only brings them back
                 onTap={() => {
-                  if (chrome || !phoneLayout()) {
+                  if (chrome || talk || !phoneLayout()) {
                     setPoke((n) => n + 1);
                     return false;
                   }
@@ -277,14 +320,14 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
                 k={k}
                 n={list.length}
                 muted={muted}
-                chrome={chrome}
+                chrome={chrome && !talk}
                 fs={fs}
                 onFs={() => void toggleFs()}
                 onPoke={show}
                 comments={counts[s.id] ?? 0}
                 copied={copied === s.id}
                 onMute={() => setMuted((m) => !m)}
-                onTalk={() => setTalk(s)}
+                onTalk={() => setTalk(true)}
                 onShare={() => void share(s)}
               />
               <DesktopDetails
@@ -294,7 +337,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
                 comments={counts[s.id] ?? 0}
                 copied={copied === s.id}
                 onTopic={(tp) => setFilter(cat, tp)}
-                onTalk={() => setTalk(s)}
+                onTalk={() => setTalk(true)}
                 onShare={() => void share(s)}
               />
             </li>
@@ -302,11 +345,11 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
         </ol>
       )}
 
-      {talk && (
+      {talk && list[activeIdx] && (
         <CommentsSheet
-          short={talk}
+          short={list[activeIdx]}
           onClose={() => {
-            setTalk(null);
+            setTalk(false);
             refresh();
           }}
         />
@@ -332,12 +375,13 @@ function PhoneOverlay({
   onShare,
 }: ItemProps & { muted: boolean; onMute: () => void; chrome: boolean; fs: boolean; onFs: () => void; onPoke: () => void }) {
   const vote = useShortVote(s.id);
+  const save = useShortSave(s);
   const rail = `${chrome ? "pointer-events-auto" : "pointer-events-none"} flex flex-col items-center gap-1 font-mono text-[11px] font-semibold text-[#f3f2ee] [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]`;
   const icon = (on = false) => `grid h-11 w-11 place-items-center backdrop-blur-sm transition-colors ${on ? "bg-signal text-on-signal" : "bg-black/45 text-[#f3f2ee]"}`;
   return (
     <div className={`pointer-events-none absolute inset-0 transition-opacity duration-300 lg:hidden ${chrome ? "opacity-100" : "opacity-0"}`} onPointerDown={onPoke}>
       <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/85 via-black/40 to-transparent" aria-hidden />
-      <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+150px)] right-2 flex flex-col items-center gap-4">
+      <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+140px)] right-2 flex flex-col items-center gap-3">
         <button type="button" onClick={() => void vote.toggle()} aria-pressed={vote.mine} aria-label={vote.mine ? "Remove upvote" : "Upvote"} className={rail}>
           <span className={icon(vote.mine)}>
             <ThumbsUp className="h-5 w-5" fill={vote.mine ? "currentColor" : "none"} aria-hidden />
@@ -349,6 +393,12 @@ function PhoneOverlay({
             <MessageCircle className="h-5 w-5" aria-hidden />
           </span>
           {compact(comments)}
+        </button>
+        <button type="button" onClick={() => void save.toggle()} aria-pressed={save.saved} aria-label={save.saved ? "Remove from your library" : "Save to your library"} className={rail}>
+          <span className={icon(save.saved)}>
+            <Bookmark className="h-5 w-5" fill={save.saved ? "currentColor" : "none"} aria-hidden />
+          </span>
+          {save.saved ? "saved" : "save"}
         </button>
         <button type="button" onClick={onShare} aria-label="Share" className={rail}>
           <span className={icon()}>
@@ -389,6 +439,7 @@ function PhoneOverlay({
 /** laptops: the details and actions beside the video */
 function DesktopDetails({ s, k, n, comments, copied, onTopic, onTalk, onShare }: ItemProps & { onTopic: (tp: string) => void }) {
   const vote = useShortVote(s.id);
+  const save = useShortSave(s);
   return (
     <div className="hidden w-[320px] shrink-0 flex-col gap-3 lg:flex">
       <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
@@ -432,6 +483,15 @@ function DesktopDetails({ s, k, n, comments, copied, onTopic, onTalk, onShare }:
         <button type="button" onClick={onShare} className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3 text-fg-2 hover:text-fg">
           <Share2 className="h-4 w-4" aria-hidden />
           {copied ? "link copied ✓" : "share"}
+        </button>
+        <button
+          type="button"
+          onClick={() => void save.toggle()}
+          aria-pressed={save.saved}
+          className={`inline-flex min-h-10 items-center gap-2 border px-3 ${save.saved ? "border-signal text-signal-text" : "border-line-strong text-fg-2 hover:border-signal hover:text-fg"}`}
+        >
+          <Bookmark className="h-4 w-4" fill={save.saved ? "currentColor" : "none"} aria-hidden />
+          {save.saved ? "saved to notebook" : "save"}
         </button>
       </div>
       <span className="font-mono text-[11px] text-fg-4">scroll for the next one ↓</span>

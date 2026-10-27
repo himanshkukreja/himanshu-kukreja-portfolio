@@ -5,6 +5,7 @@
  * Search, week + colour filters, grouped by lesson with real titles, "Open at Part II" links
  * (stage located on the server; falls back to the old #note- / #bookmark- offsets), inline edit,
  * inline delete confirm with undo, "+ Review card", Export Markdown.
+ * Saved shorts (bookmarks under course "shorts", saved from /learn/shorts) sit in their own row on top.
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -94,6 +95,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   const [colour, setColour] = useState<"all" | NoteColor>("all");
   const [notes, setNotes] = useState<NoteRow[] | null>(null);
   const [bookmarks, setBookmarks] = useState<BookmarkRow[] | null>(null);
+  const [savedShorts, setSavedShorts] = useState<BookmarkRow[]>([]);
   const [loadError, setLoadError] = useState(false);
   const [locs, setLocs] = useState<Record<string, StageLocation>>({});
   const [editId, setEditId] = useState<string | null>(null);
@@ -129,7 +131,10 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
         if (off) return;
         if (n.error || b.error) setLoadError(true);
         const nr = (n.data || []) as NoteRow[];
-        const br = (b.data || []) as BookmarkRow[];
+        const all = (b.data || []) as BookmarkRow[];
+        // shorts saved from the feed are listed on their own, not as lesson bookmarks
+        const br = all.filter((x) => x.course_id !== "shorts");
+        setSavedShorts(all.filter((x) => x.course_id === "shorts"));
         setNotes(nr);
         setBookmarks(br);
         const items = [
@@ -430,6 +435,17 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
           </div>
         )}
       </section>
+
+      {userId && savedShorts.length > 0 && (
+        <SavedShorts
+          rows={savedShorts}
+          onRemove={async (row) => {
+            setSavedShorts((r) => r.filter((x) => x.id !== row.id));
+            const { error } = await supabaseClient.from("bookmarks").delete().eq("id", row.id).eq("user_id", userId);
+            if (error) setSavedShorts((r) => [row, ...r]);
+          }}
+        />
+      )}
 
       {!authLoading && !userId ? (
         <div className="flex flex-wrap items-start gap-8">
@@ -868,5 +884,47 @@ function CaptureTips() {
         </Link>
       </div>
     </div>
+  );
+}
+
+/** Shorts saved from the feed: a row of 9:16 cards that reopen the feed at that short. */
+function SavedShorts({ rows, onRemove }: { rows: BookmarkRow[]; onRemove: (row: BookmarkRow) => void }) {
+  const media = (process.env.NEXT_PUBLIC_LECTURE_MEDIA || "").replace(/\/$/, "");
+  return (
+    <section aria-labelledby="nb-shorts" className="flex flex-col gap-3 border-b border-line pb-6">
+      <div className="flex items-baseline justify-between gap-3">
+        <h2 id="nb-shorts" className="m-0 font-mono text-xs uppercase tracking-label text-signal-text">
+          saved shorts · {rows.length}
+        </h2>
+        <Link href="/learn/shorts" className="font-mono text-xs text-fg-3 hover:text-fg">
+          watch more ›
+        </Link>
+      </div>
+      <ul className="m-0 flex list-none gap-3 overflow-x-auto p-0 pb-1 [scrollbar-width:thin]">
+        {rows.map((r) => (
+          <li key={r.id} className="group relative w-[132px] shrink-0 sm:w-[150px]">
+            <Link href={`/learn/shorts?v=${encodeURIComponent(r.lesson_slug)}`} className="flex flex-col gap-1.5">
+              <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[#0b0b0c]">
+                {media && (
+                  // eslint-disable-next-line @next/next/no-img-element -- the short's own poster frame from the media host
+                  <img src={`${media}/${r.lesson_slug}/poster.jpg`} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" />
+                )}
+                <span className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-2 pb-1.5 pt-6 font-mono text-[10px] uppercase tracking-[0.06em] text-[#f3f2ee]">▶ play</span>
+              </span>
+              {r.bookmark_text && <span className="truncate font-mono text-[10px] uppercase tracking-[0.06em] text-fg-3">{r.bookmark_text}</span>}
+              <span className="line-clamp-2 text-[13px] font-semibold leading-snug text-fg">{r.custom_title || r.lesson_slug}</span>
+            </Link>
+            <button
+              type="button"
+              onClick={() => onRemove(r)}
+              aria-label={`Remove ${r.custom_title || "short"} from saved`}
+              className="absolute right-1 top-1 grid h-7 w-7 place-items-center bg-black/60 text-[13px] text-[#f3f2ee] hover:bg-signal hover:text-on-signal"
+            >
+              ×
+            </button>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

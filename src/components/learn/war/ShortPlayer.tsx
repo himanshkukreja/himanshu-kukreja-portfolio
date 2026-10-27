@@ -143,7 +143,17 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
           if (!onTap?.()) toggle();
         }}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || short.seconds || 0)}
-        onTimeUpdate={(e) => !scrub && setTime(e.currentTarget.currentTime)}
+        onTimeUpdate={(e) => {
+          const el = e.currentTarget;
+          if (!scrub) setTime(el.currentTime);
+          // a short that autoplayed from the HTML started before React was listening: catch up from its clock
+          if (!el.paused && !playing) {
+            setPlaying(true);
+            setStarted(true);
+            setWaiting(false);
+            onPlayingChange?.(true);
+          }
+        }}
         onPlaying={() => {
           setWaiting(false);
           setSlow(false);
