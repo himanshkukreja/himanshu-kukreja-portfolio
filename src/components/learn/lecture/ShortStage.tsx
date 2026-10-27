@@ -322,7 +322,8 @@ function PChart({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt
   const pts = (s.points || []) as { label: string; value: number; tone?: Tone }[];
   const [now, before] = revealed(st, prevSt, pts.length);
   const max = Math.max(...pts.map((p) => p.value), 1);
-  const fmt = (v: number) => `${v >= 1000 ? v.toLocaleString("en-IN") : Number.isInteger(v) ? v : v.toFixed(1)}${s.unit ? ` ${s.unit}` : ""}`;
+  // shorts go to a global feed and their narration says "million": international grouping (5,400,000)
+  const fmt = (v: number) => `${v >= 1000 ? v.toLocaleString("en-US") : Number.isInteger(v) ? v : v.toFixed(1)}${s.unit ? ` ${s.unit}` : ""}`;
   return (
     <div className="flex w-full flex-col gap-[2.6cqh]">
       <h2 className={`m-0 font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
