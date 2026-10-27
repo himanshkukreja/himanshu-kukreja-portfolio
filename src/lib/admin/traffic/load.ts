@@ -5,6 +5,7 @@
  * normalised dataset for 60 s so every card of one page load shares a single scan.
  */
 import { supabase } from "@/lib/supabase";
+import { dropInternal } from "@/lib/analytics/excludeServer";
 import { COLUMNS, normalise, type Ev, type RawRow } from "./model";
 import { prepare, type Dataset } from "./report";
 
@@ -41,8 +42,9 @@ async function loadRaw(from: number, to: number): Promise<Loaded> {
       })
     );
   }
+  // the owner's test accounts, their browsers and dev/localhost rows aren't traffic
   const rows: Ev[] = [];
-  for (const p of pages) for (const r of p) rows.push(normalise(r));
+  for (const p of pages) for (const r of await dropInternal(p as (RawRow & { metadata?: Record<string, unknown> | null })[])) rows.push(normalise(r));
   return { rows, total, capped: skip > 0 };
 }
 

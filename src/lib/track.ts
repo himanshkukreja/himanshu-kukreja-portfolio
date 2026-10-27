@@ -19,6 +19,7 @@
  *   is sent at all; /admin is never tracked. Signed-in users send their access token, which the
  *   server verifies — a client-side user id is never trusted.
  */
+import { isLocalHost } from "@/lib/analytics/exclude";
 import { supabaseClient } from "@/lib/supabase-client";
 import { emitProduct } from "@/lib/analytics/bus";
 
@@ -106,6 +107,8 @@ function privacySignal(): boolean {
 
 export function isNoTrack(): boolean {
   if (!isBrowser()) return true;
+  // localhost (dev servers) is never tracked; the owner's test accounts set hk.notrack on sign-in
+  if (isLocalHost(window.location.hostname)) return true;
   return safeGet(window.localStorage, NOTRACK_KEY) === "1";
 }
 

@@ -2,7 +2,7 @@ import "server-only";
 import type { LiveEvent, LiveFeedRes, LiveFilter, LiveSession, LiveWindow } from "./journeys";
 import { describe, eventPropsSelect, propsFrom, type TitleOf } from "./journeysModel";
 import { whoOf, type ApiRecording } from "./journeysServer";
-import { cached, hogql, iso, isUuid, NOISE, num, phFetch, softError, str, type Row } from "./posthogServer";
+import { cached, hogql, iso, isUuid, NOISE, INTERNAL, num, phFetch, softError, str, type Row } from "./posthogServer";
 import { titleResolver } from "./titles";
 
 /**
@@ -51,18 +51,18 @@ async function stats() {
       `SELECT uniqIf(person_id, timestamp > now() - INTERVAL 5 MINUTE),
           uniqIf(properties.$session_id, timestamp >= toStartOfDay(now())),
           uniqIf(person_id, timestamp >= toStartOfDay(now())),
-          countIf(timestamp > now() - INTERVAL 1 HOUR AND event NOT IN ${NOISE})
+          countIf(timestamp > now() - INTERVAL 1 HOUR AND event NOT IN ${NOISE} ${INTERNAL})
         FROM events WHERE timestamp > now() - INTERVAL 1 DAY`,
       { name: "live_stats", ttlMs: 25_000 }
     ),
     hogql(
       `SELECT dateDiff('minute', toStartOfMinute(timestamp), toStartOfMinute(now())) AS ago, count()
-        FROM events WHERE timestamp > now() - INTERVAL 30 MINUTE AND event NOT IN ${NOISE}
+        FROM events WHERE timestamp > now() - INTERVAL 30 MINUTE AND event NOT IN ${NOISE} ${INTERNAL}
         GROUP BY ago`,
       { name: "live_per_minute", ttlMs: 25_000 }
     ),
     hogql(
-      "SELECT properties.$pathname AS path, count(DISTINCT person_id) AS n FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 5 MINUTE GROUP BY path ORDER BY n DESC LIMIT 8",
+      `SELECT properties.$pathname AS path, count(DISTINCT person_id) AS n FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 5 MINUTE ${INTERNAL} GROUP BY path ORDER BY n DESC LIMIT 8`,
       { name: "live_pages", ttlMs: 25_000 }
     ),
   ]);
@@ -100,7 +100,7 @@ async function timelines(ids: string[], window: LiveWindow, titleOf: TitleOf): P
     `SELECT properties.$session_id AS sid, uuid, event, timestamp, elements_chain, ${eventPropsSelect()}
       FROM events
       WHERE properties.$session_id IN (${safe.map((s) => `'${s}'`).join(", ")})
-        AND timestamp > now() - ${LIVE_WINDOWS[window].sql} - INTERVAL 1 DAY AND event NOT IN ${NOISE}
+        AND timestamp > now() - ${LIVE_WINDOWS[window].sql} - INTERVAL 1 DAY AND event NOT IN ${NOISE} ${INTERNAL}
       ORDER BY timestamp DESC
       LIMIT ${TIMELINE} BY sid`,
     { name: "live_timelines", ttlMs: 25_000 }
@@ -137,7 +137,7 @@ export async function getLiveFeed(opts: { window: LiveWindow; filter: LiveFilter
       `SELECT ${SESSION_COLS}
         FROM events
         WHERE timestamp > now() - ${LIVE_WINDOWS[window].sql} - INTERVAL 1 DAY
-          AND event NOT IN ${NOISE}
+          AND event NOT IN ${NOISE} ${INTERNAL}
           AND notEmpty(coalesce(properties.$session_id, ''))
         GROUP BY sid
         HAVING ${having.join(" AND ")}

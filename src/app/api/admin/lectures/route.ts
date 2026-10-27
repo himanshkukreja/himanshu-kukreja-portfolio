@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
+import { dropInternal } from "@/lib/analytics/excludeServer";
 import { listLectures } from "@/lib/learn/lecture/load";
 
 export const dynamic = "force-dynamic";
@@ -33,6 +34,10 @@ export async function GET(request: Request) {
     if (!data || data.length < 1000) break;
   }
 
+  // the owner's test accounts and dev rows don't count
+  const kept = await dropInternal(rows);
+  rows.length = 0;
+  rows.push(...kept);
   const lectures = await listLectures().catch(() => []);
   const meta = new Map(lectures.map((l) => [l.slug, l]));
   const day = (iso: string) => iso.slice(0, 10);

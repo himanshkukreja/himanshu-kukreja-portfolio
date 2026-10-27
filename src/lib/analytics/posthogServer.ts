@@ -1,4 +1,5 @@
 import "server-only";
+import { EXCLUDED_EMAILS } from "./exclude";
 import { NextResponse } from "next/server";
 import { POSTHOG_PROJECT_ID_DEFAULT, POSTHOG_PROXY_PATH, POSTHOG_REGION, POSTHOG_REGION_SET, POSTHOG_UI_HOST, gaEnabled, posthogEnabled } from "./config";
 import type { NotConfigured, PhStatus } from "./journeys";
@@ -230,6 +231,8 @@ export const clampDays = (v: string | null, fallback = 30) => {
 
 /** Events never shown in journeys (internal / very high volume). */
 export const NOISE = "('$snapshot', '$heatmap', '$$heatmap', '$feature_flag_called', '$web_vitals', '$set', '$groupidentify', '$identify', '$opt_in', '$pageleave', '$dead_clicks_get_config', '$feature_view', '$feature_interaction')";
+/** Internal traffic left out of every admin view: localhost / dev hosts and the owner's test accounts (lib/analytics/exclude.ts). */
+export const INTERNAL = `AND NOT (coalesce(properties.$host, '') LIKE 'localhost%' OR coalesce(properties.$host, '') LIKE '127.0.0.1%' OR coalesce(properties.$host, '') LIKE '%.local%') AND lower(coalesce(person.properties.email, '')) NOT IN (${EXCLUDED_EMAILS.map((e) => `'${e}'`).join(", ")})`;
 
 /** JSON route error helper. */
 export function phErrorResponse(e: unknown) {

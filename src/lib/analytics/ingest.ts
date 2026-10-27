@@ -1,4 +1,6 @@
 import "server-only";
+import { isLocalHost } from "./exclude";
+import { excludedIds } from "./excludeServer";
 import { createHash } from "crypto";
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
@@ -203,6 +205,9 @@ export async function ingest(req: Request, payload: BeatPayload): Promise<Ingest
   const userId = await userFromToken(payload.tk);
   const host = (req.headers.get("host") || "").toLowerCase();
   const dev = /^(localhost|127\.0\.0\.1)(:|$)/.test(host) || process.env.NODE_ENV !== "production";
+  // internal traffic isn't stored: dev servers / localhost, and the owner's test accounts
+  if (dev || isLocalHost(host)) return { status: 202, stored: 0, reason: "dev" };
+  if (userId && (await excludedIds()).users.has(userId)) return { status: 202, stored: 0, reason: "internal" };
 
   const country = str(header(req, "x-vercel-ip-country"), 2)?.toUpperCase() ?? null;
   const city = str(header(req, "x-vercel-ip-city"), 120) ?? null;

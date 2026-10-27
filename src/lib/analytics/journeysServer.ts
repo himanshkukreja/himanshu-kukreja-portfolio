@@ -1,8 +1,9 @@
 import "server-only";
+import { isExcludedEmail, isLocalHost } from "./exclude";
 import { POSTHOG_UI_HOST } from "./config";
 import type { EmbedRes, LiveRes, PageDetailRes, PathsRes, PeopleRes, PersonInfo, PersonRes, PersonRow, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "./journeys";
 import { computePaths, describe, eventPropsSelect, parseElements, propsFrom, type PathRow, type TitleOf } from "./journeysModel";
-import { appUrl, cached, uncache, hogql, iso, isUuid, NOISE, num, phFetch, PhError, softError, str, type Row } from "./posthogServer";
+import { appUrl, cached, uncache, hogql, iso, isUuid, NOISE, INTERNAL, num, phFetch, PhError, softError, str, type Row } from "./posthogServer";
 import { titleResolver } from "./titles";
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.himanshukukreja.in").replace(/\/$/, "");
@@ -43,12 +44,12 @@ function streamEvent(r: Row, titleOf: TitleOf): StreamEvent {
 export async function getLive(): Promise<LiveRes> {
   const [titleOf, liveRows, pageRows, eventRows] = await Promise.all([
     titleResolver(),
-    hogql("SELECT count(DISTINCT person_id) FROM events WHERE timestamp > now() - INTERVAL 5 MINUTE", { name: "live_count", ttlMs: 25_000 }),
+    hogql(`SELECT count(DISTINCT person_id) FROM events WHERE timestamp > now() - INTERVAL 5 MINUTE ${INTERNAL}`, { name: "live_count", ttlMs: 25_000 }),
     hogql(
-      "SELECT properties.$pathname AS path, count(DISTINCT person_id) AS n FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 5 MINUTE GROUP BY path ORDER BY n DESC LIMIT 10",
+      `SELECT properties.$pathname AS path, count(DISTINCT person_id) AS n FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 5 MINUTE ${INTERNAL} GROUP BY path ORDER BY n DESC LIMIT 10`,
       { name: "live_pages", ttlMs: 25_000 }
     ),
-    hogql(`SELECT ${STREAM_HEAD}, ${eventPropsSelect()} FROM events WHERE timestamp > now() - INTERVAL 1 DAY AND event NOT IN ${NOISE} ORDER BY timestamp DESC LIMIT 60`, {
+    hogql(`SELECT ${STREAM_HEAD}, ${eventPropsSelect()} FROM events WHERE timestamp > now() - INTERVAL 1 DAY AND event NOT IN ${NOISE} ${INTERNAL} ORDER BY timestamp DESC LIMIT 60`, {
       name: "live_stream",
       ttlMs: 25_000,
     }),
@@ -87,7 +88,7 @@ export async function getPeople(opts: { q: string; days: number; kind: "all" | "
         argMin(properties.$referring_domain, timestamp) AS referrer,
         topK(3)(if(event = '$pageview', properties.$pathname, NULL)) AS top_pages
       FROM events
-      WHERE timestamp > now() - INTERVAL ${opts.days} DAY AND event NOT IN ${NOISE} ${where}
+      WHERE timestamp > now() - INTERVAL ${opts.days} DAY AND event NOT IN ${NOISE} ${INTERNAL} ${where}
       GROUP BY person_id
       ${having}
       ORDER BY last_seen DESC
@@ -202,7 +203,17 @@ export async function getRecordings(opts: { person?: string | null; path?: strin
   const params: Record<string, string> = { limit: String(opts.limit), offset: String(opts.offset), date_from: `-${opts.days}d` };
   if (opts.person && isUuid(opts.person)) params.person_uuid = opts.person;
   const listed = await listRecordings(params);
-  let results = listed.results;
+  // internal traffic: the owner's test accounts and localhost sessions aren't shown
+  let results = listed.results.filter((r) => {
+    const email = typeof r.person?.properties?.email === "string" ? (r.person.properties.email as string) : null;
+    let host = "";
+    try {
+      host = r.start_url ? new URL(r.start_url).host : "";
+    } catch {
+      host = "";
+    }
+    return !isExcludedEmail(email) && !isLocalHost(host);
+  });
   const hasNext = listed.hasNext;
   // belt and braces: keep only this person's recordings even if the filter param is ignored
   if (opts.person) results = results.filter((r) => !r.person?.uuid || r.person.uuid === opts.person);
@@ -262,7 +273,7 @@ export async function getPerson(idOrDistinct: string, days: number): Promise<Per
     hogql(
       `SELECT uuid, event, timestamp, elements_chain, ${eventPropsSelect()}
         FROM events
-        WHERE person_id = toUUID('${id}') AND timestamp > now() - INTERVAL ${days} DAY AND event NOT IN ${NOISE}
+        WHERE person_id = toUUID('${id}') AND timestamp > now() - INTERVAL ${days} DAY AND event NOT IN ${NOISE} ${INTERNAL}
         ORDER BY timestamp DESC LIMIT ${EVENT_LIMIT}`,
       { name: "person_events", ttlMs: 30_000 }
     ),
@@ -307,7 +318,7 @@ export async function getPaths(days: number): Promise<PathsRes> {
     hogql(
       `SELECT event, toString(person_id), properties.$session_id, properties.$pathname, timestamp
         FROM events
-        WHERE timestamp > now() - INTERVAL ${days} DAY AND event IN ('$pageview', 'lesson_open', 'stage_done', 'lesson_complete')
+        WHERE timestamp > now() - INTERVAL ${days} DAY AND event IN ('$pageview', 'lesson_open', 'stage_done', 'lesson_complete') ${INTERNAL}
         ORDER BY timestamp ASC
         LIMIT 50000`,
       { name: "paths", ttlMs: 5 * 60_000 }
@@ -326,14 +337,14 @@ export async function getPage(path: string, days: number): Promise<PageDetailRes
     hogql(
       `SELECT coalesce(properties.$el_text, '') AS text, any(elements_chain) AS chain, countIf(event = '$autocapture') AS n, countIf(event = '$rageclick') AS rage
         FROM events
-        WHERE event IN ('$autocapture', '$rageclick') AND properties.$pathname = {path} AND timestamp > now() - INTERVAL ${days} DAY
+        WHERE event IN ('$autocapture', '$rageclick') AND properties.$pathname = {path} AND timestamp > now() - INTERVAL ${days} DAY ${INTERNAL}
         GROUP BY text ORDER BY n + rage DESC LIMIT 20`,
       { name: "page_clicks", values: { path: clean }, ttlMs: 5 * 60_000 }
     ),
     hogql(
       `SELECT toInt(properties.pct) AS pct, count(DISTINCT person_id) AS readers
         FROM events
-        WHERE event = 'read_progress' AND properties.$pathname = {path} AND timestamp > now() - INTERVAL ${days} DAY
+        WHERE event = 'read_progress' AND properties.$pathname = {path} AND timestamp > now() - INTERVAL ${days} DAY ${INTERNAL}
         GROUP BY pct ORDER BY pct`,
       { name: "page_depth", values: { path: clean }, ttlMs: 5 * 60_000 }
     ),

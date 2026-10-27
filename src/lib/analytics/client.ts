@@ -25,6 +25,7 @@
  * happened. (posthog.capture() with a past timestamp would also move the live session's activity
  * clock back and split the reader's current session, so the flush builds the events itself.)
  */
+import { isExcludedEmail, isLocalHost } from "./exclude";
 import type { CaptureResult, PostHog, Properties } from "posthog-js";
 import { supabaseClient } from "@/lib/supabase-client";
 import { startEngagedClock, type EngagedClock } from "@/lib/learn/engagedClock";
@@ -52,6 +53,8 @@ export function privacySignal(): boolean {
 
 export function isOptedOut(): boolean {
   if (!isBrowser()) return false;
+  // localhost (dev servers) is never tracked
+  if (isLocalHost(window.location.hostname)) return true;
   try {
     return window.localStorage.getItem(NOTRACK_KEY) === "1";
   } catch {
@@ -336,6 +339,18 @@ function watchAuth() {
         return;
       }
       const user = session?.user as AuthUser | undefined;
+      // the owner's test accounts: this browser stops being tracked, now and after sign-out
+      if (user && isExcludedEmail(user.email)) {
+        try {
+          window.localStorage.setItem(NOTRACK_KEY, "1");
+          ph?.stopSessionRecording?.();
+          ph?.opt_out_capturing();
+          ph?.reset();
+        } catch {
+          /* ignore */
+        }
+        return;
+      }
       if (!user || isAdminPath(currentPath()) || !allowed()) return;
       // posthog-js may still be loading: identify once it's there
       void (phLoading ?? Promise.resolve(null)).then(() => identify(user));
