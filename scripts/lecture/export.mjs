@@ -72,6 +72,13 @@ const speakable = (t) =>
     .replace(/@/g, " at ")
     .replace(/[·]/g, ",")
     .replace(/₹\s?([\d,]+)/g, "$1 rupees")
+    // clock times: "09:19" → "9 19", "08:01" → "8 oh 1", "10:00" → "10 o'clock", "14:00" → "14 hundred",
+    // "10:00 am" → "10 am", "10:00:05" → "10 o'clock and 5 seconds" (the voice read them digit by digit)
+    .replace(/\b(\d{1,2}):(\d{2})(?::(\d{2}))?\b(\s*[ap]\.?m\b)?/gi, (_, h, m, s, ap) => {
+      const H = String(Number(h));
+      const t = m === "00" ? (ap ? H : Number(H) > 12 ? `${H} hundred` : `${H} o'clock`) : m[0] === "0" ? `${H} oh ${m[1]}` : `${H} ${m}`;
+      return t + (s && s !== "00" ? ` and ${Number(s)} second${s === "01" ? "" : "s"}` : "") + (ap || "");
+    })
     .replace(/(\d+)\.(\d+)/g, (_, a, b) => `${a} point ${b.split("").join(" ")}`);
 
 // 1. voice per step (one Kokoro run for all of them), then the pause after it
