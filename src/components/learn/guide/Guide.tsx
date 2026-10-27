@@ -422,6 +422,11 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 Diagrams build up while the narration explains them, requests travel through them, and the numbers, timelines and phone screens appear as they are mentioned. The lectures link back to the earlier lessons they build on
                 (the <strong>↩ recall</strong> chips), and when one ends the next one in the same track starts by itself.
               </p>
+              <p>
+                <strong>Watching is free with an account.</strong> Signed out, a lecture plays its first minute, then asks you to sign in. <strong>Share</strong> in the player gives you a link that can start at the
+                moment you are on; anyone who opens a link you shared watches all of it, no account needed. The <strong>👍</strong> next to Save offline upvotes a lecture (one vote each, signed in), and the
+                header and the playlist show how many people have watched it.
+              </p>
             </div>
             <Shot id="lecture-player" wide />
             <Sub>Where to find them</Sub>

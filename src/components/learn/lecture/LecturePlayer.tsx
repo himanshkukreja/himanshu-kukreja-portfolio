@@ -741,7 +741,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           fs={fs && !pip}
         />
       ) : gate && gated ? (
-        <div className="absolute inset-0 z-10 grid place-items-center bg-black/80 p-4 text-center sm:p-6">
+        <div className="absolute inset-0 z-10 grid place-items-center bg-black/[0.92] p-4 text-center sm:p-6">
           <div className="flex max-w-[520px] flex-col items-center gap-2 sm:gap-3">
             <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">free · just sign in</span>
             <span className="font-display text-[clamp(18px,3vw,32px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">Sign in to keep watching</span>
