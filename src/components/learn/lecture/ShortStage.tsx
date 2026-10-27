@@ -45,6 +45,27 @@ function timedWords(say: string, i: number, speaking: number): { w: string; s: n
   });
 }
 
+/** the voice needs "99 point 7 percent"; the caption reads "99.7%" (merged words keep the first start and last end) */
+function tidy(words: { w: string; s: number; e: number }[]) {
+  const out: typeof words = [];
+  for (let k = 0; k < words.length; k++) {
+    const x = words[k];
+    const m = words[k + 2];
+    if (/^\d[\d,]*$/.test(x.w) && words[k + 1]?.w.toLowerCase() === "point" && m && /^\d+[.,!?;:]*$/.test(m.w)) {
+      out.push({ w: `${x.w}.${m.w}`, s: x.s, e: m.e });
+      k += 2;
+      continue;
+    }
+    const p = out[out.length - 1];
+    if (p && /^percent[.,!?;:]*$/i.test(x.w) && /\d$/.test(p.w)) {
+      out[out.length - 1] = { w: `${p.w}%${x.w.slice(7)}`, s: p.s, e: x.e };
+      continue;
+    }
+    out.push(x);
+  }
+  return out;
+}
+
 /** Reels captions: 2-3 words at a time, breaking after punctuation */
 function chunks(words: { w: string; s: number; e: number }[]) {
   const out: { w: string; s: number; e: number }[][] = [];
@@ -82,7 +103,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
   // captions: the chunk being spoken, its spoken word lit
   const speaking = Math.max(0.3, dur - (st.pause ?? 0) - 0.12);
   const words = timedWords(st.say, i, speaking);
-  const groups = chunks(words);
+  const groups = chunks(tidy(words));
   let g = 0;
   for (let k = 0; k < groups.length; k++) if (groups[k][0].s <= t + 0.02) g = k;
   const group = groups[g] || [];
