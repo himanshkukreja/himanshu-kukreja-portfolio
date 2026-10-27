@@ -19,6 +19,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
+import { BookOpen, Mic } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
@@ -820,7 +821,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           {quest && (
             // came straight from the playlist? the written version is one tap away
             <Link href={quest.href} className="inline-flex min-h-11 min-w-0 max-w-full items-center gap-2 border border-line-strong px-3.5 text-[14px] text-fg hover:border-signal">
-              <span aria-hidden>📄</span>
+              {/* the written version: an open book (a mock interview: a mic, to sit it yourself) */}
+              {lecture.lesson?.kind === "interview" ? <Mic className="h-4 w-4 shrink-0 text-signal-text" aria-hidden /> : <BookOpen className="h-4 w-4 shrink-0 text-signal-text" aria-hidden />}
               <span className="min-w-0 truncate">
                 {readLabel(lecture)}: <span className="text-fg-2">{quest.title}</span>
               </span>

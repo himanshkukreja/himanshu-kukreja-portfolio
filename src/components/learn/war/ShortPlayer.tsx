@@ -5,6 +5,9 @@
  * tap to play or pause (a big signal-orange play button while paused), a thin seek bar along the bottom that
  * thickens and can be dragged, the time while paused or scrubbing, a mute toggle, and a spinner while it
  * buffers. Space/K toggles, ←/→ seek 5 s, M mutes (when the player has focus).
+ * In the feed, only the shorts around the one on screen get a <video> at all (the rest are their poster),
+ * the one on screen and the next buffer ahead (preload "auto"), and `active` plays the one on screen, so a
+ * swipe lands on a short that is already loading or loaded, as in Reels.
  * Shorts are public, the funnel into the full lectures (which ask for a free account after the first minute),
  * so there's no gate here. A play counts as a view of the lecture it comes from (lecture_play, short: id).
  */
@@ -26,10 +29,21 @@ type Props = {
   className?: string;
   /** the feed's phone layout has its own mute in the action rail */
   muteClassName?: string;
+  /** a tap on the video: return true to take it (e.g. to bring the feed's controls back) instead of play/pause */
+  onTap?: () => boolean;
+  onPlayingChange?: (playing: boolean) => void;
+  /** feed: false renders just the poster (no <video>, no network); default true */
+  mounted?: boolean;
+  /** feed: how much to fetch ahead ("auto" for the one on screen and the next) */
+  preload?: "auto" | "metadata" | "none";
+  /** feed: this is the short on screen, so it plays (and the others pause) */
+  active?: boolean;
+  /** the first poster on the page loads first */
+  priority?: boolean;
 };
 
 const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
-  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "" },
+  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "", onTap, onPlayingChange, mounted = true, preload = "metadata", active, priority = false },
   ref,
 ) {
   const v = useRef<HTMLVideoElement>(null);
@@ -39,12 +53,30 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
   const [time, setTime] = useState(0);
   const [duration, setDuration] = useState(short.seconds || 0);
   const [waiting, setWaiting] = useState(false);
+  // the spinner shows only after a short wait, so a quick start never flashes it
+  const [slow, setSlow] = useState(false);
+  const [started, setStarted] = useState(false);
   const [scrub, setScrub] = useState(false);
   // the element's own muted state (a parent may set it, the viewer may toggle it here)
   const [isMuted, setIsMuted] = useState(muted);
   useEffect(() => {
     if (v.current) v.current.muted = muted;
   }, [muted]);
+
+  // feed: play the short on screen, pause the rest (also once a just-mounted <video> appears)
+  useEffect(() => {
+    const el = v.current;
+    if (active === undefined || !el) return;
+    if (active) void el.play().catch(() => {});
+    else el.pause();
+  }, [active, mounted]);
+  const loading = mounted && (waiting || (!!active && !started));
+  useEffect(() => {
+    if (!loading) return;
+    const id = window.setTimeout(() => setSlow(true), 250);
+    return () => window.clearTimeout(id);
+  }, [loading]);
+  const spin = loading && slow;
 
   useImperativeHandle(ref, () => ({
     play: () => void v.current?.play().catch(() => {}),
@@ -92,6 +124,11 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
         else if (k === "m") toggleMute();
       }}
     >
+      {!mounted ? (
+        // far from the one on screen: just the poster, no video download yet
+        // eslint-disable-next-line @next/next/no-img-element -- a plain poster frame, same file the <video> uses
+        <img src={short.poster} alt="" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} decoding="async" className="h-full w-full object-contain" />
+      ) : (
       <video
         ref={v}
         src={short.src}
@@ -100,28 +137,42 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
         loop
         autoPlay={autoPlay}
         muted={muted}
-        preload="metadata"
+        preload={preload}
         className="h-full w-full cursor-pointer object-contain"
-        onClick={toggle}
+        onClick={() => {
+          if (!onTap?.()) toggle();
+        }}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || short.seconds || 0)}
         onTimeUpdate={(e) => !scrub && setTime(e.currentTarget.currentTime)}
-        onPlaying={() => setWaiting(false)}
-        onWaiting={() => setWaiting(true)}
-        onPause={() => setPlaying(false)}
+        onPlaying={() => {
+          setWaiting(false);
+          setSlow(false);
+          setStarted(true);
+        }}
+        onWaiting={() => {
+          setSlow(false);
+          setWaiting(true);
+        }}
+        onPause={() => {
+          setPlaying(false);
+          onPlayingChange?.(false);
+        }}
         onVolumeChange={(e) => {
           setIsMuted(e.currentTarget.muted);
           onMutedChange?.(e.currentTarget.muted);
         }}
         onPlay={(e) => {
           setPlaying(true);
+          onPlayingChange?.(true);
           if (counted.current) return;
           counted.current = true;
           track("lecture_play", { quest: short.lecture, at: Math.round(e.currentTarget.currentTime), short: short.id });
         }}
       />
+      )}
 
       {/* paused: one big play button in the middle */}
-      {!playing && !scrub && (
+      {mounted && !playing && !scrub && !(active && !started) && (
         <button
           type="button"
           onClick={toggle}
@@ -131,8 +182,11 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
           <Play className="h-7 w-7 translate-x-[2px]" fill="currentColor" aria-hidden />
         </button>
       )}
-      {waiting && playing && (
-        <span className="pointer-events-none absolute left-1/2 top-1/2 h-10 w-10 -translate-x-1/2 -translate-y-1/2 animate-spin rounded-full border-[3px] border-white/20 border-t-signal" aria-hidden />
+      {/* loading: a fixed centre (the spin is on the inner ring, so it never fights the centring transform) */}
+      {spin && (
+        <span className="pointer-events-none absolute inset-0 grid place-items-center" aria-hidden>
+          <span className="h-10 w-10 animate-spin rounded-full border-[3px] border-white/20 border-t-signal" />
+        </span>
       )}
 
       {/* mute: bottom-right, clear of the short's own label and sticker up top; signal orange while muted */}

@@ -6,15 +6,19 @@
  * turns the sound on. Every short links to its full lecture at that moment and to its written article, and
  * takes upvotes and a discussion.
  * - Phones and tablets: full screen, like Reels. The site header and dock are covered; the filters float
- *   at the top, the actions (upvote, discussion, share, sound) sit in a rail on the right, the label, title
- *   and links at the bottom left. Swipe up for the next one.
+ *   at the top, the actions (upvote, discussion, share, sound, full screen) sit in a rail on the right, the
+ *   label, title and links at the bottom left. Swipe up for the next one. A few seconds into playback all of
+ *   that fades away and only the video is left; a tap (or a pause, or the next short) brings it back. The
+ *   full-screen button asks the browser for real full screen; where a page can't have it (iPhone Safari),
+ *   it keeps the controls hidden until a tap.
  * - Laptops: a centred 9:16 column with the details and actions beside it.
  * ?v=<id> opens at a short; ?cat= and ?topic= set the filters (shareable).
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, MessageCircle, Share2, ThumbsUp, Volume2, VolumeX } from "lucide-react";
+import { preconnect, preload } from "react-dom";
+import { ArrowLeft, BookOpen, Maximize, MessageCircle, Minimize, Share2, ThumbsUp, Volume2, VolumeX } from "lucide-react";
 import { track } from "@/lib/track";
 import { compact } from "@/components/learn/lecture/LectureVote";
 import { SHORT_CATEGORIES, type PlayableShort, type ShortCategory } from "@/lib/learn/shorts/types";
@@ -22,6 +26,13 @@ import ShortPlayer, { type ShortHandle } from "./ShortPlayer";
 import { CommentsSheet, useCommentCounts, useShortVote } from "./ShortSocial";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+/** how long the controls stay up once a short is playing, on phones and tablets */
+const CHROME_S = 3;
+const phoneLayout = () => typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches;
+
+type FsDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFullscreen?: () => Promise<void> };
+type FsEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
+const fsElement = () => document.fullscreenElement ?? (document as FsDoc).webkitFullscreenElement ?? null;
 
 export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   const router = useRouter();
@@ -33,6 +44,46 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   const { counts, refresh } = useCommentCounts();
   const players = useRef<Record<string, ShortHandle | null>>({});
   const items = useRef<Record<string, HTMLElement | null>>({});
+  const root = useRef<HTMLElement>(null);
+  // phones/tablets: the overlays (filters, rail, title and links) fade out while a short plays untouched
+  const [chrome, setChrome] = useState(true);
+  const [playing, setPlaying] = useState(false);
+  const [poke, setPoke] = useState(0);
+  const [fs, setFs] = useState(false);
+  const show = () => {
+    setChrome(true);
+    setPoke((n) => n + 1);
+  };
+  useEffect(() => {
+    if (!chrome || !playing || talk) return;
+    const id = window.setTimeout(() => phoneLayout() && setChrome(false), CHROME_S * 1000);
+    return () => window.clearTimeout(id);
+  }, [chrome, playing, talk, poke]);
+  useEffect(() => {
+    const on = () => setFs(!!fsElement());
+    document.addEventListener("fullscreenchange", on);
+    document.addEventListener("webkitfullscreenchange", on);
+    return () => {
+      document.removeEventListener("fullscreenchange", on);
+      document.removeEventListener("webkitfullscreenchange", on);
+    };
+  }, []);
+  const toggleFs = async () => {
+    try {
+      if (fsElement()) {
+        await (document.exitFullscreen?.() ?? (document as FsDoc).webkitExitFullscreen?.());
+        return;
+      }
+      const el = root.current as FsEl | null;
+      const req = el?.requestFullscreen ? () => el.requestFullscreen() : el?.webkitRequestFullscreen ? () => el.webkitRequestFullscreen!() : null;
+      if (req) await req();
+      // no page full screen here (iPhone Safari): hide the controls now; a tap brings them back
+      setChrome(false);
+      track("short_fullscreen", { native: !!req });
+    } catch {
+      setChrome(false);
+    }
+  };
 
   const cats = useMemo(() => SHORT_CATEGORIES.filter((c) => shorts.some((s) => s.category === c.id)), [shorts]);
   const topics = useMemo(() => {
@@ -67,15 +118,22 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     document.getElementById("shorts-list")?.scrollTo({ top: 0 });
   };
 
-  // the short that is mostly on screen plays; the rest pause
+  // the short that is mostly on screen is the active one: it plays, the rest pause (see ShortPlayer `active`)
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const activeIdx = Math.max(0, list.findIndex((s) => s.id === activeId));
+  // the media host: connect before the first <video> asks for it
+  if (shorts[0]) {
+    preconnect(new URL(shorts[0].src).origin);
+    preload(shorts[0].poster, { as: "image", fetchPriority: "high" });
+  }
   useEffect(() => {
     const io = new IntersectionObserver(
       (entries) => {
-        for (const e of entries) {
-          const id = (e.target as HTMLElement).dataset.id!;
-          if (e.intersectionRatio >= 0.6) players.current[id]?.play();
-          else players.current[id]?.pause();
-        }
+        for (const e of entries)
+          if (e.intersectionRatio >= 0.6) {
+            setActiveId((e.target as HTMLElement).dataset.id!);
+            show();
+          }
       },
       { threshold: [0, 0.6, 1] },
     );
@@ -107,7 +165,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   const pill = (on: boolean) => `h-8 shrink-0 whitespace-nowrap border px-2.5 font-mono text-[11px] backdrop-blur-sm ${on ? "border-signal bg-signal text-on-signal" : "border-white/25 bg-black/40 text-[#f3f2ee]"}`;
 
   return (
-    <main className="fixed inset-0 z-[60] flex flex-col bg-black lg:relative lg:inset-auto lg:z-auto lg:mx-auto lg:w-full lg:max-w-[1100px] lg:bg-transparent">
+    <main ref={root} className="fixed inset-0 z-[60] flex flex-col bg-black lg:relative lg:inset-auto lg:z-auto lg:mx-auto lg:w-full lg:max-w-[1100px] lg:bg-transparent">
       {/* laptops: filters above the feed */}
       <div className="hidden flex-col gap-1.5 border-b border-line px-6 py-2 lg:flex">
         <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Category">
@@ -132,8 +190,11 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
       </div>
 
       {/* phones: back + filters float over the top of the video, one swipeable row */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/75 to-transparent pb-6 pt-[calc(env(safe-area-inset-top,0px)+8px)] lg:hidden">
-        <div className="pointer-events-auto flex items-center gap-1.5 overflow-x-auto px-2 [scrollbar-width:none]" role="group" aria-label="Filters">
+      <div
+        className={`pointer-events-none absolute inset-x-0 top-0 z-20 bg-gradient-to-b from-black/75 to-transparent pb-6 pt-[calc(env(safe-area-inset-top,0px)+8px)] transition-opacity duration-300 lg:hidden ${chrome ? "opacity-100" : "opacity-0"}`}
+        onPointerDown={show}
+      >
+        <div className={`${chrome ? "pointer-events-auto" : "pointer-events-none"} flex items-center gap-1.5 overflow-x-auto px-2 [scrollbar-width:none]`} role="group" aria-label="Filters">
           <button type="button" onClick={back} aria-label="Back" className="grid h-8 w-8 shrink-0 place-items-center border border-white/25 bg-black/40 text-[#f3f2ee] backdrop-blur-sm">
             <ArrowLeft className="h-4 w-4" aria-hidden />
           </button>
@@ -188,14 +249,38 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
                 short={s}
                 muted={muted}
                 onMutedChange={setMuted}
+                // Reels-style loading: a <video> only near the one on screen; it and the next buffer ahead
+                mounted={k >= activeIdx - 1 && k <= activeIdx + 2}
+                preload={k === activeIdx || k === activeIdx + 1 ? "auto" : k === activeIdx + 2 ? "metadata" : "none"}
+                active={k === activeIdx}
+                // the first one starts from the HTML (muted autoplay), before the page's JS has loaded
+                autoPlay={k === 0}
+                priority={k === 0}
                 className="h-full w-full lg:aspect-[9/16] lg:w-auto lg:max-w-full lg:border lg:border-line-strong"
                 muteClassName="hidden lg:grid"
+                // controls hidden: the first tap only brings them back
+                onTap={() => {
+                  if (chrome || !phoneLayout()) {
+                    setPoke((n) => n + 1);
+                    return false;
+                  }
+                  show();
+                  return true;
+                }}
+                onPlayingChange={(p) => {
+                  setPlaying(p);
+                  if (!p) setChrome(true);
+                }}
               />
               <PhoneOverlay
                 s={s}
                 k={k}
                 n={list.length}
                 muted={muted}
+                chrome={chrome}
+                fs={fs}
+                onFs={() => void toggleFs()}
+                onPoke={show}
                 comments={counts[s.id] ?? 0}
                 copied={copied === s.id}
                 onMute={() => setMuted((m) => !m)}
@@ -233,12 +318,24 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
 type ItemProps = { s: PlayableShort; k: number; n: number; comments: number; copied: boolean; onTalk: () => void; onShare: () => void };
 
 /** phones: the action rail on the right and the label, title and links at the bottom left, over the video */
-function PhoneOverlay({ s, muted, onMute, comments, copied, onTalk, onShare }: ItemProps & { muted: boolean; onMute: () => void }) {
+function PhoneOverlay({
+  s,
+  muted,
+  onMute,
+  chrome,
+  fs,
+  onFs,
+  onPoke,
+  comments,
+  copied,
+  onTalk,
+  onShare,
+}: ItemProps & { muted: boolean; onMute: () => void; chrome: boolean; fs: boolean; onFs: () => void; onPoke: () => void }) {
   const vote = useShortVote(s.id);
-  const rail = "pointer-events-auto flex flex-col items-center gap-1 font-mono text-[11px] font-semibold text-[#f3f2ee] [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]";
+  const rail = `${chrome ? "pointer-events-auto" : "pointer-events-none"} flex flex-col items-center gap-1 font-mono text-[11px] font-semibold text-[#f3f2ee] [text-shadow:0_1px_4px_rgba(0,0,0,0.8)]`;
   const icon = (on = false) => `grid h-11 w-11 place-items-center backdrop-blur-sm transition-colors ${on ? "bg-signal text-on-signal" : "bg-black/45 text-[#f3f2ee]"}`;
   return (
-    <div className="pointer-events-none absolute inset-0 lg:hidden">
+    <div className={`pointer-events-none absolute inset-0 transition-opacity duration-300 lg:hidden ${chrome ? "opacity-100" : "opacity-0"}`} onPointerDown={onPoke}>
       <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black/85 via-black/40 to-transparent" aria-hidden />
       <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+150px)] right-2 flex flex-col items-center gap-4">
         <button type="button" onClick={() => void vote.toggle()} aria-pressed={vote.mine} aria-label={vote.mine ? "Remove upvote" : "Upvote"} className={rail}>
@@ -263,19 +360,24 @@ function PhoneOverlay({ s, muted, onMute, comments, copied, onTalk, onShare }: I
           <span className={icon(muted)}>{muted ? <VolumeX className="h-5 w-5" aria-hidden /> : <Volume2 className="h-5 w-5" aria-hidden />}</span>
           {muted ? "sound" : "on"}
         </button>
+        <button type="button" onClick={onFs} aria-label={fs ? "Exit full screen" : "Full screen"} aria-pressed={fs} className={rail}>
+          <span className={icon(fs)}>{fs ? <Minimize className="h-5 w-5" aria-hidden /> : <Maximize className="h-5 w-5" aria-hidden />}</span>
+          {fs ? "exit" : "full"}
+        </button>
       </div>
       <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+26px)] left-3 right-16 flex flex-col gap-2 [text-shadow:0_1px_6px_rgba(0,0,0,0.85)]">
         <span className="truncate font-mono text-[11px] uppercase tracking-label text-signal">
           {s.label} · {fmt(s.seconds)}
         </span>
         <span className="line-clamp-2 font-display text-[18px] font-extrabold leading-[1.1] text-[#f3f2ee]">{s.title}</span>
-        <span className="pointer-events-auto flex gap-2 font-mono text-[12px] [text-shadow:none]">
+        <span className={`${chrome ? "pointer-events-auto" : "pointer-events-none"} flex gap-2 font-mono text-[12px] [text-shadow:none]`}>
           {s.full && (
             <Link href={s.full} className="inline-flex min-h-9 items-center bg-signal px-3 font-semibold text-on-signal">
               ▶ full lecture
             </Link>
           )}
           <Link href={s.article} className="inline-flex min-h-9 items-center border border-white/40 bg-black/40 px-3 text-[#f3f2ee] backdrop-blur-sm">
+            <BookOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
             read it
           </Link>
         </span>
@@ -309,6 +411,7 @@ function DesktopDetails({ s, k, n, comments, copied, onTopic, onTalk, onShare }:
           </Link>
         )}
         <Link href={s.article} className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-xs text-fg hover:border-signal">
+          <BookOpen className="mr-2 h-3.5 w-3.5 text-signal-text" aria-hidden />
           read it →
         </Link>
       </div>
