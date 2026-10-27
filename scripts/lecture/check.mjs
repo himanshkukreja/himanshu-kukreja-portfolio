@@ -95,6 +95,12 @@ if (L.short) {
     if (s.kind === "sequence") errs.push(`${s.id}: no sequence diagrams in a short (use flowchart TB)`);
     if (s.kind === "flowchart" && ((s.diagram || "").match(/^\s*[A-Za-z][\w-]*\s*[\[({]/gm) || []).length > 6) warns.push(`${s.id}: more than 6 nodes is too small on a phone`);
     if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(LR|RL)/m.test(s.diagram || "")) errs.push(`${s.id}: flowcharts in a short run top-down (flowchart TB)`);
+    // state diagrams spread sideways and don't zoom in a short: a busy one is unreadable on a phone
+    if (s.kind === "state") {
+      const tr = (s.diagram || "").split("\n").filter((l) => l.includes("-->"));
+      const label = Math.max(0, ...tr.map((l) => (l.split(":")[1] || "").trim().length));
+      if (tr.length > 5 || label > 22) warns.push(`${s.id}: a busy state diagram (${tr.length} transitions, ${label}-char label) is unreadable on a phone; use a flowchart TB with 1-3 word labels`);
+    }
     if ((s.kind === "numbers" && (s.numbers || []).length > 3) || (s.kind === "list" && (s.points || []).length > 3) || (s.kind === "chart" && (s.points || []).length > 4) || (s.kind === "timeline" && (s.events || []).length > 4) || (s.kind === "compare" && Math.max(s.left?.points?.length || 0, s.right?.points?.length || 0) > 3)) errs.push(`${s.id}: too many items for a phone screen (numbers/list 3, chart/timeline 4, compare 3 a side)`);
     for (const [k, st] of (s.steps || []).entries()) for (const sentence of (st.say || "").split(/(?<=[.!?])\s+/)) if (sentence.split(/\s+/).length > 14) warns.push(`${s.id}#${k}: a ${sentence.split(/\s+/).length}-word sentence (Reels lines are ≤ 12)`);
   }
