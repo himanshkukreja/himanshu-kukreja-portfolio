@@ -60,8 +60,12 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
   // the element's own muted state (a parent may set it, the viewer may toggle it here)
   const [isMuted, setIsMuted] = useState(muted);
   useEffect(() => {
-    if (v.current) v.current.muted = muted;
-  }, [muted]);
+    const el = v.current;
+    if (!el) return;
+    el.muted = muted;
+    // React sets only the property; iPhone Safari's autoplay also looks for the attribute
+    el.toggleAttribute("muted", muted);
+  }, [muted, mounted]);
 
   // feed: play the short on screen, pause the rest (also once a just-mounted <video> appears)
   useEffect(() => {

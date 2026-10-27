@@ -408,7 +408,7 @@ function PhoneOverlay({
         </button>
         <button type="button" onClick={onMute} aria-label={muted ? "Turn sound on" : "Mute"} aria-pressed={!muted} className={rail}>
           <span className={icon(muted)}>{muted ? <VolumeX className="h-5 w-5" aria-hidden /> : <Volume2 className="h-5 w-5" aria-hidden />}</span>
-          {muted ? "sound" : "on"}
+          {muted ? "muted" : "sound on"}
         </button>
         <button type="button" onClick={onFs} aria-label={fs ? "Exit full screen" : "Full screen"} aria-pressed={fs} className={rail}>
           <span className={icon(fs)}>{fs ? <Minimize className="h-5 w-5" aria-hidden /> : <Maximize className="h-5 w-5" aria-hidden />}</span>

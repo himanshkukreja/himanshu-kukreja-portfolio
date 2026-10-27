@@ -38,7 +38,13 @@ export default function ShortEntry({ short }: { short: PlayableShort }) {
                 <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
-            <ShortPlayer short={short} autoPlay className="aspect-[9/16] min-h-0 w-auto flex-1 border border-line-strong" />
+            {/* phones and tablets start muted (as the feed does); the player's speaker button turns sound on */}
+            <ShortPlayer
+              short={short}
+              autoPlay
+              muted={window.matchMedia("(max-width: 1023px), (pointer: coarse)").matches}
+              className="aspect-[9/16] min-h-0 w-auto flex-1 border border-line-strong"
+            />
           </div>
         </div>
       )}
