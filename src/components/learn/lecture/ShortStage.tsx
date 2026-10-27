@@ -160,8 +160,9 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
           <div className="flex h-full w-full flex-col gap-[2cqh]">
             {s.heading && <h2 className={`m-0 text-center font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
             <div className="relative min-h-0 flex-1 [container-type:size]">
-              {/* portrait: a gentle zoom, so the lit node's neighbours (and their labels) stay in frame */}
-              <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} zoom={1.3} />
+              {/* portrait: a gentle zoom, so the lit node's neighbours (and their labels) stay in frame;
+                  state diagrams spread wide, so none at all */}
+              <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} zoom={s.kind === "state" ? 1 : 1.3} />
             </div>
           </div>
         )}
