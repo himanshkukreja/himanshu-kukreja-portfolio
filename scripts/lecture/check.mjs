@@ -90,6 +90,9 @@ if (L.short) {
   } else warns.push("short has no at: the full-lecture link opens at the start");
   for (const s of L.scenes || []) {
     if (["quiz"].includes(s.kind)) errs.push(`${s.id}: shorts have no quizzes`);
+    // sequence diagrams lay out sideways: on a phone their text is unreadable. Use a top-down flowchart.
+    if (s.kind === "sequence") errs.push(`${s.id}: no sequence diagrams in a short (use flowchart TB)`);
+    if (s.kind === "flowchart" && ((s.diagram || "").match(/^\s*[A-Za-z][\w-]*\s*[\[({]/gm) || []).length > 7) warns.push(`${s.id}: more than 7 nodes is too small on a phone`);
     if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(LR|RL)/m.test(s.diagram || "")) errs.push(`${s.id}: flowcharts in a short run top-down (flowchart TB)`);
     if ((s.kind === "numbers" && (s.numbers || []).length > 4) || ((s.kind === "list" || s.kind === "chart") && (s.points || []).length > 5) || (s.kind === "timeline" && (s.events || []).length > 5)) warns.push(`${s.id}: too many items for a phone screen`);
   }

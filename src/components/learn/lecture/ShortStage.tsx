@@ -141,8 +141,10 @@ function PTitle({ s, t, first, fallback }: { s: LectureScene; t: number; first: 
 
 function PNumbers({ s, k, t }: { s: LectureScene; k: number; t: number }) {
   const nums = s.numbers || [];
+  // four cards plus a heading must fit the scene area: smaller cards when there are more of them
+  const tight = nums.length >= 4;
   return (
-    <div className="flex w-full flex-col gap-[2.2cqh]">
+    <div className={`flex w-full flex-col ${tight ? "gap-[1.3cqh]" : "gap-[2.2cqh]"}`}>
       {s.heading && <h2 className={`m-0 font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
       {nums.map((n, j) => {
         const on = j <= k;
@@ -151,11 +153,11 @@ function PNumbers({ s, k, t }: { s: LectureScene; k: number; t: number }) {
         return (
           <div
             key={j}
-            className="flex flex-col gap-[0.6cqh] border px-[4cqw] py-[2.2cqh]"
+            className={`flex flex-col gap-[0.4cqh] border px-[4cqw] ${tight ? "py-[1.3cqh]" : "py-[2.2cqh]"}`}
             style={{ borderColor: on ? "#ff6b2b" : "#2a2a2e", background: on ? "#1a0f08" : "transparent", opacity: on ? 1 : 0.28, boxShadow: fresh ? `0 0 ${5 * (1 - clamp(t / 1.2))}cqw rgba(255,107,43,0.35)` : "none" }}
           >
-            <span className={`font-display text-[10cqw] font-extrabold leading-none tracking-[-0.03em] ${W} tabular-nums`}>{fresh ? countUp(n.value, e) : n.value}</span>
-            <span className="text-[3.6cqw] leading-snug text-[#a3a3a8]">{n.label}</span>
+            <span className={`font-display ${tight ? "text-[8cqw]" : "text-[10cqw]"} font-extrabold leading-none tracking-[-0.03em] ${W} tabular-nums`}>{fresh ? countUp(n.value, e) : n.value}</span>
+            <span className={`${tight ? "text-[3.2cqw]" : "text-[3.6cqw]"} leading-snug text-[#a3a3a8]`}>{n.label}</span>
           </div>
         );
       })}
