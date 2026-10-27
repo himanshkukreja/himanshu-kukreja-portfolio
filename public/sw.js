@@ -420,9 +420,20 @@ async function runtimeFirst(req) {
 // saved lectures' media
 
 /** The stored bytes behind a saved lecture file (its pointer names a content-addressed blob). */
+// the same R2 bucket under its old and new hosts: a lecture saved before the move to the CDN domain
+// (28 Oct 2026) is stored under r2.dev, and must still play offline when the page asks the new host
+const MEDIA_HOSTS = ["https://media.himanshukukreja.in/", "https://pub-0ff4982d0a60493db492786c7c330ded.r2.dev/"];
+
 async function savedLectureFile(url) {
   const cache = await caches.open(MEDIA);
-  const ptr = await cache.match(url);
+  let ptr = await cache.match(url);
+  if (!ptr) {
+    const from = MEDIA_HOSTS.find((h) => url.startsWith(h));
+    for (const to of from ? MEDIA_HOSTS.filter((h) => h !== from) : []) {
+      ptr = await cache.match(to + url.slice(from.length));
+      if (ptr) break;
+    }
+  }
   if (!ptr) return null;
   const key = ptr.headers.get("x-hk-blob");
   if (!key) return ptr;
