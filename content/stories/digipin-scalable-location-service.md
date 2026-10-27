@@ -522,7 +522,7 @@ class DIGIPINService:
         WHERE ST_DWithin(
             center_point,
             ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography,
-            3  -- meters: a point is at most ~2.83 m from its 4m cell's centre
+            3.5  -- meters: cells are ~4.8 m × 4.5 m here, so a point can be ~3.3 m from its cell's centre
         )
         ORDER BY center_point <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326)::geography
         LIMIT 1
