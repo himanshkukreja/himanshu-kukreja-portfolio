@@ -122,7 +122,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
 
       {/* the scene */}
       <div
-        className="absolute inset-x-[6%] bottom-[36%] top-[13.5%] flex items-center justify-center"
+        className="absolute inset-x-[5%] bottom-[25%] top-[13.5%] flex items-center justify-center"
         style={{ opacity: clamp(enter * 1.4), transform: `translateY(${(1 - enter) * 6}cqh) scale(${(0.92 + 0.08 * enter) * punch * drift})` }}
       >
         {s.kind === "title" && <PTitle s={s} t={t} first={cur.step === 0} fallback={lecture.title} />}
@@ -153,7 +153,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
 
       {/* Reels captions: big, a few words at a time, the spoken word lit */}
       {!dup && group.length > 0 && (
-        <div className="absolute inset-x-[5%] top-[66%] flex justify-center">
+        <div className="absolute inset-x-[5%] top-[77%] flex justify-center">
           <p
             className="m-0 text-center font-display text-[9cqw] font-extrabold uppercase leading-[1.04] tracking-[-0.01em] [word-spacing:0.12em]"
             style={{ transform: `scale(${0.86 + 0.14 * back(gIn)})`, opacity: clamp(gIn * 3), WebkitTextStroke: "0.5cqw #0b0b0c", paintOrder: "stroke fill", textShadow: "0 1cqw 3cqw rgba(0,0,0,0.7)" }}
@@ -177,6 +177,13 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
 
       {/* a cut: a quick flash as a new scene lands */}
       {flash > 0 && <div aria-hidden className="absolute inset-0 bg-[#ff6b2b]" style={{ opacity: flash }} />}
+
+      {/* the end card: the last beat holds ~2 s (export.mjs) on where to go next */}
+      {i === flat.length - 1 && (
+        <div className="absolute inset-x-[6%] top-[86%] flex flex-col items-center gap-[1.2cqh]" style={{ opacity: clamp((t - 0.3) / 0.4), transform: `translateY(${(1 - clamp((t - 0.3) / 0.4)) * 2}cqh)` }}>
+          <span className="bg-[#ff6b2b] px-[4cqw] py-[1.2cqh] font-mono text-[3.6cqw] font-bold uppercase tracking-[0.06em] text-[#120700]">▶ full lecture + article</span>
+        </div>
+      )}
 
       {/* the site, small */}
       <div className="absolute inset-x-0 bottom-[3.2%] text-center font-mono text-[2.6cqw] tracking-[0.06em] text-[#8a8a90]">
@@ -219,7 +226,7 @@ function PNumbers({ s, k, t }: { s: LectureScene; k: number; t: number }) {
   const tight = nums.length >= 4;
   return (
     <div className={`flex w-full flex-col ${tight ? "gap-[1.3cqh]" : "gap-[2.2cqh]"}`}>
-      {s.heading && <h2 className={`m-0 font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
+      {s.heading && <h2 className={`m-0 font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
       {nums.map((n, j) => {
         const on = j <= k;
         const fresh = j === k;
@@ -230,8 +237,8 @@ function PNumbers({ s, k, t }: { s: LectureScene; k: number; t: number }) {
             className={`flex flex-col gap-[0.4cqh] border px-[4cqw] ${tight ? "py-[1.3cqh]" : "py-[2.2cqh]"}`}
             style={{ borderColor: on ? "#ff6b2b" : "#2a2a2e", background: on ? "#1a0f08" : "transparent", opacity: on ? 1 : 0.28, boxShadow: fresh ? `0 0 ${5 * (1 - clamp(t / 1.2))}cqw rgba(255,107,43,0.35)` : "none" }}
           >
-            <span className={`font-display ${tight ? "text-[8cqw]" : "text-[10cqw]"} font-extrabold leading-none tracking-[-0.03em] ${W} tabular-nums`}>{fresh ? countUp(n.value, e) : n.value}</span>
-            <span className={`${tight ? "text-[3.2cqw]" : "text-[3.6cqw]"} leading-snug text-[#a3a3a8]`}>{n.label}</span>
+            <span className={`font-display ${tight ? "text-[9.44cqw]" : "text-[11.8cqw]"} font-extrabold leading-none tracking-[-0.03em] ${W} tabular-nums`}>{fresh ? countUp(n.value, e) : n.value}</span>
+            <span className={`${tight ? "text-[3.78cqw]" : "text-[4.25cqw]"} leading-snug text-[#a3a3a8]`}>{n.label}</span>
           </div>
         );
       })}
@@ -244,11 +251,11 @@ function PList({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt:
   const [now, before] = revealed(st, prevSt, points.length);
   return (
     <div className="flex w-full flex-col gap-[2.4cqh]">
-      <h2 className={`m-0 font-display text-[6.8cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
+      <h2 className={`m-0 font-display text-[8.02cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       {points.slice(0, now).map((p, k) => (
         <Item key={k} fresh={k >= before} t={t} k0={k - before} className="flex items-baseline gap-[3cqw] border-l-[0.8cqw] border-[#ff6b2b] bg-[#141416] px-[4cqw] py-[2cqh]">
-          <span className="font-mono text-[3.4cqw] text-[#ff6b2b]">{String(k + 1).padStart(2, "0")}</span>
-          <span className={`text-[4.6cqw] leading-snug ${W}`}>{p}</span>
+          <span className="font-mono text-[4.01cqw] text-[#ff6b2b]">{String(k + 1).padStart(2, "0")}</span>
+          <span className={`text-[5.43cqw] leading-snug ${W}`}>{p}</span>
         </Item>
       ))}
     </div>
@@ -266,11 +273,11 @@ function PCompare({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prev
     const lit = offset === 0 ? now > 0 : now > L.points.length;
     return (
       <div className="flex flex-col gap-[1.4cqh] border px-[4cqw] py-[2.2cqh]" style={{ borderColor: tone.line, background: tone.bg, opacity: lit ? 1 : 0.32 }}>
-        <span className="font-mono text-[3cqw] uppercase tracking-[0.1em]" style={{ color: tone.fg }}>
+        <span className="font-mono text-[3.54cqw] uppercase tracking-[0.1em]" style={{ color: tone.fg }}>
           {side.title}
         </span>
         {side.points.slice(0, shown).map((p, k) => (
-          <Item key={k} fresh={offset + k >= before} t={t} k0={offset + k - before} className={`text-[4.2cqw] leading-snug ${W}`}>
+          <Item key={k} fresh={offset + k >= before} t={t} k0={offset + k - before} className={`text-[4.96cqw] leading-snug ${W}`}>
             <span style={{ color: tone.fg }}>{(side.tone || fallbackTone) === "bad" ? "✕ " : (side.tone || fallbackTone) === "good" ? "✓ " : "· "}</span>
             {p}
           </Item>
@@ -280,9 +287,9 @@ function PCompare({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prev
   };
   return (
     <div className="flex w-full flex-col gap-[2cqh]">
-      <h2 className={`m-0 font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
+      <h2 className={`m-0 font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       {box(L, 0, "bad")}
-      <div className="text-center font-display text-[5cqw] font-extrabold leading-none text-[#ff6b2b]">vs</div>
+      <div className="text-center font-display text-[5.9cqw] font-extrabold leading-none text-[#ff6b2b]">vs</div>
       {box(R, L.points.length, "good")}
     </div>
   );
@@ -295,7 +302,7 @@ function PChart({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt
   const fmt = (v: number) => `${v >= 1000 ? v.toLocaleString("en-IN") : Number.isInteger(v) ? v : v.toFixed(1)}${s.unit ? ` ${s.unit}` : ""}`;
   return (
     <div className="flex w-full flex-col gap-[2.6cqh]">
-      <h2 className={`m-0 font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
+      <h2 className={`m-0 font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       {pts.map((p, k) => {
         const shown = k < now;
         const fresh = shown && k >= before;
@@ -304,8 +311,8 @@ function PChart({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt
         return (
           <div key={k} className="flex flex-col gap-[0.8cqh]" style={{ opacity: shown ? 1 : 0.22 }}>
             <span className="flex items-baseline justify-between gap-[3cqw]">
-              <span className="text-[3.8cqw] leading-tight text-[#c9c8c4]">{p.label}</span>
-              <span className={`font-display text-[5.4cqw] font-extrabold tabular-nums ${W}`} style={{ opacity: shown ? e : 0 }}>
+              <span className="text-[4.48cqw] leading-tight text-[#c9c8c4]">{p.label}</span>
+              <span className={`font-display text-[6.37cqw] font-extrabold tabular-nums ${W}`} style={{ opacity: shown ? e : 0 }}>
                 {fmt(Math.round(p.value * e * 10) / 10)}
               </span>
             </span>
@@ -325,7 +332,7 @@ function PTimeline({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pre
   const lineE = before === 0 ? prog(t, 0, 0.9) : 1;
   return (
     <div className="flex w-full flex-col gap-[3cqh]">
-      <h2 className={`m-0 font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
+      <h2 className={`m-0 font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       <div className="relative flex flex-col gap-[2.6cqh] pl-[9cqw]">
         <div className="absolute left-[2.6cqw] top-[1cqh] w-[0.6cqw] bg-[#3a3a40]" style={{ height: `${lerp(0, 96, lineE)}%` }} />
         {ev.map((x, k) => {
@@ -340,8 +347,8 @@ function PTimeline({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pre
                 className="absolute -left-[8.4cqw] top-[0.4cqh] block h-[5cqw] w-[5cqw] rounded-full border-[0.7cqw]"
                 style={{ borderColor: tone.line, background: latest ? tone.line : "#0b0b0c", transform: `scale(${fresh ? 0.6 + 0.4 * e : 1})`, boxShadow: latest ? `0 0 3cqw ${tone.line}88` : "none" }}
               />
-              <span className="font-mono text-[3.4cqw] text-[#ff6b2b]">{x.at}</span>
-              <span className={`text-[4.4cqw] leading-snug ${latest ? W : "text-[#a3a3a8]"}`}>{x.text}</span>
+              <span className="font-mono text-[4.01cqw] text-[#ff6b2b]">{x.at}</span>
+              <span className={`text-[5.19cqw] leading-snug ${latest ? W : "text-[#a3a3a8]"}`}>{x.text}</span>
             </div>
           );
         })}
@@ -360,22 +367,22 @@ function PPhone({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt
   const toastE = sc.toast ? prog(t, changed ? 0.6 : 0.1, 0.45) : 0;
   return (
     <div className="flex h-full w-full flex-col items-center gap-[2.4cqh]">
-      {s.heading && <h2 className={`m-0 w-full font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
+      {s.heading && <h2 className={`m-0 w-full font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
       <div className="relative min-h-0 flex-1 aspect-[9/17] rounded-[5cqw] border-[0.8cqw] border-[#3a3a40] bg-[#111113] p-[2.4cqw] shadow-[0_3cqw_8cqw_rgba(0,0,0,0.6)]">
         <div className="mx-auto mb-[1.4cqh] h-[1.2cqh] w-[30%] rounded-full bg-[#222226]" />
         <div className="flex h-[calc(100%-3cqh)] flex-col gap-[1.6cqh] overflow-hidden rounded-[3cqw] bg-[#0b0b0c] p-[3cqw]" style={{ opacity: e, transform: `translateX(${(1 - e) * 3}cqw)` }}>
-          <span className="font-mono text-[2.4cqw] uppercase tracking-[0.12em] text-[#8a8a90]">{s.app}</span>
-          <span className={`font-display text-[4.6cqw] font-extrabold leading-tight ${W}`}>{sc.title}</span>
+          <span className="font-mono text-[2.83cqw] uppercase tracking-[0.12em] text-[#8a8a90]">{s.app}</span>
+          <span className={`font-display text-[5.43cqw] font-extrabold leading-tight ${W}`}>{sc.title}</span>
           {sc.rows.slice(0, now).map((r, j) => {
             const tone = TONE[r.tone || "neutral"];
             return (
               <Item key={`${k}-${j}`} fresh={j >= before} t={t} k0={j - before} className="flex items-center justify-between gap-[1.6cqw] border-b border-[#1d1d20] pb-[1.2cqh]">
                 <span className="flex min-w-0 items-center gap-[1.6cqw]">
                   <span className="h-[1.8cqw] w-[1.8cqw] shrink-0 rounded-full" style={{ background: tone.line }} />
-                  <span className={`text-[3.2cqw] leading-snug ${W}`}>{r.text}</span>
+                  <span className={`text-[3.78cqw] leading-snug ${W}`}>{r.text}</span>
                 </span>
                 {r.meta && (
-                  <span className="shrink-0 font-mono text-[2.6cqw]" style={{ color: tone.fg }}>
+                  <span className="shrink-0 font-mono text-[3.07cqw]" style={{ color: tone.fg }}>
                     {r.meta}
                   </span>
                 )}
@@ -385,7 +392,7 @@ function PPhone({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt
         </div>
         {sc.toast && (
           <div
-            className="absolute inset-x-[6%] top-[6%] rounded-[2.4cqw] border border-[#3a3a40] bg-[#1b1b1e] px-[3cqw] py-[1.4cqh] text-[3cqw] text-[#f3f2ee] shadow-[0_2cqw_4cqw_rgba(0,0,0,0.5)]"
+            className="absolute inset-x-[6%] top-[6%] rounded-[2.4cqw] border border-[#3a3a40] bg-[#1b1b1e] px-[3cqw] py-[1.4cqh] text-[3.54cqw] text-[#f3f2ee] shadow-[0_2cqw_4cqw_rgba(0,0,0,0.5)]"
             style={{ opacity: toastE, transform: `translateY(${(1 - toastE) * -4}cqh)` }}
           >
             {sc.toast}

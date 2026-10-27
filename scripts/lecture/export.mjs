@@ -88,7 +88,8 @@ const durations = [];
 const list = [];
 for (const s of steps) {
   const wav = path.join(OUT, "audio", `${s.id}.wav`);
-  const hold = GAP + s.pause + (s.quizAsk ? QUIZ_WAIT : 0);
+  // a short's last beat holds ~2 s on its end card, so it doesn't stop on the last word
+  const hold = GAP + s.pause + (s.quizAsk ? QUIZ_WAIT : 0) + (SHORT && s === steps[steps.length - 1] ? 2.2 : 0);
   ff("-i", path.join(OUT, "audio", `${s.id}.raw.wav`), "-af", `apad=pad_dur=${hold}`, "-ar", "44100", "-ac", "1", wav);
   durations.push(dur(wav));
   list.push(`file '${wav}'`);
