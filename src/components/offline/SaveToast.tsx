@@ -5,16 +5,20 @@ import Link from "next/link";
 import { useEffect } from "react";
 import { cancelSave, dismissJob, useSaveJob } from "@/lib/offline/jobs";
 import { fmtBytes } from "./format";
+import { useOffline } from "./OfflineProvider";
 
 export default function SaveToast() {
   const job = useSaveJob();
+  const { install } = useOffline();
+  // iPhone / iPad Safari can clear a site's data after about a week unvisited; the home-screen app keeps it
+  const iosTip = !!job && job.status === "done" && install.ios && !install.installed;
 
-  // a finished run fades after a while; a stopped one waits to be read
+  // a finished run fades after a while (longer when there's a tip to read); a stopped one waits to be read
   useEffect(() => {
     if (!job || job.status !== "done") return;
-    const t = window.setTimeout(dismissJob, job.failed ? 12_000 : 6000);
+    const t = window.setTimeout(dismissJob, job.failed || iosTip ? 12_000 : 6000);
     return () => window.clearTimeout(t);
-  }, [job]);
+  }, [job, iosTip]);
 
   if (!job) return null;
   const total = job.urls.length;
@@ -54,6 +58,11 @@ export default function SaveToast() {
           : `${ok} of ${total} saved · ${fmtBytes(job.bytes)}${job.failed ? ` · ${job.failed} failed` : ""}`}
       </p>
       {job.error && <p className="m-0 mt-2 text-sm leading-snug text-fg">{job.error}</p>}
+      {iosTip && (
+        <p className="m-0 mt-2 text-[13px] leading-snug text-fg-2">
+          <strong className="text-fg">On iPhone, add the course to your Home Screen</strong> (Share → Add to Home Screen) so iOS keeps your downloads: Safari can clear them after about a week without a visit.
+        </p>
+      )}
       {job.status !== "running" && (
         <Link href="/learn/offline" onClick={dismissJob} className="mt-2 inline-flex min-h-9 items-center font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4">
           open the offline library →
