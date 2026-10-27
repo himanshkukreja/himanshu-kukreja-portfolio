@@ -553,7 +553,26 @@ function PhoneScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pr
 type Box = { x: number; y: number; w: number; h: number };
 type Cam = { s: number; x: number; y: number };
 
-export function DiagramScene({ s, st, prevSt, t, i, onReady, show }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; i: number; onReady?: (i: number) => void; show?: string[] }) {
+export function DiagramScene({
+  s,
+  st,
+  prevSt,
+  t,
+  i,
+  onReady,
+  show,
+  zoom,
+}: {
+  s: LectureScene;
+  st: LectureStep;
+  prevSt: LectureStep | null;
+  t: number;
+  i: number;
+  onReady?: (i: number) => void;
+  show?: string[];
+  /** the camera's closest zoom on the lit nodes (default 1.8; state diagrams 2.3) — a narrow frame wants less */
+  zoom?: number;
+}) {
   const src = diagramFor(s, st);
   const [svg, setSvg] = useState<{ src: string; html: string } | null>(null);
   const camRef = useRef<HTMLDivElement>(null);
@@ -650,7 +669,7 @@ export function DiagramScene({ s, st, prevSt, t, i, onReady, show }: { s: Lectur
       }
       packets(root, edges, flow, t);
       // camera
-      const maxZoom = s.kind === "state" ? 2.3 : 1.8;
+      const maxZoom = zoom ?? (s.kind === "state" ? 2.3 : 1.8);
       const target = camFor(asked ? show! : (st.focus ?? st.highlight ?? []), boxes.current, size.current, maxZoom);
       const from = asked ? target : prevSt ? camFor(prevSt.focus ?? prevSt.highlight ?? [], boxes.current, size.current, maxZoom) : { s: 1, x: 0, y: 0 };
       const c = easeInOut(t / 0.95);
