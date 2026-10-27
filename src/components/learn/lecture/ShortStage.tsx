@@ -52,8 +52,12 @@ function tidy(words: { w: string; s: number; e: number }[]) {
     const x = words[k];
     const m = words[k + 2];
     if (/^\d[\d,]*$/.test(x.w) && words[k + 1]?.w.toLowerCase() === "point" && m && /^\d+[.,!?;:]*$/.test(m.w)) {
-      out.push({ w: `${x.w}.${m.w}`, s: x.s, e: m.e });
-      k += 2;
+      // "1 point 2 5" (digits read one by one) is 1.25: take every digit token that follows
+      let j = k + 2;
+      let frac = m.w;
+      while (/^\d+$/.test(frac) && /^\d+[.,!?;:]*$/.test(words[j + 1]?.w || "")) frac += words[++j].w;
+      out.push({ w: `${x.w}.${frac}`, s: x.s, e: words[j].e });
+      k = j;
       continue;
     }
     const p = out[out.length - 1];
