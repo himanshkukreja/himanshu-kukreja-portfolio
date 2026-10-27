@@ -397,8 +397,8 @@ function PPhone({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt
           <span className={`font-display text-[5.43cqw] font-extrabold leading-tight ${W}`}>{sc.title}</span>
           {sc.rows.slice(0, now).map((r, j) => {
             const tone = TONE[r.tone || "neutral"];
-            // a long note ("This site may harm your computer.") goes under the row's text instead of squeezing it
-            const long = (r.meta || "").length > 12;
+            // a note that won't sit beside the row's text on one line goes under it instead of squeezing it
+            const long = !!r.meta && (r.meta.length > 10 || r.text.length + r.meta.length > 20);
             return (
               <Item
                 key={`${k}-${j}`}
