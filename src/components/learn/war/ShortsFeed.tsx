@@ -81,13 +81,13 @@ export default function ShortsFeed({ shorts }: { shorts: WarShort[] }) {
       <button
         type="button"
         onClick={() => setMuted((m) => !m)}
-        className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+92px)] right-4 z-40 inline-flex h-11 items-center gap-2 bg-signal px-3.5 font-mono text-xs font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] lg:bottom-6 lg:right-6"
+        className="fixed right-3 top-[calc(var(--hk-header-h,61px)+10px)] z-40 inline-flex h-10 items-center gap-2 bg-signal px-3 font-mono text-xs font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] lg:bottom-6 lg:right-6 lg:top-auto lg:h-11 lg:px-3.5"
         aria-pressed={!muted}
       >
         {muted ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
         {muted ? "tap for sound" : "sound on"}
       </button>
-      <ol className="m-0 h-[calc(100dvh-var(--hk-header-h,61px))] list-none snap-y snap-mandatory overflow-y-auto overscroll-contain p-0 [scrollbar-width:none]">
+      <ol className="m-0 h-[calc(100dvh-var(--hk-header-h,61px)-67px-env(safe-area-inset-bottom,0px))] list-none lg:h-[calc(100dvh-var(--hk-header-h,61px))] snap-y snap-mandatory overflow-y-auto overscroll-contain p-0 [scrollbar-width:none]">
         {shorts.map((s, k) => (
           <li
             key={s.slug}
@@ -109,7 +109,7 @@ export default function ShortsFeed({ shorts }: { shorts: WarShort[] }) {
               className="h-full max-h-full w-auto max-w-full"
             />
             </div>
-            {/* phones: the story link and share under the frame */}
+            {/* phones: the story link and share under the frame (the feed ends above the tab bar) */}
             <div className="flex w-full max-w-[420px] items-center justify-between gap-2 font-mono text-[11px] lg:hidden">
               <span className="text-fg-3">
                 {k + 1}/{shorts.length} · {fmt(s.seconds)}
