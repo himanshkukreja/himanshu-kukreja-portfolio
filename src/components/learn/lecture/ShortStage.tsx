@@ -15,9 +15,11 @@ import { DiagramScene, Item, revealed } from "./Stage";
 
 const W = "text-[#f3f2ee]";
 
-/** this step's caption line: its sentences, timed by length (as the player does) */
+/** this step's caption line: its sentences, timed by length. A sentence ends at . ! or ? followed by a
+ *  space or the end, so "9.2", "GitLab.com" or "e.g" never cut a caption in half. */
 function captionAt(say: string, f: number): string {
-  const parts = say.match(/[^.!?]+[.!?]+["']?|[^.!?]+$/g)?.map((x) => x.trim()) || [say];
+  const parts = say.split(/(?<=[.!?]["'’”]?)\s+/).map((x) => x.trim()).filter(Boolean);
+  if (!parts.length) return say;
   const total = parts.reduce((a, p) => a + p.length, 0) || 1;
   let acc = 0;
   for (const p of parts) {

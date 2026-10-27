@@ -23,7 +23,7 @@ export async function getLecture(slug: string): Promise<Lecture | null> {
   }
 }
 
-/** A vertical short's script (resources/shorts/shorts--<long id>.json), rendered at 1080x1920. */
+/** A vertical short's script (resources/shorts/<id>.json, id shorts--<long id>[--<part>]), rendered at 1080x1920. */
 export async function getShort(id: string): Promise<Lecture | null> {
   if (!/^shorts--[A-Za-z0-9-]{1,160}$/.test(id)) return null;
   try {

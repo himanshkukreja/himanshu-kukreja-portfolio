@@ -81,6 +81,13 @@ if (L.short) {
   if (!L.short.of || !L.short.article || !L.short.label) errs.push("short needs of (the long lecture id), article (its page) and label");
   if (!Array.isArray(L.short.topics) || L.short.topics.length < 1 || L.short.topics.length > 3) errs.push("short needs 1-3 topics (lowercase tags like caching, databases, incidents)");
   else for (const tg of L.short.topics) if (!/^[a-z][a-z0-9-]{1,24}$/.test(tg)) errs.push(`topic "${tg}" must be a lowercase tag`);
+  // `at` must be a scene of the long lecture (looked up next to this file: ../lectures or ../lectures-next)
+  if (L.short.at) {
+    const dir = path.dirname(path.resolve(f));
+    const longFile = [path.join(dir, "..", "lectures", `${L.short.of}.json`), path.join(dir, "..", "lectures-next", `${L.short.of}.json`)].find((x) => fs.existsSync(x));
+    if (!longFile) warns.push(`long lecture ${L.short.of} not found next to this file`);
+    else if (!JSON.parse(fs.readFileSync(longFile, "utf8")).scenes?.some((s) => s.id === L.short.at)) errs.push(`at "${L.short.at}" isn't a scene of ${L.short.of}`);
+  } else warns.push("short has no at: the full-lecture link opens at the start");
   for (const s of L.scenes || []) {
     if (["quiz"].includes(s.kind)) errs.push(`${s.id}: shorts have no quizzes`);
     if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(LR|RL)/m.test(s.diagram || "")) errs.push(`${s.id}: flowcharts in a short run top-down (flowchart TB)`);
@@ -124,7 +131,8 @@ if (L.v === 2) {
   if (words < wMin || words > wMax) warns.push(`narration is ${words} words (${kind} target ${wMin}-${wMax})`);
   if (quizzes < qMin || quizzes > qMax) warns.push(`${quizzes} quiz checkpoints (${kind} target ${qMin}-${qMax})`);
   if ((L.scenes || []).length < sMin || (L.scenes || []).length > sMax) warns.push(`${(L.scenes || []).length} scenes (${kind} target ${sMin}-${sMax})`);
-  for (const s of L.scenes || []) if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(TD|TB)/m.test(s.diagram || "")) warns.push(`${s.id}: flowchart should be LR for video`);
+  // 16:9 lectures read left to right; vertical shorts run top-down (checked in the short rules above)
+  if (!L.short) for (const s of L.scenes || []) if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(TD|TB)/m.test(s.diagram || "")) warns.push(`${s.id}: flowchart should be LR for video`);
   for (const s of L.scenes || []) if (s.kind === "flowchart" && /<br\/?>/.test(s.diagram || "")) warns.push(`${s.id}: flowchart labels should be one line (no <br/>)`);
 }
 console.log(`${f.split("/").pop()}: ${L.scenes?.length} scenes, ${steps} steps, ${words} words (~${(words / 150).toFixed(1)} min), ${quizzes} quizzes`);
