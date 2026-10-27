@@ -93,7 +93,7 @@ function jobs(): Job[] {
       const source = l.lesson?.kind === "case"
         ? [`<case_file>\n${read(path.join(CASES, `${l.lesson.slug}.md`))}\n</case_file>`]
         : l.lesson
-        ? [`<lesson>\n${read(path.join(RES, l.lesson.week, `${l.lesson.slug}.md`))}\n</lesson>`]
+        ? [`<lesson>\n${read(path.join(RES, l.lesson.week === "war-stories" ? "war-stories/stories" : l.lesson.week, `${l.lesson.slug}.md`))}\n</lesson>`]
         : [`<side_quest>\n${read(path.join(RES, "bonus-problems", `${slug}.md`))}\n</side_quest>`, `<design_sheet>\n${read(path.join(RES, "design-sheets", `${slug}.md`)) || "(none)"}\n</design_sheet>`];
       const prompt = [
         ...source,
