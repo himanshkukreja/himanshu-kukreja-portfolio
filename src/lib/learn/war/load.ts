@@ -135,3 +135,25 @@ export async function getWarRoom(slug: string): Promise<WarRoom | null> {
   if (!/^[a-z0-9-]{1,100}$/.test(slug)) return null;
   return (await data()).roomBySlug[slug] ?? null;
 }
+
+/** A war story's vertical short (9:16, 2-3 min): resources/war-stories/shorts.json lists them, the files sit
+ * on the lecture media host next to the story's lecture (lectures/war-stories--<slug>/short.mp4 and .jpg). */
+export type WarShort = { slug: string; lecture: string; title: string; company: string; when: string; href: string; seconds: number; src: string; poster: string };
+
+export async function getShorts(): Promise<WarShort[]> {
+  const base = (process.env.NEXT_PUBLIC_LECTURE_MEDIA || "").replace(/\/$/, "");
+  if (!/^https?:\/\//.test(base)) return [];
+  let list: { slug: string; dur: number; v: string }[] = [];
+  try {
+    list = JSON.parse(await fetchMarkdownContent(`${DIR}/shorts.json`));
+  } catch {
+    return [];
+  }
+  const d = await data();
+  return list.flatMap((x) => {
+    const st = d.storyBySlug[x.slug];
+    if (!st) return [];
+    const lecture = `war-stories--${x.slug}`;
+    return [{ slug: x.slug, lecture, title: st.title, company: st.company, when: st.when, href: st.href, seconds: x.dur, src: `${base}/${lecture}/short.mp4?v=${x.v}`, poster: `${base}/${lecture}/short.jpg?v=${x.v}` }];
+  });
+}

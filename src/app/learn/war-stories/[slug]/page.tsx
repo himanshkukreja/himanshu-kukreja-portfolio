@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getStory, getWarStories } from "@/lib/learn/war/load";
+import { getShorts, getStory, getWarStories } from "@/lib/learn/war/load";
+import ShortEntry from "@/components/learn/war/ShortEntry";
 import { THEME_LABEL } from "@/lib/learn/war/types";
 import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
 import StoryRead from "@/components/learn/war/StoryRead";
@@ -31,7 +32,8 @@ export async function generateMetadata({ params }: Props) {
 export default async function StoryPage({ params }: Props) {
   const s = await getStory((await params).slug);
   if (!s) notFound();
-  const [{ stories }, lecture] = await Promise.all([getWarStories(), getLecture(lessonLectureId("war-stories", s.slug)).then(lectureCard).catch(() => null)]);
+  const [{ stories }, lecture, shorts] = await Promise.all([getWarStories(), getLecture(lessonLectureId("war-stories", s.slug)).then(lectureCard).catch(() => null), getShorts().catch(() => [])]);
+  const short = shorts.find((x) => x.slug === s.slug) ?? null;
   const i = stories.findIndex((x) => x.slug === s.slug);
   const next = stories.length > 1 ? stories[(i + 1) % stories.length] : null;
   return (
@@ -62,6 +64,7 @@ export default async function StoryPage({ params }: Props) {
         <SaveOfflineButton title={`War story · ${s.title}`} kind="warstory" url={s.href} className="self-start" />
       </header>
       {lecture && <LectureEntry lecture={lecture} what="The whole story" className="m-0" />}
+      {short && <ShortEntry short={short} />}
       <article className="course-content max-w-none" dangerouslySetInnerHTML={{ __html: s.html }} />
       <section aria-labelledby="src-h" className="flex flex-col gap-2 border-t border-line pt-5">
         <h2 id="src-h" className="m-0 font-mono text-xs uppercase tracking-label text-fg-3">

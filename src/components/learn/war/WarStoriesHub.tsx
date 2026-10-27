@@ -30,7 +30,7 @@ function useLocal() {
   return s;
 }
 
-export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories: StorySummary[]; rooms: WarRoomSummary[]; videos?: Record<string, number> }) {
+export default function WarStoriesHub({ stories, rooms, videos = {}, shorts = 0 }: { stories: StorySummary[]; rooms: WarRoomSummary[]; videos?: Record<string, number>; shorts?: number }) {
   const local = useLocal();
   const [theme, setTheme] = useState<StoryTheme | "all">("all");
   // today's IST date on the client (the page itself is cached for a day)
@@ -59,6 +59,11 @@ export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories
         <p className="m-0 font-mono text-xs text-fg-3">
           {stories.length} real stories{Object.keys(videos).length ? ` · ${Object.keys(videos).length} with a short video` : ""}{local ? ` · ${readCount} read` : ""} · {rooms.length} war room{rooms.length === 1 ? "" : "s"}
         </p>
+        {shorts > 0 && (
+          <Link href="/learn/war-stories/shorts" className="inline-flex min-h-11 items-center gap-2 self-start bg-signal px-4 font-mono text-sm font-semibold text-on-signal">
+            ▶ swipe through {shorts} shorts
+          </Link>
+        )}
       </header>
 
       {today && (
