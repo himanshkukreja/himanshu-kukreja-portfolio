@@ -70,8 +70,9 @@ export async function GET(req: NextRequest) {
       userId: c.user_id,
       name: names.get(c.user_id) ?? null,
       text: toText(c.raw_content || c.content),
-      where: `${c.week}/${c.lesson_slug}`,
-      href: `/learn/${encodeURIComponent(c.course_id)}/${encodeURIComponent(c.week)}/${encodeURIComponent(c.lesson_slug)}`,
+      // shorts reuse lesson_comments under course "shorts"
+      where: c.course_id === "shorts" ? `shorts/${c.lesson_slug.replace(/^shorts--/, "")}` : `${c.week}/${c.lesson_slug}`,
+      href: c.course_id === "shorts" ? `/learn/shorts?v=${encodeURIComponent(c.lesson_slug)}` : `/learn/${encodeURIComponent(c.course_id)}/${encodeURIComponent(c.week)}/${encodeURIComponent(c.lesson_slug)}`,
       parentId: c.parent_id,
       upvotes: c.upvotes ?? 0,
       createdAt: c.created_at,

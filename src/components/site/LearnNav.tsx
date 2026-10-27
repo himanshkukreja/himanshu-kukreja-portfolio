@@ -120,13 +120,13 @@ export function LearnTabs({ pathname }: { pathname: string }) {
 }
 
 /**
- * Phone/tablet bottom dock in learn mode: back to the site + the five course tabs. The site link
- * takes a narrower column so "notebook" and "practice" still fit on a 320 px phone (labels drop to
- * 10 px below 360 px).
+ * Phone/tablet bottom dock in learn mode: back to the site + the six course tabs, always on one row.
+ * The site link takes a narrower column; labels drop to 10 px below 400 px and the gaps close below
+ * 360 px, so "stories" still fits on a 320 px phone.
  */
 export function LearnDock({ pathname, className }: { pathname: string; className: string }) {
   return (
-    <nav aria-label="Course" className={`${className} grid-cols-[minmax(0,0.7fr)_repeat(5,minmax(0,1fr))] max-[359px]:gap-0.5 max-[359px]:px-1.5 max-[359px]:[&>a]:text-[10px]`}>
+    <nav aria-label="Course" className={`${className} grid-cols-[minmax(0,0.6fr)_repeat(6,minmax(0,1fr))] max-[399px]:gap-0.5 max-[399px]:[&>a]:text-[10px] max-[359px]:gap-0 max-[359px]:px-1 max-[359px]:[&>a]:tracking-[-0.03em]`}>
       <Link href="/" aria-label="Back to the site" className="flex min-h-12 flex-col items-center justify-center gap-1.5 font-mono text-[11px] text-fg-3">
         <span aria-hidden className="h-1.5 leading-none text-[10px]">
           ←

@@ -38,7 +38,7 @@ export default function ShortEntry({ short }: { short: PlayableShort }) {
                 <X className="h-5 w-5" aria-hidden />
               </button>
             </div>
-            <ShortPlayer short={short} className="min-h-0 w-auto flex-1" />
+            <ShortPlayer short={short} autoPlay className="aspect-[9/16] min-h-0 w-auto flex-1 border border-line-strong" />
           </div>
         </div>
       )}

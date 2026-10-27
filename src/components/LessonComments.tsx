@@ -32,12 +32,15 @@ type LessonCommentsProps = {
   courseId: string;
   week: string;
   lessonSlug: string;
+  /** inside a sheet (shorts): no top rule or margin, a smaller heading, and "short" instead of "lesson" */
+  compact?: boolean;
 };
 
 export default function LessonComments({
   courseId,
   week,
   lessonSlug,
+  compact = false,
 }: LessonCommentsProps) {
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
@@ -353,9 +356,9 @@ export default function LessonComments({
   }, 0);
 
   return (
-    <section aria-labelledby="discussion-h" className="mt-12 flex flex-col gap-4 border-t border-line pt-6">
+    <section aria-labelledby="discussion-h" className={`flex flex-col gap-4 ${compact ? "" : "mt-12 border-t border-line pt-6"}`}>
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
-        <h2 id="discussion-h" className="m-0 font-display text-[26px] font-bold tracking-[-0.02em]">
+        <h2 id="discussion-h" className={`m-0 font-display font-bold tracking-[-0.02em] ${compact ? "text-[18px]" : "text-[26px]"}`}>
           Discussion · {loading ? "…" : total}
         </h2>
         <label className="flex items-center gap-2 font-mono text-xs text-fg-3">
@@ -371,7 +374,7 @@ export default function LessonComments({
           </select>
         </label>
       </div>
-      <p className="m-0 text-[13px] text-fg-3">Public: everyone reading this lesson sees comments. Be kind and keep it on the material.</p>
+      <p className="m-0 text-[13px] text-fg-3">Public: everyone {compact ? "watching this short" : "reading this lesson"} sees comments. Be kind and keep it on the material.</p>
 
       {user ? (
         <div className="flex flex-col gap-2">
