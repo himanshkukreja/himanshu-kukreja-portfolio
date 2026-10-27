@@ -32,8 +32,9 @@ import ShareButton from "@/components/share/ShareButton";
 import { SaveCourseButton } from "@/components/offline/OfflineLibrary";
 import { InstallButton } from "@/components/offline/Install";
 import { useOffline } from "@/components/offline/OfflineProvider";
+import ShortsTeaser, { type TeaserShort } from "@/components/learn/war/ShortsTeaser";
 
-export default function CourseHub({ map }: { map: CourseMap }) {
+export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { items: TeaserShort[]; total: number } }) {
   const { ready, signedIn, lessons, done } = useLearnProgress(map.courseId);
   const { profile } = useAuth();
   const { xp, flags, setFlag, awardOnce, hydrated } = useGame();
@@ -201,6 +202,9 @@ export default function CourseHub({ map }: { map: CourseMap }) {
           </aside>
         )}
       </section>
+
+      {/* Shorts: one idea in under two minutes, the way in for a scroller */}
+      {shorts && <ShortsTeaser shorts={shorts.items} total={shorts.total} />}
 
       {/* Side quests */}
       <section aria-labelledby="side-h" className="flex flex-col gap-[18px]">

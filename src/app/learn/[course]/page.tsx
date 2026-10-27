@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { getCourseMap } from "@/lib/learn/course";
 import CourseHub from "@/components/learn/hub/CourseHub";
+import { listShorts } from "@/lib/learn/shorts/load";
 import { JsonLd, breadcrumbs, course as courseLd } from "@/lib/seo/jsonld";
 
 export const runtime = "nodejs";
@@ -27,8 +28,14 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function CoursePage({ params }: Props) {
   const { course } = await params;
-  const map = await getCourseMap(course);
+  const [map, shorts] = await Promise.all([getCourseMap(course), listShorts().catch(() => [])]);
   if (!map) notFound();
+  // the shorts row: an even spread across every category for the client to pick from (fresh each visit)
+  const stride = Math.max(1, Math.floor(shorts.length / 24));
+  const sample = shorts
+    .filter((_, k) => k % stride === 0)
+    .slice(0, 24)
+    .map((s) => ({ id: s.id, title: s.title, label: s.label, poster: s.poster }));
   const path = `/learn/${course}`;
   return (
     <>
@@ -41,7 +48,7 @@ export default async function CoursePage({ params }: Props) {
           ]),
         ]}
       />
-      <CourseHub map={map} />
+      <CourseHub map={map} shorts={{ items: sample, total: shorts.length }} />
     </>
   );
 }
