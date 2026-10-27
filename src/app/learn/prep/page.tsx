@@ -5,6 +5,7 @@ import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import { getSheetSummaries } from "@/lib/learn/sheets/load";
 import { getCompanies, getQuestionBank } from "@/lib/learn/prep/load";
 import { listLectures } from "@/lib/learn/lecture/load";
+import { getWarStories } from "@/lib/learn/war/load";
 import PrepHub, { type PracticeData } from "@/components/learn/prep/PrepHub";
 import { lectureGroupAnchor, lectureGroupCode } from "@/lib/learn/lecture/types";
 
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
  * works offline.
  */
 export default async function PrepPage() {
-  const [map, labs, revision, sheets, companies, bank, lectures] = await Promise.all([
+  const [map, labs, revision, sheets, companies, bank, lectures, war] = await Promise.all([
     getCourseMap(COURSE_ID).catch(() => null),
     getLabSummaries().catch(() => []),
     getRevisionWeeks().catch(() => []),
@@ -33,6 +34,7 @@ export default async function PrepPage() {
     getCompanies().catch(() => []),
     getQuestionBank().catch(() => []),
     listLectures().catch(() => []),
+    getWarStories().catch(() => ({ stories: [], rooms: [] })),
   ]);
   const decks = revision.filter((w) => w.lessons.length > 0);
   const data: PracticeData = {
@@ -43,6 +45,7 @@ export default async function PrepPage() {
     },
     labs: labs.map((l) => ({ id: l.id, xp: l.xp })),
     mocks: map?.mocks ?? [],
+    warRooms: war.rooms.length,
     companies: [...companies].sort((a, b) => b.reported - a.reported || a.name.localeCompare(b.name)),
     bank: { questions: bank.length, reported: bank.filter((b) => b.companies.some((c) => c.evidence === "reported")).length },
     problems: (map?.problems ?? []).map((l) => ({ code: l.code, title: l.title, href: l.href })),

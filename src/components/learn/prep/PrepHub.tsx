@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CalendarDays, Calculator, Code2, FileText, Layers, ListChecks, Map as MapIcon, Mic, PlayCircle, Users } from "lucide-react";
+import { Building2, CalendarDays, Calculator, Code2, FileText, Layers, ListChecks, Map as MapIcon, Mic, PlayCircle, Siren, Users } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useLabProgress } from "@/lib/learn/labs/progress";
 import { labKey } from "@/lib/learn/labs/types";
@@ -34,6 +34,8 @@ export type PracticeData = {
   revision: { weeks: { key: string; id: string; code: string; title: string; lessons: string[] }[]; lessons: number; cards: number };
   labs: { id: string; xp: number }[];
   mocks: CourseMock[];
+  /** war rooms (incident simulations) at /learn/war-stories/war-room */
+  warRooms: number;
   /** companies with a prep page, and the question bank's size */
   companies: CompanySummary[];
   bank: { questions: number; reported: number };
@@ -330,6 +332,18 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           meta="needs an account"
           reach={offline ? "away" : "online"}
         />
+        {data.warRooms > 0 && (
+          <Card
+            href="/learn/war-stories/war-room"
+            icon={Siren}
+            kicker="war rooms"
+            state="you're on call"
+            title="Take the page"
+            pitch="A SEV-1 plays out in the incident channel and you make the calls. Each night is modelled on a real postmortem: practice for on-call and for “tell me about an incident”."
+            meta={`${data.warRooms} incident nights · 8–15 min`}
+            reach={reach("/learn/war-stories/war-room")}
+          />
+        )}
       </Group>
 
       {/* tools */}

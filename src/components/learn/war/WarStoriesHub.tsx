@@ -31,7 +31,6 @@ function useLocal() {
 }
 
 export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories: StorySummary[]; rooms: WarRoomSummary[]; videos?: Record<string, number> }) {
-  const { done, hydrated } = useGame();
   const local = useLocal();
   const [theme, setTheme] = useState<StoryTheme | "all">("all");
   // today's IST date on the client (the page itself is cached for a day)
@@ -45,7 +44,6 @@ export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories
   const themes = useMemo(() => STORY_THEMES.filter((t) => stories.some((s) => s.theme === t)), [stories]);
   const list = theme === "all" ? stories : stories.filter((s) => s.theme === theme);
   const readCount = local ? stories.filter((s) => local.read.includes(s.slug)).length : 0;
-  const cleared = (slug: string) => (hydrated && !!done[warRoomKey(slug)]) || !!local?.runs[slug];
 
   return (
     <main className="mx-auto flex max-w-[1320px] flex-col gap-12 px-4 pb-28 pt-6 sm:px-6 sm:pt-14">
@@ -59,7 +57,7 @@ export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories
           postmortems, where you make the calls.
         </p>
         <p className="m-0 font-mono text-xs text-fg-3">
-          {stories.length} real stories{local ? ` · ${readCount} read` : ""} · {rooms.length} war room{rooms.length === 1 ? "" : "s"}
+          {stories.length} real stories{Object.keys(videos).length ? ` · ${Object.keys(videos).length} with a short video` : ""}{local ? ` · ${readCount} read` : ""} · {rooms.length} war room{rooms.length === 1 ? "" : "s"}
         </p>
       </header>
 
@@ -71,47 +69,11 @@ export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories
           </span>
           <span className="max-w-[900px] font-display text-[clamp(28px,4.4vw,48px)] font-extrabold leading-[1] tracking-[-0.03em] text-fg group-hover:text-signal-text">{today.title}</span>
           <span className="max-w-[720px] text-[16px] leading-relaxed text-fg-2">{today.hook}</span>
-          <span className="font-mono text-xs text-fg-3">{today.minutes} min read · with sources →</span>
+          <span className="font-mono text-xs text-fg-3">
+            {today.minutes} min read · with sources{videos[today.slug] ? <span className="text-signal-text"> · ▶ {videos[today.slug]}-min video</span> : null} →
+          </span>
         </Link>
       )}
-
-      {/* war rooms */}
-      <section aria-labelledby="rooms-h" className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-line pb-3">
-          <h2 id="rooms-h" className="m-0 flex flex-col gap-1">
-            <span className={`${LABEL} text-signal-text`}>war room · you&apos;re on call</span>
-            <span className="font-display text-[28px] font-bold leading-none tracking-[-0.02em] text-fg sm:text-[34px]">Take the page</span>
-          </h2>
-          <span className="max-w-[460px] text-[14px] text-fg-3">Fictional company and people; each night is modelled on a real public postmortem, named at the end.</span>
-        </div>
-        {rooms.length === 0 ? (
-          <p className="m-0 border border-dashed border-line p-5 text-[15px] text-fg-3">The first war rooms are being written.</p>
-        ) : (
-          <ul className="m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))]">
-            {rooms.map((r) => {
-              const c = cleared(r.slug);
-              const best = local?.runs[r.slug];
-              return (
-                <li key={r.slug}>
-                  <Link href={r.href} className={`flex h-full flex-col gap-3 border p-5 hover:border-fg-3 ${c ? "border-line-strong bg-surface-2" : "border-line bg-surface"}`}>
-                    <span className="flex items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-label">
-                      <span>
-                        <span className="bg-bad px-1.5 py-0.5 font-semibold text-white">{r.sev}</span> <span className="text-fg-3">· {r.starts} · {r.company}</span>
-                      </span>
-                      <span className={c ? "text-fg" : "text-signal-text"}>{c ? "cleared ✓" : `+${WAR_ROOM_XP} xp`}</span>
-                    </span>
-                    <span className="font-display text-[22px] font-bold leading-[1.1] tracking-[-0.02em] text-fg">{r.title}</span>
-                    {r.product && <span className="text-[14px] leading-snug text-fg-2">{r.product}</span>}
-                    <span className="mt-auto font-mono text-xs text-fg-3">
-                      ~{r.minutes} min · {r.decisions} calls{best ? ` · best: ${best.wrong} wrong` : ""}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </section>
 
       {/* real stories */}
       <section aria-labelledby="stories-h" className="flex flex-col gap-4">
@@ -164,6 +126,61 @@ export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories
           </ul>
         )}
       </section>
+
+      {/* war rooms: after the stories, with their own page (also linked from Prep) */}
+      <section aria-labelledby="rooms-h" className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-line pb-3">
+          <h2 id="rooms-h" className="m-0 flex flex-col gap-1">
+            <span className={`${LABEL} text-signal-text`}>war room · you&apos;re on call</span>
+            <span className="font-display text-[28px] font-bold leading-none tracking-[-0.02em] text-fg sm:text-[34px]">Take the page</span>
+          </h2>
+          <span className="flex max-w-[520px] flex-col gap-1 text-[14px] text-fg-3 sm:items-end sm:text-right">
+            Fictional company and people; each night is modelled on a real public postmortem, named at the end.
+            <Link href="/learn/war-stories/war-room" className="font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+              all {rooms.length} war rooms →
+            </Link>
+          </span>
+        </div>
+        <WarRoomGrid rooms={rooms} />
+      </section>
     </main>
+  );
+}
+
+/** The war-room cards (the hub and /learn/war-stories/war-room). */
+export function WarRoomGrid({ rooms }: { rooms: WarRoomSummary[] }) {
+  const { done, hydrated } = useGame();
+  const local = useLocal();
+  const cleared = (slug: string) => (hydrated && !!done[warRoomKey(slug)]) || !!local?.runs[slug];
+  return (
+    <>
+    {rooms.length === 0 ? (
+      <p className="m-0 border border-dashed border-line p-5 text-[15px] text-fg-3">The first war rooms are being written.</p>
+    ) : (
+      <ul className="m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fit,minmax(min(320px,100%),1fr))]">
+        {rooms.map((r) => {
+          const c = cleared(r.slug);
+          const best = local?.runs[r.slug];
+          return (
+            <li key={r.slug}>
+              <Link href={r.href} className={`flex h-full flex-col gap-3 border p-5 hover:border-fg-3 ${c ? "border-line-strong bg-surface-2" : "border-line bg-surface"}`}>
+                <span className="flex items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-label">
+                  <span>
+                    <span className="bg-bad px-1.5 py-0.5 font-semibold text-white">{r.sev}</span> <span className="text-fg-3">· {r.starts} · {r.company}</span>
+                  </span>
+                  <span className={c ? "text-fg" : "text-signal-text"}>{c ? "cleared ✓" : `+${WAR_ROOM_XP} xp`}</span>
+                </span>
+                <span className="font-display text-[22px] font-bold leading-[1.1] tracking-[-0.02em] text-fg">{r.title}</span>
+                {r.product && <span className="text-[14px] leading-snug text-fg-2">{r.product}</span>}
+                <span className="mt-auto font-mono text-xs text-fg-3">
+                  ~{r.minutes} min · {r.decisions} calls{best ? ` · best: ${best.wrong} wrong` : ""}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    )}
+    </>
   );
 }
