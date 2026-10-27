@@ -30,7 +30,7 @@ function useLocal() {
   return s;
 }
 
-export default function WarStoriesHub({ stories, rooms }: { stories: StorySummary[]; rooms: WarRoomSummary[] }) {
+export default function WarStoriesHub({ stories, rooms, videos = {} }: { stories: StorySummary[]; rooms: WarRoomSummary[]; videos?: Record<string, number> }) {
   const { done, hydrated } = useGame();
   const local = useLocal();
   const [theme, setTheme] = useState<StoryTheme | "all">("all");
@@ -153,7 +153,10 @@ export default function WarStoriesHub({ stories, rooms }: { stories: StorySummar
                     </span>
                     <span className="font-display text-[20px] font-bold leading-[1.15] tracking-[-0.02em] text-fg">{s.title}</span>
                     <span className="text-[14px] leading-snug text-fg-2">{s.hook}</span>
-                    {s.when && <span className="mt-auto pt-1 font-mono text-xs text-fg-4">{s.when}</span>}
+                    <span className="mt-auto flex items-center justify-between gap-2 pt-1 font-mono text-xs text-fg-4">
+                      <span>{s.when}</span>
+                      {videos[s.slug] ? <span className="text-signal-text">▶ {videos[s.slug]}-min video</span> : null}
+                    </span>
                   </Link>
                 </li>
               );

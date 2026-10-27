@@ -1,5 +1,7 @@
 import { getWarStories } from "@/lib/learn/war/load";
 import WarStoriesHub from "@/components/learn/war/WarStoriesHub";
+import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
+import { lessonLectureId } from "@/lib/learn/lecture/types";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses).
@@ -14,5 +16,8 @@ export const metadata = {
 
 export default async function WarStoriesPage() {
   const { stories, rooms } = await getWarStories();
-  return <WarStoriesHub stories={stories} rooms={rooms} />;
+  // which stories have a released video, and how long it is
+  const cards = await Promise.all(stories.map((s) => getLecture(lessonLectureId("war-stories", s.slug)).then(lectureCard).catch(() => null)));
+  const videos = Object.fromEntries(stories.flatMap((s, k) => (cards[k] ? [[s.slug, cards[k]!.minutes]] : [])));
+  return <WarStoriesHub stories={stories} rooms={rooms} videos={videos} />;
 }
