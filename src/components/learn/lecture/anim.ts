@@ -17,12 +17,16 @@ export function countUp(value: string, e: number): string {
   const m = value.match(/^([^\d]*?)(\d[\d,]*(?:\.\d+)?)(.*)$/);
   if (!m || e >= 1) return value;
   const [, pre, num, post] = m;
+  // only a single plain number counts up: "2^53 − 1", "7–10", "10:00" would read as nonsense mid-count
+  if (/\d/.test(pre + post)) return value;
   const n = Number(num.replace(/,/g, ""));
   if (!Number.isFinite(n)) return value;
   const decimals = (num.split(".")[1] || "").length;
   const v = n * easeOut(e);
   const s = decimals ? v.toFixed(decimals) : Math.round(v).toString();
-  return `${pre}${num.includes(",") ? Number(s).toLocaleString("en-IN") : s}${post}`;
+  // keep the grouping the value is written in: Indian (2,00,000) or international (200,000)
+  const indian = /\d,\d\d,\d{3}/.test(num);
+  return `${pre}${num.includes(",") ? Number(s).toLocaleString(indian ? "en-IN" : "en-US") : s}${post}`;
 }
 
 export const TONE: Record<string, { fg: string; bg: string; line: string }> = {

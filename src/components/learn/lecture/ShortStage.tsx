@@ -182,7 +182,15 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
         <div className="absolute inset-x-[5%] top-[77%] flex justify-center">
           <p
             className="m-0 flex flex-wrap justify-center gap-x-[0.42em] text-center font-display text-[9cqw] font-extrabold uppercase leading-[1.04] tracking-[-0.01em]"
-            style={{ transform: `scale(${0.86 + 0.14 * back(gIn)})`, opacity: clamp(gIn * 3), WebkitTextStroke: "0.5cqw #0b0b0c", paintOrder: "stroke fill", textShadow: "0 1cqw 3cqw rgba(0,0,0,0.7)" }}
+            style={{
+              transform: `scale(${0.86 + 0.14 * back(gIn)})`,
+              opacity: clamp(gIn * 3),
+              WebkitTextStroke: "0.5cqw #0b0b0c",
+              paintOrder: "stroke fill",
+              textShadow: "0 1cqw 3cqw rgba(0,0,0,0.7)",
+              // a very long word (an 18-digit ID) shrinks the line to fit the frame instead of running off it
+              fontSize: `${Math.max(5, Math.min(9, (9 * 14) / Math.max(1, ...group.map((x) => x.w.length))))}cqw`,
+            }}
           >
             {group.map((x, k) => {
               const on = t >= x.s - 0.03 && (t < x.e + 0.05 || k === group.length - 1);
@@ -338,9 +346,14 @@ function PChart({ s, st, prevSt, t, locale }: { s: LectureScene; st: LectureStep
         return (
           <div key={k} className="flex flex-col gap-[0.8cqh]" style={{ opacity: shown ? 1 : 0.22 }}>
             <span className="flex items-baseline justify-between gap-[3cqw]">
-              <span className="text-[4.48cqw] leading-tight text-[#c9c8c4]">{p.label}</span>
-              <span className={`font-display text-[6.37cqw] font-extrabold tabular-nums ${W}`} style={{ opacity: shown ? e : 0 }}>
-                {fmt(Math.round(p.value * e * 10) / 10)}
+              <span className="min-w-0 flex-1 text-[4.48cqw] leading-tight text-[#c9c8c4]">{p.label}</span>
+              {/* one line, smaller when long ("200,000 ops a second"), so a 4-bar chart never grows into the captions;
+                  whole numbers count up in whole steps */}
+              <span
+                className={`shrink-0 whitespace-nowrap font-display font-extrabold tabular-nums ${W} ${fmt(p.value).length > 14 ? "text-[4.6cqw]" : fmt(p.value).length > 10 ? "text-[5.4cqw]" : "text-[6.37cqw]"}`}
+                style={{ opacity: shown ? e : 0 }}
+              >
+                {fmt(Number.isInteger(p.value) ? Math.round(p.value * e) : Math.round(p.value * e * 10) / 10)}
               </span>
             </span>
             <div className="h-[2.4cqh] w-full bg-[#1d1d20]">
