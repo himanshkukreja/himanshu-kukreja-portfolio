@@ -60,7 +60,7 @@ export default function WarStoriesHub({ stories, rooms, videos = {}, shorts = 0 
           {stories.length} real stories{Object.keys(videos).length ? ` · ${Object.keys(videos).length} with a short video` : ""}{local ? ` · ${readCount} read` : ""} · {rooms.length} war room{rooms.length === 1 ? "" : "s"}
         </p>
         {shorts > 0 && (
-          <Link href="/learn/war-stories/shorts" className="inline-flex min-h-11 items-center gap-2 self-start bg-signal px-4 font-mono text-sm font-semibold text-on-signal">
+          <Link href="/learn/shorts?cat=stories" className="inline-flex min-h-11 items-center gap-2 self-start bg-signal px-4 font-mono text-sm font-semibold text-on-signal">
             ▶ swipe through {shorts} shorts
           </Link>
         )}

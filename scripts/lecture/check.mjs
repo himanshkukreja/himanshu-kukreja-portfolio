@@ -76,8 +76,11 @@ const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8
 const kind = L.short ? "short" : L.lesson ? L.lesson.kind : "quest";
 // vertical shorts (resources/shorts/shorts--<long id>.json): portrait-friendly scenes only
 if (L.short) {
-  if (!/^shorts--[A-Za-z0-9-]+$/.test(L.quest || "") || L.quest !== `shorts--${L.short.of}`) errs.push(`short quest must be "shorts--${L.short?.of}"`);
+  // one lecture can give several shorts: shorts--<long id> or shorts--<long id>--<part slug>
+  if (!/^shorts--[A-Za-z0-9-]+$/.test(L.quest || "") || !(L.quest === `shorts--${L.short.of}` || (L.quest || "").startsWith(`shorts--${L.short.of}--`))) errs.push(`short quest must be "shorts--${L.short?.of}" or "shorts--${L.short?.of}--<part>"`);
   if (!L.short.of || !L.short.article || !L.short.label) errs.push("short needs of (the long lecture id), article (its page) and label");
+  if (!Array.isArray(L.short.topics) || L.short.topics.length < 1 || L.short.topics.length > 3) errs.push("short needs 1-3 topics (lowercase tags like caching, databases, incidents)");
+  else for (const tg of L.short.topics) if (!/^[a-z][a-z0-9-]{1,24}$/.test(tg)) errs.push(`topic "${tg}" must be a lowercase tag`);
   for (const s of L.scenes || []) {
     if (["quiz"].includes(s.kind)) errs.push(`${s.id}: shorts have no quizzes`);
     if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(LR|RL)/m.test(s.diagram || "")) errs.push(`${s.id}: flowcharts in a short run top-down (flowchart TB)`);

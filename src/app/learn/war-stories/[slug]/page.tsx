@@ -33,7 +33,7 @@ export default async function StoryPage({ params }: Props) {
   const s = await getStory((await params).slug);
   if (!s) notFound();
   const [{ stories }, lecture, shorts] = await Promise.all([getWarStories(), getLecture(lessonLectureId("war-stories", s.slug)).then(lectureCard).catch(() => null), getShorts().catch(() => [])]);
-  const short = shorts.find((x) => x.slug === s.slug) ?? null;
+  const short = shorts.find((x) => x.lecture === `war-stories--${s.slug}`) ?? null;
   const i = stories.findIndex((x) => x.slug === s.slug);
   const next = stories.length > 1 ? stories[(i + 1) % stories.length] : null;
   return (

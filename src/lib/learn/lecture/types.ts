@@ -54,7 +54,15 @@ export type Lecture = {
   cast?: { interviewer: CastMember; candidate: CastMember };
   /** a vertical short (resources/shorts/shorts--<long id>.json, rendered 1080x1920): the lecture it comes
    *  from, its written article, and the label shown on top ("W04 · Caching", "Side quest 21", …) */
-  short?: { of: string; article: string; label: string };
+  short?: {
+    of: string;
+    article: string;
+    label: string;
+    /** 1-3 lowercase topic tags for the feed's filters (caching, databases, incidents, …) */
+    topics?: string[];
+    /** where this idea sits in the long lecture: a scene id there (the "full lecture" link opens at it) */
+    at?: string;
+  };
   title: string;
   summary: string;
   scenes: LectureScene[];

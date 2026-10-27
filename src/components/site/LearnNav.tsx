@@ -15,11 +15,12 @@ export const COURSE_HREF = "/learn/system-design-mastery";
 export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/learn/");
 
 /**
- * Five tabs, one question each:
+ * Six tabs, one question each:
  *   course  · learn it    the course hub, lessons, side quests, concepts A–Z, the reading trail
  *   prep    · get hired   companies, the question bank, problem bank + low-level design, mock interviews,
  *                         revision decks, cheat and design sheets, code labs, numbers, the study planner
  *   arena   · play        daily challenge, leagues, games, the review queue, design of the week
+ *   shorts  · watch it   2-3 minute vertical shorts of everything, one idea each
  *   stories · see it real real stories and the war room
  *   you     · your stuff  progress, notebook, bookmarks, concept mastery, certificates
  * Keep in sync with the Prep hub (src/components/learn/prep) and the You sub-nav (src/components/learn/you).
@@ -32,15 +33,17 @@ export const isPrep = (p: string) => PREP_RE.test(p) || PREP_LESSON_RE.test(p);
 
 const isArena = (p: string) => /^\/learn\/(arena|review|design-week)(\/|$)/.test(p);
 const isStories = (p: string) => /^\/learn\/war-stories(\/|$)/.test(p);
+const isShorts = (p: string) => /^\/learn\/shorts(\/|$)/.test(p);
 export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "mastery", "certificate"] as const;
 const isYou = (p: string) => new RegExp(`^/learn/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
-const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isYou(p) && !/^\/learn\/(guide|offline)(\/|$)/.test(p);
+const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/learn\/(guide|offline)(\/|$)/.test(p);
 
 function tabs(pathname: string) {
   return [
     { href: COURSE_HREF, label: "course", on: isCourse(pathname) },
     { href: "/learn/prep", label: "prep", on: isPrep(pathname) },
     { href: "/learn/arena", label: "arena", on: isArena(pathname), badge: true },
+    { href: "/learn/shorts", label: "shorts", on: isShorts(pathname) },
     { href: "/learn/war-stories", label: "stories", on: isStories(pathname) },
     { href: "/learn/dashboard", label: "you", on: isYou(pathname) },
   ];

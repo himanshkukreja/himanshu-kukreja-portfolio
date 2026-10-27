@@ -10,6 +10,7 @@ import { renderLesson } from "@/lib/course/render";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import type { CourseLesson, CourseMap } from "@/lib/learn/types";
 import { parseStory, parseWarRoom } from "./parse";
+import type { PlayableShort } from "@/lib/learn/shorts/types";
 import { storyHref, warRoomHref, type LessonLink, type Story, type StorySummary, type WarRoom, type WarRoomSummary } from "./types";
 
 const DIR = "resources/war-stories";
@@ -136,11 +137,10 @@ export async function getWarRoom(slug: string): Promise<WarRoom | null> {
   return (await data()).roomBySlug[slug] ?? null;
 }
 
-/** A war story's vertical short (9:16, 2-3 min): resources/war-stories/shorts.json lists them, the files sit
- * on the lecture media host next to the story's lecture (lectures/war-stories--<slug>/short.mp4 and .jpg). */
-export type WarShort = { slug: string; lecture: string; title: string; company: string; when: string; href: string; seconds: number; src: string; poster: string };
-
-export async function getShorts(): Promise<WarShort[]> {
+/** A war story's letterboxed short (the first version: the 16:9 video in a 9:16 frame), until its native
+ * portrait short replaces it. resources/war-stories/shorts.json lists them; files at
+ * lectures/war-stories--<slug>/short.mp4 and .jpg on the lecture media host. */
+export async function getShorts(): Promise<PlayableShort[]> {
   const base = (process.env.NEXT_PUBLIC_LECTURE_MEDIA || "").replace(/\/$/, "");
   if (!/^https?:\/\//.test(base)) return [];
   let list: { slug: string; dur: number; v: string }[] = [];
@@ -154,6 +154,20 @@ export async function getShorts(): Promise<WarShort[]> {
     const st = d.storyBySlug[x.slug];
     if (!st) return [];
     const lecture = `war-stories--${x.slug}`;
-    return [{ slug: x.slug, lecture, title: st.title, company: st.company, when: st.when, href: st.href, seconds: x.dur, src: `${base}/${lecture}/short.mp4?v=${x.v}`, poster: `${base}/${lecture}/short.jpg?v=${x.v}` }];
+    return [
+      {
+        id: lecture,
+        title: st.title,
+        label: ["War story", st.company, st.when].filter(Boolean).join(" · "),
+        category: "stories" as const,
+        topics: ["incidents"],
+        lecture,
+        full: `/learn/lectures/${lecture}`,
+        article: st.href,
+        src: `${base}/${lecture}/short.mp4?v=${x.v}`,
+        poster: `${base}/${lecture}/short.jpg?v=${x.v}`,
+        seconds: x.dur,
+      },
+    ];
   });
 }
