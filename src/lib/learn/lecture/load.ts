@@ -23,6 +23,18 @@ export async function getLecture(slug: string): Promise<Lecture | null> {
   }
 }
 
+/** A vertical short's script (resources/shorts/shorts--<long id>.json), rendered at 1080x1920. */
+export async function getShort(id: string): Promise<Lecture | null> {
+  if (!/^shorts--[A-Za-z0-9-]{1,160}$/.test(id)) return null;
+  try {
+    const l = JSON.parse(await fetchMarkdownContent(`resources/shorts/${id}.json`)) as Lecture;
+    return Array.isArray(l.scenes) && l.scenes.length && l.short ? l : null;
+  } catch (e) {
+    if (!isContentMissing(e) && process.env.NODE_ENV !== "production") console.warn(`[short] ${id}:`, (e as Error).message);
+    return null;
+  }
+}
+
 /** Fingerprint of a lecture's script; recorded media made from another version is ignored. */
 export const lectureHash = (l: Lecture) => crypto.createHash("sha1").update(JSON.stringify(l)).digest("hex").slice(0, 12);
 

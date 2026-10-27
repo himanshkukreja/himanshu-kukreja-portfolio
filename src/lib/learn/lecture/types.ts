@@ -52,6 +52,9 @@ export type Lecture = {
   lesson?: { week: string; slug: string; kind: "preview" | "lesson" | "capstone" | "problem" | "lld" | "case" | "interview" | "story" };
   /** mock interview videos: the two people on the call, each with a Kokoro voice */
   cast?: { interviewer: CastMember; candidate: CastMember };
+  /** a vertical short (resources/shorts/shorts--<long id>.json, rendered 1080x1920): the lecture it comes
+   *  from, its written article, and the label shown on top ("W04 · Caching", "Side quest 21", …) */
+  short?: { of: string; article: string; label: string };
   title: string;
   summary: string;
   scenes: LectureScene[];

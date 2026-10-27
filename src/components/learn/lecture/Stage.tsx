@@ -291,13 +291,13 @@ function NumbersScene({ s, k, t }: { s: LectureScene; k: number; t: number }) {
 }
 
 /** how many items a reveal shows now, and how many the step before showed (to animate the new ones) */
-function revealed(st: LectureStep, prevSt: LectureStep | null, all: number): [number, number] {
+export function revealed(st: LectureStep, prevSt: LectureStep | null, all: number): [number, number] {
   const now = st.reveal ?? all;
   const before = prevSt ? (prevSt.reveal ?? all) : 0;
   return [now, Math.min(before, now)];
 }
 
-function Item({ fresh, t, k0, children, className = "", style }: { fresh: boolean; t: number; k0: number; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
+export function Item({ fresh, t, k0, children, className = "", style }: { fresh: boolean; t: number; k0: number; children: React.ReactNode; className?: string; style?: React.CSSProperties }) {
   const e = fresh ? prog(t, 0.12 + k0 * 0.12, 0.45) : 1;
   return (
     <div className={className} style={{ ...style, opacity: e, transform: `translateX(${(1 - e) * -2.5}cqw)` }}>
@@ -553,7 +553,7 @@ function PhoneScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pr
 type Box = { x: number; y: number; w: number; h: number };
 type Cam = { s: number; x: number; y: number };
 
-function DiagramScene({ s, st, prevSt, t, i, onReady, show }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; i: number; onReady?: (i: number) => void; show?: string[] }) {
+export function DiagramScene({ s, st, prevSt, t, i, onReady, show }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; i: number; onReady?: (i: number) => void; show?: string[] }) {
   const src = diagramFor(s, st);
   const [svg, setSvg] = useState<{ src: string; html: string } | null>(null);
   const camRef = useRef<HTMLDivElement>(null);

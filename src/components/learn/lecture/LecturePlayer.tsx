@@ -25,6 +25,7 @@ import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
+import ShortStage from "./ShortStage";
 import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
 import LectureShare from "./LectureShare";
 import LectureVote from "./LectureVote";
@@ -183,7 +184,11 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
   const f = flat[frame.i];
   return (
     <div className="fixed inset-0 z-[200] bg-[#0b0b0c]">
-      <Stage lecture={lecture} flat={flat} i={frame.i} t={frame.t} dur={frame.dur} quest={quest} onReady={onReady} caption={null} quiz={f?.s.kind === "quiz" ? { picked: null } : undefined} />
+      {lecture.short ? (
+        <ShortStage lecture={lecture} flat={flat} i={frame.i} t={frame.t} dur={frame.dur} onReady={onReady} />
+      ) : (
+        <Stage lecture={lecture} flat={flat} i={frame.i} t={frame.t} dur={frame.dur} quest={quest} onReady={onReady} caption={null} quiz={f?.s.kind === "quiz" ? { picked: null } : undefined} />
+      )}
     </div>
   );
 }

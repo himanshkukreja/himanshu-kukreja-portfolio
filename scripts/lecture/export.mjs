@@ -132,7 +132,9 @@ writeMedia(undefined);
 const browser = await puppeteer.launch({ executablePath: "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", headless: "new", protocolTimeout: 600000, args: ["--no-sandbox", "--hide-scrollbars", "--force-device-scale-factor=1"] });
 const page = await browser.newPage();
 page.on("pageerror", (e) => console.log("PAGEERROR:", e.message.slice(0, 200)));
-await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+// a vertical short (lec.short) renders at 1080x1920 from its own record page
+const PORTRAIT = !!lec.short;
+await page.setViewport(PORTRAIT ? { width: 1080, height: 1920, deviceScaleFactor: 1 } : { width: 1920, height: 1080, deviceScaleFactor: 1 });
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem("theme", "dark");
@@ -140,7 +142,7 @@ await page.evaluateOnNewDocument(() => {
     localStorage.setItem("hk.learn.seen", "1");
   } catch {}
 });
-await page.goto(`${SITE}/learn/lectures/${lec.quest}?record=1`, { waitUntil: "networkidle2", timeout: 240000 });
+await page.goto(`${SITE}/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}?record=1`, { waitUntil: "networkidle2", timeout: 240000 });
 await page.addStyleTag({ content: "nextjs-portal{display:none!important} *{transition:none!important;animation:none!important;caret-color:transparent!important}" });
 await page.waitForFunction(() => window.__LECTURE_READY === true && typeof window.__LECTURE_SET === "function", { timeout: 180000 });
 const plan = await page.evaluate(() => window.__LECTURE_PLAN);

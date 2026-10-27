@@ -72,8 +72,18 @@ for (const s of L.scenes || []) {
   }
 }
 // course lessons have their own ranges (resources/lectures/README.md, "Course lessons")
-const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10] };
-const kind = L.lesson ? L.lesson.kind : "quest";
+const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10], short: [300, 480, 0, 0, 5, 9] };
+const kind = L.short ? "short" : L.lesson ? L.lesson.kind : "quest";
+// vertical shorts (resources/shorts/shorts--<long id>.json): portrait-friendly scenes only
+if (L.short) {
+  if (!/^shorts--[A-Za-z0-9-]+$/.test(L.quest || "") || L.quest !== `shorts--${L.short.of}`) errs.push(`short quest must be "shorts--${L.short?.of}"`);
+  if (!L.short.of || !L.short.article || !L.short.label) errs.push("short needs of (the long lecture id), article (its page) and label");
+  for (const s of L.scenes || []) {
+    if (["quiz"].includes(s.kind)) errs.push(`${s.id}: shorts have no quizzes`);
+    if (s.kind === "flowchart" && /^\s*(flowchart|graph)\s+(LR|RL)/m.test(s.diagram || "")) errs.push(`${s.id}: flowcharts in a short run top-down (flowchart TB)`);
+    if ((s.kind === "numbers" && (s.numbers || []).length > 4) || ((s.kind === "list" || s.kind === "chart") && (s.points || []).length > 5) || (s.kind === "timeline" && (s.events || []).length > 5)) warns.push(`${s.id}: too many items for a phone screen`);
+  }
+}
 if (L.lesson) {
   if (!["preview", "lesson", "capstone", "problem", "lld", "case", "interview", "story"].includes(L.lesson.kind) || !L.lesson.week || !L.lesson.slug) errs.push("lesson needs week, slug and kind preview|lesson|capstone|problem|lld|case|interview|story");
   if (L.quest !== `${L.lesson.week}--${L.lesson.slug}`) errs.push(`quest must be "${L.lesson.week}--${L.lesson.slug}"`);
