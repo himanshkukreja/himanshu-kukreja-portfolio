@@ -397,14 +397,22 @@ function PPhone({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt
           <span className={`font-display text-[5.43cqw] font-extrabold leading-tight ${W}`}>{sc.title}</span>
           {sc.rows.slice(0, now).map((r, j) => {
             const tone = TONE[r.tone || "neutral"];
+            // a long note ("This site may harm your computer.") goes under the row's text instead of squeezing it
+            const long = (r.meta || "").length > 12;
             return (
-              <Item key={`${k}-${j}`} fresh={j >= before} t={t} k0={j - before} className="flex items-center justify-between gap-[1.6cqw] border-b border-[#1d1d20] pb-[1.2cqh]">
+              <Item
+                key={`${k}-${j}`}
+                fresh={j >= before}
+                t={t}
+                k0={j - before}
+                className={`flex border-b border-[#1d1d20] pb-[1.2cqh] ${long ? "flex-col gap-[0.6cqh]" : "items-center justify-between gap-[1.6cqw]"}`}
+              >
                 <span className="flex min-w-0 items-center gap-[1.6cqw]">
                   <span className="h-[1.8cqw] w-[1.8cqw] shrink-0 rounded-full" style={{ background: tone.line }} />
                   <span className={`text-[3.78cqw] leading-snug ${W}`}>{r.text}</span>
                 </span>
                 {r.meta && (
-                  <span className="shrink-0 font-mono text-[3.07cqw]" style={{ color: tone.fg }}>
+                  <span className={`font-mono text-[3.07cqw] ${long ? "pl-[3.4cqw] leading-snug" : "shrink-0"}`} style={{ color: tone.fg }}>
                     {r.meta}
                   </span>
                 )}
