@@ -13,6 +13,7 @@ import type { LectureSummary } from "@/lib/learn/lecture/load";
 import { lectureGroupAnchor } from "@/lib/learn/lecture/types";
 import { isWatched, readProgress, watchedPct, type LectureProgress } from "@/lib/learn/lecture/progress";
 import { LEVEL_TONE, type Level } from "@/lib/learn/level";
+import { compact, lectureStats } from "./LectureVote";
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
@@ -157,6 +158,15 @@ function SectionNav({ groups, progress, hydrated, active }: { groups: Group[]; p
 
 export default function LectureGrid({ lectures, mediaBase }: { lectures: LectureSummary[]; mediaBase: string | null }) {
   const { flags, hydrated } = useGame();
+  // viewers and upvotes per lecture (one cached fetch)
+  const [stats, setStats] = useState<Record<string, { v: number; u: number }>>({});
+  useEffect(() => {
+    let off = false;
+    void lectureStats().then((s) => !off && setStats(s));
+    return () => {
+      off = true;
+    };
+  }, []);
   // older resume points kept only in this browser (before progress moved to the synced flags)
   const [legacy, setLegacy] = useState<Record<string, number>>({});
   useEffect(() => {
@@ -348,6 +358,8 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
                         <span className="mt-auto pt-2 font-mono text-[11px] text-fg-4">
                           {l.checkpoints} checkpoints · {l.chapters} chapters
                           {pct > 0 ? ` · ${done ? "watched" : `${pct}% watched`}` : ""}
+                          {stats[l.slug]?.v ? ` · ${compact(stats[l.slug].v)} viewer${stats[l.slug].v === 1 ? "" : "s"}` : ""}
+                          {stats[l.slug]?.u ? ` · ▲ ${compact(stats[l.slug].u)}` : ""}
                         </span>
                       </div>
                     </Link>

@@ -12,7 +12,7 @@ type Resp = {
   days: number;
   totals: { minutes: number; minutes7: number; minutesToday: number; viewers: number; viewers7: number; plays: number; completes: number; lectures: number };
   daily: { day: string; minutes: number; viewers: number }[];
-  lectures: { id: string; title: string; group: string; href: string; length: number | null; plays: number; viewers: number; minutes: number; completes: number; last: string }[];
+  lectures: { id: string; title: string; group: string; href: string; length: number | null; plays: number; viewers: number; minutes: number; completes: number; votes: number; last: string }[];
   learners: { id: string; userId: string | null; email: string | null; minutes: number; lectures: number; completes: number; last: string }[];
 };
 
@@ -89,6 +89,7 @@ export default function LecturesDashboard() {
                 render: (r) => `${(r.minutes / Math.max(1, r.viewers)).toFixed(1)}${r.length ? ` / ${r.length}` : ""} min`,
               },
               { key: "completes", header: "Finished", align: "right", sort: (r) => r.completes, render: (r) => fmtNum(r.completes) },
+              { key: "votes", header: "Upvotes", align: "right", sort: (r) => r.votes, render: (r) => fmtNum(r.votes) },
               { key: "last", header: "Last", hideOnPhone: true, sort: (r) => r.last, render: (r) => timeAgo(r.last) },
             ]}
           />

@@ -105,6 +105,11 @@ export async function GET(request: Request) {
       })
   );
 
+  // upvotes (all time) per lecture
+  const votes = new Map<string, number>();
+  const { data: vrows } = await supabase.from("lecture_votes").select("lecture_id").limit(20000);
+  for (const v of (vrows || []) as { lecture_id: string }[]) votes.set(v.lecture_id, (votes.get(v.lecture_id) || 0) + 1);
+
   return NextResponse.json({
     days,
     totals: { minutes: Math.round(secAll / 60), minutes7: Math.round(sec7 / 60), minutesToday: Math.round(secToday / 60), viewers: viewers.size, viewers7: viewers7.size, plays, completes, lectures: lectures.length },
@@ -120,6 +125,7 @@ export async function GET(request: Request) {
         viewers: p.viewers.size,
         minutes: Math.round((p.sec / 60) * 10) / 10,
         completes: p.completes,
+        votes: votes.get(id) || 0,
         last: p.last,
       }))
       .sort((a, b) => b.minutes - a.minutes),

@@ -27,6 +27,10 @@ import { track } from "@/lib/track";
 import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
 import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
 import LectureShare from "./LectureShare";
+import LectureVote from "./LectureVote";
+import { useAuth } from "@/contexts/AuthContext";
+import { useAuthModal } from "@/contexts/AuthModalContext";
+import { userFetch } from "@/components/learn/progress/userFetch";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INTRO } from "./anim";
 import { nextProgress, progressKey, readProgress } from "@/lib/learn/lecture/progress";
@@ -59,6 +63,9 @@ function captionAt(say: string, f: number): string {
   }
   return parts[parts.length - 1];
 }
+
+/** signed out (and not from a share link), a lecture plays this far, then asks to sign in (free) */
+const FREE_S = 60;
 
 /** seconds the end screen counts down before the next lecture plays itself */
 const AUTO_NEXT_S = 8;
@@ -187,6 +194,16 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   const slug = lecture.quest;
   const { awardOnce, flags, setFlag, hydrated } = useGame();
   const ai = useAiStatus();
+  const { user, loading: authLoading } = useAuth();
+  const { openAuthModal } = useAuthModal();
+  // a learner's public share link (?s=<token>): verified once, then it plays in full without an account
+  const [shared, setShared] = useState<string | null>(null);
+  const [gate, setGate] = useState(false);
+  const gated = !authLoading && !user && !shared;
+  const gatedRef = useRef(false);
+  useEffect(() => {
+    gatedRef.current = gated;
+  }, [gated]);
   const [media, setMedia] = useState<LectureMedia | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
@@ -241,6 +258,19 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
       window.clearTimeout(idleTimer.current);
     };
   }, [wake]);
+
+  useEffect(() => {
+    const s = new URLSearchParams(window.location.search).get("s");
+    if (!s) return;
+    let off = false;
+    fetch(`/api/learn/lectures/share?lecture=${encodeURIComponent(slug)}&s=${encodeURIComponent(s)}`)
+      .then((r) => (r.ok ? (r.json() as Promise<{ ok: boolean }>) : { ok: false }))
+      .then((d) => !off && d.ok && setShared(s))
+      .catch(() => {});
+    return () => {
+      off = true;
+    };
+  }, [slug]);
 
   // recorded narration, only if it was made from this exact script
   useEffect(() => {
@@ -405,6 +435,14 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
       // the recording can stop a few ms short of the duration it lists: its own end is the end too
       if (media && audioRef.current) tm = audioRef.current.ended ? duration : audioRef.current.currentTime;
       else tm = clockBase.current.time + ((performance.now() - clockBase.current.wall) / 1000) * rate;
+      // signed out: the first minute is free, then sign in to keep watching
+      if (gatedRef.current && tm >= FREE_S) {
+        pause(FREE_S);
+        setTime(FREE_S);
+        setGate(true);
+        track("lecture_gate", { quest: slug });
+        return;
+      }
       // a quiz's answer step waits for the learner's answer
       const k = stepAt(tm);
       const q = flat[k];
@@ -424,7 +462,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing, media, rate, starts, duration, answers, flat, stepAt, pause]);
+  }, [playing, media, rate, starts, duration, answers, flat, stepAt, pause, slug]);
 
   // the browser's voice when there's no recording: speak each step as it starts
   const spoken = useRef(-1);
@@ -460,6 +498,10 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     [duration],
   );
   const play = useCallback(() => {
+    if (gatedRef.current && timeRef.current >= FREE_S - 0.25) {
+      setGate(true);
+      return;
+    }
     let from = timeRef.current;
     if (from >= duration - 0.1) {
       from = 0;
@@ -698,6 +740,22 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           onClose={closeAsk}
           fs={fs && !pip}
         />
+      ) : gate && gated ? (
+        <div className="absolute inset-0 z-10 grid place-items-center bg-black/80 p-4 text-center sm:p-6">
+          <div className="flex max-w-[520px] flex-col items-center gap-2 sm:gap-3">
+            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">free · just sign in</span>
+            <span className="font-display text-[clamp(18px,3vw,32px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">Sign in to keep watching</span>
+            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">Every lecture is free with an account. You also keep your place, earn XP on the checkpoints and can ask the AI about any moment.</span>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button type="button" onClick={openAuthModal} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
+                sign in free
+              </button>
+              <button type="button" onClick={() => { setGate(false); seek(0); }} className="min-h-11 border border-[#3a3a40] px-4 font-mono text-sm text-[#f3f2ee]">
+                ↺ from the start
+              </button>
+            </div>
+          </div>
+        </div>
       ) : ended && next ? (
         <div className="absolute inset-0 z-10 grid place-items-center bg-black/75 p-4 text-center sm:p-6">
           <div className="flex flex-col items-center gap-2 sm:gap-3">
@@ -767,7 +825,17 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           )}
           {/* the page + its recorded audio, captions and poster, to watch with no internet */}
           <SaveOfflineButton title={lecture.title} kind="lecture" url={`/learn/lectures/${slug}`} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
+          <LectureVote id={slug} />
         </div>
+        {gated && (
+          <p className="m-0 font-mono text-[12px] text-fg-3">
+            The first minute is open to everyone. The rest is free too:{" "}
+            <button type="button" onClick={openAuthModal} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+              sign in
+            </button>{" "}
+            to watch it all.
+          </p>
+        )}
       </header>
 
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
@@ -901,7 +969,17 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
                 </option>
               ))}
             </select>
-            <LectureShare slug={slug} title={lecture.title} time={time} chapter={cur.s.title} />
+            <LectureShare
+              slug={slug}
+              title={lecture.title}
+              time={time}
+              chapter={cur.s.title}
+              getToken={async () => {
+                if (!user) return shared;
+                const r = await userFetch("/api/learn/lectures/share", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ lecture: slug }) });
+                return r.ok ? ((await r.json()) as { token: string }).token : null;
+              }}
+            />
             {canPip && (
               <button type="button" onClick={() => void togglePip()} className={`${btn} !hidden sm:!grid`} title="Picture in picture" aria-label="Picture in picture">
                 ⧉

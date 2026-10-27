@@ -3,7 +3,8 @@
 /**
  * The player's Share button: a link to this lecture that starts at the current moment (?t=<seconds>,
  * which the player seeks to on load), or from the start. Copy, the system share sheet where there is
- * one, and WhatsApp / LinkedIn / X. Lectures are public, so the link works for anyone, signed in or not.
+ * one, and WhatsApp / LinkedIn / X. Playing needs an account (the first minute is free); a signed-in
+ * learner's link carries their share token (s=…), so whoever opens it can watch all of it without one.
  */
 import { useEffect, useRef, useState } from "react";
 import { Share2 } from "lucide-react";
@@ -11,13 +12,14 @@ import { track } from "@/lib/track";
 
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
 
-export default function LectureShare({ slug, title, time, chapter, className = "" }: { slug: string; title: string; time: number; chapter: string; className?: string }) {
+export default function LectureShare({ slug, title, time, chapter, getToken, className = "" }: { slug: string; title: string; time: number; chapter: string; getToken?: () => Promise<string | null>; className?: string }) {
   const [open, setOpen] = useState(false);
   // the moment is taken when the panel opens, so the link doesn't drift while it's being shared
   const [at, setAt] = useState(0);
   const [fromHere, setFromHere] = useState(true);
   const [copied, setCopied] = useState(false);
   const [canShare, setCanShare] = useState(false);
+  const [token, setToken] = useState<string | null>(null);
   const box = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -34,7 +36,8 @@ export default function LectureShare({ slug, title, time, chapter, className = "
   }, [open]);
 
   const start = fromHere && at >= 5 ? Math.floor(at) : 0;
-  const url = `${typeof window === "undefined" ? "https://www.himanshukukreja.in" : window.location.origin}/learn/lectures/${slug}${start ? `?t=${start}` : ""}`;
+  const qs = [token ? `s=${token}` : "", start ? `t=${start}` : ""].filter(Boolean).join("&");
+  const url = `${typeof window === "undefined" ? "https://www.himanshukukreja.in" : window.location.origin}/learn/lectures/${slug}${qs ? `?${qs}` : ""}`;
   const text = start ? `${title}: watch from ${fmt(start)} (${chapter})` : title;
   const sent = (channel: string) => track("lecture_share", { quest: slug, at: start, channel });
 
@@ -70,6 +73,7 @@ export default function LectureShare({ slug, title, time, chapter, className = "
           setAt(time);
           setFromHere(time >= 5);
           setCanShare(typeof navigator !== "undefined" && typeof navigator.share === "function");
+          if (!open && getToken) void getToken().then(setToken).catch(() => setToken(null));
           setOpen((o) => !o);
         }}
         aria-expanded={open}
@@ -108,7 +112,9 @@ export default function LectureShare({ slug, title, time, chapter, className = "
               </a>
             ))}
           </div>
-          <span className="text-[12px] leading-snug text-fg-3">Anyone with the link can watch, no sign-in needed.</span>
+          <span className="text-[12px] leading-snug text-fg-3">
+            {token ? "Anyone with this link can watch all of it, no sign-in needed." : "Others get the first minute free. Sign in before sharing so your link plays in full for anyone."}
+          </span>
         </div>
       )}
     </div>
