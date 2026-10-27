@@ -42,7 +42,9 @@ for (const dir of process.argv.slice(2)) {
   // version the file URLs by script hash, so browsers never mix an old recording with new timings
   for (const k of ["audio", "music", "video", "poster", "captions"]) if (media[k]) media[k] = `${media[k].split("?")[0]}?v=${media.source}`;
   let bytes = 0;
-  for (const f of FILES) {
+  // a vertical short is only ever played as its MP4: skip the separate narration and music
+  const files = slug.startsWith("shorts--") ? ["video.mp4", "poster.jpg", "media.json"] : FILES;
+  for (const f of files) {
     const p = path.join(dir, f);
     if (!fs.existsSync(p)) continue;
     const body = f === "media.json" ? Buffer.from(JSON.stringify(media)) : fs.readFileSync(p);
