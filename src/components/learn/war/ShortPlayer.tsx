@@ -187,7 +187,7 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
       {!mounted ? (
         // far from the one on screen: just the poster, no video download yet
         // eslint-disable-next-line @next/next/no-img-element -- a plain poster frame, same file the <video> uses
-        <img src={short.poster} alt="" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} decoding="async" className="h-full w-full object-contain" />
+        <img src={short.poster} alt="" loading={priority ? "eager" : "lazy"} fetchPriority={priority ? "high" : "auto"} decoding="async" className="h-full w-full object-contain max-lg:object-top" />
       ) : (
       <video
         ref={v}
@@ -198,7 +198,8 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
         autoPlay={autoPlay}
         muted={muted}
         preload={preload}
-        className="h-full w-full cursor-pointer object-contain"
+        // phones: a 9:16 short on a taller screen sits at the top (as Reels do); the room below holds the title and links
+        className="h-full w-full cursor-pointer object-contain max-lg:object-top"
         onClick={() => {
           if (!onTap?.()) toggle();
         }}

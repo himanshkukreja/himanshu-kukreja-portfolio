@@ -601,6 +601,27 @@ html:not(.dark) .hk-header::before {
   background: #000;
 }
 
+/* Home-screen app (iPhone standalone): the status bar is drawn over the header, so a see-through, blurred
+   header showed the page scrolling underneath it, smeared, right behind the clock. Solid there instead (no
+   blur: it's costly on iPhone too), with the status-bar strip filled; the docks get the same solid fill. */
+@media (display-mode: standalone) {
+  .hk-header {
+    background-color: var(--c-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  html.dark .hk-header::before {
+    background: var(--c-bg);
+  }
+  .hk-dock {
+    background-color: var(--c-bg);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    /* the home indicator's own inset is the gap; no extra padding under the tabs */
+    padding-bottom: max(6px, env(safe-area-inset-bottom, 0px));
+  }
+}
+
 .hk-titlebar-row {
   --hk-px: 16px;
 }

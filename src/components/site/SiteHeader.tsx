@@ -138,7 +138,7 @@ export default function SiteHeader() {
   useAutoHideChrome(lesson && !questsOpen);
   const hidden = useChromeHidden() && lesson;
   // Lesson pages bring their own phone reading toolbar, which takes the dock's place.
-  const dockClass = `${lesson ? "hidden" : "grid lg:hidden"} hk-safe-x fixed inset-x-0 bottom-0 z-50 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`;
+  const dockClass = `${lesson ? "hidden" : "grid lg:hidden"} hk-safe-x hk-dock fixed inset-x-0 bottom-0 z-50 gap-1 border-t border-line bg-bg/95 px-2.5 pb-[calc(env(safe-area-inset-bottom,0px)+10px)] pt-2 backdrop-blur`;
 
   return (
     <>
