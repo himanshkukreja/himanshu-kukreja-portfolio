@@ -13,6 +13,7 @@ import { COURSE_MAP_TAG } from "@/lib/learn/course";
 import { getShort, lectureHash } from "@/lib/learn/lecture/load";
 
 import type { PlayableShort, ShortCategory } from "./types";
+import { controlMap, isLive, questKey, shortKey } from "@/lib/learn/controls";
 
 export type FeedShort = PlayableShort;
 
@@ -86,4 +87,25 @@ export function hourlyOrder<T>(items: T[], now = Date.now()): T[] {
   return out;
 }
 
-export const listShorts = unstable_cache(load, ["shorts-feed-v2"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+/** Every released short, whatever its publishing state (the admin's view). */
+export const listAllShorts = unstable_cache(load, ["shorts-feed-v2"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+
+/**
+ * The shorts the site shows: live per the publishing controls (a hidden or not-yet-due short, or any short of
+ * a hidden side quest, is left out), pinned ones first in their pin order.
+ */
+export async function listShorts(): Promise<FeedShort[]> {
+  const [all, controls] = await Promise.all([listAllShorts(), controlMap()]);
+  if (!controls.size) return all;
+  const now = Date.now();
+  const live = all.filter((s) => isLive(controls.get(shortKey(s.id)), now) && isLive(controls.get(questKey(s.lecture)), now));
+  const pin = (s: FeedShort) => controls.get(shortKey(s.id))?.pin ?? null;
+  const pinned = live.filter((s) => pin(s) !== null).sort((a, b) => pin(a)! - pin(b)!);
+  return pinned.length ? [...pinned, ...live.filter((s) => pin(s) === null)] : live;
+}
+
+/** Pinned short ids in order (the feed keeps them first after its shuffle). */
+export async function pinnedShortIds(): Promise<string[]> {
+  const controls = await controlMap();
+  return [...controls.values()].filter((c) => c.kind === "short" && c.pin !== null && isLive(c)).sort((a, b) => a.pin! - b.pin!).map((c) => c.key.slice("short:".length));
+}

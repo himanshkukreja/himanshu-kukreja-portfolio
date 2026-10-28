@@ -1,4 +1,5 @@
 import { fetchMarkdownContent, formatWeekTopic, getAllLearningResources, titleFromMarkdown, type LearningResource, ContentFetchError, isContentMissing } from "@/lib/github";
+import { controlMap, isLive, questKey } from "@/lib/learn/controls";
 import { unstable_cache } from "next/cache";
 import { calculateReadingTime } from "@/lib/reading-time";
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
@@ -152,7 +153,9 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
     };
   });
 
-  const sideQuests = resources.filter((r) => r.type === "bonus").map(lessonOf);
+  // publishing controls (/admin/publishing): a hidden or not-yet-due side quest is left out of the course
+  const controls = await controlMap();
+  const sideQuests = resources.filter((r) => r.type === "bonus" && isLive(controls.get(questKey(r.slug)))).map(lessonOf);
   const extra = (t: "problem" | "lld") => resources.filter((r) => r.type === t).map((r) => ({ ...lessonOf(r), ...(titles[`${r.week}/${r.slug}`] ? { title: titles[`${r.week}/${r.slug}`], label: titles[`${r.week}/${r.slug}`] } : {}) }));
   const problems = extra("problem");
   const lld = extra("lld");

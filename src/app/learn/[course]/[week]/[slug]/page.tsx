@@ -1,4 +1,5 @@
 import { Suspense } from "react";
+import { controlMap, isLive, questKey } from "@/lib/learn/controls";
 import { notFound } from "next/navigation";
 import {
   fetchMarkdownContent,
@@ -97,6 +98,8 @@ export default async function LearningResourcePage({ params }: Props) {
   if (!data) notFound();
 
   const { resource, content } = data;
+  // a side quest hidden or scheduled in /admin/publishing isn't a page yet
+  if (resource.type === "bonus" && !isLive((await controlMap()).get(questKey(slug)))) notFound();
 
   // Previous/next run through the whole course in reading order (plan -> Week 0 -> ... ->
   // bonus problems), so the last item of a week leads into the next week and the plan has a Next.

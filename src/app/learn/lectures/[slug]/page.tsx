@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { controlMap, isLive, questKey } from "@/lib/learn/controls";
 import { getLecture, lectureHash, lectureMediaBase, lectureSubject, listLectures } from "@/lib/learn/lecture/load";
 import { getLectureFaq } from "@/lib/learn/lecture/faq";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
@@ -32,6 +33,8 @@ export default async function LecturePage({ params }: Props) {
   const { slug } = await params;
   const [l, all, faq, media] = await Promise.all([getLecture(slug), listLectures().catch(() => []), getLectureFaq(slug).catch(() => null), mediaInfo(slug)]);
   if (!l) notFound();
+  // a hidden side quest's lecture is hidden too
+  if (slug.startsWith("bonus-") && !isLive((await controlMap()).get(questKey(slug)))) notFound();
   const q = await lectureSubject(l);
   const at = all.findIndex((x) => x.slug === l.quest);
   // up next: the next lecture in the same track (course lessons, side quests, problems, LLD)

@@ -67,7 +67,7 @@ type FsEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
 const fsElement = () => document.fullscreenElement ?? (document as FsDoc).webkitFullscreenElement ?? null;
 
 /** `top`: ids ranked by engagement (upvotes, saves, discussion, finished views), refreshed hourly on the server. */
-export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort[]; top?: string[] }) {
+export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: PlayableShort[]; top?: string[]; pinned?: string[] }) {
   const router = useRouter();
   // sound: off by default on phones and tablets, on for laptops (the player falls back to muted when the
   // browser blocks sound before a click); the viewer's own choice is remembered for the session
@@ -215,8 +215,11 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
       const keep = !v && !ready.length && first && !seen.has(first.id) ? first : undefined;
       const rest = pool.filter((s) => s !== keep && !ready.includes(s));
       const deal = [...ready, ...shuffle(rest.filter((s) => !seen.has(s.id))), ...shuffle(rest.filter((s) => seen.has(s.id)))];
-      const lead = keep ?? (v ? deal.find((s) => s.id === v) : undefined);
-      const next = lead ? [lead, ...deal.filter((s) => s !== lead)] : deal;
+      // pinned shorts (admin) this browser hasn't watched lead the deal, in pin order; ?v= still comes first
+      const pins = pinned.map((pid) => pool.find((s) => s.id === pid)).filter((s): s is PlayableShort => !!s && !seen.has(s.id));
+      const dealt0 = pins.length ? [...pins, ...deal.filter((s) => !pins.includes(s))] : deal;
+      const lead = v ? dealt0.find((s) => s.id === v) : pins.length ? undefined : keep;
+      const next = lead ? [lead, ...dealt0.filter((s) => s !== lead)] : dealt0;
       // one article's shorts: keep only those (the chosen one first), so the first on screen is one of them
       const mine = o && next.some((s) => s.lecture === o) ? next.filter((s) => s.lecture === o) : null;
       const ordered = mine ? [...mine, ...next.filter((s) => s.lecture !== o)] : next;
@@ -231,7 +234,7 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
       off = true;
       window.clearTimeout(id);
     };
-  }, [shorts]);
+  }, [shorts, pinned]);
   // remember what was watched, so the next visit opens on something new
   useEffect(() => {
     if (!activeId) return;

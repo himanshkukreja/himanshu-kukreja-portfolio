@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { controlMap, isLive, questKey, shortKey } from "@/lib/learn/controls";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpen } from "lucide-react";
@@ -53,6 +54,9 @@ export default async function ShortPage({ params }: Props) {
   const r = await load(id);
   if (!r) notFound();
   const { l, s } = r;
+  // hidden or scheduled in /admin/publishing (itself or its side quest): not a page
+  const controls = await controlMap();
+  if (!isLive(controls.get(shortKey(l.quest))) || (l.short?.of && !isLive(controls.get(questKey(l.short.of))))) notFound();
   const media = await mediaInfo(l.quest);
   const paras = transcript(l);
   const cat = s ? SHORT_CATEGORIES.find((c) => c.id === s.category)?.label : null;
