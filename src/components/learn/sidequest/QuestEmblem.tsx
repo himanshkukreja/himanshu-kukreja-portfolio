@@ -323,6 +323,60 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <rect x={35.9} y={46.9} width={10} height={6.2} {...S} strokeWidth={1.8} />
         </>
       );
+    case "ring": // a phone ringing between two pairs of ring waves, a verdict banner across its screen
+      return (
+        <>
+          <rect x={20} y={8} width={24} height={48} {...S} />
+          <rect x={23} y={13} width={18} height={9} {...F} />
+          <rect x={25.5} y={16} width={3} height={3} fill={accent} />
+          <path d="M25 29h14M25 35h9" {...S} strokeWidth={1.8} opacity={0.7} />
+          <rect x={29} y={48} width={6} height={3} {...F} />
+          <path d="M49 22a9 9 0 0 1 0 14M53.5 18a15 15 0 0 1 0 22" {...S} strokeWidth={2} />
+          <path d="M15 22a9 9 0 0 0 0 14M10.5 18a15 15 0 0 0 0 22" {...S} strokeWidth={2} />
+        </>
+      );
+    case "tag": // a price tag beside a clock whose hand points at midnight
+      return (
+        <>
+          <circle cx={44} cy={14} r={8.5} {...S} strokeWidth={2} />
+          <path d="M44 14V8.5" {...S} strokeWidth={2} />
+          <path d="M8 30h30l12 12-12 12H8z" {...S} />
+          <rect x={39} y={39.5} width={5} height={5} {...F} />
+          <path d="M14 38h16M14 46h10" {...S} strokeWidth={2} opacity={0.7} />
+        </>
+      );
+    case "mail": // an envelope carrying an accepted badge with a tick
+      return (
+        <>
+          <rect x={8} y={14} width={44} height={30} {...S} />
+          <path d="M8 14l22 17 22-17" {...S} strokeWidth={2} />
+          <rect x={38} y={36} width={18} height={18} {...F} />
+          <path d="M42 45l3.5 3.5 6.5-7" fill="none" stroke={accent} strokeWidth={2.5} strokeLinecap="square" />
+        </>
+      );
+    case "branch": // a branch leaving main and merging back, the merge commit lit
+      return (
+        <>
+          <path d="M22 6v52" {...S} />
+          <path d="M22 18l18 10v10L22 48" {...S} />
+          <rect x={17} y={8} width={10} height={10} {...F} />
+          <rect x={35} y={23} width={10} height={10} {...F} />
+          <rect x={36.25} y={36.25} width={7.5} height={7.5} fill={accent} stroke={ink} strokeWidth={2.5} />
+          <rect x={17} y={46} width={10} height={10} {...F} />
+          <rect x={20} y={49} width={4} height={4} fill={accent} />
+        </>
+      );
+    case "swipe": // a full-screen video with a play mark and a progress bar, the next one stacked behind, a swipe-up arrow
+      return (
+        <>
+          <path d="M13 14v38" {...S} strokeWidth={2} opacity={0.5} />
+          <rect x={18} y={6} width={28} height={52} {...S} />
+          <path d="M28 21v15l12-7.5z" {...F} />
+          <path d="M24 47h16" {...S} strokeWidth={2} opacity={0.5} />
+          <rect x={24} y={45.75} width={9} height={2.5} {...F} />
+          <path d="M53 42V20M48 25l5-5 5 5" {...S} strokeWidth={2} />
+        </>
+      );
     case "grid": // a story ring around an avatar above a square photo grid
       return (
         <>

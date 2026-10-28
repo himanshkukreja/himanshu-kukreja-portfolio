@@ -2,11 +2,11 @@
  * Side quest identities: one per bonus problem (resources/bonus-problems/bonus-NN-*.md).
  *
  * QuestEmblem.tsx draws the product's real mark on the tile where Simple Icons has a fitting one
- * (19 quests); the others keep an original emblem drawn for this course that evokes the product's engineering problem (a QR finder
- * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for Zerodha Kite, a GPU chip streaming tokens for ChatGPT, two cursors on a frame for Figma, an upload arrow over a film strip for YouTube, a page with two carets for Google Docs, a photo grid under a story ring for Instagram, a route across map tiles to a pin for Google Maps, a camera above a gallery of video tiles for Zoom, a house whose walls are a calendar with three nights booked for Airbnb, a ball flying at three stumps beside a leaderboard for Dream11, a seat grid with a held pair for BookMyShow, a takeaway bag on a route to a pin for Swiggy, a shield with a check for Razorpay…), tinted with the product's general
+ * (23 quests); the others keep an original emblem drawn for this course that evokes the product's engineering problem (a QR finder
+ * for UPI, a play tile for streaming video, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for Zerodha Kite, a GPU chip streaming tokens for ChatGPT, two cursors on a frame for Figma, an upload arrow over a film strip for YouTube, a page with two carets for Google Docs, a photo grid under a story ring for Instagram, a route across map tiles to a pin for Google Maps, a camera above a gallery of video tiles for Zoom, a house whose walls are a calendar with three nights booked for Airbnb, a ball flying at three stumps beside a leaderboard for Dream11, a phone ringing with a verdict banner for Truecaller, a price tag beside a clock at midnight for Flipkart, an envelope with an accepted badge for Gmail, a branch leaving main and merging back for GitHub, a full-screen video with a swipe-up arrow for TikTok, a seat grid with a held pair for BookMyShow, a takeaway bag on a route to a pin for Swiggy, a shield with a check for Razorpay…), tinted with the product's general
  * colour as an accent. The product is always named in text.
  */
-export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles" | "tokens" | "cursors" | "upload" | "carets" | "grid" | "seats" | "route" | "shield" | "tiles" | "gallery" | "stay" | "stumps";
+export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles" | "tokens" | "cursors" | "upload" | "carets" | "grid" | "seats" | "route" | "shield" | "tiles" | "gallery" | "stay" | "stumps" | "ring" | "tag" | "mail" | "branch" | "swipe";
 
 export type QuestBrand = {
   /** bonus number, 1-based */
@@ -48,6 +48,11 @@ const BRANDS: Record<number, QuestBrand> = {
   23: { n: 23, product: "Zoom", field: "Video meetings", emblem: "gallery", accent: "#0B5CFF", ink: "#FFFFFF" },
   24: { n: 24, product: "Airbnb", field: "Stays marketplace", emblem: "stay", accent: "#FF385C", ink: "#FFFFFF" },
   25: { n: 25, product: "Dream11", field: "Fantasy sports", emblem: "stumps", accent: "#D3202A", ink: "#FFFFFF" },
+  26: { n: 26, product: "Truecaller", field: "Caller ID and spam", emblem: "ring", accent: "#0087FF", ink: "#FFFFFF" },
+  27: { n: 27, product: "Flipkart", field: "Sale-day commerce", emblem: "tag", accent: "#2874F0", ink: "#FFFFFF" },
+  28: { n: 28, product: "Gmail", field: "Email at scale", emblem: "mail", accent: "#EA4335", ink: "#FFFFFF" },
+  29: { n: 29, product: "GitHub", field: "Code hosting", emblem: "branch", accent: "#24292F", ink: "#FFFFFF" },
+  30: { n: 30, product: "TikTok", field: "For You feed", emblem: "swipe", accent: "#FE2C55", ink: "#FFFFFF" },
 };
 
 const FALLBACK: Omit<QuestBrand, "n"> = { product: "Side quest", field: "System design", emblem: "fanout", accent: "#0B0B0B", ink: "#FFFFFF" };

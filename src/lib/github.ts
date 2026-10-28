@@ -337,6 +337,11 @@ const LESSON_TITLES: Record<string, string> = {
   'bonus-23-zoom-video-meetings': 'Zoom Video Meetings at Scale',
   'bonus-24-airbnb-stays-marketplace': 'Airbnb Stays Marketplace',
   'bonus-25-dream11-fantasy-sports': 'Dream11 Fantasy Sports',
+  'bonus-26-truecaller-caller-id': 'Truecaller Caller ID and Spam Detection',
+  'bonus-27-flipkart-big-billion-days': 'Flipkart Big Billion Days',
+  'bonus-28-gmail-email-at-scale': 'Gmail',
+  'bonus-29-github-code-hosting': 'GitHub',
+  'bonus-30-tiktok-for-you-feed': "TikTok's For You Feed",
   // Week 0
   'foundations-part-1-basic-concepts': 'Part 1: System Design Fundamentals',
   'foundations-part-2-infrastructure-building-blocks': 'Part 2: Infrastructure Building Blocks',
