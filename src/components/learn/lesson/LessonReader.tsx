@@ -21,6 +21,7 @@ import LectureEntry from "@/components/learn/sidequest/LectureEntry";
 import StageRail from "./StageRail";
 import ContentsSheet from "./ContentsSheet";
 import EndOfLesson from "./EndOfLesson";
+import ArticleShorts from "./ArticleShorts";
 import LandingContext from "./LandingContext";
 import BossEntry from "./BossEntry";
 import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
@@ -206,6 +207,8 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
               textSize={size}
             />
             <DeepLinkResolver rootRef={contentRef} />
+
+            {meta.shorts && <ArticleShorts of={meta.shorts.of} shorts={meta.shorts.items} />}
 
             <EndOfLesson meta={meta} prev={prev} next={next} trial={trial} />
 

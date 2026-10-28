@@ -74,6 +74,8 @@ export type ReaderMeta = {
   sheet?: { href: string; diagrams: number } | null;
   /** a side quest's interactive lecture (v2): shown as "Watch it first" at the top */
   lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
+  /** this article's vertical shorts (shown at the end), and the lecture id they belong to */
+  shorts?: { of: string; items: { id: string; title: string; poster: string; seconds: number }[] } | null;
 };
 
 export type QuestMeta = {

@@ -35,6 +35,7 @@ import {
   weekTopic,
 } from "@/components/learn/lesson/data";
 import type { NavLink, ReaderMeta } from "@/components/learn/lesson/types";
+import { listShorts } from "@/lib/learn/shorts/load";
 import { JsonLd, breadcrumbs, lessonArticle } from "@/lib/seo/jsonld";
 
 export const runtime = "nodejs";
@@ -200,6 +201,13 @@ export default async function LearningResourcePage({ params }: Props) {
     labs: await getLabsForLesson(course, week, slug).catch(() => []),
     trail: await getTrailForLesson(week, slug).catch(() => []),
     sheet: resource.type === "bonus" ? await getSheet(slug).then((x) => (x ? { href: x.href, diagrams: x.diagrams } : null)).catch(() => null) : null,
+    shorts: await listShorts()
+      .then((all) => {
+        const of = resource.type === "bonus" ? slug : lessonLectureId(week, slug);
+        const items = all.filter((x) => x.lecture === of).map((x) => ({ id: x.id, title: x.title, poster: x.poster, seconds: x.seconds }));
+        return items.length ? { of, items } : null;
+      })
+      .catch(() => null),
     lecture: await getLecture(resource.type === "bonus" ? slug : lessonLectureId(week, slug))
       .then(lectureCard)
       .catch(() => null),

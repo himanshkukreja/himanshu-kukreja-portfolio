@@ -100,6 +100,8 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
   }, [shorts, top]);
   const hasTop = ranked.length >= 5;
   const [topic, setTopic] = useState<string | null>(null);
+  // ?of=<lecture id>: only the shorts of one lesson / quest / story (from "watch its shorts" at the end of an article)
+  const [of, setOf] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [talk, setTalk] = useState(false);
   const { counts, refresh } = useCommentCounts();
@@ -183,8 +185,13 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
   const [order, setOrder] = useState<PlayableShort[]>(shorts);
   const [dealt, setDealt] = useState(false);
   const list = useMemo(
-    () => (cat === "top" ? ranked : order.filter((s) => (cat === "all" || s.category === cat) && (!topic || s.topics.includes(topic)))),
-    [order, ranked, cat, topic]
+    () =>
+      of
+        ? order.filter((s) => s.lecture === of)
+        : cat === "top"
+          ? ranked
+          : order.filter((s) => (cat === "all" || s.category === cat) && (!topic || s.topics.includes(topic))),
+    [order, ranked, cat, topic, of]
   );
 
   // ?cat= / ?topic= / ?v= on arrival
@@ -193,6 +200,7 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
     const c = q.get("cat");
     const tp = q.get("topic");
     const v = q.get("v");
+    const o = q.get("of");
     let off = false;
     const id = window.setTimeout(async () => {
       // a fresh deal: unseen shorts first (shuffled), then the seen ones (shuffled); ?v= leads. Shorts already
@@ -209,9 +217,13 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
       const deal = [...ready, ...shuffle(rest.filter((s) => !seen.has(s.id))), ...shuffle(rest.filter((s) => seen.has(s.id)))];
       const lead = keep ?? (v ? deal.find((s) => s.id === v) : undefined);
       const next = lead ? [lead, ...deal.filter((s) => s !== lead)] : deal;
-      setOrder(next);
+      // one article's shorts: keep only those (the chosen one first), so the first on screen is one of them
+      const mine = o && next.some((s) => s.lecture === o) ? next.filter((s) => s.lecture === o) : null;
+      const ordered = mine ? [...mine, ...next.filter((s) => s.lecture !== o)] : next;
+      if (mine) setOf(o);
+      setOrder(ordered);
       setDealt(true);
-      setActiveId(next[0]?.id ?? null);
+      setActiveId(ordered[0]?.id ?? null);
       if (c && SHORT_CATEGORIES.some((x) => x.id === c)) setCat(c as ShortCategory);
       if (tp) setTopic(tp);
     }, 0);
@@ -232,6 +244,7 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
   }, [activeId]);
   // keep the filters in the address, so a filtered feed can be shared
   const setFilter = (c: ShortCategory | "all" | "top", tp: string | null) => {
+    setOf(null);
     setCat(c);
     setTopic(tp);
     const q = new URLSearchParams();
@@ -308,7 +321,12 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
       {/* laptops: filters above the feed */}
       <div className="hidden flex-col gap-1.5 border-b border-line px-6 py-2 lg:flex">
         <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Category">
-          <button type="button" onClick={() => setFilter("all", null)} aria-pressed={cat === "all"} className={chip(cat === "all")}>
+          {of && (
+            <button type="button" onClick={() => setFilter("all", null)} aria-pressed className={chip(true)} title="Back to all shorts">
+              this lesson · {list.length} ×
+            </button>
+          )}
+          <button type="button" onClick={() => setFilter("all", null)} aria-pressed={!of && cat === "all"} className={chip(!of && cat === "all")}>
             all · {shorts.length}
           </button>
           {hasTop && (
@@ -342,7 +360,12 @@ export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort
           <button type="button" onClick={back} aria-label="Back" className="grid h-8 w-8 shrink-0 place-items-center border border-white/25 bg-black/55 text-[#f3f2ee]">
             <ArrowLeft className="h-4 w-4" aria-hidden />
           </button>
-          <button type="button" onClick={() => setFilter("all", null)} aria-pressed={cat === "all"} className={pill(cat === "all")}>
+          {of && (
+            <button type="button" onClick={() => setFilter("all", null)} aria-pressed className={pill(true)}>
+              this lesson · {list.length} ×
+            </button>
+          )}
+          <button type="button" onClick={() => setFilter("all", null)} aria-pressed={!of && cat === "all"} className={pill(!of && cat === "all")}>
             all · {shorts.length}
           </button>
           {hasTop && (
