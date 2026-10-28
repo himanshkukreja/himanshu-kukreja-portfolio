@@ -45,6 +45,11 @@ const PAGES = "hk-pages";
 const META = "hk-meta";
 const RECENT = "hk-recent";
 const RUNTIME = "hk-runtime";
+// shorts kept on the device, Reels-style: the next few unwatched ones, so a visit opens on one with no wait
+// and a few still play offline (filled by the feed's "hk:shorts" message; capped, oldest-watched out first)
+const SHORTS = "hk-shorts";
+const SHORTS_MAX = 8;
+const SHORT_FILE = /\/lectures\/shorts--[A-Za-z0-9-]+\/(?:video\.mp4|poster\.jpg)$/;
 // keep in sync with PYODIDE_VERSION in src/lib/learn/labs/runtime.ts (scripts/labs/vendor-pyodide.mjs checks)
 const RUNTIME_VERSION = "314.0.7";
 const RUNTIME_PREFIX = "/pyodide/" + RUNTIME_VERSION + "/";
@@ -283,6 +288,11 @@ self.addEventListener("fetch", (event) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
 
+  if (SHORT_FILE.test(url.pathname) && url.origin !== self.location.origin) {
+    event.respondWith(shortFile(req, url));
+    return;
+  }
+
   if (LECTURE_FILE.test(url.pathname) && (url.origin !== self.location.origin || url.pathname.startsWith("/lecture-media/"))) {
     event.respondWith(lectureFile(req, url));
     return;
@@ -337,7 +347,7 @@ async function navigate(event, url) {
   // the network answered (pages, redirects, 404s as they are); a 5xx falls back to a saved copy
   if (net && (net.status < 500 || !saved)) {
     mark(event, url.href, "network");
-    if (net.ok && net.status === 200 && (ARTICLE.test(url.pathname) || url.pathname === HUB) && !NO_RECENT.test(url.pathname) && !saved && (net.headers.get("content-type") || "").includes("text/html")) {
+    if (net.ok && net.status === 200 && (ARTICLE.test(url.pathname) || url.pathname === HUB || url.pathname === "/learn/shorts") && !NO_RECENT.test(url.pathname) && !saved && (net.headers.get("content-type") || "").includes("text/html")) {
       event.waitUntil(remember(url, net.clone()).catch(() => {}));
     }
     return net;
@@ -484,6 +494,41 @@ async function lectureFile(req, url) {
   return rangeAnswer(saved, req, url);
 }
 
+/** A short's video or poster: from the device when it's kept there (seeking works: range answers), else the network. */
+async function shortFile(req, url) {
+  const hit = await caches.match(url.href, { cacheName: SHORTS });
+  if (hit) return rangeAnswer(hit, req, url);
+  return fetch(req);
+}
+
+/**
+ * Keep these shorts on the device (video + poster), in order, and let the rest go: anything not in `keep`
+ * is evicted first, then the oldest, down to SHORTS_MAX videos. One download at a time; never on Save-Data.
+ */
+let shortsBusy = Promise.resolve();
+function keepShorts(urls) {
+  shortsBusy = shortsBusy.then(async () => {
+    const cache = await caches.open(SHORTS);
+    const want = new Set();
+    for (const u of urls.slice(0, SHORTS_MAX)) {
+      want.add(u);
+      want.add(u.replace(/video\.mp4(\?|$)/, "poster.jpg$1"));
+    }
+    // evict first, so the new downloads have room
+    for (const k of await cache.keys()) if (!want.has(k.url)) await cache.delete(k);
+    for (const u of want) {
+      if (await cache.match(u)) continue;
+      try {
+        const res = await fetch(u, { mode: "cors", credentials: "omit" });
+        if (res.ok && res.status === 200) await cache.put(u, res);
+      } catch (e) {
+        return; // offline or blocked: try again next time
+      }
+    }
+  });
+  return shortsBusy;
+}
+
 async function mediaFallback(req) {
   const hit = await caches.match(req.url, { cacheName: MEDIA });
   return hit || Response.error();
@@ -552,6 +597,9 @@ self.addEventListener("message", (event) => {
     if (port) port.postMessage(rec);
   } else if (data.type === "hk:version") {
     if (port) port.postMessage({ version: VERSION });
+  } else if (data.type === "hk:shorts") {
+    // { keep: [video URLs, best first] } from the feed
+    if (Array.isArray(data.keep)) event.waitUntil(keepShorts(data.keep.filter((u) => typeof u === "string" && SHORT_FILE.test(new URL(u).pathname))).catch(() => {}));
   } else if (data.type === "hk:prune") {
     event.waitUntil(
       prune()

@@ -38,6 +38,16 @@ const readSeen = (): string[] => {
     return [];
   }
 };
+/** video URLs of the shorts the service worker keeps on this device (see public/sw.js, "hk-shorts") */
+const cachedShorts = async (): Promise<Set<string>> => {
+  try {
+    if (typeof caches === "undefined") return new Set();
+    const c = await caches.open("hk-shorts");
+    return new Set((await c.keys()).map((r) => r.url).filter((u) => u.includes("/video.mp4")));
+  } catch {
+    return new Set();
+  }
+};
 const shuffle = <T,>(a: T[]) => {
   const b = [...a];
   for (let k = b.length - 1; k > 0; k--) {
@@ -149,13 +159,20 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     const c = q.get("cat");
     const tp = q.get("topic");
     const v = q.get("v");
-    const id = window.setTimeout(() => {
-      // a fresh deal: unseen shorts first (shuffled), then the seen ones (shuffled); ?v= leads
+    let off = false;
+    const id = window.setTimeout(async () => {
+      // a fresh deal: unseen shorts first (shuffled), then the seen ones (shuffled); ?v= leads. Shorts already
+      // on this device lead (they start with no network at all); offline, only those are dealt.
       const seen = new Set(readSeen());
-      const first = shorts[0];
-      const keep = !v && first && !seen.has(first.id) ? first : undefined;
-      const rest = shorts.filter((s) => s !== keep);
-      const deal = [...shuffle(rest.filter((s) => !seen.has(s.id))), ...shuffle(rest.filter((s) => seen.has(s.id)))];
+      const onDevice = await cachedShorts();
+      if (off) return;
+      const offline = typeof navigator !== "undefined" && navigator.onLine === false;
+      const pool = offline && onDevice.size ? shorts.filter((s) => onDevice.has(s.src)) : shorts;
+      const ready = shuffle(pool.filter((s) => onDevice.has(s.src) && !seen.has(s.id)));
+      const first = pool[0];
+      const keep = !v && !ready.length && first && !seen.has(first.id) ? first : undefined;
+      const rest = pool.filter((s) => s !== keep && !ready.includes(s));
+      const deal = [...ready, ...shuffle(rest.filter((s) => !seen.has(s.id))), ...shuffle(rest.filter((s) => seen.has(s.id)))];
       const lead = keep ?? (v ? deal.find((s) => s.id === v) : undefined);
       const next = lead ? [lead, ...deal.filter((s) => s !== lead)] : deal;
       setOrder(next);
@@ -164,7 +181,10 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
       if (c && SHORT_CATEGORIES.some((x) => x.id === c)) setCat(c as ShortCategory);
       if (tp) setTopic(tp);
     }, 0);
-    return () => window.clearTimeout(id);
+    return () => {
+      off = true;
+      window.clearTimeout(id);
+    };
   }, [shorts]);
   // remember what was watched, so the next visit opens on something new
   useEffect(() => {
@@ -189,6 +209,16 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   };
 
   const activeIdx = Math.max(0, list.findIndex((s) => s.id === activeId));
+  // Reels-style: keep the next few unwatched shorts on the device, so they (and the next visit's first short)
+  // start instantly and still play offline. Not on Save-Data; the service worker caps and rotates the set.
+  useEffect(() => {
+    if (!dealt || !playing) return;
+    const conn = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
+    if (conn?.saveData || !navigator.serviceWorker?.controller) return;
+    const seen = new Set(readSeen());
+    const ahead = list.slice(activeIdx + 1).filter((s) => !seen.has(s.id)).slice(0, 3);
+    navigator.serviceWorker.controller.postMessage({ type: "hk:shorts", keep: ahead.map((s) => s.src) });
+  }, [dealt, playing, activeIdx, list]);
   // the media host: connect before the first <video> asks for it
   if (shorts[0]) {
     preconnect(new URL(shorts[0].src).origin);
