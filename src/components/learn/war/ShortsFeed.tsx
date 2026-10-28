@@ -340,8 +340,9 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
           key={list[0]?.id ?? "none"}
           id="shorts-list"
           // phones: the full height of the fixed feed (100dvh in an iPhone home-screen app leaves out the status bar
-          // and home indicator, which left a black band at the bottom)
-          className={`m-0 h-full list-none snap-y snap-mandatory overflow-y-auto overscroll-contain p-0 [overflow-anchor:none] [scrollbar-width:none] lg:h-[calc(100dvh-var(--hk-header-h,61px)-84px)] ${talk ? "max-lg:overflow-hidden" : ""}`}
+          // and home indicator, which left a black band at the bottom). A size container, so each short can start below
+          // the filter row when the screen is tall enough to spare it (100cqh - 16/9 of the width)
+          className={`m-0 h-full list-none max-lg:[container-type:size] snap-y snap-mandatory overflow-y-auto overscroll-contain p-0 [overflow-anchor:none] [scrollbar-width:none] lg:h-[calc(100dvh-var(--hk-header-h,61px)-84px)] ${talk ? "max-lg:overflow-hidden" : ""}`}
         >
           {list.map((s, k) =>
             // far from the one on screen: an empty slot of the same height keeps the scroll positions and snap
@@ -363,7 +364,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
               ref={(el) => {
                 items.current[s.id] = el;
               }}
-              className={`relative flex h-full snap-start snap-always justify-center lg:items-center lg:gap-8 lg:px-6 lg:py-3 lg:[@media(min-aspect-ratio:9/16)]:pt-3 ${talk && k === activeIdx ? "max-lg:items-start max-lg:pt-[calc(env(safe-area-inset-top,0px)+8px)]" : "items-center max-lg:pt-[env(safe-area-inset-top,0px)] [@media(min-aspect-ratio:9/16)]:pt-12"}`}
+              className={`relative flex h-full snap-start snap-always justify-center lg:items-center lg:gap-8 lg:px-6 lg:py-3 lg:[@media(min-aspect-ratio:9/16)]:pt-3 ${talk && k === activeIdx ? "max-lg:items-start max-lg:pt-[calc(env(safe-area-inset-top,0px)+8px)]" : "items-center max-lg:pt-[max(env(safe-area-inset-top,0px),min(calc(env(safe-area-inset-top,0px)_+_44px),calc(100cqh_-_177.78cqw)))] [@media(min-aspect-ratio:9/16)]:pt-12"}`}
             >
               <ShortPlayer
                 ref={(h) => {
