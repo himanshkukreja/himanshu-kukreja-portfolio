@@ -15,6 +15,7 @@ import { OFFLINE_APP_KEY, OFFLINE_APP_PREHEADER, offlineAppHtml, offlineAppSubje
 import { PRACTICE_TOOLKIT_KEY, PRACTICE_TOOLKIT_PREHEADER, practiceToolkitHtml, practiceToolkitSubject, practiceToolkitText } from "@/lib/announce/practice-toolkit";
 import { WATCH_TRY_KEY, WATCH_TRY_PREHEADER, watchTryHtml, watchTrySubject, watchTryText } from "@/lib/announce/watch-and-try";
 import { AI_TUTOR_KEY, AI_TUTOR_PREHEADER, aiTutorHtml, aiTutorSubject, aiTutorText } from "@/lib/announce/ai-tutor";
+import { LECTURES_SHORTS_KEY, LECTURES_SHORTS_PREHEADER, lecturesShortsHtml, lecturesShortsSubject, lecturesShortsText } from "@/lib/announce/lectures-shorts";
 import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
 import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
 import type { TemplateInfo } from "./types";
@@ -148,6 +149,21 @@ function aiTutorTemplate(): TemplateInfo {
   };
 }
 
+function lecturesShortsTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/lectures-shorts.ts", html: fromSource(lecturesShortsHtml, unsub), text: fromSource(lecturesShortsText, unsub) };
+  return {
+    id: "lectures-shorts",
+    name: "What's new: lectures for everything, mock interview videos, Shorts",
+    description:
+      "193 narrated lectures (~50 h) for every lesson, side quest, problem, LLD lesson and case file; 8 recorded mock interviews; the Shorts feed; plus share links, side quests 22-25, LLD 9-22 and 30 war stories. With screenshots. Generated from src/lib/announce/lectures-shorts.ts.",
+    topic: LECTURES_SHORTS_KEY,
+    ...subjectTemplate(lecturesShortsSubject),
+    preheader: LECTURES_SHORTS_PREHEADER,
+    doc,
+  };
+}
+
 function welcomeTemplate(): TemplateInfo {
   const unsub = welcomeUnsubscribeUrl(S_EMAIL);
   const doc: RawDoc = { layout: "raw", source: "src/lib/email/welcome.ts", html: fromSource(welcomeHtml, unsub), text: fromSource(welcomeText, unsub) };
@@ -208,7 +224,7 @@ function storyTemplate(): TemplateInfo {
 
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [storyTemplate, aiTutorTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [storyTemplate, lecturesShortsTemplate, aiTutorTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {
