@@ -40,10 +40,13 @@ type Props = {
   active?: boolean;
   /** the first poster on the page loads first */
   priority?: boolean;
+  /** feed: one of the next shorts. Play it muted for a moment and stop, so it has buffered before the swipe
+   * (iPhone Safari ignores preload="auto" and only fetches a video that plays) */
+  warm?: boolean;
 };
 
 const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
-  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "", onTap, onPlayingChange, mounted = true, preload = "metadata", active, priority = false },
+  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "", onTap, onPlayingChange, mounted = true, preload = "metadata", active, priority = false, warm = false },
   ref,
 ) {
   const v = useRef<HTMLVideoElement>(null);
@@ -59,9 +62,14 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
   const [scrub, setScrub] = useState(false);
   // the element's own muted state (a parent may set it, the viewer may toggle it here)
   const [isMuted, setIsMuted] = useState(muted);
+  // a warm-up play (see `warm`) is silent and invisible to the feed: no play state, no view, no mute changes
+  const warming = useRef(false);
+  const warmed = useRef(false);
+  const mutedRef = useRef(muted);
   useEffect(() => {
+    mutedRef.current = muted;
     const el = v.current;
-    if (!el) return;
+    if (!el || warming.current) return;
     el.muted = muted;
     // React sets only the property; iPhone Safari's autoplay also looks for the attribute
     el.toggleAttribute("muted", muted);
@@ -71,6 +79,11 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
   useEffect(() => {
     const el = v.current;
     if (active === undefined || !el) return;
+    if (active) {
+      warming.current = false;
+      el.muted = mutedRef.current;
+      el.toggleAttribute("muted", mutedRef.current);
+    }
     if (active)
       void el.play().catch((e: unknown) => {
         // the browser won't play sound before the visitor has interacted with the site: play muted instead
@@ -84,6 +97,39 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
     else el.pause();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- onMutedChange is the feed's setState
   }, [active, mounted]);
+
+  // warm-up: a muted play until the first frames have decoded, then pause back at the start
+  useEffect(() => {
+    const el = v.current;
+    if (!warm || active || !el || warmed.current) return;
+    warmed.current = true;
+    warming.current = true;
+    el.muted = true;
+    el.toggleAttribute("muted", true);
+    const stop = () => {
+      if (!warming.current) return;
+      // the pause event arrives after pause() returns: only then is the warm-up over, so the feed never sees it
+      el.addEventListener(
+        "pause",
+        () => {
+          el.currentTime = 0;
+          warming.current = false;
+        },
+        { once: true },
+      );
+      el.pause();
+    };
+    const onTime = () => el.currentTime > 0.25 && stop();
+    el.addEventListener("timeupdate", onTime);
+    const id = window.setTimeout(stop, 4000);
+    void el.play().catch(() => {
+      warming.current = false;
+    });
+    return () => {
+      el.removeEventListener("timeupdate", onTime);
+      window.clearTimeout(id);
+    };
+  }, [warm, active, mounted]);
   const loading = mounted && (waiting || (!!active && !started));
   useEffect(() => {
     if (!loading) return;
@@ -158,6 +204,7 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
         }}
         onLoadedMetadata={(e) => setDuration(e.currentTarget.duration || short.seconds || 0)}
         onTimeUpdate={(e) => {
+          if (warming.current) return;
           const el = e.currentTarget;
           if (!scrub) setTime(el.currentTime);
           // a short that autoplayed from the HTML started before React was listening: catch up from its clock
@@ -169,23 +216,28 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
           }
         }}
         onPlaying={() => {
+          if (warming.current) return;
           setWaiting(false);
           setSlow(false);
           setStarted(true);
         }}
         onWaiting={() => {
+          if (warming.current) return;
           setSlow(false);
           setWaiting(true);
         }}
         onPause={() => {
+          if (warming.current) return;
           setPlaying(false);
           onPlayingChange?.(false);
         }}
         onVolumeChange={(e) => {
+          if (warming.current) return;
           setIsMuted(e.currentTarget.muted);
           onMutedChange?.(e.currentTarget.muted);
         }}
         onPlay={(e) => {
+          if (warming.current) return;
           setPlaying(true);
           onPlayingChange?.(true);
           if (counted.current) return;
@@ -220,7 +272,7 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
         aria-label={isMuted ? "Turn sound on" : "Mute"}
         aria-pressed={!isMuted}
         title={isMuted ? "Sound on (M)" : "Mute (M)"}
-        className={`${muteClassName} absolute bottom-6 right-2 grid h-9 w-9 place-items-center shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-colors ${isMuted ? "bg-signal text-on-signal" : "bg-black/55 text-[#f3f2ee] backdrop-blur-sm hover:bg-signal hover:text-on-signal"}`}
+        className={`${muteClassName} absolute bottom-6 right-2 grid h-9 w-9 place-items-center shadow-[0_4px_16px_rgba(0,0,0,0.4)] transition-colors ${isMuted ? "bg-signal text-on-signal" : "bg-black/60 text-[#f3f2ee] hover:bg-signal hover:text-on-signal"}`}
       >
         {isMuted ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
       </button>

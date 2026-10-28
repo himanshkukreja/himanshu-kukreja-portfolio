@@ -59,4 +59,23 @@ async function load(): Promise<FeedShort[]> {
   });
 }
 
+/**
+ * The feed's order for this hour: a seeded shuffle that changes every hour. The page is cached, so this is what
+ * the server can pick; the first short then starts straight from the HTML, before any JavaScript has loaded.
+ * (The browser re-deals the rest on arrival, unseen first, and keeps this first one unless it was watched.)
+ */
+export function hourlyOrder<T>(items: T[], now = Date.now()): T[] {
+  let seed = Math.floor(now / 3_600_000) >>> 0;
+  const rand = () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 4294967296;
+  };
+  const out = [...items];
+  for (let k = out.length - 1; k > 0; k--) {
+    const j = Math.floor(rand() * (k + 1));
+    [out[k], out[j]] = [out[j], out[k]];
+  }
+  return out;
+}
+
 export const listShorts = unstable_cache(load, ["shorts-feed-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });

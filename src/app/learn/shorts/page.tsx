@@ -1,10 +1,10 @@
-import { listShorts } from "@/lib/learn/shorts/load";
+import { hourlyOrder, listShorts } from "@/lib/learn/shorts/load";
 import { getShorts } from "@/lib/learn/war/load";
 import ShortsFeed from "@/components/learn/war/ShortsFeed";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses).
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed hourly (a new first short) and on every content push.
+export const revalidate = 3600;
 
 export const metadata = {
   title: "Shorts · System Design Mastery",
@@ -17,5 +17,5 @@ export default async function ShortsPage() {
   // a war story's native portrait short replaces its letterboxed one
   const nativeOf = new Set(native.map((s) => s.lecture));
   const shorts = [...native, ...war.filter((w) => !nativeOf.has(w.lecture))];
-  return <ShortsFeed shorts={shorts} />;
+  return <ShortsFeed shorts={hourlyOrder(shorts)} />;
 }
