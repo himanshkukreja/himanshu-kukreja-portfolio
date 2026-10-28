@@ -343,8 +343,10 @@ function TranscriptDrawer({ call, onClose }: { call: Call | null; onClose: () =>
 function CallLog({ feature, onFeature, user, onUser }: { feature: string; onFeature: (f: string) => void; user: string; onUser: (u: string) => void }) {
   const [status, setStatus] = useState("");
   const [email, setEmail] = useState("");
+  // system calls (no learner: evaluations, batch content jobs) are hidden unless asked for
+  const [system, setSystem] = useState(false);
   const [page, setPage] = useState(1);
-  const qs = new URLSearchParams({ page: String(page), ...(feature ? { feature } : {}), ...(status ? { status } : {}), ...(user ? { user } : {}), ...(email ? { email } : {}) });
+  const qs = new URLSearchParams({ page: String(page), ...(feature ? { feature } : {}), ...(status ? { status } : {}), ...(user ? { user } : {}), ...(email ? { email } : {}), ...(system ? {} : { system: "0" }) });
   const { data, error, loading, refresh } = useAdminData<{ rows: Call[]; total: number; page: number }>(`/api/admin/ai/calls?${qs}`, { refreshMs: 30_000 });
   const [open, setOpen] = useState<Call | null>(null);
   const pages = Math.max(1, Math.ceil((data?.total ?? 0) / 50));
@@ -356,6 +358,10 @@ function CallLog({ feature, onFeature, user, onUser }: { feature: string; onFeat
       action={
         <div className="flex flex-wrap gap-2">
           <input placeholder="email" value={email} onChange={(e) => (setEmail(e.target.value), setPage(1))} className="min-h-8 w-40 border border-line-strong bg-bg px-2 font-mono text-xs text-fg" />
+          <label className="flex min-h-8 cursor-pointer items-center gap-1.5 border border-line-strong px-2 font-mono text-xs text-fg-2">
+            <input type="checkbox" checked={system} onChange={(e) => (setSystem(e.target.checked), setPage(1))} className="accent-[#FF6B2B]" />
+            show system calls
+          </label>
           <select value={status} onChange={(e) => (setStatus(e.target.value), setPage(1))} className="min-h-8 border border-line-strong bg-bg px-2 font-mono text-xs text-fg">
             <option value="">all statuses</option>
             {["ok", "off_topic", "over_quota", "rate_limited", "blocked", "disabled", "too_long", "error"].map((x) => (
