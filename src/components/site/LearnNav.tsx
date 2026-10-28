@@ -25,7 +25,7 @@ export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/lear
  *   you     · your stuff  progress, notebook, bookmarks, concept mastery, certificates
  * Keep in sync with the Prep hub (src/components/learn/prep) and the You sub-nav (src/components/learn/you).
  */
-export const PREP_ROUTES = ["prep", "practice", "revise", "cheatsheet", "sheets", "labs", "mock", "numbers", "plan", "tracks"] as const;
+export const PREP_ROUTES = ["prep", "practice", "revise", "cheatsheet", "sheets", "labs", "mock", "numbers", "plan", "tracks", "canvas", "podcast"] as const;
 const PREP_RE = new RegExp(`^/learn/(?:${PREP_ROUTES.join("|")})(?:/|$)`);
 /** the problem bank and the low-level design track are lessons, but they belong to interview prep */
 const PREP_LESSON_RE = /^\/learn\/[^/]+\/(?:problem-bank|low-level-design)\//;
