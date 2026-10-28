@@ -32,6 +32,8 @@ type Props = {
   /** a tap on the video: return true to take it (e.g. to bring the feed's controls back) instead of play/pause */
   onTap?: () => boolean;
   onPlayingChange?: (playing: boolean) => void;
+  /** the playhead (seconds) and length, on every timeupdate while it really plays (never during a warm-up) */
+  onProgress?: (time: number, duration: number) => void;
   /** feed: false renders just the poster (no <video>, no network); default true */
   mounted?: boolean;
   /** feed: how much to fetch ahead ("auto" for the one on screen and the next) */
@@ -46,7 +48,7 @@ type Props = {
 };
 
 const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
-  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "", onTap, onPlayingChange, mounted = true, preload = "metadata", active, priority = false, warm = false },
+  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "", onTap, onPlayingChange, onProgress, mounted = true, preload = "metadata", active, priority = false, warm = false },
   ref,
 ) {
   const v = useRef<HTMLVideoElement>(null);
@@ -208,6 +210,7 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
           if (warming.current) return;
           const el = e.currentTarget;
           if (!scrub) setTime(el.currentTime);
+          onProgress?.(el.currentTime, el.duration || short.seconds || 0);
           // a short that autoplayed from the HTML started before React was listening: catch up from its clock
           if (!el.paused && !playing) {
             setPlaying(true);

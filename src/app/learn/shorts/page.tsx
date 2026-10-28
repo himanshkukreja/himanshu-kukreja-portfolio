@@ -1,4 +1,5 @@
 import { hourlyOrder, listShorts } from "@/lib/learn/shorts/load";
+import { topShortIds } from "@/lib/learn/shorts/stats";
 import { getShorts } from "@/lib/learn/war/load";
 import ShortsFeed from "@/components/learn/war/ShortsFeed";
 
@@ -13,9 +14,10 @@ export const metadata = {
 };
 
 export default async function ShortsPage() {
-  const [native, war] = await Promise.all([listShorts().catch(() => []), getShorts().catch(() => [])]);
+  // top: ranked from the last 30 days of engagement, once an hour with the page (never fails the page)
+  const [native, war, top] = await Promise.all([listShorts().catch(() => []), getShorts().catch(() => []), topShortIds().catch(() => [] as string[])]);
   // a war story's native portrait short replaces its letterboxed one
   const nativeOf = new Set(native.map((s) => s.lecture));
   const shorts = [...native, ...war.filter((w) => !nativeOf.has(w.lecture))];
-  return <ShortsFeed shorts={hourlyOrder(shorts)} />;
+  return <ShortsFeed shorts={hourlyOrder(shorts)} top={top} />;
 }

@@ -59,7 +59,8 @@ export async function GET(request: Request) {
     const name = String(m.name || "");
     const id = String(m.quest || "");
     const who = r.user_id || r.visitor_id || "anon";
-    if (!id) continue;
+    // a short's play names its long lecture too: that's /admin/shorts, not watching the lecture
+    if (!id || m.short) continue;
     const p = per.get(id) || { plays: 0, sec: 0, viewers: new Set<string>(), completes: 0, last: r.created_at };
     const h = people.get(who) || { user: r.user_id, sec: 0, lectures: new Set<string>(), completes: 0, last: r.created_at };
     p.viewers.add(who);

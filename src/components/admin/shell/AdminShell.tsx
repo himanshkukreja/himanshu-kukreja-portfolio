@@ -31,6 +31,7 @@ export const ADMIN_NAV = [
   { href: "/admin/traffic", label: "Traffic", key: "traffic", match: (p: string) => p.startsWith("/admin/traffic") },
   { href: "/admin/journeys", label: "Journeys", key: "journeys", match: (p: string) => p.startsWith("/admin/journeys") },
   { href: "/admin/lectures", label: "Lectures", key: "lectures", match: (p: string) => p.startsWith("/admin/lectures") },
+  { href: "/admin/shorts", label: "Shorts", key: "shorts", match: (p: string) => p.startsWith("/admin/shorts") },
   { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
   { href: "/admin/case-files", label: "Case files", key: "case-files", match: (p: string) => p.startsWith("/admin/case-files") },
   { href: "/admin/design-week", label: "Design week", key: "design-week", match: (p: string) => p.startsWith("/admin/design-week") },

@@ -66,7 +66,8 @@ type FsDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFu
 type FsEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
 const fsElement = () => document.fullscreenElement ?? (document as FsDoc).webkitFullscreenElement ?? null;
 
-export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
+/** `top`: ids ranked by engagement (upvotes, saves, discussion, finished views), refreshed hourly on the server. */
+export default function ShortsFeed({ shorts, top = [] }: { shorts: PlayableShort[]; top?: string[] }) {
   const router = useRouter();
   // sound: off by default on phones and tablets, on for laptops (the player falls back to muted when the
   // browser blocks sound before a click); the viewer's own choice is remembered for the session
@@ -91,7 +92,13 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     const id = window.setTimeout(() => setMutedState(saved !== null ? saved === "1" : phoneLayout()), 0);
     return () => window.clearTimeout(id);
   }, []);
-  const [cat, setCat] = useState<ShortCategory | "all">("all");
+  const [cat, setCat] = useState<ShortCategory | "all" | "top">("all");
+  // the "top" filter shows once enough shorts have engagement to rank
+  const ranked = useMemo(() => {
+    const byId = new Map(shorts.map((s) => [s.id, s]));
+    return top.map((id) => byId.get(id)).filter((s): s is PlayableShort => !!s);
+  }, [shorts, top]);
+  const hasTop = ranked.length >= 5;
   const [topic, setTopic] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);
   const [talk, setTalk] = useState(false);
@@ -142,16 +149,43 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   const cats = useMemo(() => SHORT_CATEGORIES.filter((c) => shorts.some((s) => s.category === c.id)), [shorts]);
   const topics = useMemo(() => {
     const n = new Map<string, number>();
-    for (const s of shorts) if (cat === "all" || s.category === cat) for (const t of s.topics) n.set(t, (n.get(t) || 0) + 1);
+    if (cat !== "top") for (const s of shorts) if (cat === "all" || s.category === cat) for (const t of s.topics) n.set(t, (n.get(t) || 0) + 1);
     return [...n.entries()].sort((a, b) => b[1] - a[1]).map(([t]) => t);
   }, [shorts, cat]);
   // the short that is mostly on screen is the active one: it plays, the rest pause (see ShortPlayer `active`)
   const [activeId, setActiveId] = useState<string | null>(null);
+  // watch time of the short on screen, sent as one short_watch event when it leaves the screen (or the
+  // page is hidden): seconds really played, how far it got, loops and whether it was finished
+  const watch = useRef<{ id: string; quest: string; sec: number; maxT: number; dur: number; loops: number; lastT: number } | null>(null);
+  const flushWatch = useRef(() => {
+    const w = watch.current;
+    if (!w || w.sec < 0.5) return;
+    const reach = w.loops ? 1 : w.dur ? Math.min(1, w.maxT / w.dur) : 0;
+    track("short_watch", { short: w.id, quest: w.quest, sec: Math.round(w.sec * 10) / 10, pct: Math.round(reach * 100) / 100, loops: w.loops, done: w.loops > 0 || reach >= 0.9 });
+    w.sec = 0;
+  });
+  useEffect(() => {
+    const flush = flushWatch.current;
+    const off = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    const hide = () => flush();
+    document.addEventListener("visibilitychange", off);
+    window.addEventListener("pagehide", hide);
+    return () => {
+      document.removeEventListener("visibilitychange", off);
+      window.removeEventListener("pagehide", hide);
+      flush();
+    };
+  }, []);
   // this visit's order. It starts as the server's (its first short plays straight from the HTML); on arrival the
   // rest is re-dealt, unseen first, keeping that first short unless this browser has already watched it
   const [order, setOrder] = useState<PlayableShort[]>(shorts);
   const [dealt, setDealt] = useState(false);
-  const list = useMemo(() => order.filter((s) => (cat === "all" || s.category === cat) && (!topic || s.topics.includes(topic))), [order, cat, topic]);
+  const list = useMemo(
+    () => (cat === "top" ? ranked : order.filter((s) => (cat === "all" || s.category === cat) && (!topic || s.topics.includes(topic)))),
+    [order, ranked, cat, topic]
+  );
 
   // ?cat= / ?topic= / ?v= on arrival
   useEffect(() => {
@@ -197,11 +231,11 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     }
   }, [activeId]);
   // keep the filters in the address, so a filtered feed can be shared
-  const setFilter = (c: ShortCategory | "all", tp: string | null) => {
+  const setFilter = (c: ShortCategory | "all" | "top", tp: string | null) => {
     setCat(c);
     setTopic(tp);
     const q = new URLSearchParams();
-    if (c !== "all") q.set("cat", c);
+    if (c !== "all" && c !== "top") q.set("cat", c);
     if (tp) q.set("topic", tp);
     const qs = q.toString();
     window.history.replaceState(window.history.state, "", `${window.location.pathname}${qs ? `?${qs}` : ""}`);
@@ -277,6 +311,11 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
           <button type="button" onClick={() => setFilter("all", null)} aria-pressed={cat === "all"} className={chip(cat === "all")}>
             all · {shorts.length}
           </button>
+          {hasTop && (
+            <button type="button" onClick={() => setFilter("top", null)} aria-pressed={cat === "top"} className={chip(cat === "top")}>
+              top
+            </button>
+          )}
           {cats.map((c) => (
             <button key={c.id} type="button" onClick={() => setFilter(c.id, null)} aria-pressed={cat === c.id} className={chip(cat === c.id)}>
               {c.label.toLowerCase()}
@@ -306,6 +345,11 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
           <button type="button" onClick={() => setFilter("all", null)} aria-pressed={cat === "all"} className={pill(cat === "all")}>
             all · {shorts.length}
           </button>
+          {hasTop && (
+            <button type="button" onClick={() => setFilter("top", null)} aria-pressed={cat === "top"} className={pill(cat === "top")}>
+              top
+            </button>
+          )}
           {cats.map((c) => (
             <button key={c.id} type="button" onClick={() => setFilter(c.id, null)} aria-pressed={cat === c.id} className={pill(cat === c.id)}>
               {c.label.toLowerCase()}
@@ -398,6 +442,20 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
                 onPlayingChange={(p) => {
                   setPlaying(p);
                   if (!p) setChrome(true);
+                }}
+                onProgress={(t, d) => {
+                  if (k !== activeIdx) return;
+                  let w = watch.current;
+                  if (!w || w.id !== s.id) {
+                    flushWatch.current();
+                    w = watch.current = { id: s.id, quest: s.lecture, sec: 0, maxT: 0, dur: d, loops: 0, lastT: t };
+                  }
+                  // looped: the playhead jumped back from near the end
+                  if (t < w.lastT - 1 && w.lastT > 0.8 * (d || w.dur)) w.loops++;
+                  else if (t > w.lastT && t - w.lastT < 1.5) w.sec += t - w.lastT;
+                  w.lastT = t;
+                  w.dur = d || w.dur;
+                  w.maxT = Math.max(w.maxT, t);
                 }}
               />
               <PhoneOverlay
@@ -508,11 +566,11 @@ function PhoneOverlay({
         <span className="line-clamp-2 font-display text-[18px] font-extrabold leading-[1.1] text-[#f3f2ee]">{s.title}</span>
         <span className={`${chrome ? "pointer-events-auto" : "pointer-events-none"} flex gap-2 font-mono text-[12px] [text-shadow:none]`}>
           {s.full && (
-            <Link href={s.full} className="inline-flex min-h-9 items-center bg-signal px-3 font-semibold text-on-signal">
+            <Link href={s.full} onClick={() => track("short_open", { short: s.id, to: "lecture" })} className="inline-flex min-h-9 items-center bg-signal px-3 font-semibold text-on-signal">
               ▶ full lecture
             </Link>
           )}
-          <Link href={s.article} className="inline-flex min-h-9 items-center border border-white/40 bg-black/40 px-3 text-[#f3f2ee]">
+          <Link href={s.article} onClick={() => track("short_open", { short: s.id, to: "article" })} className="inline-flex min-h-9 items-center border border-white/40 bg-black/40 px-3 text-[#f3f2ee]">
             <BookOpen className="mr-1.5 h-3.5 w-3.5" aria-hidden />
             read it
           </Link>
@@ -543,11 +601,11 @@ function DesktopDetails({ s, k, n, comments, copied, onTopic, onTalk, onShare }:
       )}
       <div className="flex flex-wrap gap-2">
         {s.full && (
-          <Link href={s.full} className="inline-flex min-h-10 items-center bg-signal px-3 font-mono text-xs font-semibold text-on-signal">
+          <Link href={s.full} onClick={() => track("short_open", { short: s.id, to: "lecture" })} className="inline-flex min-h-10 items-center bg-signal px-3 font-mono text-xs font-semibold text-on-signal">
             ▶ full lecture
           </Link>
         )}
-        <Link href={s.article} className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-xs text-fg hover:border-signal">
+        <Link href={s.article} onClick={() => track("short_open", { short: s.id, to: "article" })} className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-xs text-fg hover:border-signal">
           <BookOpen className="mr-2 h-3.5 w-3.5 text-signal-text" aria-hidden />
           read it →
         </Link>
