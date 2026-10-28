@@ -23,7 +23,7 @@ export default async function LecturesPage() {
           ← prep
         </Link>
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
-          lectures · {lectures.length} · {Math.round(minutes / 60)} h {minutes % 60} min
+          lectures · {lectures.length} · {Math.floor(minutes / 60)} h {minutes % 60} min
         </span>
         <h1 className="m-0 font-display text-[clamp(34px,6vw,64px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
           Watch the whole design<span className="text-signal">.</span>
@@ -31,6 +31,9 @@ export default async function LecturesPage() {
         <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
           Animated, narrated lectures that walk through each lesson and side quest: the idea, where the obvious design breaks, the real one, and what to say in the interview. Each one links back to what it builds on, stops for quick checkpoints, and lets you ask the AI about any moment.
         </p>
+        <Link href="/learn/podcast" className="self-start font-mono text-[13px] text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          or listen to them as a podcast →
+        </Link>
       </header>
       {lectures.length ? <LectureGrid lectures={lectures} mediaBase={lectureMediaBase()} /> : <p className="m-0 text-fg-3">The first lectures are on their way.</p>}
     </main>
