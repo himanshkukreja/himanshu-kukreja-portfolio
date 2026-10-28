@@ -172,11 +172,14 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
       if (document.visibilityState === "hidden") flush();
     };
     const hide = () => flush();
-    document.addEventListener("visibilitychange", off);
-    window.addEventListener("pagehide", hide);
+    // capture on window: these run before the tracker's own hide/pagehide handlers (registered earlier, at its
+    // init), which send the queue by beacon. Registered after them, the last short's event was queued on a
+    // timer that never runs on a hidden or closing page, so it was lost.
+    window.addEventListener("visibilitychange", off, true);
+    window.addEventListener("pagehide", hide, true);
     return () => {
-      document.removeEventListener("visibilitychange", off);
-      window.removeEventListener("pagehide", hide);
+      window.removeEventListener("visibilitychange", off, true);
+      window.removeEventListener("pagehide", hide, true);
       flush();
     };
   }, []);

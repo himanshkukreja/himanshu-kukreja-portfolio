@@ -3,10 +3,12 @@
 /**
  * /admin/shorts: how the vertical shorts do. Every viewer (signed in or not), from the feed's own
  * events: plays, short_watch (seconds, how far, finished), opens of the full lecture / article, shares,
- * plus all-time upvotes, saves and comments. Watch time is tracked from 28 Oct 2026.
+ * plus all-time upvotes, saves and comments. Watch time is tracked from 28 Oct 2026. Below: drop-off (hooks,
+ * retention curves) from the same short_watch events (ShortsRetention).
  */
 import { useState } from "react";
 import { Card, EmptyState, ErrorState, fmtNum, Kpi, PageHead, Table, timeAgo, TrendChart, useAdminData } from "@/components/admin/ui";
+import ShortsRetention from "./ShortsRetention";
 
 type Row = {
   id: string;
@@ -114,6 +116,7 @@ export default function ShortsDashboard() {
           ]}
         />
       </Card>
+      <ShortsRetention days={days} />
     </main>
   );
 }
