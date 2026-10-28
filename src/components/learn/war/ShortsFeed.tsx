@@ -340,7 +340,8 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
                 onMutedChange={setMuted}
                 // Reels-style loading: a <video> only near the one on screen; it and the next buffer ahead
                 mounted={k >= activeIdx - 1 && k <= activeIdx + 2}
-                preload={k === activeIdx || k === activeIdx + 1 ? "auto" : k === activeIdx + 2 ? "metadata" : "none"}
+                // the one on screen gets the whole connection until it plays; then the next one buffers ahead
+                preload={k === activeIdx || (playing && k === activeIdx + 1) ? "auto" : "none"}
                 active={k === activeIdx}
                 // once the one on screen is playing, buffer the next two (iPhone Safari won't otherwise)
                 warm={playing && (k === activeIdx + 1 || k === activeIdx + 2)}
