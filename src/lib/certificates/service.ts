@@ -134,6 +134,7 @@ export async function learnerState(userId: string): Promise<CertState> {
   return {
     available: certs.available,
     signing: !!signingSource(),
+    badges: !!(await import("./badges")).badgeKey(),
     suggestedName: suggestCertName(courseCert?.display_name, certs.rows[0]?.display_name, l.fullName, meta),
     course: { eligibility: courseEligibility(c, l.evidence), certificate: courseCert ? toView(courseCert, c) : null },
     worlds: c.worlds.map((w) => {
@@ -264,6 +265,40 @@ export async function publicCertificate(code: string): Promise<PublicCert | null
 /** +1 verification view (one database call; ignored for unknown / private codes). */
 export async function bumpView(code: string): Promise<void> {
   await (await certStore()).bumpView(code);
+}
+
+/* ------------------------------------------------------------------ Open Badges */
+
+async function emailOf(userId: string): Promise<string | null> {
+  if (certFixtures()) return (await import("./fixtures")).FIXTURE_PEOPLE[userId]?.email ?? null;
+  try {
+    const { data } = await supabase.auth.admin.getUserById(userId);
+    return data?.user?.email ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** GET /api/learn/certificates/<code>/badge — the owner's Open Badges 3.0 credential (signed JWT). */
+export async function ownBadge(userId: string, code: string): Promise<{ jwt: string; credential: unknown; assertion: string | null }> {
+  const { badgeKey, ob3Credential, signOb3, assertionUrl } = await import("./badges");
+  if (!badgeKey()) throw new CertError(503, "Open Badges aren't switched on yet.", "badges");
+  const row = await ownRow(userId, code);
+  if (row.status !== "valid") throw new CertError(409, "A revoked certificate has no badge.", "revoked");
+  const c = await course().catch(() => null);
+  const view = toView(row, c);
+  const credential = ob3Credential(view, await emailOf(userId));
+  return { jwt: signOb3(credential), credential, assertion: row.is_public ? assertionUrl(row.code) : null };
+}
+
+/** /cert/<code>/badge.json — the Open Badges 2.0 hosted assertion of a public certificate (null otherwise). */
+export async function publicAssertion(code: string): Promise<Record<string, unknown> | null> {
+  const row = await publicRow(code);
+  if (!row) return null;
+  const email = await emailOf(row.user_id);
+  if (!email) return null;
+  const { ob2Assertion } = await import("./badges");
+  return ob2Assertion(toView(row, null), email);
 }
 
 /* ------------------------------------------------------------------ admin */

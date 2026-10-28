@@ -10,7 +10,7 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ExternalLink, Linkedin, Lock, Share2 } from "lucide-react";
+import { Award, Check, ChevronDown, ExternalLink, Linkedin, Lock, Share2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useGame } from "@/game/GameProvider";
@@ -152,6 +152,7 @@ export default function CertificateFlow() {
         <Issued
           cert={fresh}
           justNow
+          badges={!!d.state.badges}
           onShare={setShare}
           onChanged={(c) => d.patch((s) => replaceCert(s, c))}
           onRemoved={() => {
@@ -182,7 +183,7 @@ export default function CertificateFlow() {
           </p>
         )}
         {s.course.certificate ? (
-          <Issued cert={s.course.certificate} onShare={setShare} onChanged={(c) => d.patch((x) => replaceCert(x, c))} onRemoved={d.refresh} />
+          <Issued cert={s.course.certificate} badges={!!s.badges} onShare={setShare} onChanged={(c) => d.patch((x) => replaceCert(x, c))} onRemoved={d.refresh} />
         ) : (
           <Checklist e={s.course.eligibility} canClaim={s.available && s.signing} onClaim={() => startClaim({ kind: "course", world: null, title: certTitle("course") })} />
         )}
@@ -193,6 +194,7 @@ export default function CertificateFlow() {
           onShare={setShare}
           onChanged={(c) => d.patch((x) => replaceCert(x, c))}
           onRemoved={d.refresh}
+          badges={!!s.badges}
         />
         <FinePrint />
       </div>
@@ -486,6 +488,61 @@ function useCertPublic(cert: CertificateView, onChanged: (c: CertificateView) =>
   return { busy, err, setPublic };
 }
 
+/** Open Badges: the signed 3.0 credential to download, and the 2.0 badge URL when the page is public. */
+function OpenBadge({ cert, compact = false }: { cert: CertificateView; compact?: boolean }) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [url, setUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const get = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      const r = await userJson<{ jwt: string; assertion: string | null }>(`/api/learn/certificates/${cert.code}/badge`);
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(new Blob([r.jwt], { type: "application/jwt" }));
+      a.download = `${cert.code}.openbadge.jwt`;
+      a.click();
+      window.setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      setUrl(r.assertion);
+      track("cert_badge", { kind: cert.kind, world: cert.world?.key ?? null });
+    } catch (e) {
+      setErr((e as Error).message || "Couldn't make the badge.");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const btn = compact ? "inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-[12px] text-fg hover:bg-surface-2 disabled:opacity-50" : "inline-flex min-h-12 items-center justify-center gap-2 border border-line-strong px-3 text-[15px] text-fg hover:bg-surface-2 disabled:opacity-50";
+  return (
+    <div className={`flex flex-col gap-1.5 ${compact ? "" : "border border-line bg-surface p-3.5"}`}>
+      <button type="button" disabled={busy} onClick={() => void get()} className={btn}>
+        <Award className="h-4 w-4" aria-hidden /> {busy ? "signing…" : compact ? "Open Badge" : "Download Open Badge"}
+      </button>
+      {!compact && (
+        <span className="text-[13px] leading-snug text-fg-3">
+          A signed Open Badges 3.0 credential (.jwt) for badge wallets.{cert.isPublic ? " For Badgr or Canvas Credentials, import the badge URL instead." : " Turn the public page on to also get a badge URL for Badgr."}
+        </span>
+      )}
+      {url && (
+        <button
+          type="button"
+          onClick={() => {
+            void navigator.clipboard?.writeText(url).then(() => setCopied(true));
+          }}
+          className="self-start font-mono text-[12px] text-fg-2 underline underline-offset-4 hover:text-fg"
+        >
+          {copied ? "badge URL copied" : "copy badge URL (Open Badges 2.0)"}
+        </button>
+      )}
+      {err && (
+        <span role="alert" className="text-[12px] text-bad-text">
+          {err}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /** Withdraw a certificate, with a confirm step (DELETE; its page and QR code stop working). */
 function Withdraw({ cert, onDone, compact = false }: { cert: CertificateView; onDone: () => void; compact?: boolean }) {
   const [ask, setAsk] = useState(false);
@@ -531,7 +588,21 @@ function Withdraw({ cert, onDone, compact = false }: { cert: CertificateView; on
   );
 }
 
-function Issued({ cert, justNow = false, onShare, onChanged, onRemoved }: { cert: CertificateView; justNow?: boolean; onShare: (c: CertificateView) => void; onChanged: (c: CertificateView) => void; onRemoved: () => void }) {
+function Issued({
+  cert,
+  justNow = false,
+  badges = false,
+  onShare,
+  onChanged,
+  onRemoved,
+}: {
+  cert: CertificateView;
+  justNow?: boolean;
+  badges?: boolean;
+  onShare: (c: CertificateView) => void;
+  onChanged: (c: CertificateView) => void;
+  onRemoved: () => void;
+}) {
   const { busy, err, setPublic } = useCertPublic(cert, onChanged);
   const revoked = cert.status === "revoked";
   const course = cert.kind === "course";
@@ -626,6 +697,7 @@ function Issued({ cert, justNow = false, onShare, onChanged, onRemoved }: { cert
                 {err}
               </p>
             )}
+            {badges && <OpenBadge cert={cert} />}
             <Withdraw cert={cert} onDone={onRemoved} />
           </div>
         </div>
@@ -643,6 +715,7 @@ function Worlds({
   onShare,
   onChanged,
   onRemoved,
+  badges,
 }: {
   rows: WorldRow[];
   canClaim: boolean;
@@ -650,6 +723,7 @@ function Worlds({
   onShare: (c: CertificateView) => void;
   onChanged: (c: CertificateView) => void;
   onRemoved: () => void;
+  badges: boolean;
 }) {
   const issued = rows.filter((w) => w.certificate).length;
   return (
@@ -666,7 +740,7 @@ function Worlds({
       <p className="m-0 max-w-[680px] text-[14px] leading-relaxed text-fg-3">Each world has its own certificate in the blueprint style: every lesson of the world, its trial parts at 80%+ and its boss.</p>
       <ul className="m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))]">
         {rows.map((w) => (
-          <WorldCard key={w.key} w={w} canClaim={canClaim} onClaim={() => onClaim(w)} onShare={onShare} onChanged={onChanged} onRemoved={onRemoved} />
+          <WorldCard key={w.key} w={w} canClaim={canClaim} onClaim={() => onClaim(w)} onShare={onShare} onChanged={onChanged} onRemoved={onRemoved} badges={badges} />
         ))}
       </ul>
     </section>
@@ -680,6 +754,7 @@ function WorldCard({
   onShare,
   onChanged,
   onRemoved,
+  badges,
 }: {
   w: WorldRow;
   canClaim: boolean;
@@ -687,6 +762,7 @@ function WorldCard({
   onShare: (c: CertificateView) => void;
   onChanged: (c: CertificateView) => void;
   onRemoved: () => void;
+  badges: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const c = w.certificate;
@@ -753,6 +829,7 @@ function WorldCard({
           </>
         )}
         {state === "issued" && <WorldPublic cert={c!} onChanged={onChanged} />}
+        {state === "issued" && badges && <OpenBadge cert={c!} compact />}
         {state === "ready" && (
           <button type="button" onClick={onClaim} disabled={!canClaim} className="inline-flex min-h-11 items-center bg-signal px-4 text-[14px] font-semibold text-on-signal hover:brightness-110 disabled:opacity-50">
             Claim World {w.code} certificate

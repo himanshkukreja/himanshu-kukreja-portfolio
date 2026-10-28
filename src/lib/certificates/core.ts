@@ -598,6 +598,8 @@ export type CertState = {
   available: boolean;
   /** signing secret configured on the server */
   signing: boolean;
+  /** Open Badges signing key configured (the badge buttons show) */
+  badges?: boolean;
   suggestedName: string;
   course: { eligibility: Eligibility; certificate: CertificateView | null };
   worlds: { key: string; num: number; code: string; title: string; eligibility: Eligibility; certificate: CertificateView | null }[];

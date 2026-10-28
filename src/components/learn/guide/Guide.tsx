@@ -1300,7 +1300,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               </p>
               <p>
                 <strong>Then:</strong> <strong>Add to LinkedIn profile</strong> opens LinkedIn with the certificate&apos;s name, issuer, date, ID and link filled in; <strong>Download PDF</strong> opens a one-page A4 landscape version, public page or not
-                (choose “Save as PDF”); <strong>Share link</strong> opens the share sheet. The course certificate is paper-style with a QR code; world certificates are drawn as blueprints.
+                (choose “Save as PDF”); <strong>Share link</strong> opens the share sheet; <strong>Download Open Badge</strong> gives a signed Open Badges 3.0 credential for badge wallets (with the public page on, there&apos;s also a badge URL for Badgr and Canvas Credentials). The course certificate is paper-style with a QR code; world certificates are drawn as blueprints.
               </p>
             </div>
             <Note title="Checking a certificate" tone="signal">
