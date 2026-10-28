@@ -48,7 +48,11 @@ const RUNTIME = "hk-runtime";
 // shorts kept on the device, Reels-style: the next few unwatched ones, so a visit opens on one with no wait
 // and a few still play offline (filled by the feed's "hk:shorts" message; capped, oldest-watched out first)
 const SHORTS = "hk-shorts";
-const SHORTS_MAX = 8;
+const SHORTS_MAX = 8; // videos, never more
+const SHORTS_BYTES = 60 * 1024 * 1024; // and never more than this in all
+const SHORTS_FILE_MAX = 25 * 1024 * 1024; // a bigger file is never kept
+const SHORTS_TTL_MS = 7 * 24 * 3600 * 1000; // kept files expire after a week
+const SHORTS_STORAGE_SHARE = 0.8; // stop keeping when the origin's storage is this full
 const SHORT_FILE = /\/lectures\/shorts--[A-Za-z0-9-]+\/(?:video\.mp4|poster\.jpg)$/;
 // keep in sync with PYODIDE_VERSION in src/lib/learn/labs/runtime.ts (scripts/labs/vendor-pyodide.mjs checks)
 const RUNTIME_VERSION = "314.0.7";
@@ -502,10 +506,14 @@ async function shortFile(req, url) {
 }
 
 /**
- * Keep these shorts on the device (video + poster), in order, and let the rest go: anything not in `keep`
- * is evicted first, then the oldest, down to SHORTS_MAX videos. One download at a time; never on Save-Data.
+ * Keep these shorts on the device (video + poster), in order, and let the rest go. The set stays small and
+ * self-cleaning: anything not asked for is deleted first (so watched shorts leave as the viewer moves on),
+ * files older than a week expire, and new downloads stop at SHORTS_MAX videos, SHORTS_BYTES in all, or when
+ * the origin's storage is SHORTS_STORAGE_SHARE full. A quota error clears the whole set. One download at a time.
  */
 let shortsBusy = Promise.resolve();
+const keptAt = (res) => Number(res.headers.get("x-hk-kept-at")) || 0;
+const keptBytes = (res) => Number(res.headers.get("x-hk-bytes")) || 0;
 function keepShorts(urls) {
   shortsBusy = shortsBusy.then(async () => {
     const cache = await caches.open(SHORTS);
@@ -514,22 +522,44 @@ function keepShorts(urls) {
       want.add(u);
       want.add(u.replace(/video\.mp4(\?|$)/, "poster.jpg$1"));
     }
-    // evict first, so the new downloads have room
-    for (const k of await cache.keys()) if (!want.has(k.url)) await cache.delete(k);
+    // evict: not asked for, or expired
+    let used = 0;
+    for (const k of await cache.keys()) {
+      const hit = await cache.match(k);
+      if (!want.has(k.url) || !hit || Date.now() - keptAt(hit) > SHORTS_TTL_MS) await cache.delete(k);
+      else used += keptBytes(hit);
+    }
     for (const u of want) {
       if (await cache.match(u)) continue;
       try {
+        if (self.navigator.storage && self.navigator.storage.estimate) {
+          const { usage = 0, quota = 0 } = await self.navigator.storage.estimate();
+          if (quota && usage / quota > SHORTS_STORAGE_SHARE) return;
+        }
         // "reload": the page may already have this file in the HTTP cache from a plain <img>/<video> load,
         // stored without CORS headers, which would fail a CORS read
         const res = await fetch(u, { mode: "cors", credentials: "omit", cache: "reload" });
-        if (res.ok && res.status === 200) await cache.put(u, res);
+        if (!res.ok || res.status !== 200) continue;
+        const declared = Number(res.headers.get("content-length")) || 0;
+        if (declared > SHORTS_FILE_MAX || used + declared > SHORTS_BYTES) continue;
+        const blob = await res.blob();
+        if (blob.size > SHORTS_FILE_MAX || used + blob.size > SHORTS_BYTES) continue;
+        const headers = new Headers(res.headers);
+        headers.set("x-hk-kept-at", String(Date.now()));
+        headers.set("x-hk-bytes", String(blob.size));
+        await cache.put(u, new Response(blob, { status: 200, headers }));
+        used += blob.size;
       } catch (e) {
+        if (e && e.name === "QuotaExceededError") {
+          await caches.delete(SHORTS); // storage is full: give it all back
+          return;
+        }
         if (self.navigator && self.navigator.onLine === false) return; // offline: try again next time
         // one file failing never stops the rest
       }
     }
   });
-  return shortsBusy;
+  return shortsBusy.catch(() => {});
 }
 
 async function mediaFallback(req) {

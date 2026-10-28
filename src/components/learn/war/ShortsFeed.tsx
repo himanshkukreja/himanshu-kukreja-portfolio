@@ -217,7 +217,9 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
     if (conn?.saveData || !navigator.serviceWorker?.controller) return;
     const seen = new Set(readSeen());
     const ahead = list.slice(activeIdx + 1).filter((s) => !seen.has(s.id)).slice(0, 3);
-    navigator.serviceWorker.controller.postMessage({ type: "hk:shorts", keep: ahead.map((s) => s.src) });
+    // the one on screen stays while it plays (so it isn't pulled mid-play); it leaves on the next move
+    const here = list[activeIdx];
+    navigator.serviceWorker.controller.postMessage({ type: "hk:shorts", keep: [...(here ? [here.src] : []), ...ahead.map((s) => s.src)] });
   }, [dealt, playing, activeIdx, list]);
   // the media host: connect before the first <video> asks for it
   if (shorts[0]) {
