@@ -88,7 +88,8 @@ if (L.short) {
     const longFile = [path.join(dir, "..", "lectures", `${L.short.of}.json`), path.join(dir, "..", "lectures-next", `${L.short.of}.json`)].find((x) => fs.existsSync(x));
     if (!longFile) warns.push(`long lecture ${L.short.of} not found next to this file`);
     else if (!JSON.parse(fs.readFileSync(longFile, "utf8")).scenes?.some((s) => s.id === L.short.at)) errs.push(`at "${L.short.at}" isn't a scene of ${L.short.of}`);
-  } else warns.push("short has no at: the full-lecture link opens at the start");
+  } else if (!L.short.of.startsWith("war-stories--")) warns.push("short has no at: the full-lecture link opens at the start");
+  // a war story told only as a short + its article has no long lecture, so nothing to point `at`
   for (const s of L.scenes || []) {
     if (["quiz"].includes(s.kind)) errs.push(`${s.id}: shorts have no quizzes`);
     // sequence diagrams lay out sideways: on a phone their text is unreadable. Use a top-down flowchart.

@@ -43,12 +43,13 @@ const raw = fs.readFileSync(file, "utf8");
 const lec = JSON.parse(raw);
 // same fingerprint as lectureHash() in src/lib/learn/lecture/load.ts
 const SOURCE = crypto.createHash("sha1").update(JSON.stringify(lec)).digest("hex").slice(0, 12);
-// a vertical short: tight cuts (a beat between lines, not a pause), a slightly brisker voice, its mood's music
+// a vertical short: tight cuts (a short beat between lines), an unhurried voice (the owner asked for a calmer pace,
+// 28 Oct 2026: 1.07 → 0.97, beat 0.12 → 0.3 s), its mood's music
 const SHORT = !!lec.short;
-if (!SPEED) SPEED = SHORT ? "1.07" : "1.0";
+if (!SPEED) SPEED = SHORT ? "0.97" : "1.0";
 if (SHORT && MUSIC_DIR && lec.short.music && fs.existsSync(path.join(MUSIC_DIR, `${lec.short.music}.mp3`))) MUSIC = path.join(MUSIC_DIR, `${lec.short.music}.mp3`);
 const steps = lec.scenes.flatMap((s) => s.steps.map((st, k) => ({ id: `${s.id}-${k}`, say: st.say, who: st.who, pause: st.pause || 0, quizAsk: s.kind === "quiz" && k === 0 })));
-const GAP = SHORT ? 0.12 : 0.45;
+const GAP = SHORT ? 0.3 : 0.45;
 const QUIZ_WAIT = 3.2; // the video's countdown; the course player waits for an answer instead
 fs.mkdirSync(path.join(OUT, "audio"), { recursive: true });
 
