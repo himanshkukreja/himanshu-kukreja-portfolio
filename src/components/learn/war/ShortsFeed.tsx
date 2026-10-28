@@ -269,7 +269,7 @@ export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   return (
     <main
       ref={root}
-      className={`fixed inset-0 z-[60] flex flex-col bg-black lg:relative lg:inset-auto lg:z-auto lg:bg-transparent lg:transition-[margin] lg:duration-300 ${talk ? "lg:ml-0 lg:mr-[420px]" : "lg:mx-auto lg:w-full lg:max-w-[1100px]"}`}
+      className={`hk-app-fill fixed inset-0 z-[60] flex flex-col bg-black lg:relative lg:inset-auto lg:z-auto lg:bg-transparent lg:transition-[margin] lg:duration-300 ${talk ? "lg:ml-0 lg:mr-[420px]" : "lg:mx-auto lg:w-full lg:max-w-[1100px]"}`}
     >
       {/* laptops: filters above the feed */}
       <div className="hidden flex-col gap-1.5 border-b border-line px-6 py-2 lg:flex">

@@ -605,6 +605,15 @@ html:not(.dark) .hk-header::before {
    header showed the page scrolling underneath it, smeared, right behind the clock. Solid there instead (no
    blur: it's costly on iPhone too), with the status-bar strip filled; the docks get the same solid fill. */
 @media (display-mode: standalone) {
+  /* iOS 26 home-screen apps: a page at least this tall makes the layout viewport reach the bottom of the screen */
+  html {
+    min-height: calc(100% + env(safe-area-inset-top, 0px));
+  }
+  /* and if it still comes up short, the bottom-pinned layers reach down by the measured gap (layout.tsx) */
+  .hk-dock,
+  .hk-app-fill {
+    bottom: calc(0px - var(--hk-app-gap, 0px));
+  }
   .hk-header {
     background-color: var(--c-bg);
     -webkit-backdrop-filter: none;

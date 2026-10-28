@@ -98,6 +98,15 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         {/* build that rendered this page: a saved copy keeps that build's app files */}
         <meta name="hk-build" content={process.env.NEXT_PUBLIC_HK_BUILD || "dev"} />
+        {/* iPhone home-screen app (iOS 26): the layout viewport can come up shorter than the screen while the page
+            still draws from the very top, so fixed bottom bars stop short and leave a black band. Measure that gap
+            (real screen height minus the reported one) into --hk-app-gap; bottom-pinned layers extend by it
+            (globals.css "Installed app window"). 0 everywhere else, and once iOS reports the full height. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(navigator.standalone!==true||!/iPhone/.test(navigator.userAgent))return;var r=document.documentElement;function f(){var land=window.innerWidth>window.innerHeight;var full=land?Math.min(screen.width,screen.height):Math.max(screen.width,screen.height);var g=Math.round(full-window.innerHeight);r.style.setProperty("--hk-app-gap",(g>0&&g<200?g:0)+"px")}f();window.addEventListener("resize",f);window.addEventListener("orientationchange",function(){setTimeout(f,300)})}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased pb-24 lg:pb-0`}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON_LD) }} />
