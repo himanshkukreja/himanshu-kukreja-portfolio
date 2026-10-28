@@ -84,9 +84,6 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
   const enter = cur.step === 0 ? prog(t, 0, 0.55) : 1;
   const total = flat.length;
   const hasDiagram = s.kind === "flowchart" || s.kind === "state" || s.kind === "sequence";
-  // charts group digits the way the voice counts, as shorts do: Indian style (13,00,000) when the
-  // narration counts in lakh/crore, international (1,300,000) otherwise
-  const locale = useMemo(() => (lecture.scenes.some((x) => x.steps.some((y) => /\b(lakh|crore)s?\b/i.test(y.say))) ? "en-IN" : "en-US"), [lecture]);
 
   useEffect(() => {
     if (!hasDiagram) onReady?.(i);
@@ -127,7 +124,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         {s.kind === "list" && <ListScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "compare" && <CompareScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "quiz" && <QuizScene s={s} k={cur.step} t={t} dur={dur} interactive={!!interactive} quiz={quiz} onPick={onPick} />}
-        {s.kind === "chart" && <ChartScene s={s} st={st} prevSt={prev?.st ?? null} t={t} locale={locale} />}
+        {s.kind === "chart" && <ChartScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "timeline" && <TimelineScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "phone" && <PhoneScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {hasDiagram && <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} show={extraHighlight} />}
@@ -413,10 +410,13 @@ function QuizScene({ s, k, t, dur, interactive, quiz, onPick }: { s: LectureScen
   );
 }
 
-function ChartScene({ s, st, prevSt, t, locale }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; locale: string }) {
+function ChartScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number }) {
   const pts = (s.points || []) as { label: string; value: number; tone?: Tone }[];
   const [now, before] = revealed(st, prevSt, pts.length);
   const max = Math.max(...pts.map((p) => p.value), 1);
+  // digits grouped the way this chart's narration counts: Indian style (13,00,000) when it says lakh or
+  // crore, international (1,300,000) otherwise
+  const locale = s.steps.some((y) => /\b(lakh|crore)s?\b/i.test(y.say)) ? "en-IN" : "en-US";
   const fmt = (v: number) => `${v >= 1000 ? v.toLocaleString(locale) : Number.isInteger(v) ? v : v.toFixed(1)}${s.unit ? ` ${s.unit}` : ""}`;
   const Wd = 100;
   const Ht = 52;
