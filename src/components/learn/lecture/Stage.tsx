@@ -521,12 +521,14 @@ function PhoneScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pr
             const tone = TONE[r.tone || "neutral"];
             return (
               <Item key={`${k}-${j}`} fresh={j >= before} t={t} k0={j - before} className="flex items-center justify-between gap-[0.6cqw] border-b border-[#1d1d20] pb-[1cqh]">
-                <span className="flex min-w-0 items-center gap-[0.6cqw]">
+                {/* neither side shrinks below its longest word (a long word used to run into the note);
+                    a long note wraps, right-aligned, instead */}
+                <span className="flex items-center gap-[0.6cqw]">
                   <span className="h-[0.7cqw] w-[0.7cqw] shrink-0 rounded-full" style={{ background: tone.line }} />
                   <span className={`text-[1.2cqw] leading-snug ${W}`}>{r.text}</span>
                 </span>
                 {r.meta && (
-                  <span className="shrink-0 font-mono text-[1cqw]" style={{ color: tone.fg }}>
+                  <span className="text-right font-mono text-[1cqw] leading-snug" style={{ color: tone.fg }}>
                     {r.meta}
                   </span>
                 )}
