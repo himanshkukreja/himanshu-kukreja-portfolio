@@ -8,6 +8,7 @@
  * Saved shorts (bookmarks under course "shorts", saved from /learn/shorts) sit in their own row on top.
  */
 import Link from "next/link";
+import NotebookDesigns from "@/components/learn/canvas/NotebookDesigns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabaseClient } from "@/lib/supabase-client";
@@ -446,6 +447,8 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
           }}
         />
       )}
+
+      {userId && <NotebookDesigns userId={userId} />}
 
       {!authLoading && !userId ? (
         <div className="flex flex-wrap items-start gap-8">

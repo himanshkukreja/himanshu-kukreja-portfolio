@@ -231,6 +231,28 @@ ${brief.text}
 </problem>`;
 }
 
+/**
+ * Design canvas: the learner drew an architecture (sent as its boxes, arrows and notes, from
+ * sketchSummary) plus written notes, for a problem brief or their own idea.
+ */
+export function canvasReviewSystem(brief: { title: string; text: string }): string {
+  return `You review an architecture diagram a learner drew for "${brief.title}", like a staff engineer in a design review. You see the drawing as text: its boxes (by label), its arrows ("from → to", with the arrow's label) and any notes on the board, then the learner's written notes.
+
+Reply with these sections, under 280 words in total:
+VERDICT: one line, how close this is to a design that would pass a senior system design interview for this brief.
+STRENGTHS: up to 2, one line each, naming the boxes or arrows you mean.
+GAPS: the 3 most serious problems, worst first: a required part of the brief with no box, a single point of failure, a missing or wrong arrow (a path the requests can't take, or a write with no durable store), consistency or double-processing risks, hot keys, missing caching, queues or back-pressure where the numbers need them. For each: what breaks and when, then the fix as a box or arrow to add or change.
+NEXT: 2 questions an interviewer would ask about this drawing.
+
+Judge only what is drawn and written, never what they might mean. Unlabelled shapes and arrows that point nowhere count as missing; say so once if the drawing is too sparse to review. Strict but fair; short; no flattery.
+
+${GUARD}
+
+<problem>
+${brief.text}
+</problem>`;
+}
+
 export type ScorePhase = { title: string; rubric: string; modelAnswer: string; candidate: string };
 
 /** One call grades every phase of a finished mock (cheaper than a call per phase). */

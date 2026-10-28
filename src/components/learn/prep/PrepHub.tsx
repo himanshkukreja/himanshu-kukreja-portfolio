@@ -12,7 +12,7 @@
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Building2, CalendarDays, Calculator, Code2, FileText, Layers, ListChecks, Map as MapIcon, Mic, PlayCircle, Siren, Users } from "lucide-react";
+import { Building2, CalendarDays, Calculator, Code2, FileText, Layers, ListChecks, Map as MapIcon, Mic, PenTool, PlayCircle, Siren, Users } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useLabProgress } from "@/lib/learn/labs/progress";
 import { labKey } from "@/lib/learn/labs/types";
@@ -168,6 +168,20 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           )}
         </Group>
       )}
+
+      {/* design canvas */}
+      <Group id="canvas" kicker="design canvas" title="Draw it, get it reviewed" aside="The whiteboard round, on your own time: any interview problem, any capstone, or your own system.">
+        <Card
+          href="/learn/canvas"
+          icon={PenTool}
+          kicker="whiteboard + ai review"
+          state="new"
+          title="Design canvas"
+          pitch="Sketch the architecture with blocks, tech logos and arrows, then get a staff-engineer review of what you drew: the gaps worst first, the fix for each, and what you'd be asked next. Saves to your account."
+          meta="interview problems · capstones · your own idea"
+          reach={reach("/learn/canvas")}
+        />
+      </Group>
 
       {/* mock interviews, one by one */}
       {data.mocks.length > 0 && (

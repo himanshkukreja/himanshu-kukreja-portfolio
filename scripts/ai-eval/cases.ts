@@ -7,7 +7,7 @@
 
 export type EvalCase = {
   id: string;
-  feature: "lesson-qa" | "lab-hint" | "explain-back" | "mock-interviewer" | "mock-scorecard" | "design-review";
+  feature: "lesson-qa" | "lab-hint" | "explain-back" | "mock-interviewer" | "mock-scorecard" | "design-review" | "canvas-review";
   /** what the case tests, in one line (shown to the judge and in the review page) */
   title: string;
   /** builds the system prompt (see run.ts) */
@@ -211,6 +211,23 @@ Failing: test_get_refreshes_recency: after put(1),put(2),get(1),put(3) expected 
     ctx: { title: "Payment confirmation", text: "Design how an e-commerce app confirms orders after the payment gateway sends a webhook." },
     input: `The gateway calls POST /webhooks/payment with {order_id, status}. Our handler marks the order PAID and calls the warehouse API to ship it, then returns 200. If anything fails we return 500 so the gateway retries.`,
     expect: ["Flags duplicate webhook deliveries/retries causing double shipment: needs idempotency on event id / order state check", "Flags doing the warehouse call inside the webhook (retry storm, timeouts) → outbox/queue", "Mentions verifying the webhook signature"],
+  },
+  // ---------------------------------------------------------------- design canvas (the drawing arrives as sketchSummary text)
+  {
+    id: "cv-shortener-sparse",
+    feature: "canvas-review",
+    title: "Canvas: URL shortener drawn as client → API → one database, no cache, no ID scheme",
+    ctx: { title: "Design a URL shortener", text: "Build a service like bit.ly. 100M new short links a month, 100:1 redirects per link created, 7-character codes from 62 symbols, < 50 ms p99 redirect latency, highly available redirects, unique and non-guessable codes, click counts per link (can lag a minute)." },
+    input: `<drawing>\nBoxes: Client, API server, MySQL\nArrows: Client → API server (shorten / redirect); API server → MySQL\nNotes on the board: hash the URL with MD5 and take 7 chars\n</drawing>\n\n<notes>\nOne API server. Codes are the first 7 characters of MD5(url).\n</notes>`,
+    expect: ["Flags the single API server and single database as single points of failure for a redirect path that must be highly available", "Flags truncated MD5 codes: collisions between different URLs, and/or codes that are guessable from the URL", "Flags no cache in front of the read-heavy (100:1) redirect path for the 50 ms p99", "Gives each gap a fix as a box or arrow to add", "Doesn't invent components that aren't drawn"],
+  },
+  {
+    id: "cv-orders-dual-write",
+    feature: "canvas-review",
+    title: "Canvas: order system that writes the DB and publishes to Kafka separately (dual write)",
+    ctx: { title: "Event-driven order fulfillment for food delivery", text: "Food delivery in 50 cities: accept orders, process payment with retries, notify the restaurant, match a driver, track delivery, handle failures, keep an audit trail for disputes (2 years). 500,000 orders/day, 10x at dinner rush, 7 services consume order events." },
+    input: `<drawing>\nBoxes: Mobile app, API gateway, Order service, Orders DB (Postgres), Kafka, Payment service, Restaurant service, Driver matching, Notifications, Audit log store\nArrows: Mobile app → API gateway; API gateway → Order service; Order service → Orders DB (insert order); Order service → Kafka (publish OrderPlaced); Kafka → Payment service; Kafka → Restaurant service; Kafka → Driver matching; Kafka → Notifications; Kafka → Audit log store\n</drawing>\n\n<notes>\nOrder service inserts the order then publishes the event. Consumers each have their own group.\n</notes>`,
+    expect: ["Flags the dual write (DB insert then Kafka publish): a crash between them loses or invents events; fix with a transactional outbox (or CDC)", "Mentions idempotent consumers / duplicate events (at-least-once) for payment", "Credits the fan-out through Kafka with separate consumer groups as a strength", "Asks about dinner-rush back-pressure or payment retries/dead letters"],
   },
   // ---------------------------------------------------------------- lesson Q&A (lesson text loaded by the runner)
   {

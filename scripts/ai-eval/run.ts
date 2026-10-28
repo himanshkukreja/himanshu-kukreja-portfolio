@@ -11,7 +11,7 @@ import path from "path";
 import { callClaude } from "@/lib/ai/client";
 import { FEATURES } from "@/lib/ai/features";
 import { MODELS } from "@/lib/ai/prices";
-import { designReviewSystem, explainBackSystem, labHintSystem, lessonQaSystem, mockInterviewerSystem, mockScorecardSystem } from "@/lib/ai/prompts";
+import { canvasReviewSystem, designReviewSystem, explainBackSystem, labHintSystem, lessonQaSystem, mockInterviewerSystem, mockScorecardSystem } from "@/lib/ai/prompts";
 import { CASES, type EvalCase } from "./cases";
 
 const OUT = path.resolve(process.argv[2] || "ai-eval-out");
@@ -38,6 +38,8 @@ function build(c: EvalCase): { system: string; user: string } {
     }
     case "design-review":
       return { system: designReviewSystem({ title: s(x.title), text: s(x.text) }), user: c.input };
+    case "canvas-review":
+      return { system: canvasReviewSystem({ title: s(x.title), text: s(x.text) }), user: c.input };
     case "lesson-qa": {
       const text = fs.readFileSync(path.join(CONTENT, "resources", s(x.lessonPath)), "utf8");
       return { system: lessonQaSystem({ title: s(x.title), text }), user: c.input };

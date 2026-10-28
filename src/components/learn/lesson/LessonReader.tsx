@@ -1,5 +1,6 @@
 "use client";
 
+import CanvasEntry from "@/components/learn/canvas/CanvasEntry";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { Stage, TocItem } from "@/lib/course/types";
 import { LessonProgressProvider } from "@/components/LessonProgressTracker";
@@ -190,6 +191,8 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
           >
             {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
             {meta.lecture && <LectureEntry lecture={meta.lecture} quest={meta.kind === "bonus" || meta.kind === "problem" || meta.kind === "lld"} />}
+            {meta.kind === "problem" && <CanvasEntry promptKey={`problem:${meta.slug}`} />}
+            {meta.kind === "capstone" && <CanvasEntry promptKey={`capstone:${meta.week}`} />}
             {meta.kind === "bonus" && <QuestRunEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} />}
 
             <AskPrompt />
