@@ -25,6 +25,8 @@ for (const s of L.scenes || []) {
   if (!KINDS.includes(s.kind)) errs.push(`${s.id}: bad kind ${s.kind}`);
   if (!s.id || !s.title || !Array.isArray(s.steps) || !s.steps.length) errs.push(`${s.id}: needs id, title, steps`);
   if (["flowchart", "sequence", "state"].includes(s.kind) && !s.diagram) errs.push(`${s.id}: ${s.kind} needs diagram`);
+  // mermaid ends a sequence statement at ";": the diagram fails and the export waits forever on that frame
+  if (s.kind === "sequence" && (s.diagram || "").includes(";")) errs.push(`${s.id}: no ";" in a sequence diagram (mermaid reads it as the end of a line)`);
   if (s.kind === "numbers" && !(s.numbers || []).length) errs.push(`${s.id}: numbers scene needs numbers[]`);
   if (s.kind === "list" && !(s.points || []).length) errs.push(`${s.id}: list scene needs points[]`);
   if (s.kind === "compare" && !(s.left?.points?.length && s.right?.points?.length)) errs.push(`${s.id}: compare needs left/right with points[]`);
