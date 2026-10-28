@@ -6,7 +6,8 @@ import { getSheetSummaries } from "@/lib/learn/sheets/load";
 import { getAllStories } from "@/lib/stories";
 import { SITE_URL } from "@/lib/site";
 import { getCompanies } from "@/lib/learn/prep/load";
-import { listLectures } from "@/lib/learn/lecture/load";
+import { lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
+import { listShorts } from "@/lib/learn/shorts/load";
 import { getWarStories } from "@/lib/learn/war/load";
 import { getCatalogue } from "@/lib/concepts/load";
 
@@ -54,7 +55,7 @@ async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
 }
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [map, decks, labs, stories, concepts, sheets, companies, war, lectures] = await Promise.all([
+  const [map, decks, labs, stories, concepts, sheets, companies, war, lectures, shorts] = await Promise.all([
     safe(getCourseMap(), null),
     safe(getRevisionWeeks(), []),
     safe(getLabSummaries(), []),
@@ -64,7 +65,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     safe(getCompanies(), []),
     safe(getWarStories(), { stories: [], rooms: [] }),
     safe(listLectures(), []),
+    safe(listShorts(), []),
   ]);
+  // video entries (Google video results): the released files on the media host, with their posters
+  const media = (lectureMediaBase() || "").replace(/\/$/, "");
+  const hasMedia = /^https?:\/\//.test(media);
   const url = (path: string) => `${SITE_URL}${path}`;
   const out: MetadataRoute.Sitemap = STATIC.map((s) => ({ url: url(s.path), changeFrequency: s.freq, priority: s.priority }));
 
@@ -89,7 +94,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const r of war.rooms) out.push({ url: url(r.href), changeFrequency: "monthly", priority: 0.5 });
   for (const l of labs) out.push({ url: url(`/learn/labs/${l.id}`), changeFrequency: "monthly", priority: 0.5 });
   for (const s of sheets) out.push({ url: url(s.href), changeFrequency: "monthly", priority: 0.6 });
-  for (const l of lectures) out.push({ url: url(l.href), changeFrequency: "monthly", priority: 0.6 });
+  for (const l of lectures)
+    out.push({
+      url: url(l.href),
+      changeFrequency: "monthly",
+      priority: 0.6,
+      ...(hasMedia
+        ? { videos: [{ title: l.title.slice(0, 100), description: (l.summary || l.title).slice(0, 2048), thumbnail_loc: `${media}/${l.slug}/poster.jpg`, content_loc: `${media}/${l.slug}/video.mp4`, duration: Math.max(1, Math.round(l.minutes * 60)), family_friendly: "yes" as const }] }
+        : {}),
+    });
+  // every short has its own watch page (video, transcript, links)
+  for (const s of shorts)
+    out.push({
+      url: url(`/learn/shorts/${s.id}`),
+      changeFrequency: "monthly",
+      priority: 0.5,
+      videos: [{ title: s.title.slice(0, 100), description: `${s.label}: ${s.title}`.slice(0, 2048), thumbnail_loc: s.poster, content_loc: s.src, duration: Math.max(1, s.seconds), family_friendly: "yes" as const }],
+    });
   for (const s of stories) {
     out.push({ url: url(`/stories/${s.slug}`), changeFrequency: "monthly", priority: 0.7, ...(s.date ? { lastModified: new Date(s.date) } : {}) });
   }

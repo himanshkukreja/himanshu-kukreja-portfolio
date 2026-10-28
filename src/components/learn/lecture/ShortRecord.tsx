@@ -1,21 +1,18 @@
 "use client";
 
-/** /learn/shorts/<id>: in record mode (the exporter) the portrait stage; otherwise straight into the shorts feed. */
+/**
+ * /learn/shorts/<id>: in record mode (the exporter, ?record=1) the portrait stage; otherwise the short's
+ * own watch page (`children`, server-rendered, so search engines see the video, its transcript and links).
+ */
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import LecturePlayer from "./LecturePlayer";
 
-export default function ShortRecord({ lecture, source, mediaBase }: { lecture: Lecture; source: string; mediaBase: string | null }) {
-  const router = useRouter();
-  const [record, setRecord] = useState<boolean | null>(null);
+export default function ShortRecord({ lecture, source, mediaBase, children }: { lecture: Lecture; source: string; mediaBase: string | null; children?: React.ReactNode }) {
+  const [record, setRecord] = useState(false);
   useEffect(() => {
-    const id = window.setTimeout(() => {
-      const r = new URLSearchParams(window.location.search).has("record");
-      setRecord(r);
-      if (!r) router.replace(`/learn/shorts?v=${encodeURIComponent(lecture.quest)}`);
-    }, 0);
+    const id = window.setTimeout(() => setRecord(new URLSearchParams(window.location.search).has("record")), 0);
     return () => window.clearTimeout(id);
-  }, [lecture.quest, router]);
-  return record ? <LecturePlayer lecture={lecture} quest={null} source={source} mediaBase={mediaBase} /> : null;
+  }, []);
+  return record ? <LecturePlayer lecture={lecture} quest={null} source={source} mediaBase={mediaBase} /> : <>{children}</>;
 }

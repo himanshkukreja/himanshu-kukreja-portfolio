@@ -73,6 +73,51 @@ export function caseFileArticle(o: { title: string; description: string; path: s
 }
 
 /** Renders one or more schema.org objects. `<` is escaped so content can never close the script tag. */
+/**
+ * A video (lecture or short) for Google's video results: the watch page, the file, the poster, the
+ * length and, for lectures, the chapters as key moments (Clip, linked with ?t=<seconds>).
+ */
+export function videoObject(o: {
+  name: string;
+  description: string;
+  path: string;
+  thumbnailUrl: string;
+  contentUrl: string;
+  uploadDate: string;
+  duration: string;
+  chapters?: { title: string; at: number }[];
+  durationSec?: number;
+}) {
+  const page = `${SITE_URL}${o.path}`;
+  const parts = (o.chapters || []).filter((c) => c.at >= 0);
+  return {
+    "@context": "https://schema.org",
+    "@type": "VideoObject",
+    name: o.name.slice(0, 100),
+    description: o.description,
+    thumbnailUrl: [o.thumbnailUrl],
+    uploadDate: o.uploadDate,
+    duration: o.duration,
+    contentUrl: o.contentUrl,
+    url: page,
+    inLanguage: "en",
+    isAccessibleForFree: true,
+    author: AUTHOR,
+    publisher: AUTHOR,
+    ...(parts.length > 1
+      ? {
+          hasPart: parts.map((c, i) => ({
+            "@type": "Clip",
+            name: c.title,
+            startOffset: Math.floor(c.at),
+            endOffset: Math.floor(parts[i + 1]?.at ?? o.durationSec ?? c.at + 60),
+            url: `${page}${page.includes("?") ? "&" : "?"}t=${Math.floor(c.at)}`,
+          })),
+        }
+      : {}),
+  };
+}
+
 export function JsonLd({ data }: { data: object | object[] }) {
   const json = JSON.stringify(data).replace(/</g, "\\u003c");
   return <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: json }} />;
