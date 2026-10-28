@@ -109,3 +109,9 @@ export async function pinnedShortIds(): Promise<string[]> {
   const controls = await controlMap();
   return [...controls.values()].filter((c) => c.kind === "short" && c.pin !== null && isLive(c)).sort((a, b) => a.pin! - b.pin!).map((c) => c.key.slice("short:".length));
 }
+
+/** One article's live shorts, for the row at its end (lesson, side quest, problem, case file, mock). */
+export async function shortsOf(of: string): Promise<{ of: string; items: { id: string; title: string; poster: string; seconds: number }[] } | null> {
+  const items = (await listShorts()).filter((x) => x.lecture === of).map((x) => ({ id: x.id, title: x.title, poster: x.poster, seconds: x.seconds }));
+  return items.length ? { of, items } : null;
+}

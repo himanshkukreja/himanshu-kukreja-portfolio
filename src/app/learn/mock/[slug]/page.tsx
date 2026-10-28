@@ -3,6 +3,7 @@ import { getMockInterview } from "@/lib/learn/mock/page-data";
 import MockInterviewRoom from "@/components/learn/mock/MockInterview";
 import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
 import { lessonLectureId } from "@/lib/learn/lecture/types";
+import { shortsOf } from "@/lib/learn/shorts/load";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
@@ -27,7 +28,11 @@ export async function generateMetadata({ params }: Props) {
 
 export default async function MockInterviewPage({ params }: Props) {
   const { slug } = await params;
-  const [mock, lecture] = await Promise.all([getMockInterview(slug), getLecture(lessonLectureId("mock-interviews", slug)).then(lectureCard).catch(() => null)]);
+  const [mock, lecture, shorts] = await Promise.all([
+    getMockInterview(slug),
+    getLecture(lessonLectureId("mock-interviews", slug)).then(lectureCard).catch(() => null),
+    shortsOf(lessonLectureId("mock-interviews", slug)).catch(() => null),
+  ]);
   if (!mock) notFound();
-  return <MockInterviewRoom mock={mock} lecture={lecture} />;
+  return <MockInterviewRoom mock={mock} lecture={lecture} shorts={shorts} />;
 }

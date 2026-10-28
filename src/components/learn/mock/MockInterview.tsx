@@ -25,10 +25,11 @@ import Room from "./Room";
 import Debrief from "./Debrief";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
+import type { ArticleShort } from "@/components/learn/lesson/ArticleShorts";
 
 type LectureCard = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 
-export default function MockInterviewRoom({ mock, lecture = null }: { mock: MockInterview; lecture?: LectureCard }) {
+export default function MockInterviewRoom({ mock, lecture = null, shorts = null }: { mock: MockInterview; lecture?: LectureCard; shorts?: { of: string; items: ArticleShort[] } | null }) {
   const { awardOnce, setFlag, flags, done, hydrated } = useGame();
   const rootRef = useRef<HTMLDivElement>(null);
   const [run, setRun] = useState<MockRun | null>(null);
@@ -277,7 +278,7 @@ export default function MockInterviewRoom({ mock, lecture = null }: { mock: Mock
   return (
     <div ref={rootRef} data-mock-root data-mock-screen={run.screen} className="scroll-mt-24">
       <MermaidHydrator rootSelector="[data-mock-root]" />
-      {run.screen === "lobby" && <Lobby mock={mock} run={run} best={completed ? best : null} offer={hydrated && !!done[mockOfferKey(mock.id)]} onStart={start} onResume={resume} lecture={lecture} />}
+      {run.screen === "lobby" && <Lobby mock={mock} run={run} best={completed ? best : null} offer={hydrated && !!done[mockOfferKey(mock.id)]} onStart={start} onResume={resume} lecture={lecture} shorts={shorts} />}
       {run.screen === "room" && (
         <Room
           mock={mock}

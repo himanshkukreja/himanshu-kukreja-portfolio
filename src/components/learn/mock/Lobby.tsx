@@ -13,6 +13,7 @@ import { firstName } from "@/lib/learn/mock/engine";
 import { Avatar, CourseHtml, LABEL } from "./ui";
 import JoinBriefing, { briefingSkipped } from "./JoinBriefing";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+import ArticleShorts, { type ArticleShort } from "@/components/learn/lesson/ArticleShorts";
 
 export default function Lobby({
   mock,
@@ -22,6 +23,7 @@ export default function Lobby({
   onStart,
   onResume,
   lecture = null,
+  shorts = null,
 }: {
   mock: MockInterview;
   run: MockRun;
@@ -31,6 +33,8 @@ export default function Lobby({
   onResume: () => void;
   /** the recorded model interview for this mock, when there is one */
   lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
+  /** this mock's vertical shorts, shown at the end of the lobby */
+  shorts?: { of: string; items: ArticleShort[] } | null;
 }) {
   const [level, setLevel] = useState<MockLevel>(run.level || mock.level);
   // starting over clears the round in progress: ask once
@@ -294,6 +298,7 @@ export default function Lobby({
           )}
         </aside>
       </div>
+      {shorts && <ArticleShorts of={shorts.of} shorts={shorts.items} what="mock" className="m-0" />}
     </main>
   );
 }

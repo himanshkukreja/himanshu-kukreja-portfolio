@@ -13,6 +13,7 @@ import StoryContentWrapper from "@/components/StoryContentWrapper";
 import CourseEnhancer from "@/components/learn/content/CourseEnhancer";
 import { useGame } from "@/game/GameProvider";
 import DebriefCard from "./DebriefCard";
+import ArticleShorts, { type ArticleShort } from "@/components/learn/lesson/ArticleShorts";
 import CaseActivity from "./activities/registry";
 import type { CaseActivityData } from "./activities/data";
 import styles from "./reader.module.css";
@@ -54,6 +55,8 @@ type Props = {
   preview?: boolean;
   /** the case file's animated lecture, when it has one */
   lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
+  /** the case file's vertical shorts, shown at the end */
+  shorts?: { of: string; items: ArticleShort[] } | null;
 };
 
 const CHIP = "border border-line-strong px-2 py-1 text-fg-2";
@@ -62,7 +65,7 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export default function StoryReader({ meta, checkpoints, htmlContent, debrief, prev, next, totalCases, views, comments, activity, preview, lecture }: Props) {
+export default function StoryReader({ meta, checkpoints, htmlContent, debrief, prev, next, totalCases, views, comments, activity, preview, lecture, shorts = null }: Props) {
   const { hydrated, flags, done, setFlag, award } = useGame();
   const contentRef = useRef<HTMLDivElement>(null);
   const dockRef = useRef<HTMLDivElement>(null);
@@ -600,6 +603,8 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
 
             {/* End-of-file activity (lazy, per story): after the article, so it never affects checkpoints or progress. */}
             <CaseActivity slug={meta.slug} caseId={meta.caseId} data={activity} />
+
+            {shorts && <ArticleShorts of={shorts.of} shorts={shorts.items} what="case" className="m-0" />}
 
             {meta.tags.length > 0 && (
               <div className="flex flex-wrap gap-1.5 xl:hidden" aria-label="Tags">
