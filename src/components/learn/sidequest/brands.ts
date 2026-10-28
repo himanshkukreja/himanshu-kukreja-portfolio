@@ -69,7 +69,7 @@ const gb = (name: string, box?: QuestLogo["box"]): QuestLogo => ({ from: "gb", n
 const si = (name: string, box?: QuestLogo["box"]): QuestLogo => ({ from: "si", name, box });
 
 const BRANDS: Record<number, QuestBrand> = {
-  1: { n: 1, product: "UPI", field: "Real-time payments", emblem: "upi", accent: "#0E7A46", tile: W, ink: "#097939", hi: "#ED752E" },
+  1: { n: 1, product: "UPI", field: "Real-time payments", emblem: "upi", accent: "#27803B", tile: W, ink: "#097939", hi: "#ED752E", logos: [gb("upi", [7, 20, 50, 24])] },
   2: {
     n: 2, product: "WhatsApp", field: "Messaging", emblem: "chat", accent: "#25D366", tile: "#25D366", ink: W,
     tileGradient: { kind: "linear", x1: 0.5, y1: 0, x2: 0.5, y2: 1, stops: [[0, "#5FFC7B"], [1, "#28D146"]] },
@@ -85,7 +85,7 @@ const BRANDS: Record<number, QuestBrand> = {
   10: { n: 10, product: "Twitter / X", field: "Social timelines", emblem: "fanout", accent: "#1D9BF0", tile: K, ink: W, logos: [si("x", [17, 17, 30, 30])] },
   11: { n: 11, product: "IRCTC Tatkal", field: "Ticket booking", emblem: "train", accent: "#004B8D", tile: "#004B8D", ink: W, hi: "#F7941D" },
   12: { n: 12, product: "Blinkit", field: "Quick commerce", emblem: "bolt", accent: "#F8CB46", tile: "#F8CB46", ink: "#1C1C1C", hi: "#0C831F", logos: [gb("blinkit", [5.5, 25, 53, 14])] },
-  13: { n: 13, product: "Zerodha Kite", field: "Stock trading", emblem: "candles", accent: "#387ED1", tile: "#387ED1", ink: W, hi: "#FF6A2B" },
+  13: { n: 13, product: "Zerodha Kite", field: "Stock trading", emblem: "candles", accent: "#F6461A", tile: W, ink: "#387ED1", hi: "#FF6A2B", logos: [gb("kite", [12, 17, 40, 30])] },
   14: { n: 14, product: "ChatGPT", field: "LLM serving", emblem: "tokens", accent: "#10A37F", tile: K, ink: W, logos: [si("openai", [14, 14, 36, 36])] },
   15: { n: 15, product: "Figma", field: "Multiplayer editing", emblem: "cursors", accent: "#F24E1E", tile: "#1E1E1E", ink: W, logos: [si("figma", [16, 14, 32, 36])] },
   16: { n: 16, product: "BookMyShow", field: "Seat booking", emblem: "seats", accent: "#F84464", tile: "#F84464", ink: W, logos: [si("bookmyshow", [13, 13, 38, 38])] },
@@ -108,8 +108,8 @@ const BRANDS: Record<number, QuestBrand> = {
   29: { n: 29, product: "GitHub", field: "Code hosting", emblem: "branch", accent: "#24292F", tile: K, ink: W, logos: [si("github", [14, 14, 36, 36])] },
   30: { n: 30, product: "TikTok", field: "For You feed", emblem: "swipe", accent: "#FE2C55", tile: K, ink: W, logos: [gb("tiktok-icon", [14, 13, 36, 38])] },
   31: { n: 31, product: "Discord", field: "Community chat and voice", emblem: "voice", accent: "#5865F2", tile: "#5865F2", ink: W, logos: [si("discord", [12, 12, 40, 40])] },
-  32: { n: 32, product: "ONDC", field: "Open commerce network", emblem: "peer", accent: "#1C4E9D", tile: W, ink: "#1C4E9D", hi: "#F4A118" },
-  33: { n: 33, product: "NSE", field: "Stock exchange", emblem: "ladder", accent: "#E07122", tile: W, ink: "#1F2B5B", hi: "#E07122" },
+  32: { n: 32, product: "ONDC", field: "Open commerce network", emblem: "peer", accent: "#1C75BC", tile: W, ink: "#1C4E9D", hi: "#F4A118", logos: [gb("ondc", [6, 19, 52, 26])] },
+  33: { n: 33, product: "NSE", field: "Stock exchange", emblem: "ladder", accent: "#E66F25", tile: W, ink: "#1F2B5B", hi: "#E07122", logos: [gb("nse", [5, 21, 54, 22])] },
 };
 
 const FALLBACK: Omit<QuestBrand, "n"> = { product: "Side quest", field: "System design", emblem: "fanout", accent: "#0B0B0B", tile: "#0B0B0B", ink: "#FFFFFF" };

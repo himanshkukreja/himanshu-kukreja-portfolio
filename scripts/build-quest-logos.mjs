@@ -49,13 +49,23 @@ const LOGOS = {
  *                (the app icon's mark, without the wordmark) and drawn white on the brand's red tile
  *   truecaller.svg  Wikimedia Commons, File:Truecaller Logo.svg (public domain as a text logo, trademarked):
  *                the wordmark, drawn white on the brand's blue tile
+ *   upi.svg      Wikimedia Commons, File:UPI-Logo-vector.svg (public domain, trademarked): cropped above the
+ *                "Unified Payments Interface" line
+ *   kite.svg     Wikimedia Commons, File:Zerodha Kite logo.svg (public domain, trademarked): the Kite mark
+ *   ondc.svg     ondc.org/public/assets/ondc-logo.svg (ONDC's own file): the wordmark; its subtitle is text,
+ *                which the sanitiser drops
+ *   nse.svg      nseindia.com/assets/images/NSE_Logo.svg (NSE's own file): the full lockup
  */
 const LOCAL = {
   blinkit: { file: "scripts/quest-logos/blinkit.svg", drop: (a, tag) => tag === "rect", viewBox: [303, 1368, 2894, 764] },
-  // its fill is in a style attribute, which the sanitiser drops: paint the trophy white instead
-  dream11: { file: "scripts/quest-logos/dream11.svg", unfilled: "#fff", viewBox: [0, 0, 172, 156.6] },
-  // fill comes from a <style> class, also dropped: white on the tile
-  truecaller: { file: "scripts/quest-logos/truecaller.svg", unfilled: "#fff", viewBox: [43.53, 45.4, 312.94, 59.2] },
+  // the trophy is red in the file: white on the red tile
+  dream11: { file: "scripts/quest-logos/dream11.svg", recolor: { "#e00000": "#fff" }, unfilled: "#fff", viewBox: [0, 0, 172, 156.6] },
+  // the wordmark is blue in the file: white on the blue tile
+  truecaller: { file: "scripts/quest-logos/truecaller.svg", recolor: { "#0a6cff": "#fff" }, unfilled: "#fff", viewBox: [43.53, 45.4, 312.94, 59.2] },
+  upi: { file: "scripts/quest-logos/upi.svg", viewBox: [0, 0, 130.54, 38] },
+  kite: { file: "scripts/quest-logos/kite.svg", viewBox: [0, 0, 90, 60] },
+  ondc: { file: "scripts/quest-logos/ondc.svg", viewBox: [30, 10, 790, 262] },
+  nse: { file: "scripts/quest-logos/nse.svg", viewBox: [0, 0, 127.039, 43.1] },
 };
 
 /** Simple Icons marks, drawn in one colour (the brand's own arrangement: white on its colour, etc.). */
@@ -99,7 +109,7 @@ function serialise(nodes, edit, inDefs = false) {
       if (!ATTRS.has(k)) continue; // on*, style, xlink:*, class…
       let v = v0.trim();
       if (k === "href") {
-        if (n.tag !== "use" || !v.startsWith("#")) continue;
+        if (!["use", "linearGradient", "radialGradient"].includes(n.tag) || !v.startsWith("#")) continue;
         v = `#__Q__${v.slice(1)}`;
       } else if (k === "id") v = `__Q__${v}`;
       else if (/url\(/i.test(v)) {
@@ -126,6 +136,37 @@ function serialise(nodes, edit, inDefs = false) {
 
 const clean = (body, edit = {}) => serialise(parse(body), edit);
 
+/**
+ * Vendored logo files (design-tool exports) keep their colours in <style> class rules and style=""
+ * attributes, which the sanitiser drops. Copy those paint properties onto each element as attributes
+ * first (an attribute already on the element wins), and turn gradient xlink:href into href.
+ */
+const PAINT = ["fill", "fill-rule", "fill-opacity", "stroke", "stroke-width", "stroke-linecap", "stroke-linejoin", "stroke-miterlimit", "stroke-opacity", "opacity", "clip-rule", "stop-color", "stop-opacity"];
+function inlinePaint(src) {
+  const rules = {};
+  for (const css of src.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g))
+    for (const r of css[1].matchAll(/((?:\.[\w-]+\s*,?\s*)+)\{([^}]*)\}/g))
+      for (const cls of r[1].split(",").map((c) => c.trim().replace(/^\./, "")).filter(Boolean)) rules[cls] = { ...rules[cls], ...decl(r[2]) };
+  return src.replace(/xlink:href=/g, "href=").replace(/<([\w:-]+)(\s[^<>]*?)?(\/?)>/g, (tag, name, attrs = "", end) => {
+    if (!attrs) return tag;
+    const props = {};
+    const cls = attrs.match(/\sclass\s*=\s*"([^"]*)"/);
+    if (cls) for (const c of cls[1].split(/\s+/)) Object.assign(props, rules[c] || {});
+    const st = attrs.match(/\sstyle\s*=\s*"([^"]*)"/);
+    if (st) Object.assign(props, decl(st[1]));
+    const add = PAINT.filter((k) => props[k] !== undefined && !new RegExp(`\\s${k}\\s*=`).test(attrs)).map((k) => ` ${k}="${props[k]}"`).join("");
+    return `<${name}${attrs}${add}${end}>`;
+  });
+}
+function decl(text) {
+  const o = {};
+  for (const d of text.split(";")) {
+    const i = d.indexOf(":");
+    if (i > 0) o[d.slice(0, i).trim()] = d.slice(i + 1).trim();
+  }
+  return o;
+}
+
 const logos = {};
 for (const [name, edit] of Object.entries(LOGOS)) {
   const icon = GB.icons[name];
@@ -136,7 +177,7 @@ for (const [name, edit] of Object.entries(LOGOS)) {
 
 for (const [name, edit] of Object.entries(LOCAL)) {
   const src = fs.readFileSync(path.join(root, edit.file), "utf8");
-  const inner = src.replace(/^[\s\S]*?<svg\b[^>]*>/, "").replace(/<\/svg>\s*$/, "");
+  const inner = inlinePaint(src).replace(/^[\s\S]*?<svg\b[^>]*>/, "").replace(/<\/svg>\s*$/, "");
   logos[name] = { body: clean(inner, edit), viewBox: edit.viewBox };
 }
 

@@ -484,15 +484,18 @@ export default function QuestEmblem({ brand, size = 72, className = "" }: { bran
       {logos.length ? (
         logos.map(({ l, art }) => {
           const [bx, by, bw, bh] = l.box ?? MIDDLE;
-          // a nested svg fits the logo's box, centred (xMidYMid meet), and clips to it: a cropped logo
-          // (Dream11's trophy out of its full lockup) never shows the parts outside its viewBox
+          // the logo fitted into its box, centred; the nested svg is exactly that rect, so it clips to the
+          // logo's own viewBox: a cropped logo (Dream11's trophy, UPI without its subtitle) shows nothing else
+          const [, , vw, vh] = art.viewBox;
+          const k = Math.min(bw / vw, bh / vh);
+          const [w, h] = [vw * k, vh * k];
           return (
             <svg
               key={l.name}
-              x={bx}
-              y={by}
-              width={bw}
-              height={bh}
+              x={+(bx + (bw - w) / 2).toFixed(3)}
+              y={+(by + (bh - h) / 2).toFixed(3)}
+              width={+w.toFixed(3)}
+              height={+h.toFixed(3)}
               viewBox={art.viewBox.join(" ")}
               overflow="hidden"
               color={brand.ink}
