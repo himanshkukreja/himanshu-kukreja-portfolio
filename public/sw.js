@@ -519,10 +519,13 @@ function keepShorts(urls) {
     for (const u of want) {
       if (await cache.match(u)) continue;
       try {
-        const res = await fetch(u, { mode: "cors", credentials: "omit" });
+        // "reload": the page may already have this file in the HTTP cache from a plain <img>/<video> load,
+        // stored without CORS headers, which would fail a CORS read
+        const res = await fetch(u, { mode: "cors", credentials: "omit", cache: "reload" });
         if (res.ok && res.status === 200) await cache.put(u, res);
       } catch (e) {
-        return; // offline or blocked: try again next time
+        if (self.navigator && self.navigator.onLine === false) return; // offline: try again next time
+        // one file failing never stops the rest
       }
     }
   });
