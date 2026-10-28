@@ -7,6 +7,7 @@ import type { CourseLesson, CourseMap, CourseTrial, CourseWeek } from "./types";
 import type { CourseMock } from "./mock/types";
 import { loadMockSources, summarize } from "./mock/load";
 import { levelForWeek, levelFromMarkdown, type Level } from "./level";
+import { questDifficulty, questLevel } from "./quest-difficulty";
 
 export const COURSE_ID = "system-design-mastery";
 
@@ -63,7 +64,7 @@ function toLesson(r: LearningResource, courseId: string, minutes: number): Cours
   }
   if (r.type === "bonus") {
     const k = parseInt(r.slug.match(/bonus-(\d+)/)?.[1] || "0", 10);
-    return { week: r.week, slug: r.slug, title: r.title, kind: "bonus", minutes, code: `SQ-${pad(k)}`, label: r.title, tag: `SQ-${pad(k)}`, href };
+    return { week: r.week, slug: r.slug, title: r.title, kind: "bonus", minutes, code: `SQ-${pad(k)}`, label: r.title, tag: `SQ-${pad(k)}`, href, level: questLevel(r.slug) };
   }
   if (r.type === "overview") {
     return { week: r.week, slug: r.slug, title: r.title, kind: "overview", minutes, code: "PLAN", label: r.title, tag: "PLAN", href };
@@ -155,7 +156,11 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
 
   // publishing controls (/admin/publishing): a hidden or not-yet-due side quest is left out of the course
   const controls = await controlMap();
-  const sideQuests = resources.filter((r) => r.type === "bonus" && isLive(controls.get(questKey(r.slug)))).map(lessonOf);
+  // easiest first (src/lib/learn/quest-difficulty.ts); the SQ-NN numbers stay as ids
+  const sideQuests = resources
+    .filter((r) => r.type === "bonus" && isLive(controls.get(questKey(r.slug))))
+    .sort((a, b) => questDifficulty(a.slug).rank - questDifficulty(b.slug).rank)
+    .map(lessonOf);
   const extra = (t: "problem" | "lld") => resources.filter((r) => r.type === t).map((r) => ({ ...lessonOf(r), ...(titles[`${r.week}/${r.slug}`] ? { title: titles[`${r.week}/${r.slug}`], label: titles[`${r.week}/${r.slug}`] } : {}) }));
   const problems = extra("problem");
   const lld = extra("lld");

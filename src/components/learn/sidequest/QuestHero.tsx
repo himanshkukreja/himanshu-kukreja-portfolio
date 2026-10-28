@@ -1,6 +1,7 @@
 "use client";
 
 import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
+import { questLevel } from "@/lib/learn/quest-difficulty";
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import BookmarkButton from "@/components/BookmarkButton";
@@ -37,7 +38,8 @@ export default function QuestHero({ meta }: { meta: ReaderMeta }) {
   const accent = { ["--quest-accent" as string]: brand.accent } as React.CSSProperties;
 
   const chips: { text: string; strong?: boolean }[] = [
-    ...(mission?.level ? [{ text: mission.level.toUpperCase(), strong: true }] : []),
+    // the rated level (quest-difficulty.ts), the same the course map's tile shows, not the article's own
+    { text: questLevel(meta.slug).toUpperCase(), strong: true },
     { text: started ? `~${minutesLeft} MIN LEFT` : `${fmtMin(meta.readingMinutes).toUpperCase()} READ` },
     ...(quest?.phases ? [{ text: `${quest.phases} PHASES${quest.budgetMinutes ? ` · ${quest.budgetMinutes} MIN INTERVIEW` : ""}` }] : []),
     { text: completed ? `+${LEARN_XP.sideQuest} XP ✓` : `+${LEARN_XP.sideQuest} XP` },

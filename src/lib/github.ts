@@ -4,6 +4,7 @@
  */
 
 import { contentSnapshot } from './content-snapshot';
+import { questDifficulty } from '@/lib/learn/quest-difficulty';
 
 const GITHUB_TOKEN = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
 /** Cache tag on every GitHub content fetch (see /api/revalidate-courses). */
@@ -298,7 +299,9 @@ export async function getAllLearningResources(): Promise<LearningResource[]> {
     }
   }
 
-  return resources.sort((a, b) => a.order - b.order || a.path.localeCompare(b.path));
+  // side quests run easiest first (Previous / Next follow it); everything else by its order and path
+  const rank = (r: LearningResource) => (r.type === 'bonus' ? questDifficulty(r.slug).rank : 0);
+  return resources.sort((a, b) => a.order - b.order || rank(a) - rank(b) || a.path.localeCompare(b.path));
 }
 
 /** Content folders outside the weeks: folder → resource type (files are "<prefix>-NN-<slug>.md"). */
@@ -342,6 +345,9 @@ const LESSON_TITLES: Record<string, string> = {
   'bonus-28-gmail-email-at-scale': 'Gmail',
   'bonus-29-github-code-hosting': 'GitHub',
   'bonus-30-tiktok-for-you-feed': "TikTok's For You Feed",
+  'bonus-31-discord-voice-and-servers': 'Discord',
+  'bonus-32-ondc-open-commerce': 'ONDC',
+  'bonus-33-nse-stock-exchange': 'NSE Stock Exchange',
   // Week 0
   'foundations-part-1-basic-concepts': 'Part 1: System Design Fundamentals',
   'foundations-part-2-infrastructure-building-blocks': 'Part 2: Infrastructure Building Blocks',

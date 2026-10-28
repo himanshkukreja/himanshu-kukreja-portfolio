@@ -1,12 +1,14 @@
-import type { ReactNode } from "react";
-import type { QuestBrand } from "./brands";
+import { useId, type ReactNode } from "react";
+import type { QuestBrand, QuestLogo } from "./brands";
+import LOGOS_JSON from "./logos.json";
 import MARKS_JSON from "./marks.json";
 
 /**
- * Quest emblems (64×64 square tile in the product's colour). Where Simple Icons has a fitting mark,
- * the product's real logo is drawn on the tile to identify it (a trademark of its owner; see
- * scripts/build-quest-logos.mjs); otherwise an original emblem drawn for this course (2.5px
- * square-capped strokes) that evokes the product's engineering problem. Decorative: the product is
+ * Quest tiles (64×64, square), drawn like the product's app icon: its real logo in full colour (Gil Barbara's
+ * SVG Logos) or in one colour (Simple Icons) on the icon's background, or, for products neither set has, an
+ * original emblem drawn for this course (2.5px square-capped strokes, in an inset frame) that evokes the
+ * product's engineering problem, in the brand's colours. brands.ts sets the colours and logos; the logos are
+ * vendored by scripts/build-quest-logos.mjs and are their owners' trademarks. Decorative: the product is
  * always named next to it, so the SVG is aria-hidden.
  */
 
@@ -19,9 +21,12 @@ function hex(cx: number, cy: number, r: number): string {
   return `M${pts.join("L")}Z`;
 }
 
-function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode {
+/** the emblem in `ink`, with `hi` for the brand's second colour and `accent` (the tile colour) for knockouts */
+function glyph(id: QuestBrand["emblem"], ink: string, accent: string, hi: string): ReactNode {
   const S = { fill: "none", stroke: ink, strokeWidth: 2.5, strokeLinecap: "square" as const, strokeLinejoin: "miter" as const };
   const F = { fill: ink };
+  const H = { fill: "none", stroke: hi, strokeWidth: 2.5, strokeLinecap: "square" as const, strokeLinejoin: "miter" as const };
+  const HF = { fill: hi };
   switch (id) {
     case "upi": // QR finder squares + a rupee mark in the fourth corner
       return (
@@ -45,7 +50,7 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           ].map(([x, y]) => (
             <rect key={`m${x}-${y}`} x={x} y={y} width={3.5} height={3.5} {...F} />
           ))}
-          <path d="M38 39.5h15M38 44.5h15M41 39.5h3a5.5 5.5 0 0 1 0 11h-6l11 10" {...S} />
+          <path d="M38 39.5h15M38 44.5h15M41 39.5h3a5.5 5.5 0 0 1 0 11h-6l11 10" {...H} />
         </>
       );
     case "chat": // a message bubble carrying a double tick
@@ -61,7 +66,7 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <path d="M28 37a4 4 0 0 1 8 0v5" {...S} />
           <path d="M23 43v-6a9 9 0 0 1 18 0v9" {...S} />
           <path d="M18 46v-9a14 14 0 0 1 28 0v3" {...S} />
-          <path d="M13 34v-1a19 19 0 0 1 38 0v1" {...S} />
+          <path d="M13 34v-1a19 19 0 0 1 38 0v1" {...H} strokeWidth={3} />
           <path d="M32 38v12" {...S} />
         </>
       );
@@ -153,8 +158,8 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
         <>
           <rect x={18} y={9} width={28} height={36} {...S} />
           <rect x={22.5} y={14} width={19} height={12} {...S} strokeWidth={2} />
-          <rect x={22} y={34} width={5} height={5} {...F} />
-          <rect x={37} y={34} width={5} height={5} {...F} />
+          <rect x={22} y={34} width={5} height={5} {...HF} />
+          <rect x={37} y={34} width={5} height={5} {...HF} />
           <path d="M24 45l-8 11M40 45l8 11M19 52h26" {...S} />
         </>
       );
@@ -163,7 +168,7 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
         <>
           <rect x={17} y={24} width={34} height={30} {...S} />
           <path d="M27 24v-5a7 7 0 0 1 14 0v5" {...S} />
-          <path d="M37 29l-10 13h7l-3 9 10-13h-7z" {...F} />
+          <path d="M37 29l-10 13h7l-3 9 10-13h-7z" {...HF} />
           <path d="M6 33h7M4 39h9M7 45h6" {...S} strokeWidth={2} />
         </>
       );
@@ -172,8 +177,8 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
         <>
           <path d="M18 29v6M18 47v5M32 20v6M32 40v6M46 10v6M46 31v5" {...S} strokeWidth={2} />
           <rect x={13} y={35} width={10} height={12} {...S} />
-          <rect x={27} y={26} width={10} height={14} {...F} />
-          <rect x={41} y={16} width={10} height={15} {...F} />
+          <rect x={27} y={26} width={10} height={14} {...HF} />
+          <rect x={41} y={16} width={10} height={15} {...HF} />
           <path d="M8 56h48" {...S} />
         </>
       );
@@ -377,6 +382,43 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
           <path d="M53 42V20M48 25l5-5 5 5" {...S} strokeWidth={2} />
         </>
       );
+    case "voice": // a speaker sending sound waves over a row of four avatars, the one talking lit
+      return (
+        <>
+          <path d="M10 15h7l9-7v26l-9-7h-7z" {...S} />
+          <path d="M32 15a7 7 0 0 1 0 12M37 10a14 14 0 0 1 0 22" {...S} strokeWidth={2} />
+          <rect x={8} y={44} width={9} height={9} {...S} strokeWidth={2} />
+          <rect x={21} y={44} width={9} height={9} {...S} strokeWidth={2} />
+          <rect x={33} y={43} width={11} height={11} {...F} />
+          <rect x={36} y={46} width={5} height={5} fill={accent} />
+          <rect x={48} y={44} width={9} height={9} {...S} strokeWidth={2} />
+        </>
+      );
+    case "peer": // a buyer's phone and a shop under an awning, a sealed message passing both ways between them
+      return (
+        <>
+          <rect x={7} y={16} width={15} height={30} {...S} />
+          <rect x={12} y={40} width={5} height={2.5} {...F} />
+          <path d="M40 22h18l-2 7H42z" {...HF} />
+          <path d="M42 29v17h14V29" {...S} />
+          <path d="M47 46v-8h4v8" {...S} strokeWidth={2} />
+          <path d="M25 26h12M33 22l4 4-4 4M37 38H25M29 34l-4 4 4 4" {...H} strokeWidth={2} />
+          <rect x={27.5} y={51} width={7} height={7} {...F} />
+          <rect x={29.75} y={53.25} width={2.5} height={2.5} fill={accent} />
+        </>
+      );
+    case "ladder": // an order book: asks stepping down to the last-trade line, bids filled below it
+      return (
+        <>
+          <path d="M32 7v50" {...S} strokeWidth={1.8} opacity={0.5} />
+          <path d="M34 9h12M34 17h17M34 25h22" {...S} />
+          <rect x={6} y={30.5} width={52} height={3} {...HF} />
+          <rect x={27} y={29} width={10} height={6} fill={accent} stroke={hi} strokeWidth={2} />
+          <rect x={8} y={39} width={22} height={4} {...F} />
+          <rect x={13} y={47} width={17} height={4} {...F} />
+          <rect x={18} y={55} width={12} height={4} {...F} />
+        </>
+      );
     case "grid": // a story ring around an avatar above a square photo grid
       return (
         <>
@@ -397,13 +439,20 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string): ReactNode
   }
 }
 
-/** Real product marks (Simple Icons, via scripts/build-quest-logos.mjs), by quest number. */
-const MARKS = MARKS_JSON as Record<string, { body: string; size: number }>;
+type Art = { body: string; viewBox: [number, number, number, number] };
+/** full-colour logos (Gil Barbara) and single-colour marks (Simple Icons), by name */
+const ART: Record<QuestLogo["from"], Record<string, Art>> = {
+  gb: LOGOS_JSON as unknown as Record<string, Art>,
+  si: MARKS_JSON as unknown as Record<string, Art>,
+};
+
+const MIDDLE: [number, number, number, number] = [12.8, 12.8, 38.4, 38.4];
 
 export default function QuestEmblem({ brand, size = 72, className = "" }: { brand: QuestBrand; size?: number; className?: string }) {
-  const mark = MARKS[String(brand.n)];
-  // the product's mark at 60% of the tile, centred
-  const k = mark ? (64 * 0.6) / mark.size : 1;
+  // ids in the logos (gradients, reused paths) are made unique per tile drawn: a page shows many tiles
+  const uid = `q${brand.n}${useId().replace(/[^A-Za-z0-9]/g, "")}-`;
+  const logos = (brand.logos ?? []).map((l) => ({ l, art: ART[l.from][l.name] })).filter((x) => x.art);
+  const g = brand.tileGradient;
   return (
     <svg
       viewBox="0 0 64 64"
@@ -413,13 +462,52 @@ export default function QuestEmblem({ brand, size = 72, className = "" }: { bran
       focusable="false"
       className={`block shrink-0 ${className}`}
     >
-      <rect width={64} height={64} fill={brand.accent} />
-      <rect x={3} y={3} width={58} height={58} fill="none" stroke={brand.ink} strokeOpacity={0.28} strokeWidth={1} />
-      {mark ? (
-        <g transform={`translate(${(64 - mark.size * k) / 2} ${(64 - mark.size * k) / 2}) scale(${k})`} color={brand.ink} dangerouslySetInnerHTML={{ __html: mark.body }} />
-      ) : (
-        glyph(brand.emblem, brand.ink, brand.accent)
+      {g && (
+        <defs>
+          {g.kind === "linear" ? (
+            <linearGradient id={`${uid}tile`} x1={g.x1} y1={g.y1} x2={g.x2} y2={g.y2}>
+              {g.stops.map(([o, c]) => (
+                <stop key={o} offset={o} stopColor={c} />
+              ))}
+            </linearGradient>
+          ) : (
+            <radialGradient id={`${uid}tile`} cx={g.cx} cy={g.cy} r={g.r}>
+              {g.stops.map(([o, c]) => (
+                <stop key={o} offset={o} stopColor={c} />
+              ))}
+            </radialGradient>
+          )}
+        </defs>
       )}
+      <rect width={64} height={64} fill={brand.tile} />
+      {g && <rect width={64} height={64} fill={`url(#${uid}tile)`} />}
+      {logos.length ? (
+        logos.map(({ l, art }) => {
+          const [bx, by, bw, bh] = l.box ?? MIDDLE;
+          // a nested svg fits the logo's box, centred (xMidYMid meet), and clips to it: a cropped logo
+          // (Dream11's trophy out of its full lockup) never shows the parts outside its viewBox
+          return (
+            <svg
+              key={l.name}
+              x={bx}
+              y={by}
+              width={bw}
+              height={bh}
+              viewBox={art.viewBox.join(" ")}
+              overflow="hidden"
+              color={brand.ink}
+              dangerouslySetInnerHTML={{ __html: art.body.replaceAll("__Q__", uid) }}
+            />
+          );
+        })
+      ) : (
+        <>
+          <rect x={3} y={3} width={58} height={58} fill="none" stroke={brand.ink} strokeOpacity={0.28} strokeWidth={1} />
+          {glyph(brand.emblem, brand.ink, brand.tile, brand.hi ?? brand.ink)}
+        </>
+      )}
+      {/* a hairline edge in the theme's line colour, so white tiles hold their shape on the light theme and black ones on the dark */}
+      <rect x={0.5} y={0.5} width={63} height={63} fill="none" strokeWidth={1} vectorEffect="non-scaling-stroke" style={{ stroke: "var(--c-line-strong, rgba(128,128,128,0.45))" }} />
     </svg>
   );
 }

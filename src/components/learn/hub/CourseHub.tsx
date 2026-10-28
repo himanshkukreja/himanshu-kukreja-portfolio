@@ -6,6 +6,7 @@
  * world-cleared / level-up moments. Progress: one batched load (useLearnProgress).
  */
 import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
+import { LEVEL_TONE } from "@/lib/learn/level";
 import Link from "next/link";
 import QuestEmblem from "@/components/learn/sidequest/QuestEmblem";
 import { questBrand } from "@/components/learn/sidequest/brands";
@@ -213,7 +214,7 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
             Side quests
           </h2>
           <span className="text-[15px] text-fg-3">
-            Real systems, designed end to end. All open. +{LEARN_XP.sideQuest} XP each.{" "}
+            Real systems, designed end to end, easiest first. All open. +{LEARN_XP.sideQuest} XP each.{" "}
             <Link href="/learn/sheets" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
               design sheets →
             </Link>
@@ -238,8 +239,15 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
                   </span>
                 </span>
                 <span className="font-display text-[19px] font-bold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[22px] sm:leading-[1.05]">{q.title}</span>
-                <span className={`mt-auto pt-1 font-mono text-xs ${isDone ? "text-fg" : "text-signal-text"}`}>
-                  {isDone ? "COMPLETED ✓" : started ? `IN PROGRESS · +${LEARN_XP.sideQuest} XP` : `+${LEARN_XP.sideQuest} XP`}
+                <span className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <span className={`font-mono text-xs ${isDone ? "text-fg" : "text-signal-text"}`}>
+                    {isDone ? "COMPLETED ✓" : started ? `IN PROGRESS · +${LEARN_XP.sideQuest} XP` : `+${LEARN_XP.sideQuest} XP`}
+                  </span>
+                  {q.level && (
+                    <span className="border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-label" style={{ color: LEVEL_TONE[q.level].fg, borderColor: LEVEL_TONE[q.level].border }} title={`Difficulty: ${q.level}`}>
+                      {q.level}
+                    </span>
+                  )}
                 </span>
               </Link>
             );
