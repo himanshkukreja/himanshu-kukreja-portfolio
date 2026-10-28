@@ -49,8 +49,13 @@ function plain(md: string): string {
 export async function promptBrief(p: CanvasPrompt): Promise<string> {
   const md = await fetchMarkdownContent(p.path).catch(() => "");
   if (!md) return p.title;
+  return briefFromMarkdown(md, p.kind);
+}
+
+/** The brief cut from a problem's or capstone's markdown (pure: the AI eval builds briefs with it too). */
+export function briefFromMarkdown(md: string, kind: CanvasPrompt["kind"]): string {
   let cut = md;
-  if (p.kind === "problem") {
+  if (kind === "problem") {
     const i = md.search(/^#\s+Phase 2\b/m);
     if (i > 0) cut = md.slice(0, i);
   } else {

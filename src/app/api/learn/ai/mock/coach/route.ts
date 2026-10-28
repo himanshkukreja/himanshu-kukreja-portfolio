@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { mockCoachSystem } from "@/lib/ai/prompts";
+import { mockCoachSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
 import { problemText, promptPhase } from "@/lib/ai/mock";
 
 export const runtime = "nodejs";
@@ -37,11 +37,12 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: mockCoachSystem({ company: mock.company.name, problem: problemText(mock), phase: promptPhase(phase) }),
+    system: (model) => mockCoachSystem({ company: mock.company.name, problem: problemText(mock), phase: promptPhase(phase) }, promptOptsFor(model)),
     messages: [{ role: "user", content: candidate }],
     meta: { mock: mock.slug, phase: phase.id },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  await saveTranscript(r.callId, me.id, "mock-coach", `[${mock.slug} · ${phase.id}]\n${candidate.slice(0, 4000)}`, r.text);
-  return NextResponse.json({ text: r.text, creditsLeft: r.creditsLeft });
+  const text = stripPrivatePlan(r.text);
+  await saveTranscript(r.callId, me.id, "mock-coach", `[${mock.slug} · ${phase.id}]\n${candidate.slice(0, 4000)}`, text);
+  return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

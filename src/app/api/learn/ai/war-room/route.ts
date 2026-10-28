@@ -3,13 +3,11 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getWarRoom } from "@/lib/learn/war/load";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { warRoomSystem } from "@/lib/ai/prompts";
+import { warRoomPromptInput, warRoomSystem } from "@/lib/ai/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
-
-const plain = (h: string) => h.replace(/<br\s*\/?>/g, "\n").replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"');
 
 /**
  * POST /api/learn/ai/war-room { slug, beat, text } → { match: number | null, who, reply, creditsLeft }
@@ -27,25 +25,13 @@ export async function POST(request: Request) {
   const text = String(b.text || "").trim().slice(0, 600);
   if (text.split(/\s+/).length < 2) return NextResponse.json({ error: "Say what you'd do." }, { status: 400 });
 
-  const who = (id: string) => room.cast.find((c) => c.id === id)?.name ?? id;
-  const story = room.beats
-    .slice(0, k)
-    .map((x) => (x.kind === "msg" ? `${x.at} ${who(x.who)}: ${plain(x.html)}` : x.kind === "chart" ? `${x.at} [chart] ${x.title}: ${x.points.join(", ")}` : x.kind === "log" ? `${x.at} [log] ${x.title}\n${x.lines.join("\n")}` : `[decision] ${plain(x.question)}`))
-    .join("\n")
-    .slice(-8000);
+  const input = warRoomPromptInput(room, k)!;
   const r = await callClaude({
     feature: "war-room",
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: warRoomSystem({
-      title: room.title,
-      company: room.company,
-      cast: room.cast.map((c) => `${c.name}: ${c.role}`).join("\n"),
-      story,
-      question: plain(d.question),
-      options: d.options.map((o) => ({ text: plain(o.html), best: o.best, reply: o.replies.map((x) => `${x.who}: ${plain(x.html)}`).join(" ") })),
-    }),
+    system: warRoomSystem(input),
     messages: [{ role: "user", content: text }],
     meta: { room: room.slug, beat: k },
   });

@@ -33,13 +33,16 @@ export type AiMessage = { role: "user" | "assistant"; content: string };
 export type AiRequest = {
   feature: FeatureId;
   userId?: string | null;
-  /** cached as a prompt prefix when long (lesson text, rubric) */
-  system: string;
+  /** cached as a prompt prefix when long (lesson text, rubric). A function gets the model actually
+   *  used (after admin settings and amber mode), for prompts tuned per model. */
+  system: string | ((model: string) => string);
   messages: AiMessage[];
   /** override the feature's model (evals, admin tests) */
   model?: string;
   maxTokens?: number;
   meta?: Record<string, string | number | boolean | null>;
+  /** evals: think (or not) the way the live feature does, so the eval measures what learners get */
+  think?: boolean;
   /** an admin trying a feature while it is switched off for learners (still metered, still within budget) */
   adminPreview?: boolean;
   /** the learner's own Anthropic key (bring your own key): their cost, so no budget or daily limits; never stored */
@@ -142,11 +145,12 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   }
 
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up
-  const system = req.system.length > 4000 ? [{ type: "text", text: req.system, cache_control: { type: "ephemeral" } }] : req.system;
+  const prompt = typeof req.system === "function" ? req.system(model) : req.system;
+  const system = prompt.length > 4000 ? [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }] : prompt;
   // Haiku doesn't think; Sonnet 5.x can be told not to; others (Opus) always may, so they get the room
   const haiku = /haiku/.test(model);
   const canSkip = /sonnet-5/.test(model);
-  const thinks = !haiku && (def.think || !canSkip);
+  const thinks = !haiku && ((req.think ?? def.think) || !canSkip);
   const answerCap = Math.min(req.maxTokens ?? cfg.maxTokens, def.maxTokens);
   const maxTokens = thinks ? answerCap + THINK_HEADROOM : answerCap;
   const t0 = Date.now();
@@ -168,7 +172,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const cost = costOf(model, u);
     const credits = creditsFor(cost);
     const raw = (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
-    const offTopic = /^\s*OFF_TOPIC\b/.test(raw);
+    // a tuned prompt's private plan line may come first (see stripPrivatePlan)
+    const offTopic = /^\s*(<plan>[\s\S]*?<\/plan>\s*)?OFF_TOPIC\b/.test(raw);
     const callId = await log({
       ...base,
       model,

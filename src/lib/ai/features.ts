@@ -31,7 +31,8 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "mock-scorecard": { label: "AI mock scorecard", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 3, maxTokens: 3000, maxInputChars: 60000, think: true, live: true },
   "design-review": { label: "Design review", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 5, maxTokens: 1500, maxInputChars: 15000, think: true, live: true },
   "canvas-review": { label: "Design canvas review", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 5, maxTokens: 1500, maxInputChars: 12000, think: true, live: true },
-  "war-room": { label: "War room free-text", model: MODELS.sonnet, amberModel: null, perDay: 40, maxTokens: 350, maxInputChars: 600, think: false, live: true },
+  // Haiku: in the blind eval it matched Sonnet on every case at about a third of the cost
+  "war-room": { label: "War room free-text", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 40, maxTokens: 350, maxInputChars: 600, think: false, live: true },
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 2000, maxInputChars: 200000, think: true, live: false },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false },
 };

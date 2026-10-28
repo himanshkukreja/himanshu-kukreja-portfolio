@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { mockFullScorecardSystem } from "@/lib/ai/prompts";
+import { mockFullScorecardSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
 import { problemText, promptPhase } from "@/lib/ai/mock";
 
 export const runtime = "nodejs";
@@ -43,11 +43,12 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: mockFullScorecardSystem({ company: mock.company.name, problem: problemText(mock), phases }),
+    system: (model) => mockFullScorecardSystem({ company: mock.company.name, problem: problemText(mock), phases }, promptOptsFor(model)),
     messages: [{ role: "user", content: "Grade my interview." }],
     meta: { mock: mock.slug },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  await saveTranscript(r.callId, me.id, "mock-scorecard", phases.map((p) => `## ${p.title}\n${p.candidate}`).join("\n\n"), r.text);
-  return NextResponse.json({ text: r.text, creditsLeft: r.creditsLeft });
+  const text = stripPrivatePlan(r.text);
+  await saveTranscript(r.callId, me.id, "mock-scorecard", phases.map((p) => `## ${p.title}\n${p.candidate}`).join("\n\n"), text);
+  return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

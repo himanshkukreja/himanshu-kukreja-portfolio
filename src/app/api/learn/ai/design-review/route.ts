@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getStore } from "@/lib/design-week/store";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { designReviewSystem } from "@/lib/ai/prompts";
+import { designReviewSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,11 +26,12 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: designReviewSystem({ title: c.title, text: problem }),
+    system: (model) => designReviewSystem({ title: c.title, text: problem }, promptOptsFor(model)),
     messages: [{ role: "user", content: md.slice(0, 15000) }],
     meta: { challenge: c.slug },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  await saveTranscript(r.callId, me.id, "design-review", md, r.text);
-  return NextResponse.json({ text: r.text, creditsLeft: r.creditsLeft });
+  const text = stripPrivatePlan(r.text);
+  await saveTranscript(r.callId, me.id, "design-review", md, text);
+  return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

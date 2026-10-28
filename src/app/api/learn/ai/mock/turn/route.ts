@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { mockInterviewerSystem } from "@/lib/ai/prompts";
+import { mockInterviewerSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
 import { problemText, promptPhase } from "@/lib/ai/mock";
 
 export const runtime = "nodejs";
@@ -36,11 +36,15 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: mockInterviewerSystem({ company: mock.company.name, interviewer: `${mock.interviewer.name}, ${mock.interviewer.title}`, problem: problemText(mock), phase: promptPhase(phase) }),
+    // the model is decided inside callClaude (admin setting, amber mode): it picks the prompt tuned for that model
+    // the tuned (compact) prompt for every model: in the blind eval it lifted Sonnet from ~2 to 4.5 (one
+    // question a turn, only stated facts, no teaching); its private <plan> line is stripped below
+    system: (model) => mockInterviewerSystem({ company: mock.company.name, interviewer: `${mock.interviewer.name}, ${mock.interviewer.title}`, problem: problemText(mock), phase: promptPhase(phase) }, { ...promptOptsFor(model), compact: true }),
     messages: [...history, { role: "user", content: answer }],
     meta: { mock: mock.slug, phase: phase.id, turn: history.filter((m) => m.role === "user").length + 1 },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  await saveTranscript(r.callId, me.id, "mock-interviewer", answer, r.text);
-  return NextResponse.json({ text: r.text, creditsLeft: r.creditsLeft });
+  const text = stripPrivatePlan(r.text);
+  await saveTranscript(r.callId, me.id, "mock-interviewer", answer, text);
+  return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getLab } from "@/lib/learn/labs/load";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { labHintSystem, labReviewSystem } from "@/lib/ai/prompts";
+import { labHintSystem, labReviewSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,11 +41,12 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: review ? labReviewSystem({ title: lab.title, brief }) : labHintSystem({ title: lab.title, brief }),
+    system: (model) => (review ? labReviewSystem : labHintSystem)({ title: lab.title, brief }, promptOptsFor(model)),
     messages: [{ role: "user", content: user }],
     meta: { lab: lab.id, kind: review ? "review" : "hint", level: review ? null : level },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  await saveTranscript(r.callId, me.id, review ? "lab-review" : "lab-hint", user, r.text);
-  return NextResponse.json({ text: r.text, creditsLeft: r.creditsLeft });
+  const answer = stripPrivatePlan(r.text);
+  await saveTranscript(r.callId, me.id, review ? "lab-review" : "lab-hint", user, answer);
+  return NextResponse.json({ text: answer, creditsLeft: r.creditsLeft });
 }

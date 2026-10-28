@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getCatalogue } from "@/lib/concepts/load";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { explainBackSystem } from "@/lib/ai/prompts";
+import { explainBackSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,12 +25,13 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: explainBackSystem({ term: c.term, keyPoints }),
+    system: (model) => explainBackSystem({ term: c.term, keyPoints }, promptOptsFor(model)),
     messages: [{ role: "user", content: text }],
     meta: { concept: c.id },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  await saveTranscript(r.callId, me.id, "explain-back", text, r.text);
-  const verdict = (r.text.match(/VERDICT:\s*(solid|partial|misconception)/i)?.[1] || "").toLowerCase() || null;
-  return NextResponse.json({ verdict, text: r.text, creditsLeft: r.creditsLeft });
+  const out = stripPrivatePlan(r.text);
+  await saveTranscript(r.callId, me.id, "explain-back", text, out);
+  const verdict = (out.match(/VERDICT:\s*(solid|partial|misconception)/i)?.[1] || "").toLowerCase() || null;
+  return NextResponse.json({ verdict, text: out, creditsLeft: r.creditsLeft });
 }
