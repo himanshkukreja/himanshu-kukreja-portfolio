@@ -46,16 +46,22 @@ function world(num, title, withBoss = true, parts = 2) {
     trial: { week: key, slug: `week-${num}-mcq`, href: `${C}/${key}/mcq`, parts: Array.from({ length: parts }, (_, i) => ({ n: i + 1, title: `P${i + 1}`, questions: 5, href: `${C}/${key}/mcq?part=${i + 1}` })) },
   };
 }
-const COURSE = { worlds: [world(0, "Foundations", false), world(1, "Data"), world(2, "Failure")], mocks: [{ id: "m1", n: 1, code: "M1", company: "BillBolt", href: "/learn/mock/m1" }] };
+const MOCK = (n, company) => ({ id: `m${n}`, n, code: `M${n}`, company, href: `/learn/mock/m${n}` });
+const COURSE = { worlds: [world(0, "Foundations", false), world(1, "Data"), world(2, "Failure")], mocks: [MOCK(1, "BillBolt"), MOCK(2, "Wanderstay"), MOCK(3, "Paisly"), MOCK(4, "Cartwala")] };
 
 function fullEvidence() {
   const ev = { lessons: {}, trials: {}, trialsRecordedOnly: [], bosses: {}, offers: {}, bestMock: null };
   for (const w of COURSE.worlds) {
     w.lessons.forEach((l) => (ev.lessons[`${l.week}/${l.slug}`] = { at: "2026-10-01T10:00:00.000Z", seconds: 600 }));
     w.trial.parts.forEach((p) => (ev.trials[`${w.trial.week}|${p.n}`] = { score: 5, total: 5, at: "2026-10-02T10:00:00.000Z", seconds: 120, source: "attempt" }));
-    if (w.boss) ev.bosses[w.key] = Date.parse("2026-10-03T10:00:00.000Z");
+    if (w.boss) {
+      ev.bosses[w.key] = Date.parse("2026-10-03T10:00:00.000Z");
+      ev.lessons[`${w.boss.week}/${w.boss.slug}`] = { at: "2026-10-03T09:00:00.000Z", seconds: 900 };
+    }
   }
   ev.offers.m1 = { verdict: "hire", level: "senior", pct: 0.74, at: Date.parse("2026-10-04T10:00:00.000Z") };
+  ev.offers.m2 = { verdict: "hire", level: "sde", pct: 0.7, at: Date.parse("2026-10-05T10:00:00.000Z") };
+  ev.offers.m3 = { verdict: "hire", level: "sde", pct: 0.71, at: Date.parse("2026-10-06T10:00:00.000Z") };
   ev.bestMock = { id: "m1", ...ev.offers.m1 };
   return ev;
 }
@@ -146,7 +152,9 @@ test("eligibility: everything done → course + every world eligible", () => {
   const ev = fullEvidence();
   const e = courseEligibility(COURSE, ev);
   assert.equal(e.eligible, true);
-  assert.equal(e.met, 4);
+  assert.equal(e.met, 5);
+  assert.deepEqual(e.stats.offers, { have: 3, need: 3 });
+  assert.deepEqual(e.stats.capstones, { read: 2, total: 2 });
   assert.deepEqual(e.stats.worlds, { cleared: 3, total: 3 });
   assert.deepEqual(e.stats.trialParts, { passed: 6, total: 6 });
   assert.deepEqual(e.stats.bosses, { beaten: 2, total: 2 });
@@ -156,7 +164,38 @@ test("eligibility: everything done → course + every world eligible", () => {
   const snap = evidenceSnapshot(COURSE, e, ev);
   assert.equal(snap.trials.length, 6);
   assert.equal(snap.lessons.done, 6);
+  assert.equal(snap.mocks.length, 3);
   assert.deepEqual(snap.flags, []);
+});
+
+test("eligibility: two Hire mocks out of three → course blocked, the next mocks listed", () => {
+  const ev = fullEvidence();
+  delete ev.offers.m3;
+  const e = courseEligibility(COURSE, ev);
+  assert.equal(e.eligible, false);
+  const mock = e.requirements.find((r) => r.id === "mock");
+  assert.equal(mock.done, false);
+  assert.equal(mock.have, 2);
+  assert.match(mock.detail, /^2\/3: /);
+  assert.deepEqual(mock.todo.map((t) => t.label), ["Mock 03 · Paisly", "Mock 04 · Cartwala"]);
+});
+
+test("eligibility: an unread capstone blocks the course, not its world", () => {
+  const ev = fullEvidence();
+  const w = COURSE.worlds[1];
+  delete ev.lessons[`${w.boss.week}/${w.boss.slug}`];
+  const e = courseEligibility(COURSE, ev);
+  assert.equal(e.eligible, false);
+  const cap = e.requirements.find((r) => r.id === "capstones");
+  assert.equal(cap.detail, "1/2 capstones read");
+  assert.equal(cap.todo[0].href, w.boss.href);
+  assert.equal(worldEligibility(COURSE, w.key, ev).eligible, true);
+});
+
+test("eligibility: mock list missing → a clear message, never eligible", () => {
+  const e = courseEligibility({ ...COURSE, mocks: [] }, fullEvidence());
+  assert.equal(e.eligible, false);
+  assert.match(e.requirements.find((r) => r.id === "mock").detail, /couldn't be loaded/);
 });
 
 test("eligibility: missing one trial part blocks the course and that world only", () => {
@@ -181,9 +220,9 @@ test("eligibility: no Hire mock → course blocked, worlds still eligible; best 
   ev.bestMock = { id: "m1", verdict: "lean-hire", level: "senior", pct: 0.6, at: 1 };
   const e = courseEligibility(COURSE, ev);
   assert.equal(e.eligible, false);
-  assert.equal(e.met, 3);
+  assert.equal(e.met, 4);
   const mock = e.requirements.find((r) => r.id === "mock");
-  assert.equal(mock.detail, "best so far: Lean hire");
+  assert.equal(mock.detail, "0/3, best so far: Lean hire");
   assert.equal(e.stats.mock, null);
   for (const w of COURSE.worlds) assert.equal(worldEligibility(COURSE, w.key, ev).eligible, true);
   // a lean-hire placed in offers by a forged flag still doesn't count

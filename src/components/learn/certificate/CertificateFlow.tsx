@@ -2,7 +2,7 @@
 
 /**
  * /learn/certificate: earning a certificate. The checklist (checked on the server from the
- * database: lessons, re-scored trial answers, bosses, mock scorecards) with what's left and where
+ * database: lessons, capstones, re-scored trial answers, bosses, mock scorecards) with what's left and where
  * to finish it → Claim → confirm the name + public page → "You're certified" with Add to LinkedIn,
  * Download PDF and Share. Below it, one certificate per world with its own claim.
  * Guests are asked to sign in: their progress lives in this browser and can be imported from the
@@ -37,6 +37,7 @@ import {
   type CertState,
   type Eligibility,
   type Requirement,
+  MOCKS_NEEDED,
 } from "@/lib/certificates/core";
 import "@/components/certificates/certificate.css";
 
@@ -148,7 +149,17 @@ export default function CertificateFlow() {
     const fresh = (issued.kind === "course" ? d.state.course.certificate : d.state.worlds.find((w) => w.key === issued.world?.key)?.certificate) || issued;
     body = (
       <div className="flex flex-col gap-8">
-        <Issued cert={fresh} justNow onShare={setShare} onChanged={(c) => d.patch((s) => replaceCert(s, c))} />
+        <Issued
+          cert={fresh}
+          justNow
+          onShare={setShare}
+          onChanged={(c) => d.patch((s) => replaceCert(s, c))}
+          onRemoved={() => {
+            setIssued(null);
+            d.refresh();
+            toTop();
+          }}
+        />
         <button
           type="button"
           onClick={() => {
@@ -171,11 +182,18 @@ export default function CertificateFlow() {
           </p>
         )}
         {s.course.certificate ? (
-          <Issued cert={s.course.certificate} onShare={setShare} onChanged={(c) => d.patch((x) => replaceCert(x, c))} />
+          <Issued cert={s.course.certificate} onShare={setShare} onChanged={(c) => d.patch((x) => replaceCert(x, c))} onRemoved={d.refresh} />
         ) : (
           <Checklist e={s.course.eligibility} canClaim={s.available && s.signing} onClaim={() => startClaim({ kind: "course", world: null, title: certTitle("course") })} />
         )}
-        <Worlds rows={s.worlds} canClaim={s.available && s.signing} onClaim={(w) => startClaim({ kind: "world", world: w.key, title: certTitle("world", w) })} onShare={setShare} />
+        <Worlds
+          rows={s.worlds}
+          canClaim={s.available && s.signing}
+          onClaim={(w) => startClaim({ kind: "world", world: w.key, title: certTitle("world", w) })}
+          onShare={setShare}
+          onChanged={(c) => d.patch((x) => replaceCert(x, c))}
+          onRemoved={d.refresh}
+        />
         <FinePrint />
       </div>
     );
@@ -200,7 +218,7 @@ export default function CertificateFlow() {
             url: () => certPath(share.code),
             text: () =>
               share.kind === "course"
-                ? `I earned the ${ISSUER} certificate of completion: ${share.stats?.worlds.total ?? 11} worlds, every trial, every interview boss and a mock interview. Verify it here:`
+                ? `I earned the ${ISSUER} certificate of completion: ${share.stats?.worlds.total ? `${share.stats.worlds.total} worlds` : "every world"}, every trial, every interview boss and ${MOCKS_NEEDED} mock interviews. Verify it here:`
                 : `I earned the World ${share.world?.code} certificate of ${ISSUER} (${share.world?.title}). Verify it here:`,
           }}
           onClose={() => setShare(null)}
@@ -215,7 +233,7 @@ export default function CertificateFlow() {
 function SignedOut({ onSignIn }: { onSignIn: () => void }) {
   return (
     <section className="flex flex-col gap-5">
-      <Head kicker={CERT_TITLE} title="Earn your certificate" sub="Clear every world, pass every trial, beat every boss and score Hire on a mock interview." />
+      <Head kicker={CERT_TITLE} title="Earn your certificate" sub={`Clear every world, read every capstone, pass every trial, beat every boss and score Hire on ${MOCKS_NEEDED} mock interviews.`} />
       <div className="flex flex-col gap-3 border border-dashed border-signal bg-surface p-5">
         <span className={`${LABEL} flex items-center gap-1.5 text-signal-text`}>
           <Lock className="h-3.5 w-3.5" aria-hidden /> needs an account
@@ -328,7 +346,7 @@ function Checklist({ e, canClaim, onClaim }: { e: Eligibility; canClaim: boolean
           {headline(e)}
           <span className="text-signal-text">.</span>
         </h1>
-        <p className="m-0 max-w-[640px] text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">Earned, not given: clear every world, pass every trial and score Hire on a mock interview.</p>
+        <p className="m-0 max-w-[640px] text-[15px] leading-relaxed text-fg-2 sm:text-[17px]">Earned, not given: clear every world, read every capstone, pass every trial and score Hire on {MOCKS_NEEDED} different mock interviews.</p>
       </div>
       <div className="flex flex-col gap-2">
         <div className="h-2 bg-surface-2" role="progressbar" aria-valuemin={0} aria-valuemax={e.total} aria-valuenow={e.met} aria-label="Requirements met">
@@ -362,7 +380,8 @@ function Checklist({ e, canClaim, onClaim }: { e: Eligibility; canClaim: boolean
 
 function Confirm({ target, state, onBack, onIssued, onStale }: { target: Target; state: CertState; onBack: () => void; onIssued: (c: CertificateView, existing: boolean) => void; onStale: () => void }) {
   const [name, setName] = useState(state.suggestedName);
-  const [isPublic, setIsPublic] = useState(true);
+  // opt-in (DPDP Act 2023): private until the learner ticks it
+  const [isPublic, setIsPublic] = useState(false);
   const [touched, setTouched] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -425,7 +444,7 @@ function Confirm({ target, state, onBack, onIssued, onStale }: { target: Target;
           <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-[#FF6B2B]" />
           <span>
             <span className="block font-semibold text-fg">Publish a public page so recruiters can verify it</span>
-            Shows your name, the certificate and how it was earned at {certDisplayUrl("…")}. Never your email.
+            Shows your name, the certificate and how it was earned at {certDisplayUrl("…")}. Never your email. Off unless you tick it; you can switch it on or off any time.
           </span>
         </label>
         {err && (
@@ -448,13 +467,10 @@ function Confirm({ target, state, onBack, onIssued, onStale }: { target: Target;
 
 /* ------------------------------------------------------------------ issued */
 
-function Issued({ cert, justNow = false, onShare, onChanged }: { cert: CertificateView; justNow?: boolean; onShare: (c: CertificateView) => void; onChanged: (c: CertificateView) => void }) {
+/** Show / hide a certificate's public page (PATCH), shared by the course and world cards. */
+function useCertPublic(cert: CertificateView, onChanged: (c: CertificateView) => void) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const revoked = cert.status === "revoked";
-  const course = cert.kind === "course";
-  const xp = CERT_XP[cert.kind];
-
   const setPublic = async (v: boolean) => {
     setBusy(true);
     setErr(null);
@@ -467,6 +483,59 @@ function Issued({ cert, justNow = false, onShare, onChanged }: { cert: Certifica
       setBusy(false);
     }
   };
+  return { busy, err, setPublic };
+}
+
+/** Withdraw a certificate, with a confirm step (DELETE; its page and QR code stop working). */
+function Withdraw({ cert, onDone, compact = false }: { cert: CertificateView; onDone: () => void; compact?: boolean }) {
+  const [ask, setAsk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const go = async () => {
+    setBusy(true);
+    setErr(null);
+    try {
+      await userJson<{ ok: boolean }>(`/api/learn/certificates/${cert.code}`, { method: "DELETE" });
+      track("cert_withdraw", { kind: cert.kind, world: cert.world?.key ?? null });
+      onDone();
+    } catch (e) {
+      setErr((e as Error).message || "Couldn't withdraw it.");
+      setBusy(false);
+    }
+  };
+  if (!ask)
+    return (
+      <button type="button" onClick={() => setAsk(true)} className={`self-start font-mono text-fg-3 underline underline-offset-4 hover:text-bad-text ${compact ? "min-h-10 text-[12px]" : "min-h-11 text-[13px]"}`}>
+        withdraw this certificate
+      </button>
+    );
+  return (
+    <div role="group" aria-label="Withdraw the certificate" className="flex flex-col gap-2 border border-bad/50 bg-surface p-3">
+      <p className="m-0 text-[13px] leading-snug text-fg-2">
+        Withdraw {cert.code}? It&apos;s deleted: its verification page, PDF and QR code stop working, and a LinkedIn entry pointing to it won&apos;t verify. You can claim a new one while you still meet the rules (it gets a new ID).
+      </p>
+      <div className="flex flex-wrap gap-2">
+        <button type="button" disabled={busy} onClick={() => void go()} className="inline-flex min-h-10 items-center border border-bad px-3 font-mono text-[12px] text-bad-text hover:bg-surface-2 disabled:opacity-50">
+          {busy ? "withdrawing…" : "yes, withdraw it"}
+        </button>
+        <button type="button" disabled={busy} onClick={() => setAsk(false)} className="inline-flex min-h-10 items-center px-3 font-mono text-[12px] text-fg-3 hover:text-fg">
+          keep it
+        </button>
+      </div>
+      {err && (
+        <p role="alert" className="m-0 text-[13px] text-bad-text">
+          {err}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function Issued({ cert, justNow = false, onShare, onChanged, onRemoved }: { cert: CertificateView; justNow?: boolean; onShare: (c: CertificateView) => void; onChanged: (c: CertificateView) => void; onRemoved: () => void }) {
+  const { busy, err, setPublic } = useCertPublic(cert, onChanged);
+  const revoked = cert.status === "revoked";
+  const course = cert.kind === "course";
+  const xp = CERT_XP[cert.kind];
 
   const linkedin = () => {
     track("cert_linkedin", { kind: cert.kind, world: cert.world?.key ?? null });
@@ -510,7 +579,7 @@ function Issued({ cert, justNow = false, onShare, onChanged }: { cert: Certifica
               <span className="inline-flex min-h-[52px] items-center justify-center gap-2 border border-dashed border-line-strong px-5 text-center text-[14px] text-fg-3">Turn the public page on to add it to LinkedIn</span>
             )}
             <div className="grid grid-cols-2 gap-2.5">
-              <PdfLink code={cert.code} kind={cert.kind} from="earn" className="inline-flex min-h-12 items-center justify-center gap-2 border border-line-strong px-3 text-[15px] text-fg hover:bg-surface-2">
+              <PdfLink code={cert.code} kind={cert.kind} isPublic={cert.isPublic} from="earn" className="inline-flex min-h-12 items-center justify-center gap-2 border border-line-strong px-3 text-[15px] text-fg hover:bg-surface-2">
                 Download PDF
               </PdfLink>
               <button
@@ -557,6 +626,7 @@ function Issued({ cert, justNow = false, onShare, onChanged }: { cert: Certifica
                 {err}
               </p>
             )}
+            <Withdraw cert={cert} onDone={onRemoved} />
           </div>
         </div>
       )}
@@ -566,7 +636,21 @@ function Issued({ cert, justNow = false, onShare, onChanged }: { cert: Certifica
 
 /* ------------------------------------------------------------------ worlds */
 
-function Worlds({ rows, canClaim, onClaim, onShare }: { rows: WorldRow[]; canClaim: boolean; onClaim: (w: WorldRow) => void; onShare: (c: CertificateView) => void }) {
+function Worlds({
+  rows,
+  canClaim,
+  onClaim,
+  onShare,
+  onChanged,
+  onRemoved,
+}: {
+  rows: WorldRow[];
+  canClaim: boolean;
+  onClaim: (w: WorldRow) => void;
+  onShare: (c: CertificateView) => void;
+  onChanged: (c: CertificateView) => void;
+  onRemoved: () => void;
+}) {
   const issued = rows.filter((w) => w.certificate).length;
   return (
     <section aria-labelledby="worlds-h" className="flex flex-col gap-4">
@@ -582,14 +666,28 @@ function Worlds({ rows, canClaim, onClaim, onShare }: { rows: WorldRow[]; canCla
       <p className="m-0 max-w-[680px] text-[14px] leading-relaxed text-fg-3">Each world has its own certificate in the blueprint style: every lesson of the world, its trial parts at 80%+ and its boss.</p>
       <ul className="m-0 grid list-none gap-3 p-0 [grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))]">
         {rows.map((w) => (
-          <WorldCard key={w.key} w={w} canClaim={canClaim} onClaim={() => onClaim(w)} onShare={onShare} />
+          <WorldCard key={w.key} w={w} canClaim={canClaim} onClaim={() => onClaim(w)} onShare={onShare} onChanged={onChanged} onRemoved={onRemoved} />
         ))}
       </ul>
     </section>
   );
 }
 
-function WorldCard({ w, canClaim, onClaim, onShare }: { w: WorldRow; canClaim: boolean; onClaim: () => void; onShare: (c: CertificateView) => void }) {
+function WorldCard({
+  w,
+  canClaim,
+  onClaim,
+  onShare,
+  onChanged,
+  onRemoved,
+}: {
+  w: WorldRow;
+  canClaim: boolean;
+  onClaim: () => void;
+  onShare: (c: CertificateView) => void;
+  onChanged: (c: CertificateView) => void;
+  onRemoved: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const c = w.certificate;
   const e = w.eligibility;
@@ -623,7 +721,7 @@ function WorldCard({ w, canClaim, onClaim, onShare }: { w: WorldRow; canClaim: b
                 view
               </a>
             )}
-            <PdfLink code={c!.code} kind="world" from="earn-world" className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-[12px] text-fg hover:bg-surface-2">
+            <PdfLink code={c!.code} kind="world" isPublic={c!.isPublic} from="earn-world" className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-[12px] text-fg hover:bg-surface-2">
               PDF
             </PdfLink>
             {c!.isPublic && (
@@ -654,6 +752,7 @@ function WorldCard({ w, canClaim, onClaim, onShare }: { w: WorldRow; canClaim: b
             )}
           </>
         )}
+        {state === "issued" && <WorldPublic cert={c!} onChanged={onChanged} />}
         {state === "ready" && (
           <button type="button" onClick={onClaim} disabled={!canClaim} className="inline-flex min-h-11 items-center bg-signal px-4 text-[14px] font-semibold text-on-signal hover:brightness-110 disabled:opacity-50">
             Claim World {w.code} certificate
@@ -665,6 +764,7 @@ function WorldCard({ w, canClaim, onClaim, onShare }: { w: WorldRow; canClaim: b
           </button>
         )}
       </div>
+      {state === "issued" && <Withdraw cert={c!} onDone={onRemoved} compact />}
       {open && state === "todo" && (
         <ul className="m-0 flex list-none flex-col gap-1 p-0">
           {todo.flatMap((r) => r.todo.slice(0, 4).map((t) => ({ ...t, id: r.id }))).map((t) => (
@@ -681,6 +781,31 @@ function WorldCard({ w, canClaim, onClaim, onShare }: { w: WorldRow; canClaim: b
   );
 }
 
+/** A world certificate's public page switch (compact, beside its buttons). */
+function WorldPublic({ cert, onChanged }: { cert: CertificateView; onChanged: (c: CertificateView) => void }) {
+  const { busy, err, setPublic } = useCertPublic(cert, onChanged);
+  return (
+    <>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={cert.isPublic}
+        disabled={busy}
+        onClick={() => void setPublic(!cert.isPublic)}
+        className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3 font-mono text-[12px] text-fg hover:bg-surface-2 disabled:opacity-50"
+      >
+        <span aria-hidden className={`h-2 w-2 ${cert.isPublic ? "bg-signal" : "bg-fg-3"}`} />
+        public page: {cert.isPublic ? "on" : "off"}
+      </button>
+      {err && (
+        <span role="alert" className="basis-full text-[12px] text-bad-text">
+          {err}
+        </span>
+      )}
+    </>
+  );
+}
+
 /* ------------------------------------------------------------------ fine print */
 
 function FinePrint() {
@@ -688,7 +813,7 @@ function FinePrint() {
     <div className="flex flex-col gap-2 border-t border-line pt-5 text-[13px] leading-relaxed text-fg-3">
       <p className="m-0">{DISCLAIMER}</p>
       <p className="m-0">
-        Every requirement is checked on the server from your account&apos;s records when you claim. Each certificate gets an ID, a signature and a verification page; it can be revoked if it was earned dishonestly.{" "}
+        Every requirement is checked on the server from your account&apos;s records when you claim. Each certificate gets an ID, a signature and a verification page; it can be revoked if it was earned dishonestly. Its public page stays off until you turn it on, and you can withdraw a certificate at any time.{" "}
         <Link href="/learn/guide#certificates" className="font-semibold text-signal-text underline underline-offset-4">
           How certificates work →
         </Link>

@@ -55,7 +55,7 @@ import {
   RUNTIME_DOWNLOAD_LABEL,
   RUNTIME_STORED_LABEL,
 } from "./facts";
-import { CERT_XP, NAME_MAX as CERT_NAME_MAX, TRIAL_PASS_PCT as CERT_PASS_PCT } from "@/lib/certificates/core";
+import { CERT_XP, MOCKS_NEEDED as CERT_MOCKS, NAME_MAX as CERT_NAME_MAX, TRIAL_PASS_PCT as CERT_PASS_PCT } from "@/lib/certificates/core";
 
 const COURSE = "/learn/system-design-mastery";
 
@@ -1276,8 +1276,8 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 [
                   "System Design Mastery · Certificate of Completion",
                   <>
-                    every core lesson completed{s ? ` (${s.coreLessons})` : ""}; every trial part passed at {CERT_PASS_PCT}%+{s ? ` (${s.trialParts})` : ""}; every interview boss beaten in boss mode{s ? ` (${s.bosses})` : ""}; one mock
-                    interview scored Hire or better
+                    every core lesson completed{s ? ` (${s.coreLessons})` : ""}; every capstone interview read{s ? ` (${s.bosses})` : ""}; every trial part passed at {CERT_PASS_PCT}%+{s ? ` (${s.trialParts})` : ""}; every interview boss
+                    beaten in boss mode{s ? ` (${s.bosses})` : ""}; {CERT_MOCKS} different mock interviews scored Hire or better
                   </>,
                 ],
                 ["World NN · <title>", <>every lesson of that world; its trial parts at {CERT_PASS_PCT}%+; its boss (World 00 has no boss)</>],
@@ -1290,16 +1290,16 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               </p>
               <p>
                 <strong>What counts.</strong> Lessons count once they&apos;re completed in your account. Trial parts count from your saved attempts: the answers are marked again on the server against the answer key, so a part counts only if
-                those answers really reach {CERT_PASS_PCT}%. If an older pass doesn&apos;t (the questions changed since), the checklist says so: retake that part. Bosses count when you win them in boss mode. The mock interview counts
-                when its scorecard (you score yourself against the levelled rubric) comes out at Hire or Strong hire.
+                those answers really reach {CERT_PASS_PCT}%. If an older pass doesn&apos;t (the questions changed since), the checklist says so: retake that part. Capstones count once you&apos;ve completed reading them. Bosses count when you win them in boss mode. A mock interview counts
+                when its scorecard (you score yourself against the levelled rubric) comes out at Hire or Strong hire; the course certificate needs {CERT_MOCKS} different ones.
               </p>
               <p>
                 <strong>Claiming.</strong> Press <strong>Claim my certificate</strong>, check the name (2–{CERT_NAME_MAX} characters, letters, spaces, apostrophes, hyphens and periods; it&apos;s signed into the certificate and can&apos;t be
-                changed later) and choose whether it gets a public page (on by default). Claiming again never makes a second one. The course certificate pays +{CERT_XP.course} XP and the <strong>Certified</strong> badge, a world certificate
+                changed later) and choose whether it gets a public page (off unless you tick it; you can switch it on or off later, and withdraw a certificate at any time). Claiming again never makes a second one. The course certificate pays +{CERT_XP.course} XP and the <strong>Certified</strong> badge, a world certificate
                 +{CERT_XP.world} XP.
               </p>
               <p>
-                <strong>Then:</strong> <strong>Add to LinkedIn profile</strong> opens LinkedIn with the certificate&apos;s name, issuer, date, ID and link filled in; <strong>Download PDF</strong> opens a one-page A4 landscape version
+                <strong>Then:</strong> <strong>Add to LinkedIn profile</strong> opens LinkedIn with the certificate&apos;s name, issuer, date, ID and link filled in; <strong>Download PDF</strong> opens a one-page A4 landscape version, public page or not
                 (choose “Save as PDF”); <strong>Share link</strong> opens the share sheet. The course certificate is paper-style with a QR code; world certificates are drawn as blueprints.
               </p>
             </div>

@@ -5,10 +5,12 @@
  * all use the same rules.
  *
  * Earning rules (checked on the server from the database, never from the browser):
- *   course certificate  every core lesson completed (learning_progress), every trial part passed
- *                       (trial_attempts answers re-scored against the answer key), every world's
- *                       boss beaten (game_done `boss:<week>`), and one mock interview at Hire or
- *                       better (game_done `offer:<id>` + its game_flags `mock:<id>` scorecard)
+ *   course certificate  every core lesson completed (learning_progress), every world's capstone
+ *                       interview read (learning_progress for the boss lesson), every trial part
+ *                       passed (trial_attempts answers re-scored against the answer key), every
+ *                       world's boss beaten (game_done `boss:<week>`), and MOCKS_NEEDED different mock
+ *                       interviews at Hire or better (game_done `offer:<id>` + its game_flags
+ *                       `mock:<id>` scorecard)
  *   world certificate   that world's lessons, its trial parts and its boss (when it has one)
  */
 
@@ -30,6 +32,8 @@ export const certXpKey = (kind: CertKind, worldKey?: string | null) => (kind ===
 /** Pass mark for a trial part: 80 %, rounded up (same as the trial engine). */
 export const passMark = (n: number) => Math.ceil(n * 0.8);
 export const TRIAL_PASS_PCT = 80;
+/** Different mock interviews the course certificate needs at Hire or better. */
+export const MOCKS_NEEDED = 3;
 /** Mock verdicts that count (Hire or better). */
 export const OFFER_VERDICTS = ["hire", "strong-hire"] as const;
 const VERDICT_ORDER = ["strong-no-hire", "no-hire", "lean-no-hire", "lean-hire", "hire", "strong-hire"];
@@ -102,7 +106,9 @@ export async function uniqueCode(kind: CertKind, worldNum: number | null, taken:
 }
 
 /** "an 11-world course", "a 12-world course" */
-export const worldsPhrase = (n: number) => `${/^(8|11|18)(\D|$)/.test(String(n)) || /^8/.test(String(n)) ? "an" : "a"} ${n}-world course`;
+export const worldsPhrase = (n: number | null | undefined): string =>
+  !n ? "a multi-world course" : worldsPhraseN(n);
+const worldsPhraseN = (n: number) => `${/^(8|11|18)(\D|$)/.test(String(n)) || /^8/.test(String(n)) ? "an" : "a"} ${n}-world course`;
 
 export const certPath = (code: string) => `/cert/${code}`;
 export const certUrl = (code: string) => `${CERT_ORIGIN}${certPath(code)}`;
@@ -312,7 +318,7 @@ export const lessonKey = (week: string, slug: string) => `${week}/${slug}`;
 
 export type TodoItem = { label: string; href: string; note?: string };
 
-export type ReqId = "lessons" | "trials" | "bosses" | "mock";
+export type ReqId = "lessons" | "capstones" | "trials" | "bosses" | "mock";
 
 export type Requirement = {
   id: ReqId;
@@ -334,6 +340,10 @@ export type CertStats = {
   trialParts: { passed: number; total: number };
   bosses: { beaten: number; total: number };
   mock: { id: string; n: number; company: string; verdict: string; level: string } | null;
+  /** different mocks at Hire or better (course certificates issued before 28 Oct 2026 don't have it) */
+  offers?: { have: number; need: number };
+  /** capstone interviews read (same) */
+  capstones?: { read: number; total: number };
 };
 
 export type Eligibility = {
@@ -411,6 +421,31 @@ function bossesReq(worlds: CertWorld[], ev: LearnerEvidence, scope: "course" | "
   };
 }
 
+function capstonesReq(worlds: CertWorld[], ev: LearnerEvidence): Requirement {
+  const all = worlds.filter((w) => w.boss);
+  const unread = all.filter((w) => !ev.lessons[lessonKey(w.boss!.week, w.boss!.slug)]);
+  const read = all.length - unread.length;
+  return {
+    id: "capstones",
+    label: `Read all ${all.length} capstone interviews`,
+    detail: `${read}/${all.length} capstones read`,
+    done: all.length > 0 && !unread.length,
+    have: read,
+    need: all.length,
+    todo: unread.map((w) => ({ label: `W${w.code} capstone · ${w.boss!.title}`, href: w.boss!.href })),
+    href: unread[0]?.boss!.href || "/learn/system-design-mastery",
+    hrefLabel: "Read the next capstone",
+  };
+}
+
+/** Mocks at Hire or better, best first. */
+function offersIn(ev: LearnerEvidence, mocks: CertMock[]): { mock: CertMock; r: MockResult }[] {
+  return mocks
+    .filter((m) => ev.offers[m.id] && (OFFER_VERDICTS as readonly string[]).includes(ev.offers[m.id].verdict))
+    .map((m) => ({ mock: m, r: ev.offers[m.id] }))
+    .sort((a, b) => VERDICT_ORDER.indexOf(b.r.verdict) - VERDICT_ORDER.indexOf(a.r.verdict) || b.r.pct - a.r.pct);
+}
+
 function bestOffer(ev: LearnerEvidence, mocks: CertMock[]): { mock: CertMock; r: MockResult } | null {
   let best: { mock: CertMock; r: MockResult } | null = null;
   for (const m of mocks) {
@@ -422,16 +457,26 @@ function bestOffer(ev: LearnerEvidence, mocks: CertMock[]): { mock: CertMock; r:
 }
 
 function mockReq(course: CertCourse, ev: LearnerEvidence): Requirement {
-  const best = bestOffer(ev, course.mocks);
+  const offers = offersIn(ev, course.mocks);
+  const have = Math.min(offers.length, MOCKS_NEEDED);
   const so = ev.bestMock ? `best so far: ${VERDICT_TEXT[ev.bestMock.verdict] || ev.bestMock.verdict}` : "no scored mock interview yet";
+  // the mock list failed to load (or the course has too few): say so instead of an impossible checklist
+  const missing = course.mocks.length < MOCKS_NEEDED;
   return {
     id: "mock",
-    label: "Score Hire or better on a mock interview",
-    detail: best ? `Mock ${String(best.mock.n).padStart(2, "0")} · ${best.mock.company} · ${VERDICT_TEXT[best.r.verdict]} (${LEVEL_TEXT[best.r.level] || best.r.level})` : so,
-    done: !!best,
-    have: best ? 1 : 0,
-    need: 1,
-    todo: best ? [] : course.mocks.map((m) => ({ label: `Mock ${String(m.n).padStart(2, "0")} · ${m.company}`, href: m.href })),
+    label: `Score Hire or better on ${MOCKS_NEEDED} different mock interviews`,
+    detail: missing
+      ? "The mock interviews couldn't be loaded. Try again in a few minutes."
+      : offers.length
+        ? `${have}/${MOCKS_NEEDED}: ${offers
+            .slice(0, MOCKS_NEEDED)
+            .map((o) => `Mock ${String(o.mock.n).padStart(2, "0")} · ${o.mock.company} · ${VERDICT_TEXT[o.r.verdict]}`)
+            .join(", ")}`
+        : `0/${MOCKS_NEEDED}, ${so}`,
+    done: !missing && offers.length >= MOCKS_NEEDED,
+    have,
+    need: MOCKS_NEEDED,
+    todo: course.mocks.filter((m) => !offers.some((o) => o.mock.id === m.id)).map((m) => ({ label: `Mock ${String(m.n).padStart(2, "0")} · ${m.company}`, href: m.href })),
     href: "/learn/mock",
     hrefLabel: "Sit a mock interview",
   };
@@ -448,12 +493,18 @@ function statsFor(worlds: CertWorld[], course: CertCourse, ev: LearnerEvidence, 
     trialParts: { passed: parts.filter(({ w, p }) => trialPassedIn(ev, w, p.n)).length, total: parts.length },
     bosses: { beaten: bosses.filter((w) => !!ev.bosses[w.key]).length, total: bosses.length },
     mock: best ? { id: best.mock.id, n: best.mock.n, company: best.mock.company, verdict: best.r.verdict, level: best.r.level } : null,
+    ...(withMock
+      ? {
+          offers: { have: Math.min(offersIn(ev, course.mocks).length, MOCKS_NEEDED), need: MOCKS_NEEDED },
+          capstones: { read: bosses.filter((w) => !!ev.lessons[lessonKey(w.boss!.week, w.boss!.slug)]).length, total: bosses.length },
+        }
+      : {}),
   };
 }
 
 /** The course certificate's checklist. */
 export function courseEligibility(course: CertCourse, ev: LearnerEvidence): Eligibility {
-  const reqs = [lessonsReq(course.worlds, ev, "course"), trialsReq(course.worlds, ev, "course"), bossesReq(course.worlds, ev, "course"), mockReq(course, ev)];
+  const reqs = [lessonsReq(course.worlds, ev, "course"), capstonesReq(course.worlds, ev), trialsReq(course.worlds, ev, "course"), bossesReq(course.worlds, ev, "course"), mockReq(course, ev)];
   const met = reqs.filter((r) => r.done).length;
   return { kind: "course", world: null, eligible: course.worlds.length > 0 && met === reqs.length, met, total: reqs.length, requirements: reqs, stats: statsFor(course.worlds, course, ev, true) };
 }
@@ -478,6 +529,8 @@ export type EvidenceSnapshot = {
   trials: { id: string; score: number; total: number; seconds: number | null; source: TrialPass["source"]; at: string | null }[];
   bosses: { week: string; at: string }[];
   mock: (MockResult & { id: string }) | null;
+  /** every mock at Hire or better at issue time (course certificates from 28 Oct 2026) */
+  mocks?: (MockResult & { id: string })[];
   /** things an admin may want to look at (never shown publicly) */
   flags: string[];
 };
@@ -505,12 +558,13 @@ export function evidenceSnapshot(course: CertCourse, e: Eligibility, ev: Learner
   return {
     v: 1,
     computedAt: now.toISOString(),
-    rules: e.kind === "course" ? "lessons+trials+bosses+mock" : "world lessons+trials+boss",
+    rules: e.kind === "course" ? `lessons+capstones+trials+bosses+${MOCKS_NEEDED}mocks` : "world lessons+trials+boss",
     stats: e.stats,
     lessons: { done: lessons.length, total: worlds.reduce((a, w) => a + w.lessons.length, 0), trackedSeconds: lessons.reduce((a, l) => a + (l.seconds || 0), 0), untracked },
     trials,
     bosses,
     mock: best && e.stats.mock ? { ...best, id: e.stats.mock.id } : null,
+    ...(e.kind === "course" ? { mocks: offersIn(ev, course.mocks).map((o) => ({ ...o.r, id: o.mock.id })) } : {}),
     flags,
   };
 }
@@ -519,7 +573,7 @@ export function evidenceSnapshot(course: CertCourse, e: Eligibility, ev: Learner
 export function evidenceLine(kind: CertKind, ev: Partial<EvidenceSnapshot> | null | undefined): string {
   const s = ev?.stats;
   if (!s) return "—";
-  if (kind === "course") return `${s.lessons.done}/${s.lessons.total} · ${s.trialParts.passed}/${s.trialParts.total} · ${s.bosses.beaten}/${s.bosses.total} · ${s.mock ? VERDICT_TEXT[s.mock.verdict] || s.mock.verdict : "—"}`;
+  if (kind === "course") return `${s.lessons.done}/${s.lessons.total} · ${s.capstones ? `${s.capstones.read}/${s.capstones.total} · ` : ""}${s.trialParts.passed}/${s.trialParts.total} · ${s.bosses.beaten}/${s.bosses.total} · ${s.offers ? `${s.offers.have} mocks, best ` : ""}${s.mock ? VERDICT_TEXT[s.mock.verdict] || s.mock.verdict : "—"}`;
   return `lessons ${s.lessons.done}/${s.lessons.total} · trial ${s.trialParts.passed}/${s.trialParts.total}${s.bosses.total ? ` · boss ${s.bosses.beaten ? "✓" : "✕"}` : ""}`;
 }
 

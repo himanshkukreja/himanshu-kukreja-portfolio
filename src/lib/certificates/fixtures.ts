@@ -5,14 +5,14 @@ import "server-only";
  * the real course map; nothing here touches the database.
  *
  *   fx-cert-ready   everything done, nothing claimed yet (the full earn flow)
- *   fx-cert-mock    everything but a Hire mock (best so far: Lean hire) — "one step left"
+ *   fx-cert-mock    everything but the Hire mocks (best so far: Lean hire) — "one step left"
  *   fx-cert-world   first three worlds cleared, World 03 missing a trial part and its boss
  *   fx-grace        already certified: course SDM-7F3K-92QX + W02-4QX8 (public), W01-H7P2
  *                   (revoked), W00-ZK3P (private, so its page is a 404); shares /u/grace-h
  *   fx-priya, fx-rohan, fx-meera   more rows for the admin table
  */
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
-import { courseEligibility, courseShape, evidenceSnapshot, worldEligibility, worldTopics, type CertCourse, type LearnerEvidence } from "./core";
+import { courseEligibility, courseShape, evidenceSnapshot, MOCKS_NEEDED, worldEligibility, worldTopics, type CertCourse, type LearnerEvidence } from "./core";
 import { signCertificate } from "./sign";
 import type { LoadedLearner } from "./data";
 import type { CertPatch, CertRow, CertStore, InsertResult, NewCert } from "./store";
@@ -48,13 +48,18 @@ function evidenceFor(course: CertCourse, o: { worlds: number; partialMissingPart
       }
       ev.trials[`${w.trial!.week}|${p.n}`] = { score: p.questions - (p.n % 3), total: p.questions, at: iso((t += 3_600_000)), seconds: p.questions * 31, source: "attempt" };
     });
-    if (full && w.boss) ev.bosses[w.key] = t += DAY / 4;
+    if (full && w.boss) {
+      ev.lessons[`${w.boss.week}/${w.boss.slug}`] = { at: iso((t += DAY / 8)), seconds: 2400 };
+      ev.bosses[w.key] = t += DAY / 4;
+    }
   });
+  // the last MOCKS_NEEDED mocks, all at the same verdict ("lean-hire": none count)
   if (o.mock && course.mocks[0]) {
-    const m = course.mocks[course.mocks.length - 1];
-    const r = { verdict: o.mock, level: "senior", pct: o.mock === "strong-hire" ? 0.88 : o.mock === "hire" ? 0.74 : 0.58, at: t + DAY };
-    ev.bestMock = { id: m.id, ...r };
-    if (o.mock !== "lean-hire") ev.offers[m.id] = r;
+    course.mocks.slice(-MOCKS_NEEDED).forEach((m, k) => {
+      const r = { verdict: o.mock!, level: "senior", pct: (o.mock === "strong-hire" ? 0.88 : o.mock === "hire" ? 0.74 : 0.58) - k / 100, at: t + DAY * (k + 1) };
+      if (!ev.bestMock || r.pct > ev.bestMock.pct) ev.bestMock = { id: m.id, ...r };
+      if (o.mock !== "lean-hire") ev.offers[m.id] = r;
+    });
   }
   return ev;
 }
@@ -165,6 +170,10 @@ export function fixtureStore(): CertStore {
       const full: CertRow = { ...row, id: crypto.randomUUID(), status: "valid", revoked_at: null, revoke_reason: null, linkedin_added_at: null, created_at: now, updated_at: now };
       m.rows.set(full.id, full);
       return { ok: true, row: full };
+    },
+    async remove(id: string) {
+      await ready();
+      m.rows.delete(id);
     },
     async update(id, patch: CertPatch) {
       await ready();

@@ -4,7 +4,7 @@ import CertificateFlow from "@/components/learn/certificate/CertificateFlow";
 
 export const metadata: Metadata = {
   title: "Certificate · System Design Mastery",
-  description: "Earn the System Design Mastery certificate of completion and one certificate per world: every lesson, every trial part, every interview boss and a mock interview at Hire or better.",
+  description: "Earn the System Design Mastery certificate of completion and one certificate per world: every lesson and capstone interview, every trial part, every interview boss and three mock interviews at Hire or better.",
   alternates: { canonical: "/learn/certificate" },
   robots: { index: false, follow: true },
 };

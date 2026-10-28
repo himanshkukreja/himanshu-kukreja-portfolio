@@ -178,7 +178,7 @@ export async function claim(userId: string, input: { kind?: unknown; world?: unk
     // ISO with milliseconds: Postgres keeps them exactly, so the row read back signs the same way
     const issuedAt = new Date().toISOString();
     const signature = signCertificate({ code, userId, kind, worldKey, displayName: name.name, issuedAt });
-    const res = await store.insert({ code, user_id: userId, kind, world_key: worldKey, display_name: name.name, issued_at: issuedAt, evidence, signature, is_public: input.isPublic !== false });
+    const res = await store.insert({ code, user_id: userId, kind, world_key: worldKey, display_name: name.name, issued_at: issuedAt, evidence, signature, is_public: input.isPublic === true });
     if (res.ok) {
       refreshPublic(code);
       return { certificate: toView(res.row, c), existing: false };
@@ -204,6 +204,18 @@ export async function setPublic(userId: string, code: string, isPublic: boolean)
   const next = await (await certStore()).update(row.id, { is_public: isPublic });
   refreshPublic(row.code);
   return toView(next || row, null);
+}
+
+/**
+ * DELETE /api/learn/certificates/<code> — the learner withdraws a certificate (DPDP: their data, their
+ * call). Its verification page and QR code stop working at once; they can claim again while they still
+ * meet the rules. A revoked certificate can't be withdrawn (that would clear the revocation).
+ */
+export async function withdraw(userId: string, code: string): Promise<void> {
+  const row = await ownRow(userId, code);
+  if (row.status === "revoked") throw new CertError(409, "A revoked certificate can't be withdrawn. Use the contact form on the site if you think it's a mistake.", "revoked");
+  await (await certStore()).remove(row.id);
+  refreshPublic(row.code);
 }
 
 /** POST /api/learn/certificates/<code>/linkedin — first press only. */

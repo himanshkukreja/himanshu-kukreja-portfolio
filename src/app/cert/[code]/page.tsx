@@ -19,7 +19,6 @@ export function generateStaticParams() {
 
 type Props = { params: Promise<{ code: string }> };
 
-/** Unknown, private and malformed codes are the same 404 (the middleware already answered it). */
 /**
  * Unknown, private and malformed codes are the same 404 (the middleware already answered it). A
  * database error throws, so ISR never caches it (error.tsx says "couldn't check right now").
@@ -100,7 +99,7 @@ export default async function CertificatePage({ params }: Props) {
   const revoked = v.status === "revoked";
   const bad = !revoked && c.signature === "bad";
   const first = v.name.split(/\s+/)[0];
-  const worldsTotal = (v.kind === "course" ? s?.worlds.total : v.world?.of) ?? 11;
+  const worldsTotal = v.kind === "course" ? s?.worlds.total : v.world?.of;
   const mock = s?.mock ? `${VERDICT_TEXT[s.mock.verdict] || s.mock.verdict}` : null;
 
   const stats: { value: string; label: string; accent?: boolean }[] = !s
@@ -110,7 +109,9 @@ export default async function CertificatePage({ params }: Props) {
           { value: `${s.worlds.cleared}/${s.worlds.total}`, label: `worlds cleared, ${s.lessons.done} core lessons read` },
           { value: `${s.trialParts.passed}/${s.trialParts.total}`, label: "trial parts passed at 80% or more" },
           { value: `${s.bosses.beaten}/${s.bosses.total}`, label: "interview bosses beaten" },
-          { value: mock ? mock.toUpperCase() : "—", label: s.mock ? `mock interview, ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interview", accent: true },
+          s.offers
+            ? { value: `${s.offers.have}× HIRE+`, label: s.mock ? `mock interviews, best ${mock}, ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interviews at Hire or better", accent: true }
+            : { value: mock ? mock.toUpperCase() : "—", label: s.mock ? `mock interview, ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interview", accent: true },
         ]
       : [
           { value: `W${v.world?.code ?? ""}`, label: v.world?.title ?? "world", accent: true },
@@ -122,13 +123,15 @@ export default async function CertificatePage({ params }: Props) {
   const how =
     v.kind === "course"
       ? [
-          "Every core lesson completed, tracked by real reading time",
+          s?.capstones ? `Every core lesson and all ${s.capstones.total} capstone interviews completed` : "Every core lesson completed",
           "Every trial part passed at 80%+ (options shuffled, answers re-checked on the server)",
-          `All ${s?.bosses.total ?? 10} interview bosses beaten in timed boss mode`,
-          "A timed mock interview, self-scored against a levelled rubric, at Hire or better",
+          s?.bosses.total ? `All ${s.bosses.total} interview bosses beaten in timed boss mode` : "Every interview boss beaten in timed boss mode",
+          s?.offers
+            ? `${s.offers.need} different timed mock interviews, each self-scored against a levelled rubric, at Hire or better`
+            : "A timed mock interview, self-scored against a levelled rubric, at Hire or better",
         ]
       : [
-          "Every lesson of the world completed, tracked by real reading time",
+          "Every lesson of the world completed",
           "Every trial part of the world passed at 80%+ (answers re-checked on the server)",
           ...(s?.bosses.total ? ["The world's interview boss beaten in timed boss mode"] : []),
         ];
@@ -174,7 +177,7 @@ export default async function CertificatePage({ params }: Props) {
           <p className="m-0 max-w-[640px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
             {v.kind === "course" ? (
               <>
-                Completed every world of {ISSUER}, {worldsPhrase(worldsTotal)} on designing systems at scale, and passed its trials, interview bosses and a timed mock interview.
+                Completed every world of {ISSUER}, {worldsPhrase(worldsTotal)} on designing systems at scale, and passed its trials, interview bosses and {s?.offers ? `${s.offers.need} timed mock interviews` : "a timed mock interview"}.
               </>
             ) : (
               <>

@@ -70,13 +70,15 @@ const verdictWord = (v: string) => (VERDICT_TEXT[v] || v).toUpperCase();
 export function CourseCertificate({ cert, theme = "paper", id }: { cert: CertificateView; theme?: "paper" | "dark"; id?: string }) {
   const p = theme === "dark" ? DARK : PAPER;
   const s = cert.stats;
-  const worlds = s?.worlds.total ?? 11;
+  const worlds = s?.worlds.total;
   const stats = s
     ? [
         { v: `${s.worlds.cleared}/${s.worlds.total}`, l: "worlds cleared" },
         { v: `${s.trialParts.passed}/${s.trialParts.total}`, l: "trial parts passed at 80%+" },
         { v: `${s.bosses.beaten}/${s.bosses.total}`, l: "interview bosses beaten" },
-        { v: s.mock ? verdictWord(s.mock.verdict) : "—", l: s.mock ? `mock interview · ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interview", accent: true },
+        s.offers
+          ? { v: `${s.offers.have}× HIRE+`, l: s.mock ? `mock interviews · best ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interviews", accent: true }
+          : { v: s.mock ? verdictWord(s.mock.verdict) : "—", l: s.mock ? `mock interview · ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interview", accent: true },
       ]
     : null;
   return (
@@ -101,7 +103,7 @@ export function CourseCertificate({ cert, theme = "paper", id }: { cert: Certifi
               <span style={{ fontSize: u(20), color: p.muted }}>This certifies that</span>
               <h1 style={{ ...DISPLAY, margin: 0, fontWeight: 800, fontSize: u(nameSize(cert.name, 88)), lineHeight: 0.98, letterSpacing: "-0.035em", overflowWrap: "anywhere" }}>{withDot(cert.name, p.accent)}</h1>
               <p style={{ margin: `${u(8)} 0 0`, fontSize: u(21), lineHeight: 1.5, maxWidth: u(860) }}>
-                completed <b>{ISSUER}</b>, {worldsPhrase(worlds)} on designing systems at scale, and passed its trials, interview bosses and a timed mock interview.
+                completed <b>{ISSUER}</b>, {worldsPhrase(worlds)} on designing systems at scale, and passed its trials, interview bosses and {s?.offers ? `${s.offers.need} timed mock interviews` : "a timed mock interview"}.
               </p>
             </div>
 
@@ -137,7 +139,7 @@ export function CourseCertificate({ cert, theme = "paper", id }: { cert: Certifi
             </div>
 
             <p style={{ margin: `${u(22)} 0 0`, fontSize: u(12), color: p.muted, lineHeight: 1.5 }}>
-              {DISCLAIMER} Earned by reading every lesson and passing every trial, boss and a mock interview; verify the ID above.
+              {DISCLAIMER} Earned by reading every lesson and capstone and passing every trial, boss and {s?.offers ? `${s.offers.need} mock interviews` : "a mock interview"}; verify the ID above.
             </p>
           </div>
         </div>
@@ -164,7 +166,7 @@ export function WorldCertificate({ cert, id }: { cert: CertificateView; id?: str
   const code = w?.code ?? cert.code.slice(1, 3);
   const title = w?.title ?? `World ${code}`;
   const topics = (w?.topics || []).slice(0, 6);
-  const total = w?.of ?? 11;
+  const total = w?.of;
   const titleSize = title.length > 34 ? 48 : title.length > 24 ? 56 : 64;
   return (
     <Sheet id={id} label={`${CERT_TITLE}: ${cert.name} completed World ${code}, ${title}, of ${ISSUER}. Certificate ID ${cert.code}, issued ${fmtCertDate(cert.issuedAt)}.`}>
@@ -208,7 +210,7 @@ export function WorldCertificate({ cert, id }: { cert: CertificateView; id?: str
             <div style={{ padding: `${u(22)} ${u(22)} ${u(18)}`, borderBottom: `${u(1.5)} solid ${BP.line}`, display: "flex", flexDirection: "column", gap: u(2), background: "rgba(207,226,245,0.06)" }}>
               <span style={{ fontSize: u(12), opacity: 0.75 }}>WORLD</span>
               <span style={{ ...DISPLAY, fontWeight: 800, fontSize: u(120), lineHeight: 0.9, letterSpacing: "-0.05em", color: BP.name }}>{code}</span>
-              <span style={{ fontSize: u(12), opacity: 0.75 }}>of {total} worlds</span>
+              {total ? <span style={{ fontSize: u(12), opacity: 0.75 }}>of {total} worlds</span> : null}
             </div>
             <Cell label="LESSONS READ" value={s ? `${s.lessons.done} / ${s.lessons.total}` : "—"} />
             <Cell label="TRIAL PARTS ≥ 80%" value={s ? `${s.trialParts.passed} / ${s.trialParts.total}` : "—"} />

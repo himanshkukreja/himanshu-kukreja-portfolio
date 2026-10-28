@@ -51,6 +51,8 @@ export interface CertStore {
   codeTaken(code: string): Promise<boolean>;
   insert(row: NewCert): Promise<InsertResult>;
   update(id: string, patch: CertPatch): Promise<CertRow | null>;
+  /** the learner withdraws a certificate: the row and its view counts go (FK cascade) */
+  remove(id: string): Promise<void>;
   list(): Promise<CertRow[]>;
   /** total verification views per certificate id since `day` (YYYY-MM-DD, inclusive) */
   views(sinceDay: string): Promise<Record<string, number>>;
@@ -100,6 +102,10 @@ const supabaseStore: CertStore = {
     const { data, error } = await supabase.from("certificates").update(patch).eq("id", id).select(COLS).maybeSingle();
     if (error) fail(error);
     return (data as CertRow | null) ?? null;
+  },
+  async remove(id) {
+    const { error } = await supabase.from("certificates").delete().eq("id", id);
+    if (error) fail(error);
   },
   async list() {
     const { data, error } = await supabase.from("certificates").select(COLS).order("issued_at", { ascending: false }).limit(5000);

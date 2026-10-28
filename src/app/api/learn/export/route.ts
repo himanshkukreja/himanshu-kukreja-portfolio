@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     return { data: rows, error: null };
   };
 
-  const [profile, progress, streaks, notes, bookmarks, answers, comments, trials, cards] = await Promise.all([
+  const [profile, progress, streaks, notes, bookmarks, answers, comments, trials, cards, certs] = await Promise.all([
     supabase.from("user_profiles").select("*").eq("id", uid).maybeSingle(),
     own("learning_progress"),
     own("learning_streaks"),
@@ -36,6 +36,8 @@ export async function GET(request: Request) {
     own("lesson_comments"),
     own("trial_attempts"),
     own("review_cards"),
+    // the learner's certificates (not the signature or an admin's private revoke reason)
+    supabase.from("certificates").select("code, kind, world_key, display_name, issued_at, status, revoked_at, is_public, linkedin_added_at, evidence").eq("user_id", uid).limit(100),
   ]);
 
   const rowsOf = (r: { data: unknown; error: unknown }) => (r.error ? null : r.data);
@@ -56,6 +58,7 @@ export async function GET(request: Request) {
       lesson_comments: rowsOf(comments),
       trial_attempts: rowsOf(trials),
       review_cards: rowsOf(cards),
+      certificates: rowsOf(certs),
     },
     { headers: noStore }
   );
