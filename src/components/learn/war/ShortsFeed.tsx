@@ -58,7 +58,29 @@ const fsElement = () => document.fullscreenElement ?? (document as FsDoc).webkit
 
 export default function ShortsFeed({ shorts }: { shorts: PlayableShort[] }) {
   const router = useRouter();
-  const [muted, setMuted] = useState(true);
+  // sound: off by default on phones and tablets, on for laptops (the player falls back to muted when the
+  // browser blocks sound before a click); the viewer's own choice is remembered for the session
+  const [muted, setMutedState] = useState(true);
+  const setMuted = (m: boolean | ((x: boolean) => boolean)) =>
+    setMutedState((prev) => {
+      const next = typeof m === "function" ? m(prev) : m;
+      try {
+        sessionStorage.setItem("hk.shorts.muted", next ? "1" : "0");
+      } catch {
+        // no storage: the choice lasts for this page only
+      }
+      return next;
+    });
+  useEffect(() => {
+    let saved: string | null = null;
+    try {
+      saved = sessionStorage.getItem("hk.shorts.muted");
+    } catch {
+      // no storage
+    }
+    const id = window.setTimeout(() => setMutedState(saved !== null ? saved === "1" : phoneLayout()), 0);
+    return () => window.clearTimeout(id);
+  }, []);
   const [cat, setCat] = useState<ShortCategory | "all">("all");
   const [topic, setTopic] = useState<string | null>(null);
   const [copied, setCopied] = useState<string | null>(null);

@@ -71,8 +71,18 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
   useEffect(() => {
     const el = v.current;
     if (active === undefined || !el) return;
-    if (active) void el.play().catch(() => {});
+    if (active)
+      void el.play().catch((e: unknown) => {
+        // the browser won't play sound before the visitor has interacted with the site: play muted instead
+        if (e instanceof DOMException && e.name === "NotAllowedError" && !el.muted) {
+          el.muted = true;
+          el.toggleAttribute("muted", true);
+          onMutedChange?.(true);
+          void el.play().catch(() => {});
+        }
+      });
     else el.pause();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- onMutedChange is the feed's setState
   }, [active, mounted]);
   const loading = mounted && (waiting || (!!active && !started));
   useEffect(() => {
