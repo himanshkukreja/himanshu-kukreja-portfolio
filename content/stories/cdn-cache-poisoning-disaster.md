@@ -25,7 +25,7 @@ David's heart sinks as he realizes they're facing every e-commerce company's wor
 
 **The Crisis Numbers:**
 - **Traffic volume**: 500,000 concurrent users
-- **Affected users**: ~15,000 customers across 12 edge locations
+- **Affected users**: ~15,000 customers across 12 edge locations were served at least one cached response meant for someone else
 - **Data exposed**: Shopping carts, profile info, addresses, partial payment data
 - **Business impact**: Potential GDPR violations, customer trust destruction
 - **Time to resolution**: Unknown - root cause still hidden
@@ -866,10 +866,10 @@ class CacheSecurityValidator {
 ### Immediate Damage Assessment
 
 **Customer Impact:**
-- **15,000 affected users** across 12 edge locations
+- **15,000 affected users** across 12 edge locations: each was served at least one response cached from another customer
+- Of those, **1,200+ users** saw another customer's full shopping cart
+- And **23 customers** saw partial payment information
 - **347 customer support tickets** filed within 2 hours
-- **23 customers** saw partial payment information
-- **1,200+ users** experienced wrong shopping cart contents
 - **Average resolution time**: 4.2 hours per affected customer
 
 **Financial Impact:**
