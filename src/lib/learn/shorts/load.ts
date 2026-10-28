@@ -3,7 +3,9 @@ import "server-only";
  * The Shorts feed: every released vertical short (resources/shorts/shorts--<long id>[--<part>].json, its
  * media on the lecture host at lectures/<short id>/video.mp4 + poster.jpg), with its category (from the
  * long lecture it comes from), topic tags, and links to the full lecture at the right moment and to the
- * written article. Cached like the course map (tag "course-map", refreshed by revalidate-courses).
+ * written article. A short can stand alone (a war story told only as a short + its article): `of` then
+ * names the story and `full` is null. Cached like the course map (tag "course-map", refreshed by
+ * revalidate-courses).
  */
 import { unstable_cache } from "next/cache";
 import { fetchGitHubContent, isContentMissing } from "@/lib/github";
@@ -35,6 +37,12 @@ async function load(): Promise<FeedShort[]> {
     throw e;
   }
   const ids = files.filter((f) => f.type === "file" && /^shorts--[A-Za-z0-9-]+\.json$/.test(f.name)).map((f) => f.name.replace(/\.json$/, ""));
+  // the long lectures that exist: a short of a story without one has no "full lecture" link
+  const lectures = new Set(
+    (await fetchGitHubContent("resources/lectures").catch(() => [] as { name: string; type: string }[]))
+      .filter((f) => f.type === "file" && f.name.endsWith(".json"))
+      .map((f) => f.name.replace(/\.json$/, ""))
+  );
   const all = await Promise.all(ids.map((id) => getShort(id).catch(() => null)));
   return all.flatMap((l) => {
     if (!l?.short) return [];
@@ -48,7 +56,7 @@ async function load(): Promise<FeedShort[]> {
         category: categoryOf(l.short.of),
         topics: l.short.topics ?? [],
         lecture: l.short.of,
-        full: `/learn/lectures/${l.short.of}${l.short.at ? `?at=${encodeURIComponent(l.short.at)}` : ""}`,
+        full: !lectures.size || lectures.has(l.short.of) ? `/learn/lectures/${l.short.of}${l.short.at ? `?at=${encodeURIComponent(l.short.at)}` : ""}` : null,
         article: l.short.article,
         src: `${base}/${l.quest}/video.mp4?v=${v}`,
         poster: `${base}/${l.quest}/poster.jpg?v=${v}`,
@@ -78,4 +86,4 @@ export function hourlyOrder<T>(items: T[], now = Date.now()): T[] {
   return out;
 }
 
-export const listShorts = unstable_cache(load, ["shorts-feed-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+export const listShorts = unstable_cache(load, ["shorts-feed-v2"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });

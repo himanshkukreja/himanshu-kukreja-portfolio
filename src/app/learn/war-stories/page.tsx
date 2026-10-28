@@ -1,4 +1,5 @@
 import { getShorts, getWarStories } from "@/lib/learn/war/load";
+import { listShorts } from "@/lib/learn/shorts/load";
 import WarStoriesHub from "@/components/learn/war/WarStoriesHub";
 import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
 import { lessonLectureId } from "@/lib/learn/lecture/types";
@@ -15,9 +16,12 @@ export const metadata = {
 };
 
 export default async function WarStoriesPage() {
-  const [{ stories, rooms }, shorts] = await Promise.all([getWarStories(), getShorts().catch(() => [])]);
+  const [{ stories, rooms }, native, letterboxed] = await Promise.all([getWarStories(), listShorts().catch(() => []), getShorts().catch(() => [])]);
+  // real-incident shorts: the vertical ones, plus any story that only has the older letterboxed cut
+  const vertical = new Set(native.filter((x) => x.category === "stories").map((x) => x.lecture));
+  const shorts = native.filter((x) => x.category === "stories").length + letterboxed.filter((x) => !vertical.has(x.lecture)).length;
   // which stories have a released video, and how long it is
   const cards = await Promise.all(stories.map((s) => getLecture(lessonLectureId("war-stories", s.slug)).then(lectureCard).catch(() => null)));
   const videos = Object.fromEntries(stories.flatMap((s, k) => (cards[k] ? [[s.slug, cards[k]!.minutes]] : [])));
-  return <WarStoriesHub stories={stories} rooms={rooms} videos={videos} shorts={shorts.length} />;
+  return <WarStoriesHub stories={stories} rooms={rooms} videos={videos} shorts={shorts} />;
 }

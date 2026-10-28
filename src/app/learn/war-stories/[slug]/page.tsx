@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getShorts, getStory, getWarStories } from "@/lib/learn/war/load";
+import { listShorts } from "@/lib/learn/shorts/load";
 import ShortEntry from "@/components/learn/war/ShortEntry";
 import { THEME_LABEL } from "@/lib/learn/war/types";
 import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
@@ -32,8 +33,15 @@ export async function generateMetadata({ params }: Props) {
 export default async function StoryPage({ params }: Props) {
   const s = await getStory((await params).slug);
   if (!s) notFound();
-  const [{ stories }, lecture, shorts] = await Promise.all([getWarStories(), getLecture(lessonLectureId("war-stories", s.slug)).then(lectureCard).catch(() => null), getShorts().catch(() => [])]);
-  const short = shorts.find((x) => x.lecture === `war-stories--${s.slug}`) ?? null;
+  const [{ stories }, lecture, native, letterboxed] = await Promise.all([
+    getWarStories(),
+    getLecture(lessonLectureId("war-stories", s.slug)).then(lectureCard).catch(() => null),
+    listShorts().catch(() => []),
+    getShorts().catch(() => []),
+  ]);
+  // the story's vertical short (rendered natively at 9:16); the older letterboxed cut only if there's none
+  const of = `war-stories--${s.slug}`;
+  const short = native.find((x) => x.lecture === of) ?? letterboxed.find((x) => x.lecture === of) ?? null;
   const i = stories.findIndex((x) => x.slug === s.slug);
   const next = stories.length > 1 ? stories[(i + 1) % stories.length] : null;
   return (
