@@ -53,7 +53,9 @@ function exec(lab, code) {
   return { ...res, wall: Date.now() - t, stdout: out };
 }
 
-const files = fs.readdirSync(dir).filter((n) => n.endsWith(".md") && n.toLowerCase() !== "readme.md").sort();
+// same rule as the site's loader (src/lib/learn/labs/load.ts): lowercase kebab-case <id>.md, so notes
+// such as README.md or PLAN-W5-W11.md are never parsed as labs
+const files = fs.readdirSync(dir).filter((n) => /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/.test(n) && n !== "readme.md").sort();
 let bad = 0;
 const ids = new Set();
 for (const f of files) {
