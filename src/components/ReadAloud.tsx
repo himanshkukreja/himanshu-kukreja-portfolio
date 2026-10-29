@@ -1,21 +1,25 @@
 "use client";
 
 /**
- * Read aloud (Web Speech API) with a controlled API.
+ * Read aloud, with a controlled API.
  *
- * - `useReadAloud(contentRef)` → controller: state, start / pause / resume / stop / toggle, rate,
- *   voices. The lesson reader's dock drives this directly.
+ * - `useReadAloud(contentRef, { listenKey })` → controller: state, start / pause / resume / stop / toggle,
+ *   skip (a block back or forward), rate, voices. The lesson reader's dock drives this directly.
  * - `<ReadAloudBar controller />` → compact token-styled player strip (lesson dock / mobile bar).
  * - `<ReadAloud contentRef />` (default export) → self-contained floating controls, as used by
  *   stories. Its buttons keep their titles ("Start Reading", "Pause", "Resume", "Stop",
  *   "Settings", "Minimize", "Show Read Aloud") and the outer `.fixed` wrapper, which the story
  *   reader's bridge and CSS rely on. Pass `controller` to render the same UI for an external one.
  *
- * Reading starts at the first heading/paragraph near the top of the viewport and highlights the
- * current sentence (span.reading-highlight, removed again on stop/end).
+ * Two voices: a recorded natural narration (Kokoro, made by scripts/listen, `listen/<key>/` on the media
+ * domain) when the article has one made from exactly its current text, else the browser's speech
+ * synthesis. Both read the same blocks (lib/listen/extract.ts), start at the heading/paragraph near the
+ * top of the viewport and highlight the block being read (span.reading-highlight, removed on stop/end).
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Volume2, Pause, Play, Settings2, X, Minimize2, Square } from "lucide-react";
+import { Volume2, Pause, Play, Settings2, X, Minimize2, Square, SkipBack, SkipForward } from "lucide-react";
+import { extractBlocks, listenSource, type ListenBlock } from "@/lib/listen/extract";
+import { listenMediaBase, type ListenManifest } from "@/lib/listen/manifest";
 
 export type ReadAloudStatus = "unsupported" | "idle" | "playing" | "paused";
 
@@ -30,6 +34,8 @@ export type ReadAloudController = {
   stop: () => void;
   /** idle → start, playing → pause, paused → resume */
   toggle: () => void;
+  /** a block back (or the start of this one) / forward */
+  skip: (dir: 1 | -1) => void;
   rate: number;
   setRate: (r: number) => void;
   voices: SpeechSynthesisVoice[];
@@ -37,12 +43,18 @@ export type ReadAloudController = {
   setVoice: (name: string) => void;
   /** set when there was nothing readable from the current position */
   notice: string | null;
+  /** what's reading: the recorded natural voice, or the browser's */
+  mode: "natural" | "browser" | null;
+  /** this article has a recorded narration (it plays if it matches the text on the page) */
+  recorded: boolean;
 };
 
-const SKIP_TAGS = new Set(["SCRIPT", "STYLE", "CODE", "PRE", "BUTTON", "SVG"]);
+type Block = ListenBlock<HTMLElement>;
+type Segment = { start: number; block: number };
 
 function findVisibleStartElement(root: HTMLElement): HTMLElement | null {
-  const els = Array.from(root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, p, li"));
+  // hidden ones (collapsed stages, UI) measure 0 × 0 at the top: not candidates
+  const els = Array.from(root.querySelectorAll<HTMLElement>("h1, h2, h3, h4, h5, h6, p, li")).filter((el) => el.getClientRects().length > 0);
   const vh = window.innerHeight;
   // first element whose top is in the upper third of the viewport, else the first visible one
   for (const el of els) {
@@ -56,47 +68,11 @@ function findVisibleStartElement(root: HTMLElement): HTMLElement | null {
   return null;
 }
 
-type Segment = { start: number; block: HTMLElement };
-
-const BLOCK_SEL = "p, li, h1, h2, h3, h4, h5, h6, td, th, blockquote, dt, dd, figcaption";
-const PAUSE_TAGS = new Set(["p", "div", "section", "article", "li", "blockquote", "tr", "ul", "ol", "h1", "h2", "h3", "h4", "h5", "h6", "br", "dt", "dd"]);
-
-/**
- * Spoken text from `startFrom` onwards, plus where each DOM text run starts in it, so the
- * boundary events can be mapped back to the block being read. The DOM itself is never modified
- * (highlight / bookmark text offsets stay valid); the current block only gets a class.
- */
-function extractText(root: HTMLElement, startFrom: HTMLElement | null): { text: string; segments: Segment[] } {
-  let text = "";
-  const segments: Segment[] = [];
-  let include = !startFrom;
-  const pause = (mark: string) => {
-    if (!text) return;
-    const tail = text.trimEnd();
-    text = /[.?!,:;]$/.test(tail) ? tail + " " : tail + mark + " ";
-  };
-  const walk = (node: Node) => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      if (!include) return;
-      const t = (node.textContent || "").replace(/\s+/g, " ").trim();
-      if (!t) return;
-      const block = (node.parentElement?.closest(BLOCK_SEL) as HTMLElement | null) ?? node.parentElement;
-      if (block) segments.push({ start: text.length, block });
-      text += t + " ";
-      return;
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return;
-    const el = node as HTMLElement;
-    if (startFrom && el === startFrom) include = true;
-    if (SKIP_TAGS.has(el.tagName) || el.tagName === "IMG" || el.getAttribute("aria-hidden") === "true") return;
-    el.childNodes.forEach(walk);
-    if (!include) return;
-    const tag = el.tagName.toLowerCase();
-    if (PAUSE_TAGS.has(tag)) pause(".");
-    else if (tag === "td" || tag === "th") pause(",");
-  };
-  root.childNodes.forEach(walk);
-  return { text: text.trim(), segments };
+/** the first block at or after `el` in reading order (0 when there's no start element) */
+function blockIndexFrom(blocks: Block[], el: HTMLElement | null): number {
+  if (!el) return 0;
+  const i = blocks.findIndex((b) => b.el === el || el.contains(b.el) || b.el.contains(el) || !!(el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING));
+  return i < 0 ? -1 : i;
 }
 
 function cleanupHighlights(root: HTMLElement | null) {
@@ -104,21 +80,49 @@ function cleanupHighlights(root: HTMLElement | null) {
   root.querySelectorAll(".reading-highlight").forEach((el) => el.classList.remove("reading-highlight"));
 }
 
-export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): ReadAloudController {
-  const [supported, setSupported] = useState(false);
+/** index of the chunk playing at `t` seconds (the last one started) */
+function chunkAt(m: ListenManifest, t: number): number {
+  const c = m.chunks;
+  let lo = 0;
+  let hi = c.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    if (c[mid].s <= t + 0.05) lo = mid;
+    else hi = mid - 1;
+  }
+  return lo;
+}
+
+type Options = {
+  /** lib/listen/manifest listenKey(): looks for a recorded narration of this article */
+  listenKey?: string | null;
+};
+
+export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>, { listenKey = null }: Options = {}): ReadAloudController {
+  const [speechOk, setSpeechOk] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [paused, setPaused] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
   const [voice, setVoice] = useState("");
   const [rate, setRateState] = useState(1);
-  const [charIndex, setCharIndex] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const [mode, setMode] = useState<"natural" | "browser" | null>(null);
+  const [manifest, setManifest] = useState<ListenManifest | null>(null);
 
+  const blocksRef = useRef<Block[]>([]);
   const segmentsRef = useRef<Segment[]>([]);
+  const offsetRef = useRef(0);
+  const currentRef = useRef(-1);
   const highlightRef = useRef<HTMLElement | null>(null);
   const rateRef = useRef(1);
   const voiceRef = useRef("");
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const manifestRef = useRef<ListenManifest | null>(null);
+  const modeRef = useRef<"natural" | "browser" | null>(null);
+  const audioUrlRef = useRef<string | null>(null);
+  /** the utterance in flight: events from one a skip or stop replaced are ignored (Safari ends them late) */
+  const uttRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
@@ -138,7 +142,7 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): R
     };
     // Feature detection has to run on the client; the server render reports "unsupported".
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSupported(true);
+    setSpeechOk(true);
     load();
     synth.addEventListener?.("voiceschanged", load);
     return () => {
@@ -148,73 +152,216 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): R
     };
   }, [contentRef]);
 
-  // Highlight the block being spoken.
+  // the recorded narration's manifest, fetched once the page is idle (a click has to be able to play
+  // at once: iOS only starts audio inside the tap)
   useEffect(() => {
-    const root = contentRef.current;
-    if (!playing || paused || !root) return;
-    const segs = segmentsRef.current;
-    let seg: Segment | null = null;
-    for (const sg of segs) {
-      if (sg.start <= charIndex) seg = sg;
-      else break;
-    }
-    const block = seg?.block ?? null;
-    if (block === highlightRef.current) return;
-    highlightRef.current?.classList.remove("reading-highlight");
-    highlightRef.current = block;
-    if (!block || !block.isConnected) return;
-    block.classList.add("reading-highlight");
-    const r = block.getBoundingClientRect();
-    if (r.top < 140 || r.top > window.innerHeight * 0.75) block.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [charIndex, playing, paused, contentRef]);
+    if (!listenKey) return;
+    let off = false;
+    const url = `${listenMediaBase()}/${listenKey}/listen.json`;
+    const load = () =>
+      fetch(url, { cache: "no-cache" })
+        .then((r) => (r.ok ? (r.json() as Promise<ListenManifest>) : null))
+        .then((m) => {
+          if (off || !m || m.v !== 1 || !Array.isArray(m.chunks) || !m.chunks.length) return;
+          const audio = new URL(m.audio, new URL(url, window.location.href)).href;
+          manifestRef.current = m;
+          audioUrlRef.current = audio;
+          setManifest(m);
+        })
+        .catch(() => {});
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (id: number) => void };
+    const id = w.requestIdleCallback ? w.requestIdleCallback(load, { timeout: 4000 }) : window.setTimeout(load, 1500);
+    return () => {
+      off = true;
+      if (w.cancelIdleCallback) w.cancelIdleCallback(id);
+      else window.clearTimeout(id);
+    };
+  }, [listenKey]);
 
-  const speak = useCallback(() => {
+  /** Highlight block i (and keep it in view). Re-reads the blocks if the article was re-rendered. */
+  const highlight = useCallback(
+    (i: number) => {
+      currentRef.current = i;
+      const root = contentRef.current;
+      if (!root) return;
+      let block = blocksRef.current[i]?.el ?? null;
+      if (block && !block.isConnected) {
+        // the reader re-renders the article (highlights, notes): same text, new elements
+        const fresh = extractBlocks(root as HTMLElement);
+        if (fresh.length === blocksRef.current.length) blocksRef.current = fresh;
+        block = blocksRef.current[i]?.el ?? null;
+      }
+      if (block === highlightRef.current) return;
+      highlightRef.current?.classList.remove("reading-highlight");
+      highlightRef.current = block;
+      if (!block || !block.isConnected) return;
+      block.classList.add("reading-highlight");
+      const r = block.getBoundingClientRect();
+      if (r.top < 140 || r.top > window.innerHeight * 0.75) block.scrollIntoView({ behavior: "smooth", block: "center" });
+    },
+    [contentRef]
+  );
+
+  const finish = useCallback(() => {
+    setPlaying(false);
+    setPaused(false);
+    setMode(null);
+    modeRef.current = null;
+    currentRef.current = -1;
+    cleanupHighlights(contentRef.current);
+    highlightRef.current = null;
+    if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "none";
+  }, [contentRef]);
+
+  /** browser voice from block `from` to the end */
+  const speakFrom = useCallback(
+    (from: number) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) return false;
+      const synth = window.speechSynthesis;
+      uttRef.current = null;
+      synth.cancel();
+      const blocks = blocksRef.current;
+      let text = "";
+      const segments: Segment[] = [];
+      for (let i = Math.max(0, from); i < blocks.length; i++) {
+        segments.push({ start: text.length, block: i });
+        const t = blocks[i].text;
+        // a pause between blocks: headings and list items often have no full stop
+        text += /[.?!,:;]$/.test(t) ? `${t} ` : `${t}. `;
+      }
+      segmentsRef.current = segments;
+      offsetRef.current = 0;
+      if (!text.trim()) return false;
+      const u = new SpeechSynthesisUtterance(text.trim());
+      const v = voicesRef.current.find((x) => x.name === voiceRef.current);
+      if (v) u.voice = v;
+      u.rate = rateRef.current;
+      let last = -1;
+      u.onboundary = (e) => {
+        if (uttRef.current !== u || e.name !== "word" || e.charIndex === last) return;
+        last = e.charIndex;
+        let seg: Segment | null = null;
+        for (const sg of segmentsRef.current) {
+          if (sg.start <= e.charIndex) seg = sg;
+          else break;
+        }
+        if (seg) highlight(seg.block);
+      };
+      u.onstart = () => {
+        setPlaying(true);
+        setPaused(false);
+      };
+      u.onend = () => {
+        if (uttRef.current === u) finish();
+      };
+      u.onerror = () => {
+        if (uttRef.current === u) finish();
+      };
+      uttRef.current = u;
+      modeRef.current = "browser";
+      setMode("browser");
+      synth.speak(u);
+      // some engines never fire onstart for the first utterance
+      setPlaying(true);
+      setPaused(false);
+      highlight(segments[0].block);
+      return true;
+    },
+    [finish, highlight]
+  );
+
+  /** the recorded narration from block `from` (its first chunk at or after it) */
+  const playFrom = useCallback(
+    (from: number) => {
+      const m = manifestRef.current;
+      const src = audioUrlRef.current;
+      if (!m || !src) return false;
+      let a = audioRef.current;
+      if (!a) {
+        a = new Audio();
+        a.preload = "auto";
+        audioRef.current = a;
+        a.addEventListener("timeupdate", () => {
+          const man = manifestRef.current;
+          if (!man || modeRef.current !== "natural") return;
+          const c = man.chunks[chunkAt(man, a!.currentTime)];
+          if (c) highlight(c.b);
+        });
+        a.addEventListener("ended", () => modeRef.current === "natural" && finish());
+        // paused or resumed from outside: headset, lock screen, another app taking the audio
+        a.addEventListener("pause", () => modeRef.current === "natural" && !a!.ended && setPaused(true));
+        a.addEventListener("play", () => modeRef.current === "natural" && setPaused(false));
+        a.addEventListener("error", () => {
+          if (modeRef.current !== "natural") return;
+          // the recording didn't load: carry on in the browser voice from where it was
+          const at = Math.max(0, currentRef.current);
+          if (!speakFrom(at)) finish();
+        });
+      }
+      const k = m.chunks.findIndex((c) => c.b >= from);
+      const at = k < 0 ? 0 : m.chunks[k].s;
+      if (a.src !== src) a.src = src;
+      a.playbackRate = rateRef.current;
+      const seek = () => {
+        try {
+          a!.currentTime = at;
+        } catch {
+          // not seekable yet: loadedmetadata seeks
+        }
+      };
+      if (a.readyState >= 1) seek();
+      else a.addEventListener("loadedmetadata", seek, { once: true });
+      uttRef.current = null;
+      window.speechSynthesis?.cancel();
+      modeRef.current = "natural";
+      setMode("natural");
+      setPlaying(true);
+      setPaused(false);
+      highlight(m.chunks[Math.max(0, k)].b);
+      a.play().catch(() => {
+        // autoplay refused or the file is missing: the browser voice instead
+        if (modeRef.current === "natural" && !speakFrom(Math.max(0, from))) finish();
+      });
+      if ("mediaSession" in navigator) {
+        const ms = navigator.mediaSession;
+        try {
+          ms.metadata = new MediaMetadata({ title: document.title.replace(/\s*\|.*$/, ""), artist: "Listen · natural voice" });
+          ms.playbackState = "playing";
+        } catch {
+          // MediaMetadata unsupported
+        }
+      }
+      return true;
+    },
+    [finish, highlight, speakFrom]
+  );
+
+  const start = useCallback(() => {
     const root = contentRef.current;
-    if (!root || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    const synth = window.speechSynthesis;
-    synth.cancel();
+    if (!root) return;
     cleanupHighlights(root);
     highlightRef.current = null;
-    const startEl = findVisibleStartElement(root);
-    const { text, segments } = extractText(root, startEl);
-    segmentsRef.current = segments;
-    if (!text) {
+    const blocks = extractBlocks(root);
+    blocksRef.current = blocks;
+    const from = blockIndexFrom(blocks, findVisibleStartElement(root));
+    if (!blocks.length || from < 0) {
       setNotice("Nothing to read from here. Scroll to some text and try again.");
       return;
     }
     setNotice(null);
-    setCharIndex(0);
-    const u = new SpeechSynthesisUtterance(text);
-    const v = voicesRef.current.find((x) => x.name === voiceRef.current);
-    if (v) u.voice = v;
-    u.rate = rateRef.current;
-    let last = -1;
-    u.onboundary = (e) => {
-      if (e.name === "word" && e.charIndex !== last) {
-        last = e.charIndex;
-        setCharIndex(e.charIndex);
-      }
-    };
-    u.onstart = () => {
-      setPlaying(true);
-      setPaused(false);
-    };
-    const done = () => {
-      setPlaying(false);
-      setPaused(false);
-      setCharIndex(0);
-      cleanupHighlights(contentRef.current);
-      highlightRef.current = null;
-    };
-    u.onend = done;
-    u.onerror = done;
-    synth.speak(u);
-    // some engines never fire onstart for the first utterance
-    setPlaying(true);
-    setPaused(false);
-  }, [contentRef]);
+    const m = manifestRef.current;
+    // the recording plays only if it was made from exactly this text
+    if (m && listenSource(blocks) === m.source && playFrom(from)) return;
+    speakFrom(from);
+  }, [contentRef, playFrom, speakFrom]);
 
   const pause = useCallback(() => {
+    if (modeRef.current === "natural") {
+      audioRef.current?.pause();
+      setPaused(true);
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "paused";
+      return;
+    }
     const synth = window.speechSynthesis;
     if (synth?.speaking && !synth.paused) {
       synth.pause();
@@ -223,6 +370,12 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): R
   }, []);
 
   const resume = useCallback(() => {
+    if (modeRef.current === "natural") {
+      audioRef.current?.play().catch(() => {});
+      setPaused(false);
+      if ("mediaSession" in navigator) navigator.mediaSession.playbackState = "playing";
+      return;
+    }
     const synth = window.speechSynthesis;
     if (synth?.paused) {
       synth.resume();
@@ -231,38 +384,73 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): R
   }, []);
 
   const stop = useCallback(() => {
+    const was = modeRef.current;
+    modeRef.current = null;
+    if (was === "natural") audioRef.current?.pause();
+    uttRef.current = null;
     window.speechSynthesis?.cancel();
-    setPlaying(false);
-    setPaused(false);
-    setCharIndex(0);
     segmentsRef.current = [];
-    cleanupHighlights(contentRef.current);
-    highlightRef.current = null;
-  }, [contentRef]);
+    finish();
+  }, [finish]);
 
-  const restartIfPlaying = useCallback(() => {
-    if (playing && !paused) {
+  const skip = useCallback(
+    (dir: 1 | -1) => {
+      if (!modeRef.current) return;
+      if (modeRef.current === "natural") {
+        const a = audioRef.current;
+        const m = manifestRef.current;
+        if (!a || !m) return;
+        const k = chunkAt(m, a.currentTime);
+        // back: to the start of this block, or the previous one if it only just began
+        const target = dir > 0 ? k + 1 : a.currentTime - m.chunks[k].s > 2 ? k : k - 1;
+        if (target >= m.chunks.length) {
+          stop();
+          return;
+        }
+        const c = m.chunks[Math.max(0, target)];
+        a.currentTime = c.s;
+        highlight(c.b);
+        return;
+      }
+      const cur = Math.max(0, currentRef.current);
+      const next = cur + dir;
+      if (next >= blocksRef.current.length) {
+        stop();
+        return;
+      }
+      speakFrom(Math.max(0, next));
+      setPaused(false);
+    },
+    [highlight, speakFrom, stop]
+  );
+
+  const restartIfSpeaking = useCallback(() => {
+    if (modeRef.current === "browser" && playing && !paused) {
+      uttRef.current = null;
       window.speechSynthesis?.cancel();
-      window.setTimeout(speak, 80);
+      const at = Math.max(0, currentRef.current);
+      window.setTimeout(() => speakFrom(at), 80);
     }
-  }, [playing, paused, speak]);
+  }, [playing, paused, speakFrom]);
 
   const setRate = useCallback(
     (r: number) => {
       rateRef.current = r;
       setRateState(r);
-      restartIfPlaying();
+      // the recording changes speed in place; the browser voice has to start again
+      if (audioRef.current) audioRef.current.playbackRate = r;
+      restartIfSpeaking();
     },
-    [restartIfPlaying]
+    [restartIfSpeaking]
   );
 
   const chooseVoice = useCallback(
     (name: string) => {
       voiceRef.current = name;
       setVoice(name);
-      restartIfPlaying();
+      restartIfSpeaking();
     },
-    [restartIfPlaying]
+    [restartIfSpeaking]
   );
 
   // one voice at a time: an explainer's narration stops the lesson read-aloud, and vice versa
@@ -274,13 +462,50 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): R
     return () => window.removeEventListener("hk:narrate", onNarrate);
   }, [playing, stop]);
 
+  // lock-screen / headset controls while the recording plays
+  useEffect(() => {
+    if (mode !== "natural" || !("mediaSession" in navigator)) return;
+    const ms = navigator.mediaSession;
+    const set = (a: MediaSessionAction, h: MediaSessionActionHandler | null) => {
+      try {
+        ms.setActionHandler(a, h);
+      } catch {
+        // action unsupported
+      }
+    };
+    set("play", () => resume());
+    set("pause", () => pause());
+    set("stop", () => stop());
+    set("previoustrack", () => skip(-1));
+    set("nexttrack", () => skip(1));
+    return () => {
+      for (const a of ["play", "pause", "stop", "previoustrack", "nexttrack"] as MediaSessionAction[]) set(a, null);
+    };
+  }, [mode, pause, resume, stop, skip]);
+
+  // leaving the page stops the recording too
+  useEffect(() => {
+    const root = contentRef.current;
+    return () => {
+      modeRef.current = null;
+      const a = audioRef.current;
+      if (a) {
+        a.pause();
+        a.removeAttribute("src");
+        a.load();
+      }
+      cleanupHighlights(root);
+    };
+  }, [contentRef]);
+
   const toggle = useCallback(() => {
     if (!playing) window.dispatchEvent(new CustomEvent("hk:narrate", { detail: 0 }));
-    if (!playing) speak();
+    if (!playing) start();
     else if (paused) resume();
     else pause();
-  }, [playing, paused, speak, resume, pause]);
+  }, [playing, paused, start, resume, pause]);
 
+  const supported = speechOk || !!manifest;
   const status: ReadAloudStatus = !supported ? "unsupported" : playing ? (paused ? "paused" : "playing") : "idle";
 
   return {
@@ -288,23 +513,26 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>): R
     status,
     playing,
     paused,
-    start: speak,
+    start,
     pause,
     resume,
     stop,
     toggle,
+    skip,
     rate,
     setRate,
     voices,
     voice,
     setVoice: chooseVoice,
     notice,
+    mode,
+    recorded: !!manifest,
   };
 }
 
 const RATES = [0.75, 1, 1.25, 1.5, 1.75, 2];
 
-/** Compact player strip: status, play/pause, stop, speed. */
+/** Compact player strip: status, back, play/pause, forward, stop, speed. */
 export function ReadAloudBar({ controller, className = "" }: { controller: ReadAloudController; className?: string }) {
   const c = controller;
   if (!c.supported || (!c.playing && !c.notice)) return null;
@@ -317,12 +545,22 @@ export function ReadAloudBar({ controller, className = "" }: { controller: ReadA
         </span>
       ) : (
         <>
-          <span className="flex min-w-[88px] items-center gap-2 border-r border-line px-3 font-mono text-[11px] uppercase tracking-label text-fg-3" role="status">
+          <span
+            className="flex items-center gap-2 border-r border-line px-3 font-mono text-[11px] uppercase tracking-label text-fg-3 min-[400px]:min-w-[88px]"
+            role="status"
+            title={c.mode === "natural" ? "Natural voice (recorded)" : "Your browser's voice"}
+          >
             <span aria-hidden className={`h-1.5 w-1.5 ${c.paused ? "bg-fg-4" : "animate-hk-pulse bg-signal"}`} />
-            {c.paused ? "paused" : "reading"}
+            <span className="sr-only min-[400px]:not-sr-only">{c.paused ? "paused" : "reading"}</span>
           </span>
+          <button type="button" onClick={() => c.skip(-1)} aria-label="Back a paragraph" className="grid min-h-11 min-w-10 place-items-center border-r border-line hover:bg-surface-2">
+            <SkipBack className="h-3.5 w-3.5" aria-hidden />
+          </button>
           <button type="button" onClick={c.paused ? c.resume : c.pause} aria-label={c.paused ? "Resume reading" : "Pause reading"} className="grid min-h-11 min-w-11 place-items-center border-r border-line hover:bg-surface-2">
             {c.paused ? <Play className="h-4 w-4" aria-hidden /> : <Pause className="h-4 w-4" aria-hidden />}
+          </button>
+          <button type="button" onClick={() => c.skip(1)} aria-label="Forward a paragraph" className="grid min-h-11 min-w-10 place-items-center border-r border-line hover:bg-surface-2">
+            <SkipForward className="h-3.5 w-3.5" aria-hidden />
           </button>
           <button type="button" onClick={c.stop} aria-label="Stop reading" className="grid min-h-11 min-w-11 place-items-center border-r border-line hover:bg-surface-2">
             <Square className="h-3.5 w-3.5" aria-hidden />
@@ -338,13 +576,15 @@ export function ReadAloudBar({ controller, className = "" }: { controller: ReadA
 
 type ReadAloudProps = {
   contentRef: React.RefObject<HTMLElement | null>;
+  /** lib/listen/manifest listenKey(): plays the article's recorded narration when there is one */
+  listenKey?: string | null;
   /** drive an external controller (from useReadAloud) instead of an internal one */
   controller?: ReadAloudController;
 };
 
 /** Floating read-aloud controls (stories). */
-export default function ReadAloud({ contentRef, controller }: ReadAloudProps) {
-  const own = useReadAloud(contentRef);
+export default function ReadAloud({ contentRef, controller, listenKey = null }: ReadAloudProps) {
+  const own = useReadAloud(contentRef, { listenKey: controller ? null : listenKey });
   const c = controller ?? own;
   const [showSettings, setShowSettings] = useState(false);
   const [minimized, setMinimized] = useState(false);
@@ -375,7 +615,9 @@ export default function ReadAloud({ contentRef, controller }: ReadAloudProps) {
               <X className="h-3.5 w-3.5" aria-hidden />
             </button>
           </div>
-          {english.length > 0 && (
+          {c.mode === "natural" ? (
+            <p className="mb-3 text-xs text-fg-2">Natural voice (recorded for this page).</p>
+          ) : english.length > 0 && (
             <label className="mb-3 block">
               <span className="mb-1.5 block font-mono text-[11px] uppercase tracking-label text-fg-3">Voice</span>
               <select value={c.voice} onChange={(e) => c.setVoice(e.target.value)} className="w-full border border-line-strong bg-bg px-2 py-2 text-xs text-fg">
@@ -416,6 +658,9 @@ export default function ReadAloud({ contentRef, controller }: ReadAloudProps) {
             <button type="button" onClick={c.stop} className={iconBtn} title="Stop" aria-label="Stop reading">
               <Square className="h-3.5 w-3.5" aria-hidden />
             </button>
+            <button type="button" onClick={() => c.skip(-1)} className={iconBtn} title="Back a paragraph" aria-label="Back a paragraph">
+              <SkipBack className="h-3.5 w-3.5" aria-hidden />
+            </button>
             {c.paused ? (
               <button type="button" onClick={c.resume} className="grid min-h-12 min-w-12 place-items-center bg-signal text-on-signal" title="Resume" aria-label="Resume reading">
                 <Play className="h-5 w-5" aria-hidden />
@@ -425,6 +670,9 @@ export default function ReadAloud({ contentRef, controller }: ReadAloudProps) {
                 <Pause className="h-5 w-5" aria-hidden />
               </button>
             )}
+            <button type="button" onClick={() => c.skip(1)} className={iconBtn} title="Forward a paragraph" aria-label="Forward a paragraph">
+              <SkipForward className="h-3.5 w-3.5" aria-hidden />
+            </button>
           </>
         )}
         {!c.playing && (

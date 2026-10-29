@@ -13,6 +13,7 @@ import OnlineOnly from "@/components/offline/OnlineOnly";
 import SearchHighlight from "@/components/SearchHighlight";
 import DeepLinkResolver from "@/components/DeepLinkResolver";
 import { useReadAloud } from "@/components/ReadAloud";
+import { listenKey } from "@/lib/listen/manifest";
 import LessonHero from "./LessonHero";
 import QuestHero from "@/components/learn/sidequest/QuestHero";
 import { questBrand } from "@/components/learn/sidequest/brands";
@@ -89,7 +90,8 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
   const [focus, setFocus] = useState(false);
   const [size, setSize] = useState<number>(TEXT_SIZES[0]);
   const [sheet, setSheet] = useState(false);
-  const readAloud = useReadAloud(contentRef);
+  // the recorded natural-voice narration, when scripts/listen has made one for this text
+  const readAloud = useReadAloud(contentRef, { listenKey: listenKey(meta.kind, meta.week, meta.slug) });
   useChromeVars(rootRef);
 
   useEffect(() => {

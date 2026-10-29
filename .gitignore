@@ -46,3 +46,6 @@ scripts/ai-batch/.state/
 
 # recorded lecture media (published to R2)
 /public/lecture-media/
+
+# Listen narration copied for next dev (scripts/listen/build.mjs --dev)
+/public/listen-media/
