@@ -2,7 +2,7 @@ import "server-only";
 /**
  * Builds smart search's document index, in three parts served by /api/search/index/<part> (each about
  * 2 MB, well under the 4.5 MB response cap, and built separately so none does another's work):
- *   a: the core course lessons (weeks 0-10, bosses, the plan) and each of their sections
+ *   a: the core course lessons (weeks 0-11, bosses, the plan) and each of their sections
  *   b: side quests, interview problems and LLD rounds, and each of their sections
  *   c: lesson FAQs, follow-up drills, lectures, case files, mock interviews, war stories and war rooms,
  *      concepts, code labs, design sheets and companies
@@ -90,6 +90,8 @@ async function courseLessons(): Promise<{ map: CourseMap; lessons: Lesson[]; byH
   const byKey = new Map(resources.map((r) => [`${r.week}/${r.slug}`, r]));
   const lessons: Lesson[] = [];
   const add = (l: CourseLesson | null, kind: Kind, place: string) => {
+    // a "-next" folder is unreleased work in progress (never on main; present in a local checkout)
+    if (l && /-next$/.test(l.week)) return;
     const r = l && byKey.get(`${l.week}/${l.slug}`);
     if (l && r) lessons.push({ l, r, kind, place });
   };

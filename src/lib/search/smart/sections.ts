@@ -122,6 +122,23 @@ function blocks(md: string): Block[] {
   return out;
 }
 
+/** ::::checkpoint[Question] … :::: (closed by the same run of colons; its :::answer inside is shorter) */
+const CHECKPOINT = /^[ \t]*(:{3,})[ \t]*checkpoint\b(?:\[([^\]\n]*)\])?[^\n]*\n([\s\S]*?)^[ \t]*\1[ \t]*$/gm;
+
+/**
+ * A section's "Your turn" checkpoints go after its own prose, labelled: the summary and the scored text
+ * then lead with what the section teaches, not with a quiz question (a section that is only a checkpoint
+ * reads "Checkpoint: <question>. <answer>").
+ */
+function checkpointsLast(md: string): string {
+  const moved: string[] = [];
+  const rest = md.replace(CHECKPOINT, (_m, _c, q: string | undefined, body: string) => {
+    moved.push(`${q ? `Checkpoint: ${q.trim()}${/[.?!]$/.test(q.trim()) ? "" : "."}` : "Checkpoint."}\n${body}`);
+    return "\n";
+  });
+  return moved.length ? `${rest}\n\n${moved.join("\n\n")}` : md;
+}
+
 export function lessonSections(markdown: string, kind: LessonKind): LessonParts {
   const all = blocks(markdown);
   const missionBlock = all.find((b) => b.kind === "mission") as { lines: string[] } | undefined;
@@ -209,7 +226,7 @@ export function lessonSections(markdown: string, kind: LessonKind): LessonParts 
     const hstack: string[] = [];
     let cur = { id: s.id, title: s.title, depth: 1, buf: [] as string[] };
     const close = () => {
-      const text = mdPlain(cur.buf.join("\n"));
+      const text = mdPlain(checkpointsLast(cur.buf.join("\n")));
       if (text || cur.depth === 1) sections.push({ id: cur.id, title: cur.title, depth: cur.depth, stage: s.id, text });
     };
     for (const n of s.nodes) {

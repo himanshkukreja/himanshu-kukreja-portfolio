@@ -123,4 +123,15 @@ ok("section anchors follow the renderer: stages first, clashes scoped by stage",
   const ids = lessonSections(md, "day-content").sections.map((s) => s.id);
   assert.deepEqual(ids, ["part-1", "overview", "part-2", "part-2-overview", "s-1-2-numbered-thing"]);
 });
+ok("a checkpoint follows its section's prose, labelled, and doesn't change the anchors", () => {
+  const md = "# Title\n## Deck\n---\n# Part I: Basics\n### 1.1 Shards\n::::checkpoint[Two shards or five hundred?]\nA 500 GB index.\n\n:::answer\nAbout twenty.\n:::\n::::\nShard size is a trade-off.\n### 1.2 Next\nbody text\n";
+  const s = lessonSections(md, "day-content").sections;
+  assert.deepEqual(s.map((x) => x.id), ["part-1", "s-1-1-shards", "s-1-2-next"]);
+  assert.equal(s[1].text, "Shard size is a trade-off. Checkpoint: Two shards or five hundred? A 500 GB index. About twenty.");
+});
+ok("a real term the synonym map names is never 'fixed' into another word", () => {
+  const e = new SmartEngine([d({ id: "L:w/h", kind: "lesson", title: "Held", text: "held held held" }), d({ id: "L:w/i", kind: "lesson", title: "held", text: "held" }), d({ id: "L:w/j", kind: "lesson", title: "held", text: "held" })], "t");
+  assert.deepEqual(e.analyse("helm charts").fixes, []);
+  assert.deepEqual(e.analyse("hepd").fixes.map((f) => f.to), ["held"]);
+});
 console.log(`\n${n} checks passed`);

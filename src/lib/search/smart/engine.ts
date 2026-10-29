@@ -150,6 +150,8 @@ export class SmartEngine {
   private vocab: string[] = [];
   /** a stem's first spelling seen in the index ("cach" → "cache"), for "showing results for …" */
   private surface = new Map<string, string>();
+  /** every word the synonym map names: real terms (helm, saml, pinecone), never typos to "fix" */
+  private known = new Set<string>();
 
   constructor(input: Doc[], built: string, extraGroups: string[][] = []) {
     this.docs = SmartEngine.resolve(input);
@@ -259,6 +261,7 @@ export class SmartEngine {
     const add = (from: string, exp: string[], slotOf: Phrase["slotOf"]) => {
       const toks = tokens(from);
       if (!toks.length) return;
+      for (const w of [...toks, ...exp.flatMap(tokens)]) this.known.add(w);
       const ex = exp.map((e) => tokens(e).filter((w) => !GLUE_WORDS.has(w))).filter((e) => e.length && e.join(" ") !== toks.join(" "));
       if (!ex.length) return;
       const list = this.phrases.get(toks[0]) ?? [];
@@ -279,6 +282,8 @@ export class SmartEngine {
   private fix(word: string): string | null {
     const t = stem(word);
     if (word.length < 4 || /^\d/.test(word) || STOP.has(word)) return null;
+    // a term the synonym map names is real, not a typo ("helm" isn't "held", "saml" isn't "same")
+    if (this.known.has(t)) return null;
     // a known word stays, unless its stem is only a stop word ("hasing" → "has": a typo of "hashing")
     const own = STOP.has(t) ? 0 : this.df.get(t) ?? 0;
     if (own >= 3) return null;
@@ -288,6 +293,8 @@ export class SmartEngine {
     for (const v of this.vocab) {
       // typos rarely change the first letter; this also keeps the scan short
       if (v[0] !== word[0] || v === t || v.length > word.length + max || v.length < word.length - max - 3) continue;
+      // never into English glue ("wasm" → "was", "hive" → "have"): it would match every document
+      if (GLUE_WORDS.has(v)) continue;
       const df = this.df.get(v) ?? 0;
       if (df < 3 || df < own * 20) continue;
       let d = max + 1;

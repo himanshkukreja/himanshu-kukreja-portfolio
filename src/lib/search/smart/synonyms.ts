@@ -57,12 +57,20 @@ export const GROUPS: string[][] = [
   ["stream processing", "streaming", "flink", "kafka streams", "real time analytics", "windowing", "watermark"],
   ["batch processing", "mapreduce", "spark", "etl", "data pipeline", "lambda architecture"],
   ["olap", "data warehouse", "columnar", "clickhouse", "druid"],
+  ["hadoop", "hive", "hdfs", "presto", "trino"],
+  // probabilistic structures: taught only inside other lessons, case files and problems
+  ["bloom filter", "cuckoo filter", "probabilistic filter", "probabilistic data structure"],
+  ["hyperloglog", "hll", "cardinality estimation", "approximate count distinct", "approximate counting"],
+  // retrieval for AI: nearest material today is search, recommendations and the LLM-serving quest
+  ["vector database", "vector search", "vector store", "embeddings", "semantic search", "nearest neighbour search", "nearest neighbor search", "faiss", "pinecone", "milvus", "rag", "retrieval augmented generation"],
   // multi-tenancy, security, operations
   ["multi tenancy", "multi tenant", "tenant isolation", "noisy neighbour", "noisy neighbor", "saas"],
-  ["authentication", "authorization", "auth", "oauth", "jwt", "rbac", "access control", "api key"],
+  ["authentication", "authorization", "auth", "oauth", "jwt", "rbac", "access control", "api key", "sso", "single sign on", "saml", "oidc", "openid connect"],
   ["encryption", "tls", "kms", "secrets", "at rest", "in transit"],
-  ["observability", "monitoring", "metrics", "logging", "tracing", "distributed tracing", "slo", "sli", "sla", "alerting"],
-  ["deployment", "canary", "blue green", "rollout", "feature flag", "rollback"],
+  ["observability", "monitoring", "metrics", "logging", "tracing", "distributed tracing", "slo", "sli", "sla", "alerting", "prometheus", "grafana", "kibana", "opentelemetry"],
+  ["deployment", "canary", "blue green", "rollout", "feature flag", "rollback", "helm", "helm chart"],
+  // the course has no Kubernetes lessons; these find the places it comes up (CronJobs, leases, incidents)
+  ["kubernetes", "k8s", "kubectl", "container orchestration"],
   ["incident", "outage", "postmortem", "on call", "sev1"],
   ["capacity planning", "back of the envelope", "estimation", "qps", "throughput", "napkin math"],
   ["load balancer", "load balancing", "round robin", "least connections", "l4", "l7", "reverse proxy"],

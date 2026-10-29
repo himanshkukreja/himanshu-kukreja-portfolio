@@ -140,6 +140,15 @@ const SMART_SEARCH: EvalCase[] = [
     scope: "partial|off_topic",
     expect: ["says the course doesn't teach Helm or Kubernetes configuration", "any path steps are honestly the nearest topics (deployment strategies, capacity planning), not presented as Helm tutorials"],
   }),
+  ss("gap-hll", "Taught only in passing: HyperLogLog", "hyperloglog", ["capstone-interview-week-8-streaming-analytics|day-04-hot-keys-and-skew"], {
+    scope: "partial|covered",
+    expect: ["honest: says no lesson is about HyperLogLog if that's so, and points to where it comes up (unique viewers in the Week 8 capstone, approximate counting in Hot Keys and Skew)"],
+  }),
+  ss("gap-vector-db", "Not a lesson topic yet: vector databases for RAG", "how do vector databases work for RAG?", [], {
+    scope: "partial",
+    expect: ["says the course has no lesson on vector databases or RAG yet", "any path steps are honestly the nearest material (embeddings in the recommendation side quests, search), each described as what it is"],
+    mustNot: ["presents vector clocks, leader election or the order system as related to vector databases"],
+  }),
 ];
 
 export const CASES: EvalCase[] = [
