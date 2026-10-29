@@ -70,3 +70,10 @@ export type QuestMission = {
   /** "**10M** concurrent streams" → { value: "10M", label: "concurrent streams" } */
   numbers: { value: string; label: string }[];
 };
+
+/**
+ * A course page an end-of-article entry points at ("Week 1, Day 3 — Rate Limiting at Scale",
+ * "UPI (Bonus Problem 1)"). The renderer links resolved entries in a new tab; null leaves them static.
+ */
+export type CourseRef = { href: string; title: string; kind: "lesson" | "boss" | "quest" };
+export type CourseRefResolver = (entry: string) => CourseRef | null;

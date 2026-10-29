@@ -15,7 +15,7 @@
 import { createHash } from "crypto";
 import type { Code, Heading, Paragraph, Root, RootContent } from "mdast";
 import type { Element as HastElement, ElementContent, Root as HastRoot, RootContent as HastRootContent } from "hast";
-import type { LessonKind, QuestMission, RenderedLesson, Stage, TocItem } from "./types";
+import type { CourseRefResolver, LessonKind, QuestMission, RenderedLesson, Stage, TocItem } from "./types";
 import { chrome, el, h, hastText, rawHast, startsWithEmoji, stripEmoji, text, toText, wordCount, type AnyNode, type SdEl, type SdHast } from "./md";
 import { IdRegistry, intToRoman, romanToInt, slugify } from "./slug";
 import { cleanHr, count, isEndMarker, isTomorrow, processBlocks, renderNestedCode, type BlockCtx } from "./detect/blocks";
@@ -349,6 +349,8 @@ export type RenderOpts = {
   directives?: boolean;
   /** hover definitions: mark concept terms (src/lib/course/terms.ts); off when absent */
   terms?: TermsOpts;
+  /** end-of-article entries that name a course page become new-tab links (src/lib/learn/course-refs.ts); off when absent */
+  courseRefs?: CourseRefResolver;
 };
 
 export async function renderLessonDetailed(markdown: string, opts: RenderOpts): Promise<{ lesson: RenderedLesson; stats: RenderStats }> {
@@ -472,7 +474,7 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
 
   const ids = new IdRegistry();
   const toc: TocItem[] = [];
-  const ctx: BlockCtx = { kind, ids, toc, stats, stageId: "", hstack: [], figure: 0, dropParas, lastEnd };
+  const ctx: BlockCtx = { kind, ids, toc, stats, stageId: "", hstack: [], figure: 0, dropParas, lastEnd, courseRef: opts.courseRefs };
   const stages: Stage[] = [];
   const sections: SdEl[] = [];
   const coreTotal = raw.filter((s) => s.head.core).length;

@@ -8,7 +8,7 @@
  */
 import type { Blockquote, Code, Heading, List, ListItem, Paragraph, PhrasingContent, RootContent, Strong, Text } from "mdast";
 import type { Properties } from "hast";
-import type { LessonKind, TocItem, TocKind } from "../types";
+import type { CourseRefResolver, LessonKind, TocItem, TocKind } from "../types";
 import { chrome, el, h, isNode, rawHast, stripEmoji, text, toText, type AnyNode, type SdEl } from "../md";
 import { IdRegistry, slugify } from "../slug";
 import { renderCode } from "./code";
@@ -28,6 +28,8 @@ export type BlockCtx = {
   dropParas: Set<Paragraph>;
   /** the last End-of-Day paragraph (becomes the up-next marker) */
   lastEnd: Paragraph | null;
+  /** resources entries that name a course page ("Week 1, Day 3 — …", "(Bonus Problem 1)") → link; absent = all static */
+  courseRef?: CourseRefResolver;
 };
 
 type Opts = { inPhrases?: boolean };
@@ -340,6 +342,8 @@ function resourceType(s: string): string {
   return "Read";
 }
 
+const COURSE_REF_TYPE = { lesson: "Lesson", boss: "Boss", quest: "Side quest" } as const;
+
 function resourcesList(list: List, ctx: BlockCtx): SdEl {
   count(ctx, "resources");
   return el(
@@ -347,8 +351,22 @@ function resourcesList(list: List, ctx: BlockCtx): SdEl {
     { className: ["sd-resources"], dataSd: "resources" },
     list.children.map((li: ListItem) => {
       const t = toText(li);
-      const type = resourceType(t);
       const hasLink = JSON.stringify(li).includes('"type":"link"');
+      // an entry naming a course page (a lesson, a boss, another side quest) opens it in a new tab;
+      // entries with their own links, or that don't resolve to a live page, stay as they are
+      const ref = !hasLink && ctx.courseRef ? ctx.courseRef(t) : null;
+      if (ref) {
+        count(ctx, "resourcesCourseLinked");
+        return el("li", { className: ["sd-res"], dataType: ref.kind, dataCourseRef: "true" }, [
+          el("a", { className: ["sd-res-link"], href: ref.href, target: "_blank", rel: ["noopener", "noreferrer"] }, [
+            rawHast(chrome("span", { className: ["sd-res-type"] }, [COURSE_REF_TYPE[ref.kind]])),
+            ...(li.children as AnyNode[]),
+            rawHast(chrome("span", { className: ["sd-res-go"], ariaHidden: "true" }, ["↗"])),
+            rawHast(chrome("span", { className: ["sd-res-new"] }, ["(opens in new tab)"])),
+          ]),
+        ]);
+      }
+      const type = resourceType(t);
       return el("li", { className: ["sd-res"], dataType: type.toLowerCase(), dataLinked: hasLink ? "true" : undefined }, [
         rawHast(chrome("span", { className: ["sd-res-type"] }, [type])),
         ...(li.children as AnyNode[]),

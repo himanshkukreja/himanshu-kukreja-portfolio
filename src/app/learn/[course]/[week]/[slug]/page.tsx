@@ -11,6 +11,8 @@ import {
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
 import { renderLesson } from "@/lib/course/render";
 import { termsFor } from "@/lib/concepts/load";
+import { getCourseMap } from "@/lib/learn/course";
+import { courseRefResolver } from "@/lib/learn/course-refs";
 import { getLabsForLesson } from "@/lib/learn/labs/load";
 import { getTrailForLesson } from "@/lib/learn/trail/load";
 import { getSheet } from "@/lib/learn/sheets/load";
@@ -167,8 +169,15 @@ export default async function LearningResourcePage({ params }: Props) {
   }
 
   // hover definitions: concept terms marked in the HTML, with their cards (src/lib/course/terms.ts)
-  const terms = await termsFor(`${week}/${slug}`);
-  const rendered = await renderLesson(content, { kind: resource.type, terms });
+  // end-of-article entries that name a course page ("Week 1, Day 3 — …", "UPI (Bonus Problem 1)") link to it;
+  // without the course map they just stay static
+  const [terms, courseRefs] = await Promise.all([
+    termsFor(`${week}/${slug}`),
+    getCourseMap(course)
+      .then((m) => (m ? courseRefResolver(m) : undefined))
+      .catch(() => undefined),
+  ]);
+  const rendered = await renderLesson(content, { kind: resource.type, terms, courseRefs });
   const title = cleanTitle(rendered, resource.title);
   const requiredStages = rendered.stages.filter((s) => !isOptionalStage(s));
   const numbered = requiredStages.filter((s) => s.id !== "preface" && s.id !== "intro").length || requiredStages.length;

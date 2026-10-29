@@ -1547,6 +1547,60 @@
 .course-content .sd-res strong:first-child {
   color: var(--c-fg);
 }
+/* an entry that names a course page: the whole card links to it, in a new tab */
+.course-content .sd-res[data-course-ref] {
+  padding: 0;
+  transition: border-color 0.15s ease;
+}
+.course-content .sd-res[data-course-ref]:has(> .sd-res-link:hover),
+.course-content .sd-res[data-course-ref]:has(> .sd-res-link:focus-visible) {
+  border-color: var(--c-fg-3);
+}
+.course-content a.sd-res-link {
+  position: relative;
+  display: block;
+  height: 100%;
+  padding: 12px 34px 12px 14px;
+  color: inherit;
+  text-decoration: none;
+}
+.course-content a.sd-res-link:hover {
+  color: var(--c-fg);
+}
+.course-content .sd-res-go {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  font-family: var(--sd-mono);
+  font-size: 13px;
+  line-height: 1;
+  color: var(--c-fg-3);
+  transition: color 0.15s ease, transform 0.15s ease;
+}
+.course-content a.sd-res-link:hover .sd-res-go,
+.course-content a.sd-res-link:focus-visible .sd-res-go {
+  color: var(--c-signal-text);
+  transform: translate(1px, -1px);
+}
+.course-content a.sd-res-link:hover strong:first-child {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.course-content .sd-res-new {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .course-content .sd-res[data-course-ref],
+  .course-content .sd-res-go {
+    transition: none;
+  }
+}
 
 /* End of day → up next */
 .course-content .sd-upnext {
