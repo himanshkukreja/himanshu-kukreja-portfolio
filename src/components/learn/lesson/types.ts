@@ -2,6 +2,7 @@ import type { LessonKind, QuestMission } from "@/lib/course/types";
 import type { LessonLabLink } from "@/lib/learn/labs/types";
 import type { TrailEntry } from "@/lib/learn/trail/types";
 import type { QuestDrills } from "@/lib/learn/drills/parse";
+import type { DesignFirstMeta } from "@/lib/learn/designFirst";
 
 export type RailEntry = {
   week: string;
@@ -79,6 +80,8 @@ export type ReaderMeta = {
   lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
   /** this article's vertical shorts (shown at the end), and the lecture id they belong to */
   shorts?: { of: string; items: { id: string; title: string; poster: string; seconds: number }[] } | null;
+  /** capstones: the "Design it first" brief and the solution stages it folds away (src/lib/learn/designFirst.ts) */
+  designFirst?: DesignFirstMeta | null;
 };
 
 export type QuestMeta = {

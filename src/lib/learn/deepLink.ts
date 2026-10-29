@@ -598,6 +598,8 @@ export function scrollToElement(el: HTMLElement, behavior: ScrollBehavior = "smo
 /** Open collapsed content around a passage (details, collapsed code, unrevealed answers). */
 export function uncover(range: Range) {
   let el: Element | null = range.startContainer.nodeType === Node.ELEMENT_NODE ? (range.startContainer as Element) : range.startContainer.parentElement;
+  // a folded capstone solution ("Design it first") unfolds for a passage link into it (components/learn/lesson/layout.ts)
+  if (el) window.dispatchEvent(new CustomEvent("hk:reveal-target", { detail: { el } }));
   while (el) {
     if (el instanceof HTMLDetailsElement && !el.open) el.open = true;
     if (el.matches('[data-sd="code"][data-collapsed="true"]')) el.querySelector<HTMLElement>('[data-sd-action="expand"]')?.click();

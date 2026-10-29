@@ -11,6 +11,8 @@ import "server-only";
 import { supabase } from "@/lib/supabase";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import { fetchMarkdownContent } from "@/lib/github";
+import { sketchSummary } from "@/lib/learn/mock/sketch";
+import { capstoneKey, parseCapstoneBrief, stickyText } from "@/lib/learn/designFirst";
 
 export type CanvasPrompt = { key: string; kind: "problem" | "capstone"; title: string; group: string; href: string; path: string };
 
@@ -73,6 +75,19 @@ export function briefFromMarkdown(md: string, kind: CanvasPrompt["kind"]): strin
   return plain(cut).slice(0, 3000);
 }
 
+/**
+ * A capstone's starter board ("Design it first"): a title and the requirements as a sticky note, from
+ * the capstone's own whiteboard and requirement panels. Null for problems (they open on a blank board).
+ */
+export async function promptSeed(p: CanvasPrompt): Promise<{ title: string; sticky: string } | null> {
+  if (p.kind !== "capstone") return null;
+  const md = await fetchMarkdownContent(p.path).catch(() => "");
+  const b = md ? parseCapstoneBrief(md) : null;
+  if (!b) return null;
+  const sticky = stickyText(b);
+  return sticky.split("\n").length > 1 ? { title: b.title, sticky } : { title: b.title, sticky: `REQUIREMENTS\n${p.title}` };
+}
+
 /* ------------------------------------------------------------------ store */
 
 export type DesignRow = {
@@ -124,4 +139,31 @@ export async function saveReview(id: string, review: string, reviews: number) {
 export async function deleteDesign(userId: string, key: string) {
   const { error } = await supabase.from("canvas_designs").delete().eq("user_id", userId).eq("prompt_key", key);
   if (error) throw new Error(error.message);
+}
+
+/**
+ * A learner's saved "Design it first" drawing for one capstone, ready for an AI tool to review: the
+ * brief, the drawing as text (boxes and arrows, the starter title and sticky left out) and the notes.
+ * `week` is the capstone's week key ("week-01-data-at-scale") or the full prompt key ("capstone:week-01-…").
+ * Null when they haven't drawn one. This is what the course chat's review_my_design tool calls.
+ */
+export async function capstoneDesign(
+  userId: string,
+  week: string,
+): Promise<{ key: string; title: string; href: string; brief: string; drawing: string; notes: string; review: string | null; updatedAt: string } | null> {
+  const key = week.startsWith("capstone:") ? week : capstoneKey(week);
+  if (!isPromptKey(key)) return null;
+  const d = await getDesign(userId, key);
+  if (!d) return null;
+  const p = (await canvasPrompts().catch(() => [])).find((x) => x.key === key);
+  return {
+    key,
+    title: p?.title || "Capstone design",
+    href: p?.href || "/learn/canvas",
+    brief: p ? await promptBrief(p).catch(() => p.title) : "",
+    drawing: sketchSummary(d.scene),
+    notes: d.notes || "",
+    review: d.review,
+    updatedAt: d.updated_at,
+  };
 }

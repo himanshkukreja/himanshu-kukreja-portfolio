@@ -1,0 +1,54 @@
+/* "Design it first" on the capstones (components/learn/designfirst/DesignFirst.tsx). */
+
+/* The panel sits inside the article (.course-content): keep the article's prose styles off it. */
+.course-content .df-panel p,
+.course-content .df-panel ul,
+.course-content .df-panel ol {
+  margin: 0;
+  padding: 0;
+}
+.course-content .df-panel ul {
+  list-style: none;
+}
+.course-content .df-panel li {
+  margin: 0;
+}
+.course-content .df-panel a {
+  color: inherit;
+  text-decoration: none;
+}
+.course-content .df-panel strong {
+  font-weight: 600;
+}
+
+.df-mount {
+  margin: 8px 0 32px;
+  scroll-margin-top: var(--reader-scroll-margin, 140px);
+}
+
+/* Boss mode runs its own reveal-as-you-go: the panel and the fold step aside while it's open. */
+html:has([data-boss-mode]) .df-mount {
+  display: none;
+}
+
+/* The fold: the first solution phase shows as a short blurred teaser (see the per-page rules the
+   component writes for the stage ids). Everything stays in the DOM: search, Listen and crawlers read it. */
+.df-teaser-fade {
+  -webkit-mask-image: linear-gradient(to bottom, #000 10%, transparent 95%);
+  mask-image: linear-gradient(to bottom, #000 10%, transparent 95%);
+}
+
+/* The compare dialog's drawings */
+.df-svg svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: min(62vh, 640px);
+}
+.df-arch .sd-mermaid-canvas svg {
+  display: block;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto;
+  max-height: min(62vh, 640px);
+}

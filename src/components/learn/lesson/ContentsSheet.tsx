@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Stage, TocItem } from "@/lib/course/types";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { buildTocGroups, useActiveHeading } from "@/components/TableOfContents";
-import { stageRailHeight, topInset } from "./layout";
+import { announceJump, stageRailHeight, topInset } from "./layout";
 import { isOptionalStage, numberedStages } from "./stageText";
 import styles from "./reader.module.css";
 import TermsToggle from "@/components/learn/concepts/TermsToggle";
@@ -24,6 +24,7 @@ type Props = {
  * down only clears the pinned stage bar, a jump up also clears the header that comes back.
  */
 function jumpTo(id: string) {
+  announceJump(id);
   const el = document.getElementById(id);
   if (!el) return;
   const headerH = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue("--hk-header-h")) || 0;

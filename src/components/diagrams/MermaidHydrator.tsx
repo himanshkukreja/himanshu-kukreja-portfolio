@@ -48,6 +48,14 @@ async function renderFigure(fig: HTMLElement, theme: DiagramTheme) {
   }
 }
 
+/**
+ * Draws one diagram outside the article (the capstone "Compare with my design" view): any element
+ * holding a `.sd-mermaid-src` and an empty `.sd-mermaid-canvas`, in the page's current theme.
+ */
+export function drawMermaid(el: HTMLElement): Promise<void> {
+  return renderFigure(el, currentTheme());
+}
+
 function onClick(e: MouseEvent) {
   const btn = (e.target as HTMLElement | null)?.closest<HTMLButtonElement>("[data-mermaid-action]");
   if (!btn) return;

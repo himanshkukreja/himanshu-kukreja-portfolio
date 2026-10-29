@@ -41,6 +41,7 @@ import {
 import type { NavLink, ReaderMeta } from "@/components/learn/lesson/types";
 import { shortsOf } from "@/lib/learn/shorts/load";
 import { JsonLd, breadcrumbs, lessonArticle } from "@/lib/seo/jsonld";
+import { capstoneKey, gatedStages, parseCapstoneBrief } from "@/lib/learn/designFirst";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
@@ -93,6 +94,13 @@ async function teaserFor(r: LearningResource): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** A capstone's "Design it first" brief (its own whiteboard and requirements) and the solution stages to fold. */
+function designFirstFor(markdown: string, week: string, stages: { id: string; title: string }[]): ReaderMeta["designFirst"] {
+  const brief = parseCapstoneBrief(markdown);
+  const gated = gatedStages(stages);
+  return brief && gated.length ? { ...brief, key: capstoneKey(week), gated } : null;
 }
 
 export default async function LearningResourcePage({ params }: Props) {
@@ -219,6 +227,7 @@ export default async function LearningResourcePage({ params }: Props) {
     lecture: await getLecture(resource.type === "bonus" ? slug : lessonLectureId(week, slug))
       .then(lectureCard)
       .catch(() => null),
+    designFirst: resource.type === "capstone" ? designFirstFor(content, week, rendered.stages) : null,
   };
 
   const path = `/learn/${course}/${week}/${slug}`;

@@ -19,9 +19,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, Shapes } from "lucide-react";
 import { convertToExcalidrawElements, Excalidraw } from "@excalidraw/excalidraw";
-import { parseSketch } from "@/lib/learn/mock/sketch";
+import { parseSketch, type Sketch } from "@/lib/learn/mock/sketch";
 import { iconPng, iconSvgUrl } from "@/lib/learn/board/icons";
-import { blockParts, SIZE, TONES, type Block } from "@/lib/learn/board/library";
+import { blockParts, FONT, SIZE, TONES, type Block } from "@/lib/learn/board/library";
+import { SEED_MARK } from "@/lib/learn/designFirst";
 import LibraryPanel, { Glyph } from "./LibraryPanel";
 
 type API = Parameters<NonNullable<React.ComponentProps<typeof Excalidraw>["excalidrawAPI"]>>[0];
@@ -73,7 +74,48 @@ function refreshOldIcons(files: Record<string, unknown> | undefined) {
   return out;
 }
 
-export default function BoardCanvas({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+/**
+ * The starter board for a capstone's "Design it first": the brief's title and the requirements on a
+ * sticky note, left of where the learner draws. Both carry customData.seed, so the AI review and the
+ * "has drawn something" check leave them out (src/lib/learn/mock/sketch.ts).
+ */
+function seedElements(seed: { title: string; sticky: string }) {
+  // wrapped here (≈50 characters a line: Nunito, the blocks' label font, at 15 px in a 460 px note), so the note fits its text from the start
+  const wrapped = seed.sticky.split("\n").flatMap((line) => {
+    const out: string[] = [];
+    let cur = "";
+    for (const w of line.split(" ")) {
+      if (cur && (cur + " " + w).length > 50) {
+        out.push(cur);
+        cur = `  ${w}`;
+      } else cur = cur ? `${cur} ${w}` : w;
+    }
+    out.push(cur);
+    return out;
+  });
+  const text = wrapped.join("\n");
+  const lines = wrapped.length;
+  const mark = { seed: SEED_MARK };
+  return convertToExcalidrawElements([
+    { type: "text", x: -520, y: -70, text: seed.title.slice(0, 90), fontSize: 24, fontFamily: FONT, strokeColor: "#1e1e1e", customData: mark },
+    {
+      type: "rectangle",
+      x: -520,
+      y: -20,
+      width: 460,
+      height: 28 + lines * 20,
+      backgroundColor: "#FDF1D6",
+      strokeColor: "#A16207",
+      fillStyle: "solid",
+      roughness: 0,
+      strokeWidth: 1,
+      customData: mark,
+      label: { text, fontSize: 15, fontFamily: FONT, textAlign: "left", verticalAlign: "top", strokeColor: "#3A2402" },
+    },
+  ] as Skeleton[]);
+}
+
+export default function BoardCanvas({ value, onChange, seed }: { value: string; onChange: (v: string) => void; seed?: { title: string; sticky: string } | null }) {
   const [api, setApi] = useState<API | null>(null);
   const [full, setFull] = useState(false);
   const { resolvedTheme } = useTheme();
@@ -87,8 +129,48 @@ export default function BoardCanvas({ value, onChange }: { value: string; onChan
   const [drag, setDrag] = useState<{ block: Block; x: number; y: number; over: boolean } | null>(null);
   const version = useRef(-1);
   const timer = useRef<number | undefined>(undefined);
-  // the saved scene, read once: after that the canvas owns it
-  const [initial] = useState(() => parseSketch(value));
+  // the saved scene, read once: after that the canvas owns it. An empty capstone board starts from its
+  // seed (title + requirements sticky)
+  const [initial] = useState((): (Sketch & { seeded?: boolean }) | null => {
+    const saved = parseSketch(value);
+    if (saved?.elements.some((e) => !e.isDeleted) || !seed) return saved;
+    try {
+      return { elements: seedElements(seed) as never[], seeded: true };
+    } catch {
+      return saved;
+    }
+  });
+  // Excalidraw loads the label font only once something uses it and doesn't re-measure a label after
+  // that, so the seed's text can come out clipped: once the fonts are in, draw it again with the real
+  // metrics, unless the learner has already touched the board
+  useEffect(() => {
+    if (!api || !seed || !initial?.seeded) return;
+    const sig = () =>
+      api
+        .getSceneElements()
+        .map((e) => `${e.id}:${e.version}`)
+        .join();
+    let first = "";
+    let tries = 0;
+    const nunito = () => !!document.fonts && [...document.fonts].some((f) => /nunito/i.test(f.family) && f.status === "loaded");
+    const tick = window.setInterval(() => {
+      tries++;
+      if (tries === 1) first = sig();
+      if (!nunito() && tries < 24) return;
+      window.clearInterval(tick);
+      // a frame for the font to settle, then the seed again if nothing has changed
+      window.setTimeout(() => {
+        try {
+          if (first && sig() === first) api.updateScene({ elements: seedElements(seed) as never });
+        } catch {
+          // the board is gone
+        }
+      }, 120);
+    }, 250);
+    return () => window.clearInterval(tick);
+    // once per board instance
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api]);
 
   useEffect(() => {
     const el = root.current;

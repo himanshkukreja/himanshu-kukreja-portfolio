@@ -25,6 +25,7 @@ import EndOfLesson from "./EndOfLesson";
 import ArticleShorts from "./ArticleShorts";
 import LandingContext from "./LandingContext";
 import BossEntry from "./BossEntry";
+import DesignFirst from "@/components/learn/designfirst/DesignFirst";
 import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
 import { headerStackBottom, stageRailHeight } from "./layout";
 import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
@@ -195,7 +196,8 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
             {meta.lecture && <LectureEntry lecture={meta.lecture} quest={meta.kind === "bonus" || meta.kind === "problem" || meta.kind === "lld"} />}
             {meta.kind === "problem" && <CanvasEntry promptKey={`problem:${meta.slug}`} />}
-            {meta.kind === "capstone" && <CanvasEntry promptKey={`capstone:${meta.week}`} />}
+            {/* a capstone's "Design it first" panel sits inside the article, before the first solution phase */}
+            {meta.kind === "capstone" && !meta.designFirst && <CanvasEntry promptKey={`capstone:${meta.week}`} />}
             {meta.kind === "bonus" && <QuestRunEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} />}
 
             <AskPrompt />
@@ -209,6 +211,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
               textSize={size}
             />
             <DeepLinkResolver rootRef={contentRef} />
+            {meta.kind === "capstone" && meta.designFirst && <DesignFirst meta={meta.designFirst} week={meta.week} title={meta.title} contentRef={contentRef} />}
 
             {meta.shorts && <ArticleShorts of={meta.shorts.of} shorts={meta.shorts.items} />}
 

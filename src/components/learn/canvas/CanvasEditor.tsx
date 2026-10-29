@@ -9,8 +9,8 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { ChevronDown, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowRight, ChevronDown, Loader2, Sparkles, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { userFetch, userJson } from "@/components/learn/progress/userFetch";
@@ -20,6 +20,9 @@ import AiFreeNote from "@/components/learn/ai/AiFreeNote";
 import { AI_PRIVACY } from "@/components/learn/ai/AskLessonPanel";
 import { setAiCredits, useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { track } from "@/lib/track";
+import { useGame } from "@/game/GameProvider";
+import { ownElementCount } from "@/lib/learn/mock/sketch";
+import { designFirstFlag, readDesignFirst } from "@/lib/learn/designFirst";
 
 const BoardCanvas = dynamic(() => import("@/components/learn/board/BoardCanvas"), {
   ssr: false,
@@ -29,6 +32,9 @@ const BoardCanvas = dynamic(() => import("@/components/learn/board/BoardCanvas")
 type Prompt = { title: string; group: string; href: string; brief: string } | null;
 type Design = { scene: string; notes: string; title: string | null; brief: string | null; review: string | null; reviewed_at: string | null; reviews: number; updated_at: string } | null;
 type Save = "idle" | "saving" | "saved" | "error";
+type Seed = { title: string; sticky: string } | null;
+/** a capstone design counts as "designed" (Design it first) once the learner has drawn this much of their own */
+const DESIGNED_MIN = 2;
 
 const backupKey = (key: string) => `hk.canvas.${key}`;
 const readBackup = (key: string): { scene: string; notes: string; title?: string; brief?: string; at: number } | null => {
@@ -45,7 +51,24 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
   const { openAuthModal } = useAuthModal();
   const router = useRouter();
   const free = promptKey.startsWith("free:");
-  const [loaded, setLoaded] = useState<{ prompt: Prompt; design: Design } | null>(null);
+  const [loaded, setLoaded] = useState<{ prompt: Prompt; design: Design; seed?: Seed } | null>(null);
+  const capstoneWeek = promptKey.startsWith("capstone:") ? promptKey.slice("capstone:".length) : null;
+  const { flags, setFlag, hydrated } = useGame();
+  // a capstone's "Design it first" flag: set once there's a drawing of their own (the reader's gate opens on it)
+  // (read through a ref: the save path keeps a stable identity while flags change)
+  const game = useRef({ flags, setFlag, hydrated });
+  useEffect(() => {
+    game.current = { flags, setFlag, hydrated };
+  }, [flags, setFlag, hydrated]);
+  const markDesigned = useCallback(
+    (sceneJson: string) => {
+      if (!capstoneWeek || ownElementCount(sceneJson) < DESIGNED_MIN) return;
+      const g = game.current;
+      const k = designFirstFlag(capstoneWeek);
+      if (g.hydrated && readDesignFirst(g.flags[k])?.s !== "designed") g.setFlag(k, { s: "designed", at: Date.now() });
+    },
+    [capstoneWeek],
+  );
   const [error, setError] = useState<string | null>(null);
   const [scene, setScene] = useState("");
   const [notes, setNotes] = useState("");
@@ -53,6 +76,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
   const [brief, setBrief] = useState("");
   const [save, setSave] = useState<Save>("idle");
   const [briefOpen, setBriefOpen] = useState(true);
+  const drawnCount = useMemo(() => (capstoneWeek ? ownElementCount(scene) : 0), [capstoneWeek, scene]);
   const dirty = useRef(false);
   const timer = useRef<number | undefined>(undefined);
   // what the next save sends: each handler updates it before scheduling the save
@@ -61,7 +85,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
   useEffect(() => {
     if (!user?.id) return;
     let off = false;
-    userJson<{ prompt: Prompt; design: Design }>(`/api/learn/canvas/${encodeURIComponent(promptKey)}`)
+    userJson<{ prompt: Prompt; design: Design; seed?: Seed }>(`/api/learn/canvas/${encodeURIComponent(promptKey)}`)
       .then((r) => {
         if (off) return;
         // the browser copy wins when it's newer than the saved one (the last save didn't make it)
@@ -79,7 +103,8 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
         setNotes(next.notes);
         setTitle(next.title);
         setBrief(next.brief);
-        setLoaded(r);
+        // the starter board (title + requirements sticky) only for a capstone with nothing drawn yet
+        setLoaded(next.scene ? { ...r, seed: null } : r);
         if (useLocal) dirty.current = true;
       })
       .catch((e: Error) => !off && setError(e.message || "Couldn't open this design."));
@@ -97,13 +122,14 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
     try {
       await userJson(`/api/learn/canvas/${encodeURIComponent(promptKey)}`, { method: "PUT", body: JSON.stringify({ scene: d.scene, notes: d.notes, ...(free ? { title: d.title, brief: d.brief } : {}) }) });
       setSave("saved");
+      markDesigned(d.scene);
       return true;
     } catch {
       dirty.current = true;
       setSave("error");
       return false;
     }
-  }, [promptKey, free]);
+  }, [promptKey, free, markDesigned]);
 
   const changed = useCallback(() => {
     dirty.current = true;
@@ -127,6 +153,10 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
       void flush();
     };
   }, [flush]);
+
+  useEffect(() => {
+    if (loaded?.design?.scene && hydrated) markDesigned(loaded.design.scene);
+  }, [loaded, hydrated, markDesigned]);
 
   const remove = async () => {
     if (!window.confirm("Delete this design and its review? This can't be undone.")) return;
@@ -165,6 +195,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
   if (!loaded) return <p className="m-0 font-mono text-[13px] text-fg-3">Opening your design…</p>;
 
   const p = loaded.prompt;
+  const drawn = !!capstoneWeek && drawnCount >= DESIGNED_MIN;
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -197,6 +228,15 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
           <span role="status" className={`font-mono text-[12px] ${save === "error" ? "text-bad-text" : "text-fg-3"}`}>
             {save === "saving" ? "saving…" : save === "saved" ? "saved" : save === "error" ? "not saved, retrying on the next change" : loaded.design ? "saved" : "not started"}
           </span>
+          {capstoneWeek && p?.href && (
+            <Link
+              href={`${p.href}#design-it-first`}
+              onClick={() => void flush()}
+              className={`inline-flex min-h-10 items-center gap-1.5 px-3 font-mono text-[12px] font-semibold ${drawn ? "bg-signal text-on-signal" : "border border-line-strong text-fg hover:border-fg-3"}`}
+            >
+              {drawn ? "compare with the capstone" : "back to the capstone"} <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+            </Link>
+          )}
           {loaded.design && (
             <button type="button" onClick={() => void remove()} aria-label="Delete this design" className="grid h-10 w-10 place-items-center border border-line-strong text-fg-3 hover:text-bad-text">
               <Trash2 className="h-4 w-4" aria-hidden />
@@ -208,6 +248,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start">
         <div className="flex min-w-0 flex-col gap-3">
           <BoardCanvas
+            seed={loaded.seed}
             value={scene}
             onChange={(v) => {
               setScene(v);
@@ -274,7 +315,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
   );
 }
 
-function CanvasReview({ promptKey, initial, before }: { promptKey: string; initial: string | null; before: () => Promise<boolean> }) {
+export function CanvasReview({ promptKey, initial, before }: { promptKey: string; initial: string | null; before: () => Promise<boolean> }) {
   const status = useAiStatus();
   const [busy, setBusy] = useState(false);
   const [text, setText] = useState(initial || "");

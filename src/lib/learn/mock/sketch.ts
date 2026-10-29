@@ -15,7 +15,7 @@ type El = {
   endBinding?: { elementId: string } | null;
   groupIds?: string[];
   /** a library block's container: `{ kind: "sql-db" }` (src/lib/learn/board/library.ts) */
-  customData?: { kind?: string } | null;
+  customData?: { kind?: string; seed?: string } | null;
 };
 
 /** elements, plus the icon images the blocks use (file id → Excalidraw file data) */
@@ -74,7 +74,9 @@ const SHAPES = ["rectangle", "ellipse", "diamond"];
 export function sketchSummary(raw: string | undefined | null): string {
   const s = parseSketch(raw);
   if (!s) return "";
-  const live = s.elements.filter((e) => !e.isDeleted);
+  // the capstone starter board's title and requirements sticky (customData.seed) are the brief, not the design
+  const seeded = new Set(s.elements.filter((e) => e.customData?.seed).map((e) => e.id));
+  const live = s.elements.filter((e) => !e.isDeleted && !seeded.has(e.id) && !(e.containerId && seeded.has(e.containerId)));
   const byId = new Map(live.map((e) => [e.id, e]));
   const ownText = (e: El) => {
     const t = (e.boundElements || []).map((b) => byId.get(b.id)).find((x) => x?.type === "text");
@@ -119,4 +121,12 @@ export function sketchSummary(raw: string | undefined | null): string {
   if (arrows.length) out.push(`Arrows: ${arrows.join("; ")}`);
   if (notes.length) out.push(`Notes on the board: ${notes.join(" | ")}`);
   return out.join("\n");
+}
+
+/** How many elements the learner drew themselves (the starter board's seeded title and sticky not counted). */
+export function ownElementCount(raw: string | undefined | null): number {
+  const s = parseSketch(raw);
+  if (!s) return 0;
+  const seeded = new Set(s.elements.filter((e) => e.customData?.seed).map((e) => e.id));
+  return s.elements.filter((e) => !e.isDeleted && !seeded.has(e.id) && !(e.containerId && seeded.has(e.containerId))).length;
 }

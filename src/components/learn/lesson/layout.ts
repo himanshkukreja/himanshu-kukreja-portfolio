@@ -53,8 +53,19 @@ function prefersReducedMotion() {
   return typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 }
 
+/**
+ * Fired (synchronously) before a programmatic jump to an element: anything that folds content away
+ * (the capstone's "Design it first" gate) unfolds it first, so the jump measures the real layout.
+ */
+export const REVEAL_EVENT = "hk:reveal-target";
+export function announceJump(target: string | Element) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(REVEAL_EVENT, { detail: typeof target === "string" ? { id: target } : { el: target } }));
+}
+
 /** Scroll so the element with `id` sits just under the sticky chrome. Returns false if missing. */
 export function scrollToId(id: string, behavior: ScrollBehavior = "smooth"): boolean {
+  announceJump(id);
   const el = document.getElementById(id);
   if (!el) return false;
   // The lesson header slides away while scrolling down and returns on the way up, so the space
