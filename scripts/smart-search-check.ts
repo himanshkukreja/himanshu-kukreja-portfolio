@@ -7,7 +7,10 @@
  * - off-topic answers carry no path;
  * - hidden or scheduled content (publishing controls) never comes back from the engine;
  * - the request holds the query and the candidates only, and the query can't close its own tag;
- * - identical queries share one cache key; section anchors follow the renderer's id rules.
+ * - identical queries share one cache key; section anchors follow the renderer's id rules;
+ * - lecture FAQs open their lecture at the chapter and go with it (gone or hidden: never returned), the
+ *   reading trail opens /learn/reading at the write-up's card, revision cards open their deck at the card,
+ *   and none of the three crowds out the lesson.
  */
 import assert from "node:assert/strict";
 import { SmartEngine, transcriptDocs } from "@/lib/search/smart/engine";
@@ -15,6 +18,7 @@ import { candidateLines, parseSmartAnswer, PER_FAMILY, smartSearchUser } from "@
 import { lessonSections } from "@/lib/search/smart/sections";
 import { queryKey } from "@/lib/search/smart/text";
 import type { Doc } from "@/lib/search/smart/types";
+import { trailAnchor } from "@/lib/learn/trail/types";
 
 const d = (x: Partial<Doc> & Pick<Doc, "id" | "kind" | "title">): Doc => ({ sub: "", href: `/x/${x.id}`, summary: "", text: "", kw: "", gate: "", rel: [], parent: "", at: -1, ...x });
 let n = 0;
@@ -129,6 +133,60 @@ ok("a checkpoint follows its section's prose, labelled, and doesn't change the a
   assert.deepEqual(s.map((x) => x.id), ["part-1", "s-1-1-shards", "s-1-2-next"]);
   assert.equal(s[1].text, "Shard size is a trade-off. Checkpoint: Two shards or five hundred? A 500 GB index. About twenty.");
 });
+// lecture FAQs, revision cards and the reading trail (index parts c, d and e)
+const lessonDocs: Doc[] = [
+  d({ id: "L:w4/herd", kind: "lesson", title: "Thundering Herd", text: "the thundering herd: many requests miss the cache at once and stampede the database", href: "/learn/c/w4/herd" }),
+  d({ id: "S:w4/herd#s-2", kind: "section", title: "Request coalescing", text: "one request refills the cache while the thundering herd waits", parent: "L:w4/herd", href: "#s-2" }),
+  d({ id: "V:w4--herd", kind: "lecture", title: "Thundering herd: taming the stampede", sub: "W04 · 12 min lecture", href: "/learn/lectures/w4--herd", parent: "L:w4/herd" }),
+  ...Array.from({ length: 6 }, (_, i) =>
+    d({ id: `LQ:w4--herd@ch${i}:1`, kind: "lfaq", title: `Does the thundering herd hit case ${i}?`, sub: `Chapter ${i}`, href: `?at=ch${i}`, text: "Yes, the thundering herd hits the database when the cache empties.", parent: "V:w4--herd" }),
+  ),
+  d({ id: "LQ:w4--herd@midnight:1", kind: "lfaq", title: "Why does jitter on the TTL help?", sub: "Midnight expiry", href: "?at=midnight", text: "Randomising each key's expiry by a few seconds spreads the refills out.", parent: "V:w4--herd" }),
+  d({ id: "LQ:gone@x:1", kind: "lfaq", title: "Why does jitter on the TTL help here too?", sub: "X", href: "?at=x", text: "jitter", parent: "V:gone" }),
+  d({ id: "V:bonus-07-q", kind: "lecture", title: "Hidden quest lecture", href: "/learn/lectures/bonus-07-q", gate: "quest:q1" }),
+  d({ id: "LQ:bonus-07-q@a:1", kind: "lfaq", title: "Why does jitter on the TTL help in a hidden quest?", sub: "A", href: "?at=a", text: "jitter", gate: "quest:q1", parent: "V:bonus-07-q" }),
+  ...["idea-1", "idea-2", "ask-1"].map((c) =>
+    d({ id: `RC:w4/herd#${c}`, kind: "card", title: `Thundering herd card ${c}`, sub: "Revision · W04 · DAY 03 · Thundering Herd", href: `/learn/revise/week-04/herd?card=${c}`, text: "thundering herd: coalesce the refills", parent: "L:w4/herd" }),
+  ),
+  d({ id: "T:w5/conflicts#dynamo", kind: "trail", title: "Amazon's Dynamo", sub: "Paper · Amazon · for Conflict Resolution", href: `/learn/reading#${trailAnchor("w5/conflicts", "dynamo")}`, text: "Amazon's highly available key-value store: sloppy quorums, hinted handoff, vector clocks.", kw: "Amazon · SOSP · vector clocks", parent: "L:w5/conflicts" }),
+  d({ id: "L:w5/conflicts", kind: "lesson", title: "Conflict Resolution", text: "last write wins, version vectors and CRDTs", href: "/learn/c/w5/conflicts" }),
+];
+const extra = new SmartEngine(lessonDocs, "test-extra");
+ok("a question only a lecture FAQ answers finds it, at its chapter of the lecture", () => {
+  const r = extra.search("why does jitter on the ttl help", { live });
+  const top = r.groups.flatMap((g) => g.hits).sort((a, b) => b.score - a.score)[0];
+  assert.equal(top?.id, "LQ:w4--herd@midnight:1");
+  assert.equal(top.href, "/learn/lectures/w4--herd?at=midnight");
+  assert.equal(top.sub, "Thundering herd: taming the stampede · Midnight expiry");
+});
+ok("a lecture FAQ goes with its lecture: gone or hidden, it never comes back", () => {
+  assert.equal(extra.doc("LQ:gone@x:1"), null);
+  const ids = extra.search("jitter ttl", { live }).groups.flatMap((g) => g.hits.map((h) => h.id));
+  assert.ok(!ids.includes("LQ:bonus-07-q@a:1") && !ids.includes("LQ:gone@x:1"), ids.join(" "));
+});
+ok("a reading-trail query finds the write-up, at its card on /learn/reading", () => {
+  const r = extra.search("dynamo paper", { live });
+  assert.ok(r.intents.includes("read"));
+  assert.equal(r.groups[0]?.kind, "trail");
+  assert.equal(r.groups[0].hits[0].href, "/learn/reading#trail-w5--conflicts--dynamo");
+  assert.ok(/^trail-[^\s#/]+$/.test(trailAnchor("week-05-consistency/day-04-conflicts", "dynamo-paper")));
+});
+ok("lecture FAQs and revision cards help without drowning the lesson", () => {
+  const r = extra.search("thundering herd", { live });
+  const flat = r.groups.flatMap((g) => g.hits).sort((a, b) => b.score - a.score);
+  assert.ok(["lesson", "section", "lecture"].includes(flat[0].kind), flat[0].kind);
+  // at most two per lecture or lesson in the results, two of each in the AI's candidates
+  assert.ok((r.groups.find((g) => g.kind === "lfaq")?.hits.length ?? 0) <= 2);
+  assert.ok((r.groups.find((g) => g.kind === "card")?.hits.length ?? 0) <= 2);
+  for (const k of ["lfaq", "card", "trail"]) assert.ok(r.candidates.filter((c) => c.doc.kind === k).length <= 2, k);
+});
+ok("a revision ask finds the cards, each opening its deck at the card", () => {
+  const r = extra.search("revise thundering herd", { live });
+  assert.ok(r.intents.includes("revise"));
+  const cards = r.groups.find((g) => g.kind === "card")?.hits ?? [];
+  assert.ok(cards.length > 0 && cards.every((h) => /^\/learn\/revise\/week-04\/herd\?card=(idea|ask)-\d$/.test(h.href)));
+});
+
 ok("a real term the synonym map names is never 'fixed' into another word", () => {
   const e = new SmartEngine([d({ id: "L:w/h", kind: "lesson", title: "Held", text: "held held held" }), d({ id: "L:w/i", kind: "lesson", title: "held", text: "held" }), d({ id: "L:w/j", kind: "lesson", title: "held", text: "held" })], "t");
   assert.deepEqual(e.analyse("helm charts").fixes, []);

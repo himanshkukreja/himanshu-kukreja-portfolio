@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useConnectivity } from "@/lib/offline/connectivity";
-import { TRAIL_TYPES, TRAIL_TYPE_LABEL, type TrailEntry, type TrailIndexGroup, type TrailType } from "@/lib/learn/trail/types";
+import { trailAnchor, TRAIL_TYPES, TRAIL_TYPE_LABEL, type TrailEntry, type TrailIndexGroup, type TrailType } from "@/lib/learn/trail/types";
 import TrailCard from "./TrailCard";
 import { useTrailReads } from "./useTrailReads";
 
@@ -158,7 +158,7 @@ export default function TrailIndex({ groups, total }: Props) {
               </Link>
               <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(min(320px,100%),1fr))]">
                 {l.entries.map((e) => (
-                  <TrailCard key={e.id} entry={e} lesson={l.key} read={isRead(l.key, e.id)} onToggleRead={() => toggle(l.key, e.id)} offline={offline} surface="index" />
+                  <TrailCard key={e.id} entry={e} lesson={l.key} read={isRead(l.key, e.id)} onToggleRead={() => toggle(l.key, e.id)} offline={offline} surface="index" anchor={trailAnchor(l.key, e.id)} />
                 ))}
               </div>
             </div>

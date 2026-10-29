@@ -40,20 +40,27 @@ const PRIOR: Record<Kind, number> = {
   war: 0.9,
   concept: 1.2,
   faq: 0.7,
+  // thousands of short pre-written answers, one chapter each: they help a narrow question, never lead a topic
+  lfaq: 0.55,
   lab: 1.05,
   drill: 0.7,
   sheet: 0.85,
+  // a few dense lines each (BM25 favours short texts), one per idea: below the lesson that teaches it
+  card: 0.65,
+  // an outside write-up the lesson points to (a paper, an engineering blog, a postmortem)
+  trail: 0.75,
   company: 1.0,
 };
 
 /** What a query can say about the kind of resource it wants, and the kinds that gain. */
 const INTENTS: { id: string; re: RegExp; boost: Partial<Record<Kind, number>> }[] = [
   { id: "video", re: /\b(videos?|watch|lectures?|visual(ly)?|animat\w*|explainer)\b/, boost: { moment: 1.9, lecture: 1.9, short: 1.5 } },
-  { id: "quick", re: /\b(quick(ly)?|shorts?|reels?|tl ?dr|\d+ ?min(ute)?s?|in a hurry|only have)\b/, boost: { short: 1.6, concept: 1.3, sheet: 1.3, lecture: 1.1 } },
-  { id: "interview", re: /\b(interviews?|interviewing|onsite|hiring|sde ?\d?|faang|offer|recruiter|panel)\b/, boost: { company: 1.6, mock: 1.5, problem: 1.35, drill: 1.4, lld: 1.15, faq: 1.1 } },
+  { id: "quick", re: /\b(quick(ly)?|shorts?|reels?|tl ?dr|\d+ ?min(ute)?s?|in a hurry|only have)\b/, boost: { short: 1.6, concept: 1.3, sheet: 1.3, card: 1.2, lecture: 1.1 } },
+  { id: "interview", re: /\b(interviews?|interviewing|onsite|hiring|sde ?\d?|faang|offer|recruiter|panel)\b/, boost: { company: 1.6, mock: 1.5, problem: 1.35, drill: 1.4, lld: 1.15, faq: 1.1, card: 1.15 } },
   { id: "practice", re: /\b(practi[cs]e|hands ?on|code|coding|implement\w*|build it|labs?|exercises?|drills?)\b/, boost: { lab: 1.8, drill: 1.5, lld: 1.2, mock: 1.2 } },
-  { id: "revise", re: /\b(revise|revision|cheat ?sheets?|recap|refresher|one ?pager|summary|summari[sz]e)\b/, boost: { sheet: 1.7, concept: 1.4, short: 1.2 } },
-  { id: "real", re: /\b(outages?|incidents?|war ?stor(y|ies)|post ?mortems?|real ?world|in production|actually happened|case ?(file|stud(y|ies)))\b/, boost: { war: 1.8, case: 1.6 } },
+  { id: "revise", re: /\b(revise|revision|cheat ?sheets?|recap|refresher|one ?pager|summary|summari[sz]e)\b/, boost: { sheet: 1.7, card: 1.7, concept: 1.4, short: 1.2 } },
+  { id: "real", re: /\b(outages?|incidents?|war ?stor(y|ies)|post ?mortems?|real ?world|in production|actually happened|case ?(file|stud(y|ies)))\b/, boost: { war: 1.8, case: 1.6, trail: 1.3 } },
+  { id: "read", re: /\b(papers?|whitepapers?|blogs?|blog posts?|engineering blogs?|articles?|write ?ups?|further reading|reading (list|trail)|what (should|to) i read)\b/, boost: { trail: 1.9 } },
   { id: "lld", re: /\b(lld|low ?level|machine ?coding|class(es)? design|oop|object ?oriented)\b/, boost: { lld: 1.8 } },
   { id: "beginner", re: /\b(beginners?|new to|basics?|intro(duction)?|from scratch|fundamentals?|eli5|start(ing)? out|where (do|should) i start|teach me system design|learn system design)\b/, boost: { lesson: 1.25, concept: 1.2 } },
 ];
@@ -169,20 +176,22 @@ export class SmartEngine {
 
   /**
    * Fills in what the index rows leave out to stay small: a section's, FAQ's or drill's link ("#id" on its
-   * lesson), its place ("W04 · DAY 03 · Thundering Herd") and a summary from its text. A row whose lesson
-   * is missing (hidden since) is dropped.
+   * lesson; a lecture FAQ's "?at=<chapter>" on its lecture), its place ("W04 · DAY 03 · Thundering Herd")
+   * and a summary from its text. A row whose lesson or lecture is missing (hidden since) is dropped.
    */
   static resolve(input: Doc[]): Doc[] {
     const byId = new Map(input.map((d) => [d.id, d]));
     const out: Doc[] = [];
     for (const d of input) {
       const p = d.parent ? byId.get(d.parent) : undefined;
-      if (d.href.startsWith("#")) {
+      if (d.href.startsWith("#") || d.href.startsWith("?")) {
         if (!p) continue;
         d.href = `${p.href}${d.href}`;
       }
       if (p && d.kind === "section" && !d.sub) d.sub = `${p.sub.split(" · ")[0]} · ${p.title}`;
       else if (p && (d.kind === "faq" || d.kind === "drill") && !d.sub.includes(" · ")) d.sub = `${d.sub} · ${p.title}`;
+      // a lecture FAQ's row holds its chapter's title: "<lecture> · <chapter>"
+      else if (p && d.kind === "lfaq" && !d.sub.startsWith(p.title)) d.sub = d.sub ? `${p.title} · ${d.sub}` : p.title;
       if (!d.summary) d.summary = lead(d.text, 180);
       out.push(d);
     }
@@ -508,7 +517,7 @@ export class SmartEngine {
    * names comes first, and its study path (the articles its questions link to) is kept in the list.
    */
   candidates(ranked: Ranked[], named: number[] = [], n = 40): Ranked[] {
-    const cap: Partial<Record<Kind, number>> = { moment: 8, section: 10, faq: 3, short: 3, drill: 3, lecture: 4, war: 3, case: 3, sheet: 3, company: 2 };
+    const cap: Partial<Record<Kind, number>> = { moment: 8, section: 10, faq: 3, lfaq: 2, short: 3, drill: 3, lecture: 4, war: 3, case: 3, sheet: 3, card: 2, trail: 2, company: 2 };
     const perKind = new Map<Kind, number>();
     const perParent = new Map<string, number>();
     const out: Ranked[] = [];
@@ -563,7 +572,7 @@ export class SmartEngine {
     const { a, ranked } = this.rank(q, opts);
     const terms = [...new Set([...a.terms, ...a.qt.map((x) => x.t)])];
     const top = ranked[0]?.score ?? 0;
-    const LIMIT: Partial<Record<Kind, number>> = { section: 8, moment: 8, faq: 5, lesson: 6 };
+    const LIMIT: Partial<Record<Kind, number>> = { section: 8, moment: 8, faq: 5, lfaq: 4, card: 4, trail: 4, lesson: 6 };
     const groups = new Map<Kind, Hit[]>();
     const perParent = new Map<string, number>();
     for (const r of ranked) {
@@ -571,7 +580,7 @@ export class SmartEngine {
       const k = r.doc.kind;
       const g = groups.get(k) ?? [];
       if (g.length >= (LIMIT[k] ?? 6)) continue;
-      if (k === "moment" || k === "section" || k === "faq") {
+      if (k === "moment" || k === "section" || k === "faq" || k === "lfaq" || k === "card" || k === "trail") {
         const c = perParent.get(`${k}:${r.doc.parent}`) ?? 0;
         if (c >= 2) continue;
         perParent.set(`${k}:${r.doc.parent}`, c + 1);

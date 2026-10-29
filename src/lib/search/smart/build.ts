@@ -1,24 +1,33 @@
 import "server-only";
 /**
- * Builds smart search's document index, in three parts served by /api/search/index/<part> (each about
- * 2 MB, well under the 4.5 MB response cap, and built separately so none does another's work):
+ * Builds smart search's document index, in five parts served by /api/search/index/<part> (each 2-2.5 MB,
+ * well under the 4.5 MB response cap, and built separately so none does another's work):
  *   a: the core course lessons (weeks 0-11, bosses, the plan) and each of their sections
  *   b: side quests, interview problems and LLD rounds, and each of their sections
  *   c: lesson FAQs, follow-up drills, lectures, case files, mock interviews, war stories and war rooms,
- *      concepts, code labs, design sheets and companies
+ *      concepts, code labs, design sheets, companies, revision cards and the reading trail
+ *   d: the course lectures' FAQs ("Learners often ask here", one row per question)
+ *   e: every other lecture's FAQs (side quests, problems, LLD, case files, mock interviews, war stories)
  * Lecture moments and shorts are not here: they come from the ⌘K transcript index (/api/search/transcripts).
  *
  * Only what learners can see: side quests come from the course map, which already leaves out hidden and
- * scheduled ones (publishing controls), and their sheets, drills, FAQs and lectures go with them. Quest
- * entries also carry their control key (`gate`), checked again on every query.
+ * scheduled ones (publishing controls), and their sheets, drills, FAQs, lectures, lecture FAQs, trail
+ * entries go with them. Quest entries also carry their control key (`gate`), checked again on every query.
+ * Unreleased work ("-next" folders, only ever in a local checkout) is left out.
  *
  * Rows are kept small: a section's link, place and summary are filled in from its lesson when the engine
- * loads (see SmartEngine.resolve), so they aren't repeated thousands of times.
+ * loads (see SmartEngine.resolve), so they aren't repeated thousands of times; a lecture FAQ's likewise
+ * from its lecture (a row whose lecture isn't in the index is dropped there).
  */
 import { fetchGitHubContent, fetchMarkdownContent, getAllLearningResources, isContentMissing, type LearningResource } from "@/lib/github";
 import { getCourseMap } from "@/lib/learn/course";
 import type { CourseLesson, CourseMap } from "@/lib/learn/types";
-import { listLectures } from "@/lib/learn/lecture/load";
+import { getLecture, listLectures } from "@/lib/learn/lecture/load";
+import { getLectureFaq } from "@/lib/learn/lecture/faq";
+import { getTrailIndex } from "@/lib/learn/trail/load";
+import { trailAnchor, TRAIL_TYPE_LABEL } from "@/lib/learn/trail/types";
+import { getRevisionWeeks } from "@/lib/learn/revision/load";
+import { plain, type RevCard } from "@/lib/learn/revision/parse";
 import { listStorySources } from "@/lib/stories";
 import { loadMockSources, plainText } from "@/lib/learn/mock/load";
 import { getWarStories } from "@/lib/learn/war/load";
@@ -32,16 +41,20 @@ import { DRILLS_DIR, parseDrills } from "@/lib/learn/drills/parse";
 import type { LessonKind } from "@/lib/course/types";
 import { lessonSections } from "./sections";
 import { lead, mdPlain } from "./text";
-import { docToRow, type Doc, type DocIndex, type Kind } from "./types";
+import { docToRow, INDEX_PARTS, type Doc, type DocIndex, type IndexPart, type Kind } from "./types";
 
-export const INDEX_PARTS = ["a", "b", "c"] as const;
-export type IndexPart = (typeof INDEX_PARTS)[number];
+export { INDEX_PARTS, type IndexPart };
 
 /** what the server keeps of each body to score (the page never downloads it) */
 const SECTION_CHARS = 1200;
 const DOC_CHARS = 3000;
 /** sections shorter than this are left out (a heading with one line under it) */
 const MIN_SECTION = 90;
+/** a lecture FAQ's answer, as scored (they are a few sentences; the odd long one is cut) */
+const LFAQ_CHARS = 600;
+
+/** unreleased work in progress: a "-next" week folder (never on main; present in a local checkout) */
+const unreleased = (key: string) => /-next(?:--|\/|$)/.test(key);
 
 async function pool<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out = new Array<R>(items.length);
@@ -90,8 +103,7 @@ async function courseLessons(): Promise<{ map: CourseMap; lessons: Lesson[]; byH
   const byKey = new Map(resources.map((r) => [`${r.week}/${r.slug}`, r]));
   const lessons: Lesson[] = [];
   const add = (l: CourseLesson | null, kind: Kind, place: string) => {
-    // a "-next" folder is unreleased work in progress (never on main; present in a local checkout)
-    if (l && /-next$/.test(l.week)) return;
+    if (l && unreleased(l.week)) return;
     const r = l && byKey.get(`${l.week}/${l.slug}`);
     if (l && r) lessons.push({ l, r, kind, place });
   };
@@ -186,7 +198,7 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
   // lectures (their moments come from the transcript index)
   for (const v of await listLectures().catch(() => [])) {
     const quest = v.track === "quests";
-    if (quest && !live.has(v.slug)) continue;
+    if ((quest && !live.has(v.slug)) || unreleased(v.slug)) continue;
     docs.push(
       doc({
         id: `V:${v.slug}`,
@@ -331,11 +343,117 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
       }),
     );
   });
+
+  // the reading trail (/learn/reading): each write-up, opened at its card there
+  const kindOf = new Map(lessons.map((x) => [`${x.l.week}/${x.l.slug}`, x.kind]));
+  const trail = await getTrailIndex().catch(() => ({ groups: [] }));
+  // a write-up several lessons cite is one result, at its first card (course order: worlds, then side quests)
+  const byUrl = new Map<string, Doc>();
+  for (const g of trail.groups) {
+    for (const l of g.lessons) {
+      const k = kindOf.get(l.key);
+      if (!k) continue; // not a lesson the index has (unreleased, hidden)
+      for (const e of l.entries) {
+        const gate = k === "quest" ? `quest:${l.slug}` : "";
+        const first = byUrl.get(e.url);
+        if (first && (!first.gate || first.gate === gate)) continue;
+        const d = doc({
+          id: `T:${l.key}#${e.id}`,
+          kind: "trail",
+          title: e.title,
+          sub: `${TRAIL_TYPE_LABEL[e.type]} · ${e.company} · for ${l.title}`,
+          href: `/learn/reading#${trailAnchor(l.key, e.id)}`,
+          summary: lead(e.summary.idea, 200),
+          text: `${e.summary.what} ${e.summary.idea} ${e.summary.connects} Taught here: ${e.concept}.`,
+          kw: [e.company, e.publisher, e.concept, ...e.authors.slice(0, 3)].filter(Boolean).join(" · "),
+          gate,
+          parent: lessonId(l.week, l.slug),
+        });
+        docs.push(d);
+        byUrl.set(e.url, d);
+      }
+    }
+  }
+
+  // revision cards (/learn/revise/<world>/<lesson>), each opened at its card in the lesson's deck
+  for (const w of await getRevisionWeeks().catch(() => [])) {
+    for (const l of w.lessons) {
+      if (!kindOf.has(`${w.key}/${l.slug}`)) continue;
+      for (const c of l.cards) {
+        const generic = c.kind === "numbers" || c.kind === "mistakes";
+        docs.push(
+          doc({
+            id: `RC:${w.key}/${l.slug}#${c.id}`,
+            kind: "card",
+            title: generic ? `${plain(c.title)}: ${l.title}` : plain(c.title),
+            sub: `Revision · ${l.tag} · ${l.title}`,
+            href: `/learn/revise/${w.id}/${encodeURIComponent(l.slug)}?card=${encodeURIComponent(c.id)}`,
+            text: cardText(c),
+            parent: lessonId(w.key, l.slug),
+          }),
+        );
+      }
+    }
+  }
   return { docs, syn };
 }
 
+/** A revision card's words as plain text (a table row reads "option: cell; cell"). */
+function cardText(c: RevCard): string {
+  switch (c.kind) {
+    case "idea":
+    case "ask":
+      return plain(c.text);
+    case "numbers":
+      return c.items.map((i) => `${plain(i.value)}: ${plain(i.label)}.`).join(" ");
+    case "mistakes":
+      return c.items.map((i) => `${plain(i).replace(/[.\s]+$/, "")}.`).join(" ");
+    case "tradeoff":
+      return [`${c.head.map(plain).join(" vs ")}.`, ...c.rows.map((r) => `${plain(r[0])}: ${r.slice(1).map(plain).join("; ")}.`), plain(c.note)].join(" ").trim();
+  }
+}
+
+/**
+ * Parts d and e: the lecture FAQs ("Learners often ask here", resources/lecture-faq/<lecture>.json), one row
+ * per question, linked to its chapter (?at=<scene id>, where the player's Ask panel shows it). Only released
+ * lectures the index lists, and only chapters the lecture still has (the player shows no others).
+ */
+async function lectureFaqPart(course: boolean): Promise<{ docs: Doc[]; syn: string[][] }> {
+  const [lectures, map] = await Promise.all([listLectures(), getCourseMap()]);
+  if (!map) throw new Error("course map unavailable");
+  const live = new Set(map.sideQuests.map((q) => q.slug));
+  const docs: Doc[] = [];
+  const picked = lectures.filter((v) => (v.track === "course") === course && !unreleased(v.slug) && (v.track !== "quests" || live.has(v.slug)));
+  await pool(picked, 8, async (v) => {
+    const [faq, lec] = await Promise.all([getLectureFaq(v.slug).catch(() => null), getLecture(v.slug).catch(() => null)]);
+    if (!faq || !lec) return;
+    const gate = v.track === "quests" ? `quest:${v.slug}` : "";
+    for (const s of lec.scenes) {
+      const items = faq.scenes[s.id];
+      if (!Array.isArray(items)) continue;
+      items.forEach((it, k) => {
+        if (typeof it?.q !== "string" || typeof it?.a !== "string" || !it.q.trim() || !it.a.trim()) return;
+        docs.push(
+          doc({
+            id: `LQ:${v.slug}@${s.id}:${k + 1}`,
+            kind: "lfaq",
+            title: mdPlain(it.q),
+            // the chapter; "<lecture> · " is put in front when the engine loads
+            sub: mdPlain(s.title || ""),
+            href: `?at=${encodeURIComponent(s.id)}`,
+            text: mdPlain(it.a).slice(0, LFAQ_CHARS),
+            gate,
+            parent: `V:${v.slug}`,
+          }),
+        );
+      });
+    }
+  });
+  return { docs, syn: [] };
+}
+
 export async function buildDocIndex(part: IndexPart): Promise<DocIndex> {
-  const { docs, syn } = part === "c" ? await partC() : await lessonPart(part === "a");
+  const { docs, syn } = part === "c" ? await partC() : part === "d" || part === "e" ? await lectureFaqPart(part === "d") : await lessonPart(part === "a");
   // a stable order (the pools finish in any order)
   docs.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
   return { v: 1, built: new Date().toISOString(), d: docs.map(docToRow), syn };

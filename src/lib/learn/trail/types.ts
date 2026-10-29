@@ -77,6 +77,12 @@ export type TrailIndexGroup = {
   lessons: TrailIndexLesson[];
 };
 
+/**
+ * The id of an entry's card on /learn/reading ("trail-<week folder>--<lesson slug>--<entry id>"), so a link
+ * (smart search's results) can open the page at that card.
+ */
+export const trailAnchor = (lesson: TrailLessonKey, entry: string) => `trail-${lesson.replace("/", "--")}--${entry}`;
+
 /** Game-flag key holding a lesson's read marks: { [entryId]: epochMs }. Synced for signed-in learners. */
 export const trailFlagKey = (lesson: TrailLessonKey) => `trail:${lesson}`;
 

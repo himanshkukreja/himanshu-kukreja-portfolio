@@ -88,6 +88,17 @@ export default function RevisionDeck({ course, week, lesson, exitHref, exitLabel
     };
   }, []);
 
+  // a deep link to one card (?card=<card id>, from smart search) opens the deck at that card, once
+  useEffect(() => {
+    const want = new URLSearchParams(window.location.search).get("card");
+    const k = want ? items.findIndex((it) => it.lesson.cards[it.idx]?.id === want) : -1;
+    if (k <= 0) return;
+    const id = window.setTimeout(() => setPos(k), 0);
+    return () => window.clearTimeout(id);
+    // the cards in their natural order, as the page first renders them
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     track("revise_open", { week: week.key, mode, ...(lesson ? { lesson } : {}), cards: items.length });
     // once per deck page

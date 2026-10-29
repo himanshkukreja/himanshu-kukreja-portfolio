@@ -18,9 +18,12 @@ export const KINDS = [
   "war",
   "concept",
   "faq",
+  "lfaq",
   "lab",
   "drill",
   "sheet",
+  "card",
+  "trail",
   "company",
 ] as const;
 export type Kind = (typeof KINDS)[number];
@@ -40,9 +43,12 @@ export const KIND_LABEL: Record<Kind, { group: string; tag: string }> = {
   war: { group: "War stories", tag: "War story" },
   concept: { group: "Concepts", tag: "Concept" },
   faq: { group: "Lesson FAQs", tag: "FAQ" },
+  lfaq: { group: "Lecture FAQs", tag: "Lecture FAQ" },
   lab: { group: "Code labs", tag: "Lab" },
   drill: { group: "Follow-up drills", tag: "Drill" },
   sheet: { group: "Design sheets", tag: "Sheet" },
+  card: { group: "Revision cards", tag: "Revision card" },
+  trail: { group: "Reading trail", tag: "Reading" },
   company: { group: "Companies", tag: "Company" },
 };
 
@@ -64,10 +70,17 @@ export type Doc = {
   kw: string;
   gate: string;
   rel: string[];
-  /** the lesson a section, FAQ or drill sits in; the lecture a moment belongs to */
+  /** the lesson a section, FAQ, drill, revision card or reading-trail entry sits in; the lecture a moment or lecture FAQ belongs to */
   parent: string;
   at: number;
 };
+
+/**
+ * The index parts, each served by /api/search/index/<part> (see build.ts for what each holds). Here, not
+ * in build.ts, so scripts that can't import server code (the eval) can list them too.
+ */
+export const INDEX_PARTS = ["a", "b", "c", "d", "e"] as const;
+export type IndexPart = (typeof INDEX_PARTS)[number];
 
 /** Wire format of /api/search/index (arrays, not objects: it is ~2-3 MB). */
 export type DocRow = [id: string, kind: Kind, title: string, sub: string, href: string, summary: string, text: string, kw: string, gate: string, rel: string[], parent: string];

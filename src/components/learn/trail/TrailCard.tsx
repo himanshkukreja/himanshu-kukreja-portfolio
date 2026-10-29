@@ -14,6 +14,8 @@ type Props = {
   offline: boolean;
   /** where the card is shown, for analytics */
   surface: "lesson" | "index";
+  /** the card's id on /learn/reading (trailAnchor), so links can open the page at it */
+  anchor?: string;
 };
 
 const LINES: { key: keyof TrailEntry["summary"]; label: string }[] = [
@@ -22,12 +24,13 @@ const LINES: { key: keyof TrailEntry["summary"]; label: string }[] = [
   { key: "connects", label: "Why here" },
 ];
 
-export default function TrailCard({ entry, lesson, read, onToggleRead, offline, surface }: Props) {
+export default function TrailCard({ entry, lesson, read, onToggleRead, offline, surface, anchor }: Props) {
   const byline = [entry.authors.length > 3 ? `${entry.authors.slice(0, 2).join(", ")} et al.` : entry.authors.join(", "), entry.year ? String(entry.year) : ""].filter(Boolean).join(" · ");
   const open = () => track("trail_open", { lesson, url: entry.url, id: entry.id, company: entry.company, surface, offline });
   return (
     <article
-      className={`flex h-full flex-col gap-3 border bg-surface p-[18px] text-fg ${read ? "border-line" : "border-line-strong"}`}
+      id={anchor}
+      className={`flex h-full scroll-mt-24 flex-col gap-3 border bg-surface p-[18px] text-fg ${read ? "border-line" : "border-line-strong"}`}
       data-hk-trail-entry={entry.id}
     >
       <header className="flex flex-col gap-2">

@@ -1,4 +1,4 @@
-import { BookOpen, Building2, Clapperboard, Compass, Dumbbell, FileText, FlaskConical, Flame, FolderOpen, Hash, HelpCircle, Lightbulb, MessagesSquare, PlayCircle, Smartphone, Target, Boxes, type LucideIcon } from "lucide-react";
+import { BookOpen, Building2, Clapperboard, Compass, Dumbbell, FileText, FlaskConical, Flame, FolderOpen, Hash, HelpCircle, Layers, Lightbulb, MessageCircleQuestion, MessagesSquare, Newspaper, PlayCircle, Smartphone, Target, Boxes, type LucideIcon } from "lucide-react";
 import type { Kind } from "@/lib/search/smart/types";
 
 const ICONS: Record<Kind, LucideIcon> = {
@@ -15,9 +15,12 @@ const ICONS: Record<Kind, LucideIcon> = {
   war: Flame,
   concept: Lightbulb,
   faq: HelpCircle,
+  lfaq: MessageCircleQuestion,
   lab: FlaskConical,
   drill: Dumbbell,
   sheet: FileText,
+  card: Layers,
+  trail: Newspaper,
   company: Building2,
 };
 
