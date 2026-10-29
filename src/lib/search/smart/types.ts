@@ -112,6 +112,9 @@ export type SmartResults = {
   built: string;
 };
 
+/** A run of the direct answer's plain text, or a citation (an index into SmartAnswer.cites). */
+export type AnswerPart = string | number;
+
 /** One step of the AI learning path, resolved against the index (never a link the model wrote). */
 export type PathStep = Hit & { why: string };
 /** POST /api/learn/ai/search */
@@ -122,6 +125,13 @@ export type SmartAnswer = {
   scope: "covered" | "partial" | "off_topic";
   /** for partial / off_topic: an honest line about what the course does and doesn't have */
   note: string;
+  /**
+   * The direct answer to the query (2-5 sentences, from the candidates only), as plain-text runs and
+   * citations: a number is an index into `cites`. [] when there is none (off-topic, or nothing it could cite).
+   */
+  answer: AnswerPart[];
+  /** the candidates the answer cites, resolved against the index like the path's steps (never a model-written link) */
+  cites: Hit[];
   path: PathStep[];
   quick: PathStep | null;
   /** answered from the per-query cache (no credits used) */

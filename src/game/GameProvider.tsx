@@ -5,6 +5,7 @@ import { LEVELS, QUEST_BY_ID, QUESTS, levelIndex } from "./catalog";
 import { useAuth } from "@/contexts/AuthContext";
 import { useGameSync } from "./useGameSync";
 import { track } from "@/lib/track";
+import { mergeSavedPathFlags } from "@/lib/learn/saved-paths";
 
 const STORAGE_KEY = "hk.game.v1";
 
@@ -76,6 +77,29 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       // storage can be unavailable (private mode); the game still works for this visit
     }
   }, [state, hydrated]);
+
+  // Another tab saved, ticked or removed a learning path: adopt the newer copy, so this tab shows it and
+  // doesn't write it away with its own older state (the rest of the state stays this tab's, as before).
+  useEffect(() => {
+    if (!hydrated) return;
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== STORAGE_KEY || !e.newValue) return;
+      let other: Record<string, unknown> = {};
+      try {
+        other = (JSON.parse(e.newValue) as Partial<Persisted>).flags || {};
+      } catch {
+        return;
+      }
+      const cur = stateRef.current;
+      const flags = mergeSavedPathFlags(cur.flags, other);
+      if (flags !== cur.flags) {
+        stateRef.current = { ...cur, flags };
+        setState(stateRef.current);
+      }
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [hydrated]);
 
   const pushToast = useCallback((xp: number, text: string, levelUp: boolean) => {
     const id = ++toastId.current;

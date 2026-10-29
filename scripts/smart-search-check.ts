@@ -10,7 +10,12 @@
  * - identical queries share one cache key; section anchors follow the renderer's id rules;
  * - lecture FAQs open their lecture at the chapter and go with it (gone or hidden: never returned), the
  *   reading trail opens /learn/reading at the write-up's card, revision cards open their deck at the card,
- *   and none of the three crowds out the lesson.
+ *   and none of the three crowds out the lesson;
+ * - the direct answer cites candidates only (resolved against the index, unknown ids dropped), is plain
+ *   text, capped, absent when off-topic or when nothing it says is cited;
+ * - every instant example reads as a keyword search (it can't start the AI path on its own);
+ * - saved learning paths keep only site links, merge newest-first across devices, and a lesson step
+ *   maps to its lesson's progress key.
  */
 import assert from "node:assert/strict";
 import { SmartEngine, transcriptDocs } from "@/lib/search/smart/engine";
@@ -19,6 +24,9 @@ import { lessonSections } from "@/lib/search/smart/sections";
 import { queryKey } from "@/lib/search/smart/text";
 import type { Doc } from "@/lib/search/smart/types";
 import { trailAnchor } from "@/lib/learn/trail/types";
+import { isNaturalQuery } from "@/lib/search/smart/text";
+import { EXAMPLE_CATEGORIES, SEARCH_EXAMPLES } from "@/lib/search/smart/examples";
+import { buildSavedPath, cleanSavedPath, lessonKeyOfStep, listSavedPaths, mergeGameFlags, mergeSavedPathFlags, removedSavedPath, savedPathId, savedPathKey } from "@/lib/learn/saved-paths";
 
 const d = (x: Partial<Doc> & Pick<Doc, "id" | "kind" | "title">): Doc => ({ sub: "", href: `/x/${x.id}`, summary: "", text: "", kw: "", gate: "", rel: [], parent: "", at: -1, ...x });
 let n = 0;
@@ -117,6 +125,97 @@ ok("invalid JSON is a failure the page survives", () => {
 ok("off-topic answers carry no path", () => {
   const p = parseSmartAnswer(JSON.stringify({ intent: "pizza", scope: "off_topic", note: "This course is about system design.", path: [{ id: "c1", why: "x" }], quick: { id: "c1", why: "x" } }), ids);
   assert.ok(p.ok && p.answer.path.length === 0 && p.answer.quick === null);
+});
+ok("the direct answer cites candidates only, numbered by first mention, links from the index", () => {
+  const p = parseSmartAnswer(
+    JSON.stringify({ intent: "i", scope: "covered", note: "", answer: "Keys that expire together send every request to the database [c1]. One request refills the cache while others wait [c2, c99]. Again [c1].", path: [{ id: "c1", why: "x" }], quick: null }),
+    ids,
+  );
+  assert.ok(p.ok);
+  if (!p.ok) return;
+  const { answer, cites } = p.answer;
+  assert.equal(cites.length, 2);
+  assert.deepEqual(answer.filter((x) => typeof x === "number"), [0, 1, 0]);
+  assert.ok(cites.every((c) => c.href === engine.doc(c.id)?.href));
+  assert.ok(p.dropped.includes("c99"));
+  assert.equal(answer[0], "Keys that expire together send every request to the database");
+  assert.ok(!answer.some((x) => typeof x === "string" && /\[|\]|\bc\d/.test(x)), JSON.stringify(answer));
+});
+ok("an answer is plain text, capped, and dropped when it cites nothing real", () => {
+  const long = Array.from({ length: 12 }, (_, i) => `Sentence ${i} says something about the cache **here** <b>x</b> https://evil.example [c1].`).join(" ");
+  const p = parseSmartAnswer(JSON.stringify({ intent: "i", scope: "covered", note: "", answer: long, path: [{ id: "c1", why: "x" }], quick: null }), ids);
+  assert.ok(p.ok);
+  if (!p.ok) return;
+  const text = p.answer.answer.filter((x) => typeof x === "string").join("");
+  assert.ok(text.length <= 760 && !/https?:|<|>|\*\*/.test(text), text);
+  assert.ok(p.answer.answer.filter((x) => typeof x === "number").length <= 6);
+  const none = parseSmartAnswer(JSON.stringify({ intent: "i", scope: "covered", note: "", answer: "Caches are fast [c42]. Use Redis.", path: [{ id: "c1", why: "x" }], quick: null }), ids);
+  assert.ok(none.ok && none.answer.answer.length === 0 && none.answer.cites.length === 0);
+  const old = parseSmartAnswer(JSON.stringify({ intent: "i", scope: "covered", note: "", path: [{ id: "c1", why: "x" }], quick: null }), ids);
+  assert.ok(old.ok && Array.isArray(old.answer.answer) && old.answer.answer.length === 0);
+});
+ok("an answer keeps every word: decimals and citations after a full stop don't split or drop text", () => {
+  const p = parseSmartAnswer(JSON.stringify({ intent: "i", scope: "covered", note: "", answer: "It needs about 9.6 bits per key [c1]. Roughly 6.3 million users. [c2] Done.", path: [{ id: "c1", why: "x" }], quick: null }), ids);
+  assert.ok(p.ok);
+  if (!p.ok) return;
+  assert.deepEqual(p.answer.answer, ["It needs about 9.6 bits per key", 0, ". Roughly 6.3 million users.", 1]);
+});
+ok("a covered answer keeps only cited sentences; a partial one keeps its honest uncited line", () => {
+  const a = "A circuit breaker fails fast [c1]. I can't share that link, and the course isn't shutting down.";
+  const covered = parseSmartAnswer(JSON.stringify({ intent: "i", scope: "covered", note: "", answer: a, path: [{ id: "c1", why: "x" }], quick: null }), ids);
+  assert.ok(covered.ok && covered.answer.answer.join("") === "A circuit breaker fails fast0.", JSON.stringify(covered.ok && covered.answer.answer));
+  const partial = parseSmartAnswer(JSON.stringify({ intent: "i", scope: "partial", note: "n", answer: "The course has no lesson on Helm yet. Rolling deploys replace instances a few at a time [c1].", path: [{ id: "c1", why: "x" }], quick: null }), ids);
+  assert.ok(partial.ok && String(partial.answer.answer[0]).startsWith("The course has no lesson on Helm yet."));
+});
+ok("off-topic: no answer, whatever the model wrote", () => {
+  const p = parseSmartAnswer(JSON.stringify({ intent: "pizza", scope: "off_topic", note: "This course is about system design.", answer: "Try the place near the station [c1].", path: [], quick: null }), ids);
+  assert.ok(p.ok && p.answer.answer.length === 0 && p.answer.cites.length === 0);
+});
+ok("instant examples read as keyword searches; every category has examples", () => {
+  for (const x of SEARCH_EXAMPLES) {
+    if (!x.ai) assert.equal(isNaturalQuery(x.text), false, `instant example would start the AI path: ${x.text}`);
+    assert.ok(EXAMPLE_CATEGORIES.some((c) => c.id === x.category && c.ai === x.ai), x.text);
+  }
+  for (const c of EXAMPLE_CATEGORIES) assert.ok(SEARCH_EXAMPLES.some((x) => x.category === c.id), c.id);
+});
+ok("saved paths keep only site links and index steps; the same search saves to one id", () => {
+  const steps = [
+    { id: "L:week-04/day-03-herd", kind: "lesson" as const, title: "Thundering Herd", sub: "W04", href: "/learn/c/week-04/day-03-herd", summary: "", at: -1, score: 1, why: "the idea" },
+    { id: "M:x@83", kind: "moment" as const, title: "Moment", sub: "", href: "/learn/lectures/x?t=83&autoplay=1", summary: "", at: 83, score: 1 },
+    { id: "X:evil", kind: "lesson" as const, title: "Evil", sub: "", href: "javascript:alert(1)", summary: "", at: -1, score: 1 },
+    { id: "X:ext", kind: "lesson" as const, title: "Ext", sub: "", href: "//evil.example/a", summary: "", at: -1, score: 1 },
+  ];
+  const p = buildSavedPath({ source: "path", q: "Thundering herd?", title: "Stop stampedes", steps }, 1000);
+  assert.ok(p);
+  if (!p) return;
+  assert.deepEqual(p.steps.map((s) => s.id), ["L:week-04/day-03-herd", "M:x@83"]);
+  assert.equal(p.id, savedPathId("path", "  thundering   HERD "));
+  assert.notEqual(p.id, savedPathId("results", "thundering herd"));
+  assert.equal(lessonKeyOfStep(p.steps[0]), "week-04/day-03-herd");
+  assert.equal(lessonKeyOfStep(p.steps[1]), null);
+  assert.equal(cleanSavedPath({ ...p, steps: [{ ...p.steps[0], kind: "nope" }] }), null);
+  // saved again later: ticks for steps it still has carry over
+  const again = buildSavedPath({ source: "path", q: "thundering herd", steps: steps.slice(0, 1) }, 2000, { ...p, ticks: { "L:week-04/day-03-herd": 1500, "M:x@83": 1600 } });
+  assert.deepEqual(again?.ticks, { "L:week-04/day-03-herd": 1500 });
+  assert.equal(again?.createdAt, 1000);
+});
+ok("saved paths merge newest-first across devices and tabs; removal sticks", () => {
+  const a = buildSavedPath({ source: "path", q: "caching", steps: [{ id: "K:cache", kind: "concept", title: "Cache", sub: "", href: "/learn/concepts/cache", summary: "", at: -1, score: 1 }] }, 1000)!;
+  const k = savedPathKey(a.id);
+  const ticked = { ...a, ticks: { "K:cache": 3000 }, updatedAt: 3000 };
+  // this browser's copy is older than the account's: the account's ticks win (other flags: this browser's, as before)
+  const m = mergeGameFlags({ [k]: ticked, theme: "remote" }, { [k]: a, theme: "local" }, false);
+  assert.deepEqual((m[k] as typeof a).ticks, { "K:cache": 3000 });
+  assert.equal(m.theme, "local");
+  // removed on another device later: a stale copy here doesn't bring it back
+  const gone = removedSavedPath(a, 4000);
+  assert.equal(listSavedPaths(mergeGameFlags({ [k]: gone }, { [k]: ticked }, false)).length, 0);
+  // saved on this device only: kept
+  assert.equal(listSavedPaths(mergeGameFlags({}, { [k]: ticked }, false)).length, 1);
+  // a path only one side has is kept; the same object comes back when nothing is newer
+  const base = { [k]: ticked };
+  assert.equal(mergeSavedPathFlags(base, { [k]: a }), base);
+  assert.ok(savedPathKey("x") in mergeSavedPathFlags(base, { [savedPathKey("x")]: { ...a, id: "x" } }));
 });
 ok("identical queries share one cache key", () => {
   assert.equal(queryKey("  Consistent   HASHING? "), queryKey("consistent hashing"));

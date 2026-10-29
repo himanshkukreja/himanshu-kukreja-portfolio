@@ -34,7 +34,7 @@ export const isPrep = (p: string) => PREP_RE.test(p) || PREP_LESSON_RE.test(p);
 const isArena = (p: string) => /^\/learn\/(arena|review|design-week)(\/|$)/.test(p);
 const isStories = (p: string) => /^\/learn\/war-stories(\/|$)/.test(p);
 const isShorts = (p: string) => /^\/learn\/shorts(\/|$)/.test(p);
-export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "mastery", "certificate"] as const;
+export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "saved", "mastery", "certificate"] as const;
 const isYou = (p: string) => new RegExp(`^/learn/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
 const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/learn\/(guide|offline|search)(\/|$)/.test(p);
 

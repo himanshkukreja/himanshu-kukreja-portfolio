@@ -29,8 +29,9 @@ function remember(key: string, a: Cached) {
 }
 
 /**
- * POST /api/learn/ai/search { q } → a learning path (3–7 steps) chosen only from the deterministic
- * search's candidates, each step resolved against the index. Signed-in learners (admins only while
+ * POST /api/learn/ai/search { q } → a short direct answer citing candidates, and a learning path (3–7
+ * steps), both from the same call and chosen only from the deterministic search's candidates, each step
+ * and citation resolved against the index. Signed-in learners (admins only while
  * SMART_SEARCH_PUBLIC is false), metered as "smart-search". The request holds the query and the
  * candidates, nothing about the learner.
  */
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
 
   const res = engine.search(q, { live });
   if (!res.candidates.length) {
-    const a: Cached = { intent: "", scope: "partial", note: "Nothing in the course matches this yet. Try other words, or a topic like caching, sharding or rate limiting.", path: [], quick: null };
+    const a: Cached = { intent: "", scope: "partial", note: "Nothing in the course matches this yet. Try other words, or a topic like caching, sharding or rate limiting.", answer: [], cites: [], path: [], quick: null };
     return NextResponse.json({ ...a, cached: false } satisfies SmartAnswer);
   }
 

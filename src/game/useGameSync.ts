@@ -6,6 +6,7 @@ import { isNetworkError, isOffline } from "@/lib/offline/connectivity";
 import { LEARN_XP } from "@/lib/learn/types";
 import { QUEST_BY_ID } from "./catalog";
 import { CERT_XP } from "@/lib/certificates/core";
+import { mergeGameFlags } from "@/lib/learn/saved-paths";
 
 type Snapshot = { xp: number; done: Record<string, number>; flags: Record<string, unknown> };
 
@@ -39,6 +40,8 @@ function xpOfKey(key: string): number {
  *   on another device used to merge reset lessons straight back in).
  * - XP: the higher of the two, unless the local copy predates a reset — then the account's XP
  *   plus only what the surviving local-only quests are worth.
+ * - Flags: this browser's copy wins, except saved learning paths (spath:*), where the newer copy of each
+ *   wins, so a path saved, ticked or removed on another device isn't undone by this one's older copy.
  */
 export function mergeGame(remote: Snapshot, local: Snapshot): Snapshot {
   const resetAt = Math.max(resetAtOf(remote), resetAtOf(local));
@@ -51,7 +54,7 @@ export function mergeGame(remote: Snapshot, local: Snapshot): Snapshot {
     extra += xpOfKey(k);
   });
   const xp = localStale ? remote.xp + extra : Math.max(remote.xp, local.xp);
-  const flags: Record<string, unknown> = { ...remote.flags, ...(localStale ? {} : local.flags) };
+  const flags = mergeGameFlags(remote.flags, local.flags, localStale);
   if (resetAt) flags[RESET_AT_FLAG] = resetAt;
   return { xp, done, flags };
 }

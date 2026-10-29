@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowRight, Clock, Search, Sparkles } from "lucide-react";
+import { ArrowRight, Bookmark, BookmarkCheck, Clock, Search, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { userFetch } from "@/components/learn/progress/userFetch";
@@ -24,17 +24,16 @@ import { track } from "@/lib/track";
 import { SMART_SEARCH_PUBLIC } from "@/lib/search/smart/flag";
 import { isNaturalQuery } from "@/lib/search/smart/text";
 import { KIND_LABEL, type Hit, type Kind, type PathStep, type SmartAnswer, type SmartResults } from "@/lib/search/smart/types";
+import type { SearchExample } from "@/lib/search/smart/examples";
+import { useSavedPaths } from "@/components/learn/saved/useSavedPaths";
+import MiniToast, { type MiniToastState } from "@/components/learn/hub/MiniToast";
 import KindIcon from "./KindIcon";
+import CitedAnswer from "./CitedAnswer";
+import ExampleGallery from "./ExampleGallery";
 import { useSmartAccess } from "./useSmartAccess";
 
-const EXAMPLES = [
-  "How do I stop my cache from melting at midnight?",
-  "I have a Flipkart interview next week. What should I study?",
-  "Explain idempotency with a video",
-  "consistent hashing",
-  "How does WhatsApp deliver messages to offline users?",
-  "rate limiter vs throttling",
-];
+/** a saved set of results keeps the best of them, in score order */
+const SAVE_RESULTS_MAX = 10;
 
 const clock = (s: number) => {
   const h = Math.floor(s / 3600);
@@ -140,6 +139,21 @@ function ResultRow({ h, words }: { h: Hit; words: string[] }) {
   );
 }
 
+/** "Save path" / "Save results": the search's copy in You → Saved paths (same search again: updated, ticks kept). */
+function SaveButton({ saved, onSave, label, savedLabel }: { saved: boolean; onSave: () => void; label: string; savedLabel: string }) {
+  return saved ? (
+    <Link href="/learn/saved" className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3 text-[14px] text-fg hover:border-fg-3">
+      <BookmarkCheck className="h-4 w-4 text-signal-text" aria-hidden />
+      {savedLabel}
+    </Link>
+  ) : (
+    <button type="button" onClick={onSave} className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3 text-[14px] font-semibold text-fg hover:border-fg-3">
+      <Bookmark className="h-4 w-4" aria-hidden />
+      {label}
+    </button>
+  );
+}
+
 export default function SmartSearch() {
   const router = useRouter();
   const params = useSearchParams();
@@ -158,7 +172,9 @@ export default function SmartSearch() {
   const [results, setResults] = useState<Load<SmartResults>>({ state: "idle" });
   const [answer, setAnswer] = useState<Load<SmartAnswer>>({ state: "idle" });
   const [filter, setFilter] = useState<Kind | "all">("all");
+  const [toast, setToast] = useState<MiniToastState>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const saved = useSavedPaths();
 
   useEffect(() => setDraft(q), [q]);
   useEffect(() => setFilter("all"), [q]);
@@ -174,6 +190,19 @@ export default function SmartSearch() {
     },
     [router, dev],
   );
+  const pick = useCallback(
+    (x: SearchExample) => {
+      track("smart_example", { category: x.category, ai: x.ai });
+      go(x.text, x.ai);
+    },
+    [go],
+  );
+  const onSaved = (r: ReturnType<typeof saved.save>, what: string) =>
+    setToast(
+      r.ok
+        ? { id: Date.now(), text: r.updated ? `${what} updated` : `${what} saved`, link: { label: "Open", href: `/learn/saved#p-${r.id}` } }
+        : { id: Date.now(), text: r.reason === "full" ? `You have ${saved.max} saved. Remove one in You → Saved paths first.` : "Couldn't save that. Try again." },
+    );
 
   // the results: no AI, for everyone with access
   useEffect(() => {
@@ -313,22 +342,16 @@ export default function SmartSearch() {
           </div>
           <p id="smart-ask-hint" className="m-0 text-[14px] text-fg-3">
             Search covers lessons and their sections, lecture moments, shorts, side quests, interview problems, LLD rounds, case files, mocks, war stories, concepts, FAQs, labs, drills and design
-            sheets. <span className="text-fg-2">Ask</span> also writes a short learning path{user ? "" : " (sign in free)"}.
+            sheets. <span className="text-fg-2">Ask</span> also answers in plain words, citing the course, and writes a short learning path you can save{user ? "" : " (sign in free)"}.
           </p>
         </form>
         {!q && (
-          <div className="flex flex-col gap-2">
-            <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Try</span>
-            <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
-              {EXAMPLES.map((x) => (
-                <li key={x}>
-                  <button type="button" onClick={() => go(x)} className="min-h-10 border border-dashed border-line-strong px-3 text-left text-[14px] text-fg-2 hover:border-fg-3 hover:text-fg">
-                    {x}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
+          <section aria-labelledby="try-h" className="flex flex-col gap-3">
+            <h2 id="try-h" className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3">
+              What you can search
+            </h2>
+            <ExampleGallery onPick={pick} signedIn={!!uid} />
+          </section>
         )}
       </header>
 
@@ -336,15 +359,18 @@ export default function SmartSearch() {
         <section aria-labelledby="path-h" aria-busy={answer.state === "loading"} className="flex flex-col gap-3">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <h2 id="path-h" className="m-0 font-mono text-xs uppercase tracking-label text-fg-3">
-              Your learning path
+              Answer and learning path
             </h2>
             {answer.state === "done" && answer.data.cached && <span className="font-mono text-[11px] text-fg-4">from a recent identical search · no credits used</span>}
           </div>
           {!uid ? (
             <div className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line-strong px-4 py-4">
-              <span className="text-[15px] text-fg-2">Sign in free and get a short learning path for this: the right lessons, lecture moments and practice, in order, with why each one.</span>
+              <span className="text-[15px] text-fg-2">
+                Sign in to get a direct answer and a learning path: an answer in plain words that cites the course, then the right lessons, lecture moments and practice, in order. The results
+                below are ready now.
+              </span>
               <button type="button" onClick={openAuthModal} className="min-h-11 bg-signal px-4 font-semibold text-on-signal">
-                Sign in for a learning path
+                Sign in for an answer
               </button>
             </div>
           ) : !aiOn ? (
@@ -352,7 +378,7 @@ export default function SmartSearch() {
           ) : answer.state === "loading" ? (
             <>
               <p className="m-0 text-[14px] text-fg-3" role="status">
-                Picking the best of the results below and putting them in order…
+                Answering from the results below and putting the best of them in order…
               </p>
               <PathSkeleton />
             </>
@@ -363,8 +389,24 @@ export default function SmartSearch() {
           ) : answer.state === "done" ? (
             <div className="flex flex-col gap-3">
               {answer.data.intent && <p className="m-0 font-display text-[22px] font-bold leading-snug text-fg sm:text-[26px]">{answer.data.intent}</p>}
+              {(answer.data.answer?.length ?? 0) > 0 && (
+                <div className="border-l-2 border-signal pl-4">
+                  <CitedAnswer answer={answer.data.answer} cites={answer.data.cites ?? []} />
+                </div>
+              )}
               {answer.data.note && (
                 <p className={`m-0 border-l-2 pl-3 text-[15px] leading-relaxed ${answer.data.scope === "covered" ? "border-line-strong text-fg-2" : "border-signal text-fg"}`}>{answer.data.note}</p>
+              )}
+              {answer.data.path.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">The path · {answer.data.path.length} steps</span>
+                  <SaveButton
+                    saved={!!saved.savedFor("path", q)}
+                    label="Save path"
+                    savedLabel="Saved · open in You"
+                    onSave={() => onSaved(saved.save({ source: "path", q, title: answer.data.intent, note: answer.data.scope === "covered" ? "" : answer.data.note, steps: answer.data.path }), "Path")}
+                  />
+                </div>
               )}
               {answer.data.path.length > 0 && (
                 <ol className="m-0 flex list-none flex-col gap-2 p-0">
@@ -412,6 +454,29 @@ export default function SmartSearch() {
                 </>
               )}
             </p>
+          )}
+          {data && data.total > 1 && (
+            <div className="flex justify-end">
+              <SaveButton
+                saved={!!saved.savedFor("results", q)}
+                label="Save these results"
+                savedLabel="Results saved · open in You"
+                onSave={() =>
+                  onSaved(
+                    saved.save({
+                      source: "results",
+                      q,
+                      title: q,
+                      steps: data.groups
+                        .flatMap((g) => g.hits)
+                        .sort((a, b) => b.score - a.score)
+                        .slice(0, SAVE_RESULTS_MAX),
+                    }),
+                    "Results",
+                  )
+                }
+              />
+            </div>
           )}
           {data?.weak && data.total > 0 && <p className="m-0 border-l-2 border-signal pl-3 text-[15px] text-fg-2">Only passing mentions match this. The course may not teach it directly; the closest pages are below.</p>}
           {results.state === "loading" && (
@@ -461,8 +526,20 @@ export default function SmartSearch() {
               </section>
             ))}
           </div>
+          {data && (
+            <details className="group border-t border-line pt-4">
+              <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3 hover:text-fg [&::-webkit-details-marker]:hidden">
+                <span aria-hidden className="inline-block transition-transform group-open:rotate-90">›</span>
+                More things to try
+              </summary>
+              <div className="pt-3">
+                <ExampleGallery onPick={pick} signedIn={!!uid} compact />
+              </div>
+            </details>
+          )}
         </section>
       )}
+      <MiniToast toast={toast} onDismiss={() => setToast(null)} />
     </main>
   );
 }
