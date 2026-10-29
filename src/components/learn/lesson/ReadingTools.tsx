@@ -42,14 +42,14 @@ function AskPill({ compact = false }: { compact?: boolean }) {
 /** One line at the top of the lesson saying the AI is there (only when it is). */
 export function AskPrompt() {
   const ai = useAiStatus();
-  if (!ai?.features["lesson-qa"]) return null;
+  if (!(ai?.features["lesson-qa"] || ai?.features["course-chat"])) return null;
   return (
     <div data-focus-hide className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 border border-line border-l-[3px] border-l-signal bg-surface px-4 py-3">
       <span className="text-signal">
         <AskIcon />
       </span>
       <p className="min-w-0 flex-1 text-[14px] leading-snug text-fg-2">
-        <strong className="text-fg">Stuck on something here?</strong> Ask AI answers from this lesson and shows the section it used. Or select any text and press <em>Ask here</em>.
+        <strong className="text-fg">Stuck on something here?</strong> Ask the course tutor about this lesson: it answers with the sections it used. Select any text and press <em>Explain</em>, or ask the tutor.
       </p>
       <button type="button" onClick={openAsk} className="shrink-0 border border-line-strong px-3 py-1.5 font-mono text-[12px] text-fg hover:border-signal hover:text-signal">
         Ask this lesson →
@@ -83,7 +83,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
   const btn = (on: boolean) => `flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] border-r border-line px-1 ${on ? "bg-signal text-on-signal" : "text-fg hover:bg-surface-2"}`;
   return (
     <div data-reader-ui data-focus-hide data-ask-shift className="fixed bottom-6 right-6 z-40 hidden flex-col items-end gap-2 lg:flex">
-      {ai?.features["lesson-qa"] && <AskPill />}
+      {(ai?.features["lesson-qa"] || ai?.features["course-chat"]) && <AskPill />}
       <ReadAloudBar controller={readAloud} />
       <div role="toolbar" aria-label="Reading tools" className="flex items-stretch border border-line-strong bg-surface">
         <div className="flex min-w-[92px] flex-col justify-center gap-1 border-r border-line px-3 py-1.5">
@@ -162,7 +162,7 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
   const lift = hidden ? 12 : 72 + (readAloud.playing || readAloud.notice ? 52 : 0);
   return (
     <>
-      {ai?.features["lesson-qa"] && (
+      {(ai?.features["lesson-qa"] || ai?.features["course-chat"]) && (
         <div
           data-reader-ui
           data-focus-hide

@@ -445,6 +445,12 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>, { 
     (r: number) => {
       rateRef.current = r;
       setRateState(r);
+      // shared with the course chat's Speak button (components/learn/chat/SpeakButton.tsx)
+      try {
+        window.localStorage.setItem("hk.listen.rate", String(r));
+      } catch {
+        /* storage blocked */
+      }
       // the recording changes speed in place; the browser voice has to start again
       if (audioRef.current) audioRef.current.playbackRate = r;
       restartIfSpeaking();

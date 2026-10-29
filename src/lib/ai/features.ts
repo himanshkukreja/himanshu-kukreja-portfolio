@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "eval" | "batch";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "eval" | "batch";
 
 export type FeatureDef = {
   label: string;
@@ -18,6 +18,9 @@ export type FeatureDef = {
   haikuMaxTokens?: number;
   /** cap on what the learner sends, in characters */
   maxInputChars: number;
+  /** course chat only: messages a day on the cheaper model once the `perDay` main-model messages are used
+   *  (an anti-abuse ceiling, not a budget; the chat's own quota, separate from the shared AI credits) */
+  ceiling?: number;
   /** let the model think before answering (grading, explaining). Off for the live chat features,
    *  where a short in-character reply matters more than deliberation. Haiku never thinks. */
   think: boolean;
@@ -45,6 +48,13 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // the learning path on /learn/search: picks and orders resources from the ranked candidates (JSON, no thinking: it should arrive in seconds)
   // maxTokens: room for the short cited answer (~150 tokens) on top of the path (~400-500)
   "smart-search": { label: "Smart search learning path", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 30, maxTokens: 950, maxInputChars: 14000, think: false, live: true },
+  // the course chat (/learn/search and the Ask panel): a tool-use conversation (lib/ai/chat). Its own quota, outside the
+  // shared credits: `perDay` messages a day on Sonnet, then Haiku 5.5 with its tuned prompt ("fast mode") up to `ceiling`.
+  // maxTokens caps each model turn (tool calls or the answer); no thinking: answers stream in seconds.
+  "course-chat": { label: "Course chat message", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 30, ceiling: 300, maxTokens: 1400, haikuMaxTokens: 1600, maxInputChars: 2000, think: false, live: true },
+  // the chat's long-term memory: Haiku 5.5 rewrites a learner's compact memory (goals, level, topics, quiz results, chat
+  // summaries) every few messages and when a chat ends. Part of the chat's own quota (not the shared credits); no thinking.
+  "chat-memory": { label: "Course chat memory update", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 80, maxTokens: 900, maxInputChars: 24000, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false },

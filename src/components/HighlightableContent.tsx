@@ -24,7 +24,9 @@ import ConfirmDialog from "./ConfirmDialog";
 import LessonProgressTracker from "./LessonProgressTracker";
 import NoteEditor from "./NoteEditor";
 import AskLessonPanel, { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
+import { openCourseChat } from "@/components/learn/chat/openChat";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+import { useTutorActions } from "@/components/learn/selection/useTutorActions";
 import { askAi, CLIENT_LABEL, cleanText, copyAskPrompt, courseName, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
 import { liftTerms, restoreTerms } from "@/lib/concepts/dom";
@@ -622,17 +624,24 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
 
   /* ---------------- ask the course's own AI (answered from this lesson) */
   const aiStatus = useAiStatus();
+  // the course chat, when it's on, takes over from "Ask this lesson": the same button and "Ask here" open its
+  // panel, which knows this lesson, the section on screen and the selected passage (the lesson stays its grounding)
+  const chatOn = !!aiStatus?.features["course-chat"];
   const [askHere, setAskHere] = useState<{ open: boolean; selection: string }>({ open: false, selection: "" });
   useEffect(() => {
-    const open = () => setAskHere({ open: true, selection: "" });
+    const open = () => (chatOn ? openCourseChat() : setAskHere({ open: true, selection: "" }));
     window.addEventListener(ASK_LESSON_EVENT, open);
     return () => window.removeEventListener(ASK_LESSON_EVENT, open);
-  }, []);
+  }, [chatOn]);
   const handleAskHere = () => {
     const text = selectedTextRef.current || selectedText;
     setMenu(null);
-    setAskHere({ open: true, selection: text });
+    if (chatOn) openCourseChat({ selection: text, q: "Explain the part I selected." });
+    else setAskHere({ open: true, selection: text });
   };
+
+  /* ---------------- the course tutor: "Explain this" / "Ask the tutor" on the passage (and Alt+A) */
+  const tutor = useTutorActions(contentRef, { getRange: () => rangeRef.current, onDone: closeMenu });
 
   const handleCopyPrompt = async () => {
     const text = selectedTextRef.current || selectedText;
@@ -783,9 +792,9 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           <span className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-[1_1_260px]">
             <span className="text-sm font-semibold text-fg sm:text-[15px]">Select or long-press any text</span>
             {/* touch screens: no keyboard instructions, one short line */}
-            <span className="text-[13px] leading-snug text-fg-2 [@media(pointer:fine)]:hidden">Highlight, note or bookmark it, or ask Claude / ChatGPT about it.</span>
+            <span className="text-[13px] leading-snug text-fg-2 [@media(pointer:fine)]:hidden">Highlight, note or bookmark it. Select any text and press Explain, or ask the tutor.</span>
             <span className="hidden text-[13px] leading-relaxed text-fg-2 [@media(pointer:fine)]:inline">
-              Highlight, note or bookmark it. Keyboard: Shift + arrows to select, then{" "}
+              Highlight, note or bookmark it. Select any text and press Explain, or ask the tutor. Keyboard: Shift + arrows to select, then{" "}
               <kbd className="border border-line-strong px-1 font-mono text-[12px]">H</kbd> <kbd className="border border-line-strong px-1 font-mono text-[12px]">N</kbd>{" "}
               <kbd className="border border-line-strong px-1 font-mono text-[12px]">B</kbd>, or <kbd className="border border-line-strong px-1 font-mono text-[12px]">A</kbd> to ask Claude / ChatGPT
               (Shift+F10 opens the toolbar). Notes land in your notebook.
@@ -811,8 +820,9 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           onBookmark={handleBookmark}
           onNote={handleNote}
           onAsk={handleAsk}
-          onAskHere={aiStatus?.features["lesson-qa"] ? handleAskHere : undefined}
+          onAskHere={aiStatus?.features["lesson-qa"] || chatOn ? handleAskHere : undefined}
           onCopyPrompt={handleCopyPrompt}
+          {...tutor.menuProps(selectedText)}
           onCopyLink={() => void handleLink("copy")}
           onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void handleLink("share") : undefined}
           onClose={closeMenu}

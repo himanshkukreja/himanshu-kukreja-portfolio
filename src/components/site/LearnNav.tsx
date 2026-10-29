@@ -6,7 +6,7 @@
  * becomes the course dock with a way back to the site.
  */
 import Link from "next/link";
-import { CloudDownload } from "lucide-react";
+import { BookOpen, Briefcase, CloudDownload, Flame, Smartphone, Sparkles, Swords, User, type LucideIcon } from "lucide-react";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { DockDot, TabPending } from "./LinkPending";
 
@@ -15,14 +15,15 @@ export const COURSE_HREF = "/learn/system-design-mastery";
 export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/learn/");
 
 /**
- * Six tabs, one question each:
+ * Seven tabs, one question each:
  *   course  · learn it    the course hub, lessons, side quests, concepts A–Z, the reading trail
  *   prep    · get hired   companies, the question bank, problem bank + low-level design, mock interviews,
  *                         revision decks, cheat and design sheets, code labs, numbers, the study planner
  *   arena   · play        daily challenge, leagues, games, the review queue, design of the week
+ *   ask     · ask it      the course tutor (chat) with instant search, /learn/search; the middle tab
  *   shorts  · watch it   2-3 minute vertical shorts of everything, one idea each
  *   stories · see it real real stories and the war room
- *   you     · your stuff  progress, notebook, bookmarks, concept mastery, certificates
+ *   you     · your stuff  progress, notebook, bookmarks, saved paths, the tutor's memory, concept mastery, certificates
  * Keep in sync with the Prep hub (src/components/learn/prep) and the You sub-nav (src/components/learn/you).
  */
 export const PREP_ROUTES = ["prep", "practice", "revise", "cheatsheet", "sheets", "labs", "mock", "numbers", "plan", "tracks", "canvas", "podcast"] as const;
@@ -34,18 +35,22 @@ export const isPrep = (p: string) => PREP_RE.test(p) || PREP_LESSON_RE.test(p);
 const isArena = (p: string) => /^\/learn\/(arena|review|design-week)(\/|$)/.test(p);
 const isStories = (p: string) => /^\/learn\/war-stories(\/|$)/.test(p);
 const isShorts = (p: string) => /^\/learn\/shorts(\/|$)/.test(p);
-export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "saved", "mastery", "certificate"] as const;
+export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "saved", "memory", "mastery", "certificate"] as const;
 const isYou = (p: string) => new RegExp(`^/learn/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
 const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/learn\/(guide|offline|search)(\/|$)/.test(p);
 
-function tabs(pathname: string) {
+const isAsk = (p: string) => /^\/learn\/search(\/|$)/.test(p);
+
+type Tab = { href: string; label: string; on: boolean; icon: LucideIcon; badge?: boolean; primary?: boolean };
+function tabs(pathname: string): Tab[] {
   return [
-    { href: COURSE_HREF, label: "course", on: isCourse(pathname) },
-    { href: "/learn/prep", label: "prep", on: isPrep(pathname) },
-    { href: "/learn/arena", label: "arena", on: isArena(pathname), badge: true },
-    { href: "/learn/shorts", label: "shorts", on: isShorts(pathname) },
-    { href: "/learn/war-stories", label: "stories", on: isStories(pathname) },
-    { href: "/learn/dashboard", label: "you", on: isYou(pathname) },
+    { href: COURSE_HREF, label: "course", on: isCourse(pathname), icon: BookOpen },
+    { href: "/learn/prep", label: "prep", on: isPrep(pathname), icon: Briefcase },
+    { href: "/learn/arena", label: "arena", on: isArena(pathname), icon: Swords, badge: true },
+    { href: "/learn/search", label: "ask", on: isAsk(pathname), icon: Sparkles, primary: true },
+    { href: "/learn/shorts", label: "shorts", on: isShorts(pathname), icon: Smartphone },
+    { href: "/learn/war-stories", label: "stories", on: isStories(pathname), icon: Flame },
+    { href: "/learn/dashboard", label: "you", on: isYou(pathname), icon: User },
   ];
 }
 
@@ -92,6 +97,7 @@ export function LearnTabs({ pathname }: { pathname: string }) {
           aria-current={l.on ? "page" : undefined}
           className={`relative inline-flex items-center gap-2 whitespace-nowrap px-2 py-2.5 ${l.on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}
         >
+          {l.primary && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
           {l.label}
           {l.badge && <DueBadge />}
           <TabPending />
@@ -120,35 +126,47 @@ export function LearnTabs({ pathname }: { pathname: string }) {
 }
 
 /**
- * Phone/tablet bottom dock in learn mode: back to the site + the six course tabs, always on one row.
- * The site link takes a narrower column; labels drop to 10 px below 400 px and the gaps close below
- * 360 px, so "stories" still fits on a 320 px phone.
+ * Phone/tablet bottom dock in learn mode: a narrow "~" back to the site, then the seven course tabs on one
+ * row, each an icon over a short mono label. "ask" sits in the middle as a filled square (the tutor).
+ * Sized for 320 px: the site column is 26 px, there are no gaps, and labels drop to 9.5 px with tighter
+ * tracking below 360 px so "stories" fits; 10 px up to 400 px, 10.5 px above.
  */
 export function LearnDock({ pathname, className }: { pathname: string; className: string }) {
   return (
-    <nav aria-label="Course" className={`${className} grid-cols-[minmax(0,0.6fr)_repeat(6,minmax(0,1fr))] max-[399px]:gap-0.5 max-[399px]:[&>a]:text-[10px] max-[359px]:gap-0 max-[359px]:px-1 max-[359px]:[&>a]:tracking-[-0.03em]`}>
-      <Link href="/" aria-label="Back to the site" className="flex min-h-12 flex-col items-center justify-center gap-1.5 font-mono text-[11px] text-fg-3">
-        <span aria-hidden className="h-1.5 leading-none text-[10px]">
-          ←
-        </span>
-        site
+    <nav aria-label="Course" className={`${className} grid-cols-[26px_repeat(7,minmax(0,1fr))] !gap-0 !px-1.5 max-[359px]:!px-1`}>
+      <Link href="/" aria-label="Back to the site" title="Back to the site" className="flex min-h-[52px] items-center justify-center font-mono text-[15px] font-semibold text-fg-3">
+        <span aria-hidden>~</span>
       </Link>
-      {tabs(pathname).map((l) => (
-        <Link
-          key={l.href}
-          href={l.href}
-          aria-current={l.on ? "page" : undefined}
-          className={`relative flex min-h-12 min-w-0 flex-col items-center justify-center gap-1.5 whitespace-nowrap font-mono text-[11px] ${l.on ? "text-fg" : "text-fg-3"}`}
-        >
-          <DockDot on={l.on} />
-          {l.label}
-          {l.badge && (
-            <span className="absolute right-1 top-0.5">
-              <DueBadge compact />
+      {tabs(pathname).map((l) => {
+        const I = l.icon;
+        return (
+          <Link
+            key={l.href}
+            href={l.href}
+            aria-current={l.on ? "page" : undefined}
+            className={`relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap font-mono text-[10.5px] leading-none max-[399px]:text-[10px] max-[359px]:text-[9.5px] max-[359px]:tracking-[-0.04em] ${l.on ? "text-fg" : "text-fg-3"}`}
+          >
+            <span className="absolute left-1/2 top-0 -translate-x-1/2">
+              <DockDot on={l.on} />
             </span>
-          )}
-        </Link>
-      ))}
+            {l.primary ? (
+              <span aria-hidden className={`grid h-[22px] w-[22px] place-items-center ${l.on ? "bg-signal text-on-signal" : "bg-signal/90 text-on-signal"}`}>
+                <I className="h-3.5 w-3.5" />
+              </span>
+            ) : (
+              <span aria-hidden className="grid h-[22px] w-[22px] place-items-center">
+                <I className={`h-[18px] w-[18px] ${l.on ? "text-signal-text" : ""}`} strokeWidth={l.on ? 2.25 : 1.75} />
+              </span>
+            )}
+            {l.label}
+            {l.badge && (
+              <span className="absolute right-0.5 top-0.5">
+                <DueBadge compact />
+              </span>
+            )}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

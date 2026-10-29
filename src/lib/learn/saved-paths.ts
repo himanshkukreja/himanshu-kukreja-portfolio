@@ -11,6 +11,12 @@
  *
  * Every step is copied from the search index (title, place, link, the AI's "why"): a saved path never holds
  * a link the model wrote, and `cleanSavedPath` drops anything that isn't a site-relative link.
+ *
+ * Dates: a step may carry `due` (yyyy-mm-dd, the learner's calendar day), set when a path is scheduled (the
+ * course chat's study plan, lib/learn/study-plan.ts planDueDates). Optional and additive: a path saved before
+ * dates existed reads as before, a malformed date is dropped, and saving the same search again keeps each
+ * remaining step's date unless the new copy brings its own. A path with dates downloads as an .ics on
+ * /learn/saved. Dates ride inside the path, so the per-path newer-`updatedAt`-wins merge carries them too.
  */
 import { queryKey } from "@/lib/search/smart/text";
 import { KINDS, type Hit, type Kind } from "@/lib/search/smart/types";
@@ -32,6 +38,8 @@ export type SavedStep = {
   at: number;
   /** the AI's one line on why this step (empty for a saved set of results) */
   why: string;
+  /** yyyy-mm-dd: the day this step is planned for (absent: not scheduled) */
+  due?: string;
 };
 
 export type SavedPath = {
@@ -59,7 +67,7 @@ export type SaveInput = {
   q: string;
   title?: string;
   note?: string;
-  steps: (Hit & { why?: string })[];
+  steps: (Hit & { why?: string; due?: string })[];
 };
 
 const KIND_SET = new Set<string>(KINDS);
@@ -69,6 +77,15 @@ const safeHref = (x: unknown) => {
   const h = str(x, 400);
   return /^\/(?!\/)[^\s\\]*$/.test(h) ? h : "";
 };
+
+const DATE = /^\d{4}-\d{2}-\d{2}$/;
+/** A real calendar date as yyyy-mm-dd ("2026-02-30" and "2026-1-5" are not), else "". */
+export function cleanDue(x: unknown): string {
+  if (typeof x !== "string" || !DATE.test(x)) return "";
+  const [y, m, d] = x.split("-").map(Number);
+  const t = new Date(Date.UTC(y, m - 1, d));
+  return t.getUTCFullYear() === y && t.getUTCMonth() === m - 1 && t.getUTCDate() === d ? x : "";
+}
 
 /** FNV-1a, 32-bit, base 36: a short stable id for a query */
 function hash(s: string): string {
@@ -94,7 +111,8 @@ function cleanStep(x: unknown): SavedStep | null {
   const title = str(o.title, 200);
   if (!id || !KIND_SET.has(kind) || !href || !title) return null;
   const at = Number(o.at);
-  return { id, kind: kind as Kind, title, sub: str(o.sub, 120), href, at: Number.isFinite(at) && at >= 0 ? Math.floor(at) : -1, why: str(o.why, 220) };
+  const due = cleanDue(o.due);
+  return { id, kind: kind as Kind, title, sub: str(o.sub, 120), href, at: Number.isFinite(at) && at >= 0 ? Math.floor(at) : -1, why: str(o.why, 220), ...(due ? { due } : {}) };
 }
 
 /** A stored value (this browser's or another device's) as a SavedPath, or null when it isn't one. */
@@ -134,9 +152,13 @@ export function listSavedPaths(flags: Record<string, unknown>): SavedPath[] {
   return out.sort((a, b) => b.createdAt - a.createdAt);
 }
 
-/** A new saved path (or the same search saved again: `prev`'s ticks carry over for steps it still has). */
+/**
+ * A new saved path (or the same search saved again: `prev`'s ticks carry over for steps it still has, and so
+ * does each step's date unless the input gives that step one).
+ */
 export function buildSavedPath(input: SaveInput, now: number, prev?: SavedPath | null): SavedPath | null {
   const id = savedPathId(input.source, input.q);
+  const prevDue = new Map((prev && !prev.deleted ? prev.steps : []).filter((s) => s.due).map((s) => [s.id, s.due as string]));
   const draft = cleanSavedPath({
     v: 1,
     id,
@@ -144,13 +166,35 @@ export function buildSavedPath(input: SaveInput, now: number, prev?: SavedPath |
     q: input.q,
     title: input.title || input.q,
     note: input.note || "",
-    steps: input.steps.map((s) => ({ id: s.id, kind: s.kind, title: s.title, sub: s.sub, href: s.href, at: s.at, why: s.why ?? "" })),
+    steps: input.steps.map((s) => ({ id: s.id, kind: s.kind, title: s.title, sub: s.sub, href: s.href, at: s.at, why: s.why ?? "", due: cleanDue(s.due) || prevDue.get(s.id) })),
     ticks: prev && !prev.deleted ? prev.ticks : {},
     createdAt: prev && !prev.deleted ? prev.createdAt : now,
     updatedAt: now,
   });
   return draft;
 }
+
+/**
+ * The path with step dates set (`dues`: step id → yyyy-mm-dd, or null / "" to clear one); steps not named keep
+ * theirs. Returns the same object when nothing changes, else a copy stamped `now` (so it wins the merge).
+ */
+export function withStepDues(p: SavedPath, dues: Record<string, string | null | undefined>, now: number): SavedPath {
+  if (p.deleted) return p;
+  let changed = false;
+  const steps = p.steps.map((s) => {
+    if (!(s.id in dues)) return s;
+    const due = cleanDue(dues[s.id]);
+    if ((s.due || "") === due) return s;
+    changed = true;
+    const { due: _old, ...rest } = s;
+    void _old;
+    return due ? { ...rest, due } : rest;
+  });
+  return changed ? { ...p, steps, updatedAt: Math.max(now, p.updatedAt + 1) } : p;
+}
+
+/** True when any step of the path has a date. */
+export const hasStepDues = (p: Pick<SavedPath, "steps">) => p.steps.some((s) => !!s.due);
 
 /** The tombstone a removed path leaves. */
 export const removedSavedPath = (p: Pick<SavedPath, "id" | "source" | "createdAt">, now: number): SavedPath => ({

@@ -7,12 +7,14 @@
  * Same triggers as the lesson reader: mouse up, a touch long-press (toolbar docked to the bottom,
  * clear of the native selection UI), Shift + arrows, or Shift+F10.
  * "Ask here" (and the page's Ask AI buttons, via ASK_LESSON_EVENT) open the built-in AI panel, which
- * answers from this case file.
+ * answers from this case file. With the course chat on, "Explain this" / "Ask the tutor" take the place of
+ * "Ask here" (useTutorActions; signed out: "Sign in to ask the tutor").
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import TextSelectionMenu from "@/components/TextSelectionMenu";
 import AskLessonPanel, { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+import { useTutorActions } from "@/components/learn/selection/useTutorActions";
 import Toast from "@/components/Toast";
 import { askAi, CLIENT_LABEL, copyAskPrompt, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
@@ -36,6 +38,9 @@ export default function StorySelectionAsk({ rootRef, title, slug }: { rootRef: R
   const [text, setText] = useState("");
   const [toast, setToast] = useState<{ message: string; type: "success" | "error" | "info" } | null>(null);
   const rangeRef = useRef<Range | null>(null);
+  const closeMenu = useCallback(() => setMenu(null), []);
+  // "Explain this" / "Ask the tutor" (the course chat) on the passage, and Alt+A
+  const tutor = useTutorActions(rootRef, { getRange: () => rangeRef.current, onDone: closeMenu });
 
   const capture = useCallback((): Range | null => {
     const root = rootRef.current;
@@ -211,6 +216,7 @@ export default function StorySelectionAsk({ rootRef, title, slug }: { rootRef: R
               : undefined
           }
           onCopyPrompt={onCopyPrompt}
+          {...tutor.menuProps(text)}
           onCopyLink={() => void onLink("copy")}
           onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void onLink("share") : undefined}
           onClose={() => setMenu(null)}

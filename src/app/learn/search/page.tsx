@@ -1,25 +1,24 @@
 import { Suspense } from "react";
-import SmartSearch from "@/components/learn/search/SmartSearch";
+import SearchChat from "@/components/learn/chat/SearchChat";
 import { SMART_SEARCH_PUBLIC } from "@/lib/search/smart/flag";
 
 export const runtime = "nodejs";
-// A static shell (no data at build time): the query is in the URL and the results load on the client
-// from /api/search/smart, so the page itself costs no function time per view.
+// A static shell (no data at build time): the query is in the URL, the instant results come from
+// /api/search/smart and the chat from /api/learn/ai/chat, both on the client, so a view costs no function time.
 export const revalidate = 86400;
 
 export const metadata = {
-  title: "Smart search · System Design Mastery",
+  title: "Ask the course · System Design Mastery",
   description:
-    "Search the whole course in plain English: lessons and their sections, lecture moments at the exact second, shorts, side quests, interview problems, LLD rounds, case files, mock interviews, war stories, concepts, FAQs, labs and design sheets. Ask, and get a short learning path.",
+    "Ask the course tutor anything about system design: answers with their sources, the exact second in a lecture, learning paths you can save, practice questions from the course and what to learn next. Instant results across lessons, lecture moments, shorts, side quests, problems, LLD rounds, case files, mocks, war stories, concepts, FAQs, labs, drills and design sheets as you type.",
   alternates: { canonical: "/learn/search" },
-  // until launch (lib/search/smart/flag.ts) the page is an admin preview: keep it out of search engines
   robots: SMART_SEARCH_PUBLIC ? undefined : { index: false, follow: false },
 };
 
 export default function SmartSearchPage() {
   return (
-    <Suspense fallback={<main className="mx-auto max-w-[1080px] px-4 pb-32 pt-10 sm:px-6 sm:pt-14" />}>
-      <SmartSearch />
+    <Suspense fallback={<main className="mx-auto max-w-[1280px] px-4 pb-32 pt-10 sm:px-6 sm:pt-14" />}>
+      <SearchChat />
     </Suspense>
   );
 }

@@ -3,7 +3,7 @@ import "server-only";
 import { supabase } from "@/lib/supabase";
 import { FEATURES, type FeatureId } from "./features";
 
-export type FeatureOverride = { enabled?: boolean; model?: string; perDay?: number };
+export type FeatureOverride = { enabled?: boolean; model?: string; perDay?: number; ceiling?: number };
 export type AiSettings = {
   enabled: boolean;
   cycleDay: number;
@@ -73,6 +73,7 @@ export async function saveAiSettings(patch: Partial<AiSettings>, by: string): Pr
         ...(v.enabled !== undefined ? { enabled: !!v.enabled } : {}),
         ...(typeof v.model === "string" && v.model ? { model: v.model } : {}),
         ...(Number.isFinite(v.perDay) ? { perDay: Math.max(0, Math.round(v.perDay!)) } : {}),
+        ...(Number.isFinite(v.ceiling) ? { ceiling: Math.max(0, Math.round(v.ceiling!)) } : {}),
       };
     }
     row.features = clean;
@@ -87,5 +88,5 @@ export async function saveAiSettings(patch: Partial<AiSettings>, by: string): Pr
 export function featureConfig(s: AiSettings, id: FeatureId) {
   const d = FEATURES[id];
   const o = s.features[id] || {};
-  return { ...d, enabled: o.enabled ?? true, model: o.model || d.model, perDay: o.perDay ?? d.perDay };
+  return { ...d, enabled: o.enabled ?? true, model: o.model || d.model, perDay: o.perDay ?? d.perDay, ceiling: o.ceiling ?? d.ceiling ?? 0 };
 }

@@ -15,6 +15,7 @@ import { answerTokens, FEATURES, type FeatureId } from "./features";
 import { featureConfig, getAiSettings } from "./settings";
 import { getBudget, startOfToday, type Mode } from "./governor";
 import { dailyAllowanceUsd } from "./limits";
+import { chatSpendToday } from "./chat/quota";
 
 const API = "https://api.anthropic.com/v1/messages";
 const RATE_PER_MIN = 10;
@@ -81,14 +82,16 @@ export async function saveTranscript(callId: number | null, userId: string | nul
 /** The user's spend today and the feature's calls today (one query each, both indexed). */
 async function userToday(userId: string, feature: FeatureId) {
   const today = startOfToday().toISOString();
-  const [spend, featureCalls, lastMinute, offTopic] = await Promise.all([
+  const [spend, chatSpend, featureCalls, lastMinute, offTopic] = await Promise.all([
     supabase.rpc("ai_spend_v2", { p_from: today, p_live: true, p_user: userId }),
+    // the course chat has its own quota: what it spent doesn't come out of the shared daily credits
+    chatSpendToday(userId),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("feature", feature).eq("status", "ok").gte("created_at", today),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(Date.now() - 60_000).toISOString()),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "off_topic").gte("created_at", today),
   ]);
   return {
-    spent: Number((spend.data as { cost?: number }[] | null)?.[0]?.cost ?? 0),
+    spent: Math.max(0, Number((spend.data as { cost?: number }[] | null)?.[0]?.cost ?? 0) - chatSpend),
     featureCalls: featureCalls.count ?? 0,
     lastMinute: lastMinute.count ?? 0,
     offTopic: offTopic.count ?? 0,

@@ -35,11 +35,13 @@ export const ADMIN_NAV = [
   { href: "/admin/publishing", label: "Publishing", key: "publishing", match: (p: string) => p.startsWith("/admin/publishing") },
   { href: "/admin/distribution", label: "Distribution", key: "distribution", match: (p: string) => p.startsWith("/admin/distribution") },
   { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
+  { href: "/admin/gaps", label: "Gaps", key: "gaps", match: (p: string) => p.startsWith("/admin/gaps") },
   { href: "/admin/case-files", label: "Case files", key: "case-files", match: (p: string) => p.startsWith("/admin/case-files") },
   { href: "/admin/design-week", label: "Design week", key: "design-week", match: (p: string) => p.startsWith("/admin/design-week") },
   { href: "/admin/certificates", label: "Certificates", key: "certificates", match: (p: string) => p.startsWith("/admin/certificates") },
   { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
   { href: "/admin/ai", label: "AI", key: "ai", match: (p: string) => p.startsWith("/admin/ai") },
+  { href: "/admin/chat", label: "Chat", key: "chat", match: (p: string) => p.startsWith("/admin/chat") },
 ] as const;
 
 /* ─────────────── tiny storage stores (useSyncExternalStore) ─────────────── */

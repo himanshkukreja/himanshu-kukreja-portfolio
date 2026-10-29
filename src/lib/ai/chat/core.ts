@@ -1,0 +1,230 @@
+/**
+ * One course-chat message, end to end, minus the HTTP and the metering: restore the conversation's refs,
+ * build the history (old turns trimmed to a summary), attach the learner context to the new message, run the
+ * tool loop, and clean the answer (only refs the tools returned; no links, no HTML). The route
+ * (app/api/learn/ai/chat) and the eval (scripts/ai-eval/chat.ts) both call `runChatCore`, so the eval measures
+ * exactly what learners get.
+ */
+import { answerTokens, FEATURES } from "@/lib/ai/features";
+import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor } from "@/lib/ai/prompts";
+import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
+import { runLoop, type ApiMessage, type LoopResult } from "./loop";
+import { ChatState, learnerContext, runTool, TOOLS, type ChatDeps } from "./tools";
+import { cleanAnswer, isRef, OFF_TOPIC_MARK, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
+
+/** Turns kept word for word; older ones become a short summary. */
+export const KEEP_TURNS = 10;
+/** The longest conversation a request may carry (the page keeps more; the server reads the end). */
+const MAX_TURNS = 60;
+export const MAX_USER_CHARS = FEATURES["course-chat"].maxInputChars;
+const MAX_ASSISTANT_CHARS = 3500;
+/** Tool rounds per message; then one round that must answer. */
+export const MAX_TOOL_ROUNDS = 4;
+
+const str = (x: unknown, n: number) => (typeof x === "string" ? x.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]+/g, " ").slice(0, n) : "");
+
+/** The request body, checked (types, sizes, ref formats). Ids are checked again against the index later. */
+export function readRequest(body: unknown, opts: { endsWithUser?: boolean } = {}): ChatRequest | string {
+  if (!body || typeof body !== "object") return "Bad request";
+  const b = body as Record<string, unknown>;
+  const chat = /^[a-z0-9]{6,40}$/i.test(String(b.chat)) ? String(b.chat) : "";
+  if (!chat) return "Bad chat id";
+  const raw = Array.isArray(b.messages) ? b.messages.slice(-MAX_TURNS) : [];
+  const messages: ChatTurn[] = [];
+  for (const m of raw) {
+    if (!m || typeof m !== "object") continue;
+    const role = (m as { role?: unknown }).role === "assistant" ? "assistant" : (m as { role?: unknown }).role === "user" ? "user" : null;
+    const text = str((m as { text?: unknown }).text, role === "user" ? MAX_USER_CHARS : MAX_ASSISTANT_CHARS).trim();
+    if (role && text) messages.push({ role, text });
+  }
+  const last = messages[messages.length - 1];
+  if (!last || (opts.endsWithUser !== false && last.role !== "user")) return "Ask something first";
+  const rec = (x: unknown, n: number): Record<string, string> => {
+    const out: Record<string, string> = {};
+    if (!x || typeof x !== "object") return out;
+    for (const [k, v] of Object.entries(x as Record<string, unknown>).slice(0, n)) if (typeof v === "string" && k.length <= 6) out[k] = v.slice(0, 220);
+    return out;
+  };
+  const paths: Record<string, Omit<PathCard, "pref">> = {};
+  if (b.paths && typeof b.paths === "object")
+    for (const [k, v] of Object.entries(b.paths as Record<string, unknown>).slice(0, 30)) {
+      if (!isRef(k, "p") || !v || typeof v !== "object") continue;
+      const p = v as Record<string, unknown>;
+      const steps = (Array.isArray(p.steps) ? p.steps : []).slice(0, 12).map((s) => ({ ref: str((s as { ref?: unknown })?.ref, 8), why: str((s as { why?: unknown })?.why, 220) }));
+      paths[k] = { title: str(p.title, 140), note: str(p.note, 300), steps };
+    }
+  let page: PageContext | null = null;
+  if (b.page && typeof b.page === "object") {
+    const p = b.page as Record<string, unknown>;
+    const path = str(p.path, 300);
+    if (path.startsWith("/")) {
+      const at = Number(p.videoAt);
+      page = {
+        path,
+        title: str(p.title, 160) || undefined,
+        heading: str(p.heading, 200) || undefined,
+        headingId: /^[\w-]{1,120}$/.test(String(p.headingId ?? "")) ? String(p.headingId) : undefined,
+        selection: str(p.selection, 1500).trim() || undefined,
+        videoAt: Number.isFinite(at) && at >= 0 && at < 36000 ? Math.floor(at) : undefined,
+      };
+    }
+  }
+  const answerTo = isRef(b.answerTo, "q") ? b.answerTo : undefined;
+  let mock: MockState | null = null;
+  if (b.mock && typeof b.mock === "object") {
+    const m = b.mock as Record<string, unknown>;
+    const turns = (x: unknown): ChatTurn[] =>
+      (Array.isArray(x) ? x : [])
+        .slice(-24)
+        .map((t) => ({ role: (t as { role?: unknown })?.role === "assistant" ? ("assistant" as const) : ("user" as const), text: str((t as { text?: unknown })?.text, 3000).trim() }))
+        .filter((t) => t.text);
+    const key = String(m.key ?? "");
+    if (/^(mock:mock-\d+-[\w-]{1,80}|quest:[\w-]{1,120})$/.test(key)) {
+      const phases: Record<string, ChatTurn[]> = {};
+      if (m.phases && typeof m.phases === "object") for (const [id, v] of Object.entries(m.phases as Record<string, unknown>).slice(0, 12)) if (/^[\w.-]{1,20}$/.test(id)) phases[id] = turns(v);
+      mock = { key, phase: /^[\w.-]{1,20}$/.test(String(m.phase)) ? String(m.phase) : "", history: turns(m.history), action: m.action === "end" ? "end" : "turn", phases };
+    }
+  }
+  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock };
+
+}
+
+const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+/** The history the model sees: a summary of old turns (and the refs from them), then the recent turns, then the new message with its context. */
+export function buildMessages(req: ChatRequest, st: ChatState, context: string): ApiMessage[] {
+  const turns = req.messages.slice(0, -1);
+  const latest = req.messages[req.messages.length - 1];
+  const keep = turns.slice(-KEEP_TURNS);
+  const old = turns.slice(0, Math.max(0, turns.length - KEEP_TURNS));
+  const head: string[] = [];
+  if (old.length) {
+    const asked = old.filter((t) => t.role === "user").map((t) => `"${clip(t.text.replace(/\s+/g, " "), 120)}"`);
+    head.push(`Earlier in this chat (older turns, summarised): the learner asked ${asked.slice(-8).join("; ")}.`);
+  }
+  // refs handed out earlier stay citable without searching again (the most recent 25)
+  const refs = [...st.sources.entries()].slice(-25);
+  if (refs.length && (old.length || turns.length)) head.push(`Refs from earlier in this chat you may cite again:\n${refs.map(([r, s]) => `${r} = ${s.kind === "guide" ? "site help" : s.kind}: ${clip(s.title, 90)}`).join("\n")}`);
+  const quizzes = [...st.quizzes.keys()];
+  if (quizzes.length) head.push(`Practice questions asked in this chat: ${quizzes.join(", ")} (check_answer grades an answer to one).`);
+  const paths = [...st.paths.values()];
+  if (paths.length) head.push(`Paths built in this chat: ${paths.map((p) => `${p.pref} "${clip(p.title, 60)}" (${p.steps.length} steps)`).join("; ")}.`);
+
+  const out: ApiMessage[] = [];
+  if (head.length) out.push({ role: "user", content: `<chat_so_far>\n${head.join("\n")}\n</chat_so_far>` });
+  for (const t of keep) out.push({ role: t.role, content: t.text });
+  const ask = req.answerTo && st.quizzes.has(req.answerTo) ? `My answer to practice question ${req.answerTo}: ${latest.text}` : latest.text;
+  out.push({ role: "user", content: context ? `${ask}\n\n${context}` : ask });
+  // the API wants the first message from the user; consecutive same-role messages are joined by the API
+  if (out[0].role !== "user") out.unshift({ role: "user", content: "(continuing our chat)" });
+  return out;
+}
+
+export const thinkingFor = (model: string): Record<string, unknown> | null => (/haiku/.test(model) ? { type: "disabled" } : /sonnet-5/.test(model) ? { type: "between_tools" } : null);
+
+export type CoreResult = { text: string; offTopic: boolean; loop: LoopResult; state: ChatState; ask: string; mode: "tutor" | "interviewer" | "scorecard" };
+
+export async function runChatCore(o: {
+  deps: ChatDeps;
+  req: ChatRequest;
+  model: string;
+  apiKey: string;
+  map: string;
+  memory: string[] | null;
+  emit: (e: ChatEvent) => void;
+  deadline: number;
+  signal?: AbortSignal;
+}): Promise<CoreResult> {
+  const st = new ChatState(o.deps, o.emit);
+  st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
+  const context = await learnerContext(st, o.memory, o.req.messages.filter((m) => m.role === "user").length === 1);
+  const messages = buildMessages(o.req, st, context);
+  const system = courseChatSystem(o.map, promptOptsFor(o.model, "course-chat"));
+  const loop = await runLoop({
+    apiKey: o.apiKey,
+    model: o.model,
+    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
+    tools: TOOLS,
+    messages,
+    maxTokens: answerTokens("course-chat", o.model),
+    thinking: thinkingFor(o.model),
+    maxToolRounds: MAX_TOOL_ROUNDS,
+    deadline: o.deadline,
+    signal: o.signal,
+    runTool: (name, input) => runTool(st, name, input),
+    onRound: (n) => o.emit({ type: "round", n }),
+    onText: (d) => o.emit({ type: "delta", text: d }),
+    onTool: (name) => o.emit({ type: "status", tool: name, label: TOOL_LABEL[name] ?? "working…" }),
+  });
+  const offTopic = OFF_TOPIC_MARK.test(loop.text);
+  const text = cleanAnswer(loop.text, (ref) => st.sources.has(ref));
+  const latest = o.req.messages[o.req.messages.length - 1];
+  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor" };
+}
+
+/** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */
+async function resolveMock(st: ChatState, key: string): Promise<ChatMock | null> {
+  if (key.startsWith("mock:")) {
+    if (!st.liveDoc(`MK:${key.slice(5)}`)) return null;
+    const m = await st.d.mock(key.slice(5)).catch(() => null);
+    return m ? fromCourseMock(m) : null;
+  }
+  const slug = key.slice(6);
+  const quest = st.engine.docs.find((d) => d.kind === "quest" && d.id.endsWith(`/${slug}`));
+  if (!quest || !st.liveDoc(quest.id)) return null;
+  const lm = /^L:([^/#]+)\/([^/#]+)$/.exec(quest.id);
+  const [md, dr] = await Promise.all([lm ? st.d.lessonMarkdown(lm[1], lm[2]).catch(() => null) : null, st.d.drills(slug).catch(() => null)]);
+  return fromQuest(quest, md, dr);
+}
+
+const emptyLoop = (text: string): LoopResult => ({ text, stop: "end_turn", rounds: 0, toolCalls: [], usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, costUsd: 0, error: null, requestId: null });
+
+/**
+ * A message while a mock interview is on: the interviewer's next line (the mock interviewer prompt, tuned per
+ * model like /api/learn/ai/mock/turn), or, for "end", the whole-interview scorecard (the mock scorecard prompt)
+ * and a path through the lessons behind what it marked as missed.
+ */
+export async function runMockCore(o: Parameters<typeof runChatCore>[0]): Promise<CoreResult> {
+  const st = new ChatState(o.deps, o.emit);
+  st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
+  const ms = o.req.mock!;
+  const latest = o.req.messages[o.req.messages.length - 1];
+  const mock = await resolveMock(st, ms.key);
+  st.flags.mock = ms.key;
+  if (!mock) return { text: "That interview isn't available any more. Ask me to start another one.", offTopic: false, loop: emptyLoop(""), state: st, ask: latest.text, mode: "interviewer" };
+  const run = (system: string, messages: ApiMessage[], maxTokens: number, thinking: Record<string, unknown> | null) =>
+    runLoop({ apiKey: o.apiKey, model: o.model, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], tools: [], messages, maxTokens, thinking, maxToolRounds: 0, deadline: o.deadline, signal: o.signal, runTool: async () => "", onRound: (n) => o.emit({ type: "round", n }), onText: (d) => o.emit({ type: "delta", text: d }) });
+
+  if (ms.action === "end") {
+    const phases = mock.phases.map((p) => {
+      const said = (ms.phases?.[p.id] ?? []).filter((t) => t.role === "user").map((t) => `Said to the interviewer:\n${t.text.slice(0, 2500)}`);
+      return { title: p.title, rubric: p.prompt.rubric, modelAnswer: p.prompt.modelAnswer, candidate: said.join("\n\n") };
+    });
+    if (!phases.some((p) => p.candidate.split(/\s+/).length >= 20))
+      return { text: "There isn't enough to score yet: answer at least one phase in a few sentences, then end the interview again.", offTopic: false, loop: emptyLoop(""), state: st, ask: latest.text, mode: "scorecard" };
+    o.emit({ type: "status", tool: "scorecard", label: "scoring your interview…" });
+    const system = mockFullScorecardSystem({ company: mock.company, problem: mock.problem, phases }, promptOptsFor(o.model, "mock-scorecard"));
+    // the scorecard thinks on Sonnet (as /api/learn/ai/mock/scorecard does): room for it on top of the answer
+    const haiku = /haiku/.test(o.model);
+    const loop = await run(system, [{ role: "user", content: "Grade my interview." }], answerTokens("mock-scorecard", o.model) + (haiku ? 0 : 3000), haiku ? { type: "disabled" } : null);
+    const fresh: Record<string, ChatSource> = {};
+    const text = cleanAnswer(loop.text, () => false);
+    const path = text ? weakAreasPath(st, mock, text, fresh) : null;
+    st.sourcesSent(fresh);
+    if (path) {
+      st.flags.path = true;
+      o.emit({ type: "path", path });
+    }
+    return { text, offTopic: false, loop, state: st, ask: `[end of mock ${mock.key}]`, mode: "scorecard" };
+  }
+
+  const phase = mock.phases.find((p) => p.id === ms.phase) ?? mock.phases[0];
+  const history = ms.history.map((t) => ({ role: t.role, content: t.text }));
+  // the API wants the candidate first: the interviewer's opening line is already in the prompt's phase notes
+  while (history[0]?.role === "assistant") history.shift();
+  if (history.filter((m) => m.role === "user").length >= 10) return { text: "That's ten exchanges in this phase: time to move on to the next one (or end the interview for your scorecard).", offTopic: false, loop: emptyLoop(""), state: st, ask: latest.text, mode: "interviewer" };
+  const system = mockInterviewerSystem({ company: mock.company, interviewer: mock.interviewer, problem: mock.problem, phase: phase.prompt }, promptOptsFor(o.model, "mock-interviewer"));
+  const loop = await run(system, [...history, { role: "user", content: latest.text }], answerTokens("mock-interviewer", o.model), thinkingFor(o.model));
+  return { text: cleanAnswer(loop.text, () => false), offTopic: false, loop, state: st, ask: `[mock ${mock.key} · ${phase.id}] ${latest.text}`, mode: "interviewer" };
+}
+

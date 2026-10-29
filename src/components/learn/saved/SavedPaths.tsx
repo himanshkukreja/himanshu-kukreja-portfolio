@@ -3,18 +3,21 @@
 /**
  * You → Saved paths (/learn/saved): learning paths and sets of results saved from smart search (or the
  * course chat), each a checklist to follow from any tab or device. A step that is a whole lesson or side
- * quest is also done once the lesson is completed in normal progress.
+ * quest is also done once the lesson is completed in normal progress. A path whose steps have dates (scheduled
+ * by the course chat's study plan) shows them and downloads as a calendar (.ics), built in the browser.
  */
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Check, Clock, Route, Search } from "lucide-react";
+import { ArrowRight, CalendarArrowDown, Check, Clock, Route, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import MiniToast, { type MiniToastState } from "@/components/learn/hub/MiniToast";
 import KindIcon from "@/components/learn/search/KindIcon";
 import { KIND_LABEL } from "@/lib/search/smart/types";
 import { examplesIn } from "@/lib/search/smart/examples";
-import type { SavedPath, SavedStep } from "@/lib/learn/saved-paths";
+import { hasStepDues, type SavedPath, type SavedStep } from "@/lib/learn/saved-paths";
+import { SITE_ORIGIN, savedPathPlan, toIcs } from "@/lib/learn/study-plan";
+import { track } from "@/lib/track";
 import { useSavedPaths } from "./useSavedPaths";
 
 const clock = (s: number) => {
@@ -25,6 +28,30 @@ const clock = (s: number) => {
 };
 
 const dateLabel = (ms: number) => new Date(ms).toLocaleDateString(undefined, { day: "numeric", month: "short" });
+
+/** "Tue, 3 Nov" for a yyyy-mm-dd (read as that calendar day, never shifted by the zone) */
+const dueLabel = (d: string) => {
+  const [y, m, day] = d.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, day)).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+};
+
+/** The path's dated steps as an .ics file, generated here and saved through a Blob link. */
+function downloadPathIcs(p: SavedPath): number {
+  const plan = savedPathPlan(p);
+  if (!plan) return 0;
+  const ics = toIcs(plan, { title: p.title, url: `${SITE_ORIGIN}/learn/saved#p-${p.id}`, now: new Date(), sequence: Math.floor(p.updatedAt / 1000) });
+  const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${p.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "study-plan"}.ics`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  track("saved_path", { action: "ics", source: p.source, days: plan.days.length });
+  return plan.days.length;
+}
 
 export function StepTag({ step }: { step: Pick<SavedStep, "kind" | "at"> }) {
   return (
@@ -48,7 +75,15 @@ function PathCard({ p, open, onToggle, onRemove }: { p: SavedPath; open: boolean
   const next = p.steps.findIndex((_, i) => !states[i].done);
   const pct = Math.round((doneN / p.steps.length) * 100);
   const [confirm, setConfirm] = useState(false);
+  const [saved, setSaved] = useState<number | null>(null);
   const listId = `sp-steps-${p.id}`;
+  const dated = hasStepDues(p);
+  const range = dated
+    ? (() => {
+        const ds = p.steps.map((s) => s.due).filter((d): d is string => !!d).sort();
+        return ds[0] === ds[ds.length - 1] ? dueLabel(ds[0]) : `${dueLabel(ds[0])} – ${dueLabel(ds[ds.length - 1])}`;
+      })()
+    : "";
 
   return (
     <article id={`p-${p.id}`} aria-labelledby={`sp-h-${p.id}`} className="flex scroll-mt-28 flex-col border border-line-strong bg-surface">
@@ -70,6 +105,7 @@ function PathCard({ p, open, onToggle, onRemove }: { p: SavedPath; open: boolean
           </p>
         )}
         {p.note && <p className="m-0 border-l-2 border-signal pl-3 text-[14px] leading-relaxed text-fg-2">{p.note}</p>}
+        {dated && <p className="m-0 font-mono text-[12px] text-fg-2">Scheduled · {range}</p>}
         <div className="h-1.5 w-full bg-surface-2" role="progressbar" aria-label="Steps done" aria-valuemin={0} aria-valuemax={p.steps.length} aria-valuenow={doneN}>
           <div className="h-full bg-signal transition-[width]" style={{ width: `${pct}%` }} />
         </div>
@@ -83,6 +119,16 @@ function PathCard({ p, open, onToggle, onRemove }: { p: SavedPath; open: boolean
           <button type="button" onClick={onToggle} aria-expanded={open} aria-controls={listId} className="min-h-11 border border-line-strong px-4 text-[15px] text-fg hover:border-fg-3">
             {open ? "Hide steps" : `Show ${p.steps.length} steps`}
           </button>
+          {dated && (
+            <button
+              type="button"
+              onClick={() => setSaved(downloadPathIcs(p))}
+              className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-[15px] text-fg hover:border-fg-3"
+            >
+              <CalendarArrowDown className="h-4 w-4" aria-hidden />
+              Download calendar (.ics)
+            </button>
+          )}
           {p.q && (
             <Link href={`/learn/search?q=${encodeURIComponent(p.q)}`} className="inline-flex min-h-11 items-center gap-2 px-3 text-[14px] text-fg-3 hover:text-fg">
               <Search className="h-4 w-4" aria-hidden />
@@ -107,6 +153,11 @@ function PathCard({ p, open, onToggle, onRemove }: { p: SavedPath; open: boolean
             )}
           </span>
         </div>
+        {saved !== null && (
+          <p role="status" className="m-0 text-[14px] text-fg-2">
+            {saved ? `Calendar saved: ${saved} day${saved === 1 ? "" : "s"}, one all-day event each. Open the file to add it to your calendar.` : "No dated steps to export."}
+          </p>
+        )}
       </header>
       {open && (
         <ol id={listId} className="m-0 flex list-none flex-col border-t border-line p-0">
@@ -132,6 +183,7 @@ function PathCard({ p, open, onToggle, onRemove }: { p: SavedPath; open: boolean
                     <StepTag step={s} />
                     {i === next && <span className="font-mono text-[11px] uppercase tracking-label text-fg">next</span>}
                     {st.lessonDone && <span className="font-mono text-[11px] text-fg-3">lesson completed</span>}
+                    {s.due && <span className="font-mono text-[11px] text-fg-2">{dueLabel(s.due)}</span>}
                   </span>
                   <Link href={s.href} className={`text-[17px] font-semibold leading-snug hover:underline ${st.done ? "text-fg-3 line-through decoration-1" : "text-fg"}`}>
                     {s.title}

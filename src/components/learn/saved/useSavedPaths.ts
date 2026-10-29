@@ -22,6 +22,7 @@ import {
   savedPathId,
   savedPathKey,
   SAVED_PATHS_MAX,
+  withStepDues,
   type SaveInput,
   type SavedPath,
   type SavedStep,
@@ -96,6 +97,22 @@ export function useSavedPaths() {
     [get, setFlag],
   );
 
+  /**
+   * Schedule steps of a saved path: step id → yyyy-mm-dd (null clears a date). From a study plan:
+   * setDues(id, planDueDates(plan)) (lib/learn/study-plan.ts).
+   */
+  const setDues = useCallback(
+    (id: string, dues: Record<string, string | null>) => {
+      const p = get(id);
+      if (!p || p.deleted) return;
+      const next = withStepDues(p, dues, Date.now());
+      if (next === p) return;
+      setFlag(savedPathKey(id), next);
+      track("saved_path", { action: "schedule", source: p.source, dated: next.steps.filter((s) => s.due).length });
+    },
+    [get, setFlag],
+  );
+
   /** Done: ticked here, or (a whole lesson or side quest) completed in normal lesson progress. */
   const stepState = useCallback(
     (p: SavedPath, step: SavedStep): { done: boolean; ticked: boolean; lessonDone: boolean } => {
@@ -107,5 +124,5 @@ export function useSavedPaths() {
     [done],
   );
 
-  return { hydrated, paths, max: SAVED_PATHS_MAX, get, savedFor, save, remove, restore, tick, stepState };
+  return { hydrated, paths, max: SAVED_PATHS_MAX, get, savedFor, save, remove, restore, tick, setDues, stepState };
 }

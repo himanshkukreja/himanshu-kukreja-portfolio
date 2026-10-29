@@ -10,6 +10,7 @@ import { featureConfig, getAiSettings } from "./settings";
 import { getBudget, startOfToday, type Mode } from "./governor";
 import { USD_PER_CREDIT } from "./prices";
 import { dailyAllowanceUsd } from "./limits";
+import { chatSpendToday } from "./chat/quota";
 
 export type AiStatus = {
   /** any AI feature usable by this person right now */
@@ -44,11 +45,13 @@ export async function aiStatus(user: { id: string; email: string | null } | null
   let creditsLeft: number | null = null;
   let creditsPerDay = b.userDailyCredits;
   if (user) {
-    const [{ data }, allowance] = await Promise.all([
+    const [{ data }, allowance, chatSpend] = await Promise.all([
       supabase.rpc("ai_spend_v2", { p_from: startOfToday().toISOString(), p_live: true, p_user: user.id }),
       dailyAllowanceUsd(user.id, b.userDailyUsd),
+      // the course chat has its own quota, outside the shared credits
+      chatSpendToday(user.id),
     ]);
-    const spent = Number((data as { cost?: number }[] | null)?.[0]?.cost ?? 0);
+    const spent = Math.max(0, Number((data as { cost?: number }[] | null)?.[0]?.cost ?? 0) - chatSpend);
     creditsLeft = Math.max(0, Math.floor((allowance.usd - spent) / USD_PER_CREDIT));
     creditsPerDay = Math.floor(allowance.usd / USD_PER_CREDIT);
   }

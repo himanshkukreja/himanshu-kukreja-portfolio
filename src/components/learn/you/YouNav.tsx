@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The You tab's pages (progress, notebook, saved paths, concept mastery, certificates) share this row, so it reads
+ * The You tab's pages (progress, notebook, saved paths, the tutor's memory, concept mastery, certificates) share this row, so it reads
  * as one place for your own stuff. Keep in sync with YOU_ROUTES in src/components/site/LearnNav.tsx.
  */
 import Link from "next/link";
@@ -11,6 +11,7 @@ const ITEMS = [
   { href: "/learn/dashboard", label: "Progress", match: /^\/learn\/dashboard/ },
   { href: "/learn/notebook", label: "Notebook", match: /^\/learn\/(notebook|notes|bookmarks)/ },
   { href: "/learn/saved", label: "Saved paths", match: /^\/learn\/saved/ },
+  { href: "/learn/memory", label: "Tutor memory", match: /^\/learn\/memory/ },
   { href: "/learn/mastery", label: "Concept mastery", match: /^\/learn\/mastery/ },
   { href: "/learn/certificate", label: "Certificates", match: /^\/learn\/certificate/ },
 ];

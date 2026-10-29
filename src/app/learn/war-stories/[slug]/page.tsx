@@ -12,6 +12,7 @@ import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
 import { lessonLectureId } from "@/lib/learn/lecture/types";
 import { ListenArticle, ListenButton, ListenProvider } from "@/components/listen/Listen";
 import { listenKey } from "@/lib/listen/manifest";
+import TutorSelectionArea from "@/components/learn/selection/TutorSelectionArea";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 
@@ -80,7 +81,10 @@ export default async function StoryPage({ params }: Props) {
         </header>
         {lecture && <LectureEntry lecture={lecture} what="The whole story" className="m-0" />}
         {short && <ShortEntry short={short} />}
-        <ListenArticle html={s.html} className="course-content max-w-none" />
+        {/* select a passage → "Explain this" / "Ask the tutor" (the course chat) */}
+        <TutorSelectionArea>
+          <ListenArticle html={s.html} className="course-content max-w-none" />
+        </TutorSelectionArea>
         <section aria-labelledby="src-h" className="flex flex-col gap-2 border-t border-line pt-5">
           <h2 id="src-h" className="m-0 font-mono text-xs uppercase tracking-label text-fg-3">
             Sources

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, ChevronLeft, ClipboardCopy, Highlighter, Link2, MessageCircleQuestion, Share2, Sparkles, StickyNote, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ClipboardCopy, GraduationCap, Highlighter, Lightbulb, Link2, LogIn, MessageCircleQuestion, Share2, Sparkles, StickyNote, X } from "lucide-react";
 import { HIGHLIGHT_COLOURS } from "@/lib/learn/notebook";
 import type { AskClient } from "@/lib/learn/askAi";
 
@@ -72,6 +72,12 @@ type TextSelectionMenuProps = {
   onAskHere?: () => void;
   /** "Copy as prompt" */
   onCopyPrompt?: () => void;
+  /** the course tutor (the chat panel, lib/learn/tutorSelection): "Explain this" asks at once; "Ask the tutor"
+   *  opens it with the passage attached so the learner types the question. With these, "Ask here" is left out. */
+  onExplain?: () => void;
+  onAskTutor?: () => void;
+  /** signed out: one "Sign in to ask the tutor" in place of the two */
+  onTutorSignIn?: () => void;
   /** "Copy link": a deep link that reopens the page at this exact passage */
   onCopyLink?: () => void;
   /** "Share…" through the native share sheet (pass only where navigator.share exists) */
@@ -87,15 +93,20 @@ type TextSelectionMenuProps = {
 type Panel = "main" | "colors" | "ask" | "link";
 
 export default function TextSelectionMenu(props: TextSelectionMenuProps) {
-  const { onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, autoFocus } = props;
+  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, autoFocus } = props;
+  // the tutor supersedes "Ask here" (both open the course's own AI on this passage)
+  const onAskHere = onExplain || onAskTutor ? undefined : props.onAskHere;
+  const tutor = !!(onExplain || onAskTutor || onTutorSignIn);
   const notes = !!(onHighlight || onNote || onBookmark);
-  const ask = !!(onAsk || onAskHere || onCopyPrompt);
+  const ask = !!(onAsk || onAskHere || onCopyPrompt || tutor);
   const [panel, setPanel] = useState<Panel>("main");
   // with no notebook actions (case files) the Ask actions are the main panel
   const view: Panel = !notes && ask && panel === "main" ? "ask" : panel;
   const showColors = view === "colors";
   const ref = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(false);
+  // a wider toolbar than the caller planned for (the tutor's actions): pull it back inside the screen
+  const [shiftX, setShiftX] = useState(0);
 
   useEffect(() => {
     // portal target only exists after mount
@@ -122,6 +133,12 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       if (view === "colors" && onHighlight && /^[1-4]$/.test(k)) {
         e.preventDefault();
         onHighlight(HIGHLIGHT_COLORS[Number(k) - 1].value);
+      } else if (k === "e" && (view === "main" || view === "ask") && (onExplain || (view === "ask" && onTutorSignIn))) {
+        e.preventDefault();
+        (onExplain ?? onTutorSignIn)?.();
+      } else if (view === "ask" && (k === "t" || (k === "i" && !onAskHere)) && (onAskTutor || onTutorSignIn)) {
+        e.preventDefault();
+        (onAskTutor ?? onTutorSignIn)?.();
       } else if (view === "ask" && onAskHere && k === "i") {
         e.preventDefault();
         onAskHere();
@@ -157,12 +174,21 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, panel, view, ask, notes]);
+  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, panel, view, ask, notes]);
 
   useEffect(() => {
     if (!mounted || !ref.current) return;
     if (autoFocus || panel !== "main") ref.current.querySelector<HTMLButtonElement>("button")?.focus({ preventScroll: true });
   }, [mounted, autoFocus, panel]);
+
+  useLayoutEffect(() => {
+    if (!mounted || !ref.current || props.placement === "sheet") return;
+    const r = ref.current.getBoundingClientRect();
+    const over = r.right - shiftX - (window.innerWidth - 8);
+    const next = over > 0 ? -Math.min(over, Math.max(0, r.left - shiftX - 8)) : 0;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (next !== shiftX) setShiftX(next);
+  }, [mounted, view, props.position.x, props.placement, shiftX]);
 
   // arrow keys move along the toolbar
   const onToolbarKey = (e: React.KeyboardEvent) => {
@@ -211,7 +237,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       className={`fixed z-[9999] flex items-center gap-0.5 p-1 bg-surface-2 border border-line-strong shadow-[0_12px_40px_rgba(0,0,0,0.45)] animate-hk-in ${
         sheet ? "inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+8px)]" : ""
       }`}
-      style={sheet ? undefined : { left: `${props.position.x}px`, top: `${props.position.y}px` }}
+      style={sheet ? undefined : { left: `${props.position.x + shiftX}px`, top: `${props.position.y}px` }}
     >
       {view === "main" && (
         <>
@@ -236,8 +262,15 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
               <span className={key}>B</span>
             </button>
           )}
+          {onExplain && (
+            <button type="button" className={btn} onClick={onExplain} aria-keyshortcuts="E" aria-label="Explain this: the course tutor explains the selected passage">
+              <Lightbulb className="w-3.5 h-3.5 text-signal-text" aria-hidden="true" />
+              Explain
+              <span className={key}>E</span>
+            </button>
+          )}
           {ask && (
-            <button type="button" className={btn} onClick={() => setPanel("ask")} aria-keyshortcuts="A" aria-label="Ask AI: Claude or ChatGPT">
+            <button type="button" className={btn} onClick={() => setPanel("ask")} aria-keyshortcuts="A" aria-label={tutor ? "Ask AI: the course tutor, Claude or ChatGPT" : "Ask AI: Claude or ChatGPT"}>
               <MessageCircleQuestion className="w-3.5 h-3.5" aria-hidden="true" />
               Ask AI
               <span className={key}>A</span>
@@ -251,6 +284,27 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
           {notes && (
             <button type="button" className={`${btn} px-2 ${sheet ? "!w-11 !flex-none" : ""}`} onClick={() => setPanel("main")} aria-label="Back to actions">
               <ChevronLeft className="w-4 h-4" aria-hidden="true" />
+            </button>
+          )}
+          {onExplain && (
+            <button type="button" className={btn} onClick={onExplain} aria-keyshortcuts="E" aria-label="Explain this: the course tutor explains the selected passage">
+              <Lightbulb className="w-3.5 h-3.5 text-signal-text" aria-hidden="true" />
+              {sheet ? "Explain" : "Explain this"}
+              <span className={key}>E</span>
+            </button>
+          )}
+          {onAskTutor && (
+            <button type="button" className={btn} onClick={onAskTutor} aria-keyshortcuts="T Alt+A" aria-label="Ask the tutor about this passage (type your own question)">
+              <GraduationCap className="w-3.5 h-3.5 text-signal-text" aria-hidden="true" />
+              {sheet ? "Tutor" : "Ask the tutor"}
+              <span className={key}>T</span>
+            </button>
+          )}
+          {onTutorSignIn && (
+            <button type="button" className={`${btn} ${sheet ? "!flex-[1.6]" : ""}`} onClick={onTutorSignIn} aria-keyshortcuts="T" aria-label="Sign in to ask the tutor">
+              <LogIn className="w-3.5 h-3.5 text-signal-text" aria-hidden="true" />
+              {sheet ? "Sign in · tutor" : "Sign in to ask the tutor"}
+              <span className={key}>T</span>
             </button>
           )}
           {onAskHere && (

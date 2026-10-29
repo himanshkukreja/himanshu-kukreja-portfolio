@@ -737,3 +737,14 @@ html.hk-ask-open [data-ask-fab] {
     grid-template-columns: 220px minmax(0, 1fr) !important;
   }
 }
+
+/* The course chat's floating Ask button (components/learn/chat/ChatDock): lifted above the Listen player
+   strip while it shows, so the two never overlap */
+html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 144px);
+}
+@media (min-width: 1024px) {
+  html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
+    bottom: 88px;
+  }
+}
