@@ -10,13 +10,14 @@ import { useEffect, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { buildIcsForPath } from "./planIcs";
 import SpeakButton from "./SpeakButton";
-import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Loader2, Mic, Route, Share2, ThumbsDown, ThumbsUp, X, Zap } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Mic, Route, Share2, ThumbsDown, ThumbsUp, X, Zap } from "lucide-react";
 import { KIND_LABEL } from "@/lib/search/smart/types";
 import { atClock } from "@/lib/search/smart/engine";
-import { citedRefs, streamingText, type ChatSource } from "@/lib/ai/chat/text";
+import { citedRefs, streamingText, trailOf, type ChatSource } from "@/lib/ai/chat/text";
 import ChatMarkdown from "./ChatMarkdown";
+import { Thinking, Trail, useReducedMotion, useReveal } from "./ChatLive";
 import SourceIcon from "./SourceIcon";
-import type { ChatMsg, ChatStatus, Conversation, Rating } from "./useCourseChat";
+import type { ChatMsg, ChatStatus, Conversation, LiveAnswer, Rating } from "./useCourseChat";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 const tagOf = (s: ChatSource) => (s.kind === "guide" ? "Site help" : KIND_LABEL[s.kind].tag);
@@ -193,33 +194,66 @@ function PathCardView({ conv, pref, onSave }: { conv: Conversation; pref: string
 
 export type ThreadActions = { feedback: boolean; share: boolean; onRate?: (callId: number, r: Omit<Rating, "sent">) => void };
 
-function Assistant({ m, conv, onAnswer, onSave, busy, actions }: { m: ChatMsg; conv: Conversation; onAnswer: (q: string, a: string) => void; onSave: (p: string) => void; busy: boolean; actions: ThreadActions }) {
+/** Likely next questions under the last answer: one tap sends it (as if typed). */
+function Followups({ items, onAsk, className = "" }: { items: string[]; onAsk: (q: string) => void; className?: string }) {
+  return (
+    // data-chat-transient: only the last answer has them; they go when the next message is sent (by design)
+    <div data-chat-transient role="group" aria-label="Suggested follow-up questions" className={`flex flex-col gap-1.5 ${className}`}>
+      <span className="font-mono text-[10.5px] uppercase tracking-label text-fg-4">ask next</span>
+      <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+        {items.map((q) => (
+          <li key={q} className="flex min-w-0 grow basis-[200px]">
+            <button
+              type="button"
+              onClick={() => onAsk(q)}
+              className="group flex min-h-11 w-full min-w-0 items-start justify-between gap-2 border border-line bg-bg px-3 py-2.5 text-left text-[13.5px] leading-snug text-fg-2 hover:border-signal hover:text-fg focus-visible:border-signal"
+            >
+              <span className="min-w-0 break-words">{q}</span>
+              <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-fg-4 group-hover:text-signal-text group-focus-visible:text-signal-text" aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }: { m: ChatMsg; conv: Conversation; onAnswer: (q: string, a: string) => void; onSave: (p: string) => void; busy: boolean; actions: ThreadActions; animate: boolean; onAsk?: (q: string) => void }) {
   const order = m.cites ?? citedRefs(m.text);
   const cited = order.map((r) => conv.sources[r]).filter(Boolean);
+  // the answer this view just wrote carries on revealing (an error or Stop shows everything at once); its cards follow the text
+  const shown = useReveal(m.id, m.text, animate && !m.error, true);
+  const settled = !shown.revealing;
+  const rise = animate ? "hk-chat-in" : "";
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3" aria-busy={shown.revealing ? "true" : undefined}>
       {m.mode === "interviewer" && <span className="font-mono text-[10.5px] uppercase tracking-label text-signal-text">interviewer{conv.mock ? ` · ${conv.mock.interviewer.split(",")[0]}` : ""}</span>}
+      {m.trail && m.mode !== "interviewer" && <Trail items={m.trail} />}
       {m.text && m.mode === "scorecard" ? (
         <section aria-label="Interview scorecard" className="flex flex-col gap-2 border border-line-strong border-l-[3px] border-l-signal bg-surface p-4">
           <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">scorecard</span>
-          <ChatMarkdown text={m.text} sources={conv.sources} order={order} />
+          <ChatMarkdown text={shown.text} sources={conv.sources} order={order} caret={shown.revealing} />
         </section>
       ) : (
-        m.text && <ChatMarkdown text={m.text} sources={conv.sources} order={order} />
+        m.text && <ChatMarkdown text={shown.text} sources={conv.sources} order={order} caret={shown.revealing} />
       )}
       {m.error && (
-        <p role="status" className="m-0 border border-dashed border-line-strong px-3 py-2 text-[14px] text-fg-2">
+        <p role="status" className={`m-0 border border-dashed border-line-strong px-3 py-2 text-[14px] text-fg-2 ${rise}`}>
           {m.error}
         </p>
       )}
-      {(m.quizzes ?? []).map((q) => (
-        <QuizCard key={q} conv={conv} qref={q} onAnswer={onAnswer} busy={busy} />
+      {settled && (m.quizzes ?? []).map((q) => (
+        <div key={q} className={rise}>
+          <QuizCard conv={conv} qref={q} onAnswer={onAnswer} busy={busy} />
+        </div>
       ))}
-      {(m.paths ?? []).map((p) => (
-        <PathCardView key={p} conv={conv} pref={p} onSave={onSave} />
+      {settled && (m.paths ?? []).map((p) => (
+        <div key={p} className={rise}>
+          <PathCardView conv={conv} pref={p} onSave={onSave} />
+        </div>
       ))}
-      {cited.length > 0 && (
-        <div className="flex flex-col gap-1.5">
+      {settled && cited.length > 0 && (
+        <div className={`flex flex-col gap-1.5 ${rise}`}>
           <span className="font-mono text-[10.5px] uppercase tracking-label text-fg-4">sources</span>
           <ul className="m-0 grid list-none gap-1.5 p-0 sm:grid-cols-2">
             {cited.slice(0, 6).map((s, i) => (
@@ -228,8 +262,8 @@ function Assistant({ m, conv, onAnswer, onSave, busy, actions }: { m: ChatMsg; c
           </ul>
         </div>
       )}
-      {m.text && !m.error && (
-        <div className="flex flex-wrap items-center gap-1">
+      {settled && m.text && !m.error && (
+        <div className={`flex flex-wrap items-center gap-1 ${rise}`}>
           <SpeakButton text={m.text} />
           {actions.feedback && m.callId ? <Feedback callId={m.callId} r={conv.ratings?.[m.callId]} onRate={actions.onRate} /> : null}
           {actions.share && m.mode !== "interviewer" && m.mode !== "scorecard" && <ShareAnswer m={m} conv={conv} />}
@@ -240,6 +274,7 @@ function Assistant({ m, conv, onAnswer, onSave, busy, actions }: { m: ChatMsg; c
           )}
         </div>
       )}
+      {settled && onAsk && !!m.followups?.length && !m.error && <Followups items={m.followups} onAsk={onAsk} className={rise} />}
     </div>
   );
 }
@@ -328,31 +363,66 @@ function ShareAnswer({ m, conv }: { m: ChatMsg; conv: Conversation }) {
   );
 }
 
+/** The reply being written: the thinking state until text comes, then the text revealing (and a step line while a tool runs after it). */
+function Pending({ m, conv, status, draft, live, animate, onStop }: { m: ChatMsg; conv: Conversation; status: ChatStatus; draft: string; live: LiveAnswer | null; animate: boolean; onStop?: () => void }) {
+  const mine = live?.id === m.id ? live : null;
+  const text = draft ? streamingText(draft, (r) => !!conv.sources[r]) : "";
+  const shown = useReveal(m.id, text, animate, false);
+  const label = status.kind === "working" ? status.label : "Thinking…";
+  if (!text)
+    return (
+      <div className="flex flex-col gap-3">
+        <Thinking live={mine} label={label} sources={conv.sources} onStop={onStop} />
+      </div>
+    );
+  const working = status.kind === "working";
+  return (
+    <div className="flex flex-col gap-3" aria-busy="true">
+      {m.mode !== "interviewer" && <Trail items={trailOf(mine?.steps ?? [])} />}
+      <ChatMarkdown text={shown.text} sources={conv.sources} order={citedRefs(draft)} caret={!working || shown.text.length < text.length} />
+      {working && <Thinking live={mine} label={label} sources={conv.sources} compact />}
+    </div>
+  );
+}
+
 export default function ChatThread({
   conv,
   status,
   draft,
+  live = null,
   onAnswer,
   onSave,
+  onStop,
+  onAsk,
   actions = { feedback: false, share: true },
   mock,
 }: {
   conv: Conversation;
   status: ChatStatus;
   draft: string;
+  /** the answer this view is writing (it animates only that one) */
+  live?: LiveAnswer | null;
   onAnswer: (qref: string, answer: string) => void;
   onSave: (pref: string) => void;
+  onStop?: () => void;
+  /** send a suggested follow-up (the cards under the last answer) */
+  onAsk?: (q: string) => void;
   actions?: ThreadActions;
   mock?: { onNext: () => void; onEnd: () => void; onLeave: () => void };
 }) {
   const busy = status.kind !== "idle";
   const last = conv.messages[conv.messages.length - 1];
+  const reduced = useReducedMotion();
+  // messages that arrive while the thread is open rise in; the ones it opened with just show
+  const [openedAt] = useState(() => Date.now());
   return (
     <ol className="m-0 flex list-none flex-col gap-6 p-0" aria-label="Conversation">
       {conv.messages.map((m) => {
         const pending = busy && m === last && m.role === "assistant" && !m.text && !m.error;
+        const animate = !reduced && live?.id === m.id;
+        const fresh = m.at >= openedAt - 250;
         return (
-          <li key={m.id} className={m.role === "user" ? "flex justify-end" : "flex flex-col"}>
+          <li key={m.id} className={`${m.role === "user" ? "flex justify-end" : "flex flex-col"} ${fresh ? "hk-chat-in" : ""}`}>
             {m.role === "user" ? (
               <div className="min-w-0 max-w-[88%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-[15px] leading-relaxed text-fg">
                 {m.answerTo && <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-label text-fg-3">my answer</span>}
@@ -360,24 +430,10 @@ export default function ChatThread({
                 {m.text}
               </div>
             ) : pending ? (
-              // the same order as the finished answer (text, then its cards), so nothing jumps when it lands
-              <div className="flex flex-col gap-3" aria-live="polite" aria-busy={status.kind === "streaming" ? "true" : "false"}>
-                {draft && <ChatMarkdown text={streamingText(draft, (r) => !!conv.sources[r])} sources={conv.sources} order={citedRefs(draft)} />}
-                {(!draft || status.kind === "working") && (
-                  <p className="m-0 flex items-center gap-2 font-mono text-[12.5px] text-fg-3">
-                    <Loader2 className="h-3.5 w-3.5 motion-safe:animate-spin" aria-hidden />
-                    {status.kind === "working" ? status.label : "writing…"}
-                  </p>
-                )}
-                {(m.quizzes ?? []).map((q) => (
-                  <QuizCard key={q} conv={conv} qref={q} onAnswer={onAnswer} busy />
-                ))}
-                {(m.paths ?? []).map((p) => (
-                  <PathCardView key={p} conv={conv} pref={p} onSave={onSave} />
-                ))}
-              </div>
+              // the same order as the finished answer (trail, text, then its cards after the text), so nothing jumps when it lands
+              <Pending m={m} conv={conv} status={status} draft={draft} live={live} animate={animate} onStop={onStop} />
             ) : (
-              <Assistant m={m} conv={conv} onAnswer={onAnswer} onSave={onSave} busy={busy} actions={actions} />
+              <Assistant m={m} conv={conv} onAnswer={onAnswer} onSave={onSave} busy={busy} actions={actions} animate={animate} onAsk={m === last && !busy && conv.mock?.status !== "live" ? onAsk : undefined} />
             )}
           </li>
         );

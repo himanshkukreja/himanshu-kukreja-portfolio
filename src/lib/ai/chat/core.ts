@@ -11,7 +11,7 @@ import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promp
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
 import { ChatState, closingLine, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
-import { cleanAnswer, isRef, OFF_TOPIC_MARK, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
+import { cleanAnswer, followupFilter, isRef, OFF_TOPIC_MARK, splitFollowups, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
 
 /** Turns kept word for word; older ones become a short summary. */
 export const KEEP_TURNS = 10;
@@ -142,6 +142,8 @@ export type CoreResult = {
   loopAt?: number;
   /** the main model declined before writing anything, and this model answered instead */
   fellBack?: string;
+  /** likely next questions for the page's cards (none for a quiz question, a decline, a mock or a cut-off answer) */
+  followups?: string[];
 };
 
 /** What the learner sees when every model declined (a safety decline is never an error to retry). */
@@ -172,13 +174,18 @@ export async function runChatCore(o: {
   const st = new ChatState(o.deps, o.emit);
   st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
   const latestText = o.req.messages[o.req.messages.length - 1].text;
-  const context = await learnerContext(st, o.memory, o.req.messages.filter((m) => m.role === "user").length === 1);
+  const first = o.req.messages.filter((m) => m.role === "user").length === 1;
+  // the page shows each step as it happens (the first message of a chat also works out what's due for review)
+  if (first) o.emit({ type: "status", tool: "context", label: TOOL_LABEL.context });
+  const context = await learnerContext(st, o.memory, first);
   // looked up before the model runs, so most answers need no tool round (see prefetchContext)
   const pre = o.prefetch === false ? { text: "", ran: [] as string[] } : await prefetchContext(st, latestText, { answerTo: o.req.answerTo });
   const ctxMs = Date.now() - t0;
   const messages = buildMessages(o.req, st, [context, pre.text ? `<looked_up_for_this_message>\n${pre.text}\n</looked_up_for_this_message>` : ""].filter(Boolean).join("\n\n"));
   const system = courseChatSystem(o.map, promptOptsFor(o.model, "course-chat"));
   const loopAt = Date.now() - t0;
+  // the follow-ups line at the end of an answer never streams (its own event, after the loop)
+  const deltas = followupFilter((d) => o.emit({ type: "delta", text: d }));
   const run = (model: string, sys: string) =>
     runLoop({
       apiKey: o.apiKey,
@@ -192,18 +199,25 @@ export async function runChatCore(o: {
       deadline: o.deadline,
       signal: o.signal,
       runTool: (name, input) => runTool(st, name, input),
-      onRound: (n) => o.emit({ type: "round", n }),
-      onText: (d) => o.emit({ type: "delta", text: d }),
-      onTool: (name) => o.emit({ type: "status", tool: name, label: TOOL_LABEL[name] ?? "working…" }),
+      onRound: (n) => {
+        deltas.flush();
+        o.emit({ type: "round", n });
+        // round 1 thinks (and may call tools); a round after tool results writes the answer (on Sonnet it arrives in one piece at the end)
+        o.emit(n === 1 ? { type: "status", tool: "think", label: pre.ran.length ? "Thinking it through…" : TOOL_LABEL.think } : { type: "status", tool: "write", label: TOOL_LABEL.write });
+      },
+      onText: (d) => deltas.push(d),
+      onTool: (name, input) => st.status(name, input),
       finish: (ran) => closingLine(st, ran),
     });
   let loop = await run(o.model, system);
+  deltas.flush();
   // a decline before anything was shown: the fast model answers instead (its own safety training decides),
   // as the API's refusal fallbacks do; a decline after text was shown stays a decline
   let fellBack: string | undefined;
   if (loop.stop === "refusal" && loop.ttft === null && !/haiku/.test(o.model) && o.deadline - Date.now() > 8000) {
     fellBack = MODELS.haiku55;
     loop = joinLoops(loop, await run(fellBack, courseChatSystem(o.map, promptOptsFor(fellBack, "course-chat"))));
+    deltas.flush();
   }
   if (loop.stop === "refusal" && loop.ttft === null && !loop.error) {
     loop = { ...loop, text: DECLINE_TEXT };
@@ -214,9 +228,13 @@ export async function runChatCore(o: {
   if (pre.ran.includes("get_item")) loop.toolCalls.unshift({ name: "get_item", input: { ref: "page" } });
   if (pre.ran.includes("search")) loop.toolCalls.unshift({ name: "search_course", input: { prefetched: true } });
   const offTopic = OFF_TOPIC_MARK.test(loop.text);
-  const text = cleanAnswer(loop.text, (ref) => st.sources.has(ref));
   const latest = o.req.messages[o.req.messages.length - 1];
-  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack };
+  const split = splitFollowups(loop.text, latest.text);
+  const text = cleanAnswer(split.text, (ref) => st.sources.has(ref));
+  // cards only under a real, whole answer: not a decline, a practice question waiting for its answer, a mock just
+  // started, a saved path's one line, or an answer that was cut off
+  const followups = offTopic || st.flags.quiz || st.mock || loop.error || loop.stop !== "end_turn" || loop.refusal || !text ? [] : split.followups;
+  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups };
 }
 
 /** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */
@@ -259,7 +277,7 @@ export async function runMockCore(o: Parameters<typeof runChatCore>[0]): Promise
     });
     if (!phases.some((p) => p.candidate.split(/\s+/).length >= 20))
       return { text: "There isn't enough to score yet: answer at least one phase in a few sentences, then end the interview again.", offTopic: false, loop: emptyLoop(""), state: st, ask: latest.text, mode: "scorecard" };
-    o.emit({ type: "status", tool: "scorecard", label: "scoring your interview…" });
+    o.emit({ type: "status", tool: "scorecard", label: TOOL_LABEL.scorecard });
     const system = mockFullScorecardSystem({ company: mock.company, problem: mock.problem, phases }, promptOptsFor(o.model, "mock-scorecard"));
     // the scorecard thinks on Sonnet (as /api/learn/ai/mock/scorecard does): room for it on top of the answer
     const haiku = /haiku/.test(o.model);
@@ -281,6 +299,7 @@ export async function runMockCore(o: Parameters<typeof runChatCore>[0]): Promise
   while (history[0]?.role === "assistant") history.shift();
   if (history.filter((m) => m.role === "user").length >= 10) return { text: "That's ten exchanges in this phase: time to move on to the next one (or end the interview for your scorecard).", offTopic: false, loop: emptyLoop(""), state: st, ask: latest.text, mode: "interviewer" };
   const system = mockInterviewerSystem({ company: mock.company, interviewer: mock.interviewer, problem: mock.problem, phase: phase.prompt }, promptOptsFor(o.model, "mock-interviewer"));
+  o.emit({ type: "status", tool: "interviewer", label: TOOL_LABEL.interviewer });
   const loop = await run(system, [...history, { role: "user", content: latest.text }], answerTokens("mock-interviewer", o.model), thinkingFor(o.model));
   return { text: cleanAnswer(loop.text, () => false), offTopic: false, loop, state: st, ask: `[mock ${mock.key} · ${phase.id}] ${latest.text}`, mode: "interviewer" };
 }

@@ -86,8 +86,9 @@ const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ v
           }}
         />
         {busy && onStop ? (
-          <button type="button" onClick={onStop} aria-label="Stop the answer" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg hover:border-fg-3">
-            <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
+          <button type="button" onClick={onStop} aria-label="Stop the answer" title="Stop the answer" className="group inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 border border-signal px-3 font-mono text-[12.5px] font-semibold text-fg hover:bg-signal hover:text-on-signal">
+            <Square className="h-3 w-3 fill-current text-signal-text group-hover:text-on-signal" aria-hidden />
+            <span aria-hidden>Stop</span>
           </button>
         ) : (
           <button type="submit" disabled={busy || !value.trim()} aria-label="Ask" className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 bg-signal px-3.5 font-semibold text-on-signal disabled:opacity-50">

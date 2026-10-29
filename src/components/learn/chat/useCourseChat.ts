@@ -12,7 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { track } from "@/lib/track";
-import { citedRefs, cleanAnswer, historyText, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
+import { citedRefs, cleanAnswer, historyText, trailOf, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
 import { useChatPathSaver } from "./savePath";
 import { isHistoryKey, readActive, saveActive } from "./history";
 
@@ -38,6 +38,10 @@ export type ChatMsg = {
   mode?: "tutor" | "interviewer" | "scorecard";
   /** a candidate's line in a mock (with its phase) */
   mockPhase?: string;
+  /** what the tutor did for this answer, finished steps in order ("searched the course", "read 3 lessons") */
+  trail?: string[];
+  /** likely next questions (cards under the last answer; a tap sends one) */
+  followups?: string[];
 };
 
 /** A mock interview running in the chat: its phases, the one on now (and since when), and each phase's exchange. */
@@ -130,12 +134,21 @@ function setLock(uid: string, id: string | null) {
 
 export type ChatStatus = { kind: "idle" } | { kind: "working"; label: string } | { kind: "streaming" };
 
+/** One step of the answer being written (a server status line), and when it came. */
+export type LiveStep = { tool: string; label: string; noun?: string; at: number };
+/**
+ * The answer this view is writing now (or wrote last): its reply id (the thread animates only this one), when it
+ * was sent, the steps so far and the refs looked up for it (not the learner's own context).
+ */
+export type LiveAnswer = { id: string; since: number; steps: LiveStep[]; refs: string[] };
+
 export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<string, string>; page?: () => PageContext | null } = {}) {
   const [conv, setConv] = useState<Conversation>(fresh);
   const [status, setStatus] = useState<ChatStatus>({ kind: "idle" });
   const [draft, setDraft] = useState("");
   const [quota, setQuota] = useState<ChatQuota | null>(null);
   const [fallback, setFallback] = useState(false);
+  const [live, setLive] = useState<LiveAnswer | null>(null);
   const abort = useRef<AbortController | null>(null);
   const waiting = useRef(false);
   const remote = useRef(false);
@@ -169,7 +182,9 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         setStatus({ kind: "idle" });
       }
     };
-    look();
+    // not while this view is writing an answer: the re-read would take its own reply for an interrupted one (React
+    // runs this effect twice in dev, after the panel's first message has gone out; a uid change mid-answer too)
+    if (!abort.current) look();
     const sync = (e: Event) => {
       if (e instanceof StorageEvent && !isHistoryKey(uid, e.key) && e.key !== LOCK(uid)) return;
       if (!abort.current && !waiting.current) look();
@@ -259,7 +274,14 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       commit({ ...withUser, messages: [...withUser.messages, reply] });
       setDraft("");
       setFallback(false);
-      setStatus({ kind: "working", label: "thinking…" });
+      setStatus({ kind: "working", label: "Thinking…" });
+      // the thinking state shows at once, in the reply's place; the server's steps follow
+      const steps: LiveStep[] = [{ tool: "send", label: "Thinking…", at: Date.now() }];
+      setLive({ id: reply.id, since: Date.now(), steps, refs: [] });
+      const step = (s: Omit<LiveStep, "at">) => {
+        steps.push({ ...s, at: Date.now() });
+        setLive((l) => (l && l.id === reply.id ? { ...l, steps: [...steps] } : l));
+      };
       const body: ChatRequest = {
         chat: base.chat,
         // earlier answers to practice questions say which question (the server adds it for the new message)
@@ -306,10 +328,15 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
               patchReply((m) => ({ ...m, fast: e.fast }));
               break;
             case "status":
-              setStatus({ kind: "working", label: e.label || "working…" });
+              setStatus({ kind: "working", label: e.label || "Working…" });
+              step({ tool: e.tool, label: e.label || "Working…", ...(e.noun ? { noun: e.noun } : {}) });
               break;
             case "sources":
               commit((c) => ({ ...c, sources: { ...c.sources, ...e.sources } }));
+              if (!e.quiet) {
+                const refs = Object.keys(e.sources);
+                setLive((l) => (l && l.id === reply.id ? { ...l, refs: [...l.refs, ...refs.filter((r) => !l.refs.includes(r))] } : l));
+              }
               break;
             case "quiz":
               commit((c) => ({ ...c, quizzes: { ...c.quizzes, [e.quiz.qref]: e.quiz }, messages: c.messages.map((m) => (m.id === reply.id ? { ...m, quizzes: [...(m.quizzes ?? []), e.quiz.qref] } : m)) }));
@@ -326,6 +353,9 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
             case "save":
               // after this event's state lands
               queueMicrotask(() => savePath(e.pref));
+              break;
+            case "followups":
+              if (Array.isArray(e.items)) patchReply((m) => ({ ...m, followups: e.items.filter((x) => typeof x === "string").slice(0, 3) }));
               break;
             case "round":
               // a new tool round: the text so far stays (the server only streams what it keeps)
@@ -388,6 +418,9 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         }
         return false;
       } finally {
+        // what the tutor did stays with the answer (a quiet line above it), however the answer ended
+        const trail = trailOf(steps);
+        if (trail.length && convRef.current.messages.some((m) => m.id === reply.id)) patchReply((m) => ({ ...m, trail }));
         setLock(uid, null);
         abort.current = null;
         setStatus({ kind: "idle" });
@@ -409,6 +442,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
     }
     commit(fresh(), true);
     setFallback(false);
+    setLive(null);
     track("chat_new", { turns: userTurns });
   }, [commit, devHeaders, memory, uid]);
 
@@ -451,5 +485,5 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
     [commit],
   );
 
-  return { conv, status, draft, quota, memory, feedback, fallback, send, reset, stop, savePath, addSaved, nextPhase, leaveMock, rate, busy: status.kind !== "idle" };
+  return { conv, status, live, draft, quota, memory, feedback, fallback, send, reset, stop, savePath, addSaved, nextPhase, leaveMock, rate, busy: status.kind !== "idle" };
 }

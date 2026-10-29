@@ -22,6 +22,7 @@ import ChatComposer, { type ComposerHandle } from "./ChatComposer";
 import ChatHistory, { useChatHistory } from "./ChatHistory";
 import { useKeyboardInset } from "./ui";
 import ChatThread from "./ChatThread";
+import { NewMessagePill, useFollow } from "./ChatLive";
 import { ChatFinePrint, QuotaLine } from "./ChatMeta";
 import { clearHeldSelection, heldPassage, readPageContext } from "./pageContext";
 import { useCourseChat } from "./useCourseChat";
@@ -56,7 +57,8 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
   // a passage attached by "Ask the tutor" on a selection: shown above the box, sent with the next message
   const [attached, setAttached] = useState("");
   const composer = useRef<ComposerHandle>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const lesson = LESSON_RE.exec(pathname);
   const isLesson = !!lesson && !/^(design-week|revise)$/.test(lesson[1]);
   const faq = useLessonFaq(isLesson ? lesson![2] : null, isLesson ? lesson![3] : "");
@@ -114,9 +116,16 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
     if (!open) clearHeldSelection();
   }, [open]);
 
+  // the newest text stays in view while the learner is at the bottom (scrolled up: a "new message" pill)
+  const follow = useFollow(scrollRef, contentRef, false, `${open}:${showHistory}`);
+  const followTo = follow.toBottom;
   useEffect(() => {
-    endRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
-  }, [chat.draft, chat.conv.messages.length, open]);
+    if (open && !showHistory) requestAnimationFrame(() => followTo(false));
+  }, [open, showHistory, followTo]);
+  const liveId = chat.live?.id;
+  useEffect(() => {
+    if (liveId) requestAnimationFrame(() => followTo(true));
+  }, [liveId, followTo]);
 
   if (!open) return null;
   const empty = chat.conv.messages.length === 0;
@@ -190,7 +199,9 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
           </div>
         ) : (
         <>
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-4">
+        <div className="relative flex min-h-0 flex-1 flex-col">
+        <div ref={scrollRef} className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+        <div ref={contentRef} className="flex flex-col gap-4 px-4 py-4">
           {empty && (
             <p className="m-0 text-[14px] leading-relaxed text-fg-2">
               Ask about this page or anything in the course. The tutor knows where you are, answers with sources, finds lecture moments, quizzes you and builds paths you can save.
@@ -219,12 +230,17 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
                 conv={chat.conv}
                 status={chat.status}
                 draft={chat.draft}
+                live={chat.live}
+                onStop={chat.stop}
+                onAsk={canChat ? (t) => (track("chat_followup", { from: "panel" }), send(t)) : undefined}
                 onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
                 onSave={chat.savePath}
                 actions={{ feedback: chat.feedback, share: true, onRate: chat.rate }}
                 mock={{ onNext: chat.nextPhase, onEnd: () => void chat.send("End the interview and score me.", { mockEnd: true }), onLeave: chat.leaveMock }}
               />}
-          <div ref={endRef} />
+        </div>
+        </div>
+        {follow.unseen && !empty && <NewMessagePill onClick={() => follow.toBottom()} className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2" />}
         </div>
 
         <footer className={`flex flex-col gap-2 border-t border-line px-4 pt-3 lg:pb-3 ${kb ? "pb-2" : "pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"}`}>

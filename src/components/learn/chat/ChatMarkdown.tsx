@@ -11,7 +11,23 @@ import type { ChatSource } from "@/lib/ai/chat/text";
 import { REF_RE } from "@/lib/ai/chat/text";
 import SourceIcon from "./SourceIcon";
 
-type Props = { text: string; sources: Record<string, ChatSource>; order: string[]; className?: string };
+/** `caret`: a blinking block at the end of the text (while it is being revealed). */
+type Props = { text: string; sources: Record<string, ChatSource>; order: string[]; className?: string; caret?: boolean };
+
+// the caret rides at the very end of the text as an invisible mark, so it lands inside the last block (a paragraph, a list item, code)
+const CARET = "\u2063";
+const Caret = () => <span aria-hidden className="hk-caret" />;
+function withCaret(t: string, key: string): ReactNode {
+  if (!t.includes(CARET)) return t;
+  const [a, b] = t.split(CARET);
+  return (
+    <Fragment key={key}>
+      {a}
+      <Caret />
+      {b}
+    </Fragment>
+  );
+}
 
 // no lookbehind: older Safari can't parse it
 const INLINE = /(`[^`\n]+`|\*\*[^*\n]+\*\*|\*[^*\s][^*\n]*?\*(?![\w*])|\[\[[^\]]+\]\])/g;
@@ -46,7 +62,7 @@ function inline(text: string, sources: Record<string, ChatSource>, order: string
   let last = 0;
   let i = 0;
   for (const m of text.matchAll(INLINE)) {
-    if (m.index! > last) out.push(<Fragment key={`${key}t${i++}`}>{text.slice(last, m.index)}</Fragment>);
+    if (m.index! > last) out.push(<Fragment key={`${key}t${i++}`}>{withCaret(text.slice(last, m.index), `${key}k${i}`)}</Fragment>);
     const t = m[0];
     if (t.startsWith("`")) out.push(<code key={`${key}c${i++}`} className="bg-surface-2 px-1 font-mono text-[0.9em] text-fg">{t.slice(1, -1)}</code>);
     else if (t.startsWith("**")) out.push(<strong key={`${key}b${i++}`} className="font-semibold text-fg">{t.slice(2, -2)}</strong>);
@@ -56,19 +72,19 @@ function inline(text: string, sources: Record<string, ChatSource>, order: string
     } else out.push(<em key={`${key}i${i++}`}>{t.slice(1, -1)}</em>);
     last = m.index! + t.length;
   }
-  if (last < text.length) out.push(<Fragment key={`${key}t${i++}`}>{text.slice(last)}</Fragment>);
+  if (last < text.length) out.push(<Fragment key={`${key}t${i++}`}>{withCaret(text.slice(last), `${key}k${i}`)}</Fragment>);
   return out;
 }
 
-export default function ChatMarkdown({ text, sources, order, className = "" }: Props) {
+export default function ChatMarkdown({ text, sources, order, className = "", caret = false }: Props) {
   const blocks: ReactNode[] = [];
-  const parts = text.replace(/\r\n/g, "\n").split(/^```[\w-]*\n?/m);
+  const parts = `${text.replace(/\r\n/g, "\n").replace(/\s+$/, "")}${caret ? CARET : ""}`.split(/^```[\w-]*\n?/m);
   parts.forEach((part, pi) => {
     if (pi % 2 === 1) {
       const code = part.replace(/```\s*$/, "").replace(/\n$/, "");
       blocks.push(
         <pre key={`p${pi}`} className="m-0 overflow-x-auto border border-line bg-surface-2 p-3 font-mono text-[12.5px] leading-relaxed text-fg-2">
-          {code}
+          {withCaret(code, `p${pi}c`)}
         </pre>,
       );
       return;

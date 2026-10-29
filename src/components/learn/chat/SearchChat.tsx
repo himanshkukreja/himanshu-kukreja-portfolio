@@ -33,6 +33,7 @@ import { track } from "@/lib/track";
 import ChatComposer, { type ComposerHandle } from "./ChatComposer";
 import ChatHistory, { useChatHistory } from "./ChatHistory";
 import ChatThread from "./ChatThread";
+import { NewMessagePill, useFollow } from "./ChatLive";
 import ContextRail, { QUICK_ACTIONS } from "./ContextRail";
 import { ChatFinePrint, QuotaLine } from "./ChatMeta";
 import { openThread } from "./history";
@@ -88,7 +89,7 @@ function ChatPage() {
   });
   const composer = useRef<ComposerHandle>(null);
   const scroller = useRef<HTMLDivElement>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const threadRef = useRef<HTMLDivElement>(null);
   const wide = useMedia("(min-width: 1024px)");
   const rail = useMedia("(min-width: 1280px)");
   const phone = useMedia("(max-width: 767px)");
@@ -169,12 +170,15 @@ function ChatPage() {
     router.replace(`/learn/chat?q=${encodeURIComponent(q)}${dev ? "&preview=1" : ""}`, { scroll: false });
   }, [asked, q, loading, user, ai, canChat, ask, router, dev]);
 
-  // keep the newest message in view while it streams (the shell's own scroller from 1024 up, the page below)
+  // keep the newest message in view while it is written, unless the learner scrolled up to read (then a "new
+  // message" pill); the shell's own scroller from 1024 up, the page below
+  const follow = useFollow(scroller, threadRef, !wide, `${wide}:${empty}`);
+  const followTo = follow.toBottom;
+  // a message sent (from the box, a quiz card, a quick action): follow it again
+  const liveId = chat.live?.id;
   useEffect(() => {
-    if (!chat.busy) return;
-    if (wide && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
-    else endRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
-  }, [chat.draft, chat.busy, chat.conv.messages.length, wide]);
+    if (liveId) requestAnimationFrame(() => followTo(true));
+  }, [liveId, followTo]);
   // a conversation opened from history starts at its end
   const seenChat = useRef(chat.conv.chat);
   useEffect(() => {
@@ -406,11 +410,14 @@ function ChatPage() {
   );
 
   const thread = (
-    <div className="mx-auto flex w-full max-w-[760px] min-w-0 flex-col gap-6 px-4 pb-6 pt-6 sm:px-6">
+    <div ref={threadRef} className="mx-auto flex w-full max-w-[760px] min-w-0 flex-col gap-6 px-4 pb-6 pt-6 sm:px-6">
       <ChatThread
         conv={chat.conv}
         status={chat.status}
         draft={chat.draft}
+        live={chat.live}
+        onStop={chat.stop}
+        onAsk={canChat ? (t) => (track("chat_followup", { from: "page" }), ask(t)) : undefined}
         onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
         onSave={chat.savePath}
         actions={{ feedback: chat.feedback, share: true, onRate: chat.rate }}
@@ -421,8 +428,7 @@ function ChatPage() {
           See the instant results →
         </button>
       )}
-      {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} className="border-t border-line pt-4" />}
-      <div ref={endRef} />
+      {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} className="mt-2" />}
     </div>
   );
 
@@ -432,6 +438,7 @@ function ChatPage() {
       <main className="w-full min-w-0" style={{ paddingBottom: boxH + 12 }}>
         {topBar}
         {empty ? emptyState : thread}
+        {follow.unseen && !empty && <NewMessagePill onClick={() => follow.toBottom()} className="fixed left-1/2 z-40 -translate-x-1/2" style={{ bottom: (kb > 0 ? kb : dockH) + boxH + 10 }} />}
         <div ref={boxRef} className="hk-safe-x fixed inset-x-0 z-40 border-t border-line bg-bg/95 px-3 pb-2 pt-2 backdrop-blur sm:px-6" style={{ bottom: kb > 0 ? kb : dockH }}>
           <div className="mx-auto w-full max-w-[760px]">{box}</div>
         </div>
@@ -454,8 +461,11 @@ function ChatPage() {
       )}
       <section aria-label="Conversation" className="flex min-w-0 flex-1 flex-col">
         {topBar}
-        <div ref={scroller} data-chat-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {empty ? emptyState : thread}
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <div ref={scroller} data-chat-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {empty ? emptyState : thread}
+          </div>
+          {follow.unseen && !empty && <NewMessagePill onClick={() => follow.toBottom()} className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2" />}
         </div>
         {!empty && (
           <div className="shrink-0 border-t border-line bg-bg px-6 pb-4 pt-3">

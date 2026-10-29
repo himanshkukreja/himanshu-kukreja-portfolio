@@ -36,19 +36,29 @@ export const historyLine = (where: "on" | "off" | "unknown") =>
     ? "Your chat history is saved to your account for 90 days after your last message, so you can pick a chat up on any device; delete one chat or all of them from History."
     : "Your chat history is kept on this device for 90 days after your last message; delete one chat or all of them from History.";
 
+/**
+ * One quiet line ("free for now · not used to train AI · privacy & memory"); the full small print opens
+ * under it on a tap (the owner found the whole paragraph under every chat distracting, 29 Oct 2026).
+ */
 export function ChatFinePrint({ memory, history, className = "" }: { memory: { available: boolean; paused: boolean } | null; history?: "on" | "off" | "unknown"; className?: string }) {
   return (
-    <p className={`m-0 text-[11.5px] leading-snug text-fg-4 ${className}`}>
-      {AI_FREE_LINE} {CHAT_PRIVACY} {history ? `${historyLine(history)} ` : ""}
-      {memory?.available && (
-        <>
-          {memory.paused ? "Memory is off." : "The tutor remembers your learning between chats."}{" "}
-          <Link href="/learn/memory" className="underline decoration-line-strong underline-offset-2 hover:text-fg-2">
-            {memory.paused ? "Turn it on" : "See or clear it"}
-          </Link>
-          .
-        </>
-      )}
-    </p>
+    <details className={`group text-[11.5px] leading-snug text-fg-4 ${className}`}>
+      <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 font-mono text-[11px] hover:text-fg-3 [&::-webkit-details-marker]:hidden">
+        free for now · not used to train AI ·{" "}
+        <span className="underline decoration-line-strong underline-offset-2 group-open:text-fg-3">privacy &amp; memory</span>
+      </summary>
+      <p className="m-0 mt-1.5 max-w-[640px]">
+        {AI_FREE_LINE} {CHAT_PRIVACY} {history ? `${historyLine(history)} ` : ""}
+        {memory?.available && (
+          <>
+            {memory.paused ? "Memory is off." : "The tutor remembers your learning between chats."}{" "}
+            <Link href="/learn/memory" className="underline decoration-line-strong underline-offset-2 hover:text-fg-2">
+              {memory.paused ? "Turn it on" : "See or clear it"}
+            </Link>
+            .
+          </>
+        )}
+      </p>
+    </details>
   );
 }

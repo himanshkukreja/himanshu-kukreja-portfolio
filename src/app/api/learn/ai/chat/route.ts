@@ -149,6 +149,7 @@ export async function POST(request: Request) {
         if (ok) {
           // the conversation text, kept 90 days (the chat's retention: abuse checks and improving the tutor), with a trace of the tools
           await saveTranscript(callId, me.id || null, "course-chat", r.ask, `${r.text}\n\n— tools: ${r.loop.toolCalls.map((t) => traceOf(t.name, t.input)).join("; ") || "none"}`);
+          if (r.followups?.length) emit({ type: "followups", items: r.followups });
           emit({ type: "done", text: r.text, offTopic: r.offTopic, quota: admit.quota ? afterMessage(admit.quota, admit.model) : null, tools: r.loop.toolCalls.length, ms: Date.now() - t0, callId, mode: r.mode, ttft });
           // every few messages the tutor's memory of this learner is brought up to date (after the answer is out)
           if (me.id && userTurns % MEMORY_EVERY === 0 && !r.offTopic)

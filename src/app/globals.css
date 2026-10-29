@@ -762,3 +762,63 @@ html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
   from { transform: translateX(24px); opacity: 0; }
   to { transform: none; opacity: 1; }
 }
+
+/* The course chat's thinking state and answer reveal (components/learn/chat/ChatLive.tsx): messages and cards
+   rise in, the step line shimmers and cross-fades, a block caret blinks while text is revealed. Reduced motion:
+   static dots, plain text, no caret blink, no fades. */
+@keyframes hk-chat-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.hk-chat-in { animation: hk-chat-in 280ms cubic-bezier(0.2, 0.7, 0.2, 1) both; }
+@keyframes hk-dot {
+  0%, 80%, 100% { opacity: 0.25; transform: none; }
+  40% { opacity: 1; transform: translateY(-2px); }
+}
+.hk-dots > span { animation: hk-dot 1.2s ease-in-out infinite; }
+.hk-dots > span:nth-child(2) { animation-delay: 0.16s; }
+.hk-dots > span:nth-child(3) { animation-delay: 0.32s; }
+@keyframes hk-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+.hk-shimmer {
+  background-image: linear-gradient(90deg, var(--c-fg-3) 0%, var(--c-fg-3) 38%, var(--c-signal-text) 50%, var(--c-fg-3) 62%, var(--c-fg-3) 100%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: hk-shimmer 2.2s linear infinite;
+}
+@keyframes hk-step-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes hk-step-out {
+  from { opacity: 1; transform: none; }
+  to { opacity: 0; transform: translateY(-4px); }
+}
+.hk-step-in { animation: hk-step-in 240ms ease-out 110ms both; }
+.hk-step-out { animation: hk-step-out 150ms ease-in both; }
+@keyframes hk-caret {
+  0%, 49% { opacity: 1; }
+  50%, 100% { opacity: 0; }
+}
+.hk-caret {
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.17em;
+  background: var(--c-signal);
+  animation: hk-caret 1s linear infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .hk-shimmer { background-image: none; color: var(--c-fg-3); animation: none; }
+  .hk-dots > span { animation: none; }
+  .hk-dots > span:nth-child(2) { opacity: 0.6; }
+  .hk-dots > span:nth-child(3) { opacity: 0.3; }
+  .hk-caret { animation: none; }
+  .hk-chat-in, .hk-step-in { animation: none; }
+  .hk-step-out { display: none; }
+}
