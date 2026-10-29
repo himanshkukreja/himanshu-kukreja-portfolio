@@ -40,6 +40,12 @@ for (const s of L.scenes || []) {
     if (!(Number.isInteger(s.answer) && s.answer >= 0 && s.answer < (s.options || []).length)) errs.push(`${s.id}: quiz answer must index options`);
     if (!s.explain) errs.push(`${s.id}: quiz needs explain`);
     if (s.steps.length !== 2) errs.push(`${s.id}: quiz needs exactly 2 steps (ask, answer)`);
+    // the quiz card has to fit the 16:9 stage with its answer shown: long text clips at the top
+    const q = (s.question || "").length, e = (s.explain || "").length;
+    const opt = Math.max(0, ...(s.options || []).map((o) => (typeof o === "string" ? o : o?.text || "").length));
+    const total = q + e + (s.options || []).reduce((a, o) => a + (typeof o === "string" ? o : o?.text || "").length, 0);
+    if (q > 240 || opt > 130 || e > 420 || total > 900) errs.push(`${s.id}: quiz text won't fit the card (question ${q}/200, longest option ${opt}/110, explain ${e}/330, total ${total}/800)`);
+    else if (q > 200 || opt > 110 || e > 330 || total > 800) warns.push(`${s.id}: quiz text is long for the card (question ${q}/200, longest option ${opt}/110, explain ${e}/330, total ${total}/800)`);
   }
   const revealMax = s.kind === "list" || s.kind === "chart" ? (s.points || []).length : s.kind === "timeline" ? (s.events || []).length : s.kind === "phone" ? Math.max(0, ...(s.screens || []).map((x) => x.rows.length)) : s.kind === "compare" ? (s.left?.points?.length || 0) + (s.right?.points?.length || 0) : 0;
   const src = s.diagram || "";
