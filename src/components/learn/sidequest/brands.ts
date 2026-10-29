@@ -83,7 +83,7 @@ const BRANDS: Record<number, QuestBrand> = {
   8: { n: 8, product: "Amazon S3", field: "Object storage", emblem: "bucket", accent: "#3F8624", tile: "#3F8624", ink: W, logos: [gb("aws-s3", [0, 0, 64, 64])] },
   9: { n: 9, product: "Uber", field: "Ride-hailing", emblem: "map", accent: "#141414", tile: K, ink: W, logos: [si("uber", [10, 10, 44, 44])] },
   10: { n: 10, product: "Twitter / X", field: "Social timelines", emblem: "fanout", accent: "#1D9BF0", tile: K, ink: W, logos: [si("x", [17, 17, 30, 30])] },
-  11: { n: 11, product: "IRCTC Tatkal", field: "Ticket booking", emblem: "train", accent: "#004B8D", tile: "#004B8D", ink: W, hi: "#F7941D" },
+  11: { n: 11, product: "IRCTC Tatkal", field: "Ticket booking", emblem: "train", accent: "#000080", tile: W, ink: "#000080", hi: "#F7941D", logos: [gb("irctc", [11, 6, 42, 52])] },
   12: { n: 12, product: "Blinkit", field: "Quick commerce", emblem: "bolt", accent: "#F8CB46", tile: "#F8CB46", ink: "#1C1C1C", hi: "#0C831F", logos: [gb("blinkit", [5.5, 25, 53, 14])] },
   13: { n: 13, product: "Zerodha Kite", field: "Stock trading", emblem: "candles", accent: "#F6461A", tile: W, ink: "#387ED1", hi: "#FF6A2B", logos: [gb("kite", [12, 17, 40, 30])] },
   14: { n: 14, product: "ChatGPT", field: "LLM serving", emblem: "tokens", accent: "#10A37F", tile: K, ink: W, logos: [si("openai", [14, 14, 36, 36])] },

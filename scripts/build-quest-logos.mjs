@@ -55,6 +55,7 @@ const LOGOS = {
  *   ondc.svg     ondc.org/public/assets/ondc-logo.svg (ONDC's own file): the wordmark; its subtitle is text,
  *                which the sanitiser drops
  *   nse.svg      nseindia.com/assets/images/NSE_Logo.svg (NSE's own file): the full lockup
+ *   irctc.svg    English Wikipedia, File:IRCTC Logo.svg (IRCTC's logo, used there as fair use): the full lockup
  */
 const LOCAL = {
   blinkit: { file: "scripts/quest-logos/blinkit.svg", drop: (a, tag) => tag === "rect", viewBox: [303, 1368, 2894, 764] },
@@ -66,6 +67,7 @@ const LOCAL = {
   kite: { file: "scripts/quest-logos/kite.svg", viewBox: [0, 0, 90, 60] },
   ondc: { file: "scripts/quest-logos/ondc.svg", viewBox: [30, 10, 790, 262] },
   nse: { file: "scripts/quest-logos/nse.svg", viewBox: [0, 0, 127.039, 43.1] },
+  irctc: { file: "scripts/quest-logos/irctc.svg", viewBox: [0, 0, 336, 419] },
 };
 
 /** Simple Icons marks, drawn in one colour (the brand's own arrangement: white on its colour, etc.). */
