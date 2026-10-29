@@ -1,453 +1,535 @@
 /**
- * Whole-lesson overview (week 6, day 4: scale, reliability & edge cases), "what breaks at scale?
- * Everything." Scale: a 10M-in-an-hour campaign (+48% average load, a 100,000+/sec burst) tamed by
- * throttled ingestion, a celebrity's 1M-follower fan-out, provider rate limits. Reliability: the
- * circuit breaker cycle, provider failover, graceful degradation. Edge cases: device tokens, email
- * bounces, DST, race conditions. Cost: SMS at $3M+/month and how to cut it.
+ * Whole-lesson overview (week 6, day 4 · presence and chat fan-out at scale). The Preface's
+ * illustrative Saturday night in "Goa Trip" (a lost ack and a double payment, a fast clock, a dead
+ * phone still online, a stuck typing indicator, a 300,000-member room at 100% CPU) and the three
+ * classes of event; presence (heartbeats with a TTL of d + ε and an offline trigger at d + 2ε, per
+ * device, server-stamped last seen, eager ~84,000/s vs visible-only ~22,000/s, typing never stored);
+ * fan-out and order (accept then distribute, bodies once with pointers to small groups, hot rooms,
+ * one owner numbering each conversation, cursor receipts); and offline sync, dedup on both ends and
+ * the failures that heal (split-brain presence, a crash mid-fan-out).
  */
-import { at, Box, defineExplainer, lerp, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone } from "../kit";
+import { Box, defineExplainer, ease, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone, type Variant } from "../kit";
 
 const W = 600;
-const H = 320;
-const PX = (i: number) => 20 + i * 148;
-const PW = 116;
-const PY = 44;
-const PH = 44;
-const STAGES: [string, string][] = [
-  ["Ingest", "Ingest"],
-  ["Kafka", "Kafka"],
-  ["Workers", "Workers"],
-  ["Providers", "Provider"],
-];
+const H = 340;
+/** a label with an optional shorter form for narrow stages: "both" or ["wide", "narrow"] */
+type Two = string | [string, string];
+type Nd = { x: number; y: number; w: number; h: number; l: string; n?: string };
+/** an edge: from, to, and optional port offsets (y for side-by-side boxes, x for stacked ones) */
+type Ed = [string, string, number?, number?];
+type Fr = {
+  /** kicker (top left) */
+  k: Two;
+  kt?: Tone;
+  /** nodes in play (plain 1 or a tone); every other node is dimmed */
+  on?: Record<string, Tone | 1>;
+  sub?: Record<string, Two>;
+  /** wires carrying traffic in this frame: [from, to, tone]; a reversed pair runs a wire backwards */
+  fl?: [string, string, Tone?][];
+  /** big figures: [figure, label, tone] */
+  figs?: [string, Two, Tone?][];
+  chips?: Two[];
+  cols?: number;
+  ct?: Tone;
+  /** per-chip tones (override ct) */
+  ctn?: Tone[];
+  /** meters: [label, value, max, tone] */
+  bars?: [Two, number, number, Tone?][];
+  note?: Two;
+  nt?: Tone;
+};
+type P = { x: number; y: number };
+const pick = (v: Two | undefined, nr: boolean) => (v === undefined ? undefined : typeof v === "string" ? v : v[nr ? 1 : 0]);
 
-/** the platform as one row; each step lights the part under stress */
-function Pipe({ narrow, tones }: { narrow: boolean; tones: Tone[] }) {
+/* the stage grid: four columns, three rows of boxes above the figures */
+const CX = [16, 124, 260, 404];
+const CW = [88, 116, 124, 180];
+const RY = [40, 96, 156];
+const RH = [44, 48, 40];
+const nd = (c: number, r: number, l: string, n?: string, rows = 1): Nd => ({ x: CX[c], y: RY[r], w: CW[c], h: RY[r + rows - 1] + RH[r + rows - 1] - RY[r], l, n });
+
+/** a soft orthogonal curve from one box to the next, picked by their relative position */
+function geo(a: Nd, b: Nd, oa = 0, ob = 0): P[] {
+  if (b.x >= a.x + a.w - 2 || b.x + b.w <= a.x + 2) {
+    const r = b.x >= a.x + a.w - 2;
+    const p0 = { x: r ? a.x + a.w : a.x, y: a.y + a.h / 2 + oa };
+    const p3 = { x: r ? b.x : b.x + b.w, y: b.y + b.h / 2 + ob };
+    const m = (p0.x + p3.x) / 2;
+    return [p0, { x: m, y: p0.y }, { x: m, y: p3.y }, p3];
+  }
+  const d = b.y > a.y;
+  const p0 = { x: a.x + a.w / 2 + oa, y: d ? a.y + a.h : a.y };
+  const p3 = { x: b.x + b.w / 2 + ob, y: d ? b.y : b.y + b.h };
+  const m = (p0.y + p3.y) / 2;
+  return [p0, { x: p0.x, y: m }, { x: p3.x, y: m }, p3];
+}
+const bz = (g: P[], u: number): P => {
+  const v = 1 - u;
+  const c = [v * v * v, 3 * v * v * u, 3 * v * u * u, u * u * u];
+  return { x: g.reduce((s, p, i) => s + p.x * c[i], 0), y: g.reduce((s, p, i) => s + p.y * c[i], 0) };
+};
+const path = (g: P[]) => `M${g[0].x} ${g[0].y}C${g[1].x} ${g[1].y} ${g[2].x} ${g[2].y} ${g[3].x} ${g[3].y}`;
+const ends = (e: Ed) => geo(N[e[0]], N[e[1]], e[2], e[3]);
+
+function Scene({ variant, step, t, clock, narrow: nr }: SceneProps) {
+  const f = (F[variant] || F[Object.keys(F)[0]])[Math.min(step, (F[variant] || F[Object.keys(F)[0]]).length - 1)];
+  const on = f.on || {};
+  /** staggered fade-in for item i of n, always fully in by t = 1 */
+  const fade = (i: number, n: number) => {
+    const k = n > 1 ? Math.min(0.15, 0.5 / (n - 1)) : 0;
+    return ease(seg(t, i * k, i * k + 0.5));
+  };
+  const xs = [[300], [160, 440], [100, 300, 500]][(f.figs?.length || 1) - 1] || [];
+  const cols = f.cols || 2;
+  const cw = (552 - (cols - 1) * 8) / cols;
   return (
     <g>
-      {STAGES.map(([w, n], i) => (
-        <g key={w}>
-          {i > 0 && <Wire d={`M${PX(i - 1) + PW} ${PY + PH / 2}H${PX(i)}`} arrow />}
-          <Box x={PX(i)} y={PY} w={PW} h={PH} label={narrow ? n : w} tone={tones[i]} />
+      <Txt x={16} y={26} k="k" anchor="start" tone={f.kt}>
+        {pick(f.k, nr)}
+      </Txt>
+      {E.map((e) => {
+        const [a, b] = e;
+        const live = a in on && b in on;
+        const fl = f.fl?.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        return <Wire key={a + b} d={path(ends(e))} tone={fl ? fl[2] || "lit" : undefined} arrow={live} opacity={live ? 1 : 0.3} />;
+      })}
+      {Object.entries(N).map(([id, n]) => {
+        const s = on[id];
+        return <Box key={id} x={n.x} y={n.y} w={n.w} h={n.h} label={nr ? n.n || n.l : n.l} sub={(nr ? undefined : pick(f.sub?.[id], nr)) || undefined} tone={s === 1 ? undefined : s} dim={!(id in on)} />;
+      })}
+      {f.fl?.map(([a, b, tone], i) => {
+        const e = E.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        if (!e) return null;
+        const u = ((((t - 1) * 0.5 + clock * 0.55 + 0.5 + i * 0.17) % 1) + 1) % 1;
+        const p = bz(ends(e), e[0] === a ? u : 1 - u);
+        return <Token key={a + b} x={p.x} y={p.y} s={9} tone={tone || "lit"} />;
+      })}
+      {f.figs?.map(([d, l, tone], i) => (
+        <g key={d + i} opacity={fade(i, f.figs?.length || 1)}>
+          <Txt x={xs[i]} y={254} k="d" tone={tone}>
+            {d}
+          </Txt>
+          <Txt x={xs[i]} y={278} k="s">
+            {pick(l, nr)}
+          </Txt>
         </g>
       ))}
-    </g>
-  );
-}
-
-/** traffic on a conveyor under the row: dense for the burst, sparse once throttled */
-function Flow({ n, clock, speed, tone }: { n: number; clock: number; speed: number; tone: Tone }) {
-  return (
-    <g>
-      <Wire d="M20 102H580" dash />
-      {Array.from({ length: n }, (_, k) => (
-        <Token key={k} x={20 + ((clock * speed + k / n) % 1) * 560} y={102} s={8} tone={tone} />
-      ))}
-    </g>
-  );
-}
-
-function Chip({ x, y, w, label, tone, dim }: { x: number; y: number; w: number; label: string; tone?: Tone; dim?: boolean }) {
-  return (
-    <g opacity={dim ? 0.35 : 1}>
-      <rect className={`ax-box${tone ? ` ${tone}` : ""}`} x={x} y={y} width={w} height={28} />
-      <Txt x={x + w / 2} y={y + 19} k="s" tone={tone}>
-        {label}
-      </Txt>
-    </g>
-  );
-}
-
-const BREAKS: [string, string][] = [
-  ["API overwhelmed", "API"],
-  ["Kafka unbalanced", "Kafka skew"],
-  ["DB pools exhaust", "DB pools"],
-  ["rate limits hit", "rate limits"],
-  ["queue depth grows", "queue lag"],
-  ["memory pressure", "memory"],
-];
-const LIMITS: [string, string, string][] = [
-  ["FCM", "10,000/s", "HTTP v1 default"],
-  ["APNs", "4,000/s", "self-imposed"],
-  ["SendGrid", "100 req/s", "1,000 emails/req"],
-  ["Twilio", "100/s", "per short code"],
-];
-
-function Scale({ step, t, clock, narrow }: SceneProps) {
-  const p = seg(t, 0.1, 0.9);
-  const tones = at<Tone[]>(step, [[], ["bad", "bad", "warn", "bad"], ["ok", "lit"], ["lit", "lit"], [undefined, undefined, undefined, "lit"]]);
-  const big = (x: number, d: string, s: string, tone?: Tone, o = 1) => (
-    <g opacity={o}>
-      <Txt x={x} y={166} k="d" tone={tone}>
-        {d}
-      </Txt>
-      <Txt x={x} y={192} k="s">
-        {s}
-      </Txt>
-    </g>
-  );
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "scaling challenges" : "part I · scaling challenges"}
-      </Txt>
-      <Pipe narrow={narrow} tones={tones} />
-      {step === 0 && (
-        <g>
-          {big(110, narrow ? "5,800" : "5,800/s", "normal", undefined, seg(t, 0, 0.3))}
-          {big(300, narrow ? "+2,800" : "+2,800/s", narrow ? "campaign" : "10M in 1 hour", "lit", seg(t, 0.25, 0.55))}
-          {big(490, narrow ? "8,600" : "8,600/s", "combined", "bad", seg(t, 0.5, 0.8))}
-          <Meter x={20} y={222} w={560} h={16} value={5800} max={8600} tone="sky" />
-          <rect className="ax-fill warn" x={20 + (560 * 5800) / 8600} y={222} width={((560 * 2800) / 8600) * seg(t, 0.4, 0.8)} height={16} />
-          <Txt x={W / 2} y={270} k="s" tone="warn">
-            {narrow ? "~48% more, for an hour" : "~48% more load, sustained for an hour"}
-          </Txt>
-        </g>
-      )}
-      {step === 1 && (
-        <g>
-          <Flow n={16} clock={clock} speed={0.7} tone="bad" />
-          {big(300, "100,000+/s", narrow ? "10:00:00 · all 10M at once" : "10:00:00 · Send clicked · all 10M hit ingestion")}
-          {BREAKS.map(([w, n], i) => (
-            <g key={w} opacity={seg(t, 0.2 + i * 0.1, 0.4 + i * 0.1)}>
-              <Chip x={20 + (i % 3) * 190} y={216 + Math.floor(i / 3) * 38} w={180} label={narrow ? n : w} tone="bad" />
-            </g>
-          ))}
-        </g>
-      )}
-      {step === 2 && (
-        <g>
-          <Flow n={4} clock={clock} speed={0.25} tone="ok" />
-          {big(150, "1,000/s", "batches of 1,000", "ok")}
-          {big(450, "2.8 h", narrow ? "10M ÷ 1,000/s" : "10M ÷ 1,000/s ≈ 10,000 s")}
-          <Meter x={20} y={218} w={560} h={14} value={lerp(0, 2.8, p)} max={4} tone="ok" ticks={4} />
-          <Txt x={20} y={254} k="s" anchor="start">
-            0 h
-          </Txt>
-          <Txt x={580} y={254} k="s" anchor="end" tone="warn">
-            4 h max
-          </Txt>
-          <Txt x={W / 2} y={290} k="s" tone="lit">
-            {narrow ? "→ notifications.low" : "marketing → notifications.low · critical never waits"}
-          </Txt>
-        </g>
-      )}
-      {step === 3 && (
-        <g>
-          <Box x={20} y={120} w={160} h={56} label="Celebrity" sub={narrow ? undefined : "1M followers"} tone="warn" />
-          <Wire d="M180 148H226" arrow tone="lit" />
-          <Box x={226} y={120} w={160} h={56} label="Fan-out" sub={narrow ? undefined : "async job"} tone="lit" />
-          <Wire d="M386 148H426" arrow tone="lit" />
-          {[0, 1, 2, 3].map((i) => (
-            <Meter key={i} x={430} y={122 + i * 14} w={150} h={10} value={lerp(0.05, 0.55, seg(t, 0.2 + i * 0.1, 0.8))} max={1} tone="ok" />
-          ))}
-          {(narrow
-            ? [["1,000/batch", ""], ["5,000/s", ""], ["key: recipient", ""], ["prefs: cache", ""]]
-            : [["1,000 followers per batch", ""], ["token bucket at 5,000/s", ""], ["key = recipient, not source", ""], ["prefs: cache, then 1 batch read", ""]]
-          ).map(([l], i) => (
-            <g key={l} opacity={seg(t, 0.3 + i * 0.12, 0.5 + i * 0.12)}>
-              <Chip x={20 + (i % 2) * 284} y={204 + Math.floor(i / 2) * 40} w={276} label={l} tone={i === 2 ? "ok" : "lit"} />
-            </g>
-          ))}
-        </g>
-      )}
-      {step === 4 && (
-        <g>
-          {LIMITS.map(([n, l, s], i) => (
-            <g key={n} opacity={seg(t, i * 0.15, i * 0.15 + 0.3)}>
-              <rect className="ax-box" x={20} y={116 + i * 38} width={560} height={30} />
-              <Txt x={34} y={136 + i * 38} k="t" anchor="start">
-                {n}
-              </Txt>
-              <Txt x={narrow ? 566 : 330} y={136 + i * 38} k="t" anchor={narrow ? "end" : "middle"} tone="lit">
-                {l}
-              </Txt>
-              {!narrow && (
-                <Txt x={566} y={136 + i * 38} k="s" anchor="end">
-                  {s}
-                </Txt>
-              )}
-            </g>
-          ))}
-          <Txt x={W / 2} y={292} k="s" tone="bad" opacity={seg(t, 0.7, 1)}>
-            {narrow ? "429 → back off" : "429 → back off: take no tokens until Retry-After"}
-          </Txt>
-        </g>
-      )}
-    </g>
-  );
-}
-
-const SX = [20, 232, 444];
-const STATES = ["CLOSED", "OPEN", "HALF_OPEN"];
-
-function Breaker({ step, t, narrow }: SceneProps) {
-  const p = seg(t, 0.1, 0.9);
-  const on: Tone[] = step === 0 ? [p < 0.75 ? "lit" : undefined, p >= 0.75 ? "bad" : undefined, undefined] : [p >= 0.75 ? "ok" : undefined, undefined, p < 0.75 ? "warn" : undefined];
-  const n = step === 0 ? Math.min(5, Math.floor(p * 6.5)) : Math.min(3, Math.floor(p * 4.2));
-  return (
-    <g>
-      <Wire d="M156 172H232" arrow tone={step === 0 ? "bad" : undefined} />
-      <Wire d="M368 172H444" arrow tone={step === 1 ? "lit" : undefined} />
-      <Wire d="M512 196V230H88V196" arrow tone={step === 1 ? "ok" : undefined} />
-      <Wire d="M490 148V116H320V148" arrow dash />
-      {STATES.map((s, i) => (
-        <Box key={s} x={SX[i]} y={148} w={136} h={48} label={narrow && i === 2 ? "HALF" : s} tone={on[i]} />
-      ))}
-      <Txt x={194} y={140} k="s" tone={step === 0 ? "bad" : undefined}>
-        {narrow ? "5 fails" : "5 failures"}
-      </Txt>
-      <Txt x={406} y={140} k="s" tone={step === 1 ? "lit" : undefined}>
-        {narrow ? "30 s" : "after 30 s"}
-      </Txt>
-      <Txt x={405} y={110} k="s" tone="bad">
-        {narrow ? "any fail" : "any failure"}
-      </Txt>
-      <Txt x={300} y={248} k="s" tone={step === 1 ? "ok" : undefined}>
-        {narrow ? "3 successes" : "3 successes close it"}
-      </Txt>
-      <Txt x={narrow ? 20 : 150} y={286} k="s" anchor="start" tone={step === 0 ? "bad" : "ok"}>
-        {step === 0 ? "failures" : "trials"}
-      </Txt>
-      {Array.from({ length: step === 0 ? 5 : 3 }, (_, i) => (
-        <Token key={i} x={(narrow ? 140 : 250) + i * 26} y={281} s={14} tone={i < n ? (step === 0 ? "bad" : "ok") : "mute"} />
-      ))}
-      <Txt x={narrow ? 580 : 450} y={286} k="s" anchor={narrow ? "end" : "start"}>
-        {`${n}/${step === 0 ? 5 : 3}`}
-      </Txt>
-    </g>
-  );
-}
-
-const FAILOVER: [string, string, string, string][] = [
-  ["Email", "SendGrid", "SES", "failover"],
-  ["SMS", "Twilio", "SNS", "failover"],
-  ["Push", "FCM", "APNs", "none"],
-];
-
-function Reliability(props: SceneProps) {
-  const { step, t, narrow } = props;
-  const p = seg(t, 0.1, 0.9);
-  const lag = lerp(0.3, 2.5, p);
-  const mode = lag > 2 ? "CRITICAL_ONLY" : lag > 1 ? "DEGRADED" : "NORMAL";
-  const mx = (v: number) => 20 + (560 * v) / 3;
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "reliability patterns" : "part II · reliability patterns"}
-      </Txt>
-      <Pipe narrow={narrow} tones={at<Tone[]>(step, [[undefined, undefined, undefined, "bad"], [undefined, undefined, undefined, "warn"], [undefined, undefined, "lit", "ok"], ["warn", "bad", "warn"]])} />
-      {step < 2 && <Breaker {...props} />}
-      {step === 2 &&
-        FAILOVER.map(([c, a, b, note], i) => (
-          <g key={c} opacity={seg(t, i * 0.25, i * 0.25 + 0.35)}>
-            <Txt x={20} y={150 + i * 58} k="t" anchor="start">
-              {c}
-            </Txt>
-            <Box x={100} y={124 + i * 58} w={140} h={44} label={a} sub={narrow || i === 2 ? undefined : "OPEN"} tone={i < 2 ? "bad" : undefined} />
-            {i < 2 ? <Wire d={`M240 ${146 + i * 58}H280`} arrow tone="ok" /> : <Txt x={260} y={152 + i * 58} k="t">≠</Txt>}
-            <Box x={280} y={124 + i * 58} w={140} h={44} label={b} sub={narrow || i === 2 ? undefined : "fallback"} tone={i < 2 ? "ok" : undefined} />
-            <Txt x={580} y={150 + i * 58} k="s" anchor="end" tone={i < 2 ? "ok" : "bad"}>
-              {narrow ? note : i < 2 ? "auto failover" : "no failover"}
-            </Txt>
-          </g>
-        ))}
-      {step === 3 && (
-        <g>
-          <Txt x={W / 2} y={150} k="d" tone={mode === "NORMAL" ? "ok" : "bad"}>
-            {mode}
-          </Txt>
-          {["NORMAL", "DEGRADED", "CRITICAL_ONLY"].map((m, i) => (
-            <Txt key={m} x={mx(i + 0.5)} y={188} k="s" tone={m === mode ? "lit" : undefined}>
-              {m}
-            </Txt>
-          ))}
-          <Meter x={20} y={198} w={560} h={18} value={lag} max={3} tone={lag > 1 ? "bad" : "ok"} />
-          {[1, 2].map((v) => (
-            <line key={v} className="ax-tick" x1={mx(v)} x2={mx(v)} y1={194} y2={220} />
-          ))}
-          <Wire d={`M${mx(0.5)} 194V220`} dash tone="ok" />
-          <Txt x={mx(0.5)} y={238} k="s" tone="ok">
-            0.5M
-          </Txt>
-          <Txt x={mx(1)} y={238} k="s">
-            1M
-          </Txt>
-          <Txt x={mx(2)} y={238} k="s">
-            2M
-          </Txt>
-          <Txt x={W / 2} y={268} k="s">
-            {narrow ? "DEGRADED: shed low priority" : "DEGRADED sheds low priority and marketing email"}
-          </Txt>
-          <Txt x={W / 2} y={292} k="s" tone="ok">
-            {narrow ? "NORMAL: lag < 50%, errors < 5%" : "back to NORMAL only at lag < 50% and errors < 5%"}
-          </Txt>
-        </g>
-      )}
-    </g>
-  );
-}
-
-const EDGES: [string, string, string, string, string][] = [
-  ["Device tokens", "invalid → mark, fall back", "rotation · stale cleanup", "invalid → mark", "stale cleanup"],
-  ["Email bounces", "550 hard → invalid now", "soft: invalid on 5th", "550 → invalid", "soft: on 5th"],
-  ["Timezones & DST", "02:30 spring fwd → 03:30", "fall back → first · UTC", "02:30 → 03:30", "store UTC"],
-  ["Race conditions", "re-check user + prefs", "SET NX EX 3600 dedup", "re-check prefs", "SET NX dedup"],
-];
-
-function Edges({ step, t, narrow }: SceneProps) {
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "edge cases" : "part III · the edge case encyclopedia"}
-      </Txt>
-      <Pipe narrow={narrow} tones={[undefined, undefined, step >= 2 ? "lit" : undefined, step < 2 ? "lit" : undefined]} />
-      {EDGES.map(([title, a, b, na, nb], i) => {
-        const x = 20 + (i % 2) * 284;
-        const y = 112 + Math.floor(i / 2) * 100;
-        const cur = i === step;
+      {f.chips?.map((c, i) => {
+        const x = 24 + (i % cols) * (cw + 8);
+        const y = 214 + Math.floor(i / cols) * 34;
+        const tone = f.ctn?.[i] || f.ct || "lit";
         return (
-          <g key={title} opacity={i > step ? 0.3 : cur ? lerp(0.4, 1, seg(t, 0, 0.4)) : 0.6}>
-            <rect className={`ax-box${cur ? " lit" : ""}`} x={x} y={y} width={276} height={90} />
-            <Txt x={x + 138} y={y + 26} k="t" tone={cur ? "lit" : undefined}>
-              {title}
+          <g key={i} opacity={fade(i, f.chips?.length || 1)}>
+            <rect className={`ax-box ${tone}`} x={x} y={y} width={cw} height={26} />
+            <Txt x={x + cw / 2} y={y + 18} k="s" tone={tone}>
+              {pick(c, nr)}
             </Txt>
-            {i <= step && (
-              <g>
-                <Txt x={x + 138} y={y + 52} k="s">
-                  {narrow ? na : a}
-                </Txt>
-                <Txt x={x + 138} y={y + 74} k="s">
-                  {narrow ? nb : b}
-                </Txt>
-              </g>
-            )}
           </g>
         );
       })}
+      {f.bars?.map(([l, v, m, tone], i) => (
+        <g key={i} opacity={fade(i, f.bars?.length || 1)}>
+          <Txt x={24} y={232 + i * 28} k="s" anchor="start" tone={tone}>
+            {pick(l, nr)}
+          </Txt>
+          <Meter x={nr ? 330 : 300} y={222 + i * 28} w={nr ? 246 : 276} h={12} value={v * ease(seg(t, 0.1, 0.8))} max={m} tone={tone || "sky"} />
+        </g>
+      ))}
+      {f.note && (
+        <Txt x={16} y={f.figs || f.chips || f.bars ? H - 12 : 244} k="s" anchor="start" tone={f.nt} opacity={ease(seg(t, 0.3, 0.8))}>
+          {pick(f.note, nr)}
+        </Txt>
+      )}
     </g>
   );
 }
 
-const COSTS: [string, number, string, string][] = [
-  ["push", 0, "free", "free"],
-  ["in-app", 0, "free", "free"],
-  ["email", 150, "$0.0001 · ~$150K/mo", "~$150K/mo"],
-  ["SMS", 3000, "$0.01 · ~$3M/mo", "~$3M/mo"],
+const N: Record<string, Nd> = {
+  pp: nd(0, 0, "Priya"),
+  own: nd(1, 0, "Owner"),
+  log: nd(2, 0, "Chat log", "Log"),
+  inbx: nd(3, 0, "Member inboxes", "Inboxes"),
+  ap: nd(0, 1, "Arjun"),
+  gw: nd(1, 1, "Gateways"),
+  sync: nd(2, 1, "Sync"),
+  kp: nd(1, 2, "Kabir"),
+  pres: nd(2, 2, "Presence"),
+  wat: nd(3, 2, "Watchers"),
+};
+const E: Ed[] = [
+  ["pp", "own"],
+  ["own", "log"],
+  ["log", "inbx"],
+  ["own", "gw"],
+  ["gw", "ap"],
+  ["kp", "gw"],
+  ["inbx", "sync"],
+  ["sync", "gw", 0, -8],
+  ["gw", "pres", 8, 0],
+  ["pres", "wat"],
 ];
 
-function Cost({ step, t, narrow }: SceneProps) {
-  const p = seg(t, 0.1, 0.9);
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "cost optimization" : "part V · reducing notification costs"}
-      </Txt>
-      <Pipe narrow={narrow} tones={[undefined, undefined, "lit", step === 0 ? "bad" : "ok"]} />
-      {step < 2 &&
-        COSTS.map(([c, v, l, nl], i) => {
-          const y = 114 + i * 42;
-          const tone: Tone = step === 0 ? (i === 3 ? "bad" : i === 2 ? "warn" : "ok") : i < 2 ? "ok" : i === 2 ? "lit" : "warn";
-          return (
-            <g key={c}>
-              <Txt x={20} y={y + 20} k="t" anchor="start" tone={step === 1 ? tone : undefined}>
-                {step === 1 ? `${i + 1}. ${c}` : c}
-              </Txt>
-              {step === 0 ? (
-                <Meter x={narrow ? 150 : 130} y={y + 7} w={narrow ? 250 : 270} h={16} value={v * p} max={3000} tone={tone} />
-              ) : (
-                <Chip x={narrow ? 150 : 130} y={y} w={narrow ? 250 : 270} label={[narrow ? "free" : "free: first choice", "free", narrow ? "before SMS" : "cheap: before SMS", narrow ? "critical" : "critical or user's pick"][i]} tone={tone} />
-              )}
-              <Txt x={580} y={y + 20} k="s" anchor="end" tone={tone}>
-                {step === 0 ? (narrow ? nl : l) : i === 3 ? "budget cap" : ""}
-              </Txt>
-            </g>
-          );
-        })}
-      {step === 0 && (
-        <Txt x={W / 2} y={300} k="s" tone="bad" opacity={seg(t, 0.7, 1)}>
-          {narrow ? "SMS: 100x email" : "SMS costs 100x email per message"}
-        </Txt>
-      )}
-      {step === 1 && (
-        <Txt x={W / 2} y={300} k="s">
-          {narrow ? "push first, SMS as fallback" : "push first · SMS only if push fails · monthly caps"}
-        </Txt>
-      )}
-      {step === 2 &&
-        [
-          ["GSM-7", 160, "ok"],
-          ["Unicode", 70, "warn"],
-        ].map(([n, c, tone], i) => (
-          <g key={n as string}>
-            <Txt x={20} y={142 + i * 60} k="t" anchor="start">
-              {n}
-            </Txt>
-            <Meter x={narrow ? 150 : 130} y={128 + i * 60} w={narrow ? 300 : 360} h={20} value={(c as number) * p} max={160} tone={tone as Tone} />
-            <Txt x={580} y={143 + i * 60} k="t" anchor="end" tone={tone as Tone}>
-              {`${c}`}
-            </Txt>
-            <Txt x={narrow ? 150 : 130} y={170 + i * 60} k="s" anchor="start">
-              {i === 0 ? (narrow ? "chars per segment" : "characters in one segment") : narrow ? "one non-GSM char" : "if any character is outside GSM-7"}
-            </Txt>
-          </g>
-        ))}
-      {step === 2 && (
-        <Txt x={W / 2} y={292} k="s" tone="lit" opacity={seg(t, 0.6, 1)}>
-          {narrow ? "truncate to 1 segment" : "truncate to one segment: multi-segment costs more"}
-        </Txt>
-      )}
-    </g>
-  );
-}
-
-function Scene(p: SceneProps) {
-  return p.variant === "scale" ? <Scale {...p} /> : p.variant === "reliability" ? <Reliability {...p} /> : p.variant === "edges" ? <Edges {...p} /> : <Cost {...p} />;
-}
-
-export default defineExplainer({
-  w: W,
-  h: H,
-  variants: [
+const F: Record<string, Fr[]> = {
+  night: [
     {
-      id: "scale",
-      label: "Scale",
-      steps: [
-        { caption: "Marketing wants 10M notifications in an hour: 2,800/sec on top of the ~5,800/sec average, about 8,600/sec, a 48% increase.", tween: 1800 },
-        { caption: "But campaigns don't spread evenly. Send is clicked at 10:00:00, all 10M hit ingestion and the burst passes 100,000/sec. Everything breaks.", tween: 1800, loop: true },
-        { caption: "The fix: stream recipients in batches of 1,000 at 1,000/sec. 10M takes about 2.8 hours, inside the 4-hour max, in the low-priority topic.", tween: 1600, loop: true },
-        { caption: "A celebrity with 1M followers posts. An async fan-out job pages followers 1,000 at a time at 5,000/sec, keyed by recipient, not source.", tween: 1800 },
-        { caption: "Every provider has limits: FCM 10,000/sec, APNs 4,000/sec self-imposed, SendGrid 100 requests/sec, Twilio 100/sec. On a 429, back off.", tween: 1600 },
+      k: ["23:31 · a lost ack, a double payment", "23:31 · a lost ack"],
+      kt: "bad",
+      on: { pp: "warn", own: 1, log: 1, gw: 1, ap: "bad" },
+      sub: { own: "Goa Trip" },
+      fl: [
+        ["pp", "own", "warn"],
+        ["own", "log"],
+        ["own", "gw"],
+        ["gw", "ap", "bad"],
       ],
+      chips: [
+        ['"Paid ₹48,000 for the villa"', "Priya's split request"],
+        ["the ack is lost on lift Wi-Fi", "the ack is lost"],
+        ["her app retries", "her app retries"],
+        ["Arjun sees it twice, pays twice", "Arjun pays twice"],
+      ],
+      ctn: ["lit", "warn", "warn", "bad"],
+      note: ["an illustrative Saturday night in a six-friend group", "an illustrative night"],
     },
     {
-      id: "reliability",
-      label: "Reliability",
-      steps: [
-        { caption: "A provider starts failing. The circuit breaker counts failures, and at 5 it trips from CLOSED to OPEN: stop sending to it.", tween: 2000 },
-        { caption: "After 30 seconds it goes HALF_OPEN and allows up to 3 trial calls. 3 successes close it; any failure reopens it.", tween: 2000 },
-        { caption: "Failover: with SendGrid's circuit open, email goes to SES, and SMS falls back from Twilio to SNS. Push has none: FCM and APNs aren't peers.", tween: 1600 },
-        { caption: "Overloaded, the system degrades: Kafka lag over 1M sheds low priority, over 2M only critical gets through. NORMAL waits for half that.", tween: 2200 },
+      k: ["23:33–23:44 · order, a dot, typing", "clock, dot, typing"],
+      kt: "warn",
+      on: { kp: "bad", gw: 1, pres: "warn", wat: "warn" },
+      fl: [
+        ["gw", "pres", "warn"],
+        ["pres", "wat", "warn"],
       ],
+      cols: 1,
+      chips: [
+        ['23:33 · a phone 4 min fast sorts "done!" above the request', "23:33 · reply above request"],
+        ["23:40 · Kabir's dead phone still shows online", "23:40 · Kabir still online"],
+        ['23:44 · "Meera is typing…" for nine minutes', "23:44 · typing for 9 min"],
+      ],
+      ctn: ["warn", "bad", "warn"],
     },
     {
-      id: "edges",
-      label: "Edge cases",
-      steps: [
-        { caption: "Device tokens rotate on reinstall. An invalid-token response marks the token invalid and falls back; a cleanup job removes stale ones.", tween: 900 },
-        { caption: "Email: a 550 hard bounce marks the address invalid at once; soft bounces count up and invalidate on the 5th. Spam complaints unsubscribe.", tween: 900 },
-        { caption: "Time zones: 02:30 doesn't exist on a spring-forward night, so it becomes 03:30; on fall-back, use the first occurrence. Store UTC.", tween: 900 },
-        { caption: "Races: at delivery, re-check the user exists and re-fetch preferences, then claim a one-hour dedup key with SET NX so only one worker sends.", tween: 900 },
+      k: ["23:59 · Cricket Night, last over", "23:59 · a huge room"],
+      kt: "bad",
+      on: { own: "bad", log: 1, gw: "warn" },
+      sub: { own: ["Cricket Night", "hot"] },
+      fl: [
+        ["own", "log"],
+        ["own", "gw", "bad"],
       ],
+      figs: [
+        ["300,000", ["members", "members"]],
+        ["40,000", ["online", "online"], "warn"],
+        ["100%", ["chat tier CPU", "CPU"], "bad"],
+      ],
+      note: ["every message and presence change costs 40,000 deliveries", "40,000 deliveries each"],
     },
     {
-      id: "cost",
-      label: "Cost",
-      steps: [
-        { caption: "SMS costs $3M+ a month. Push and in-app are free, email is $0.0001 each, SMS $0.01: 100 times email per message.", tween: 1800 },
-        { caption: "So the selector prefers free channels, then email. SMS is kept for critical messages or the user's explicit choice, under a monthly budget cap.", tween: 1200 },
-        { caption: "Each SMS should fit one segment: 160 GSM-7 characters, or 70 if any character needs Unicode. Multi-segment messages cost more.", tween: 1600 },
+      k: ["three classes of event", "three classes"],
+      on: { log: "lit", pres: "sky", gw: 1 },
+      cols: 3,
+      chips: [
+        ["durable · messages", "durable"],
+        ["soft state · presence", "soft state"],
+        ["ephemeral · typing", "ephemeral"],
+        ["stored, then retried", "stored first"],
+        ["in memory, a TTL", "TTL, latest wins"],
+        ["never stored", "dropped first"],
       ],
+      ctn: ["lit", "sky", "mute", "lit", "sky", "mute"],
+      note: "push the hint, pull the truth",
     },
   ],
-  Scene,
-});
+  presence: [
+    {
+      k: ["heartbeats with a TTL", "heartbeat TTL"],
+      on: { kp: "lit", gw: 1, pres: "lit" },
+      sub: { pres: ["per device", "per device"] },
+      fl: [
+        ["kp", "gw"],
+        ["gw", "pres"],
+      ],
+      figs: [
+        ["d", ["a heartbeat every d s", "heartbeat"]],
+        ["d + ε", ["the entry expires", "expires"]],
+        ["d + 2ε", ["offline if no new beat", "offline"], "ok"],
+      ],
+      note: ["a dead phone goes offline by itself; nobody has to say goodbye", "offline by itself"],
+    },
+    {
+      k: ["per device, server's clock", "per device"],
+      on: { kp: 1, gw: 1, pres: "lit", wat: 1 },
+      fl: [
+        ["gw", "pres"],
+        ["pres", "wat"],
+      ],
+      chips: [
+        ["stored per device", "per device"],
+        ["online if any device is", "any device online"],
+        ["publish only changes", "changes only"],
+        ["last seen: the server's clock", "server's clock"],
+      ],
+      ctn: ["sky", "ok", "lit", "warn"],
+    },
+    {
+      k: ["who gets told? everyone", "eager presence"],
+      kt: "bad",
+      on: { pres: "bad", wat: "bad" },
+      fl: [["pres", "wat", "bad"]],
+      bars: [
+        [["eager · ~84,000/s", "eager ~84K/s"], 84, 167, "bad"],
+        [["all messages · ~39,000/s", "messages ~39K/s"], 39, 167, "sky"],
+      ],
+      note: ["assumed: 5M chat users, 4 changes/h, 150 contacts, 10% online", "assumed: 150 contacts each"],
+    },
+    {
+      k: ["only people looking", "visible-only"],
+      kt: "ok",
+      on: { pres: "ok", wat: "ok" },
+      sub: { wat: ["on screen only", "on screen"] },
+      fl: [["pres", "wat", "ok"]],
+      bars: [
+        [["eager · ~84,000/s", "eager ~84K/s"], 84, 167, "bad"],
+        [["visible-only · ~22,000/s", "visible ~22K/s"], 22, 167, "ok"],
+        [["no debounce · ~167,000/s", "flapping ~167K/s"], 167, 167, "warn"],
+      ],
+      note: ["online shows at once, offline can wait a few seconds", "debounce the downgrades"],
+    },
+    {
+      k: ["typing: never stored", "typing"],
+      on: { gw: 1, ap: "lit" },
+      fl: [["gw", "ap"]],
+      cols: 3,
+      chips: [
+        ["sender: 1 per 3 s", "1 per 3 s"],
+        ["receiver: gone at 5 s", "gone at 5 s"],
+        ["no seq, ack, retry", "no seq, no ack"],
+      ],
+      ctn: ["sky", "ok", "mute"],
+      note: ['a lost "stopped" can\'t leave anyone typing for nine minutes', "no stuck indicator"],
+    },
+  ],
+  fanout: [
+    {
+      k: ["accept, then distribute", "one message"],
+      on: { pp: "lit", own: "lit", log: "lit", inbx: 1, gw: 1, ap: "ok" },
+      sub: { own: "Goa Trip", log: "seq 412" },
+      fl: [
+        ["pp", "own"],
+        ["own", "log"],
+        ["log", "inbx"],
+        ["own", "gw"],
+        ["gw", "ap", "ok"],
+      ],
+      figs: [
+        ["c-77", ["the client id", "client id"]],
+        ["412", ["from the owner", "seq"], "lit"],
+        ["1 tick", ["once it's in the log", "stored"], "ok"],
+      ],
+      note: ["nothing is acked before it's durable, nothing sent before it's stored", "durable before acked"],
+    },
+    {
+      k: ["bodies once, pointers to small groups", "hybrid fan-out"],
+      on: { own: 1, log: "lit", inbx: "lit", gw: 1 },
+      sub: { inbx: ["pointer: up to 412", "pointers"] },
+      fl: [
+        ["own", "log"],
+        ["log", "inbx"],
+        ["own", "gw"],
+      ],
+      cols: 1,
+      chips: [
+        ["1:1 and Goa Trip (6): a pointer per member", "small: a pointer each"],
+        ["Cricket Night (300,000): no per-member writes", "huge: no member writes"],
+        ["live copies only to the 5,000 with it open", "live: the 5,000 open"],
+      ],
+      ctn: ["ok", "warn", "lit"],
+    },
+    {
+      k: ["hot rooms are hot keys", "hot rooms"],
+      kt: "warn",
+      on: { own: "warn", gw: "lit", ap: 1 },
+      sub: { gw: ["one copy each", "1 copy"] },
+      fl: [
+        ["own", "gw", "warn"],
+        ["gw", "ap"],
+      ],
+      figs: [
+        ["1 copy", ["per gateway node", "per node"], "lit"],
+        ["~90%", ["of big-room sessions passive", "passive"]],
+        ["15,000", ["sessions per relay", "per relay"]],
+      ],
+      note: ["no typing or member presence in big rooms; isolate them", "thin the events, isolate"],
+    },
+    {
+      k: ["one owner numbers each chat", "sequence numbers"],
+      on: { own: "lit", log: "lit", ap: 1, gw: 1 },
+      fl: [["own", "log"]],
+      chips: [
+        ["holding 410, got 412: fetch 411", "gap: fetch 411"],
+        ["unique (conversation_id, seq)", "a unique key fences"],
+        ["receipts: forward-only cursors", "cursors, max()"],
+        ["a group's tick: the minimum", "group: the minimum"],
+      ],
+      ctn: ["sky", "ok", "lit", "lit"],
+      note: ["order per conversation, never by the sender's clock", "never by the sender's clock"],
+    },
+  ],
+  offline: [
+    {
+      k: ["Kabir's phone, back after 40 min", "sync"],
+      on: { kp: "lit", gw: 1, sync: "lit", inbx: 1, log: 1 },
+      fl: [
+        ["inbx", "sync"],
+        ["sync", "gw"],
+        ["gw", "kp"],
+      ],
+      figs: [
+        ["9,120", ["inbox cursor", "cursor"]],
+        ["8", ["messages, oldest first", "messages"], "lit"],
+        ["9,122", ["cursor after the ack", "new cursor"], "ok"],
+      ],
+      note: ["Goa Trip up to 415, Mom up to 88: 6 and 2 messages from the logs", "6 + 2 from the logs"],
+    },
+    {
+      k: ["at-least-once, deduped twice", "dedup twice"],
+      on: { pp: 1, own: "lit", log: 1, gw: 1, ap: "lit" },
+      fl: [
+        ["pp", "own"],
+        ["gw", "ap"],
+      ],
+      chips: [
+        ["send: (device, client id) → 412", "send: client id"],
+        ["receive: (conversation, seq)", "receive: seq"],
+      ],
+      ctn: ["lit", "ok"],
+      note: ['not by timestamp or text: two "ok"s a second apart are both real', "not by text"],
+    },
+    {
+      k: ["failures heal instead of fighting", "failures"],
+      kt: "warn",
+      on: { own: "warn", log: "ok", pres: "warn", sync: "ok" },
+      chips: [
+        ["split brain: TTL and versions", "split brain: TTL"],
+        ["last seen: server clock, max()", "last seen: max()"],
+        ["owner crash: the log is the commit", "log is the commit"],
+        ["fan-out resumes from the log", "resume from log"],
+      ],
+      ctn: ["sky", "warn", "ok", "ok"],
+      note: ["never use presence for correctness: a wrong dot is cosmetic", "a wrong dot is cosmetic"],
+    },
+  ],
+};
+
+const V: Variant[] = [
+  {
+    id: "night",
+    label: "Saturday night",
+    steps: [
+      {
+        caption:
+          'An illustrative Saturday night in "Goa Trip", six friends. At 23:31 Priya posts "Paid ₹48,000 for the villa, ₹8,000 each please"; the server stores it, the ack is lost on lift Wi-Fi, her app retries, and Arjun sees it twice and pays twice.',
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: 'At 23:33 Rohan\'s phone clock, four minutes fast, sorts his "done!" above the request. At 23:40 Kabir, whose phone died at 23:12, still shows online. At 23:44 "Meera is typing…" has been on screen for nine minutes.',
+        tween: 1400,
+        loop: true,
+      },
+      { caption: 'At 23:59 the 300,000-member "Cricket Night" community, 40,000 online, reaches the last over: every message and presence change costs 40,000 deliveries, and the chat tier\'s CPU hits 100%.', tween: 1400, loop: true },
+      {
+        caption:
+          "Three classes of event: durable messages and read markers, stored before anyone is told and retried; soft-state presence, in memory with a TTL, latest wins; ephemeral typing, never stored and dropped first. Push the hint, pull the truth.",
+        tween: 1400,
+      },
+    ],
+  },
+  {
+    id: "presence",
+    label: "Presence",
+    steps: [
+      {
+        caption:
+          "Each device heartbeats every d seconds; its entry expires after d + ε, and a delayed trigger at d + 2ε publishes \"offline\" only if no newer heartbeat came, as in LinkedIn's design. Kabir's dead phone goes offline by itself.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "Presence is stored per device and the user shows as the most present device; only a change in that state is published. Last seen is the last heartbeat, stamped by the presence server's clock, never the phone's.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "Telling every online contact is expensive: with an assumed 5M chat users changing state 4 times an hour and 150 contacts each, 10% online, that's ~84,000 pushes a second, twice the ~39,000 message deliveries.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "So clients subscribe only to the users on screen, as Slack, Discord and LinkedIn do: ~22,000 pushes a second, about half the message traffic. Debouncing matters too: 30 raw flips an hour would mean ~167,000.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          'Typing is throttled by the sender to one event every 3 seconds and expired by the receiver 5 seconds after the last, whether or not "stopped" arrives. No storage, sequence number, ack or retry, and it\'s dropped first under load.',
+        tween: 1400,
+        loop: true,
+      },
+    ],
+  },
+  {
+    id: "fanout",
+    label: "Fan-out & order",
+    steps: [
+      {
+        caption:
+          "Priya's phone sends with client id c-77; the Goa Trip owner appends it to the conversation log as seq 412 and only then acks (one tick). Pointers go to members' inboxes, a live copy to connected devices, and \"delivered\" acks come back.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "The hybrid: the body goes once into the conversation log, small groups get a tiny pointer in each member's inbox, and a 300,000-member room gets none, since pointers would be 600,000 inbox writes a second. Live copies go only to the 5,000 with it open.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "A hot room is a hot key: send one copy per gateway node, full messages only to people looking (Discord found ~90% of large-server connections passive), split the work across relays of up to 15,000 sessions, and drop typing and member presence there.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "Order comes from one owner per conversation assigning 1, 2, 3…, never from senders' clocks; gaps are visible and fetched, and a unique (conversation_id, seq) key fences a failed-over owner. Receipts are forward-only cursors; a group's tick is the minimum.",
+        tween: 1400,
+        loop: true,
+      },
+    ],
+  },
+  {
+    id: "offline",
+    label: "Offline & failures",
+    steps: [
+      {
+        caption:
+          "Kabir's phone comes back after 40 minutes with inbox cursor 9,120. Sync reads the pointers after it (Goa Trip up to 415, Mom up to 88), fetches 6 and 2 messages from the logs, oldest first, and the ack moves the cursor to 9,122.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          'Every hop retries, so dedup on both ends: the owner dedups sends on the sender device and client message id, so Priya\'s retry gets "412" back; devices dedup receives on (conversation, seq), so a re-sent 412 is dropped and re-acked.',
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "Split-brain presence heals by TTL and per-user versions, and last seen stays server-stamped and monotonic. A crash mid-fan-out is safe because the log write is the commit point: fan-out resumes from the log, and sync repairs the rest.",
+        tween: 1400,
+      },
+    ],
+  },
+];
+
+export default defineExplainer({ w: W, h: H, variants: V, Scene });

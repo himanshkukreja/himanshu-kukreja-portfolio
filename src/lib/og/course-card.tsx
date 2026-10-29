@@ -3,8 +3,11 @@ import { C, Frame, Label, OG_SIZE, display, mono, ogFonts } from "./brand";
 
 export const COURSE_ALT = "System Design Mastery — a free system design course by Himanshu Kukreja";
 
-/** Worlds 00–10; World 00 (Foundations) has no boss. */
-const WORLDS = Array.from({ length: 11 }, (_, i) => String(i).padStart(2, "0"));
+/** Worlds 00–11; World 00 (Foundations) has no boss. */
+const WORLDS = Array.from({ length: 12 }, (_, i) => String(i).padStart(2, "0"));
+const LAST = WORLDS[WORLDS.length - 1];
+/** 58 px boxes joined by 22 px wires (938 px for 12 worlds, inside the 1072 px frame) */
+const TRACK_W = WORLDS.length * 58 + (WORLDS.length - 1) * 22;
 
 /** `active` undefined = course card (World 00 lit as the start); -1 = side quest (nothing lit). */
 function WorldTrack({ active }: { active?: number }) {
@@ -65,13 +68,13 @@ export async function courseCard() {
           System Design Mastery
         </div>
         <div style={{ display: "flex", marginTop: 20, fontSize: 32, fontWeight: 500, color: C.fg2, letterSpacing: "-0.01em" }}>
-          11 worlds<span style={{ color: C.signal, margin: "0 14px" }}>·</span>10 interview bosses
+          {`${WORLDS.length} worlds`}<span style={{ color: C.signal, margin: "0 14px" }}>·</span>{`${WORLDS.length - 1} interview bosses`}
           <span style={{ color: C.signal, margin: "0 14px" }}>·</span>1,000+ quick checks
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: "auto", marginBottom: 40 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: 858 }}>
-            <Label>world map · 00 → 10</Label>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", width: TRACK_W }}>
+            <Label>{`world map · 00 → ${LAST}`}</Label>
             <Label color={C.signal}>▶ press start</Label>
           </div>
           <WorldTrack />
@@ -88,7 +91,7 @@ type LessonCardInput = {
   tag: string;
   /** "Failure-First Design" */
   world: string;
-  /** 0–10, or -1 for side quests / unknown */
+  /** 0–11, or -1 for side quests / unknown */
   worldNum: number;
   minutes: number;
   boss: boolean;
@@ -139,7 +142,7 @@ export async function lessonCard(l: LessonCardInput) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16, marginTop: "auto", marginBottom: 44 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-            <Label>{l.worldNum >= 0 ? `world ${String(l.worldNum).padStart(2, "0")} of 10` : "side quest"}</Label>
+            <Label>{l.worldNum >= 0 ? `world ${String(l.worldNum).padStart(2, "0")} of ${LAST}` : "side quest"}</Label>
             <div style={{ display: "flex", ...mono, fontSize: 22, color: C.fg3 }}>
               {l.minutes > 0 ? `${l.minutes} min read · ` : ""}himanshukukreja.in/learn
             </div>

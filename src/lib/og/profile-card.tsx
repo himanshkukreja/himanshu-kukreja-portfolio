@@ -131,14 +131,14 @@ export async function profileCard(p: PublicProfile) {
           {p.course ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-                <Label>world map · 00 → {p.course.weeks[p.course.weeks.length - 1]?.code ?? "10"}</Label>
+                <Label>world map · 00 → {p.course.weeks[p.course.weeks.length - 1]?.code ?? "11"}</Label>
                 <Label color={C.signal}>▶ can you beat this run?</Label>
               </div>
               <Worlds p={p} width={1072} height={58} />
             </div>
           ) : (
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
-              <Label>free course · 11 worlds · 1,000+ quick checks</Label>
+              <Label>free course · 12 worlds · 1,000+ quick checks</Label>
               <Label color={C.signal}>▶ press start</Label>
             </div>
           )}

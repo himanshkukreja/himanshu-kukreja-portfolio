@@ -6,7 +6,7 @@
 // Errors (exit 1): YAML / schema problems (parse.ts: required fields, https URLs, types, minutes,
 // summary line lengths, 2-3 entries per lesson, no duplicate id or URL within a lesson), a lesson
 // key whose markdown file does not exist, a lesson listed in two files, and (unless --no-coverage)
-// a day lesson, foundations part, capstone (weeks 00-10) or side quest (bonus 1-15) without a trail.
+// a day lesson, foundations part, capstone (weeks 00-11) or side quest (bonus 1-15) without a trail.
 // Warnings: the same URL used in more than two lessons.
 // --links GETs every URL with a generic browser User-Agent (no identifying headers) and reports the
 // HTTP status and page title; --report writes that report as JSON. A link check never fails the run
@@ -61,11 +61,11 @@ for (const key of lessons.keys()) {
   if (!fs.existsSync(path.join(R, week, `${slug}.md`))) problems.push(`${key}: no such lesson (resources/${week}/${slug}.md)`);
 }
 
-// coverage: foundations parts + day lessons + capstones of weeks 00-10, and side quests 1-15
+// coverage: foundations parts + day lessons + capstones of weeks 00-11, and side quests 1-15
 const required = [];
 for (const d of fs.readdirSync(R).filter((d) => /^week-(\d{2})-/.test(d)).sort()) {
   const n = parseInt(d.slice(5, 7), 10);
-  if (n > 10) continue;
+  if (n > 11) continue;
   for (const f of fs.readdirSync(path.join(R, d)).sort()) {
     if (/^(day-\d+|capstone|foundations-part-\d+)/.test(f) && f.endsWith(".md")) required.push(`${d}/${f.replace(/\.md$/, "")}`);
   }

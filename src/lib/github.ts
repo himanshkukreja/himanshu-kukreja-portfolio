@@ -207,7 +207,7 @@ export async function getAllCourses(): Promise<Course[]> {
     {
       id: 'system-design-mastery',
       title: 'System Design Mastery',
-      description: '10-week intensive learning path for backend engineers moving from intermediate to advanced',
+      description: '11-week intensive learning path for backend engineers moving from intermediate to advanced',
       repo: 'system-design-mastery',
       resourceCount: resources.length,
       weeksCount: weeks.length,
@@ -240,7 +240,7 @@ export async function getAllLearningResources(): Promise<LearningResource[]> {
     if (planExists.length > 0) {
       resources.push({
         slug: 'plan',
-        title: 'System Design Mastery: 10-Week Plan',
+        title: 'System Design Mastery: 11-Week Plan',
         course: 'system-design-mastery',
         week: 'overview',
         path: `${BASE_PATH}/system-design-learning-plan.md`,
@@ -257,7 +257,8 @@ export async function getAllLearningResources(): Promise<LearningResource[]> {
     const weekFiles = await fetchGitHubContent(`${BASE_PATH}/${week}`);
 
     for (const file of weekFiles) {
-      if (file.type === 'file' && file.name.endsWith('.md')) {
+      // a week's internal planning notes (README.md, WEEK-PLAN.md) are not lessons
+      if (file.type === 'file' && file.name.endsWith('.md') && !/^(readme|week-plan)/i.test(file.name)) {
         const resource = parseFileToResource(file, week);
         if (resource) {
           resources.push(resource);
@@ -348,6 +349,9 @@ const LESSON_TITLES: Record<string, string> = {
   'bonus-31-discord-voice-and-servers': 'Discord',
   'bonus-32-ondc-open-commerce': 'ONDC',
   'bonus-33-nse-stock-exchange': 'NSE Stock Exchange',
+  'bonus-34-amazon-prime-day-checkout': 'Amazon Prime Day Checkout',
+  'bonus-35-fastag-electronic-tolling': 'FASTag Electronic Tolling',
+  'bonus-36-slack-workspace-messaging': 'Slack',
   // Week 0
   'foundations-part-1-basic-concepts': 'Part 1: System Design Fundamentals',
   'foundations-part-2-infrastructure-building-blocks': 'Part 2: Infrastructure Building Blocks',
@@ -355,6 +359,8 @@ const LESSON_TITLES: Record<string, string> = {
   'foundations-part-4-networking': 'Part 4: Networking Fundamentals for System Design',
   'foundations-part-5-operating-systems': 'Part 5: Operating System Concepts for System Design',
   'foundations-part-6-terminology-and-theory': 'Part 6: System Design Terminology & Theory',
+  'foundations-part-7-api-design': 'Part 7: API Design for System Design',
+  'foundations-part-8-databases-in-depth': 'Part 8: Databases in Depth',
   'week-00-mcq-assessment': 'Week 0 Foundations - MCQ Assessment',
   // Week 1
   'day-01-partitioning-deep-dive': 'Partitioning Deep-Dive',
@@ -397,19 +403,19 @@ const LESSON_TITLES: Record<string, string> = {
   'capstone-interview-week-5-multiplayer-game-matchmaking-system': 'Multiplayer Game Matchmaking System',
   'week-05-mcq-assessment': 'Week 5 Consistency and Coordination - MCQ Assessment',
   // Week 6
-  'day-01-notification-platform-design': 'Notification Platform — Problem Understanding & High-Level Design',
-  'day-02-core-notification-flow': 'Core Notification Flow',
-  'day-03-advanced-features': 'Advanced Features',
-  'day-04-scale-reliability-edge-cases': 'Scale, Reliability & Edge Cases',
-  'day-05-operations-monitoring-interview': 'Operations, Monitoring & Interview Mastery',
+  'day-01-notification-platform-design': 'Designing a Real-Time Notification Platform',
+  'day-02-core-notification-flow': 'The Delivery Pipeline: Guarantees, Priorities and Preferences',
+  'day-03-advanced-features': 'Real-Time Channels: WebSockets and SSE at Scale',
+  'day-04-scale-reliability-edge-cases': 'Presence and Chat Fan-Out at Scale',
+  'day-05-operations-monitoring-interview': 'Operations, Scale and Edge Cases',
   'capstone-interview-week-6-food-delivery-system': 'Food Delivery Order System',
-  'week-06-mcq-assessment': 'Week 6 Designing a Notification Platform - MCQ Assessment',
+  'week-06-mcq-assessment': 'Week 6 Real-Time Delivery: Designing a Notification Platform - MCQ Assessment',
   // Week 7
   'day-01-search-fundamentals': 'Search Fundamentals & Architecture',
   'day-02-indexing-pipeline': 'Indexing Pipeline',
   'day-03-query-processing-relevance': 'Query Processing & Relevance',
-  'day-04-advanced-search-features': 'Advanced Search Features',
-  'day-05-search-operations-scale': 'Search Operations & Scale',
+  'day-04-advanced-search-features': 'Typeahead at Scale: Autocomplete, Spelling and Facets',
+  'day-05-search-operations-scale': 'Location Search and Search at Scale',
   'capstone-interview-week-7-legal-document-search': 'Designing a Legal Document Search System',
   'week-07-mcq-assessment': 'Week 7 Designing a Search System - MCQ Assessment',
   // Week 8
@@ -418,6 +424,7 @@ const LESSON_TITLES: Record<string, string> = {
   'day-03-data-modeling': 'Data Modeling for Analytics',
   'day-04-late-data': 'Late-Arriving Data and Correctness',
   'day-05-query-optimization': 'Query Layer and Optimization',
+  'day-06-counting-at-scale': 'Counting at Scale: Bloom Filters, HyperLogLog, Count-Min Sketch and Top-K',
   'capstone-interview-week-8-streaming-analytics': 'Real-Time Analytics for Video Streaming Platform',
   'week-08-mcq-assessment': 'Week 8 Designing an Analytics Pipeline - MCQ Assessment',
   // Week 9
@@ -436,6 +443,14 @@ const LESSON_TITLES: Record<string, string> = {
   'day-05-incident-management': 'Incident Management',
   'capstone-interview-week-10-the-grand-finale': 'The Grand Finale',
   'week-10-mcq-assessment': 'Week 10 Production Readiness and Operational Excellence - MCQ Assessment',
+  // Week 11
+  'day-01-llm-serving': 'LLM Serving: Tokens, Latency and Cost',
+  'day-02-embeddings-and-vector-search': 'Embeddings and Vector Search',
+  'day-03-rag-systems': 'RAG Systems',
+  'day-04-evaluation-and-guardrails': 'Evaluation and Guardrails',
+  'day-05-cost-caching-and-operations': 'Cost, Caching and Operations',
+  'capstone-interview-week-11-ai-support-assistant': 'Design an AI Customer-Support Assistant',
+  'week-11-mcq-assessment': 'Week 11 Designing AI Systems - MCQ Assessment',
 };
 
 /** Week folder topic names, with the folder typos corrected. */
@@ -446,11 +461,12 @@ const WEEK_TOPICS: Record<string, string> = {
   'week-03-messaging-and-async-processing': 'Messaging and Async Processing',
   'week-04-caching': 'Caching',
   'week-05-consistency-and-coordination': 'Consistency and Coordination',
-  'week-06-designing-notification-platform': 'Designing a Notification Platform',
+  'week-06-designing-notification-platform': 'Real-Time Delivery',
   'week-07-designing-search-system': 'Designing a Search System',
   'week-08-designing-analytics-pipeline': 'Designing an Analytics Pipeline',
   'week-09-multi-tanency-security': 'Multi-tenancy and Security',
   'week-10-production-readiness-and-operational-excellence': 'Production Readiness and Operational Excellence',
+  'week-11-designing-ai-systems': 'Designing AI Systems',
 };
 
 // Word-level fixes for slugs not in LESSON_TITLES (typos and acronyms).

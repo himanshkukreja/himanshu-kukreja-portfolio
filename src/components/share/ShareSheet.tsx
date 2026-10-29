@@ -141,7 +141,7 @@ export default function ShareSheet({ target, onClose }: { target: ShareTarget; o
     return `${o}/learn`;
   }, [target, handle]);
   const text = useMemo(() => (target.text ? target.text(summary) : shareText({ kind: target.kind, summary, title: target.title, detail: target.detail })), [target, summary]);
-  const courseText = "Learning system design for free: System Design Mastery — 11 worlds, interview bosses, 1,000+ quick checks and a daily challenge. Come along.";
+  const courseText = "Learning system design for free: System Design Mastery — 12 worlds, interview bosses, 1,000+ quick checks and a daily challenge. Come along.";
 
   const enable = async () => {
     if (!share.state) return;

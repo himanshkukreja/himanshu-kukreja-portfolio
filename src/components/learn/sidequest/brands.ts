@@ -5,7 +5,8 @@
  * - Full-colour logo (`logos`, from "gb"): the logo from SVG Logos by Gil Barbara (github.com/gilbarbara/logos,
  *   CC0, via @iconify-json/logos) on the background its app icon uses: Google, Gmail, Maps, YouTube, Airbnb
  *   and Visa / Mastercard on white, Netflix's red N, Spotify's green disc and TikTok's offset note on black,
- *   WhatsApp's bubble on its green, S3's own green tile, Zoom's white mark on its blue.
+ *   WhatsApp's bubble on its green, S3's own green tile, Zoom's white mark on its blue, Slack's four-colour
+ *   mark on white.
  * - Single-colour mark (`logos`, from "si"): Simple Icons (CC0, @iconify-json/simple-icons) where Gil Barbara has
  *   no logo or its app icon is one colour on another, drawn in `ink` on `tile`: Uber, X, ChatGPT, GitHub and
  *   Figma white on black, Discord's white Clyde on blurple, Instagram's white glyph on its gradient, Swiggy and
@@ -13,18 +14,20 @@
  *   on white. Figma stays one colour because its full logo has a purple part (the site is purple-free; only
  *   Instagram and Discord show their true purple).
  * - Original emblem (`emblem`, no logo in either set: UPI, Aadhaar, IRCTC, Blinkit, Zerodha, Dream11, Truecaller,
- *   ONDC, NSE): a glyph drawn for this course that evokes the product's engineering problem (a QR finder and a
- *   rupee for UPI, a fingerprint for Aadhaar, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for
+ *   ONDC, NSE, FASTag): a glyph drawn for this course that evokes the product's engineering problem (a QR finder and
+ *   a rupee for UPI, a fingerprint for Aadhaar, a train for IRCTC, a bolt-stamped bag for Blinkit, candlesticks for
  *   Zerodha Kite, stumps beside a leaderboard for Dream11, a ringing phone for Truecaller, a phone and a shop
- *   trading a sealed message for ONDC, an order-book ladder for NSE), in the brand's colours: `ink` on `tile`
- *   with `hi` for its second colour. No company's own logo artwork is copied for these.
+ *   trading a sealed message for ONDC, an order-book ladder for NSE, a lifting barrier and a windscreen tag for
+ *   FASTag; and, as fallbacks, a cart carrying one parcel for Amazon and a channel sidebar for Slack), in the
+ *   brand's colours: `ink` on `tile` with `hi` for its second colour. No company's own logo artwork is copied for
+ *   these. FASTag shows its emblem: its official logo is published only as a raster image, not as SVG.
  *
  * The emblem is also every quest's fallback if its logo is missing. `accent` is the brand colour the quest's
  * pages use for stripes and borders (--quest-accent), not the tile. Logos are their owners' trademarks, shown
  * only to identify the product, which is always named in text. scripts/build-quest-logos.mjs vendors the
  * logos into logos.json and marks.json.
  */
-export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles" | "tokens" | "cursors" | "upload" | "carets" | "grid" | "seats" | "route" | "shield" | "tiles" | "gallery" | "stay" | "stumps" | "ring" | "tag" | "mail" | "branch" | "swipe" | "voice" | "peer" | "ladder";
+export type EmblemId = "upi" | "chat" | "fingerprint" | "card" | "search" | "play" | "eq" | "bucket" | "map" | "fanout" | "train" | "bolt" | "candles" | "tokens" | "cursors" | "upload" | "carets" | "grid" | "seats" | "route" | "shield" | "tiles" | "gallery" | "stay" | "stumps" | "ring" | "tag" | "mail" | "branch" | "swipe" | "voice" | "peer" | "ladder" | "cart" | "toll" | "channels";
 
 /** a logo placed on the tile: `gb` = logos.json (full colour), `si` = marks.json (drawn in the tile's ink) */
 export type QuestLogo = {
@@ -110,6 +113,9 @@ const BRANDS: Record<number, QuestBrand> = {
   31: { n: 31, product: "Discord", field: "Community chat and voice", emblem: "voice", accent: "#5865F2", tile: "#5865F2", ink: W, logos: [si("discord", [12, 12, 40, 40])] },
   32: { n: 32, product: "ONDC", field: "Open commerce network", emblem: "peer", accent: "#1C75BC", tile: W, ink: "#1C4E9D", hi: "#F4A118", logos: [gb("ondc", [6, 19, 52, 26])] },
   33: { n: 33, product: "NSE", field: "Stock exchange", emblem: "ladder", accent: "#E66F25", tile: W, ink: "#1F2B5B", hi: "#E07122", logos: [gb("nse", [5, 21, 54, 22])] },
+  34: { n: 34, product: "Amazon", field: "Sale-day checkout", emblem: "cart", accent: "#FF9900", tile: W, ink: "#171D27", hi: "#FF6201", logos: [gb("amazon", [4, 20, 56, 24])] },
+  35: { n: 35, product: "FASTag", field: "Electronic tolling", emblem: "toll", accent: "#38AC36", tile: W, ink: "#38AC36", hi: "#EA881F" },
+  36: { n: 36, product: "Slack", field: "Workplace messaging", emblem: "channels", accent: "#36C5F0", tile: W, ink: "#1D1C1D", hi: "#E01E5A", logos: [gb("slack-icon", [13, 13, 38, 38])] },
 };
 
 const FALLBACK: Omit<QuestBrand, "n"> = { product: "Side quest", field: "System design", emblem: "fanout", accent: "#0B0B0B", tile: "#0B0B0B", ink: "#FFFFFF" };

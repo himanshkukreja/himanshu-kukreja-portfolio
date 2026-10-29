@@ -37,7 +37,7 @@ export const EXAMPLE_CATEGORIES: ExampleCategory[] = [
   { id: "learn", label: "Find a lesson or concept", blurb: "The concept, the lesson that teaches it, and the exact section.", icon: "concept", ai: false },
   { id: "moment", label: "Jump to the second in a lecture", blurb: "Lecture moments open the video at the second the idea starts.", icon: "moment", ai: false },
   { id: "short", label: "Shorts", blurb: "One idea in under a minute.", icon: "short", ai: false },
-  { id: "quest", label: "Side quests by company", blurb: "How real products are built: UPI, WhatsApp, Zerodha and 30 more.", icon: "quest", ai: false },
+  { id: "quest", label: "Side quests by company", blurb: "How real products are built: UPI, WhatsApp, Zerodha and 33 more.", icon: "quest", ai: false },
   { id: "interview", label: "Interview prep, problems and LLD", blurb: "Company prep pages, interview problems and low-level design rounds.", icon: "problem", ai: false },
   { id: "mock", label: "Mock interviews", blurb: "Full rounds with an interviewer, phase by phase.", icon: "mock", ai: false },
   { id: "war", label: "War stories and outages", blurb: "Real outages, what broke and what fixed it.", icon: "war", ai: false },

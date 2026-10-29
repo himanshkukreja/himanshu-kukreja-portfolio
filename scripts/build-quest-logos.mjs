@@ -39,6 +39,7 @@ const LOGOS = {
   "google-gmail": {},
   // the note is white on the app icon's black (the file draws it black for light backgrounds)
   "tiktok-icon": { recolor: { "#000": "#fff" }, unfilled: "#fff" },
+  "slack-icon": {},
 };
 
 /**
@@ -56,6 +57,8 @@ const LOGOS = {
  *                which the sanitiser drops
  *   nse.svg      nseindia.com/assets/images/NSE_Logo.svg (NSE's own file): the full lockup
  *   irctc.svg    English Wikipedia, File:IRCTC Logo.svg (IRCTC's logo, used there as fair use): the full lockup
+ *   amazon.svg   Wikimedia Commons, File:Amazon 2024.svg (public domain as a text logo, trademarked): the
+ *                wordmark and smile Amazon has used since 2024
  */
 const LOCAL = {
   blinkit: { file: "scripts/quest-logos/blinkit.svg", drop: (a, tag) => tag === "rect", viewBox: [303, 1368, 2894, 764] },
@@ -68,6 +71,7 @@ const LOCAL = {
   ondc: { file: "scripts/quest-logos/ondc.svg", viewBox: [30, 10, 790, 262] },
   nse: { file: "scripts/quest-logos/nse.svg", viewBox: [0, 0, 127.039, 43.1] },
   irctc: { file: "scripts/quest-logos/irctc.svg", viewBox: [0, 0, 336, 419] },
+  amazon: { file: "scripts/quest-logos/amazon.svg", viewBox: [0, 0, 398.61, 133.49] },
 };
 
 /** Simple Icons marks, drawn in one colour (the brand's own arrangement: white on its colour, etc.). */

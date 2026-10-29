@@ -1,389 +1,505 @@
 /**
- * Whole-lesson overview (week 6, day 1 · problem understanding & high-level design): clarify the
- * requirements with FERNS (five types over five channels; 50M users, 500M/day, 10M/hour campaigns;
- * <1s / <2s / <1min latency, 99.9% for critical; fallbacks, critical never behind marketing), the
- * back-of-the-envelope numbers (~5,800/s avg, design for ~20K/s; 18 TB queryable, ~30 TB active;
- * SMS ~$3M/month, so push → email → SMS), then one payment notification through the architecture:
- * Send API + outbox, priority topics, router, push worker, and the InvalidToken fallback to email.
+ * Whole-lesson overview (week 6, day 1 · designing a real-time notification platform): the
+ * Preface's illustrative evening (a 10M campaign in the one queue, Priya's push and Rohan's OTP at
+ * 20:08, Meera's ignored opt-out, Kabir's stale green dot, SMS at 5% of messages and ~90% of the
+ * bill); the requirements (FERNS, the five classes and why they can't share a queue); the estimate
+ * (~5,800/s, design for 20,000/s, the channel mix, SMS ~89% of ~$3.4M a month, ~10M connections);
+ * and the architecture: seven pieces, Arjun's ₹2,400 to Priya's browser (inbox first, push only
+ * without an ack) and the five records.
  */
-import { Box, defineExplainer, lerp, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone } from "../kit";
+import { Box, defineExplainer, ease, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone, type Variant } from "../kit";
 
 const W = 600;
-const H = 320;
+const H = 340;
+/** a label with an optional shorter form for narrow stages: "both" or ["wide", "narrow"] */
+type Two = string | [string, string];
+type Nd = { x: number; y: number; w: number; h: number; l: string; n?: string };
+/** an edge: from, to, and optional port offsets (y for side-by-side boxes, x for stacked ones) */
+type Ed = [string, string, number?, number?];
+type Fr = {
+  /** kicker (top left) */
+  k: Two;
+  kt?: Tone;
+  /** nodes in play (plain 1 or a tone); every other node is dimmed */
+  on?: Record<string, Tone | 1>;
+  sub?: Record<string, Two>;
+  /** wires carrying traffic in this frame: [from, to, tone]; a reversed pair runs a wire backwards */
+  fl?: [string, string, Tone?][];
+  /** big figures: [figure, label, tone] */
+  figs?: [string, Two, Tone?][];
+  chips?: Two[];
+  cols?: number;
+  ct?: Tone;
+  /** per-chip tones (override ct) */
+  ctn?: Tone[];
+  /** meters: [label, value, max, tone] */
+  bars?: [Two, number, number, Tone?][];
+  note?: Two;
+  nt?: Tone;
+};
 type P = { x: number; y: number };
+const pick = (v: Two | undefined, nr: boolean) => (v === undefined ? undefined : typeof v === "string" ? v : v[nr ? 1 : 0]);
 
-/** a point at fraction f along a polyline */
-function walk(pts: P[], f: number): P {
-  const ls = pts.slice(1).map((q, i) => Math.abs(q.x - pts[i].x) + Math.abs(q.y - pts[i].y));
-  let r = Math.min(1, Math.max(0, f)) * ls.reduce((a, b) => a + b, 0);
-  for (let i = 0; i < ls.length; i++) {
-    if (r <= ls[i] || i === ls.length - 1) {
-      const u = ls[i] ? Math.min(1, r / ls[i]) : 1;
-      return { x: lerp(pts[i].x, pts[i + 1].x, u), y: lerp(pts[i].y, pts[i + 1].y, u) };
-    }
-    r -= ls[i];
+/* the stage grid: four columns, three rows of boxes above the figures */
+const CX = [16, 124, 260, 404];
+const CW = [88, 116, 124, 180];
+const RY = [40, 96, 156];
+const RH = [44, 48, 40];
+const nd = (c: number, r: number, l: string, n?: string, rows = 1): Nd => ({ x: CX[c], y: RY[r], w: CW[c], h: RY[r + rows - 1] + RH[r + rows - 1] - RY[r], l, n });
+
+/** a soft orthogonal curve from one box to the next, picked by their relative position */
+function geo(a: Nd, b: Nd, oa = 0, ob = 0): P[] {
+  if (b.x >= a.x + a.w - 2 || b.x + b.w <= a.x + 2) {
+    const r = b.x >= a.x + a.w - 2;
+    const p0 = { x: r ? a.x + a.w : a.x, y: a.y + a.h / 2 + oa };
+    const p3 = { x: r ? b.x : b.x + b.w, y: b.y + b.h / 2 + ob };
+    const m = (p0.x + p3.x) / 2;
+    return [p0, { x: m, y: p0.y }, { x: m, y: p3.y }, p3];
   }
-  return pts[pts.length - 1];
+  const d = b.y > a.y;
+  const p0 = { x: a.x + a.w / 2 + oa, y: d ? a.y + a.h : a.y };
+  const p3 = { x: b.x + b.w / 2 + ob, y: d ? b.y : b.y + b.h };
+  const m = (p0.y + p3.y) / 2;
+  return [p0, { x: p0.x, y: m }, { x: p3.x, y: m }, p3];
 }
+const bz = (g: P[], u: number): P => {
+  const v = 1 - u;
+  const c = [v * v * v, 3 * v * v * u, 3 * v * u * u, u * u * u];
+  return { x: g.reduce((s, p, i) => s + p.x * c[i], 0), y: g.reduce((s, p, i) => s + p.y * c[i], 0) };
+};
+const path = (g: P[]) => `M${g[0].x} ${g[0].y}C${g[1].x} ${g[1].y} ${g[2].x} ${g[2].y} ${g[3].x} ${g[3].y}`;
+const ends = (e: Ed) => geo(N[e[0]], N[e[1]], e[2], e[3]);
 
-function Chip({ x, y, w, label, tone, h = 28 }: { x: number; y: number; w: number; label: string; tone?: Tone; h?: number }) {
+function Scene({ variant, step, t, clock, narrow: nr }: SceneProps) {
+  const f = (F[variant] || F[Object.keys(F)[0]])[Math.min(step, (F[variant] || F[Object.keys(F)[0]]).length - 1)];
+  const on = f.on || {};
+  /** staggered fade-in for item i of n, always fully in by t = 1 */
+  const fade = (i: number, n: number) => {
+    const k = n > 1 ? Math.min(0.15, 0.5 / (n - 1)) : 0;
+    return ease(seg(t, i * k, i * k + 0.5));
+  };
+  const xs = [[300], [160, 440], [100, 300, 500]][(f.figs?.length || 1) - 1] || [];
+  const cols = f.cols || 2;
+  const cw = (552 - (cols - 1) * 8) / cols;
   return (
     <g>
-      <rect className={`ax-box${tone ? ` ${tone}` : ""}`} x={x} y={y} width={w} height={h} />
-      <Txt x={x + w / 2} y={y + h / 2 + 5} k="s" tone={tone}>
-        {label}
+      <Txt x={16} y={26} k="k" anchor="start" tone={f.kt}>
+        {pick(f.k, nr)}
       </Txt>
-    </g>
-  );
-}
-
-/* ---------------------------------------------------------------- 1 · clarify (FERNS) */
-const FERNS: [string, string, string][] = [
-  ["F", "Functional", "what"],
-  ["E", "Edge cases", "edges"],
-  ["R", "Resources", "limits"],
-  ["N", "NFRs", "NFRs"],
-  ["S", "Scale", "scale"],
-];
-const FOCUS = [-1, 0, 4, 3, 1];
-const TYPES = ["Transactions", "Security", "Marketing", "Reminders", "Social"];
-const CHANS = ["Push", "Email", "SMS", "In-App", "WhatsApp"];
-const FEATS = ["preferences", "quiet hours", "scheduling", "digests", "templates"];
-
-function Clarify({ step, t, narrow }: SceneProps) {
-  const fade = seg(t, 0.15, 0.7);
-  return (
-    <g>
-      {FERNS.map(([l, w, n], i) => {
-        const tone: Tone = step === 4 ? (i === 1 ? "lit" : "ok") : FOCUS[step] === i ? "lit" : undefined;
+      {E.map((e) => {
+        const [a, b] = e;
+        const live = a in on && b in on;
+        const fl = f.fl?.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        return <Wire key={a + b} d={path(ends(e))} tone={fl ? fl[2] || "lit" : undefined} arrow={live} opacity={live ? 1 : 0.3} />;
+      })}
+      {Object.entries(N).map(([id, n]) => {
+        const s = on[id];
+        return <Box key={id} x={n.x} y={n.y} w={n.w} h={n.h} label={nr ? n.n || n.l : n.l} sub={(nr ? undefined : pick(f.sub?.[id], nr)) || undefined} tone={s === 1 ? undefined : s} dim={!(id in on)} />;
+      })}
+      {f.fl?.map(([a, b, tone], i) => {
+        const e = E.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        if (!e) return null;
+        const u = ((((t - 1) * 0.5 + clock * 0.55 + 0.5 + i * 0.17) % 1) + 1) % 1;
+        const p = bz(ends(e), e[0] === a ? u : 1 - u);
+        return <Token key={a + b} x={p.x} y={p.y} s={9} tone={tone || "lit"} />;
+      })}
+      {f.figs?.map(([d, l, tone], i) => (
+        <g key={d + i} opacity={fade(i, f.figs?.length || 1)}>
+          <Txt x={xs[i]} y={254} k="d" tone={tone}>
+            {d}
+          </Txt>
+          <Txt x={xs[i]} y={278} k="s">
+            {pick(l, nr)}
+          </Txt>
+        </g>
+      ))}
+      {f.chips?.map((c, i) => {
+        const x = 24 + (i % cols) * (cw + 8);
+        const y = 214 + Math.floor(i / cols) * 34;
+        const tone = f.ctn?.[i] || f.ct || "lit";
         return (
-          <g key={l} opacity={step === 0 ? seg(t, i * 0.15, i * 0.15 + 0.3) : FOCUS[step] === i || step === 4 ? 1 : 0.4}>
-            <rect className={`ax-box${tone ? ` ${tone}` : ""}`} x={24 + i * 112} y={26} width={104} height={70} />
-            <Txt x={76 + i * 112} y={64} k="d" tone={tone}>
-              {l}
-            </Txt>
-            <Txt x={76 + i * 112} y={88} k="s">
-              {narrow ? n : w}
+          <g key={i} opacity={fade(i, f.chips?.length || 1)}>
+            <rect className={`ax-box ${tone}`} x={x} y={y} width={cw} height={26} />
+            <Txt x={x + cw / 2} y={y + 18} k="s" tone={tone}>
+              {pick(c, nr)}
             </Txt>
           </g>
         );
       })}
-      <g opacity={fade}>
-        {step === 0 && (
-          <g>
-            <Box x={90} y={140} w={420} h={80} label="Design a Notification Platform" sub={narrow ? undefined : "push, email, SMS, etc."} tone="lit" />
-            <Txt x={W / 2} y={262} k="s" tone="warn">
-              {narrow ? "ask before you draw" : "don't draw boxes yet: ask before you draw"}
-            </Txt>
-          </g>
-        )}
-        {step === 1 &&
-          [TYPES, FEATS, CHANS].map((col, c) => (
-            <g key={c}>
-              <Txt x={110 + c * 190} y={124} k="k">
-                {["types", "features", "channels"][c]}
-              </Txt>
-              {col.map((s, i) => (
-                <Chip key={s} x={30 + c * 190} y={134 + i * 34} w={160} label={s} tone={c === 1 ? undefined : "lit"} />
-              ))}
-            </g>
-          ))}
-        {step === 2 &&
-          [
-            ["50M", "users"],
-            ["10M", "daily active"],
-            ["500M", "per day"],
-            ["10M", narrow ? "per hour" : "per hour, campaigns"],
-          ].map(([d, s], i) => (
-            <g key={i}>
-              <Txt x={160 + (i % 2) * 280} y={164 + Math.floor(i / 2) * 84} k="d" tone={i === 3 ? "warn" : undefined}>
-                {d}
-              </Txt>
-              <Txt x={160 + (i % 2) * 280} y={188 + Math.floor(i / 2) * 84} k="s">
-                {s}
-              </Txt>
-            </g>
-          ))}
-        {step === 3 && (
-          <g>
-            {[
-              ["Security", "< 1 s", "CRITICAL"],
-              ["Transactions", "< 2 s", "HIGH"],
-              ["Marketing", "< 1 min", "LOW"],
-            ].map(([a, b, c], i) => (
-              <g key={a}>
-                <Txt x={30} y={146 + i * 46} anchor="start">
-                  {a}
-                </Txt>
-                <Txt x={narrow ? 300 : 230} y={146 + i * 46} anchor="start" tone="lit">
-                  {b}
-                </Txt>
-                {!narrow && (
-                  <Txt x={320} y={146 + i * 46} k="s" anchor="start">
-                    {c}
-                  </Txt>
-                )}
-              </g>
-            ))}
-            <Txt x={490} y={180} k="d" tone="ok">
-              99.9%
-            </Txt>
-            <Txt x={490} y={204} k="s">
-              {narrow ? "critical" : "critical delivery"}
-            </Txt>
-            <Txt x={W / 2} y={292} k="s">
-              GDPR · CAN-SPAM · audit trail
-            </Txt>
-          </g>
-        )}
-        {step === 4 && (
-          <g>
-            <Box x={24} y={124} w={268} h={90} label={narrow ? "push off, bad no." : "push off · bad number"} sub={narrow ? "fallback" : "→ fallback or mark invalid"} tone="warn" />
-            <Box x={308} y={124} w={268} h={90} label="critical first" sub={narrow ? "never delayed" : "never behind marketing"} tone="lit" />
-            <Box x={24} y={240} w={552} h={50} label={narrow ? "summarize, then design" : "summarize and read it back, then design"} tone="ok" />
-          </g>
-        )}
-      </g>
-    </g>
-  );
-}
-
-/* ---------------------------------------------------------------- 2 · estimate */
-const KICK = ["traffic", "storage", "provider cost per month", "channel order"];
-
-function Estimate({ step, t, narrow }: SceneProps) {
-  const f = seg(t, 0.1, 0.9);
-  return (
-    <g>
-      <Txt x={W / 2} y={30} k="k">
-        {KICK[step]}
-      </Txt>
-      {step === 0 && (
-        <g>
-          <Txt x={W / 2} y={76} k="d">
-            500M / day
+      {f.bars?.map(([l, v, m, tone], i) => (
+        <g key={i} opacity={fade(i, f.bars?.length || 1)}>
+          <Txt x={24} y={232 + i * 28} k="s" anchor="start" tone={tone}>
+            {pick(l, nr)}
           </Txt>
-          {[
-            [narrow ? "avg" : "average", 5800, "~5,800/s", "ok"],
-            [narrow ? "peak" : "peak 3×", 17400, "~17,400/s", "warn"],
-            [narrow ? "design" : "design for", 20000, "~20,000/s", "lit"],
-          ].map(([l, v, s, tone], i) => (
-            <g key={i}>
-              <Txt x={24} y={134 + i * 60} k="s" anchor="start">
-                {l}
-              </Txt>
-              <Meter x={narrow ? 110 : 130} y={120 + i * 60} w={narrow ? 330 : 310} h={18} value={(v as number) * seg(t, i * 0.25, i * 0.25 + 0.5)} max={20000} tone={tone as Tone} />
-              <Txt x={576} y={135 + i * 60} anchor="end" tone={tone as Tone}>
-                {s}
-              </Txt>
-            </g>
-          ))}
-        </g>
-      )}
-      {step === 1 &&
-        [
-          ["200 GB", narrow ? "per day" : "per day · 400 B × 500M", undefined],
-          ["18 TB", narrow ? "90 days" : "90 days queryable", "lit"],
-          ["400 GB", narrow ? "audit / day" : "audit / day · 3 events each", "warn"],
-          ["~30 TB", narrow ? "active" : "active in all", "ok"],
-        ].map(([d, s, tone], i) => (
-          <g key={i} opacity={seg(t, i * 0.2, i * 0.2 + 0.3)}>
-            <Txt x={150 + (i % 2) * 300} y={118 + Math.floor(i / 2) * 110} k="d" tone={tone as Tone}>
-              {d}
-            </Txt>
-            <Txt x={150 + (i % 2) * 300} y={144 + Math.floor(i / 2) * 110} k="s">
-              {s}
-            </Txt>
-            {i % 2 === 0 && <Wire d={`M${narrow ? 250 : 262} ${110 + Math.floor(i / 2) * 110}H${narrow ? 352 : 340}`} arrow />}
-          </g>
-        ))}
-      {step === 2 && (
-        <g>
-          {[
-            ["Push", 0, "$0", "ok"],
-            ["Email", 150000, "~$150K", "ok"],
-            ["SMS", 3000000, "~$3M", "bad"],
-          ].map(([l, v, s, tone], i) => (
-            <g key={i}>
-              <Txt x={24} y={100 + i * 64} anchor="start">
-                {l}
-              </Txt>
-              <Meter x={110} y={86 + i * 64} w={330} h={18} value={(v as number) * f} max={3000000} tone={tone as Tone} />
-              <Txt x={576} y={101 + i * 64} anchor="end" tone={tone as Tone}>
-                {s}
-              </Txt>
-            </g>
-          ))}
-          <Txt x={110} y={262} k="s" anchor="start" opacity={f}>
-            {narrow ? "25M SMS/day" : "25M SMS/day · $7.5M at $0.01 list, ~$3M negotiated"}
-          </Txt>
-        </g>
-      )}
-      {step === 3 && (
-        <g>
-          {[
-            ["Push", "free", "ok"],
-            ["Email", "cheap", "ok"],
-            ["SMS", narrow ? "last" : "last resort", "warn"],
-          ].map(([l, s, tone], i) => (
-            <g key={l} opacity={seg(t, i * 0.2, i * 0.2 + 0.3)}>
-              {i > 0 && <Wire d={`M${24 + i * 196 - 26} 120H${24 + i * 196}`} arrow />}
-              <Box x={24 + i * 196} y={84} w={160} h={72} label={l} sub={s} tone={tone as Tone} />
-            </g>
-          ))}
-          <g opacity={seg(t, 0.6, 1)}>
-            <Txt x={W / 2} y={232} k="d" tone="ok">
-              $2M+
-            </Txt>
-            <Txt x={W / 2} y={258} k="s">
-              {narrow ? "saved per month" : "saved per month: SMS only for critical or push failure"}
-            </Txt>
-          </g>
-        </g>
-      )}
-    </g>
-  );
-}
-
-/* ---------------------------------------------------------------- 3 · architecture */
-const BW = 132;
-const R1 = 50;
-const R2 = 200;
-const RH = 46;
-const X = (i: number) => 12 + i * 148;
-const KY = [76, 100, 124, 148];
-const LANES: [string, string][] = [
-  ["critical", "CRIT"],
-  ["high", "HIGH"],
-  ["medium", "MED"],
-  ["low", "LOW"],
-];
-const DATA = ["S3", "ClickHouse", "PostgreSQL", "Redis"];
-const c1 = (i: number): P => ({ x: X(i) + BW / 2, y: R1 + RH / 2 });
-const c2 = (i: number): P => ({ x: X(i) + BW / 2, y: R2 + RH / 2 });
-const HIGH: P = { x: X(3) + BW / 2, y: KY[1] + 10 };
-
-function Arch({ step, t, clock, narrow }: SceneProps) {
-  const p = seg(t, 0.05, 0.95);
-  const fcm: Tone = step === 3 ? "ok" : step === 4 ? "bad" : undefined;
-  const tok =
-    step === 0
-      ? walk([c1(0), c1(1), c1(2)], p)
-      : step === 1
-        ? walk([c1(2), { x: X(3) - 8, y: c1(2).y }, { x: X(3) - 8, y: HIGH.y }, HIGH], p)
-        : step === 2
-          ? walk([HIGH, c2(3), c2(2)], p)
-          : step === 3
-            ? walk([c2(2), c2(1)], p)
-            : walk([c2(2), { x: c2(2).x, y: 258 }, { x: c2(0).x, y: 258 }, c2(0)], p);
-  const flood = (k: number) => (clock * 0.4 + k / 4) % 1;
-  const notes: [string, Tone][] =
-    step === 0
-      ? [[narrow ? "send(user-123, …)" : "send(user-123, TRANSACTION, payment_received)", undefined], [narrow ? "row + outbox: one txn" : "notification + outbox row: one transaction", "lit"], [narrow ? "← notification_id" : "← returns notification_id", "ok"]]
-      : step === 1
-        ? [[narrow ? "every 100ms" : "outbox processor: every 100ms", "lit"], [narrow ? "marketing → LOW" : "marketing floods only the LOW topic", "warn"]]
-        : step === 2
-          ? [[narrow ? "push, email fallback" : "prefs: Push (primary), Email (fallback)", "lit"], [narrow ? "quiet hours? no" : "push enabled? yes · quiet hours? no", undefined], [narrow ? "“You received $50.00”" : "“You received $50.00 from John”", "ok"]]
-          : step === 3
-            ? [[narrow ? "SENT = accepted" : "SENT: accepted by FCM, not yet on device", "ok"], [narrow ? "audit log written" : "audit log written to ClickHouse", undefined]]
-            : [[narrow ? "token marked invalid" : "InvalidToken → device token marked invalid", "bad"], [narrow ? "DELIVERED_VIA_EMAIL" : "→ email topic · DELIVERED_VIA_EMAIL", "ok"]];
-  const r1 = (i: number): Tone => (step === 0 && i > 0 ? (p > (i === 1 ? 0.4 : 0.9) ? "lit" : undefined) : undefined);
-  return (
-    <g>
-      <Txt x={W / 2} y={30} k="k">
-        {narrow ? "one payment notification" : "architecture: one payment notification"}
-      </Txt>
-      {[0, 1].map((i) => (
-        <Wire key={i} d={`M${X(i) + BW} ${c1(0).y}H${X(i + 1)}`} arrow tone={step === 0 ? "lit" : undefined} />
-      ))}
-      <Wire d={`M${X(2) + BW} ${c1(0).y}H${X(3) - 8}V${HIGH.y}H${X(3) + 10}`} arrow tone={step === 1 ? "lit" : undefined} />
-      <Wire d={`M${c2(3).x} ${R1 + 130}V${R2}`} arrow tone={step === 2 ? "lit" : undefined} />
-      {[3, 2].map((i) => (
-        <Wire key={i} d={`M${X(i)} ${c2(0).y}H${X(i - 1) + BW}`} arrow tone={(step === 2 && i === 3) || (step === 3 && i === 2) ? "lit" : undefined} />
-      ))}
-      {step === 4 && <Wire d={`M${c2(2).x} ${R2 + RH}V258H${c2(0).x}V${R2 + RH}`} arrow dash tone="ok" />}
-      {["Payment svc|Payment", "Send API|Send API", "Outbox|Outbox"].map((l, i) => (
-        <Box key={l} x={X(i)} y={R1} w={BW} h={RH} label={l.split("|")[narrow ? 1 : 0]} tone={r1(i)} />
-      ))}
-      <rect className={`ax-box${step === 1 || step === 2 ? " lit" : ""}`} x={X(3)} y={R1} width={BW} height={130} />
-      <Txt x={c1(3).x} y={R1 + 18} k="s">
-        Kafka
-      </Txt>
-      {LANES.map(([w, n], i) => (
-        <g key={w}>
-          <rect className={`ax-box${i === 1 && step >= 1 && step <= 2 ? " lit" : i === 3 && step === 1 ? " warn" : ""}`} x={X(3) + 10} y={KY[i]} width={BW - 20} height={20} />
-          <Txt x={X(3) + 16} y={KY[i] + 15} k="s" anchor="start">
-            {narrow ? n : w}
-          </Txt>
+          <Meter x={nr ? 330 : 300} y={222 + i * 28} w={nr ? 246 : 276} h={12} value={v * ease(seg(t, 0.1, 0.8))} max={m} tone={tone || "sky"} />
         </g>
       ))}
-      {step === 1 && [0, 1, 2].map((k) => <Token key={k} x={lerp(X(3) + 70, X(3) + BW - 16, flood(k))} y={KY[3] + 10} s={7} tone="warn" />)}
-      {[
-        ["Router", "Router", step === 2 ? "lit" : undefined],
-        ["Push worker", "Worker", step >= 2 ? "lit" : undefined],
-        ["FCM / APNs", "FCM", fcm],
-        ["SendGrid", "SendGrid", step === 4 ? "ok" : undefined],
-      ].map(([w, n, tone], j) => (
-        <Box key={w} x={X(3 - j)} y={R2} w={BW} h={RH} label={narrow ? n : w} tone={tone as Tone} dim={j === 3 && step !== 4} />
-      ))}
-      {DATA.map((d, i) => {
-        const on = (step === 2 && (d === "Redis" || d === "PostgreSQL")) || (step === 3 && d === "ClickHouse") || (step === 4 && d === "PostgreSQL");
-        return (
-          <g key={d} opacity={on ? 1 : 0.4}>
-            <Chip x={X(i)} y={280} w={BW} h={30} label={d} tone={on ? "sky" : undefined} />
-          </g>
-        );
-      })}
-      {notes.map(([s, tone], i) => (
-        <Txt key={i} x={12} y={122 + i * 26} k="s" anchor="start" tone={tone} opacity={seg(t, 0.2 + i * 0.2, 0.5 + i * 0.2)}>
-          {s}
+      {f.note && (
+        <Txt x={16} y={f.figs || f.chips || f.bars ? H - 12 : 244} k="s" anchor="start" tone={f.nt} opacity={ease(seg(t, 0.3, 0.8))}>
+          {pick(f.note, nr)}
         </Txt>
-      ))}
-      {p < 1 && <Token x={tok.x} y={tok.y} s={11} tone={step === 4 ? "ok" : "lit"} />}
+      )}
     </g>
   );
 }
 
-function Scene(p: SceneProps) {
-  return p.variant === "clarify" ? <Clarify {...p} /> : p.variant === "estimate" ? <Estimate {...p} /> : <Arch {...p} />;
-}
+const N: Record<string, Nd> = {
+  svc: nd(0, 0, "Services", "Svcs"),
+  api: nd(1, 0, "Send API"),
+  ob: nd(2, 0, "Outbox"),
+  lanes: nd(3, 0, "Priority lanes", "Lanes"),
+  dev: nd(0, 1, "Apps", "Apps", 2),
+  prov: nd(1, 1, "Providers", "Provider"),
+  wk: nd(2, 1, "Workers"),
+  router: nd(3, 1, "Router"),
+  gw: nd(1, 2, "Gateways"),
+  inbox: nd(2, 2, "Inbox"),
+  pref: nd(3, 2, "Preferences", "Prefs"),
+};
+const E: Ed[] = [
+  ["svc", "api"],
+  ["api", "ob"],
+  ["ob", "lanes"],
+  ["lanes", "router"],
+  ["router", "pref"],
+  ["router", "wk"],
+  ["wk", "prov"],
+  ["prov", "dev", 0, -12],
+  ["router", "inbox"],
+  ["inbox", "gw"],
+  ["gw", "dev", 0, 12],
+];
+const ALL = { svc: 1, api: 1, ob: 1, lanes: 1, dev: 1, prov: 1, wk: 1, router: 1, gw: 1, inbox: 1, pref: 1 } as const;
 
-export default defineExplainer({
-  w: W,
-  h: H,
-  variants: [
+const F: Record<string, Fr[]> = {
+  evening: [
     {
-      id: "clarify",
-      label: "Clarify",
-      steps: [
-        { caption: "“Design a notification platform.” Don't start drawing boxes: ask clarifying questions first, using FERNS.", tween: 1600 },
-        { caption: "Functional: a fintech app sends five types over push, email, SMS, in-app and WhatsApp, with preferences, scheduling and digests.", tween: 1000 },
-        { caption: "Scale: 50 million users, 10 million daily active, 500 million notifications a day, and campaigns of 10 million an hour.", tween: 1000 },
-        { caption: "Non-functional: security alerts under 1 second, transactions under 2, marketing within a minute, and 99.9% delivery for critical ones.", tween: 1000 },
-        { caption: "Edge cases and priorities: fall back or mark bad contacts invalid, never delay critical behind marketing. Then read it all back.", tween: 1000 },
+      k: ["19:55 · one queue for everything", "19:55 · one queue"],
+      kt: "warn",
+      on: { svc: "warn", api: 1, ob: 1, lanes: "warn" },
+      sub: { svc: "marketing", lanes: ["one shared queue", "one queue"] },
+      fl: [
+        ["svc", "api", "warn"],
+        ["api", "ob", "warn"],
+        ["ob", "lanes", "warn"],
       ],
+      figs: [
+        ["10M", ["cashback pushes", "pushes"], "warn"],
+        ["20:00", ["sharp", "sharp"]],
+        ["1", ["queue for everything", "queue"], "bad"],
+      ],
+      note: ["an illustrative Friday evening; each failure is a classic one", "an illustrative evening"],
     },
     {
-      id: "estimate",
-      label: "Estimate",
-      steps: [
-        { caption: "500 million a day is about 5,800 a second on average. Bursts reach 3×, about 17,400 a second, so design for about 20,000.", tween: 1600 },
-        { caption: "About 400 bytes a record: 200 GB a day, 18 TB for 90 queryable days. Audit logs add 400 GB a day; about 30 TB active in all.", tween: 1600 },
-        { caption: "Push is free and email about $150,000 a month, but 25 million SMS a day is $7.5M a month at $0.01, about $3M negotiated.", tween: 1400 },
-        { caption: "So order channels by cost: push first, email second, SMS only for critical alerts or push failures. That saves $2M+ a month.", tween: 1400 },
+      k: ["20:00 · a payment and an OTP, late", "20:00 · late"],
+      kt: "bad",
+      on: { lanes: "bad", router: 1, wk: 1, prov: 1, dev: "bad" },
+      sub: { lanes: ["9.2M ahead", "9.2M ahead"] },
+      fl: [
+        ["lanes", "router", "bad"],
+        ["router", "wk", "bad"],
+        ["wk", "prov", "bad"],
+        ["prov", "dev", "bad"],
       ],
+      figs: [
+        ["20:08", ["Priya's push buzzes", "Priya's push"], "bad"],
+        ["20:08", ["Rohan's OTP arrives", "Rohan's OTP"], "bad"],
+        ["5 min", ["the code's expiry", "code expiry"]],
+      ],
+      note: ["Priya's web bell only refreshes on reload; Rohan taps Resend three times", "her bell only refreshes on reload"],
     },
     {
-      id: "arch",
-      label: "Architecture",
-      steps: [
-        { caption: "The payment service calls the Send API, which writes the notification and its outbox row in one transaction and returns the ID.", tween: 1600 },
-        { caption: "Every 100ms the outbox processor publishes it to Kafka's HIGH topic. Separate priority topics keep a marketing flood off critical alerts.", tween: 1400, loop: true },
-        { caption: "The router reads preferences, Redis then PostgreSQL: push primary, email fallback. Then it renders “You received $50.00 from John”.", tween: 1600 },
-        { caption: "The push worker sends to FCM. Success means accepted, not yet on the device: status SENT, and the audit log is written.", tween: 1000 },
-        { caption: "If FCM says InvalidToken, the token is marked invalid and the task goes to the email topic. SendGrid delivers it: DELIVERED_VIA_EMAIL.", tween: 1600 },
+      k: ["20:03 · Meera's opt-out ignored", "20:03 · opt-out ignored"],
+      kt: "bad",
+      on: { router: 1, pref: "bad", wk: 1, prov: 1, dev: "bad" },
+      fl: [
+        ["router", "pref", "bad"],
+        ["router", "wk", "bad"],
+        ["wk", "prov", "bad"],
       ],
+      cols: 1,
+      chips: [
+        ["19:55 · the campaign checks preferences once", "19:55 · checked once"],
+        ["19:59 · Meera turns marketing off", "19:59 · Meera opts out"],
+        ["20:03 · she gets the cashback push anyway", "20:03 · pushed anyway"],
+      ],
+      ctn: ["sky", "warn", "bad"],
+    },
+    {
+      k: ["21:30 · a green dot, a dead phone", "21:30 · Kabir's dot"],
+      kt: "warn",
+      on: { gw: "warn", dev: 1 },
+      sub: { gw: ['"online"', '"online"'] },
+      figs: [
+        ["20:12", ["Kabir's phone dies", "phone dies"]],
+        ["21:30", ["still a green dot", "still green"], "warn"],
+      ],
+      note: ['in the "Goa Trip" group, nothing ever said he left', "nothing said he left"],
+    },
+    {
+      k: ["month end · the bill", "month end"],
+      kt: "warn",
+      on: { wk: 1, prov: "warn" },
+      figs: [
+        ["5%", ["of the messages are SMS", "of messages: SMS"]],
+        ["~90%", ["of the provider bill", "of the bill"], "bad"],
+      ],
+      note: ["each failure is a missing piece of the platform, not a clever algorithm", "each is a missing piece"],
     },
   ],
-  Scene,
-});
+  ask: [
+    {
+      k: ["the answers (FERNS)", "requirements"],
+      on: { svc: "lit", api: 1 },
+      figs: [
+        ["50M", ["users, ~10M daily", "users"]],
+        ["500M", ["a day, +10M/h campaigns", "a day"], "lit"],
+        ["99.9%", ["for critical", "critical"], "ok"],
+      ],
+      note: ["security near-instant, payments 1–2 s, in-app < 1 s, marketing < 1 min", "in-app < 1 s, payments 1–2 s"],
+    },
+    {
+      k: ["five classes, five clocks", "five classes"],
+      on: { lanes: "lit", router: 1 },
+      sub: { lanes: ["critical·trans.·bulk", "3 lanes"] },
+      chips: [
+        ["critical · OTP, fraud · seconds", "critical · seconds"],
+        ["transactional · payments · 1–2 s", "payments · 1–2 s"],
+        ["social · chat · ~1 s live", "social · ~1 s live"],
+        ["reminder · at a set time", "reminder · scheduled"],
+        ["marketing · minutes · bulk lane", "marketing · minutes"],
+      ],
+      ctn: ["bad", "lit", "sky", "sky", "warn"],
+      note: ["each class gets its own latency target, channels and lane", "its own channels and lane each"],
+    },
+    {
+      k: ["why they can't share a queue", "one queue at 20:00"],
+      kt: "bad",
+      on: { lanes: "bad", router: 1 },
+      sub: { lanes: ["one FIFO", "one FIFO"] },
+      fl: [["lanes", "router", "bad"]],
+      figs: [
+        ["9.2M", ["ahead of the OTP", "ahead of it"], "bad"],
+        ["460 s", ["at 20,000 a second", "at 20,000/s"]],
+        ["~167K/s", ["to drain 10M in a minute", "to drain in 1 min"], "warn"],
+      ],
+      note: ["so critical gets its own lane, and campaigns are paced into bulk", "separate lanes, paced bulk"],
+    },
+  ],
+  numbers: [
+    {
+      k: ["500 million a day", "the volume"],
+      on: { api: "lit", ob: 1, lanes: 1 },
+      fl: [
+        ["api", "ob"],
+        ["ob", "lanes"],
+      ],
+      figs: [
+        ["~5,800/s", ["average", "average"]],
+        ["~17,400/s", ["at a 3× peak", "3× peak"]],
+        ["20,000/s", ["design for", "design for"], "lit"],
+      ],
+      note: ["a 10M campaign spread over an hour adds 2,800/s (+48%); bursts are worse", "a campaign: +2,800/s"],
+    },
+    {
+      k: ["the channel mix", "channel mix"],
+      on: { wk: 1, prov: 1, inbox: 1 },
+      bars: [
+        [["push 60% · 300M a day", "push 60%"], 60, 100, "lit"],
+        [["email 25% · 125M a day", "email 25%"], 25, 100, "sky"],
+        [["in-app 10% · ~580 a second", "in-app 10%"], 10, 100, "ok"],
+        [["SMS 5% · 750M a month", "SMS 5%"], 5, 100, "warn"],
+      ],
+    },
+    {
+      k: ["the provider bill", "the bill"],
+      kt: "warn",
+      on: { wk: 1, prov: "warn" },
+      bars: [
+        [["SMS · ~$3.0M a month", "SMS ~$3.0M"], 3, 3.4, "bad"],
+        [["email · ~$375K a month", "email ~$375K"], 0.375, 3.4, "sky"],
+        [["push · $0, FCM is no-cost", "push $0"], 0, 3.4, "ok"],
+      ],
+      note: ["SMS ≈ 89% of ~$3.4M at an assumed $0.004 each: one SMS costs 40 emails", "SMS ≈ 89% of ~$3.4M"],
+    },
+    {
+      k: ["the live connections", "live connections"],
+      on: { inbox: 1, gw: "lit", dev: "lit" },
+      fl: [
+        ["inbox", "gw"],
+        ["gw", "dev"],
+      ],
+      figs: [
+        ["15%", ["online at the peak", "online"]],
+        ["~1.33", ["devices each", "devices each"]],
+        ["~10M", ["live connections", "connections"], "lit"],
+      ],
+      note: ["so the real-time tier is sized by connections, not ~580 in-app a second", "sized by connections"],
+    },
+  ],
+  arch: [
+    {
+      k: ["seven pieces, one job each", "seven pieces"],
+      on: ALL,
+      sub: { api: ["+ idem. key", "+ key"], lanes: ["critical·trans.·bulk", "3 lanes"], gw: ["+ presence", "+ presence"], inbox: ["seq per user", "seq"] },
+      chips: [
+        ["ingest, preferences, the pipeline", "ingest, prefs, pipeline"],
+        ["workers, inbox, gateways, presence", "inbox, gateways, presence"],
+      ],
+      ctn: ["lit", "sky"],
+      note: ["ingest never calls a provider, so the payment service never waits on one", "ingest never calls a provider"],
+    },
+    {
+      k: ["Arjun's ₹2,400 · in through a lane", "₹2,400 · ingest"],
+      on: { svc: 1, api: "lit", ob: "lit", lanes: "lit", router: 1 },
+      sub: { svc: "payments" },
+      fl: [
+        ["svc", "api"],
+        ["api", "ob"],
+        ["ob", "lanes"],
+        ["lanes", "router"],
+      ],
+      chips: [
+        ["key txn-9f3", "key txn-9f3"],
+        ["notification + outbox, one txn", "one transaction"],
+        ["202 Accepted, n-81", "202, n-81"],
+        ["the transactional lane", "transactional lane"],
+      ],
+      ctn: ["lit", "sky", "ok", "lit"],
+    },
+    {
+      k: ["inbox first, then the hint", "inbox first"],
+      kt: "ok",
+      on: { router: 1, pref: 1, inbox: "lit", gw: "lit", dev: "ok" },
+      sub: { pref: ["in-app on", "in-app on"], gw: "gw-17", dev: "Priya" },
+      fl: [
+        ["router", "pref"],
+        ["router", "inbox"],
+        ["inbox", "gw"],
+        ["gw", "dev", "ok"],
+      ],
+      figs: [
+        ["1184", ["inbox seq", "inbox seq"], "lit"],
+        ["gw-17", ["gets the hint", "the hint"]],
+        ["ack", ["within 5 s: no push", "no push"], "ok"],
+      ],
+    },
+    {
+      k: ["no ack: push", "no ack: push"],
+      kt: "warn",
+      on: { router: 1, wk: "lit", prov: "lit", dev: 1, inbox: "ok", gw: "warn" },
+      fl: [
+        ["router", "wk"],
+        ["wk", "prov"],
+        ["prov", "dev"],
+      ],
+      chips: [
+        ["gw-17 dies? resume after 1183", "resume after 1183"],
+        ["no ack in a few seconds? push", "no ack? push"],
+      ],
+      ctn: ["ok", "warn"],
+      note: ["push via APNs or FCM; the socket is a fast path, never the record", "the socket is never the record"],
+    },
+    {
+      k: ["five records", "the data model"],
+      on: { ob: "lit", inbox: "lit", pref: "lit", wk: 1 },
+      chips: [
+        ["notifications · one per event", "notifications"],
+        ["deliveries · one per attempt", "deliveries"],
+        ["inbox_items · (user_id, seq)", "inbox items"],
+        ["preferences + a consent log", "preferences"],
+        ["device_tokens · with a status", "device tokens"],
+      ],
+      ctn: ["lit", "sky", "ok", "sky", "sky"],
+      note: ['sent is not delivered: FCM\'s "sent" means enqueued', "sent is not delivered"],
+    },
+  ],
+};
+
+const V: Variant[] = [
+  {
+    id: "evening",
+    label: "The evening",
+    steps: [
+      { caption: "An illustrative Friday evening at the super-app: at 19:55 marketing schedules a Diwali cashback push to 10 million users for 20:00 sharp, and it goes into the same queue as everything else.", tween: 1400, loop: true },
+      {
+        caption: "Arjun pays Priya ₹2,400 at 20:00:02: her web bell only refreshes on reload, and the push buzzes at 20:08. Rohan's OTP SMS waits behind 9.2M campaign messages and arrives at 20:08, after the code's 5-minute expiry.",
+        tween: 1400,
+        loop: true,
+      },
+      { caption: "Meera turned marketing off at 19:59 and still gets the cashback push at 20:03, because the campaign checked preferences once, when it was built at 19:55.", tween: 1400, loop: true },
+      { caption: 'At 21:30, in the "Goa Trip" group, Kabir still shows a green dot. His phone died at 20:12.', tween: 1200 },
+      {
+        caption:
+          "At month end Finance asks why SMS, 5% of the messages, is nearly 90% of the provider bill. Each failure is a missing piece: a priority lane, a send-time preference check, an inbox with a live connection, presence that expires, a channel policy.",
+        tween: 1400,
+      },
+    ],
+  },
+  {
+    id: "ask",
+    label: "Requirements",
+    steps: [
+      {
+        caption:
+          "Spend the first five minutes on FERNS questions. The answers: 50M users, ~10M daily active, 500M a day plus 10M an hour in campaigns, ~15% online at peak; security near-instant, payments in 1–2 s, live in-app under 1 s; 99.9% for critical.",
+        tween: 1400,
+      },
+      {
+        caption:
+          "Notifications aren't all the same: critical (OTP, fraud) in seconds, transactional (payments) in 1–2 s, social about a second live, reminders at a scheduled time, marketing within minutes. Each class gets its own channels and lane.",
+        tween: 1400,
+      },
+      {
+        caption: "Why it matters: with one queue drained at 20,000 a second, an OTP enqueued at 20:00:40 has 9.2M messages ahead and leaves 460 s later, at about 20:08. Draining 10M in a minute would take ~167,000 a second.",
+        tween: 1400,
+        loop: true,
+      },
+    ],
+  },
+  {
+    id: "numbers",
+    label: "Estimate",
+    steps: [
+      {
+        caption: "500 million a day is ~5,800 a second; a 3× evening peak (assumed) is ~17,400, so design for 20,000. A 10M campaign spread evenly over an hour adds 2,800 a second, +48%, and bursts are far worse unless paced.",
+        tween: 1400,
+        loop: true,
+      },
+      { caption: "The channel mix: push 60% (300M a day), email 25% (125M), in-app 10% (50M, ~580 a second) and SMS 5%: 25M a day, 750M a month.", tween: 1400 },
+      { caption: "At an assumed $0.004 per SMS, 750M a month cost ~$3.0M; 3.75B emails at SES's $0.10 per 1,000 cost ~$375,000; FCM is no-cost. SMS is ~89% of ~$3.4M a month, so every SMS needs a reason.", tween: 1400 },
+      { caption: "15% of 50M online at the evening peak, ~1.33 devices each, is ~10 million live connections: the real-time tier is sized by connections, not by ~580 in-app notifications a second.", tween: 1400, loop: true },
+    ],
+  },
+  {
+    id: "arch",
+    label: "Architecture",
+    steps: [
+      { caption: "Seven pieces, each with one job: ingest (the Send API, an idempotency key, the outbox), preferences, the pipeline (lanes and the router), channel workers, the inbox, the real-time gateways, and presence.", tween: 1400 },
+      {
+        caption:
+          "Arjun pays Priya ₹2,400. The payment service calls send() with key txn-9f3; the Send API writes the notification and its outbox row in one transaction and returns 202 for n-81, and the relay publishes it to the transactional lane.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "The router reads her preferences: in-app on, a web session live. In-app delivery appends seq 1184 to her inbox before anyone is told, then hints gateway gw-17; her browser shows it and acks within 5 s, so a routine payment gets no push.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "If gw-17 crashes between the inbox write and the socket push, her browser reconnects elsewhere and asks for everything after 1183. If no ack arrives within a few seconds, the platform falls back to push via APNs or FCM.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "Five records: notifications (one per event, holding the idempotency key), deliveries (one per channel attempt, so sent and delivered stay apart), inbox items keyed by (user_id, seq), preferences with a consent log, and device tokens with a status.",
+        tween: 1400,
+      },
+    ],
+  },
+];
+
+export default defineExplainer({ w: W, h: H, variants: V, Scene });

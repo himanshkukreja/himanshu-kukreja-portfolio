@@ -57,7 +57,7 @@ export type CourseWeek = {
   code: string;
   /** "Failure-First Design" */
   title: string;
-  /** preview + days, or the six foundation parts */
+  /** preview + days, or the eight foundation parts */
   lessons: CourseLesson[];
   boss: CourseLesson | null;
   trial: CourseTrial | null;

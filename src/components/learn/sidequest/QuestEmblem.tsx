@@ -419,6 +419,39 @@ function glyph(id: QuestBrand["emblem"], ink: string, accent: string, hi: string
           <rect x={18} y={55} width={12} height={4} {...F} />
         </>
       );
+    case "cart": // a shopping cart carrying one parcel, a single tick above it: one order, placed once
+      return (
+        <>
+          <path d="M7 14h7l6 27h28l6-20H17" {...S} />
+          <rect x={24} y={22} width={15} height={13} {...HF} />
+          <path d="M24 28.5h15" stroke={accent} strokeWidth={1.5} />
+          <rect x={20} y={46} width={6} height={6} {...F} />
+          <rect x={42} y={46} width={6} height={6} {...F} />
+          <path d="M41 9l4 4 8-8" {...S} strokeWidth={2.5} />
+        </>
+      );
+    case "toll": // a barrier arm lifting over the lane, a windscreen tag answering the reader with radio waves
+      return (
+        <>
+          <rect x={9} y={32} width={9} height={22} {...S} />
+          <path d="M18 36L50 14" {...H} strokeWidth={4} />
+          <rect x={33} y={36} width={16} height={11} {...F} />
+          <rect x={37} y={39.5} width={4} height={4} fill={accent} />
+          <path d="M51 31a7 7 0 0 1 7 7M51 26a12 12 0 0 1 9 5" {...S} strokeWidth={2} />
+          <path d="M6 57h52" {...S} />
+        </>
+      );
+    case "channels": // a sidebar of channels, one in bold with an unread badge, one message being typed
+      return (
+        <>
+          <rect x={8} y={9} width={48} height={46} {...S} />
+          <rect x={14} y={17} width={22} height={4} {...F} opacity={0.55} />
+          <rect x={14} y={28} width={27} height={6} {...F} />
+          <rect x={45} y={27} width={8} height={8} {...HF} />
+          <rect x={14} y={41} width={18} height={4} {...F} opacity={0.55} />
+          <rect x={35} y={41} width={2.5} height={7} {...F} />
+        </>
+      );
     case "grid": // a story ring around an avatar above a square photo grid
       return (
         <>

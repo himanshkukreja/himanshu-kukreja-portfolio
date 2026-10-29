@@ -1,456 +1,531 @@
 /**
- * Whole-lesson overview (week 6, day 5: operations, monitoring & interview mastery), "a system you
- * can't observe is a system you can't trust". Observe: metrics, dashboards per persona, structured
- * logs, one trace. Alert & runbook: symptoms over causes, the low-delivery and queue-backlog
- * runbooks. Deploy: timing, canary and rolling, safe migrations. Interview: the 45-minute framework,
- * the estimate, the design and the deep dives.
+ * Whole-lesson overview (week 6, day 5 · operations, scale and edge cases). Measure and promise:
+ * GOV.UK Notify's all-or-nothing SMS failover, the delivery funnel (accepted is not delivered),
+ * end-to-end latency from created_at and lane age, SLOs that stop at the provider hand-off (~14
+ * minutes of stall a month). Bursts and providers: campaign mode (~5,500/s, from 10:07), lanes all the
+ * way to the provider (reserved quota, a separate OTP sender), breakers per provider and route, SMS
+ * always split and shifted 10 points at a time, APNs down with no second provider. Cost, regions and
+ * edge cases: segments, the ~$11.9M to ~$5.9M bill, fence-replay-re-admit, IANA zones, token
+ * deletion, the same OTP code. Then the whole week as a 45-minute interview.
  */
-import { at, Box, defineExplainer, lerp, Meter, seg, Txt, Wire, type SceneProps, type Tone } from "../kit";
+import { Box, defineExplainer, ease, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone, type Variant } from "../kit";
 
 const W = 600;
-const H = 320;
-const XS = [6, 112, 230, 348, 470];
-const WS = [84, 96, 96, 100, 124];
-const PY = 44;
-const PH = 42;
-const STAGES: [string, string][] = [
-  ["API", "API"],
-  ["Kafka", "Kafka"],
-  ["Router", "Router"],
-  ["Workers", "Workers"],
-  ["Providers", "Provider"],
-];
+const H = 340;
+/** a label with an optional shorter form for narrow stages: "both" or ["wide", "narrow"] */
+type Two = string | [string, string];
+type Nd = { x: number; y: number; w: number; h: number; l: string; n?: string };
+/** an edge: from, to, and optional port offsets (y for side-by-side boxes, x for stacked ones) */
+type Ed = [string, string, number?, number?];
+type Fr = {
+  /** kicker (top left) */
+  k: Two;
+  kt?: Tone;
+  /** nodes in play (plain 1 or a tone); every other node is dimmed */
+  on?: Record<string, Tone | 1>;
+  sub?: Record<string, Two>;
+  /** wires carrying traffic in this frame: [from, to, tone]; a reversed pair runs a wire backwards */
+  fl?: [string, string, Tone?][];
+  /** big figures: [figure, label, tone] */
+  figs?: [string, Two, Tone?][];
+  chips?: Two[];
+  cols?: number;
+  ct?: Tone;
+  /** per-chip tones (override ct) */
+  ctn?: Tone[];
+  /** meters: [label, value, max, tone] */
+  bars?: [Two, number, number, Tone?][];
+  note?: Two;
+  nt?: Tone;
+};
+type P = { x: number; y: number };
+const pick = (v: Two | undefined, nr: boolean) => (v === undefined ? undefined : typeof v === "string" ? v : v[nr ? 1 : 0]);
 
-function Pipe({ narrow, tones }: { narrow: boolean; tones: Tone[] }) {
+/* the stage grid: four columns, three rows of boxes above the figures */
+const CX = [16, 124, 260, 404];
+const CW = [88, 116, 124, 180];
+const RY = [40, 96, 156];
+const RH = [44, 48, 40];
+const nd = (c: number, r: number, l: string, n?: string, rows = 1): Nd => ({ x: CX[c], y: RY[r], w: CW[c], h: RY[r + rows - 1] + RH[r + rows - 1] - RY[r], l, n });
+
+/** a soft orthogonal curve from one box to the next, picked by their relative position */
+function geo(a: Nd, b: Nd, oa = 0, ob = 0): P[] {
+  if (b.x >= a.x + a.w - 2 || b.x + b.w <= a.x + 2) {
+    const r = b.x >= a.x + a.w - 2;
+    const p0 = { x: r ? a.x + a.w : a.x, y: a.y + a.h / 2 + oa };
+    const p3 = { x: r ? b.x : b.x + b.w, y: b.y + b.h / 2 + ob };
+    const m = (p0.x + p3.x) / 2;
+    return [p0, { x: m, y: p0.y }, { x: m, y: p3.y }, p3];
+  }
+  const d = b.y > a.y;
+  const p0 = { x: a.x + a.w / 2 + oa, y: d ? a.y + a.h : a.y };
+  const p3 = { x: b.x + b.w / 2 + ob, y: d ? b.y : b.y + b.h };
+  const m = (p0.y + p3.y) / 2;
+  return [p0, { x: p0.x, y: m }, { x: p3.x, y: m }, p3];
+}
+const bz = (g: P[], u: number): P => {
+  const v = 1 - u;
+  const c = [v * v * v, 3 * v * v * u, 3 * v * u * u, u * u * u];
+  return { x: g.reduce((s, p, i) => s + p.x * c[i], 0), y: g.reduce((s, p, i) => s + p.y * c[i], 0) };
+};
+const path = (g: P[]) => `M${g[0].x} ${g[0].y}C${g[1].x} ${g[1].y} ${g[2].x} ${g[2].y} ${g[3].x} ${g[3].y}`;
+const ends = (e: Ed) => geo(N[e[0]], N[e[1]], e[2], e[3]);
+
+function Scene({ variant, step, t, clock, narrow: nr }: SceneProps) {
+  const f = (F[variant] || F[Object.keys(F)[0]])[Math.min(step, (F[variant] || F[Object.keys(F)[0]]).length - 1)];
+  const on = f.on || {};
+  /** staggered fade-in for item i of n, always fully in by t = 1 */
+  const fade = (i: number, n: number) => {
+    const k = n > 1 ? Math.min(0.15, 0.5 / (n - 1)) : 0;
+    return ease(seg(t, i * k, i * k + 0.5));
+  };
+  const xs = [[300], [160, 440], [100, 300, 500]][(f.figs?.length || 1) - 1] || [];
+  const cols = f.cols || 2;
+  const cw = (552 - (cols - 1) * 8) / cols;
   return (
     <g>
-      {STAGES.map(([w, n], i) => (
-        <g key={w}>
-          {i > 0 && <Wire d={`M${XS[i - 1] + WS[i - 1]} ${PY + PH / 2}H${XS[i]}`} arrow />}
-          <Box x={XS[i]} y={PY} w={WS[i]} h={PH} label={narrow ? n : w} tone={tones[i]} />
+      <Txt x={16} y={26} k="k" anchor="start" tone={f.kt}>
+        {pick(f.k, nr)}
+      </Txt>
+      {E.map((e) => {
+        const [a, b] = e;
+        const live = a in on && b in on;
+        const fl = f.fl?.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        return <Wire key={a + b} d={path(ends(e))} tone={fl ? fl[2] || "lit" : undefined} arrow={live} opacity={live ? 1 : 0.3} />;
+      })}
+      {Object.entries(N).map(([id, n]) => {
+        const s = on[id];
+        return <Box key={id} x={n.x} y={n.y} w={n.w} h={n.h} label={nr ? n.n || n.l : n.l} sub={(nr ? undefined : pick(f.sub?.[id], nr)) || undefined} tone={s === 1 ? undefined : s} dim={!(id in on)} />;
+      })}
+      {f.fl?.map(([a, b, tone], i) => {
+        const e = E.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        if (!e) return null;
+        const u = ((((t - 1) * 0.5 + clock * 0.55 + 0.5 + i * 0.17) % 1) + 1) % 1;
+        const p = bz(ends(e), e[0] === a ? u : 1 - u);
+        return <Token key={a + b} x={p.x} y={p.y} s={9} tone={tone || "lit"} />;
+      })}
+      {f.figs?.map(([d, l, tone], i) => (
+        <g key={d + i} opacity={fade(i, f.figs?.length || 1)}>
+          <Txt x={xs[i]} y={254} k="d" tone={tone}>
+            {d}
+          </Txt>
+          <Txt x={xs[i]} y={278} k="s">
+            {pick(l, nr)}
+          </Txt>
         </g>
       ))}
-    </g>
-  );
-}
-
-function Chip({ x, y, w, label, tone, h = 28, o = 1 }: { x: number; y: number; w: number; label: string; tone?: Tone; h?: number; o?: number }) {
-  return (
-    <g opacity={o}>
-      <rect className={`ax-box${tone ? ` ${tone}` : ""}`} x={x} y={y} width={w} height={h} />
-      <Txt x={x + w / 2} y={y + h / 2 + 5} k="s" tone={tone}>
-        {label}
-      </Txt>
-    </g>
-  );
-}
-
-/** rows of [label, short label, tone]; two columns when `cols` is 2 */
-function Grid({ rows, narrow, t, y0 = 116, cols = 1, gap = 36 }: { rows: [string, string, Tone][]; narrow: boolean; t: number; y0?: number; cols?: number; gap?: number }) {
-  const w = cols === 2 ? 274 : 560;
-  return (
-    <g>
-      {rows.map(([l, n, tone], i) => (
-        <Chip key={l} x={20 + (i % cols) * 286} y={y0 + Math.floor(i / cols) * gap} w={w} label={narrow ? n : l} tone={tone} o={seg(t, i * 0.12, i * 0.12 + 0.3)} />
-      ))}
-    </g>
-  );
-}
-
-const SPANS: [string, string, number, number][] = [
-  ["receive_notification", "receive", 5, 0],
-  ["validate", "validate", 10, 0],
-  ["write_to_outbox", "outbox", 15, 0],
-  ["route", "route", 25, 0],
-  ["push-worker deliver", "push", 150, 1],
-  ["  send_to_fcm", "  fcm", 125, 2],
-  ["email-worker deliver", "email", 500, 1],
-  ["  send_to_sendgrid", "  sendgrid", 490, 2],
-];
-
-function Observe({ step, t, narrow }: SceneProps) {
-  const p = seg(t, 0.1, 0.9);
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "observability" : "part I · the three pillars"}
-      </Txt>
-      <Pipe narrow={narrow} tones={at<Tone[]>(step, [["lit", "lit", "lit", "lit", "lit"], [], [undefined, undefined, undefined, "lit"], ["sky", "sky", "sky", "sky", "sky"]])} />
-      {step === 0 && (
-        <Grid
-          narrow={narrow}
-          t={t}
-          rows={[
-            ["counter · only goes up · notifications_received_total", "counter: only goes up", "lit"],
-            ["gauge · up and down · kafka_consumer_lag", "gauge: up and down", "sky"],
-            ["histogram · latency percentiles · p95, p99", "histogram: latency", "ok"],
-          ]}
-          y0={124}
-          gap={44}
-        />
-      )}
-      {step === 1 &&
-        [
-          ["On-call", "is it healthy?", "success rate", "queue depth"],
-          ["Product", "users getting them?", "delivery rate", "e2e latency"],
-          ["Finance", "what do we spend?", "SMS × $0.01", "email × $0.0001"],
-        ].map(([who, q, a, b], i) => (
-          <g key={who} opacity={seg(t, i * 0.25, i * 0.25 + 0.35)}>
-            <rect className="ax-box" x={20 + i * 190} y={112} width={180} height={180} />
-            <Txt x={110 + i * 190} y={140} k="t" tone="lit">
-              {who}
-            </Txt>
-            {!narrow && (
-              <Txt x={110 + i * 190} y={166} k="s">
-                {q}
-              </Txt>
-            )}
-            <Chip x={30 + i * 190} y={196} w={160} label={narrow ? a.split(" ")[0] : a} tone="sky" />
-            <Chip x={30 + i * 190} y={236} w={160} label={narrow ? b.split(" ")[0] : b} tone="sky" />
-          </g>
-        ))}
-      {step === 2 && (
-        <g>
-          <rect className="ax-box" x={20} y={112} width={560} height={180} />
-          {[
-            ["level", "INFO"],
-            ["service", "push-worker"],
-            ["message", "Delivery attempted"],
-            ["provider", "fcm"],
-            ["trace_id", "abc-123"],
-          ].map(([k, v], i) => (
-            <g key={k} opacity={seg(t, i * 0.12, i * 0.12 + 0.3)}>
-              <Txt x={narrow ? 36 : 60} y={144 + i * 32} k="s" anchor="start">
-                {`"${k}":`}
-              </Txt>
-              <Txt x={narrow ? 210 : 220} y={144 + i * 32} k="t" anchor="start" tone={k === "trace_id" ? "lit" : undefined}>
-                {`"${v}"`}
-              </Txt>
-            </g>
-          ))}
-        </g>
-      )}
-      {step === 3 &&
-        SPANS.map(([n, sn, ms, d], i) => {
-          const y = 104 + i * 25;
-          const x0 = narrow ? 200 : 230;
-          return (
-            <g key={n}>
-              <Txt x={20} y={y + 15} k="s" anchor="start" tone={d === 2 ? undefined : "sky"}>
-                {narrow ? sn : n}
-              </Txt>
-              <rect className={`ax-fill ${ms > 100 ? (d === 2 ? "warn" : "sky") : "ok"}`} x={x0} y={y + 4} width={Math.max(3, ((narrow ? 300 : 280) * ms * p) / 500)} height={14} />
-              {!narrow && (
-                <Txt x={580} y={y + 15} k="s" anchor="end">
-                  {`${ms} ms`}
-                </Txt>
-              )}
-            </g>
-          );
-        })}
-    </g>
-  );
-}
-
-function Ops({ step, t, narrow }: SceneProps) {
-  const p = seg(t, 0.1, 0.9);
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "alerts & runbooks" : "parts II–III · alerts and runbooks"}
-      </Txt>
-      <Pipe narrow={narrow} tones={at<Tone[]>(step, [[undefined, undefined, undefined, undefined, "bad"], [undefined, undefined, undefined, "warn", "bad"], [undefined, "warn"], [undefined, "bad"]])} />
-      {step === 0 && (
-        <g>
-          <Txt x={160} y={120} k="k" tone="bad">
-            {narrow ? "page" : "critical · page"}
-          </Txt>
-          <Txt x={456} y={120} k="k" tone="warn">
-            warning
-          </Txt>
-          <Grid
-            narrow={narrow}
-            t={t}
-            cols={2}
-            y0={134}
-            rows={[
-              ["delivery < 95% for 5m", "delivery < 95%", "bad"],
-              ["a circuit open for 5m", "circuit open", "warn"],
-              ["all providers down, 2m", "all down", "bad"],
-              ["provider p95 > 2 s", "p95 > 2 s", "warn"],
-              ["lag > 1M for 10m", "lag > 1M", "bad"],
-              ["DLQ growing", "DLQ growing", "warn"],
-            ]}
-          />
-          <Txt x={W / 2} y={262} k="s" opacity={seg(t, 0.7, 1)}>
-            {narrow ? "symptoms over causes" : "page on symptoms; failover may already absorb a cause"}
-          </Txt>
-        </g>
-      )}
-      {step === 1 && (
-        <Grid
-          narrow={narrow}
-          t={t}
-          rows={[
-            ["1 · which channel? success rate by channel", "1 · which channel?", "lit"],
-            ["2 · provider status pages, circuit states", "2 · status, circuits", "lit"],
-            ["outage → PRIMARY_PROVIDER=ses", "outage → SES", "ok"],
-            ["UNREGISTERED → run token cleanup", "tokens → cleanup", "ok"],
-            ["429s → SEND_RATE_LIMIT=500", "429 → rate 500", "ok"],
-            ["not fixed in 15 min → escalate", "15 min → escalate", "warn"],
-          ]}
-          y0={106}
-          gap={34}
-        />
-      )}
-      {step >= 2 && (
-        <g>
-          {[
-            ["notifications.critical", "critical", 0.05],
-            ["notifications.high", "high", 0.08],
-            ["notifications.low", "low", step === 2 ? lerp(0.1, 0.92, p) : lerp(0.92, 0, p)],
-          ].map(([n, sn, v], i) => (
-            <g key={n as string}>
-              <Txt x={20} y={134 + i * 40} k="s" anchor="start" tone={i === 2 ? "warn" : "ok"}>
-                {narrow ? sn : n}
-              </Txt>
-              <Meter x={narrow ? 170 : 250} y={122 + i * 40} w={narrow ? 410 : 330} h={16} value={v as number} max={1} tone={i === 2 ? (step === 3 ? "bad" : "warn") : "ok"} />
-            </g>
-          ))}
-          <Txt x={W / 2} y={262} k="t" tone={step === 2 ? "ok" : "bad"}>
-            {step === 2 ? (narrow ? "campaign: monitor" : "campaign lag: expected, just monitor") : narrow ? "reset to latest" : "--reset-offsets --to-latest"}
-          </Txt>
-          <Txt x={W / 2} y={290} k="s" tone={step === 2 ? undefined : "bad"}>
-            {step === 2 ? (narrow ? "critical still flowing" : "confirm critical and high still flow") : narrow ? "non-critical only" : "non-critical only: the backlog is never sent"}
-          </Txt>
-        </g>
-      )}
-    </g>
-  );
-}
-
-function Deploy({ step, t, narrow }: SceneProps) {
-  const p = seg(t, 0.1, 0.9);
-  const hx = (h: number) => 20 + (560 * h) / 24;
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "safe deployments" : "part IV · safe deployments"}
-      </Txt>
-      <Pipe narrow={narrow} tones={at<Tone[]>(step, [[], ["lit", undefined, undefined, "lit"], ["sky", undefined, "sky", "sky"]])} />
-      {step === 0 && (
-        <g>
-          <Meter x={20} y={150} w={560} h={30} value={0} max={1} ticks={24} />
-          {[
-            [9, 11],
-            [14, 16],
-          ].map(([a, b]) => (
-            <g key={a}>
-              <rect className="ax-fill bad" x={hx(a)} y={150} width={(hx(b) - hx(a)) * seg(t, 0.2, 0.7)} height={30} />
-              <Txt x={(hx(a) + hx(b)) / 2} y={140} k="s" tone="bad">
-                {narrow ? `${a}–${b}` : `${a}:00–${b}:00`}
-              </Txt>
-            </g>
-          ))}
-          {[0, 6, 12, 18, 24].map((h) => (
-            <Txt key={h} x={hx(h)} y={200} k="s" anchor={h === 0 ? "start" : h === 24 ? "end" : "middle"}>
-              {`${h}h`}
-            </Txt>
-          ))}
-          <Grid narrow={narrow} t={seg(t, 0.4, 1)} cols={2} y0={222} rows={[["not during a campaign", "no campaign", "warn"], ["not Friday afternoon", "not Friday PM", "warn"]]} />
-        </g>
-      )}
-      {step === 1 && (
-        <g>
-          <Txt x={20} y={124} k="t" anchor="start">
-            API canary
-          </Txt>
-          <Meter x={20} y={134} w={560} h={22} value={lerp(0, 0.1, p)} max={1} tone="lit" />
-          <Txt x={580} y={124} k="s" anchor="end" tone="lit">
-            {narrow ? "10% · 15 min" : "10% for 15 min · errors < 1% · p99 < 500 ms"}
-          </Txt>
-          <Txt x={20} y={204} k="t" anchor="start">
-            Workers
-          </Txt>
-          {[0, 1, 2, 3].map((i) => (
-            <rect key={i} className={`ax-box${p > (i + 1) * 0.22 ? " ok" : ""}`} x={20 + i * 142} y={214} width={134} height={22} />
-          ))}
-          <Txt x={580} y={204} k="s" anchor="end" tone="ok">
-            {narrow ? "rolling 25%" : "rolling · 25% unavailable at most"}
-          </Txt>
-          <Txt x={W / 2} y={276} k="s">
-            {narrow ? "fails → roll back" : "a failing canary rolls back before the other 90%"}
-          </Txt>
-        </g>
-      )}
-      {step === 2 && (
-        <g>
-          {["stop reading", "stop writing", "drop column"].map((s, i) => (
-            <g key={s} opacity={seg(t, i * 0.25, i * 0.25 + 0.3)}>
-              {i > 0 && <Wire d={`M${10 + i * 196} 152H${20 + i * 196}`} arrow tone="sky" />}
-              <Box x={20 + i * 196} y={128} w={170} h={48} label={narrow ? ["stop read", "stop write", "drop"][i] : s} sub={narrow ? undefined : `phase ${i + 1}`} tone="sky" />
-            </g>
-          ))}
-          <Chip x={20} y={204} w={560} label={narrow ? "CREATE INDEX CONCURRENTLY" : "CREATE INDEX CONCURRENTLY · no write lock"} tone="ok" o={seg(t, 0.7, 1)} />
-          <Txt x={W / 2} y={270} k="s">
-            {narrow ? "old and new code side by side" : "old and new code run side by side: stay backward compatible"}
-          </Txt>
-        </g>
-      )}
-    </g>
-  );
-}
-
-const PHASES: [string, string, number][] = [
-  ["require", "req", 5],
-  ["estimate", "est", 5],
-  ["design", "design", 15],
-  ["deep dives", "deep", 15],
-  ["wrap", "wrap", 5],
-];
-
-function Interview({ step, t, narrow }: SceneProps) {
-  const p = seg(t, 0.1, 0.9);
-  const cur = at(step, [-1, 1, 2, 3]);
-  return (
-    <g>
-      <Txt x={W / 2} y={26} k="k">
-        {narrow ? "the 45-minute interview" : "part V · the 45-minute interview"}
-      </Txt>
-      <Pipe narrow={narrow} tones={step === 2 ? ["lit", "lit", "lit", "lit", "lit"] : step === 3 ? ["ok", "ok", undefined, "ok", "warn"] : []} />
-      {PHASES.map(([n, sn, m], i) => {
-        const start = PHASES.slice(0, i).reduce((a, q) => a + q[2], 0);
-        const x = 20 + (560 * start) / 45;
-        const w = (560 * m) / 45;
-        const lit = cur === i || (step === 0 && p * 45 >= start);
+      {f.chips?.map((c, i) => {
+        const x = 24 + (i % cols) * (cw + 8);
+        const y = 214 + Math.floor(i / cols) * 34;
+        const tone = f.ctn?.[i] || f.ct || "lit";
         return (
-          <g key={n}>
-            <rect className={`ax-box${lit ? " lit" : ""}`} x={x} y={106} width={w - 4} height={30} opacity={step === 0 || cur === i ? 1 : 0.4} />
-            <Txt x={x + (w - 4) / 2} y={126} k="s" tone={lit ? "lit" : undefined}>
-              {narrow || m === 5 ? sn : n}
+          <g key={i} opacity={fade(i, f.chips?.length || 1)}>
+            <rect className={`ax-box ${tone}`} x={x} y={y} width={cw} height={26} />
+            <Txt x={x + cw / 2} y={y + 18} k="s" tone={tone}>
+              {pick(c, nr)}
             </Txt>
           </g>
         );
       })}
-      {step === 0 &&
-        [0, 5, 10, 25, 40, 45].map((m) => (
-          <Txt key={m} x={20 + (560 * m) / 45} y={154} k="s" anchor={m === 0 ? "start" : m === 45 ? "end" : "middle"}>
-            {narrow && (m === 5 || m === 40) ? "" : `${m}`}
+      {f.bars?.map(([l, v, m, tone], i) => (
+        <g key={i} opacity={fade(i, f.bars?.length || 1)}>
+          <Txt x={24} y={232 + i * 28} k="s" anchor="start" tone={tone}>
+            {pick(l, nr)}
           </Txt>
-        ))}
-      {step === 0 && (
-        <Grid
-          narrow={narrow}
-          t={seg(t, 0.4, 1)}
-          cols={2}
-          y0={178}
-          rows={[
-            ["multi-channel delivery", "multi-channel", "sky"],
-            ["reliability: retry, DLQ", "reliability", "sky"],
-            ["scale: campaigns, hot users", "scale", "sky"],
-            ["user preferences", "preferences", "sky"],
-          ]}
-        />
-      )}
-      {step === 1 &&
-        [
-          ["5,800/s", "average"],
-          ["17K/s", "campaign peak"],
-          ["18 TB", narrow ? "90 days" : "90 days × 400 B"],
-        ].map(([d, s], i) => (
-          <g key={d} opacity={seg(t, i * 0.25, i * 0.25 + 0.35)}>
-            <Txt x={110 + i * 190} y={210} k="d" tone={i === 1 ? "lit" : undefined}>
-              {d}
-            </Txt>
-            <Txt x={110 + i * 190} y={236} k="s">
-              {s}
-            </Txt>
-          </g>
-        ))}
-      {step === 1 && (
-        <Txt x={W / 2} y={282} k="s">
-          {narrow ? "push free · SMS sparingly" : "push is free · email ~$150K–375K/month · SMS sparingly"}
-        </Txt>
-      )}
-      {step === 2 && (
-        <g>
-          <Txt x={W / 2} y={190} k="t" tone="lit">
-            {narrow ? "separate ingestion" : "separate ingestion from delivery"}
-          </Txt>
-          <Txt x={W / 2} y={218} k="s">
-            {narrow ? "from delivery" : "API returns at once · Kafka absorbs spikes · callbacks confirm"}
-          </Txt>
-          <Grid narrow={narrow} t={seg(t, 0.4, 1)} cols={2} y0={242} rows={[["PostgreSQL: prefs, status", "PostgreSQL", "sky"], ["Redis: cache, rate limits", "Redis", "sky"]]} />
+          <Meter x={nr ? 330 : 300} y={222 + i * 28} w={nr ? 246 : 276} h={12} value={v * ease(seg(t, 0.1, 0.8))} max={m} tone={tone || "sky"} />
         </g>
-      )}
-      {step === 3 && (
-        <Grid
-          narrow={narrow}
-          t={t}
-          cols={2}
-          y0={160}
-          gap={40}
-          rows={[
-            ["transactional outbox", "outbox", "ok"],
-            ["idempotency keys", "idempotency", "ok"],
-            ["DLQ after 3 failures", "DLQ after 3", "ok"],
-            ["circuit: 5 fails, 30 s", "circuit 5/30s", "warn"],
-            ["delivery > 98%", "deliver > 98%", "lit"],
-            ["page below 95%", "page < 95%", "bad"],
-          ]}
-        />
+      ))}
+      {f.note && (
+        <Txt x={16} y={f.figs || f.chips || f.bars ? H - 12 : 244} k="s" anchor="start" tone={f.nt} opacity={ease(seg(t, 0.3, 0.8))}>
+          {pick(f.note, nr)}
+        </Txt>
       )}
     </g>
   );
 }
 
-function Scene(p: SceneProps) {
-  return p.variant === "observe" ? <Observe {...p} /> : p.variant === "ops" ? <Ops {...p} /> : p.variant === "deploy" ? <Deploy {...p} /> : <Interview {...p} />;
-}
+const N: Record<string, Nd> = {
+  api: nd(0, 0, "API"),
+  lanes: nd(1, 0, "Lanes"),
+  camp: nd(2, 0, "Campaign"),
+  apns: nd(3, 0, "APNs, FCM"),
+  regA: nd(0, 1, "Region A", "Reg. A"),
+  regB: nd(1, 1, "Region B"),
+  wk: nd(2, 1, "Workers"),
+  smsA: nd(3, 1, "SMS provider A", "SMS A"),
+  obs: nd(0, 2, "SLOs", "SLOs"),
+  dev: nd(1, 2, "Users"),
+  gw: nd(2, 2, "Gateways"),
+  smsB: nd(3, 2, "SMS provider B", "SMS B"),
+};
+const E: Ed[] = [
+  ["api", "lanes"],
+  ["camp", "lanes", 0, -8],
+  ["lanes", "wk", 8, -8],
+  ["regA", "regB"],
+  ["regB", "wk", 0, 8],
+  ["wk", "apns"],
+  ["wk", "smsA"],
+  ["wk", "smsB"],
+  ["wk", "gw"],
+  ["gw", "dev"],
+];
+const ALL = { api: 1, lanes: 1, camp: 1, apns: 1, regA: 1, regB: 1, wk: 1, smsA: 1, obs: 1, dev: 1, gw: 1, smsB: 1 } as const;
 
-export default defineExplainer({
-  w: W,
-  h: H,
-  variants: [
+const F: Record<string, Fr[]> = {
+  measure: [
     {
-      id: "observe",
-      label: "Observe",
-      steps: [
-        { caption: "Make it operable at 3 AM. First, metrics at every stage: counters only go up, gauges like Kafka lag move both ways, histograms give latency.", tween: 1400 },
-        { caption: "Dashboards per persona: on-call asks if the system is healthy, product if users get notified, finance what it's spending.", tween: 1400 },
-        { caption: "Logs are structured JSON with the service, the provider and a trace_id, so a log aggregator can parse and join them.", tween: 1200 },
-        { caption: "A trace follows one notification, abc-123. The push worker takes 150 ms, 125 of it inside FCM; email takes 500 ms, 490 in SendGrid.", tween: 1800 },
+      k: ["GOV.UK Notify · late 2019", "GOV.UK Notify, 2019"],
+      kt: "bad",
+      on: { wk: 1, smsA: "bad", smsB: "bad" },
+      sub: { smsA: ["fails under a spike", "fails"], smsB: ["100% at once: fails", "fails too"] },
+      fl: [
+        ["wk", "smsA", "bad"],
+        ["wk", "smsB", "bad"],
       ],
+      cols: 1,
+      chips: [
+        ["a spike makes one provider fail", "a spike: A fails"],
+        ["failover swaps all traffic to the other", "100% swaps to B"],
+        ["the sudden load makes it fail too", "B fails too"],
+      ],
+      ctn: ["bad", "warn", "bad"],
+      note: ["the fix: split every text ~50/50, shift 10 points at a time", "fix: split, shift in steps"],
+      nt: "ok",
     },
     {
-      id: "ops",
-      label: "Alerts & runbooks",
-      steps: [
-        { caption: "Alert on symptoms. Delivery under 95% for 5 minutes pages someone; one open circuit is only a warning, since failover may hide it.", tween: 1400 },
-        { caption: "The low-delivery runbook: find the channel, check status pages and circuits, then fail over email to SES, clean tokens or cut the send rate.", tween: 1600 },
-        { caption: "Queue backlog over 1M? If only notifications.low lags during a campaign, that's expected: confirm critical still flows and monitor.", tween: 1600 },
-        { caption: "Last resort, non-critical topics only: reset the consumer group to the latest offset. That backlog is skipped and never sent.", tween: 1400 },
+      k: ["the delivery funnel", "the funnel"],
+      on: { api: 1, lanes: 1, wk: 1, apns: "warn", smsA: "sky", gw: "ok", dev: 1 },
+      fl: [
+        ["api", "lanes"],
+        ["lanes", "wk"],
+        ["wk", "apns"],
+        ["wk", "smsA"],
+        ["wk", "gw"],
+        ["gw", "dev", "ok"],
       ],
+      chips: [
+        ["APNs: best-effort, no receipt", "APNs: best-effort"],
+        ["FCM: Android only, 5 days late", "FCM: up to 5 days"],
+        ["SMS: carrier receipts", "SMS: receipts"],
+        ["in-app: the client acks a seq", "in-app: acks"],
+      ],
+      ctn: ["warn", "warn", "sky", "ok"],
+      note: ["provider accepted is not delivered, and the providers say so", "accepted is not delivered"],
     },
     {
-      id: "deploy",
-      label: "Deploy",
-      steps: [
-        { caption: "Deploy at quiet times: never in peak hours, 9 to 11 AM and 2 to 4 PM, never during a known campaign, never on a Friday afternoon.", tween: 1400 },
-        { caption: "The API goes canary: 10% of traffic for 15 minutes, errors under 1%, p99 under 500 ms. Workers roll out 25% at a time.", tween: 1800 },
-        { caption: "Migrations stay backward compatible: remove a column in three phases, stop reading, stop writing, then drop; build indexes CONCURRENTLY.", tween: 1400 },
+      k: ["green dashboard, angry users", "measure the user's clock"],
+      kt: "warn",
+      on: { lanes: "warn", obs: "lit", wk: 1 },
+      sub: { lanes: ["critical 4 min", "4 min"] },
+      figs: [
+        ["99.8%", ["push success", "success"], "ok"],
+        ["4 min", ["for an OTP at 19:05", "OTP wait"], "bad"],
+        ["age", ["oldest message, per lane", "lane age"], "lit"],
       ],
+      note: ["measure from created_at: a waiting message hasn't failed yet", "measure from created_at"],
     },
     {
-      id: "interview",
-      label: "Interview",
-      steps: [
-        { caption: "The 45-minute interview: 5 minutes of requirements, 5 of estimation, 15 of high-level design, 15 of deep dives, 5 to wrap up.", tween: 2000 },
-        { caption: "Estimate out loud: 500M a day is about 5,800/sec, maybe 17K at campaign peak; 90 days at 400 bytes each is about 18 TB.", tween: 1400 },
-        { caption: "The design: API → Kafka → router → channel workers → providers, with callbacks. The key insight: separate ingestion from delivery.", tween: 1200 },
-        { caption: "Deep dives: outbox, idempotency keys, a DLQ after 3 failures, circuit breakers, and monitoring that pages when delivery drops below 95%.", tween: 1400 },
+      k: ["SLOs stop at the provider", "SLOs"],
+      on: { obs: "lit", lanes: 1, wk: 1, apns: 1 },
+      chips: [
+        ["critical · 99.9% in 10 s", "critical 99.9%, 10 s"],
+        ["payments · 99.5% in 30 s", "payments 99.5%"],
+        ["in-app ack · 99% in 2 s", "in-app 99%, 2 s"],
+        ["bulk · no availability target", "bulk: no target"],
       ],
+      ctn: ["bad", "lit", "ok", "warn"],
+      note: ["critical at 5% (assumed): 750,000 late a month, ~14 min at peak", "~14 min of stall a month"],
+      nt: "bad",
     },
   ],
-  Scene,
-});
+  burst: [
+    {
+      k: ["a campaign is a job", "campaign mode"],
+      on: { camp: "lit", lanes: "lit", wk: 1 },
+      sub: { camp: ["paced, pausable", "paced"] },
+      fl: [
+        ["camp", "lanes"],
+        ["lanes", "wk"],
+      ],
+      figs: [
+        ["~5,500/s", ["10M over 30 min", "10M / 30 min"], "lit"],
+        ["10:07", ["not 10:00", "not 10:00"]],
+        ["600K", ["a minute: FCM's quota", "FCM a minute"]],
+      ],
+      note: ["snapshot, filter once, pace, wave by zone, key each send, kill switch", "keyed sends, a kill switch"],
+    },
+    {
+      k: ["lanes all the way to the provider", "to the provider"],
+      on: { lanes: "lit", wk: "lit", apns: "lit", smsA: "ok", smsB: "warn" },
+      sub: { wk: ["reserved quota", "reserve"], smsA: ["OTPs only, 120 s", "OTPs"], smsB: "marketing" },
+      fl: [
+        ["lanes", "wk"],
+        ["wk", "apns"],
+        ["wk", "smsA", "ok"],
+        ["wk", "smsB", "warn"],
+      ],
+      chips: [
+        ["notifications.critical", "critical"],
+        ["notifications.transactional", "transactional"],
+        ["notifications.bulk", "bulk"],
+        ["a share bulk can't touch", "reserved quota"],
+      ],
+      ctn: ["bad", "lit", "warn", "ok"],
+      note: ["bulk taking 590,000 of FCM's 600,000 a minute gives an OTP a 429", "or the OTP gets a 429"],
+    },
+    {
+      k: ["a breaker per provider and route", "circuit breakers"],
+      kt: "warn",
+      on: { wk: 1, apns: "warn", smsA: "warn" },
+      sub: { smsA: ["A to India: open", "open"] },
+      chips: [
+        ["count 5xx, timeouts, slow receipts", "5xx, slow receipts"],
+        ["not 410s or bad numbers", "not bad tokens"],
+        ["open: fail over or hold", "open: fail over"],
+        ["half-open: a trickle", "half-open: trickle"],
+      ],
+      ctn: ["warn", "mute", "sky", "ok"],
+    },
+    {
+      k: ["SMS: always split, shifted in steps", "SMS in steps"],
+      kt: "ok",
+      on: { wk: 1, smsA: "warn", smsB: "ok" },
+      fl: [
+        ["wk", "smsA", "warn"],
+        ["wk", "smsB", "ok"],
+      ],
+      bars: [
+        [["provider A · 50 → 40 after a 5xx", "A 50 → 40"], 40, 100, "warn"],
+        [["provider B · 50 → 60", "B 50 → 60"], 60, 100, "ok"],
+      ],
+      note: ["at most one cut a minute; an hour without change drifts back 10 points", "one cut a minute at most"],
+    },
+    {
+      k: ["APNs down, no second provider", "APNs down"],
+      kt: "bad",
+      on: { apns: "bad", wk: 1, smsA: "lit", gw: "lit", camp: "warn" },
+      fl: [
+        ["wk", "smsA"],
+        ["wk", "gw"],
+      ],
+      cols: 1,
+      chips: [
+        ["40,000 security and fraud alerts: SMS now, ~$500", "alerts: SMS now"],
+        ["160,000 payments: in-app, or held and collapsed", "payments: in-app"],
+        ["1,000,000 campaign pushes: paused", "campaign: paused"],
+      ],
+      ctn: ["bad", "lit", "warn"],
+      note: ["on recovery, ramp the drain, critical first", "ramp the drain"],
+    },
+  ],
+  cost: [
+    {
+      k: ["segments: one character can triple it", "SMS segments"],
+      on: { wk: 1, smsA: "lit", smsB: "lit" },
+      figs: [
+        ["1", ["95 English chars", "95 English"], "ok"],
+        ["2", ["95 Hindi chars", "95 Hindi"], "warn"],
+        ["3", ["150 chars, one ’", "one ’"], "bad"],
+      ],
+      note: ["GSM-7 fits 160 a segment; UCS-2 only 70, then 67", "GSM-7 160, UCS-2 70"],
+    },
+    {
+      k: ["messages × segments × price", "the SMS bill"],
+      kt: "ok",
+      on: { wk: 1, smsA: 1, smsB: 1, obs: "lit" },
+      bars: [
+        [["list price · ~$11.9M a month", "~$11.9M a month"], 11.9, 11.9, "bad"],
+        [["after both levers · ~$5.9M", "after: ~$5.9M"], 5.9, 11.9, "ok"],
+      ],
+      note: ["marketing off SMS (−10M), payment SMS on real push failure (−6.5M)", "−10M and −6.5M segments"],
+    },
+    {
+      k: ["21:00 · region A goes dark", "losing a region"],
+      kt: "bad",
+      on: { regA: "bad", regB: "lit", wk: 1, gw: "lit", dev: 1 },
+      sub: { regB: ["epoch bumped", "fenced"] },
+      fl: [
+        ["regA", "regB", "bad"],
+        ["regB", "wk"],
+        ["gw", "dev"],
+      ],
+      cols: 1,
+      chips: [
+        ["1 · fence region A: bump the region epoch", "1 · fence"],
+        ["2 · replay unsent from the ledger, critical first", "2 · replay"],
+        ["3 · re-admit 5M sockets with admission control", "3 · re-admit"],
+      ],
+      ctn: ["bad", "lit", "ok"],
+      note: ["a few sends from the final seconds go twice; collapse ids hide them", "a few duplicates, collapsed"],
+    },
+    {
+      k: ["edge cases at 50M users", "edge cases"],
+      on: { wk: "lit", apns: 1, smsA: 1 },
+      chips: [
+        ["IANA zones: DST has gaps", "IANA zones, DST"],
+        ["410: delete unless re-registered", "careful deletes"],
+        ["the same OTP code every attempt", "the same OTP code"],
+        ["ledger: (notification_id, channel)", "send ledger"],
+      ],
+      ctn: ["sky", "warn", "ok", "lit"],
+      note: ["at 50M users, a one-in-a-million case happens 50 times a day", "1 in a million: 50 a day"],
+    },
+  ],
+  interview: [
+    {
+      k: ["minutes 0–10 · ask, then estimate", "0–10 min"],
+      on: { api: "lit", lanes: 1 },
+      figs: [
+        ["~5,800/s", ["average", "average"]],
+        ["~17,000/s", ["at peak", "peak"], "lit"],
+        ["10M", ["sockets at peak", "sockets"]],
+      ],
+      note: ["50M users, 500M a day, 99.9% critical, campaigns never delay payments", "500M a day, 99.9% critical"],
+    },
+    {
+      k: ["minutes 10–35 · design, deep dive", "10–35 min"],
+      on: ALL,
+      fl: [
+        ["api", "lanes"],
+        ["lanes", "wk"],
+        ["wk", "apns"],
+        ["wk", "gw"],
+        ["gw", "dev"],
+      ],
+      cols: 3,
+      chips: [
+        ["guarantees", "guarantees"],
+        ["real time, storms", "real time"],
+        ["presence, fan-out", "fan-out"],
+      ],
+      ctn: ["lit", "sky", "ok"],
+      note: ["API with keys → outbox → router → lanes → workers; inbox and gateways", "API → lanes → workers"],
+    },
+    {
+      k: ["minutes 35–45 · run it", "35–45 min"],
+      kt: "ok",
+      on: { obs: "ok", lanes: 1, wk: 1, smsA: 1, smsB: 1, regB: 1 },
+      chips: [
+        ["SLOs per class", "SLOs per class"],
+        ["lanes to the provider", "lanes to provider"],
+        ["breakers, SMS in steps", "SMS in steps"],
+        ["cost, regions, edge cases", "cost, regions"],
+      ],
+      ctn: ["ok", "lit", "warn", "sky"],
+    },
+  ],
+};
+
+const V: Variant[] = [
+  {
+    id: "measure",
+    label: "Measure & promise",
+    steps: [
+      {
+        caption:
+          "GOV.UK Notify, late 2019: a spike made one SMS provider fail, failover swapped all traffic to the other, and the sudden load made that one fail too. The fix: split every text roughly 50/50 and shift traffic 10 percentage points at a time.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "Count every notification at every stage by class, channel and provider. Provider accepted isn't delivered: APNs is best-effort, FCM's delivery data is Android-only and up to 5 days late, SMS has carrier receipts, and only in-app shows the device's ack.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "At 19:05 push success is 99.8% and errors are flat, yet OTPs take four minutes. Measure end to end from created_at, and the oldest message's age per lane: a message waiting in a topic hasn't failed, so success rates can't see a queue.",
+        tween: 1400,
+      },
+      {
+        caption:
+          "SLOs cover what we can measure: 99.9% of critical handed off or acked within 10 s, payments 99.5% within 30 s, in-app acks 99% within 2 s, no availability target for bulk. If critical is 5% of traffic (assumed), a full stall at peak spends the month in ~14 minutes.",
+        tween: 1400,
+      },
+    ],
+  },
+  {
+    id: "burst",
+    label: "Bursts & providers",
+    steps: [
+      {
+        caption:
+          "A campaign is a job, not 10M API calls: snapshot the audience, filter once, pace it into the bulk lane (10M over 30 minutes ≈ 5,500 a second, ramped, starting at 10:07, not 10:00), wave by time zone, key each send, and keep a kill switch.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "Separate topics aren't enough: FCM's 600,000-a-minute quota is per project, and an SMS sender has one queue. So token buckets reserve a share bulk can't touch, OTPs get their own SMS sender, and an OTP text carries a 120 s validity period.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          'One breaker per provider and route, so "A to India" can fail while "A to the US" works. Count 5xx, timeouts and slow receipts, never 410s or invalid numbers; open means fail over or hold, never drop, and half-open lets a trickle through.',
+        tween: 1400,
+      },
+      {
+        caption:
+          "SMS is always split, roughly 50/50, so both providers stay warm. A 5xx, or 30% of receipts slower than 4 minutes, cuts that provider's share by 10 points, at most once a minute; an hour with no change drifts back. Never move traffic onto a provider that's had none.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "APNs returns 503 for 20 minutes, and iPhones have no other path: 40,000 security and fraud alerts go by SMS at once (~$500), 160,000 payment alerts go in-app or are held and collapsed per user, the 1,000,000-push campaign pauses, and the drain is ramped on recovery.",
+        tween: 1400,
+        loop: true,
+      },
+    ],
+  },
+  {
+    id: "cost",
+    label: "Cost & regions",
+    steps: [
+      {
+        caption:
+          "SMS is priced per segment: GSM-7 fits 160 characters, UCS-2 only 70 (67 when split), and one character outside GSM-7 switches the whole message. A 95-character English OTP is 1 segment, the same in Hindi 2, and a 150-character alert with one curly apostrophe 3.",
+        tween: 1400,
+      },
+      {
+        caption:
+          "At ~$0.012 a segment (Twilio's US list price plus a carrier fee), 33M segments a day is ~$11.9M a month. Moving marketing to push, in-app and email, and sending payment SMS only on real push failures (assumed half), cuts it to ~$5.9M.",
+        tween: 1400,
+      },
+      {
+        caption:
+          "When region A fails at 21:00, region B fences it first by bumping a region epoch, replays unsent notifications from the replicated outbox and ledger, critical first, and re-admits A's 5M sockets with admission control. A few sends from the final seconds go twice; collapse ids hide them.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "At 50M users a one-in-a-million case happens 50 times a day: store IANA zones (DST makes missing and doubled times), delete a token on APNs' 410 only if it wasn't registered again after it, send the same OTP code on every attempt, and key the send ledger by notification and channel.",
+        tween: 1400,
+      },
+    ],
+  },
+  {
+    id: "interview",
+    label: "Interview",
+    steps: [
+      {
+        caption:
+          "Minutes 0–10: requirements (types, channels, 50M users, 500M a day, 10M an hour in campaigns, latency per class, 99.9% for critical), then estimates (~5,800 a second, ~17,000 at peak, the channel mix, SMS cost, 10M sockets at the evening peak).",
+        tween: 1400,
+      },
+      {
+        caption:
+          "Minutes 10–20: the architecture, API with idempotency keys → outbox → router → lanes → channel workers → providers, with the inbox and gateways for in-app. Minutes 20–35: the interviewer's deep dive, guarantees, real-time delivery and reconnect storms, or presence and fan-out.",
+        tween: 1400,
+        loop: true,
+      },
+      { caption: "Minutes 35–45: run it, with SLOs per class, lanes all the way to the provider, breakers and SMS shifted in steps, cost, regions and edge cases. That's the whole week as one answer.", tween: 1400 },
+    ],
+  },
+];
+
+export default defineExplainer({ w: W, h: H, variants: V, Scene });

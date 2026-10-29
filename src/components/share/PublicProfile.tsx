@@ -67,7 +67,7 @@ export function StartCta({ handle, who, compact = false }: { handle: string; who
         Your turn<span className="text-signal-text">.</span>
       </p>
       <p className="m-0 text-[15px] leading-relaxed text-fg-2">
-        {who} is learning with {COURSE_NAME}: 11 worlds, 10 interview bosses, 1,000+ quick checks and a daily challenge. Start where they started.
+        {who} is learning with {COURSE_NAME}: 12 worlds, 11 interview bosses, 1,000+ quick checks and a daily challenge. Start where they started.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <Link href={withRef("/learn", handle)} className="flex min-h-[52px] items-center justify-between gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">

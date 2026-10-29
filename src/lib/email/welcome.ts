@@ -4,8 +4,8 @@
  * Pure function, no I/O: the route, the admin preview and the admin test send all render through here,
  * so what the owner previews is exactly what a new learner gets.
  *
- * Every claim is checked against what ships (Oct 2026): course map (src/lib/learn/course.ts: 66 core
- * lessons, 10 bosses, SIDE_QUESTS side quests), video lectures (/learn/prep/lectures: 137 live, so "130+",
+ * Every claim is checked against what ships (Oct 2026): course map (src/lib/learn/course.ts: 75 core
+ * lessons, 11 bosses, SIDE_QUESTS side quests), video lectures (/learn/prep/lectures: 137 live, so "130+",
  * quiz checkpoints, ask the AI, save offline), the 8 mock interviews (/learn/mock: AI interviewer turns,
  * dictation, whiteboard, per-phase coach, AI scorecard with a hire / no-hire verdict), design sheets
  * (/learn/sheets: one per side quest, PDF), cheat sheets and revision decks (/learn/cheatsheet,
@@ -22,10 +22,10 @@ export function welcomeSubject(name?: string | null): string {
   const first = (name || "").trim().split(/\s+/)[0];
   return first ? `You're in, ${first}. Your first lesson is ready` : WELCOME_SUBJECT;
 }
-export const WELCOME_PREHEADER = "130+ video lectures, an AI mock interviewer, design sheets and 66 free lessons. Your progress follows you to any device.";
+export const WELCOME_PREHEADER = "130+ video lectures, an AI mock interviewer, design sheets and 75 free lessons. Your progress follows you to any device.";
 
 /** side quests in the course map (update with the course) */
-const SIDE_QUESTS = 33;
+const SIDE_QUESTS = 36;
 
 const SITE = "https://www.himanshukukreja.in";
 const UTM = "utm_source=email&utm_medium=welcome&utm_campaign=welcome";
@@ -61,12 +61,12 @@ export function welcomeFirstName(full?: string | null): string | null {
 }
 
 const STATS: { n: string; label: string }[] = [
-  { n: "66", label: "core lessons" },
+  { n: "75", label: "core lessons" },
   { n: "130+", label: "video lectures" },
   { n: "8", label: "AI mock interviews" },
   { n: "1,000+", label: "quick checks" },
 ];
-const MORE = [`+ ${SIDE_QUESTS} side quests`, "20 war stories", "10 interview bosses", "no paywall"];
+const MORE = [`+ ${SIDE_QUESTS} side quests`, "20 war stories", "11 interview bosses", "no paywall"];
 
 type Feature = { glyph: string; tag: string; title: string; body: string; fresh?: boolean; link?: { label: string; href: string } };
 

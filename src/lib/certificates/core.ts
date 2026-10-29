@@ -12,6 +12,11 @@
  *                       interviews at Hire or better (game_done `offer:<id>` + its game_flags
  *                       `mock:<id>` scorecard)
  *   world certificate   that world's lessons, its trial parts and its boss (when it has one)
+ *
+ * When the course grows (e.g. Week 11 and Week 0 Parts 7-8), nothing here changes: the rules
+ * run against the live course map at claim time, the result is frozen into the row (evidence.stats,
+ * evidence.world.of) and an issued certificate is never checked again. New lessons count only for
+ * certificates claimed after they go live; older certificates keep their numbers and stay valid.
  */
 
 /* ------------------------------------------------------------------ wording */

@@ -17,7 +17,7 @@ export function levelFromMarkdown(md: string): Level | undefined {
 
 const step = (l: Level, by = 1): Level => LEVELS[Math.min(LEVELS.length - 1, LEVELS.indexOf(l) + by)];
 
-/** A course lesson's level from its week (00–10) and whether it is the week's capstone. */
+/** A course lesson's level from its week (00–11) and whether it is the week's capstone. */
 export function levelForWeek(week: number, capstone: boolean): Level {
   const base: Level = week <= 0 ? "Beginner" : week <= 4 ? "Intermediate" : "Advanced";
   return capstone ? step(base) : base;

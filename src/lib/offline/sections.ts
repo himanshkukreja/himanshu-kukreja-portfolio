@@ -18,7 +18,7 @@ export type Section = {
 };
 
 export const SECTIONS: Section[] = [
-  { id: "course", title: "The course", blurb: "Worlds 0–10: previews, lessons, bosses and trials, with the course map and the plan.", unit: ["page", "pages"] },
+  { id: "course", title: "The course", blurb: "Worlds 0–11: previews, lessons, bosses and trials, with the course map and the plan.", unit: ["page", "pages"] },
   { id: "lectures", title: "Video lectures", blurb: "Animated, narrated lectures with their audio, music, captions and checkpoints. ~10–20 MB each.", unit: ["lecture", "lectures"] },
   { id: "sidequests", title: "Side quests", blurb: "Real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more.", unit: ["quest", "quests"] },
   { id: "problems", title: "Interview problems", blurb: "The problem bank: classic interview designs, worked through.", unit: ["problem", "problems"] },

@@ -24,6 +24,7 @@ const WORLD_BADGES: Record<number, string> = {
   8: "Watermark",
   9: "Isolation",
   10: "On-call ready",
+  11: "Grounded",
 };
 
 export function worldBadge(num: number): string {

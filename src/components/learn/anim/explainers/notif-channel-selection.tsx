@@ -1,8 +1,10 @@
 /**
- * Channel selection (week 6, day 1 · 4.1 / 4.3 / 7.3): the selector starts from the type's
- * channel matrix, then filters by preferences, quiet hours (22:00–08:00 lets only Email and
- * In-App through, unless the notification is CRITICAL) and availability, and orders primary
- * before fallback. Three notifications: a payment, a marketing email at night, a fraud alert.
+ * Channel selection (week 6, day 1 · 4.3 the router's policy): the router turns a notification's
+ * class into a channel plan, then filters it by preferences and quiet hours. A payment goes in-app
+ * first, then push if no device acks, then email (SMS only if the user asked for it); a marketing push
+ * at 23:00 is deferred to the end of quiet hours (22:00–08:00), not dropped; a fraud alert ignores
+ * opt-outs and quiet hours and goes push now, SMS if still unread after 2 minutes, then email; an
+ * OTP skips the ladder and goes by SMS at once.
  */
 import { defineExplainer, seg, Txt, type SceneProps, type Tone } from "../kit";
 
@@ -11,74 +13,96 @@ const H = 330;
 const CH = ["PUSH", "SMS", "EMAIL", "IN-APP"];
 const COL_X = 214;
 const COL_W = 92;
-const ROWS = ["type matrix", "preferences", "quiet hours", "device token", "send"];
-const ROW_Y0 = 120;
-const ROW_H = 40;
+const ROWS = ["class policy", "preferences", "quiet hours", "plan"];
+const ROW_Y0 = 116;
+const ROW_H = 44;
 
-/** cell codes: P primary · F fallback · X dropped here · - not in play · 1/2 send order · = unchanged */
-type Cell = "P" | "F" | "X" | "-" | "1" | "1+" | "2";
-type Plan = { head: string; sub: string; subN: string; tone: Tone; rows: Cell[][]; reveal: number[]; notes: string[] };
+/** what a cell says: [wide, narrow, tone]; "-" is a channel not in play */
+const LABEL: Record<string, [string, string, Tone]> = {
+  P: ["first", "1st", "lit"],
+  F: ["fallback", "next", "sky"],
+  X: ["dropped", "drop", "bad"],
+  H: ["deferred", "later", "warn"],
+  ask: ["if asked", "asked?", "mute"],
+  never: ["never", "never", "mute"],
+  skip: ["skipped", "skip", "mute"],
+  inbox: ["inbox", "inbox", "ok"],
+  now: ["now", "now", "ok"],
+  noack: ["if no ack", "no ack", "sky"],
+  then: ["then", "then", "sky"],
+  at8: ["08:00", "08:00", "warn"],
+  m2: ["2 min", "2 min", "warn"],
+  m10: ["+10 min", "+10 m", "sky"],
+  "-": ["", "", "mute"],
+};
+type Plan = { head: string; sub: string; subN: string; tone: Tone; rows: string[][]; reveal: number[]; notes: string[]; foot: [string, string, Tone] };
 
 const PLANS: Record<string, Plan> = {
   payment: {
-    head: "TRANSACTION · HIGH",
-    sub: "payment_received · user-123 · daytime",
-    subN: "payment · user-123",
+    head: "TRANSACTIONAL · PAYMENT",
+    sub: "payment received · Priya · web app open · daytime",
+    subN: "payment · Priya",
     tone: "lit",
     rows: [
-      ["P", "F", "F", "-"],
-      ["P", "X", "F", "-"],
-      ["P", "-", "F", "-"],
-      ["P", "-", "F", "-"],
-      ["1", "-", "2", "-"],
+      ["F", "ask", "F", "P"],
+      ["F", "X", "F", "P"],
+      ["F", "-", "F", "P"],
+      ["noack", "-", "then", "now"],
     ],
-    reveal: [0, 1, 2, 2, 2],
-    notes: ["", "SMS off", "not quiet", "token ok", ""],
+    reveal: [0, 1, 1, 2],
+    notes: ["", "not asked", "daytime", ""],
+    foot: ["push only if no device acks within a few seconds", "push only without an ack", "sky"],
   },
   marketing: {
-    head: "MARKETING · LOW",
-    sub: "newsletter · 23:00 · quiet hours 22:00-08:00",
-    subN: "newsletter · 23:00",
-    tone: "sky",
+    head: "MARKETING · BULK",
+    sub: "cashback offer · 23:00 · quiet hours 22:00–08:00",
+    subN: "offer · 23:00",
+    tone: "warn",
     rows: [
-      ["F", "-", "P", "-"],
-      ["F", "-", "P", "-"],
-      ["X", "-", "P", "-"],
-      ["-", "-", "P", "-"],
-      ["-", "-", "1", "-"],
+      ["P", "never", "F", "-"],
+      ["P", "-", "F", "-"],
+      ["H", "-", "H", "-"],
+      ["at8", "-", "then", "-"],
     ],
-    reveal: [0, 0, 1, 2, 2],
-    notes: ["", "opted in", "quiet", "", ""],
+    reveal: [0, 1, 1, 2],
+    notes: ["", "opted in", "23:00", ""],
+    foot: ["deferred to 08:00, not dropped; held pushes spread to 08:20", "deferred, not dropped", "warn"],
   },
   security: {
-    head: "SECURITY · CRITICAL",
-    sub: "fraud alert · 23:00 · quiet hours 22:00-08:00",
+    head: "CRITICAL · FRAUD ALERT",
+    sub: "fraud alert · 23:00 · quiet hours 22:00–08:00",
     subN: "fraud alert · 23:00",
     tone: "bad",
     rows: [
-      ["P", "P", "F", "-"],
-      ["P", "P", "F", "-"],
-      ["P", "P", "F", "-"],
-      ["P", "P", "F", "-"],
-      ["1+", "1+", "2", "-"],
+      ["P", "F", "F", "inbox"],
+      ["P", "F", "F", "inbox"],
+      ["P", "F", "F", "inbox"],
+      ["now", "m2", "m10", "now"],
     ],
-    reveal: [0, 0, 1, 2, 2],
-    notes: ["", "", "bypassed", "token ok", ""],
+    reveal: [0, 1, 1, 2],
+    notes: ["", "locked", "ignored", ""],
+    foot: ["SMS only if still unread after 2 min; a read cancels the rest", "unread 2 min: SMS", "warn"],
   },
-};
-
-const LABEL: Record<Cell, [string, string, Tone]> = {
-  P: ["primary", "main", "lit"],
-  F: ["fallback", "backup", "sky"],
-  X: ["dropped", "drop", "bad"],
-  "-": ["", "", "mute"],
-  "1": ["send 1st", "1st", "ok"],
-  "1+": ["at once", "now", "ok"],
-  "2": ["if fails", "next", "sky"],
+  otp: {
+    head: "CRITICAL · OTP",
+    sub: "sign-in code · Rohan's new phone",
+    subN: "OTP · Rohan",
+    tone: "bad",
+    rows: [
+      ["skip", "P", "skip", "skip"],
+      ["-", "P", "-", "-"],
+      ["-", "P", "-", "-"],
+      ["-", "now", "-", "-"],
+    ],
+    reveal: [0, 1, 1, 2],
+    notes: ["", "locked", "ignored", ""],
+    foot: ["one SMS now, validity 120 s; the code itself lasts 5 min", "SMS now, 120 s validity", "ok"],
+  },
 };
 
 function Scene({ variant, step, t, narrow }: SceneProps) {
   const plan = PLANS[variant] || PLANS.payment;
+  const last = Math.max(...plan.reveal);
   return (
     <g>
       <Txt x={24} y={36} k="k" anchor="start" tone={plan.tone}>
@@ -88,22 +112,22 @@ function Scene({ variant, step, t, narrow }: SceneProps) {
         {narrow ? plan.subN : plan.sub}
       </Txt>
       {CH.map((c, j) => (
-        <Txt key={c} x={COL_X + j * COL_W + COL_W / 2} y={100} k="k" tone="mute">
+        <Txt key={c} x={COL_X + j * COL_W + COL_W / 2} y={98} k="k" tone="mute">
           {c}
         </Txt>
       ))}
       {ROWS.map((r, i) => {
         const at = plan.reveal[i];
         const shown = at < step || (at === step && t > 0);
-        const k = plan.reveal.slice(0, i).filter((r) => r === at).length; // stagger rows revealed together
+        const k = plan.reveal.slice(0, i).filter((x) => x === at).length; // stagger rows revealed together
         const o = at < step ? 1 : at === step ? seg(t, k * 0.25, k * 0.25 + 0.4) : 0;
         const live = at === step;
         const y = ROW_Y0 + i * ROW_H;
-        const last = i === ROWS.length - 1;
+        const fin = i === ROWS.length - 1;
         return (
           <g key={r}>
-            {last && <line x1={24} x2={576} y1={y - 6} y2={y - 6} className="cs-rule" />}
-            <Txt x={24} y={y + 20} k={last ? "k" : "s"} anchor="start" tone={shown ? (live ? "lit" : undefined) : "mute"}>
+            {fin && <line x1={24} x2={576} y1={y - 7} y2={y - 7} className="cs-rule" />}
+            <Txt x={24} y={y + 20} k={fin ? "k" : "s"} anchor="start" tone={shown ? (live ? "lit" : undefined) : "mute"}>
               {r}
             </Txt>
             {!narrow && plan.notes[i] && shown && (
@@ -112,12 +136,13 @@ function Scene({ variant, step, t, narrow }: SceneProps) {
               </Txt>
             )}
             {plan.rows[i].map((c, j) => {
-              const [wide, short, tone] = LABEL[c];
+              const [wide, short, tone] = LABEL[c] || LABEL["-"];
               const x = COL_X + j * COL_W + 4;
+              const blank = c === "-";
               return (
                 <g key={j} opacity={shown ? Math.max(0.15, Math.min(1, o)) : 0.12}>
-                  <rect x={x} y={y} width={COL_W - 8} height={30} className={`ax-box${shown && c !== "-" && tone ? ` ${tone}` : ""}`} opacity={c === "-" ? 0.4 : 1} />
-                  {shown && c !== "-" && (
+                  <rect x={x} y={y} width={COL_W - 8} height={30} className={`ax-box${shown && !blank && tone ? ` ${tone}` : ""}`} opacity={blank ? 0.4 : 1} />
+                  {shown && !blank && (
                     <Txt x={x + (COL_W - 8) / 2} y={y + 20} k="s" tone={tone}>
                       {narrow ? short : wide}
                     </Txt>
@@ -129,6 +154,11 @@ function Scene({ variant, step, t, narrow }: SceneProps) {
           </g>
         );
       })}
+      {step >= last && (
+        <Txt x={24} y={314} k="s" anchor="start" tone={plan.foot[2]} opacity={seg(t, 0.5, 0.9)}>
+          {narrow ? plan.foot[1] : plan.foot[0]}
+        </Txt>
+      )}
     </g>
   );
 }
@@ -142,27 +172,36 @@ export default defineExplainer({
       id: "payment",
       label: "Payment",
       steps: [
-        { caption: "A TRANSACTION starts from the type matrix: Push primary, SMS and Email as fallbacks.", tween: 1200 },
-        { caption: "user-123's preferences say Push (primary), Email (fallback), so SMS drops out.", tween: 1200 },
-        { caption: "Not quiet hours and a device token exists: send Push first, keep Email as the fallback.", tween: 1600, ms: 3400 },
+        { caption: "A payment is transactional: the class policy sends in-app first, with push and then email as fallbacks. SMS joins only if the user asked for it on payments.", tween: 1200 },
+        { caption: "Priya hasn't asked for SMS on payments, so it stays out; it's daytime, so quiet hours change nothing.", tween: 1400 },
+        { caption: 'In-app goes first, over her live connection. Push follows only if no device acks within a few seconds, then email; in-app with no live socket counts as "no ack".', tween: 1600, ms: 3400 },
       ],
     },
     {
       id: "marketing",
       label: "Marketing at 23:00",
       steps: [
-        { caption: "A MARKETING message: Email primary, Push only as a fallback the user opted in to.", tween: 1200 },
-        { caption: "23:00 is inside quiet hours (22:00-08:00): only non-intrusive Email and In-App pass, so Push drops.", tween: 1200 },
-        { caption: "Result: one email and nothing buzzing the phone at night.", tween: 1400, ms: 3400 },
+        { caption: "A marketing push is bulk: push first, email as the fallback, never SMS.", tween: 1200 },
+        { caption: "She's opted in, but 23:00 is inside her quiet hours (22:00–08:00 in her own time zone), so the send is deferred to the window's end, not dropped.", tween: 1400 },
+        { caption: "It goes out at 08:00, spread with the other held pushes over 08:00–08:20, still with email as the fallback. Nothing buzzes the phone at night.", tween: 1600, ms: 3400 },
       ],
     },
     {
       id: "security",
       label: "Fraud alert",
       steps: [
-        { caption: "A SECURITY alert is CRITICAL: Push and SMS are both primary, sent simultaneously, Email the fallback.", tween: 1200 },
-        { caption: "Same 23:00 quiet hours, but CRITICAL notifications bypass them: nothing is filtered.", tween: 1200 },
-        { caption: "Push and SMS go out at once, with Email ready as the fallback.", tween: 1400, ms: 3400 },
+        { caption: "A fraud alert is critical: an inbox row and push first, then SMS, then email. Critical notifications can't be opted out of.", tween: 1200 },
+        { caption: "Same 23:00, but critical ignores quiet hours: a 2 am fraud alert is the point.", tween: 1400 },
+        { caption: "The inbox row and the push go now. Still unread after 2 minutes: SMS; after 10 more: email. A read on any device cancels the steps not yet taken.", tween: 1600, ms: 3400 },
+      ],
+    },
+    {
+      id: "otp",
+      label: "OTP",
+      steps: [
+        { caption: "An OTP is critical too, but a code is useless late, so it skips the ladder: SMS at once, no push or email fallback, and no inbox item, since a code shouldn't sit in a list.", tween: 1200 },
+        { caption: "Like any critical message, it can't be turned off and ignores quiet hours.", tween: 1400 },
+        { caption: "One SMS now, on the critical lane. The code is valid for 5 minutes and the SMS carries a 120-second validity period, so a text that arrives still has time to be typed.", tween: 1600, ms: 3400 },
       ],
     },
   ],

@@ -1,400 +1,527 @@
 /**
- * Whole-lesson overview (week 6, day 3 · advanced features): what each feature changes about what
- * reaches the user. A/B variants by weighted hashing (50/30/20, bucket 65 → variant_a, winner after
- * 1,000 sends and a 10% lift); when to send (20 likes → one batched push, HYBRID 10 / 300 s,
- * 6 PM local digests, UTC scheduling on the leader, best hour + random minute); the multi-channel
- * saga (simultaneous primaries, 60 s wait then fallback, escalation 5 min → SMS, 15 min → call);
- * and the user side (inbox:{user_id} capped at 100, unread counter, WebSocket + Redis pub/sub,
- * hierarchical preferences with optimistic locking and cache invalidation).
+ * Whole-lesson overview (week 6, day 3 · real-time channels: WebSockets and SSE at scale). Discord's
+ * 25 March 2026 reconnect storm (17% of sessions); four ways to push (polling, long polling, SSE,
+ * WebSockets) and choosing per surface; the gateway tier (what a connection costs, heartbeats vs
+ * in-app messages, 200K per node, 75 nodes in three zones, connect tickets and reauth); delivering to
+ * the right socket (the registry with a lease and epoch per gateway, one pub/sub channel per gateway,
+ * inbox first, resume after seq 1183, the ack-timeout fallback to push); and failing together
+ * (heartbeats under every idle timeout, a lost zone's 3.3M reconnects, jitter and admission, drains).
  */
-import { Box, defineExplainer, lerp, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone } from "../kit";
+import { Box, defineExplainer, ease, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone, type Variant } from "../kit";
 
 const W = 600;
-const H = 320;
-type M = [wide: string, narrow: string, tone?: Tone];
+const H = 340;
+/** a label with an optional shorter form for narrow stages: "both" or ["wide", "narrow"] */
+type Two = string | [string, string];
+type Nd = { x: number; y: number; w: number; h: number; l: string; n?: string };
+/** an edge: from, to, and optional port offsets (y for side-by-side boxes, x for stacked ones) */
+type Ed = [string, string, number?, number?];
+type Fr = {
+  /** kicker (top left) */
+  k: Two;
+  kt?: Tone;
+  /** nodes in play (plain 1 or a tone); every other node is dimmed */
+  on?: Record<string, Tone | 1>;
+  sub?: Record<string, Two>;
+  /** wires carrying traffic in this frame: [from, to, tone]; a reversed pair runs a wire backwards */
+  fl?: [string, string, Tone?][];
+  /** big figures: [figure, label, tone] */
+  figs?: [string, Two, Tone?][];
+  chips?: Two[];
+  cols?: number;
+  ct?: Tone;
+  /** per-chip tones (override ct) */
+  ctn?: Tone[];
+  /** meters: [label, value, max, tone] */
+  bars?: [Two, number, number, Tone?][];
+  note?: Two;
+  nt?: Tone;
+};
+type P = { x: number; y: number };
+const pick = (v: Two | undefined, nr: boolean) => (v === undefined ? undefined : typeof v === "string" ? v : v[nr ? 1 : 0]);
 
-function Card({ x, y, w, h = 32, m, narrow, op = 1 }: { x: number; y: number; w: number; h?: number; m: M; narrow: boolean; op?: number }) {
-  return (
-    <g opacity={op}>
-      <rect className={`ax-box${m[2] ? ` ${m[2]}` : ""}`} x={x} y={y} width={w} height={h} />
-      <Txt x={x + w / 2} y={y + h / 2 + 5} k="s" tone={m[2]}>
-        {narrow ? m[1] : m[0]}
-      </Txt>
-    </g>
-  );
+/* the stage grid: four columns, three rows of boxes above the figures */
+const CX = [16, 124, 260, 404];
+const CW = [88, 116, 124, 180];
+const RY = [40, 96, 156];
+const RH = [44, 48, 40];
+const nd = (c: number, r: number, l: string, n?: string, rows = 1): Nd => ({ x: CX[c], y: RY[r], w: CW[c], h: RY[r + rows - 1] + RH[r + rows - 1] - RY[r], l, n });
+
+/** a soft orthogonal curve from one box to the next, picked by their relative position */
+function geo(a: Nd, b: Nd, oa = 0, ob = 0): P[] {
+  if (b.x >= a.x + a.w - 2 || b.x + b.w <= a.x + 2) {
+    const r = b.x >= a.x + a.w - 2;
+    const p0 = { x: r ? a.x + a.w : a.x, y: a.y + a.h / 2 + oa };
+    const p3 = { x: r ? b.x : b.x + b.w, y: b.y + b.h / 2 + ob };
+    const m = (p0.x + p3.x) / 2;
+    return [p0, { x: m, y: p0.y }, { x: m, y: p3.y }, p3];
+  }
+  const d = b.y > a.y;
+  const p0 = { x: a.x + a.w / 2 + oa, y: d ? a.y + a.h : a.y };
+  const p3 = { x: b.x + b.w / 2 + ob, y: d ? b.y : b.y + b.h };
+  const m = (p0.y + p3.y) / 2;
+  return [p0, { x: p0.x, y: m }, { x: p3.x, y: m }, p3];
 }
+const bz = (g: P[], u: number): P => {
+  const v = 1 - u;
+  const c = [v * v * v, 3 * v * v * u, 3 * v * u * u, u * u * u];
+  return { x: g.reduce((s, p, i) => s + p.x * c[i], 0), y: g.reduce((s, p, i) => s + p.y * c[i], 0) };
+};
+const path = (g: P[]) => `M${g[0].x} ${g[0].y}C${g[1].x} ${g[1].y} ${g[2].x} ${g[2].y} ${g[3].x} ${g[3].y}`;
+const ends = (e: Ed) => geo(N[e[0]], N[e[1]], e[2], e[3]);
 
-/** the user's phone on the right: what actually arrives */
-function Phone({ msgs, narrow, t, badge }: { msgs: M[]; narrow: boolean; t: number; badge?: string }) {
-  return (
-    <g>
-      <rect className="ax-box" x={440} y={48} width={148} height={256} />
-      <Txt x={514} y={70} k="s">
-        {narrow ? "phone" : "user's phone"}
-      </Txt>
-      {badge && <Card x={450} y={258} w={128} h={36} m={[`unread: ${badge}`, `unread ${badge}`, "lit"]} narrow={narrow} op={seg(t, 0.6, 0.9)} />}
-      {msgs.map((m, i) => (
-        <Card key={i} x={450} y={84 + i * 44} w={128} h={36} m={m} narrow={narrow} op={seg(t, 0.5 + i * 0.1, 0.8 + i * 0.1)} />
-      ))}
-    </g>
-  );
-}
-
-/* ---------------------------------------------------------------- A/B tests */
-const SEGS: [string, string, number][] = [
-  ["control", "control", 50],
-  ["variant_a", "variant_a", 30],
-  ["var_b", "var_b", 20],
-];
-const BAR = (v: number) => 24 + (v / 100) * 380;
-
-function AB({ step, t, narrow }: SceneProps) {
-  const mk = BAR(65);
-  return (
-    <g>
-      <Txt x={214} y={84} tone={step === 1 ? "lit" : undefined}>
-        md5(user_id:test_id) % 100
-      </Txt>
-      {SEGS.map(([w, n, wt], i) => {
-        const a = SEGS.slice(0, i).reduce((s, x) => s + x[2], 0);
-        const tone: Tone = step >= 1 && i === 1 ? "lit" : undefined;
-        return (
-          <g key={w}>
-            <rect className={`ax-box${tone ? ` ${tone}` : ""}`} x={BAR(a)} y={118} width={(wt / 100) * 380} height={40} />
-            <Txt x={BAR(a + wt / 2)} y={143} k="s" tone={tone}>
-              {narrow ? n : w}
-            </Txt>
-            <Txt x={BAR(a)} y={178} k="s">
-              {a}
-            </Txt>
-          </g>
-        );
-      })}
-      <Txt x={BAR(100)} y={178} k="s">
-        100
-      </Txt>
-      {step === 1 && (
-        <g opacity={seg(t, 0.2, 0.6)}>
-          <Wire d={`M${mk} 100V170`} tone="lit" />
-          <Txt x={mk} y={204} k="s" tone="lit">
-            {narrow ? "bucket 65" : "user-123 → bucket 65 → variant_a"}
-          </Txt>
-          <Txt x={214} y={236} k="s">
-            {narrow ? "same user, same variant" : "same user + test → same variant, every send"}
-          </Txt>
-        </g>
-      )}
-      {step === 2 && (
-        <g>
-          {[
-            ["sent", "sent"],
-            ["delivered", "deliv."],
-            ["opened", "opened"],
-            ["clicked", "clicked"],
-          ].map(([w, n], i) => (
-            <g key={w}>
-              {i > 0 && <Wire d={`M${12 + i * 104 - 8} 216H${12 + i * 104}`} arrow />}
-              <Card x={12 + i * 104} y={200} w={96} m={[w, n, i === 3 ? "lit" : undefined]} narrow={narrow} op={seg(t, i * 0.15, i * 0.15 + 0.3)} />
-            </g>
-          ))}
-          <Card x={12} y={252} w={408} m={["winner: ≥ 1,000 sends and ≥ 10% better clicks", "≥ 1,000 sent, ≥ 10% lift", "ok"]} narrow={narrow} op={seg(t, 0.6, 0.9)} />
-        </g>
-      )}
-      <Phone narrow={narrow} t={step === 0 ? 0 : t} msgs={step === 0 ? [] : [["variant_a copy", "variant_a", "lit"]]} />
-    </g>
-  );
-}
-
-/* ---------------------------------------------------------------- when to send */
-function When({ step, t, clock, narrow }: SceneProps) {
-  const f = seg(t, 0.05, 0.85);
-  const msgs: M[][] = [
-    [["20 people liked", "20 likes", "ok"]],
-    [["3 people liked", "3 likes", "ok"]],
-    [["Daily digest", "Digest", "ok"]],
-    [["9:00 reminder", "9:00", "ok"]],
-    [["sent 9:xx", "9:xx", "ok"]],
-  ];
-  return (
-    <g>
-      {step === 0 && (
-        <g>
-          <rect className="ax-box lit" x={24} y={176} width={380} height={28} />
-          {Array.from({ length: 20 }, (_, i) => {
-            const x0 = 30 + (i % 10) * 36;
-            const y0 = 70 + Math.floor(i / 10) * 26;
-            const d = seg(f, i * 0.03, i * 0.03 + 0.4);
-            return <Token key={i} x={lerp(x0, 40 + i * 18, d)} y={lerp(y0, 190, d)} s={10} tone="lit" />;
-          })}
-          <Txt x={214} y={232} k="s">
-            {narrow ? "Redis list per user" : "RPUSH batch:{user_id}:social_like"}
-          </Txt>
-          <Wire d="M404 190H446" arrow tone="lit" />
-        </g>
-      )}
-      {step === 1 && (
-        <g>
-          <Txt x={24} y={96} k="s" anchor="start">
-            {narrow ? "count" : "count · max 10"}
-          </Txt>
-          <Meter x={24} y={106} w={390} h={18} value={3} max={10} ticks={10} tone="lit" />
-          <Txt x={24} y={166} k="s" anchor="start">
-            {narrow ? "window" : "window · 300 s"}
-          </Txt>
-          <Meter x={24} y={176} w={390} h={18} value={300 * f} max={300} tone="ok" />
-          <Txt x={214} y={238} tone="lit">
-            {narrow ? "first one wins" : "whichever comes first"}
-          </Txt>
-          <Txt x={214} y={266} k="s">
-            {narrow ? "check every 10 s" : "flush worker checks every 10 s"}
-          </Txt>
-        </g>
-      )}
-      {step === 2 && (
-        <g>
-          <Txt x={24} y={92} k="s" anchor="start">
-            {narrow ? "today" : "today's transactions"}
-          </Txt>
-          {Array.from({ length: 10 }, (_, i) => (
-            <Token key={i} x={36 + i * 26} y={116} s={12} tone="sky" opacity={seg(f, i * 0.05, i * 0.05 + 0.2)} />
-          ))}
-          <Box x={24} y={160} w={180} h={62} label="18:00" sub="user's time" tone="lit" />
-          <Box x={228} y={160} w={180} h={62} label="email" sub="top 10" tone="ok" />
-          <Wire d="M204 191H228" arrow tone="lit" />
-          <Txt x={214} y={262} k="s">
-            {narrow ? "daily · weekly · monthly" : "daily, weekly or monthly, per user"}
-          </Txt>
-        </g>
-      )}
-      {step === 3 && (
-        <g>
-          <Txt x={214} y={88} tone="lit">
-            {narrow ? "9:00 New York → UTC" : "9:00 America/New_York → UTC"}
-          </Txt>
-          {["leader", "standby", "standby"].map((l, i) => (
-            <Box key={i} x={24 + i * 132} y={130} w={116} h={56} label={narrow ? (i ? "spare" : "leader") : l} sub={narrow ? undefined : i ? "idle" : "polls / 10 s"} tone={i ? undefined : "lit"} dim={i > 0} />
-          ))}
-          <Txt x={214} y={232} k="s">
-            {narrow ? "one poller: sent once" : "one active poller, so the reminder is sent once"}
-          </Txt>
-          <Wire d="M140 158C250 110 340 110 446 108" arrow dash tone="lit" />
-        </g>
-      )}
-      {step === 4 && (
-        <g>
-          <Txt x={214} y={88} k="s">
-            {narrow ? "30 days of engagement" : "engagement by hour, last 30 days"}
-          </Txt>
-          {Array.from({ length: 8 }, (_, i) => {
-            const h = 6 + i;
-            return <Card key={h} x={24 + i * 49} y={110} w={45} m={[`${h}`, `${h}`, h === 9 ? "lit" : undefined]} narrow={narrow} />;
-          })}
-          {Array.from({ length: 6 }, (_, i) => (
-            <Token key={i} x={lerp(30, 400, ((i + 0.5) / 6 + clock * 0.02) % 1)} y={186} s={9} tone="lit" opacity={seg(t, 0.3 + i * 0.08, 0.5 + i * 0.08)} />
-          ))}
-          <Txt x={214} y={218} k="s" tone="lit">
-            {narrow ? "best hour + random minute" : "best hour 9 + random minute, not all at :00"}
-          </Txt>
-          <Txt x={214} y={256} k="s">
-            {narrow ? "too little data: 10 AM" : "under 10 engagements: default 10 AM"}
-          </Txt>
-        </g>
-      )}
-      <Phone narrow={narrow} t={t} msgs={msgs[step]} />
-    </g>
-  );
-}
-
-/* ---------------------------------------------------------------- multi-channel saga */
-const LANES = ["Push", "SMS", "Email", "Voice call"];
-const LY = (i: number) => 70 + i * 50;
-const COL = [140, 300, 460];
-
-function Saga({ step, t, narrow }: SceneProps) {
-  const ev: [lane: number, col: number, m: M][] =
-    step === 0
-      ? [
-          [0, 0, ["SENT", "SENT", "ok"]],
-          [1, 0, ["SENT", "SENT", "ok"]],
-          [0, 1, ["done", "done", "ok"]],
-        ]
-      : step === 1
-        ? [
-            [0, 0, ["failed", "failed", "bad"]],
-            [1, 0, ["failed", "failed", "bad"]],
-            [2, 1, ["re-read", "re-read"]],
-            [2, 2, ["fallback", "fallback", "ok"]],
-          ]
-        : [
-            [0, 0, ["not opened", "unopened", "warn"]],
-            [1, 1, ["escalate", "escalate", "lit"]],
-            [3, 2, ["no reply → call", "call", "bad"]],
-          ];
-  const marks = step === 0 ? ["0 s", "", ""] : step === 1 ? ["0 s", "+60 s", ""] : ["0", "5 min", "15 min"];
-  return (
-    <g>
-      {LANES.map((l, i) => {
-        const used = ev.some((e) => e[0] === i);
-        return (
-          <g key={l} opacity={used ? 1 : 0.35}>
-            <Txt x={12} y={LY(i) + 6} anchor="start" tone={i < 2 && step < 2 ? "lit" : undefined}>
-              {narrow && l === "Voice call" ? "Voice" : l}
-            </Txt>
-            <Wire d={`M112 ${LY(i)}H588`} dash />
-          </g>
-        );
-      })}
-      {marks.map((m, i) =>
-        m ? (
-          <g key={i}>
-            <Wire d={`M${COL[i] + 60} 46V${LY(3) + 20}`} opacity={0.5} />
-            <Txt x={COL[i] + 60} y={284} k="s">
-              {m}
-            </Txt>
-          </g>
-        ) : null,
-      )}
-      {ev.map(([ln, c, m], i) => (
-        <Card key={i} x={COL[c] - 5} y={LY(ln) - 16} w={130} m={m} narrow={narrow} op={seg(t, i * 0.2, i * 0.2 + 0.3)} />
-      ))}
-      <Txt x={W / 2} y={30} k="k">
-        {["primaries at once", "all primaries failed", "escalation"][step]}
-      </Txt>
-    </g>
-  );
-}
-
-/* ---------------------------------------------------------------- in-app & preferences */
-function User({ step, t, clock, narrow }: SceneProps) {
-  const f = seg(t, 0.1, 0.8);
-  return (
-    <g>
-      {step === 0 && (
-        <g>
-          <Token x={lerp(24, 60, f)} y={92} s={12} tone="lit" />
-          <Txt x={84} y={97} k="s" anchor="start">
-            LPUSH inbox:{"{user_id}"}
-          </Txt>
-          {Array.from({ length: 8 }, (_, i) => (
-            <rect key={i} className={`ax-box${i === 0 ? " lit" : ""}`} x={24 + i * 50} y={116} width={44} height={30} opacity={i === 0 ? f : 1} />
-          ))}
-          <Txt x={214} y={172} k="s">
-            {narrow ? "keep last 100" : "LTRIM: keep the last 100"}
-          </Txt>
-          <Box x={24} y={196} w={180} h={56} label="unread +1" sub={narrow ? undefined : "unread:{user_id}"} tone="lit" />
-          <Box x={228} y={196} w={180} h={56} label="online?" sub={narrow ? "→ WS" : "→ WebSocket"} tone="ok" />
-          <Wire d="M408 224H446" arrow tone="ok" />
-        </g>
-      )}
-      {step === 1 && (
-        <g>
-          <Box x={24} y={84} w={170} h={60} label="ws-server-1" sub={narrow ? undefined : "processes it"} />
-          <Box x={240} y={84} w={170} h={60} label="ws-server-2" sub={narrow ? undefined : "holds socket"} tone="ok" />
-          <Box x={24} y={200} w={386} h={50} label={narrow ? "Redis pub/sub" : "Redis pub/sub · ws:{user_id}"} tone="sky" />
-          <Wire d="M109 144V200" arrow tone="sky" />
-          <Wire d="M325 200V144" arrow tone="sky" />
-          <Wire d="M410 114H446" arrow tone="ok" />
-          <Token x={lerp(109, 325, (f + clock * 0.4) % 1)} y={212} s={10} tone="lit" />
-        </g>
-      )}
-      {step === 2 &&
-        [
-          ["global", "on", "ok"],
-          ["channel: push", "on", "ok"],
-          ["marketing → [email]", "push ✗", "bad"],
-        ].map(([l, s, tone], i) => (
-          <g key={l} opacity={seg(t, i * 0.25, i * 0.25 + 0.3)}>
-            {i > 0 && <Wire d={`M214 ${76 + i * 72 - 16}V${76 + i * 72}`} arrow />}
-            <Box x={24} y={76 + i * 72} w={380} h={56} label={narrow && i === 2 ? "mkt → [email]" : l} sub={s} tone={tone as Tone} />
-          </g>
-        ))}
-      {step === 3 && (
-        <g>
-          {["update A", "update B"].map((u, i) => (
-            <Box key={u} x={24 + i * 200} y={76} w={180} h={56} label={u} sub={narrow ? undefined : "expects version v"} tone={i ? "bad" : "ok"} />
-          ))}
-          <Box x={24} y={164} w={380} h={50} label={narrow ? "WHERE version = v" : "UPDATE … WHERE version = v"} tone="lit" />
-          <Wire d="M114 132V164" arrow tone="ok" />
-          <Wire d="M314 132V164" arrow tone="bad" />
-          <Txt x={214} y={244} k="s" tone="bad" opacity={seg(t, 0.3, 0.6)}>
-            {narrow ? "B: conflict, re-read" : "B: ConflictError → re-read and retry"}
-          </Txt>
-          <Txt x={214} y={272} k="s" tone="ok" opacity={seg(t, 0.6, 0.9)}>
-            {narrow ? "then DEL prefs cache" : "then delete prefs:{user_id} (5-min cache)"}
-          </Txt>
-        </g>
-      )}
-      <Phone
-        narrow={narrow}
-        t={t}
-        badge={step < 2 ? "1" : undefined}
-        msgs={step < 2 ? [["new in-app", "in-app", "ok"]] : step === 2 ? [["email only", "email", "ok"]] : [["prefs v+1", "v+1", "ok"]]}
-      />
-    </g>
-  );
-}
-
-function Scene(p: SceneProps) {
-  const k: Record<string, string[]> = {
-    ab: ["a/b test · weights", "a/b test · bucket", "a/b test · winner"],
-    when: ["batching", "hybrid batching", "digests", "scheduling", "best time to send"],
-    user: ["in-app notification center", "websocket fan-out", "hierarchical preferences", "optimistic locking"],
+function Scene({ variant, step, t, clock, narrow: nr }: SceneProps) {
+  const f = (F[variant] || F[Object.keys(F)[0]])[Math.min(step, (F[variant] || F[Object.keys(F)[0]]).length - 1)];
+  const on = f.on || {};
+  /** staggered fade-in for item i of n, always fully in by t = 1 */
+  const fade = (i: number, n: number) => {
+    const k = n > 1 ? Math.min(0.15, 0.5 / (n - 1)) : 0;
+    return ease(seg(t, i * k, i * k + 0.5));
   };
+  const xs = [[300], [160, 440], [100, 300, 500]][(f.figs?.length || 1) - 1] || [];
+  const cols = f.cols || 2;
+  const cw = (552 - (cols - 1) * 8) / cols;
   return (
     <g>
-      {k[p.variant] && (
-        <Txt x={W / 2} y={30} k="k">
-          {k[p.variant][p.step]}
+      <Txt x={16} y={26} k="k" anchor="start" tone={f.kt}>
+        {pick(f.k, nr)}
+      </Txt>
+      {E.map((e) => {
+        const [a, b] = e;
+        const live = a in on && b in on;
+        const fl = f.fl?.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        return <Wire key={a + b} d={path(ends(e))} tone={fl ? fl[2] || "lit" : undefined} arrow={live} opacity={live ? 1 : 0.3} />;
+      })}
+      {Object.entries(N).map(([id, n]) => {
+        const s = on[id];
+        return <Box key={id} x={n.x} y={n.y} w={n.w} h={n.h} label={nr ? n.n || n.l : n.l} sub={(nr ? undefined : pick(f.sub?.[id], nr)) || undefined} tone={s === 1 ? undefined : s} dim={!(id in on)} />;
+      })}
+      {f.fl?.map(([a, b, tone], i) => {
+        const e = E.find((x) => (x[0] === a && x[1] === b) || (x[0] === b && x[1] === a));
+        if (!e) return null;
+        const u = ((((t - 1) * 0.5 + clock * 0.55 + 0.5 + i * 0.17) % 1) + 1) % 1;
+        const p = bz(ends(e), e[0] === a ? u : 1 - u);
+        return <Token key={a + b} x={p.x} y={p.y} s={9} tone={tone || "lit"} />;
+      })}
+      {f.figs?.map(([d, l, tone], i) => (
+        <g key={d + i} opacity={fade(i, f.figs?.length || 1)}>
+          <Txt x={xs[i]} y={254} k="d" tone={tone}>
+            {d}
+          </Txt>
+          <Txt x={xs[i]} y={278} k="s">
+            {pick(l, nr)}
+          </Txt>
+        </g>
+      ))}
+      {f.chips?.map((c, i) => {
+        const x = 24 + (i % cols) * (cw + 8);
+        const y = 214 + Math.floor(i / cols) * 34;
+        const tone = f.ctn?.[i] || f.ct || "lit";
+        return (
+          <g key={i} opacity={fade(i, f.chips?.length || 1)}>
+            <rect className={`ax-box ${tone}`} x={x} y={y} width={cw} height={26} />
+            <Txt x={x + cw / 2} y={y + 18} k="s" tone={tone}>
+              {pick(c, nr)}
+            </Txt>
+          </g>
+        );
+      })}
+      {f.bars?.map(([l, v, m, tone], i) => (
+        <g key={i} opacity={fade(i, f.bars?.length || 1)}>
+          <Txt x={24} y={232 + i * 28} k="s" anchor="start" tone={tone}>
+            {pick(l, nr)}
+          </Txt>
+          <Meter x={nr ? 330 : 300} y={222 + i * 28} w={nr ? 246 : 276} h={12} value={v * ease(seg(t, 0.1, 0.8))} max={m} tone={tone || "sky"} />
+        </g>
+      ))}
+      {f.note && (
+        <Txt x={16} y={f.figs || f.chips || f.bars ? H - 12 : 244} k="s" anchor="start" tone={f.nt} opacity={ease(seg(t, 0.3, 0.8))}>
+          {pick(f.note, nr)}
         </Txt>
       )}
-      {p.variant === "ab" ? <AB {...p} /> : p.variant === "when" ? <When {...p} /> : p.variant === "saga" ? <Saga {...p} /> : <User {...p} />}
     </g>
   );
 }
 
-export default defineExplainer({
-  w: W,
-  h: H,
-  variants: [
+const N: Record<string, Nd> = {
+  rt: nd(0, 0, "Router"),
+  ds: nd(1, 0, "Delivery"),
+  ps: nd(2, 0, "Pub/sub"),
+  gw: nd(3, 0, "Gateways"),
+  inbox: nd(0, 1, "Inbox"),
+  reg: nd(1, 1, "Registry"),
+  lb: nd(2, 1, "L4 LB", "LB"),
+  dev: nd(3, 1, "Phone, browser", "Devices"),
+  auth: nd(1, 2, "Auth"),
+  pw: nd(2, 2, "Push worker", "Push"),
+  apns: nd(3, 2, "APNs, FCM"),
+};
+const E: Ed[] = [
+  ["rt", "ds", -7, -7],
+  ["ds", "ps", -6, -6],
+  ["ps", "gw"],
+  ["ds", "inbox", 8, 0],
+  ["ds", "reg"],
+  ["dev", "lb", 7, 7],
+  ["lb", "gw", -7, 0],
+  ["gw", "dev"],
+  ["ds", "pw", 8, 0],
+  ["pw", "apns"],
+  ["apns", "dev"],
+];
+
+const F: Record<string, Fr[]> = {
+  ways: [
     {
-      id: "ab",
-      label: "A/B tests",
-      steps: [
-        { caption: "A/B testing a template: its variants get traffic weights, here control 50, variant_a 30 and variant_b 20.", tween: 1000 },
-        { caption: "The bucket is a hash of user_id and test_id, mod 100. Bucket 65 is past 50 but under 80: variant_a, every time for that user.", tween: 1400 },
-        { caption: "Sends, deliveries, opens and clicks are counted. A winner needs at least 1,000 sends and a click rate at least 10% better.", tween: 1600 },
+      k: ["Discord · 25 March 2026", "Discord, 25 March 2026"],
+      kt: "bad",
+      on: { gw: "bad", lb: "warn", dev: "warn" },
+      sub: { gw: ["half a zone's pods", "half a zone"], dev: ["all reconnect", "reconnect"] },
+      fl: [
+        ["dev", "lb", "bad"],
+        ["lb", "gw", "bad"],
       ],
+      figs: [
+        ["17%", ["of sessions stopped", "of sessions"], "bad"],
+        ["OOM", ["the zone's gateways", "gateways"], "warn"],
+        ["3 h+", ['voice "Awaiting Endpoint"', "voice down"]],
+      ],
+      note: ["a routine deploy became a reconnect storm that took down healthy sockets", "a deploy became a storm"],
     },
     {
-      id: "when",
-      label: "When to send",
-      steps: [
-        { caption: "Batching: instead of 20 separate “X liked your post” pushes, the user gets one: “20 people liked your post”.", tween: 1800 },
-        { caption: "Likes use HYBRID batching: flush at 10, or when the 300-second window passes, whichever comes first. A flush worker checks every 10 s.", tween: 1800 },
-        { caption: "Digests are scheduled summaries: the day's transactions, top 10 items, emailed at the preferred 6 PM in the user's own timezone.", tween: 1400 },
-        { caption: "A reminder for 9:00 in America/New_York is stored in UTC. Only the leader polls for due items, every 10 s, so it is sent once.", tween: 1400 },
-        { caption: "Best time to send: the hour the user engaged most over 30 days, plus a random minute, so millions sharing 9 AM don't fire at :00.", tween: 1400, loop: true },
+      k: ["four ways to push to an online user", "four ways"],
+      on: { gw: "lit", dev: "lit", lb: 1 },
+      fl: [["gw", "dev"]],
+      chips: [
+        ["short polling: mostly empty", "short polling"],
+        ["long polling: the fallback", "long polling"],
+        ["SSE: one way, resume built in", "SSE"],
+        ["WebSockets: both ways", "WebSockets"],
       ],
+      ctn: ["mute", "warn", "sky", "lit"],
+      note: ["7.5M users polling every 5 s is 1.5M requests a second", "polling: 1.5M requests/s"],
     },
     {
-      id: "saga",
-      label: "Multi-channel",
-      steps: [
-        { caption: "A security alert runs as a saga: push and SMS, the primaries, go out at the same time. If any primary succeeds, it is done.", tween: 1400 },
-        { caption: "If every primary fails, wait 60 seconds, re-read the record in case a webhook confirmed one, and only then try the email fallback.", tween: 1600 },
-        { caption: "Escalation reacts to silence, not failure: push unopened after 5 minutes escalates to SMS, no response by 15 minutes to a voice call.", tween: 1600 },
+      k: ["SSE and WebSockets", "SSE vs WebSockets"],
+      on: { gw: "lit", dev: "lit" },
+      fl: [["gw", "dev"]],
+      chips: [
+        ["SSE: Last-Event-ID resume", "SSE: Last-Event-ID"],
+        ["SSE: 6 per browser on HTTP/1.1", "SSE: 6 on HTTP/1.1"],
+        ["WS: Upgrade, then full duplex", "WS: full duplex"],
+        ["WS: every proxy must allow it", "WS: proxies"],
       ],
+      ctn: ["sky", "warn", "lit", "warn"],
+      note: ["HTTP/2 makes each SSE stream a stream on one shared connection", "HTTP/2 lifts SSE's cap"],
     },
     {
-      id: "user",
-      label: "In-app & prefs",
-      steps: [
-        { caption: "In-app: each notification is pushed onto inbox:{user_id}, trimmed to the last 100, and unread goes up. Online users get it by WebSocket.", tween: 1400 },
-        { caption: "Processed on ws-server-1, but the socket is on ws-server-2? Server 1 publishes on Redis channel ws:{user_id}, and server 2 pushes it.", tween: 1400, loop: true },
-        { caption: "Preferences are hierarchical: global, channel, then category. All must agree, so marketing set to email only blocks a marketing push.", tween: 1600 },
-        { caption: "Updates use optimistic locking: a write lands only if the version still matches, else re-read and retry. Then the cached prefs are deleted.", tween: 1400 },
+      k: ["choose per surface", "choose per surface"],
+      on: { gw: 1, lb: 1, dev: "lit" },
+      fl: [
+        ["dev", "lb"],
+        ["lb", "gw"],
+        ["gw", "dev"],
       ],
+      cols: 1,
+      chips: [
+        ["web bell, many tabs · SSE over HTTP/2", "web bell · SSE"],
+        ["mobile app · WebSocket: acks, compact frames", "mobile · WebSocket"],
+        ["proxy strips Upgrade · SSE, then long polling", "behind a proxy · SSE"],
+      ],
+      ctn: ["sky", "lit", "warn"],
     },
   ],
-  Scene,
-});
+  tier: [
+    {
+      k: ["a separate, rarely deployed tier", "the gateway tier"],
+      on: { gw: "lit", lb: 1, dev: 1 },
+      sub: { gw: ["no business logic", "no logic"] },
+      fl: [
+        ["dev", "lb"],
+        ["lb", "gw"],
+      ],
+      chips: [
+        ["a file descriptor", "a file descriptor"],
+        ["kernel socket buffers", "socket buffers"],
+        ["TLS and app state", "TLS, app state"],
+        ["epoll: a few threads", "epoll"],
+      ],
+      ctn: ["sky", "sky", "sky", "ok"],
+      note: ["WhatsApp, 2012: 2,277,845 open sockets on one server", "WhatsApp: 2.28M on one box"],
+    },
+    {
+      k: ["what the gateways actually do", "heartbeats vs messages"],
+      on: { gw: "lit", dev: 1 },
+      fl: [
+        ["dev", "lb"],
+        ["lb", "gw"],
+      ],
+      bars: [
+        [["heartbeats · ~333,000/s", "beats ~333K/s"], 333, 333, "lit"],
+        [["in-app at peak · ~1,700/s", "in-app ~1.7K/s"], 1.7, 333, "sky"],
+      ],
+      note: ["over 100 to 1: size by connections, not by message rate", "size by connections"],
+    },
+    {
+      k: ["sizing 10M connections", "sizing the fleet"],
+      on: { gw: "lit", lb: 1 },
+      sub: { gw: ["≤200K each", "≤200K"] },
+      figs: [
+        ["~400 GB", ["at ~40 KB each", "~40 KB each"]],
+        ["200K", ["per node: blast radius", "per node"], "lit"],
+        ["75", ["nodes in 3 zones", "nodes"], "ok"],
+      ],
+      note: ["memory alone needs 13 nodes; a 200K cap needs 50, and 75 to lose a zone", "memory: 13 nodes"],
+    },
+    {
+      k: ["tokens expire, sockets don't", "auth on a socket"],
+      on: { auth: "lit", gw: "lit", reg: 1, dev: 1 },
+      chips: [
+        ["a one-time ticket, ~30 s", "one-time ticket"],
+        ["cookies: check Origin", "check Origin"],
+        ["reauth before 15 min", "reauth in band"],
+        ["log out all: via the registry", "revoke everywhere"],
+      ],
+      ctn: ["lit", "warn", "sky", "bad"],
+    },
+  ],
+  route: [
+    {
+      k: ["the connection registry", "the registry"],
+      on: { ds: "lit", reg: "lit", gw: 1 },
+      sub: { reg: ["gw-17, epoch 9", "gw-17"] },
+      fl: [["ds", "reg"]],
+      cols: 1,
+      chips: [
+        ["conn:{user} → phone at gw-17, epoch 9", "user → gw-17, epoch 9"],
+        ["a 15 s lease per gateway, not per socket", "a lease per gateway"],
+      ],
+      ctn: ["lit", "ok"],
+      note: ["75 lease refreshes instead of 333,000 writes a second", "75 leases, not 333K writes/s"],
+    },
+    {
+      k: ["one channel per gateway", "pub/sub"],
+      on: { rt: 1, ds: "lit", inbox: "ok", ps: "lit", gw: "lit", dev: "ok" },
+      sub: { ps: "gw:17", inbox: "seq 1184" },
+      fl: [
+        ["rt", "ds"],
+        ["ds", "inbox", "ok"],
+        ["ds", "ps"],
+        ["ps", "gw"],
+        ["gw", "dev", "ok"],
+      ],
+      figs: [
+        ["1184", ["in the inbox first", "inbox first"], "ok"],
+        ["gw:17", ["its gateway's channel", "one channel"], "lit"],
+        ["ack", ["seq 1184", "seq 1184"], "ok"],
+      ],
+      note: ["Redis Pub/Sub is at-most-once: fine, because the inbox is the record", "at-most-once is fine"],
+    },
+    {
+      k: ["the gateway that wasn't there", "gw-17 crashes"],
+      kt: "warn",
+      on: { ds: 1, ps: "warn", gw: "bad", inbox: "ok", lb: 1, dev: "lit" },
+      fl: [
+        ["ds", "ps", "warn"],
+        ["dev", "lb"],
+        ["lb", "gw"],
+      ],
+      chips: [
+        ["21:04:10 · gw-17 crashes", "21:04:10 crash"],
+        ["21:04:16 · publish lost", "21:04:16 lost"],
+        ["reconnect: after 1183 → 1184", "resume: 1184"],
+        ["not back in time: push", "no ack: push"],
+      ],
+      ctn: ["bad", "warn", "ok", "sky"],
+    },
+    {
+      k: ["looking: socket · not looking: push", "socket or push"],
+      on: { ds: "lit", pw: "lit", apns: "lit", dev: 1 },
+      fl: [
+        ["ds", "pw"],
+        ["pw", "apns"],
+        ["apns", "dev"],
+      ],
+      chips: [
+        ["no live connection: push", "no socket: push"],
+        ["no ack in a few seconds: push", "no ack: push"],
+        ["acked on one device: skip", "acked: skip"],
+        ["security alert: push anyway", "security: push too"],
+      ],
+      ctn: ["lit", "warn", "ok", "bad"],
+      note: ["push is a doorbell: APNs keeps one per app offline, FCM 100", "push is a doorbell"],
+    },
+  ],
+  storm: [
+    {
+      k: ["every box has an idle timeout", "idle timeouts"],
+      on: { dev: "lit", lb: "warn", gw: 1 },
+      fl: [
+        ["dev", "lb"],
+        ["lb", "gw"],
+      ],
+      figs: [
+        ["255 s", ["one carrier's NAT", "a carrier NAT"], "warn"],
+        ["60 s", ["an AWS ALB default", "an ALB"]],
+        ["25–30 s", ["jittered heartbeat", "heartbeat"], "ok"],
+      ],
+      note: ["close after ~2.5 missed beats (75 s); the client after one missed pong", "server 75 s, client 1 pong"],
+    },
+    {
+      k: ["a zone lost: the storm", "reconnect storm"],
+      kt: "bad",
+      on: { dev: "bad", lb: "warn", gw: "warn" },
+      fl: [
+        ["dev", "lb", "bad"],
+        ["lb", "gw", "bad"],
+      ],
+      figs: [
+        ["~3.3M", ["sockets reconnect", "reconnect"], "bad"],
+        ["50,000/s", ["admitted by 50 nodes", "admitted"]],
+        ["~67 s", ["if spread evenly", "spread out"], "ok"],
+      ],
+      note: ["if every client retries within 1 s: 3.3M/s, ~66× capacity", "1 s retries: ~66× capacity"],
+      nt: "bad",
+    },
+    {
+      k: ["shape it from both ends", "jitter, admission"],
+      on: { dev: "lit", lb: "lit", gw: "lit", inbox: "ok" },
+      fl: [
+        ["dev", "lb"],
+        ["lb", "gw"],
+      ],
+      chips: [
+        ["full jitter, first try too", "full jitter"],
+        ['"retry after N s", at once', "retry after N s"],
+        ["resume after seq, no reboot", "resume, no reboot"],
+        ["slow client: bounded queue", "bounded queues"],
+      ],
+      ctn: ["lit", "warn", "ok", "sky"],
+    },
+    {
+      k: ["a deploy should look like a trickle", "graceful drain"],
+      kt: "ok",
+      on: { gw: "ok", lb: 1, dev: 1, reg: 1 },
+      fl: [
+        ["dev", "lb", "ok"],
+        ["lb", "gw", "ok"],
+      ],
+      figs: [
+        ["1%", ["of sockets every 6 s", "every 6 s"]],
+        ["~10 min", ["to drain 200K", "per node"]],
+        ["1", ["node per zone at once", "node per zone"], "ok"],
+      ],
+      note: ["the grace period must outlast the drain: where Discord's outage began", "grace period > drain"],
+    },
+  ],
+};
+
+const V: Variant[] = [
+  {
+    id: "ways",
+    label: "Four ways",
+    steps: [
+      {
+        caption:
+          "On 25 March 2026 a routine Discord deploy stopped half of one zone's session pods: 17% of all sessions at once. Every client reconnected as designed, the zone's gateways ran out of memory, healthy sockets dropped too, and voice calls hung for over three hours.",
+        tween: 1400,
+        loop: true,
+      },
+      { caption: "Four ways to push to an online user: short polling (7.5M users every 5 s is 1.5 million mostly empty requests a second), long polling, Server-Sent Events, and WebSockets.", tween: 1400, loop: true },
+      {
+        caption:
+          "SSE is one long HTTP response with automatic reconnect and Last-Event-ID resume, capped at 6 per browser and domain on HTTP/1.1 until HTTP/2 lifts it. A WebSocket upgrades to full-duplex frames, but every proxy must allow it and resume is yours to build.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "Choose per surface: the web bell gets SSE over HTTP/2, the mobile apps a WebSocket for acks and a compact protocol, and a console behind a proxy that strips Upgrade gets SSE, with long polling as the last resort.",
+        tween: 1400,
+        loop: true,
+      },
+    ],
+  },
+  {
+    id: "tier",
+    label: "Gateway tier",
+    steps: [
+      {
+        caption:
+          "Holding sockets is stateful, so it gets its own rarely deployed tier with no business logic. Each connection costs a file descriptor, kernel buffers, TLS and app state; epoll lets a few threads serve them, and WhatsApp once held 2,277,845 on one server.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "10 million connections heartbeating every 30 s is ~333,000 beats a second, against ~1,700 in-app notifications a second at peak: more than 100 to 1. Size the fleet by connections, not message rate.",
+        tween: 1400,
+        loop: true,
+      },
+      { caption: "At an assumed ~40 KB each, 10M connections need ~400 GB: 13 nodes by memory alone. A 200,000 cap per node for blast radius makes it 50 nodes, and 75 across three zones to survive losing one.", tween: 1400 },
+      {
+        caption:
+          'Browsers can\'t set an Authorization header on a socket, so clients connect with a one-time ticket valid ~30 s, cookie-based sockets check Origin, the client reauths before its 15-minute token expires, and "log out all devices" reaches every socket through the registry.',
+        tween: 1400,
+      },
+    ],
+  },
+  {
+    id: "route",
+    label: "Right socket",
+    steps: [
+      {
+        caption:
+          "Priya's phone is on gw-17, one of 75. The connection registry maps each device to a gateway and epoch; each gateway holds a 15-second lease, so lookups skip dead gateways with 75 refreshes instead of 333,000 writes a second.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "The delivery service writes seq 1184 to the inbox first, then publishes to gw:17, the one channel that gateway subscribes to. Redis Pub/Sub is at-most-once, which is fine only because the socket isn't the record.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "gw-17 crashes at 21:04:10, and a publish at 21:04:16 is lost while its lease is still alive. Priya's app reconnects elsewhere with jitter and resumes after 1183, which returns 1184; if she isn't back in time, no ack arrives and she gets a push.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption: "The socket is for users who are looking, push for those who aren't: no live connection, or no ack within a few seconds, means push. An ack on one device skips it for routine events, but a security alert pushes anyway.",
+        tween: 1400,
+        loop: true,
+      },
+    ],
+  },
+  {
+    id: "storm",
+    label: "Heartbeats & storms",
+    steps: [
+      {
+        caption:
+          "TCP keepalive waits 2 hours, but one carrier cut idle TCP at 255 seconds and an AWS ALB defaults to 60. Heartbeat every 25–30 s with jitter; the server closes after ~2.5 missed beats (75 s), the client after one missed pong or any network change.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "Losing a zone drops ~3.3M sockets. At an assumed ~1,000 admissions a second each, the 50 surviving nodes admit ~50,000/s, so spread evenly everyone is back in ~67 s; if every client retries within 1 s, that's ~66× capacity.",
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          'Clients back off with full jitter, first attempt included, and resume after their last sequence number instead of rebooting; gateways admit through token buckets and refuse cheaply with "retry after". A slow client gets a bounded queue, then a resumable close.',
+        tween: 1400,
+        loop: true,
+      },
+      {
+        caption:
+          "Deploy by draining: fail readiness, send reconnect hints to 1% of sockets every 6 s (about 10 minutes for 200,000), one node per zone at a time, with a grace period longer than the drain, which is where Discord's 2026 outage began.",
+        tween: 1400,
+        loop: true,
+      },
+    ],
+  },
+];
+
+export default defineExplainer({ w: W, h: H, variants: V, Scene });

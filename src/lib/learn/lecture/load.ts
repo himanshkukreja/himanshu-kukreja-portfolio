@@ -70,7 +70,7 @@ export type LectureSummary = {
 };
 
 /**
- * Every released (v2) lecture in course order: weeks 0–10 (preview, days, boss), then the side
+ * Every released (v2) lecture in course order: weeks 0–11 (preview, days, boss), then the side
  * quests, the interview problems, low-level design and the case files (oldest first). Also the order
  * "up next" follows.
  */

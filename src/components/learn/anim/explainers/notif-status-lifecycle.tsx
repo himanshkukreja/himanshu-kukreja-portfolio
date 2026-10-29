@@ -1,43 +1,140 @@
 /**
- * Notification status state machine (week 6, day 2 · 7.1 / 7.2): one notification walks the
- * valid transitions. Delivered: PENDING → QUEUED (outbox) → ROUTING (router) → SENDING (channel
- * topic) → SENT (provider accepted) → DELIVERED (callback) → READ. Bounce: SENT → BOUNCED, which
- * has no way out. Retry: SENDING → FAILED → QUEUED and round again.
+ * The status of one channel task (week 6, day 2 · 7.3 status tracking): PENDING → QUEUED (outbox
+ * published) → ROUTING (router picked it up) → SENDING (channel task created) → SENT (provider
+ * accepted) → DELIVERED (provider or device receipt) → READ (opened in the app). ROUTING can end in
+ * SUPPRESSED (a preference, cap or quiet-hours drop); SENDING in EXPIRED (expires_at passed) or
+ * FAILED (retries exhausted, to the DLQ), which a redrive moves back to QUEUED; a bounce callback
+ * moves SENT to BOUNCED.
  */
 import { defineExplainer, lerp, Token, Txt, Wire, type SceneProps, type Tone } from "../kit";
 
 const W = 600;
-const H = 320;
-const BW = 120;
+const H = 340;
+const BW = 132;
 const BH = 40;
-type S = "PENDING" | "QUEUED" | "ROUTING" | "SENDING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "BOUNCED";
+type S = "PENDING" | "QUEUED" | "ROUTING" | "SENDING" | "SUPPRESSED" | "EXPIRED" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "BOUNCED";
+const CX = [12, 156, 300, 444];
+const RY = [20, 90, 160, 230];
 const POS: Record<S, { x: number; y: number }> = {
-  PENDING: { x: 24, y: 30 },
-  QUEUED: { x: 168, y: 30 },
-  ROUTING: { x: 312, y: 30 },
-  SENDING: { x: 456, y: 30 },
-  FAILED: { x: 168, y: 140 },
-  BOUNCED: { x: 312, y: 140 },
-  SENT: { x: 456, y: 140 },
-  READ: { x: 312, y: 250 },
-  DELIVERED: { x: 456, y: 250 },
+  SUPPRESSED: { x: CX[2], y: RY[0] },
+  EXPIRED: { x: CX[3], y: RY[0] },
+  PENDING: { x: CX[0], y: RY[1] },
+  QUEUED: { x: CX[1], y: RY[1] },
+  ROUTING: { x: CX[2], y: RY[1] },
+  SENDING: { x: CX[3], y: RY[1] },
+  FAILED: { x: CX[1], y: RY[2] },
+  BOUNCED: { x: CX[2], y: RY[2] },
+  SENT: { x: CX[3], y: RY[2] },
+  READ: { x: CX[2], y: RY[3] },
+  DELIVERED: { x: CX[3], y: RY[3] },
 };
-const TONE: Record<S, Tone> = { PENDING: "sky", QUEUED: "sky", ROUTING: "sky", SENDING: "lit", SENT: "ok", DELIVERED: "ok", READ: "ok", FAILED: "bad", BOUNCED: "bad" };
+const TONE: Record<S, Tone> = {
+  PENDING: "sky",
+  QUEUED: "sky",
+  ROUTING: "sky",
+  SENDING: "lit",
+  SENT: "ok",
+  DELIVERED: "ok",
+  READ: "ok",
+  SUPPRESSED: "warn",
+  FAILED: "bad",
+  BOUNCED: "bad",
+  EXPIRED: "bad",
+};
 const c = (s: S) => ({ x: POS[s].x + BW / 2, y: POS[s].y + BH / 2 });
 
 /** the drawn edges: [from, to, path through these points] */
 const EDGES: [S, S, [number, number][]][] = [
-  ["PENDING", "QUEUED", [[144, 50], [168, 50]]],
-  ["QUEUED", "ROUTING", [[288, 50], [312, 50]]],
-  ["ROUTING", "SENDING", [[432, 50], [456, 50]]],
-  ["SENDING", "SENT", [[516, 70], [516, 140]]],
-  ["SENDING", "BOUNCED", [[476, 70], [404, 140]]],
-  ["SENDING", "FAILED", [[466, 70], [466, 104], [258, 104], [258, 140]]],
-  ["SENT", "BOUNCED", [[456, 160], [432, 160]]],
-  ["SENT", "DELIVERED", [[516, 180], [516, 250]]],
-  ["SENT", "FAILED", [[466, 180], [466, 214], [228, 214], [228, 180]]],
-  ["DELIVERED", "READ", [[456, 270], [432, 270]]],
-  ["FAILED", "QUEUED", [[198, 140], [198, 70]]],
+  [
+    "PENDING",
+    "QUEUED",
+    [
+      [144, 110],
+      [156, 110],
+    ],
+  ],
+  [
+    "QUEUED",
+    "ROUTING",
+    [
+      [288, 110],
+      [300, 110],
+    ],
+  ],
+  [
+    "ROUTING",
+    "SENDING",
+    [
+      [432, 110],
+      [444, 110],
+    ],
+  ],
+  [
+    "ROUTING",
+    "SUPPRESSED",
+    [
+      [366, 90],
+      [366, 60],
+    ],
+  ],
+  [
+    "SENDING",
+    "EXPIRED",
+    [
+      [510, 90],
+      [510, 60],
+    ],
+  ],
+  [
+    "SENDING",
+    "SENT",
+    [
+      [510, 130],
+      [510, 160],
+    ],
+  ],
+  [
+    "SENDING",
+    "FAILED",
+    [
+      [462, 130],
+      [462, 145],
+      [240, 145],
+      [240, 160],
+    ],
+  ],
+  [
+    "SENT",
+    "BOUNCED",
+    [
+      [444, 180],
+      [432, 180],
+    ],
+  ],
+  [
+    "SENT",
+    "DELIVERED",
+    [
+      [510, 200],
+      [510, 230],
+    ],
+  ],
+  [
+    "DELIVERED",
+    "READ",
+    [
+      [444, 250],
+      [432, 250],
+    ],
+  ],
+  [
+    "FAILED",
+    "QUEUED",
+    [
+      [200, 160],
+      [200, 130],
+    ],
+  ],
 ];
 const pathD = (pts: [number, number][]) => pts.map(([x, y], i) => `${i ? "L" : "M"}${x} ${y}`).join("");
 
@@ -55,40 +152,43 @@ function along(pts: { x: number; y: number }[], p: number) {
   return pts[pts.length - 1];
 }
 
-/** each step: the states it walks through, with the trigger shown for that hop */
+/** each step: the hops it makes, with the trigger for each; `from` starts a new task at that state */
 type Hop = { to: S; why: string };
-const PLAN: Record<string, { start: S; steps: Hop[][] }> = {
-  delivered: {
-    start: "PENDING",
-    steps: [
-      [
-        { to: "QUEUED", why: "written to outbox" },
-        { to: "ROUTING", why: "consumed by router" },
+type Step = { from?: S; hops: Hop[] };
+const PLAN: Record<string, Step[]> = {
+  delivered: [
+    {
+      from: "PENDING",
+      hops: [
+        { to: "QUEUED", why: "outbox published" },
+        { to: "ROUTING", why: "router picked it up" },
       ],
-      [{ to: "SENDING", why: "published to channel topic" }],
-      [{ to: "SENT", why: "provider accepted" }],
-      [
-        { to: "DELIVERED", why: "provider callback" },
-        { to: "READ", why: "user interaction" },
+    },
+    { hops: [{ to: "SENDING", why: "channel task created" }] },
+    { hops: [{ to: "SENT", why: "provider accepted" }] },
+    {
+      hops: [
+        { to: "DELIVERED", why: "provider or device receipt" },
+        { to: "READ", why: "opened in the app" },
       ],
-    ],
-  },
-  bounce: {
-    start: "SENDING",
-    steps: [[{ to: "SENT", why: "SendGrid accepted" }], [{ to: "BOUNCED", why: "bounce webhook" }]],
-  },
-  retry: {
-    start: "SENDING",
-    steps: [
-      [{ to: "FAILED", why: "provider call failed" }],
-      [{ to: "QUEUED", why: "retry" }],
-      [
-        { to: "ROUTING", why: "consumed by router" },
-        { to: "SENDING", why: "published to channel topic" },
+    },
+  ],
+  skipped: [
+    { from: "ROUTING", hops: [{ to: "SUPPRESSED", why: "preference, cap or quiet-hours drop" }] },
+    { from: "SENDING", hops: [{ to: "EXPIRED", why: "expires_at passed" }] },
+  ],
+  bounce: [{ from: "SENDING", hops: [{ to: "SENT", why: "provider accepted" }] }, { hops: [{ to: "BOUNCED", why: "bounce callback" }] }],
+  retry: [
+    { from: "SENDING", hops: [{ to: "FAILED", why: "retries exhausted, to the DLQ" }] },
+    { hops: [{ to: "QUEUED", why: "redrive" }] },
+    {
+      hops: [
+        { to: "ROUTING", why: "router picked it up" },
+        { to: "SENDING", why: "channel task created" },
         { to: "SENT", why: "provider accepted" },
       ],
-    ],
-  },
+    },
+  ],
 };
 
 function edgePts(a: S, b: S) {
@@ -99,17 +199,29 @@ function edgePts(a: S, b: S) {
 
 function Scene({ variant, step, t, narrow }: SceneProps) {
   const plan = PLAN[variant] || PLAN.delivered;
-  // where the notification was at the start of this step, and which hops it makes now
-  let cur: S = plan.start;
-  const visited = new Set<S>([cur]);
-  const walked = new Set<string>();
-  for (let i = 0; i < step; i++)
-    for (const h of plan.steps[i] || []) {
+  const st = plan[Math.min(step, plan.length - 1)];
+  // where the task was at the start of this step, and what it has been through
+  let cur: S = plan[0].from || "PENDING";
+  let visited = new Set<S>([cur]);
+  let walked = new Set<string>();
+  for (let i = 0; i < Math.min(step, plan.length - 1); i++) {
+    if (plan[i].from && i > 0) {
+      cur = plan[i].from!;
+      visited = new Set([cur]);
+      walked = new Set();
+    }
+    for (const h of plan[i].hops) {
       walked.add(`${cur}-${h.to}`);
       cur = h.to;
       visited.add(cur);
     }
-  const hops = plan.steps[step] || [];
+  }
+  if (st.from && step > 0) {
+    cur = st.from;
+    visited = new Set([cur]);
+    walked = new Set();
+  }
+  const hops = st.hops;
   const n = hops.length;
   const pos = Math.min(n, t * n); // hops done (fractional)
   const k = Math.min(n - 1, Math.floor(pos));
@@ -123,8 +235,7 @@ function Scene({ variant, step, t, narrow }: SceneProps) {
   }
   if (p >= 1) visited.add(hop.to);
   const tok = hop && p > 0 && p < 1 ? along(edgePts(from, hop.to), p) : null;
-  const why = hop ? hop.why : "";
-  const final = at === "BOUNCED" || at === "READ";
+  const final = at === "READ" || at === "SUPPRESSED" || at === "EXPIRED" || at === "BOUNCED";
   return (
     <g>
       {EDGES.map(([a, b, pts]) => {
@@ -138,7 +249,7 @@ function Scene({ variant, step, t, narrow }: SceneProps) {
         return (
           <g key={s} opacity={on || seen ? 1 : 0.42}>
             <rect x={POS[s].x} y={POS[s].y} width={BW} height={BH} className={`ax-box${on ? ` ${TONE[s]}` : ""}`} />
-            <Txt x={POS[s].x + BW / 2} y={POS[s].y + 25} k="t" tone={on ? TONE[s] : seen ? undefined : "mute"}>
+            <Txt x={POS[s].x + BW / 2} y={POS[s].y + 25} k={narrow ? "s" : "t"} tone={on ? TONE[s] : seen ? undefined : "mute"}>
               {s}
             </Txt>
           </g>
@@ -146,20 +257,12 @@ function Scene({ variant, step, t, narrow }: SceneProps) {
       })}
       {tok && <Token x={tok.x} y={tok.y} s={10} tone="lit" />}
       {/* the trigger for the current hop */}
-      <Txt x={24} y={262} k="k" anchor="start" tone="mute">
-        transition
+      <Txt x={24} y={298} k="t" anchor="start" tone="lit">
+        {hop ? `${from} → ${hop.to}` : ""}
       </Txt>
-      <Txt x={24} y={286} k="s" anchor="start" tone="lit">
-        {hop ? `${narrow ? "" : `${from} → `}${hop.to}` : ""}
+      <Txt x={24} y={322} k="s" anchor="start">
+        {hop ? `${hop.why}${final && p >= 1 ? " · final" : ""}` : ""}
       </Txt>
-      <Txt x={24} y={308} k="s" anchor="start">
-        {why}
-      </Txt>
-      {final && (
-        <Txt x={POS[at].x + BW / 2} y={POS[at].y + BH + 22} k="s" tone={at === "BOUNCED" ? "bad" : "ok"}>
-          {at === "BOUNCED" ? "no way out" : "done"}
-        </Txt>
-      )}
     </g>
   );
 }
@@ -178,27 +281,39 @@ export default defineExplainer({
       id: "delivered",
       label: "Delivered",
       steps: [
-        { caption: "PENDING becomes QUEUED when written to the outbox, then ROUTING once the router consumes it.", tween: 2200 },
-        { caption: "Published to its channel topic, it is SENDING while the worker calls the provider.", tween: 1200 },
-        { caption: "The provider accepts it: SENT. Accepted, not yet confirmed on the device or inbox.", tween: 1200 },
-        { caption: "A provider callback moves it to DELIVERED; a user interaction later makes it READ.", tween: 2200, ms: 3400 },
+        { caption: "A channel task starts PENDING, becomes QUEUED once the outbox relay has published it, and ROUTING when the router picks it up.", tween: 2200 },
+        { caption: "Preferences, caps and quiet hours pass, so the router creates the channel task: SENDING while the worker calls the provider.", tween: 1200 },
+        { caption: "The provider accepts it: SENT. That means accepted, nothing more; FCM's HTTP v1 API has no per-message delivery callback.", tween: 1200 },
+        {
+          caption: "A receipt (an email delivery webhook, an SMS delivery report, or the app reporting the push) makes it DELIVERED; opening it in the app makes it READ. Webhooks are verified, and a transition only moves forward.",
+          tween: 2200,
+          ms: 3400,
+        },
+      ],
+    },
+    {
+      id: "skipped",
+      label: "Suppressed, expired",
+      steps: [
+        { caption: "Not every task is sent: a preference, frequency cap or quiet-hours check that fails ends ROUTING in SUPPRESSED, with the reason recorded.", tween: 1400 },
+        { caption: "Another task waits too long: once its expires_at has passed, SENDING ends in EXPIRED instead of delivering something worthless.", tween: 1400, ms: 3400 },
       ],
     },
     {
       id: "bounce",
       label: "Bounce",
       steps: [
-        { caption: "An email is SENDING, and SendGrid accepts it: SENT.", tween: 1200 },
-        { caption: "Then a bounce webhook arrives: SENT → BOUNCED. BOUNCED has no valid next state: it's final.", tween: 1400, ms: 3400 },
+        { caption: "An email is SENDING, and the provider accepts it: SENT.", tween: 1200 },
+        { caption: "Later a bounce callback arrives: SENT → BOUNCED. Accepted was never delivered.", tween: 1400, ms: 3400 },
       ],
     },
     {
       id: "retry",
-      label: "Retry",
+      label: "Failed, redriven",
       steps: [
-        { caption: "The provider call fails: SENDING → FAILED.", tween: 1400 },
-        { caption: "FAILED has exactly one valid next state, QUEUED: the retry.", tween: 1400 },
-        { caption: "It goes through ROUTING and SENDING again; this time the provider accepts it: SENT.", tween: 2600, ms: 3400 },
+        { caption: "The retries run out: SENDING → FAILED, and the task goes to its channel's dead letter queue.", tween: 1400 },
+        { caption: "A redrive moves FAILED back to QUEUED: it re-enters the pipeline, so it's deduped and re-checked for preferences and expiry.", tween: 1400 },
+        { caption: "Through ROUTING and SENDING again; this time the provider accepts it: SENT.", tween: 2600, ms: 3400 },
       ],
     },
   ],

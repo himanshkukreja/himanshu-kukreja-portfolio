@@ -128,7 +128,7 @@ export default function CheatSheet({ id, week, url, site }: { id?: string; week:
       </div>
       <footer className="cs-foot">
         <span>
-          <b>Free course:</b> {site}/learn · 11 worlds · interview bosses · 5-minute revision decks
+          <b>Free course:</b> {site}/learn · 12 worlds · interview bosses · 5-minute revision decks
         </span>
         <span>
           <em>{url}</em>

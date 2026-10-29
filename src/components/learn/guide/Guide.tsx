@@ -279,7 +279,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 <strong>A world is one week of the course</strong>
                 {s ? `: ${s.worlds} of them, from Week 00 Foundations to Week ${String(s.worlds - 1).padStart(2, "0")}` : ""}. A typical world has a Preview and {Math.max(1, lessonsPerWorld - 1)} day lessons, then a{" "}
                 <strong>boss</strong> (a timed mock interview, the diamond) and, for {trialWeeks.length ? trialWeeks.map((w) => `Week ${w.code}`).join(", ") : "some weeks"}, a <strong>trial</strong>: the week&apos;s multiple-choice questions split into parts (the T boxes).
-                Week 00 is different: six Foundations parts instead of days.
+                Week 00 is different: eight Foundations parts instead of days.
               </p>
               <p>
                 <strong>A lesson is split into stages</strong> (Part I, Part II… or Phase 1, 2… in a boss). Stages are how progress is saved: you resume by stage, not by scroll position.
@@ -292,7 +292,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 <strong>+{LEARN_XP.world} XP</strong> and that world&apos;s badge. On a phone, tap a world to open the same panel as a sheet.
               </p>
               <p>
-                <strong>Side quests</strong> ({s?.sideQuests ?? 33} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each, and each has a video lecture. The <strong>design sheets →</strong> link next to their title opens{" "}
+                <strong>Side quests</strong> ({s?.sideQuests ?? 36} of them) are real systems designed end to end: UPI, WhatsApp, Netflix, Uber and more. They are bonus problems, open any time, worth +{LEARN_XP.sideQuest} XP each, and each has a video lecture. The <strong>design sheets →</strong> link next to their title opens{" "}
                 <a href="#practice-sheets" className="text-signal-text underline underline-offset-4">
                   every side quest&apos;s design sheet
                 </a>
@@ -302,7 +302,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
                 The classic interview problems and low-level design live in the <a href="#practice-companies" className="text-signal-text underline underline-offset-4">Prep tab</a>, next to the company pages. Under the side quests,{" "}
                 <strong>Beyond the course</strong> points to Prep, the Arena and War stories, plus <A href="/learn/concepts">concepts A–Z</A> (every concept with its own page: definition, key points, the lessons that teach it, related
                 concepts), the reading trail and the design sheets. Below that, <strong>Read offline</strong> saves the whole course or opens the{" "}
-                <a href="#offline" className="text-signal-text underline underline-offset-4">offline library</a>, and the dashed card at the bottom, <strong>The Plan</strong>, is the 10-week roadmap.
+                <a href="#offline" className="text-signal-text underline underline-offset-4">offline library</a>, and the dashed card at the bottom, <strong>The Plan</strong>, is the 11-week roadmap.
               </p>
             </div>
             <Shot id="hub-side" />
@@ -408,7 +408,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             n="03"
             kicker="video lectures"
             title="Watch it: an animated lecture for everything"
-            lead="Every lesson in Weeks 0–10, every side quest, interview problem, low-level design article and case file has a narrated, animated lecture: the same ideas, drawn as they are explained. Every mock interview has a recorded model round."
+            lead="Every lesson in Weeks 0–11, every side quest, interview problem, low-level design article and case file has a narrated, animated lecture: the same ideas, drawn as they are explained. Every mock interview has a recorded model round."
           >
             <div className={PROSE}>
               <p>
@@ -1291,7 +1291,8 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
               <p>
                 <strong>What counts.</strong> Lessons count once they&apos;re completed in your account. Trial parts count from your saved attempts: the answers are marked again on the server against the answer key, so a part counts only if
                 those answers really reach {CERT_PASS_PCT}%. If an older pass doesn&apos;t (the questions changed since), the checklist says so: retake that part. Capstones count once you&apos;ve completed reading them. Bosses count when you win them in boss mode. A mock interview counts
-                when its scorecard (you score yourself against the levelled rubric) comes out at Hire or Strong hire; the course certificate needs {CERT_MOCKS} different ones.
+                when its scorecard (you score yourself against the levelled rubric) comes out at Hire or Strong hire; the course certificate needs {CERT_MOCKS} different ones. When the course grows (a new world, or new lessons in a world), a
+                certificate already issued stays valid as it is, with the numbers it was earned on; a claim made after that needs the new lessons too.
               </p>
               <p>
                 <strong>Claiming.</strong> Press <strong>Claim my certificate</strong>, check the name (2–{CERT_NAME_MAX} characters, letters, spaces, apostrophes, hyphens and periods; it&apos;s signed into the certificate and can&apos;t be

@@ -141,71 +141,86 @@ export const QUEST_DIFFICULTY: Record<string, QuestDifficulty> = {
     rank: 20,
     why: "Versioned midnight flip, per-deal token queues, expiring stock holds, UNKNOWN payments",
   },
-  "bonus-15-figma-multiplayer": {
+  "bonus-35-fastag-electronic-tolling": {
     level: 4,
     rank: 21,
+    why: "Offline lane decisions on signed tags, one txn id end to end, stale-list liability, netting",
+  },
+  "bonus-34-amazon-prime-day-checkout": {
+    level: 4,
+    rank: 22,
+    why: "Tagged-line cart merges, purchase-id placement, deal sub-counters, cells and shuffle shards",
+  },
+  "bonus-15-figma-multiplayer": {
+    level: 4,
+    rank: 23,
     why: "One owner process per file, per-property LWW, fenced journal, fractional index, handoff",
   },
   "bonus-13-zerodha-kite-trading": {
     level: 4,
-    rank: 22,
+    rank: 24,
     why: "Orders UNKNOWN until reconciled, partitioned in-memory margin, tick fan-out, Little's law",
   },
   "bonus-28-gmail-email-at-scale": {
     level: 4,
-    rank: 23,
+    rank: 25,
     why: "Quorum write before 250 OK, deferral backpressure, spam cascade, DMARC, erasure-coded mail",
   },
   "bonus-24-airbnb-stays-marketplace": {
     level: 4,
-    rank: 24,
+    rank: 26,
     why: "Filtered vector retrieval, external iCal calendars, signed quotes, hold-and-payout ledger",
   },
   "bonus-22-google-maps": {
     level: 4,
-    rank: 25,
+    rank: 27,
     why: "CRP partition-overlay routing, HMM map matching from probes, time-dependent ETAs",
   },
   "bonus-20-google-docs-collaboration": {
     level: 4,
-    rank: 26,
+    rank: 28,
     why: "Server-ordered OT transforms, fenced revision log, composing days of offline edits",
   },
 
   // ── Level 5 · Expert: real-time media, consensus, ML loops, cross-company and matching ──
   "bonus-31-discord-voice-and-servers": {
     level: 5,
-    rank: 27,
+    rank: 29,
     why: "One process per guild with relays, gateway backpressure, lazy member lists, SFU voice",
+  },
+  "bonus-36-slack-workspace-messaging": {
+    level: 5,
+    rank: 30,
+    why: "Channel-hashed routing, two-hop fan-out, shared-channel tenancy, Kafka-fronted jobs, scoped search",
   },
   "bonus-25-dream11-fantasy-sports": {
     level: 5,
-    rank: 28,
+    rank: 31,
     why: "Forecast spike, sharded spot counters, single lock flip, per-ball ranks, keyed ledger",
   },
   "bonus-23-zoom-video-meetings": {
     level: 5,
-    rank: 29,
+    rank: 32,
     why: "SFU forwarding, simulcast/SVC per receiver, UDP loss recovery, cascades, fenced controller",
   },
   "bonus-29-github-code-hosting": {
     level: 5,
-    rank: 30,
+    rank: 33,
     why: "Quorum writes per reference, push-event fan-out, isolated fair CI, n-gram code search",
   },
   "bonus-30-tiktok-for-you-feed": {
     level: 5,
-    rank: 31,
+    rank: 34,
     why: "Online training loop, collisionless embeddings, minute-level parameter sync, late labels",
   },
   "bonus-32-ondc-open-commerce": {
     level: 5,
-    rank: 32,
+    rank: 35,
     why: "Signed async protocol between companies, two-DB orders, cascade cancels, settlement",
   },
   "bonus-33-nse-stock-exchange": {
     level: 5,
-    rank: 33,
+    rank: 36,
     why: "Sequencer + deterministic matching, output-gated replication, multicast fairness, DR halts",
   },
 };

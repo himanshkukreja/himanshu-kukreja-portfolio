@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 export const revalidate = 86400;
 
 const title = "Every cheat sheet, one PDF · System Design Mastery";
-const description = "All eleven worlds' one-page cheat sheets in a single printable document: key ideas, numbers to remember, trade-offs and classic mistakes. Free.";
+const description = "All twelve worlds' one-page cheat sheets in a single printable document: key ideas, numbers to remember, trade-offs and classic mistakes. Free.";
 export const metadata = { title, description, alternates: { canonical: "/learn/cheatsheet/all" }, openGraph: { title, description, type: "article" } };
 
 /** The interview-night pack: every world's cheat sheet, one sheet per printed page. */
