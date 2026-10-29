@@ -5,6 +5,7 @@
  * drop-off between consecutive lessons), week completion, per-lesson table, stage drop-off for one
  * lesson, hardest MCQ questions, and when people learn (day × hour).
  */
+import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
@@ -26,6 +27,7 @@ import {
 } from "@/components/admin/ui";
 import type { CourseAnalytics, CourseLessonStat, StageDropoff } from "@/lib/admin/learners/types";
 import { browserTz, cx, fmtMinutes } from "@/components/admin/learners/bits";
+import CourseTabs from "./CourseTabs";
 
 const RANGE_LABEL: Record<Range, string> = { "24h": "24 h", "7d": "7 days", "30d": "30 days", "90d": "90 days", "12m": "12 months" };
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -67,6 +69,7 @@ export default function CoursePage() {
         sub={<>How learners move through System Design Mastery. Funnel and lesson numbers are all-time for signed-in learners; guest readers, views and the activity heatmap use the last {RANGE_LABEL[range]}.</>}
         actions={<RangePicker fallback="30d" />}
       />
+      <CourseTabs />
       {error ? (
         <ErrorState error={error} onRetry={refresh} title="Course analytics unavailable" />
       ) : (
@@ -364,7 +367,18 @@ function StagesCard({ data, selKey, onPick, tz }: { data?: CourseAnalytics; selK
   const { data: st, error, refresh } = useAdminData<StageDropoff>(key ? `/api/admin/course/stages?week=${encodeURIComponent(week)}&lesson=${encodeURIComponent(slug)}&tz=${encodeURIComponent(tz)}` : null);
   const max = st ? Math.max(1, ...st.stages.map((s) => s.reached)) : 1;
   return (
-    <Card id="stages" label="stages" title={st?.title ? `Stage drop-off · ${st.title}` : "Stage drop-off"}>
+    <Card
+      id="stages"
+      label="stages"
+      title={st?.title ? `Stage drop-off · ${st.title}` : "Stage drop-off"}
+      action={
+        key ? (
+          <Link href={`/admin/course/dropoff?lesson=${encodeURIComponent(key)}`} className="min-h-9 content-center font-mono text-[11px] text-fg-3 underline underline-offset-4 hover:text-fg">
+            by section, with time →
+          </Link>
+        ) : undefined
+      }
+    >
       {data && (
         <label className="mb-3 flex flex-col gap-1.5">
           <span className={LABEL}>lesson</span>
