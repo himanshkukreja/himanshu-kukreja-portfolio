@@ -14,6 +14,8 @@ type El = {
   startBinding?: { elementId: string } | null;
   endBinding?: { elementId: string } | null;
   groupIds?: string[];
+  /** a library block's container: `{ kind: "sql-db" }` (src/lib/learn/board/library.ts) */
+  customData?: { kind?: string } | null;
 };
 
 /** elements, plus the icon images the blocks use (file id → Excalidraw file data) */
@@ -31,29 +33,76 @@ export function parseSketch(raw: string | undefined | null): Sketch | null {
 
 const clean = (t: string) => t.replace(/\s+/g, " ").trim();
 
+/** What each library kind is called, for "Orders DB (SQL database)". Kept here so this file stays plain data. */
+const KINDS: Record<string, string> = {
+  "web-client": "web client",
+  "mobile-client": "mobile client",
+  "desktop-client": "desktop client",
+  device: "IoT device",
+  users: "users",
+  "third-party": "third-party client",
+  dns: "DNS",
+  cdn: "CDN",
+  "load-balancer": "load balancer",
+  "api-gateway": "API gateway",
+  waf: "WAF / rate limiter",
+  service: "service",
+  worker: "worker",
+  function: "serverless function",
+  scheduler: "scheduler",
+  "sql-db": "SQL database",
+  "nosql-db": "NoSQL / KV store",
+  cache: "cache",
+  "search-index": "search index",
+  "object-storage": "object storage",
+  warehouse: "data warehouse",
+  "vector-db": "vector DB",
+  queue: "queue",
+  stream: "stream / log",
+  pubsub: "pub/sub topic",
+  dlq: "dead-letter queue",
+  auth: "auth / IdP",
+  secrets: "config / secrets",
+  monitoring: "monitoring",
+  "external-api": "external API",
+  "payment-gateway": "payment gateway",
+};
+
+const SHAPES = ["rectangle", "ellipse", "diamond"];
+
 /** "Boxes: …" and "Arrows: A → B" lines; empty when nothing meaningful is drawn. */
 export function sketchSummary(raw: string | undefined | null): string {
   const s = parseSketch(raw);
   if (!s) return "";
   const live = s.elements.filter((e) => !e.isDeleted);
   const byId = new Map(live.map((e) => [e.id, e]));
+  const ownText = (e: El) => {
+    const t = (e.boundElements || []).map((b) => byId.get(b.id)).find((x) => x?.type === "text");
+    return t ? clean(t.text || "") : "";
+  };
   // a shape's label is the text element bound to it
   const label = (id: string | undefined | null): string => {
     if (!id) return "";
     const e = byId.get(id);
     if (!e) return "";
     if (e.type === "text") return clean(e.text || "");
-    // a block's icon: name it by the labelled shape in its group
-    if (e.type === "image" && e.groupIds?.length) {
+    const own = ownText(e);
+    if (own) return own;
+    // part of a block (its icon, a cylinder's lid, a stacked plate…): name it by the labelled shape in its group
+    if (e.groupIds?.length && e.type !== "arrow") {
       const g = e.groupIds[e.groupIds.length - 1];
-      const owner = live.find((x) => x.id !== e.id && x.groupIds?.includes(g) && ["rectangle", "ellipse", "diamond"].includes(x.type));
-      if (owner) return label(owner.id);
+      const owner = live.find((x) => x.id !== e.id && x.groupIds?.includes(g) && SHAPES.includes(x.type) && ownText(x));
+      if (owner) return ownText(owner);
     }
-    const t = (e.boundElements || []).map((b) => byId.get(b.id)).find((x) => x?.type === "text");
-    return t ? clean(t.text || "") : `(${e.type})`;
+    return `(${e.type})`;
   };
-  const shapes = live.filter((e) => ["rectangle", "ellipse", "diamond"].includes(e.type));
-  const boxes = shapes.map((e) => label(e.id)).filter((t) => t && !t.startsWith("("));
+  // a labelled shape, with its library kind when the label doesn't already say it
+  const box = (e: El) => {
+    const l = ownText(e);
+    const k = e.customData?.kind ? KINDS[e.customData.kind] : "";
+    return k && !l.toLowerCase().includes(k.toLowerCase()) ? `${l} (${k})` : l;
+  };
+  const boxes = live.filter((e) => SHAPES.includes(e.type) && ownText(e)).map(box);
   const arrows = live
     .filter((e) => e.type === "arrow" || e.type === "line")
     .map((a) => {

@@ -21,9 +21,9 @@ import { AI_PRIVACY } from "@/components/learn/ai/AskLessonPanel";
 import { setAiCredits, useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { track } from "@/lib/track";
 
-const BoardCanvas = dynamic(() => import("@/components/learn/mock/BoardCanvas"), {
+const BoardCanvas = dynamic(() => import("@/components/learn/board/BoardCanvas"), {
   ssr: false,
-  loading: () => <div className="grid h-[min(560px,68vh)] place-items-center border border-line-strong font-mono text-xs text-fg-3">loading the whiteboard…</div>,
+  loading: () => <div className="grid h-[min(680px,calc(100dvh-150px))] min-h-[440px] place-items-center border border-line-strong font-mono text-xs text-fg-3">loading the whiteboard…</div>,
 });
 
 type Prompt = { title: string; group: string; href: string; brief: string } | null;

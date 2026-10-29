@@ -1,0 +1,65 @@
+/* The whiteboard (design canvas + mock interview room). */
+
+/* Excalidraw's accent is purple; the site's is signal orange (both themes). */
+.hk-board .excalidraw,
+.hk-board .excalidraw.theme--dark {
+  --color-primary: #ea580c;
+  --color-primary-darker: #c2410c;
+  --color-primary-darkest: #9a3412;
+  --color-primary-hover: #f97316;
+  --color-primary-light: #ffe8db;
+  --color-primary-light-darker: #ffd3b8;
+  --color-brand-hover: #f97316;
+  --color-brand-active: #c2410c;
+  --color-selection: #ea580c;
+  --color-surface-primary-container: #ffe8db;
+  --color-on-primary-container: #7c2d12;
+  --button-hover-bg: #fff1e8;
+}
+.hk-board .excalidraw.theme--dark {
+  --color-primary: #ff8a4c;
+  --color-primary-darker: #ff7a33;
+  --color-primary-darkest: #ff6b2b;
+  --color-primary-hover: #ff9c66;
+  --color-primary-light: #4a2a1a;
+  --color-primary-light-darker: #5a3220;
+  --color-brand-hover: #ff9c66;
+  --color-brand-active: #ffb187;
+  --color-selection: #ff6b2b;
+  --color-surface-primary-container: #4a2a1a;
+  --color-on-primary-container: #ffd8c2;
+  --button-hover-bg: #2a1c14;
+}
+
+/* Clutter off: Excalidraw's own (empty) library button — the component panel replaces it. */
+.hk-board .default-sidebar-trigger {
+  display: none !important;
+}
+/* The tool hint line under the toolbar crowds a narrow board. */
+.hk-board .hk-board-narrow .HintViewer {
+  display: none;
+}
+
+/* Component tiles and swatches: the category colour, per site theme (set as --tone-l / --tone-d). */
+.hk-tone {
+  color: var(--tone-l);
+  border-color: color-mix(in srgb, var(--tone-l) 45%, transparent);
+}
+.dark .hk-tone {
+  color: var(--tone-d);
+  border-color: color-mix(in srgb, var(--tone-d) 45%, transparent);
+}
+.hk-tile {
+  background: color-mix(in srgb, currentColor 13%, transparent);
+}
+.hk-board [data-board-panel] {
+  user-select: none;
+  -webkit-user-select: none;
+}
+.hk-board [data-board-panel] input {
+  user-select: text;
+  -webkit-user-select: text;
+}
+.hk-board-list {
+  scrollbar-width: thin;
+}

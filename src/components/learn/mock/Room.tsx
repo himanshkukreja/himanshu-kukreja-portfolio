@@ -16,9 +16,9 @@ import { words } from "@/lib/learn/mock/score";
 import { Avatar, CourseHtml, InlineHtml, LABEL, Pad } from "./ui";
 
 // the drawing board is a big library: load it only when the whiteboard tab is opened
-const BoardCanvas = dynamic(() => import("./BoardCanvas"), {
+const BoardCanvas = dynamic(() => import("@/components/learn/board/BoardCanvas"), {
   ssr: false,
-  loading: () => <div className="grid h-[min(560px,68vh)] place-items-center border border-line-strong font-mono text-xs text-fg-3">loading the whiteboard…</div>,
+  loading: () => <div className="grid h-[min(680px,calc(100dvh-150px))] min-h-[440px] place-items-center border border-line-strong font-mono text-xs text-fg-3">loading the whiteboard…</div>,
 });
 
 type Props = {
@@ -533,7 +533,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
             right={<span className="font-mono text-xs text-fg-3">{w} words</span>}
           />
         </div>
-        <div role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden={tab !== "board"} className={tab === "board" ? "flex flex-col gap-2" : "hidden"}>
+        <div role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden={tab !== "board"} className={tab === "board" ? "flex flex-col gap-2 [--hk-board-reserve:88px]" : "hidden"}>
           {tab === "board" && <BoardCanvas value={run.sketch || ""} onChange={setSketch} />}
           <Pad
             id="mock-board"
