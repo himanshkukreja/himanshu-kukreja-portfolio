@@ -47,6 +47,8 @@ export type AiRequest = {
   adminPreview?: boolean;
   /** the learner's own Anthropic key (bring your own key): their cost, so no budget or daily limits; never stored */
   userKey?: string | null;
+  /** give up after this long (logged as an error; the caller shows its non-AI fallback) */
+  timeoutMs?: number;
 };
 
 /** A plausible Anthropic key from the x-anthropic-key header, or null. */
@@ -159,6 +161,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
       body: JSON.stringify({ model, max_tokens: maxTokens, ...(!thinks && canSkip ? { thinking: { type: "between_tools" } } : {}), system, messages: req.messages }),
+      ...(req.timeoutMs ? { signal: AbortSignal.timeout(req.timeoutMs) } : {}),
     });
     const latency = Date.now() - t0;
     const requestId = res.headers.get("request-id");

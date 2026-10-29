@@ -67,7 +67,7 @@ export default function FollowUpDrills({ drills, title }: { drills: QuestDrills;
   };
 
   return (
-    <section aria-labelledby={`${uid}-h`} className="flex flex-col gap-3">
+    <section id="follow-up-drills" aria-labelledby={`${uid}-h`} className="flex scroll-mt-24 flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <h2 id={`${uid}-h`} className="m-0 font-mono text-xs uppercase tracking-label text-fg-3">
           Follow-up drills

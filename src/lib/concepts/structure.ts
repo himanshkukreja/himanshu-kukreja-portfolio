@@ -29,8 +29,8 @@ const NUMBERED_RE = /^(\d+(?:\.\d+)+)\.?\s+(.*)$/;
 const QUESTION_RE = /^Question\s+(\d+)\s*[:.]\s*(.*)$/i;
 const PREVIEW_CH_RE = /^(Concept|Day)\s+(\d+)\s*[:.–—-]\s*(.*)$/i;
 
-/** detect/blocks.ts headingId, base id only. */
-function headingBase(clean: string): string {
+/** detect/blocks.ts headingId, base id only (also used by smart search's section index). */
+export function headingBase(clean: string): string {
   let m = clean.match(CHAPTER_RE);
   if (m) return `ch-${m[1]}-${slugify(m[2], 48)}`.replace(/-$/, "");
   m = clean.match(NUMBERED_RE);

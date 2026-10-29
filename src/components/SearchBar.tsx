@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { Search } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 import Fuse from "fuse.js";
 import type { LearningResource } from "@/lib/github";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,9 +22,11 @@ import { supabaseClient } from "@/lib/supabase-client";
 import { track } from "@/lib/track";
 import { InlineLoader } from "@/components/ui/loader";
 import { TRANSCRIPT_SHORT, TRANSCRIPT_UNTIMED, type TranscriptIndex } from "@/lib/learn/lecture/transcript";
+import { useSmartAccess } from "@/components/learn/search/useSmartAccess";
+import { isNaturalQuery } from "@/lib/search/smart/text";
 
 type Doc = LearningResource & { content?: string; excerpt?: string };
-type Group = "companies" | "lessons" | "cases" | "transcripts" | "questions" | "notes";
+type Group = "ask" | "companies" | "lessons" | "cases" | "transcripts" | "questions" | "notes";
 type CaseDoc = { slug: string; title: string; excerpt: string; content: string };
 type CompanyDoc = { slug: string; name: string; category: string; builds: string; focus: string; questions: string; count: number; reported: number };
 type Hit = {
@@ -223,6 +225,8 @@ type NoteRow = { id: string; week: string; lesson_slug: string; note_text: strin
 function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { user } = useAuth();
+  // smart search (/learn/search): an "Ask" row, for admins only until it launches (lib/search/smart/flag.ts)
+  const smart = useSmartAccess() === "open";
   const [docs, setDocs] = useState<Doc[] | null>(null);
   const [cases, setCases] = useState<CaseDoc[]>([]);
   const [companies, setCompanies] = useState<CompanyDoc[]>([]);
@@ -418,13 +422,20 @@ function Palette({ onClose }: { onClose: () => void }) {
       href: `/learn/prep/companies/${c.slug}`,
     }));
     const tHits: Hit[] = transcripts && typeof transcripts === "object" ? searchTranscripts(transcripts, t) : [];
+    const askHits: Hit[] =
+      smart && t.length >= 2
+        ? [{ id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "Smart search: the whole course, plus a learning path in order", href: `/learn/search?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` }]
+        : [];
+    const askFirst = isNaturalQuery(t);
     // same order as `groups` below: the list's selection index runs through them in this order
-    return { hits: [...coHits, ...lessonHits, ...cHits, ...tHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
-  }, [q, docs, fuse, caseFuse, companyFuse, questions, notes, titleOf, transcripts]);
+    const rest = [...coHits, ...lessonHits, ...cHits, ...tHits, ...qHits, ...nHits];
+    return { hits: askFirst ? [...askHits, ...rest] : [...rest, ...askHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
+  }, [q, docs, fuse, caseFuse, companyFuse, questions, notes, titleOf, transcripts, smart]);
 
   const counts = useMemo(
     () => ({
       all: hits.length,
+      ask: hits.filter((h) => h.group === "ask").length,
       companies: hits.filter((h) => h.group === "companies").length,
       lessons: hits.filter((h) => h.group === "lessons").length,
       cases: hits.filter((h) => h.group === "cases").length,
@@ -494,7 +505,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       // tab jumps to the first result of the next group
       e.preventDefault();
       const cur = visible[sel]?.group;
-      const order: Group[] = ["companies", "lessons", "cases", "transcripts", "questions", "notes"];
+      const order: Group[] = groups.map((g) => g.key);
       const start = cur ? order.indexOf(cur) : -1;
       for (let k = 1; k <= order.length; k++) {
         const g = order[(start + (e.shiftKey ? -k + order.length : k)) % order.length];
@@ -507,13 +518,17 @@ function Palette({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const askGroup = { key: "ask" as Group, label: "Smart search" };
+  const askFirst = isNaturalQuery(q.trim());
   const groups: { key: Group; label: string; more?: { label: string; href: string } }[] = [
+    ...(askFirst ? [askGroup] : []),
     { key: "companies", label: "Companies", more: { label: "all companies →", href: "/learn/prep/companies" } },
     { key: "lessons", label: "Lessons" },
     { key: "cases", label: "Case files", more: { label: "all case files →", href: "/stories" } },
     { key: "transcripts", label: "In lectures", more: { label: "all lectures →", href: "/learn/lectures" } },
     { key: "questions", label: "Interview questions" },
     { key: "notes", label: "Your notes", more: { label: "open notebook →", href: "/learn/notebook?tab=notes" } },
+    ...(askFirst ? [] : [askGroup]),
   ];
   const chip = (on: boolean) =>
     `min-h-8 px-2.5 font-mono text-xs ${on ? "bg-fg font-semibold text-bg" : "border border-line-strong text-fg-2 hover:text-fg"}`;
@@ -641,7 +656,9 @@ function Palette({ onClose }: { onClose: () => void }) {
                     >
                       <span
                         className={`grid h-7 w-[62px] shrink-0 place-items-center font-mono text-[11px] ${
-                          h.group === "notes"
+                          h.group === "ask"
+                            ? "bg-signal font-semibold text-on-signal"
+                            : h.group === "notes"
                             ? "bg-fg font-semibold text-bg"
                             : h.group === "questions"
                               ? "border border-line-strong text-fg"
@@ -650,7 +667,14 @@ function Palette({ onClose }: { onClose: () => void }) {
                                 : "border border-dashed border-line-strong text-fg-3"
                         }`}
                       >
-                        {h.badge}
+                        {h.group === "ask" ? (
+                          <span className="inline-flex items-center gap-1">
+                            <Sparkles className="h-3 w-3" aria-hidden />
+                            {h.badge}
+                          </span>
+                        ) : (
+                          h.badge
+                        )}
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="truncate text-[15px] text-fg">

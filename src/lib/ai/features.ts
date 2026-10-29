@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "eval" | "batch";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "eval" | "batch";
 
 export type FeatureDef = {
   label: string;
@@ -33,6 +33,8 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "canvas-review": { label: "Design canvas review", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 5, maxTokens: 1500, maxInputChars: 12000, think: true, live: true },
   // Haiku: in the blind eval it matched Sonnet on every case at about a third of the cost
   "war-room": { label: "War room free-text", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 40, maxTokens: 350, maxInputChars: 600, think: false, live: true },
+  // the learning path on /learn/search: picks and orders resources from the ranked candidates (JSON, no thinking: it should arrive in seconds)
+  "smart-search": { label: "Smart search learning path", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 30, maxTokens: 700, maxInputChars: 14000, think: false, live: true },
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 2000, maxInputChars: 200000, think: true, live: false },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false },
 };
