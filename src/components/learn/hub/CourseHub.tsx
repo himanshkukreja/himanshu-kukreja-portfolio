@@ -135,7 +135,7 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
             <span className="text-signal-text">.</span>
           </h1>
           <p className="max-w-[640px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
-            An {map.stats.worlds}-world campaign for backend engineers going from intermediate to advanced. Clear a world&apos;s lessons, beat its interview boss, pass the trial, and move on to the next.{map.mocks?.length ? " After most worlds, a timed mock interview loop checks it all under real interview pressure." : ""} Nothing is locked.
+            {/^(8|11|18|8\d)$/.test(String(map.stats.worlds)) ? "An" : "A"} {map.stats.worlds}-world campaign for backend engineers going from intermediate to advanced. Clear a world&apos;s lessons, beat its interview boss, pass the trial, and move on to the next.{map.mocks?.length ? " After most worlds, a timed mock interview loop checks it all under real interview pressure." : ""} Nothing is locked.
           </p>
           <CourseProgressStats stats={map.stats} learner={counts} />
           <Link href="/learn/guide" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">

@@ -18,6 +18,7 @@ import { AI_TUTOR_KEY, AI_TUTOR_PREHEADER, aiTutorHtml, aiTutorSubject, aiTutorT
 import { LECTURES_SHORTS_KEY, LECTURES_SHORTS_PREHEADER, lecturesShortsHtml, lecturesShortsSubject, lecturesShortsText } from "@/lib/announce/lectures-shorts";
 import { SHORTS_FEED_KEY, SHORTS_FEED_PREHEADER, shortsFeedHtml, shortsFeedSubject, shortsFeedText } from "@/lib/announce/shorts-feed";
 import { COURSE_CHAT_KEY, COURSE_CHAT_PREHEADER, courseChatHtml, courseChatSubject, courseChatText } from "@/lib/announce/course-chat";
+import { COURSE_UPGRADE_KEY, COURSE_UPGRADE_PREHEADER, courseUpgradeHtml, courseUpgradeSubject, courseUpgradeText } from "@/lib/announce/course-upgrade";
 import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
 import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
 import type { TemplateInfo } from "./types";
@@ -181,6 +182,21 @@ function courseChatTemplate(): TemplateInfo {
   };
 }
 
+function courseUpgradeTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/course-upgrade.ts", html: fromSource(courseUpgradeHtml, unsub), text: fromSource(courseUpgradeText, unsub) };
+  return {
+    id: "course-upgrade",
+    name: "What's new: Week 11 and the course upgrade",
+    description:
+      "The 29 Oct 2026 release for existing learners: Week 11 Designing AI Systems (5 days, capstone, trial, revision, reading trail), Weeks 6 and 7 rebuilt, Week 0 Parts 7-8, Week 8 Day 6, 4 new code labs (16), side quests 34-36 (Amazon, FASTag, Slack) and Design it first on every capstone, plus checkpoints, shorts and certificates. With screenshots. Generated from src/lib/announce/course-upgrade.ts.",
+    topic: COURSE_UPGRADE_KEY,
+    ...subjectTemplate(courseUpgradeSubject),
+    preheader: COURSE_UPGRADE_PREHEADER,
+    doc,
+  };
+}
+
 function shortsFeedTemplate(): TemplateInfo {
   const unsub = unsubscribeUrl(S_EMAIL);
   const doc: RawDoc = { layout: "raw", source: "src/lib/announce/shorts-feed.ts", html: fromSource(shortsFeedHtml, unsub), text: fromSource(shortsFeedText, unsub) };
@@ -256,7 +272,7 @@ function storyTemplate(): TemplateInfo {
 
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [storyTemplate, courseChatTemplate, shortsFeedTemplate, lecturesShortsTemplate, aiTutorTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [courseUpgradeTemplate, storyTemplate, courseChatTemplate, shortsFeedTemplate, lecturesShortsTemplate, aiTutorTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {
