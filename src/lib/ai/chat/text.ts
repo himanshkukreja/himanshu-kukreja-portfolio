@@ -78,6 +78,8 @@ export type ChatRequest = {
   page?: PageContext | null;
   /** a mock interview is on: the message goes to the interviewer (or "end" scores it) */
   mock?: MockState | null;
+  /** name the conversation: "first" on its first message, "again" on the second when the first had no topic (title-model.ts) */
+  title?: "first" | "again";
 };
 
 /** The chat's quota today (GET /api/learn/ai/chat, and on every answer). */
@@ -109,6 +111,9 @@ export type ChatEvent =
   | { type: "round"; n: number }
   /** 2–3 likely next questions for this answer (sent just before done; none for a quiz question, a decline or a mock) */
   | { type: "followups"; items: string[] }
+  /** the conversation's name for the history list (title-model.ts), sent as soon as it is made; null: the first
+   *  message had no topic yet ("hi"), so the page asks again with the next one */
+  | { type: "title"; text: string | null }
   | { type: "delta"; text: string }
   | { type: "done"; text: string; offTopic: boolean; quota: ChatQuota | null; tools: number; ms: number; callId: number | null; mode?: "tutor" | "interviewer" | "scorecard"; /** ms to the first text the learner saw (server side) */ ttft?: number | null }
   | { type: "error"; message: string };

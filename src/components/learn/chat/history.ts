@@ -74,9 +74,12 @@ function del(k: string) {
 
 const isConv = (c: unknown): c is Conversation => !!c && (c as Conversation).v === 1 && Array.isArray((c as Conversation).messages) && typeof (c as Conversation).chat === "string";
 const hasAsk = (c: Conversation) => c.messages.some((m) => m.role === "user");
+/** The title a conversation gets when the learner hasn't named it. */
+const derivedTitle = (c: Conversation) => c.title || titleFrom(c.messages) || "Conversation";
 const metaOf = (c: Conversation, prev?: LocalThread): LocalThread => ({
   id: c.chat,
-  title: prev?.named ? prev.title : titleFrom(c.messages) || "Conversation",
+  // a name the learner gave wins; then the AI's (useCourseChat's "title" event); then the first question, cut short
+  title: prev?.named ? prev.title : derivedTitle(c),
   named: prev?.named,
   createdAt: prev?.createdAt ?? c.messages[0]?.at ?? c.updatedAt,
   updatedAt: Math.max(c.updatedAt || 0, c.messages[c.messages.length - 1]?.at || 0),
@@ -181,10 +184,11 @@ function schedulePush(uid: string, id: string) {
 /** The conversation as the account stores it (an answer still being written is left out). */
 function toServer(t: LocalThread, c: Conversation) {
   const messages = c.messages.filter((m) => m.role === "user" || m.text || m.error || m.quizzes?.length || m.paths?.length);
-  return { title: t.title, createdAt: t.createdAt, messages, state: { sources: c.sources, quizzes: c.quizzes, paths: c.paths, ratings: c.ratings ?? {}, mock: c.mock ?? null, memoryTurns: c.memoryTurns } };
+  return { title: t.title, createdAt: t.createdAt, messages, state: { sources: c.sources, quizzes: c.quizzes, paths: c.paths, ratings: c.ratings ?? {}, mock: c.mock ?? null, memoryTurns: c.memoryTurns, aiTitle: c.title, titleAgain: c.titleAgain } };
 }
 
-function fromServer(r: { id: string; updatedAt: number; messages: unknown[]; state: Record<string, unknown> }): Conversation {
+type ServerThread = { id: string; title?: string; updatedAt: number; messages: unknown[]; state: Record<string, unknown> };
+function fromServer(r: ServerThread): Conversation {
   const s = r.state ?? {};
   return {
     ...freshConversation(),
@@ -196,6 +200,8 @@ function fromServer(r: { id: string; updatedAt: number; messages: unknown[]; sta
     ratings: (s.ratings ?? {}) as Conversation["ratings"],
     mock: (s.mock ?? null) as Conversation["mock"],
     memoryTurns: typeof s.memoryTurns === "number" ? s.memoryTurns : 0,
+    ...(typeof s.aiTitle === "string" && s.aiTitle ? { title: s.aiTitle } : {}),
+    ...(s.titleAgain === true ? { titleAgain: true } : {}),
     updatedAt: r.updatedAt,
   };
 }
@@ -310,13 +316,16 @@ async function loadThread(uid: string, id: string, fromAccount = false): Promise
     broadcast();
     return null;
   }
-  const b = (await res.json().catch(() => ({}))) as { thread?: { id: string; updatedAt: number; messages: unknown[]; state: Record<string, unknown> } };
+  const b = (await res.json().catch(() => ({}))) as { thread?: ServerThread };
   if (!res.ok || !b.thread) return isConv(local) ? local : null;
   const c = fromServer(b.thread);
   set(bodyKey(uid, id), c);
   const idx = readIndex(uid);
   const t = idx.threads.find((x) => x.id === id);
-  if (t) Object.assign(t, { remote: false, dirty: false, synced: b.thread.updatedAt });
+  // a title in the account that isn't the one this conversation would get is a name the learner gave it (on another
+  // device): it stays, and no later AI title replaces it
+  const named = !!b.thread.title && b.thread.title !== derivedTitle(c);
+  if (t) Object.assign(t, { remote: false, dirty: false, synced: b.thread.updatedAt, ...(named ? { named: true, title: b.thread.title } : {}) });
   writeIndex(uid, idx);
   return c;
 }
@@ -370,6 +379,9 @@ export async function deleteAllThreads(uid: string): Promise<void> {
   if (uid === "dev" || syncState(uid) === "off") return;
   await userFetch(API, { method: "DELETE" }).catch(() => null);
 }
+
+/** The learner named this conversation (an AI title never replaces that). */
+export const isNamed = (uid: string, id: string): boolean => !!readIndex(uid).threads.find((t) => t.id === id)?.named;
 
 /** The list for the history views: conversations newest first, which one is open, where history lives. */
 export function readHistory(uid: string): { threads: LocalThread[]; active: string | null } {

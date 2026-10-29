@@ -8,7 +8,10 @@
  * - the tool loop (against a scripted SSE stream, no network): text never disappears. A short preamble before a
  *   tool call is never streamed, text from every round is kept in order, a long answer before a tool call stays,
  *   the streamed text is exactly the final text, and a stream that dies mid-answer keeps what was written;
- * - the local QA seam (lib/ai/chat/dev.ts) does nothing outside `next dev`.
+ * - the local QA seam (lib/ai/chat/dev.ts) does nothing outside `next dev`;
+ * - a conversation's AI title is cleaned (no quotes, markdown, emoji, links or end punctuation; at most 48
+ *   characters; NONE or junk is no title), only the first message (and the answer's start) is sent, and a client
+ *   can't ask for a title past the second message.
  */
 import fs from "fs";
 import path from "path";
@@ -18,7 +21,9 @@ import { cleanMemory, mergeMemory, MEMORY_LIMITS } from "../src/lib/ai/chat/memo
 import { SITE_GUIDE, findGuide } from "../src/lib/ai/chat/siteGuide";
 import { HOLD_CHARS, runLoop } from "../src/lib/ai/chat/loop";
 import { chatDevLearner, chatDevPreview } from "../src/lib/ai/chat/dev";
-import { DECLINE_TEXT, runChatCore } from "../src/lib/ai/chat/core";
+import { DECLINE_TEXT, readRequest, runChatCore } from "../src/lib/ai/chat/core";
+import { CHAT_TITLE_MAX, cleanChatTitle, titleInput, titlePassFor } from "../src/lib/ai/chat/title-model";
+import { sanitizeThread } from "../src/lib/learn/chat-history";
 import type { ChatDeps } from "../src/lib/ai/chat/tools";
 
 let fails = 0;
@@ -188,6 +193,50 @@ ok(findGuide("save lessons offline")[0]?.id === "offline", "site guide finds off
   env.NODE_ENV = was;
   const route = fs.readFileSync(path.resolve("src/app/api/learn/ai/chat/route.ts"), "utf8");
   ok(/chatDevLearner\(request\)/.test(route) && !/x-chat-dev-user/.test(route), "QA seam: the route reads the stand-in learner only through lib/ai/chat/dev.ts");
+}
+
+// ---------------------------------------------------------------- conversation titles (title-model.ts)
+{
+  const t = cleanChatTitle;
+  ok(t("Cache stampedes at midnight") === "Cache stampedes at midnight", "title: a clean title is kept as is");
+  ok(t('"Flipkart SDE-2 prep plan"') === "Flipkart SDE-2 prep plan", "title: straight quotes stripped");
+  ok(t("“Caching quiz”.") === "Caching quiz", "title: curly quotes and the full stop stripped");
+  ok(t("**Payments mock interview**") === "Payments mock interview", "title: markdown bold stripped");
+  ok(t("# Kafka vs RabbitMQ") === "Kafka vs RabbitMQ", "title: a markdown heading mark stripped");
+  ok(t("Title: Consistent hashing explained") === "Consistent hashing explained", "title: a 'Title:' label dropped");
+  ok(t("Rate limiter design 🚀!!") === "Rate limiter design", "title: emoji and ending punctuation stripped");
+  ok(t("Why sharding?") === "Why sharding", "title: a question mark at the end stripped");
+  ok(t("Kafka's ordering guarantees") === "Kafka's ordering guarantees", "title: an apostrophe inside a word stays");
+  ok(t("`CAP` theorem basics") === "CAP theorem basics", "title: code marks stripped");
+  ok(t("[Caching](https://evil.example/x) basics") === "Caching basics", "title: a markdown link keeps only its words");
+  ok(t("Cache stampedes\nThis chat is about caches") === "Cache stampedes", "title: the first line only");
+  ok(t("caching quiz") === "Caching quiz", "title: the first letter capitalised");
+  ok(t("NONE") === null && t("none.") === null && t("  ") === null && t("") === null && t(null) === null && t(42) === null, "title: NONE, empty or not text is no title");
+  ok(t("https://evil.example/a") === null && t("Visit www.evil.com today") === null && t("mail me@x.in") === null, "title: a URL or an email is no title");
+  ok(t("I'm sorry, I can't help with that") === null && t("Sure! Here is a title") === null, "title: a refusal or chatter is no title");
+  ok(t("This is a very long rambling answer that goes on and on about many things") === null, "title: a ramble (more than 8 words) is no title");
+  ok(t("!!! ??? ...") === null && t("🚀🚀") === null, "title: punctuation or emoji only is no title");
+  const long = t("Designing globally distributed multi-region payment reconciliation");
+  ok(!!long && long.length <= CHAT_TITLE_MAX && !/[\s,.;:-]$/.test(long) && "Designing globally distributed multi-region payment reconciliation".startsWith(long), `title: a long one is cut at a word, at most ${CHAT_TITLE_MAX} characters ("${long}")`);
+  ok(t("<b>Leader election</b>") === "Leader election", "title: HTML tags stripped");
+  ok(t("<plan>x</plan>Leader election") === "Leader election", "title: a private plan line stripped");
+  // what the title call reads: the first message only, then (second try) the start of the first answer
+  const inp = titleInput("hi " + "x".repeat(900), "Sure, here's a **quiz** on caching [[s1]] " + "y".repeat(900));
+  ok(inp.includes("<first_message>") && inp.length < 1000 && !inp.includes("[[s1]]") && !inp.includes("**"), "title input: the first message and ~300 characters of the answer, no refs or markdown");
+  ok(!titleInput("Quiz me on caching").includes("tutor_reply"), "title input: the first try sends only the first message");
+  const u = (n: number) => Array.from({ length: n * 2 - 1 }, (_, i) => ({ role: i % 2 ? "assistant" : "user" }));
+  ok(titlePassFor("first", u(1), null) === "first" && titlePassFor("again", u(2), null) === "again", "title pass: first on message 1, again on message 2");
+  ok(titlePassFor("first", u(2), null) === null && titlePassFor("again", u(3), null) === null && titlePassFor("again", u(1), null) === null && titlePassFor("bogus", u(1), null) === null, "title pass: a client can't ask for a title later in the chat");
+  ok(titlePassFor("first", u(1), { key: "mock:mock-1-x" }) === null, "title pass: none during a mock interview");
+  const rq = readRequest({ chat: "abcdef12", messages: [{ role: "user", text: "hi" }], title: "first" });
+  const rq2 = readRequest({ chat: "abcdef12", messages: [{ role: "user", text: "hi" }], title: "<script>" });
+  ok(typeof rq === "object" && rq.title === "first" && typeof rq2 === "object" && rq2.title === undefined, "request: the title ask is read, junk dropped");
+  // the account copy keeps the AI title (state.aiTitle), cleaned and capped; junk dropped
+  const th = sanitizeThread({ messages: [{ role: "user", text: "hi" }], state: { aiTitle: "  Caching\n quiz ", titleAgain: true } });
+  ok(th?.state.aiTitle === "Caching quiz" && th.state.titleAgain === true, "thread: the AI title and the ask-again flag are stored");
+  const th2 = sanitizeThread({ messages: [{ role: "user", text: "hi" }], state: { aiTitle: { x: 1 }, titleAgain: "yes" } });
+  ok(th2 && th2.state.aiTitle === undefined && th2.state.titleAgain === undefined, "thread: a bad AI title or flag is dropped");
+  ok((sanitizeThread({ messages: [{ role: "user", text: "hi" }], state: { aiTitle: "z".repeat(500) } })?.state.aiTitle?.length ?? 99) <= 60, "thread: a stored AI title is capped");
 }
 
 // ---------------------------------------------------------------- the loop never makes text disappear

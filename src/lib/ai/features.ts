@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "eval" | "batch";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "eval" | "batch";
 
 export type FeatureDef = {
   label: string;
@@ -55,6 +55,10 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // the chat's long-term memory: Haiku 5.5 rewrites a learner's compact memory (goals, level, topics, quiz results, chat
   // summaries) every few messages and when a chat ends. Part of the chat's own quota (not the shared credits); no thinking.
   "chat-memory": { label: "Course chat memory update", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 80, maxTokens: 900, maxInputChars: 24000, think: false, live: true },
+  // the course chat's titles: Haiku 5.5 names a new conversation from its first message (2-6 words) while the answer is
+  // written, for the history list. Part of the chat's own quota (not the shared credits, not the message count); no thinking.
+  // perDay: title calls a learner may make a day (a new chat makes one, or two when its first message had no topic)
+  "chat-title": { label: "Course chat title", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 60, maxTokens: 24, maxInputChars: 1200, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false },

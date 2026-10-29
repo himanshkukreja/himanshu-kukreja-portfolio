@@ -13,6 +13,8 @@ export const THREAD_MAX_BYTES = 200_000;
 export const THREADS_MAX = 100;
 export const THREAD_RETENTION_DAYS = 90;
 export const THREAD_TITLE_MAX = 120;
+/** an AI-made title's cap as stored (the route makes them at most 48 characters) */
+const AI_TITLE_MAX = 60;
 export const THREAD_ID_RE = /^[a-z0-9]{6,40}$/;
 
 export type ThreadMeta = { id: string; title: string; createdAt: number; updatedAt: number };
@@ -23,6 +25,10 @@ export type ThreadState = {
   ratings?: Record<string, unknown>;
   mock?: unknown;
   memoryTurns?: number;
+  /** the name the AI gave the conversation (lib/ai/chat/title-model.ts); the row's `title` is what the list shows */
+  aiTitle?: string;
+  /** its first message had no topic: the next message asks for a name again */
+  titleAgain?: boolean;
 };
 export type ThreadBody = { messages: Record<string, unknown>[]; state: ThreadState };
 export type ThreadRecord = ThreadMeta & ThreadBody;
@@ -129,6 +135,8 @@ export function sanitizeThread(raw: unknown): ThreadBody | null {
     ratings: rec(s.ratings),
     ...(s.mock && typeof s.mock === "object" ? { mock: clamp(s.mock, 1) } : {}),
     memoryTurns: typeof s.memoryTurns === "number" && Number.isFinite(s.memoryTurns) ? Math.max(0, Math.floor(s.memoryTurns)) : 0,
+    ...(cleanTitle(s.aiTitle) ? { aiTitle: cleanTitle(s.aiTitle).slice(0, AI_TITLE_MAX) } : {}),
+    ...(s.titleAgain === true ? { titleAgain: true } : {}),
   };
   // a source must have a site link to be shown
   for (const [k, v] of Object.entries(state.sources ?? {})) if (!v || typeof (v as { href?: unknown }).href !== "string") delete state.sources![k];

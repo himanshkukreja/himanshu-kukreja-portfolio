@@ -86,7 +86,8 @@ export function readRequest(body: unknown, opts: { endsWithUser?: boolean } = {}
       mock = { key, phase: /^[\w.-]{1,20}$/.test(String(m.phase)) ? String(m.phase) : "", history: turns(m.history), action: m.action === "end" ? "end" : "turn", phases };
     }
   }
-  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock };
+  const title = b.title === "first" || b.title === "again" ? b.title : undefined;
+  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock, ...(title ? { title } : {}) };
 
 }
 

@@ -50,6 +50,10 @@ export type AiRequest = {
   userKey?: string | null;
   /** give up after this long (logged as an error; the caller shows its non-AI fallback) */
   timeoutMs?: number;
+  /** the call rides on a request its caller already admitted under its own limits (a course-chat title, made with an
+   *  admitted message): the block list, the per-minute rate, the off-topic pause and the shared daily credits were
+   *  checked there; the switches, the budget, the governor and the feature's calls-per-day still apply */
+  admitted?: boolean;
 };
 
 /** A plausible Anthropic key from the x-anthropic-key header, or null. */
@@ -138,15 +142,15 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
 
   if (learner) {
     const uid = req.userId!;
-    if (await isBlocked(uid)) return refuse("blocked", "AI features are turned off for this account");
+    if (!req.admitted && (await isBlocked(uid))) return refuse("blocked", "AI features are turned off for this account");
     const t = await userToday(uid, req.feature);
     // an admin may have set this learner's own daily allowance (ai_user_limits)
     const allowance = (await dailyAllowanceUsd(uid, budget.userDailyUsd)).usd;
     creditsLeft = Math.max(0, Math.floor((allowance - t.spent) / 0.001));
-    if (t.lastMinute >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute");
-    if (t.offTopic >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.");
+    if (!req.admitted && t.lastMinute >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute");
+    if (!req.admitted && t.offTopic >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.");
     if (!byok && cfg.perDay && t.featureCalls >= cfg.perDay) return refuse("over_quota", `You've used today's ${cfg.perDay} ${def.label.toLowerCase()} calls. They refill at midnight UTC, or add your own key under You → AI`);
-    if (!byok && t.spent >= allowance) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
+    if (!req.admitted && !byok && t.spent >= allowance) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
   }
 
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up

@@ -11,13 +11,13 @@ import { useState } from "react";
 import { adminFetch, adminJson } from "@/lib/admin/fetch";
 import { Badge, BarList, Card, Drawer, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData } from "@/components/admin/ui";
 
-type Day = { day: string; messages: number; users: number; sonnet: number; fast: number; cost: number; memoryCost: number; avgTools: number; avgLatency: number; offTopic: number; refused: number; errors: number };
+type Day = { day: string; messages: number; users: number; sonnet: number; fast: number; cost: number; memoryCost: number; titleCost?: number; avgTools: number; avgLatency: number; offTopic: number; refused: number; errors: number };
 type Conv = { chat: string; user: string | null; email: string | null; messages: number; first: string; last: string; fast: number; cost: number };
 type Resp = {
   settings: { masterOn: boolean; enabled: boolean; perDay: number; ceiling: number; model: string; features: Record<string, Record<string, unknown>> };
   days: number;
   daily: Day[];
-  totals: { messages: number; users: number; sonnet: number; fast: number; cost: number; memoryCost: number; offTopic: number; refused: number; errors: number; avgTools: number; avgRounds: number; p50: number | null; p95: number | null; quizzes: number; graded: number; paths: number; saved: number; memoryUsers: number | null };
+  totals: { messages: number; users: number; sonnet: number; fast: number; cost: number; memoryCost: number; titleCost?: number; offTopic: number; refused: number; errors: number; avgTools: number; avgRounds: number; p50: number | null; p95: number | null; quizzes: number; graded: number; paths: number; saved: number; memoryUsers: number | null };
   topics: { topic: string; n: number }[];
   tools: { tool: string; n: number }[];
   conversations: Conv[];
@@ -147,7 +147,7 @@ export default function ChatAdmin() {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi loading={loading && !data} label={`messages · ${days} days`} value={t ? fmtNum(t.messages) : "–"} hint={t ? `${fmtNum(t.users)} learners` : ""} />
         <Kpi loading={loading && !data} label="sonnet / fast mode" value={t ? `${100 - share}% / ${share}%` : "–"} hint={t ? `${fmtNum(t.sonnet)} Sonnet · ${fmtNum(t.fast)} Haiku 5.5` : ""} />
-        <Kpi loading={loading && !data} label="cost" value={t ? usd(t.cost + t.memoryCost, 2) : "–"} hint={t && t.messages ? `${usd(t.cost / t.messages, 4)} a message · memory ${usd(t.memoryCost, 3)}` : ""} />
+        <Kpi loading={loading && !data} label="cost" value={t ? usd(t.cost + t.memoryCost + (t.titleCost ?? 0), 2) : "–"} hint={t && t.messages ? `${usd(t.cost / t.messages, 4)} a message · memory ${usd(t.memoryCost, 3)} · titles ${usd(t.titleCost ?? 0, 3)}` : ""} />
         <Kpi loading={loading && !data} label="latency p50 / p95" value={t && t.p50 ? `${(t.p50 / 1000).toFixed(1)} / ${((t.p95 ?? 0) / 1000).toFixed(1)} s` : "–"} hint={t ? `${t.avgTools.toFixed(1)} tools · ${t.avgRounds.toFixed(1)} rounds a message` : ""} />
         <Kpi loading={loading && !data} label="off-topic declined" value={t ? fmtNum(t.offTopic) : "–"} />
         <Kpi loading={loading && !data} label="refused / failed" value={t ? `${fmtNum(t.refused)} / ${fmtNum(t.errors)}` : "–"} hint="quota, rate, switch · errors and timeouts" />
@@ -170,13 +170,13 @@ export default function ChatAdmin() {
         />
       </Card>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card label="cost per day" title="Messages and memory (USD)">
+        <Card label="cost per day" title="Messages, memory and titles (USD)">
           <TrendChart
             loading={loading && !data}
-            data={(data?.daily ?? []).map((d) => ({ t: d.day, cost: d.cost, memory: d.memoryCost }))}
+            data={(data?.daily ?? []).map((d) => ({ t: d.day, cost: d.cost, memory: d.memoryCost + (d.titleCost ?? 0) }))}
             series={[
               { key: "cost", label: "messages", format: (n) => usd(n, 3) },
-              { key: "memory", label: "memory", format: (n) => usd(n, 3) },
+              { key: "memory", label: "memory + titles", format: (n) => usd(n, 3) },
             ]}
             formatY={(n) => usd(n, 2)}
             empty="No spend yet"

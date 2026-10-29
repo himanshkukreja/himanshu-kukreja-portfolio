@@ -11,7 +11,7 @@ const REFUSED = new Set(["over_quota", "rate_limited", "blocked", "disabled", "t
 
 /**
  * GET /api/admin/ai/chat?days=14 → the course chat at a glance, from ai_calls (feature "course-chat", one row per
- * message, and "chat-memory"): messages and learners per day, Sonnet vs fast-mode share, cost, tools per message,
+ * message, plus "chat-memory" and "chat-title"): messages and learners per day, Sonnet vs fast-mode share, cost, tools per message,
  * latency, declined / off-topic / failed counts, top topics (the course's own titles, never learner text), saved
  * paths and quizzes, and the latest conversations. Plus the chat's settings (switch, Sonnet messages a day, ceiling).
  * GET ?chat=<id> → that conversation's messages with their transcripts (kept 30 days, admins only).
@@ -62,7 +62,7 @@ export async function GET(request: Request) {
     const { data, error } = await supabase
       .from("ai_calls")
       .select("id, created_at, user_id, feature, model, status, cost_usd, latency_ms, meta")
-      .in("feature", ["course-chat", "chat-memory"])
+      .in("feature", ["course-chat", "chat-memory", "chat-title"])
       .gte("created_at", since.toISOString())
       .order("id", { ascending: true })
       .range(from, from + 999);
@@ -71,12 +71,12 @@ export async function GET(request: Request) {
     if ((data ?? []).length < 1000) break;
   }
 
-  type Day = { day: string; messages: number; users: Set<string>; sonnet: number; fast: number; cost: number; memoryCost: number; tools: number; latency: number; offTopic: number; refused: number; errors: number };
+  type Day = { day: string; messages: number; users: Set<string>; sonnet: number; fast: number; cost: number; memoryCost: number; titleCost: number; tools: number; latency: number; offTopic: number; refused: number; errors: number };
   const byDay = new Map<string, Day>();
   const dayOf = (d: string) => d.slice(0, 10);
   for (let t = since.getTime(); t <= Date.now(); t += 86_400_000) {
     const k = new Date(t).toISOString().slice(0, 10);
-    byDay.set(k, { day: k, messages: 0, users: new Set(), sonnet: 0, fast: 0, cost: 0, memoryCost: 0, tools: 0, latency: 0, offTopic: 0, refused: 0, errors: 0 });
+    byDay.set(k, { day: k, messages: 0, users: new Set(), sonnet: 0, fast: 0, cost: 0, memoryCost: 0, titleCost: 0, tools: 0, latency: 0, offTopic: 0, refused: 0, errors: 0 });
   }
   const topics = new Map<string, number>();
   const toolUse = new Map<string, number>();
@@ -95,6 +95,10 @@ export async function GET(request: Request) {
     const m = r.meta ?? {};
     if (r.feature === "chat-memory") {
       if (r.status === "ok") d.memoryCost += Number(r.cost_usd) || 0;
+      continue;
+    }
+    if (r.feature === "chat-title") {
+      d.titleCost += Number(r.cost_usd) || 0;
       continue;
     }
     if (REFUSED.has(r.status)) {
@@ -146,6 +150,7 @@ export async function GET(request: Request) {
     fast: d.fast,
     cost: d.cost,
     memoryCost: d.memoryCost,
+    titleCost: d.titleCost,
     avgTools: d.messages ? d.tools / d.messages : 0,
     avgLatency: d.messages ? d.latency / d.messages : 0,
     offTopic: d.offTopic,
@@ -196,6 +201,7 @@ export async function GET(request: Request) {
         fast: sum("fast"),
         cost: sum("cost"),
         memoryCost: sum("memoryCost"),
+        titleCost: sum("titleCost"),
         offTopic: sum("offTopic"),
         refused: sum("refused"),
         errors: sum("errors"),

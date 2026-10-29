@@ -9,7 +9,8 @@ import "server-only";
  * (the kill switch in /admin/ai and /admin/chat), the monthly budget (off), the governor's red mode (today's
  * share is used: the page keeps its instant results) and amber mode (fast mode for everyone), the block list,
  * 10 calls a minute and the off-topic pause. Every message is one ai_calls row (feature "course-chat"), so
- * spend, latency and refusals show on /admin/ai like any feature; the memory updates are "chat-memory" rows.
+ * spend, latency and refusals show on /admin/ai like any feature; the memory updates are "chat-memory" rows and
+ * the conversation titles "chat-title" rows (chat spend, never counted as messages or in the per-minute limit).
  * A learner's own key (BYOK): their cost, Sonnet, no quota.
  */
 import { supabase } from "@/lib/supabase";
@@ -19,7 +20,7 @@ import { featureConfig, getAiSettings } from "@/lib/ai/settings";
 import { getBudget, startOfToday, type Mode } from "@/lib/ai/governor";
 import type { ChatQuota } from "./text";
 
-export const CHAT_FEATURES = ["course-chat", "chat-memory"] as const;
+export const CHAT_FEATURES = ["course-chat", "chat-memory", "chat-title"] as const;
 const RATE_PER_MIN = 10;
 const OFF_TOPIC_PER_DAY = 5;
 
@@ -81,7 +82,8 @@ export async function admitChat(a: { userId: string; admin: boolean; userKey: st
   const [blocked, t, lastMinute, offTopic] = await Promise.all([
     supabase.from("ai_blocks").select("user_id").eq("user_id", a.userId).maybeSingle(),
     chatToday(a.userId),
-    supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).gte("created_at", new Date(Date.now() - 60_000).toISOString()),
+    // a conversation's title call rides along with its first message: not a request of its own
+    supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).neq("feature", "chat-title").gte("created_at", new Date(Date.now() - 60_000).toISOString()),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).eq("status", "off_topic").gte("created_at", today),
   ]);
   const fastNow = !byok && (t.main >= perDay || budget.mode === "amber");

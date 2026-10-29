@@ -14,7 +14,7 @@ import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { track } from "@/lib/track";
 import { citedRefs, cleanAnswer, historyText, trailOf, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
 import { useChatPathSaver } from "./savePath";
-import { isHistoryKey, readActive, saveActive } from "./history";
+import { isHistoryKey, isNamed, readActive, saveActive } from "./history";
 
 export type ChatMsg = {
   id: string;
@@ -62,6 +62,10 @@ export type Conversation = {
   mock?: MockSession | null;
   /** callId → this learner's feedback on that answer */
   ratings?: Record<string, Rating>;
+  /** the name the AI gave this conversation (a "title" event; a name the learner gives in the history wins) */
+  title?: string;
+  /** the first message had no topic ("hi"): the second message asks for a name again */
+  titleAgain?: boolean;
 };
 
 const MAX_KEPT = 80;
@@ -262,6 +266,9 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         replace(read(uid));
       }
       const base = convRef.current;
+      // a new conversation gets a name from its first message; if that had no topic, once more with the second
+      const asked = base.messages.filter((m) => m.role === "user").length;
+      const titlePass = asked === 0 ? ("first" as const) : asked === 1 && base.titleAgain && !base.title && !isNamed(uid, base.chat) ? ("again" as const) : undefined;
       // a mock interview is on: the message goes to the interviewer (or ends the interview for its scorecard)
       const ms = base.mock?.status === "live" && !extra.answerTo ? base.mock : null;
       const phaseId = ms ? ms.phases[ms.phase]?.id : undefined;
@@ -292,6 +299,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         ...(extra.answerTo ? { answerTo: extra.answerTo } : {}),
         page: pageOf?.() ?? null,
         mock: ms && phaseId ? { key: ms.key, phase: phaseId, history: ms.turns[phaseId] ?? [], action: extra.mockEnd ? "end" : "turn", ...(extra.mockEnd ? { phases: ms.turns } : {}) } : null,
+        ...(titlePass && !ms ? { title: titlePass } : {}),
       };
       let started: MockCard | null = null;
       const ctrl = new AbortController();
@@ -354,6 +362,14 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
               // after this event's state lands
               queueMicrotask(() => savePath(e.pref));
               break;
+            case "title": {
+              // the history list, the page's heading and the account copy follow (saveActive; a learner's own name wins there)
+              const name = typeof e.text === "string" ? e.text.replace(/\s+/g, " ").trim().slice(0, 60) : "";
+              if (base.chat !== convRef.current.chat) break;
+              if (name) commit((c) => ({ ...c, title: name, titleAgain: undefined }), true);
+              else if (titlePass === "first") commit((c) => ({ ...c, titleAgain: true }));
+              break;
+            }
             case "followups":
               if (Array.isArray(e.items)) patchReply((m) => ({ ...m, followups: e.items.filter((x) => typeof x === "string").slice(0, 3) }));
               break;

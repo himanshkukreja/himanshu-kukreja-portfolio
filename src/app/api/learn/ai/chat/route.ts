@@ -15,6 +15,8 @@ import { traceOf } from "@/lib/ai/chat/tools";
 import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 import type { ChatEvent, ChatQuota } from "@/lib/ai/chat/text";
 import { chatDevLearner } from "@/lib/ai/chat/dev";
+import { makeChatTitle } from "@/lib/ai/chat/title";
+import { titlePassFor } from "@/lib/ai/chat/title-model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,6 +24,8 @@ export const maxDuration = 60;
 
 /** the whole message (every tool round and the answer) gets this long */
 const DEADLINE_MS = Number(process.env.COURSE_CHAT_DEADLINE_MS) || 50_000;
+/** a conversation's title still on its way when the answer is done: the stream waits this much longer for it */
+const TITLE_GRACE_MS = 1500;
 const noStore = { "Cache-Control": "private, no-store" };
 
 /**
@@ -44,6 +48,9 @@ export async function GET(request: Request) {
  * run, sources/quiz/path/save as they are made, the answer's text as it is written, then "done" with the
  * cleaned answer (only refs the tools returned, no links) or "error". Refusals (switched off, quota, rate)
  * come back as plain JSON with a 4xx before any stream starts; the page then keeps its instant results.
+ *
+ * A new conversation's first message also gets its name (lib/ai/chat/title.ts, feature "chat-title"): a tiny Haiku
+ * call made beside the answer (never delaying it), sent as a "title" event as soon as it is ready.
  *
  * Signed-in learners; metered as one ai_calls row per message (feature "course-chat", its own quota). The
  * learner's message and the answer are kept 90 days in ai_transcripts (the chat's retention; other features keep 30);
@@ -86,6 +93,15 @@ export async function POST(request: Request) {
         }
       };
       emit({ type: "start", fast: admit.fast, model: admit.model });
+      // the conversation's name, beside the answer: sent the moment it is ready (a failure just keeps the page's title)
+      const pass = titlePassFor(req.title, req.messages, req.mock);
+      const titled = pass
+        ? makeChatTitle({ pass, messages: req.messages, userId: me.id || null, admin, userKey, chat: req.chat })
+            .then((t) => {
+              if (t) emit({ type: "title", text: t.title });
+            })
+            .catch(() => {})
+        : null;
       try {
         const tPrep = Date.now();
         const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null }), me.id ? loadMemory(me.id) : Promise.resolve(null)]);
@@ -162,6 +178,7 @@ export async function POST(request: Request) {
         await logChatCall({ user_id: me.id || null, feature: "course-chat", model: admit.model, status: "error", error: (e as Error).message.slice(0, 300), latency_ms: Date.now() - t0, meta: { chat: req.chat }, byok: admit.byok });
         emit({ type: "error", message: "The tutor didn't answer this time. The search results are below; try again in a moment." });
       } finally {
+        if (titled) await Promise.race([titled, new Promise((r) => setTimeout(r, TITLE_GRACE_MS))]);
         open = false;
         try {
           controller.close();
