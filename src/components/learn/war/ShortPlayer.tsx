@@ -96,10 +96,23 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
     el.toggleAttribute("muted", muted);
   }, [muted, mounted]);
 
-  // feed: play the short on screen, pause the rest (also once a just-mounted <video> appears)
+  // feed: play the short on screen, pause the rest (also once a just-mounted <video> appears).
+  // A short that comes on screen always starts at 0:00, like Reels: a warm-up still running (it may
+  // have played a few seconds muted before its pause landed) or an earlier visit must not leave it
+  // mid-way. It also rewinds when it leaves the screen, so coming back starts over.
+  const wasActive = useRef(false);
   useEffect(() => {
     const el = v.current;
     if (active === undefined || !el) return;
+    if (active && !wasActive.current) {
+      warming.current = false;
+      if (el.currentTime > 0) el.currentTime = 0;
+      setTime(0);
+    } else if (!active && wasActive.current) {
+      el.pause();
+      if (el.currentTime > 0) el.currentTime = 0;
+    }
+    wasActive.current = !!active;
     if (active) {
       warming.current = false;
       el.muted = mutedRef.current;
