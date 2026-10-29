@@ -1,6 +1,7 @@
 import type { LessonKind, QuestMission } from "@/lib/course/types";
 import type { LessonLabLink } from "@/lib/learn/labs/types";
 import type { TrailEntry } from "@/lib/learn/trail/types";
+import type { QuestDrills } from "@/lib/learn/drills/parse";
 
 export type RailEntry = {
   week: string;
@@ -72,6 +73,8 @@ export type ReaderMeta = {
   trail?: TrailEntry[] | null;
   /** a side quest's design sheet ("Revise the whole design" at the end) */
   sheet?: { href: string; diagrams: number } | null;
+  /** a side quest's follow-up drills ("Follow-up drills" at the end), if it has a drills file */
+  drills?: QuestDrills | null;
   /** a side quest's interactive lecture (v2): shown as "Watch it first" at the top */
   lecture?: { href: string; minutes: number; checkpoints: number; chapters: number } | null;
   /** this article's vertical shorts (shown at the end), and the lecture id they belong to */

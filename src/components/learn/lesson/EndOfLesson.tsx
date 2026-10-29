@@ -5,6 +5,7 @@ import NewsletterStrip from "@/components/stories/NewsletterStrip";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import ShareButton from "@/components/share/ShareButton";
 import QuestClear from "@/components/learn/sidequest/QuestClear";
+import FollowUpDrills from "@/components/learn/sidequest/FollowUpDrills";
 import ReviseLink from "@/components/learn/revise/ReviseLink";
 import LessonLabs from "@/components/learn/labs/LessonLabs";
 import ReadingTrail from "@/components/learn/trail/ReadingTrail";
@@ -70,6 +71,8 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
       )}
 
       {(meta.kind === "day-content" || meta.kind === "foundations" || meta.kind === "capstone") && <ReviseLink week={meta.week} slug={meta.slug} label={meta.kind === "capstone" ? "the boss" : name} />}
+
+      {meta.drills && <FollowUpDrills drills={meta.drills} title={meta.title} />}
 
       {meta.sheet && (
         <Link

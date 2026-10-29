@@ -14,6 +14,7 @@ import { termsFor } from "@/lib/concepts/load";
 import { getLabsForLesson } from "@/lib/learn/labs/load";
 import { getTrailForLesson } from "@/lib/learn/trail/load";
 import { getSheet } from "@/lib/learn/sheets/load";
+import { getQuestDrills } from "@/lib/learn/drills/load";
 import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
 import { lessonLectureId } from "@/lib/learn/lecture/types";
 import { isOptionalStage } from "@/components/learn/lesson/stageText";
@@ -203,6 +204,7 @@ export default async function LearningResourcePage({ params }: Props) {
         : null,
     labs: await getLabsForLesson(course, week, slug).catch(() => []),
     trail: await getTrailForLesson(week, slug).catch(() => []),
+    drills: resource.type === "bonus" ? await getQuestDrills(slug, rendered.toc).catch(() => null) : null,
     sheet: resource.type === "bonus" ? await getSheet(slug).then((x) => (x ? { href: x.href, diagrams: x.diagrams } : null)).catch(() => null) : null,
     shorts: await shortsOf(resource.type === "bonus" ? slug : lessonLectureId(week, slug)).catch(() => null),
     lecture: await getLecture(resource.type === "bonus" ? slug : lessonLectureId(week, slug))
