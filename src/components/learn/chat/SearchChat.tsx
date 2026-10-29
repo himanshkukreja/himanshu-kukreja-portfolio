@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/search: the course chat, with instant results beside it.
+ * /learn/chat: the course chat, with instant results beside it.
  *
  * - Typing shows instant results right away (deterministic smart search, no AI, for everyone).
  * - Ask (or Enter) starts or continues the conversation with the course tutor (signed in): answers with
@@ -108,14 +108,14 @@ function ChatPage() {
     // the URL asked for it (?ask=1): send once, as if the learner pressed Ask
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (canChat) ask(q);
-    router.replace(`/learn/search?q=${encodeURIComponent(q)}${dev ? "&preview=1" : ""}`, { scroll: false });
+    router.replace(`/learn/chat?q=${encodeURIComponent(q)}${dev ? "&preview=1" : ""}`, { scroll: false });
   }, [asked, q, loading, user, ai, canChat, ask, router, dev]);
 
   const search = useCallback(() => {
     const v = text.trim();
     if (!v) return;
     setTab("results");
-    router.replace(`/learn/search?q=${encodeURIComponent(v)}${dev ? "&preview=1" : ""}`, { scroll: false });
+    router.replace(`/learn/chat?q=${encodeURIComponent(v)}${dev ? "&preview=1" : ""}`, { scroll: false });
   }, [text, router, dev]);
 
   // keep the newest message in view while it streams

@@ -130,7 +130,7 @@ function PathCard({ p, open, onToggle, onRemove }: { p: SavedPath; open: boolean
             </button>
           )}
           {p.q && (
-            <Link href={`/learn/search?q=${encodeURIComponent(p.q)}`} className="inline-flex min-h-11 items-center gap-2 px-3 text-[14px] text-fg-3 hover:text-fg">
+            <Link href={`/learn/chat?q=${encodeURIComponent(p.q)}`} className="inline-flex min-h-11 items-center gap-2 px-3 text-[14px] text-fg-3 hover:text-fg">
               <Search className="h-4 w-4" aria-hidden />
               Search again
             </Link>
@@ -268,7 +268,7 @@ export default function SavedPaths() {
             {starters.map((x) => (
               <li key={x.text}>
                 <Link
-                  href={`/learn/search?q=${encodeURIComponent(x.text)}${x.ai ? "&ask=1" : ""}`}
+                  href={`/learn/chat?q=${encodeURIComponent(x.text)}${x.ai ? "&ask=1" : ""}`}
                   className="inline-flex min-h-10 items-center border border-dashed border-line-strong px-3 text-[14px] text-fg-2 hover:border-fg-3 hover:text-fg"
                 >
                   {x.text}

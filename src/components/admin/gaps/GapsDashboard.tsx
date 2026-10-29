@@ -299,7 +299,7 @@ function SharesPanel() {
   ];
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
   if (data && !data.enabled)
-    return <EmptyState title="Answer sharing is off" hint="It switches on when the shared_answers migration (supabase/migrations/20261029_shared_answers.sql) is applied. Until then /learn/search hides Share." />;
+    return <EmptyState title="Answer sharing is off" hint="It switches on when the shared_answers migration (supabase/migrations/20261029_shared_answers.sql) is applied. Until then /learn/chat hides Share." />;
   return (
     <Card label={`Shared answers${data ? ` · ${fmtNum(data.total)}` : ""}`} pad={false}>
       {loading && !data ? (

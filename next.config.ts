@@ -89,6 +89,8 @@ const nextConfig: NextConfig = {
       { source: "/learn/practice", destination: "/learn/prep", permanent: true },
       { source: "/learn/tracks", destination: "/learn/prep/companies", permanent: true },
       { source: "/learn/tracks/:company", destination: "/learn/prep/companies/:company", permanent: true },
+      // the search page became the course chat (smart search lives inside it); ?q= and ?ask= carry over
+      { source: "/learn/search", destination: "/learn/chat", permanent: true },
     ];
     return posthogRewrites.length
       ? [...moved, { source: `/:path((?!${PH.slice(1)}(?:/|$)).+)/`, destination: "/:path", permanent: true }]

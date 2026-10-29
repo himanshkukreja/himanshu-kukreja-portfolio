@@ -11,7 +11,7 @@ export const metadata = {
   title: "Ask the course · System Design Mastery",
   description:
     "Ask the course tutor anything about system design: answers with their sources, the exact second in a lecture, learning paths you can save, practice questions from the course and what to learn next. Instant results across lessons, lecture moments, shorts, side quests, problems, LLD rounds, case files, mocks, war stories, concepts, FAQs, labs, drills and design sheets as you type.",
-  alternates: { canonical: "/learn/search" },
+  alternates: { canonical: "/learn/chat" },
   robots: SMART_SEARCH_PUBLIC ? undefined : { index: false, follow: false },
 };
 

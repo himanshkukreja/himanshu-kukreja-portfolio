@@ -225,7 +225,7 @@ type NoteRow = { id: string; week: string; lesson_slug: string; note_text: strin
 function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { user } = useAuth();
-  // smart search (/learn/search): an "Ask" row, for admins only until it launches (lib/search/smart/flag.ts)
+  // smart search (/learn/chat): an "Ask" row, for admins only until it launches (lib/search/smart/flag.ts)
   const smart = useSmartAccess() === "open";
   const [docs, setDocs] = useState<Doc[] | null>(null);
   const [cases, setCases] = useState<CaseDoc[]>([]);
@@ -425,8 +425,8 @@ function Palette({ onClose }: { onClose: () => void }) {
     const askHits: Hit[] =
       smart && t.length >= 2
         ? [
-            { id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "Ask the course tutor: an answer with its sources, a path to save, a quick quiz", href: `/learn/search?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` },
-            { id: "all", group: "ask", badge: "ALL", title: `All results for “${t.slice(0, 120)}”`, sub: "The full search page: every lesson, lecture moment, short, quest and story that matches", href: `/learn/search?q=${encodeURIComponent(t.slice(0, 300))}` },
+            { id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "Ask the course tutor: an answer with its sources, a path to save, a quick quiz", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` },
+            { id: "all", group: "ask", badge: "ALL", title: `All results for “${t.slice(0, 120)}”`, sub: "The full search page: every lesson, lecture moment, short, quest and story that matches", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}` },
           ]
         : [];
     const askFirst = isNaturalQuery(t);
@@ -506,7 +506,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       e.preventDefault();
       remember();
       onClose();
-      router.push(`/learn/search?q=${encodeURIComponent(q.trim().slice(0, 300))}`);
+      router.push(`/learn/chat?q=${encodeURIComponent(q.trim().slice(0, 300))}`);
     } else if (e.key === "Enter" && visible[sel]) {
       e.preventDefault();
       open(visible[sel], e.metaKey || e.ctrlKey);

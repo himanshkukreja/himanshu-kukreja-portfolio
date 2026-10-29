@@ -5,7 +5,7 @@
  * the panel's code loads only when it is first opened.
  *
  * Where the button stays out of the way:
- * - not on /learn/search (the chat is the page), on lessons (their own orange Ask AI pill opens this same
+ * - not on /learn/chat (the chat is the page), on lessons (their own orange Ask AI pill opens this same
  *   panel), in the shorts feed, the design canvas, a mock interview room or an Arena game (full-screen tools);
  * - above the phone dock, and lifted above the Listen player strip while it shows (globals.css, [data-chat-fab]);
  * - hidden while the panel is open ([data-ask-fab]).
@@ -60,7 +60,7 @@ export default function ChatDock() {
     if (open && typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) setOpen(false);
   }
 
-  const onSearch = pathname.startsWith("/learn/search");
+  const onSearch = pathname.startsWith("/learn/chat");
   // signed in: only when the chat is available to them; guests see it (the panel asks them to sign in)
   const available = !user || !!ai?.features["course-chat"];
   // case files (/stories/…) have their own Ask button; the panel still opens there (tutor:open from Explain / Ask the tutor)

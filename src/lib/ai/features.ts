@@ -45,10 +45,10 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "canvas-review": { label: "Design canvas review", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 5, maxTokens: 1500, maxInputChars: 12000, think: true, live: true },
   // Haiku: in the blind eval it matched Sonnet on every case at about a third of the cost; Haiku 5.5 tied Haiku 4.5 (16 runs) at a tenth of its cost
   "war-room": { label: "War room free-text", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 40, maxTokens: 350, maxInputChars: 600, think: false, live: true },
-  // the learning path on /learn/search: picks and orders resources from the ranked candidates (JSON, no thinking: it should arrive in seconds)
+  // the learning path on /learn/chat: picks and orders resources from the ranked candidates (JSON, no thinking: it should arrive in seconds)
   // maxTokens: room for the short cited answer (~150 tokens) on top of the path (~400-500)
   "smart-search": { label: "Smart search learning path", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 30, maxTokens: 950, maxInputChars: 14000, think: false, live: true },
-  // the course chat (/learn/search and the Ask panel): a tool-use conversation (lib/ai/chat). Its own quota, outside the
+  // the course chat (/learn/chat and the Ask panel): a tool-use conversation (lib/ai/chat). Its own quota, outside the
   // shared credits: `perDay` messages a day on Sonnet, then Haiku 5.5 with its tuned prompt ("fast mode") up to `ceiling`.
   // maxTokens caps each model turn (tool calls or the answer); no thinking: answers stream in seconds.
   "course-chat": { label: "Course chat message", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 30, ceiling: 300, maxTokens: 1400, haikuMaxTokens: 1600, maxInputChars: 2000, think: false, live: true },

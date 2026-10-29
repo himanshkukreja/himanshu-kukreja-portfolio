@@ -105,7 +105,7 @@ export default async function SharedAnswerPage({ params }: Params) {
         <p className="m-0 font-display text-[22px] font-bold leading-snug text-fg">Got your own system design question?</p>
         <p className="m-0 text-[15px] leading-relaxed text-fg-2">Search the whole free course, lessons, lectures, labs and interview problems, and get an answer that cites where it comes from.</p>
         <div className="flex flex-wrap gap-3">
-          <Link href="/learn/search" className="flex min-h-[52px] items-center gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
+          <Link href="/learn/chat" className="flex min-h-[52px] items-center gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
             <Search className="h-4 w-4" aria-hidden />
             <span>Ask your own question</span>
           </Link>

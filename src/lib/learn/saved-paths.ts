@@ -47,7 +47,7 @@ export type SavedPath = {
   id: string;
   /** "path": an AI learning path · "results": a set of search results */
   source: "path" | "results";
-  /** the search it came from (opens again at /learn/search?q=) */
+  /** the search it came from (opens again at /learn/chat?q=) */
   q: string;
   /** what the learner is after, in a line (the AI's intent; the query for a set of results) */
   title: string;

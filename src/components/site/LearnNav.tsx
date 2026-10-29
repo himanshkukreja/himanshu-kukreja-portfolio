@@ -20,7 +20,7 @@ export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/lear
  *   prep    · get hired   companies, the question bank, problem bank + low-level design, mock interviews,
  *                         revision decks, cheat and design sheets, code labs, numbers, the study planner
  *   arena   · play        daily challenge, leagues, games, the review queue, design of the week
- *   ask     · ask it      the course tutor (chat) with instant search, /learn/search; the middle tab
+ *   ask     · ask it      the course tutor (chat) with instant search, /learn/chat; the middle tab
  *   shorts  · watch it   2-3 minute vertical shorts of everything, one idea each
  *   stories · see it real real stories and the war room
  *   you     · your stuff  progress, notebook, bookmarks, saved paths, the tutor's memory, concept mastery, certificates
@@ -37,9 +37,9 @@ const isStories = (p: string) => /^\/learn\/war-stories(\/|$)/.test(p);
 const isShorts = (p: string) => /^\/learn\/shorts(\/|$)/.test(p);
 export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "saved", "memory", "mastery", "certificate"] as const;
 const isYou = (p: string) => new RegExp(`^/learn/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
-const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/learn\/(guide|offline|search)(\/|$)/.test(p);
+const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/learn\/(guide|offline|chat|search)(\/|$)/.test(p);
 
-const isAsk = (p: string) => /^\/learn\/search(\/|$)/.test(p);
+const isAsk = (p: string) => /^\/learn\/(chat|search)(\/|$)/.test(p);
 
 type Tab = { href: string; label: string; on: boolean; icon: LucideIcon; badge?: boolean; primary?: boolean };
 function tabs(pathname: string): Tab[] {
@@ -47,7 +47,7 @@ function tabs(pathname: string): Tab[] {
     { href: COURSE_HREF, label: "course", on: isCourse(pathname), icon: BookOpen },
     { href: "/learn/prep", label: "prep", on: isPrep(pathname), icon: Briefcase },
     { href: "/learn/arena", label: "arena", on: isArena(pathname), icon: Swords, badge: true },
-    { href: "/learn/search", label: "ask", on: isAsk(pathname), icon: Sparkles, primary: true },
+    { href: "/learn/chat", label: "ask", on: isAsk(pathname), icon: Sparkles, primary: true },
     { href: "/learn/shorts", label: "shorts", on: isShorts(pathname), icon: Smartphone },
     { href: "/learn/war-stories", label: "stories", on: isStories(pathname), icon: Flame },
     { href: "/learn/dashboard", label: "you", on: isYou(pathname), icon: User },

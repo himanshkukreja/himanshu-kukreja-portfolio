@@ -201,9 +201,9 @@ export const SITE_GUIDE: GuideTopic[] = [
   {
     id: "search",
     title: "Search and this chat",
-    href: "/learn/search",
+    href: "/learn/chat",
     keywords: "search find ask chat tutor cmd k smart search",
-    text: "The search box (⌘K) finds lessons, quests, problems, lecture moments and more as you type. The Ask tab (/learn/search) is this chat: it searches the whole course, answers with sources, finds the second in a lecture, builds and saves learning paths, quizzes you on the course's own questions and suggests what to do next from your progress. It is free for signed-in learners within a daily allowance.",
+    text: "The search box (⌘K) finds lessons, quests, problems, lecture moments and more as you type. The Ask tab (/learn/chat) is this chat: it searches the whole course, answers with sources, finds the second in a lecture, builds and saves learning paths, quizzes you on the course's own questions and suggests what to do next from your progress. It is free for signed-in learners within a daily allowance.",
   },
   {
     id: "ai",

@@ -23,7 +23,7 @@ export const holdContext = (c: { selection: string; path?: string; heading?: str
 export function readPageContext(): PageContext | null {
   if (typeof window === "undefined") return null;
   const path = `${window.location.pathname}${window.location.search}`;
-  if (!(path.startsWith("/learn") || path.startsWith("/stories/")) || path.startsWith("/learn/search")) return null;
+  if (!(path.startsWith("/learn") || path.startsWith("/stories/")) || path.startsWith("/learn/chat")) return null;
   const root = document.querySelector<HTMLElement>("[data-sd-content]") ?? document.querySelector<HTMLElement>("main") ?? document.body;
   // the last heading above the reading line (a quarter down the screen), else the first one on screen
   const line = window.innerHeight * 0.25;

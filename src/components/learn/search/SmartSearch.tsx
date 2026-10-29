@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/search: one box for the whole course. Keywords or plain English; the results (from
+ * /learn/chat: one box for the whole course. Keywords or plain English; the results (from
  * /api/search/smart, no AI) come grouped by kind in a few hundred ms, and for a question or a plain-English
  * ask a signed-in learner also gets a short learning path (/api/learn/ai/search) chosen only from those
  * results. The path loads on its own: the results never wait for it, and if it fails they stay as they are.
@@ -187,7 +187,7 @@ export default function SmartSearch() {
         inputRef.current?.focus();
         return;
       }
-      router.push(`/learn/search?q=${encodeURIComponent(t)}${ask ? "&ask=1" : ""}${dev ? "&preview=1" : ""}`, { scroll: false });
+      router.push(`/learn/chat?q=${encodeURIComponent(t)}${ask ? "&ask=1" : ""}${dev ? "&preview=1" : ""}`, { scroll: false });
     },
     [router, dev],
   );

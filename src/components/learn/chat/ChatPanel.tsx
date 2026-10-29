@@ -3,7 +3,7 @@
 /**
  * The course chat as a panel on any Learn page: docked on the right on a computer (the page makes room, as
  * "Ask this lesson" did: html.hk-ask-open in globals.css) and a sheet on a phone. Same conversation as
- * /learn/search. It knows the page: each message carries where the learner is (the lesson and the section on
+ * /learn/chat. It knows the page: each message carries where the learner is (the lesson and the section on
  * screen, the lecture and its second, the selected text), so "explain this section" just works.
  *
  * On a lesson it takes over from "Ask this lesson": the lesson's free saved answers ("questions learners
@@ -132,7 +132,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
             </span>
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {canChat && <QuotaLine quota={chat.quota} />}
-              <Link href="/learn/search" onClick={onClose} className="inline-flex items-center gap-1 font-mono text-[11px] text-fg-3 hover:text-fg">
+              <Link href="/learn/chat" onClick={onClose} className="inline-flex items-center gap-1 font-mono text-[11px] text-fg-3 hover:text-fg">
                 full page <ExternalLink className="h-3 w-3" aria-hidden />
               </Link>
             </span>

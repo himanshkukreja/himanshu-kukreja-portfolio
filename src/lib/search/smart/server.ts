@@ -69,7 +69,7 @@ export async function liveCheck(): Promise<(gate: string) => boolean> {
 }
 
 /**
- * Local development only: `/learn/search?preview=1` sends this header so the page can be tried and
+ * Local development only: `/learn/chat?preview=1` sends this header so the page can be tried and
  * screenshotted without signing in (like /admin?preview=1). Never honoured outside `next dev`.
  */
 export const devPreview = (request: Request) => process.env.NODE_ENV === "development" && request.headers.get("x-smart-preview") === "1";

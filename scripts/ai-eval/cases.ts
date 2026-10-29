@@ -49,7 +49,7 @@ const phase5 = {
 };
 
 /**
- * Smart search (/learn/search) cases. ctx.must: resources a good path must include, each a pattern matched
+ * Smart search (/learn/chat) cases. ctx.must: resources a good path must include, each a pattern matched
  * against result ids ("|" = any of; a lesson slug also matches its sections, FAQs, lecture and moments, since
  * "--" in lecture ids reads as "/"). ctx.forbid: ids that must never appear. `answer`: the scope(s) allowed.
  * Recall@40 (are the must-haves among the 40 candidates the model sees?) is computed without AI.

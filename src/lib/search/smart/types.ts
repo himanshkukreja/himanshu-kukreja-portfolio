@@ -1,5 +1,5 @@
 /**
- * Smart search (/learn/search): one index over everything the course has, ranked with BM25 plus a
+ * Smart search (/learn/chat): one index over everything the course has, ranked with BM25 plus a
  * system-design synonym map, and an optional AI learning path chosen only from the ranked candidates.
  * Pure types and labels, shared by the index route, the query route, the AI route, the page and the eval.
  */

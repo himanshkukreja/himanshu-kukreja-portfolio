@@ -145,7 +145,7 @@ export default function ResultsRail({ q, headers, onCount, className = "" }: { q
         </ul>
       )}
       {data && data.total > 0 && (
-        <Link href={`/learn/search?q=${encodeURIComponent(load.state === "done" ? load.q : "")}&view=results`} className="self-start font-mono text-[11px] text-fg-3 underline decoration-line-strong underline-offset-2 hover:text-fg">
+        <Link href={`/learn/chat?q=${encodeURIComponent(load.state === "done" ? load.q : "")}&view=results`} className="self-start font-mono text-[11px] text-fg-3 underline decoration-line-strong underline-offset-2 hover:text-fg">
           {data.total} results in all →
         </Link>
       )}

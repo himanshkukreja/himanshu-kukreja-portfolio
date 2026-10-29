@@ -133,7 +133,7 @@ export default function ChatAdmin() {
       <PageHead
         path="sudo ~/admin/chat"
         title="Course chat"
-        sub="The tutor on /learn/search and in the Ask panel: who uses it, what it costs, what it's asked."
+        sub="The tutor on /learn/chat and in the Ask panel: who uses it, what it costs, what it's asked."
         actions={
           <span className="flex gap-1">
             {[7, 14, 30, 90].map((d) => (

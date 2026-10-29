@@ -1021,7 +1021,7 @@ ${p.candidate || "(nothing written)"}
 
 
 /**
- * Smart search (/learn/search): the learner's query and the ranked candidates from the course index go
+ * Smart search (/learn/chat): the learner's query and the ranked candidates from the course index go
  * in the user message (see lib/search/smart/ai.ts); the model returns JSON naming candidate ids only.
  * The route checks every id against the candidates and drops anything else, so a link can't be invented.
  * Static, so the prompt is the same for every query. No learner data is ever part of it.
@@ -1131,7 +1131,7 @@ Before the JSON, check: scope from the plan; stages in order and the plan's prac
 /* ------------------------------------------------------------------ the course chat (lib/ai/chat) */
 
 /**
- * The course chat (/learn/search and the Ask panel on Learn pages): a multi-turn tutor that works through
+ * The course chat (/learn/chat and the Ask panel on Learn pages): a multi-turn tutor that works through
  * deterministic tools (lib/ai/chat/tools.ts): the smart-search index, the course map, the learner's own
  * progress, the course's own practice items and saved paths. The model never writes a link: tools give it
  * refs (s1, s2, …) for real index entries and it cites them as [[s3]]; the route keeps only refs the tools

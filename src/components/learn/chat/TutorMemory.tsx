@@ -82,7 +82,7 @@ export default function TutorMemory() {
         </h1>
         <p className="m-0 max-w-[660px] text-[17px] leading-relaxed text-fg-2">
           So a new chat can pick up where you left off, the{" "}
-          <Link href="/learn/search" className="underline decoration-line-strong underline-offset-2 hover:text-fg">
+          <Link href="/learn/chat" className="underline decoration-line-strong underline-offset-2 hover:text-fg">
             course tutor
           </Link>{" "}
           keeps short notes about your learning: your goals, your level, what you studied and found hard, how you like answers, recent practice results and a line about each chat. Only learning
