@@ -424,7 +424,10 @@ function Palette({ onClose }: { onClose: () => void }) {
     const tHits: Hit[] = transcripts && typeof transcripts === "object" ? searchTranscripts(transcripts, t) : [];
     const askHits: Hit[] =
       smart && t.length >= 2
-        ? [{ id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "Smart search: the whole course, plus a learning path in order", href: `/learn/search?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` }]
+        ? [
+            { id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "Smart search: the whole course, plus a learning path in order", href: `/learn/search?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` },
+            { id: "all", group: "ask", badge: "ALL", title: `All results for “${t.slice(0, 120)}”`, sub: "The full search page: every lesson, lecture moment, short, quest and story that matches", href: `/learn/search?q=${encodeURIComponent(t.slice(0, 300))}` },
+          ]
         : [];
     const askFirst = isNaturalQuery(t);
     // same order as `groups` below: the list's selection index runs through them in this order
@@ -498,6 +501,12 @@ function Palette({ onClose }: { onClose: () => void }) {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       if (visible.length) setSel((s) => (s - 1 + visible.length) % visible.length);
+    } else if (e.key === "Enter" && e.shiftKey && smart && q.trim().length >= 2) {
+      // shift+enter: the full smart-search page for what's typed
+      e.preventDefault();
+      remember();
+      onClose();
+      router.push(`/learn/search?q=${encodeURIComponent(q.trim().slice(0, 300))}`);
     } else if (e.key === "Enter" && visible[sel]) {
       e.preventDefault();
       open(visible[sel], e.metaKey || e.ctrlKey);
@@ -695,7 +704,7 @@ function Palette({ onClose }: { onClose: () => void }) {
 
         <div className="hidden flex-wrap justify-between gap-2 border-t border-line px-4 py-2.5 font-mono text-[11px] text-fg-3 sm:flex">
           <span>
-            <span className="text-fg">↑↓</span> move · <span className="text-fg">↵</span> open · <span className="text-fg">⌘↵</span> new tab · <span className="text-fg">tab</span> next group ·{" "}
+            <span className="text-fg">↑↓</span> move · <span className="text-fg">↵</span> open · <span className="text-fg">⌘↵</span> new tab · {smart && <><span className="text-fg">⇧↵</span> all results · </>}<span className="text-fg">tab</span> next group ·{" "}
             <span className="text-fg">esc</span> close
           </span>
           <span>titles · text · lectures · questions{user ? " · your notes" : ""}</span>
