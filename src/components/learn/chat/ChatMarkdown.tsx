@@ -96,5 +96,5 @@ export default function ChatMarkdown({ text, sources, order, className = "" }: P
       }
     });
   });
-  return <div className={`flex flex-col gap-3 text-[15.5px] leading-relaxed text-fg-2 ${className}`}>{blocks}</div>;
+  return <div className={`flex min-w-0 flex-col gap-3 break-words text-[15.5px] leading-relaxed text-fg-2 [overflow-wrap:anywhere] ${className}`}>{blocks}</div>;
 }

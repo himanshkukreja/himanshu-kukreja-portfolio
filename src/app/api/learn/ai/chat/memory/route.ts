@@ -1,5 +1,6 @@
 import { after, NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
+import { chatDevLearner } from "@/lib/ai/chat/dev";
 import { isAdminEmail } from "@/lib/ai/access";
 import { ownKey } from "@/lib/ai/client";
 import { readRequest } from "@/lib/ai/chat/core";
@@ -21,20 +22,20 @@ const noStore = { "Cache-Control": "private, no-store" };
  * Only ever the caller's own row (the user id comes from the verified session).
  */
 export async function GET(request: Request) {
-  const me = await requireLearner(request);
+  const me = chatDevLearner(request) ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
   return NextResponse.json(await loadMemory(me.id), { headers: noStore });
 }
 
 export async function DELETE(request: Request) {
-  const me = await requireLearner(request);
+  const me = chatDevLearner(request) ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
   const ok = await clearMemory(me.id);
   return NextResponse.json({ ok }, { status: ok ? 200 : 500, headers: noStore });
 }
 
 export async function PATCH(request: Request) {
-  const me = await requireLearner(request);
+  const me = chatDevLearner(request) ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
   const body = (await request.json().catch(() => ({}))) as { paused?: unknown };
   const ok = await setMemoryPaused(me.id, body.paused === true);
@@ -42,7 +43,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const me = await requireLearner(request);
+  const me = chatDevLearner(request) ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
   const req = readRequest(await request.json().catch(() => null), { endsWithUser: false });
   if (typeof req === "string") return NextResponse.json({ error: req }, { status: 400, headers: noStore });

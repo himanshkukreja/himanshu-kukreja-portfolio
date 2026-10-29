@@ -12,8 +12,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { track } from "@/lib/track";
-import { citedRefs, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
+import { citedRefs, cleanAnswer, historyText, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
 import { useChatPathSaver } from "./savePath";
+import { isHistoryKey, readActive, saveActive } from "./history";
 
 export type ChatMsg = {
   id: string;
@@ -61,25 +62,69 @@ export type Conversation = {
 
 const MAX_KEPT = 80;
 const SYNC_EVENT = "hk:course-chat-sync";
-const keyFor = (uid: string) => `hk.chat.v1:${uid}`;
 const rid = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 const fresh = (): Conversation => ({ v: 1, chat: rid(), messages: [], sources: {}, quizzes: {}, paths: {}, memoryTurns: 0, updatedAt: Date.now() });
 
-function read(uid: string): Conversation {
-  try {
-    const raw = window.localStorage.getItem(keyFor(uid));
-    const c = raw ? (JSON.parse(raw) as Conversation) : null;
-    if (c && c.v === 1 && Array.isArray(c.messages) && typeof c.chat === "string") return { ...fresh(), ...c };
-  } catch {
-    /* storage blocked or corrupt: start fresh */
-  }
-  return fresh();
+// the open conversation lives in the chat history (./history.ts: several conversations, synced to the account)
+const read = (uid: string): Conversation => settle(readActive(uid), streamingElsewhere(uid));
+const write = (uid: string, c: Conversation) => saveActive(uid, { ...c, messages: c.messages.slice(-MAX_KEPT) });
+
+/** An answer left empty by a reload or a closed tab mid-answer says so, instead of showing nothing (unless another tab is still writing it). */
+const INTERRUPTED = "This answer was interrupted (the page reloaded or closed). Ask again.";
+const unfinished = (m: ChatMsg, busyId?: string) => m.role === "assistant" && !m.text && !m.error && !m.quizzes?.length && !m.paths?.length && m.id !== busyId;
+function settle(c: Conversation, busyId?: string): Conversation {
+  if (!c.messages.some((m) => unfinished(m, busyId))) return c;
+  return { ...c, messages: c.messages.map((m) => (unfinished(m, busyId) ? { ...m, error: INTERRUPTED } : m)) };
 }
-function write(uid: string, c: Conversation) {
+
+/** The page is reloading or closing: an answer cut off now was interrupted, not lost to the network. */
+let leaving = false;
+/** this tab (kept across its reloads in sessionStorage), so a reloaded tab doesn't wait on its own old answer */
+let tabId = "";
+function thisTab(): string {
+  if (tabId) return tabId;
   try {
-    window.localStorage.setItem(keyFor(uid), JSON.stringify({ ...c, messages: c.messages.slice(-MAX_KEPT) }));
+    tabId = window.sessionStorage.getItem("hk.chat.tab") || "";
+    if (!tabId) window.sessionStorage.setItem("hk.chat.tab", (tabId = Math.random().toString(36).slice(2, 10)));
   } catch {
-    /* full or blocked: the chat still works for this page view */
+    tabId = Math.random().toString(36).slice(2, 10);
+  }
+  return tabId;
+}
+const myLocks = new Set<string>();
+if (typeof window !== "undefined") {
+  const away = () => {
+    leaving = true;
+    // an answer this tab was writing ends with the page: free the other tabs at once
+    for (const uid of myLocks) setLock(uid, null);
+  };
+  window.addEventListener("pagehide", away);
+  window.addEventListener("beforeunload", away);
+  window.addEventListener("pageshow", () => (leaving = false));
+}
+
+/** Which tab is answering (a reply id, and when it started): other tabs leave that reply alone and don't send meanwhile. */
+const LOCK = (uid: string) => `hk.chat.busy:${uid}`;
+function streamingElsewhere(uid: string): string | undefined {
+  try {
+    const l = JSON.parse(window.localStorage.getItem(LOCK(uid)) || "null") as { id: string; at: number; tab?: string } | null;
+    // a lock older than the longest answer (60 s) is a tab that closed mid-answer; this tab's own (from before a reload) is over
+    return l && l.tab !== thisTab() && Date.now() - l.at < 65_000 ? l.id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+function setLock(uid: string, id: string | null) {
+  try {
+    if (id) {
+      window.localStorage.setItem(LOCK(uid), JSON.stringify({ id, at: Date.now(), tab: thisTab() }));
+      myLocks.add(uid);
+    } else if (myLocks.has(uid)) {
+      window.localStorage.removeItem(LOCK(uid));
+      myLocks.delete(uid);
+    }
+  } catch {
+    /* blocked storage: no cross-tab lock */
   }
 }
 
@@ -92,8 +137,17 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
   const [quota, setQuota] = useState<ChatQuota | null>(null);
   const [fallback, setFallback] = useState(false);
   const abort = useRef<AbortController | null>(null);
+  const waiting = useRef(false);
+  const remote = useRef(false);
+  // the conversation as of the last change, ahead of React's render: storage is written at once (not inside a
+  // state updater), so a re-read right after a change (the sync event at the end of an answer, another view)
+  // always sees it. Reading inside the updater raced the end of the stream and could put back the conversation
+  // from before the answer: the text streamed in, then vanished.
   const convRef = useRef(conv);
-  convRef.current = conv;
+  const replace = useCallback((c: Conversation) => {
+    convRef.current = c;
+    setConv(c);
+  }, []);
   const saver = useChatPathSaver();
   const devHeaders = opts.devHeaders;
   const pageOf = opts.page;
@@ -101,10 +155,24 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
   // load this learner's conversation, and follow changes made in another view (panel ↔ page, another tab)
   useEffect(() => {
     if (!uid) return;
-    setConv(read(uid));
+    // another tab is writing the last answer: show it as on its way (and hold this tab's Ask) until it lands
+    const look = () => {
+      const c = read(uid);
+      replace(c);
+      const other = streamingElsewhere(uid);
+      const last = c.messages[c.messages.length - 1];
+      if (other && last?.id === other) {
+        remote.current = true;
+        setStatus({ kind: "working", label: "answering in your other tab…" });
+      } else if (remote.current) {
+        remote.current = false;
+        setStatus({ kind: "idle" });
+      }
+    };
+    look();
     const sync = (e: Event) => {
-      if (e instanceof StorageEvent && e.key !== keyFor(uid)) return;
-      if (!abort.current) setConv(read(uid));
+      if (e instanceof StorageEvent && !isHistoryKey(uid, e.key) && e.key !== LOCK(uid)) return;
+      if (!abort.current && !waiting.current) look();
     };
     window.addEventListener(SYNC_EVENT, sync);
     window.addEventListener("storage", sync);
@@ -112,20 +180,20 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       window.removeEventListener(SYNC_EVENT, sync);
       window.removeEventListener("storage", sync);
     };
-  }, [uid]);
+  }, [replace, uid]);
 
-  useEffect(() => () => abort.current?.abort(), []);
+  // no abort on unmount: an answer keeps streaming into storage when its view closes (the panel shut, or React's
+  // dev double mount, which aborted every answer the panel sent as it opened), and the other views pick it up
+  // through the sync event when it lands. Stop is the only thing that cancels one.
 
   const commit = useCallback(
     (next: Conversation | ((c: Conversation) => Conversation), broadcast = false) => {
-      setConv((c) => {
-        const n = typeof next === "function" ? next(c) : next;
-        if (uid) write(uid, n);
-        if (broadcast) queueMicrotask(() => window.dispatchEvent(new Event(SYNC_EVENT)));
-        return n;
-      });
+      const n = typeof next === "function" ? next(convRef.current) : next;
+      if (uid) write(uid, n);
+      replace(n);
+      if (broadcast) queueMicrotask(() => window.dispatchEvent(new Event(SYNC_EVENT)));
     },
-    [uid],
+    [replace, uid],
   );
 
   // the chat's quota line (and whether memory is on)
@@ -167,6 +235,17 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
     async (text: string, extra: { answerTo?: string; mockEnd?: boolean } = {}) => {
       const t = text.trim();
       if (!t || abort.current || !uid) return false;
+      // another tab of this learner is answering: wait for it to land (both would write the same conversation),
+      // then send on top of it
+      if (streamingElsewhere(uid)) {
+        if (waiting.current) return false;
+        waiting.current = true;
+        setStatus({ kind: "working", label: "waiting for the answer in your other tab…" });
+        const until = Date.now() + 65_000;
+        while (streamingElsewhere(uid) && Date.now() < until) await new Promise((r) => setTimeout(r, 400));
+        waiting.current = false;
+        replace(read(uid));
+      }
       const base = convRef.current;
       // a mock interview is on: the message goes to the interviewer (or ends the interview for its scorecard)
       const ms = base.mock?.status === "live" && !extra.answerTo ? base.mock : null;
@@ -174,6 +253,9 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       const user: ChatMsg = { id: rid(), role: "user", text: t.slice(0, 2000), at: Date.now(), ...(extra.answerTo ? { answerTo: extra.answerTo } : {}), ...(ms && !extra.mockEnd ? { mockPhase: phaseId } : {}) };
       const reply: ChatMsg = { id: rid(), role: "assistant", text: "", at: Date.now() };
       const withUser: Conversation = { ...base, messages: [...base.messages, user], updatedAt: Date.now() };
+      // the lock first, so another tab that reads the new reply knows it is on its way (not interrupted)
+      setLock(uid, reply.id);
+      remote.current = false;
       commit({ ...withUser, messages: [...withUser.messages, reply] });
       setDraft("");
       setFallback(false);
@@ -181,7 +263,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       const body: ChatRequest = {
         chat: base.chat,
         // earlier answers to practice questions say which question (the server adds it for the new message)
-        messages: withUser.messages.filter((m) => !m.error && m.text).map((m) => ({ role: m.role, text: m.answerTo && m.id !== user.id ? `(my answer to ${m.answerTo}) ${m.text}` : m.text })),
+        messages: withUser.messages.filter((m) => !m.error && m.text).map((m) => ({ role: m.role, text: historyText(m, base.quizzes, m.id === user.id) })),
         sources: Object.fromEntries(Object.entries(base.sources).map(([r, s]) => [r, s.id])),
         quizzes: Object.fromEntries(Object.entries(base.quizzes).map(([q, c]) => [q, c.item])),
         paths: Object.fromEntries(Object.entries(base.paths).map(([p, c]) => [p, { title: c.title, note: c.note, steps: c.steps }])),
@@ -193,6 +275,14 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       const ctrl = new AbortController();
       abort.current = ctrl;
       const patchReply = (f: (m: ChatMsg) => ChatMsg) => commit((c) => ({ ...c, messages: c.messages.map((m) => (m.id === reply.id ? f(m) : m)) }));
+      // the text streamed so far: an error, a cut-off or Stop keeps it (it never disappears)
+      let streamed = "";
+      const keepStreamed = (m: ChatMsg, error: string): ChatMsg => {
+        const known = (r: string) => !!convRef.current.sources[r];
+        const partial = m.text ? m.text : cleanAnswer(streamed, known);
+        return { ...m, text: partial, cites: partial ? citedRefs(partial) : m.cites, error };
+      };
+      setLock(uid, reply.id);
       const t0 = performance.now();
       let gotDone = false;
       let fast = false;
@@ -238,11 +328,13 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
               queueMicrotask(() => savePath(e.pref));
               break;
             case "round":
-              setDraft("");
+              // a new tool round: the text so far stays (the server only streams what it keeps)
+              setLock(uid, reply.id);
               break;
             case "delta":
               setStatus({ kind: "streaming" });
-              setDraft((d) => d + e.text);
+              streamed += e.text;
+              setDraft(streamed);
               break;
             case "done":
               gotDone = true;
@@ -265,7 +357,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
               track("chat_message", { ok: true, tools: e.tools, ms: Math.round(performance.now() - t0), fast });
               break;
             case "error":
-              patchReply((m) => ({ ...m, error: e.message }));
+              patchReply((m) => keepStreamed(m, streamed.trim() ? `${e.message.replace(/ The search results.*$/, "")} The part above is what it wrote before stopping.` : e.message));
               setFallback(true);
               break;
           }
@@ -285,22 +377,25 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
             }
           }
         }
-        if (!gotDone) patchReply((m) => (m.error ? m : { ...m, error: "The answer was cut off. Try asking again." }));
+        if (!gotDone) patchReply((m) => (m.error ? m : keepStreamed(m, leaving ? INTERRUPTED : "The answer was cut off. Try asking again.")));
         return gotDone;
       } catch (e) {
-        if ((e as Error).name !== "AbortError") {
-          patchReply((m) => ({ ...m, error: "You seem to be offline, or the tutor didn't answer. The search results still work." }));
+        if (leaving) patchReply((m) => keepStreamed(m, INTERRUPTED));
+        else if ((e as Error).name === "AbortError") patchReply((m) => keepStreamed(m, streamed.trim() ? "You stopped this answer." : "You stopped this answer before it started."));
+        else {
+          patchReply((m) => keepStreamed(m, streamed.trim() ? "The connection dropped, so the answer stops here. Try asking again." : "You seem to be offline, or the tutor didn't answer. The search results still work."));
           setFallback(true);
         }
         return false;
       } finally {
+        setLock(uid, null);
         abort.current = null;
         setStatus({ kind: "idle" });
         setDraft("");
         window.dispatchEvent(new Event(SYNC_EVENT));
       }
     },
-    [commit, devHeaders, pageOf, savePath, uid],
+    [commit, devHeaders, pageOf, replace, savePath, uid],
   );
 
   /** Start over. The finished chat goes to the tutor's memory first (when there is something new in it). */

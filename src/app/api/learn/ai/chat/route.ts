@@ -14,6 +14,7 @@ import { loadMemory, makeDeps } from "@/lib/ai/chat/server";
 import { traceOf } from "@/lib/ai/chat/tools";
 import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 import type { ChatEvent, ChatQuota } from "@/lib/ai/chat/text";
+import { chatDevLearner } from "@/lib/ai/chat/dev";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,8 +28,10 @@ const noStore = { "Cache-Control": "private, no-store" };
  * GET /api/learn/ai/chat → { quota, memory, feedback } for the chat's header line (signed in).
  */
 export async function GET(request: Request) {
-  if (devPreview(request)) return NextResponse.json({ quota: { mainLeft: 30, mainPerDay: 30, totalLeft: 300, fast: false, ownKey: false }, memory: { available: false, paused: false, has: false }, feedback: true }, { headers: noStore });
-  const me = await requireLearner(request);
+  // `next dev` only (lib/ai/chat/dev.ts): a stand-in learner gets the real quota line; the bare preview a fixed one
+  const devUser = chatDevLearner(request);
+  if (!devUser && devPreview(request)) return NextResponse.json({ quota: { mainLeft: 30, mainPerDay: 30, totalLeft: 300, fast: false, ownKey: false }, memory: { available: false, paused: false, has: false }, feedback: true }, { headers: noStore });
+  const me = devUser ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
   const [{ perDay, ceiling }, t, m, fb] = await Promise.all([chatLimits(), chatToday(me.id), loadMemory(me.id), feedbackEnabled()]);
   const own = !!ownKey(request);
@@ -47,8 +50,11 @@ export async function GET(request: Request) {
  * no learner text goes in the metering row (only counts, the tools used and the course's own title for the topic).
  */
 export async function POST(request: Request) {
-  const dev = devPreview(request);
-  const me = dev ? { id: "", email: null } : await requireLearner(request);
+  // `next dev` only (lib/ai/chat/dev.ts): the preview header answers without a session (no quota); with a
+  // stand-in learner id it runs the normal path for that fake learner (quota, progress, memory)
+  const devUser = chatDevLearner(request);
+  const dev = !devUser && devPreview(request);
+  const me = devUser ?? (dev ? { id: "", email: null } : await requireLearner(request));
   if (me instanceof NextResponse) return me;
   const admin = dev || isAdminEmail(me.email);
   const parsed = readRequest(await request.json().catch(() => null));
@@ -81,10 +87,14 @@ export async function POST(request: Request) {
       };
       emit({ type: "start", fast: admit.fast, model: admit.model });
       try {
+        const tPrep = Date.now();
         const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null }), me.id ? loadMemory(me.id) : Promise.resolve(null)]);
         const memory = mem && mem.available && !mem.paused ? memoryLines(mem.memory) : null;
+        const prepMs = Date.now() - tPrep;
         const r = await (req.mock ? runMockCore : runChatCore)({ deps, req, model: admit.model, apiKey: admit.apiKey, map: courseMapSummary(map), memory, emit, deadline: t0 + DEADLINE_MS, signal: request.signal });
         const ok = !r.loop.error && !!r.text;
+        // ms from the request to the first text the learner saw
+        const ttft = r.loop.ttft === null ? null : tPrep - t0 + prepMs + (r.loopAt ?? 0) + r.loop.ttft;
         const st = r.state;
         const callId = await logChatCall({
           user_id: me.id || null,
@@ -123,13 +133,23 @@ export async function POST(request: Request) {
             // the tutor's own course-search phrases and whether each found a real lesson: the admin content-gap
             // radar (cleared after 90 days with the transcripts; supabase/migrations/20261029_chat_memory.sql)
             ...(st.searches.length ? { searches: st.searches } : {}),
-            ...(dev ? { dev: true } : {}),
+            // where the time went (ms): setup before the model, the learner context, the first text, each round
+            t: {
+              start: tPrep - t0,
+              prep: prepMs,
+              ctx: r.ctxMs ?? 0,
+              ttft,
+              rounds: r.loop.timing.map((x) => ({ ttfb: x.ttfb, first: x.first, ms: x.end - x.start, stop: x.stop, cr: x.cacheRead, cw: x.cacheWrite, out: x.output, tools: x.tools.map((y) => `${y.name}:${y.ms}`).join(","), dropped: x.dropped })),
+            },
+            ...(r.loop.refusal ? { refusal: r.loop.refusal } : {}),
+            ...(r.fellBack ? { fellBack: r.fellBack } : {}),
+            ...(dev || devUser ? { dev: true } : {}),
           },
         });
         if (ok) {
           // the conversation text, kept 90 days (the chat's retention: abuse checks and improving the tutor), with a trace of the tools
           await saveTranscript(callId, me.id || null, "course-chat", r.ask, `${r.text}\n\n— tools: ${r.loop.toolCalls.map((t) => traceOf(t.name, t.input)).join("; ") || "none"}`);
-          emit({ type: "done", text: r.text, offTopic: r.offTopic, quota: admit.quota ? afterMessage(admit.quota, admit.model) : null, tools: r.loop.toolCalls.length, ms: Date.now() - t0, callId, mode: r.mode });
+          emit({ type: "done", text: r.text, offTopic: r.offTopic, quota: admit.quota ? afterMessage(admit.quota, admit.model) : null, tools: r.loop.toolCalls.length, ms: Date.now() - t0, callId, mode: r.mode, ttft });
           // every few messages the tutor's memory of this learner is brought up to date (after the answer is out)
           if (me.id && userTurns % MEMORY_EVERY === 0 && !r.offTopic)
             after(() => updateMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: [...req.messages, { role: "assistant", text: r.text }] }).catch(() => false));

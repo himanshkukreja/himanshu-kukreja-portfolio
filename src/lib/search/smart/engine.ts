@@ -12,6 +12,9 @@ import { ASKS, GROUPS } from "./synonyms";
 import { editDistance, GLUE_WORDS, isNaturalQuery, lead, normalize, queryTokens, STOP, stem, tokens } from "./text";
 import { KINDS, type Doc, type Hit, type Kind, type SmartResults } from "./types";
 
+/** Words people type to ask for something (not topics): never "corrected" into a lookalike ("quiz" → "quit"). */
+const NEVER_FIX = new Set(["quiz", "quizz", "quizzes", "mock", "mocks", "plan", "plans", "drill", "drills", "teach", "explain", "revise", "revision", "practice", "practise", "interview", "roadmap"]);
+
 /** field weight (w) and length normalization (b) */
 const FIELDS = [
   { get: (d: Doc) => d.title, w: 3, b: 0.4 },
@@ -293,6 +296,8 @@ export class SmartEngine {
     if (word.length < 4 || /^\d/.test(word) || STOP.has(word)) return null;
     // a term the synonym map names is real, not a typo ("helm" isn't "held", "saml" isn't "same")
     if (this.known.has(t)) return null;
+    // the learner's own verbs for what they want ("quiz me" isn't "quit me")
+    if (NEVER_FIX.has(word) || NEVER_FIX.has(t)) return null;
     // a known word stays, unless its stem is only a stop word ("hasing" → "has": a typo of "hashing")
     const own = STOP.has(t) ? 0 : this.df.get(t) ?? 0;
     if (own >= 3) return null;

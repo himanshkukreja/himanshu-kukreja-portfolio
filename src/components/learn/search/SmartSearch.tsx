@@ -187,7 +187,8 @@ export default function SmartSearch() {
         inputRef.current?.focus();
         return;
       }
-      router.push(`/learn/chat?q=${encodeURIComponent(t)}${ask ? "&ask=1" : ""}${dev ? "&preview=1" : ""}`, { scroll: false });
+      // Search stays on this grouped results view; Ask goes to the chat and asks the tutor
+      router.push(`/learn/chat?q=${encodeURIComponent(t)}${ask ? "&ask=1" : "&view=results"}${dev ? "&preview=1" : ""}`, { scroll: false });
     },
     [router, dev],
   );
@@ -326,24 +327,18 @@ export default function SmartSearch() {
                 className="min-h-12 min-w-0 flex-1 appearance-none bg-transparent text-[17px] text-fg outline-none placeholder:text-fg-4 sm:text-lg [&::-webkit-search-cancel-button]:hidden"
               />
             </div>
-            <div className="flex gap-2">
-              <button type="submit" className="min-h-14 flex-1 border border-line-strong bg-bg px-5 font-semibold text-fg hover:border-fg-3 sm:flex-none">
-                Search
-              </button>
-              <button
-                type="button"
-                onClick={() => go(draft, true)}
-                className="inline-flex min-h-14 flex-1 items-center justify-center gap-2 bg-signal px-5 font-semibold text-on-signal sm:flex-none"
-                aria-describedby="smart-ask-hint"
-              >
-                <Sparkles className="h-4 w-4" aria-hidden />
-                Ask
-              </button>
-            </div>
+            <button type="submit" className="inline-flex min-h-14 items-center justify-center gap-2 bg-signal px-6 font-semibold text-on-signal">
+              <Search className="h-4 w-4" aria-hidden />
+              Search
+            </button>
           </div>
           <p id="smart-ask-hint" className="m-0 text-[14px] text-fg-3">
-            Search covers lessons and their sections, lecture moments, shorts, side quests, interview problems, LLD rounds, case files, mocks, war stories, concepts, FAQs, labs, drills and design
-            sheets. <span className="text-fg-2">Ask</span> also answers in plain words, citing the course, and writes a short learning path you can save{user ? "" : " (sign in free)"}.
+            Every lesson and section, lecture moment, short, side quest, interview problem, LLD round, case file, mock, war story, concept, FAQ, lab, drill and design sheet, grouped. No AI.{" "}
+            <button type="button" onClick={() => go(draft, true)} className="inline-flex min-h-10 items-center gap-1 font-semibold text-fg-2 underline decoration-line-strong underline-offset-2 hover:text-fg">
+              <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />
+              Ask the tutor instead
+            </button>
+            {user ? "" : " (sign in free)"}
           </p>
         </form>
         {!q && (

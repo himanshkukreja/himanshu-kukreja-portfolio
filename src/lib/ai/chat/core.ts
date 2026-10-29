@@ -6,10 +6,11 @@
  * exactly what learners get.
  */
 import { answerTokens, FEATURES } from "@/lib/ai/features";
+import { MODELS } from "@/lib/ai/prices";
 import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor } from "@/lib/ai/prompts";
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
-import { ChatState, learnerContext, runTool, TOOLS, type ChatDeps } from "./tools";
+import { ChatState, closingLine, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
 import { cleanAnswer, isRef, OFF_TOPIC_MARK, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
 
 /** Turns kept word for word; older ones become a short summary. */
@@ -105,8 +106,15 @@ export function buildMessages(req: ChatRequest, st: ChatState, context: string):
   // refs handed out earlier stay citable without searching again (the most recent 25)
   const refs = [...st.sources.entries()].slice(-25);
   if (refs.length && (old.length || turns.length)) head.push(`Refs from earlier in this chat you may cite again:\n${refs.map(([r, s]) => `${r} = ${s.kind === "guide" ? "site help" : s.kind}: ${clip(s.title, 90)}`).join("\n")}`);
+  // which practice questions are done: the page sends earlier answers as "(my answer to q1) …"
+  const graded = new Set<string>();
+  for (const t of turns) {
+    const m = t.role === "user" ? /^\(my answer to (q\d{1,4})\)/.exec(t.text) : null;
+    if (m) graded.add(m[1]);
+  }
   const quizzes = [...st.quizzes.keys()];
-  if (quizzes.length) head.push(`Practice questions asked in this chat: ${quizzes.join(", ")} (check_answer grades an answer to one).`);
+  const stateOf = (q: string) => (q === req.answerTo ? "answered in the newest message" : graded.has(q) ? "answered and graded already: done" : "asked, no answer yet");
+  if (quizzes.length) head.push(`Practice questions in this chat: ${quizzes.map((q) => `${q} (${stateOf(q)})`).join(", ")}. check_answer grades only the question the newest message answers; never grade one again.`);
   const paths = [...st.paths.values()];
   if (paths.length) head.push(`Paths built in this chat: ${paths.map((p) => `${p.pref} "${clip(p.title, 60)}" (${p.steps.length} steps)`).join("; ")}.`);
 
@@ -122,7 +130,30 @@ export function buildMessages(req: ChatRequest, st: ChatState, context: string):
 
 export const thinkingFor = (model: string): Record<string, unknown> | null => (/haiku/.test(model) ? { type: "disabled" } : /sonnet-5/.test(model) ? { type: "between_tools" } : null);
 
-export type CoreResult = { text: string; offTopic: boolean; loop: LoopResult; state: ChatState; ask: string; mode: "tutor" | "interviewer" | "scorecard" };
+export type CoreResult = {
+  text: string;
+  offTopic: boolean;
+  loop: LoopResult;
+  state: ChatState;
+  ask: string;
+  mode: "tutor" | "interviewer" | "scorecard";
+  /** ms spent building the learner context, and ms from the core's start to the loop's (timing for the admin log) */
+  ctxMs?: number;
+  loopAt?: number;
+  /** the main model declined before writing anything, and this model answered instead */
+  fellBack?: string;
+};
+
+/** What the learner sees when every model declined (a safety decline is never an error to retry). */
+export const DECLINE_TEXT = "I can't help with that one. I'm here for system design and this course: ask me about a topic, a lesson, a design you're working on or your interview prep.";
+
+/** Two loops' results as one (a fallback after a decline): usage, cost and tools add up; the second's text stands. */
+function joinLoops(a: LoopResult, b: LoopResult): LoopResult {
+  const usage = { ...a.usage };
+  for (const k of Object.keys(usage) as (keyof typeof usage)[]) usage[k] += b.usage[k];
+  const shift = (a.timing.at(-1)?.end ?? 0) + 1;
+  return { ...b, rounds: a.rounds + b.rounds, toolCalls: [...a.toolCalls, ...b.toolCalls], usage, costUsd: a.costUsd + b.costUsd, refusal: a.refusal, timing: [...a.timing, ...b.timing.map((t) => ({ ...t, start: t.start + shift, ttfb: t.ttfb + shift, first: t.first === null ? null : t.first + shift, end: t.end + shift }))], ttft: b.ttft === null ? null : b.ttft + shift };
+}
 
 export async function runChatCore(o: {
   deps: ChatDeps;
@@ -134,32 +165,58 @@ export async function runChatCore(o: {
   emit: (e: ChatEvent) => void;
   deadline: number;
   signal?: AbortSignal;
+  /** false: no server-side lookups before the model (the eval's A/B) */
+  prefetch?: boolean;
 }): Promise<CoreResult> {
+  const t0 = Date.now();
   const st = new ChatState(o.deps, o.emit);
   st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
+  const latestText = o.req.messages[o.req.messages.length - 1].text;
   const context = await learnerContext(st, o.memory, o.req.messages.filter((m) => m.role === "user").length === 1);
-  const messages = buildMessages(o.req, st, context);
+  // looked up before the model runs, so most answers need no tool round (see prefetchContext)
+  const pre = o.prefetch === false ? { text: "", ran: [] as string[] } : await prefetchContext(st, latestText, { answerTo: o.req.answerTo });
+  const ctxMs = Date.now() - t0;
+  const messages = buildMessages(o.req, st, [context, pre.text ? `<looked_up_for_this_message>\n${pre.text}\n</looked_up_for_this_message>` : ""].filter(Boolean).join("\n\n"));
   const system = courseChatSystem(o.map, promptOptsFor(o.model, "course-chat"));
-  const loop = await runLoop({
-    apiKey: o.apiKey,
-    model: o.model,
-    system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }],
-    tools: TOOLS,
-    messages,
-    maxTokens: answerTokens("course-chat", o.model),
-    thinking: thinkingFor(o.model),
-    maxToolRounds: MAX_TOOL_ROUNDS,
-    deadline: o.deadline,
-    signal: o.signal,
-    runTool: (name, input) => runTool(st, name, input),
-    onRound: (n) => o.emit({ type: "round", n }),
-    onText: (d) => o.emit({ type: "delta", text: d }),
-    onTool: (name) => o.emit({ type: "status", tool: name, label: TOOL_LABEL[name] ?? "working…" }),
-  });
+  const loopAt = Date.now() - t0;
+  const run = (model: string, sys: string) =>
+    runLoop({
+      apiKey: o.apiKey,
+      model,
+      system: [{ type: "text", text: sys, cache_control: { type: "ephemeral" } }],
+      tools: TOOLS,
+      messages,
+      maxTokens: answerTokens("course-chat", model),
+      thinking: thinkingFor(model),
+      maxToolRounds: MAX_TOOL_ROUNDS,
+      deadline: o.deadline,
+      signal: o.signal,
+      runTool: (name, input) => runTool(st, name, input),
+      onRound: (n) => o.emit({ type: "round", n }),
+      onText: (d) => o.emit({ type: "delta", text: d }),
+      onTool: (name) => o.emit({ type: "status", tool: name, label: TOOL_LABEL[name] ?? "working…" }),
+      finish: (ran) => closingLine(st, ran),
+    });
+  let loop = await run(o.model, system);
+  // a decline before anything was shown: the fast model answers instead (its own safety training decides),
+  // as the API's refusal fallbacks do; a decline after text was shown stays a decline
+  let fellBack: string | undefined;
+  if (loop.stop === "refusal" && loop.ttft === null && !/haiku/.test(o.model) && o.deadline - Date.now() > 8000) {
+    fellBack = MODELS.haiku55;
+    loop = joinLoops(loop, await run(fellBack, courseChatSystem(o.map, promptOptsFor(fellBack, "course-chat"))));
+  }
+  if (loop.stop === "refusal" && loop.ttft === null && !loop.error) {
+    loop = { ...loop, text: DECLINE_TEXT };
+    o.emit({ type: "delta", text: DECLINE_TEXT });
+  }
+  // what ran before the model counts as the message's tools (the admin trace, the quota's tool count)
+  if (pre.ran.includes("check_answer")) loop.toolCalls.unshift({ name: "check_answer", input: { qref: o.req.answerTo } });
+  if (pre.ran.includes("get_item")) loop.toolCalls.unshift({ name: "get_item", input: { ref: "page" } });
+  if (pre.ran.includes("search")) loop.toolCalls.unshift({ name: "search_course", input: { prefetched: true } });
   const offTopic = OFF_TOPIC_MARK.test(loop.text);
   const text = cleanAnswer(loop.text, (ref) => st.sources.has(ref));
   const latest = o.req.messages[o.req.messages.length - 1];
-  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor" };
+  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack };
 }
 
 /** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */
@@ -177,7 +234,7 @@ async function resolveMock(st: ChatState, key: string): Promise<ChatMock | null>
   return fromQuest(quest, md, dr);
 }
 
-const emptyLoop = (text: string): LoopResult => ({ text, stop: "end_turn", rounds: 0, toolCalls: [], usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, costUsd: 0, error: null, requestId: null });
+const emptyLoop = (text: string): LoopResult => ({ text, stop: "end_turn", rounds: 0, toolCalls: [], usage: { input_tokens: 0, output_tokens: 0, cache_read_input_tokens: 0, cache_creation_input_tokens: 0 }, costUsd: 0, error: null, requestId: null, refusal: null, timing: [], ttft: null });
 
 /**
  * A message while a mock interview is on: the interviewer's next line (the mock interviewer prompt, tuned per

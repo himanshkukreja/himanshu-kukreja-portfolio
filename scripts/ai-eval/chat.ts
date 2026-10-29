@@ -34,7 +34,7 @@ import { guideTopic } from "@/lib/ai/chat/siteGuide";
 import { planFor } from "@/lib/ai/chat/reviewSeams";
 import type { BankItem, ChatDeps } from "@/lib/ai/chat/tools";
 import type { ChatEvent, ChatRequest, ChatSource, ChatTurn, MockCard, PageContext, PathCard } from "@/lib/ai/chat/text";
-import { citedRefs } from "@/lib/ai/chat/text";
+import { citedRefs, historyText } from "@/lib/ai/chat/text";
 import { CHAT_CASES, type ChatCase } from "./chat-cases";
 
 const OUT = path.resolve(process.argv[2] || "chat-eval-out");
@@ -84,7 +84,7 @@ const DESIGN = {
   updatedAt: "2026-10-28T12:00:00Z",
 };
 
-type TurnLog = { user: string; text: string; ms: number; cost: number; tools: string[]; links: number; bad: string[]; urls: boolean; toolOk: boolean | null; mode: string; error: string | null; usage: Record<string, number> };
+type TurnLog = { user: string; text: string; ms: number; ttft: number | null; cost: number; tools: string[]; links: number; bad: string[]; urls: boolean; toolOk: boolean | null; mode: string; error: string | null; usage: Record<string, number> };
 type ModelRun = { model: string; turns: TurnLog[]; sources?: Record<string, ChatSource>; quizzes?: Record<string, unknown>; paths?: Record<string, PathCard>; mock?: unknown };
 type Row = { id: string; title: string; runs: ModelRun[]; judge: unknown; judgeCost: number; order: string[] };
 
@@ -93,7 +93,7 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
   const quizzes: Record<string, string> = {};
   const quizCards: Record<string, unknown> = {};
   const paths: Record<string, PathCard> = {};
-  const messages: ChatTurn[] = [];
+  const messages: ChatTurn[] = [...(c.ctx?.history ?? [])];
   let mock: (MockCard & { phase: number; turns: Record<string, ChatTurn[]> }) | null = null;
   let page: PageContext | null = null;
   if (c.ctx?.page) {
@@ -120,8 +120,10 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
   };
   const turns: TurnLog[] = [];
   for (const t of c.turns) {
-    messages.push({ role: "user", text: t.user });
+    // the history as the page sends it (lib/ai/chat/text.ts historyText): earlier answers name their question
+    messages.push({ role: "user", text: t.user, ...(t.answerTo ? { answerTo: t.answerTo } : {}) } as ChatTurn);
     const tools: string[] = [];
+    const shownBefore = new Set(Object.keys(quizCards));
     let mode = "tutor";
     const emit = (ev: ChatEvent) => {
       if (ev.type === "status") tools.push(ev.tool);
@@ -137,7 +139,7 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
     const phaseId = m ? m.phases[m.phase].id : "";
     const req: ChatRequest = {
       chat: "evalchat1",
-      messages: [...messages],
+      messages: messages.map((m, i) => ({ role: m.role, text: historyText(m as Parameters<typeof historyText>[0], quizCards as Record<string, { question: string }>, i === messages.length - 1) })),
       sources: Object.fromEntries(Object.entries(sources).map(([r, s]) => [r, s.id])),
       quizzes: { ...quizzes },
       paths: Object.fromEntries(Object.entries(paths).map(([p, x]) => [p, { title: x.title, note: x.note, steps: x.steps }])),
@@ -159,10 +161,11 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
     });
     const called = r.loop.toolCalls.map((x) => x.name);
     const toolOk = t.tools ? (t.tools.length ? t.tools.some((x) => called.includes(x)) : called.length === 0) && !(t.noTools ?? []).some((x) => called.includes(x)) : t.noTools ? !t.noTools.some((x) => called.includes(x)) : null;
-    turns.push({ user: t.user, text: r.text, ms: Date.now() - t0, cost: r.loop.costUsd, tools: called, links: refs.length, bad, urls: /https?:\/\/|www\./i.test(r.text), toolOk, mode, error: r.loop.error, usage: r.loop.usage as unknown as Record<string, number> });
-    messages.push({ role: "assistant", text: r.text });
+    turns.push({ user: t.user, text: r.text, ms: Date.now() - t0, ttft: r.loop.ttft === null ? null : r.loop.ttft + (r.loopAt ?? 0), cost: r.loop.costUsd, tools: called, links: refs.length, bad, urls: /https?:\/\/|www\./i.test(r.text), toolOk, mode, error: r.loop.error, usage: r.loop.usage as unknown as Record<string, number> });
+    const shownNow = Object.keys(quizCards).filter((q) => !shownBefore.has(q));
+    messages.push({ role: "assistant", text: r.text, ...(shownNow.length ? { quizzes: shownNow } : {}) } as ChatTurn);
     if (m && mode === "interviewer" && r.text) m.turns[phaseId] = [...(m.turns[phaseId] ?? []), { role: "user", text: t.user }, { role: "assistant", text: r.text }];
-    console.log(`  ${c.id} · ${model.replace("claude-", "")} · turn ${turns.length}: ${(Date.now() - t0) / 1000}s $${r.loop.costUsd.toFixed(4)} tools=[${called.join(",")}] refs=${refs.length} bad=${bad.length}${r.loop.error ? ` ERROR ${r.loop.error}` : ""}`);
+    console.log(`  ${c.id} · ${model.replace("claude-", "")} · turn ${turns.length}: ${(Date.now() - t0) / 1000}s ttft ${turns[turns.length - 1].ttft === null ? "-" : (turns[turns.length - 1].ttft! / 1000).toFixed(1)}s rounds ${r.loop.rounds} $${r.loop.costUsd.toFixed(4)} tools=[${called.join(",")}] refs=${refs.length} bad=${bad.length}${r.loop.error ? ` ERROR ${r.loop.error}` : ""}${r.loop.stop === "refusal" || r.loop.refusal ? ` REFUSAL ${r.loop.refusal}` : ""}${r.fellBack ? ` (fell back to ${r.fellBack})` : ""}`);
   }
   return { model, turns, sources, quizzes: quizCards, paths, mock };
 }
@@ -213,10 +216,11 @@ async function main() {
     const bad = ts.reduce((a, t) => a + t.bad.length, 0);
     const toolChecks = ts.filter((t) => t.toolOk !== null);
     const lat = ts.map((t) => t.ms).sort((a, b) => a - b);
+    const tt = ts.map((t) => t.ttft ?? t.ms).sort((a, b) => a - b);
     const cost = ts.reduce((a, t) => a + t.cost, 0);
     spend += cost;
     lines.push(
-      `${m.padEnd(20)} score ${(scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length)).toFixed(2)} (${scores.length} cases) · links ${links - bad}/${links} valid${ts.some((t) => t.urls) ? " · URL IN TEXT" : ""} · tools ${toolChecks.filter((t) => t.toolOk).length}/${toolChecks.length} · p50 ${(lat[Math.floor(lat.length / 2)] / 1000).toFixed(1)}s p95 ${(lat[Math.floor(lat.length * 0.95)] / 1000).toFixed(1)}s · $${(cost / Math.max(1, ts.length)).toFixed(4)}/message · errors ${ts.filter((t) => t.error).length}`,
+      `${m.padEnd(20)} score ${(scores.reduce((a, b) => a + b, 0) / Math.max(1, scores.length)).toFixed(2)} (${scores.length} cases) · links ${links - bad}/${links} valid${ts.some((t) => t.urls) ? " · URL IN TEXT" : ""} · tools ${toolChecks.filter((t) => t.toolOk).length}/${toolChecks.length} · p50 ${(lat[Math.floor(lat.length / 2)] / 1000).toFixed(1)}s p95 ${(lat[Math.floor(lat.length * 0.95)] / 1000).toFixed(1)}s · ttft p50 ${(tt[Math.floor(tt.length / 2)] / 1000).toFixed(1)}s p95 ${(tt[Math.floor(tt.length * 0.95)] / 1000).toFixed(1)}s · $${(cost / Math.max(1, ts.length)).toFixed(4)}/message · errors ${ts.filter((t) => t.error).length}`,
     );
   }
   const judgeCost = rows.reduce((a, r) => a + r.judgeCost, 0);

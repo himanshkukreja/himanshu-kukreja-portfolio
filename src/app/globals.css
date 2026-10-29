@@ -748,3 +748,17 @@ html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
     bottom: 88px;
   }
 }
+
+/* The course chat's sheets (components/learn/chat/ui.tsx): history and context slide in from the side, or up on phones */
+@keyframes hk-sheet-up {
+  from { transform: translateY(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes hk-sheet-left {
+  from { transform: translateX(-24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+@keyframes hk-sheet-right {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}

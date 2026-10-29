@@ -1,44 +1,48 @@
 "use client";
 
 /**
- * /learn/chat: the course chat, with instant results beside it.
+ * /learn/chat: the course chat as an app (design notes: the chat redesign of 29 Oct 2026).
  *
- * - Typing shows instant results right away (deterministic smart search, no AI, for everyone).
- * - Ask (or Enter) starts or continues the conversation with the course tutor (signed in): answers with
- *   sources, lecture moments at the second, learning paths to save, practice questions graded against the
- *   course's own answers, and next steps from your progress.
- * - Desktop: the results sit in a rail beside the chat. Phones: a Chat / Results switch.
- * - Links: ?q= opens with those results (and the text in the box); ?q=…&ask=1 sends it to the tutor; the
- *   full grouped results page is ?q=…&view=results.
+ * Zones by width:
+ *   >= 1280  history sidebar (collapsible) · the conversation (760px reading width) · the context rail
+ *   1024+    history sidebar · the conversation; the context opens as a slide-over
+ *   < 1024   the conversation; history (left drawer) and context (right slide-over, bottom sheet on phones)
+ * From 1024 up the page is a fixed-height shell (each zone scrolls on its own, the box sits under the
+ * conversation). Below that the page scrolls and the box is fixed above the course dock, or above the
+ * on-screen keyboard while it is up (visualViewport, for iOS).
+ *
+ * One box, one action: typing shows instant matches as you go (in the rail, or under the box when there is no
+ * rail), Enter / Ask asks the tutor. Signed out, Ask shows the instant matches and "Sign in to get an answer and a
+ * learning path". The grouped results page (?view=results) is the "See all N results" link.
+ * Links: ?q= opens with that text in the box (and its matches); ?q=…&ask=1 asks it once.
  *
  * The page shell is static (ISR); everything per learner loads here, on the client.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { MessageSquarePlus, Sparkles } from "lucide-react";
+import { History, LogIn, MessageSquarePlus, PanelLeftClose, PanelLeftOpen, PanelRight, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import SmartSearch from "@/components/learn/search/SmartSearch";
-import ExampleGallery from "@/components/learn/search/ExampleGallery";
-import { SEARCH_EXAMPLES, type SearchExample } from "@/lib/search/smart/examples";
+import { ExampleIconView, ModeBadge } from "@/components/learn/search/ExampleGallery";
+import { EXAMPLE_CATEGORIES, examplesIn, type SearchExample } from "@/lib/search/smart/examples";
 import { isNaturalQuery } from "@/lib/search/smart/text";
+import { whenLabel } from "@/lib/learn/chat-history";
 import { track } from "@/lib/track";
 import ChatComposer, { type ComposerHandle } from "./ChatComposer";
+import ChatHistory, { useChatHistory } from "./ChatHistory";
 import ChatThread from "./ChatThread";
-import ResultsRail from "./ResultsRail";
+import ContextRail, { QUICK_ACTIONS } from "./ContextRail";
 import { ChatFinePrint, QuotaLine } from "./ChatMeta";
+import { openThread } from "./history";
+import { InstantMatches } from "./ResultsRail";
+import { Sheet, useHeight, useKeyboardInset, useMedia } from "./ui";
 import { useCourseChat } from "./useCourseChat";
 
-/** Conversation starters: what the tutor can do (and the AI examples from the search examples). */
-const STARTERS = [
-  "What should I learn next?",
-  "Quiz me on caching",
-  "Make me a 2-week plan for a system design interview",
-  "Show me the lecture moment on consistent hashing",
-  ...SEARCH_EXAMPLES.filter((x) => x.ai).map((x) => x.text).slice(0, 3),
-  "Where are the mock interviews?",
-];
+/** The example categories, the ones the tutor answers first (examples.ts; the gallery's own list). */
+const CATEGORIES = [...EXAMPLE_CATEGORIES.filter((c) => c.ai), ...EXAMPLE_CATEGORIES.filter((c) => !c.ai)];
+const SIDEBAR_PREF = "hk.chat.sidebar";
 
 function useDebounced<T>(v: T, ms: number): T {
   const [d, setD] = useState(v);
@@ -69,14 +73,56 @@ function ChatPage() {
   const uid = dev ? "dev" : user?.id ?? null;
   const chat = useCourseChat(uid, { devHeaders });
   const canChat = dev || (!!user && !!ai?.features["course-chat"]);
+  const history = useChatHistory(uid, !dev && !!user);
   const [text, setText] = useState(q);
-  const [tab, setTab] = useState<"chat" | "results">("chat");
-  const [count, setCount] = useState<number | null>(null);
+  const [focused, setFocused] = useState(false);
+  // Ask pressed when the tutor can't answer (signed out, or resting): keep the matches open with the reason
+  const [pinned, setPinned] = useState<"signin" | "resting" | null>(null);
+  const [sheet, setSheet] = useState<"history" | "context" | null>(null);
+  const [sidebar, setSidebar] = useState(() => {
+    try {
+      return typeof window === "undefined" || window.localStorage.getItem(SIDEBAR_PREF) !== "0";
+    } catch {
+      return true;
+    }
+  });
   const composer = useRef<ComposerHandle>(null);
+  const scroller = useRef<HTMLDivElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
-  const lastAsk = [...chat.conv.messages].reverse().find((m) => m.role === "user" && !m.answerTo)?.text ?? "";
-  const railQ = useDebounced(text.trim() || q || lastAsk, 280);
+  const wide = useMedia("(min-width: 1024px)");
+  const rail = useMedia("(min-width: 1280px)");
+  const phone = useMedia("(max-width: 767px)");
+  const kb = useKeyboardInset();
+  const [boxRef, boxH] = useHeight<HTMLDivElement>(wide);
   const empty = chat.conv.messages.length === 0;
+  const lastAsk = [...chat.conv.messages].reverse().find((m) => m.role === "user" && !m.answerTo && !m.mockPhase)?.text ?? "";
+  const railQ = useDebounced(text.trim() || q || lastAsk, 280);
+  const typedQ = useDebounced(text.trim(), 220);
+  const title = empty ? "New chat" : history.threads.find((t) => t.id === chat.conv.chat)?.title || lastAsk || "Conversation";
+
+  const toggleSidebar = () =>
+    setSidebar((s) => {
+      try {
+        window.localStorage.setItem(SIDEBAR_PREF, s ? "0" : "1");
+      } catch {
+        /* blocked */
+      }
+      return !s;
+    });
+
+  // the course dock's height (phones and tablets): the box sits on top of it
+  const [dockH, setDockH] = useState(0);
+  useEffect(() => {
+    if (wide) return;
+    const dock = document.querySelector<HTMLElement>(".hk-dock");
+    if (!dock || typeof ResizeObserver === "undefined") return;
+    // hidden (display: none, e.g. a lesson's own toolbar) → no rects
+    const set = () => setDockH(dock.getClientRects().length ? Math.round(dock.getBoundingClientRect().height) : 0);
+    set();
+    const ro = new ResizeObserver(set);
+    ro.observe(dock);
+    return () => ro.disconnect();
+  }, [wide]);
 
   // a new ?q= (a link, the header box) replaces what's in the box
   const [seenQ, setSeenQ] = useState(q);
@@ -84,19 +130,32 @@ function ChatPage() {
     setSeenQ(q);
     setText(q);
   }
+  const type = (v: string) => {
+    setText(v);
+    setPinned(null);
+  };
 
   const ask = useCallback(
     (t: string) => {
       const v = t.trim();
       if (!v) return;
-      if (!uid) return openAuthModal();
-      if (!canChat) return;
+      if (!uid) {
+        setText(v);
+        setPinned("signin");
+        track("chat_ask_signed_out", { q_len: v.length });
+        return;
+      }
+      if (!canChat) {
+        setText(v);
+        setPinned("resting");
+        return;
+      }
       setText("");
-      setTab("chat");
+      setSheet(null);
       void chat.send(v);
       track("chat_ask", { q_len: v.length, natural: isNaturalQuery(v) });
     },
-    [canChat, chat, openAuthModal, uid],
+    [canChat, chat, uid],
   );
 
   // ?q=…&ask=1 (the header box's "Ask" row): send it once, then keep only ?q= so a reload doesn't send it again
@@ -106,170 +165,313 @@ function ChatPage() {
     if (!dev && (!user || !ai)) return;
     sentFor.current = q;
     // the URL asked for it (?ask=1): send once, as if the learner pressed Ask
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (canChat) ask(q);
     router.replace(`/learn/chat?q=${encodeURIComponent(q)}${dev ? "&preview=1" : ""}`, { scroll: false });
   }, [asked, q, loading, user, ai, canChat, ask, router, dev]);
 
-  const search = useCallback(() => {
-    const v = text.trim();
-    if (!v) return;
-    setTab("results");
-    router.replace(`/learn/chat?q=${encodeURIComponent(v)}${dev ? "&preview=1" : ""}`, { scroll: false });
-  }, [text, router, dev]);
-
-  // keep the newest message in view while it streams
+  // keep the newest message in view while it streams (the shell's own scroller from 1024 up, the page below)
   useEffect(() => {
     if (!chat.busy) return;
-    endRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
-  }, [chat.draft, chat.busy, chat.conv.messages.length]);
+    if (wide && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
+    else endRef.current?.scrollIntoView({ block: "end", behavior: "auto" });
+  }, [chat.draft, chat.busy, chat.conv.messages.length, wide]);
+  // a conversation opened from history starts at its end
+  const seenChat = useRef(chat.conv.chat);
+  useEffect(() => {
+    if (seenChat.current === chat.conv.chat) return;
+    seenChat.current = chat.conv.chat;
+    if (!chat.conv.messages.length) {
+      if (scroller.current) scroller.current.scrollTop = 0;
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (wide && scroller.current) scroller.current.scrollTop = scroller.current.scrollHeight;
+      else window.scrollTo({ top: document.documentElement.scrollHeight });
+    });
+    // only when the conversation itself changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chat.conv.chat, wide]);
+
+  const newChat = useCallback(() => {
+    chat.reset();
+    setText("");
+    setSheet(null);
+    window.setTimeout(() => composer.current?.focus(), 40);
+  }, [chat]);
 
   const pick = (x: SearchExample) => {
     if (x.ai && canChat) ask(x.text);
     else {
       setText(x.text);
-      setTab("results");
+      composer.current?.focus();
     }
   };
 
+  const signInLine = (
+    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line bg-surface-2 px-3 py-2.5">
+      <span className="text-[14px] font-semibold text-fg">{pinned === "resting" ? "The tutor is resting right now. Instant matches still work." : "Sign in to get an answer and a learning path"}</span>
+      {pinned !== "resting" && (
+        <button type="button" onClick={openAuthModal} className="inline-flex min-h-10 items-center gap-1.5 bg-signal px-3 text-[13.5px] font-semibold text-on-signal">
+          <LogIn className="h-4 w-4" aria-hidden />
+          Sign in free
+        </button>
+      )}
+    </div>
+  );
+
+  // instant matches under the box, where there is no results rail: while typing, or pinned after Ask
+  const showMatches = !rail && typedQ.length >= 2 && (focused || !!pinned);
   const hint = !uid ? (
     <>
-      Results appear as you type, for everyone.{" "}
+      Matches appear as you type, for everyone.{" "}
       <button type="button" onClick={openAuthModal} className="underline decoration-line-strong underline-offset-2 hover:text-fg-2">
         Sign in free
       </button>{" "}
-      to chat with the course tutor.
+      to get answers, paths and quizzes from the tutor.
     </>
   ) : !canChat ? (
-    ai ? "The tutor is resting right now. Instant results still work." : "Checking the tutor…"
+    ai ? "The tutor is resting right now. Matches still appear as you type." : "Checking the tutor…"
   ) : (
-    <>Enter to ask · Shift+Enter for a new line · the search button shows results only</>
+    <span className="hidden [@media(hover:hover)]:inline">Enter to ask · Shift+Enter for a new line</span>
   );
 
-  return (
-    <main className="mx-auto w-full max-w-[1280px] px-4 pb-40 pt-16 sm:px-6 lg:pb-16 lg:pt-10">
-      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px] xl:grid-cols-[minmax(0,1fr)_400px]">
-        <section aria-label="Course tutor" className={`flex min-w-0 flex-col gap-5 ${tab === "results" ? "max-lg:hidden" : ""}`}>
-          <header className="flex flex-col gap-3">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="inline-flex items-center gap-2 font-mono text-xs uppercase tracking-label text-signal-text">
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                Learn · ask the course
-                {ai?.preview && <span className="border border-line-strong px-1.5 py-px text-fg-3">admin preview</span>}
-              </span>
-              <span className="flex items-center gap-3">
-                {canChat && <QuotaLine quota={chat.quota} />}
-                {!empty && (
-                  <button type="button" onClick={chat.reset} className="inline-flex min-h-9 items-center gap-1.5 border border-line-strong px-2.5 font-mono text-[12px] text-fg-2 hover:text-fg">
-                    <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden />
-                    New chat
-                  </button>
-                )}
-              </span>
-            </div>
-            {empty && (
-              <h1 className="m-0 font-display text-[clamp(34px,6vw,64px)] font-extrabold leading-[0.95] tracking-tightest text-fg">
-                What do you want to learn<span className="text-signal-text">?</span>
-              </h1>
-            )}
-            {empty && (
-              <p className="m-0 max-w-[640px] text-[16px] leading-relaxed text-fg-2">
-                Ask in plain words. The tutor answers from the course with its sources, finds the exact second in a lecture, builds a path you can save, quizzes you on the course&apos;s own questions and
-                suggests what to do next from your progress.
-              </p>
-            )}
-          </header>
+  const box = (
+    <div className="relative">
+      {showMatches && (
+        <div className="absolute inset-x-0 bottom-full z-30 mb-2 max-h-[min(60vh,420px)] overflow-y-auto overscroll-contain">
+          <InstantMatches q={typedQ} headers={devHeaders} prompt={pinned ? signInLine : undefined} onPick={() => setFocused(false)} />
+        </div>
+      )}
+      <ChatComposer
+        ref={composer}
+        value={text}
+        onChange={type}
+        onAsk={() => ask(text)}
+        onStop={chat.stop}
+        busy={chat.busy}
+        canAsk={canChat}
+        autoFocus={wide && empty && !q}
+        placeholder={phone ? "Ask the course…" : "Ask anything about system design…"}
+        hint={hint}
+        onFocusChange={(f) => (f ? setFocused(true) : window.setTimeout(() => setFocused(false), 180))}
+      />
+      {pinned && rail && <div className="mt-2 border border-line-strong">{signInLine}</div>}
+    </div>
+  );
 
-          {!empty && (
-            <div className="flex flex-col gap-6">
-              <ChatThread
-                conv={chat.conv}
-                status={chat.status}
-                draft={chat.draft}
-                onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
-                onSave={chat.savePath}
-                actions={{ feedback: chat.feedback, share: true, onRate: chat.rate }}
-                mock={{ onNext: chat.nextPhase, onEnd: () => void chat.send("End the interview and score me.", { mockEnd: true }), onLeave: chat.leaveMock }}
-              />
-              {chat.fallback && (
-                <button type="button" onClick={() => setTab("results")} className="self-start font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-2 lg:hidden">
-                  See the instant results →
-                </button>
-              )}
-              <div ref={endRef} />
-            </div>
-          )}
-
-          <div className={`${empty ? "" : "sticky bottom-[calc(env(safe-area-inset-bottom,0px)+76px)] z-20 bg-bg pb-2 pt-2 lg:bottom-0 lg:pb-4"}`}>
-            <ChatComposer
-              ref={composer}
-              value={text}
-              onChange={setText}
-              onAsk={() => ask(text)}
-              onSearch={search}
-              onStop={chat.stop}
-              busy={chat.busy}
-              canAsk={canChat || !uid}
-              autoFocus={empty && !q}
-              hint={hint}
-            />
-          </div>
-
-          {empty && (
-            <div className="flex flex-col gap-2">
-              <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Try</span>
-              <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
-                {STARTERS.map((s) => (
-                  <li key={s}>
-                    <button
-                      type="button"
-                      onClick={() => (canChat ? ask(s) : uid ? setText(s) : openAuthModal())}
-                      className="min-h-10 border border-dashed border-line-strong px-3 text-left text-[14px] text-fg-2 hover:border-fg-3 hover:text-fg"
-                    >
-                      {s}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {canChat && <ChatFinePrint memory={chat.memory} />}
-
-          {empty && (
-            <details className="group border-t border-line pt-4">
-              <summary className="cursor-pointer list-none font-mono text-[12px] uppercase tracking-label text-fg-3 hover:text-fg">
-                <span className="group-open:hidden">+ what instant search finds</span>
-                <span className="hidden group-open:inline">− what instant search finds</span>
-              </summary>
-              <div className="mt-4">
-                <ExampleGallery onPick={pick} signedIn={!!user} compact />
-              </div>
-            </details>
-          )}
-        </section>
-
-        <aside aria-label="Instant results" className={`min-w-0 lg:sticky lg:top-[calc(var(--hk-header-h,61px)+16px)] lg:max-h-[calc(100dvh-var(--hk-header-h,61px)-32px)] lg:overflow-y-auto ${tab === "chat" ? "max-lg:hidden" : ""}`}>
-          <ResultsRail q={railQ} headers={devHeaders} onCount={setCount} />
-        </aside>
-      </div>
-
-      {/* phones: switch between the chat and the results */}
-      <div role="tablist" aria-label="Show" className="fixed inset-x-0 top-[calc(var(--hk-header-h,61px))] z-30 flex border-b border-line bg-bg/95 backdrop-blur lg:hidden">
-        {(["chat", "results"] as const).map((t) => (
-          <button
-            key={t}
-            role="tab"
-            type="button"
-            aria-selected={tab === t}
-            onClick={() => setTab(t)}
-            className={`min-h-10 flex-1 font-mono text-[12px] uppercase tracking-label ${tab === t ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3"}`}
-          >
-            {t}
-            {t === "results" && count !== null ? ` ${count}` : ""}
+  const historyList = (variant: "sidebar" | "sheet") =>
+    uid ? (
+      <ChatHistory uid={uid} sync={!dev && !!user} onNew={newChat} onOpened={() => setSheet(null)} beforeSwitch={chat.stop} busy={chat.busy} variant={variant} />
+    ) : (
+      <div className="flex flex-col gap-3 p-4">
+        <p className="m-0 text-[14px] leading-relaxed text-fg-2">
+          Your conversations show up here once you{" "}
+          <button type="button" onClick={openAuthModal} className="inline font-semibold text-fg underline decoration-line-strong underline-offset-2 hover:decoration-fg">
+            sign in
           </button>
-        ))}
+          . They are saved to your account for 90 days, on every device.
+        </p>
       </div>
+    );
+
+  const context = <ContextRail conv={chat.conv} q={railQ} headers={devHeaders} uid={uid} canChat={canChat} onAsk={ask} onSave={chat.savePath} onNavigate={() => setSheet(null)} onSignIn={openAuthModal} />;
+
+  const iconBtn = "grid h-11 w-11 shrink-0 place-items-center border border-transparent text-fg-3 hover:border-line-strong hover:text-fg";
+
+  /* ---------------------------------------------------------------- the conversation column */
+  const topBar = (
+    <div className="flex min-h-14 shrink-0 items-center gap-1 border-b border-line bg-bg/95 px-2 backdrop-blur max-lg:sticky max-lg:top-[var(--hk-header-h,61px)] max-lg:z-20 sm:px-3">
+      {wide ? (
+        <button type="button" onClick={toggleSidebar} aria-label={sidebar ? "Hide chat history" : "Show chat history"} aria-expanded={sidebar} title={sidebar ? "Hide history" : "Show history"} className={iconBtn}>
+          {sidebar ? <PanelLeftClose className="h-[18px] w-[18px]" aria-hidden /> : <PanelLeftOpen className="h-[18px] w-[18px]" aria-hidden />}
+        </button>
+      ) : (
+        <button type="button" data-chat-open="history" onClick={() => setSheet("history")} aria-label="Chat history" className={`${iconBtn} relative`}>
+          <History className="h-[18px] w-[18px]" aria-hidden />
+          {history.threads.length > 0 && <span aria-hidden className="absolute right-2 top-2 h-1.5 w-1.5 bg-signal" />}
+        </button>
+      )}
+      <div className="flex min-w-0 flex-1 flex-col px-1">
+        <span className="flex items-center gap-1.5 font-mono text-[10.5px] uppercase tracking-label text-signal-text">
+          <Sparkles className="h-3 w-3" aria-hidden />
+          ask the course
+          {ai?.preview && <span className="border border-line-strong px-1 text-fg-3">admin preview</span>}
+        </span>
+        <h1 className="m-0 truncate text-[14.5px] font-semibold leading-tight text-fg">{title}</h1>
+      </div>
+      {canChat && (
+        <span className="hidden md:block">
+          <QuotaLine quota={chat.quota} />
+        </span>
+      )}
+      {!rail && (
+        <button type="button" data-chat-open="context" onClick={() => setSheet("context")} aria-label="Sources, results and progress" title="Sources, results and progress" className={iconBtn}>
+          <PanelRight className="h-[18px] w-[18px]" aria-hidden />
+        </button>
+      )}
+      {!empty && (
+        <button type="button" onClick={newChat} aria-label="New chat" title="New chat" className={`${iconBtn} sm:flex sm:w-auto sm:items-center sm:gap-1.5 sm:border-line-strong sm:px-3 sm:font-mono sm:text-[12px]`}>
+          <MessageSquarePlus className="h-4 w-4" aria-hidden />
+          <span className="hidden sm:inline">New chat</span>
+        </button>
+      )}
+    </div>
+  );
+
+  const emptyState = (
+    <div className="mx-auto flex w-full max-w-[760px] flex-col gap-8 px-4 pb-8 pt-8 sm:px-6 lg:pt-[min(10vh,88px)]">
+      <header className="flex flex-col gap-4">
+        <h2 className="m-0 font-display text-[clamp(36px,7vw,58px)] font-extrabold leading-[0.95] tracking-tightest text-fg">
+          What do you want to learn<span className="text-signal-text">?</span>
+        </h2>
+        <p className="m-0 max-w-[620px] text-[16px] leading-relaxed text-fg-2">
+          Ask in plain words. The tutor answers from the course with its sources, finds the exact second in a lecture, builds a path you can save, quizzes you on the course&apos;s own questions and suggests what
+          to do next from your progress.
+        </p>
+      </header>
+      {wide && box}
+      {canChat && !rail && (
+        <div role="group" aria-label="Quick actions" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {QUICK_ACTIONS.map((a) => (
+            <button key={a.label} type="button" onClick={() => ask(a.ask)} className="flex min-h-12 items-center gap-2 border border-line-strong bg-surface px-3 text-left text-[14px] font-semibold text-fg-2 hover:border-signal hover:text-fg">
+              <a.icon className="h-4 w-4 shrink-0 text-signal-text" aria-hidden />
+              {a.label}
+            </button>
+          ))}
+        </div>
+      )}
+      {uid && history.threads.length > 0 && (
+        <section aria-labelledby="recent-h" className="flex flex-col gap-2.5">
+          <div className="flex items-baseline justify-between gap-2">
+            <h3 id="recent-h" className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3">
+              Recent chats
+            </h3>
+            {!(wide && sidebar) && (
+              <button type="button" onClick={() => (wide ? toggleSidebar() : setSheet("history"))} className="min-h-10 font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-2 hover:text-fg">
+                all {history.threads.length} →
+              </button>
+            )}
+          </div>
+          <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
+            {history.threads.slice(0, 4).map((t) => (
+              <li key={t.id}>
+                <button type="button" onClick={() => uid && void openThread(uid, t.id)} className="flex h-full min-h-16 w-full flex-col justify-between gap-1.5 border border-line bg-surface px-3.5 py-3 text-left hover:border-fg-3">
+                  <span className="line-clamp-2 break-words text-[14.5px] font-semibold leading-snug text-fg">{t.title}</span>
+                  <span className="font-mono text-[11px] text-fg-4">{whenLabel(t.updatedAt)}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      <section aria-labelledby="ex-h" className="flex flex-col gap-3">
+        <h3 id="ex-h" className="m-0 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-label text-fg-3">
+          Try one
+          <span className="inline-flex items-center gap-1.5 normal-case tracking-normal">
+            <ModeBadge ai /> the tutor answers{uid ? "" : " (sign in free)"}
+          </span>
+          <span className="inline-flex items-center gap-1.5 normal-case tracking-normal">
+            <ModeBadge ai={false} /> instant matches
+          </span>
+        </h3>
+        <ul className="m-0 grid list-none gap-2.5 p-0 sm:grid-cols-2">
+          {CATEGORIES.map((c) => (
+            <li key={c.id} className={`flex min-w-0 flex-col gap-2.5 border bg-surface p-3.5 ${c.ai ? "border-line-strong" : "border-line"}`}>
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="m-0 flex min-w-0 items-center gap-2 text-[14.5px] font-semibold leading-snug text-fg">
+                  <span className="grid h-7 w-7 shrink-0 place-items-center border border-line-strong text-signal-text">
+                    <ExampleIconView icon={c.icon} />
+                  </span>
+                  {c.label}
+                </h4>
+                {c.ai && <ModeBadge ai />}
+              </div>
+              <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+                {examplesIn(c.id)
+                  .slice(0, 3)
+                  .map((x) => (
+                    <li key={x.text} className="max-w-full">
+                      <button type="button" onClick={() => pick(x)} className="min-h-10 max-w-full break-words border border-dashed border-line-strong px-2.5 py-1.5 text-left text-[13.5px] leading-snug text-fg-2 hover:border-fg-3 hover:text-fg">
+                        {x.text}
+                      </button>
+                    </li>
+                  ))}
+              </ul>
+            </li>
+          ))}
+        </ul>
+      </section>
+      {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} />}
+    </div>
+  );
+
+  const thread = (
+    <div className="mx-auto flex w-full max-w-[760px] min-w-0 flex-col gap-6 px-4 pb-6 pt-6 sm:px-6">
+      <ChatThread
+        conv={chat.conv}
+        status={chat.status}
+        draft={chat.draft}
+        onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
+        onSave={chat.savePath}
+        actions={{ feedback: chat.feedback, share: true, onRate: chat.rate }}
+        mock={{ onNext: chat.nextPhase, onEnd: () => void chat.send("End the interview and score me.", { mockEnd: true }), onLeave: chat.leaveMock }}
+      />
+      {chat.fallback && !rail && (
+        <button type="button" onClick={() => setSheet("context")} className="min-h-10 self-start font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-2">
+          See the instant results →
+        </button>
+      )}
+      {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} className="border-t border-line pt-4" />}
+      <div ref={endRef} />
+    </div>
+  );
+
+  /* ---------------------------------------------------------------- phones and tablets: the page scrolls */
+  if (!wide)
+    return (
+      <main className="w-full min-w-0" style={{ paddingBottom: boxH + 12 }}>
+        {topBar}
+        {empty ? emptyState : thread}
+        <div ref={boxRef} className="hk-safe-x fixed inset-x-0 z-40 border-t border-line bg-bg/95 px-3 pb-2 pt-2 backdrop-blur sm:px-6" style={{ bottom: kb > 0 ? kb : dockH }}>
+          <div className="mx-auto w-full max-w-[760px]">{box}</div>
+        </div>
+        <Sheet open={sheet === "history"} onClose={() => setSheet(null)} side="left" label="Chat history">
+          {historyList("sheet")}
+        </Sheet>
+        <Sheet open={sheet === "context"} onClose={() => setSheet(null)} side={phone ? "bottom" : "right"} label="Sources, results and progress" width="w-[min(400px,92vw)]">
+          <div className="p-4">{context}</div>
+        </Sheet>
+      </main>
+    );
+
+  /* ---------------------------------------------------------------- 1024 and up: the app shell */
+  return (
+    <main className="flex h-[calc(100dvh-var(--hk-header-h,61px))] w-full min-w-0 overflow-hidden">
+      {sidebar && (
+        <aside aria-label="Chat history" className="flex w-[264px] shrink-0 flex-col border-r border-line bg-surface/60">
+          {historyList("sidebar")}
+        </aside>
+      )}
+      <section aria-label="Conversation" className="flex min-w-0 flex-1 flex-col">
+        {topBar}
+        <div ref={scroller} data-chat-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+          {empty ? emptyState : thread}
+        </div>
+        {!empty && (
+          <div className="shrink-0 border-t border-line bg-bg px-6 pb-4 pt-3">
+            <div className="mx-auto w-full max-w-[712px]">{box}</div>
+          </div>
+        )}
+      </section>
+      {rail ? (
+        <aside aria-label="Sources, results and progress" className="w-[340px] shrink-0 overflow-y-auto overscroll-contain border-l border-line bg-surface/60 p-5 2xl:w-[380px]">
+          {context}
+        </aside>
+      ) : (
+        <Sheet open={sheet === "context"} onClose={() => setSheet(null)} side="right" label="Sources, results and progress" width="w-[400px]">
+          <div className="p-4">{context}</div>
+        </Sheet>
+      )}
     </main>
   );
 }

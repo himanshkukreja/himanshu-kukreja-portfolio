@@ -81,6 +81,8 @@ export default function VoiceInput({ onTranscript, disabled = false }: { onTrans
       rec.interimResults = true;
       rec.maxAlternatives = 1;
       let heard = "";
+      // the last result was final and already handed over: onend mustn't hand it over again (that doubled it)
+      let handed = false;
       let retryLang = false;
       rec.onstart = () => setStatus("listening");
       rec.onresult = (e) => {
@@ -92,7 +94,8 @@ export default function VoiceInput({ onTranscript, disabled = false }: { onTrans
           else interim += r[0].transcript;
         }
         heard = (finalText + interim).replace(/\s+/g, " ").trim();
-        cb.current(heard, interim.trim() === "");
+        handed = interim.trim() === "";
+        cb.current(heard, handed);
       };
       rec.onerror = (e) => {
         switch (e.error) {
@@ -131,7 +134,7 @@ export default function VoiceInput({ onTranscript, disabled = false }: { onTrans
       };
       rec.onend = () => {
         recRef.current = null;
-        if (heard) cb.current(heard, true);
+        if (heard && !handed) cb.current(heard, true);
         setStatus((s) => (s === "listening" || s === "starting" ? "idle" : s));
         if (retryLang) window.setTimeout(() => run(Ctor), 0);
       };

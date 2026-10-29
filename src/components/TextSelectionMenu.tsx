@@ -204,7 +204,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
 
   const sheet = props.placement === "sheet";
   const btn = `inline-flex items-center gap-1.5 bg-transparent text-fg font-semibold hover:bg-surface focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal ${
-    sheet ? "min-h-[52px] min-w-0 flex-1 flex-col justify-center gap-1 px-1 text-[12px] leading-none" : "min-h-[44px] px-3 text-[13px]"
+    sheet ? "min-h-[52px] min-w-0 flex-1 flex-col justify-center gap-1 px-0.5 text-[12px] leading-none max-[379px]:text-[11px] max-[359px]:text-[10px] max-[359px]:tracking-[-0.03em]" : "min-h-[44px] px-3 text-[13px]"
   }`;
   const below = props.placement === "below";
   const key = sheet ? "hidden" : "font-mono text-[10px] text-fg-4 font-normal";

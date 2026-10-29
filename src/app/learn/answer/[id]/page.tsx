@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, Sparkles } from "lucide-react";
 import KindIcon from "@/components/learn/search/KindIcon";
 import { KIND_LABEL } from "@/lib/search/smart/types";
 import { ANSWER_PAGES_INDEXABLE, answerText, ID_RE } from "@/lib/share/answer-model";
@@ -54,11 +54,11 @@ export default async function SharedAnswerPage({ params }: Params) {
           <span className="bg-signal px-2 py-1 font-semibold text-on-signal">Asked &amp; answered</span>
           <span>from the course · shared {date}</span>
         </p>
-        <h1 className="m-0 font-display text-[28px] font-extrabold leading-[1.1] tracking-[-0.02em] text-fg sm:text-[38px]">{a.question}</h1>
+        <h1 className="m-0 break-words font-display text-[28px] font-extrabold leading-[1.1] tracking-[-0.02em] text-fg [overflow-wrap:anywhere] sm:text-[38px]">{a.question}</h1>
       </header>
 
-      <section aria-label="Answer" className="flex flex-col gap-5 border-l-2 border-signal pl-4 sm:pl-5">
-        <p className="m-0 text-[17px] leading-relaxed text-fg sm:text-[18px]">
+      <section aria-label="Answer" className="flex min-w-0 flex-col gap-5 border-l-2 border-signal pl-4 sm:pl-5">
+        <p className="m-0 break-words text-[17px] leading-relaxed text-fg [overflow-wrap:anywhere] sm:text-[18px]">
           {a.answer.map((p, i) =>
             typeof p === "string" ? (
               <span key={i}>{p}</span>
@@ -83,7 +83,7 @@ export default async function SharedAnswerPage({ params }: Params) {
                 <span className="w-4 shrink-0 font-mono text-[12px] text-fg-3">{i + 1}</span>
                 <KindIcon kind={c.kind} className="h-3.5 w-3.5 shrink-0 translate-y-[2px] text-signal-text" />
                 <span className="flex min-w-0 flex-col">
-                  <Link href={c.href} className="text-fg hover:underline">
+                  <Link href={c.href} className="break-words text-fg hover:underline">
                     {c.title}
                   </Link>
                   <span className="truncate font-mono text-[11px] text-fg-4">
@@ -106,7 +106,7 @@ export default async function SharedAnswerPage({ params }: Params) {
         <p className="m-0 text-[15px] leading-relaxed text-fg-2">Search the whole free course, lessons, lectures, labs and interview problems, and get an answer that cites where it comes from.</p>
         <div className="flex flex-wrap gap-3">
           <Link href="/learn/chat" className="flex min-h-[52px] items-center gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
-            <Search className="h-4 w-4" aria-hidden />
+            <Sparkles className="h-4 w-4" aria-hidden />
             <span>Ask your own question</span>
           </Link>
           <Link href="/learn" className="flex min-h-[52px] items-center gap-2 border border-line-strong px-5 text-base text-fg hover:border-fg-3">

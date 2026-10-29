@@ -103,7 +103,7 @@ function QuizCard({ conv, qref, onAnswer, busy }: { conv: Conversation; qref: st
             onChange={(e) => setText(e.target.value.slice(0, 1500))}
             rows={3}
             placeholder="Your answer, in your own words"
-            className="min-h-[84px] resize-y border border-line-strong bg-bg px-3 py-2 text-[15px] text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
+            className="min-h-[84px] resize-y border border-line-strong bg-bg px-3 py-2 text-[16px] sm:text-[15px] text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
           />
           <button type="submit" disabled={!text.trim() || busy} className="min-h-11 self-start bg-signal px-4 font-semibold text-on-signal disabled:opacity-50">
             Check my answer
@@ -249,7 +249,7 @@ function Feedback({ callId, r, onRate }: { callId: number; r?: Rating; onRate?: 
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState(r?.note ?? "");
   if (!onRate) return null;
-  const btn = (on: boolean) => `grid h-8 w-8 place-items-center border ${on ? "border-signal text-signal-text" : "border-transparent text-fg-4 hover:text-fg"}`;
+  const btn = (on: boolean) => `grid h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 place-items-center border ${on ? "border-signal text-signal-text" : "border-transparent text-fg-4 hover:text-fg"}`;
   return (
     <span className="inline-flex flex-wrap items-center gap-0.5">
       <button type="button" aria-label="Helpful" aria-pressed={r?.rating === 1} onClick={() => onRate(callId, { rating: r?.rating === 1 ? 0 : 1, wrong: false, note: "" })} className={btn(r?.rating === 1)}>
@@ -273,7 +273,7 @@ function Feedback({ callId, r, onRate }: { callId: number; r?: Rating; onRate?: 
           <label htmlFor={`fb-${callId}`} className="sr-only">
             What was wrong? (optional)
           </label>
-          <input id={`fb-${callId}`} value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="What was wrong? (optional)" className="min-h-9 min-w-0 flex-1 border border-line-strong bg-bg px-2.5 text-[13px] text-fg placeholder:text-fg-4" />
+          <input id={`fb-${callId}`} value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="What was wrong? (optional)" className="min-h-9 min-w-0 flex-1 border border-line-strong bg-bg px-2.5 text-[16px] sm:text-[13px] text-fg placeholder:text-fg-4" />
           <button type="submit" className="min-h-9 border border-line-strong px-2.5 font-mono text-[11.5px] text-fg-2 hover:text-fg">
             send
           </button>
@@ -321,7 +321,7 @@ function ShareAnswer({ m, conv }: { m: ChatMsg; conv: Conversation }) {
     setState("copied");
   };
   return (
-    <button type="button" onClick={share} disabled={state === "busy"} aria-label="Share this answer" className="inline-flex h-8 items-center gap-1 px-1.5 font-mono text-[11px] text-fg-4 hover:text-fg">
+    <button type="button" onClick={share} disabled={state === "busy"} aria-label="Share this answer" className="inline-flex h-8 items-center gap-1 px-1.5 font-mono text-[11px] text-fg-4 hover:text-fg [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:px-2.5">
       <Share2 className="h-3.5 w-3.5" aria-hidden />
       {state === "copied" ? "link copied" : "share"}
     </button>
@@ -354,27 +354,27 @@ export default function ChatThread({
         return (
           <li key={m.id} className={m.role === "user" ? "flex justify-end" : "flex flex-col"}>
             {m.role === "user" ? (
-              <div className="max-w-[88%] whitespace-pre-wrap border border-line-strong bg-surface-2 px-3.5 py-2.5 text-[15px] leading-relaxed text-fg">
+              <div className="min-w-0 max-w-[88%] whitespace-pre-wrap break-words [overflow-wrap:anywhere] border border-line-strong bg-surface-2 px-3.5 py-2.5 text-[15px] leading-relaxed text-fg">
                 {m.answerTo && <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-label text-fg-3">my answer</span>}
                 {m.mockPhase && <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-label text-fg-3">to the interviewer</span>}
                 {m.text}
               </div>
             ) : pending ? (
+              // the same order as the finished answer (text, then its cards), so nothing jumps when it lands
               <div className="flex flex-col gap-3" aria-live="polite" aria-busy={status.kind === "streaming" ? "true" : "false"}>
+                {draft && <ChatMarkdown text={streamingText(draft, (r) => !!conv.sources[r])} sources={conv.sources} order={citedRefs(draft)} />}
+                {(!draft || status.kind === "working") && (
+                  <p className="m-0 flex items-center gap-2 font-mono text-[12.5px] text-fg-3">
+                    <Loader2 className="h-3.5 w-3.5 motion-safe:animate-spin" aria-hidden />
+                    {status.kind === "working" ? status.label : "writing…"}
+                  </p>
+                )}
                 {(m.quizzes ?? []).map((q) => (
                   <QuizCard key={q} conv={conv} qref={q} onAnswer={onAnswer} busy />
                 ))}
                 {(m.paths ?? []).map((p) => (
                   <PathCardView key={p} conv={conv} pref={p} onSave={onSave} />
                 ))}
-                {draft ? (
-                  <ChatMarkdown text={streamingText(draft, (r) => !!conv.sources[r])} sources={conv.sources} order={citedRefs(draft)} />
-                ) : (
-                  <p className="m-0 flex items-center gap-2 font-mono text-[12.5px] text-fg-3">
-                    <Loader2 className="h-3.5 w-3.5 motion-safe:animate-spin" aria-hidden />
-                    {status.kind === "working" ? status.label : "writing…"}
-                  </p>
-                )}
               </div>
             ) : (
               <Assistant m={m} conv={conv} onAnswer={onAnswer} onSave={onSave} busy={busy} actions={actions} />
@@ -412,7 +412,7 @@ function MockBar({ conv, busy, onNext, onEnd, onLeave }: { conv: Conversation; b
           <Mic className="mr-1.5 inline h-3.5 w-3.5" aria-hidden />
           {m.title}: scored. Practise the gaps, then try it again.
         </span>
-        <button type="button" onClick={onLeave} className="min-h-9 border border-line-strong px-2.5 text-fg-2 hover:text-fg">
+        <button type="button" onClick={onLeave} className="min-h-9 border border-line-strong px-2.5 text-fg-2 hover:text-fg [@media(pointer:coarse)]:min-h-11">
           back to the tutor
         </button>
       </div>
@@ -433,14 +433,14 @@ function MockBar({ conv, busy, onNext, onEnd, onLeave }: { conv: Conversation; b
       </span>
       <span className="flex flex-wrap gap-1.5">
         {m.phase < m.phases.length - 1 && (
-          <button type="button" disabled={busy} onClick={onNext} className="min-h-9 border border-line-strong px-2.5 font-mono text-[12px] text-fg hover:border-fg-3 disabled:opacity-50">
+          <button type="button" disabled={busy} onClick={onNext} className="min-h-9 border border-line-strong px-2.5 font-mono text-[12px] text-fg hover:border-fg-3 disabled:opacity-50 [@media(pointer:coarse)]:min-h-11">
             next phase →
           </button>
         )}
-        <button type="button" disabled={busy} onClick={onEnd} className="min-h-9 bg-signal px-2.5 font-mono text-[12px] font-semibold text-on-signal disabled:opacity-50">
+        <button type="button" disabled={busy} onClick={onEnd} className="min-h-9 bg-signal px-2.5 font-mono text-[12px] font-semibold text-on-signal disabled:opacity-50 [@media(pointer:coarse)]:min-h-11">
           end and score me
         </button>
-        <button type="button" disabled={busy} onClick={onLeave} className="min-h-9 px-2.5 font-mono text-[12px] text-fg-3 hover:text-fg">
+        <button type="button" disabled={busy} onClick={onLeave} className="min-h-9 px-2.5 font-mono text-[12px] text-fg-3 hover:text-fg [@media(pointer:coarse)]:min-h-11">
           leave the interview
         </button>
       </span>

@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * The chat's input: a growing text box with Ask (send to the tutor) and, on the search page, Search
- * (instant results only, no AI). Enter asks (or searches when the chat isn't available); Shift+Enter is a
- * new line. Typing feeds the instant results through `onType`.
+ * The chat's input: a growing text box and one action, Ask (send to the tutor). Typing feeds the instant
+ * matches (the page shows them as you type, no button needed); Enter asks, Shift+Enter is a new line. When the
+ * learner can't ask (signed out), the page decides what Ask does (it shows the instant matches and a sign-in line).
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
-import { ArrowUp, Search, Square } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import VoiceInput from "./VoiceInput";
 
 export type ComposerHandle = { focus: () => void };
@@ -15,7 +15,6 @@ type Props = {
   value: string;
   onChange: (v: string) => void;
   onAsk: () => void;
-  onSearch?: () => void;
   onStop?: () => void;
   busy: boolean;
   canAsk: boolean;
@@ -24,9 +23,11 @@ type Props = {
   id?: string;
   autoFocus?: boolean;
   compact?: boolean;
+  /** the box gained or lost focus (the page shows instant matches while it has it) */
+  onFocusChange?: (focused: boolean) => void;
 };
 
-const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ value, onChange, onAsk, onSearch, onStop, busy, canAsk, placeholder, hint, id = "chat-input", autoFocus, compact }, ref) {
+const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ value, onChange, onAsk, onStop, busy, canAsk, placeholder, hint, id = "chat-input", autoFocus, compact, onFocusChange }, ref) {
   const ta = useRef<HTMLTextAreaElement>(null);
   // speech: the transcript of this listening session goes after whatever was typed before it started
   const before = useRef<string | null>(null);
@@ -40,8 +41,7 @@ const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ v
   }, [value, compact]);
   const submit = () => {
     if (!value.trim()) return ta.current?.focus();
-    if (canAsk) onAsk();
-    else onSearch?.();
+    onAsk();
   };
   return (
     <form
@@ -68,9 +68,11 @@ const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ v
           }}
           rows={1}
           autoFocus={autoFocus}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           enterKeyHint={canAsk ? "send" : "search"}
-          placeholder={placeholder ?? "Ask, or search the course"}
-          className={`min-h-11 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2.5 text-fg outline-none placeholder:text-fg-4 focus:outline-none focus-visible:outline-none focus-visible:shadow-none ${compact ? "text-[15px]" : "text-[16px] sm:text-[17px]"}`}
+          placeholder={placeholder ?? "Ask the course anything…"}
+          className={`min-h-11 min-w-0 flex-1 resize-none bg-transparent px-2.5 py-2.5 text-fg outline-none placeholder:overflow-hidden placeholder:text-ellipsis placeholder:whitespace-nowrap placeholder:text-fg-4 focus:outline-none focus-visible:outline-none focus-visible:shadow-none ${compact ? "text-[16px] lg:text-[15px]" : "text-[16px] sm:text-[17px]"}`}
         />
         <VoiceInput
           disabled={busy}
@@ -83,19 +85,14 @@ const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ v
             }
           }}
         />
-        {onSearch && (
-          <button type="button" onClick={onSearch} disabled={!value.trim()} aria-label="Search (instant results, no AI)" title="Search (instant results, no AI)" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg-2 hover:text-fg disabled:opacity-40">
-            <Search className="h-4 w-4" aria-hidden />
-          </button>
-        )}
         {busy && onStop ? (
           <button type="button" onClick={onStop} aria-label="Stop the answer" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg hover:border-fg-3">
             <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
           </button>
         ) : (
-          <button type="submit" disabled={busy || !value.trim()} aria-label={canAsk ? "Ask the tutor" : "Search"} className="inline-flex h-11 shrink-0 items-center gap-1.5 bg-signal px-3.5 font-semibold text-on-signal disabled:opacity-50">
+          <button type="submit" disabled={busy || !value.trim()} aria-label="Ask" className="inline-flex h-11 min-w-11 shrink-0 items-center justify-center gap-1.5 bg-signal px-3.5 font-semibold text-on-signal disabled:opacity-50">
             <ArrowUp className="h-4 w-4" aria-hidden />
-            <span className={compact ? "sr-only" : "hidden sm:inline"}>{canAsk ? "Ask" : "Search"}</span>
+            <span className={compact ? "sr-only" : "hidden sm:inline"}>Ask</span>
           </button>
         )}
       </div>

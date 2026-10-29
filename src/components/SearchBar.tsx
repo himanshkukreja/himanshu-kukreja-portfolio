@@ -425,8 +425,8 @@ function Palette({ onClose }: { onClose: () => void }) {
     const askHits: Hit[] =
       smart && t.length >= 2
         ? [
-            { id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "Ask the course tutor: an answer with its sources, a path to save, a quick quiz", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` },
-            { id: "all", group: "ask", badge: "ALL", title: `All results for “${t.slice(0, 120)}”`, sub: "The full search page: every lesson, lecture moment, short, quest and story that matches", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}` },
+            { id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "The course tutor answers with its sources, a learning path to save and a quick quiz", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` },
+            { id: "all", group: "ask", badge: "ALL", title: `See all results for “${t.slice(0, 120)}”`, sub: "Every lesson, lecture moment, short, quest and story that matches, grouped (no AI)", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}&view=results` },
           ]
         : [];
     const askFirst = isNaturalQuery(t);

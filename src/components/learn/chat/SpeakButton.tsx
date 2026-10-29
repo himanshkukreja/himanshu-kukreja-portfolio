@@ -43,6 +43,7 @@ export function speakableText(md: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
     .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/\s*\[\[[^\]\n]*\]\]/g, "")
     .replace(/\s*\[\d+(?:,\s*\d+)*\]/g, "")
     .replace(/^\s{0,3}(#{1,6}|>|[-*+]|\d+\.)\s+/gm, "")
     .replace(/(\*\*|__|\*|_|~~)(.+?)\1/g, "$2")
@@ -147,7 +148,7 @@ export default function SpeakButton({ text }: { text: string }) {
       aria-pressed={speaking}
       aria-label={speaking ? "Stop reading aloud" : "Read this answer aloud"}
       title={speaking ? "Stop" : "Read aloud"}
-      className={`inline-flex min-h-9 items-center gap-1.5 border px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-50 ${
+      className={`inline-flex min-h-9 items-center gap-1.5 border px-2.5 [@media(pointer:coarse)]:min-h-11 font-mono text-[11px] uppercase tracking-[0.06em] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal disabled:opacity-50 ${
         speaking ? "border-signal bg-signal text-on-signal" : "border-line bg-transparent text-fg-3 hover:border-line-strong hover:text-fg"
       }`}
     >

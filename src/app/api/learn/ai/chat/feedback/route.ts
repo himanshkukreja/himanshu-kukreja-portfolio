@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
+import { chatDevLearner } from "@/lib/ai/chat/dev";
 import { supabase } from "@/lib/supabase";
 import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 
@@ -14,7 +15,7 @@ const noStore = { "Cache-Control": "private, no-store" };
  * 90 days, the rating stays for the stats). 503 until the chat migration is applied (the page then hides it).
  */
 export async function POST(request: Request) {
-  const me = await requireLearner(request);
+  const me = chatDevLearner(request) ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
   if (!(await feedbackEnabled())) return NextResponse.json({ error: "Feedback isn't switched on yet." }, { status: 503, headers: noStore });
   const b = (await request.json().catch(() => ({}))) as { callId?: unknown; rating?: unknown; wrong?: unknown; note?: unknown };

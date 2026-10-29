@@ -105,7 +105,7 @@ export type ChatEvent =
   | { type: "mock"; mock: MockCard }
   | { type: "round"; n: number }
   | { type: "delta"; text: string }
-  | { type: "done"; text: string; offTopic: boolean; quota: ChatQuota | null; tools: number; ms: number; callId: number | null; mode?: "tutor" | "interviewer" | "scorecard" }
+  | { type: "done"; text: string; offTopic: boolean; quota: ChatQuota | null; tools: number; ms: number; callId: number | null; mode?: "tutor" | "interviewer" | "scorecard"; /** ms to the first text the learner saw (server side) */ ttft?: number | null }
   | { type: "error"; message: string };
 
 export const REF_RE = /\[\[\s*([a-z]\d{1,4}(?:\s*,\s*[a-z]\d{1,4})*)\s*\]\]/gi;
@@ -126,6 +126,11 @@ export function cleanAnswer(text: string, known: (ref: string) => boolean): stri
       .replace(/<\/?(?:a|script|iframe|img|div|span|p|br|hr|b|i|u|em|strong|style|link|meta|form|input|button|svg|object|embed|plan)\b[^>\n]*>/gi, "")
       // the course's internal block syntax never shows
       .replace(/^\s*:{2,}.*$/gm, "")
+      // a ref written as (s3) or (s3, s7) instead of [[s3]] (the fast model, now and then): made a citation when every ref is known
+      .replace(/\(\s*(s\d{1,4}(?:\s*,\s*s\d{1,4})*)\s*\)/gi, (m, list: string) => {
+        const refs = list.split(",").map((r) => r.trim().toLowerCase());
+        return refs.every(known) ? `[[${refs.join(", ")}]]` : m;
+      })
       .replace(REF_RE, (_m, list: string) => {
         const keep = list
           .split(",")
@@ -137,6 +142,17 @@ export function cleanAnswer(text: string, known: (ref: string) => boolean): stri
       .replace(/\n{3,}/g, "\n\n")
       .trim()
   );
+}
+
+/**
+ * A turn as it goes back to the model in the history. Cards live on the page, not in the text, so the model
+ * would otherwise not know a question was shown (it once "corrected" a grade it had given, saying it never
+ * asked one): an answer to a practice question says which one, and a reply that showed one says so.
+ */
+export function historyText(m: { role: "user" | "assistant"; text: string; answerTo?: string; quizzes?: string[] }, quizzes: Record<string, { question: string } | undefined>, isNew = false): string {
+  if (m.role === "user") return m.answerTo && !isNew ? `(my answer to ${m.answerTo}) ${m.text}` : m.text;
+  const shown = (m.quizzes ?? []).map((q) => `(The page showed practice question ${q}${quizzes[q] ? `: "${quizzes[q]!.question.replace(/\s+/g, " ").slice(0, 160)}"` : ""}.)`);
+  return shown.length ? `${m.text}\n\n${shown.join(" ")}` : m.text;
 }
 
 /** Text split into plain runs and citation groups, for rendering ([[s1, s3]] → ["s1","s3"]). */

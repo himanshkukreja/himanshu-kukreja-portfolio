@@ -11,7 +11,7 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ExternalLink, MessageSquarePlus, Sparkles, X } from "lucide-react";
+import { ArrowLeft, ExternalLink, History, MessageSquarePlus, Sparkles, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
@@ -19,6 +19,8 @@ import { useLessonFaq } from "@/components/learn/ai/useLessonFaq";
 import { matchFaq } from "@/lib/learn/faq/parse";
 import { track } from "@/lib/track";
 import ChatComposer, { type ComposerHandle } from "./ChatComposer";
+import ChatHistory, { useChatHistory } from "./ChatHistory";
+import { useKeyboardInset } from "./ui";
 import ChatThread from "./ChatThread";
 import { ChatFinePrint, QuotaLine } from "./ChatMeta";
 import { clearHeldSelection, heldPassage, readPageContext } from "./pageContext";
@@ -58,6 +60,11 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
   const lesson = LESSON_RE.exec(pathname);
   const isLesson = !!lesson && !/^(design-week|revise)$/.test(lesson[1]);
   const faq = useLessonFaq(isLesson ? lesson![2] : null, isLesson ? lesson![3] : "");
+  // the panel's History view (the same list as the sidebar on /learn/chat)
+  const [showHistory, setShowHistory] = useState(false);
+  const history = useChatHistory(uid, !dev && !!user && open);
+  // phones: the sheet rides on top of the on-screen keyboard (iOS doesn't move fixed things for it)
+  const kb = useKeyboardInset();
 
   // desktop: the panel docks right and the page makes room for it
   useEffect(() => {
@@ -116,15 +123,19 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
   const dup = text.trim() && faq ? matchFaq(faq.items, text) : null;
 
   return (
-    <div className="fixed inset-0 z-[75] flex items-end justify-end bg-black/40 lg:pointer-events-none lg:top-[var(--hk-header-h,61px)] lg:items-stretch lg:bg-transparent" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div
+      className="fixed inset-0 z-[75] flex items-end justify-end bg-black/40 lg:pointer-events-none lg:top-[var(--hk-header-h,61px)] lg:items-stretch lg:bg-transparent lg:!pb-0"
+      style={kb ? { paddingBottom: kb } : undefined}
+      onMouseDown={(e) => e.target === e.currentTarget && onClose()}
+    >
       <aside
         data-chat-panel
         role="dialog"
         aria-modal="false"
         aria-label="Ask the course"
-        className="flex max-h-[88dvh] w-full flex-col border-t border-line-strong bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.5)] lg:pointer-events-auto lg:max-h-none lg:w-[var(--hk-ask-w)] lg:border-l lg:border-t-0 lg:shadow-none"
+        className="flex max-h-[min(88dvh,calc(100%-12px))] w-full min-w-0 flex-col border-t border-line-strong bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.5)] md:mx-auto md:max-w-[640px] md:border-x lg:pointer-events-auto lg:mx-0 lg:max-h-none lg:max-w-none lg:w-[var(--hk-ask-w)] lg:border-l lg:border-r-0 lg:border-t-0 lg:shadow-none"
       >
-        <header className="flex items-start justify-between gap-2 border-b border-line px-4 py-3">
+        <header className="flex items-start justify-between gap-2 border-b border-line py-2 pl-4 pr-2">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-label text-signal-text">
               <Sparkles className="h-3.5 w-3.5" aria-hidden /> ask the course
@@ -137,19 +148,49 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
               </Link>
             </span>
           </div>
-          <span className="flex shrink-0 items-center gap-1">
-            {!empty && (
-              <button type="button" onClick={chat.reset} aria-label="New chat" title="New chat" className="grid h-10 w-10 place-items-center text-fg-3 hover:text-fg">
+          <span className="flex shrink-0 items-center">
+            {uid && (
+              <button
+                type="button"
+                onClick={() => setShowHistory((h) => !h)}
+                aria-label={showHistory ? "Back to the chat" : "Chat history"}
+                aria-pressed={showHistory}
+                title={showHistory ? "Back to the chat" : "History"}
+                className={`relative grid h-11 w-11 place-items-center hover:text-fg ${showHistory ? "text-signal-text" : "text-fg-3"}`}
+              >
+                {showHistory ? <ArrowLeft className="h-[18px] w-[18px]" aria-hidden /> : <History className="h-[18px] w-[18px]" aria-hidden />}
+                {!showHistory && history.threads.length > 0 && <span aria-hidden className="absolute right-2.5 top-2.5 h-1.5 w-1.5 bg-signal" />}
+              </button>
+            )}
+            {!empty && !showHistory && (
+              <button type="button" onClick={chat.reset} aria-label="New chat" title="New chat" className="grid h-11 w-11 place-items-center text-fg-3 hover:text-fg">
                 <MessageSquarePlus className="h-[18px] w-[18px]" aria-hidden />
               </button>
             )}
-            <button type="button" onClick={onClose} aria-label="Close" className="grid h-10 w-10 place-items-center text-fg-3 hover:text-fg">
+            <button type="button" onClick={onClose} aria-label="Close" className="grid h-11 w-11 place-items-center text-fg-3 hover:text-fg">
               <X className="h-5 w-5" aria-hidden />
             </button>
           </span>
         </header>
 
-        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-4 py-4">
+        {showHistory && uid ? (
+          <div className="flex min-h-0 flex-1 flex-col pb-[env(safe-area-inset-bottom,0px)] lg:pb-0">
+            <ChatHistory
+              uid={uid}
+              sync={!dev && !!user}
+              variant="panel"
+              busy={chat.busy}
+              beforeSwitch={chat.stop}
+              onNew={() => {
+                chat.reset();
+                setShowHistory(false);
+              }}
+              onOpened={() => setShowHistory(false)}
+            />
+          </div>
+        ) : (
+        <>
+        <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto overscroll-contain px-4 py-4">
           {empty && (
             <p className="m-0 text-[14px] leading-relaxed text-fg-2">
               Ask about this page or anything in the course. The tutor knows where you are, answers with sources, finds lecture moments, quizzes you and builds paths you can save.
@@ -158,7 +199,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
           {empty && canChat && (
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quick asks">
               {QUICK.map((x) => (
-                <button key={x.label} type="button" onClick={() => send(x.ask)} className="min-h-9 border border-line-strong px-2.5 font-mono text-[11.5px] text-fg-2 hover:border-signal hover:text-fg">
+                <button key={x.label} type="button" onClick={() => send(x.ask)} className="min-h-10 border border-line-strong px-2.5 font-mono text-[11.5px] text-fg-2 hover:border-signal hover:text-fg [@media(pointer:coarse)]:min-h-11">
                   {x.label}
                 </button>
               ))}
@@ -186,7 +227,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
           <div ref={endRef} />
         </div>
 
-        <footer className="flex flex-col gap-2 border-t border-line px-4 py-3">
+        <footer className={`flex flex-col gap-2 border-t border-line px-4 pt-3 lg:pb-3 ${kb ? "pb-2" : "pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"}`}>
           {!user && !dev ? (
             <button type="button" onClick={openAuthModal} className="min-h-12 bg-signal px-4 text-[15px] font-semibold text-on-signal">
               Sign in free to ask
@@ -209,7 +250,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
                       setAttached("");
                     }}
                     aria-label="Don't attach this passage"
-                    className="text-fg-4 hover:text-fg"
+                    className="-my-2 grid h-9 w-9 shrink-0 place-items-center text-fg-4 hover:text-fg"
                   >
                     <X className="h-3.5 w-3.5" aria-hidden />
                   </button>
@@ -229,8 +270,10 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
               )}
             </>
           )}
-          <ChatFinePrint memory={chat.memory} />
+          <ChatFinePrint memory={chat.memory} history={uid ? history.remote : undefined} className={kb ? "hidden" : empty ? "" : "max-md:hidden"} />
         </footer>
+        </>
+        )}
       </aside>
     </div>
   );

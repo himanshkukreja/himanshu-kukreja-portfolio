@@ -3,7 +3,8 @@
 /**
  * The chat's small print: today's messages (and, once the main model's share is used, a quiet "fast mode"
  * line), the free-for-now line, and what happens to what you send (kept 90 days, to stop abuse and improve the
- * tutor; the tutor's memory of your learning, which you can see and clear under You → Memory).
+ * tutor; the tutor's memory of your learning, which you can see and clear under You → Memory; and the chat history,
+ * saved to the account for 90 days once chat_threads exists, else kept on the device, deletable from History).
  */
 import Link from "next/link";
 import { Zap } from "lucide-react";
@@ -29,10 +30,16 @@ export function QuotaLine({ quota }: { quota: ChatQuota | null }) {
   );
 }
 
-export function ChatFinePrint({ memory, className = "" }: { memory: { available: boolean; paused: boolean } | null; className?: string }) {
+/** Where the learner's chat history lives: "on" in their account (chat_threads), "off" on this device only. */
+export const historyLine = (where: "on" | "off" | "unknown") =>
+  where === "on"
+    ? "Your chat history is saved to your account for 90 days after your last message, so you can pick a chat up on any device; delete one chat or all of them from History."
+    : "Your chat history is kept on this device for 90 days after your last message; delete one chat or all of them from History.";
+
+export function ChatFinePrint({ memory, history, className = "" }: { memory: { available: boolean; paused: boolean } | null; history?: "on" | "off" | "unknown"; className?: string }) {
   return (
     <p className={`m-0 text-[11.5px] leading-snug text-fg-4 ${className}`}>
-      {AI_FREE_LINE} {CHAT_PRIVACY}{" "}
+      {AI_FREE_LINE} {CHAT_PRIVACY} {history ? `${historyLine(history)} ` : ""}
       {memory?.available && (
         <>
           {memory.paused ? "Memory is off." : "The tutor remembers your learning between chats."}{" "}

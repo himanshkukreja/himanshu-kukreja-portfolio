@@ -40,7 +40,8 @@ export default function LandingContext({ meta }: { meta: ReaderMeta }) {
     <aside
       aria-label="About this course"
       className="hk-safe-x fixed inset-x-3 z-40 mx-auto flex max-w-[760px] flex-wrap items-center gap-x-4 gap-y-2 border border-signal/60 bg-surface/95 px-4 py-3 text-sm text-fg-2 shadow-lg backdrop-blur lg:inset-x-auto lg:right-6 lg:max-w-[520px]"
-      style={{ bottom: "calc(var(--site-dock, 0px) + 88px)" }}
+      // clear of the orange "Ask AI" pill and the reading bar under it (they sit up to ~124px from the bottom)
+      style={{ bottom: "calc(var(--site-dock, 0px) + 132px)" }}
     >
       <p className="m-0 min-w-0 flex-[1_1_300px]">
         You&apos;re reading <span className="text-fg">{where}</span> in <span className="text-fg">System Design Mastery</span>, a free course with interview bosses, trials and mock interviews. No sign-up needed.
