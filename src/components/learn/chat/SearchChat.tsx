@@ -45,6 +45,27 @@ import { useCourseChat } from "./useCourseChat";
 const CATEGORIES = [...EXAMPLE_CATEGORIES.filter((c) => c.ai), ...EXAMPLE_CATEGORIES.filter((c) => !c.ai)];
 const SIDEBAR_PREF = "hk.chat.sidebar";
 
+/**
+ * The empty chat's greeting for a signed-in learner, by their own clock: "Good evening, Asha" (Claude-style).
+ * Client-only (the time and the profile are only known in the browser), so the server and first paint keep
+ * the plain heading; the name is the first word of the profile's (or the sign-in provider's) full name.
+ */
+function useGreeting(name: string | null | undefined): { hello: string; mark: "." | "?" } | null {
+  const [hour, setHour] = useState<number | null>(null);
+  useEffect(() => {
+    const tick = () => setHour(new Date().getHours());
+    tick();
+    const t = setInterval(tick, 10 * 60_000);
+    return () => clearInterval(t);
+  }, []);
+  if (hour === null) return null;
+  const first = (name || "").trim().split(/\s+/)[0];
+  const n = first && first.length <= 24 && !first.includes("@") ? first : "";
+  if (hour >= 22 || hour < 5) return { hello: n ? `Up late, ${n}` : "Up late", mark: "?" };
+  const part = hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening";
+  return { hello: n ? `Good ${part}, ${n}` : `Good ${part}`, mark: "." };
+}
+
 function useDebounced<T>(v: T, ms: number): T {
   const [d, setD] = useState(v);
   useEffect(() => {
@@ -68,7 +89,8 @@ function ChatPage() {
   // `next dev` only: ?preview=1 opens the chat without signing in (screenshots, local tries)
   const dev = process.env.NODE_ENV === "development" && params.get("preview") === "1";
   const devHeaders = useMemo<Record<string, string> | undefined>(() => (dev ? { "x-smart-preview": "1" } : undefined), [dev]);
-  const { user, loading } = useAuth();
+  const { user, loading, profile } = useAuth();
+  const greeting = useGreeting(user ? profile?.full_name || user.user_metadata?.full_name || user.user_metadata?.name : null);
   const { openAuthModal } = useAuthModal();
   const ai = useAiStatus();
   const uid = dev ? "dev" : user?.id ?? null;
@@ -325,9 +347,22 @@ function ChatPage() {
   const emptyState = (
     <div className="mx-auto flex w-full max-w-[760px] flex-col gap-8 px-4 pb-8 pt-8 sm:px-6 lg:pt-[min(10vh,88px)]">
       <header className="flex flex-col gap-4">
-        <h2 className="m-0 font-display text-[clamp(36px,7vw,58px)] font-extrabold leading-[0.95] tracking-tightest text-fg">
-          What do you want to learn<span className="text-signal-text">?</span>
-        </h2>
+        {user && greeting ? (
+          <h2 className="m-0 flex flex-col gap-2 font-display font-extrabold tracking-tightest text-fg">
+            <span className="hk-chat-in flex items-center gap-3 text-[clamp(36px,7vw,58px)] leading-[0.95]">
+              <Sparkles className="h-[0.7em] w-[0.7em] shrink-0 text-signal-text" aria-hidden />
+              <span className="min-w-0 break-words">
+                {greeting.hello}
+                <span className="text-signal-text">{greeting.mark}</span>
+              </span>
+            </span>
+            <span className="text-[clamp(22px,3.6vw,30px)] leading-tight text-fg-3">What do you want to learn today?</span>
+          </h2>
+        ) : (
+          <h2 className="m-0 font-display text-[clamp(36px,7vw,58px)] font-extrabold leading-[0.95] tracking-tightest text-fg">
+            What do you want to learn<span className="text-signal-text">?</span>
+          </h2>
+        )}
         <p className="m-0 max-w-[620px] text-[16px] leading-relaxed text-fg-2">
           Ask in plain words. The tutor answers from the course with its sources, finds the exact second in a lecture, builds a path you can save, quizzes you on the course&apos;s own questions and suggests what
           to do next from your progress.
