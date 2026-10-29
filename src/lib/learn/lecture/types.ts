@@ -87,6 +87,20 @@ export const flatten = (l: Lecture): FlatStep[] => {
   return l.scenes.flatMap((s, scene) => s.steps.map((st, step) => ({ n: n++, scene, step, s, st })));
 };
 
+/** Seconds a step lasts without recorded audio: reading pace plus its pause (the player's timeline rule). */
+export const estimateStep = (say: string, pause = 0) => say.split(/\s+/).length / 2.6 + 0.5 + pause;
+
+/** Where each step starts when there is no recording to time it (the player and transcript search agree). */
+export const estimatedStarts = (flat: FlatStep[]): number[] => {
+  const out: number[] = [];
+  let acc = 0;
+  for (const f of flat) {
+    out.push(acc);
+    acc += estimateStep(f.st.say, f.st.pause);
+  }
+  return out;
+};
+
 /** Recorded narration for a lecture: where each step starts in the audio (seconds). */
 export type LectureMedia = {
   /** hash of the lecture JSON the audio was made from; a mismatch means the audio is stale */

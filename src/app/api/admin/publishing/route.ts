@@ -156,6 +156,7 @@ export async function POST(request: Request) {
   revalidateTag(CONTROLS_TAG);
   if (keys.some((k) => k.startsWith("quest:"))) revalidateTag(COURSE_MAP_TAG);
   revalidatePath("/learn/shorts");
+  revalidatePath("/api/search/transcripts"); // ⌘K's "In lectures" leaves out hidden shorts and quests
   for (const k of keys) {
     const [kind, id] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)];
     if (kind === "short") revalidatePath(`/learn/shorts/${id}`);

@@ -21,7 +21,7 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { BookOpen, Mic } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
+import { estimateStep as estimate, estimatedStarts, flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
@@ -50,9 +50,6 @@ declare global {
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 1.75, 2];
 const QUIZ_XP = 10;
-
-/** seconds a step lasts without recorded audio: reading pace plus its pause */
-const estimate = (say: string, pause = 0) => say.split(/\s+/).length / 2.6 + 0.5 + pause;
 
 /** the caption line for this moment: the step's text split into sentences, timed by length */
 function captionAt(say: string, f: number): string {
@@ -212,6 +209,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     gatedRef.current = gated;
   }, [gated]);
   const [media, setMedia] = useState<LectureMedia | null>(null);
+  // the media.json lookup has finished (found, stale or missing): deep links stop waiting for it
+  const [mediaTried, setMediaTried] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const musicRef = useRef<HTMLAudioElement | null>(null);
   const shellRef = useRef<HTMLDivElement>(null);
@@ -291,7 +290,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         const abs = (u?: string) => (u ? new URL(u, new URL(base, window.location.href)).href : undefined);
         setMedia({ ...m, audio: abs(m.audio)!, music: abs(m.music) });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => !off && setMediaTried(true));
     return () => {
       off = true;
     };
@@ -300,13 +300,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   // timeline: where each step starts (recorded audio, else an estimate)
   const starts = useMemo(() => {
     if (media && media.starts.length === flat.length) return media.starts;
-    const out: number[] = [];
-    let acc = 0;
-    for (const f of flat) {
-      out.push(acc);
-      acc += estimate(f.st.say, f.st.pause);
-    }
-    return out;
+    return estimatedStarts(flat);
   }, [media, flat]);
   const duration = media && media.starts.length === flat.length ? media.duration : flat.length ? starts[starts.length - 1] + estimate(flat[flat.length - 1].st.say) : 0;
   const stepAt = useCallback(
@@ -499,6 +493,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
       const to = Math.max(0, Math.min(duration - 0.05, tm));
       if (audioRef.current) audioRef.current.currentTime = to;
       clockBase.current = { wall: performance.now(), time: to };
+      // play() right after (a ?t= link with autoplay) starts from here, not the last rendered time
+      timeRef.current = to;
       spoken.current = -1;
       setTime(to);
     },
@@ -535,7 +531,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     const at = q.get("at");
     const tm = Number(q.get("t"));
     if (!at && !tm) return;
-    if (mediaBase && !media) return; // wait for the recording's timings
+    if (mediaBase && !media && !mediaTried) return; // wait for the recording's timings (none or stale: the estimate the timeline shows)
     linked.current = true;
     const k = at ? flat.findIndex((f) => f.s.id === at) : -1;
     const to = k >= 0 ? starts[k] + 0.01 : tm > 0 ? tm : null;
@@ -546,7 +542,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
       }, 0);
       return () => window.clearTimeout(id);
     }
-  }, [starts, flat, media, mediaBase, seek]);
+  }, [starts, flat, media, mediaBase, mediaTried, seek]);
   // arrived by autoplay (?autoplay=1): start once the recording's timings are in (or without them after a few seconds)
   const autoStart = useRef<boolean | null>(null);
   useEffect(() => {

@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * Course search (⌘K on /learn). Grouped results: lessons, interview questions, your notes.
- * Data: the existing /api/search payload (loaded the first time the palette opens, not on mount)
- * plus, for signed-in learners, their own content_notes.
+ * Course search (⌘K on /learn). Grouped results: lessons, case files, moments inside lectures and shorts,
+ * interview questions, your notes. Data: the existing /api/search payload (loaded the first time the palette
+ * opens, not on mount), the transcript index /api/search/transcripts (loaded only once a query has 3+
+ * characters) and, for signed-in learners, their own content_notes.
  *
  * Variants: "nav" (course search in the site header), "bar" (full-width trigger), "floating" (legacy: the
  * the site header owns search now, so it renders nothing). Only an instance with `hotkey` listens
@@ -20,9 +21,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabaseClient } from "@/lib/supabase-client";
 import { track } from "@/lib/track";
 import { InlineLoader } from "@/components/ui/loader";
+import { TRANSCRIPT_SHORT, TRANSCRIPT_UNTIMED, type TranscriptIndex } from "@/lib/learn/lecture/transcript";
 
 type Doc = LearningResource & { content?: string; excerpt?: string };
-type Group = "companies" | "lessons" | "cases" | "questions" | "notes";
+type Group = "companies" | "lessons" | "cases" | "transcripts" | "questions" | "notes";
 type CaseDoc = { slug: string; title: string; excerpt: string; content: string };
 type CompanyDoc = { slug: string; name: string; category: string; builds: string; focus: string; questions: string; count: number; reported: number };
 type Hit = {
@@ -33,6 +35,8 @@ type Hit = {
   sub: string;
   meta?: string;
   href: string;
+  /** highlight the query's words wherever they start a word (transcript hits), not the literal query */
+  words?: boolean;
 };
 
 const COURSE = "system-design-mastery";
@@ -82,14 +86,21 @@ function snippet(text: string, q: string, span = 70) {
   return (start > 0 ? "…" : "") + text.slice(start, end).trim() + (end < text.length ? "…" : "");
 }
 
-/** Wraps case-insensitive matches of q in <mark>. */
-function Highlight({ text, q, soft }: { text: string; q: string; soft?: boolean }) {
+/** The words of a query, for transcript matching: lowercase letters/digits, 2+ characters, no repeats. */
+const queryTerms = (q: string) => [...new Set(q.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length >= 2))];
+const escRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Wraps case-insensitive matches of q in <mark> (words: each word of q that starts a word, through its end). */
+function Highlight({ text, q, soft, words }: { text: string; q: string; soft?: boolean; words?: boolean }) {
   const parts = useMemo(() => {
     const t = q.trim();
     if (!t) return [text];
-    const esc = t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return text.split(new RegExp(`(${esc})`, "ig"));
-  }, [text, q]);
+    if (words) {
+      const terms = queryTerms(t);
+      return terms.length ? text.split(new RegExp(`(\\b(?:${terms.map(escRe).join("|")})[a-z0-9]*)`, "ig")) : [text];
+    }
+    return text.split(new RegExp(`(${escRe(t)})`, "ig"));
+  }, [text, q, words]);
   return (
     <>
       {parts.map((p, i) =>
@@ -108,6 +119,105 @@ function Highlight({ text, q, soft }: { text: string; q: string; soft?: boolean 
   );
 }
 
+/** The transcript index, ready to match: each moment's text in lowercase words, padded so " term" finds word starts. */
+type Transcripts = { idx: TranscriptIndex; norm: string[]; titles: string[] };
+const prepTranscripts = (idx: TranscriptIndex): Transcripts => ({
+  idx,
+  norm: idx.m.map(([, , text]) => ` ${text.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `),
+  titles: idx.l.map(([, title]) => ` ${title.toLowerCase().replace(/[^a-z0-9]+/g, " ")} `),
+});
+
+/** Loaded once per page session (the palette unmounts on close; reopening it doesn't fetch ~1 MB again). */
+let transcriptLoad: Promise<Transcripts> | null = null;
+function loadTranscripts(): Promise<Transcripts> {
+  transcriptLoad ??= fetch("/api/search/transcripts")
+    .then((r) => (r.ok ? (r.json() as Promise<TranscriptIndex>) : Promise.reject(new Error(String(r.status)))))
+    .then((d) => {
+      if (!Array.isArray(d.m) || !Array.isArray(d.l)) throw new Error("bad transcript index");
+      return prepTranscripts(d);
+    })
+    .catch((e) => {
+      transcriptLoad = null; // try again next time
+      throw e;
+    });
+  return transcriptLoad;
+}
+
+/** 4:12, or 1:02:33 past an hour */
+const clock = (s: number) => {
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const ss = String(Math.floor(s % 60)).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+};
+
+/** ~140 characters of a moment around its first match (the whole phrase if it's there, else the first word that matches). */
+function momentSnippet(text: string, terms: string[], width = 140) {
+  const phrase = text.search(new RegExp(`\\b${terms.map(escRe).join("[^a-z0-9]+")}`, "i"));
+  const at = phrase >= 0 ? phrase : Math.max(0, text.search(new RegExp(`\\b(?:${terms.map(escRe).join("|")})`, "i")));
+  if (text.length <= width) return text;
+  let start = Math.max(0, at - Math.round(width * 0.35));
+  let end = Math.min(text.length, start + width);
+  start = Math.max(0, end - width);
+  // whole words at both ends
+  if (start > 0) start = text.indexOf(" ", start) + 1 || start;
+  if (end < text.length) end = text.lastIndexOf(" ", end) > start ? text.lastIndexOf(" ", end) : end;
+  return (start > 0 ? "…" : "") + text.slice(start, end).trim() + (end < text.length ? "…" : "");
+}
+
+/**
+ * Moments inside lectures and shorts that hold every word of the query (each as the start of a word, so
+ * "hash" finds "hashing"). Ranked by: the whole phrase, whole-word matches, the words in the title, and how
+ * many of the lecture's moments match (the lecture that teaches it says it most), then course order.
+ * At most 2 moments per lecture (1 for a short or a lecture without timings), 8 lecture moments, 3 shorts.
+ */
+function searchTranscripts(t: Transcripts, q: string): Hit[] {
+  const terms = queryTerms(q);
+  if (!terms.length || q.trim().length < 3) return [];
+  const phrase = ` ${terms.join(" ")}`;
+  const scored: { i: number; score: number }[] = [];
+  for (let i = 0; i < t.norm.length; i++) {
+    const n = t.norm[i];
+    if (!terms.every((w) => n.includes(` ${w}`))) continue;
+    const src = t.idx.m[i][0];
+    let score = terms.length > 1 && n.includes(phrase) ? 10 : 0;
+    for (const w of terms) {
+      if (n.includes(` ${w} `)) score += 2;
+      if (t.titles[src].includes(` ${w}`)) score += 1;
+    }
+    scored.push({ i, score });
+  }
+  const dense = new Map<number, number>();
+  for (const { i } of scored) dense.set(t.idx.m[i][0], (dense.get(t.idx.m[i][0]) || 0) + 1);
+  for (const x of scored) x.score += Math.min(6, dense.get(t.idx.m[x.i][0]) || 0);
+  scored.sort((a, b) => b.score - a.score || a.i - b.i);
+  const per = new Map<number, number>();
+  const lectures: Hit[] = [];
+  const shorts: Hit[] = [];
+  for (const { i } of scored) {
+    const [src, at, text] = t.idx.m[i];
+    const [id, title, code, href, kind] = t.idx.l[src];
+    const short = kind === TRANSCRIPT_SHORT;
+    const timed = !short && kind !== TRANSCRIPT_UNTIMED && at >= 0;
+    if ((per.get(src) || 0) >= (timed ? 2 : 1)) continue;
+    const into = short ? shorts : lectures;
+    if (into.length >= (short ? 3 : 8)) continue;
+    per.set(src, (per.get(src) || 0) + 1);
+    into.push({
+      id: `t:${id}:${i}`,
+      group: "transcripts",
+      badge: short ? "SHORT" : timed ? clock(at) : "LEC",
+      title: `${code} · ${title}${short ? " · short" : timed ? "" : " · lecture"}`,
+      sub: `“${momentSnippet(text, terms)}”`,
+      href: short ? href : timed && at > 0 ? `${href}?t=${at}&autoplay=1` : `${href}?autoplay=1`,
+      words: true,
+    });
+    if (lectures.length >= 8 && shorts.length >= 3) break;
+  }
+  // lectures first, then shorts (each kept in rank order)
+  return [...lectures, ...shorts];
+}
+
 type NoteRow = { id: string; week: string; lesson_slug: string; note_text: string | null; highlight_text: string | null; note_type: string; created_at: string; highlight_offset: number | null };
 
 function Palette({ onClose }: { onClose: () => void }) {
@@ -117,6 +227,8 @@ function Palette({ onClose }: { onClose: () => void }) {
   const [cases, setCases] = useState<CaseDoc[]>([]);
   const [companies, setCompanies] = useState<CompanyDoc[]>([]);
   const [notes, setNotes] = useState<NoteRow[]>([]);
+  // the lecture/short transcript index: fetched the first time a query reaches 3 characters
+  const [transcripts, setTranscripts] = useState<Transcripts | "loading" | "failed" | null>(null);
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState<"all" | Group>("all");
   const [sel, setSel] = useState(0);
@@ -153,6 +265,16 @@ function Palette({ onClose }: { onClose: () => void }) {
       off = true;
     };
   }, []);
+
+  const wantsTranscripts = q.trim().length >= 3;
+  useEffect(() => {
+    if (!wantsTranscripts || transcripts !== null) return;
+    // no cleanup: setting "loading" re-runs this effect, and that must not drop the result
+    setTranscripts("loading");
+    loadTranscripts()
+      .then((t) => setTranscripts(t))
+      .catch(() => setTranscripts("failed"));
+  }, [wantsTranscripts, transcripts]);
 
   useEffect(() => {
     if (!user) return;
@@ -295,8 +417,10 @@ function Palette({ onClose }: { onClose: () => void }) {
       sub: `${c.count} questions${c.reported ? `, ${c.reported} reported by candidates` : ""} · ${c.builds}`.slice(0, 140),
       href: `/learn/prep/companies/${c.slug}`,
     }));
-    return { hits: [...coHits, ...lessonHits, ...cHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
-  }, [q, docs, fuse, caseFuse, companyFuse, questions, notes, titleOf]);
+    const tHits: Hit[] = transcripts && typeof transcripts === "object" ? searchTranscripts(transcripts, t) : [];
+    // same order as `groups` below: the list's selection index runs through them in this order
+    return { hits: [...coHits, ...lessonHits, ...cHits, ...tHits, ...qHits, ...nHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
+  }, [q, docs, fuse, caseFuse, companyFuse, questions, notes, titleOf, transcripts]);
 
   const counts = useMemo(
     () => ({
@@ -304,6 +428,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       companies: hits.filter((h) => h.group === "companies").length,
       lessons: hits.filter((h) => h.group === "lessons").length,
       cases: hits.filter((h) => h.group === "cases").length,
+      transcripts: hits.filter((h) => h.group === "transcripts").length,
       questions: hits.filter((h) => h.group === "questions").length,
       notes: hits.filter((h) => h.group === "notes").length,
     }),
@@ -369,7 +494,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       // tab jumps to the first result of the next group
       e.preventDefault();
       const cur = visible[sel]?.group;
-      const order: Group[] = ["companies", "lessons", "cases", "questions", "notes"];
+      const order: Group[] = ["companies", "lessons", "cases", "transcripts", "questions", "notes"];
       const start = cur ? order.indexOf(cur) : -1;
       for (let k = 1; k <= order.length; k++) {
         const g = order[(start + (e.shiftKey ? -k + order.length : k)) % order.length];
@@ -386,6 +511,7 @@ function Palette({ onClose }: { onClose: () => void }) {
     { key: "companies", label: "Companies", more: { label: "all companies →", href: "/learn/prep/companies" } },
     { key: "lessons", label: "Lessons" },
     { key: "cases", label: "Case files", more: { label: "all case files →", href: "/stories" } },
+    { key: "transcripts", label: "In lectures", more: { label: "all lectures →", href: "/learn/lectures" } },
     { key: "questions", label: "Interview questions" },
     { key: "notes", label: "Your notes", more: { label: "open notebook →", href: "/learn/notebook?tab=notes" } },
   ];
@@ -398,7 +524,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       <div ref={dialogRef} role="dialog" aria-modal="true" aria-label="Search the course" className="flex max-h-[calc(100dvh-8vh-110px)] w-full max-w-[700px] lg:max-h-[84vh] animate-hk-in flex-col border border-line-strong bg-surface shadow-[0_24px_80px_rgba(0,0,0,0.7)]">
         <label className="flex min-h-[60px] items-center gap-3 border-b border-line px-4 focus-within:shadow-[inset_0_-2px_0_var(--c-signal)]">
           <Search className="h-[18px] w-[18px] shrink-0 text-signal-text" aria-hidden />
-          <span className="sr-only">Search lessons, companies, interview questions and your notes</span>
+          <span className="sr-only">Search lessons, companies, lectures, interview questions and your notes</span>
           <input
             ref={inputRef}
             type="search"
@@ -406,7 +532,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
             aria-controls="course-search-results"
-            placeholder="Search lessons, companies, questions, notes…"
+            placeholder="Search lessons, lectures, companies, questions…"
             className="min-h-11 min-w-0 flex-1 appearance-none bg-transparent text-lg text-fg outline-none placeholder:text-fg-4 focus-visible:outline-none sm:text-xl [&::-webkit-search-cancel-button]:hidden"
           />
           {q.trim() && docs && (
@@ -427,6 +553,7 @@ function Palette({ onClose }: { onClose: () => void }) {
                 ["lessons", "lessons"],
                 ["companies", "companies"],
                 ["cases", "case files"],
+                ["transcripts", "in lectures"],
                 ["questions", "interview qs"],
                 ...(user ? [["notes", "your notes"]] : []),
               ] as [("all" | Group), string][]
@@ -452,7 +579,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         <div id="course-search-results" ref={listRef} role="listbox" aria-label="Results" className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-2 pb-2 pt-1.5">
           {!q.trim() && (
             <p className="px-2 py-6 text-sm leading-relaxed text-fg-3">
-              Titles, headings, interview questions{user ? " and your own notes" : ""}. Try <span className="font-mono text-fg-2">idempotency</span>, <span className="font-mono text-fg-2">half-open</span> or{" "}
+              Titles, headings, what the lectures say, interview questions{user ? " and your own notes" : ""}. Try <span className="font-mono text-fg-2">idempotency</span>, <span className="font-mono text-fg-2">half-open</span> or{" "}
               <span className="font-mono text-fg-2">hot keys</span>.
             </p>
           )}
@@ -466,12 +593,19 @@ function Palette({ onClose }: { onClose: () => void }) {
               .
             </p>
           )}
-          {q.trim() && docs && !failed && visible.length === 0 && (
+          {q.trim() && docs && !failed && visible.length === 0 && !(wantsTranscripts && transcripts === "loading") && (
             <p className="px-2 py-6 text-sm text-fg-3">
-              Nothing matches <span className="text-fg">“{q.trim()}”</span>. Search looks at lesson and case file text{user ? ", interview questions and your notes" : " and interview questions"}.
+              Nothing matches <span className="text-fg">“{q.trim()}”</span>. Search looks at lesson and case file text, lecture and short narration{user ? ", interview questions and your notes" : " and interview questions"}.
             </p>
           )}
           {groups.map((g) => {
+            // the transcript index is still on its way: say so where its group will be
+            if (g.key === "transcripts" && wantsTranscripts && transcripts === "loading" && (filter === "all" || filter === "transcripts"))
+              return (
+                <p key={g.key} className="px-2 pb-1 pt-3">
+                  <InlineLoader label="searching lecture transcripts" />
+                </p>
+              );
             const items = visible.filter((h) => h.group === g.key);
             if (!items.length) return null;
             return (
@@ -520,10 +654,10 @@ function Palette({ onClose }: { onClose: () => void }) {
                       </span>
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
                         <span className="truncate text-[15px] text-fg">
-                          <Highlight text={h.title} q={q} />
+                          <Highlight text={h.title} q={q} words={h.words} />
                         </span>
-                        <span className="line-clamp-1 text-xs text-fg-3">
-                          <Highlight text={h.sub} q={q} soft />
+                        <span className={`text-xs text-fg-3 ${h.group === "transcripts" ? "line-clamp-2" : "line-clamp-1"}`}>
+                          <Highlight text={h.sub} q={q} soft words={h.words} />
                         </span>
                       </span>
                       {on && <span className="hidden font-mono text-[13px] text-signal-text sm:inline" aria-hidden>↵</span>}
@@ -540,7 +674,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             <span className="text-fg">↑↓</span> move · <span className="text-fg">↵</span> open · <span className="text-fg">⌘↵</span> new tab · <span className="text-fg">tab</span> next group ·{" "}
             <span className="text-fg">esc</span> close
           </span>
-          <span>titles · text · questions{user ? " · your notes" : ""}</span>
+          <span>titles · text · lectures · questions{user ? " · your notes" : ""}</span>
         </div>
       </div>
     </div>

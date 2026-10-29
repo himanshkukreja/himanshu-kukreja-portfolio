@@ -49,6 +49,7 @@ export async function POST(request: NextRequest) {
     revalidatePath('/stories/[slug]', 'page');
     revalidatePath('/');
     revalidatePath('/api/search'); // the search palette's index
+    revalidatePath('/api/search/transcripts'); // its lecture/short transcript moments
     revalidatePath('/api/learn/faq/[week]/[slug]', 'page'); // lessons' "Questions learners ask"
 
     console.log('[Revalidate] Successfully revalidated course pages');
