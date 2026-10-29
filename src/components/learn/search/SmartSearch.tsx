@@ -29,6 +29,7 @@ import { useSavedPaths } from "@/components/learn/saved/useSavedPaths";
 import MiniToast, { type MiniToastState } from "@/components/learn/hub/MiniToast";
 import KindIcon from "./KindIcon";
 import CitedAnswer from "./CitedAnswer";
+import ShareAnswerButton from "./ShareAnswerButton";
 import ExampleGallery from "./ExampleGallery";
 import { useSmartAccess } from "./useSmartAccess";
 
@@ -392,6 +393,7 @@ export default function SmartSearch() {
               {(answer.data.answer?.length ?? 0) > 0 && (
                 <div className="border-l-2 border-signal pl-4">
                   <CitedAnswer answer={answer.data.answer} cites={answer.data.cites ?? []} />
+                  <ShareAnswerButton question={q} answer={answer.data.answer} cites={answer.data.cites ?? []} />
                 </div>
               )}
               {answer.data.note && (

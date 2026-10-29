@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
@@ -7,6 +7,7 @@ import { candidateLines, parseSmartAnswer, PER_FAMILY, smartSearchUser } from "@
 import { SMART_SEARCH_PUBLIC } from "@/lib/search/smart/flag";
 import { devPreview, getEngine, liveCheck, originOf } from "@/lib/search/smart/server";
 import { queryKey } from "@/lib/search/smart/text";
+import { logSearchQuery } from "@/lib/search/smart/querylog";
 import type { SmartAnswer } from "@/lib/search/smart/types";
 
 export const runtime = "nodejs";
@@ -48,12 +49,19 @@ export async function POST(request: Request) {
   if (key.length < 3) return NextResponse.json({ error: "Ask a little more" }, { status: 400 });
 
   const [engine, live] = await Promise.all([getEngine(originOf(request)), liveCheck()]);
+  // the content-gap radar's log (/admin/gaps): normalised text, scope, cited ids, day, hashed user; never off-topic
+  const logAsk = (a: Pick<SmartAnswer, "scope" | "cites" | "path"> | null) =>
+    after(() => logSearchQuery({ userId: me.id, q, scope: a ? a.scope : "none", top: a ? [...a.cites, ...a.path].map((h) => h.id) : [] }));
   const ck = `${engine.built}|${key}`;
   const hit = cache.get(ck);
-  if (hit && Date.now() - hit.at < CACHE_MS) return NextResponse.json({ ...hit.a, cached: true } satisfies SmartAnswer, { headers: { "Cache-Control": "private, no-store" } });
+  if (hit && Date.now() - hit.at < CACHE_MS) {
+    logAsk(hit.a);
+    return NextResponse.json({ ...hit.a, cached: true } satisfies SmartAnswer, { headers: { "Cache-Control": "private, no-store" } });
+  }
 
   const res = engine.search(q, { live });
   if (!res.candidates.length) {
+    logAsk(null);
     const a: Cached = { intent: "", scope: "partial", note: "Nothing in the course matches this yet. Try other words, or a topic like caching, sharding or rate limiting.", answer: [], cites: [], path: [], quick: null };
     return NextResponse.json({ ...a, cached: false } satisfies SmartAnswer);
   }
@@ -91,5 +99,6 @@ export async function POST(request: Request) {
   }
   const out = await job;
   if ("error" in out) return NextResponse.json({ error: out.error, creditsLeft: out.creditsLeft ?? null }, { status: out.status });
+  logAsk(out.a);
   return NextResponse.json({ ...out.a, cached: false, creditsLeft: (out as { creditsLeft?: number | null }).creditsLeft ?? null } satisfies SmartAnswer, { headers: { "Cache-Control": "private, no-store" } });
 }
