@@ -76,6 +76,9 @@ function inline(text: string, sources: Record<string, ChatSource>, order: string
   return out;
 }
 
+/** a list line: "- x", "* x", "• x", "1. x" or "1) x" (the number is group 1) */
+const LIST_RE = /^\s*(?:[-*•]|(\d+)[.)])\s+/;
+
 export default function ChatMarkdown({ text, sources, order, className = "", caret = false }: Props) {
   const blocks: ReactNode[] = [];
   const parts = `${text.replace(/\r\n/g, "\n").replace(/\s+$/, "")}${caret ? CARET : ""}`.split(/^```[\w-]*\n?/m);
@@ -91,25 +94,49 @@ export default function ChatMarkdown({ text, sources, order, className = "", car
     }
     part.split(/\n{2,}/).forEach((para, k) => {
       const lines = para.split("\n").filter((l) => l.trim());
-      if (!lines.length) return;
-      const key = `p${pi}-${k}`;
-      if (lines.every((l) => /^\s*([-*•]|\d+[.)])\s+/.test(l))) {
-        const ordered = /^\s*\d/.test(lines[0]);
-        const items = lines.map((l, j) => <li key={`${key}-${j}`}>{inline(l.replace(/^\s*([-*•]|\d+[.)])\s+/, ""), sources, order, `${key}-${j}`)}</li>);
-        blocks.push(ordered ? <ol key={key} className="m-0 flex list-decimal flex-col gap-1 pl-5">{items}</ol> : <ul key={key} className="m-0 flex list-disc flex-col gap-1 pl-5">{items}</ul>);
-      } else {
-        const ls = lines.map((l) => l.replace(/^#{1,6}\s+/, ""));
-        blocks.push(
-          <p key={key} className="m-0">
-            {ls.map((l, j) => (
-              <Fragment key={j}>
-                {j > 0 && <br />}
-                {inline(l, sources, order, `${key}-${j}`)}
-              </Fragment>
-            ))}
-          </p>,
-        );
+      // a block can mix a lead-in line and a list ("**Fixes it with a ring:**" then "- …" lines): split it into
+      // runs of paragraph lines and list items; an indented line after an item continues that item
+      const runs: { kind: "p" | "ul" | "ol"; lines: string[]; start: number }[] = [];
+      for (const l of lines) {
+        const m = l.match(LIST_RE);
+        const last = runs[runs.length - 1];
+        if (m) {
+          const kind = m[1] ? "ol" : "ul";
+          if (last?.kind === kind) last.lines.push(l.slice(m[0].length));
+          else runs.push({ kind, lines: [l.slice(m[0].length)], start: m[1] ? Number(m[1]) : 1 });
+        } else if (last && last.kind !== "p" && /^\s{2,}\S/.test(l)) last.lines[last.lines.length - 1] += ` ${l.trim()}`;
+        else if (last?.kind === "p") last.lines.push(l.replace(/^#{1,6}\s+/, ""));
+        else runs.push({ kind: "p", lines: [l.replace(/^#{1,6}\s+/, "")], start: 1 });
       }
+      runs.forEach((r, ri) => {
+        const key = `p${pi}-${k}-${ri}`;
+        if (r.kind === "p") {
+          blocks.push(
+            <p key={key} className="m-0">
+              {r.lines.map((l, j) => (
+                <Fragment key={j}>
+                  {j > 0 && <br />}
+                  {inline(l, sources, order, `${key}-${j}`)}
+                </Fragment>
+              ))}
+            </p>,
+          );
+          return;
+        }
+        const items = r.lines.map((l, j) => <li key={`${key}-${j}`}>{inline(l, sources, order, `${key}-${j}`)}</li>);
+        // a numbered list the model split with blank lines ("1. …\n\n2. …") keeps counting from its own number
+        blocks.push(
+          r.kind === "ol" ? (
+            <ol key={key} start={r.start !== 1 ? r.start : undefined} className="m-0 flex list-decimal flex-col gap-1 pl-5">
+              {items}
+            </ol>
+          ) : (
+            <ul key={key} className="m-0 flex list-disc flex-col gap-1 pl-5">
+              {items}
+            </ul>
+          ),
+        );
+      });
     });
   });
   return <div className={`flex min-w-0 flex-col gap-3 break-words text-[15.5px] leading-relaxed text-fg-2 [overflow-wrap:anywhere] ${className}`}>{blocks}</div>;
