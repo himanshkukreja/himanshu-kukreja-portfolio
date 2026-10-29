@@ -13,7 +13,7 @@ export function parseFaq(raw: string): LessonFaq | null {
     .map((b) => {
       const [q, ...rest] = b.split("\n");
       let a = rest.join("\n").trim();
-      const m = a.match(/\s*\[([^\]]{2,120})\]\s*$/);
+      const m = a.match(/\s*\[([^\]]{2,250})\]\s*$/);
       const section = m ? m[1].trim() : null;
       if (m) a = a.slice(0, m.index).trim();
       return { q: q.trim(), a, section };
