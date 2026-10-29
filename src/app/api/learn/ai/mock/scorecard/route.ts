@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: (model) => mockFullScorecardSystem({ company: mock.company.name, problem: problemText(mock), phases }, promptOptsFor(model)),
+    system: (model) => mockFullScorecardSystem({ company: mock.company.name, problem: problemText(mock), phases }, promptOptsFor(model, "mock-scorecard")),
     messages: [{ role: "user", content: "Grade my interview." }],
     meta: { mock: mock.slug },
   });

@@ -41,7 +41,7 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: (model) => (review ? labReviewSystem : labHintSystem)({ title: lab.title, brief }, promptOptsFor(model)),
+    system: (model) => (review ? labReviewSystem : labHintSystem)({ title: lab.title, brief }, promptOptsFor(model, review ? "lab-review" : "lab-hint")),
     messages: [{ role: "user", content: user }],
     meta: { lab: lab.id, kind: review ? "review" : "hint", level: review ? null : level },
   });

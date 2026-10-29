@@ -1,3 +1,5 @@
+import type { FeatureId } from "./features";
+
 /**
  * System prompts for the AI features. Shared by the live routes and the model evaluation
  * (scripts/ai-eval), so the eval measures exactly what learners get. Pure: no I/O.
@@ -19,10 +21,23 @@ const GUARD = `Rules that always apply:
  * Some prompts have a variant tuned for Claude Haiku: explicit hard rules and short examples of good
  * answers, because a small model follows the letter of a prompt more than its spirit. The routes pick
  * the variant by the model a call actually uses (callClaude passes it after admin settings and amber
- * mode), and the eval does the same, so both measure exactly what learners get.
+ * mode) and the feature, and the eval does the same, so both measure exactly what learners get.
  */
 export type PromptOpts = { compact?: boolean };
-export const promptOptsFor = (model: string): PromptOpts => ({ compact: /haiku/i.test(model) });
+
+/**
+ * Features whose tuned prompt goes to every model, not just Haiku: in the blind Sonnet A/B (original vs
+ * tuned prompt, Opus judging, Oct 2026) the tuned one scored higher with no loss of accuracy.
+ * - mock-interviewer: 4.5 vs ~2 (one question a turn, only stated facts, no teaching)
+ * - mock-coach: 3.62 vs 3.31, READ verdict 16/16 vs 14/16
+ * - lab-hint: 4.78 vs 4.17, expectations 47/50 vs 45/50
+ * - lab-review: 3.81 vs 3.25, expectations 35/46 vs 33/46 (calls clean code clean instead of padding it)
+ * Sonnet keeps the original prompt for explain-back, mock-scorecard and design-review, where the tuned one
+ * scored lower or missed more of what a grade must catch.
+ */
+export const TUNED_FOR_EVERY_MODEL: ReadonlySet<FeatureId> = new Set<FeatureId>(["mock-interviewer", "mock-coach", "lab-hint", "lab-review"]);
+
+export const promptOptsFor = (model: string, feature?: FeatureId): PromptOpts => ({ compact: /haiku/i.test(model) || (!!feature && TUNED_FOR_EVERY_MODEL.has(feature)) });
 
 export function lessonQaSystem(lesson: { title: string; text: string; kind?: "lesson" | "case file" }): string {
   const k = lesson.kind ?? "lesson";

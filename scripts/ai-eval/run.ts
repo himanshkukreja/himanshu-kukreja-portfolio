@@ -6,12 +6,14 @@
  *
  * Fidelity: each case is built the way its route builds the request (same prompt builder, same user
  * message shape, same history, the feature's own thinking setting), and the system prompt is chosen by
- * the model being tested (promptOptsFor), exactly as callClaude does in production. Mock cases can name
+ * the model being tested and the feature (promptOptsFor), exactly as the routes do in production. Mock cases can name
  * a real mock and phase (ctx.mock, ctx.phase): the eval then parses that mock file from the content repo.
  *
  * usage: NODE_PATH=<stub with server-only> npx tsx --env-file=.env --env-file=.env.local scripts/ai-eval/run.ts <out dir> [case-id | feature ...]
  *   EVAL_PROMPT=compact | shared       give every model the Haiku-tuned prompts (does Sonnet gain from them too?), or
  *                                      every model the original prompts (the baseline the tuning is measured against)
+ *   EVAL_AB=sonnet | haiku              one model against itself: its original prompts vs the tuned (compact) ones, judged
+ *                                      head to head (candidates "<model>#shared" and "<model>#compact")
  *   EVAL_REUSE=<results.json[,more]>  reuse answers whose request is byte-identical (and their judging when
  *                                      both answers are unchanged): rounds that only change one model's prompt
  *                                      then pay for that model and the judge only.
@@ -52,14 +54,21 @@ import { CASES, type EvalCase } from "./cases";
 const OUT = path.resolve(process.argv[2] || "ai-eval-out");
 const ONLY = process.argv.slice(3);
 const CONTENT = process.env.SDM_LOCAL_DIR || path.resolve(process.cwd(), "..", "system-design-mastery");
-const CANDIDATES = [MODELS.haiku, MODELS.sonnet];
+const AB = process.env.EVAL_AB as keyof typeof MODELS | undefined;
+if (AB && !MODELS[AB]) throw new Error(`EVAL_AB: unknown model ${AB}`);
+/** a candidate is a model id, or in A/B mode "<model id>#shared" / "<model id>#compact" */
+const CANDIDATES = AB ? [`${MODELS[AB]}#shared`, `${MODELS[AB]}#compact`] : [MODELS.haiku, MODELS.sonnet];
+const modelOf = (cand: string) => cand.split("#")[0];
 const JUDGE = MODELS.opus;
 const REUSE: Row[] = (process.env.EVAL_REUSE || "")
   .split(",")
   .filter(Boolean)
   .flatMap((f) => JSON.parse(fs.readFileSync(f, "utf8")) as Row[]);
 
-const optsFor = (model: string) => (process.env.EVAL_PROMPT === "compact" ? { compact: true } : process.env.EVAL_PROMPT === "shared" ? { compact: false } : promptOptsFor(model));
+const optsFor = (cand: string, feature: EvalCase["feature"]) => {
+  const variant = cand.split("#")[1] ?? process.env.EVAL_PROMPT;
+  return variant === "compact" ? { compact: true } : variant === "shared" ? { compact: false } : promptOptsFor(cand, feature);
+};
 
 const s = (v: unknown) => (Array.isArray(v) ? v.join("\n") : typeof v === "string" ? v : v == null ? "" : String(v));
 const read = (rel: string) => fs.readFileSync(path.join(CONTENT, "resources", rel), "utf8");
@@ -114,7 +123,7 @@ async function build(c: EvalCase): Promise<Built> {
             ? `Hint level ${s(x.level) || "1"}.\n\nMy code:\n\`\`\`python\n${s(x.code)}\n\`\`\`\n\n${x.setup ? `It doesn't load: ${s(x.setup)}` : `Failing:\n${s(x.failures) || "- (no details)"}`}`
             : `Hint level ${s(x.level)}.\n\n${c.input}`;
       const sys = c.feature === "lab-review" ? labReviewSystem : labHintSystem;
-      return { system: (m) => sys({ title, brief }, optsFor(m)), messages: one(user), context: `LAB: ${title}\n${brief.slice(0, 2500)}` };
+      return { system: (m) => sys({ title, brief }, optsFor(m, c.feature)), messages: one(user), context: `LAB: ${title}\n${brief.slice(0, 2500)}` };
     }
     case "explain-back": {
       let term = s(x.term);
@@ -126,12 +135,12 @@ async function build(c: EvalCase): Promise<Built> {
         term = k.term;
         keyPoints = [k.definition, ...k.refresher];
       }
-      return { system: (m) => explainBackSystem({ term, keyPoints }, optsFor(m)), messages: one(c.input), context: `CONCEPT: ${term}\nKEY POINTS:\n${keyPoints.map((k) => `- ${k}`).join("\n")}` };
+      return { system: (m) => explainBackSystem({ term, keyPoints }, optsFor(m, c.feature)), messages: one(c.input), context: `CONCEPT: ${term}\nKEY POINTS:\n${keyPoints.map((k) => `- ${k}`).join("\n")}` };
     }
     case "mock-interviewer": {
       const m = await mockCtx(c);
       return {
-        system: (model) => mockInterviewerSystem({ company: m.company, interviewer: m.interviewer, problem: m.problem, phase: m.phase }, optsFor(model)),
+        system: (model) => mockInterviewerSystem({ company: m.company, interviewer: m.interviewer, problem: m.problem, phase: m.phase }, optsFor(model, c.feature)),
         messages: one(c.input),
         post: stripPrivatePlan,
         context: `PROBLEM:\n${m.problem}\n\nPHASE: ${m.phase.title}\nTHE PHASE'S QUESTIONS AND FACTS THE INTERVIEWER MAY GIVE:\n${m.phase.interviewer}\nCURVEBALLS:\n${m.phase.curveballs}\nRUBRIC (hidden from the candidate):\n${m.phase.rubric}`,
@@ -140,7 +149,7 @@ async function build(c: EvalCase): Promise<Built> {
     case "mock-coach": {
       const m = await mockCtx(c);
       return {
-        system: (model) => mockCoachSystem({ company: m.company, problem: m.problem, phase: m.phase }, optsFor(model)),
+        system: (model) => mockCoachSystem({ company: m.company, problem: m.problem, phase: m.phase }, optsFor(model, c.feature)),
         messages: one(c.input),
         context: `PROBLEM:\n${m.problem}\n\nPHASE: ${m.phase.title}\nRUBRIC:\n${m.phase.rubric}`,
       };
@@ -154,7 +163,7 @@ async function build(c: EvalCase): Promise<Built> {
         return { title: p.title, rubric: pp.rubric, modelAnswer: pp.modelAnswer, candidate: answers[p.id] ?? "" };
       });
       return {
-        system: (model) => mockFullScorecardSystem({ company: m.company.name, problem: problemText(m), phases }, optsFor(model)),
+        system: (model) => mockFullScorecardSystem({ company: m.company.name, problem: problemText(m), phases }, optsFor(model, c.feature)),
         messages: one("Grade my interview."),
         context: phases.map((p, i) => `### P${i + 1} · ${p.title}\nRUBRIC:\n${p.rubric}\nCANDIDATE:\n${p.candidate || "(nothing written)"}`).join("\n\n"),
       };
@@ -169,7 +178,7 @@ async function build(c: EvalCase): Promise<Built> {
         title = t.title;
         text = `${t.title}\n\n${t.briefMd}\n\nConstraints:\n${t.constraints.map((q) => `- ${q}`).join("\n")}`;
       }
-      return { system: (m) => designReviewSystem({ title, text }, optsFor(m)), messages: one(c.input), context: `PROBLEM: ${title}\n${text.slice(0, 3000)}` };
+      return { system: (m) => designReviewSystem({ title, text }, optsFor(m, c.feature)), messages: one(c.input), context: `PROBLEM: ${title}\n${text.slice(0, 3000)}` };
     }
     case "canvas-review": {
       // a problem-bank brief (ctx.problem = file name), cut the way the canvas route cuts it
@@ -229,12 +238,15 @@ type Judged = { score: number; expectMet: boolean[]; violations: string[]; verdi
 type Row = { id: string; feature: string; title: string; input: string; answers: Answer[]; order: string[]; judge: { A: Judged; B: Judged; better: string } | null; judgeCost: number; judgeHash?: string };
 
 async function answer(c: EvalCase, b: Built, model: string): Promise<Answer> {
-  const hash = sha(JSON.stringify([model, b.system(model), b.messages, FEATURES[c.feature].maxTokens, FEATURES[c.feature].think]));
+  // the hash names the real model and the prompt it got, so an A/B candidate reuses a plain run's answer
+  const hash = sha(JSON.stringify([modelOf(model), b.system(model), b.messages, FEATURES[c.feature].maxTokens, FEATURES[c.feature].think]));
   const old = REUSE.filter((r) => r.id === c.id)
     .flatMap((r) => r.answers)
-    .find((a) => a.model === model && a.hash === hash && a.ok);
-  if (old) return { ...old, reused: true };
-  const r = await callClaude({ feature: "eval", model, system: b.system, messages: b.messages, maxTokens: FEATURES[c.feature].maxTokens, think: FEATURES[c.feature].think, meta: { case: c.id, as: c.feature } });
+    .find((a) => modelOf(a.model) === modelOf(model) && a.hash === hash && a.ok);
+  if (old) return { ...old, model, reused: true };
+  // an A/B candidate keeps its prompt variant (unless callClaude ends up on another model)
+  const system = (m: string) => b.system(m === modelOf(model) ? model : m);
+  const r = await callClaude({ feature: "eval", model: modelOf(model), system, messages: b.messages, maxTokens: FEATURES[c.feature].maxTokens, think: FEATURES[c.feature].think, meta: { case: c.id, as: c.feature } });
   // every route strips a tuned prompt's private plan line before the learner sees the text
   const post = b.post ?? stripPrivatePlan;
   return r.ok ? { model, text: post(r.text), raw: r.text, costUsd: r.costUsd, ok: true, hash } : { model, text: `[${r.status}] ${r.message}`, costUsd: 0, ok: false, hash };
@@ -362,7 +374,7 @@ async function main() {
     const answers = await Promise.all(CANDIDATES.map((m) => answer(c, b, m)));
     const prev = REUSE.find((r) => r.id === c.id);
     // keep the earlier A/B order when re-judging, so a reused judgement maps to the same answers
-    const order = prev?.order ?? (Math.random() < 0.5 ? [...CANDIDATES] : [...CANDIDATES].reverse());
+    const order = prev && CANDIDATES.every((m) => prev.order.includes(m)) ? prev.order : (Math.random() < 0.5 ? [...CANDIDATES] : [...CANDIDATES].reverse());
     const { j, cost, judgeHash, reused } = await judge(c, b, answers.find((a) => a.model === order[0])!.text, answers.find((a) => a.model === order[1])!.text);
     spent += (reused ? 0 : cost) + answers.reduce((a, x) => a + (x.reused ? 0 : x.costUsd), 0);
     process.stderr.write(`${c.id} `);

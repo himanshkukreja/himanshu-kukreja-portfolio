@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: (model) => mockCoachSystem({ company: mock.company.name, problem: problemText(mock), phase: promptPhase(phase) }, promptOptsFor(model)),
+    system: (model) => mockCoachSystem({ company: mock.company.name, problem: problemText(mock), phase: promptPhase(phase) }, promptOptsFor(model, "mock-coach")),
     messages: [{ role: "user", content: candidate }],
     meta: { mock: mock.slug, phase: phase.id },
   });

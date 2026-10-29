@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: (model) => explainBackSystem({ term: c.term, keyPoints }, promptOptsFor(model)),
+    system: (model) => explainBackSystem({ term: c.term, keyPoints }, promptOptsFor(model, "explain-back")),
     messages: [{ role: "user", content: text }],
     meta: { concept: c.id },
   });
