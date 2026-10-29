@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { canvasReviewSystem } from "@/lib/ai/prompts";
+import { canvasReviewSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
 import { canvasPrompts, FREE_RE, getDesign, isPromptKey, promptBrief, saveReview } from "@/lib/learn/canvas";
 import { sketchSummary } from "@/lib/learn/mock/sketch";
 
@@ -38,12 +38,14 @@ export async function POST(request: Request) {
     userId: me.id,
     adminPreview: isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: canvasReviewSystem(brief),
+    system: (model) => canvasReviewSystem(brief, promptOptsFor(model, "canvas-review")),
     messages: [{ role: "user", content: input.slice(0, 12000) }],
     meta: { design: key },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  await saveTranscript(r.callId, me.id, "canvas-review", input, r.text);
-  await saveReview(d.id, r.text, d.reviews + 1).catch(() => undefined);
-  return NextResponse.json({ text: r.text, creditsLeft: r.creditsLeft });
+  // a tuned prompt's private plan line never reaches the learner (or the saved review)
+  const text = stripPrivatePlan(r.text);
+  await saveTranscript(r.callId, me.id, "canvas-review", input, text);
+  await saveReview(d.id, text, d.reviews + 1).catch(() => undefined);
+  return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

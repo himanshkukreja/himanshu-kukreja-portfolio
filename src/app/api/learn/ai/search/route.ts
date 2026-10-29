@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { smartSearchSystem } from "@/lib/ai/prompts";
+import { promptOptsFor, smartSearchSystem, stripPrivatePlan } from "@/lib/ai/prompts";
 import { candidateLines, parseSmartAnswer, PER_FAMILY, smartSearchUser } from "@/lib/search/smart/ai";
 import { SMART_SEARCH_PUBLIC } from "@/lib/search/smart/flag";
 import { devPreview, getEngine, liveCheck, originOf } from "@/lib/search/smart/server";
@@ -69,15 +69,18 @@ export async function POST(request: Request) {
         userId: me.id || null,
         adminPreview: admin,
         userKey: ownKey(request),
-        system: smartSearchSystem(),
+        // the model actually used (after admin settings and amber mode) picks the prompt: Haiku 5.5 gets its tuned one
+        system: (model) => smartSearchSystem(promptOptsFor(model, "smart-search")),
         messages: [{ role: "user", content: user }],
         timeoutMs: TIMEOUT_MS,
         meta: { candidates: res.candidates.length, natural: res.natural },
       });
       if (!r.ok) return { error: r.message, status: r.status === "error" ? 502 : 429, creditsLeft: r.creditsLeft };
       // a goal that spans topics (an interview, a beginner's start) gets at most 2 steps per lesson family
-      const p = parseSmartAnswer(r.text, ids, fam, res.intents.includes("interview") || res.intents.includes("beginner") ? 2 : PER_FAMILY);
-      await saveTranscript(r.callId, me.id || null, "smart-search", q, r.text);
+      // Haiku 5.5's tuned prompt writes a private plan line before the JSON
+      const answer = stripPrivatePlan(r.text);
+      const p = parseSmartAnswer(answer, ids, fam, res.intents.includes("interview") || res.intents.includes("beginner") ? 2 : PER_FAMILY);
+      await saveTranscript(r.callId, me.id || null, "smart-search", q, answer);
       if (!p.ok) return { error: "The learning path didn't come out right. The results below are complete.", status: 502, creditsLeft: r.creditsLeft };
       if (p.answer.scope !== "off_topic" && !p.answer.path.length) return { error: "No learning path this time. The results below are complete.", status: 502, creditsLeft: r.creditsLeft };
       remember(ck, p.answer);

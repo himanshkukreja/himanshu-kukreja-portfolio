@@ -4,7 +4,7 @@ import { getLearningResource } from "@/lib/github";
 import { getStorySource } from "@/lib/stories";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { lessonQaSystem } from "@/lib/ai/prompts";
+import { lessonQaSystem, promptOptsFor } from "@/lib/ai/prompts";
 import { lessonContext } from "@/lib/ai/retrieve";
 
 export const runtime = "nodejs";
@@ -49,7 +49,9 @@ export async function POST(request: Request) {
   const kind = story ? "case file" : "lesson";
 
   const ask = [selection ? `About this part of the ${kind}:\n"""${selection}"""` : "", question || "Explain this part.", body.mode && MODES[body.mode] ? MODES[body.mode] : ""].filter(Boolean).join("\n\n");
-  const system = lessonQaSystem({ title: doc.title, text: lessonContext(doc.content, question, selection), kind });
+  const context = { title: doc.title, text: lessonContext(doc.content, question, selection), kind } as const;
+  // the prompt is picked by the model the call actually uses (Haiku 5.5 has its own variant)
+  const system = (model: string) => lessonQaSystem(context, promptOptsFor(model, "lesson-qa"));
   const r = await callClaude({
     feature: "lesson-qa",
     userId: me.id,

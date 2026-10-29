@@ -11,7 +11,7 @@ import "server-only";
  */
 import { supabase } from "@/lib/supabase";
 import { costOf, creditsFor, type Usage } from "./prices";
-import { FEATURES, type FeatureId } from "./features";
+import { answerTokens, FEATURES, type FeatureId } from "./features";
 import { featureConfig, getAiSettings } from "./settings";
 import { getBudget, startOfToday, type Mode } from "./governor";
 import { dailyAllowanceUsd } from "./limits";
@@ -155,7 +155,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   const canSkip = /sonnet-5/.test(model);
   const thinks = !haiku && ((req.think ?? def.think) || !canSkip);
   const thinkingOff = thinks ? null : canSkip ? { type: "between_tools" } : haiku ? { type: "disabled" } : null;
-  const answerCap = Math.min(req.maxTokens ?? cfg.maxTokens, def.maxTokens);
+  const answerCap = Math.min(req.maxTokens ?? answerTokens(req.feature, model), answerTokens(req.feature, model));
   const maxTokens = thinks ? answerCap + THINK_HEADROOM : answerCap;
   const t0 = Date.now();
   try {

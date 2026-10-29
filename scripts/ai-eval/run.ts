@@ -18,12 +18,13 @@
  *   EVAL_REUSE=<results.json[,more]>  reuse answers whose request is byte-identical (and their judging when
  *                                      both answers are unchanged): rounds that only change one model's prompt
  *                                      then pay for that model and the judge only.
+ *   EVAL_NOJUDGE=1                     answers only, no judge (cheap prompt iterations you read yourself)
  */
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { callClaude, type AiMessage } from "@/lib/ai/client";
-import { FEATURES } from "@/lib/ai/features";
+import { answerTokens, FEATURES } from "@/lib/ai/features";
 import { MODELS } from "@/lib/ai/prices";
 import {
   canvasReviewSystem,
@@ -221,7 +222,7 @@ async function build(c: EvalCase): Promise<Built> {
         title = title || md.match(/^#\s+(.+)$/m)?.[1]?.trim() || s(x.problem);
         text = briefFromMarkdown(md, "problem");
       }
-      return { system: () => canvasReviewSystem({ title, text }), messages: one(c.input), context: `PROBLEM: ${title}\n${text}` };
+      return { system: (m) => canvasReviewSystem({ title, text }, optsFor(m, c.feature)), messages: one(c.input), context: `PROBLEM: ${title}\n${text}` };
     }
     case "lesson-qa": {
       const text = read(s(x.lessonPath));
@@ -229,7 +230,7 @@ async function build(c: EvalCase): Promise<Built> {
       const MODES: Record<string, string> = { simple: "Explain it like I'm new to this.", hinglish: "Answer in Hinglish.", example: "Give one concrete real-world example.", interview: "How would I say this in an interview, in 3-4 sentences?" };
       const ask = [selection ? `About this part of the lesson:\n"""${selection}"""` : "", c.input || "Explain this part.", MODES[s(x.mode)] ?? ""].filter(Boolean).join("\n\n");
       const ctxText = lessonContext(text, c.input, selection);
-      return { system: () => lessonQaSystem({ title: s(x.title), text: ctxText }), messages: one(ask), context: `LESSON: ${s(x.title)} (the answer sees the lesson's most relevant sections)` };
+      return { system: (m) => lessonQaSystem({ title: s(x.title), text: ctxText }, optsFor(m, c.feature)), messages: one(ask), context: `LESSON: ${s(x.title)} (the answer sees the lesson's most relevant sections)` };
     }
     case "smart-search": {
       const e = await engine();
@@ -240,12 +241,12 @@ async function build(c: EvalCase): Promise<Built> {
       const cap = res.intents.includes("interview") || res.intents.includes("beginner") ? 2 : PER_FAMILY;
       SMART.set(c.id, { candidates: res.candidates, ids, fam, cap, ms });
       return {
-        system: () => smartSearchSystem(),
+        system: (model) => smartSearchSystem(optsFor(model, c.feature)),
         messages: one(smartSearchUser(c.input, text)),
         context: `CANDIDATES (the only resources the answer may use):\n${text}`,
         // the page's view of the answer: ids resolved to titles, unknown ids dropped
         post: (raw) => {
-          const p = parseSmartAnswer(raw, ids, fam, cap);
+          const p = parseSmartAnswer(stripPrivatePlan(raw), ids, fam, cap);
           if (!p.ok) return `[invalid JSON: ${p.reason}]\n${raw.slice(0, 400)}`;
           const a = p.answer;
           const line = (st: { kind: string; title: string; why: string; at: number }) => `[${KIND_LABEL[st.kind as keyof typeof KIND_LABEL].tag}${st.at >= 0 ? ` ${st.at}s` : ""}] ${st.title} — ${st.why}`;
@@ -304,7 +305,7 @@ type Row = { id: string; feature: string; title: string; input: string; answers:
 
 async function answer(c: EvalCase, b: Built, model: string): Promise<Answer> {
   // the hash names the real model and the prompt it got, so an A/B candidate reuses a plain run's answer
-  const hash = sha(JSON.stringify([modelOf(model), b.system(model), b.messages, FEATURES[c.feature].maxTokens, FEATURES[c.feature].think]));
+  const hash = sha(JSON.stringify([modelOf(model), b.system(model), b.messages, answerTokens(c.feature, modelOf(model)), FEATURES[c.feature].think]));
   const old = REUSE.filter((r) => r.id === c.id)
     .flatMap((r) => r.answers)
     .find((a) => modelOf(a.model) === modelOf(model) && a.hash === hash && a.ok);
@@ -312,7 +313,7 @@ async function answer(c: EvalCase, b: Built, model: string): Promise<Answer> {
   // an A/B candidate keeps its prompt variant (unless callClaude ends up on another model)
   const system = (m: string) => b.system(m === modelOf(model) ? model : m);
   const t0 = Date.now();
-  const r = await callClaude({ feature: "eval", model: modelOf(model), system, messages: b.messages, maxTokens: FEATURES[c.feature].maxTokens, think: FEATURES[c.feature].think, meta: { case: c.id, as: c.feature } });
+  const r = await callClaude({ feature: "eval", model: modelOf(model), system, messages: b.messages, maxTokens: answerTokens(c.feature, modelOf(model)), think: FEATURES[c.feature].think, meta: { case: c.id, as: c.feature } });
   const ms = Date.now() - t0;
   // every route strips a tuned prompt's private plan line before the learner sees the text
   const post = b.post ?? stripPrivatePlan;
@@ -446,7 +447,7 @@ function smartReport(rows: Row[], byModel: (r: Row, m: string) => Judged | null)
     const a = r.answers.find((x) => x.model === m);
     const sm = SMART.get(r.id);
     if (!a?.raw || !sm) return [];
-    const p = parseSmartAnswer(a.raw, sm.ids, sm.fam, sm.cap);
+    const p = parseSmartAnswer(stripPrivatePlan(a.raw), sm.ids, sm.fam, sm.cap);
     return p.ok ? p.answer.path.map((x) => x.id) : [];
   };
   let mustAll = 0;
@@ -552,7 +553,7 @@ async function main() {
     const prev = REUSE.find((r) => r.id === c.id);
     // keep the earlier A/B order when re-judging, so a reused judgement maps to the same answers
     const order = prev && CANDIDATES.every((m) => prev.order.includes(m)) ? prev.order : (Math.random() < 0.5 ? [...CANDIDATES] : [...CANDIDATES].reverse());
-    const { j, cost, judgeHash, reused } = await judge(c, b, answers.find((a) => a.model === order[0])!.text, answers.find((a) => a.model === order[1])!.text);
+    const { j, cost, judgeHash, reused } = process.env.EVAL_NOJUDGE ? { j: null, cost: 0, judgeHash: undefined, reused: false } : await judge(c, b, answers.find((a) => a.model === order[0])!.text, answers.find((a) => a.model === order[1])!.text);
     spent += (reused ? 0 : cost) + answers.reduce((a, x) => a + (x.reused ? 0 : x.costUsd), 0);
     process.stderr.write(`${c.id} `);
     return { id: c.id, feature: c.feature, title: c.title, input: c.input, answers, order, judge: j, judgeCost: cost, judgeHash };
