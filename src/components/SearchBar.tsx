@@ -547,7 +547,7 @@ function Palette({ onClose }: { onClose: () => void }) {
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={onKey}
             aria-controls="course-search-results"
-            placeholder="Search lessons, lectures, companies, questions…"
+            placeholder="Search or ask anything: lessons, lectures, companies…"
             className="min-h-11 min-w-0 flex-1 appearance-none bg-transparent text-lg text-fg outline-none placeholder:text-fg-4 focus-visible:outline-none sm:text-xl [&::-webkit-search-cancel-button]:hidden"
           />
           {q.trim() && docs && (

@@ -6,7 +6,7 @@
  * becomes the course dock with a way back to the site.
  */
 import Link from "next/link";
-import { CloudDownload, Search } from "lucide-react";
+import { CloudDownload } from "lucide-react";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { DockDot, TabPending } from "./LinkPending";
 
@@ -97,15 +97,6 @@ export function LearnTabs({ pathname }: { pathname: string }) {
           <TabPending />
         </Link>
       ))}
-      <Link
-        href="/learn/search"
-        aria-current={pathname.startsWith("/learn/search") ? "page" : undefined}
-        aria-label="Smart search: search the whole course, or ask for a learning path"
-        title="Smart search: search the whole course, or ask for a learning path"
-        className={`ml-1 grid h-7 w-7 place-items-center border ${pathname.startsWith("/learn/search") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
-      >
-        <Search className="h-3.5 w-3.5" aria-hidden />
-      </Link>
       <Link
         href="/learn/guide"
         aria-current={pathname.startsWith("/learn/guide") ? "page" : undefined}
