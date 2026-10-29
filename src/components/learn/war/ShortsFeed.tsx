@@ -6,7 +6,7 @@
  * turns the sound on. Every short links to its full lecture at that moment and to its written article, and
  * takes upvotes and a discussion.
  * - Phones and tablets: full screen, like Reels. The site header and dock are covered; the filters float
- *   at the top, the actions (upvote, discussion, share, sound, full screen) sit in a rail on the right, the
+ *   at the top, the actions (upvote, discussion, share, sound, speed, full screen) sit in a rail on the right, the
  *   label, title and links at the bottom left. Swipe up for the next one. A few seconds into playback all of
  *   that fades away and only the video is left; a tap (or a pause, or the next short) brings it back. The
  *   full-screen button asks the browser for real full screen; where a page can't have it (iPhone Safari),
@@ -29,6 +29,7 @@ import { compact } from "@/components/learn/lecture/LectureVote";
 import { SHORT_CATEGORIES, type PlayableShort, type ShortCategory } from "@/lib/learn/shorts/types";
 import ShortPlayer, { type ShortHandle } from "./ShortPlayer";
 import { CommentsSheet, useCommentCounts, useShortSave, useShortVote } from "./ShortSocial";
+import { SpeedControl } from "./ShortSpeed";
 
 const SEEN_KEY = "hk.shorts.seen";
 const readSeen = (): string[] => {
@@ -459,6 +460,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
                 // phones, discussing: the short shrinks into the top third, still playing, above the panel
                 className={`lg:aspect-[9/16] lg:h-full lg:w-auto lg:max-w-full lg:border lg:border-line-strong ${talk && k === activeIdx ? "aspect-[9/16] h-[32dvh] w-auto max-lg:border max-lg:border-line-strong" : "h-full w-full"}`}
                 muteClassName="hidden lg:grid"
+                speedClassName="hidden lg:block"
                 // controls hidden: the first tap only brings them back
                 onTap={() => {
                   if (chrome || talk || !phoneLayout()) {
@@ -583,6 +585,8 @@ function PhoneOverlay({
           <span className={icon(muted)}>{muted ? <VolumeX className="h-5 w-5" aria-hidden /> : <Volume2 className="h-5 w-5" aria-hidden />}</span>
           {muted ? "muted" : "sound on"}
         </button>
+        {/* the speed carries over to every short; ] / [ on a keyboard */}
+        <SpeedControl variant="rail" className={chrome ? "pointer-events-auto" : "pointer-events-none"} />
         <button type="button" onClick={onFs} aria-label={fs ? "Exit full screen" : "Full screen"} aria-pressed={fs} className={rail}>
           <span className={icon(fs)}>{fs ? <Minimize className="h-5 w-5" aria-hidden /> : <Maximize className="h-5 w-5" aria-hidden />}</span>
           {fs ? "exit" : "full"}

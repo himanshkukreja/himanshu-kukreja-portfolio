@@ -4,7 +4,9 @@
  * One vertical short (9:16) in a phone-shaped frame, with the site's own controls instead of the browser's:
  * tap to play or pause (a big signal-orange play button while paused), a thin seek bar along the bottom that
  * thickens and can be dragged, the time while paused or scrubbing, a mute toggle, and a spinner while it
- * buffers. Space/K toggles, ←/→ seek 5 s, M mutes (when the player has focus).
+ * buffers. Space/K toggles, ←/→ seek 5 s, M mutes (when the player has focus). Speed (ShortSpeed): ] or >
+ * faster, [ or < slower by 0.1 (0.5×–2×), \ back to 1×, anywhere on the page while this short is on screen;
+ * a "1.0×" chip beside the mute does the same by touch. One speed for every short, remembered on the device.
  * In the feed, only the shorts around the one on screen get a <video> at all (the rest are their poster),
  * the one on screen and the next buffer ahead (preload "auto"), and `active` plays the one on screen, so a
  * swipe lands on a short that is already loading or loaded, as in Reels.
@@ -15,6 +17,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "re
 import { Play, Volume2, VolumeX } from "lucide-react";
 import { track } from "@/lib/track";
 import type { PlayableShort } from "@/lib/learn/shorts/types";
+import { SpeedControl, SpeedToast, useShortSpeed, useSpeedKeys } from "./ShortSpeed";
 
 export type ShortHandle = { play: () => void; pause: () => void };
 
@@ -29,6 +32,8 @@ type Props = {
   className?: string;
   /** the feed's phone layout has its own mute in the action rail */
   muteClassName?: string;
+  /** likewise its own speed control */
+  speedClassName?: string;
   /** a tap on the video: return true to take it (e.g. to bring the feed's controls back) instead of play/pause */
   onTap?: () => boolean;
   onPlayingChange?: (playing: boolean) => void;
@@ -48,7 +53,7 @@ type Props = {
 };
 
 const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
-  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "", onTap, onPlayingChange, onProgress, mounted = true, preload = "metadata", active, priority = false, warm = false },
+  { short, muted = false, onMutedChange, autoPlay = false, className = "aspect-[9/16] border border-line-strong", muteClassName = "", speedClassName = "", onTap, onPlayingChange, onProgress, mounted = true, preload = "metadata", active, priority = false, warm = false },
   ref,
 ) {
   const v = useRef<HTMLVideoElement>(null);
@@ -68,6 +73,20 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
   const warming = useRef(false);
   const warmed = useRef(false);
   const mutedRef = useRef(muted);
+  // the viewer's speed, shared by every short (so the next one plays at it too); the voice keeps its pitch
+  const speed = useShortSpeed();
+  useEffect(() => {
+    const el = v.current as (HTMLVideoElement & { webkitPreservesPitch?: boolean }) | null;
+    if (!el) return;
+    el.preservesPitch = true;
+    el.webkitPreservesPitch = true;
+    // the default too: a new source (or a reload) starts at it
+    el.defaultPlaybackRate = speed;
+    el.playbackRate = speed;
+  }, [speed, mounted]);
+  // the short on screen in the feed (or a lone player) takes the speed keys
+  const onScreen = mounted && active !== false;
+  useSpeedKeys(onScreen);
   useEffect(() => {
     mutedRef.current = muted;
     const el = v.current;
@@ -280,6 +299,10 @@ const ShortPlayer = forwardRef<ShortHandle, Props>(function ShortPlayer(
       >
         {isMuted ? <VolumeX className="h-4 w-4" aria-hidden /> : <Volume2 className="h-4 w-4" aria-hidden />}
       </button>
+
+      {/* speed: just left of the mute; the new speed flashes in the middle on each change */}
+      {mounted && <SpeedControl variant="chip" className={`${speedClassName} absolute bottom-6 right-12`} />}
+      {onScreen && <SpeedToast />}
 
       {/* time, while paused or scrubbing: just under the play button */}
       {showTime && duration > 0 && (
