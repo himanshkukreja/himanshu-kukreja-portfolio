@@ -16,6 +16,8 @@ import { PRACTICE_TOOLKIT_KEY, PRACTICE_TOOLKIT_PREHEADER, practiceToolkitHtml, 
 import { WATCH_TRY_KEY, WATCH_TRY_PREHEADER, watchTryHtml, watchTrySubject, watchTryText } from "@/lib/announce/watch-and-try";
 import { AI_TUTOR_KEY, AI_TUTOR_PREHEADER, aiTutorHtml, aiTutorSubject, aiTutorText } from "@/lib/announce/ai-tutor";
 import { LECTURES_SHORTS_KEY, LECTURES_SHORTS_PREHEADER, lecturesShortsHtml, lecturesShortsSubject, lecturesShortsText } from "@/lib/announce/lectures-shorts";
+import { SHORTS_FEED_KEY, SHORTS_FEED_PREHEADER, shortsFeedHtml, shortsFeedSubject, shortsFeedText } from "@/lib/announce/shorts-feed";
+import { COURSE_CHAT_KEY, COURSE_CHAT_PREHEADER, courseChatHtml, courseChatSubject, courseChatText } from "@/lib/announce/course-chat";
 import { WELCOME_PREHEADER, welcomeHtml, welcomeSubject, welcomeText, welcomeUnsubscribeUrl } from "@/lib/email/welcome";
 import { newBlockId, type BlocksDoc, type RawDoc } from "./render";
 import type { TemplateInfo } from "./types";
@@ -164,6 +166,36 @@ function lecturesShortsTemplate(): TemplateInfo {
   };
 }
 
+function courseChatTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/course-chat.ts", html: fromSource(courseChatHtml, unsub), text: fromSource(courseChatText, unsub) };
+  return {
+    id: "course-chat",
+    name: "What's new: the course chat (Ask)",
+    description:
+      "The course chat at /learn/chat: answers from the whole course with sources, the exact second in a lecture, quiz me, interview plans (save, calendar), design review, plus memory, mocks in chat, voice/listen/share, history, the daily allowance and privacy. Tap-to-ask example links. With screenshots of real answers. Generated from src/lib/announce/course-chat.ts.",
+    topic: COURSE_CHAT_KEY,
+    ...subjectTemplate(courseChatSubject),
+    preheader: COURSE_CHAT_PREHEADER,
+    doc,
+  };
+}
+
+function shortsFeedTemplate(): TemplateInfo {
+  const unsub = unsubscribeUrl(S_EMAIL);
+  const doc: RawDoc = { layout: "raw", source: "src/lib/announce/shorts-feed.ts", html: fromSource(shortsFeedHtml, unsub), text: fromSource(shortsFeedText, unsub) };
+  return {
+    id: "shorts",
+    name: "What's new: the Shorts feed",
+    description:
+      "The Shorts feed on its own (the lectures-shorts email was never sent): 486 one-minute shorts by category, swipe on a phone, the speed control (0.1 steps, keys), the laptop view and full lecture at that moment, plus discussion, save, share and offline. With screenshots. Generated from src/lib/announce/shorts-feed.ts.",
+    topic: SHORTS_FEED_KEY,
+    ...subjectTemplate(shortsFeedSubject),
+    preheader: SHORTS_FEED_PREHEADER,
+    doc,
+  };
+}
+
 function welcomeTemplate(): TemplateInfo {
   const unsub = welcomeUnsubscribeUrl(S_EMAIL);
   const doc: RawDoc = { layout: "raw", source: "src/lib/email/welcome.ts", html: fromSource(welcomeHtml, unsub), text: fromSource(welcomeText, unsub) };
@@ -224,7 +256,7 @@ function storyTemplate(): TemplateInfo {
 
 export function listTemplates(): TemplateInfo[] {
   const out: TemplateInfo[] = [];
-  for (const make of [storyTemplate, lecturesShortsTemplate, aiTutorTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
+  for (const make of [storyTemplate, courseChatTemplate, shortsFeedTemplate, lecturesShortsTemplate, aiTutorTemplate, watchTryTemplate, practiceToolkitTemplate, offlineAppTemplate, learnRevampTemplate, welcomeTemplate, blankTemplate]) {
     try {
       out.push(make());
     } catch (e) {
