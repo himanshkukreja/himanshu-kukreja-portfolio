@@ -9,7 +9,7 @@
  * `flow` edges and the camera (`focus`) are applied to that SVG. Sequences re-render per step and
  * draw their newest arrows in.
  */
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { mermaidConfig, prepareMermaidSource } from "@/lib/diagrams/mermaid-theme";
 import { loadMermaid } from "@/lib/offline/lazy";
 import { type FlatStep, type Lecture, type LectureScene, type LectureStep, type Tone } from "@/lib/learn/lecture/types";
@@ -97,7 +97,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
       <div aria-hidden className="absolute inset-0 opacity-[0.35] [background-image:linear-gradient(#1a1a1d_1px,transparent_1px),linear-gradient(90deg,#1a1a1d_1px,transparent_1px)] [background-size:4cqw_4cqw]" />
       <div aria-hidden className="absolute -left-[20%] -top-[30%] h-[80%] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgba(255,107,43,0.10),transparent)]" />
 
-      <div className="absolute left-[3%] top-[4%] z-10 flex items-center gap-[1cqw] font-mono text-[1.15cqw] uppercase tracking-[0.12em] text-[#ff6b2b]">
+      <div data-stage-top className="absolute left-[3%] top-[4%] z-10 flex items-center gap-[1cqw] font-mono text-[1.15cqw] uppercase tracking-[0.12em] text-[#ff6b2b]">
         <span className="inline-block h-[0.6cqw] w-[0.6cqw] bg-[#ff6b2b]" />
         {String(cur.scene + 1).padStart(2, "0")} · {s.title}
       </div>
@@ -105,7 +105,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         <CallBar cast={lecture.cast} who={st.who} t={t} />
       ) : (
         quest && (
-          <div className="absolute right-[3%] top-[4%] z-10 font-mono text-[1cqw] uppercase tracking-[0.12em] text-[#8a8a90]">
+          <div data-stage-top className="absolute right-[3%] top-[4%] z-10 font-mono text-[1cqw] uppercase tracking-[0.12em] text-[#8a8a90]">
             {quest.code} · {quest.title}
           </div>
         )
@@ -163,7 +163,7 @@ function CallBar({ cast, who, t }: { cast: NonNullable<Lecture["cast"]>; who?: "
     { key: "candidate" as const, ...cast.candidate, role: cast.candidate.title || "Candidate" },
   ];
   return (
-    <div className="absolute right-[3%] top-[3%] z-10 flex gap-[0.8cqw]">
+    <div data-stage-top className="absolute right-[3%] top-[3%] z-10 flex gap-[0.8cqw]">
       {people.map((p) => {
         const on = who === p.key;
         const initials = p.name
@@ -359,14 +359,82 @@ function CompareScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; 
   );
 }
 
+/**
+ * Shrinks a quiz card too tall for the stage (a long question, four long options and the answer's explanation),
+ * so it never climbs into the scene label at the top or off the frame. The card is centred on the scene's box and
+ * may spill past it, as it always has, up to a small gap under the label (and as far below, where the captions
+ * have more room). Sized for the tallest state, the answer shown (the hidden `ghost` copy of the explanation
+ * stands in for it while asking), so the card keeps its size from ask to answer. A card that fits is left alone
+ * (80% wide, unscaled); one that doesn't is scaled down and widened by the same factor, up to the box's width, so
+ * it shrinks as little as it can. Plain DOM writes in a layout effect: the exporter's frame already has them.
+ */
+function fitQuiz(card: HTMLElement, foot: HTMLElement, ghost: HTMLElement) {
+  const area = card.parentElement;
+  const stage = area?.parentElement;
+  if (!area || !stage) return;
+  // layout boxes (offset*), so the scene's enter animation and the Ask panel's scale don't count
+  const top = Math.max(0, ...Array.from(stage.querySelectorAll<HTMLElement>(":scope > [data-stage-top]"), (el) => el.offsetTop + el.offsetHeight));
+  const room = Math.max(0, area.offsetTop - top - 0.0075 * stage.clientHeight);
+  const avail = area.clientHeight + 2 * room;
+  const full = area.clientWidth;
+  if (!area.clientHeight || !full) return;
+  const base = 0.8 * full;
+  const tall = (w: number) => {
+    card.style.width = `${(w / full) * 100}%`;
+    const f = foot.offsetHeight;
+    return card.offsetHeight - f + Math.max(f, ghost.offsetHeight);
+  };
+  card.style.transform = "";
+  const h = tall(base);
+  if (h <= avail) {
+    card.style.width = "";
+    return;
+  }
+  // at `base` width this scale fits, and a wider card is no taller, so it fits widened too; widened, the text
+  // wraps less, so a larger scale may fit as well: the largest that does, to within 1%
+  const width = (sc: number) => Math.min(full, base / sc);
+  let lo = avail / h;
+  let hi = 1;
+  while (hi - lo > 0.01) {
+    const mid = (lo + hi) / 2;
+    if (mid * tall(width(mid)) <= avail) lo = mid;
+    else hi = mid;
+  }
+  card.style.width = `${(width(lo) / full) * 100}%`;
+  card.style.transform = `scale(${lo})`;
+}
+
 function QuizScene({ s, k, t, dur, interactive, quiz, onPick }: { s: LectureScene; k: number; t: number; dur: number; interactive: boolean; quiz?: QuizState; onPick?: (k: number) => void }) {
   const opts = s.options || [];
   const reveal = k >= 1 || (interactive && quiz?.picked != null);
   const picked = quiz?.picked ?? null;
   const left = dur - t;
   const countdown = !interactive && k === 0 && left <= 3.2 ? Math.max(1, Math.ceil(left - 0.2)) : null;
+  const cardRef = useRef<HTMLDivElement>(null);
+  const footRef = useRef<HTMLDivElement>(null);
+  const ghostRef = useRef<HTMLParagraphElement>(null);
+  const fit = useCallback(() => {
+    if (cardRef.current && footRef.current && ghostRef.current) fitQuiz(cardRef.current, footRef.current, ghostRef.current);
+  }, []);
+  // refit when the text or the footer changes (countdown, answer), before the frame is painted
+  const shape = `${s.question}\n${opts.join("\n")}\n${s.explain}\n${reveal}\n${countdown != null}`;
+  useLayoutEffect(() => fit(), [shape, fit]);
+  // ...and when the stage is resized (player, fullscreen) or the fonts arrive
+  useEffect(() => {
+    const area = cardRef.current?.parentElement;
+    let off = false;
+    void document.fonts?.ready.then(() => {
+      if (!off) fit();
+    });
+    const ro = area && typeof ResizeObserver !== "undefined" ? new ResizeObserver(() => fit()) : null;
+    if (area) ro?.observe(area);
+    return () => {
+      off = true;
+      ro?.disconnect();
+    };
+  }, [fit]);
   return (
-    <div className="flex w-[80%] flex-col gap-[2.4cqh]">
+    <div ref={cardRef} className="flex w-[80%] flex-col gap-[2.4cqh]">
       <span className="font-mono text-[1.3cqw] uppercase tracking-[0.14em] text-[#ff6b2b]">checkpoint · your turn</span>
       <h2 className={`m-0 font-display text-[3cqw] font-extrabold leading-[1.1] tracking-[-0.03em] ${W}`}>{s.question}</h2>
       <div className="grid grid-cols-2 gap-[1.4cqw]">
@@ -391,7 +459,12 @@ function QuizScene({ s, k, t, dur, interactive, quiz, onPick }: { s: LectureScen
           );
         })}
       </div>
-      <div className="min-h-[7cqh]">
+      <div ref={footRef} className="relative min-h-[7cqh]">
+        {/* the explanation's height, measured while it isn't shown yet (see fitQuiz); a learner may get the longer "Not quite" */}
+        <p ref={ghostRef} aria-hidden className="pointer-events-none invisible absolute inset-x-0 top-0 m-0 text-[1.7cqw] leading-snug">
+          <strong>{interactive ? "Not quite: " : "Right: "}</strong>
+          {s.explain}
+        </p>
         {reveal ? (
           <p className="m-0 text-[1.7cqw] leading-snug text-[#c9c8c2]" style={{ opacity: k >= 1 ? prog(t, 0.2, 0.5) : 1 }}>
             <strong className="text-[#7ee2a8]">{picked == null || picked === s.answer ? "Right: " : "Not quite: "}</strong>

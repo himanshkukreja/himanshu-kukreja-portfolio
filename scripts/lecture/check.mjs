@@ -40,7 +40,7 @@ for (const s of L.scenes || []) {
     if (!(Number.isInteger(s.answer) && s.answer >= 0 && s.answer < (s.options || []).length)) errs.push(`${s.id}: quiz answer must index options`);
     if (!s.explain) errs.push(`${s.id}: quiz needs explain`);
     if (s.steps.length !== 2) errs.push(`${s.id}: quiz needs exactly 2 steps (ask, answer)`);
-    // the quiz card has to fit the 16:9 stage with its answer shown: long text clips at the top
+    // the quiz card has to fit the 16:9 stage with its answer shown: long text is shrunk to fit by Stage (fitQuiz)
     const q = (s.question || "").length, e = (s.explain || "").length;
     const opt = Math.max(0, ...(s.options || []).map((o) => (typeof o === "string" ? o : o?.text || "").length));
     const total = q + e + (s.options || []).reduce((a, o) => a + (typeof o === "string" ? o : o?.text || "").length, 0);
