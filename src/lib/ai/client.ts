@@ -149,10 +149,12 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up
   const prompt = typeof req.system === "function" ? req.system(model) : req.system;
   const system = prompt.length > 4000 ? [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }] : prompt;
-  // Haiku doesn't think; Sonnet 5.x can be told not to; others (Opus) always may, so they get the room
+  // Haiku doesn't think (Haiku 5.5 thinks by default, so it is told not to); Sonnet 5.x can be told not to;
+  // others (Opus) always may, so they get the room
   const haiku = /haiku/.test(model);
   const canSkip = /sonnet-5/.test(model);
   const thinks = !haiku && ((req.think ?? def.think) || !canSkip);
+  const thinkingOff = thinks ? null : canSkip ? { type: "between_tools" } : haiku ? { type: "disabled" } : null;
   const answerCap = Math.min(req.maxTokens ?? cfg.maxTokens, def.maxTokens);
   const maxTokens = thinks ? answerCap + THINK_HEADROOM : answerCap;
   const t0 = Date.now();
@@ -160,7 +162,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const res = await fetch(API, {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: maxTokens, ...(!thinks && canSkip ? { thinking: { type: "between_tools" } } : {}), system, messages: req.messages }),
+      body: JSON.stringify({ model, max_tokens: maxTokens, ...(thinkingOff ? { thinking: thinkingOff } : {}), system, messages: req.messages }),
       ...(req.timeoutMs ? { signal: AbortSignal.timeout(req.timeoutMs) } : {}),
     });
     const latency = Date.now() - t0;

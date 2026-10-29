@@ -14,6 +14,7 @@
  *                                      every model the original prompts (the baseline the tuning is measured against)
  *   EVAL_AB=sonnet | haiku              one model against itself: its original prompts vs the tuned (compact) ones, judged
  *                                      head to head (candidates "<model>#shared" and "<model>#compact")
+ *   EVAL_MODELS=<id>,<id>              two model ids head to head instead of Haiku vs Sonnet (a model upgrade)
  *   EVAL_REUSE=<results.json[,more]>  reuse answers whose request is byte-identical (and their judging when
  *                                      both answers are unchanged): rounds that only change one model's prompt
  *                                      then pay for that model and the judge only.
@@ -62,7 +63,10 @@ const CONTENT = process.env.SDM_LOCAL_DIR || path.resolve(process.cwd(), "..", "
 const AB = process.env.EVAL_AB as keyof typeof MODELS | undefined;
 if (AB && !MODELS[AB]) throw new Error(`EVAL_AB: unknown model ${AB}`);
 /** a candidate is a model id, or in A/B mode "<model id>#shared" / "<model id>#compact" */
-const CANDIDATES = AB ? [`${MODELS[AB]}#shared`, `${MODELS[AB]}#compact`] : [MODELS.haiku, MODELS.sonnet];
+/** EVAL_MODELS=<id>,<id>: two model ids head to head (e.g. an old and a new Haiku), each with its production prompt */
+const PAIR = (process.env.EVAL_MODELS || "").split(",").filter(Boolean);
+if (PAIR.length && PAIR.length !== 2) throw new Error("EVAL_MODELS: give exactly two model ids");
+const CANDIDATES = AB ? [`${MODELS[AB]}#shared`, `${MODELS[AB]}#compact`] : PAIR.length ? PAIR : [MODELS.haiku, MODELS.sonnet];
 const modelOf = (cand: string) => cand.split("#")[0];
 const JUDGE = MODELS.opus;
 const REUSE: Row[] = (process.env.EVAL_REUSE || "")
