@@ -1,11 +1,13 @@
-// Shared by build.mjs (some articles) and batch.mjs (all of them): find an article, extract what Listen
-// reads (src/lib/listen/extract.ts, the same code the player runs), voice it with Kokoro af_heart, make
-// narration.mp3 + listen.json, publish to R2. Setup and usage: README.md next to this file.
+// Shared by build.mjs (some articles) and batch.mjs (all of them): find an article (lesson reader, case
+// file, war story, mock interview), extract what Listen reads (src/lib/listen/extract.ts, the same code
+// the player runs), voice it with Kokoro af_heart, make narration.mp3 + listen.json, publish to R2.
+// Setup and usage: README.md next to this file.
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { execFileSync, spawn } from "child_process";
 import { createJiti } from "jiti";
+import matter from "gray-matter";
 import { sayArticle } from "./say.mjs";
 import { r2Put } from "./r2.mjs";
 
@@ -32,65 +34,178 @@ function contentDir() {
   return path.resolve(ROOT, "../system-design-mastery");
 }
 
+/** .env (Supabase, for the case files' CMS rows) under .env.local, as Next loads them: never overriding what's set */
+function loadDotEnv() {
+  try {
+    for (const line of fs.readFileSync(path.join(ROOT, ".env"), "utf8").split("\n")) {
+      const m = line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/);
+      if (m && process.env[m[1]] === undefined) process.env[m[1]] = m[2].replace(/^(['"])(.*)\1$/, "$2");
+    }
+  } catch {
+    // no .env
+  }
+}
+
 let site = null;
 /** the site's own modules (TypeScript, through jiti): content listing, renderer, Listen extraction */
 export async function siteModules() {
   if (site) return site;
   process.env.SDM_LOCAL_DIR = contentDir();
+  loadDotEnv();
+  // lib/stories.ts reads content/stories from the working directory, as on Vercel
+  process.chdir(ROOT);
   const jiti = createJiti(import.meta.url, {
     alias: { "@": path.join(ROOT, "src"), "server-only": path.join(ROOT, "node_modules/next/dist/compiled/server-only/empty.js") },
   });
   const load = (p) => jiti.import(path.join(ROOT, p));
-  const [github, render, extract, html, manifest, mcq] = await Promise.all([
+  const [github, render, extract, html, manifest, mcq, block, story, war, mock, stories] = await Promise.all([
     load("src/lib/github.ts"),
     load("src/lib/course/render.ts"),
     load("src/lib/listen/extract.ts"),
     load("src/lib/listen/html.ts"),
     load("src/lib/listen/manifest.ts"),
     load("src/lib/mcq-parser.ts"),
+    load("src/lib/course/block-html.ts"),
+    load("src/components/stories/render-story.ts"),
+    load("src/lib/learn/war/parse.ts"),
+    load("src/lib/learn/mock/parse.ts"),
+    load("src/lib/stories.ts"),
   ]);
-  site = { github, render, extract, html, manifest, mcq, content: process.env.SDM_LOCAL_DIR };
+  site = { github, render, extract, html, manifest, mcq, block, story, war, mock, stories, content: process.env.SDM_LOCAL_DIR };
   return site;
 }
 
-/** Every article the lesson reader shows (lessons, side quests, interview problems, LLD), in course order. */
+/**
+ * Batch order: side quests, course lessons, interview problems, LLD, case files, war stories, mock
+ * interviews (each group in its own order: course order, file name).
+ */
+export const GROUPS = ["quest", "lesson", "problem", "lld", "case", "war", "mock"];
+export const GROUP_LABEL = { quest: "side quests", lesson: "course lessons", problem: "interview problems", lld: "low-level design", case: "case files", war: "war stories", mock: "mock interviews" };
+const groupOf = (kind) => (kind === "bonus" ? "quest" : kind === "problem" || kind === "lld" || kind === "case" || kind === "war" || kind === "mock" ? kind : "lesson");
+
+const mdFiles = (dir, re = /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => re.test(f) && !/^readme/i.test(f)).sort() : []);
+
+/**
+ * Every article Listen can play, in batch order. `repo` + `path` is the source file (checked against that
+ * repo's origin/main): "content" is the content repo (SDM_LOCAL_DIR), "site" this repo.
+ * - lesson reader (lessons, side quests, interview problems, LLD): the content repo, as listed by the course
+ * - case files: what /stories/<slug> shows (lib/stories.ts): the admin CMS's published (live) snapshot,
+ *   repo "db", for every case file the CMS has, else content/stories/<file>.md here. Needs the Supabase
+ *   env (.env); without it only the repo files are listed, and those the CMS replaced won't match.
+ * - war stories: resources/war-stories/stories/*.md (war rooms are an interactive game: not voiced)
+ * - mock interviews: resources/mock-interviews/mock-NN-*.md, the debrief's model answers
+ */
 export async function listArticles() {
-  const { github, manifest } = await siteModules();
+  const { github, manifest, content, stories } = await siteModules();
   const all = await github.getAllLearningResources();
-  return all
+  const out = all
     .filter((r) => r.type !== "mcq")
-    .map((r) => ({ key: manifest.listenKey(r.type, r.week, r.slug), kind: r.type, week: r.week, slug: r.slug, path: r.path, href: `/learn/${r.course}/${r.week}/${r.slug}` }));
+    .map((r) => ({ key: manifest.listenKey(r.type, r.week, r.slug), kind: r.type, week: r.week, slug: r.slug, repo: "content", path: r.path, href: `/learn/${r.course}/${r.week}/${r.slug}` }));
+  const files = new Map(
+    mdFiles(path.join(ROOT, "content/stories"), /\.md$/).map((f) => {
+      const fm = matter(fs.readFileSync(path.join(ROOT, "content/stories", f), "utf8")).data || {};
+      return [typeof fm.slug === "string" && fm.slug ? fm.slug : f.replace(/\.md$/, ""), f];
+    })
+  );
+  const cases = (await stories.listStorySources()).sort((x, y) => String(y.date || "").localeCompare(String(x.date || "")));
+  if (!cases.some((c) => c.origin === "db")) console.warn("case files: no CMS rows (Supabase env missing or unreachable): the repo files are listed, and any the CMS replaces won't match");
+  for (const c of cases) {
+    const db = c.origin === "db";
+    if (!db && !files.has(c.slug)) continue;
+    out.push({ key: manifest.listenKey("case", "", c.slug), kind: "case", week: "stories", slug: c.slug, repo: db ? "db" : "site", path: db ? `case_files:${c.slug}` : `content/stories/${files.get(c.slug)}`, body: c.body, href: `/stories/${c.slug}` });
+  }
+  for (const f of mdFiles(path.join(content, "resources/war-stories/stories"))) {
+    const slug = f.replace(/\.md$/, "");
+    out.push({ key: manifest.listenKey("war", "", slug), kind: "war", week: "war-stories", slug, repo: "content", path: `resources/war-stories/stories/${f}`, href: `/learn/war-stories/${slug}` });
+  }
+  for (const f of mdFiles(path.join(content, "resources/mock-interviews"), /^mock-\d+-[\w-]+\.md$/)) {
+    const slug = f.replace(/\.md$/, "");
+    out.push({ key: manifest.listenKey("mock", "", slug), kind: "mock", week: "mock-interviews", slug, repo: "content", path: `resources/mock-interviews/${f}`, href: `/learn/mock/${slug}` });
+  }
+  // stable: course order (or file name) within each group
+  return out.map((a, i) => ({ a, i, g: GROUPS.indexOf(groupOf(a.kind)) })).sort((x, y) => x.g - y.g || x.i - y.i).map((x) => ({ ...x.a, group: GROUPS[x.g] }));
 }
 
-/** "quest/<slug>", "lesson/<week>/<slug>", or a bare slug / week/slug */
+/** "quest/<slug>", "lesson/<week>/<slug>", "case/<slug>", "war/<slug>", "mock/<slug>", or a bare slug / week/slug */
 export async function findArticles(ids) {
   const all = await listArticles();
   return ids.map((id) => {
-    const a = all.find((x) => x.key === id || x.slug === id || `${x.week}/${x.slug}` === id || x.href.endsWith(`/${id}`));
-    if (!a) throw new Error(`no article "${id}" (try quest/<slug> or lesson/<week>/<slug>)`);
+    const a = all.find((x) => x.key === id) ?? all.find((x) => x.slug === id || `${x.week}/${x.slug}` === id || x.href.endsWith(`/${id}`));
+    if (!a) throw new Error(`no article "${id}" (try quest/<slug>, lesson/<week>/<slug>, case/<slug>, war/<slug> or mock/<slug>)`);
     return a;
   });
 }
 
-/** is the file as it is on the content repo's origin/main (what production reads)? */
-export function onMain(content, rel) {
+/** the repo an article's file lives in: the content checkout, or this one */
+export async function repoDir(a) {
+  return a.repo === "site" ? ROOT : (await siteModules()).content;
+}
+
+/**
+ * Is this what production shows? A file: only when it's as it is on its repo's origin/main. A CMS case
+ * file: its live (published) snapshot is what production shows, by definition.
+ */
+export async function isPublished(a) {
+  return a.repo === "db" || onMain(await repoDir(a), a.path);
+}
+
+/** is the file as it is on its repo's origin/main (what production reads)? */
+export function onMain(repo, rel) {
   try {
-    execFileSync("git", ["-C", content, "cat-file", "-e", `origin/main:${rel}`], { stdio: "ignore" });
-    execFileSync("git", ["-C", content, "diff", "--quiet", "origin/main", "--", rel], { stdio: "ignore" });
+    execFileSync("git", ["-C", repo, "cat-file", "-e", `origin/main:${rel}`], { stdio: "ignore" });
+    execFileSync("git", ["-C", repo, "diff", "--quiet", "origin/main", "--", rel], { stdio: "ignore" });
     return true;
   } catch {
     return false;
   }
 }
 
+const esc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+/**
+ * The mock debrief as Listen reads it (src/components/learn/mock/Debrief.tsx, every model answer open):
+ * a [data-listen-scope] root whose [data-listen-part]s are each phase's heading ("P1 Clarify
+ * requirements") and its model answer. Phases are numbered in order, as buildMock() does.
+ */
+function mockListenHtml(phases) {
+  return `<div data-listen-scope="">${phases
+    .map((p, k) => `<h2 data-listen-part=""><span>P${k + 1}</span> ${esc(p.title)}</h2><div data-listen-part=""><div class="course-content"><div class="sd-body">${p.answerHtml}</div></div></div>`)
+    .join("")}</div>`;
+}
+
+/** The HTML the page gives the player's root (null: nothing to voice), and whether its first element is the root. */
+export async function articleHtml(a) {
+  const { github, render, mcq, block, story, war, mock } = await siteModules();
+  if (a.kind === "case") {
+    // the page wraps the body in one more <div> (StoryContentWrapper): no text of its own
+    return { md: a.body, html: (await story.renderStoryBody(a.body)).htmlContent, scoped: false };
+  }
+  const md = await github.fetchMarkdownContent(a.path);
+  if (a.kind === "war") {
+    const { story: s } = war.parseStory(md, path.basename(a.path));
+    return s ? { md, html: await block.renderBlockHtml(s.body), scoped: false } : null;
+  }
+  if (a.kind === "mock") {
+    const raw = mock.parseMock(md);
+    if (!raw.phases.length) return null;
+    const phases = await Promise.all(raw.phases.map(async (p) => ({ title: p.title, answerHtml: await block.renderBlockHtml(p.answer) })));
+    // what the debrief needs to open in a browser (parity.mjs --page): its saved run is keyed by id and version
+    const run = { id: raw.id || a.slug, version: sha1(md).slice(0, 12), phases: phases.length };
+    return { md, html: mockListenHtml(phases), scoped: true, run };
+  }
+  if (mcq.isMCQDocument(md)) return null;
+  return { md, html: (await render.renderLesson(md, { kind: a.kind })).html, scoped: false };
+}
+
 /** The article's readable blocks as the reader page will extract them, plus their fingerprint. */
 export async function articleText(a) {
-  const { github, render, extract, html, mcq } = await siteModules();
-  const md = await github.fetchMarkdownContent(a.path);
-  if (mcq.isMCQDocument(md)) return null;
-  const rendered = await render.renderLesson(md, { kind: a.kind });
-  const blocks = extract.extractBlocks(html.parseHtml(rendered.html));
-  return { md, blocks, source: extract.listenSource(blocks), words: blocks.reduce((n, b) => n + b.text.split(/\s+/).length, 0) };
+  const { extract, html } = await siteModules();
+  const h = await articleHtml(a);
+  if (!h) return null;
+  const parsed = html.parseHtml(h.html);
+  const root = h.scoped ? parsed.childNodes.find((n) => n.nodeType === 1) : parsed;
+  const blocks = extract.extractBlocks(root);
+  return { md: h.md, html: h.html, scoped: h.scoped, run: h.run, blocks, source: extract.listenSource(blocks), words: blocks.reduce((n, b) => n + b.text.split(/\s+/).length, 0) };
 }
 
 /* ---------------------------------------------------------------- audio */
@@ -163,10 +278,10 @@ const fmtTime = (s) => `${Math.floor(s / 60)}m${String(Math.round(s % 60)).padSt
  * from the same text (unless force). Returns what happened, with timings for the speed log.
  */
 export async function buildArticle(a, { out, force = false, allowDirty = false, keepWav = false, log = console.log } = {}) {
-  const { content } = await siteModules();
-  if (!allowDirty && !onMain(content, a.path)) return { key: a.key, status: "dirty", note: `${a.path} differs from origin/main in ${content} (production would not match; --allow-dirty to voice it anyway)` };
+  if (!allowDirty && !(await isPublished(a))) return { key: a.key, status: "dirty", note: `${a.path} differs from origin/main in ${await repoDir(a)} (production would not match; --allow-dirty to voice it anyway)` };
   const t = await articleText(a);
-  if (!t) return { key: a.key, status: "skipped", note: "MCQ document" };
+  if (!t) return { key: a.key, status: "skipped", note: a.kind === "mock" ? "no phases" : a.kind === "war" ? "not a valid war story" : "MCQ document" };
+  if (!t.blocks.length) return { key: a.key, status: "skipped", note: "nothing to read" };
   const dir = path.join(out, a.key);
   const manFile = path.join(dir, "listen.json");
   const mp3 = path.join(dir, "narration.mp3");

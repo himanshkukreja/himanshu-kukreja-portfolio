@@ -152,6 +152,14 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>, { 
     };
   }, [contentRef]);
 
+  // the element Listen reads, marked with its key (scripts/listen/parity.mjs --page reads the same one)
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!listenKey || !el) return;
+    el.setAttribute("data-listen-root", listenKey);
+    return () => el.removeAttribute("data-listen-root");
+  }, [contentRef, listenKey]);
+
   // the recorded narration's manifest, fetched once the page is idle (a click has to be able to play
   // at once: iOS only starts audio inside the tap)
   useEffect(() => {

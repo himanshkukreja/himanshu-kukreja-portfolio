@@ -11,6 +11,10 @@
  * every piece of UI chrome ([data-sd-chrome], aria-hidden), quick-check quizzes, explainer animations,
  * practice hints/solutions, link lists and bare URLs. Checkpoint answers are read, after a pause.
  * Table rows are read cell by cell ("a, b, c").
+ *
+ * A root marked `data-listen-scope` is read only inside its `[data-listen-part]` elements: the mock
+ * interview debrief reads the model answers (and each phase's heading), never the learner's notes,
+ * the rubric or the scorecard around them.
  */
 
 /** The little of the DOM this needs; a browser Node and ./html.ts nodes both fit. */
@@ -92,6 +96,7 @@ export function extractBlocks<N extends ListenNode>(root: N): ListenBlock<N>[] {
   type Acc = { el: N; parts: string[]; heading: boolean; answer: boolean };
   const acc: Acc[] = [];
   let answerPending = false;
+  const scoped = attr(root, "data-listen-scope") !== null;
   // where loose text (outside any block element) collects: its nearest element
   const add = (block: N, s: string) => {
     const last = acc[acc.length - 1];
@@ -101,28 +106,29 @@ export function extractBlocks<N extends ListenNode>(root: N): ListenBlock<N>[] {
       answerPending = false;
     }
   };
-  const walk = (node: N, block: N, inBlock: boolean) => {
+  const walk = (node: N, block: N, inBlock: boolean, inPart: boolean) => {
     if (node.nodeType === TEXT) {
       const t = node.nodeValue || "";
-      if (t) add(block, t);
+      if (t && inPart) add(block, t);
       return;
     }
     if (node.nodeType !== ELEMENT && node !== root) return;
     if (node !== root && skipped(node)) return;
+    const part = inPart || (node !== root && attr(node, "data-listen-part") !== null);
     const tag = tagOf(node);
     // text outside any block element belongs to its nearest non-inline element (a transcript bubble, a
     // timeline row), never to the article root or a whole section
     const isBlock = node !== root && BLOCK_TAGS.has(tag);
     const own = node === root ? block : isBlock || (!inBlock && !INLINE_TAGS.has(tag)) ? node : block;
     if (node !== root && attr(node, "data-sd-answer") !== null) answerPending = true;
-    const spaced = SPACED_TAGS.has(tag);
+    const spaced = SPACED_TAGS.has(tag) && part;
     if (spaced) add(own, " ");
     const kids = node.childNodes;
-    for (let i = 0; i < kids.length; i++) walk(kids[i] as N, own, inBlock || isBlock);
-    if (tag === "TD" || tag === "TH") add(own, ", ");
+    for (let i = 0; i < kids.length; i++) walk(kids[i] as N, own, inBlock || isBlock, part);
+    if ((tag === "TD" || tag === "TH") && part) add(own, ", ");
     else if (spaced) add(own, " ");
   };
-  walk(root, root, false);
+  walk(root, root, false, !scoped);
   const out: ListenBlock<N>[] = [];
   for (const a of acc) {
     const text = norm(a.parts.join("")).replace(/(?:\s*,)+$/, "").replace(/^(?:,\s*)+/, "");

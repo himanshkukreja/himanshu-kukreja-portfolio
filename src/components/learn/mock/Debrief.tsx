@@ -7,7 +7,11 @@
  */
 import AiScorecard from "@/components/learn/ai/AiScorecard";
 import Link from "next/link";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { flushSync } from "react-dom";
+import { useReadAloud } from "@/components/ReadAloud";
+import { ListenBar, ListenButton, listenRootClass } from "@/components/listen/Listen";
+import { listenKey } from "@/lib/listen/manifest";
 import { LEARN_XP } from "@/lib/learn/types";
 import { LEVEL_HINT, LEVEL_LABEL, MOCK_LEVELS, mmss, type MockInterview, type MockPhase } from "@/lib/learn/mock/types";
 import type { MockRun } from "@/lib/learn/mock/store";
@@ -45,6 +49,10 @@ export default function Debrief(props: Props) {
   const cbAnswered = Object.values(facts.curveballs).filter((w) => w >= 5).length;
   const allOpen = mock.phases.every((p) => run.revealed[p.id]);
   const closing = (mock.closing || "Thanks for your time.").split(/(?<=[.!?])\s/)[0];
+  // Listen reads the model answers, phase by phase (only the [data-listen-part] elements below: never
+  // the learner's notes, curveballs or rubric); scripts/listen records the same text as mock/<slug>
+  const answersRef = useRef<HTMLDivElement>(null);
+  const readAloud = useReadAloud(answersRef, { listenKey: listenKey("mock", "", mock.slug) });
 
   return (
     <main className="mx-auto flex max-w-[1320px] flex-col gap-9 px-4 pb-32 pt-8 sm:px-6 sm:pt-12 lg:pb-24">
@@ -61,6 +69,8 @@ export default function Debrief(props: Props) {
           <strong className="text-fg">nailed</strong>. Score what you actually wrote or would clearly have said, not what you meant. Signals marked as bonus are above your target level.
         </p>
         <div className="flex flex-wrap gap-2">
+          {/* opens every model answer first, inside the click (the text has to be on the page, and iOS only starts audio in the tap) */}
+          <ListenButton controller={readAloud} label="Listen to the model answers" onStart={() => flushSync(() => props.setRevealed("all", true))} />
           <button type="button" onClick={() => props.setRevealed("all", !allOpen)} className="min-h-11 border border-line-strong px-3.5 text-sm text-fg hover:border-fg-3">
             {allOpen ? "Hide all model answers" : "Reveal all model answers"}
           </button>
@@ -99,7 +109,7 @@ export default function Debrief(props: Props) {
       )}
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,8fr)_minmax(0,4fr)] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-6">
+        <div ref={answersRef} data-listen-scope className={`${listenRootClass} flex min-w-0 flex-col gap-6`}>
           <BoardPreview sketch={run.sketch} notes={run.board} />
           {mock.phases.map((p) => (
             <PhaseReview key={p.id} {...props} phase={p} />
@@ -112,6 +122,8 @@ export default function Debrief(props: Props) {
       <StudyNext score={score} />
       <AskForFeedback {...props} />
       <LevelGuide mock={mock} level={run.level} />
+
+      <ListenBar controller={readAloud} />
 
       <section className="flex flex-wrap items-center justify-between gap-4 border border-line px-5 py-4">
         <span className="flex flex-col gap-1">
@@ -169,7 +181,7 @@ function PhaseReview({ run, score, phase, setScore, setRevealed }: Props & { pha
   return (
     <section aria-labelledby={`rv-${phase.id}`} className="flex flex-col gap-4 border border-line-strong bg-surface p-4 sm:p-6">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h2 id={`rv-${phase.id}`} className="m-0 font-display text-[26px] font-bold leading-tight tracking-[-0.025em] text-fg sm:text-[30px]">
+        <h2 id={`rv-${phase.id}`} data-listen-part className="m-0 font-display text-[26px] font-bold leading-tight tracking-[-0.025em] text-fg sm:text-[30px]">
           <span className="font-mono text-[15px] font-semibold text-signal-text">P{phase.n}</span> {phase.title}
         </h2>
         <span className={`font-mono text-xs ${used > phase.minutes * 60 ? "text-signal-text" : "text-fg-3"}`}>
@@ -230,7 +242,7 @@ function PhaseReview({ run, score, phase, setScore, setRevealed }: Props & { pha
           </span>
         </button>
         {open && (
-          <div className="border border-line bg-bg px-3.5 py-4 sm:px-5">
+          <div data-listen-part className="border border-line bg-bg px-3.5 py-4 sm:px-5">
             <CourseHtml html={phase.answerHtml} size={16} />
           </div>
         )}

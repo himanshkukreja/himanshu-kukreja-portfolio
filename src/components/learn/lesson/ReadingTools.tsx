@@ -4,6 +4,7 @@ import AppBack from "@/components/site/AppBack";
 import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { ReadAloudBar, type ReadAloudController } from "@/components/ReadAloud";
+import { ListenIcon, PauseIcon } from "@/components/listen/icons";
 import { useChromeHidden } from "@/components/site/readerChrome";
 import type { Stage } from "@/lib/course/types";
 import { StageSegments } from "./StageRail";
@@ -67,19 +68,6 @@ type Props = {
   onSize: () => void;
   onContents: () => void;
 };
-
-const ListenIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path d="M4 9v6h4l5 4V5L8 9z" />
-    <path d="M16.5 8.5a5 5 0 0 1 0 7" />
-  </svg>
-);
-
-const PauseIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-    <path d="M8 5v14M16 5v14" />
-  </svg>
-);
 
 const FocusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>

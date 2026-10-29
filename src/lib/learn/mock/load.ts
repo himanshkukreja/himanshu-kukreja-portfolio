@@ -5,7 +5,7 @@
  */
 import { createHash } from "crypto";
 import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetchError } from "@/lib/github";
-import { renderLesson } from "@/lib/course/render";
+import { renderBlockHtml } from "@/lib/course/block-html";
 import type { CourseLesson, CourseWeek } from "@/lib/learn/types";
 import { parseMock, type RawMock } from "./parse";
 import { mockHref, type MockInterview, type MockMessage, type MockPhase, type StudyRef } from "./types";
@@ -90,15 +90,8 @@ async function mdToHtml(md: string): Promise<string> {
   return String(file);
 }
 
-/** Course renderer output without the stage wrapper and its "Lesson · N min" header. */
-async function blockHtml(md: string): Promise<string> {
-  if (!md.trim()) return "";
-  const r = await renderLesson(md, { kind: "day-content" });
-  return r.html
-    .replace(/<header class="sd-stage-head"[\s\S]*?<\/header>/g, "")
-    .replace(/<section data-sd="stage"[^>]*>/g, "")
-    .replace(/<\/section>\s*$/g, "");
-}
+/** Course renderer output without the stage wrapper and its "Lesson · N min" header (scripts/listen renders the same). */
+const blockHtml = renderBlockHtml;
 
 export function plainText(md: string): string {
   return md

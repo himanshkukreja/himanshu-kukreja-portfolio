@@ -1,18 +1,20 @@
-// Natural-voice "Listen" narration for every article the lesson reader shows (course lessons, side
-// quests, interview problems, LLD), one after another. Resumable: an article whose text hasn't changed
-// since its listen.json was made is skipped, and so is a publish R2 already has.
+// Natural-voice "Listen" narration for every article Listen plays, one after another, in this order:
+// side quests, course lessons, interview problems, LLD, case files, war stories, mock interviews
+// (lib.mjs listArticles). Resumable: an article whose text hasn't changed since its listen.json was made
+// is skipped, and so is a publish R2 already has. Only files identical to their repo's origin/main are
+// voiced (production would never match anything else).
 //
-// usage: node --env-file=.env.local scripts/listen/batch.mjs [--publish] [--only <key prefix>] [--limit N]
+// usage: nice -n 10 node --env-file=.env.local scripts/listen/batch.mjs [--publish] [--only <key prefix>] [--limit N]
 //          [--out out/listen] [--force] [--allow-dirty]
 //        node scripts/listen/batch.mjs --estimate     (words, audio minutes, MB and Kokoro hours; voices nothing)
-//   --only quest/        just the side quests (or lesson/week-04-caching/, lesson/problem-bank/, …)
+//   --only quest/        just the side quests (or lesson/week-04-caching/, lesson/problem-bank/, case/, war/, mock/, …)
 //   --limit 10           stop after voicing 10 articles (unchanged ones don't count)
 // Each voiced article appends a line to <out>/batch.jsonl (words, audio seconds, Kokoro seconds, bytes);
 // the estimate uses those lines for its speed once there are some. Ctrl-C stops after the current article.
 import fs from "fs";
+import os from "os";
 import path from "path";
-import matter from "gray-matter";
-import { buildArticle, fmtTime, listArticles, onMain, publishArticle, ROOT, siteModules, BITRATE } from "./lib.mjs";
+import { articleText, buildArticle, fmtTime, GROUP_LABEL, GROUPS, isPublished, listArticles, publishArticle, ROOT, BITRATE } from "./lib.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -39,12 +41,6 @@ function measured() {
 }
 
 if (flag("estimate")) {
-  const site = await siteModules();
-  const { github, render, extract, html, mcq } = site;
-  const count = async (md, kind = "day-content") => {
-    const r = await render.renderLesson(md, { kind });
-    return extract.extractBlocks(html.parseHtml(r.html)).reduce((n, b) => n + b.text.split(/\s+/).length, 0);
-  };
   const groups = new Map();
   const add = (g, words) => {
     const x = groups.get(g) ?? { n: 0, words: 0 };
@@ -53,18 +49,11 @@ if (flag("estimate")) {
     groups.set(g, x);
   };
   for (const a of await listArticles()) {
-    const md = await github.fetchMarkdownContent(a.path);
     // what production reads: not the content repo's unpublished folders (week-*-next) or local edits
-    if (mcq.isMCQDocument(md) || !onMain(site.content, a.path)) continue;
-    const g = a.kind === "bonus" ? "side quests" : a.kind === "problem" ? "interview problems" : a.kind === "lld" ? "low-level design" : "course lessons";
-    add(g, await count(md, a.kind));
+    if (!(await isPublished(a))) continue;
+    const t = await articleText(a).catch(() => null);
+    if (t?.blocks.length) add(GROUP_LABEL[a.group], t.words);
   }
-  // not in the lesson reader (no recorder wiring yet): counted for the estimate only
-  const mdFiles = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => f.endsWith(".md") && !/^readme/i.test(f)).map((f) => path.join(dir, f)) : []);
-  for (const f of mdFiles(path.join(ROOT, "content/stories"))) add("case files (repo)", await count(matter(fs.readFileSync(f, "utf8")).content));
-  const res = path.join(process.env.SDM_LOCAL_DIR, "resources");
-  for (const f of [...mdFiles(path.join(res, "war-stories/stories")), ...mdFiles(path.join(res, "war-stories/war-room"))]) add("war stories", await count(matter(fs.readFileSync(f, "utf8")).content));
-  for (const f of mdFiles(path.join(res, "mock-interviews"))) add("mock interviews", await count(matter(fs.readFileSync(f, "utf8")).content));
 
   const m = measured();
   // until something is measured: ~150 spoken words a minute, Kokoro at the speed in README.md
@@ -84,6 +73,13 @@ if (flag("estimate")) {
   process.exit(0);
 }
 
+// a background job: at least nice 10 (Kokoro, started from here, inherits it), so renders and the Mac come first
+try {
+  if (os.getPriority() < 10) os.setPriority(10);
+} catch {
+  // not allowed: run as is
+}
+
 let stopping = false;
 process.on("SIGINT", () => {
   if (stopping) process.exit(130);
@@ -95,6 +91,7 @@ const only = opt("only", "");
 const limit = Number(opt("limit", "0")) || Infinity;
 const articles = (await listArticles()).filter((a) => a.key.startsWith(only));
 console.log(`${articles.length} articles${only ? ` under ${only}` : ""} → ${path.relative(ROOT, out)}${flag("publish") ? " (and R2)" : ""}`);
+console.log(`order: ${GROUPS.map((g) => [g, articles.filter((a) => a.group === g).length]).filter(([, n]) => n).map(([g, n]) => `${GROUP_LABEL[g]} (${n})`).join(" → ")}`);
 const t0 = Date.now();
 let voiced = 0;
 let audio = 0;

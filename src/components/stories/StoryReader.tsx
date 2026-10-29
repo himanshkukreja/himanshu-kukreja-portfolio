@@ -9,6 +9,7 @@ import { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import CaseCover from "./CaseCover";
 import ReadAloud from "@/components/ReadAloud";
+import { listenKey } from "@/lib/listen/manifest";
 import StoryContentWrapper from "@/components/StoryContentWrapper";
 import CourseEnhancer from "@/components/learn/content/CourseEnhancer";
 import { useGame } from "@/game/GameProvider";
@@ -694,7 +695,8 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
 
       {/* Existing ReadAloud controls, restyled from the outside and driven by the toolbar button. */}
       <div ref={dockRef} className={styles.dock}>
-        <ReadAloud contentRef={contentRef} />
+        {/* the recorded natural-voice narration (scripts/listen) when it was made from this text; never for an admin draft */}
+        <ReadAloud contentRef={contentRef} listenKey={preview ? null : listenKey("case", "", meta.slug)} />
       </div>
 
       {replaySlot &&

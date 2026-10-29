@@ -6,7 +6,7 @@ import "server-only";
  */
 import { unstable_cache } from "next/cache";
 import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetchError } from "@/lib/github";
-import { renderLesson } from "@/lib/course/render";
+import { renderBlockHtml } from "@/lib/course/block-html";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import type { CourseLesson, CourseMap } from "@/lib/learn/types";
 import { parseStory, parseWarRoom } from "./parse";
@@ -36,15 +36,8 @@ async function read(path: string, name: string): Promise<string | null> {
   }
 }
 
-/** Course renderer output without the lesson stage wrapper. */
-async function html(md: string): Promise<string> {
-  if (!md.trim()) return "";
-  const r = await renderLesson(md, { kind: "day-content" });
-  return r.html
-    .replace(/<header class="sd-stage-head"[\s\S]*?<\/header>/g, "")
-    .replace(/<section data-sd="stage"[^>]*>/g, "")
-    .replace(/<\/section>\s*$/g, "");
-}
+/** Course renderer output without the lesson stage wrapper (scripts/listen renders the same). */
+const html = renderBlockHtml;
 
 function lessonLink(ref: string | null, map: CourseMap | null): LessonLink | null {
   if (!ref || !map) return null;

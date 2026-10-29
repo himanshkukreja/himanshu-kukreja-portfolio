@@ -1,0 +1,6 @@
+/* Listen: the block being read (war stories, the mock debrief), as in the lesson reader. */
+.root :global(.reading-highlight) {
+  background: rgba(255, 107, 43, 0.1);
+  outline: 1px solid rgba(255, 107, 43, 0.55);
+  outline-offset: 4px;
+}
