@@ -65,12 +65,12 @@ const SAY_AS = { NPCI: "N P C I", UPI: "U P I", PSP: "P S P", RBI: "R B I", SBI:
 const SPELL_OUT = new Set(["ONDC", "SSE"]);
 const wordy = (w) => SAY_AS[w] !== undefined && (SAY_AS[w].replace(/\s/g, "") !== w || SPELL_OUT.has(w));
 // lower-case technical words the voice gets wrong
-const SAY_LOWER = { epoll: "E poll", kqueue: "K queue", mmap: "M map", io_uring: "I O uring", stdin: "standard in", stdout: "standard out", nginx: "engine X", sqlite: "S Q lite", kubectl: "kube control", syncer: "sync-er", syncers: "sync-ers" };
+const SAY_LOWER = { epoll: "E poll", kqueue: "K queue", mmap: "M map", io_uring: "I O uring", stdin: "standard in", stdout: "standard out", nginx: "engine X", sqlite: "S Q lite", kubectl: "kube control", syncer: "sync-er", syncers: "sync-ers", "in-app": "inn app", dedup: "dee-dupe", deduped: "dee-duped", dedupe: "dee-dupe" };
 const speakable = (t) =>
   t
     // "HTTP/2", "I/O", "TCP/IP": the slash isn't spoken
     .replace(/([A-Za-z])\/([A-Za-z0-9])/g, "$1 $2")
-    .replace(/\b(epoll|kqueue|mmap|io_uring|stdin|stdout|nginx|sqlite|kubectl|syncers?)\b/gi, (w) => SAY_LOWER[w.toLowerCase()] ?? w)
+    .replace(/\b(epoll|kqueue|mmap|io_uring|stdin|stdout|nginx|sqlite|kubectl|syncers?|in-app|dedup(?:ed|e)?)\b/gi, (w) => SAY_LOWER[w.toLowerCase()] ?? w)
     .replace(/\b[A-Za-z]*[A-Z][A-Za-z0-9]*\b/g, (w) => (wordy(w) ? SAY_AS[w] : w))
     .replace(/@/g, " at ")
     .replace(/[·]/g, ",")
