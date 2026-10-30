@@ -131,7 +131,9 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
   const lessonOf = (r: LearningResource) => {
     const l = toLesson(r, courseId, minutes[`${r.week}/${r.slug}`] || 0);
     const n = weekNum(r.week);
-    const level = levels[`${r.week}/${r.slug}`] ?? (n >= 0 ? levelForWeek(n, r.type === "capstone") : undefined);
+    // side quests keep their difficulty rating (quest-difficulty.ts, set in toLesson), so the course map, the hub
+    // tiles and the quest page all agree; other articles take their mission block's level, else their week's
+    const level = r.type === "bonus" ? l.level : (levels[`${r.week}/${r.slug}`] ?? (n >= 0 ? levelForWeek(n, r.type === "capstone") : undefined));
     return level ? { ...l, level } : l;
   };
 
