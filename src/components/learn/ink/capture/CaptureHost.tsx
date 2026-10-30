@@ -3,17 +3,28 @@
 /**
  * Capture on a reading page: the snip overlay (opened by the Snip button, the selection toolbar, or S when not
  * typing) and the "Clipped to … · open" toast. Mounted by each selection layer (lessons, war stories, case files)
- * with what a capture needs to know about the page; when several are mounted, the first one does the work.
+ * and the lecture player, with what a capture needs to know about the page; when several are mounted, the first one
+ * does the work.
+ *
+ * "Explain this" (explain/ExplainPanel): from the overlay (Explain, or E) the snip is taken (its image, the page text
+ * inside the box, where it was taken) and the panel asks the AI; it can save the snip with its explanation. A snip
+ * saved with Save stays here until the next one, so its toast offers "explain" too.
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import dynamic from "next/dynamic";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import CaptureToast from "./CaptureToast";
 import SnipOverlay from "./SnipOverlay";
-import { activeHost, CAPTURE_TOAST, isTyping, registerHost, SNIP_START, subscribeHosts, type Box, type CaptureToastDetail, type SnipStart } from "./events";
-import { snipHref, snipToNotebook } from "./snip";
-import { canCapture } from "./api";
+import { activeHost, CAPTURE_TOAST, isTyping, registerHost, SNIP_START, startSnip, subscribeHosts, type Box, type CaptureToastDetail, type SnipStart } from "./events";
+import { saveShot, snipHref, takeSnip, type SavedSnip, type SnipShot } from "./snip";
+import { canCapture, devInk } from "./api";
 import { pageTitle } from "./useCaptureActions";
+import { warmCapture } from "./region";
+import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+
+// the panel (and the AI text renderer) load when a snip is first explained
+const ExplainPanel = dynamic(() => import("../explain/ExplainPanel"), { ssr: false });
 
 type Props = {
   /** the content root: deep links are built against it */
@@ -30,7 +41,13 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
   const { user, loading } = useAuth();
   const { openAuthModal } = useAuthModal();
   const [snip, setSnip] = useState<SnipStart | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState<false | "save" | "explain">(false);
+  const [explaining, setExplaining] = useState<{ shot: SnipShot; saved: SavedSnip | null; key: number } | null>(null);
+  // the last saved snip, for "explain" on its toast
+  const [last, setLast] = useState<{ shot: SnipShot; saved: SavedSnip } | null>(null);
+  const ai = useAiStatus();
+  // Explain needs the AI on for this learner (the notebook's dev stand-in may try it in `next dev`)
+  const canExplain = !!ai?.features["snip-explain"] || devInk();
   const [toast, setToast] = useState<CaptureToastDetail | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const page = useRef({ title, lessonKey, signedIn: !!user, loading });
@@ -46,6 +63,7 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
         return;
       }
       window.getSelection()?.removeAllRanges();
+      warmCapture();
       setSnip(opts);
     },
     [openAuthModal],
@@ -62,7 +80,8 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
       if (isTyping(e.target)) return;
       if (document.querySelector('[role="toolbar"][data-sd-chrome], [data-hk-snip-ui]')) return;
       e.preventDefault();
-      begin({ keyboard: true });
+      // through the event, like the Snip buttons, so the page hears it too (a lecture pauses on it)
+      startSnip({ keyboard: true });
     };
     window.addEventListener(SNIP_START, onStart);
     window.addEventListener(CAPTURE_TOAST, onToast);
@@ -74,24 +93,75 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
     };
   }, [active, begin]);
 
-  const confirm = async (box: Box) => {
-    setBusy(true);
+  /** the snip under `box`: its image, the text inside it and where it was taken (null: failed, toasted) */
+  const take = async (box: Box) => {
     // look up the passage under the box with the overlay out of the way of hit-testing
     const el = overlayRef.current;
     if (el) el.style.pointerEvents = "none";
-    const href = snipHref(rootRef.current, box);
+    const href = lectureHref() ?? snipHref(rootRef.current, box);
     if (el) el.style.pointerEvents = "";
     const { title: t, lessonKey: k } = page.current;
-    await snipToNotebook({ box, href, title: t || pageTitle(rootRef.current), lessonKey: k });
+    return takeSnip({ box, href, title: t || pageTitle(rootRef.current), lessonKey: k }, { root: rootRef.current });
+  };
+
+  const confirm = async (box: Box) => {
+    setBusy("save");
+    const shot = await take(box);
+    if (shot) {
+      const saved = await saveShot(shot, { explain: canExplain });
+      setLast(saved ? { shot, saved } : null);
+    }
     setBusy(false);
     setSnip(null);
+  };
+
+  const explain = async (box: Box) => {
+    setBusy("explain");
+    const shot = await take(box);
+    setBusy(false);
+    setSnip(null);
+    if (shot) setExplaining({ shot, saved: null, key: Date.now() });
+  };
+
+  const explainLast = () => {
+    const l = last;
+    if (!l) return;
+    setToast(null);
+    setExplaining({ shot: l.shot, saved: l.saved, key: Date.now() });
   };
 
   if (!active) return null;
   return (
     <>
-      {snip && <SnipOverlay rootRef={overlayRef} initial={snip.box} keyboard={snip.keyboard} busy={busy} onConfirm={(b) => void confirm(b)} onCancel={() => setSnip(null)} />}
-      {toast && <CaptureToast key={JSON.stringify(toast)} toast={toast} onClose={() => setToast(null)} />}
+      {snip && (
+        <SnipOverlay
+          rootRef={overlayRef}
+          initial={snip.box}
+          keyboard={snip.keyboard}
+          busy={busy}
+          onConfirm={(b) => void confirm(b)}
+          onExplain={canExplain ? (b) => void explain(b) : undefined}
+          onCancel={() => setSnip(null)}
+        />
+      )}
+      {toast && <CaptureToast key={JSON.stringify(toast)} toast={toast} onClose={() => setToast(null)} onExplain={toast.kind === "snip" && toast.explain && last?.saved.pageId === toast.pageId ? explainLast : undefined} />}
+      {explaining && (
+        <ExplainPanel
+          key={explaining.key}
+          shot={explaining.shot}
+          saved={explaining.saved}
+          onSaved={(saved) => setLast({ shot: explaining.shot, saved })}
+          onClose={() => setExplaining(null)}
+        />
+      )}
     </>
   );
+}
+
+/** On a lecture, the link back is the lecture at this moment (LecturePlayer marks its stage with it). */
+function lectureHref(): string | null {
+  const el = document.querySelector<HTMLElement>("[data-hk-lecture]");
+  const id = el?.dataset.hkLecture;
+  if (!id || !window.location.pathname.startsWith("/learn/lectures/")) return null;
+  return `${window.location.origin}/learn/lectures/${id}?t=${Math.floor(Number(el.dataset.hkAt) || 0)}`;
 }

@@ -1,14 +1,17 @@
 "use client";
 
-/** "Clipped to <page> · open" (and the snip / error versions): the site's toast, with a way into the notebook. */
+/**
+ * "Clipped to <page> · open" (and the snip / error versions): the site's toast, with a way into the notebook. A snip
+ * the host still holds also offers "explain" (the AI explains it, explain/ExplainPanel).
+ */
 import { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
+import { Sparkles, X } from "lucide-react";
 import { openNotebookPanel } from "./api";
 import type { CaptureToastDetail } from "./events";
 
 const DURATION = 5000;
 
-export default function CaptureToast({ toast, onClose }: { toast: CaptureToastDetail; onClose: () => void }) {
+export default function CaptureToast({ toast, onClose, onExplain }: { toast: CaptureToastDetail; onClose: () => void; onExplain?: () => void }) {
   const [held, setHeld] = useState(false);
   const closeRef = useRef(onClose);
   useEffect(() => {
@@ -52,11 +55,28 @@ export default function CaptureToast({ toast, onClose }: { toast: CaptureToastDe
               openNotebookPanel({ pageId: toast.pageId });
               onClose();
             }}
-            className="inline min-h-[32px] font-mono text-[13px] font-semibold text-signal-text underline decoration-signal underline-offset-4 hover:text-fg"
+            className="inline min-h-[32px] font-mono text-[13px] font-semibold text-signal-text underline decoration-signal underline-offset-4 hover:text-fg [@media(pointer:coarse)]:min-h-[44px]"
             aria-label={`Open ${toast.pageTitle} in the notebook`}
           >
             open
           </button>
+          {onExplain && (
+            <>
+              <span aria-hidden="true" className="text-fg-3">
+                {" · "}
+              </span>
+              <button
+                type="button"
+                onClick={onExplain}
+                className="inline-flex min-h-[32px] items-center gap-1 align-baseline font-mono text-[13px] font-semibold text-signal-text underline decoration-signal underline-offset-4 hover:text-fg [@media(pointer:coarse)]:min-h-[44px]"
+                aria-label="Explain this snip with AI (about 1 credit)"
+                title="Explain this snip with AI (~1 credit)"
+              >
+                <Sparkles className="h-3 w-3 self-center" aria-hidden />
+                explain
+              </button>
+            </>
+          )}
         </p>
       ) : (
         <p className="m-0 text-sm text-fg">{"message" in toast ? toast.message : ""}</p>

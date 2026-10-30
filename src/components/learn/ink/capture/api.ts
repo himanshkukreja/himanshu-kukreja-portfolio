@@ -4,10 +4,10 @@
  * The only notebook calls capture makes (src/lib/learn/ink/client.ts, owned by the pages part), plus the sizes a
  * clip / snip takes on a page. Everything here is in page units (types.ts: a PAGE_W × PAGE_H sheet).
  */
-import { appendItem, inboxPage, openNotebookPanel, uploadSnip } from "@/lib/learn/ink/client";
+import { appendItem, getPage, inboxPage, openNotebookPanel, uploadSnip } from "@/lib/learn/ink/client";
 import { LIMITS, PAGE_W, type ItemSource } from "@/lib/learn/ink/types";
 
-export { appendItem, inboxPage, openNotebookPanel, uploadSnip };
+export { appendItem, getPage, inboxPage, openNotebookPanel, uploadSnip };
 
 /** a clip box: most of the page width, leaving the margins */
 export const CLIP_W = Math.round(PAGE_W * 0.76);

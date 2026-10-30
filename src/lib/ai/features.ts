@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "paper-grade";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade";
 
 export type FeatureDef = {
   label: string;
@@ -80,6 +80,11 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "notes-check": { label: "Notebook page check against the lesson", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1200, maxInputChars: 13000, think: false, live: true },
   // notes-cards: 3-8 question/answer review cards from the typed notes (JSON)
   "notes-cards": { label: "Notebook page review cards", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1000, maxInputChars: 13000, think: false, live: true },
+  // "Explain this" on a snip (31 Oct 2026, owner's ask): the snip's image (≤ 1568 px, WebP/PNG) + the exact text of the
+  // page inside the box + where it was taken; the lesson section around it (or a lecture's narration at that moment) goes
+  // in the system prompt (~6k characters). Haiku 5.5, thinking off, on the learner's shared credits (~1 credit a call).
+  // maxInputChars: the snip text (≤ 4,000) and its headers; the image has its own caps.
+  "snip-explain": { label: "Explain a snip", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 40, maxTokens: 700, maxInputChars: 6000, maxImages: 1, maxImageBytes: 1_500_000, maxImageSide: 2000, think: false, live: true },
   // Written papers (owner-approved 31 Oct 2026): grade one handwritten answer against its marking scheme. Haiku 5.5
   // (thinking off) grades first; the route re-grades with Sonnet 5.5 (MODELS.sonnet, passed as the call's model) when
   // Haiku is unsure, the answer is a diagram/design or the mark is on the pass line (lib/learn/papers/grade.ts), and keeps

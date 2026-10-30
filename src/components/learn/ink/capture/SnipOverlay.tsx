@@ -5,12 +5,16 @@
  * the eight handles to resize) and confirms. Esc, Cancel or a tap outside the box leaves.
  *
  * Keyboard: the box takes focus; arrow keys move it (Alt: 1 px steps), Shift + arrows resize it (right / down
- * grow, left / up shrink), Enter snips, Esc cancels; Tab goes box → Cancel → Snip. Without a box yet, any arrow
- * key (or Enter) puts one in the middle of the screen. Screen readers hear the box's size as it changes.
+ * grow, left / up shrink), Enter saves the snip, E explains it (when the AI is on), Esc cancels; Tab goes box → Cancel
+ * → Explain → Save. Without a box yet, any arrow key (or Enter) puts one in the middle of the screen. Screen readers
+ * hear the box's size as it changes.
+ *
+ * Two ways out of a drawn box: "Save" (into the notebook) and "Explain" (the AI explains it in a panel beside the
+ * snip, which can then save the snip with its explanation). Only Explain sends anything to the AI.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Scissors } from "lucide-react";
+import { Scissors, Sparkles } from "lucide-react";
 import type { Box } from "./events";
 
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
@@ -79,14 +83,17 @@ const r = (b: Box) => ({ x: Math.round(b.x), y: Math.round(b.y), w: Math.round(b
 type Props = {
   initial?: Box;
   keyboard?: boolean;
-  busy: boolean;
+  /** working: "save" while the snip is saved, "explain" while it is read for the AI */
+  busy: false | "save" | "explain";
   onConfirm: (box: Box) => void;
+  /** "Explain this" (the AI is on for this learner); absent: Save only */
+  onExplain?: (box: Box) => void;
   onCancel: () => void;
   /** the overlay root (the host lets hit-testing through it while it looks up the passage under the box) */
   rootRef?: React.RefObject<HTMLDivElement | null>;
 };
 
-export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onCancel, rootRef }: Props) {
+export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExplain, onCancel, rootRef }: Props) {
   const [box, setBox] = useState<Box | null>(() => (initial ? clampBox(initial) : keyboard ? defaultBox() : null));
   const [said, setSaid] = useState("");
   const [coarse, setCoarse] = useState(false);
@@ -96,9 +103,9 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onCanc
   const confirmRef = useRef<HTMLButtonElement>(null);
   const drag = useRef<Drag | null>(null);
   const restore = useRef<HTMLElement | null>(null);
-  const latest = useRef({ box, busy, onConfirm, onCancel });
+  const latest = useRef({ box, busy, onConfirm, onExplain, onCancel });
   useEffect(() => {
-    latest.current = { box, busy, onConfirm, onCancel };
+    latest.current = { box, busy, onConfirm, onExplain, onCancel };
   });
 
   useEffect(() => {
@@ -146,6 +153,11 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onCanc
     const { box: b, busy: working } = latest.current;
     if (!b || working || b.w < MIN || b.h < MIN) return;
     latest.current.onConfirm(r(b));
+  }, []);
+  const explain = useCallback(() => {
+    const { box: b, busy: working, onExplain: go } = latest.current;
+    if (!go || !b || working || b.w < MIN || b.h < MIN) return;
+    go(r(b));
   }, []);
 
   /* ---------------- pointer: draw / move / resize */
@@ -199,6 +211,11 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onCanc
       confirm();
       return;
     }
+    if (e.key.toLowerCase() === "e" && !e.metaKey && !e.ctrlKey && !e.altKey && onExplain) {
+      e.preventDefault();
+      explain();
+      return;
+    }
     if (!e.key.startsWith("Arrow") || busy) return;
     e.preventDefault();
     const step = e.altKey ? 1 : e.metaKey || e.ctrlKey ? 50 : 10;
@@ -220,6 +237,11 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onCanc
       confirm();
       return;
     }
+    if (box && onExplain && e.key.toLowerCase() === "e" && !e.metaKey && !e.ctrlKey && !e.altKey && !(e.target instanceof HTMLButtonElement)) {
+      e.preventDefault();
+      explain();
+      return;
+    }
     if (!box && (e.key.startsWith("Arrow") || e.key === "Enter")) {
       e.preventDefault();
       setBox(defaultBox());
@@ -237,12 +259,12 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onCanc
   };
 
   /* ---------------- layout of the action bar: under the box, else above, else inside it */
-  const BAR_H = 52;
+  const BAR_H = onExplain ? 80 : 52;
   let bar: React.CSSProperties | undefined;
   if (box) {
     const W = typeof window === "undefined" ? 1024 : window.innerWidth;
     const H = typeof window === "undefined" ? 768 : window.innerHeight;
-    const barW = Math.min(W - 16, 320);
+    const barW = Math.min(W - 16, onExplain ? 440 : 320);
     const left = Math.max(8, Math.min(box.x + box.w - barW, W - barW - 8));
     const top = box.y + box.h + 10 + BAR_H < H - 8 ? box.y + box.h + 10 : box.y - BAR_H - 10 > 8 ? box.y - BAR_H - 10 : Math.max(8, box.y + box.h - BAR_H - 8);
     bar = { left, top, width: barW };
@@ -326,30 +348,66 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onCanc
       {b && bar && (
         <div
           data-snip-bar=""
-          role="toolbar"
-          aria-label="Snip"
-          className="absolute flex items-center gap-1 border border-line-strong bg-surface-2 p-1 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
+          className="absolute flex flex-col border border-line-strong bg-surface-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
           style={bar}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <span aria-hidden="true" className="flex-1 truncate px-2 font-mono text-[11px] text-fg-3">
-            {b.w} × {b.h}
-          </span>
-          <button type="button" onClick={onCancel} disabled={busy} className="min-h-[44px] px-3 text-[13px] font-semibold text-fg hover:bg-surface disabled:opacity-50">
-            Cancel
-          </button>
-          <button
-            ref={confirmRef}
-            type="button"
-            onClick={confirm}
-            disabled={busy}
-            aria-busy={busy || undefined}
-            className="inline-flex min-h-[44px] items-center gap-2 bg-signal px-4 text-[13px] font-semibold text-on-signal hover:brightness-110 disabled:opacity-80"
-          >
-            <Scissors className="h-3.5 w-3.5" aria-hidden />
-            {busy ? "Snipping…" : "Snip"}
-            {!busy && <span className="hidden font-mono text-[10px] font-normal opacity-80 [@media(pointer:fine)]:inline">↵</span>}
-          </button>
+          <div role="toolbar" aria-label="Snip" className="flex items-center gap-1 p-1">
+            <span aria-hidden="true" className="hidden min-w-0 flex-1 truncate px-2 font-mono text-[11px] text-fg-3 min-[400px]:block">
+              {b.w} × {b.h}
+            </span>
+            <button type="button" onClick={onCancel} disabled={!!busy} className="min-h-[44px] px-3 text-[13px] font-semibold text-fg hover:bg-surface disabled:opacity-50 max-[399px]:mr-auto">
+              Cancel
+            </button>
+            {onExplain && (
+              <button
+                type="button"
+                onClick={explain}
+                disabled={!!busy}
+                aria-busy={busy === "explain" || undefined}
+                aria-keyshortcuts="E"
+                title="Explain this with AI (E)"
+                className="inline-flex min-h-[44px] items-center gap-2 border border-signal px-3 text-[13px] font-semibold text-signal-text hover:bg-signal hover:text-on-signal disabled:opacity-70"
+              >
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                {busy === "explain" ? (
+                  "Reading…"
+                ) : (
+                  <span>
+                    Explain<span className="hidden min-[480px]:inline"> this</span>
+                  </span>
+                )}
+                {!busy && <span className="hidden font-mono text-[10px] font-normal opacity-80 [@media(pointer:fine)]:inline">E</span>}
+              </button>
+            )}
+            <button
+              ref={confirmRef}
+              type="button"
+              onClick={confirm}
+              disabled={!!busy}
+              aria-busy={busy === "save" || undefined}
+              aria-keyshortcuts="Enter"
+              title={onExplain ? "Save the snip to your notebook (Enter)" : undefined}
+              className="inline-flex min-h-[44px] items-center gap-2 bg-signal px-4 text-[13px] font-semibold text-on-signal hover:brightness-110 disabled:opacity-80"
+            >
+              <Scissors className="h-3.5 w-3.5" aria-hidden />
+              {busy === "save" ? (
+                "Snipping…"
+              ) : onExplain ? (
+                <span>
+                  Save<span className="hidden min-[480px]:inline"> to notebook</span>
+                </span>
+              ) : (
+                "Snip"
+              )}
+              {!busy && <span className="hidden font-mono text-[10px] font-normal opacity-80 [@media(pointer:fine)]:inline">↵</span>}
+            </button>
+          </div>
+          {onExplain && (
+            <p className="m-0 truncate border-t border-line px-3 py-1.5 font-mono text-[10.5px] leading-tight text-fg-4">
+              Explain sends the snip to the AI · ~1 credit
+            </p>
+          )}
         </div>
       )}
     </div>

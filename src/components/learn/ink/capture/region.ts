@@ -18,6 +18,8 @@ import { LIMITS } from "@/lib/learn/ink/types";
 import type { Box } from "./events";
 
 const UI = "[data-hk-snip-ui]";
+/** page chrome laid over content that a snip leaves out (a paused lecture's big play button) */
+export const SNIP_HIDE = "[data-hk-snip-hide]";
 const SKIP = "data-hk-snip-skip";
 const DROP = "data-hk-snip-drop";
 const CTR = "data-hk-snip-ctr";
@@ -77,7 +79,7 @@ export function regionRoot(box: Box): Element {
     [x + i, y + h - i],
     [x + w - i, y + h - i],
   ];
-  const stacks = pts.map(([px, py]) => document.elementsFromPoint(px, py).filter((el) => !el.closest(UI)));
+  const stacks = pts.map(([px, py]) => document.elementsFromPoint(px, py).filter((el) => !el.closest(UI) && !el.closest(SNIP_HIDE)));
   const tops = stacks.map((st) => st[0]).filter(Boolean);
   const layers = tops.map(fixedOf);
   const oneLayer = layers.length > 0 && layers[0] !== null && layers.every((l) => l === layers[0]);
@@ -132,7 +134,7 @@ const COLLAPSIBLE = new Set(["block", "flex", "grid", "list-item", "flow-root", 
 
 function prune(el: Element, box: Box, marked: Element[], videos: HTMLVideoElement[]) {
   for (const child of Array.from(el.children)) {
-    if (child.matches(UI)) {
+    if (child.matches(UI) || child.matches(SNIP_HIDE)) {
       child.setAttribute(DROP, "");
       marked.push(child);
       continue;
@@ -431,6 +433,11 @@ function describe(el: Element): string {
   return `${el.tagName.toLowerCase()}${id}${sd ? `[data-sd=${sd}]` : ""}${cls}`;
 }
 
+/** Load the renderer while the learner is still drawing the box (it is a lazy chunk; the first load can take a while). */
+export function warmCapture(): void {
+  void import("modern-screenshot").catch(() => {});
+}
+
 /** Render the viewport rectangle `box` (CSS px) as an image. */
 export async function captureRegion(box: Box): Promise<RegionImage> {
   const t0 = performance.now();
@@ -450,9 +457,12 @@ export async function captureRegion(box: Box): Promise<RegionImage> {
   // images in the box finish loading first (the library's own wait covers the whole root, lazy images below the
   // fold included, so it is turned off below)
   const pending = Array.from(root.querySelectorAll("img")).filter((im) => !im.complete && intersects(im.getBoundingClientRect(), b, 0));
+  const tPrune = performance.now();
   await Promise.all(pending.map((im) => once(im, "load", 5000)));
+  const tImages = performance.now();
   try {
     const stand = await videoStandIns(videos, marked);
+    if (debugOn()) console.info("[snip] steps", { prune: Math.round(tPrune - t0), images: `${pending.length} in ${Math.round(tImages - tPrune)} ms`, videos: `${videos.length} in ${Math.round(performance.now() - tImages)} ms` });
     missing.frames = stand.missing;
     const { createContext, destroyContext, domToCanvas } = await import("modern-screenshot");
     const rr = root.getBoundingClientRect();

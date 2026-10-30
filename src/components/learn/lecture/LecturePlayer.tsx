@@ -19,7 +19,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
-import { BookOpen, Mic } from "lucide-react";
+import { BookOpen, Mic, Scissors } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { estimateStep as estimate, estimatedStarts, flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
@@ -37,6 +37,8 @@ import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INTRO } from "./anim";
 import { nextProgress, progressKey, readProgress } from "@/lib/learn/lecture/progress";
 import { LEVEL_TONE, type Level } from "@/lib/learn/level";
+import LectureCaptureHost from "@/components/learn/ink/capture/LectureCaptureHost";
+import { SNIP_START, startSnip } from "@/components/learn/ink/capture/events";
 
 declare global {
   interface Window {
@@ -566,6 +568,12 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   }, [starts, media, mediaBase, play]);
   const goStep = (k: number) => seek(starts[Math.max(0, Math.min(flat.length - 1, k))] + 0.01);
   const toggle = () => (playing ? pause() : play());
+  // a snip of the stage: hold the frame still while the box is drawn (and the narration matches what is explained)
+  useEffect(() => {
+    const hold = () => pause();
+    window.addEventListener(SNIP_START, hold);
+    return () => window.removeEventListener(SNIP_START, hold);
+  }, [pause]);
 
   const pick = (k: number) => {
     const q = cur.s;
@@ -634,6 +642,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const tag = (e.target as HTMLElement)?.tagName;
+      // snipping a frame (or reading its explanation): the keys belong to the snip
+      if (document.querySelector("[data-hk-snip-ui]")) return;
       if (ask && e.key === "Escape") return closeAsk();
       if (ask || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
       const k = e.key.toLowerCase();
@@ -709,7 +719,16 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   // with the panel open (paused) the step is shown settled, without the caption the panel would cut off
   const asking = !!ask && !playing;
   const stage = (
-    <div className="relative aspect-video w-full select-none [&>div:first-child>div:last-child]:hidden" onDoubleClick={fullscreen}>
+    <div
+      className="relative aspect-video w-full select-none [&>div:first-child>div:last-child]:hidden"
+      onDoubleClick={fullscreen}
+      // the moment on screen, for a snip of this frame (its link back and "Explain this": ink/capture/regionText.ts)
+      data-hk-lecture={slug}
+      data-hk-scene={cur.s.id}
+      data-hk-scene-title={cur.s.kind === "quiz" ? "Checkpoint" : cur.s.title}
+      data-hk-step={cur.step}
+      data-hk-at={time.toFixed(1)}
+    >
       <Stage
         lecture={lecture}
         flat={flat}
@@ -790,7 +809,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           </div>
         </div>
       ) : !playing && !waitingQuiz && (
-        <button type="button" onClick={toggle} aria-label={time > 0 ? "Resume" : "Play the lecture"} className="absolute inset-0 grid place-items-center bg-black/30">
+        <button type="button" onClick={toggle} aria-label={time > 0 ? "Resume" : "Play the lecture"} data-hk-snip-hide="" className="absolute inset-0 grid place-items-center bg-black/30">
           <span className="grid h-16 w-16 place-items-center rounded-full bg-[#ff6b2b] text-[#120700] shadow-[0_0_40px_rgba(255,107,43,0.5)]">
             <svg viewBox="0 0 24 24" className="h-7 w-7 translate-x-[2px]" fill="currentColor" aria-hidden>
               <path d="M7 4l13 8-13 8z" />
@@ -828,6 +847,16 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
             </Link>
           )}
           {/* the page + its recorded audio, captions and poster, to watch with no internet */}
+          {/* phones: the controls row has no room, so Snip sits here */}
+          <button
+            type="button"
+            onClick={(e) => startSnip({ keyboard: e.detail === 0 })}
+            className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-3.5 text-[14px] text-fg hover:border-signal min-[480px]:hidden"
+            aria-label="Snip a frame of the lecture"
+          >
+            <Scissors className="h-4 w-4 text-signal-text" aria-hidden />
+            Snip
+          </button>
           <SaveOfflineButton title={lecture.title} kind="lecture" url={`/learn/lectures/${slug}`} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
           <LectureVote id={slug} />
         </div>
@@ -958,6 +987,16 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
                 ✦ ask<span className="hidden lg:inline"> about this</span>
               </button>
             )}
+            <button
+              type="button"
+              onClick={(e) => startSnip({ keyboard: e.detail === 0 })}
+              className={`${btn} !hidden min-[480px]:!grid [@media(pointer:coarse)]:h-11`}
+              title="Snip this frame: save it or have it explained (S)"
+              aria-label="Snip this frame"
+              aria-keyshortcuts="S"
+            >
+              <Scissors className="h-4 w-4" aria-hidden />
+            </button>
             <button type="button" onClick={() => setCc((x) => !x)} aria-pressed={cc} className={`${btn} ${cc ? "!text-signal-text" : ""}`} title="Captions (C)">
               CC
             </button>
@@ -1037,7 +1076,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
               checkpoints {right}/{quizzes.length} right · +{QUIZ_XP} XP each
             </p>
           )}
-          <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-4">space play · ←/→ step · J/L 10 s · C captions · M music · F full screen · &lt; &gt; speed{ai?.features["lesson-qa"] ? " · A ask" : ""}</p>
+          <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-4">space play · ←/→ step · J/L 10 s · C captions · M music · F full screen · &lt; &gt; speed · S snip{ai?.features["lesson-qa"] ? " · A ask" : ""}</p>
           {next && (
             <div className="flex flex-col">
               <Link href={next.href} className="group flex items-baseline gap-2 border border-line px-2.5 py-2 hover:border-signal">
@@ -1059,6 +1098,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         </aside>
       </div>
 
+      <LectureCaptureHost title={lecture.title} />
       {media && (
         <>
           <audio ref={audioRef} src={media.audio} preload="auto" />

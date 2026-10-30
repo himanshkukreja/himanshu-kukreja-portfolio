@@ -25,7 +25,8 @@ export function startSnip(opts: SnipStart = {}): void {
 }
 
 export type CaptureToastDetail =
-  | { kind: "clip" | "snip"; pageId: string; pageTitle: string; note?: string }
+  /** `explain`: a snip the host still holds, so the toast offers "explain" too */
+  | { kind: "clip" | "snip"; pageId: string; pageTitle: string; note?: string; explain?: boolean }
   | { kind: "error"; message: string }
   | { kind: "info"; message: string };
 
