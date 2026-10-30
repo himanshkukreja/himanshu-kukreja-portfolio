@@ -9,6 +9,11 @@ import "server-only";
  * minute), the feature's calls-per-day, the user's daily allowance (not for the course chat's calls: its own
  * quota, chat/quota.ts), and the input size cap. Content jobs (eval, batch) skip the per-user checks but still
  * count against the monthly budget.
+ *
+ * A message's content is a string, or blocks (text and, for the features that take one, a base64 PNG/WebP
+ * image: the notebook page features). Text counts against maxInputChars either way; images pass their own gate
+ * (image.ts: how many the feature takes, real PNG/WebP, decoded bytes, pixel size) and the image's size goes in
+ * the call's meta. The API counts the image's tokens in usage.input_tokens, so the cost and credits include it.
  */
 import { supabase } from "@/lib/supabase";
 import { costOf, creditsFor, type Usage } from "./prices";
@@ -17,6 +22,7 @@ import { featureConfig, getAiSettings } from "./settings";
 import { CONTENT_CAP_MESSAGE, contentCapReached, getBudget, startOfToday, type Mode } from "./governor";
 import { dailyAllowanceUsd } from "./limits";
 import { CHAT_FEATURES, chatSpendToday } from "./chat/quota";
+import { contentText, gateImages, type AiContent } from "./image";
 
 const API = "https://api.anthropic.com/v1/messages";
 const RATE_PER_MIN = 10;
@@ -31,7 +37,7 @@ function trimCutOff(text: string): string {
   return m && m[0].length > t.length * 0.4 ? m[0] : `${t}…`;
 }
 
-export type AiMessage = { role: "user" | "assistant"; content: string };
+export type AiMessage = { role: "user" | "assistant"; content: AiContent };
 export type AiRequest = {
   feature: FeatureId;
   userId?: string | null;
@@ -118,7 +124,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   // the course chat's calls (its memory updates and titles) have the chat's own quota: they never spend, need or
   // report the learner's shared daily credits (owner's rule, 29 Oct 2026; see chat/quota.ts)
   const chatCall = (CHAT_FEATURES as readonly string[]).includes(req.feature);
-  const base = { user_id: req.userId ?? null, feature: req.feature, meta: req.meta ?? {}, byok };
+  const base: { user_id: string | null; feature: FeatureId; meta: NonNullable<AiRequest["meta"]>; byok: boolean } = { user_id: req.userId ?? null, feature: req.feature, meta: req.meta ?? {}, byok };
   let creditsLeft: number | null = null;
 
   const refuse = async (status: Exclude<AiResult, { ok: true }>["status"], message: string, model = cfg.model): Promise<AiResult> => {
@@ -144,8 +150,18 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     model = def.amberModel;
   }
 
-  const inputChars = req.messages.reduce((a, m) => a + m.content.length, 0);
+  const inputChars = req.messages.reduce((a, m) => a + contentText(m.content).length, 0);
   if (inputChars > cfg.maxInputChars) return refuse("too_long", `That's too long (${inputChars.toLocaleString()} characters, the limit is ${cfg.maxInputChars.toLocaleString()})`);
+  // images: only features that take them, one each for the page features, real PNG/WebP within the byte and pixel caps
+  const imgs = gateImages(
+    req.messages.map((m) => m.content),
+    { maxImages: def.maxImages ?? 0, maxBytes: def.maxImageBytes, maxSide: def.maxImageSide },
+  );
+  if (!imgs.ok) return refuse("too_long", imgs.message);
+  if (imgs.images.length) {
+    const i = imgs.images[0];
+    base.meta = { ...base.meta, images: imgs.images.length, img_bytes: imgs.images.reduce((a, x) => a + x.bytes, 0), img_px: `${i.width}x${i.height}` };
+  }
 
   if (learner) {
     const uid = req.userId!;

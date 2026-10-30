@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, ChevronLeft, ClipboardCopy, GraduationCap, Highlighter, Lightbulb, Link2, LogIn, MessageCircleQuestion, Share2, Sparkles, StickyNote, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ClipboardCopy, GraduationCap, Highlighter, Lightbulb, Link2, LogIn, MessageCircleQuestion, NotebookPen, Scissors, Share2, Sparkles, StickyNote, X } from "lucide-react";
 import { HIGHLIGHT_COLOURS } from "@/lib/learn/notebook";
 import type { AskClient } from "@/lib/learn/askAi";
 
@@ -82,6 +82,10 @@ type TextSelectionMenuProps = {
   onCopyLink?: () => void;
   /** "Share…" through the native share sheet (pass only where navigator.share exists) */
   onShareLink?: () => void;
+  /** notebook pages (components/learn/ink/capture): "Clip to notebook" puts the passage on a page; "Snip" starts a
+   *  region snip around the selection */
+  onClip?: () => void;
+  onSnip?: () => void;
   onClose: () => void;
   /** where the arrow points: "above" = toolbar sits above the selection (default);
    *  "sheet" = docked to the bottom of the screen (touch: clear of the native selection UI) */
@@ -93,12 +97,13 @@ type TextSelectionMenuProps = {
 type Panel = "main" | "colors" | "ask" | "link";
 
 export default function TextSelectionMenu(props: TextSelectionMenuProps) {
-  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, autoFocus } = props;
+  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, onClip, onSnip, autoFocus } = props;
   // the tutor supersedes "Ask here" (both open the course's own AI on this passage)
   const onAskHere = onExplain || onAskTutor ? undefined : props.onAskHere;
   const tutor = !!(onExplain || onAskTutor || onTutorSignIn);
   const notes = !!(onHighlight || onNote || onBookmark);
   const ask = !!(onAsk || onAskHere || onCopyPrompt || tutor);
+  const capture = !!(onClip || onSnip);
   const [panel, setPanel] = useState<Panel>("main");
   // with no notebook actions (case files) the Ask actions are the main panel
   const view: Panel = !notes && ask && panel === "main" ? "ask" : panel;
@@ -154,6 +159,12 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       } else if (k === "s" && view === "link" && onShareLink) {
         e.preventDefault();
         onShareLink();
+      } else if (k === "k" && onClip && (view === "main" || (view === "ask" && !notes))) {
+        e.preventDefault();
+        onClip();
+      } else if (k === "s" && onSnip && (view === "main" || (view === "ask" && !notes))) {
+        e.preventDefault();
+        onSnip();
       } else if (k === "h" && onHighlight) {
         e.preventDefault();
         setPanel("colors");
@@ -174,7 +185,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, panel, view, ask, notes]);
+  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, onClip, onSnip, panel, view, ask, notes]);
 
   useEffect(() => {
     if (!mounted || !ref.current) return;
@@ -226,6 +237,28 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
     </button>
   );
 
+  // notebook capture: inline on the floating toolbar; a second row of the bottom sheet on touch (no room in one)
+  const showCapture = capture && (view === "main" || (view === "ask" && !notes));
+  const capBtn = sheet ? `${btn} !flex-row !gap-2 !text-[13px] !min-h-[48px]` : btn;
+  const captureButtons = showCapture && (
+    <>
+      {onClip && (
+        <button type="button" className={capBtn} onClick={onClip} aria-keyshortcuts="K" aria-label="Clip to notebook: put the selected text on a notebook page" title="Clip to notebook (K)">
+          <NotebookPen className="w-3.5 h-3.5" aria-hidden="true" />
+          {sheet ? "Clip to notebook" : "Clip"}
+          <span className={key}>K</span>
+        </button>
+      )}
+      {onSnip && (
+        <button type="button" className={capBtn} onClick={onSnip} aria-keyshortcuts="S" aria-label="Snip: capture this part of the page as an image in your notebook" title="Snip this area (S)">
+          <Scissors className="w-3.5 h-3.5" aria-hidden="true" />
+          {sheet ? "Snip area" : "Snip"}
+          <span className={key}>S</span>
+        </button>
+      )}
+    </>
+  );
+
   const menu = (
     <div
       ref={ref}
@@ -235,7 +268,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       onMouseDown={(e) => e.preventDefault()}
       data-sd-chrome=""
       className={`fixed z-[9999] flex items-center gap-0.5 p-1 bg-surface-2 border border-line-strong shadow-[0_12px_40px_rgba(0,0,0,0.45)] animate-hk-in ${
-        sheet ? "inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+8px)]" : ""
+        sheet ? `inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+8px)] ${showCapture ? "flex-wrap" : ""}` : ""
       }`}
       style={sheet ? undefined : { left: `${props.position.x + shiftX}px`, top: `${props.position.y}px` }}
     >
@@ -276,6 +309,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
               <span className={key}>A</span>
             </button>
           )}
+          {!sheet && captureButtons}
           {linkButton}
         </>
       )}
@@ -335,6 +369,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
               <span className={key}>P</span>
             </button>
           )}
+          {!notes && !sheet && captureButtons}
           {!notes && linkButton}
         </>
       )}
@@ -381,6 +416,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       <button type="button" onClick={onClose} aria-label="Dismiss selection toolbar" className="grid place-items-center w-11 h-11 text-fg-3 hover:text-fg">
         <X className="w-4 h-4" aria-hidden="true" />
       </button>
+      {sheet && showCapture && <div className="flex basis-full gap-0.5 border-t border-line pt-1">{captureButtons}</div>}
       {!sheet && (
         <span
           aria-hidden="true"

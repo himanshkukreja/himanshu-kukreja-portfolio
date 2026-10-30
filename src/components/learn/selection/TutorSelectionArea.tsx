@@ -3,14 +3,16 @@
 /**
  * An article body with the course tutor on its selections, for pages without a notebook toolbar of their own
  * (war stories): select a passage (3 words to ~1,200 characters) → "Explain this" / "Ask the tutor", or
- * "Sign in to ask the tutor" when signed out. Same triggers and toolbar as the lesson reader: mouse up, a
- * touch long-press (docked to the bottom, clear of the native selection menu), Shift + arrows, Shift+F10,
+ * "Sign in to ask the tutor" when signed out; any selection → "Clip to notebook" / "Snip" (notebook pages, with
+ * snip mode and S from CaptureHost). Same triggers and toolbar as the lesson reader: mouse up, a touch long-press
+ * or a pen selection (docked to the bottom, clear of the native selection menu), Shift + arrows, Shift+F10,
  * and Alt+A asks straight away. Copy, find-in-page and Listen are untouched (the wrapper adds no styling).
  */
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import TextSelectionMenu from "@/components/TextSelectionMenu";
 import { useTutorActions } from "./useTutorActions";
-import { tutorEligible } from "@/lib/learn/tutorSelection";
+import CaptureHost from "@/components/learn/ink/capture/CaptureHost";
+import { pageTitle, useCaptureActions } from "@/components/learn/ink/capture/useCaptureActions";
 
 type Menu = {
   x: number;
@@ -29,7 +31,14 @@ export default function TutorSelectionArea({ children, className }: { children: 
     getRange: () => rangeRef.current,
     onDone: closeMenu,
   });
-  const on = tutor.state !== "off";
+  const notebook = useCaptureActions({
+    rootRef,
+    getRange: () => rangeRef.current,
+    getText: () => text,
+    title: () => pageTitle(rootRef.current),
+    lessonKey: null,
+    onDone: closeMenu,
+  });
 
   const capture = useCallback((): Range | null => {
     const root = rootRef.current;
@@ -38,7 +47,7 @@ export default function TutorSelectionArea({ children, className }: { children: 
     const range = sel.getRangeAt(0);
     if (!root.contains(range.commonAncestorContainer)) return null;
     const value = sel.toString().trim();
-    if (!tutorEligible(value)) return null;
+    if (!value) return null;
     rangeRef.current = range.cloneRange();
     setText(value);
     return range;
@@ -52,7 +61,7 @@ export default function TutorSelectionArea({ children, className }: { children: 
     const rects = range.getClientRects();
     const first = rects[0] || range.getBoundingClientRect();
     const last = rects[rects.length - 1] || first;
-    const W = Math.min(window.innerWidth - 16, 360);
+    const W = Math.min(window.innerWidth - 16, 560);
     const H = 54;
     const below = first.top - H - 10 < 64;
     const anchor = below ? last : first;
@@ -67,15 +76,16 @@ export default function TutorSelectionArea({ children, className }: { children: 
   }, []);
 
   useEffect(() => {
-    if (!on) return;
     let lastPointer = "mouse";
     let touchTimer: number | undefined;
     let keyTimer: number | undefined;
     const onPointerDown = (e: PointerEvent) => {
       lastPointer = e.pointerType || "mouse";
     };
+    // touch and pen (Apple Pencil) selections settle through selectionchange; iPadOS sends no mouseup for a pen drag
+    const handheld = () => lastPointer === "touch" || lastPointer === "pen";
     const onMouseUp = (e: MouseEvent) => {
-      if (lastPointer === "touch") return;
+      if (handheld()) return;
       if ((e.target as Element | null)?.closest?.('[role="toolbar"][data-sd-chrome]')) return;
       window.setTimeout(() => {
         const r = capture();
@@ -88,7 +98,7 @@ export default function TutorSelectionArea({ children, className }: { children: 
         window.clearTimeout(touchTimer);
         return;
       }
-      if (lastPointer !== "touch") return;
+      if (!handheld()) return;
       window.clearTimeout(touchTimer);
       touchTimer = window.setTimeout(() => {
         const r = capture();
@@ -126,7 +136,7 @@ export default function TutorSelectionArea({ children, className }: { children: 
       document.removeEventListener("keydown", onKeyDown);
       document.removeEventListener("keyup", onKeyUp);
     };
-  }, [on, capture, open]);
+  }, [capture, open]);
 
   // follow the selection while scrolling; drop the toolbar once it is off screen
   useEffect(() => {
@@ -163,9 +173,10 @@ export default function TutorSelectionArea({ children, className }: { children: 
       <div ref={rootRef} className={className}>
         {children}
       </div>
-      {menu && (actions.onExplain || actions.onTutorSignIn) && (
-        <TextSelectionMenu selectedText={text} position={{ x: menu.x, y: menu.y }} placement={menu.placement} autoFocus={menu.autoFocus} {...actions} onClose={closeMenu} />
+      {menu && text && (
+        <TextSelectionMenu selectedText={text} position={{ x: menu.x, y: menu.y }} placement={menu.placement} autoFocus={menu.autoFocus} {...actions} {...notebook} onClose={closeMenu} />
       )}
+      <CaptureHost rootRef={rootRef} title="" lessonKey={null} />
     </>
   );
 }

@@ -12,7 +12,7 @@
  */
 import { supabaseClient } from "@/lib/supabase-client";
 
-export type ReviewSource = "trial_miss" | "trial_flag" | "highlight" | "interview";
+export type ReviewSource = "trial_miss" | "trial_flag" | "highlight" | "interview" | "notes";
 export type ReviewGrade = "again" | "hard" | "good" | "easy";
 
 /** Optional extras shown on the back of a card. Stored inside `back` as JSON when present. */

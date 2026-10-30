@@ -1,0 +1,472 @@
+"use client";
+
+/**
+ * One notebook page, editable: the full-screen editor (/learn/notebook/page/<id>) and the Notebook panel beside a
+ * lesson both use it. Loads the page (this device's unsaved copy first, if any), keeps undo/redo, autosaves,
+ * registers itself as the open page (so clips and snips land here), and mounts the AI actions in its toolbar.
+ */
+import Link from "next/link";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTheme } from "next-themes";
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { createPage, InkError, movePage, pageOutline, registerOpenPage } from "@/lib/learn/ink/client";
+import { pageBytes, pageNearlyFull } from "@/lib/learn/ink/geometry";
+import { PEN_SIZES, type InkTheme } from "@/lib/learn/ink/render";
+import { INK_EVENTS, LIMITS, PAPERS, type InkColor, type NotebookPage, type PageItem, type Paper } from "@/lib/learn/ink/types";
+import { loadPage, usePageAutosave, type SaveState } from "@/lib/learn/ink/usePageAutosave";
+import InkCanvas, { type InkCanvasHandle, type InkContent, type InkToolId } from "./InkCanvas";
+import InkToolbar from "./InkToolbar";
+import PageAiActions from "./PageAiActions";
+
+const PENCIL_KEY = "hk.ink.pencilOnly";
+const PREFS_KEY = "hk.ink.prefs";
+const HISTORY = 100;
+
+type Snap = InkContent;
+
+function readPencil(): boolean | null {
+  try {
+    const v = window.localStorage.getItem(PENCIL_KEY);
+    return v === null ? null : v === "1";
+  } catch {
+    return null;
+  }
+}
+function writePencil(v: boolean) {
+  try {
+    window.localStorage.setItem(PENCIL_KEY, v ? "1" : "0");
+  } catch {
+    // ignore
+  }
+}
+
+const SAVE_TEXT: Record<SaveState, string> = {
+  saved: "Saved",
+  pending: "Editing…",
+  saving: "Saving…",
+  offline: "Offline · kept on this device",
+  full: "Page full",
+  error: "Not saved · kept on this device",
+};
+
+export type PageEditorProps = {
+  pageId: string;
+  variant: "full" | "panel";
+  /** go to another page (navigation, a new page) */
+  onOpenPage: (id: string) => void;
+  /** the full editor's back link */
+  backHref?: string;
+  /** extra controls in the header (the panel's full-screen and close buttons) */
+  headerExtra?: React.ReactNode;
+};
+
+export default function PageEditor({ pageId, variant, onOpenPage, backHref, headerExtra }: PageEditorProps) {
+  const { resolvedTheme } = useTheme();
+  const theme: InkTheme = resolvedTheme === "dark" ? "dark" : "light";
+  const [page, setPage] = useState<NotebookPage | null>(null);
+  const [restored, setRestored] = useState(false);
+  const [loadError, setLoadError] = useState<InkError | null>(null);
+  const [outline, setOutline] = useState<{ id: string; title: string; position: number }[]>([]);
+  const past = useRef<Snap[]>([]);
+  const future = useRef<Snap[]>([]);
+  const [hist, setHist] = useState({ undo: 0, redo: 0 });
+  const mergeRef = useRef<string | null>(null);
+  const [tool, setTool] = useState<InkToolId>("pen");
+  const [color, setColor] = useState<InkColor>("ink");
+  const [sizeIndex, setSizeIndex] = useState(0);
+  const [pencilOnly, setPencilOnly] = useState(false);
+  const [zoom, setZoom] = useState(1);
+  const [notice, setNotice] = useState<{ text: string; action?: { label: string; run: () => void } } | null>(null);
+  const canvas = useRef<InkCanvasHandle>(null);
+  // the page as last set (handlers read it without waiting for a render)
+  const pageRef = useRef<NotebookPage | null>(null);
+
+  // per-device preferences, read after mount
+  useEffect(() => {
+    const p = readPencil();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a per-device preference
+    if (p !== null) setPencilOnly(p);
+    try {
+      const prefs = JSON.parse(window.localStorage.getItem(PREFS_KEY) || "{}") as { color?: InkColor; size?: number };
+      if (prefs.color) setColor(prefs.color);
+      if (typeof prefs.size === "number" && prefs.size >= 0 && prefs.size < PEN_SIZES.length) setSizeIndex(prefs.size);
+    } catch {
+      // ignore
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(PREFS_KEY, JSON.stringify({ color, size: sizeIndex }));
+    } catch {
+      // ignore
+    }
+  }, [color, sizeIndex]);
+
+  // load
+  useEffect(() => {
+    let off = false;
+    /* eslint-disable react-hooks/set-state-in-effect -- a new page id starts from nothing */
+    setPage(null);
+    pageRef.current = null;
+    setLoadError(null);
+    setHist({ undo: 0, redo: 0 });
+    /* eslint-enable react-hooks/set-state-in-effect */
+    past.current = [];
+    future.current = [];
+    mergeRef.current = null;
+    loadPage(pageId)
+      .then(({ page: p, restored: r }) => {
+        if (off) return;
+        if (!p) setLoadError(new InkError("not_found", "This page doesn't exist any more."));
+        else {
+          setRestored(r);
+          pageRef.current = p;
+          setPage(p);
+          pageOutline(p.notebookId)
+            .then((o) => !off && setOutline(o))
+            .catch(() => undefined);
+        }
+      })
+      .catch((e) => !off && setLoadError(e instanceof InkError ? e : new InkError("network", "Couldn't open this page.")));
+    return () => {
+      off = true;
+    };
+  }, [pageId]);
+
+  const { state: saveState, error: saveError, flush } = usePageAutosave(page, { dirty: restored });
+
+  const bytes = useMemo(() => (page ? pageBytes(page.strokes, page.items) : 0), [page]);
+  const full = bytes >= LIMITS.pageBytes;
+
+  // ------------------------------------------------------------------ changes + history
+
+  const commit = useCallback((next: InkContent, mergeKey?: string) => {
+    const cur = pageRef.current;
+    if (!cur) return;
+    if (pageBytes(next.strokes, next.items) > LIMITS.pageBytes && next.strokes.length + next.items.length > cur.strokes.length + cur.items.length) {
+      setNotice({ text: "This page is full. Start a new page to keep writing." });
+      return;
+    }
+    if (!(mergeKey && mergeRef.current === mergeKey)) {
+      past.current = [...past.current.slice(-(HISTORY - 1)), { strokes: cur.strokes, items: cur.items }];
+      future.current = [];
+    }
+    mergeRef.current = mergeKey || null;
+    const np = { ...cur, strokes: next.strokes, items: next.items };
+    pageRef.current = np;
+    setPage(np);
+    setHist({ undo: past.current.length, redo: 0 });
+  }, []);
+
+  const step = useCallback((back: boolean) => {
+    const cur = pageRef.current;
+    const from = back ? past : future;
+    const to = back ? future : past;
+    if (!cur || !from.current.length) return;
+    const snap = back ? from.current[from.current.length - 1] : from.current[0];
+    from.current = back ? from.current.slice(0, -1) : from.current.slice(1);
+    const here = { strokes: cur.strokes, items: cur.items };
+    to.current = back ? [here, ...to.current].slice(0, HISTORY) : [...to.current, here].slice(-HISTORY);
+    mergeRef.current = null;
+    const np = { ...cur, ...snap };
+    pageRef.current = np;
+    setPage(np);
+    setHist({ undo: past.current.length, redo: future.current.length });
+  }, []);
+  const undo = useCallback(() => step(true), [step]);
+  const redo = useCallback(() => step(false), [step]);
+
+  const patchPage = useCallback((patch: Partial<NotebookPage>) => {
+    const cur = pageRef.current;
+    if (!cur) return;
+    const np = { ...cur, ...patch };
+    pageRef.current = np;
+    setPage(np);
+  }, []);
+
+  // the open page: clips and snips from the capture tools land here
+  useEffect(() => {
+    if (!page?.id) return;
+    return registerOpenPage({
+      pageId: page.id,
+      get: () => pageRef.current!,
+      append: (item: PageItem) => {
+        const cur = pageRef.current;
+        if (cur) commit({ strokes: cur.strokes, items: [...cur.items, item] });
+      },
+    });
+  }, [page?.id, commit]);
+
+  useEffect(() => {
+    const onItem = (e: Event) => {
+      const d = (e as CustomEvent<{ pageId: string; newPage: boolean }>).detail;
+      if (d?.newPage && pageRef.current && d.pageId !== pageRef.current.id) {
+        const id = d.pageId;
+        setNotice({ text: "This page is full, so that went on a new page.", action: { label: "Go to it", run: () => onOpenPage(id) } });
+        pageOutline(pageRef.current.notebookId)
+          .then(setOutline)
+          .catch(() => undefined);
+      }
+    };
+    window.addEventListener(INK_EVENTS.item, onItem);
+    return () => window.removeEventListener(INK_EVENTS.item, onItem);
+  }, [onOpenPage]);
+
+  // ------------------------------------------------------------------ keys
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      // the panel shares the window with the lesson: only take keys while the pointer/focus is in the editor
+      if (variant === "panel" && !document.querySelector("[data-ink-editor]:hover, [data-ink-editor]:focus-within")) return;
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      if (mod && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redo();
+        return;
+      }
+      if (mod || e.altKey) return;
+      const k = e.key.toLowerCase();
+      const map: Record<string, InkToolId> = { p: "pen", h: "highlighter", e: "eraser", l: "lasso", t: "text" };
+      if (map[k]) {
+        setTool(map[k]);
+        e.preventDefault();
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        canvas.current?.deleteSelection();
+      } else if (e.key === "Escape") canvas.current?.clearSelection();
+      else if (e.key === "+" || e.key === "=") canvas.current?.zoomBy(1.25);
+      else if (e.key === "-") canvas.current?.zoomBy(1 / 1.25);
+      else if (e.key === "0") canvas.current?.fit();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo, redo, variant]);
+
+  // ------------------------------------------------------------------ navigation
+
+  const idx = outline.findIndex((o) => o.id === pageId);
+  const go = async (id: string | undefined) => {
+    if (!id) return;
+    await flush();
+    onOpenPage(id);
+  };
+  const addPage = async () => {
+    const cur = pageRef.current;
+    if (!cur) return;
+    try {
+      await flush();
+      const np = await createPage(cur.notebookId, { paper: cur.paper, lessonKey: cur.lessonKey });
+      if (idx >= 0 && idx < outline.length - 1) await movePage(np.id, idx + 1);
+      onOpenPage(np.id);
+    } catch (e) {
+      setNotice({ text: e instanceof InkError ? e.message : "Couldn't add a page." });
+    }
+  };
+
+  useEffect(() => {
+    if (!notice) return;
+    const id = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [notice]);
+
+  const onPenSeen = useCallback(() => {
+    if (readPencil() === null) {
+      writePencil(true);
+      setPencilOnly(true);
+      setNotice({ text: "Pencil found: now only the pencil draws, and fingers scroll and zoom. Turn off “Pencil only” to draw with a finger." });
+    }
+  }, []);
+
+  // ------------------------------------------------------------------ render
+
+  if (loadError)
+    return (
+      <div className="flex h-full flex-col items-start gap-3 p-6">
+        <span className="font-mono text-xs uppercase tracking-label text-signal-text">notebook page</span>
+        <p className="m-0 text-[17px] text-fg">{loadError.message}</p>
+        {backHref && (
+          <Link href={backHref} className="inline-flex min-h-11 items-center border border-line-strong px-4 text-sm text-fg">
+            Back to your notebook
+          </Link>
+        )}
+      </div>
+    );
+
+  const panel = variant === "panel";
+  const textAlt = page
+    ? [
+        page.title,
+        ...page.items.map((it) => (it.kind === "clip" ? `Clip from ${it.source.title}: ${it.text}` : it.kind === "text" ? it.text : `Snip from ${it.source.title}`)),
+        page.convertedMd ? `Typed version: ${page.convertedMd}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  return (
+    <div data-ink-editor className="flex h-full min-h-0 flex-col bg-bg">
+      <header className={`flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line ${panel ? "px-2 py-1.5" : "px-3 py-2 sm:px-4"}`}>
+        {backHref && (
+          <Link href={backHref} onClick={() => void flush()} aria-label="Back to the notebook" className="grid h-10 w-10 shrink-0 place-items-center text-fg hover:bg-surface-2">
+            <ArrowLeft className="h-5 w-5" aria-hidden />
+          </Link>
+        )}
+        <div className="flex min-w-0 flex-[1_1_240px] items-center gap-2">
+          <label className="min-w-0 flex-1">
+            <span className="sr-only">Page title</span>
+            <input
+              value={page?.title ?? ""}
+              disabled={!page}
+              maxLength={LIMITS.titleChars}
+              onChange={(e) => patchPage({ title: e.target.value })}
+              className={`w-full min-w-0 truncate border-0 bg-transparent font-display font-bold tracking-[-0.02em] text-fg outline-none focus:bg-surface-2 ${panel ? "text-[17px]" : "text-[20px] sm:text-[22px]"}`}
+              placeholder="Untitled page"
+            />
+          </label>
+          <span aria-live="polite" className={`shrink-0 font-mono text-[11px] ${saveState === "saved" ? "text-fg-4" : saveState === "offline" || saveState === "error" || saveState === "full" ? "text-bad-text" : "text-fg-3"}`} title={saveError || undefined}>
+            {page ? SAVE_TEXT[saveState] : "Opening…"}
+          </span>
+        </div>
+        <nav aria-label="Pages in this notebook" className="flex shrink-0 items-center">
+          <button type="button" onClick={() => void go(outline[idx - 1]?.id)} disabled={idx <= 0} aria-label="Previous page" className="grid h-10 w-9 place-items-center text-fg hover:bg-surface-2 disabled:opacity-30">
+            <ChevronLeft className="h-5 w-5" aria-hidden />
+          </button>
+          <span className="min-w-[44px] text-center font-mono text-[12px] text-fg-3">{idx >= 0 ? `${idx + 1}/${outline.length}` : "·"}</span>
+          <button type="button" onClick={() => void go(outline[idx + 1]?.id)} disabled={idx < 0 || idx >= outline.length - 1} aria-label="Next page" className="grid h-10 w-9 place-items-center text-fg hover:bg-surface-2 disabled:opacity-30">
+            <ChevronRight className="h-5 w-5" aria-hidden />
+          </button>
+          <button type="button" onClick={() => void addPage()} disabled={!page} aria-label="New page after this one" title="New page" className="grid h-10 w-10 place-items-center text-fg hover:bg-surface-2 disabled:opacity-30">
+            <Plus className="h-5 w-5" aria-hidden />
+          </button>
+        </nav>
+        {!panel && (
+          <label className="flex shrink-0 items-center gap-1.5">
+            <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Paper</span>
+            <select
+              value={page?.paper ?? "ruled"}
+              disabled={!page}
+              onChange={(e) => patchPage({ paper: e.target.value as Paper })}
+              className="h-10 border border-line-strong bg-surface px-2 text-[14px] text-fg"
+            >
+              {PAPERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        {page && (
+          <div className="flex shrink-0 items-center">
+            <PageAiActions page={page} onPageChange={(p) => patchPage(p)} />
+          </div>
+        )}
+        {headerExtra}
+      </header>
+
+      <div className={`flex shrink-0 items-center gap-x-2 border-b border-line bg-surface ${panel ? "px-1" : "px-2 sm:px-3"}`}>
+        <InkToolbar
+          tool={tool}
+          onTool={setTool}
+          color={color}
+          onColor={setColor}
+          sizeIndex={sizeIndex}
+          onSize={setSizeIndex}
+          theme={theme}
+          canUndo={hist.undo > 0}
+          canRedo={hist.redo > 0}
+          onUndo={undo}
+          onRedo={redo}
+          zoom={zoom}
+          onZoom={(k) => canvas.current?.zoomBy(k)}
+          onFit={() => canvas.current?.fit()}
+          pencilOnly={pencilOnly}
+          onPencilOnly={(v) => {
+            setPencilOnly(v);
+            writePencil(v);
+          }}
+          compact={panel}
+          extra={
+            panel ? (
+          <label className="ml-1 flex shrink-0 items-center py-1 pr-1">
+            <span className="sr-only">Paper</span>
+            <select value={page?.paper ?? "ruled"} disabled={!page} onChange={(e) => patchPage({ paper: e.target.value as Paper })} className="h-9 border border-line-strong bg-surface px-1.5 text-[13px] text-fg">
+              {PAPERS.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </label>
+            ) : null
+          }
+        />
+      </div>
+
+      <div className="relative min-h-0 flex-1">
+        {page ? (
+          <InkCanvas
+            ref={canvas}
+            paper={page.paper}
+            strokes={page.strokes}
+            items={page.items}
+            tool={tool}
+            color={color}
+            penSize={PEN_SIZES[sizeIndex]}
+            theme={theme}
+            pencilOnly={pencilOnly}
+            full={full}
+            pad={panel ? 10 : 20}
+            onCommit={commit}
+            onPenSeen={onPenSeen}
+            onFull={() => setNotice({ text: "This page is full. Start a new page to keep writing.", action: { label: "New page", run: () => void addPage() } })}
+            onZoom={setZoom}
+            label={`Notebook page: ${page.title || "Untitled"}. ${page.strokes.length} strokes, ${page.items.length} items. Typed content follows.`}
+          />
+        ) : (
+          <div className="grid h-full place-items-center bg-surface-2">
+            <span className="font-mono text-[12px] text-fg-3">opening page…</span>
+          </div>
+        )}
+        {page && pageNearlyFull(bytes) && (
+          <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 border-b border-bad bg-bg/95 px-3 py-2 text-[13px] text-fg">
+            <span>{full ? "This page is full." : `This page is ${Math.round((bytes / LIMITS.pageBytes) * 100)}% full.`} Start a new page to keep writing.</span>
+            <button type="button" onClick={() => void addPage()} className="min-h-9 shrink-0 bg-signal px-3 text-[13px] font-semibold text-on-signal">
+              New page
+            </button>
+          </div>
+        )}
+        {notice && (
+          <div role="status" className="absolute bottom-3 left-3 right-3 z-20 mx-auto flex max-w-[520px] animate-hk-in items-center gap-3 bg-fg py-2 pl-4 pr-2 text-bg">
+            <span className="min-w-0 flex-1 text-[13px] font-semibold">{notice.text}</span>
+            {notice.action && (
+              <button
+                type="button"
+                onClick={() => {
+                  notice.action!.run();
+                  setNotice(null);
+                }}
+                className="min-h-9 shrink-0 bg-bg px-3 text-[13px] font-semibold text-fg"
+              >
+                {notice.action.label}
+              </button>
+            )}
+            <button type="button" onClick={() => setNotice(null)} aria-label="Dismiss" className="grid h-9 w-9 shrink-0 place-items-center opacity-70 hover:opacity-100">
+              ×
+            </button>
+          </div>
+        )}
+      </div>
+      <div className="sr-only" aria-live="off">
+        {textAlt}
+      </div>
+    </div>
+  );
+}

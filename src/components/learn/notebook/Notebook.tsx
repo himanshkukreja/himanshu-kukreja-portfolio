@@ -6,6 +6,8 @@
  * (stage located on the server; falls back to the old #note- / #bookmark- offsets), inline edit,
  * inline delete confirm with undo, "+ Review card", Export Markdown.
  * Saved shorts (bookmarks under course "shorts", saved from /learn/shorts) sit in their own row on top.
+ * Pages (components/learn/ink/PagesTab): handwritten notebook pages, next to Notes: both are the learner's own
+ * writing, and Highlights stays the tab a visit lands on.
  */
 import Link from "next/link";
 import NotebookDesigns from "@/components/learn/canvas/NotebookDesigns";
@@ -22,8 +24,12 @@ import { findResume, timeAgo, useLearnProgress } from "@/lib/learn/progress";
 import AuthPromptBanner from "@/components/AuthPromptBanner";
 import MiniToast, { type MiniToastState } from "@/components/learn/hub/MiniToast";
 import Overlay from "@/components/learn/hub/Overlay";
+import PagesTab from "@/components/learn/ink/PagesTab";
+import { listNotebooks } from "@/lib/learn/ink/client";
+import { useInkDev } from "@/lib/learn/ink/usePageAutosave";
 
-export type NotebookTab = "highlights" | "notes" | "bookmarks";
+export type NotebookTab = "highlights" | "notes" | "pages" | "bookmarks";
+const TABS: NotebookTab[] = ["highlights", "notes", "pages", "bookmarks"];
 
 type NoteRow = {
   id: string;
@@ -72,6 +78,7 @@ type Item = {
 const NOUN: Record<NotebookTab, [string, string]> = {
   highlights: ["highlight", "highlights"],
   notes: ["note", "notes"],
+  pages: ["page", "pages"],
   bookmarks: ["bookmark", "bookmarks"],
 };
 const plural = (n: number, t: NotebookTab) => `${n} ${NOUN[t][n === 1 ? 0 : 1]}`;
@@ -89,7 +96,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   useEffect(() => {
     const t = new URLSearchParams(window.location.search).get("tab");
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the deep link after mount
-    if (t === "highlights" || t === "notes" || t === "bookmarks") setTab(t);
+    if (t === "highlights" || t === "notes" || t === "pages" || t === "bookmarks") setTab(t);
   }, []);
   const [q, setQ] = useState("");
   const [week, setWeek] = useState<string>("all");
@@ -107,7 +114,21 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   const [exportOpen, setExportOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const toastTimer = useRef<number | null>(null);
+  const inkDev = useInkDev();
+  // the pages tab also runs on the dev stand-in (next dev + hk.ink.dev) without a session
   const userId = user?.id ?? null;
+  const pagesUser = userId || (inkDev ? "dev" : null);
+  const [pageCount, setPageCount] = useState<number | null>(null);
+  useEffect(() => {
+    if (!pagesUser) return;
+    let off = false;
+    listNotebooks()
+      .then((nbs) => !off && setPageCount(nbs.reduce((n, b) => n + (b.pageCount || 0), 0)))
+      .catch(() => undefined);
+    return () => {
+      off = true;
+    };
+  }, [pagesUser]);
 
   const toastSeq = useRef(0);
   const flash = useCallback((t: Omit<NonNullable<MiniToastState>, "id">, ms = 4200) => {
@@ -170,7 +191,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   };
 
   const all = useMemo(() => {
-    const out: Record<NotebookTab, Item[]> = { highlights: [], notes: [], bookmarks: [] };
+    const out: Record<NotebookTab, Item[]> = { highlights: [], notes: [], pages: [], bookmarks: [] };
     (notes || []).forEach((n) => {
       const hasNote = !!(n.note_text && n.note_text.trim());
       const kind: NotebookTab = hasNote ? "notes" : "highlights";
@@ -375,7 +396,8 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   // ------------------------------------------------------------ render
 
   const loading = authLoading || (!!userId && (notes === null || bookmarks === null));
-  const counts = { highlights: all.highlights.length, notes: all.notes.length, bookmarks: all.bookmarks.length };
+  const counts: Record<NotebookTab, number | null> = { highlights: all.highlights.length, notes: all.notes.length, pages: pageCount, bookmarks: all.bookmarks.length };
+  const pagesTab = tab === "pages";
   const inReview = cards.filter((c) => c.source === "highlight").length;
   const hasFilters = week !== "all" || colour !== "all" || !!ql;
   const wkName = week === "all" ? "any week" : week;
@@ -412,7 +434,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
             Everything you marked while reading, in one place. Each item opens the lesson at the stage you saved it from, not a scroll position.
           </p>
         </div>
-        {userId && (
+        {userId && !pagesTab && (
           <div className="flex flex-wrap items-center gap-2.5">
             <Link href="/learn/review" className="inline-flex min-h-12 items-center gap-2.5 border border-line-strong px-[18px] text-[15px] text-fg hover:bg-surface-2">
               <span className="font-mono text-signal-text">{inReview}</span>in your review deck ›
@@ -450,7 +472,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
 
       {userId && <NotebookDesigns userId={userId} />}
 
-      {!authLoading && !userId ? (
+      {!authLoading && !userId && !(pagesTab && pagesUser) ? (
         <div className="flex flex-wrap items-start gap-8">
           <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-4">
             <AuthPromptBanner variant="notebook" persistent layout="stack" />
@@ -464,8 +486,8 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
         <>
           <section aria-label="Notebook tools" className="flex flex-col gap-4 border-b border-line pb-5">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div role="tablist" aria-label="Notebook sections" className="grid w-full grid-cols-3 border border-line-strong sm:flex sm:w-auto">
-                {(["highlights", "notes", "bookmarks"] as NotebookTab[]).map((t) => {
+              <div role="tablist" aria-label="Notebook sections" className="grid w-full grid-cols-4 border border-line-strong sm:flex sm:w-auto">
+                {TABS.map((t) => {
                   const on = tab === t;
                   return (
                     <button
@@ -474,14 +496,15 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                       role="tab"
                       aria-selected={on}
                       onClick={() => setTabUrl(t)}
-                      className={`inline-flex min-h-12 items-center justify-center gap-2 px-3 text-sm sm:px-[18px] sm:text-[15px] ${on ? "bg-fg font-semibold text-bg" : "text-fg-2 hover:text-fg"}`}
+                      className={`inline-flex min-h-12 items-center justify-center gap-1 px-1 text-[13px] min-[400px]:gap-1.5 min-[400px]:text-sm sm:gap-2 sm:px-[18px] sm:text-[15px] ${on ? "bg-fg font-semibold text-bg" : "text-fg-2 hover:text-fg"}`}
                     >
                       {t.charAt(0).toUpperCase() + t.slice(1)}
-                      <span className={`font-mono text-xs ${on ? "text-bg" : "text-fg-3"}`}>{loading ? "·" : counts[t]}</span>
+                      <span className={`font-mono text-xs ${on ? "text-bg" : "text-fg-3"}`}>{(t === "pages" ? counts.pages === null : loading) ? "·" : counts[t]}</span>
                     </button>
                   );
                 })}
               </div>
+              {!pagesTab && (
               <label className="flex min-h-12 w-full items-center gap-2.5 border border-line-strong bg-surface px-3 sm:w-auto sm:flex-[0_1_380px]">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0 text-fg-3" aria-hidden>
                   <circle cx="11" cy="11" r="7" />
@@ -496,7 +519,9 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                   className="min-h-11 min-w-0 flex-1 bg-transparent text-[15px] text-fg outline-none placeholder:text-fg-4"
                 />
               </label>
+              )}
             </div>
+            {!pagesTab && (
             <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
               <span className="font-mono text-xs tracking-label text-fg-3">WEEK</span>
               <div role="group" aria-label="Filter by week" className="-mx-1 flex max-w-full gap-1 overflow-x-auto px-1 pb-1 sm:flex-wrap sm:overflow-visible">
@@ -525,6 +550,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                 })}
               </div>
             </div>
+            )}
             {tab === "highlights" && (
               <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
                 <span className="font-mono text-xs tracking-label text-fg-3">COLOUR</span>
@@ -559,6 +585,9 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
             )}
           </section>
 
+          {pagesTab ? (
+            <PagesTab onCount={setPageCount} />
+          ) : (
           <div className="flex flex-wrap items-start gap-8">
             <section aria-live="polite" aria-label={`Results`} className="flex min-w-0 flex-[999_1_640px] flex-col gap-6">
               <div className="flex flex-wrap items-baseline justify-between gap-2.5">
@@ -822,6 +851,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
               <CaptureTips />
             </aside>
           </div>
+          )}
         </>
       )}
 

@@ -201,7 +201,7 @@ export function rankDueReviews(sig: ReviewSignals, opts: RankOptions = {}): DueR
       groups.set(k, [...(groups.get(k) || []), c]);
     }
     const totalDue = due.length;
-    const SOURCE_TITLE: Record<string, string> = { highlight: "Your highlights", interview: "Interview answers", trial_miss: "Trial questions you missed", trial_flag: "Trial questions you flagged" };
+    const SOURCE_TITLE: Record<string, string> = { highlight: "Your highlights", interview: "Interview answers", notes: "Your notebook cards", trial_miss: "Trial questions you missed", trial_flag: "Trial questions you flagged" };
     for (const [k, cards] of groups) {
       cards.sort((a, b) => a.box - b.box || a.dueAt.localeCompare(b.dueAt));
       const oldest = cards.reduce((m, c) => (c.dueAt < m ? c.dueAt : m), today);

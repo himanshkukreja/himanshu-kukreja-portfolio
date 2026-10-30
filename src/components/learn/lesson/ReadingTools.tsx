@@ -1,7 +1,6 @@
 "use client";
 
 import AppBack from "@/components/site/AppBack";
-import Link from "next/link";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { ReadAloudBar, type ReadAloudController } from "@/components/ReadAloud";
 import { ListenIcon, PauseIcon } from "@/components/listen/icons";
@@ -12,6 +11,8 @@ import { stagePosition, stageShort } from "./stageText";
 import TermsToggle from "@/components/learn/concepts/TermsToggle";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
+import { openNotebookPanel } from "@/lib/learn/ink/client";
+import SnipButton from "@/components/learn/ink/capture/SnipButton";
 
 const openAsk = () => window.dispatchEvent(new Event(ASK_LESSON_EVENT));
 
@@ -69,6 +70,15 @@ type Props = {
   onContents: () => void;
 };
 
+/** Notebook pages beside the lesson (a split panel on wide screens, a sheet on phones): components/learn/ink. */
+const NotebookIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+    <path d="M5 3h12v18H5z" />
+    <path d="M9 3v18" />
+    <path d="M12.5 14.5l4.5-4.5 2 2-4.5 4.5h-2z" />
+  </svg>
+);
+
 const FocusIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
     <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
@@ -104,6 +114,11 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
           <FocusIcon />
           <span className="font-mono text-[10px] tracking-[0.06em]">FOCUS</span>
         </button>
+        <button type="button" onClick={() => openNotebookPanel()} title="Notebook: write beside this lesson" aria-label="Notebook: write beside this lesson" className={btn(false)}>
+          <NotebookIcon />
+          <span className="font-mono text-[10px] tracking-[0.06em]">NOTEBOOK</span>
+        </button>
+        <SnipButton variant="dock" />
         <TermsToggle variant="dock" />
         <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] text-fg hover:bg-surface-2">
           <span aria-hidden className="font-display text-base font-bold leading-none">
@@ -117,7 +132,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
 }
 
 /**
- * Phone reading toolbar: Listen · Contents · Aa · Focus · Notes · Save, with the Ask AI pill floating above. Sits directly above the site's
+ * Phone reading toolbar: Listen · Contents · Aa · Focus · Notebook · Save, with the Ask AI pill floating above. Sits directly above the site's
  * bottom dock (its height is measured into --site-dock), never on top of it.
  */
 export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus }: Props) {
@@ -201,11 +216,10 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
           <button type="button" onClick={onFocus} aria-label="Focus: just the lesson, full screen" className={sq}>
             <FocusIcon />
           </button>
-          <Link href="/learn/notebook" aria-label="Notebook: highlights and notes" className={sq}>
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
-              <path d="M4 20h4L19 9l-4-4L4 16z" />
-            </svg>
-          </Link>
+          <button type="button" onClick={() => openNotebookPanel()} aria-label="Notebook: write beside this lesson" className={sq}>
+            <NotebookIcon />
+          </button>
+          <SnipButton variant="bar" />
           <button
             type="button"
             onClick={action ?? undefined}

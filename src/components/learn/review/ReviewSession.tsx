@@ -34,8 +34,9 @@ const SRC: Record<ReviewSource, { label: string; glyph: string; title: string; d
   trial_flag: { label: "FLAGGED", glyph: "⚑", title: "Flagged questions", desc: "Ones you got right but flagged as a guess." },
   highlight: { label: "HIGHLIGHT", glyph: "❝", title: "Highlights turned into cards", desc: "A sentence from a lesson with the key phrase blanked out." },
   interview: { label: "INTERVIEW · REVIEW AGAIN", glyph: "?", title: "Interview “review again”", desc: "Reveal cards you marked as not yet solid." },
+  notes: { label: "MY NOTEBOOK", glyph: "✎", title: "Cards from your notebook", desc: "Question cards the AI made from your own notebook pages." },
 };
-const SOURCES: ReviewSource[] = ["trial_miss", "trial_flag", "highlight", "interview"];
+const SOURCES: ReviewSource[] = ["trial_miss", "trial_flag", "highlight", "interview", "notes"];
 const GRADES: { g: ReviewGrade; label: string }[] = [
   { g: "again", label: "Again" },
   { g: "hard", label: "Hard" },

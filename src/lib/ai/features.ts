@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "eval" | "batch";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch";
 
 export type FeatureDef = {
   label: string;
@@ -16,8 +16,14 @@ export type FeatureDef = {
   /** Haiku's cap, when it needs more room: its tuned prompt writes a private plan first, and Haiku doesn't
    *  think, so the plan is its thinking and counts against max_tokens (thinking models get THINK_HEADROOM) */
   haikuMaxTokens?: number;
-  /** cap on what the learner sends, in characters */
+  /** cap on what the learner sends, in characters (text blocks; images have their own caps below) */
   maxInputChars: number;
+  /** images a call may carry (0 or unset: none; the notebook page features take the page image) */
+  maxImages?: number;
+  /** cap on each image's decoded size, in bytes (default 1.5 MB, lib/ai/image.ts) */
+  maxImageBytes?: number;
+  /** cap on each image's longer side, in pixels (default 2000) */
+  maxImageSide?: number;
   /** course chat only: messages a day on the cheaper model once the `perDay` main-model messages are used
    *  (an anti-abuse ceiling, not a budget; the chat's own quota, separate from the shared AI credits) */
   ceiling?: number;
@@ -63,6 +69,17 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // written, for the history list. Part of the chat's own quota (not the shared credits, not the message count); no thinking.
   // perDay: title calls a learner may make a day (a new chat makes one, or two when its first message had no topic)
   "chat-title": { label: "Course chat title", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 60, maxTokens: 24, maxInputChars: 1200, think: false, live: true },
+  // notebook pages (owner-approved 31 Oct 2026): Haiku 5.5 (thinking off) on a handwritten page, billed to the learner's
+  // shared daily credits like every feature but the chat. Measured on five handwritten test pages (31 Oct 2026): every
+  // call under $0.001, so 1 credit each: convert ~$0.0004 (≈3,000 input tokens with the image, 1.5-2.9 s), check
+  // ~$0.0005-0.0009 (2.7-4 s), cards ~$0.0002-0.0003 (1.8-2.9 s). Handwriting word error rate 0% on neat pages, 1.4% messy.
+  // notes-convert: the page image (1000 x 1414 PNG, about 1,900 image tokens) + the typed text of its clips and text
+  // boxes → Markdown. maxTokens: the test pages typed in 130-240 tokens; 1600 leaves room for a dense page.
+  "notes-convert": { label: "Notebook page to typed notes", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 30, maxTokens: 1600, maxInputChars: 10000, maxImages: 1, maxImageBytes: 1_500_000, maxImageSide: 2000, think: false, live: true },
+  // notes-check: the typed notes against the lesson's most relevant sections (the lesson goes in the cached system prompt)
+  "notes-check": { label: "Notebook page check against the lesson", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1200, maxInputChars: 13000, think: false, live: true },
+  // notes-cards: 3-8 question/answer review cards from the typed notes (JSON)
+  "notes-cards": { label: "Notebook page review cards", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1000, maxInputChars: 13000, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

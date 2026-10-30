@@ -26,6 +26,7 @@ import ArticleShorts from "./ArticleShorts";
 import LandingContext from "./LandingContext";
 import BossEntry from "./BossEntry";
 import DesignFirst from "@/components/learn/designfirst/DesignFirst";
+import NotebookPanelHost from "@/components/learn/ink/NotebookPanelHost";
 import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
 import { headerStackBottom, stageRailHeight } from "./layout";
 import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
@@ -229,6 +230,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
         <ReadingDock {...tools} />
         <MobileReadingBar {...tools} />
         {focus && <FocusControls stages={stages} size={size} onSize={cycleSize} onExit={() => changeFocus(false)} />}
+        <NotebookPanelHost lesson={{ week: meta.week, slug: meta.slug, title: meta.title, weekLabel: meta.weekLabel, weekTopic: meta.weekTopic }} />
         <ContentsSheet open={sheet} onClose={closeSheet} toc={toc} stages={stages} kicker={meta.shortLabel.toUpperCase()} title={meta.title} />
       </div>
     </LessonProgressProvider>

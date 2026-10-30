@@ -4,8 +4,9 @@
  * The reader's content layer: renders lesson HTML, applies the reader's highlights and notes,
  * and opens the selection toolbar (highlight · note · bookmark · ask Claude / ChatGPT · copy link).
  *
- * Selection opens the toolbar on mouseup, after a touch long-press (selectionchange), after a
- * keyboard selection (Shift + arrows), or with Shift+F10. Text offsets count characters only
+ * Selection opens the toolbar on mouseup, after a touch long-press or an Apple Pencil / stylus selection
+ * (selectionchange), after a keyboard selection (Shift + arrows), or with Shift+F10. The toolbar also clips the
+ * passage to the notebook or snips the area around it (components/learn/ink/capture; CaptureHost runs snip mode). Text offsets count characters only
  * outside [data-sd-chrome] (captions, toolbars, buttons the renderer adds), so chrome can change
  * without moving a saved highlight.
  */
@@ -30,6 +31,8 @@ import { useTutorActions } from "@/components/learn/selection/useTutorActions";
 import { askAi, CLIENT_LABEL, cleanText, copyAskPrompt, courseName, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
 import { liftTerms, restoreTerms } from "@/lib/concepts/dom";
+import CaptureHost from "@/components/learn/ink/capture/CaptureHost";
+import { useCaptureActions } from "@/components/learn/ink/capture/useCaptureActions";
 
 type HighlightableContentProps = {
   htmlContent: string;
@@ -280,9 +283,9 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     const rects = range.getClientRects();
     const first = rects[0] || range.getBoundingClientRect();
     const last = rects[rects.length - 1] || first;
-    const W = Math.min(window.innerWidth - 16, 580);
+    const W = Math.min(window.innerWidth - 16, 760);
     const H = 54;
-    // touch: dock the toolbar at the bottom of the screen, clear of the native selection
+    // touch / pen: dock the toolbar at the bottom of the screen, clear of the native selection
     // handles and the iOS / Android callout that sit around the selection itself
     if (how === "touch") {
       setMenu({ x: 0, y: 0, placement: "sheet", autoFocus: false });
@@ -305,8 +308,10 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     const onPointerDown = (e: PointerEvent) => {
       lastPointer = e.pointerType || "mouse";
     };
+    // touch and pen (Apple Pencil) selections settle through selectionchange; iPadOS sends no mouseup for a pen drag
+    const handheld = () => lastPointer === "touch" || lastPointer === "pen";
     const onMouseUp = (e: MouseEvent) => {
-      if (lastPointer === "touch") return;
+      if (handheld()) return;
       if ((e.target as Element | null)?.closest?.('[role="toolbar"][aria-label]')?.hasAttribute("data-sd-chrome")) return;
       window.setTimeout(() => {
         const r = captureSelection();
@@ -319,7 +324,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
         window.clearTimeout(touchTimer);
         return;
       }
-      if (lastPointer !== "touch") return;
+      if (!handheld()) return;
       window.clearTimeout(touchTimer);
       touchTimer = window.setTimeout(() => {
         const r = captureSelection();
@@ -643,6 +648,17 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
   /* ---------------- the course tutor: "Explain this" / "Ask the tutor" on the passage (and Alt+A) */
   const tutor = useTutorActions(contentRef, { getRange: () => rangeRef.current, onDone: closeMenu });
 
+  /* ---------------- notebook pages: clip the passage / snip the area around it */
+  const lessonKey = `${week}/${lessonSlug}`;
+  const capture = useCaptureActions({
+    rootRef: contentRef,
+    getRange: () => rangeRef.current,
+    getText: () => selectedTextRef.current || selectedText,
+    title: () => lessonTitle || document.title,
+    lessonKey,
+    onDone: closeMenu,
+  });
+
   const handleCopyPrompt = async () => {
     const text = selectedTextRef.current || selectedText;
     const ctx = askContext();
@@ -823,6 +839,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           onAskHere={aiStatus?.features["lesson-qa"] || chatOn ? handleAskHere : undefined}
           onCopyPrompt={handleCopyPrompt}
           {...tutor.menuProps(selectedText)}
+          {...capture}
           onCopyLink={() => void handleLink("copy")}
           onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void handleLink("share") : undefined}
           onClose={closeMenu}
@@ -830,6 +847,8 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
       )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      <CaptureHost rootRef={contentRef} title={lessonTitle || ""} lessonKey={lessonKey} />
 
       <AskLessonPanel
         // remounted per opening, so it starts from the passage that was selected

@@ -7,7 +7,8 @@
  * Same triggers as the lesson reader: mouse up, a touch long-press (toolbar docked to the bottom,
  * clear of the native selection UI), Shift + arrows, or Shift+F10.
  * "Ask here" (and the page's Ask AI buttons, via ASK_LESSON_EVENT) open the built-in AI panel, which
- * answers from this case file. With the course chat on, "Explain this" / "Ask the tutor" take the place of
+ * answers from this case file. "Clip" / "Snip" put the passage (or an area of the page) in the notebook
+ * (components/learn/ink/capture). Pen (Apple Pencil) selections open the toolbar like a touch long-press. With the course chat on, "Explain this" / "Ask the tutor" take the place of
  * "Ask here" (useTutorActions; signed out: "Sign in to ask the tutor").
  */
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -18,6 +19,8 @@ import { useTutorActions } from "@/components/learn/selection/useTutorActions";
 import Toast from "@/components/Toast";
 import { askAi, CLIENT_LABEL, copyAskPrompt, headingBefore, pageUrl, surroundingText, type AskClient, type AskContext } from "@/lib/learn/askAi";
 import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink";
+import CaptureHost from "@/components/learn/ink/capture/CaptureHost";
+import { useCaptureActions } from "@/components/learn/ink/capture/useCaptureActions";
 
 type Menu = { x: number; y: number; placement: "above" | "below" | "sheet"; autoFocus: boolean };
 
@@ -41,6 +44,7 @@ export default function StorySelectionAsk({ rootRef, title, slug }: { rootRef: R
   const closeMenu = useCallback(() => setMenu(null), []);
   // "Explain this" / "Ask the tutor" (the course chat) on the passage, and Alt+A
   const tutor = useTutorActions(rootRef, { getRange: () => rangeRef.current, onDone: closeMenu });
+  const notebook = useCaptureActions({ rootRef, getRange: () => rangeRef.current, getText: () => text, title, lessonKey: null, onDone: closeMenu });
 
   const capture = useCallback((): Range | null => {
     const root = rootRef.current;
@@ -80,8 +84,9 @@ export default function StorySelectionAsk({ rootRef, title, slug }: { rootRef: R
     const onPointerDown = (e: PointerEvent) => {
       lastPointer = e.pointerType || "mouse";
     };
+    const handheld = () => lastPointer === "touch" || lastPointer === "pen";
     const onMouseUp = (e: MouseEvent) => {
-      if (lastPointer === "touch") return;
+      if (handheld()) return;
       if ((e.target as Element | null)?.closest?.('[role="toolbar"][data-sd-chrome]')) return;
       window.setTimeout(() => {
         const r = capture();
@@ -94,7 +99,7 @@ export default function StorySelectionAsk({ rootRef, title, slug }: { rootRef: R
         window.clearTimeout(touchTimer);
         return;
       }
-      if (lastPointer !== "touch") return;
+      if (!handheld()) return;
       window.clearTimeout(touchTimer);
       touchTimer = window.setTimeout(() => {
         const r = capture();
@@ -217,12 +222,14 @@ export default function StorySelectionAsk({ rootRef, title, slug }: { rootRef: R
           }
           onCopyPrompt={onCopyPrompt}
           {...tutor.menuProps(text)}
+          {...notebook}
           onCopyLink={() => void onLink("copy")}
           onShareLink={menu.placement === "sheet" && canNativeShare() ? () => void onLink("share") : undefined}
           onClose={() => setMenu(null)}
         />
       )}
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+      <CaptureHost rootRef={rootRef} title={title} lessonKey={null} />
       <AskLessonPanel
         // remounted per opening, so it starts from the passage that was selected
         key={askHere.open ? `open:${askHere.selection}` : "closed"}
