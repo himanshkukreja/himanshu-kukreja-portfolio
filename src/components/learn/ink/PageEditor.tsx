@@ -3,7 +3,9 @@
 /**
  * One notebook page, editable: the full-screen editor (/learn/notebook/page/<id>) and the Notebook panel beside a
  * lesson both use it. Loads the page (this device's unsaved copy first, if any), keeps undo/redo, autosaves,
- * registers itself as the open page (so clips and snips land here), and mounts the AI actions in its toolbar.
+ * registers itself as the open page (so clips and snips land here), and mounts the AI in its toolbar: "Turn into
+ * text" (then an Ink / Text toggle) as a first-class action, the AI menu (check, cards) beside it, and, after the
+ * learner writes and pauses, a "Turn into text?" chip over the page (it only suggests; nothing is sent until tapped).
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -17,10 +19,17 @@ import { loadPage, usePageAutosave, type SaveState } from "@/lib/learn/ink/usePa
 import InkCanvas, { type InkCanvasHandle, type InkContent, type InkToolId } from "./InkCanvas";
 import InkToolbar from "./InkToolbar";
 import PageAiActions from "./PageAiActions";
+import { usePageAi } from "./ai/usePageAi";
+import { ConvertNudge, PageTextControls, type PageMode } from "./ai/TextControls";
+import TypedPanel from "./ai/TypedPanel";
 
 const PENCIL_KEY = "hk.ink.pencilOnly";
 const PREFS_KEY = "hk.ink.prefs";
 const HISTORY = 100;
+/** the pause after the last stroke before the "Turn into text?" chip shows */
+const NUDGE_MS = 4000;
+/** the chip's × holds for the rest of the session, per page */
+const NUDGE_OFF = (pageId: string) => `hk.ink.nudgeOff:${pageId}`;
 
 type Snap = InkContent;
 
@@ -78,6 +87,12 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
   const [zoom, setZoom] = useState(1);
   const [notice, setNotice] = useState<{ text: string; action?: { label: string; run: () => void } } | null>(null);
   const canvas = useRef<InkCanvasHandle>(null);
+  const [mode, setMode] = useState<PageMode>("ink");
+  // the chip: a tick per change on the page, the signature the page had when it went quiet, pointers down on it
+  const [inkTick, setInkTick] = useState(0);
+  const [idleSig, setIdleSig] = useState<string | null>(null);
+  const [nudgeOff, setNudgeOff] = useState(false);
+  const pointers = useRef(new Set<number>());
   // the page as last set (handlers read it without waiting for a render)
   const pageRef = useRef<NotebookPage | null>(null);
 
@@ -156,6 +171,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
     pageRef.current = np;
     setPage(np);
     setHist({ undo: past.current.length, redo: 0 });
+    setInkTick((t) => t + 1);
   }, []);
 
   const step = useCallback((back: boolean) => {
@@ -183,6 +199,84 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
     pageRef.current = np;
     setPage(np);
   }, []);
+
+  // ------------------------------------------------------------------ handwriting → text
+
+  const ai = usePageAi(page, patchPage);
+  const textMode = mode === "text" && !!ai.typed;
+  const sigRef = useRef(ai.sig);
+  useEffect(() => {
+    sigRef.current = ai.sig;
+  }, [ai.sig]);
+
+  /** Type the page up (or again), then show the text. */
+  const convertNow = async () => {
+    setIdleSig(null);
+    if (await ai.run("convert")) setMode("text");
+  };
+  const convertRef = useRef(convertNow);
+  useEffect(() => {
+    convertRef.current = convertNow;
+  });
+
+  // a failed conversion from the toolbar or the chip says so over the page (the Text view shows its own)
+  const errAt = ai.error?.action === "convert" ? ai.error.at : 0;
+  const errText = ai.error?.action === "convert" ? ai.error.text : "";
+  useEffect(() => {
+    if (!errAt || textMode) return;
+    setNotice({ text: errText, action: { label: "Try again", run: () => void convertRef.current() } });
+  }, [errAt, errText, textMode]);
+
+  // the chip's ×, per page for this session
+  useEffect(() => {
+    let off = false;
+    try {
+      off = window.sessionStorage.getItem(NUDGE_OFF(pageId)) === "1";
+    } catch {
+      // ignore
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a per-session preference
+    setNudgeOff(off);
+  }, [pageId]);
+  // the page went quiet: NUDGE_MS after the last change, unless a pointer is still down on it
+  useEffect(() => {
+    if (!inkTick) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a new change hides the chip until the next pause
+    setIdleSig(null);
+    const t = window.setTimeout(() => {
+      if (!pointers.current.size) setIdleSig(sigRef.current);
+    }, NUDGE_MS);
+    return () => window.clearTimeout(t);
+  }, [inkTick]);
+  const dismissNudge = () => {
+    setNudgeOff(true);
+    setIdleSig(null);
+    try {
+      window.sessionStorage.setItem(NUDGE_OFF(pageId), "1");
+    } catch {
+      // ignore
+    }
+  };
+  // a pointer released outside the page (or lost) never leaves the chip blocked
+  useEffect(() => {
+    const up = (e: PointerEvent) => pointers.current.delete(e.pointerId);
+    window.addEventListener("pointerup", up);
+    window.addEventListener("pointercancel", up);
+    return () => {
+      window.removeEventListener("pointerup", up);
+      window.removeEventListener("pointercancel", up);
+    };
+  }, []);
+  const showNudge =
+    !!page && !textMode && !nudgeOff && !!idleSig && idleSig === ai.sig && page.strokes.length > 0 && (!ai.typed || ai.stale) && !ai.blocked && !ai.busy;
+  // any pointer down on the page (a stroke starting, a pan) hides the chip; it comes back only after new strokes
+  const onPagePointer = (e: React.PointerEvent) => {
+    if ((e.target as Element).closest?.("[data-ink-nudge]")) return;
+    if (e.type === "pointerdown") {
+      pointers.current.add(e.pointerId);
+      setIdleSig(null);
+    } else pointers.current.delete(e.pointerId);
+  };
 
   // the open page: clips and snips from the capture tools land here
   useEffect(() => {
@@ -220,6 +314,8 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
       // the panel shares the window with the lesson: only take keys while the pointer/focus is in the editor
       if (variant === "panel" && !document.querySelector("[data-ink-editor]:hover, [data-ink-editor]:focus-within")) return;
+      // the Text view covers the page: no tool keys, and Backspace never deletes a selection out of sight
+      if (textMode) return;
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault();
@@ -247,7 +343,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [undo, redo, variant]);
+  }, [undo, redo, variant, textMode]);
 
   // ------------------------------------------------------------------ navigation
 
@@ -304,7 +400,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
     ? [
         page.title,
         ...page.items.map((it) => (it.kind === "clip" ? `Clip from ${it.source.title}: ${it.text}` : it.kind === "text" ? it.text : `Snip from ${it.source.title}`)),
-        page.convertedMd ? `Typed version: ${page.convertedMd}` : "",
+        ai.typed ? `Typed version: ${ai.typed}` : "",
       ]
         .filter(Boolean)
         .join("\n")
@@ -364,13 +460,16 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
           </label>
         )}
         {page && (
-          <div className="flex shrink-0 items-center">
-            <PageAiActions page={page} onPageChange={(p) => patchPage(p)} />
+          <div className="flex shrink-0 items-center gap-1.5">
+            <PageTextControls ai={ai} mode={textMode ? "text" : "ink"} onMode={setMode} onConvert={() => void convertNow()} />
+            <PageAiActions page={page} ai={ai} onShowText={() => setMode("text")} />
           </div>
         )}
         {headerExtra}
       </header>
 
+      {/* the tools and the page; the Text view covers both */}
+      <div className="relative flex min-h-0 flex-1 flex-col">
       <div className={`flex shrink-0 items-center gap-x-2 border-b border-line bg-surface ${panel ? "px-1" : "px-2 sm:px-3"}`}>
         <InkToolbar
           tool={tool}
@@ -410,7 +509,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
         />
       </div>
 
-      <div className="relative min-h-0 flex-1">
+      <div className="relative min-h-0 flex-1" onPointerDownCapture={onPagePointer} onPointerUpCapture={onPagePointer} onPointerCancelCapture={onPagePointer}>
         {page ? (
           <InkCanvas
             ref={canvas}
@@ -443,6 +542,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
             </button>
           </div>
         )}
+        {showNudge && <ConvertNudge update={!!ai.typed} ownKey={!!ai.status?.ownKey} onConvert={() => void convertNow()} onDismiss={dismissNudge} />}
         {notice && (
           <div role="status" className="absolute bottom-3 left-3 right-3 z-20 mx-auto flex max-w-[520px] animate-hk-in items-center gap-3 bg-fg py-2 pl-4 pr-2 text-bg">
             <span className="min-w-0 flex-1 text-[13px] font-semibold">{notice.text}</span>
@@ -463,6 +563,11 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
             </button>
           </div>
         )}
+      </div>
+      {textMode && page && <TypedPanel key={`${page.id}:${page.convertedAt}`} ai={ai} convertedAt={page.convertedAt} pageTitle={page.title} lessonKey={page.lessonKey} onInk={() => setMode("ink")} />}
+      </div>
+      <div className="sr-only" aria-live="polite">
+        {showNudge ? (ai.typed ? "Suggestion: update this page's text. The button is over the page, top right." : "Suggestion: turn this page into text. The button is over the page, top right.") : ""}
       </div>
       <div className="sr-only" aria-live="off">
         {textAlt}

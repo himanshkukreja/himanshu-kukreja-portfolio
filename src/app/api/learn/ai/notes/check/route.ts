@@ -49,7 +49,7 @@ export async function POST(request: Request) {
   });
   if (!r.ok) return aiError(r);
   await saveTranscript(r.callId, me.id, "notes-check", input, r.text);
-  const parsed = parseCheck(r.text, context.sections, context.texts);
+  const parsed = parseCheck(r.text, context.sections, context.texts, notes, context.outline);
   const href = `/learn/${COURSE_ID}/${lk.week}/${lk.slug}`;
   // an answer that isn't the JSON asked for: show it as text rather than lose what was paid for
   if (!parsed) return NextResponse.json({ summary: "", items: [], raw: r.text.slice(0, 4000), lesson: { title: lesson.resource.title, href }, credits: r.credits, creditsLeft: r.creditsLeft });

@@ -11,7 +11,7 @@ const inline = (s: string) =>
     .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1<em>$2</em>")
     .replace(/\[\?\]/g, '<span class="bg-signal/15 px-0.5 font-mono text-[0.9em] text-signal-text" title="the AI couldn&#39;t read this word">[?]</span>');
 
-export function notesHtml(md: string): string {
+export function notesHtml(md: string, page = false): string {
   const out: string[] = [];
   let lastIndent = 0;
   for (const raw of md.replace(/\r\n?/g, "\n").split("\n")) {
@@ -25,7 +25,9 @@ export function notesHtml(md: string): string {
     const h = line.match(/^(#{1,4})\s+(.*)$/);
     if (h) {
       const big = h[1].length === 1;
-      out.push(`<p class="m-0 ${big ? "text-[17px]" : "text-[15.5px]"} mt-1 font-semibold leading-snug text-fg">${inline(h[2])}</p>`);
+      // the Text view of a page reads like a page: a real title and section heads
+      const size = page ? (big ? "font-display text-[24px] font-extrabold tracking-[-0.02em] mb-1" : "font-display text-[18.5px] font-bold tracking-[-0.01em] mt-3") : big ? "text-[17px] font-semibold" : "text-[15.5px] font-semibold";
+      out.push(`<p class="m-0 ${size} mt-1 leading-snug text-fg">${inline(h[2])}</p>`);
       lastIndent = 0;
       continue;
     }
@@ -51,6 +53,6 @@ export function notesHtml(md: string): string {
   return out.join("");
 }
 
-export default function NotesMd({ md, className = "" }: { md: string; className?: string }) {
-  return <div className={`flex flex-col gap-1 text-[14.5px] leading-relaxed text-fg-2 ${className}`} dangerouslySetInnerHTML={{ __html: notesHtml(md) }} />;
+export default function NotesMd({ md, page = false, className = "" }: { md: string; page?: boolean; className?: string }) {
+  return <div className={`flex flex-col ${page ? "gap-1.5 text-[16.5px] leading-[1.7] text-fg" : "gap-1 text-[14.5px] leading-relaxed text-fg-2"} ${className}`} dangerouslySetInnerHTML={{ __html: notesHtml(md, page) }} />;
 }

@@ -5,7 +5,7 @@
  */
 import { NextResponse } from "next/server";
 import type { AiResult } from "@/lib/ai/client";
-import { NOTES_MD_MAX } from "@/lib/ai/notes";
+import { NOTES_MD_MAX, readTyped } from "@/lib/ai/notes";
 
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
 const LESSON_KEY = /^([A-Za-z0-9-]{1,120})\/([A-Za-z0-9-]{1,120})$/;
@@ -20,7 +20,8 @@ export function lessonKeyOf(v: unknown): { key: string; week: string; slug: stri
 
 /** The typed notes a learner sends to check or turn into cards (a page's typed version, maybe edited). */
 export function notesOf(v: unknown): string {
-  return typeof v === "string" ? v.replace(/\r\n?/g, "\n").trim().slice(0, NOTES_MD_MAX) : "";
+  // the page's ink stamp (a comment on the last line) is the page's own bookkeeping, never part of the notes
+  return typeof v === "string" ? readTyped(v.replace(/\r\n?/g, "\n")).md.slice(0, NOTES_MD_MAX) : "";
 }
 
 /** A refused or failed call, as the AI routes answer it (502 for the API's failure, 429 for every limit). */

@@ -9,11 +9,15 @@
  * - the check's grounding (parseCheck): an unknown section or a "wrong" without a real quote from the lesson becomes
  *   "not in this lesson", never wrong; a "wrong" that argues itself round becomes right;
  * - the cards (parseCards): 3-8 clean, distinct cards from messy JSON, none from junk; stable ids per question;
- * - the lesson context for a check (notesLessonContext): a note heading finds its lesson section; code is dropped.
+ * - the lesson context for a check (notesLessonContext): a note heading finds its lesson section; each note line
+ *   pulls in its own section (by its words and phrases); same-named sections are told apart; code is dropped;
+ * - "missing" points the notes already have (notesHave): a formula, a term or a restatement in the notes drops them;
+ * - the typed version's ink stamp (inkSignature, withInkStamp, readTyped): hidden, kept across edits, changes with
+ *   the ink.
  */
 import zlib from "zlib";
 import { base64Bytes, checkImage, contentText, gateImages, sniffImage, type AiImageBlock } from "../src/lib/ai/image";
-import { cardRef, cleanNotesMd, EMPTY_PAGE, NOTES_MD_MAX, pageItems, pageItemsText, parseCards, parseCheck, quoteIn } from "../src/lib/ai/notes";
+import { cardRef, cleanNotesMd, EMPTY_PAGE, firstJson, inkSignature, NOTES_MD_MAX, notesHave, pageItems, pageItemsText, parseCards, parseCheck, quoteIn, readTyped, withInkStamp } from "../src/lib/ai/notes";
 import { notesLessonContext } from "../src/lib/ai/retrieve";
 import { notesHtml } from "../src/components/learn/ink/ai/NotesMd";
 import { FEATURES } from "../src/lib/ai/features";
@@ -188,6 +192,52 @@ ok(kinds("outside").includes("Redis uses Raft"), "plain-string outside items are
 ok(parseCheck("I couldn't do that", heads) === null, "no JSON → null (the route shows the text instead)");
 ok(quoteIn("Stale reads are rare", texts[heads[1]]) && !quoteIn("Paxos is used", texts[heads[1]]) && !quoteIn("rare", texts[heads[1]]), "quoteIn: real quotes yes, invented or tiny ones no");
 
+// ---------------------------------------------------------------- missing points the notes already have
+
+console.log("missing points the notes have");
+const qnotes = "# Replication notes\nsync repl = slower writes but no data loss\nread-your-writes → read from leader for 1 min after a write\nquorum: W + R > N e.g. N=3, W=2, R=2\n**split brain!!** → fencing token\nfailover takes 10-30 s";
+ok(notesHave({ note: "Quorum rule W + R > N ensures reads see the latest write, with example N=3, W=2, R=2", term: "Quorum overlap" }, qnotes), "a formula in the notes (W + R > N) covers the point, whatever its term");
+ok(notesHave({ note: "Reads overlap writes when enough nodes answer.", term: "quorum rule" }, qnotes), "a term in the notes ('quorum', generic 'rule' aside) covers the point");
+ok(notesHave({ note: "x", term: "Read-your-writes" }, qnotes) && notesHave({ note: "x", term: "split-brain" }, qnotes), "hyphenated terms match the notes' spelling");
+ok(!notesHave({ note: "Semi-synchronous replication waits for one follower.", term: "semi-synchronous replication" }, qnotes), "a term the notes lack (semi-sync) stays missing");
+ok(!notesHave({ note: "Fence the old primary before promoting a new one.", term: "fencing the old primary" }, qnotes), "a term only partly in the notes stays missing");
+ok(!notesHave({ note: "Monotonic reads stop a user seeing time go backwards." }, qnotes), "with no term, a new point stays missing");
+ok(notesHave({ note: "x", term: "synchronous replication" }, "sync repl = slower writes"), "a notes abbreviation (repl, sync) counts");
+const qres = parseCheck(
+  JSON.stringify({ summary: "s", right: [], wrong: [], missing: [{ note: "The quorum rule W + R > N means reads see the latest write.", term: "quorum overlap", section: heads[1] }, { note: "Semi-sync waits for one follower.", term: "semi-synchronous replication", section: heads[1] }], outside: [] }),
+  heads,
+  texts,
+  qnotes,
+);
+ok(qres?.items.filter((x) => x.kind === "missing").length === 1 && qres.items[0].term === "semi-synchronous replication", "parseCheck drops a missing point the notes have and keeps the real one with its term");
+const ores = parseCheck(
+  JSON.stringify({ summary: "s", right: [{ note: "split brain → fencing token", section: "8.2 Fencing: The Solution to Split-Brain" }, { note: "Redis uses Raft", section: "8.2 Fencing: The Solution to Split-Brain" }], wrong: [], missing: [], outside: [] }),
+  heads,
+  texts,
+  qnotes,
+  [...heads, "8.2 Fencing: The Solution to Split-Brain"],
+);
+ok(ores?.items[0].kind === "right" && ores.items[0].section === "8.2 Fencing: The Solution to Split-Brain", "a right claim under a real (unshown) section named for its topic stays right");
+ok(ores?.items[1].kind === "outside", "a right claim under a real section about something else is still not in this lesson");
+const gres = parseCheck(JSON.stringify({ summary: "s", right: [{ note: "quorum: W + R > N e.g. N=3", section: "Chapter 2: Replication Architectures" }], wrong: [], missing: [], outside: [] }), ["Quorums"], { Quorums: "If **W + R > N**, every read sees the latest write." }, qnotes, ["Chapter 2: Replication Architectures", "Quorums"]);
+ok(gres?.items[0].kind === "right" && gres.items[0].section === "Quorums", "a right claim citing the chapter above is grounded in the shown section that holds its formula");
+ok(firstJson<{ outside: { note: string }[] }>('{"outside":[{"note":"a"},{"note":"b.","}]}')?.outside[1].note === "b.", "a stray quote before the closing brackets is repaired");
+ok(firstJson<{ a: number[] }>('{"a":[1,2,],}')?.a.length === 2, "trailing commas are repaired");
+
+// ---------------------------------------------------------------- the ink stamp
+
+console.log("ink stamp");
+const st = (id: string, pts: number[]) => ({ id, tool: "pen" as const, color: "ink" as const, size: 2, pts });
+const pg = { strokes: [st("a", [10, 10, 0, 20, 20, 0, 30, 30, 0])], items: [{ id: "t", kind: "text" as const, text: "hi", x: 1, y: 2, w: 300 }] };
+const sig = inkSignature(pg);
+ok(sig === inkSignature({ ...pg }) && sig !== inkSignature({ ...pg, strokes: [...pg.strokes, st("b", [1, 1, 0, 2, 2, 0, 3, 3, 0])] }), "a new stroke changes the signature");
+ok(sig !== inkSignature({ ...pg, strokes: [st("a", [15, 10, 0, 25, 20, 0, 35, 30, 0])] }) && sig !== inkSignature({ ...pg, items: [{ ...pg.items[0], text: "hi!" }] }) && sig !== inkSignature({ ...pg, strokes: [] }), "moving, typing and erasing change it too");
+const stamped = withInkStamp("# Notes\n- a", sig);
+ok(stamped.endsWith(`<!-- ink:v1:${sig} -->`) && readTyped(stamped).md === "# Notes\n- a" && readTyped(stamped).sig === sig && !readTyped(stamped).edited, "the stamp is a hidden last line, read back exactly");
+ok(readTyped(withInkStamp(stamped, sig, true)).edited && readTyped(withInkStamp(stamped, sig, true)).md === "# Notes\n- a", "re-stamping keeps one stamp and can mark edits");
+ok(readTyped("plain old text").sig === null && readTyped(null).md === "" && withInkStamp("", sig) === "", "unstamped (older) text has no signature; empty text stays empty");
+ok(!notesHtml(readTyped(stamped).md).includes("ink:v1"), "the stamp never renders");
+
 // ---------------------------------------------------------------- cards
 
 console.log("cards");
@@ -237,6 +287,40 @@ const ctx = notesLessonContext(lesson, "## Write-through\n- write goes to cache 
 ok(ctx.sections.includes("2.3 Pattern 3: Write-Through") && ctx.sections.includes("2.4 Pattern 4: Write-Behind (Write-Back)"), "each note heading finds its lesson section");
 ok(!ctx.text.includes("def write") && !ctx.text.includes("not a heading"), "code blocks are left out of the context");
 ok(ctx.text.startsWith("Lesson outline (all sections):") && ctx.texts["2.3 Pattern 3: Write-Through"].includes("together"), "the outline comes first, and each shown section's text is returned for quote checks");
+const lesson2 = [
+  "# Day 2",
+  "",
+  "## 2.1 Leader-Follower",
+  "",
+  "#### How It Works",
+  "",
+  "One leader takes writes and streams them to followers.",
+  "",
+  "## 2.3 Leaderless",
+  "",
+  "#### How It Works",
+  "",
+  "Any node takes writes; clients read from several.",
+  "",
+  "#### Quorums: The Math of Consistency",
+  "",
+  "Background on replication and nodes. ".repeat(60),
+  "",
+  "If **W + R > N**, every read is guaranteed to see the latest write.",
+  "",
+  "## 8.2 Fencing: The Solution to Split-Brain",
+  "",
+  "Fencing ensures the old primary can't accept writes after failover.",
+  "",
+  "## 9.9 Filler",
+  "",
+  "Replication replication leader follower writes reads. ".repeat(40),
+].join("\n");
+const ctx2 = notesLessonContext(lesson2, "# Replication notes\nleader → followers\nquorum: W + R > N e.g. N=3\nsplit brain → fencing token", 2400);
+ok(ctx2.sections.includes("Quorums: The Math of Consistency") && ctx2.sections.includes("8.2 Fencing: The Solution to Split-Brain"), "each note line pulls in its own section, within a small budget");
+ok(ctx2.texts["Quorums: The Math of Consistency"].includes("W + R > N"), "a long section is cut around the paragraph the note is about");
+const ctx3 = notesLessonContext(lesson2, "## How it works\n- leader streams writes to followers\n- any node takes writes");
+ok(ctx3.text.includes("- How It Works (2.1 Leader-Follower)") && ctx3.text.includes("How It Works (2.3 Leaderless)"), "same-named sections are told apart by their parent heading");
 
 // ---------------------------------------------------------------- rendering
 

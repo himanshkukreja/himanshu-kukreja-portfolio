@@ -5,8 +5,11 @@
  *   pageItemsText   the typed text on a page (clips and text boxes) as the model sees it, capped
  *   cleanNotesMd    the model's Markdown made safe and tidy: no fences around the whole answer, no preamble, no plan
  *                   line, no course block syntax, bullets normalised, blank runs collapsed, length capped
- *   parseCheck      the check's JSON → items, each tied to a real section of the lesson (an invented section is dropped)
+ *   parseCheck      the check's JSON → items, each tied to a real section of the lesson (an invented section is dropped),
+ *                   and no "missing" point the notes already have (notesHave)
  *   parseCards      the cards' JSON → 3-8 clean question/answer pairs
+ *   inkSignature    a fingerprint of a page's ink and items, stamped on its typed version (withInkStamp / readTyped)
+ *                   so the page can tell when the handwriting changed after it was typed up
  */
 import type { NotebookPage } from "@/lib/learn/ink/types";
 
@@ -80,6 +83,14 @@ export function cleanNotesMd(raw: string): string {
 /** The first JSON object in a model answer (it may wrap it in a fence or a sentence). */
 export function firstJson<T>(raw: string): T | null {
   const t = String(raw || "").replace(/^\s*<plan>[\s\S]*?<\/plan>\s*/i, "");
+  const found = walkJson<T>(t);
+  if (found !== null) return found;
+  // a small model's slips at the end of a list: a stray quote after the last comma ("…",\"}]), trailing commas
+  const fixed = t.replace(/,\s*"\s*(?=[}\]])/g, "").replace(/,\s*(?=[}\]])/g, "");
+  return fixed === t ? null : walkJson<T>(fixed);
+}
+
+function walkJson<T>(t: string): T | null {
   const start = t.indexOf("{");
   if (start < 0) return null;
   // walk to the matching brace (strings may hold braces)
@@ -107,7 +118,7 @@ const clip = (s: unknown, n: number) => (typeof s === "string" ? s.replace(/\s+/
 
 // ------------------------------------------------------------------ check
 
-export type CheckItem = { kind: "right" | "wrong" | "missing" | "outside"; note: string; lesson: string; section: string | null; quote?: string };
+export type CheckItem = { kind: "right" | "wrong" | "missing" | "outside"; note: string; lesson: string; section: string | null; quote?: string; term?: string };
 export type CheckResult = { summary: string; items: CheckItem[] };
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -138,13 +149,83 @@ export function quoteIn(quote: string, text: string): boolean {
   return qw.length >= 4 && qw.filter((w) => tw.has(w)).length / qw.length >= 0.85;
 }
 
+// words that name the kind of thing, not the thing ("the quorum rule" is about "quorum")
+const GENERIC = new Set(
+  "the a an and or of to in on for is are be it its this that with as at by from not no vs via per rule rules formula concept idea pattern example examples definition condition math meaning point points key detail details note notes lesson section term terms basic basics overview general consistency guarantee problem technique approach strategy mechanism method model".split(" "),
+);
+const fold = (w: string) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w);
+/** The words of a text, lowercased, symbols out, simple plurals folded ("Quorums:" → "quorum"). */
+const termWords = (s: string) => norm(s.replace(/[’']/g, "")).split(" ").filter(Boolean).map(fold);
+/** Formulas and number ranges, spaces and case out: "W + R > N" → "w+r>n", "10 - 30 s" → "10-30s". */
+const tight = (s: string) =>
+  s
+    .toLowerCase()
+    .replace(/[≥⩾]/g, ">=")
+    .replace(/[≤⩽]/g, "<=")
+    .replace(/[−–]/g, "-")
+    .replace(/×/g, "*")
+    // spaces around an operator go ("W + R > N" → "w+r>n"); spaces between words stay, so a formula never swallows them
+    .replace(/\s*([+*/=<>^≈-])\s*/g, "$1");
+function formulas(s: string): string[] {
+  const t = tight(s);
+  const out = t.match(/[a-z0-9.]+(?:(?:[+*/=<>^≈]+|(?<=\d)-(?=\d))[a-z0-9.]+)+/g) ?? [];
+  return out.filter((f) => f.length >= 5 && /[+*/=<>^≈]/.test(f));
+}
+
+/**
+ * Do the notes already have this point? A "missing" item the notes contain (a small model sometimes lists the
+ * quorum rule as missing beside "quorum: W + R > N") is dropped. Yes when: one of its formulas is in the notes
+ * (spaces and case aside), or every word of its `term` (the idea's name, generic words like "rule" aside) is in the
+ * notes (a notes word may be the start of it: "repl" for "replication"), or, with no term, nearly every word of the
+ * point is (a restatement of the notes).
+ */
+export function notesHave(item: { note: string; term?: string }, notes: string): boolean {
+  if (!notes.trim()) return false;
+  const compact = tight(notes);
+  if (formulas(`${item.term ?? ""} ${item.note}`).some((f) => compact.includes(f))) return true;
+  const have = new Set(termWords(notes));
+  const inNotes = (w: string) => have.has(w) || [...have].some((h) => h.length >= 4 && w.startsWith(h));
+  const term = item.term ? termWords(item.term).filter((w) => !GENERIC.has(w) && (w.length > 1 || /\d/.test(w))) : [];
+  if (term.length) {
+    if (term.every(inNotes)) return true;
+    // the term written as one phrase in the notes ("read-your-writes" for "read your writes")
+    if (norm(notes).includes(norm(item.term!))) return true;
+    return false;
+  }
+  const words = termWords(item.note).filter((w) => !GENERIC.has(w) && w.length > 2);
+  return words.length >= 3 && words.filter(inNotes).length / words.length >= 0.8;
+}
+
+/** The shown section a note comes from: one holding its formula, else nearly all (75%) of its words; null if none. */
+function shownSectionFor(note: string, texts: Record<string, string>): string | null {
+  const fs = formulas(note);
+  const nw = [...new Set(termWords(note).filter((w) => w.length > 2 && !GENERIC.has(w)))];
+  let best: string | null = null;
+  let top = 0;
+  for (const [h, t] of Object.entries(texts)) {
+    const tt = tight(t);
+    const tw = new Set(termWords(`${h} ${t}`));
+    const sc = fs.filter((f) => tt.includes(f)).length * 2 + (nw.length >= 2 ? nw.filter((w) => tw.has(w)).length / nw.length : 0);
+    if (sc > top) {
+      top = sc;
+      best = h;
+    }
+  }
+  return top >= 0.75 ? best : null;
+}
+
 /**
  * The check's answer → items. Grounding is enforced here too: a "right", "wrong" or "missing" item must name a section
  * the model was shown; one that doesn't is kept only as "outside" (the lesson doesn't cover it), never as wrong. A
  * "wrong" item must also quote the lesson's own words from that section (`texts`, when given): without a quote that is
  * really there, or with "the lesson doesn't say…" as its reason, the lesson doesn't settle the claim: not in this lesson.
+ * With `notes`, a "missing" point the notes already have is dropped (notesHave). A "right" that names a section it
+ * wasn't shown (often the chapter above the one it read) stays right when a shown section holds the note's formula or
+ * nearly all its words, or (with `outline`, every heading of the lesson) when the heading it names is a real one
+ * named for the note's topic ("split brain → fencing token" under "8.2 Fencing: The Solution to Split-Brain"): the
+ * lesson does cover it, so "not in this lesson" would be false.
  */
-export function parseCheck(raw: string, headings: string[], texts?: Record<string, string>): CheckResult | null {
+export function parseCheck(raw: string, headings: string[], texts?: Record<string, string>, notes?: string, outline?: string[]): CheckResult | null {
   type J = { summary?: unknown; right?: unknown; wrong?: unknown; missing?: unknown; outside?: unknown };
   const j = firstJson<J>(raw);
   if (!j) return null;
@@ -156,9 +237,25 @@ export function parseCheck(raw: string, headings: string[], texts?: Record<strin
     if (!note && !lesson) return;
     if (kind === "outside") return items.push({ kind, note: note || lesson, lesson: "", section: null });
     const section = matchSection(clip(o.section, 160), headings);
+    if (!section && kind === "right" && note) {
+      // the model judged it right but named a section it wasn't shown (often the chapter above the one it read):
+      // a shown section that holds the note's formula or nearly all its words is where it is from
+      const shown = texts && shownSectionFor(note, texts);
+      if (shown) return items.push({ kind, note, lesson: "", section: shown });
+      // or a real section of the lesson named for the note's topic
+      const real = outline && matchSection(clip(o.section, 160), outline);
+      const topic = real && termWords(real).filter((w) => w.length > 2 && !GENERIC.has(w));
+      const said = new Set(termWords(note));
+      if (real && topic && topic.some((w) => said.has(w))) return items.push({ kind, note, lesson: "", section: real });
+    }
     // a claim tied to no real section isn't grounded: it can't be called right or wrong from this lesson
     if (!section && kind !== "missing") return items.push({ kind: "outside", note: note || lesson, lesson: "", section: null });
     if (!section) return; // "missing" with no section: not grounded, drop it
+    if (kind === "missing") {
+      const term = clip(o.term ?? o.name, 80);
+      if (notes && notesHave({ note: note || lesson, term }, notes)) return;
+      return items.push({ kind, note: note || lesson, lesson: "", section, ...(term ? { term } : {}) });
+    }
     if (kind === "wrong") {
       const quote = clip(o.quote, 300).replace(/^["“']|["”']$/g, "");
       const unsettled = !lesson || /\b(?:does not|doesn't|do not|don't|is not|isn't|never)\b[^.]{0,30}\b(?:describe|cover|mention|discuss|include|define|say|state|promise|claim|specify|give)|\bnot (?:in|covered|mentioned|described|stated|one of|part of|among)\b|\bnever (?:covers|mentions|describes|discusses)\b/i.test(lesson);
@@ -209,6 +306,49 @@ export function cardRef(pageId: string, q: string): string {
   const s = norm(q);
   for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619);
   return `ink:${pageId}:${(h >>> 0).toString(36)}`;
+}
+
+// ------------------------------------------------------------------ the typed version's ink stamp
+
+/**
+ * A fingerprint of what the AI reads on a page: every stroke (its id, length, ends) and every clip, snip and text box
+ * (id, text, place). Drawing, erasing, moving or typing changes it; undoing back to the typed state restores it.
+ */
+export function inkSignature(page: Pick<NotebookPage, "strokes" | "items">): string {
+  let h = 2166136261;
+  const mix = (s: string | number) => {
+    const t = String(s);
+    for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+    h = Math.imul(h ^ 124, 16777619);
+  };
+  for (const st of page.strokes) {
+    const p = st.pts;
+    mix(st.id);
+    mix(p.length);
+    mix(`${p[0]},${p[1]},${p[p.length - 3]},${p[p.length - 2]}`);
+  }
+  for (const it of page.items) {
+    mix(it.id);
+    mix(`${Math.round(it.x)},${Math.round(it.y)},${Math.round(it.w)}`);
+    if (it.kind !== "snip") mix(it.text);
+  }
+  return `${page.strokes.length.toString(36)}.${page.items.length.toString(36)}.${(h >>> 0).toString(36)}`;
+}
+
+/**
+ * The typed version keeps the signature of the page it was made from as an HTML comment on its last line (no
+ * database column needed): "<!-- ink:v1:<signature>[:edited] -->". It never shows: readTyped takes it off before the
+ * text is rendered, copied, edited, saved to notes or sent to the AI.
+ */
+const STAMP = /\n*<!--\s*ink:v1:([a-z0-9.]+)(:edited)?\s*-->\s*$/;
+export function readTyped(md: string | null | undefined): { md: string; sig: string | null; edited: boolean } {
+  const t = String(md || "");
+  const m = t.match(STAMP);
+  return { md: (m ? t.slice(0, m.index) : t).trim(), sig: m ? m[1] : null, edited: !!m?.[2] };
+}
+export function withInkStamp(md: string, sig: string | null, edited = false): string {
+  const t = readTyped(md).md;
+  return t && sig ? `${t}\n\n<!-- ink:v1:${sig}${edited ? ":edited" : ""} -->` : t;
 }
 
 /** The course notes and cards are filed under (lib/learn/course COURSE_ID; that module is server-only). */

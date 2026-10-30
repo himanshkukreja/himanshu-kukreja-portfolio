@@ -46,7 +46,7 @@ export default function InkToolbar(p: Props) {
   const marker = p.tool === "highlighter";
   const showInk = p.tool === "pen" || p.tool === "highlighter";
   return (
-    <div role="toolbar" aria-label="Page tools" className={`flex min-w-0 items-center gap-0.5 ${p.compact ? "flex-wrap" : "overflow-x-auto [scrollbar-width:none]"}`}>
+    <div role="toolbar" aria-label="Page tools" className="flex min-w-0 flex-wrap items-center gap-0.5">
       {TOOLS.map((t) => (
         <button key={t.id} type="button" onClick={() => p.onTool(t.id)} aria-pressed={p.tool === t.id} aria-label={t.label} title={`${t.label} (${t.key})`} className={b(p.tool === t.id)}>
           {t.icon}
@@ -100,14 +100,15 @@ export default function InkToolbar(p: Props) {
         <Redo2 className="h-[18px] w-[18px]" aria-hidden />
       </button>
       {sep}
-      {/* in the panel, pinch or ⌘-scroll zooms; the % button fits the width */}
-      <button type="button" onClick={() => p.onZoom(1 / 1.25)} aria-label="Zoom out" className={`${b(false)} ${p.compact ? "hidden" : ""}`}>
+      {/* in the panel and on narrow screens (an iPad in portrait), pinch or ⌘-scroll zooms; the % button fits the
+          width. The row wraps rather than scrolls, so no tool is ever cut off */}
+      <button type="button" onClick={() => p.onZoom(1 / 1.25)} aria-label="Zoom out" className={`${b(false)} ${p.compact ? "hidden" : "max-[900px]:hidden"}`}>
         <ZoomOut className="h-[18px] w-[18px]" aria-hidden />
       </button>
       <button type="button" onClick={p.onFit} aria-label={`Zoom ${Math.round(p.zoom * 100)} percent. Fit page width`} title="Fit width" className="h-10 min-w-[52px] shrink-0 px-1 font-mono text-[12px] text-fg-2 hover:bg-surface-2">
         {Math.round(p.zoom * 100)}%
       </button>
-      <button type="button" onClick={() => p.onZoom(1.25)} aria-label="Zoom in" className={`${b(false)} ${p.compact ? "hidden" : ""}`}>
+      <button type="button" onClick={() => p.onZoom(1.25)} aria-label="Zoom in" className={`${b(false)} ${p.compact ? "hidden" : "max-[900px]:hidden"}`}>
         <ZoomIn className="h-[18px] w-[18px]" aria-hidden />
       </button>
       {sep}
