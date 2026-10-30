@@ -8,6 +8,7 @@ import { hoursLabel } from "@/lib/learn/progress";
 import type { MockStatus } from "@/lib/learn/mock/store";
 import { MockGlyph, mockStateText } from "./SkillTree";
 import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
+import PaperCard from "@/components/learn/papers/PaperCard";
 
 /** Selected-world panel: lessons with real titles + minutes, boss, trial parts, reward, CTA. */
 export default function WeekDetail({
@@ -141,6 +142,9 @@ export default function WeekDetail({
           <span className="font-mono text-xs text-fg-4">—</span>
         </div>
       )}
+
+      {/* the week's written paper (shows only when it exists) */}
+      <PaperCard paperKey={w.key} />
 
       <div className="flex items-center justify-between gap-3 border border-line px-3.5 py-3">
         <span className="text-sm text-fg">World reward</span>

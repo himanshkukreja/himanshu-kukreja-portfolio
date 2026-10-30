@@ -180,7 +180,7 @@ export const useLessonContext = () =>
  * No notebook here: the full-screen page editor and the notebook itself, the Shorts feed, and the full-screen tools
  * (the design canvas, a mock interview room, an Arena game), as the chat button does.
  */
-export const NO_NOTEBOOK = /^\/learn\/(?:notebook(?:\/|$)|shorts$|canvas\/|mock\/(?!peers)[^/]+|arena\/(?!leaderboard|daily)[^/]+)/;
+export const NO_NOTEBOOK = /^\/learn\/(?:notebook(?:\/|$)|shorts$|canvas\/|papers\/[^/]+|mock\/(?!peers)[^/]+|arena\/(?!leaderboard|daily)[^/]+)/;
 export const notebookAllowed = (p: string) => !NO_NOTEBOOK.test(p) && (p === "/learn" || p.startsWith("/learn/") || /^\/stories\/[^/]+/.test(p));
 
 /** The floating pen: everywhere the panel is, except where the page brings its own Notebook button (the lesson reader's tools). */

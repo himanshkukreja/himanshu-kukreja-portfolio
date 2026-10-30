@@ -218,6 +218,19 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
         </span>
       </Link>
 
+      {/* Written papers: exam papers answered by hand, AI-graded */}
+      <Link
+        href="/learn/papers"
+        className="flex flex-wrap items-center justify-between gap-4 border border-line bg-surface px-5 py-4 hover:border-fg-4 sm:px-6"
+      >
+        <span className="flex min-w-0 flex-col gap-1">
+          <span className={LABEL}>written papers · by hand</span>
+          <span className="text-[17px] font-semibold text-fg">Sit a week&apos;s exam paper with a pencil</span>
+          <span className="text-[14px] text-fg-3">Explain, estimate and draw the design by hand; every answer is marked against the scheme.</span>
+        </span>
+        <span className="font-mono text-sm text-signal-text">all papers →</span>
+      </Link>
+
       {/* Games */}
       <section aria-labelledby="games-h" className="flex flex-col gap-4">
         <SectionTitle id="games-h" aside={<span className="text-[15px] text-fg-3">60–90 second rounds. Best scores stay in this browser.</span>}>

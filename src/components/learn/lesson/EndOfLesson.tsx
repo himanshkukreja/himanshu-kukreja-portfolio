@@ -10,6 +10,7 @@ import ReviseLink from "@/components/learn/revise/ReviseLink";
 import LessonLabs from "@/components/learn/labs/LessonLabs";
 import ReadingTrail from "@/components/learn/trail/ReadingTrail";
 import LessonFaq from "@/components/learn/ai/LessonFaq";
+import PaperCard from "@/components/learn/papers/PaperCard";
 import { doneCount, numberedStages } from "./stageText";
 import type { NavLink, ReaderMeta, TrialPartLink } from "./types";
 
@@ -27,6 +28,8 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
   const total = numberedStages(p.required).length;
   const nDone = doneCount(p);
   const name = meta.shortLabel === "Lesson" ? meta.title : meta.shortLabel.replace(/^Day 0/, "Day ");
+  // the week's last lesson (the boss, or the lesson before the next world): its written paper is up next
+  const lastOfWeek = meta.kind !== "bonus" && (meta.kind === "capstone" || !next || next.week !== meta.week);
 
   return (
     <section aria-label="End of lesson" className="mt-14 flex flex-col gap-6">
@@ -93,6 +96,18 @@ export default function EndOfLesson({ meta, prev, next, trial }: Props) {
       <LessonFaq week={meta.week} slug={meta.slug} />
 
       {meta.trail?.length ? <ReadingTrail lesson={`${meta.week}/${meta.slug}`} entries={meta.trail} /> : null}
+
+      {meta.kind === "bonus" && (
+        <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))]">
+          <PaperCard paperKey={meta.slug} variant="quest" />
+        </div>
+      )}
+
+      {lastOfWeek && (
+        <div className="grid gap-2.5 [grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))]">
+          <PaperCard paperKey={meta.week} variant="next" />
+        </div>
+      )}
 
       {(next || trial) && (
         <div className="flex flex-col gap-2.5">

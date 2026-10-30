@@ -235,7 +235,16 @@ export function mergeSavedPathFlags(base: Record<string, unknown>, other: Record
  * copy predates the account's last reset, so the account's flags stand.
  */
 export function mergeGameFlags(remote: Record<string, unknown>, local: Record<string, unknown>, localStale: boolean): Record<string, unknown> {
-  return mergeSavedPathFlags({ ...remote, ...(localStale ? {} : local) }, remote);
+  const out = mergeSavedPathFlags({ ...remote, ...(localStale ? {} : local) }, remote);
+  // written-paper records (paper:<key>, src/lib/learn/papers/types.ts) carry updatedAt like saved paths: the newer
+  // copy wins, so an attempt finished on the iPad isn't undone by a laptop holding an older record
+  for (const k of Object.keys(remote)) {
+    if (!k.startsWith("paper:") || localStale) continue;
+    const ra = Number((remote[k] as { updatedAt?: unknown } | null)?.updatedAt) || 0;
+    const la = Number((local[k] as { updatedAt?: unknown } | null)?.updatedAt) || 0;
+    if (ra > la) out[k] = remote[k];
+  }
+  return out;
 }
 
 /** "<week>/<slug>" for a step that is a whole lesson or side quest (its completion is lesson progress), else null. */

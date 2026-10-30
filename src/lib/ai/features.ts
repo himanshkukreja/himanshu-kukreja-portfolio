@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "paper-grade";
 
 export type FeatureDef = {
   label: string;
@@ -80,6 +80,13 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "notes-check": { label: "Notebook page check against the lesson", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1200, maxInputChars: 13000, think: false, live: true },
   // notes-cards: 3-8 question/answer review cards from the typed notes (JSON)
   "notes-cards": { label: "Notebook page review cards", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1000, maxInputChars: 13000, think: false, live: true },
+  // Written papers (owner-approved 31 Oct 2026): grade one handwritten answer against its marking scheme. Haiku 5.5
+  // (thinking off) grades first; the route re-grades with Sonnet 5.5 (MODELS.sonnet, passed as the call's model) when
+  // Haiku is unsure, the answer is a diagram/design or the mark is on the pass line (lib/learn/papers/grade.ts), and keeps
+  // Sonnet's result. Both calls count here (perDay) and bill the learner's shared credits. One image: the answer sheets,
+  // cropped to what is written and stacked (≤ 2000 px a side, PNG); the question, scheme and model answer as text.
+  // maxTokens: the JSON (≤ 16 points with evidence + a 120-word reading) ran 300-700 tokens in the tests.
+  "paper-grade": { label: "Written paper answer grading", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 60, maxTokens: 1500, maxInputChars: 16000, maxImages: 1, maxImageBytes: 1_500_000, maxImageSide: 2000, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },
