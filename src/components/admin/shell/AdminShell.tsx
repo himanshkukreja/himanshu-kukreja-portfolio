@@ -23,26 +23,29 @@ const DEV = process.env.NODE_ENV === "development";
 const PREVIEW_KEY = "hk.adminPreview";
 const NOTRACK_KEY = "hk.notrack";
 
-export const ADMIN_NAV = [
-  { href: "/admin", label: "Overview", key: "overview", match: (p: string) => p === "/admin" },
-  { href: "/admin/live", label: "Live", key: "live", match: (p: string) => p.startsWith("/admin/live") },
-  { href: "/admin/learners", label: "Learners", key: "learners", match: (p: string) => p.startsWith("/admin/learners") },
-  { href: "/admin/course", label: "Course", key: "course", match: (p: string) => p.startsWith("/admin/course") },
-  { href: "/admin/traffic", label: "Traffic", key: "traffic", match: (p: string) => p.startsWith("/admin/traffic") },
-  { href: "/admin/journeys", label: "Journeys", key: "journeys", match: (p: string) => p.startsWith("/admin/journeys") },
-  { href: "/admin/lectures", label: "Lectures", key: "lectures", match: (p: string) => p.startsWith("/admin/lectures") },
-  { href: "/admin/shorts", label: "Shorts", key: "shorts", match: (p: string) => p.startsWith("/admin/shorts") },
-  { href: "/admin/publishing", label: "Publishing", key: "publishing", match: (p: string) => p.startsWith("/admin/publishing") },
-  { href: "/admin/distribution", label: "Distribution", key: "distribution", match: (p: string) => p.startsWith("/admin/distribution") },
-  { href: "/admin/content", label: "Content", key: "content", match: (p: string) => p.startsWith("/admin/content") },
-  { href: "/admin/gaps", label: "Gaps", key: "gaps", match: (p: string) => p.startsWith("/admin/gaps") },
-  { href: "/admin/case-files", label: "Case files", key: "case-files", match: (p: string) => p.startsWith("/admin/case-files") },
-  { href: "/admin/design-week", label: "Design week", key: "design-week", match: (p: string) => p.startsWith("/admin/design-week") },
-  { href: "/admin/certificates", label: "Certificates", key: "certificates", match: (p: string) => p.startsWith("/admin/certificates") },
-  { href: "/admin/newsletter", label: "Newsletter", key: "newsletter", match: (p: string) => p.startsWith("/admin/newsletter") },
-  { href: "/admin/ai", label: "AI", key: "ai", match: (p: string) => p.startsWith("/admin/ai") },
-  { href: "/admin/chat", label: "Chat", key: "chat", match: (p: string) => p.startsWith("/admin/chat") },
-] as const;
+type NavItem = { href: string; label: string; key: string; match: (p: string) => boolean };
+const at = (href: string, label: string, key: string): NavItem => ({ href, label, key, match: (p: string) => p.startsWith(href) });
+
+/** The admin sections, grouped so related pages sit together (the rail scrolls when they don't fit). */
+export const ADMIN_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Pulse",
+    items: [
+      { href: "/admin", label: "Overview", key: "overview", match: (p: string) => p === "/admin" },
+      at("/admin/live", "Live", "live"),
+      at("/admin/traffic", "Traffic", "traffic"),
+      at("/admin/journeys", "Journeys", "journeys"),
+    ],
+  },
+  { label: "Learners", items: [at("/admin/learners", "Learners", "learners"), at("/admin/certificates", "Certificates", "certificates"), at("/admin/newsletter", "Newsletter", "newsletter")] },
+  {
+    label: "Course & content",
+    items: [at("/admin/course", "Course", "course"), at("/admin/content", "Content", "content"), at("/admin/gaps", "Gaps", "gaps"), at("/admin/case-files", "Case files", "case-files"), at("/admin/design-week", "Design week", "design-week")],
+  },
+  { label: "Video", items: [at("/admin/lectures", "Lectures", "lectures"), at("/admin/shorts", "Shorts", "shorts"), at("/admin/publishing", "Publishing", "publishing"), at("/admin/distribution", "Distribution", "distribution")] },
+  { label: "AI", items: [at("/admin/ai", "AI", "ai"), at("/admin/chat", "Chat", "chat")] },
+];
+export const ADMIN_NAV: NavItem[] = ADMIN_GROUPS.flatMap((g) => g.items);
 
 /* ─────────────── tiny storage stores (useSyncExternalStore) ─────────────── */
 
@@ -218,35 +221,57 @@ function Frame({ email, children }: { email: string; children: ReactNode }) {
   const pathname = usePathname() || "/admin";
   const { preview } = useAdminClient();
   const live = useLive();
+  // phones: the group whose pages the strip shows (the current page's group until another is picked)
+  const activeGroup = Math.max(0, ADMIN_GROUPS.findIndex((g) => g.items.some((n) => n.match(pathname))));
+  const [picked, setPicked] = useState<{ path: string; group: number } | null>(null);
+  const shownGroup = picked && picked.path === pathname ? picked.group : activeGroup;
+  const setOpenGroup = (group: number) => setPicked({ path: pathname, group });
 
   return (
     <div data-ph-mask className="mx-auto w-full max-w-[1320px] px-4 pb-12 sm:px-6">
-      {/* phones + tablets: sticky tab strip under the site header */}
-      <nav
-        aria-label="Admin sections"
-        className="sticky top-[var(--hk-header-h,57px)] z-40 -mx-4 flex overflow-x-auto border-b border-line bg-bg/95 px-1 backdrop-blur [scrollbar-width:none] sm:-mx-6 sm:px-4 lg:hidden"
-      >
-        {ADMIN_NAV.map((n) => {
-          const on = n.match(pathname);
-          return (
-            <Link
-              key={n.href}
-              href={n.href}
-              aria-current={on ? "page" : undefined}
-              className={`-mb-px flex min-h-12 flex-1 shrink-0 items-center justify-center gap-1 whitespace-nowrap border-b-2 px-1.5 font-mono text-[13px] sm:flex-none sm:px-3 ${on ? "border-signal text-fg" : "border-transparent text-fg-3"}`}
-            >
-              {n.label.toLowerCase()}
-              {n.key === "live" && live != null && live > 0 && <span className="bg-signal px-1 text-[10px] font-semibold leading-4 text-on-signal">{live}</span>}
-            </Link>
-          );
-        })}
+      {/* phones + tablets: sticky strip under the site header: the groups, then the chosen group's pages */}
+      <nav aria-label="Admin sections" className="sticky top-[var(--hk-header-h,57px)] z-40 -mx-4 border-b border-line bg-bg/95 backdrop-blur sm:-mx-6 lg:hidden">
+        <div role="tablist" aria-label="Admin groups" className="flex overflow-x-auto px-2 pt-1.5 [scrollbar-width:none] sm:px-4">
+          {ADMIN_GROUPS.map((g, gi) => {
+            const on = gi === shownGroup;
+            return (
+              <button
+                key={g.label}
+                type="button"
+                role="tab"
+                aria-selected={on}
+                onClick={() => setOpenGroup(gi)}
+                className={`flex min-h-9 shrink-0 items-center whitespace-nowrap px-2.5 font-mono text-[11px] uppercase tracking-[0.08em] ${on ? "bg-surface-2 text-fg" : "text-fg-4 hover:text-fg-2"}`}
+              >
+                {g.label}
+                {g.items.some((n) => n.key === "live") && live != null && live > 0 && <span className="ml-1.5 bg-signal px-1 text-[10px] font-semibold leading-4 text-on-signal">{live}</span>}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex overflow-x-auto px-1 [scrollbar-width:none] sm:px-4">
+          {ADMIN_GROUPS[shownGroup].items.map((n) => {
+            const on = n.match(pathname);
+            return (
+              <Link
+                key={n.href}
+                href={n.href}
+                aria-current={on ? "page" : undefined}
+                className={`-mb-px flex min-h-11 shrink-0 items-center justify-center gap-1 whitespace-nowrap border-b-2 px-3 font-mono text-[13px] ${on ? "border-signal text-fg" : "border-transparent text-fg-3"}`}
+              >
+                {n.label.toLowerCase()}
+                {n.key === "live" && live != null && live > 0 && <span className="bg-signal px-1 text-[10px] font-semibold leading-4 text-on-signal">{live}</span>}
+              </Link>
+            );
+          })}
+        </div>
       </nav>
       {preview && <PreviewBanner />}
 
       <div className="pt-5 lg:grid lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-8 lg:pt-8 xl:grid-cols-[220px_minmax(0,1fr)] xl:gap-10">
-        <aside className="sticky top-[calc(var(--hk-header-h,57px)+32px)] hidden max-h-[calc(100dvh-var(--hk-header-h,57px)-48px)] flex-col self-start lg:flex">
-          <div className="border border-line bg-surface">
-            <div className="border-b border-line px-3.5 py-3">
+        <aside className="sticky top-[calc(var(--hk-header-h,57px)+32px)] hidden max-h-[calc(100dvh-var(--hk-header-h,57px)-48px)] min-h-0 flex-col self-start lg:flex">
+          <div className="flex min-h-0 flex-col border border-line bg-surface">
+            <div className="shrink-0 border-b border-line px-3.5 py-3">
               <div className="font-mono text-[13px] font-semibold text-fg">
                 <span className="text-signal-text">#</span> sudo ~/admin
               </div>
@@ -254,31 +279,38 @@ function Frame({ email, children }: { email: string; children: ReactNode }) {
                 {email}
               </div>
             </div>
-            <nav aria-label="Admin sections" className="flex flex-col py-1.5">
-              {ADMIN_NAV.map((n, i) => {
-                const on = n.match(pathname);
-                return (
-                  <Link
-                    key={n.href}
-                    href={n.href}
-                    aria-current={on ? "page" : undefined}
-                    className={`relative flex min-h-10 items-center gap-3 px-3.5 text-sm ${on ? "bg-surface-2 font-semibold text-fg" : "text-fg-2 hover:bg-surface-2/60 hover:text-fg"}`}
-                  >
-                    {on && <span aria-hidden className="absolute inset-y-1.5 left-0 w-[3px] bg-signal" />}
-                    <span className={`font-mono text-[11px] ${on ? "text-signal-text" : "text-fg-4"}`}>{String(i + 1).padStart(2, "0")}</span>
-                    <span className="flex-1">{n.label}</span>
-                    {n.key === "live" && live != null && (
-                      <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-fg-3" title={`${live} live visitor${live === 1 ? "" : "s"} (last 5 min)`}>
-                        <LiveDot on={live > 0} />
-                        {live}
-                      </span>
-                    )}
-                  </Link>
-                );
-              })}
+            {/* the list scrolls inside the rail when the window is too short for all of it */}
+            <nav aria-label="Admin sections" className="flex min-h-0 flex-col overflow-y-auto overscroll-contain py-1 [scrollbar-width:thin]">
+              {ADMIN_GROUPS.map((g) => (
+                <div key={g.label} role="group" aria-labelledby={`admin-group-${g.label}`} className="flex flex-col pb-1 [&+&]:border-t [&+&]:border-line [&+&]:pt-1">
+                  <div id={`admin-group-${g.label}`} className="px-3.5 pb-0.5 pt-2 font-mono text-[10.5px] uppercase tracking-[0.1em] text-fg-4">
+                    {g.label}
+                  </div>
+                  {g.items.map((n) => {
+                    const on = n.match(pathname);
+                    return (
+                      <Link
+                        key={n.href}
+                        href={n.href}
+                        aria-current={on ? "page" : undefined}
+                        className={`relative flex min-h-9 shrink-0 items-center gap-3 px-3.5 text-sm ${on ? "bg-surface-2 font-semibold text-fg" : "text-fg-2 hover:bg-surface-2/60 hover:text-fg"}`}
+                      >
+                        {on && <span aria-hidden className="absolute inset-y-1.5 left-0 w-[3px] bg-signal" />}
+                        <span className="flex-1">{n.label}</span>
+                        {n.key === "live" && live != null && (
+                          <span className="inline-flex items-center gap-1.5 font-mono text-[11px] text-fg-3" title={`${live} live visitor${live === 1 ? "" : "s"} (last 5 min)`}>
+                            <LiveDot on={live > 0} />
+                            {live}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              ))}
             </nav>
           </div>
-          <ShellFooter className="mt-3" />
+          <ShellFooter className="mt-3 shrink-0" />
         </aside>
 
         <main className="min-w-0">{children}</main>
