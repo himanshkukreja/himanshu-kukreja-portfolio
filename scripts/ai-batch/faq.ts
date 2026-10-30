@@ -14,6 +14,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { supabase } from "@/lib/supabase";
+import { assertContentBudget } from "./budget";
 import { costOf, creditsFor, MODELS, type Usage } from "@/lib/ai/prices";
 
 const CONTENT = process.env.SDM_LOCAL_DIR || path.resolve(process.cwd(), "..", "system-design-mastery");
@@ -70,6 +71,7 @@ async function submit(only: string | null, force: boolean) {
     custom_id: `faq-${i}`,
     params: { model: MODEL, max_tokens: 6000, system: SYSTEM, messages: [{ role: "user", content: `<lesson title="${l.title}">\n${l.text}\n</lesson>` }] },
   }));
+  await assertContentBudget(estimate);
   const r = await fetch(API, { method: "POST", headers: H, body: JSON.stringify({ requests }) });
   const b = (await r.json()) as { id?: string; error?: { message?: string } };
   if (!r.ok || !b.id) throw new Error(b.error?.message || `HTTP ${r.status}`);

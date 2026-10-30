@@ -5,6 +5,7 @@
  * 12-week activity calendar, timeline, MCQ results, notes/bookmarks, devices, and admin actions
  * (reset with parts, export JSON/CSV).
  */
+import CallLog from "@/components/admin/ai/CallLog";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import {
@@ -196,6 +197,11 @@ export default function LearnerDetailPage({ id }: { id: string }) {
       </div>
 
       <LecturesCard lectures={data.lectures ?? []} minutes={data.lectureMinutes ?? 0} />
+
+      {/* their AI calls (the shared call log, fixed to this learner: filters, sort and paging on the server) */}
+      <div className="mb-6">
+        <CallLog learner={id} id="ai-calls" label="ai" title="AI calls" />
+      </div>
 
       <McqCard mcq={data.mcq} trials={data.trials} />
 

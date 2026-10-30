@@ -3,6 +3,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
 import { featureConfig, getAiSettings } from "@/lib/ai/settings";
 import { FEATURES } from "@/lib/ai/features";
+import { conversations, readConvQuery } from "@/lib/admin/chatConversations";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,9 @@ const REFUSED = new Set(["over_quota", "rate_limited", "blocked", "disabled", "t
  * GET /api/admin/ai/chat?days=14 → the course chat at a glance, from ai_calls (feature "course-chat", one row per
  * message, plus "chat-memory" and "chat-title"): messages and learners per day, Sonnet vs fast-mode share, cost, tools per message,
  * latency, declined / off-topic / failed counts, top topics (the course's own titles, never learner text), saved
- * paths and quizzes, and the latest conversations. Plus the chat's settings (switch, Sonnet messages a day, ceiling).
+ * paths and quizzes. Plus the chat's settings (switch, Sonnet messages a day, ceiling).
+ * GET ?view=conversations&days=14&sort=&user=&mode=&outcome=&page= → one page of the window's conversations, filtered
+ * and sorted on the server (lib/admin/chatConversations.ts).
  * GET ?chat=<id> → that conversation's messages with their transcripts (kept 30 days, admins only).
  */
 export async function GET(request: Request) {
@@ -41,6 +44,14 @@ export async function GET(request: Request) {
         };
       });
     return new NextResponse(JSON.stringify(cases, null, 2), { headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="chat-feedback-cases-${new Date().toISOString().slice(0, 10)}.json"`, "Cache-Control": "no-store" } });
+  }
+
+  if (p.get("view") === "conversations") {
+    try {
+      return NextResponse.json(await conversations(readConvQuery(p)), { headers: { "Cache-Control": "no-store" } });
+    } catch (e) {
+      return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
+    }
   }
 
   const chatId = p.get("chat");
@@ -80,7 +91,6 @@ export async function GET(request: Request) {
   }
   const topics = new Map<string, number>();
   const toolUse = new Map<string, number>();
-  const chats = new Map<string, { chat: string; user: string | null; messages: number; first: string; last: string; fast: number; cost: number }>();
   const lat: number[] = [];
   const allUsers = new Set<string>();
   let quizzes = 0;
@@ -130,15 +140,6 @@ export async function GET(request: Request) {
     if (m.saved) saved++;
     if (typeof m.topic === "string" && m.topic) topics.set(m.topic, (topics.get(m.topic) ?? 0) + 1);
     for (const t of String(m.toolNames || "").split(",").filter(Boolean)) toolUse.set(t, (toolUse.get(t) ?? 0) + 1);
-    const c = typeof m.chat === "string" ? m.chat : "";
-    if (c) {
-      const x = chats.get(c) ?? { chat: c, user: r.user_id, messages: 0, first: r.created_at, last: r.created_at, fast: 0, cost: 0 };
-      x.messages++;
-      x.last = r.created_at;
-      x.cost += Number(r.cost_usd) || 0;
-      if (/haiku/.test(r.model)) x.fast++;
-      chats.set(c, x);
-    }
   }
   lat.sort((a, b) => a - b);
   const pct = (q: number) => (lat.length ? lat[Math.min(lat.length - 1, Math.floor(q * lat.length))] : null);
@@ -159,15 +160,6 @@ export async function GET(request: Request) {
   }));
   const sum = (k: keyof (typeof daily)[number]) => daily.reduce((a, d) => a + (Number(d[k]) || 0), 0);
 
-  // recent conversations, with the learners' emails (admins only)
-  const recent = [...chats.values()].sort((a, b) => b.last.localeCompare(a.last)).slice(0, 40);
-  const emails = new Map<string, string | null>();
-  await Promise.all(
-    [...new Set(recent.map((c) => c.user).filter((u): u is string => !!u))].map(async (id) => {
-      const { data } = await supabase.auth.admin.getUserById(id).catch(() => ({ data: null }));
-      emails.set(id, data?.user?.email ?? null);
-    }),
-  );
   const mem = await supabase.from("chat_memory").select("user_id", { count: "exact", head: true });
   // answer feedback in the window: the rate, and the worst answers (thumbs down or "wrong") with their text
   const fb = await supabase.from("chat_feedback").select("call_id, rating, wrong, note, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(2000);
@@ -217,7 +209,6 @@ export async function GET(request: Request) {
       },
       topics: [...topics.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15).map(([topic, n]) => ({ topic, n })),
       tools: [...toolUse.entries()].sort((a, b) => b[1] - a[1]).map(([tool, n]) => ({ tool, n })),
-      conversations: recent.map((c) => ({ ...c, email: c.user ? emails.get(c.user) ?? null : null })),
       feedback,
       gaps: [...gaps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([q, n]) => ({ q, n })),
     },

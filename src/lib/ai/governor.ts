@@ -2,6 +2,8 @@ import "server-only";
 /**
  * The budget governor. The month is the credit cycle (from ai_settings.cycle_day). Live features may
  * spend `liveShare` of the monthly budget; each day may spend what is left divided by the days left.
+ * Content jobs (features with live: false: eval, batch) get the rest, `1 - liveShare`, as a hard cap
+ * (callClaude refuses them once it is used), so a big batch run can't eat the learners' share.
  * Mode: off (switch off, past ends_on, or the live budget is gone) · red (today's share used, or < 5%
  * of the live budget left: cached answers only) · amber (70% of today's share used: cheaper model,
  * features without a cheaper model pause) · green. Each user's daily allowance is today's budget
@@ -25,7 +27,7 @@ export function cycleWindow(now: Date, cycleDay: number): { start: Date; end: Da
 
 const startOfUtcDay = (d: Date) => new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
 
-type Sums = { cycleAll: number; cycleLive: number; todayLive: number; activeUsers: number };
+export type Sums = { cycleAll: number; cycleLive: number; todayLive: number; activeUsers: number };
 
 async function sums(start: Date, today: Date): Promise<Sums> {
   const [all, live, td, users] = await Promise.all([
@@ -44,8 +46,12 @@ export type Budget = {
   cycle: { start: string; end: string; daysLeft: number };
   monthlyBudget: number;
   liveBudget: number;
+  /** content jobs' cap for the cycle: monthlyBudget × (1 - liveShare) */
+  contentBudget: number;
   spentCycle: number;
   spentCycleLive: number;
+  /** what content jobs (eval, batch) spent this cycle: spentCycle - spentCycleLive */
+  spentCycleContent: number;
   spentToday: number;
   todayBudget: number;
   activeUsers: number;
@@ -59,11 +65,19 @@ export async function getBudget(s: AiSettings, fresh = false): Promise<Budget> {
   const key = JSON.stringify([s.enabled, s.cycleDay, s.monthlyBudgetUsd, s.liveShare, s.userDailyMaxUsd, s.userDailyMinUsd, s.endsOn]);
   if (!fresh && cache && cache.key === key && Date.now() - cache.at < 15_000) return cache.b;
   const now = new Date();
+  const { start } = cycleWindow(now, s.cycleDay);
+  const b = budgetFrom(s, await sums(start, startOfUtcDay(now)), now);
+  cache = { at: Date.now(), key, b };
+  return b;
+}
+
+/** The governor's maths on the cycle's sums (pure: scripts/ai-budget-check.ts checks it). */
+export function budgetFrom(s: AiSettings, x: Sums, now: Date): Budget {
   const { start, end } = cycleWindow(now, s.cycleDay);
   const today = startOfUtcDay(now);
-  const x = await sums(start, today);
   const daysLeft = Math.max(1, Math.ceil((end.getTime() - today.getTime()) / DAY));
   const liveBudget = s.monthlyBudgetUsd * s.liveShare;
+  const contentBudget = Math.max(0, s.monthlyBudgetUsd - liveBudget);
   const leftBeforeToday = Math.max(0, liveBudget - (x.cycleLive - x.todayLive));
   const todayBudget = leftBeforeToday / daysLeft;
   const userDailyUsd = Math.min(s.userDailyMaxUsd, Math.max(s.userDailyMinUsd, (todayBudget * 0.8) / x.activeUsers));
@@ -76,22 +90,26 @@ export async function getBudget(s: AiSettings, fresh = false): Promise<Budget> {
   else if (x.todayLive >= todayBudget || liveBudget - x.cycleLive < liveBudget * 0.05) [mode, reason] = ["red", "today's share is used"];
   else if (x.todayLive >= todayBudget * 0.7) [mode, reason] = ["amber", "spending ahead of pace"];
 
-  const b: Budget = {
+  return {
     mode,
     reason,
     cycle: { start: start.toISOString(), end: end.toISOString(), daysLeft },
     monthlyBudget: s.monthlyBudgetUsd,
     liveBudget,
+    contentBudget,
     spentCycle: x.cycleAll,
     spentCycleLive: x.cycleLive,
+    spentCycleContent: Math.max(0, x.cycleAll - x.cycleLive),
     spentToday: x.todayLive,
     todayBudget,
     activeUsers: x.activeUsers,
     userDailyUsd,
     userDailyCredits: Math.floor(userDailyUsd / USD_PER_CREDIT),
   };
-  cache = { at: Date.now(), key, b };
-  return b;
 }
+
+/** Content jobs (eval, batch) stop at their share of the cycle; live features never look at it. */
+export const contentCapReached = (b: Pick<Budget, "spentCycleContent" | "contentBudget">) => b.spentCycleContent >= b.contentBudget;
+export const CONTENT_CAP_MESSAGE = "content jobs budget for this cycle is used";
 
 export const startOfToday = () => startOfUtcDay(new Date());

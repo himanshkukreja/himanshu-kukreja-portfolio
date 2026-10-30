@@ -4,15 +4,19 @@
  * /admin/chat: the course chat. Its switch and its two limits (Sonnet messages per learner a day, then the
  * fast-mode ceiling), stored in ai_settings.features["course-chat"] like every feature's; then messages,
  * learners, the Sonnet / fast share, cost, tools and latency per day, declines and failures, what people ask
- * about (the course's own titles), quizzes and saved paths, and the latest conversations with their text
- * (kept 30 days).
+ * about (the course's own titles), quizzes and saved paths, the conversations (filtered, sorted and paged on the
+ * server) with their text (kept 90 days), and the chat's call log (messages, titles, memory updates). The window
+ * (?days=) and every filter live in the URL; conversations under the "c" prefix, the call log under "m".
  */
 import { useState } from "react";
+import CallLog from "@/components/admin/ai/CallLog";
+import { FilterBar, FilterSelect, Pager, usePage, UserPicker, useUrlFilters } from "@/components/admin/ai/filters";
 import { adminFetch, adminJson } from "@/lib/admin/fetch";
-import { Badge, BarList, Card, Drawer, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData } from "@/components/admin/ui";
+import { Badge, BarList, Card, Drawer, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData, type Chip } from "@/components/admin/ui";
 
 type Day = { day: string; messages: number; users: number; sonnet: number; fast: number; cost: number; memoryCost: number; titleCost?: number; avgTools: number; avgLatency: number; offTopic: number; refused: number; errors: number };
-type Conv = { chat: string; user: string | null; email: string | null; messages: number; first: string; last: string; fast: number; cost: number };
+type Conv = { chat: string; user: string | null; email: string | null; messages: number; first: string; last: string; fast: number; own: number; mode: "main" | "fast" | "own"; cost: number; tokens: number; offTopic: number; down: number; wrong: number };
+type ConvResp = { rows: Conv[]; total: number; page: number; pageSize: number; users: { id: string; email: string | null; calls: number }[]; feedback: boolean; partial: boolean };
 type Resp = {
   settings: { masterOn: boolean; enabled: boolean; perDay: number; ceiling: number; model: string; features: Record<string, Record<string, unknown>> };
   days: number;
@@ -20,7 +24,6 @@ type Resp = {
   totals: { messages: number; users: number; sonnet: number; fast: number; cost: number; memoryCost: number; titleCost?: number; offTopic: number; refused: number; errors: number; avgTools: number; avgRounds: number; p50: number | null; p95: number | null; quizzes: number; graded: number; paths: number; saved: number; memoryUsers: number | null };
   topics: { topic: string; n: number }[];
   tools: { tool: string; n: number }[];
-  conversations: Conv[];
   feedback: { up: number; down: number; wrong: number; worst: { callId: number; at: string; rating: number; wrong: boolean; note: string | null; question: string | null; answer: string | null }[] } | null;
   gaps: { q: string; n: number }[];
 };
@@ -112,8 +115,92 @@ function ConversationDrawer({ c, onClose }: { c: Conv | null; onClose: () => voi
   );
 }
 
+const CONV_SORTS = [
+  { value: "new", label: "newest first" },
+  { value: "old", label: "oldest first" },
+  { value: "messages.desc", label: "messages: most" },
+  { value: "messages.asc", label: "messages: fewest" },
+  { value: "cost.desc", label: "cost: highest" },
+  { value: "cost.asc", label: "cost: lowest" },
+  { value: "tokens.desc", label: "tokens: most" },
+  { value: "tokens.asc", label: "tokens: fewest" },
+];
+const MODES = [
+  { value: "main", label: "main model only" },
+  { value: "fast", label: "fast mode" },
+  { value: "own", label: "own key" },
+];
+
+/** The window's conversations: filtered by learner, mode and outcome, sorted and paged on the server. */
+function Conversations({ days, onOpen }: { days: number; onOpen: (c: Conv) => void }) {
+  const { get, set } = useUrlFilters("c");
+  const user = get("user");
+  const mode = MODES.some((m) => m.value === get("mode")) ? get("mode") : "";
+  const outcome = ["off_topic", "down", "wrong"].includes(get("outcome")) ? get("outcome") : "";
+  const sort = CONV_SORTS.some((x) => x.value === get("sort")) ? get("sort") : "new";
+  const [page, setPage] = usePage(JSON.stringify([days, user, mode, outcome, sort]));
+  const qs = new URLSearchParams({ view: "conversations", days: String(days), page: String(page), ...(user ? { user } : {}), ...(mode ? { mode } : {}), ...(outcome ? { outcome } : {}), ...(sort !== "new" ? { sort } : {}) });
+  const { data, error, loading, refresh } = useAdminData<ConvResp>(`/api/admin/ai/chat?${qs}`, { refreshMs: 60_000 });
+  const outcomes = [{ value: "off_topic", label: "declined off-topic" }, ...(data?.feedback !== false ? [{ value: "down", label: "thumbs down" }, { value: "wrong", label: "marked wrong" }] : [])];
+  const emailOf = (id: string) => data?.users.find((u) => u.id === id)?.email || data?.rows.find((r) => r.user === id)?.email || null;
+  const chips: Chip[] = [
+    ...(user ? [{ key: "user", label: "learner", value: emailOf(user) || `${user.slice(0, 8)}…` }] : []),
+    ...(mode ? [{ key: "mode", label: "mode", value: MODES.find((m) => m.value === mode)?.label || mode }] : []),
+    ...(outcome ? [{ key: "outcome", label: "outcome", value: outcomes.find((o) => o.value === outcome)?.label || outcome }] : []),
+    ...(sort !== "new" ? [{ key: "sort", label: "sort", value: CONV_SORTS.find((x) => x.value === sort)?.label || sort }] : []),
+  ];
+  const pages = Math.max(1, Math.ceil((data?.total ?? 0) / (data?.pageSize ?? 25)));
+  return (
+    <Card id="conversations" label="conversations" title={`Conversations · ${days} days${data ? ` · ${fmtNum(data.total)}` : ""}`} pad={false}>
+      <FilterBar chips={chips} onRemove={(k) => set({ [k]: null })} onClear={() => set({ user: null, mode: null, outcome: null, sort: null })} notes={data?.partial ? <p className="m-0 font-mono text-[11px] text-fg-4">The window has more than 20,000 messages: only the first 20,000 are grouped.</p> : null}>
+        <UserPicker users={data?.users ?? []} value={user} fallback={user ? emailOf(user) : null} loading={loading} onPick={(id) => set({ user: id || null })} />
+        <FilterSelect label="mode" value={mode} onChange={(v) => set({ mode: v || null })} allLabel="any mode" options={MODES} />
+        <FilterSelect label="outcome" value={outcome} onChange={(v) => set({ outcome: v || null })} allLabel="any outcome" options={outcomes} />
+        <FilterSelect label="sort" value={sort} onChange={(v) => set({ sort: v === "new" ? null : v })} options={CONV_SORTS} />
+      </FilterBar>
+      {error ? (
+        <ErrorState error={error} onRetry={refresh} />
+      ) : (
+        <Table<Conv>
+          rowKey={(r) => r.chat}
+          rows={data?.rows ?? []}
+          loading={loading && !data}
+          onRowClick={onOpen}
+          minWidth={760}
+          empty={<EmptyState className="m-4" title={chips.length ? "No conversation matches" : "No conversations yet"} />}
+          columns={[
+            { key: "u", header: "Learner", render: (r) => r.email || (r.user ? r.user.slice(0, 8) : "dev preview") },
+            { key: "n", header: "Messages", align: "right", render: (r) => fmtNum(r.messages) },
+            { key: "mode", header: "Mode", hideOnPhone: true, render: (r) => <span className="font-mono text-xs">{r.mode === "own" ? "own key" : r.mode === "fast" ? `fast ${r.fast}/${r.messages}` : "main"}</span> },
+            {
+              key: "o",
+              header: "Outcome",
+              hideOnPhone: true,
+              render: (r) => (
+                <span className="flex flex-wrap gap-1">
+                  {r.offTopic > 0 && <Badge tone="signal">off-topic {r.offTopic}</Badge>}
+                  {r.down > 0 && <Badge tone="bad">👎 {r.down}</Badge>}
+                  {r.wrong > 0 && <Badge tone="bad">wrong {r.wrong}</Badge>}
+                  {!r.offTopic && !r.down && !r.wrong && <span className="text-fg-4">–</span>}
+                </span>
+              ),
+            },
+            { key: "tok", header: "Tokens", align: "right", hideOnPhone: true, render: (r) => fmtNum(r.tokens) },
+            { key: "c", header: "Cost", align: "right", render: (r) => usd(r.cost, 4) },
+            { key: "l", header: "Last", render: (r) => <span title={fmtDate(r.last, true)}>{timeAgo(r.last)}</span> },
+          ]}
+        />
+      )}
+      <Pager page={page} pages={pages} onPage={setPage} />
+    </Card>
+  );
+}
+
 export default function ChatAdmin() {
-  const [days, setDays] = useState(14);
+  // the window lives in the URL (?days=) like every filter on the page
+  const url = useUrlFilters();
+  const days = [7, 14, 30, 90].includes(Number(url.get("days"))) ? Number(url.get("days")) : 14;
+  const setDays = (d: number) => url.set({ days: d === 14 ? null : String(d) });
   const { data, error, loading, refresh } = useAdminData<Resp>(`/api/admin/ai/chat?days=${days}`, { refreshMs: 60_000 });
   const [open, setOpen] = useState<Conv | null>(null);
   const exportCases = async () => {
@@ -232,23 +319,8 @@ export default function ChatAdmin() {
           {data?.gaps.length ? <BarList items={data.gaps.map((g) => ({ key: g.q, label: g.q, value: g.n }))} /> : <EmptyState title="No gaps yet" hint="The tutor's searches that only found passing mentions show here." />}
         </Card>
       </div>
-      <Card label="conversations" title="The latest conversations" pad={false}>
-        <Table<Conv>
-          rowKey={(r) => r.chat}
-          rows={data?.conversations ?? []}
-          loading={loading && !data}
-          onRowClick={(r) => setOpen(r)}
-          minWidth={640}
-          empty={<EmptyState title="No conversations yet" />}
-          columns={[
-            { key: "u", header: "Learner", render: (r) => r.email || (r.user ? r.user.slice(0, 8) : "dev preview") },
-            { key: "n", header: "Messages", align: "right", render: (r) => fmtNum(r.messages) },
-            { key: "f", header: "Fast", align: "right", hideOnPhone: true, render: (r) => fmtNum(r.fast) },
-            { key: "c", header: "Cost", align: "right", render: (r) => usd(r.cost, 4) },
-            { key: "l", header: "Last", render: (r) => <span title={fmtDate(r.last, true)}>{timeAgo(r.last)}</span> },
-          ]}
-        />
-      </Card>
+      <Conversations days={days} onOpen={setOpen} />
+      <CallLog scope="chat" days={days} prefix="m" id="chat-calls" label="every chat call" title="Messages, titles and memory updates" />
       <ConversationDrawer c={open} onClose={() => setOpen(null)} />
     </div>
   );

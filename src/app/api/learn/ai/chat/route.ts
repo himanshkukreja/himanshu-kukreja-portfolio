@@ -2,7 +2,6 @@ import { after, NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { isAdminEmail } from "@/lib/ai/access";
 import { ownKey, saveTranscript } from "@/lib/ai/client";
-import { creditsFor } from "@/lib/ai/prices";
 import { MODELS } from "@/lib/ai/prices";
 import { devPreview, originOf } from "@/lib/search/smart/server";
 import { runChatCore, runMockCore, readRequest } from "@/lib/ai/chat/core";
@@ -124,7 +123,8 @@ export async function POST(request: Request) {
           cache_read_tokens: r.loop.usage.cache_read_input_tokens,
           cache_write_tokens: r.loop.usage.cache_creation_input_tokens,
           cost_usd: r.loop.costUsd,
-          credits: creditsFor(r.loop.costUsd),
+          // metered against the monthly budget, but the chat has its own message quota: no learner credits
+          credits: 0,
           latency_ms: Date.now() - t0,
           request_id: r.loop.requestId,
           byok: admit.byok,

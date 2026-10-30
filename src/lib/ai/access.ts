@@ -10,7 +10,8 @@ import { featureConfig, getAiSettings } from "./settings";
 import { getBudget, startOfToday, type Mode } from "./governor";
 import { USD_PER_CREDIT } from "./prices";
 import { dailyAllowanceUsd } from "./limits";
-import { chatSpendToday } from "./chat/quota";
+import { chatLimits, chatToday } from "./chat/quota";
+import type { ChatQuota } from "./chat/text";
 
 export type AiStatus = {
   /** any AI feature usable by this person right now */
@@ -20,8 +21,11 @@ export type AiStatus = {
   signedIn: boolean;
   mode: Mode;
   features: Partial<Record<FeatureId, boolean>>;
+  /** the shared daily credits (every AI feature but the course chat) */
   creditsLeft: number | null;
   creditsPerDay: number;
+  /** the course chat's own quota (messages, never credits; chat/quota.ts), for a signed-in learner */
+  chat: ChatQuota | null;
   /** answering with the learner's own key */
   ownKey: boolean;
 };
@@ -44,17 +48,27 @@ export async function aiStatus(user: { id: string; email: string | null } | null
   }
   let creditsLeft: number | null = null;
   let creditsPerDay = b.userDailyCredits;
+  let chat: ChatQuota | null = null;
   if (user) {
-    const [{ data }, allowance, chatSpend] = await Promise.all([
+    const [{ data }, allowance, today, limits] = await Promise.all([
       supabase.rpc("ai_spend_v2", { p_from: startOfToday().toISOString(), p_live: true, p_user: user.id }),
       dailyAllowanceUsd(user.id, b.userDailyUsd),
-      // the course chat has its own quota, outside the shared credits
-      chatSpendToday(user.id),
+      // the course chat has its own quota (messages), outside the shared credits: its spend is taken back out
+      chatToday(user.id).catch(() => ({ main: 0, total: 0, spend: 0 })),
+      chatLimits(),
     ]);
-    const spent = Math.max(0, Number((data as { cost?: number }[] | null)?.[0]?.cost ?? 0) - chatSpend);
+    const spent = Math.max(0, Number((data as { cost?: number }[] | null)?.[0]?.cost ?? 0) - today.spend);
     creditsLeft = Math.max(0, Math.floor((allowance.usd - spent) / USD_PER_CREDIT));
     creditsPerDay = Math.floor(allowance.usd / USD_PER_CREDIT);
+    // the same numbers as the chat's own header line (GET /api/learn/ai/chat)
+    chat = {
+      mainLeft: ownKey ? limits.perDay : Math.max(0, limits.perDay - today.main),
+      mainPerDay: limits.perDay,
+      totalLeft: ownKey ? limits.ceiling : Math.max(0, limits.ceiling - today.total),
+      fast: !ownKey && today.main >= limits.perDay,
+      ownKey,
+    };
   }
   const available = Object.values(features).some(Boolean);
-  return { available, preview: available && !s.enabled && admin && !ownKey, signedIn: !!user, mode: b.mode, features, creditsLeft, creditsPerDay, ownKey: ownKey && !!user };
+  return { available, preview: available && !s.enabled && admin && !ownKey, signedIn: !!user, mode: b.mode, features, creditsLeft, creditsPerDay, chat, ownKey: ownKey && !!user };
 }

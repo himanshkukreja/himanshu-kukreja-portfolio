@@ -15,8 +15,11 @@ export type AiStatus = {
   signedIn: boolean;
   mode: "green" | "amber" | "red" | "off";
   features: Partial<Record<string, boolean>>;
+  /** the shared daily credits (every AI feature but the course chat) */
   creditsLeft: number | null;
   creditsPerDay: number;
+  /** the course chat's own quota: messages, never credits (signed in only) */
+  chat?: { mainLeft: number; mainPerDay: number; totalLeft: number; fast: boolean; ownKey: boolean } | null;
   ownKey: boolean;
 };
 

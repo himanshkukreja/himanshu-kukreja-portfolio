@@ -1512,6 +1512,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             <div className={PROSE}>
               <p>
                 <strong>AI credits.</strong> Each signed-in learner gets a daily allowance (shown in the AI panels and on the Progress page), refilled at midnight UTC. A lesson question uses about 10–20 credits, a mock interview turn about 10.
+                The course chat (the Ask tab and the Ask button) doesn&apos;t use credits: it has its own daily messages, shown under the chat box.
                 When many people use AI on the same day the allowance shrinks a little so it lasts for everyone; if it runs out for the day, the Ask Claude / ChatGPT links and the free questions still work.
               </p>
               <p>

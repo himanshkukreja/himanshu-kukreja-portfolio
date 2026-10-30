@@ -6,16 +6,17 @@ import "server-only";
  * Learner calls (live features, with a userId) pass, in order: the switch and the feature switch, the
  * governor's mode (off: refuse; red: refuse, the caller shows its cached/static answer; amber: the
  * feature's cheaper model, or refuse if it has none), the block list, a per-user rate limit (10 calls a
- * minute), the feature's calls-per-day, the user's daily allowance, and the input size cap. Content
- * jobs (eval, batch) skip the per-user checks but still count against the monthly budget.
+ * minute), the feature's calls-per-day, the user's daily allowance (not for the course chat's calls: its own
+ * quota, chat/quota.ts), and the input size cap. Content jobs (eval, batch) skip the per-user checks but still
+ * count against the monthly budget.
  */
 import { supabase } from "@/lib/supabase";
 import { costOf, creditsFor, type Usage } from "./prices";
 import { answerTokens, FEATURES, type FeatureId } from "./features";
 import { featureConfig, getAiSettings } from "./settings";
-import { getBudget, startOfToday, type Mode } from "./governor";
+import { CONTENT_CAP_MESSAGE, contentCapReached, getBudget, startOfToday, type Mode } from "./governor";
 import { dailyAllowanceUsd } from "./limits";
-import { chatSpendToday } from "./chat/quota";
+import { CHAT_FEATURES, chatSpendToday } from "./chat/quota";
 
 const API = "https://api.anthropic.com/v1/messages";
 const RATE_PER_MIN = 10;
@@ -51,8 +52,8 @@ export type AiRequest = {
   /** give up after this long (logged as an error; the caller shows its non-AI fallback) */
   timeoutMs?: number;
   /** the call rides on a request its caller already admitted under its own limits (a course-chat title, made with an
-   *  admitted message): the block list, the per-minute rate, the off-topic pause and the shared daily credits were
-   *  checked there; the switches, the budget, the governor and the feature's calls-per-day still apply */
+   *  admitted message): the block list, the per-minute rate and the off-topic pause were checked there; the switches,
+   *  the budget, the governor and the feature's calls-per-day still apply (chat calls never use the shared credits) */
   admitted?: boolean;
 };
 
@@ -114,6 +115,9 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   const budget = await getBudget(s);
   const learner = def.live && !!req.userId;
   const byok = !!req.userKey;
+  // the course chat's calls (its memory updates and titles) have the chat's own quota: they never spend, need or
+  // report the learner's shared daily credits (owner's rule, 29 Oct 2026; see chat/quota.ts)
+  const chatCall = (CHAT_FEATURES as readonly string[]).includes(req.feature);
   const base = { user_id: req.userId ?? null, feature: req.feature, meta: req.meta ?? {}, byok };
   let creditsLeft: number | null = null;
 
@@ -130,6 +134,9 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
   // "off" because the learner switch is off doesn't stop content jobs or an admin preview; a used-up budget or the end date does
   if (!byok && budget.mode === "off" && !(budget.reason === "switched off" && (!def.live || req.adminPreview))) return refuse("disabled", budget.reason);
   if (!byok && def.live && budget.mode === "red") return refuse("over_quota", "AI is resting for today: the day's share of the budget is used");
+  // content jobs (eval, batch) stop at their share of the cycle (monthly budget × (1 - live share)), so they can't
+  // eat the learners' share; live features never look at it
+  if (!byok && !def.live && contentCapReached(budget)) return refuse("over_quota", CONTENT_CAP_MESSAGE);
 
   let model = req.model || cfg.model;
   if (!byok && def.live && budget.mode === "amber") {
@@ -146,11 +153,11 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const t = await userToday(uid, req.feature);
     // an admin may have set this learner's own daily allowance (ai_user_limits)
     const allowance = (await dailyAllowanceUsd(uid, budget.userDailyUsd)).usd;
-    creditsLeft = Math.max(0, Math.floor((allowance - t.spent) / 0.001));
+    if (!chatCall) creditsLeft = Math.max(0, Math.floor((allowance - t.spent) / 0.001));
     if (!req.admitted && t.lastMinute >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute");
     if (!req.admitted && t.offTopic >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.");
     if (!byok && cfg.perDay && t.featureCalls >= cfg.perDay) return refuse("over_quota", `You've used today's ${cfg.perDay} ${def.label.toLowerCase()} calls. They refill at midnight UTC, or add your own key under You → AI`);
-    if (!req.admitted && !byok && t.spent >= allowance) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
+    if (!req.admitted && !chatCall && !byok && t.spent >= allowance) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
   }
 
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up
@@ -182,7 +189,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     }
     const u = body.usage ?? {};
     const cost = costOf(model, u);
-    const credits = creditsFor(cost);
+    // a chat call's cost is metered (the monthly budget) but it is no learner credits
+    const credits = chatCall ? 0 : creditsFor(cost);
     const raw = (body.content ?? []).filter((c) => c.type === "text").map((c) => c.text ?? "").join("");
     // a tuned prompt's private plan line may come first (see stripPrivatePlan)
     const offTopic = /^\s*(<plan>[\s\S]*?<\/plan>\s*)?OFF_TOPIC\b/.test(raw);

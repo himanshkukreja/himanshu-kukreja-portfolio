@@ -25,6 +25,10 @@ export type FeatureDef = {
    *  where a short in-character reply matters more than deliberation. Haiku never thinks. */
   think: boolean;
   live: boolean;
+  /** "content": a content-production job run by scripts or the admin (model evaluations, batch FAQ and other
+   *  content generation), never a learner request. The admin's usage views leave these out by default; the budget
+   *  governor counts every call (its SQL splits live from content the same way: feature in ('eval', 'batch')). */
+  kind?: "content";
 };
 
 export const FEATURES: Record<FeatureId, FeatureDef> = {
@@ -60,10 +64,13 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // perDay: title calls a learner may make a day (a new chat makes one, or two when its first message had no topic)
   "chat-title": { label: "Course chat title", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 60, maxTokens: 24, maxInputChars: 1200, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
-  eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false },
-  batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false },
+  eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
+  batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },
 };
 export const FEATURE_IDS = Object.keys(FEATURES) as FeatureId[];
+/** Content-production jobs (scripts/ai-eval, scripts/ai-batch): not learner usage. */
+export const CONTENT_FEATURES = FEATURE_IDS.filter((id) => FEATURES[id].kind === "content");
+export const isContentFeature = (id: string) => (CONTENT_FEATURES as string[]).includes(id);
 
 /** The answer cap a feature's call gets on this model (Haiku may have more room for its private plan). */
 export const answerTokens = (feature: FeatureId, model: string): number => (/haiku/.test(model) && FEATURES[feature].haikuMaxTokens) || FEATURES[feature].maxTokens;

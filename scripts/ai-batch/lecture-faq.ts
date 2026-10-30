@@ -16,6 +16,7 @@ import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { supabase } from "@/lib/supabase";
+import { assertContentBudget } from "./budget";
 import { costOf, creditsFor, MODELS, type Usage } from "@/lib/ai/prices";
 import type { Lecture, LectureScene } from "@/lib/learn/lecture/types";
 
@@ -180,6 +181,7 @@ async function submit(only: string[] | null, force: boolean, dry: boolean) {
     custom_id: `lfaq-${i}`,
     params: { model: MODEL, max_tokens: MAX_TOKENS, system: SYSTEM, messages: [{ role: "user", content: j.prompt }] },
   }));
+  await assertContentBudget(estimate);
   const r = await fetch(API, { method: "POST", headers: H, body: JSON.stringify({ requests }) });
   const b = (await r.json()) as { id?: string; error?: { message?: string } };
   if (!r.ok || !b.id) throw new Error(b.error?.message || `HTTP ${r.status}`);

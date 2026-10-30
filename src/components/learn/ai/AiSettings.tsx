@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * You → Progress: today's AI credits and "use your own Anthropic key" (bring your own key). The key is
- * kept only in this browser and sent only with AI requests; calls on it are billed to the learner's
- * Anthropic account, so the site's daily limits don't apply.
+ * You → Progress (/learn/dashboard#ai): today's AI credits, the course chat's own messages (the chat never spends
+ * credits: its own daily quota, lib/ai/chat/quota.ts) and "use your own Anthropic key" (bring your own key). The key
+ * is kept only in this browser and sent only with AI requests; calls on it are billed to the learner's Anthropic
+ * account, so the site's daily limits don't apply.
  */
 import { useState, useSyncExternalStore } from "react";
 import { Sparkles } from "lucide-react";
@@ -33,7 +34,7 @@ export default function AiSettings({ signedIn, onSignIn }: { signedIn: boolean; 
   };
 
   return (
-    <section aria-labelledby="ai-set-h" className="flex flex-col gap-3 border border-line bg-surface p-5 sm:p-6">
+    <section id="ai" aria-labelledby="ai-set-h" className="flex scroll-mt-24 flex-col gap-3 border border-line bg-surface p-5 sm:p-6">
       <h2 id="ai-set-h" className="m-0 flex items-center gap-2 font-mono text-[11px] uppercase tracking-label text-signal-text">
         <Sparkles className="h-3.5 w-3.5" aria-hidden /> ai in the course
       </h2>
@@ -49,9 +50,20 @@ export default function AiSettings({ signedIn, onSignIn }: { signedIn: boolean; 
         <p className="m-0 font-mono text-xs text-fg-2">Using your own Anthropic key (…{saved.slice(-4)}). The site&apos;s daily limits don&apos;t apply; your Anthropic account is billed.</p>
       ) : (
         status.creditsLeft !== null && (
-          <p className="m-0 font-mono text-xs text-fg-2">
-            {status.creditsLeft} of {status.creditsPerDay} AI credits left today · they refill at midnight UTC
-          </p>
+          <div className="flex flex-col gap-1">
+            <p className="m-0 font-mono text-xs text-fg-2">
+              {status.creditsLeft} of {status.creditsPerDay} AI credits left today · they refill at midnight UTC
+            </p>
+            {status.chat && status.features["course-chat"] && (
+              <p className="m-0 font-mono text-xs text-fg-3">
+                Course chat:{" "}
+                {status.chat.fast
+                  ? `fast mode for the rest of today (${status.chat.totalLeft} messages left)`
+                  : `${status.chat.mainLeft} of ${status.chat.mainPerDay} messages left today`}
+                {" "}· its own daily messages, it doesn&apos;t use credits
+              </p>
+            )}
+          </div>
         )
       )}
       {signedIn && (
