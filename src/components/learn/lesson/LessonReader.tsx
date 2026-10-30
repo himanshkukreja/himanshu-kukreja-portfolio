@@ -26,7 +26,8 @@ import ArticleShorts from "./ArticleShorts";
 import LandingContext from "./LandingContext";
 import BossEntry from "./BossEntry";
 import DesignFirst from "@/components/learn/designfirst/DesignFirst";
-import NotebookPanelHost from "@/components/learn/ink/NotebookPanelHost";
+import LessonNotebookContext from "@/components/learn/ink/global/LessonNotebookContext";
+import AnnotateHost from "@/components/learn/ink/annotate/AnnotateHost";
 import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
 import { headerStackBottom, stageRailHeight } from "./layout";
 import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
@@ -202,15 +203,18 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             {meta.kind === "bonus" && <QuestRunEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} />}
 
             <AskPrompt />
-            <LessonContentWrapper
-              ref={contentRef}
-              htmlContent={html}
-              courseId={meta.course}
-              week={meta.week}
-              lessonSlug={meta.slug}
-              lessonTitle={meta.title}
-              textSize={size}
-            />
+            {/* the learner's ink on the lesson (annotate mode: the reading tools' Annotate button) */}
+            <AnnotateHost contentRef={contentRef} lessonKey={`${meta.week}/${meta.slug}`} title={meta.title}>
+              <LessonContentWrapper
+                ref={contentRef}
+                htmlContent={html}
+                courseId={meta.course}
+                week={meta.week}
+                lessonSlug={meta.slug}
+                lessonTitle={meta.title}
+                textSize={size}
+              />
+            </AnnotateHost>
             <DeepLinkResolver rootRef={contentRef} />
             {meta.kind === "capstone" && meta.designFirst && <DesignFirst meta={meta.designFirst} week={meta.week} title={meta.title} contentRef={contentRef} />}
 
@@ -230,7 +234,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
         <ReadingDock {...tools} />
         <MobileReadingBar {...tools} />
         {focus && <FocusControls stages={stages} size={size} onSize={cycleSize} onExit={() => changeFocus(false)} />}
-        <NotebookPanelHost lesson={{ week: meta.week, slug: meta.slug, title: meta.title, weekLabel: meta.weekLabel, weekTopic: meta.weekTopic }} />
+        <LessonNotebookContext lesson={{ week: meta.week, slug: meta.slug, title: meta.title, weekLabel: meta.weekLabel, weekTopic: meta.weekTopic }} />
         <ContentsSheet open={sheet} onClose={closeSheet} toc={toc} stages={stages} kicker={meta.shortLabel.toUpperCase()} title={meta.title} />
       </div>
     </LessonProgressProvider>

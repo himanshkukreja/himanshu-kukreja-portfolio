@@ -13,11 +13,13 @@
  *   uploadSnip(pageId, itemId, blob) store a snip image, returns its storage path
  *   snipUrl(path)                    a short-lived signed URL to show a snip
  *   renderPagePng(page, opts)        the page (paper + ink + items) as a PNG blob, for the AI and for export
- *   openNotebookPanel(target?)       open the side panel (on lesson pages), optionally at a page
+ *   openNotebookPanel(target?)       open the side panel (on any course page), optionally at a page
  *
  * Additions (compatible): InkError (every function throws it with a `code` and a sentence a learner can read),
  * registerOpenPage (the editor that has a page open; appendItem and inboxPage go through it so nothing it holds
  * unsaved is overwritten), lessonPage, restorePage, inkDevStore and the INK_EVENTS.item event appendItem fires.
+ * recentPages (the newest pages without their ink, for the page switcher and the notebook's "Your pages") and
+ * pagesInk (a few pages' ink in one query, for their thumbnails).
  *
  * Errors: InkError.code is "auth" (signed out), "unavailable" (the tables aren't there yet), "full" (the page is
  * at LIMITS.pageBytes), "limit" (50 notebooks / 200 pages / 500 snips), "too_big" / "type" (a snip), "not_found",
@@ -397,6 +399,58 @@ export async function pageOutline(notebookId: string): Promise<{ id: string; tit
 export async function lessonPage(lessonKey: string): Promise<NotebookPage | null> {
   const r = await (await db()).lessonPage(lessonKey);
   return r ? toPage(r) : null;
+}
+
+/** A page without its ink: what a list of pages shows (the switcher, the "Your pages" cards). */
+export type PageSummary = { id: string; title: string; notebookId: string; notebookTitle: string; lessonKey: string | null; paper: Paper; updatedAt: string };
+
+/**
+ * The learner's most recently edited pages across all notebooks, newest first, without strokes or items (one small
+ * query on notebook_pages_user_updated_idx, plus the notebook titles).
+ */
+export async function recentPages(limit = 8): Promise<PageSummary[]> {
+  const b = await db();
+  const n = Math.max(1, Math.min(50, limit));
+  if (b !== supabaseBackend) {
+    // the dev stand-in: everything is in localStorage already
+    const nbs = await b.listNotebooks();
+    const titles = new Map(nbs.map((x) => [x.id, x.title]));
+    const rows = (await Promise.all(nbs.map((x) => b.listPages(x.id)))).flat();
+    return rows
+      .sort((x, y) => y.updated_at.localeCompare(x.updated_at))
+      .slice(0, n)
+      .map((r) => ({ id: r.id, title: r.title, notebookId: r.notebook_id, notebookTitle: titles.get(r.notebook_id) || "", lessonKey: r.lesson_key, paper: r.paper, updatedAt: r.updated_at }));
+  }
+  const { data, error } = await supabaseClient.from("notebook_pages").select("id,title,notebook_id,lesson_key,paper,updated_at,notebooks(title)").order("updated_at", { ascending: false }).limit(n);
+  if (error) throw mapError(error);
+  type Row = { id: string; title: string; notebook_id: string; lesson_key: string | null; paper: Paper; updated_at: string; notebooks: { title: string } | { title: string }[] | null };
+  return ((data || []) as unknown as Row[]).map((r) => ({
+    id: r.id,
+    title: r.title,
+    notebookId: r.notebook_id,
+    notebookTitle: (Array.isArray(r.notebooks) ? r.notebooks[0]?.title : r.notebooks?.title) || "",
+    lessonKey: r.lesson_key,
+    paper: r.paper,
+    updatedAt: r.updated_at,
+  }));
+}
+
+/** The ink of a few pages (paper, strokes, items), for thumbnails: one query for all of them. */
+export async function pagesInk(ids: string[]): Promise<Map<string, Pick<NotebookPage, "paper" | "strokes" | "items">>> {
+  const out = new Map<string, Pick<NotebookPage, "paper" | "strokes" | "items">>();
+  if (!ids.length) return out;
+  const b = await db();
+  if (b !== supabaseBackend) {
+    for (const id of ids) {
+      const r = await b.getPage(id);
+      if (r) out.set(id, { paper: r.paper, strokes: Array.isArray(r.strokes) ? r.strokes : [], items: Array.isArray(r.items) ? r.items : [] });
+    }
+    return out;
+  }
+  const { data, error } = await supabaseClient.from("notebook_pages").select("id,paper,strokes,items").in("id", ids.slice(0, 50));
+  if (error) throw mapError(error);
+  for (const r of (data || []) as Pick<PageRow, "id" | "paper" | "strokes" | "items">[]) out.set(r.id, { paper: r.paper, strokes: Array.isArray(r.strokes) ? r.strokes : [], items: Array.isArray(r.items) ? r.items : [] });
+  return out;
 }
 
 /** A notebook by title (the first made), created when missing. */

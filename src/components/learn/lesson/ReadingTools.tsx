@@ -13,6 +13,7 @@ import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
 import { openNotebookPanel } from "@/lib/learn/ink/client";
 import SnipButton from "@/components/learn/ink/capture/SnipButton";
+import AnnotateButton from "@/components/learn/ink/annotate/AnnotateButton";
 
 const openAsk = () => window.dispatchEvent(new Event(ASK_LESSON_EVENT));
 
@@ -119,6 +120,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
           <span className="font-mono text-[10px] tracking-[0.06em]">NOTEBOOK</span>
         </button>
         <SnipButton variant="dock" />
+        <AnnotateButton variant="dock" />
         <TermsToggle variant="dock" />
         <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] text-fg hover:bg-surface-2">
           <span aria-hidden className="font-display text-base font-bold leading-none">
@@ -220,6 +222,7 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
             <NotebookIcon />
           </button>
           <SnipButton variant="bar" />
+          <AnnotateButton variant="bar" />
           <button
             type="button"
             onClick={action ?? undefined}

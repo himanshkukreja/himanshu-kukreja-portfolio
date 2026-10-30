@@ -22,6 +22,7 @@ import CheckPanel from "./ai/CheckPanel";
 import CardsPanel from "./ai/CardsPanel";
 import NotesFinePrint from "./ai/NotesFinePrint";
 import type { PageAi, PageAiAction } from "./ai/usePageAi";
+import { isLessonKey } from "./global/context";
 
 type Action = Exclude<PageAiAction, "convert">;
 
@@ -53,7 +54,7 @@ export default function PageAiActions(props: { page: NotebookPage; ai: PageAi; o
   const run = (a: Action) => void ai.run(a);
 
   const actions: { id: Action; label: string; hint: string; icon: typeof ListChecks; show: boolean }[] = [
-    { id: "check", label: "Check against lesson", hint: "what matches, what's off, what's missing", icon: ListChecks, show: !!page.lessonKey },
+    { id: "check", label: "Check against lesson", hint: "what matches, what's off, what's missing", icon: ListChecks, show: isLessonKey(page.lessonKey) },
     { id: "cards", label: "Make review cards", hint: "3–8 cards for your review", icon: Layers, show: true },
   ];
 
@@ -148,7 +149,7 @@ export default function PageAiActions(props: { page: NotebookPage; ai: PageAi; o
           </p>
         )}
         {result?.kind === "check" && <CheckPanel data={result.data} />}
-        {result?.kind === "cards" && <CardsPanel key={result.cards.map((c) => c.q).join("|")} cards={result.cards} pageId={page.id} pageTitle={page.title} lessonKey={page.lessonKey} />}
+        {result?.kind === "cards" && <CardsPanel key={result.cards.map((c) => c.q).join("|")} cards={result.cards} pageId={page.id} pageTitle={page.title} lessonKey={isLessonKey(page.lessonKey) ? page.lessonKey : null} />}
         {typed && (
           <button
             type="button"

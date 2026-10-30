@@ -738,29 +738,59 @@ html.hk-ask-open [data-ask-fab] {
   }
 }
 
-/* The Notebook beside a lesson (components/learn/ink/NotebookPanel): on wide screens the page makes room for the
-   split panel (its width is --hk-nb-w, set by the panel as it is resized); phones get a full-height sheet instead */
+/* The Notebook panel (components/learn/ink/NotebookPanel, on every course page). Landscape >= 1024 px: the side
+   split, the page makes room on the right (its width is --hk-nb-w, set by the panel as it is resized). Portrait
+   tablets: the bottom split (below). Phones get a full-height sheet instead. */
 @media (min-width: 1024px) {
-  html.hk-nb-open body {
+  html.hk-nb-side body {
     padding-right: var(--hk-nb-w, 480px);
   }
-  html.hk-nb-open [data-ask-shift] {
+  html.hk-nb-side [data-ask-shift] {
     right: calc(var(--hk-nb-w, 480px) + 24px) !important;
   }
-  html.hk-nb-open [data-stage-rail] {
+  html.hk-nb-side [data-stage-rail] {
     right: var(--hk-nb-w, 480px);
   }
   /* the "About this course" strip (lesson/LandingContext) centres in what is left of the window */
-  html.hk-nb-open aside[aria-label="About this course"] {
+  html.hk-nb-side aside[aria-label="About this course"] {
     right: calc(var(--hk-nb-w, 480px) + 12px);
   }
-  html.hk-nb-open [data-reader-right],
-  html.hk-nb-open [data-reader-left] {
+  html.hk-nb-side [data-reader-right],
+  html.hk-nb-side [data-reader-left] {
     display: none !important;
   }
-  html.hk-nb-open [data-reader-grid] {
+  html.hk-nb-side [data-reader-grid] {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+/* Portrait tablets (any iPad upright): the bottom split. The page keeps the top and scrolls above the notebook
+   (its height is --hk-nb-h); what floats at the bottom of the page rides on top of the panel instead of under it:
+   the lesson's reading bar and its Ask pill, the desktop reading tools, the corner dock (pen + Ask), the "About this
+   course" strip, the chat's message box. The course dock steps aside while the split is open (the panel is where
+   the bottom of the screen goes; closing it brings the dock back). */
+html.hk-nb-bottom body {
+  padding-bottom: var(--hk-nb-h, 50vh);
+}
+html.hk-nb-bottom .hk-dock {
+  display: none !important;
+}
+html.hk-nb-bottom [data-reader-ui].inset-x-0 {
+  bottom: var(--hk-nb-h, 50vh) !important;
+}
+html.hk-nb-bottom [data-reader-ui].right-3 {
+  bottom: calc(var(--hk-nb-h, 50vh) + 72px) !important;
+}
+html.hk-nb-bottom [data-ask-shift] {
+  bottom: calc(var(--hk-nb-h, 50vh) + 24px) !important;
+}
+html.hk-nb-bottom [data-chat-fab][data-ask-shift] {
+  bottom: calc(var(--hk-nb-h, 50vh) + 12px) !important;
+}
+html.hk-nb-bottom [data-dock-avoid].fixed {
+  bottom: var(--hk-nb-h, 50vh) !important;
+}
+html.hk-nb-bottom aside[aria-label="About this course"] {
+  bottom: calc(var(--hk-nb-h, 50vh) + 132px) !important;
 }
 /* the full-screen page editor (/learn/notebook/page/<id>): nothing scrolls behind it */
 html.hk-ink-full,
@@ -777,6 +807,15 @@ html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
 @media (min-width: 1024px) {
   html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
     bottom: 88px;
+  }
+}
+/* a case file keeps its own Ask AI and read-aloud buttons in the corner: the Notebook's pen sits above them */
+[data-chat-fab][data-lift="case"] {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 204px) !important;
+}
+@media (min-width: 1024px) {
+  [data-chat-fab][data-lift="case"] {
+    bottom: 140px !important;
   }
 }
 

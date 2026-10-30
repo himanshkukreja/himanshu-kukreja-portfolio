@@ -474,7 +474,8 @@ function ChatPage() {
         {topBar}
         {empty ? emptyState : thread}
         {follow.unseen && !empty && <NewMessagePill onClick={() => follow.toBottom()} className="fixed left-1/2 z-40 -translate-x-1/2" style={{ bottom: (kb > 0 ? kb : dockH) + boxH + 10 }} />}
-        <div ref={boxRef} className="hk-safe-x fixed inset-x-0 z-40 border-t border-line bg-bg/95 px-3 pb-2 pt-2 backdrop-blur sm:px-6" style={{ bottom: kb > 0 ? kb : dockH }}>
+        {/* data-dock-avoid: the corner dock (the Notebook's pen) sits above the box, never on it (ChatDock) */}
+        <div ref={boxRef} data-dock-avoid className="hk-safe-x fixed inset-x-0 z-40 border-t border-line bg-bg/95 px-3 pb-2 pt-2 backdrop-blur sm:px-6" style={{ bottom: kb > 0 ? kb : dockH }}>
           <div className="mx-auto w-full max-w-[760px]">{box}</div>
         </div>
         <Sheet open={sheet === "history"} onClose={() => setSheet(null)} side="left" label="Chat history">
@@ -503,7 +504,7 @@ function ChatPage() {
           {follow.unseen && !empty && <NewMessagePill onClick={() => follow.toBottom()} className="absolute bottom-3 left-1/2 z-10 -translate-x-1/2" />}
         </div>
         {!empty && (
-          <div className="shrink-0 border-t border-line bg-bg px-6 pb-4 pt-3">
+          <div data-dock-avoid className="shrink-0 border-t border-line bg-bg px-6 pb-4 pt-3">
             <div className="mx-auto w-full max-w-[712px]">{box}</div>
           </div>
         )}

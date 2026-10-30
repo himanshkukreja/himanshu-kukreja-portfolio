@@ -6,7 +6,10 @@
  *
  * Selection opens the toolbar on mouseup, after a touch long-press or an Apple Pencil / stylus selection
  * (selectionchange), after a keyboard selection (Shift + arrows), or with Shift+F10. The toolbar also clips the
- * passage to the notebook or snips the area around it (components/learn/ink/capture; CaptureHost runs snip mode). Text offsets count characters only
+ * passage to the notebook or snips the area around it (components/learn/ink/capture; CaptureHost runs snip mode), and
+ * opens a handwritten note on it: a writing pad anchored to the passage (components/learn/ink/passage; the row is a
+ * content_notes row with `ink`). A handwritten note's marker is the typed note's marker plus a pen glyph; tapping it
+ * (or Enter on it) opens the note. Text offsets count characters only
  * outside [data-sd-chrome] (captions, toolbars, buttons the renderer adds), so chrome can change
  * without moving a saved highlight.
  */
@@ -33,6 +36,9 @@ import { canNativeShare, LINK_COPIED, sharePassage } from "@/lib/learn/deepLink"
 import { liftTerms, restoreTerms } from "@/lib/concepts/dom";
 import CaptureHost from "@/components/learn/ink/capture/CaptureHost";
 import { useCaptureActions } from "@/components/learn/ink/capture/useCaptureActions";
+import InkNotePanel, { type InkNoteTarget } from "@/components/learn/ink/passage/InkNotePanel";
+import { listLessonInkNotes, type InkNoteRow } from "@/lib/learn/ink/passage";
+import { useInkDev } from "@/lib/learn/ink/usePageAutosave";
 
 type HighlightableContentProps = {
   htmlContent: string;
@@ -60,7 +66,10 @@ type Note = {
   highlight_offset: number | null;
 };
 
-type MenuState = { x: number; y: number; placement: "above" | "below" | "sheet"; autoFocus: boolean };
+type MenuState = { x: number; y: number; placement: "above" | "below" | "sheet"; autoFocus: boolean; pen?: boolean };
+
+/** The pen glyph after a handwritten note's marker (chrome: skipped by text offsets and by the AI's context). */
+const PEN_GLYPH = `<span data-sd-chrome="" aria-hidden="true" style="display:inline-block;margin-left:0.18em;vertical-align:-0.06em;line-height:0;color:var(--c-signal-text)"><svg viewBox="0 0 24 24" width="0.85em" height="0.85em" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.4 18.6a2 2 0 0 1-.9.5l-2.9.8.8-2.9a2 2 0 0 1 .5-.8z"/></svg></span><span data-sd-chrome="" class="sr-only"> (handwritten note)</span>`;
 
 const CHROME = "[data-sd-chrome]";
 const COACH_KEY = "sd:coach:select";
@@ -157,6 +166,13 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
   const [showNoteEditor, setShowNoteEditor] = useState(false);
   const [isSavingNote, setIsSavingNote] = useState(false);
   const [editingNote, setEditingNote] = useState<Note | null>(null);
+  // handwritten notes on passages (content_notes rows with ink) and the one open on the pad / in the viewer
+  const inkDev = useInkDev();
+  const inkUserId = user?.id ?? (inkDev ? "dev" : null);
+  const [inkNotes, setInkNotes] = useState<InkNoteRow[]>([]);
+  const [inkOpen, setInkOpen] = useState<{ key: number; target: InkNoteTarget } | null>(null);
+  const inkSeq = useRef(0);
+  const inkRect = useRef<DOMRect | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const rangeRef = useRef<Range | null>(null);
   const selectedTextRef = useRef<string>("");
@@ -230,6 +246,125 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     };
   }, [user, courseId, week, lessonSlug]);
 
+  /* ---------------- load this reader's handwritten notes (none until the ink migration is applied) */
+  useEffect(() => {
+    let cancelled = false;
+    if (!inkUserId) {
+      setInkNotes([]);
+      return;
+    }
+    listLessonInkNotes(inkUserId, courseId, week, lessonSlug)
+      .then((rows) => {
+        if (!cancelled) setInkNotes(rows);
+      })
+      .catch((e) => console.error("[Ink notes] fetch failed:", e instanceof Error ? e.message : e));
+    return () => {
+      cancelled = true;
+    };
+  }, [inkUserId, courseId, week, lessonSlug]);
+
+  // a handwritten note's rows are content_notes rows too: keep them out of the highlight / typed-note lists
+  const inkIds = new Set(inkNotes.map((n) => n.id));
+  const shownHighlights = inkIds.size ? highlights.filter((h) => !inkIds.has(h.id)) : highlights;
+  const shownNotes = inkIds.size ? notes.filter((n) => !inkIds.has(n.id)) : notes;
+
+  /** The passage of the open handwritten note on screen: its marker once it has one, else the selection. */
+  const inkAnchorRect = useCallback((noteId: string | null): DOMRect | null => {
+    const root = contentRef.current;
+    if (noteId && root) {
+      const marks = root.querySelectorAll(`mark[data-note-id="${CSS.escape(noteId)}"]`);
+      if (marks.length) {
+        let r: DOMRect | null = null;
+        marks.forEach((m) => {
+          const b = m.getBoundingClientRect();
+          r = r ? new DOMRect(Math.min(r.left, b.left), Math.min(r.top, b.top), Math.max(r.right, b.right) - Math.min(r.left, b.left), Math.max(r.bottom, b.bottom) - Math.min(r.top, b.top)) : b;
+        });
+        inkRect.current = r;
+        return r;
+      }
+    }
+    const range = rangeRef.current;
+    if (!noteId && range && !range.collapsed && root?.contains(range.commonAncestorContainer)) {
+      const b = range.getBoundingClientRect();
+      if (b.width || b.height) {
+        inkRect.current = b;
+        return b;
+      }
+    }
+    return inkRect.current;
+  }, []);
+
+  /**
+   * Adding or removing a marker re-injects the lesson HTML and the course enhancer rebuilds its chrome a moment
+   * later, which moves the page under the reader. For a short while keep the passage at `offset` where it was on
+   * screen (stops as soon as the reader scrolls the page themselves).
+   */
+  const holdPassage = useCallback((offset: number | null) => {
+    const root = contentRef.current;
+    if (!root || offset === null) return;
+    const at = () => {
+      const w = textWalker(root);
+      let acc = 0;
+      for (let n = w.nextNode(); n; n = w.nextNode()) {
+        const len = (n.nodeValue || "").length;
+        if (acc + len > offset) return n.parentElement;
+        acc += len;
+      }
+      return null;
+    };
+    const first = at();
+    if (!first) return;
+    const top0 = first.getBoundingClientRect().top;
+    const end = performance.now() + 1800;
+    let stop = false;
+    const cancel = (e: Event) => {
+      if (!(e.target instanceof Element && e.target.closest("[data-ink-note-panel]"))) stop = true;
+    };
+    const opts = { passive: true, capture: true } as const;
+    window.addEventListener("wheel", cancel, opts);
+    window.addEventListener("touchmove", cancel, opts);
+    window.addEventListener("keydown", cancel, opts);
+    const tick = () => {
+      const el = !stop && performance.now() < end ? at() : null;
+      if (!el && (stop || performance.now() >= end)) {
+        window.removeEventListener("wheel", cancel, opts);
+        window.removeEventListener("touchmove", cancel, opts);
+        window.removeEventListener("keydown", cancel, opts);
+        return;
+      }
+      if (el) {
+        const d = el.getBoundingClientRect().top - top0;
+        if (Math.abs(d) > 1) window.scrollBy({ top: d, behavior: "instant" as ScrollBehavior });
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, []);
+
+  const openInkNote = useCallback((note: InkNoteRow, write = false) => {
+    setMenu(null);
+    inkRect.current = null;
+    setInkOpen({ key: ++inkSeq.current, target: { kind: "open", note, write } });
+  }, []);
+
+  // #inknote-<id> (the notebook's "Open note"): scroll to the marker and open the note
+  const inkHashDone = useRef(false);
+  useEffect(() => {
+    if (inkHashDone.current || !inkNotes.length) return;
+    const m = window.location.hash.match(/^#inknote-([A-Za-z0-9-]{1,64})$/);
+    if (!m) return;
+    inkHashDone.current = true;
+    const note = inkNotes.find((n) => n.id === m[1]);
+    if (!note) return;
+    const t = window.setTimeout(() => {
+      const mark = contentRef.current?.querySelector<HTMLElement>(`mark[data-note-id="${CSS.escape(note.id)}"]`);
+      mark?.scrollIntoView({ block: "center", behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+      window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      window.setTimeout(() => openInkNote(note), 450);
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [inkNotes, openInkNote]);
+
   /* ---------------- click a highlight (remove) or a note (edit) */
   useEffect(() => {
     const el = contentRef.current;
@@ -241,7 +376,11 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
       if (sel && !sel.isCollapsed) return; // finishing a selection, not a click
       const noteId = (mark as HTMLElement).dataset.noteId;
       const highlightId = (mark as HTMLElement).dataset.highlightId;
-      if (noteId) {
+      const ink = noteId ? inkNotes.find((n) => n.id === noteId) : undefined;
+      if (ink) {
+        e.preventDefault();
+        if (!inkOpen || inkOpen.target.kind !== "open" || inkOpen.target.note.id !== ink.id) openInkNote(ink);
+      } else if (noteId) {
         const note = notes.find((n) => n.id === noteId);
         if (note) {
           e.preventDefault();
@@ -253,9 +392,22 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
         setConfirmDialog({ isOpen: true, highlightId });
       }
     };
+    // a handwritten note's marker is a button: Enter or Space opens it
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Enter" && e.key !== " ") return;
+      const mark = (e.target as Element | null)?.closest?.("mark[data-ink-note]") as HTMLElement | null;
+      const ink = mark && el.contains(mark) ? inkNotes.find((n) => n.id === mark.dataset.noteId) : undefined;
+      if (!ink) return;
+      e.preventDefault();
+      openInkNote(ink);
+    };
     el.addEventListener("click", onClick);
-    return () => el.removeEventListener("click", onClick);
-  }, [notes]);
+    el.addEventListener("keydown", onKey);
+    return () => {
+      el.removeEventListener("click", onClick);
+      el.removeEventListener("keydown", onKey);
+    };
+  }, [notes, inkNotes, inkOpen, openInkNote]);
 
   /* ---------------- selection → toolbar */
   const closeMenu = useCallback(() => {
@@ -279,7 +431,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     return range;
   }, []);
 
-  const openMenuFor = useCallback((range: Range, how: "mouse" | "touch" | "keyboard") => {
+  const openMenuFor = useCallback((range: Range, how: "mouse" | "touch" | "pen" | "keyboard") => {
     const rects = range.getClientRects();
     const first = rects[0] || range.getBoundingClientRect();
     const last = rects[rects.length - 1] || first;
@@ -287,8 +439,8 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     const H = 54;
     // touch / pen: dock the toolbar at the bottom of the screen, clear of the native selection
     // handles and the iOS / Android callout that sit around the selection itself
-    if (how === "touch") {
-      setMenu({ x: 0, y: 0, placement: "sheet", autoFocus: false });
+    if (how === "touch" || how === "pen") {
+      setMenu({ x: 0, y: 0, placement: "sheet", autoFocus: false, pen: how === "pen" });
       markCoachSeen();
       return;
     }
@@ -328,7 +480,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
       window.clearTimeout(touchTimer);
       touchTimer = window.setTimeout(() => {
         const r = captureSelection();
-        if (r) openMenuFor(r, "touch");
+        if (r) openMenuFor(r, lastPointer === "pen" ? "pen" : "touch");
       }, 450);
     };
     const onKeyDown = (e: KeyboardEvent) => {
@@ -506,6 +658,38 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     setShowNoteEditor(true);
   };
 
+  /* ---------------- handwritten note on the passage: open the pad beside it */
+  const handleInkNote = () => {
+    if (!inkUserId) {
+      setMenu(null);
+      openAuthModal();
+      return;
+    }
+    const text = (selectedTextRef.current || selectedText).slice(0, 5000);
+    if (!text) return;
+    const offset = selectedOffsetRef.current;
+    setMenu(null);
+    inkRect.current = null;
+    inkAnchorRect(null);
+    // the native selection handles would sit on top of the pad
+    window.getSelection()?.removeAllRanges();
+    // a handwritten note already on this exact passage: carry on writing it
+    const existing = inkNotes.find((n) => n.highlight_text === text && n.highlight_offset === offset);
+    setInkOpen({
+      key: ++inkSeq.current,
+      target: existing ? { kind: "open", note: existing, write: true } : { kind: "new", anchor: { courseId, week, lessonSlug, highlightText: text, highlightOffset: offset } },
+    });
+  };
+
+  const closeInkNote = useCallback((key: number, focusId: string | null) => {
+    setInkOpen((cur) => (cur && cur.key === key ? null : cur));
+    const active = document.activeElement;
+    // back to the marker, unless the reader has moved on to something else (another marker, a link)
+    if (focusId && (!active || active === document.body || !!active.closest("[data-ink-note-panel]"))) {
+      window.setTimeout(() => contentRef.current?.querySelector<HTMLElement>(`mark[data-note-id="${CSS.escape(focusId)}"]`)?.focus({ preventScroll: true }), 0);
+    }
+  }, []);
+
   const handleSaveNote = async (noteText: string, noteType: NoteType, color: NoteColor) => {
     if (!user) return;
     const textWithNote = selectedTextRef.current || selectedText;
@@ -682,14 +866,14 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
 
   /* ---------------- apply highlights + notes to the HTML (text nodes only, chrome skipped) */
   const applyHighlightsAndNotes = (html: string): string => {
-    if ((highlights.length === 0 && notes.length === 0) || typeof document === "undefined") return html;
+    if ((shownHighlights.length === 0 && shownNotes.length === 0 && inkNotes.length === 0) || typeof document === "undefined") return html;
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
     // concept term marks split text nodes: lift them so a highlight spanning a term still applies
     const terms = liftTerms(tempDiv);
     const plainText = contentText(tempDiv);
 
-    type Item = { id: string; color: string; isNote: boolean };
+    type Item = { id: string; color: string; isNote: boolean; ink?: boolean };
     const byText = new Map<string, Map<number, Item>>();
     const occurrenceAt = (needle: string, offset: number | null) => {
       if (offset === null) return 0;
@@ -708,8 +892,9 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
       if (!byText.has(t)) byText.set(t, new Map());
       byText.get(t)!.set(occurrenceAt(t, offset), item);
     };
-    highlights.forEach((h) => add(h.highlight_text, h.highlight_offset, { id: h.id, color: h.color, isNote: false }));
-    notes.forEach((n) => add(n.highlight_text, n.highlight_offset, { id: n.id, color: n.color, isNote: true }));
+    shownHighlights.forEach((h) => add(h.highlight_text, h.highlight_offset, { id: h.id, color: h.color, isNote: false }));
+    shownNotes.forEach((n) => add(n.highlight_text, n.highlight_offset, { id: n.id, color: n.color, isNote: true }));
+    inkNotes.forEach((n) => n.highlight_text && add(n.highlight_text, n.highlight_offset, { id: n.id, color: n.color, isNote: true, ink: true }));
 
     for (const [needle, occurrences] of byText.entries()) {
       highlightTextInNode(tempDiv, needle, occurrences, { count: 0 });
@@ -718,7 +903,7 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
     return tempDiv.innerHTML;
   };
 
-  const highlightTextInNode = (node: Node, needle: string, occurrences: Map<number, { id: string; color: string; isNote: boolean }>, seen: { count: number }) => {
+  const highlightTextInNode = (node: Node, needle: string, occurrences: Map<number, { id: string; color: string; isNote: boolean; ink?: boolean }>, seen: { count: number }) => {
     if (node.nodeType === Node.TEXT_NODE) {
       const value = node.textContent || "";
       const re = new RegExp(needle.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
@@ -734,7 +919,9 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
         if (item) {
           changed = true;
           const hl = displayHighlightColor(item.color);
-          out += item.isNote
+          out += item.ink
+            ? `<mark class="sd-mark" data-hl="${hl}" data-note-id="${escapeHtml(item.id)}" data-ink-note="" tabindex="0" role="button" title="Open handwritten note">${escapeHtml(m[0])}${PEN_GLYPH}</mark>`
+            : item.isNote
             ? `<mark class="sd-mark" data-hl="${hl}" data-note-id="${escapeHtml(item.id)}" title="Open note">${escapeHtml(m[0])}</mark>`
             : `<mark class="sd-mark" data-hl="${hl}" data-highlight-id="${escapeHtml(item.id)}" title="Click to remove highlight">${escapeHtml(m[0])}</mark>`;
         } else out += escapeHtml(m[0]);
@@ -835,6 +1022,8 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
           onHighlight={handleHighlight}
           onBookmark={handleBookmark}
           onNote={handleNote}
+          onInkNote={handleInkNote}
+          penFirst={!!menu.pen}
           onAsk={handleAsk}
           onAskHere={aiStatus?.features["lesson-qa"] || chatOn ? handleAskHere : undefined}
           onCopyPrompt={handleCopyPrompt}
@@ -847,6 +1036,27 @@ export default function HighlightableContent({ htmlContent, courseId, week, less
       )}
 
       {toast && <Toast message={toast.message} type={toast.type} onClose={() => setToast(null)} />}
+
+      {inkOpen && (
+        <InkNotePanel
+          key={inkOpen.key}
+          target={inkOpen.target}
+          userId={inkUserId}
+          lessonTitle={lessonTitle || ""}
+          getRect={inkAnchorRect}
+          dev={inkDev}
+          onCreated={(row) => {
+            holdPassage(row.highlight_offset);
+            setInkNotes((prev) => [...prev.filter((n) => n.id !== row.id), row]);
+          }}
+          onChanged={(row) => setInkNotes((prev) => prev.map((n) => (n.id === row.id ? row : n)))}
+          onDeleted={(id) => {
+            holdPassage(inkNotes.find((n) => n.id === id)?.highlight_offset ?? null);
+            setInkNotes((prev) => prev.filter((n) => n.id !== id));
+          }}
+          onClose={(focusId) => closeInkNote(inkOpen.key, focusId)}
+        />
+      )}
 
       <CaptureHost rootRef={contentRef} title={lessonTitle || ""} lessonKey={lessonKey} />
 

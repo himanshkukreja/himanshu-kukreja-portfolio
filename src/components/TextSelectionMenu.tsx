@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Bookmark, ChevronLeft, ClipboardCopy, GraduationCap, Highlighter, Lightbulb, Link2, LogIn, MessageCircleQuestion, NotebookPen, Scissors, Share2, Sparkles, StickyNote, X } from "lucide-react";
+import { Bookmark, ChevronLeft, ClipboardCopy, GraduationCap, Highlighter, Lightbulb, Link2, LogIn, MessageCircleQuestion, NotebookPen, PenLine, Scissors, Share2, Sparkles, StickyNote, X } from "lucide-react";
 import { HIGHLIGHT_COLOURS } from "@/lib/learn/notebook";
 import type { AskClient } from "@/lib/learn/askAi";
 
@@ -66,6 +66,10 @@ type TextSelectionMenuProps = {
   onHighlight?: (color: string) => void;
   onBookmark?: () => void;
   onNote?: () => void;
+  /** "Handwritten note": a writing pad anchored to the passage (components/learn/ink/passage) */
+  onInkNote?: () => void;
+  /** the selection was made with a stylus: the handwritten note leads the toolbar (the obvious next step) */
+  penFirst?: boolean;
   /** "Ask Claude" / "Ask ChatGPT": open the client with the selection and its context */
   onAsk?: (client: AskClient) => void;
   /** "Ask here": the course's own AI, answered from this lesson (only when AI is available) */
@@ -97,11 +101,12 @@ type TextSelectionMenuProps = {
 type Panel = "main" | "colors" | "ask" | "link";
 
 export default function TextSelectionMenu(props: TextSelectionMenuProps) {
-  const { onClose, onHighlight, onBookmark, onNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, onClip, onSnip, autoFocus } = props;
+  const { onClose, onHighlight, onBookmark, onNote, onInkNote, onAsk, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, onClip, onSnip, autoFocus } = props;
+  const penFirst = !!(props.penFirst && onInkNote);
   // the tutor supersedes "Ask here" (both open the course's own AI on this passage)
   const onAskHere = onExplain || onAskTutor ? undefined : props.onAskHere;
   const tutor = !!(onExplain || onAskTutor || onTutorSignIn);
-  const notes = !!(onHighlight || onNote || onBookmark);
+  const notes = !!(onHighlight || onNote || onBookmark || onInkNote);
   const ask = !!(onAsk || onAskHere || onCopyPrompt || tutor);
   const capture = !!(onClip || onSnip);
   const [panel, setPanel] = useState<Panel>("main");
@@ -171,6 +176,9 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       } else if (k === "n" && onNote) {
         e.preventDefault();
         onNote();
+      } else if (k === "w" && onInkNote && view === "main") {
+        e.preventDefault();
+        onInkNote();
       } else if (k === "b" && onBookmark) {
         e.preventDefault();
         onBookmark();
@@ -185,7 +193,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       document.removeEventListener("pointerdown", onDown, true);
       document.removeEventListener("keydown", onKey);
     };
-  }, [onClose, onHighlight, onBookmark, onNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, onClip, onSnip, panel, view, ask, notes]);
+  }, [onClose, onHighlight, onBookmark, onNote, onInkNote, onAsk, onAskHere, onCopyPrompt, onCopyLink, onShareLink, onExplain, onAskTutor, onTutorSignIn, onClip, onSnip, panel, view, ask, notes]);
 
   useEffect(() => {
     if (!mounted || !ref.current) return;
@@ -259,6 +267,27 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
     </>
   );
 
+  // the handwritten note: beside "Note" on the floating toolbar; on touch, first in the bottom sheet's second row,
+  // or first in its main row (filled) when the selection was made with a stylus
+  const inkLabel = "Handwritten note: write on a pad beside this passage";
+  const inkButton = (where: "main" | "row") =>
+    onInkNote && (
+      <button
+        type="button"
+        className={`${where === "row" ? capBtn : btn} ${penFirst ? "!bg-signal !text-on-signal hover:!bg-signal" : ""}`}
+        onClick={onInkNote}
+        aria-keyshortcuts="W"
+        aria-label={inkLabel}
+        title="Handwritten note (W)"
+      >
+        <PenLine className="w-3.5 h-3.5" aria-hidden="true" />
+        {sheet ? (where === "row" ? "Handwritten note" : "Write") : "Handwrite"}
+        <span className={penFirst ? "hidden" : key}>W</span>
+      </button>
+    );
+  const inkInRow = sheet && !penFirst && !!onInkNote && view === "main";
+  const secondRow = sheet && (showCapture || inkInRow);
+
   const menu = (
     <div
       ref={ref}
@@ -268,12 +297,13 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       onMouseDown={(e) => e.preventDefault()}
       data-sd-chrome=""
       className={`fixed z-[9999] flex items-center gap-0.5 p-1 bg-surface-2 border border-line-strong shadow-[0_12px_40px_rgba(0,0,0,0.45)] animate-hk-in ${
-        sheet ? `inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+8px)] ${showCapture ? "flex-wrap" : ""}` : ""
+        sheet ? `inset-x-2 bottom-[calc(env(safe-area-inset-bottom,0px)+8px)] ${secondRow ? "flex-wrap" : ""}` : ""
       }`}
       style={sheet ? undefined : { left: `${props.position.x + shiftX}px`, top: `${props.position.y}px` }}
     >
       {view === "main" && (
         <>
+          {penFirst && inkButton("main")}
           {onHighlight && (
             <button type="button" className={btn} onClick={() => setPanel("colors")} aria-keyshortcuts="H">
               <Highlighter className="w-3.5 h-3.5" aria-hidden="true" />
@@ -288,6 +318,7 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
               <span className={key}>N</span>
             </button>
           )}
+          {!sheet && !penFirst && inkButton("main")}
           {onBookmark && (
             <button type="button" className={btn} onClick={onBookmark} aria-keyshortcuts="B">
               <Bookmark className="w-3.5 h-3.5" aria-hidden="true" />
@@ -416,7 +447,12 @@ export default function TextSelectionMenu(props: TextSelectionMenuProps) {
       <button type="button" onClick={onClose} aria-label="Dismiss selection toolbar" className="grid place-items-center w-11 h-11 text-fg-3 hover:text-fg">
         <X className="w-4 h-4" aria-hidden="true" />
       </button>
-      {sheet && showCapture && <div className="flex basis-full gap-0.5 border-t border-line pt-1">{captureButtons}</div>}
+      {secondRow && (
+        <div className="flex basis-full gap-0.5 border-t border-line pt-1">
+          {inkInRow && inkButton("row")}
+          {captureButtons}
+        </div>
+      )}
       {!sheet && (
         <span
           aria-hidden="true"

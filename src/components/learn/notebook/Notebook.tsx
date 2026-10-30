@@ -7,7 +7,10 @@
  * inline delete confirm with undo, "+ Review card", Export Markdown.
  * Saved shorts (bookmarks under course "shorts", saved from /learn/shorts) sit in their own row on top.
  * Pages (components/learn/ink/PagesTab): handwritten notebook pages, next to Notes: both are the learner's own
- * writing, and Highlights stays the tab a visit lands on.
+ * writing, and Highlights stays the tab a visit lands on (from the Notebook's pen or panel, ?from=pen, it is Pages when
+ * there are some). Above the tabs, "Your pages" (ink/global/YourPages): the newest pages as cards, first on screen.
+ * Handwritten notes on a passage (content_notes rows with `ink`, components/learn/ink/passage) are Notes: their ink
+ * as a thumbnail, their typed text once turned into text; search finds them by that text and by the passage.
  */
 import Link from "next/link";
 import NotebookDesigns from "@/components/learn/canvas/NotebookDesigns";
@@ -25,8 +28,12 @@ import AuthPromptBanner from "@/components/AuthPromptBanner";
 import MiniToast, { type MiniToastState } from "@/components/learn/hub/MiniToast";
 import Overlay from "@/components/learn/hub/Overlay";
 import PagesTab from "@/components/learn/ink/PagesTab";
+import YourPages from "@/components/learn/ink/global/YourPages";
 import { listNotebooks } from "@/lib/learn/ink/client";
 import { useInkDev } from "@/lib/learn/ink/usePageAutosave";
+import { deleteInkNote, listAllInkNotes, parseInk, restoreInkNote, updateInkNote, type InkNoteInk, type InkNoteRow } from "@/lib/learn/ink/passage";
+import InkNoteThumb from "@/components/learn/ink/passage/InkNoteThumb";
+import NotesMd from "@/components/learn/ink/ai/NotesMd";
 
 export type NotebookTab = "highlights" | "notes" | "pages" | "bookmarks";
 const TABS: NotebookTab[] = ["highlights", "notes", "pages", "bookmarks"];
@@ -43,6 +50,8 @@ type NoteRow = {
   highlight_offset: number | null;
   color: NoteColor;
   is_private?: boolean;
+  /** a handwritten note's strokes (null / absent: a highlight or a typed note) */
+  ink?: unknown;
   created_at: string;
   updated_at: string;
 };
@@ -73,6 +82,8 @@ type Item = {
   noteType: string | null;
   at: number;
   offset: number | null;
+  /** a handwritten note */
+  ink: InkNoteInk | null;
 };
 
 const NOUN: Record<NotebookTab, [string, string]> = {
@@ -118,6 +129,8 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   // the pages tab also runs on the dev stand-in (next dev + hk.ink.dev) without a session
   const userId = user?.id ?? null;
   const pagesUser = userId || (inkDev ? "dev" : null);
+  // handwritten notes on the dev stand-in, without a session (Notes tab only)
+  const devNotes = !userId && inkDev;
   const [pageCount, setPageCount] = useState<number | null>(null);
   useEffect(() => {
     if (!pagesUser) return;
@@ -129,6 +142,15 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
       off = true;
     };
   }, [pagesUser]);
+  // from the Notebook's pen / panel ("All notes", ?from=pen): the Pages tab, when there are pages (a ?tab= wins)
+  useEffect(() => {
+    if (!pageCount) return;
+    const q = new URLSearchParams(window.location.search);
+    if (q.get("from") !== "pen" || q.get("tab")) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time switch once the page count is known
+    setTab("pages");
+    window.history.replaceState(null, "", "/learn/notebook?tab=pages");
+  }, [pageCount]);
 
   const toastSeq = useRef(0);
   const flash = useCallback((t: Omit<NonNullable<MiniToastState>, "id">, ms = 4200) => {
@@ -182,6 +204,21 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
     };
   }, [userId]);
 
+  useEffect(() => {
+    if (!devNotes) return;
+    let off = false;
+    listAllInkNotes("dev")
+      .then((rows) => {
+        if (off) return;
+        setNotes(rows as NoteRow[]);
+        setBookmarks([]);
+      })
+      .catch(() => !off && setNotes([]));
+    return () => {
+      off = true;
+    };
+  }, [devNotes]);
+
   const setTabUrl = (t: NotebookTab) => {
     setTab(t);
     setColour("all");
@@ -193,7 +230,8 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   const all = useMemo(() => {
     const out: Record<NotebookTab, Item[]> = { highlights: [], notes: [], pages: [], bookmarks: [] };
     (notes || []).forEach((n) => {
-      const hasNote = !!(n.note_text && n.note_text.trim());
+      const ink = n.ink ? parseInk(n.ink) : null;
+      const hasNote = !!(n.note_text && n.note_text.trim()) || !!ink;
       const kind: NotebookTab = hasNote ? "notes" : "highlights";
       if (!hasNote && !n.highlight_text) return;
       out[kind].push({
@@ -207,6 +245,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
         noteType: n.note_type,
         at: Date.parse(n.created_at) || 0,
         offset: n.highlight_offset,
+        ink,
       });
     });
     (bookmarks || []).forEach((b) => {
@@ -222,6 +261,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
         noteType: null,
         at: Date.parse(b.created_at) || 0,
         offset: b.bookmark_offset ?? null,
+        ink: null,
       });
     });
     return out;
@@ -263,6 +303,8 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
 
   const hrefFor = (x: Item) => {
     const loc = locs[x.id];
+    // a handwritten note opens itself in the lesson (#inknote-<id>: scroll to its marker, open the note)
+    if (x.ink) return { href: `${x.meta.href}#inknote-${x.id}`, label: "Open note ›", stage: loc?.label || "" };
     if (loc) return { href: `${x.meta.href}#${loc.stageId}`, label: `Open at ${loc.label} ›`, stage: loc.label };
     if (x.offset !== null && x.offset !== undefined) return { href: `${x.meta.href}#${x.kind === "bookmarks" ? "bookmark" : "note"}-${x.offset}`, label: x.kind === "bookmarks" ? "Open at bookmark ›" : "Open at highlight ›", stage: "" };
     return { href: x.meta.href, label: "Open lesson ›", stage: "whole lesson" };
@@ -271,12 +313,17 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   // ------------------------------------------------------------ actions
 
   const saveEdit = async (x: Item) => {
-    if (!userId) return;
+    const actor = userId || (devNotes ? "dev" : null);
+    if (!actor) return;
     const value = draft.trim();
     setBusy(x.id);
     const now = new Date().toISOString();
-    const res =
-      x.kind === "bookmarks"
+    const res = x.ink
+      ? await updateInkNote(actor, x.id, { note_text: value }).then(
+          () => ({ error: null }),
+          (e: unknown) => ({ error: e })
+        )
+      : x.kind === "bookmarks"
         ? await supabaseClient.from("bookmarks").update({ custom_title: value || null, updated_at: now }).eq("id", x.id).eq("user_id", userId)
         : await supabaseClient.from("content_notes").update({ note_text: value, updated_at: now }).eq("id", x.id).eq("user_id", userId);
     setBusy(null);
@@ -317,11 +364,17 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
   };
 
   const doDelete = async (x: Item) => {
-    if (!userId) return;
+    const actor = userId || (devNotes ? "dev" : null);
+    if (!actor) return;
     setBusy(x.id);
     const table = x.kind === "bookmarks" ? "bookmarks" : "content_notes";
     const row = x.kind === "bookmarks" ? (bookmarks || []).find((r) => r.id === x.id) : (notes || []).find((r) => r.id === x.id);
-    const { error } = await supabaseClient.from(table).delete().eq("id", x.id).eq("user_id", userId);
+    const { error } = x.ink
+      ? await deleteInkNote(actor, x.id).then(
+          () => ({ error: null }),
+          (e: unknown) => ({ error: e })
+        )
+      : await supabaseClient.from(table).delete().eq("id", x.id).eq("user_id", actor);
     setBusy(null);
     setConfirmId(null);
     if (error || !row) {
@@ -340,7 +393,12 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
           label: "Undo",
           onClick: async () => {
             setToast(null);
-            const { error: e2 } = await supabaseClient.from(table).insert(row);
+            const { error: e2 } = x.ink
+              ? await restoreInkNote(actor, { ...(row as NoteRow), ink: x.ink } as InkNoteRow).then(
+                  () => ({ error: null }),
+                  (e: unknown) => ({ error: e })
+                )
+              : await supabaseClient.from(table).insert(row);
             if (e2) {
               flash({ text: "Couldn't restore it" });
               return;
@@ -369,7 +427,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
         }
         if (x.quote) md.push(`> ${x.quote.replace(/\n+/g, " ")}`, "");
         if (x.kind === "highlights") md.push(`\`${HIGHLIGHT_COLOURS[x.color || "yellow"].label.toLowerCase()}\`${where ? ` · ${where}` : ""}`, "");
-        else md.push(`${x.note}${where ? ` _(${where})_` : ""}`, "");
+        else md.push(`${x.note || (x.ink ? "_(handwritten note, not typed up yet)_" : "")}${x.ink && x.note ? " _(handwritten)_" : ""}${where ? ` _(${where})_` : ""}`, "");
       });
       if (tab === "bookmarks") md.push("");
     });
@@ -395,7 +453,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
 
   // ------------------------------------------------------------ render
 
-  const loading = authLoading || (!!userId && (notes === null || bookmarks === null));
+  const loading = authLoading || ((!!userId || devNotes) && (notes === null || bookmarks === null));
   const counts: Record<NotebookTab, number | null> = { highlights: all.highlights.length, notes: all.notes.length, pages: pageCount, bookmarks: all.bookmarks.length };
   const pagesTab = tab === "pages";
   const inReview = cards.filter((c) => c.source === "highlight").length;
@@ -413,7 +471,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
     emptyBody = "Select any sentence in a lesson and pick Highlight from the popover. On a phone, long-press. With a keyboard, select and press H.";
   } else if (tab === "notes") {
     emptyTitle = `No notes in ${wkName} yet.`;
-    emptyBody = "Notes attach to a sentence. Select text and press N, or choose Note in the selection popover.";
+    emptyBody = "Notes attach to a sentence. Select text and press N, or choose Note in the selection popover. With a stylus, choose Handwritten note (W) and write beside the passage.";
   } else {
     emptyTitle = `No bookmarks in ${wkName} yet.`;
     emptyBody = "Bookmarks save a place in a lesson. Select text and press B, or use the bookmark button in the lesson.";
@@ -459,6 +517,16 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
         )}
       </section>
 
+      {/* the learner's handwritten pages first: the newest as cards, one tap to the editor */}
+      {pagesUser && (
+        <YourPages
+          onAllNotebooks={() => {
+            setTabUrl("pages");
+            window.requestAnimationFrame(() => document.querySelector('[aria-label="Notebook tools"]')?.scrollIntoView({ behavior: "smooth", block: "start" }));
+          }}
+        />
+      )}
+
       {userId && savedShorts.length > 0 && (
         <SavedShorts
           rows={savedShorts}
@@ -472,7 +540,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
 
       {userId && <NotebookDesigns userId={userId} />}
 
-      {!authLoading && !userId && !(pagesTab && pagesUser) ? (
+      {!authLoading && !userId && !(pagesTab && pagesUser) && !(tab === "notes" && devNotes) ? (
         <div className="flex flex-wrap items-start gap-8">
           <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-4">
             <AuthPromptBanner variant="notebook" persistent layout="stack" />
@@ -669,9 +737,17 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                                   {col.label.toUpperCase()}
                                 </span>
                               )}
-                              {x.kind === "notes" && (
+                              {x.kind === "notes" && x.ink ? (
+                                <span className="inline-flex items-center gap-1.5 border border-signal px-2 py-1 font-mono text-[11px] tracking-label text-signal-text">
+                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                                    <path d="M12 20h9" />
+                                    <path d="M16.4 3.6a2.1 2.1 0 0 1 3 3L7.4 18.6a2 2 0 0 1-.9.5l-2.9.8.8-2.9a2 2 0 0 1 .5-.8z" />
+                                  </svg>
+                                  HANDWRITTEN
+                                </span>
+                              ) : x.kind === "notes" ? (
                                 <span className="inline-flex items-center border border-line-strong px-2 py-1 font-mono text-[11px] tracking-label text-fg">{noteTypeLabel(x.noteType || "general").toUpperCase()}</span>
-                              )}
+                              ) : null}
                               {bmState && <span className={`inline-flex items-center px-2 py-1 font-mono text-[11px] tracking-label ${bmState.cls}`}>{bmState.text}</span>}
                               {h.stage && <span className="font-mono text-xs text-fg-3">{h.stage}</span>}
                               <span className="font-mono text-xs text-fg-4">{timeAgo(x.at)}</span>
@@ -687,13 +763,13 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                                   setDraft(x.kind === "bookmarks" ? x.title : x.note);
                                   setConfirmId(null);
                                 }}
-                                aria-label={`Edit ${noun} from ${x.meta.title}`}
+                                aria-label={x.ink ? `Edit the typed text of this handwritten note from ${x.meta.title}` : `Edit ${noun} from ${x.meta.title}`}
                                 className="inline-flex min-h-11 items-center gap-1.5 border border-line-strong px-2.5 text-[13px] text-fg hover:bg-surface-2"
                               >
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
                                   <path d="M4 20h4L19 9l-4-4L4 16z" />
                                 </svg>
-                                Edit
+                                {x.ink ? "Edit text" : "Edit"}
                               </button>
                               {x.kind !== "bookmarks" && x.quote && !card && (
                                 <button
@@ -737,7 +813,27 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                           {x.kind === "bookmarks" && (
                             <span className="font-display text-[22px] font-bold leading-tight tracking-[-0.015em] text-fg">{x.title || (x.quote ? `“${x.quote.slice(0, 120)}${x.quote.length > 120 ? "…" : ""}”` : x.meta.title)}</span>
                           )}
-                          {(x.kind === "notes" || x.kind === "bookmarks") && x.note && !editing && <p className="text-[17px] leading-relaxed text-fg">{x.note}</p>}
+                          {x.ink ? (
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                              <Link
+                                href={h.href}
+                                aria-label={`Open this handwritten note in ${x.meta.title}`}
+                                className="block max-h-[220px] w-full shrink-0 overflow-hidden border border-line-strong sm:w-[300px]"
+                              >
+                                <InkNoteThumb ink={x.ink} label={`Your handwriting${x.note ? "" : ". Not typed up yet"}`} />
+                              </Link>
+                              {!editing &&
+                                (x.note ? (
+                                  <div className="min-w-0 flex-1 text-[16px] leading-relaxed">
+                                    <NotesMd md={x.note} />
+                                  </div>
+                                ) : (
+                                  <p className="min-w-0 flex-1 text-[14px] leading-relaxed text-fg-3">Not typed up yet. Open the note and tap “Turn into text” to make it searchable.</p>
+                                ))}
+                            </div>
+                          ) : (
+                            (x.kind === "notes" || x.kind === "bookmarks") && x.note && !editing && <p className="text-[17px] leading-relaxed text-fg">{x.note}</p>
+                          )}
                           {x.kind !== "bookmarks" && x.quote && (
                             <p className={x.kind === "highlights" ? "text-[17px] leading-[1.7] text-fg" : "pl-3.5 text-[15px] leading-relaxed text-fg-3 shadow-[inset_1px_0_0_var(--c-line-strong)]"}>
                               {x.kind === "highlights" && col ? (
@@ -754,7 +850,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                           {editing && (
                             <div className="flex animate-hk-in flex-col gap-2 border border-line-strong bg-bg p-3.5">
                               <label className="flex flex-col gap-1.5">
-                                <span className="font-mono text-[11px] tracking-label text-fg-3">{x.kind === "bookmarks" ? "BOOKMARK LABEL" : "YOUR NOTE"}</span>
+                                <span className="font-mono text-[11px] tracking-label text-fg-3">{x.kind === "bookmarks" ? "BOOKMARK LABEL" : x.ink ? "TYPED TEXT OF YOUR HANDWRITING" : "YOUR NOTE"}</span>
                                 <textarea
                                   rows={x.kind === "bookmarks" ? 1 : 3}
                                   value={draft}

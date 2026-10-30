@@ -22,6 +22,7 @@ import PageAiActions from "./PageAiActions";
 import { usePageAi } from "./ai/usePageAi";
 import { ConvertNudge, PageTextControls, type PageMode } from "./ai/TextControls";
 import TypedPanel from "./ai/TypedPanel";
+import { isLessonKey } from "./global/context";
 
 const PENCIL_KEY = "hk.ink.pencilOnly";
 const PREFS_KEY = "hk.ink.prefs";
@@ -564,7 +565,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
           </div>
         )}
       </div>
-      {textMode && page && <TypedPanel key={`${page.id}:${page.convertedAt}`} ai={ai} convertedAt={page.convertedAt} pageTitle={page.title} lessonKey={page.lessonKey} onInk={() => setMode("ink")} />}
+      {textMode && page && <TypedPanel key={`${page.id}:${page.convertedAt}`} ai={ai} convertedAt={page.convertedAt} pageTitle={page.title} lessonKey={isLessonKey(page.lessonKey) ? page.lessonKey : null} onInk={() => setMode("ink")} />}
       </div>
       <div className="sr-only" aria-live="polite">
         {showNudge ? (ai.typed ? "Suggestion: update this page's text. The button is over the page, top right." : "Suggestion: turn this page into text. The button is over the page, top right.") : ""}
