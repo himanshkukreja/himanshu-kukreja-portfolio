@@ -499,7 +499,8 @@ function placeOn(page: NotebookPage, item: NewItem, fresh: boolean): PageItem | 
   if (y === undefined) {
     const low = fresh ? null : lowestY(page.strokes, page.items);
     y = low === null ? area.y : Math.max(area.y, Math.ceil(low + 24));
-    if (y + h > PAGE_BOTTOM) return null;
+    // a fresh page always takes the item, even one taller than a page (it runs past the bottom rather than failing)
+    if (y + h > PAGE_BOTTOM && !fresh) return null;
   }
   x = Math.max(0, Math.min(PAGE_W - w, x));
   y = Math.max(0, Math.min(PAGE_H - Math.min(h, PAGE_H), y));
