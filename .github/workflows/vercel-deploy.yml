@@ -1,0 +1,59 @@
+# Production deploys built on GitHub Actions instead of Vercel (the repo is public, so standard runners are free):
+# Vercel only serves the prebuilt output, so the project uses no Build CPU minutes. Same pattern as markdrop.
+#
+# Off until the owner sets the repository variable VERCEL_PREBUILT=on (plus VERCEL_ORG_ID, VERCEL_PROJECT_ID and the
+# VERCEL_TOKEN secret). `vercel pull` brings down every env var except "sensitive" ones; the two sensitive ones
+# (ANTHROPIC_API_KEY, POSTHOG_PERSONAL_API_KEY) are only read at runtime by API routes, where Vercel still injects them.
+# The course content fetch uses GITHUB_PERSONAL_ACCESS_TOKEN from the pulled env, as it did on Vercel.
+# Rollback: set VERCEL_PREBUILT to anything else and remove `"deploymentEnabled": false` from vercel.json.
+name: vercel-deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: vercel-prod
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: vars.VERCEL_PREBUILT == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            next-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-
+
+      - name: Pull the production settings and env
+        run: npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build
+        run: npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy the prebuilt output
+        run: |
+          url=$(npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN" \
+            --meta githubCommitSha="$GITHUB_SHA" --meta githubCommitRef="$GITHUB_REF_NAME" --meta source=actions)
+          echo "Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
