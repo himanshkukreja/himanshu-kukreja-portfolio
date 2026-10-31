@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Image from "next/image";
 import { useAuth } from "@/contexts/AuthContext";
+import UserAvatar from "@/components/avatar/UserAvatar";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { ThumbsUp, ThumbsDown, Reply, MoreVertical, Edit, Trash2, Flag, CheckCircle, Pin, Share2 } from "lucide-react";
 import RichTextEditor from "./RichTextEditor";
@@ -41,18 +41,10 @@ type CommentItemProps = {
   maxDepth?: number;
 };
 
-const initials = (name: string) =>
-  name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0]?.toUpperCase() ?? "")
-    .join("") || "?";
-
 const ACTION = "inline-flex min-h-11 items-center gap-1.5 px-2 font-mono text-xs text-fg-3 hover:text-fg";
 
 export default function CommentItem({ comment, onReply, onEdit, onDelete, onVote, depth = 0, maxDepth = 5 }: CommentItemProps) {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const { openAuthModal } = useAuthModal();
   const [showReplyBox, setShowReplyBox] = useState(false);
   const [showEditBox, setShowEditBox] = useState(false);
@@ -198,20 +190,8 @@ export default function CommentItem({ comment, onReply, onEdit, onDelete, onVote
       >
         <div className="flex items-start gap-3">
           <div className="shrink-0">
-            {comment.user_avatar ? (
-              <Image
-                src={comment.user_avatar}
-                alt=""
-                width={36}
-                height={36}
-                className="h-9 w-9 border border-line-strong object-cover"
-                unoptimized={!comment.user_avatar.includes("googleusercontent.com")}
-              />
-            ) : (
-              <span aria-hidden className="grid h-9 w-9 place-items-center border border-line-strong bg-surface-2 text-[13px] font-bold text-fg">
-                {initials(comment.user_name)}
-              </span>
-            )}
+            {/* Your own comments follow your current avatar straight away (the list is fetched once). */}
+            <UserAvatar src={isAuthor && profile ? profile.avatar_url : comment.user_avatar} name={comment.user_name} size={36} className="border border-line-strong" />
           </div>
 
           <div className="min-w-0 flex-1">

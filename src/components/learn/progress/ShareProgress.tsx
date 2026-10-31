@@ -206,7 +206,7 @@ export default function ShareProgress() {
                 onChange={(e) => setVis({ avatar: e.target.checked })}
                 className="h-4 w-4 accent-[var(--c-signal)]"
               />
-              Show my profile photo{!profile?.avatar_url ? " (no photo on your account)" : cur.visibility.name === "none" ? " (not when anonymous)" : ""}
+              Show my avatar{!profile?.avatar_url ? " (no avatar set)" : cur.visibility.name === "none" ? " (not when anonymous)" : ""}
             </label>
           </fieldset>
 

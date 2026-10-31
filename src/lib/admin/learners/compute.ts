@@ -423,7 +423,7 @@ export async function buildModel(tz: string, opts: { fresh?: boolean } = {}): Pr
       id: u.id,
       name: prof?.full_name || u.name || u.email.split("@")[0] || "Unknown",
       email: u.email,
-      avatar: prof?.avatar_url || u.avatar,
+      avatar: prof ? prof.avatar_url : u.avatar, // a profile with no avatar = the learner chose initials
       provider: u.provider,
       isAdmin: ds.admins.has(u.email.toLowerCase()),
       signedUpAt: u.createdAt || prof?.created_at || null,

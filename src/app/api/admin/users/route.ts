@@ -69,7 +69,7 @@ export async function GET(request: NextRequest) {
           id: u.id,
           email: u.email ?? null,
           name: p?.full_name || (typeof meta.full_name === "string" ? meta.full_name : typeof meta.name === "string" ? meta.name : null),
-          avatar: p?.avatar_url || (typeof meta.avatar_url === "string" ? meta.avatar_url : null),
+          avatar: p ? p.avatar_url : typeof meta.avatar_url === "string" ? meta.avatar_url : null, // profile null = initials chosen
           createdAt: u.created_at,
           lastSignInAt: u.last_sign_in_at ?? null,
           lastSeenAt: p?.last_seen_at ?? null,

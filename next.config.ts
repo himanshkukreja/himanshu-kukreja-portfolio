@@ -51,6 +51,9 @@ if (!remotePatterns) {
 try {
   const sb = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : null;
   if (sb) remotePatterns.push({ protocol: "https", hostname: sb.hostname, pathname: "/storage/v1/object/public/case-files/**" });
+  // Learner profile photos (bucket "avatars", 20261101_avatars.sql). UserAvatar renders them with a
+  // plain <img> (already 256 px), so this only matters if a next/image ever shows one.
+  if (sb) remotePatterns.push({ protocol: "https", hostname: sb.hostname, pathname: "/storage/v1/object/public/avatars/**" });
 } catch {
   // ignore env parse errors
 }

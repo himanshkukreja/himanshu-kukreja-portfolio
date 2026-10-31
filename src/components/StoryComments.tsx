@@ -99,6 +99,17 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
       const rows = (data || []) as CommentRow[];
       const commentIds = rows.map((c) => c.id);
 
+      // user_avatar is a copy taken when the comment was posted: show each author's current avatar
+      // instead, so a changed or removed photo doesn't linger on old comments.
+      const authorIds = [...new Set(rows.map((c) => c.user_id).filter(Boolean))];
+      const liveAvatars = authorIds.length
+        ? supabaseClient
+            .from("user_profiles")
+            .select("id, avatar_url")
+            .in("id", authorIds)
+            .then(({ data: profs }) => new Map(((profs || []) as { id: string; avatar_url: string | null }[]).map((p) => [p.id, p.avatar_url] as const)))
+        : Promise.resolve(new Map<string, string | null>());
+
       // Vote counts come from the votes themselves (public rows), not the denormalized
       // upvotes/downvotes columns: those were written by the voter's browser, which RLS only lets
       // through on the voter's OWN comments, so other people's votes never counted.
@@ -121,6 +132,8 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
         });
       }
 
+      const avatars = await liveAvatars;
+
       // Build the nested structure
       const commentsMap = new Map<string, Comment>();
       const rootComments: Comment[] = [];
@@ -130,7 +143,7 @@ export default function StoryComments({ storySlug }: StoryCommentsProps) {
           id: comment.id,
           user_id: comment.user_id,
           user_name: comment.user_name || "User",
-          user_avatar: comment.user_avatar || null,
+          user_avatar: avatars.has(comment.user_id) ? avatars.get(comment.user_id) ?? null : comment.user_avatar || null,
           parent_id: comment.parent_id,
           content: comment.content,
           raw_content: comment.raw_content,

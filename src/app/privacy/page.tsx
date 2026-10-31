@@ -70,6 +70,11 @@ export default function PrivacyPage() {
             <strong>If you sign in</strong>: your email, name and avatar from the sign-in provider, plus your progress, streaks, notes, bookmarks
             and comments, so they follow you across devices.
           </li>
+          <li>
+            <strong>Profile photo</strong>: if you upload one, it&apos;s cropped to a small square on your device (location and camera details
+            are removed), stored, and shown publicly next to your comments and on your profile. Remove it any time from the avatar picker; the
+            file is deleted.
+          </li>
         </ul>
       </Section>
 

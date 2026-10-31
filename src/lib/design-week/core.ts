@@ -455,7 +455,8 @@ export function authorOf(src: AuthorSource | undefined, showAuthor: boolean): Au
     const parts = full.split(/\s+/).filter(Boolean);
     name = `${parts[0].slice(0, 18)}${parts.length > 1 ? ` ${parts[parts.length - 1][0].toUpperCase()}.` : ""}`;
   }
-  const avatar = name && share.visibility.avatar && /^https:\/\//.test(src?.avatarUrl || "") ? src!.avatarUrl! : null;
+  // An https photo, or one of the built-in cartoons (/avatars/<group>/<id>.svg; see lib/avatars/catalog).
+  const avatar = name && share.visibility.avatar && /^(https:\/\/\S+|\/avatars\/(people|mascots)\/[a-z0-9-]{1,32}\.svg)$/.test(src?.avatarUrl || "") ? src!.avatarUrl! : null;
   const initials =
     (name || share.handle)
       .split(/[\s-]+/)

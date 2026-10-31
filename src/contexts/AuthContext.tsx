@@ -15,6 +15,8 @@ type AuthContextType = {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshProfile: () => Promise<void>;
+  /** Apply a change the server already saved (e.g. a new avatar) so every reader updates at once. */
+  patchProfile: (patch: Partial<UserProfile>) => void;
 };
 
 // =====================================================
@@ -245,6 +247,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const patchProfile = (patch: Partial<UserProfile>) => setProfile((p) => (p ? { ...p, ...patch } : p));
+
   const value = {
     user,
     profile,
@@ -252,6 +256,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signOut: handleSignOut,
     refreshProfile,
+    patchProfile,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

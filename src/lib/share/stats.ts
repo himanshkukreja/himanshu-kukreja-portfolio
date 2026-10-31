@@ -11,6 +11,7 @@ import "server-only";
  *   Arena board        league, rank, weekly points, daily streak (src/lib/learn/arena/leaderboard)
  * Only fields the learner made visible are returned; never the email or the user id.
  */
+import { isDisplayableAvatar } from "@/lib/avatars/catalog";
 import { unstable_cache } from "next/cache";
 import { supabase } from "@/lib/supabase";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
@@ -318,7 +319,7 @@ function milestonesOf(d: Derived, raw: Raw, show: { course: boolean; scores: boo
 export function toPublic(handle: string, raw: Raw, d: Derived, map: CourseMap, v: Visibility): PublicProfile {
   const fullName = (raw.profile?.full_name || "").trim().slice(0, 60);
   const name = v.name === "none" || !fullName ? null : v.name === "full" ? fullName : firstLast(fullName);
-  const avatar = name && v.avatar && /^https:\/\//.test(raw.profile?.avatar_url || "") ? raw.profile!.avatar_url! : null;
+  const avatar = name && v.avatar && isDisplayableAvatar(raw.profile?.avatar_url) ? raw.profile!.avatar_url! : null;
   const initials = (name || handle)
     .split(/[\s-]+/)
     .filter(Boolean)

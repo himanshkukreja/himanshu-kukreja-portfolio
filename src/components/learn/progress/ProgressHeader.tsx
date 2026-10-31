@@ -7,6 +7,7 @@ import { resumeDetails, type ResumeStage } from "@/components/ContinueReadingBan
 import { fmtMinutes } from "./derive";
 import { Bar, Label, Stat } from "./ui";
 import ShareButton from "@/components/share/ShareButton";
+import ProfileAvatarButton from "@/components/avatar/ProfileAvatarButton";
 
 type Props = {
   name: string;
@@ -36,10 +37,14 @@ export default function ProgressHeader(p: Props) {
           <Label>
             <span className="text-signal-text">00</span> · progress · {p.signedIn ? "synced to your account" : "guest · this browser only"}
           </Label>
-          <h1 id="overview-h" className="break-words font-display text-[clamp(40px,9vw,84px)] font-extrabold leading-[0.9] tracking-tightest text-fg">
-            {p.name}
-            <span className="text-signal-text">.</span>
-          </h1>
+          <div className="flex items-center gap-4 sm:gap-5">
+            {p.signedIn && <ProfileAvatarButton size={64} className="sm:hidden" />}
+            {p.signedIn && <ProfileAvatarButton size={84} className="hidden sm:block" />}
+            <h1 id="overview-h" className="min-w-0 break-words font-display text-[clamp(40px,9vw,84px)] font-extrabold leading-[0.9] tracking-tightest text-fg">
+              {p.name}
+              <span className="text-signal-text">.</span>
+            </h1>
+          </div>
           <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
             <span className="bg-signal px-2 py-1 font-mono text-[12px] font-semibold tracking-label text-on-signal">
               {lp.level.code} · {lp.level.name.toUpperCase()}
