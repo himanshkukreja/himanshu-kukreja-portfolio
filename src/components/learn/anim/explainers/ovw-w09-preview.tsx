@@ -2,8 +2,8 @@
  * Week 9 preview overview: the whole week in three tabs. The enterprise security questionnaire
  * ("you built for scale, not for trust") and the mindset shift; the five days, each as one picture
  * under a shared day track (isolation spectrum, tenant C at 800% of quota, EU data in the EU, one
- * user's data in many systems, five security layers); and the HR SaaS capstone and its six
- * requirements.
+ * user's data in many systems, five security layers); and the document-platform capstone and its
+ * six requirements.
  */
 import { Box, defineExplainer, ease, lerp, Meter, seg, Token, Txt, Wire, type SceneProps, type Tone } from "../kit";
 
@@ -113,7 +113,7 @@ function Week({ step, t, narrow }: SceneProps) {
     ["one customer can't ruin everyone else's experience", "no one ruins it for all"],
     ["EU data stays in the EU on a global platform", "EU data stays in the EU"],
     ["delete one user's data from every system, within a month", "delete everywhere, in a month"],
-    ["each layer assumes the previous layer failed", "never trust, always verify"],
+    ["each layer assumes the others might fail", "never trust, always verify"],
   ];
   return (
     <g>
@@ -167,11 +167,11 @@ function Week({ step, t, narrow }: SceneProps) {
           </g>
         ))}
       {step === 4 &&
-        ["1 Network", "2 Identity", "3 Application", "4 Data", "5 Detection"].map((s, i) => (
+        ["1 Perimeter", "2 Network", "3 Application", "4 Data", "5 Monitoring"].map((s, i) => (
           <g key={s} opacity={o(i)}>
             <rect className={`ax-box ${i === 4 ? "sky" : "lit"}`} x={20 + i * 22} y={58 + i * 30} width={560 - i * 44} height={26} />
             <Txt x={300} y={76 + i * 30} k="s">
-              {narrow ? s : `${s} · ${["VPC, WAF, DDoS", "authn, authz, tenant", "validation, audit", "encryption, keys", "anomalies, PII leaks"][i]}`}
+              {narrow ? s : `${s} · ${["WAF, DDoS, rate limits", "VPC, private subnets", "authn, authz, tenant", "encryption, keys", "audit, anomalies"][i]}`}
             </Txt>
           </g>
         ))}
@@ -184,8 +184,8 @@ function Week({ step, t, narrow }: SceneProps) {
 
 /* ---------------------------------------------------------------- capstone */
 
-const REQS = ["enterprise isolation option", "EU data stays in the EU", "deletion within 30 days", "audit logs for all access", "encryption everywhere", "noisy neighbour prevention"];
-const REQN = ["isolation tier", "EU stays in EU", "delete in 30 days", "audit logs", "encrypt all", "noisy neighbours"];
+const REQS = ["dedicated enterprise tier", "EU data stays in the EU", "deletion within 30 days", "audit logs for all access", "encryption everywhere", "noisy neighbour prevention"];
+const REQN = ["enterprise tier", "EU stays in EU", "delete in 30 days", "audit logs", "encrypt all", "noisy neighbours"];
 
 function Capstone({ step, t, narrow }: SceneProps) {
   const o = (i: number) => seg(t, i * 0.12, i * 0.12 + 0.3);
@@ -194,9 +194,9 @@ function Capstone({ step, t, narrow }: SceneProps) {
       <Track on={5} narrow={narrow} />
       {step === 0 &&
         [
-          ["500", narrow ? "customers" : "enterprise customers"],
-          ["2M", "users"],
-          ["4", narrow ? "regions" : "US · EU · UK · AU"],
+          ["500", narrow ? "tenants" : "enterprise tenants"],
+          ["10M", narrow ? "docs, largest" : "docs in the largest"],
+          ["3", narrow ? "regions" : "US · EU · APAC"],
         ].map(([a, b], i) => (
           <g key={b} opacity={o(i * 2)}>
             <Txt x={110 + i * 190} y={130} k="d">
@@ -209,7 +209,7 @@ function Capstone({ step, t, narrow }: SceneProps) {
         ))}
       {step === 0 && (
         <Txt x={300} y={214} k="t" tone="warn" opacity={o(6)}>
-          {narrow ? "PII · salaries · reviews" : "employee PII · salaries · performance reviews"}
+          {narrow ? "contracts · policies" : "contracts · policies · reports"}
         </Txt>
       )}
       {step === 1 &&
@@ -230,7 +230,7 @@ function Capstone({ step, t, narrow }: SceneProps) {
         </g>
       )}
       <Txt x={20} y={H - 16} anchor="start">
-        {[narrow ? "a B2B SaaS for HR" : "design a B2B SaaS platform for HR management", narrow ? "SOC 2 · GDPR · CCPA" : "SOC 2 Type II, GDPR and CCPA required", narrow ? "every day, combined" : "pass an enterprise security audit: every day, combined"][step]}
+        {[narrow ? "a B2B document platform" : "design a B2B document management platform", narrow ? "SOC 2 · GDPR · HIPAA" : "SOC 2 Type II, GDPR, a HIPAA-ready design", narrow ? "every day, combined" : "pass an enterprise security audit: every day, combined"][step]}
       </Txt>
     </g>
   );
@@ -263,15 +263,15 @@ export default defineExplainer({
         { caption: "Day 2, noisy neighbours: tenants A and B use 40 and 60 percent of their quotas, but C's runaway query hits 800 percent. C is throttled to its quota.", tween: 1600, ms: 3400 },
         { caption: "Day 3, data residency: a user in Germany means data stays in the EU, under GDPR fines of up to 20 million euros or 4 percent of turnover.", tween: 1400, ms: 3200 },
         { caption: "Day 4, the right to deletion: one user's data lives in PostgreSQL, search, caches, Kafka, S3, the warehouse, backups and third parties, and all of it must go.", tween: 1800, ms: 3400 },
-        { caption: "Day 5, security architecture: network, identity, application, data and detection layers. Never trust, always verify; each layer assumes the previous one failed.", tween: 1600, ms: 3400 },
+        { caption: "Day 5, security architecture: perimeter, network, application, data and monitoring layers. Never trust, always verify; each layer assumes the others might fail.", tween: 1600, ms: 3400 },
       ],
     },
     {
       id: "capstone",
       label: "Capstone",
       steps: [
-        { caption: "The capstone is an HR platform: 500 enterprise customers, 2 million users in the US, EU, UK and Australia, holding salaries and performance reviews.", tween: 1400, ms: 3400 },
-        { caption: "Six requirements: an enterprise isolation option, EU data in the EU, deletion within 30 days, audit logs, encryption everywhere and noisy-neighbour prevention.", tween: 1400, ms: 3600 },
+        { caption: "The capstone is a document management platform: 500 enterprise tenants in the US, EU and APAC, the largest with 50,000 users and 10 million documents.", tween: 1400, ms: 3400 },
+        { caption: "Six requirements: a dedicated enterprise tier, EU data in the EU, deletion within 30 days, audit logs, encryption everywhere and noisy-neighbour prevention.", tween: 1400, ms: 3600 },
         { caption: "Meeting them takes all five days at once: a platform that could pass an enterprise security audit.", tween: 1400, ms: 3200 },
       ],
     },

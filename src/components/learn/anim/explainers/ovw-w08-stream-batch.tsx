@@ -38,7 +38,7 @@ function Lanes({ narrow, top, bot, kSub, kTone }: { narrow: boolean; top: Lane; 
   );
   return (
     <g>
-      <Box x={K.x} y={K.y} w={K.w} h={K.h} label="Kafka" sub={narrow ? undefined : kSub ?? "1,000/s"} tone={kTone} />
+      <Box x={K.x} y={K.y} w={K.w} h={K.h} label="Kafka" sub={narrow ? undefined : kSub ?? "1,000+/s"} tone={kTone} />
       {lane(TOP, top, "Flink", "stream", narrow ? "Live" : "Real-time", "view")}
       {lane(BOT, bot, "Spark", "batch", "Table", "batch view")}
     </g>
@@ -278,7 +278,7 @@ export default defineExplainer({
       id: "worlds",
       label: "Two worlds",
       steps: [
-        { caption: "Events flow into Kafka at 1,000 a second. Revenue right now can be 1-2% off; yesterday's revenue for finance must be 100% exact.", tween: 900 },
+        { caption: "Events flow into Kafka at over 1,000 a second. Revenue right now can be 1-2% off; yesterday's revenue for finance must be 100% exact.", tween: 900 },
         { caption: "Batch processes data in large chunks with Spark: hours of latency, but exact, and cheaper because it only runs periodically.", tween: 1600 },
         { caption: "Streaming processes every event as it arrives with Flink: seconds of latency, but approximate, since late events may be missed, and always on.", tween: 1400, loop: true },
         { caption: "Most systems need both: stream for what's happening now, batch for what happened exactly. The question is how to combine them.", tween: 1000, loop: true },
@@ -289,7 +289,7 @@ export default defineExplainer({
       label: "Lambda or Kappa",
       steps: [
         { caption: "Lambda runs both: batch for accuracy, a speed layer for the gap since the last batch, merged at query time. The same logic lives twice.", tween: 1400 },
-        { caption: "Kappa streams only: one immutable log, one codebase. Reprocessing is a replay: 1B events at 100K/s take about 3 hours.", tween: 1600 },
+        { caption: "Kappa streams only: one immutable log, one codebase. Reprocessing is a replay: 1B events at 100K/s take about 3 hours, and a year of this pipeline (36.5B) about 4 days.", tween: 1600 },
         { caption: "Petabytes of history and batch ML favour Lambda; real-time first with a replay that fits favours Kappa. Tools like Beam write the logic once.", tween: 1400 },
       ],
     },
