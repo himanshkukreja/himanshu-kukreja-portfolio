@@ -2,7 +2,9 @@
  * The mock interview whiteboard is an Excalidraw drawing, saved with the run as JSON (`run.sketch`).
  * Feedback prompts and the AI scorecard can't see a drawing, so this turns it into text: the boxes
  * by their labels, and every arrow as "from → to" (with its own label), using the arrow bindings
- * Excalidraw keeps when an arrow is drawn from one shape to another. No Excalidraw import: plain data.
+ * Excalidraw keeps when an arrow is drawn from one shape to another. An arrow drawn up to a shape but not
+ * attached to it (no binding, a common slip with a pen or a fast drag) counts as connected to the nearest
+ * shape within ARROW_SNAP canvas units of its end (unboundEnd). No Excalidraw import: plain data.
  */
 type El = {
   id: string;
@@ -14,6 +16,14 @@ type El = {
   startBinding?: { elementId: string } | null;
   endBinding?: { elementId: string } | null;
   groupIds?: string[];
+  /** geometry, in canvas units: the box (before rotation), its rotation in radians, and a line's or an arrow's
+   *  points relative to (x, y) */
+  x?: number;
+  y?: number;
+  width?: number;
+  height?: number;
+  angle?: number;
+  points?: [number, number][];
   /** a library block's container: `{ kind: "sql-db" }` (src/lib/learn/board/library.ts) */
   customData?: { kind?: string; seed?: string } | null;
 };
@@ -70,6 +80,62 @@ const KINDS: Record<string, string> = {
 
 const SHAPES = ["rectangle", "ellipse", "diamond"];
 
+/** How far (canvas units) an unattached arrow end may stop short of a shape and still count as pointing at it. */
+export const ARROW_SNAP = 32;
+/** what an unattached arrow end can point at: the shapes, a block's icon, and free text on the board */
+const TARGETS = [...SHAPES, "image", "text"];
+
+const num = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+
+/** A point turned by `angle` radians about (cx, cy). */
+function rotate(px: number, py: number, cx: number, cy: number, angle: number): [number, number] {
+  if (!angle) return [px, py];
+  const c = Math.cos(angle);
+  const s = Math.sin(angle);
+  return [cx + (px - cx) * c - (py - cy) * s, cy + (px - cx) * s + (py - cy) * c];
+}
+
+/** An arrow's first and last point on the canvas (its points are relative to x, y; a rotated arrow turns about its centre). */
+function arrowEnds(a: El): [[number, number], [number, number]] | null {
+  const pts = Array.isArray(a.points) ? a.points.filter((p) => Array.isArray(p) && p.length >= 2) : [];
+  if (pts.length < 2) return null;
+  const x = num(a.x);
+  const y = num(a.y);
+  const cx = x + num(a.width) / 2;
+  const cy = y + num(a.height) / 2;
+  const at = (p: [number, number]) => rotate(x + num(p[0]), y + num(p[1]), cx, cy, num(a.angle));
+  return [at(pts[0]), at(pts[pts.length - 1])];
+}
+
+/** Distance from a point to a shape's box (0 inside it), in the shape's own frame when it is rotated. */
+function distanceTo(e: El, px: number, py: number): number {
+  const x = num(e.x);
+  const y = num(e.y);
+  const w = Math.abs(num(e.width));
+  const h = Math.abs(num(e.height));
+  const [qx, qy] = rotate(px, py, x + w / 2, y + h / 2, -num(e.angle));
+  const dx = Math.max(x - qx, 0, qx - (x + w));
+  const dy = Math.max(y - qy, 0, qy - (y + h));
+  return Math.hypot(dx, dy);
+}
+
+/**
+ * The shape an unattached arrow end points at: the nearest target whose box is within ARROW_SNAP of the point
+ * (the smallest one when the point is inside several, so a box drawn inside a region wins over the region), or
+ * undefined. `skip`: the element the arrow's other end already points at, so an arrow never joins a shape to itself.
+ */
+function unboundEnd(point: [number, number], targets: El[], skip?: (e: El) => boolean): El | undefined {
+  let best: { e: El; d: number; area: number } | undefined;
+  for (const e of targets) {
+    if (skip?.(e)) continue;
+    const d = distanceTo(e, point[0], point[1]);
+    if (d > ARROW_SNAP) continue;
+    const area = Math.abs(num(e.width) * num(e.height));
+    if (!best || d < best.d - 0.5 || (Math.abs(d - best.d) <= 0.5 && area < best.area)) best = { e, d, area };
+  }
+  return best?.e;
+}
+
 /** "Boxes: …" and "Arrows: A → B" lines; empty when nothing meaningful is drawn. */
 export function sketchSummary(raw: string | undefined | null): string {
   const s = parseSketch(raw);
@@ -105,11 +171,31 @@ export function sketchSummary(raw: string | undefined | null): string {
     return k && !l.toLowerCase().includes(k.toLowerCase()) ? `${l} (${k})` : l;
   };
   const boxes = live.filter((e) => SHAPES.includes(e.type) && ownText(e)).map(box);
+  // what an unattached end can point at: shapes, a block's icon and free text (not the text inside a shape or on an
+  // arrow: its container is the target)
+  const targets = live.filter((e) => TARGETS.includes(e.type) && !(e.type === "text" && e.containerId));
+  // a block's parts (its icon, a lid) are the same box as the block: an arrow never joins a box to itself
+  const groupOf = (e: El) => (e.groupIds?.length ? e.groupIds[e.groupIds.length - 1] : "");
+  const sameBox = (a: El | undefined, b: El) => {
+    if (!a) return false;
+    if (a.id === b.id || (groupOf(a) && groupOf(a) === groupOf(b))) return true;
+    const l = label(a.id);
+    return !/^\(.*\)$/.test(l) && l === label(b.id);
+  };
   const arrows = live
     .filter((e) => e.type === "arrow" || e.type === "line")
     .map((a) => {
-      const from = label(a.startBinding?.elementId) || "?";
-      const to = label(a.endBinding?.elementId) || "?";
+      let start = a.startBinding?.elementId ? byId.get(a.startBinding.elementId) : undefined;
+      let end = a.endBinding?.elementId ? byId.get(a.endBinding.elementId) : undefined;
+      // an end that isn't attached: the shape it was drawn up to, if one is close enough (bound ends stay as they are).
+      // Not for a line inside a group: that is a library block's own drawing (a cylinder's side, a queue's slots).
+      const ends = (!start || !end) && (a.type === "arrow" || !a.groupIds?.length) && arrowEnds(a);
+      if (ends) {
+        if (!start) start = unboundEnd(ends[0], targets, (e) => sameBox(end, e));
+        if (!end) end = unboundEnd(ends[1], targets, (e) => sameBox(start, e));
+      }
+      const from = label(start?.id) || "?";
+      const to = label(end?.id) || "?";
       const own = label(a.id) === "(arrow)" || label(a.id) === "(line)" ? "" : label(a.id);
       return from === "?" && to === "?" ? "" : `${from} → ${to}${own ? ` (${own})` : ""}`;
     })

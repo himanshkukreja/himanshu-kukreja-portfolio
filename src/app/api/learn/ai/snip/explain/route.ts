@@ -117,7 +117,8 @@ export async function POST(request: Request) {
   if (history.length !== rawHistory.length) return NextResponse.json({ error: "The conversation so far is missing" }, { status: 400 });
   if (history.length && !q) return NextResponse.json({ error: "Ask a question" }, { status: 400 });
 
-  const g = await snipGrounding({ kind, key, title, heading, text, lecture });
+  // the newest question picks which other sections of the page come along (a follow-up often asks about another part)
+  const g = await snipGrounding({ kind, key, title, heading, text, lecture, question: q });
   const where = { kind, title: title || g.title, heading, moment: g.moment, text };
   // the first turn: the image, then where it was taken and its text (the plain explain, or the learner's question)
   const first = history.length ? history[0].q : q;
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
     system: snipExplainSystem({ kind, title: g.title || title, context: g.context }),
     // the image first, then the text about it (the Messages API's advice for image prompts)
     messages,
-    meta: { kind, key: key || null, ...g.meta, text_chars: text.length, turn: history.length + 1, q_chars: q.length },
+    meta: { kind, key: key || null, ...g.meta, text_chars: text.length, ctx_chars: g.context.length, turn: history.length + 1, q_chars: q.length },
     timeoutMs: 55_000,
   });
   // the model's decline (not the day's pause after several): a short polite line in the thread, `declined`

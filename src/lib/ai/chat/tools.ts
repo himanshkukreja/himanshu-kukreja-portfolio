@@ -48,7 +48,8 @@ export type ChatDeps = {
   lessonMarkdown: (week: string, slug: string) => Promise<string | null>;
   storyBody: (slug: string) => Promise<string | null>;
   drills: (questSlug: string) => Promise<QuestDrills | null>;
-  questionBank: () => Promise<BankItem[]>;
+  /** the multiple-choice questions of one week (a lesson's quizzes and the week's trial); a whole bank works too */
+  questionBank: (week: string) => Promise<BankItem[]>;
   /** the signed-in learner's own progress (null: not available) */
   progress: () => Promise<ProgressSnapshot | null>;
   /** the learner's saved paths (null: not available) */
@@ -752,7 +753,7 @@ async function practiceFor(st: ChatState, root: Doc, kind: string): Promise<Prac
     }
   }
   if (kind === "any" || kind === "mcq") {
-    const bank = await st.d.questionBank().catch(() => [] as BankItem[]);
+    const bank = await st.d.questionBank(week).catch(() => [] as BankItem[]);
     for (const q of bank) {
       if (q.week !== week || (q.kind === "quiz" && q.slug !== slug)) continue;
       if (q.kind === "trial" && root.kind !== "lesson") continue;
@@ -781,7 +782,9 @@ async function resolveItem(st: ChatState, item: string): Promise<Practice | null
   m = /^mcq:(.+)$/.exec(item);
   if (m) {
     const id = m[1];
-    const q = (await st.d.questionBank().catch(() => [] as BankItem[])).find((x) => x.id === id);
+    // the id names its week ("quiz:<course>/<week>/<slug>:…", "trial:<week>:p…"): only that week is loaded
+    const week = /^quiz:[^/]+\/([^/]+)\//.exec(id)?.[1] ?? /^trial:([^:]+):/.exec(id)?.[1] ?? "";
+    const q = (await st.d.questionBank(week).catch(() => [] as BankItem[])).find((x) => x.id === id);
     if (!q || unreleased(q.week)) return null;
     const root = st.liveDoc(`L:${q.week}/${q.slug}`) ?? st.engine.docs.find((d) => d.kind === "lesson" && d.id.startsWith(`L:${q.week}/`)) ?? null;
     return { item, kind: "mcq", question: q.prompt, options: q.options.slice(0, 6), fromDoc: root, label: q.label, answer: { text: q.explain, letter: LETTERS[q.answer] ?? "" } };

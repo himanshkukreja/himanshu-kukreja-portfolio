@@ -1,7 +1,8 @@
 /**
  * The Arena question bank (server only): every ```quiz question in the course plus every weekly
  * trial (MCQ assessment) question, read from the course source (GitHub, or SDM_LOCAL_DIR locally).
- * Built once per server instance and cached for 10 minutes.
+ * Built once per server instance and cached for 10 minutes. The course chat reads one week at a time
+ * (getWeekQuestions), which never builds the whole bank.
  *
  * Ids are stable across builds:
  *   quiz:<course>/<week>/<slug>:<block>:<q>   (block = n-th ```quiz fence in the lesson, document order,
@@ -31,7 +32,13 @@ export type BankQuestion = {
 export type Bank = { questions: BankQuestion[]; byId: Map<string, BankQuestion>; builtAt: number; quizzes: number; trials: number };
 
 const TTL = 10 * 60_000;
-const g = globalThis as typeof globalThis & { __sdArenaBank?: { at: number; p: Promise<Bank> }; __sdArenaBankOk?: Bank; __sdArenaBankBuilding?: boolean };
+const g = globalThis as typeof globalThis & {
+  __sdArenaBank?: { at: number; p: Promise<Bank> };
+  __sdArenaBankOk?: Bank;
+  __sdArenaBankBuilding?: boolean;
+  /** one week's questions at a time (getWeekQuestions), until the whole bank is built */
+  __sdArenaWeeks?: Map<string, { at: number; p: Promise<BankQuestion[]> }>;
+};
 
 const weekCode = (week: string) => {
   const m = week.match(/week-(\d+)/);
@@ -58,65 +65,66 @@ export async function lessonQuizFences(markdown: string): Promise<string[]> {
   return out;
 }
 
-async function build(): Promise<Bank> {
-  const resources = (await getAllLearningResources()).filter((r) => r.course === COURSE_ID);
-  const lists = await Promise.all(
-    resources.map(async (r): Promise<BankQuestion[]> => {
-      let md = "";
-      try {
-        md = await fetchMarkdownContent(r.path);
-      } catch {
-        return [];
-      }
-      const href = `/learn/${COURSE_ID}/${r.week}/${r.slug}`;
-      if (r.type === "mcq") {
-        if (!isMCQDocument(md)) return [];
-        const a = parseMCQMarkdown(md);
-        const out: BankQuestion[] = [];
-        a.sections.forEach((s, si) => {
-          s.questions.forEach((q) => {
-            const answer = q.options.findIndex((o) => o.label === q.correctAnswer);
-            if (answer < 0 || q.options.length < 2) return;
-            out.push({
-              id: `trial:${r.week}:p${si + 1}:q${q.number}`,
-              kind: "trial",
-              prompt: q.text.trim(),
-              options: q.options.map((o) => o.text.trim()),
-              answer,
-              explain: (q.explanation || "").trim(),
-              week: r.week,
-              slug: r.slug,
-              label: `${weekCode(r.week)} · Trial part ${si + 1}`,
-              href: `${href}?part=${si + 1}`,
-            });
-          });
-        });
-        return out;
-      }
-      const fences = await lessonQuizFences(md);
-      const out: BankQuestion[] = [];
-      fences.forEach((value, block) => {
-        const quiz = parseQuiz(value);
-        if (!quiz) return;
-        quiz.questions.forEach((q, qi) => {
-          out.push({
-            id: `quiz:${COURSE_ID}/${r.week}/${r.slug}:${block}:${qi}`,
-            kind: "quiz",
-            // inline markdown kept (`code`, **bold**); the daily runner renders it, share text strips it
-            prompt: q.q,
-            options: q.options,
-            answer: q.answer,
-            explain: q.explain.join(" "),
-            week: r.week,
-            slug: r.slug,
-            label: `${weekCode(r.week)} · ${shortTitle(r)}`,
-            href,
-          });
+/** One lesson's (or trial's) questions, read from its source; [] when it can't be read. */
+async function questionsOf(r: LearningResource): Promise<BankQuestion[]> {
+  let md = "";
+  try {
+    md = await fetchMarkdownContent(r.path);
+  } catch {
+    return [];
+  }
+  const href = `/learn/${COURSE_ID}/${r.week}/${r.slug}`;
+  if (r.type === "mcq") {
+    if (!isMCQDocument(md)) return [];
+    const a = parseMCQMarkdown(md);
+    const out: BankQuestion[] = [];
+    a.sections.forEach((s, si) => {
+      s.questions.forEach((q) => {
+        const answer = q.options.findIndex((o) => o.label === q.correctAnswer);
+        if (answer < 0 || q.options.length < 2) return;
+        out.push({
+          id: `trial:${r.week}:p${si + 1}:q${q.number}`,
+          kind: "trial",
+          prompt: q.text.trim(),
+          options: q.options.map((o) => o.text.trim()),
+          answer,
+          explain: (q.explanation || "").trim(),
+          week: r.week,
+          slug: r.slug,
+          label: `${weekCode(r.week)} · Trial part ${si + 1}`,
+          href: `${href}?part=${si + 1}`,
         });
       });
-      return out;
-    }),
-  );
+    });
+    return out;
+  }
+  const fences = await lessonQuizFences(md);
+  const out: BankQuestion[] = [];
+  fences.forEach((value, block) => {
+    const quiz = parseQuiz(value);
+    if (!quiz) return;
+    quiz.questions.forEach((q, qi) => {
+      out.push({
+        id: `quiz:${COURSE_ID}/${r.week}/${r.slug}:${block}:${qi}`,
+        kind: "quiz",
+        // inline markdown kept (`code`, **bold**); the daily runner renders it, share text strips it
+        prompt: q.q,
+        options: q.options,
+        answer: q.answer,
+        explain: q.explain.join(" "),
+        week: r.week,
+        slug: r.slug,
+        label: `${weekCode(r.week)} · ${shortTitle(r)}`,
+        href,
+      });
+    });
+  });
+  return out;
+}
+
+async function build(): Promise<Bank> {
+  const resources = (await getAllLearningResources()).filter((r) => r.course === COURSE_ID);
+  const lists = await Promise.all(resources.map(questionsOf));
   const questions = lists.flat().sort((a, b) => a.id.localeCompare(b.id));
   return {
     questions,
@@ -125,6 +133,31 @@ async function build(): Promise<Bank> {
     quizzes: questions.filter((q) => q.kind === "quiz").length,
     trials: questions.filter((q) => q.kind === "trial").length,
   };
+}
+
+/**
+ * One week's questions (its lessons' quizzes and its trial), for the course chat's practice tools: read and parsed on
+ * their own (~1/12 of the bank's work), so a cold server never builds the whole bank (every lesson in the course read
+ * and parsed: seconds of CPU and a few hundred MB) to ask one question. Served from the whole bank when this instance
+ * already has it; else cached per week for TTL. An unknown week gives [].
+ */
+export async function getWeekQuestions(week: string): Promise<BankQuestion[]> {
+  const whole = g.__sdArenaBankOk;
+  if (whole) return whole.questions.filter((q) => q.week === week);
+  const weeks = (g.__sdArenaWeeks ??= new Map());
+  const hit = weeks.get(week);
+  if (hit && Date.now() - hit.at < TTL) return hit.p;
+  const p = (async () => {
+    const resources = (await getAllLearningResources()).filter((r) => r.course === COURSE_ID && r.week === week);
+    return (await Promise.all(resources.map(questionsOf))).flat().sort((a, b) => a.id.localeCompare(b.id));
+  })();
+  const entry = { at: Date.now(), p };
+  weeks.set(week, entry);
+  if (weeks.size > 40) weeks.delete(weeks.keys().next().value as string);
+  p.catch(() => {
+    if (weeks.get(week) === entry) weeks.delete(week);
+  });
+  return p;
 }
 
 /** Cached for TTL, then stale-while-revalidate: the last good bank is served while a new one builds. */

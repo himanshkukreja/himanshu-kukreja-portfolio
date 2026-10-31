@@ -4,8 +4,9 @@
  * Sections are split on markdown headings; each is scored by how many of the question's words it
  * contains (rarer words count more), and the best ones are kept up to a character budget, in lesson order.
  */
-/** `parent`: the nearest heading above it of a higher level (empty at the top), to tell same-named sections apart */
-type Section = { heading: string; text: string; index: number; parent?: string };
+/** `parent`: the nearest heading above it of a higher level (empty at the top), to tell same-named sections apart;
+ *  `level`: its heading's level (1-4, "#" to "####"; 0 for the text before the first heading) */
+type Section = { heading: string; text: string; index: number; parent?: string; level?: number };
 
 const STOP = new Set("the a an and or of to in on for is are was were be it this that with as at by from how what why when which who does do did can could should would i you we they my your our their about into not no yes if then than so".split(" "));
 // code counts: in many lessons the idea lives in the example (e.g. jittered TTLs)
@@ -21,6 +22,7 @@ export function splitSections(md: string): Section[] {
   const out: Section[] = [];
   let heading = "Introduction";
   let parent = "";
+  let level = 0;
   let buf: string[] = [];
   let inCode = false;
   let prevBlank = true;
@@ -32,16 +34,31 @@ export function splitSections(md: string): Section[] {
     const m = !inCode && prevBlank && line.match(/^(#{1,4})\s+(.+)$/);
     prevBlank = !line.trim();
     if (m) {
-      if (buf.join("").trim()) out.push({ heading, text: buf.join("\n").trim(), index: out.length, parent });
+      if (buf.join("").trim()) out.push({ heading, text: buf.join("\n").trim(), index: out.length, parent, level });
       heading = m[2].replace(/[*_`]/g, "").trim();
-      const level = m[1].length;
+      level = m[1].length;
       open.length = level - 1;
       parent = [...open].reverse().find(Boolean) ?? "";
       open[level - 1] = heading;
       buf = [];
     } else buf.push(line);
   }
-  if (buf.join("").trim()) out.push({ heading, text: buf.join("\n").trim(), index: out.length, parent });
+  if (buf.join("").trim()) out.push({ heading, text: buf.join("\n").trim(), index: out.length, parent, level });
+  return out;
+}
+
+/** Every heading down to `maxLevel` ("#" = 1), in order, by the same rules as splitSections (none in code; a blank
+ *  line before it), including the ones with no text of their own ("# Part I" right before "## Chapter 1"). */
+export function headingOutline(md: string, maxLevel = 3): { level: number; heading: string }[] {
+  const out: { level: number; heading: string }[] = [];
+  let inCode = false;
+  let prevBlank = true;
+  for (const line of md.split("\n")) {
+    if (/^\s*(```|~~~)/.test(line)) inCode = !inCode;
+    const m = !inCode && prevBlank && line.match(/^(#{1,4})\s+(.+)$/);
+    prevBlank = !line.trim();
+    if (m && m[1].length <= maxLevel) out.push({ level: m[1].length, heading: m[2].replace(/[*_`]/g, "").trim() });
+  }
   return out;
 }
 

@@ -9,7 +9,7 @@ import { courseMapSummary } from "@/lib/ai/chat/mapSummary";
 import { memoryLines } from "@/lib/ai/chat/memory-model";
 import { MEMORY_EVERY, updateMemory } from "@/lib/ai/chat/memory";
 import { admitChat, afterMessage, chatLimits, chatToday, logChatCall } from "@/lib/ai/chat/quota";
-import { loadMemory, makeDeps } from "@/lib/ai/chat/server";
+import { ChatWarmingError, loadMemory, makeDeps, MEMORY_WAIT_MS, within } from "@/lib/ai/chat/server";
 import { traceOf } from "@/lib/ai/chat/tools";
 import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 import type { ChatEvent, ChatQuota } from "@/lib/ai/chat/text";
@@ -103,7 +103,8 @@ export async function POST(request: Request) {
         : null;
       try {
         const tPrep = Date.now();
-        const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null }), me.id ? loadMemory(me.id) : Promise.resolve(null)]);
+        // every part of the setup is bounded (lib/ai/chat/server.ts): a cold server answers without what isn't ready
+        const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null }), me.id ? within(loadMemory(me.id), MEMORY_WAIT_MS, null, "memory") : Promise.resolve(null)]);
         const memory = mem && mem.available && !mem.paused ? memoryLines(mem.memory) : null;
         const prepMs = Date.now() - tPrep;
         const r = await (req.mock ? runMockCore : runChatCore)({ deps, req, model: admit.model, apiKey: admit.apiKey, map: courseMapSummary(map), memory, emit, deadline: t0 + DEADLINE_MS, signal: request.signal });
@@ -174,9 +175,11 @@ export async function POST(request: Request) {
           emit({ type: "error", message: r.loop.error === "timeout" ? "The answer took too long. The search results are below; try asking again." : "The tutor didn't answer this time. The search results are below; try again in a moment." });
         }
       } catch (e) {
-        console.error("[chat]", e);
-        await logChatCall({ user_id: me.id || null, feature: "course-chat", model: admit.model, status: "error", error: (e as Error).message.slice(0, 300), latency_ms: Date.now() - t0, meta: { chat: req.chat }, byok: admit.byok });
-        emit({ type: "error", message: "The tutor didn't answer this time. The search results are below; try again in a moment." });
+        const warming = e instanceof ChatWarmingError;
+        if (!warming) console.error("[chat]", e);
+        await logChatCall({ user_id: me.id || null, feature: "course-chat", model: admit.model, status: "error", error: (e as Error).message.slice(0, 300), latency_ms: Date.now() - t0, meta: { chat: req.chat, ...(warming ? { warming: true } : {}) }, byok: admit.byok });
+        // a cold server still building the course search: it keeps loading, so the same question works in a few seconds
+        emit({ type: "error", message: warming ? "The tutor is still loading the course. Ask again in a few seconds." : "The tutor didn't answer this time. The search results are below; try again in a moment." });
       } finally {
         if (titled) await Promise.race([titled, new Promise((r) => setTimeout(r, TITLE_GRACE_MS))]);
         open = false;

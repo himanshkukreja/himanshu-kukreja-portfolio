@@ -3,6 +3,7 @@ import "server-only";
  * The smart-search engine on the server: built once per instance from the two cached index routes
  * (/api/search/index for documents, /api/search/transcripts for lecture moments and shorts, both ISR and
  * served from the CDN), kept 15 minutes, then rebuilt in the background while the old one keeps answering.
+ * One per server process (on globalThis), shared by every route that searches.
  * If the routes can't be fetched (a protected preview deployment), the same builders run in-process.
  *
  * Also the shared request gate: while SMART_SEARCH_PUBLIC is false only admins get through.
@@ -16,7 +17,10 @@ import { rowToDoc, type DocIndex } from "./types";
 import { buildDocIndex, INDEX_PARTS, type IndexPart } from "./build";
 
 const TTL = 15 * 60_000;
-let state: { at: number; engine: Promise<SmartEngine>; refreshing: boolean } | null = null;
+type EngineState = { at: number; engine: Promise<SmartEngine>; refreshing: boolean } | null;
+// on globalThis, not in this module: every route bundled into the same server process (/api/search/smart and the
+// course chat, in `next dev` or `next start`) shares one engine instead of each building its own at the same time
+const g = globalThis as typeof globalThis & { __sdSmartEngine?: EngineState };
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
@@ -44,20 +48,24 @@ async function load(origin: string): Promise<SmartEngine> {
 }
 
 export async function getEngine(origin: string): Promise<SmartEngine> {
+  const state = g.__sdSmartEngine ?? null;
   if (state && Date.now() - state.at < TTL) return state.engine;
   if (state && !state.refreshing) {
     // stale: answer from the old engine, swap in the new one when it's ready
     const old = state;
     old.refreshing = true;
     load(origin)
-      .then((e) => (state = { at: Date.now(), engine: Promise.resolve(e), refreshing: false }))
+      .then((e) => (g.__sdSmartEngine = { at: Date.now(), engine: Promise.resolve(e), refreshing: false }))
       .catch(() => (old.refreshing = false));
     return old.engine;
   }
   if (state) return state.engine;
   const engine = load(origin);
-  state = { at: Date.now(), engine, refreshing: false };
-  engine.catch(() => (state = null));
+  const entry = { at: Date.now(), engine, refreshing: false };
+  g.__sdSmartEngine = entry;
+  engine.catch(() => {
+    if (g.__sdSmartEngine === entry) g.__sdSmartEngine = null;
+  });
   return engine;
 }
 

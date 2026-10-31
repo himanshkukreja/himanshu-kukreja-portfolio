@@ -9,7 +9,7 @@ import { getLearningResource } from "@/lib/github";
 import { getStorySource } from "@/lib/stories";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import { getQuestDrills } from "@/lib/learn/drills/load";
-import { getQuestionBank } from "@/lib/learn/arena/bank";
+import { getWeekQuestions } from "@/lib/learn/arena/bank";
 import { listSavedPaths, type SavedPath } from "@/lib/learn/saved-paths";
 import { getEngine, liveCheck } from "@/lib/search/smart/server";
 import type { CourseMap } from "@/lib/learn/types";
@@ -56,8 +56,48 @@ function loadRaw(userId: string): Promise<{ raw: ProgressRaw; flags: Record<stri
 /** After a save, the next message should see it. */
 export const forgetProgress = (userId: string) => cache.delete(userId);
 
+/**
+ * How long a message waits for each thing it loads before going on without it (a cold server builds them on first use;
+ * they keep loading in the background, so the next message has them). The course search can't be done without:
+ * past ENGINE_WAIT_MS the message ends at once with "still loading, ask again" (ChatWarmingError) instead of using up
+ * the whole deadline before the model is ever called.
+ */
+export const ENGINE_WAIT_MS = 20_000;
+const MAP_WAIT_MS = 8_000;
+const CONTROLS_WAIT_MS = 5_000;
+export const MEMORY_WAIT_MS = 5_000;
+const BANK_WAIT_MS = 8_000;
+
+/** The course search index isn't ready yet on this (cold) server. */
+export class ChatWarmingError extends Error {
+  constructor() {
+    super("course search still loading");
+    this.name = "ChatWarmingError";
+  }
+}
+
+/** `p`'s value, or `fallback` when it fails or takes longer than `ms` (`p` itself carries on). */
+export function within<T>(p: Promise<T>, ms: number, fallback: T | (() => T), what: string): Promise<T> {
+  const value = () => (typeof fallback === "function" ? (fallback as () => T)() : fallback);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const late = new Promise<T>((resolve) => {
+    timer = setTimeout(() => {
+      console.warn(`[chat] ${what} not ready after ${ms} ms: going on without it`);
+      resolve(value());
+    }, ms);
+  });
+  return Promise.race([p.catch(() => value()), late]).finally(() => clearTimeout(timer));
+}
+
 export async function makeDeps(a: { origin: string; userId: string | null; page: PageContext | null }): Promise<{ deps: ChatDeps; map: CourseMap | null }> {
-  const [engine, live, map] = await Promise.all([getEngine(a.origin), liveCheck(), getCourseMap().catch(() => null)]);
+  const warming = Symbol("warming");
+  const [engine, live, map] = await Promise.all([
+    within<Awaited<ReturnType<typeof getEngine>> | typeof warming>(getEngine(a.origin), ENGINE_WAIT_MS, warming, "course search"),
+    // a read failure must never hide content (lib/learn/controls.ts): late controls = everything live, as on an error
+    within(liveCheck(), CONTROLS_WAIT_MS, () => () => true, "publishing controls"),
+    within(getCourseMap().catch(() => null), MAP_WAIT_MS, null, "course map"),
+  ]);
+  if (engine === warming) throw new ChatWarmingError();
   const deps: ChatDeps = {
     engine,
     live,
@@ -65,7 +105,9 @@ export async function makeDeps(a: { origin: string; userId: string | null; page:
     lessonMarkdown: async (week, slug) => (await getLearningResource(week, slug).catch(() => null))?.content ?? null,
     storyBody: async (slug) => (await getStorySource(slug).catch(() => null))?.body ?? null,
     drills: (slug) => getQuestDrills(slug, []),
-    questionBank: async () => (await getQuestionBank()).questions as BankItem[],
+    // one week at a time (never the whole course's bank on a cold server), and never more than BANK_WAIT_MS:
+    // without it the practice tools still offer the lesson's checkpoints and drills
+    questionBank: (week) => within(getWeekQuestions(week) as Promise<BankItem[]>, BANK_WAIT_MS, [] as BankItem[], `question bank (${week})`),
     progress: async (): Promise<ProgressSnapshot | null> => {
       if (!a.userId || !map) return null;
       return buildSnapshot((await loadRaw(a.userId)).raw, map);
