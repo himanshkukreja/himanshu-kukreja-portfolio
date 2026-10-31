@@ -173,9 +173,21 @@ function Decision({
       setAiCredits(b.creditsLeft);
       if (!r.ok) setFreeLog((l) => [...l, { you, who: "", reply: b.error || "Something went wrong." }]);
       else {
-        setFreeLog((l) => [...l, { you, who: b.who || "", reply: b.reply || "" }]);
-        // a move that matches an option plays out exactly like picking it (costs included)
-        if (typeof b.match === "number" && !tried.has(b.match)) onPick(b.match);
+        // a move that matches an option plays out exactly like picking it (costs included); its scripted replies
+        // then speak for the room, so the AI's own reply (often a copy of them) isn't shown a second time
+        if (typeof b.match === "number" && !tried.has(b.match)) {
+          const label = (beat.options[b.match]?.html || "")
+            .replace(/<[^>]+>/g, "")
+            .replace(/&nbsp;/g, " ")
+            .replace(/&quot;/g, '"')
+            .replace(/&#39;|&rsquo;/g, "’")
+            .replace(/&lt;/g, "<")
+            .replace(/&gt;/g, ">")
+            .replace(/&amp;/g, "&")
+            .trim();
+          setFreeLog((l) => [...l, { you, who: "", reply: label ? `That's the same call as: “${label}”` : "" }]);
+          onPick(b.match);
+        } else setFreeLog((l) => [...l, { you, who: b.who || "", reply: b.reply || "" }]);
       }
     } catch {
       setFreeLog((l) => [...l, { you, who: "", reply: "You seem to be offline." }]);
