@@ -22,15 +22,17 @@ import { useInkUser } from "@/lib/learn/ink/usePageAutosave";
 import { createPage } from "@/lib/learn/ink/client";
 import type { NotebookPage, Paper } from "@/lib/learn/ink/types";
 import { track } from "@/lib/track";
-import { bandOf, type QuestionGrade } from "@/lib/learn/papers/grade";
+import type { QuestionGrade } from "@/lib/learn/papers/grade";
 import { gradeAnswer, inkErrorText, loadSheets, newAttemptId, paperNotebook, readDetails, sheetTitle, writeDetail } from "@/lib/learn/papers/client";
 import {
+  attemptResult,
+  betterBest,
   PAPER_XP,
   paperDoneKey,
   paperFlagKey,
   paperLessonKey,
-  pct,
   readRecord,
+  resultLine,
   type AttemptSummary,
   type OpenAttempt,
   type PaperMode,
@@ -264,10 +266,11 @@ export default function PaperApp({ paper }: { paper: PaperView }) {
 
   const record = (last: AttemptSummary, first: boolean) => {
     save((r) => {
-      const better = !r.best || last.score / last.max > r.best.score / r.best.max;
-      return { ...r, attempts: r.attempts + (first ? 1 : 0), last, open: null, best: better ? { score: last.score, max: last.max, at: last.finishedAt, attempt: last.id } : r.best };
+      // only a whole paper (an exam, or practice with every question answered) can be a best; a partial practice run is kept as the last result
+      return { ...r, attempts: r.attempts + (first ? 1 : 0), last, open: null, best: betterBest(r.best, last) ? { score: last.score, max: last.max, at: last.finishedAt, attempt: last.id } : r.best };
     });
-    if (bandOf(last.score, last.max) !== "not-yet" && !last.pending.length) setXpGained(awardOnce(paperDoneKey(paper.key), PAPER_XP, `Written paper passed · ${paper.code}`));
+    const res = attemptResult(last);
+    if (res.full && res.band !== "not-yet" && !last.pending.length) setXpGained(awardOnce(paperDoneKey(paper.key), PAPER_XP, `Written paper passed · ${paper.code}`));
   };
 
   /** Finish: save the sheet, grade every answer not graded yet, record the result. */
@@ -465,7 +468,7 @@ export default function PaperApp({ paper }: { paper: PaperView }) {
               </h2>
               <p className="m-0 text-[15px] leading-relaxed text-fg-2">
                 {confirm === "finish"
-                  ? `${unanswered ? `${unanswered} question${unanswered === 1 ? " is" : "s are"} unanswered and score 0. ` : ""}${exam || paper.questions.some((qq) => answered(qq.n) && !open.marks[qq.n]) ? "Every answer not graded yet is graded now, on your AI credits." : "Your result is saved."}`
+                  ? `${unanswered ? (exam ? `${unanswered} question${unanswered === 1 ? " is" : "s are"} unanswered and score 0. ` : `${unanswered} question${unanswered === 1 ? " is" : "s are"} unanswered: practice scores only the ones you answered. `) : ""}${exam || paper.questions.some((qq) => answered(qq.n) && !open.marks[qq.n]) ? "Every answer not graded yet is graded now, on your AI credits." : "Your result is saved."}`
                   : `The clock keeps running while you're away (${left !== null ? mmss(left) : ""} left). Your answers are saved; come back to this page to carry on.`}
               </p>
               <div className="flex flex-wrap justify-end gap-2">
@@ -519,7 +522,7 @@ export default function PaperApp({ paper }: { paper: PaperView }) {
               .join(" · ")}
           </span>
         </p>
-        {hydrated && rec.best && <ScoreBadge score={rec.best.score} max={rec.best.max} />}
+        {hydrated && (rec.best || rec.last) && <ScoreBadge rec={{ ...rec, open: null }} />}
       </header>
 
       {screen === "grading" && (
@@ -698,7 +701,7 @@ function StartScreen(p: {
         )}
         {p.hydrated && rec.last && (
           <button type="button" onClick={p.onResults} className="min-h-[52px] border border-line-strong px-5 text-[15px] text-fg hover:bg-surface-2">
-            Last result · {rec.last.score}/{rec.last.max} ({pct(rec.last.score, rec.last.max)}%)
+            Last result · {resultLine(attemptResult(rec.last))}
           </button>
         )}
       </div>

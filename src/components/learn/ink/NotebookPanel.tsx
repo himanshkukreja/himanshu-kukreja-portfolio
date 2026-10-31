@@ -304,7 +304,7 @@ export default function NotebookPanel({ ctx, target, onClose }: { ctx: InkContex
             className={`flex h-10 items-center gap-1 px-2 font-mono text-[12px] text-fg hover:bg-surface-2 ${switcher ? "bg-surface-2" : ""}`}
           >
             <NotebookPenIcon className="h-[17px] w-[17px]" />
-            <span className="max-[359px]:sr-only">Pages</span>
+            <span className="max-md:sr-only">Pages</span>
             <ChevronDown className={`h-3.5 w-3.5 text-fg-3 transition-transform ${switcher ? "rotate-180" : ""}`} aria-hidden />
           </button>
           {switcher && (

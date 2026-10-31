@@ -7,8 +7,7 @@
  */
 import Link from "next/link";
 import { useGame } from "@/game/GameProvider";
-import { BAND_LABEL, bandOf } from "@/lib/learn/papers/grade";
-import { paperFlagKey, pct, readRecord } from "@/lib/learn/papers/types";
+import { paperFlagKey, paperStatus, readRecord } from "@/lib/learn/papers/types";
 import { usePaperFor } from "./usePapers";
 
 export default function PaperCard({ paperKey, variant = "hub" }: { paperKey: string; variant?: "hub" | "next" | "quest" }) {
@@ -16,9 +15,10 @@ export default function PaperCard({ paperKey, variant = "hub" }: { paperKey: str
   const { flags, hydrated } = useGame();
   if (!p) return null;
   const rec = readRecord(flags[paperFlagKey(p.key)]);
-  const best = hydrated ? rec.best : null;
-  const band = best ? bandOf(best.score, best.max) : null;
-  const status = !hydrated ? "" : rec.open ? `${rec.open.mode === "exam" ? "exam" : "practice"} in progress` : best ? `best ${best.score}/${best.max} · ${pct(best.score, best.max)}% · ${BAND_LABEL[band!]}` : "";
+  // the same status the papers index shows: best whole-paper result, else the last practice run (no verdict)
+  const st = hydrated ? paperStatus(rec) : null;
+  const status = st?.text ?? "";
+  const tone = st?.tone === "pass" || st?.tone === "distinction" ? "text-ok" : "text-fg-3";
 
   if (variant === "hub")
     return (
@@ -31,7 +31,7 @@ export default function PaperCard({ paperKey, variant = "hub" }: { paperKey: str
             WRITTEN PAPER · {p.questions} Q · {p.marks} MARKS · {p.minutes} MIN
           </span>
           <span className="text-[15px] font-semibold text-fg">Answer by hand, graded point by point</span>
-          {status && <span className={`font-mono text-[11px] ${band === "not-yet" || rec.open ? "text-fg-3" : "text-ok"}`}>{status}</span>}
+          {status && <span className={`font-mono text-[11px] ${tone}`}>{status}</span>}
         </span>
         <span aria-hidden className="font-mono text-sm text-signal-text">
           ❯
@@ -49,7 +49,7 @@ export default function PaperCard({ paperKey, variant = "hub" }: { paperKey: str
       </span>
       <span className="font-display text-[26px] font-bold leading-[1.05] tracking-[-0.02em]">{variant === "quest" ? "Sit this quest's paper" : "Sit the week's paper"}</span>
       <span className="text-sm leading-normal text-fg-2">Explain, estimate and draw the design by hand, with a pencil, a finger or a mouse. Every answer is marked against the scheme, with the model answer.</span>
-      {status && <span className={`font-mono text-[12px] ${band === "not-yet" || rec.open ? "text-fg-3" : "text-ok"}`}>{status}</span>}
+      {status && <span className={`font-mono text-[12px] ${tone}`}>{status}</span>}
       <span className="font-mono text-[13px] text-signal-text">Open the paper →</span>
     </Link>
   );

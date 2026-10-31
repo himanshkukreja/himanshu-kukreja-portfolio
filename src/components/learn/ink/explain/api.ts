@@ -9,6 +9,7 @@ import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { DEFAULT_MAX_IMAGE_BYTES, type ImageMediaType } from "@/lib/ai/image";
 import { INK_EVENTS, LIMITS } from "@/lib/learn/ink/types";
 import { estimateLines, TEXT } from "@/lib/learn/ink/geometry";
+import { tablesToPlain } from "@/components/learn/ai/mdTable";
 import { appendItem } from "../capture/api";
 import { saveSnip, type SavedSnip, type SnipShot } from "../capture/snip";
 
@@ -133,10 +134,13 @@ export async function explainSnip(shot: SnipShot, signal?: AbortSignal, ask: { q
 
 /* ------------------------------------------------------------------ the explanation as notebook text boxes */
 
-/** Markdown → the plain text a text box shows (bold labels stay as their own lines, bullets stay "- "). */
+/**
+ * Markdown → the plain text a text box shows (bold labels stay as their own lines, bullets stay "- "). A table becomes
+ * one line per row, "- Locking — Latency: High · Best for: Moderate traffic" (mdTable.ts tablePlain): a text box is
+ * drawn on the canvas in a proportional font, so padded columns wouldn't line up, and raw "| a | b |" pipes read badly.
+ */
 export function plainText(md: string): string {
-  return md
-    .replace(/\r\n?/g, "\n")
+  return tablesToPlain(md.replace(/\r\n?/g, "\n"))
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/\*\*([^*]+)\*\*/g, "$1")
     .replace(/(^|[\s(])\*([^*\s][^*]*)\*/g, "$1$2")

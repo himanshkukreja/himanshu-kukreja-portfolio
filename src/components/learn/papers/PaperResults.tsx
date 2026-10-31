@@ -9,8 +9,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { addReviewCard } from "@/lib/learn/review";
 import { NOTES_COURSE_ID as COURSE_ID } from "@/lib/ai/notes";
-import { BAND_LABEL, bandOf, ESCALATION_TEXT, marksByKind, type QuestionGrade } from "@/lib/learn/papers/grade";
-import { pct, type AttemptSummary, type PaperQuestionView, type PaperView, type QuestionMarks } from "@/lib/learn/papers/types";
+import { BAND_LABEL, ESCALATION_TEXT, marksByKind, type QuestionGrade } from "@/lib/learn/papers/grade";
+import { attemptResult, pct, type AttemptSummary, type PaperQuestionView, type PaperView, type QuestionMarks } from "@/lib/learn/papers/types";
 
 export const MODEL_LABEL = { haiku: "Haiku 5.5", sonnet: "Sonnet 5.5" } as const;
 const MONO = "font-mono text-[11px] uppercase tracking-label";
@@ -129,8 +129,12 @@ type Props = {
 };
 
 export default function PaperResults({ paper, last, details, best, xp, onRetry, onGradePending, grading }: Props) {
-  const band = bandOf(last.score, last.max);
-  const kinds = marksByKind(paper.questions, Object.fromEntries(Object.entries(last.marks).map(([n, m]) => [n, m.s])));
+  // one rule for every view (lib/learn/papers/types.ts attemptResult): a practice run that answered only some questions
+  // is scored over those questions, with no pass/fail verdict; an exam or a fully answered paper gets the verdict
+  const res = attemptResult(last);
+  const band = res.band;
+  const counted = res.full ? paper.questions : paper.questions.filter((q) => last.marks[q.n] && last.marks[q.n].g !== "none");
+  const kinds = marksByKind(counted, Object.fromEntries(Object.entries(last.marks).map(([n, m]) => [n, m.s])));
   const [cards, setCards] = useState<"" | "adding" | string>("");
   const minutes = Math.max(1, Math.round((last.finishedAt - last.startedAt) / 60000));
   // answered questions that lost marks (an unanswered question isn't a missed point: it was never tried)
@@ -176,15 +180,22 @@ export default function PaperResults({ paper, last, details, best, xp, onRetry, 
         </span>
         <div className="flex flex-wrap items-end gap-x-6 gap-y-3">
           <h2 id="paper-score" className="m-0 font-display text-[clamp(56px,10vw,96px)] font-extrabold leading-[0.85] tracking-[-0.05em] text-fg">
-            {last.score}
-            <span className="text-[0.45em] text-fg-3">/{last.max}</span>
+            {res.score}
+            <span className="text-[0.45em] text-fg-3">/{res.max}</span>
           </h2>
           <div className="flex flex-col gap-2 pb-1">
-            <span className={`self-start px-3 py-[7px] font-mono text-sm font-semibold tracking-label ${band === "distinction" ? "bg-signal text-on-signal" : band === "pass" ? "bg-ok text-[#04140B]" : "border border-bad text-bad-text"}`}>
-              {pct(last.score, last.max)}% · {BAND_LABEL[band].toUpperCase()}
-            </span>
+            {band ? (
+              <span className={`self-start px-3 py-[7px] font-mono text-sm font-semibold tracking-label ${band === "distinction" ? "bg-signal text-on-signal" : band === "pass" ? "bg-ok text-[#04140B]" : "border border-bad text-bad-text"}`}>
+                {pct(res.score, res.max)}% · {BAND_LABEL[band].toUpperCase()}
+              </span>
+            ) : (
+              <span className="self-start border border-line-strong px-3 py-[7px] font-mono text-sm font-semibold tracking-label text-fg-2">
+                {res.answered ? `ON ${res.answered} OF ${res.questions} QUESTIONS` : "NOTHING GRADED YET"}
+              </span>
+            )}
             <span className="text-[13px] text-fg-3">
-              Pass at 50%, distinction at 75%{best ? ` · your best ${best.score}/${best.max}` : ""}
+              {band ? "Pass at 50%, distinction at 75%" : `Practice counts the questions you answered. Answer all ${res.questions}, or sit it as an exam, for a pass mark`}
+              {best ? ` · your best ${best.score}/${best.max}` : ""}
               {xp ? ` · +${xp} XP` : ""}
             </span>
           </div>
@@ -247,10 +258,11 @@ export default function PaperResults({ paper, last, details, best, xp, onRetry, 
                 </span>
                 <div className="paper-md text-[15px] text-fg-2" dangerouslySetInnerHTML={{ __html: q.promptHtml }} />
               </header>
-              {m ? (
+              {/* a partial practice run lists the questions it skipped as skipped, not as 0 marks with every point crossed */}
+              {m && (res.full || m.g !== "none") ? (
                 <QuestionResult q={q} m={m} g={details[q.n]} answerHref={sheets[0] ? `/learn/notebook/page/${sheets[0]}` : null} />
               ) : (
-                <p className="m-0 text-[14px] text-fg-3">{last.pending.includes(q.n) ? "Not graded yet." : "Not answered."}</p>
+                <p className="m-0 text-[14px] text-fg-3">{last.pending.includes(q.n) ? "Not graded yet." : res.full ? "Not answered." : "Not answered in this practice run: it doesn't count towards the score."}</p>
               )}
             </article>
           );

@@ -387,13 +387,16 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
 
   return (
     <div data-ink-editor className="flex h-full min-h-0 flex-col bg-bg">
-      <header className={`flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line ${panel ? "px-2 py-1.5" : "px-3 py-2 sm:px-4"}`}>
+      {/* one row from a small tablet up (686 px and wider): the "update the text" button appears mid-gesture when the
+          handwriting changes, and a header that wrapped then would push the page down under the pen. The title gives
+          way (it truncates); the paper picker sits in the tools row below lg */}
+      <header className={`flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line sm:flex-nowrap sm:gap-x-1.5 md:gap-x-2 ${panel ? "px-2 py-1.5" : "px-3 py-2 sm:px-4"}`}>
         {backHref && (
           <Link href={backHref} onClick={() => void flush()} aria-label="Back to the notebook" className="grid h-10 w-10 shrink-0 place-items-center text-fg hover:bg-surface-2">
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </Link>
         )}
-        <div className="flex min-w-0 flex-[1_1_240px] items-center gap-2">
+        <div className="flex min-w-0 flex-[1_1_240px] items-center gap-2 sm:min-w-[72px]">
           <label className="min-w-0 flex-1">
             <span className="sr-only">Page title</span>
             <input
@@ -413,7 +416,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
           <button type="button" onClick={() => void go(outline[idx - 1]?.id)} disabled={idx <= 0} aria-label="Previous page" className="grid h-10 w-9 place-items-center text-fg hover:bg-surface-2 disabled:opacity-30">
             <ChevronLeft className="h-5 w-5" aria-hidden />
           </button>
-          <span className="min-w-[44px] text-center font-mono text-[12px] text-fg-3">{idx >= 0 ? `${idx + 1}/${outline.length}` : "·"}</span>
+          <span className="min-w-[44px] text-center font-mono text-[12px] text-fg-3 max-md:min-w-[34px]">{idx >= 0 ? `${idx + 1}/${outline.length}` : "·"}</span>
           <button type="button" onClick={() => void go(outline[idx + 1]?.id)} disabled={idx < 0 || idx >= outline.length - 1} aria-label="Next page" className="grid h-10 w-9 place-items-center text-fg hover:bg-surface-2 disabled:opacity-30">
             <ChevronRight className="h-5 w-5" aria-hidden />
           </button>
@@ -422,7 +425,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
           </button>
         </nav>
         {!panel && (
-          <label className="flex shrink-0 items-center gap-1.5">
+          <label className="hidden shrink-0 items-center gap-1.5 lg:flex">
             <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Paper</span>
             <select
               value={page?.paper ?? "ruled"}
@@ -468,8 +471,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
           surface="page"
           compact={panel}
           extra={
-            panel ? (
-          <label className="ml-1 flex shrink-0 items-center py-1 pr-1">
+          <label className={`ml-1 flex shrink-0 items-center py-1 pr-1 ${panel ? "" : "lg:hidden"}`}>
             <span className="sr-only">Paper</span>
             <select value={page?.paper ?? "ruled"} disabled={!page} onChange={(e) => patchPage({ paper: e.target.value as Paper })} className="h-9 border border-line-strong bg-surface px-1.5 text-[13px] text-fg">
               {PAPERS.map((p) => (
@@ -479,7 +481,6 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
               ))}
             </select>
           </label>
-            ) : null
           }
         />
       </div>

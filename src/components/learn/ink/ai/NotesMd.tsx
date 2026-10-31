@@ -1,8 +1,11 @@
 /**
  * Renders a page's typed version (the Markdown notes-convert writes) line by line, the way the page was written:
- * headings, bullets and numbers with their nesting, continuation lines under a bullet, clip quotes, diagram lines.
+ * headings, bullets and numbers with their nesting, continuation lines under a bullet, clip quotes, diagram lines, and
+ * GFM tables (a compact table that scrolls sideways on a narrow page, ../../ai/mdTable.ts).
  * Everything is escaped first, so model output can never inject HTML (same rule as AiText).
  */
+import { readTable, tableAt, tableHtml } from "@/components/learn/ai/mdTable";
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const inline = (s: string) =>
   esc(s)
@@ -14,7 +17,16 @@ const inline = (s: string) =>
 export function notesHtml(md: string, page = false): string {
   const out: string[] = [];
   let lastIndent = 0;
-  for (const raw of md.replace(/\r\n?/g, "\n").split("\n")) {
+  const lines = md.replace(/\r\n?/g, "\n").split("\n");
+  for (let i = 0; i < lines.length; i++) {
+    const raw = lines[i];
+    if (tableAt(lines, i)) {
+      const { table, next } = readTable(lines, i);
+      out.push(`<div class="my-1">${tableHtml(table, inline)}</div>`);
+      i = next - 1;
+      lastIndent = 0;
+      continue;
+    }
     if (!raw.trim()) {
       out.push('<div class="h-2" aria-hidden="true"></div>');
       lastIndent = 0;

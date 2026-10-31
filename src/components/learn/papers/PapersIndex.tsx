@@ -3,15 +3,18 @@
 /** /learn/papers: every written paper, weeks then side quests, with the learner's best score (from the game flags). */
 import Link from "next/link";
 import { useGame } from "@/game/GameProvider";
-import { BAND_LABEL, bandOf } from "@/lib/learn/papers/grade";
-import { paperFlagKey, pct, readRecord, type PaperSummary } from "@/lib/learn/papers/types";
+import { paperStatus, readRecord, paperFlagKey, type PaperRecord, type PaperSummary } from "@/lib/learn/papers/types";
 
-export function ScoreBadge({ score, max, small }: { score: number; max: number; small?: boolean }) {
-  const band = bandOf(score, max);
+/** The paper's status from its record (lib/learn/papers/types.ts paperStatus): best whole-paper result, or the last practice run. */
+export function ScoreBadge({ rec, small }: { rec: PaperRecord; small?: boolean }) {
+  const st = paperStatus(rec);
+  if (!st) return null;
+  const tone = st.tone === "pass" ? "text-ok" : st.tone === "distinction" ? "text-signal-text" : st.tone === "open" ? "text-signal-text" : "text-fg-3";
+  const dot = st.tone === "pass" ? "bg-ok" : st.tone === "distinction" ? "bg-signal" : st.tone === "practice" ? "border border-dashed border-fg-3" : st.tone === "open" ? "rounded-full bg-signal" : "border border-fg-3";
   return (
-    <span className={`inline-flex items-center gap-1.5 font-mono ${small ? "text-[11px]" : "text-[12px]"} ${band === "not-yet" ? "text-fg-3" : band === "pass" ? "text-ok" : "text-signal-text"}`}>
-      <span aria-hidden className={`h-2 w-2 ${band === "not-yet" ? "border border-fg-3" : band === "pass" ? "bg-ok" : "bg-signal"}`} />
-      best {score}/{max} · {pct(score, max)}% · {BAND_LABEL[band]}
+    <span className={`inline-flex min-w-0 items-center gap-1.5 font-mono ${small ? "text-[11px]" : "text-[12px]"} ${tone}`}>
+      <span aria-hidden className={`h-2 w-2 shrink-0 ${dot}`} />
+      {st.text}
     </span>
   );
 }
@@ -34,17 +37,15 @@ function PaperTile({ p }: { p: PaperSummary }) {
           {p.questions} questions · {p.marks} marks
           <span className="block text-[13px] text-fg-3">{kinds}</span>
         </span>
-        <span className="mt-auto flex min-h-6 flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+        <span className="mt-auto flex min-h-6 items-center justify-between gap-2 border-t border-line pt-3">
           {!hydrated ? (
             <span className="font-mono text-[11px] text-fg-4">·</span>
-          ) : rec.open ? (
-            <span className="font-mono text-[12px] text-signal-text">● {rec.open.mode === "exam" ? "exam" : "practice"} in progress</span>
-          ) : rec.best ? (
-            <ScoreBadge score={rec.best.score} max={rec.best.max} />
+          ) : paperStatus(rec) ? (
+            <ScoreBadge rec={rec} />
           ) : (
             <span className="font-mono text-[12px] text-fg-3">not tried yet</span>
           )}
-          <span aria-hidden className="font-mono text-sm text-signal-text">
+          <span aria-hidden className="shrink-0 font-mono text-sm text-signal-text">
             ❯
           </span>
         </span>

@@ -87,7 +87,13 @@ export function firstJson<T>(raw: string): T | null {
   if (found !== null) return found;
   // a small model's slips at the end of a list: a stray quote after the last comma ("…",\"}]), trailing commas
   const fixed = t.replace(/,\s*"\s*(?=[}\]])/g, "").replace(/,\s*(?=[}\]])/g, "");
-  return fixed === t ? null : walkJson<T>(fixed);
+  if (fixed !== t) {
+    const j = walkJson<T>(fixed);
+    if (j !== null) return j;
+  }
+  // the last string left unclosed before the final brace ("summary":"…coalescing.}): close it
+  const closed = fixed.replace(/([^"\s\]}])\s*}\s*$/, '$1"}');
+  return closed === fixed ? null : walkJson<T>(closed);
 }
 
 function walkJson<T>(t: string): T | null {
@@ -257,12 +263,13 @@ export function parseCheck(raw: string, headings: string[], texts?: Record<strin
       return items.push({ kind, note: note || lesson, lesson: "", section, ...(term ? { term } : {}) });
     }
     if (kind === "wrong") {
+      // a "wrong" whose own reason says the note matches is right, quote or not (a small model sometimes argues itself
+      // round: "the lesson rates locking for moderate traffic, which matches the notes")
+      if (/\b(?:this|it|that|which) (?:matches|agrees)\b|\bmatch(?:es)? the notes?\b|\b(?:is|are) consistent with\b|\bconsistent with the (?:notes?|lesson)\b|\bno error\b|\b(?:the notes?|this|it|that|which) (?:is|are) (?:correct|right)\b|\bsame (?:amount|value|thing)\b/i.test(lesson)) return items.push({ kind: "right", note, lesson: "", section });
       const quote = clip(o.quote, 300).replace(/^["“']|["”']$/g, "");
       const unsettled = !lesson || /\b(?:does not|doesn't|do not|don't|is not|isn't|never)\b[^.]{0,30}\b(?:describe|cover|mention|discuss|include|define|say|state|promise|claim|specify|give)|\bnot (?:in|covered|mentioned|described|stated|one of|part of|among)\b|\bnever (?:covers|mentions|describes|discusses)\b/i.test(lesson);
       const quoted = !texts || (!!quote && quoteIn(quote, texts[section] ?? Object.values(texts).join("\n")));
       if (unsettled || !quoted) return items.push({ kind: "outside", note, lesson: "", section: null });
-      // a "wrong" whose own reason says the note matches is not wrong (a small model sometimes argues itself round)
-      if (/\b(?:this|it|that|which) (?:matches|agrees)\b|\bno error\b|\b(?:is|are) (?:correct|right)\b|\bsame (?:amount|value|thing)\b/i.test(lesson)) return items.push({ kind: "right", note, lesson: "", section });
       if (/\bnot (?:contradicted|wrong|an error)\b|\bnarrower\b|\bless precise\b|\bsimplif/i.test(lesson)) return items.push({ kind: "outside", note, lesson: "", section: null });
       return items.push({ kind, note, lesson, section, ...(quote ? { quote } : {}) });
     }
@@ -272,7 +279,55 @@ export function parseCheck(raw: string, headings: string[], texts?: Record<strin
   list(j.wrong).forEach((o) => add("wrong", o));
   list(j.missing).forEach((o) => add("missing", o));
   list(j.outside).forEach((o) => add("outside", typeof o === "string" ? { note: o } : o));
-  return { summary: clip(j.summary, 400), items };
+  // one claim, one verdict: a "not in this lesson" that restates a claim already judged right (a small model sometimes
+  // lists "locking suits moderate traffic" as right and "locking is best for moderate traffic" as wrong, which the
+  // grounding above then turns into outside) is the same claim, and the lesson does cover it
+  const rights = items.filter((i) => i.kind === "right").map((i) => new Set(claimWords(i.note)));
+  const kept = items.filter((i) => {
+    if (i.kind !== "outside") return true;
+    const w = claimWords(i.note);
+    return !(w.length >= 2 && rights.some((r) => w.filter((x) => r.has(x)).length / w.length >= 0.8));
+  });
+  return { summary: checkSummary(clip(j.summary, 400), kept), items: kept };
+}
+
+/** a claim's content words (generic words and the claim-shape words "best", "use" aside), for matching a restatement */
+const claimWords = (s: string) => [...new Set(termWords(s.replace(/\([^)]*\)/g, " ")).filter((w) => w.length > 2 && !GENERIC.has(w) && !CLAIM_FILLER.has(w)))];
+const CLAIM_FILLER = new Set("best good better use used using suit suits suited works work only also just very".split(" "));
+
+// a summary that speaks of an error in the notes ("one claim is wrong", "mislabels locking", "only partly supported")
+const SUMMARY_FAULT = /\b(?:wrong|incorrect|inaccurate|mistaken|mistakes?|errors?|contradict\w*|conflict\w*|revers\w*|mix\w* up|mislabel\w*|misstat\w*|misread\w*|confus\w*|should (?:be|say|read)|not quite|doesn'?t match|don'?t match|partly|partially|loose(?:ly)?|slip\w*|off by)\b/i;
+// "no errors", "nothing wrong": a fault word that says the opposite
+const SUMMARY_CLEAN = /\b(?:no|without|nothing|none)\b[^.,;]{0,20}\b(?:wrong|incorrect|errors?|mistakes?|contradict\w*|conflict\w*)/i;
+const COUNT_WORDS = /\b(?:a few|several|some|many|two|three|four|five|\d+)\b[^.,;]{0,25}\b(?:wrong|incorrect|errors|mistakes|claims)\b/i;
+
+/**
+ * The summary must agree with the items the learner sees under it (the grounding above can move a claim the model
+ * called wrong to right or "not in this lesson", and a small model sometimes summarises a claim it then judged right as
+ * an error). Kept when it names an error only if one is listed, mentions it when one is, and doesn't say "a few" for one;
+ * otherwise rebuilt from the items, so the summary can't contradict the list.
+ */
+export function checkSummary(summary: string, items: CheckItem[]): string {
+  const wrong = items.filter((i) => i.kind === "wrong");
+  const faulty = SUMMARY_FAULT.test(summary) && !SUMMARY_CLEAN.test(summary);
+  const ok = summary && (wrong.length ? faulty && !(wrong.length === 1 && COUNT_WORDS.test(summary)) : !faulty);
+  return ok ? summary : derivedSummary(items);
+}
+
+/** One plain sentence from the items: how many match, which one doesn't, how many key points are missing. */
+export function derivedSummary(items: CheckItem[]): string {
+  const n = (k: CheckItem["kind"]) => items.filter((i) => i.kind === k).length;
+  const [right, wrong, missing, outside] = [n("right"), n("wrong"), n("missing"), n("outside")];
+  if (!right && !wrong && !missing) return "";
+  const pl = (k: number, one: string, many: string) => (k === 1 ? `1 ${one}` : `${k} ${many}`);
+  const first = items.find((i) => i.kind === "wrong")?.note ?? "";
+  const short = first.length > 70 ? `${first.slice(0, 68).replace(/\s+\S*$/, "")}…` : first;
+  let s = "";
+  if (right && wrong) s = `${pl(right, "point matches", "points match")} the lesson, but ${wrong === 1 ? `one doesn't: “${short}”` : `${wrong} don't`}.`;
+  else if (right) s = `${pl(right, "point matches", "points match")} the lesson${outside ? `; ${outside === 1 ? "1 isn't" : `${outside} aren't`} covered by it` : ""}.`;
+  else if (wrong) s = wrong === 1 ? `One claim doesn't match the lesson: “${short}”.` : `${wrong} claims don't match the lesson.`;
+  if (missing) s += `${s ? " " : ""}${pl(missing, "key point", "key points")} from the lesson ${missing === 1 ? "is" : "are"} missing.`;
+  return s;
 }
 
 // ------------------------------------------------------------------ cards

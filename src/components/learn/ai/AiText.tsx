@@ -1,7 +1,10 @@
 /**
  * Renders an AI answer: plain Markdown subset (paragraphs, lists, **bold**, *italic*, inline code,
- * fenced code). Everything is escaped first, so model output can never inject HTML.
+ * fenced code, GFM tables as compact tables that scroll sideways). Everything is escaped first, so model output can
+ * never inject HTML.
  */
+import { splitTables, tableHtml } from "./mdTable";
+
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const inline = (s: string) =>
   esc(s)
@@ -11,21 +14,27 @@ const inline = (s: string) =>
 
 export function aiHtml(md: string): string {
   const out: string[] = [];
+  const paragraph = (lines: string[]) => {
+    if (!lines.length) return;
+    if (lines.every((l) => /^\s*([-*•]|\d+[.)])\s+/.test(l))) {
+      const ordered = /^\s*\d/.test(lines[0]);
+      out.push(`<${ordered ? "ol" : "ul"} class="my-0 flex flex-col gap-1 pl-5 ${ordered ? "list-decimal" : "list-disc"}">${lines.map((l) => `<li>${inline(l.replace(/^\s*([-*•]|\d+[.)])\s+/, ""))}</li>`).join("")}</${ordered ? "ol" : "ul"}>`);
+    } else if (/^#{1,4}\s/.test(lines[0])) {
+      out.push(`<p class="m-0 font-semibold text-fg">${inline(lines[0].replace(/^#+\s*/, ""))}</p>${lines.length > 1 ? `<p class="m-0">${lines.slice(1).map(inline).join("<br/>")}</p>` : ""}`);
+    } else out.push(`<p class="m-0">${lines.map(inline).join("<br/>")}</p>`);
+  };
   const blocks = md.replace(/\r\n/g, "\n").split(/\n```[a-z]*\n?|```/);
   blocks.forEach((b, i) => {
     if (i % 2 === 1) {
       out.push(`<pre class="overflow-x-auto border border-line bg-surface-2 p-3 font-mono text-[12.5px] leading-relaxed">${esc(b.replace(/\n$/, ""))}</pre>`);
       return;
     }
-    for (const para of b.split(/\n{2,}/)) {
-      const lines = para.split("\n").filter((l) => l.trim());
-      if (!lines.length) continue;
-      if (lines.every((l) => /^\s*([-*•]|\d+[.)])\s+/.test(l))) {
-        const ordered = /^\s*\d/.test(lines[0]);
-        out.push(`<${ordered ? "ol" : "ul"} class="my-0 flex flex-col gap-1 pl-5 ${ordered ? "list-decimal" : "list-disc"}">${lines.map((l) => `<li>${inline(l.replace(/^\s*([-*•]|\d+[.)])\s+/, ""))}</li>`).join("")}</${ordered ? "ol" : "ul"}>`);
-      } else if (/^#{1,4}\s/.test(lines[0])) {
-        out.push(`<p class="m-0 font-semibold text-fg">${inline(lines[0].replace(/^#+\s*/, ""))}</p>${lines.length > 1 ? `<p class="m-0">${lines.slice(1).map(inline).join("<br/>")}</p>` : ""}`);
-      } else out.push(`<p class="m-0">${lines.map(inline).join("<br/>")}</p>`);
+    for (const block of b.split(/\n{2,}/)) {
+      // a table may sit right under a lead-in line, in the same paragraph
+      for (const run of splitTables(block.split("\n").filter((l) => l.trim()))) {
+        if ("table" in run) out.push(tableHtml(run.table, inline));
+        else paragraph(run.lines);
+      }
     }
   });
   return out.join("");
