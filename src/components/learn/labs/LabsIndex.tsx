@@ -8,6 +8,7 @@ import { useLabProgress } from "@/lib/learn/labs/progress";
 import { PYTHON_VERSION, RUNTIME_DOWNLOAD_LABEL } from "@/lib/learn/labs/runtime";
 import { DIFFICULTY_LABEL, labKey, type LabSummary } from "@/lib/learn/labs/types";
 import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export default function LabsIndex({ labs }: { labs: LabSummary[] }) {
   const { done, hydrated } = useGame();
@@ -31,6 +32,7 @@ export default function LabsIndex({ labs }: { labs: LabSummary[] }) {
         <p className="max-w-[760px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
           More interviews now include an &ldquo;implement this component&rdquo; round: a rate limiter, an LRU cache, a consistent hashing ring. Each lab here is one of those, taken straight from a lesson. Write Python in the browser and run it against example tests and hidden edge cases.
         </p>
+        <WatchHowItWorks id="code-labs" />
         <div className="flex flex-wrap gap-px self-start border border-line bg-line font-mono">
           <span className="bg-bg px-4 py-2.5 text-[13px] text-fg-3">
             <span className="text-xl font-semibold text-fg">{cleared}</span>/{labs.length} cleared

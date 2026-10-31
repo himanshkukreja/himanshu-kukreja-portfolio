@@ -28,6 +28,7 @@ import {
 } from "@/lib/learn/review";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { activityByDay, findResume, logReviewActivity, readReviewLog, streakFrom, useLearnProgress } from "@/lib/learn/progress";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 const SRC: Record<ReviewSource, { label: string; glyph: string; title: string; desc: string }> = {
   trial_miss: { label: "MISSED IN TRIAL", glyph: "✕", title: "Missed trial questions", desc: "Every wrong answer in a trial lands here automatically, with its explanation." },
@@ -215,6 +216,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
           <p className="max-w-[620px] text-[17px] leading-relaxed text-fg-2 sm:text-lg">
             Five minutes on what you got wrong, flagged or highlighted. Recall it, flip it, grade yourself. Cards you know drift to bigger boxes and come back less often.
           </p>
+          <WatchHowItWorks id="arena-review" chapter="The Daily standup" />
           <div className="grid grid-cols-2 gap-px self-stretch border border-line bg-line sm:flex sm:flex-wrap sm:self-start">
             {[
               [ready ? String(n) : "·", "cards today"],

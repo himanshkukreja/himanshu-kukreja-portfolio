@@ -40,6 +40,7 @@ import { openThread } from "./history";
 import { InstantMatches } from "./ResultsRail";
 import { Sheet, useHeight, useKeyboardInset, useMedia } from "./ui";
 import { useCourseChat } from "./useCourseChat";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 /** The example categories, the ones the tutor answers first (examples.ts; the gallery's own list). */
 const CATEGORIES = [...EXAMPLE_CATEGORIES.filter((c) => c.ai), ...EXAMPLE_CATEGORIES.filter((c) => !c.ai)];
@@ -367,6 +368,7 @@ function ChatPage() {
           Ask in plain words. The tutor answers from the course with its sources, finds the exact second in a lecture, builds a path you can save, quizzes you on the course&apos;s own questions and suggests what
           to do next from your progress.
         </p>
+        <WatchHowItWorks id="ai-tutor" />
       </header>
       {wide && box}
       {canChat && !rail && (

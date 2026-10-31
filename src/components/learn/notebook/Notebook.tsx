@@ -34,6 +34,7 @@ import { useInkDev } from "@/lib/learn/ink/usePageAutosave";
 import { deleteInkNote, listAllInkNotes, parseInk, restoreInkNote, updateInkNote, type InkNoteInk, type InkNoteRow } from "@/lib/learn/ink/passage";
 import InkNoteThumb from "@/components/learn/ink/passage/InkNoteThumb";
 import NotesMd from "@/components/learn/ink/ai/NotesMd";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export type NotebookTab = "highlights" | "notes" | "pages" | "bookmarks";
 const TABS: NotebookTab[] = ["highlights", "notes", "pages", "bookmarks"];
@@ -491,6 +492,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
           <p className="max-w-[620px] text-[17px] leading-relaxed text-fg-2 sm:text-lg">
             Everything you marked while reading, in one place. Each item opens the lesson at the stage you saved it from, not a scroll position.
           </p>
+          <WatchHowItWorks id="notebook" />
         </div>
         {userId && !pagesTab && (
           <div className="flex flex-wrap items-center gap-2.5">

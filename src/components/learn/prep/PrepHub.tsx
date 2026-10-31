@@ -29,6 +29,7 @@ import { useOffline } from "@/components/offline/OfflineProvider";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { pathOf } from "@/lib/offline/store";
 import { VERDICT_LABEL } from "@/lib/learn/mock/score";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export type PracticeData = {
   revision: { weeks: { key: string; id: string; code: string; title: string; lessons: string[] }[]; lessons: number; cards: number };
@@ -117,6 +118,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
         <p className="max-w-[720px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
           The course teaches it; this gets you hired. See what each company asks, work the classic problems, sit a timed mock (alone or with a real person), and revise the night before.
         </p>
+        <WatchHowItWorks id="interview-prep" />
         <dl className="m-0 grid grid-cols-2 gap-px self-start border border-line bg-line font-mono sm:flex sm:flex-wrap">
           <Stat label="lessons revised" value={ready ? `${lessonsRevised}` : "–"} of={data.revision.lessons} />
           <Stat label="labs cleared" value={hydrated ? `${labsCleared}` : "–"} of={data.labs.length} />

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import ReviseIndex from "@/components/learn/revise/ReviseIndex";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
@@ -25,6 +26,7 @@ export default async function RevisePage() {
           Each lesson boiled down to swipeable cards: the key ideas, the numbers to remember, one trade-off table, the classic mistakes and what to say when the interviewer asks.
           Flip a whole world the night before. Save it offline and it works on the flight.
         </p>
+        <WatchHowItWorks id="arena-review" chapter="Revise mode" />
         <span className="font-mono text-xs text-fg-3">
           {lessons} lessons · {cards} cards ·{" "}
           <Link href="/learn/review" className="text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">

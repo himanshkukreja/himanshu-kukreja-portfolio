@@ -23,6 +23,9 @@ import ContinueReadingBanner, { type ResumeStage } from "@/components/ContinueRe
 import CourseProgressStats from "@/components/CourseProgressStats";
 import AuthPromptBanner from "@/components/AuthPromptBanner";
 import TourCard from "@/components/learn/guide/TourCard";
+import WelcomeVideoCard from "@/components/learn/guide/videos/WelcomeVideoCard";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
+import { GUIDE_VIDEOS_ON } from "@/lib/learn/guide/videos";
 import { MockGlyph, SkillTreeList, SkillTreeRows } from "./SkillTree";
 import { useMockStatus } from "@/lib/learn/mock/store";
 import WeekDetail from "./WeekDetail";
@@ -138,16 +141,20 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
             {/^(8|11|18|8\d)$/.test(String(map.stats.worlds)) ? "An" : "A"} {map.stats.worlds}-world campaign for backend engineers going from intermediate to advanced. Clear a world&apos;s lessons, beat its interview boss, pass the trial, and move on to the next.{map.mocks?.length ? " After most worlds, a timed mock interview loop checks it all under real interview pressure." : ""} Nothing is locked.
           </p>
           <CourseProgressStats stats={map.stats} learner={counts} />
-          <Link href="/learn/guide" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
-            how the course works: stages, XP, trials, Arena →
-          </Link>
+          <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <Link href="/learn/guide" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+              how the course works: stages, XP, trials, Arena →
+            </Link>
+            <WatchHowItWorks id="getting-started" />
+          </span>
         </div>
         <div className="w-full flex-[1_1_360px] lg:max-w-[460px]">
           <ContinueReadingBanner ready={ready} resume={resume} stages={stages} dueCount={dueCount} dueReady={dueReady} streak={streak} />
         </div>
       </section>
 
-      <TourCard />
+      {/* first visit: the welcome video (when the feature videos are on) takes the tour card's place */}
+      {GUIDE_VIDEOS_ON ? <WelcomeVideoCard fallback={<TourCard />} /> : <TourCard />}
 
       {ready && !signedIn && <AuthPromptBanner variant="learn-page" />}
 

@@ -16,6 +16,7 @@ import { dailyStreakLocal, useArenaLocal, useBoard, useToday } from "./store";
 import { BoardList, GuestRankCard } from "./Leaderboard";
 import DesignWeekPanel from "./DesignWeekPanel";
 import { BTN, BTN_GHOST, fmtMs, Kicker, LABEL, msToIstMidnight, PageTitle, ResultSquares, SectionTitle, TierBadge } from "./ui";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 function Countdown() {
   const [ms, setMs] = useState<number | null>(null);
@@ -123,6 +124,7 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
           <p className="max-w-[640px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
             A daily challenge, weekly leagues and quick games, all built from the course. Every answer you get right here is something you&apos;ll get right in an interview.
           </p>
+          <WatchHowItWorks id="arena-review" />
         </div>
         <div className="hidden w-full flex-[1_1_380px] self-stretch lg:block lg:max-w-[480px]">{stats}</div>
       </section>

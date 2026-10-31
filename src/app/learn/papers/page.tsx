@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getPaperSummaries } from "@/lib/learn/papers/load";
 import PapersIndex from "@/components/learn/papers/PapersIndex";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed hourly and on every content push; the learner's scores load in the browser.
@@ -35,6 +36,7 @@ export default async function PapersPage() {
         <p className="m-0 font-mono text-xs text-fg-3">
           {papers.length} paper{papers.length === 1 ? "" : "s"} · practice untimed or sit it as a timed exam · graded by AI on your daily credits
         </p>
+        <WatchHowItWorks id="notebook" chapter="Written papers" label="watch papers being marked" />
       </header>
       <PapersIndex papers={papers} />
     </main>

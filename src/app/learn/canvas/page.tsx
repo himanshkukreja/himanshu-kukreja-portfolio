@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { canvasPrompts } from "@/lib/learn/canvas";
 import CanvasHome from "@/components/learn/canvas/CanvasHome";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
 export const revalidate = 3600;
@@ -28,6 +29,7 @@ export default async function CanvasPage() {
         <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
           Sketch the architecture the way you would on an interview whiteboard: boxes, arrows, real technologies. Then ask for a review: a staff-engineer read of your drawing against the brief, with the gaps that would sink it worst first, the fix for each, and what you&apos;d be asked next. Your designs save to your account as you draw.
         </p>
+        <WatchHowItWorks id="design-boss" />
       </header>
       <CanvasHome prompts={prompts} />
     </main>

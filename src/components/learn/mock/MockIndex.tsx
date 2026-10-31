@@ -9,6 +9,7 @@ import { useLearnProgress, weekStates } from "@/lib/learn/progress";
 import { useMockStatus } from "@/lib/learn/mock/store";
 import { LEVEL_LABEL } from "@/lib/learn/mock/types";
 import { MockGlyph, mockStateText } from "@/components/learn/hub/SkillTree";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export default function MockIndex({ map }: { map: CourseMap }) {
   const { ready, lessons, done } = useLearnProgress(map.courseId);
@@ -29,6 +30,7 @@ export default function MockIndex({ map }: { map: CourseMap }) {
           Between the worlds of the course sit {mocks.length} timed mock interviews. Each one is an unseen problem from a fictional company, a named interviewer who keeps time and throws curveballs, and a debrief with model answers, a levelled
           rubric and a hire / no-hire verdict.
         </p>
+        <WatchHowItWorks id="mock-interviews" />
         <div className="flex flex-wrap gap-px self-start border border-line bg-line font-mono">
           <span className="bg-bg px-4 py-2.5 text-[13px] text-fg-3">
             <span className="text-xl font-semibold text-fg">{finished}</span>/{mocks.length} finished

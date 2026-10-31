@@ -30,6 +30,7 @@ import { SHORT_CATEGORIES, type PlayableShort, type ShortCategory } from "@/lib/
 import ShortPlayer, { type ShortHandle } from "./ShortPlayer";
 import { CommentsSheet, useCommentCounts, useShortSave, useShortVote } from "./ShortSocial";
 import { SpeedControl } from "./ShortSpeed";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 const SEEN_KEY = "hk.shorts.seen";
 const readSeen = (): string[] => {
@@ -346,6 +347,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
               {c.label.toLowerCase()}
             </button>
           ))}
+          <WatchHowItWorks id="shorts" compact className="ml-auto pl-3" />
         </div>
         {topics.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Topic">

@@ -3,6 +3,8 @@ import ChatDock from "@/components/learn/chat/ChatDock";
 import NotebookPanelHost from "@/components/learn/ink/NotebookPanelHost";
 import NotebookFab from "@/components/learn/ink/global/NotebookFab";
 import NotebookCoach from "@/components/learn/ink/global/NotebookCoach";
+import GuideVideoHost from "@/components/learn/guide/videos/GuideVideoHost";
+import { GUIDE_VIDEOS_ON } from "@/lib/learn/guide/videos";
 
 // The course nav lives in the global SiteHeader (learn mode), so this layout adds no chrome.
 // RefCapture: links from shared progress pages carry ?ref=<handle>; it keeps the referrer through sign-up.
@@ -10,6 +12,7 @@ import NotebookCoach from "@/components/learn/ink/global/NotebookCoach";
 //   and the course chat panel (client-only, loaded when opened).
 // NotebookPanelHost: the one Notebook panel of the course (opens from the pen, a lesson's reading tools, N), and
 //   NotebookCoach, the one-time pointer to it.
+// GuideVideoHost: the feature-video player (openGuideVideo / #watch-<id>), only with NEXT_PUBLIC_GUIDE_VIDEOS=1.
 export default function LearnLayout({ children }: { children: React.ReactNode }) {
   return (
     <>
@@ -18,6 +21,7 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
       <ChatDock companion={<NotebookFab />} />
       <NotebookPanelHost />
       <NotebookCoach />
+      {GUIDE_VIDEOS_ON && <GuideVideoHost />}
     </>
   );
 }

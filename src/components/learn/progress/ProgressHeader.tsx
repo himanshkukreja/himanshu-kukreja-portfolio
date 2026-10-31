@@ -8,6 +8,7 @@ import { fmtMinutes } from "./derive";
 import { Bar, Label, Stat } from "./ui";
 import ShareButton from "@/components/share/ShareButton";
 import ProfileAvatarButton from "@/components/avatar/ProfileAvatarButton";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 type Props = {
   name: string;
@@ -56,6 +57,7 @@ export default function ProgressHeader(p: Props) {
           </div>
           <Bar pct={lp.pct} className="h-1.5 max-w-[560px]" label="Progress to the next level" />
           {lp.next && <span className="text-[13px] text-fg-3">Next unlock: {LEVELS[lp.index + 1]?.unlock}</span>}
+          <WatchHowItWorks id="progress-profile" label="watch how progress works" />
         </div>
 
         <div className="grid grid-cols-2 gap-px border border-line bg-line sm:grid-cols-4">

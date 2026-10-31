@@ -11,6 +11,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 import { notebookAllowed, readLS, writeLS } from "./context";
+import { attentionHeld } from "@/lib/learn/guide/attention";
 import { NotebookPenIcon } from "./PenIcon";
 
 const SEEN = "hk.ink.coach";
@@ -48,6 +49,8 @@ export default function NotebookCoach() {
     const tryShow = () => {
       if (readLS(SEEN)) return;
       if (document.documentElement.classList.contains("hk-nb-open")) return;
+      // the welcome video card or the video player has the floor: wait (tried again in 1.5 s)
+      if (attentionHeld()) return;
       if (!anchor()) return;
       writeLS(SEEN, String(Date.now()));
       setShow(true);

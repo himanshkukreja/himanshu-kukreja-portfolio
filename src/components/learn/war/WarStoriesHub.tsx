@@ -12,6 +12,7 @@ import { useGame } from "@/game/GameProvider";
 import { istToday, storyOfTheDay } from "@/lib/learn/war/day";
 import { STORY_THEMES, THEME_LABEL, WAR_ROOM_XP, warRoomKey, type StorySummary, type StoryTheme, type WarRoomSummary } from "@/lib/learn/war/types";
 import { readRuns, readStoriesRead, WAR_EVENT } from "./store";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label";
 
@@ -56,6 +57,7 @@ export default function WarStoriesHub({ stories, rooms, videos = {}, shorts = 0 
           What really happened when real systems hit real limits, in two minutes each, with the sources. Then take the page yourself: incidents played out in the channel, modelled on real
           postmortems, where you make the calls.
         </p>
+        <WatchHowItWorks id="side-quests" chapter="Case files" />
         <p className="m-0 font-mono text-xs text-fg-3">
           {stories.length} real stories{Object.keys(videos).length ? ` · ${Object.keys(videos).length} with a short video` : ""}{local ? ` · ${readCount} read` : ""} · {rooms.length} war room{rooms.length === 1 ? "" : "s"}
         </p>

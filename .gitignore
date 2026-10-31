@@ -49,3 +49,6 @@ scripts/ai-batch/.state/
 
 # Listen narration copied for next dev (scripts/listen/build.mjs --dev)
 /public/listen-media/
+
+# feature videos laid out for next dev (scripts/guide-videos/publish.mjs --local): symlinks into ~/Downloads
+/public/guide-videos-dev/

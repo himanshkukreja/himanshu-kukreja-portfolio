@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listLectures, lectureMediaBase } from "@/lib/learn/lecture/load";
 import LectureGrid from "@/components/learn/lecture/LectureGrid";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
 export const revalidate = 86400;
@@ -34,6 +35,7 @@ export default async function LecturesPage() {
         <Link href="/learn/podcast" className="self-start font-mono text-[13px] text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">
           or listen to them as a podcast →
         </Link>
+        <WatchHowItWorks id="lectures-listen" />
       </header>
       {lectures.length ? <LectureGrid lectures={lectures} mediaBase={lectureMediaBase()} /> : <p className="m-0 text-fg-3">The first lectures are on their way.</p>}
     </main>

@@ -56,6 +56,8 @@ import {
   RUNTIME_STORED_LABEL,
 } from "./facts";
 import { CERT_XP, MOCKS_NEEDED as CERT_MOCKS, NAME_MAX as CERT_NAME_MAX, TRIAL_PASS_PCT as CERT_PASS_PCT } from "@/lib/certificates/core";
+import GuideVideos from "./videos/GuideVideos";
+import { GUIDE_VIDEOS } from "@/lib/learn/guide/videos";
 
 const COURSE = "/learn/system-design-mastery";
 
@@ -86,6 +88,9 @@ const TOC: TocItem[] = [
   { id: "faq", n: "20", label: "FAQ" },
   { id: "glossary", n: "21", label: "Glossary" },
 ];
+
+/** With the feature videos published (NEXT_PUBLIC_GUIDE_VIDEOS=1), they lead the page. */
+const TOC_ALL: TocItem[] = GUIDE_VIDEOS.length ? [TOC[0], { id: "videos", label: "Watch the videos" }, ...TOC.slice(1)] : TOC;
 
 const LOOP = [
   { t: "Read a lesson", d: "Each lesson is split into stages. Start anywhere; nothing is locked." },
@@ -146,11 +151,13 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
         </div>
       </header>
 
-      <GuideTocChips items={TOC} />
+      <GuideVideos />
+
+      <GuideTocChips items={TOC_ALL} />
 
       <div className="grid gap-10 lg:grid-cols-[200px_minmax(0,1fr)] xl:gap-14">
         <aside className="hidden lg:block">
-          <GuideTocSide items={TOC} />
+          <GuideTocSide items={TOC_ALL} />
         </aside>
 
         <div className="flex min-w-0 flex-col gap-16">
