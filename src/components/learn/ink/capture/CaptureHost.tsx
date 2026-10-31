@@ -7,8 +7,9 @@
  * does the work.
  *
  * "Explain this" (explain/ExplainPanel): from the overlay (Explain, or E) the snip is taken (its image, the page text
- * inside the box, where it was taken) and the panel asks the AI; it can save the snip with its explanation. A snip
- * saved with Save stays here until the next one, so its toast offers "explain" too.
+ * inside the box, where it was taken) and the panel asks the AI (the learner's own question when they typed one or
+ * tapped a chip, and follow-ups in the panel); it can save the snip with the thread. A snip saved with Save stays here
+ * until the next one, so its toast offers "explain" too.
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import dynamic from "next/dynamic";
@@ -42,7 +43,7 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
   const { openAuthModal } = useAuthModal();
   const [snip, setSnip] = useState<SnipStart | null>(null);
   const [busy, setBusy] = useState<false | "save" | "explain">(false);
-  const [explaining, setExplaining] = useState<{ shot: SnipShot; saved: SavedSnip | null; key: number } | null>(null);
+  const [explaining, setExplaining] = useState<{ shot: SnipShot; saved: SavedSnip | null; key: number; question?: string } | null>(null);
   // the last saved snip, for "explain" on its toast
   const [last, setLast] = useState<{ shot: SnipShot; saved: SavedSnip } | null>(null);
   const ai = useAiStatus();
@@ -115,12 +116,12 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
     setSnip(null);
   };
 
-  const explain = async (box: Box) => {
+  const explain = async (box: Box, question?: string) => {
     setBusy("explain");
     const shot = await take(box);
     setBusy(false);
     setSnip(null);
-    if (shot) setExplaining({ shot, saved: null, key: Date.now() });
+    if (shot) setExplaining({ shot, saved: null, key: Date.now(), question });
   };
 
   const explainLast = () => {
@@ -140,7 +141,7 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
           keyboard={snip.keyboard}
           busy={busy}
           onConfirm={(b) => void confirm(b)}
-          onExplain={canExplain ? (b) => void explain(b) : undefined}
+          onExplain={canExplain ? (b, q) => void explain(b, q) : undefined}
           onCancel={() => setSnip(null)}
         />
       )}
@@ -150,6 +151,7 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
           key={explaining.key}
           shot={explaining.shot}
           saved={explaining.saved}
+          question={explaining.question}
           onSaved={(saved) => setLast({ shot: explaining.shot, saved })}
           onClose={() => setExplaining(null)}
         />

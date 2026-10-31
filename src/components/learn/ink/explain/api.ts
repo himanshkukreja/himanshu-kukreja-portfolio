@@ -2,8 +2,8 @@
 
 /**
  * "Explain this" on a snip, the browser side: the image the AI gets (the snip, ≤ 1568 px a side and under the 1.5 MB
- * cap), the call to /api/learn/ai/snip/explain, saving the snip with its explanation to the notebook, and the
- * follow-up question in the course chat.
+ * cap), the call to /api/learn/ai/snip/explain (the plain explain, the learner's own question, and follow-ups about the
+ * same snip), saving the snip with its thread to the notebook, and handing the thread to the course chat.
  */
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { DEFAULT_MAX_IMAGE_BYTES, type ImageMediaType } from "@/lib/ai/image";
@@ -59,6 +59,8 @@ export class ExplainError extends Error {
     public code: ExplainFailure,
     message: string,
     public creditsLeft: number | null = null,
+    /** the AI declined a question that isn't about the snip or the course (a polite line, not a failure) */
+    public declined = false,
   ) {
     super(message);
   }
@@ -66,10 +68,36 @@ export class ExplainError extends Error {
 
 export type Explained = { text: string; credits: number; creditsLeft: number | null; ms: number };
 
-/** Ask the AI. Throws ExplainError (with the reason the learner should see). */
-export async function explainSnip(shot: SnipShot, signal?: AbortSignal): Promise<Explained> {
+/** One question → answer about a snip: `q` null for the plain explain. */
+export type Turn = { q: string | null; a: string };
+
+/** the server's caps (snip/explain/route.ts): a question, an earlier answer, the earlier turns a call carries */
+export const QUESTION_MAX = 500;
+const ANSWER_MAX = 1500;
+/** answers in one thread about a snip (the first + four follow-ups); after that, the course chat */
+export const MAX_TURNS = 5;
+
+/** the snip's image as the AI gets it, made once a snip (every turn of its thread sends it again) */
+const images = new WeakMap<SnipShot, ReturnType<typeof aiImage>>();
+function shotImage(shot: SnipShot) {
+  let p = images.get(shot);
+  if (!p) {
+    p = aiImage(shot.img);
+    images.set(shot, p);
+    p.catch(() => images.delete(shot));
+  }
+  return p;
+}
+
+const trimTo = (t: string, max: number) => (t.length > max ? `${t.slice(0, max - 1).trimEnd()}…` : t);
+
+/**
+ * Ask the AI: the plain explain (no question), the learner's question, or a follow-up (with the thread so far, oldest
+ * first). Throws ExplainError (with the reason the learner should see).
+ */
+export async function explainSnip(shot: SnipShot, signal?: AbortSignal, ask: { question?: string | null; history?: Turn[] } = {}): Promise<Explained> {
   const t0 = performance.now();
-  const image = await aiImage(shot.img);
+  const image = await shotImage(shot);
   const { place } = shot;
   let res: Response;
   try {
@@ -86,17 +114,19 @@ export async function explainSnip(shot: SnipShot, signal?: AbortSignal): Promise
         href: shot.href,
         text: shot.text,
         lecture: place.lecture ? { id: place.lecture.id, scene: place.lecture.scene, step: place.lecture.step, at: place.lecture.at } : null,
+        question: ask.question ? trimTo(ask.question.trim(), QUESTION_MAX) : undefined,
+        history: ask.history?.length ? ask.history.slice(-MAX_TURNS).map((t) => ({ q: t.q ? trimTo(t.q, QUESTION_MAX) : null, a: trimTo(t.a, ANSWER_MAX) })) : undefined,
       }),
     });
   } catch (e) {
     if ((e as Error).name === "AbortError") throw e;
     throw new ExplainError("network", "Couldn't reach the AI. Check your connection and try again.");
   }
-  const body = (await res.json().catch(() => null)) as { text?: string; credits?: number; creditsLeft?: number | null; error?: string; status?: string } | null;
+  const body = (await res.json().catch(() => null)) as { text?: string; credits?: number; creditsLeft?: number | null; error?: string; status?: string; declined?: boolean } | null;
   if (res.status === 401) throw new ExplainError("auth", "Sign in to use Explain.");
   if (!res.ok || !body?.text) {
     const code = (body?.status as ExplainFailure) || (res.status === 413 ? "too_long" : res.status === 429 ? "over_quota" : "error");
-    throw new ExplainError(code, body?.error || "The AI didn't answer. Try again in a moment.", body?.creditsLeft ?? null);
+    throw new ExplainError(code, body?.error || "The AI didn't answer. Try again in a moment.", body?.creditsLeft ?? null, !!body?.declined);
   }
   return { text: body.text, credits: body.credits ?? 1, creditsLeft: body.creditsLeft ?? null, ms: Math.round(performance.now() - t0) };
 }
@@ -168,14 +198,24 @@ async function appendText(pageId: string, text: string): Promise<string> {
   return landed;
 }
 
+/** One answer as plain text, under "You asked: …" when the learner asked their own question. */
+const turnText = (t: Turn) => (t.q ? `You asked: ${t.q}\n\n${plainText(t.a)}` : plainText(t.a));
+
+/** A thread as plain text: each answer in order. */
+export function threadText(turns: Turn[]): string {
+  return turns.map(turnText).join("\n\n");
+}
+
 /**
- * The snip (unless it is already on a page) and its explanation on the notebook's inbox (or open) page: the snip, then
- * the explanation as text boxes under it ("Explain this · <page>" first, the link back at the end).
+ * The snip (unless it is already on a page) and its thread on the notebook's inbox (or open) page: the snip, then the
+ * answers as text boxes under it ("Explain this · <page>" first, then each question and its answer, in order). With
+ * `more`, only the turns after the ones already saved (the head isn't repeated).
  */
-export async function saveExplained(shot: SnipShot, md: string, already: SavedSnip | null): Promise<SavedSnip> {
+export async function saveExplained(shot: SnipShot, turns: Turn[], already: SavedSnip | null, more = false): Promise<SavedSnip> {
   const saved = already ?? (await saveSnip(shot));
   const head = `Explain this · ${shot.place.title || shot.title}${shot.place.heading ? ` › ${shot.place.heading}` : ""}`;
-  const boxes = splitText(`${head}\n\n${plainText(md)}`);
+  // each question starts a text box of its own, so a question never sits at the bottom of the answer before it
+  const boxes = turns.flatMap((t, i) => splitText(i || more ? turnText(t) : `${head}\n\n${turnText(t)}`));
   let page = saved.pageId;
   for (const t of boxes) page = await appendText(page, t);
   return saved;
@@ -196,9 +236,10 @@ export function gist(md: string, max = 260): string {
  * Open the course chat with a follow-up about this snip: the composer is prefilled (the learner adds their question),
  * and the explanation goes with it as the selection the chat answers about (tutor:open, the chat's shared contract).
  */
-export function askFollowUp(shot: SnipShot, md: string) {
+export function askFollowUp(shot: SnipShot, turns: Turn[]) {
   const where = shot.place.title || shot.title;
-  const prompt = `About my snip from "${where}"${shot.place.heading ? ` (${shot.place.heading})` : ""}: ${gist(md)} My question: `;
+  const md = turns.map((t) => t.a).join("\n\n");
+  const prompt = `About my snip from "${where}"${shot.place.heading ? ` (${shot.place.heading})` : ""}: ${gist(turns[0]?.a ?? "")} My question: `;
   const path = (() => {
     try {
       const u = new URL(shot.href);
@@ -207,6 +248,9 @@ export function askFollowUp(shot: SnipShot, md: string) {
       return window.location.pathname;
     }
   })();
-  const context = `What the snip shows${shot.text ? ` (its text: ${shot.text.slice(0, 400)})` : ""}, as explained:\n${plainText(md)}`.slice(0, 1500);
+  const explained = turns.some((t) => t.q) ? threadText(turns) : plainText(md);
+  // the newest answers matter most when the thread is long: keep its start and its end
+  const body = explained.length > 1100 ? `${explained.slice(0, 500).trimEnd()}\n…\n${explained.slice(-600).trimStart()}` : explained;
+  const context = `What the snip shows${shot.text ? ` (its text: ${shot.text.slice(0, 400)})` : ""}, as explained:\n${body}`.slice(0, 1500);
   window.dispatchEvent(new CustomEvent("tutor:open", { detail: { prompt, send: false, context: { kind: "selection", text: context, href: path, heading: shot.place.heading || undefined } } }));
 }

@@ -11,11 +11,26 @@
  *
  * Two ways out of a drawn box: "Save" (into the notebook) and "Explain" (the AI explains it in a panel beside the
  * snip, which can then save the snip with its explanation). Only Explain sends anything to the AI.
+ *
+ * Ask: the bar also has an optional one-line question ("Ask about this snip"): with text in it the Explain button
+ * reads "Ask" and the AI answers that question about the snip; Enter in the field sends it. Under it, quick chips
+ * ("Explain simply", "Why this design?", …) send a ready question in one tap. While the field has focus the keys are
+ * its own (E types an "e", Enter asks); the page doesn't scroll and the box doesn't move when the keyboard opens.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Scissors, Sparkles } from "lucide-react";
+import { MessageSquare, Scissors, Sparkles } from "lucide-react";
 import type { Box } from "./events";
+import { pinScrollWhileTyping, useVisibleArea } from "./viewport";
+
+/** One-tap questions under the field: the chip's label, and the question the AI gets (shown as "You asked: …"). */
+export const SNIP_CHIPS: { label: string; q: string }[] = [
+  { label: "Explain simply", q: "Explain this simply, like I'm new to the topic." },
+  { label: "Why this design?", q: "Why is it designed this way? What problem does each part solve, and what's the trade-off?" },
+  { label: "Give an example", q: "Give me a concrete example of this in action." },
+  { label: "Interview answer", q: "How would I explain this in a system design interview? Give me a short answer I could say out loud." },
+];
+const QUESTION_MAX = 500;
 
 type Handle = "nw" | "n" | "ne" | "e" | "se" | "s" | "sw" | "w";
 const HANDLES: Handle[] = ["nw", "n", "ne", "e", "se", "s", "sw", "w"];
@@ -86,8 +101,8 @@ type Props = {
   /** working: "save" while the snip is saved, "explain" while it is read for the AI */
   busy: false | "save" | "explain";
   onConfirm: (box: Box) => void;
-  /** "Explain this" (the AI is on for this learner); absent: Save only */
-  onExplain?: (box: Box) => void;
+  /** "Explain this" (the AI is on for this learner), with the learner's question when they asked one; absent: Save only */
+  onExplain?: (box: Box, question?: string) => void;
   onCancel: () => void;
   /** the overlay root (the host lets hit-testing through it while it looks up the passage under the box) */
   rootRef?: React.RefObject<HTMLDivElement | null>;
@@ -97,15 +112,27 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
   const [box, setBox] = useState<Box | null>(() => (initial ? clampBox(initial) : keyboard ? defaultBox() : null));
   const [said, setSaid] = useState("");
   const [coarse, setCoarse] = useState(false);
+  const [question, setQuestion] = useState("");
+  const [typing, setTyping] = useState(false);
+  const [pin] = useState(() => pinScrollWhileTyping(setTyping));
+  useEffect(() => () => pin.dispose(), [pin]);
+  const visibleBottom = useVisibleArea(typing)?.bottom ?? null;
+  const typingRef = useRef(false);
+  useEffect(() => {
+    typingRef.current = typing;
+  }, [typing]);
+  const barRef = useRef<HTMLDivElement>(null);
+  const [barH, setBarH] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
   const ownRef = useRef<HTMLDivElement>(null);
   const ref = rootRef ?? ownRef;
   const boxRef = useRef<HTMLDivElement>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
   const drag = useRef<Drag | null>(null);
   const restore = useRef<HTMLElement | null>(null);
-  const latest = useRef({ box, busy, onConfirm, onExplain, onCancel });
+  const latest = useRef({ box, busy, onConfirm, onExplain, onCancel, question });
   useEffect(() => {
-    latest.current = { box, busy, onConfirm, onExplain, onCancel };
+    latest.current = { box, busy, onConfirm, onExplain, onCancel, question };
   });
 
   useEffect(() => {
@@ -136,15 +163,24 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
       if (e.key !== "Escape") return;
       e.preventDefault();
       e.stopImmediatePropagation();
+      // in the question field with a question: Esc clears it first
+      if (document.activeElement === inputRef.current && latest.current.question) {
+        setQuestion("");
+        return;
+      }
       if (!latest.current.busy) latest.current.onCancel();
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
 
-  // the screen turned (iPad): keep the box on it
+  // the screen turned (iPad): keep the box on it. Not while the learner types: that resize is the on-screen keyboard
+  // (older Android shrinks the viewport for it), and the box stays where it was drawn
   useEffect(() => {
-    const onResize = () => setBox((b) => (b ? clampBox(b) : b));
+    const onResize = () => {
+      if (typingRef.current) return;
+      setBox((b) => (b ? clampBox(b) : b));
+    };
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
   }, []);
@@ -154,10 +190,14 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
     if (!b || working || b.w < MIN || b.h < MIN) return;
     latest.current.onConfirm(r(b));
   }, []);
-  const explain = useCallback(() => {
-    const { box: b, busy: working, onExplain: go } = latest.current;
+  /** Explain, or Ask when the field has a question (a chip passes its own) */
+  const explain = useCallback((ask?: string) => {
+    const { box: b, busy: working, onExplain: go, question: typed } = latest.current;
     if (!go || !b || working || b.w < MIN || b.h < MIN) return;
-    go(r(b));
+    const q = (ask ?? typed).replace(/\s+/g, " ").trim().slice(0, QUESTION_MAX);
+    // the keyboard closes before the snip is taken
+    inputRef.current?.blur();
+    go(r(b), q || undefined);
   }, []);
 
   /* ---------------- pointer: draw / move / resize */
@@ -237,6 +277,8 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
       confirm();
       return;
     }
+    // the question field's keys are its own (it handles Enter itself)
+    if (e.target instanceof HTMLInputElement && e.key !== "Tab") return;
     if (box && onExplain && e.key.toLowerCase() === "e" && !e.metaKey && !e.ctrlKey && !e.altKey && !(e.target instanceof HTMLButtonElement)) {
       e.preventDefault();
       explain();
@@ -250,7 +292,7 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
     }
     if (e.key !== "Tab") return;
     // keep focus inside the overlay
-    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("[data-snip-box], [data-snip-bar] button:not([disabled])"));
+    const items = Array.from(e.currentTarget.querySelectorAll<HTMLElement>("[data-snip-box], [data-snip-bar] button:not([disabled]), [data-snip-bar] input:not([disabled])"));
     if (!items.length) return;
     const i = items.indexOf(document.activeElement as HTMLElement);
     const next = items[(i + (e.shiftKey ? -1 : 1) + items.length) % items.length];
@@ -259,14 +301,26 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
   };
 
   /* ---------------- layout of the action bar: under the box, else above, else inside it */
-  const BAR_H = onExplain ? 80 : 52;
+  // its real height once it is on screen (the chips wrap on a narrow bar); the first frame uses an estimate
+  useLayoutEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const read = () => setBarH(Math.round(el.getBoundingClientRect().height));
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [!!box]); // eslint-disable-line react-hooks/exhaustive-deps -- the bar mounts with the box
+  const BAR_H = barH || (onExplain ? 236 : 52);
   let bar: React.CSSProperties | undefined;
   if (box) {
     const W = typeof window === "undefined" ? 1024 : window.innerWidth;
     const H = typeof window === "undefined" ? 768 : window.innerHeight;
-    const barW = Math.min(W - 16, onExplain ? 440 : 320);
+    const barW = Math.min(W - 16, onExplain ? 460 : 320);
     const left = Math.max(8, Math.min(box.x + box.w - barW, W - barW - 8));
-    const top = box.y + box.h + 10 + BAR_H < H - 8 ? box.y + box.h + 10 : box.y - BAR_H - 10 > 8 ? box.y - BAR_H - 10 : Math.max(8, box.y + box.h - BAR_H - 8);
+    let top = box.y + box.h + 10 + BAR_H < H - 8 ? box.y + box.h + 10 : box.y - BAR_H - 10 > 8 ? box.y - BAR_H - 10 : Math.max(8, box.y + box.h - BAR_H - 8);
+    // typing: the keyboard covers the bottom of the screen, so the bar rises above it (the box stays put)
+    if (visibleBottom != null && top + BAR_H > visibleBottom - 8) top = Math.max(8, visibleBottom - BAR_H - 8);
     bar = { left, top, width: barW };
   }
   const hs = coarse ? 44 : 24;
@@ -347,11 +401,81 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
 
       {b && bar && (
         <div
+          ref={barRef}
           data-snip-bar=""
           className="absolute flex flex-col border border-line-strong bg-surface-2 shadow-[0_12px_40px_rgba(0,0,0,0.45)]"
           style={bar}
           onPointerDown={(e) => e.stopPropagation()}
         >
+          {onExplain && (
+            <div className="flex flex-col gap-1 border-b border-line p-1">
+              <div className="flex items-stretch gap-1">
+                <label htmlFor="hk-snip-q" className="sr-only">
+                  Ask about this snip (optional)
+                </label>
+                <input
+                  ref={inputRef}
+                  id="hk-snip-q"
+                  type="text"
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value.slice(0, QUESTION_MAX))}
+                  onKeyDown={(e) => {
+                    if (e.key !== "Enter" || e.nativeEvent.isComposing) return;
+                    e.preventDefault();
+                    explain();
+                  }}
+                  onFocus={pin.onFocus}
+                  onBlur={pin.onBlur}
+                  disabled={!!busy}
+                  maxLength={QUESTION_MAX}
+                  placeholder="Ask about this snip (optional)"
+                  enterKeyHint={question.trim() ? "send" : "go"}
+                  autoComplete="off"
+                  spellCheck
+                  data-hk-snip-question=""
+                  // 16 px: iOS zooms the page into a smaller field on focus
+                  className="min-h-[44px] min-w-0 flex-1 select-text border border-line-strong bg-bg px-3 text-[16px] leading-tight text-fg outline-none placeholder:text-fg-4 focus:border-signal disabled:opacity-60"
+                  style={{ WebkitUserSelect: "text", userSelect: "text" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => explain()}
+                  disabled={!!busy}
+                  aria-busy={busy === "explain" || undefined}
+                  aria-keyshortcuts={typing ? "Enter" : "E"}
+                  title={question.trim() ? `Ask the AI about this snip (${typing ? "Enter" : "E"})` : "Explain this with AI (E)"}
+                  className="inline-flex min-h-[44px] shrink-0 items-center gap-2 border border-signal px-3 text-[13px] font-semibold text-signal-text hover:bg-signal hover:text-on-signal disabled:opacity-70"
+                >
+                  {question.trim() ? <MessageSquare className="h-3.5 w-3.5" aria-hidden /> : <Sparkles className="h-3.5 w-3.5" aria-hidden />}
+                  {busy === "explain" ? (
+                    "Reading…"
+                  ) : question.trim() ? (
+                    "Ask"
+                  ) : (
+                    <span>
+                      Explain<span className="hidden min-[480px]:inline"> this</span>
+                    </span>
+                  )}
+                  {!busy && <span className="hidden font-mono text-[10px] font-normal opacity-80 [@media(pointer:fine)]:inline">{typing ? "↵" : "E"}</span>}
+                </button>
+              </div>
+              <div role="group" aria-label="Quick questions" className="grid grid-cols-2 gap-1">
+                {SNIP_CHIPS.map((c) => (
+                  <button
+                    key={c.label}
+                    type="button"
+                    onClick={() => explain(c.q)}
+                    disabled={!!busy}
+                    title={c.q}
+                    data-snip-chip=""
+                    className="min-h-[44px] truncate border border-line px-2.5 text-left text-[13px] font-medium text-fg-2 hover:border-signal hover:text-fg disabled:opacity-60"
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
           <div role="toolbar" aria-label="Snip" className="flex items-center gap-1 p-1">
             <span aria-hidden="true" className="hidden min-w-0 flex-1 truncate px-2 font-mono text-[11px] text-fg-3 min-[400px]:block">
               {b.w} × {b.h}
@@ -359,27 +483,6 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
             <button type="button" onClick={onCancel} disabled={!!busy} className="min-h-[44px] px-3 text-[13px] font-semibold text-fg hover:bg-surface disabled:opacity-50 max-[399px]:mr-auto">
               Cancel
             </button>
-            {onExplain && (
-              <button
-                type="button"
-                onClick={explain}
-                disabled={!!busy}
-                aria-busy={busy === "explain" || undefined}
-                aria-keyshortcuts="E"
-                title="Explain this with AI (E)"
-                className="inline-flex min-h-[44px] items-center gap-2 border border-signal px-3 text-[13px] font-semibold text-signal-text hover:bg-signal hover:text-on-signal disabled:opacity-70"
-              >
-                <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                {busy === "explain" ? (
-                  "Reading…"
-                ) : (
-                  <span>
-                    Explain<span className="hidden min-[480px]:inline"> this</span>
-                  </span>
-                )}
-                {!busy && <span className="hidden font-mono text-[10px] font-normal opacity-80 [@media(pointer:fine)]:inline">E</span>}
-              </button>
-            )}
             <button
               ref={confirmRef}
               type="button"
@@ -395,17 +498,17 @@ export default function SnipOverlay({ initial, keyboard, busy, onConfirm, onExpl
                 "Snipping…"
               ) : onExplain ? (
                 <span>
-                  Save<span className="hidden min-[480px]:inline"> to notebook</span>
+                  Save<span className="hidden min-[360px]:inline"> to notebook</span>
                 </span>
               ) : (
                 "Snip"
               )}
-              {!busy && <span className="hidden font-mono text-[10px] font-normal opacity-80 [@media(pointer:fine)]:inline">↵</span>}
+              {!busy && !typing && <span className="hidden font-mono text-[10px] font-normal opacity-80 [@media(pointer:fine)]:inline">↵</span>}
             </button>
           </div>
           {onExplain && (
             <p className="m-0 truncate border-t border-line px-3 py-1.5 font-mono text-[10.5px] leading-tight text-fg-4">
-              Explain sends the snip to the AI · ~1 credit
+              Explain or Ask sends the snip to the AI · ~1 credit
             </p>
           )}
         </div>

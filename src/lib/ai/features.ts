@@ -84,7 +84,10 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // page inside the box + where it was taken; the lesson section around it (or a lecture's narration at that moment) goes
   // in the system prompt (~6k characters). Haiku 5.5, thinking off, on the learner's shared credits (~1 credit a call).
   // maxInputChars: the snip text (≤ 4,000) and its headers; the image has its own caps.
-  "snip-explain": { label: "Explain a snip", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 40, maxTokens: 700, maxInputChars: 6000, maxImages: 1, maxImageBytes: 1_500_000, maxImageSide: 2000, think: false, live: true },
+  // Ask your own question + follow-ups (31 Oct 2026): one call per turn (~1 credit), so perDay 40 → 80 (a snip with
+  // four follow-ups is five calls). maxInputChars 6000 → 16000: the first turn (snip text ≤ 4,000) + ≤ 5 earlier turns
+  // (question ≤ 500, answer ≤ 1,500 each) + the new question (≤ 500); still one image a call (the snip, first turn only).
+  "snip-explain": { label: "Explain a snip", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 80, maxTokens: 700, maxInputChars: 16000, maxImages: 1, maxImageBytes: 1_500_000, maxImageSide: 2000, think: false, live: true },
   // Written papers (owner-approved 31 Oct 2026): grade one handwritten answer against its marking scheme. Haiku 5.5
   // (thinking off) grades first; the route re-grades with Sonnet 5.5 (MODELS.sonnet, passed as the call's model) when
   // Haiku is unsure, the answer is a diagram/design or the mark is on the pass line (lib/learn/papers/grade.ts), and keeps
