@@ -51,6 +51,7 @@ import { PAGE_H, PAGE_W, type InkColor, type PageItem, type Paper, type Stroke }
 import { ContactLog, TouchArbiter, noteFingerDrag, notePen, pressureVaries, type ArbiterEvent, type ContactPoint, type InkInputMode, type InkSurface } from "@/lib/learn/ink/inputMode";
 import PaperView from "./Paper";
 import PageItems from "./PageItems";
+import InkDebugOverlay from "./InkDebugOverlay";
 
 export type InkToolId = "pen" | "highlighter" | "eraser" | "lasso" | "text";
 export type InkContent = { strokes: Stroke[]; items: PageItem[] };
@@ -1006,6 +1007,11 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     };
 
     const onUp = (e: PointerEvent) => finish(e, false);
+    // capture lost by the surface itself (it was released, or the surface went away) ends the pointer; a child losing
+    // the browser's implicit touch capture when the surface takes it mid-stroke (a contact taking the pen) does not
+    const onLost = (e: PointerEvent) => {
+      if (e.target === wrap) finish(e, false);
+    };
     const onCancel = (e: PointerEvent) => {
       // iPad Safari cancels a pen stroke when a system gesture starts: keep what was drawn
       finish(e, !(action.current?.kind === "draw"));
@@ -1036,7 +1042,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     wrap.addEventListener("pointermove", onMove);
     wrap.addEventListener("pointerup", onUp);
     wrap.addEventListener("pointercancel", onCancel);
-    wrap.addEventListener("lostpointercapture", onUp);
+    wrap.addEventListener("lostpointercapture", onLost);
     wrap.addEventListener("wheel", onWheel, { passive: false });
     wrap.addEventListener("touchstart", onTouch, { passive: false });
     wrap.addEventListener("touchmove", onTouch, { passive: false });
@@ -1048,7 +1054,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       wrap.removeEventListener("pointermove", onMove);
       wrap.removeEventListener("pointerup", onUp);
       wrap.removeEventListener("pointercancel", onCancel);
-      wrap.removeEventListener("lostpointercapture", onUp);
+      wrap.removeEventListener("lostpointercapture", onLost);
       wrap.removeEventListener("wheel", onWheel);
       wrap.removeEventListener("touchstart", onTouch);
       wrap.removeEventListener("touchmove", onTouch);
@@ -1134,6 +1140,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
           </>
         )}
       </div>
+      <InkDebugOverlay />
     </div>
   );
 });

@@ -26,6 +26,7 @@ import type { AnnotTool } from "./engine";
 
 const AnnotateLayer = dynamic(() => import("./AnnotateLayer"), { ssr: false });
 const AnnotateToolbar = dynamic(() => import("./AnnotateToolbar"), { ssr: false });
+const InkDebugOverlay = dynamic(() => import("../InkDebugOverlay"), { ssr: false });
 
 const noop = () => () => {};
 const coarse = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
@@ -187,6 +188,7 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
           input={input}
         />
       )}
+      {on && <InkDebugOverlay />}
       {on && (
         <AnnotateToolbar
           tool={tool}

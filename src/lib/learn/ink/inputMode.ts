@@ -205,10 +205,9 @@ function noteTiltTouch() {
  * 11.5") and ~0.2 mm on an iPad, so a fingertip reads ~40–58 px at most, a nib ~20–35, a palm 100+. Some
  * browsers quantise: WebKit reports 2 × the touch radius, which on iPad steps in ~21 px (42, 63…).
  *
- * Where the browser reports no sizes (every contact 0 × 0 or 1 × 1: the Honor Pad X9 in the Claude app's
- * WebView, and many in-app browsers), no contact is ever a palm by size, and the order rules below are all there
- * is: the first contact writes, a later one is ignored, a second contact while the stroke is still young turns it
- * into a two-finger gesture, and a contact that only rests gives way to one that moves.
+ * Where the browser reports no sizes (every contact 0 × 0 or 1 × 1: the Honor Pad X9 with its Dot Pencil 2, in
+ * Chrome and in the Claude app's WebView, and many in-app browsers; remembered per device in hk.ink.sizes), no
+ * contact is ever a palm by size, and the order and motion rules of TouchArbiter are all there is.
  *
  * So: anything ≥ PALM_MAX (64 px, ~12 mm) is a palm. Once this device's writing contacts are known (an average of
  * the contacts that wrote, kept per device), the line comes down to 3 × that, never under PALM_MIN (40 px): a
@@ -220,11 +219,24 @@ export const PALM_MAX = 64;
 export const PALM_MIN = 40;
 const PALM_K = 3;
 const SATELLITE = 40;
-/** a second contact this soon after the first (ms), or after this few moves, makes a two-finger gesture */
-export const YOUNG_MS = 120;
-const YOUNG_MOVES = 4;
-/** a writing contact that has moved less than this (px) by the time another lands is resting (a knuckle, a finger) */
+/**
+ * Two fingers are told from a stroke plus a brushing hand by motion, never by timing alone (a hand that touches the
+ * glass just after the nib lands used to turn the stroke into a scroll). A second contact that lands more than
+ * GESTURE_MS into a stroke already moving is the hand, always. Otherwise it makes a two-finger gesture only if,
+ * within GESTURE_MS of landing, it travels GESTURE_PX while the writing contact travels FOLLOW_PX
+ * with it, in about the same direction and by a similar amount (a pan), or both move along the line between them in
+ * opposite senses, closing or opening by PINCH_PX (a pinch). Until then the stroke goes on; a second contact that stays put, or moves its own way, is ignored.
+ */
+const GESTURE_MS = 250;
+const GESTURE_PX = 24;
+const FOLLOW_PX = 10;
+const PINCH_PX = 30;
+/** a contact that lands and lifts this fast without moving is a phantom (an active pen's double touch, a brush) */
+const PHANTOM_MS = 80;
+/** a contact that has moved less than this (px) is resting (a knuckle, a finger, a palm with no size) */
 const REST_PX = 8;
+/** …and has been down this long (ms): a nib that has just landed hasn't moved yet, but it isn't resting */
+const REST_MS = 150;
 /** a contact that took the pen from a resting one is a two-finger scroll if the resting one moves off this soon */
 const LATE_GESTURE_MS = 300;
 /** a stroke that turns into a palm this young is dropped; older, it ends where it was */
@@ -268,6 +280,8 @@ export type Contact = {
   restAt: [number, number] | null;
   /** when this contact started writing */
   drawSince: number;
+  /** a second contact still being judged: when it landed, where the writer was then, and the gap between them */
+  pending: { t: number; at: [number, number]; gap: number } | null;
   /** where it has been since it landed, for a contact that takes over the pen late */
   hist: ContactPoint[];
 };
@@ -340,7 +354,11 @@ export function logContact(where: string, c: Pick<Contact, "id" | "type" | "pMin
  */
 export class ContactLog {
   private m = new Map<number, Contact & { tx: number; ty: number }>();
-  constructor(private where: string) {}
+  /** the reason shown in the ?inkdebug=1 overlay when a pointer lifts (null: the arbiter reports it instead) */
+  constructor(
+    private where: string,
+    private debugEnd: string | null = "lifted"
+  ) {}
   down(e: PointerLike, role: Contact["role"] = e.pointerType === "touch" ? "rest" : "draw") {
     const c = { ...newContact(e), role, tx: e.tiltX || 0, ty: e.tiltY || 0 };
     this.m.set(e.pointerId, c);
@@ -368,6 +386,7 @@ export class ContactLog {
     this.m.delete(e.pointerId);
     if (c.type === "touch" && c.tilt) noteTiltTouch();
     if (c.type !== "mouse") logContact(this.where, c, [c.tx, c.ty], e.timeStamp);
+    if (c.type !== "mouse" && this.debugEnd) debugNote(this.where, c, null, `${c.role} (${getInkInput().mode} mode)`, this.debugEnd, e.timeStamp);
     return c;
   }
 }
@@ -395,6 +414,7 @@ function newContact(e: PointerLike): Contact {
     hist: [],
     restAt: null,
     drawSince: e.timeStamp,
+    pending: null,
   };
   sample(c, e, true);
   return c;
@@ -410,6 +430,7 @@ function sample(c: Contact, e: PointerLike, first = false) {
   const w = e.width || 0;
   const h = e.height || 0;
   if (w > 1.5 || h > 1.5) {
+    if (!c.sized && c.type === "touch") noteSized();
     c.sized = true;
     c.w = Math.max(c.w, w);
     c.h = Math.max(c.h, h);
@@ -426,10 +447,18 @@ function sample(c: Contact, e: PointerLike, first = false) {
 }
 
 /**
- * Who writes, in Stylus/finger mode, among the touch contacts on a surface: palms (by size) never; the first contact
- * writes at once; a second contact makes a two-finger gesture while the stroke is young, takes over from a contact
- * that is only resting, and is otherwise ignored; a stylus-like contact (tilt, real pressure) is preferred over
- * other contacts. Feed it every touch pointer event of the surface; it returns what changed.
+ * Who writes, in Stylus/finger mode, among the touch contacts on a surface. Feed it every touch pointer event of the
+ * surface; it returns what changed.
+ *   - Palms (by size, where sizes are reported) never write.
+ *   - The first contact writes at once.
+ *   - A second contact is judged by motion (GESTURE_MS…): with the writer, a two-finger pan or pinch (the stroke so
+ *     far is dropped); otherwise it is ignored and the stroke goes on. A phantom (lands and lifts in PHANTOM_MS
+ *     without moving) changes nothing.
+ *   - A writer that only rests (a knuckle, a palm with no size) gives the pen to a contact that moves, which writes
+ *     from where it landed; a writer that lifts having barely moved while a later contact is down was a phantom: the
+ *     later one writes.
+ *   - A stylus-like contact (tilt, real pressure) is preferred over plain ones.
+ * Every decision, with its reason, goes to the ?inkdebug=1 overlay.
  */
 export class TouchArbiter {
   readonly contacts = new Map<number, Contact>();
@@ -439,7 +468,7 @@ export class TouchArbiter {
   gesture: [number, number] | null = null;
 
   constructor(private where: string) {
-    this.log = new ContactLog(where);
+    this.log = new ContactLog(where, null);
   }
 
   get(id: number) {
@@ -448,6 +477,10 @@ export class TouchArbiter {
   /** contacts that aren't palms */
   live() {
     return [...this.contacts.values()].filter((c) => !c.palm);
+  }
+
+  private note(c: Contact, decision: string, reason: string, now: number) {
+    debugNote(this.where, c, this.contacts, reason, decision, now);
   }
 
   private isPalm(c: Contact) {
@@ -460,49 +493,73 @@ export class TouchArbiter {
     }
     return false;
   }
+  private writer() {
+    return this.drawer !== null ? this.contacts.get(this.drawer) || null : null;
+  }
 
   down(e: PointerLike): ArbiterEvent[] {
     const c = newContact(e);
     this.log.down(e);
     this.contacts.set(c.id, c);
-    if (this.isPalm(c) || this.nearPalm(c)) {
+    const now = e.timeStamp;
+    if (this.isPalm(c)) {
       c.palm = true;
       c.role = "palm";
+      this.note(c, "palm", `size ${Math.round(Math.max(c.w, c.h))} ≥ ${Math.round(palmLine())} px`, now);
+      return [];
+    }
+    if (this.nearPalm(c)) {
+      c.palm = true;
+      c.role = "palm";
+      this.note(c, "palm", "lands beside a resting palm", now);
       return [];
     }
     if (this.gesture) {
       c.role = "rest";
+      this.note(c, "ignore", "a two-finger gesture is on", now);
       return [];
     }
-    const d = this.drawer !== null ? this.contacts.get(this.drawer) : null;
+    const d = this.writer();
     if (!d) {
       // a contact left from a gesture is panning: a new one joins it in a new gesture
       const pan = [...this.contacts.values()].find((o) => o.role === "pan");
-      if (pan) return this.startGesture(pan, c);
+      if (pan) {
+        this.note(c, "gesture", "joins the finger still panning", now);
+        return this.startGesture(pan, c);
+      }
       c.role = "draw";
+      c.drawSince = now;
       this.drawer = c.id;
+      this.note(c, "write", "first contact", now);
       return [{ type: "draw", id: c.id }];
     }
     // a stylus beats whatever else writes; a contact already known as a stylus keeps the pen
-    if (stylusLike(c) && !stylusLike(d)) return this.takeOver(d, c, e.timeStamp);
+    if (stylusLike(c) && !stylusLike(d)) {
+      this.note(c, "write", "tilt: a stylus, takes the pen", now);
+      return this.takeOver(d, c, now);
+    }
+    c.role = "rest";
     if (stylusLike(d)) {
-      c.role = "rest";
+      this.note(c, "ignore", "the writer is a stylus", now);
       return [];
     }
-    const young = e.timeStamp - d.t0 < YOUNG_MS || d.moves < YOUNG_MOVES;
-    if (young) {
-      // two fingers: the first one's start was the start of a gesture, not a stroke
-      return [{ type: "drop", id: d.id }, ...this.startGesture(d, c)];
+    // two fingers land together: a contact landing well into a stroke that is under way is the hand
+    if (now - d.drawSince > GESTURE_MS && d.dist >= REST_PX) {
+      this.note(c, "ignore", `lands ${Math.round(now - d.drawSince)} ms into a stroke under way`, now);
+      return [];
     }
-    if (d.dist < REST_PX) return this.takeOver(d, c, e.timeStamp);
-    c.role = "rest";
+    // judged by how it moves (two fingers move together; a brushing hand doesn't)
+    c.pending = { t: now, at: [d.x, d.y], gap: Math.hypot(c.x - d.x, c.y - d.y) };
+    this.note(c, "wait", "second contact: a gesture only if it moves with the writer", now);
     return [];
   }
 
   private takeOver(from: Contact, to: Contact, now: number): ArbiterEvent[] {
     from.role = "rest";
     from.restAt = [from.x, from.y];
+    from.pending = null;
     to.role = "draw";
+    to.pending = null;
     to.drawSince = now;
     this.drawer = to.id;
     return [{ type: "drop", id: from.id }, { type: "draw", id: to.id }];
@@ -511,9 +568,53 @@ export class TouchArbiter {
   private startGesture(a: Contact, b: Contact): ArbiterEvent[] {
     a.role = "gesture";
     b.role = "gesture";
+    a.pending = b.pending = null;
     if (this.drawer === a.id || this.drawer === b.id) this.drawer = null;
     this.gesture = [a.id, b.id];
     return [{ type: "gesture", ids: [a.id, b.id] }];
+  }
+
+  /** the second contacts still being judged, against the writer's motion since each landed */
+  private judge(now: number): ArbiterEvent[] {
+    const d = this.writer();
+    for (const c of this.contacts.values()) {
+      const pd = c.pending;
+      if (!pd) continue;
+      if (!d) {
+        c.pending = null;
+        continue;
+      }
+      const cx = c.x - c.x0;
+      const cy = c.y - c.y0;
+      const dx = d.x - pd.at[0];
+      const dy = d.y - pd.at[1];
+      const lc = Math.hypot(cx, cy);
+      const ld = Math.hypot(dx, dy);
+      if (lc > GESTURE_PX && ld > FOLLOW_PX && !stylusLike(d)) {
+        const cos = (cx * dx + cy * dy) / (lc * ld);
+        const ratio = lc / ld;
+        const gapChange = Math.abs(Math.hypot(c.x - d.x, c.y - d.y) - pd.gap);
+        if (cos > 0.6 && ratio > 0.4 && ratio < 2.5) {
+          this.note(c, "gesture", `moved ${Math.round(lc)} px with the writer (${Math.round(ld)} px, same way): two-finger pan`, now);
+          return [{ type: "drop", id: d.id }, ...this.startGesture(d, c)];
+        }
+        // a pinch: both move along the line between them, in opposite senses (a hand brushing past doesn't)
+        const ax = c.x0 - pd.at[0];
+        const ay = c.y0 - pd.at[1];
+        const al = Math.hypot(ax, ay) || 1;
+        const cu = (cx * ax + cy * ay) / al;
+        const du = (dx * ax + dy * ay) / al;
+        if (cu * du < 0 && Math.abs(cu) > 0.6 * lc && Math.abs(du) > 0.6 * ld && gapChange > PINCH_PX) {
+          this.note(c, "gesture", `opened/closed ${Math.round(gapChange)} px on the writer: pinch`, now);
+          return [{ type: "drop", id: d.id }, ...this.startGesture(d, c)];
+        }
+      }
+      if (now - pd.t > GESTURE_MS) {
+        c.pending = null;
+        this.note(c, "ignore", `didn't move with the writer in ${GESTURE_MS} ms (moved ${Math.round(lc)} px, writer ${Math.round(ld)} px)`, now);
+      }
+    }
+    return [];
   }
 
   move(e: PointerLike): ArbiterEvent[] {
@@ -521,36 +622,54 @@ export class TouchArbiter {
     if (!c) return [];
     sample(c, e);
     this.log.move(e);
+    const now = e.timeStamp;
     if (c.palm) return [];
     if (this.isPalm(c)) {
       // a palm that landed edge first
       c.palm = true;
+      c.pending = null;
       const role = c.role;
       c.role = "palm";
+      this.note(c, "palm", `grew to ${Math.round(Math.max(c.w, c.h))} px`, now);
       if (role === "draw") {
         this.drawer = null;
-        return [{ type: e.timeStamp - c.t0 < GROW_DROP_MS ? "drop" : "end", id: c.id }];
+        return [{ type: now - c.t0 < GROW_DROP_MS ? "drop" : "end", id: c.id }];
       }
       if (role === "gesture") return this.endGesture(c.id);
       return [];
     }
+    const judged = this.judge(now);
+    if (judged.length) return judged;
     // the first finger of a two-finger scroll that landed late: it gave the pen to the second while still, and now
     // moves off with it (a palm or a knuckle stays put)
     if (c.role === "rest" && c.restAt && Math.hypot(c.x - c.restAt[0], c.y - c.restAt[1]) > REST_PX * 1.5) {
-      const d = this.drawer !== null ? this.contacts.get(this.drawer) : null;
-      if (d && !stylusLike(d) && e.timeStamp - d.drawSince < LATE_GESTURE_MS) return [{ type: "drop", id: d.id }, ...this.startGesture(c, d)];
+      const d = this.writer();
+      if (d && !stylusLike(d) && now - d.drawSince < LATE_GESTURE_MS) {
+        this.note(c, "gesture", "the resting first finger moved off with the second: two-finger pan", now);
+        return [{ type: "drop", id: d.id }, ...this.startGesture(c, d)];
+      }
       c.restAt = null;
     }
-    // a resting contact that turns out to be the stylus takes the pen from a plain contact
-    if (c.role === "rest" && stylusLike(c)) {
-      const d = this.drawer !== null ? this.contacts.get(this.drawer) : null;
-      if (!d) {
-        c.role = "draw";
-        c.drawSince = e.timeStamp;
-        this.drawer = c.id;
-        return [{ type: "draw", id: c.id }];
+    if (c.role === "rest") {
+      const d = this.writer();
+      // a resting contact that turns out to be the stylus takes the pen from a plain contact
+      if (stylusLike(c) && (!d || !stylusLike(d))) {
+        this.note(c, "write", "real pressure: a stylus, takes the pen", now);
+        if (!d) {
+          c.role = "draw";
+          c.pending = null;
+          c.drawSince = now;
+          this.drawer = c.id;
+          return [{ type: "draw", id: c.id }];
+        }
+        return this.takeOver(d, c, now);
       }
-      if (!stylusLike(d)) return this.takeOver(d, c, e.timeStamp);
+      // the writer has only been resting (a knuckle, a palm with no size) and this one moves: it writes
+      if (d && !stylusLike(d) && d.dist < REST_PX && now - d.drawSince > REST_MS && c.dist > REST_PX && !c.restAt) {
+        this.note(c, "write", `moves (${Math.round(c.dist)} px) while the writer rests (${Math.round(d.dist)} px): takes the pen`, now);
+        this.note(d, "drop", "was only resting", now);
+        return this.takeOver(d, c, now);
+      }
     }
     return [];
   }
@@ -571,15 +690,35 @@ export class TouchArbiter {
   up(e: { pointerId: number; timeStamp: number }): ArbiterEvent[] {
     const c = this.contacts.get(e.pointerId);
     if (!c) return [];
+    const now = e.timeStamp;
     this.contacts.delete(e.pointerId);
     const lc = this.log.get(e.pointerId);
     if (lc) lc.role = c.role;
     this.log.up(e);
     const out: ArbiterEvent[] = [];
+    const age = Math.round(now - c.t0);
     if (this.drawer === c.id) {
       this.drawer = null;
+      // a writer that barely moved and lifted fast while a later contact is down was a phantom: the later one writes
+      const next = c.dist < REST_PX && now - c.t0 < PHANTOM_MS * 2 ? [...this.contacts.values()].find((o) => !o.palm && o.role === "rest" && o.t0 > c.t0) : undefined;
+      if (next) {
+        this.note(c, "drop", `phantom writer: lifted in ${age} ms without moving`, now);
+        this.note(next, "write", "the contact still down writes", now);
+        next.role = "draw";
+        next.pending = null;
+        next.drawSince = now;
+        this.drawer = next.id;
+        return [{ type: "drop", id: c.id }, { type: "draw", id: next.id }];
+      }
+      this.note(c, "stroke", `ends (${Math.round(c.dist)} px, ${age} ms)`, now);
       // a contact that wrote teaches the palm line this device's writing size
       if (c.sized && c.dist > REST_PX) learnSize(Math.max(c.w, c.h));
+    } else if (c.pending && now - c.pending.t < PHANTOM_MS && c.dist < REST_PX) {
+      this.note(c, "ignore", `phantom: lifted in ${Math.round(now - c.pending.t)} ms without moving`, now);
+    } else if (c.role === "rest" || c.role === "palm") {
+      this.note(c, "lifted", c.role === "palm" ? "palm lifted" : "ignored contact lifted", now);
+    } else {
+      this.note(c, "lifted", c.role, now);
     }
     if (this.gesture) out.push(...this.endGesture(c.id));
     return out;
@@ -595,4 +734,106 @@ export class TouchArbiter {
   get name() {
     return this.where;
   }
+}
+
+// ------------------------------------------------------------------ ?inkdebug=1: the on-screen decision log
+
+/**
+ * Production diagnostics: open any ink surface with ?inkdebug=1 (remembered in localStorage hk.ink.debug; the
+ * overlay's Off button or ?inkdebug=0 turns it off) and an overlay lists the last contact decisions (pointer type,
+ * size, pressure, contacts down, each one's travel, decision, reason) with "Copy log". Nothing is sent anywhere.
+ */
+export type InkDebugRow = { t: number; where: string; type: string; id: number; size: string; p: string; n: number; travel: string; decision: string; reason: string };
+const DEBUG_KEY = "hk.ink.debug";
+const SIZES_KEY = "hk.ink.sizes";
+let debugLoaded = false;
+let debugOn = false;
+let debugRows: InkDebugRow[] = [];
+let debugState = { on: false, rows: debugRows };
+const debugListeners = new Set<() => void>();
+const debugEmit = () => {
+  debugState = { on: debugOn, rows: debugRows };
+  debugListeners.forEach((l) => l());
+};
+
+function debugInit() {
+  if (debugLoaded || typeof window === "undefined") return;
+  debugLoaded = true;
+  try {
+    const q = new URLSearchParams(window.location.search).get("inkdebug");
+    if (q === "1") write(DEBUG_KEY, "1");
+    else if (q === "0") window.localStorage.removeItem(DEBUG_KEY);
+  } catch {
+    // no URL / storage
+  }
+  debugOn = read(DEBUG_KEY) === "1";
+  debugState = { on: debugOn, rows: debugRows };
+}
+
+/** sizes reported by this device's touch contacts: "yes" once any was, else unknown (shown in the overlay) */
+function noteSized() {
+  if (read(SIZES_KEY) !== "yes") write(SIZES_KEY, "yes");
+}
+export const deviceSizes = () => (read(SIZES_KEY) === "yes" ? "reported" : "none seen (0×0): order and motion rules only");
+
+export function setInkDebug(on: boolean) {
+  debugInit();
+  debugOn = on;
+  if (on) write(DEBUG_KEY, "1");
+  else
+    try {
+      window.localStorage.removeItem(DEBUG_KEY);
+    } catch {
+      // storage unavailable
+    }
+  debugEmit();
+}
+
+function debugNote(where: string, c: Contact, all: Map<number, Contact> | null, reason: string, decision: string, now: number) {
+  debugInit();
+  if (!debugOn) return;
+  const others = all ? [...all.values()] : [c];
+  if (!others.includes(c)) others.push(c);
+  const row: InkDebugRow = {
+    t: Math.round(now),
+    where,
+    type: c.type,
+    id: c.id,
+    size: c.sized ? `${Math.round(c.w)}×${Math.round(c.h)}` : "0×0",
+    p: c.pMin <= c.pMax ? `${c.pMin.toFixed(2)}–${c.pMax.toFixed(2)}` : "–",
+    n: all ? all.size : 1,
+    travel: others.map((o) => `#${o.id}:${Math.round(o.dist)}`).join(" "),
+    decision,
+    reason,
+  };
+  debugRows = [...debugRows.slice(-99), row];
+  // listeners may re-render: never inside the pointer handler's own frame
+  queueMicrotask(debugEmit);
+}
+
+export function useInkDebug(): { on: boolean; rows: InkDebugRow[] } {
+  return useSyncExternalStore(
+    (cb) => {
+      debugInit();
+      debugListeners.add(cb);
+      return () => debugListeners.delete(cb);
+    },
+    () => {
+      debugInit();
+      return debugState;
+    },
+    () => SERVER_DEBUG
+  );
+}
+const SERVER_DEBUG = { on: false, rows: [] as InkDebugRow[] };
+
+/** the overlay's "Copy log": every row kept, with the device facts */
+export function inkDebugText(): string {
+  const head = [
+    `ink debug ${new Date().toISOString()}`,
+    `ua: ${navigator.userAgent}`,
+    `screen: ${window.innerWidth}×${window.innerHeight} @${window.devicePixelRatio}, maxTouchPoints ${navigator.maxTouchPoints}`,
+    `mode: ${getInkInput().mode} (chosen: ${getInkInput().chosen}, pen seen: ${getInkInput().penSeen}), sizes: ${deviceSizes()}, palm line: ${Math.round(palmLine())} px`,
+  ];
+  return [...head, ...debugRows.map((r) => `${r.t} ${r.where} ${r.type}#${r.id} ${r.size} p=${r.p} n=${r.n} [${r.travel}] ${r.decision}: ${r.reason}`)].join("\n");
 }
