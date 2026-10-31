@@ -196,6 +196,20 @@ export function useAnnotations(lessonKey: string, signedIn: boolean, authLoading
     [commit]
   );
 
+  /** restyle marks (recolour, thicker / thinner): one undo step */
+  const patch = useCallback(
+    (ids: Set<string>, fn: (m: AnnotMark) => AnnotMark) => {
+      let hit = false;
+      const marks = docRef.current.marks.map((m) => {
+        if (!ids.has(m.id)) return m;
+        hit = true;
+        return fn(m);
+      });
+      if (hit) commit({ v: 1, marks });
+    },
+    [commit]
+  );
+
   const step = useCallback(
     (dir: -1 | 1) => {
       const from = dir < 0 ? past.current : future.current;
@@ -214,5 +228,5 @@ export function useAnnotations(lessonKey: string, signedIn: boolean, authLoading
   const undo = useCallback(() => step(-1), [step]);
   const redo = useCallback(() => step(1), [step]);
 
-  return { doc, ready, where, note, state, full, add, remove, undo, redo, canUndo: hist.undo > 0, canRedo: hist.redo > 0, flush: run };
+  return { doc, ready, where, note, state, full, add, remove, patch, undo, redo, canUndo: hist.undo > 0, canRedo: hist.redo > 0, flush: run };
 }

@@ -166,6 +166,17 @@ const InkNotePad = forwardRef<InkNotePadHandle, Props>(function InkNotePad({ ink
           pad={0}
           onCommit={commit}
           onAutoPen={onAutoPen}
+          quick={{
+            onTool: (t) => (t === "pen" || t === "highlighter" || t === "eraser") && setTool(t),
+            color,
+            onColor: (c) => {
+              setColor(c);
+              if (tool === "eraser") setTool("pen");
+            },
+            colors: PALETTE,
+            onUndo: undo,
+            onRedo: redo,
+          }}
           onFull={() => onNotice("This note is full. Start another note to keep writing.")}
           label={label}
         />

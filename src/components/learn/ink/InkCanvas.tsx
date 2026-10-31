@@ -26,6 +26,12 @@
  * touch-action: none on the surface (plus preventDefault on touchstart/move, for iPad Safari) keeps the browser
  * from scrolling or zooming the page under the pen; the view handles finger scrolling itself (with momentum).
  * A pen's barrel / eraser button (button 5, buttons & 32) erases where the browser reports it.
+ *
+ * Quick gestures (lib/learn/ink/gestures.ts, with `quick` wired by the surface): hold the pen or the writing contact
+ * still for HOLD_MS → over ink, its word-group is selected and a menu offers Erase / recolour / Thicker / Thinner /
+ * Lasso more / Turn into text; on empty paper, a quick palette (the dot the hold began is dropped only then). A fast
+ * zig-zag over strokes erases them instead of drawing ("Erased · Undo"). A two-finger tap undoes, three fingers redo.
+ * A floating pen ↔ eraser switch follows the last stroke (hidden from the input menu).
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useRef, useState } from "react";
 import { getStroke } from "perfect-freehand";
@@ -52,8 +58,27 @@ import { ContactLog, TouchArbiter, noteFingerDrag, notePen, pressureVaries, type
 import PaperView from "./Paper";
 import PageItems from "./PageItems";
 import InkDebugOverlay from "./InkDebugOverlay";
+import { InkToastHost, PressMenu, QuickPalette, ToolSwitch, type QuickTool } from "./QuickInk";
+import { HOLD_MS, HOLD_PX, TapSession, detectScribble, inkToast, scribbleTargets, useToolSwitch, wordGroup, type TimedPt } from "@/lib/learn/ink/gestures";
 
 export type InkToolId = "pen" | "highlighter" | "eraser" | "lasso" | "text";
+/** what the quick gestures need from the surface (its tool state and its undo history) */
+export type InkQuick = {
+  onTool: (t: InkToolId) => void;
+  onColor: (c: InkColor) => void;
+  color: InkColor;
+  colors: InkColor[];
+  /** nib widths (the palette's sizes); omit where the surface has one nib */
+  sizes?: readonly number[];
+  sizeIndex?: number;
+  onSize?: (i: number) => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  /** "Turn into text" in the long-press menu, where the surface has it */
+  onText?: () => void;
+  /** the surface has the lasso tool ("Lasso more") */
+  lasso?: boolean;
+};
 export type InkContent = { strokes: Stroke[]; items: PageItem[] };
 export type InkCanvasHandle = {
   zoomBy: (k: number) => void;
@@ -82,6 +107,8 @@ type Props = {
   onCommit: (next: InkContent, mergeKey?: string) => void;
   /** the first pen on this device switched it to Pen only (say so) */
   onAutoPen?: () => void;
+  /** quick gestures: long-press menu and palette, finger-tap undo / redo, the floating pen ↔ eraser switch */
+  quick?: InkQuick;
   onFull?: () => void;
   /** the zoom: 1 = 100% = the page at 1000 px wide */
   onZoom?: (z: number) => void;
@@ -104,6 +131,8 @@ type Action =
       src: string;
       raw: number[];
       real: boolean;
+      /** when each kept point came (scribble-to-erase) */
+      ts: number[];
     }
   | { kind: "erase"; pid: number; last: [number, number] | null; erased: Set<string>; at: [number, number] }
   | { kind: "lasso"; pid: number; poly: number[] }
@@ -157,6 +186,15 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
   const selRef = useRef<Sel | null>(null);
   selRef.current = sel;
   const [editingId, setEditingId] = useState<string | null>(null);
+  // quick gestures: the long-press menu / palette, how the selection was made, the last stroke's end (the switch)
+  const [press, setPress] = useState<{ kind: "sel" | "palette"; x: number; y: number } | null>(null);
+  const selVia = useRef<"lasso" | "press">("lasso");
+  /** where the last stroke ended (page units) and which way the switch sits from it (CSS px), clear of the edges */
+  const [anchor, setAnchor] = useState<[number, number, number, number] | null>(null);
+  const hold = useRef<{ pid: number; x: number; y: number; timer: number } | null>(null);
+  const heldPid = useRef<number | null>(null);
+  const lastInk = useRef<InkToolId>("pen");
+  const switchOn = useToolSwitch();
 
   // ------------------------------------------------------------------ view
 
@@ -438,7 +476,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
   }, [strokes, items]);
 
   useEffect(() => {
-    if (tool !== "lasso") setSel(null);
+    if (tool === "pen" || tool === "highlighter") lastInk.current = tool;
+    if (tool !== "lasso" && selVia.current !== "press") setSel(null);
     if (tool !== "text") setEditingId(null);
   }, [tool]);
 
@@ -536,7 +575,10 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       zoomBy: (k: number) => zoomAt(k, size.current.w / 2, size.current.h / 2),
       fit,
       deleteSelection,
-      clearSelection: () => setSel(null),
+      clearSelection: () => {
+        setSel(null);
+        setPress(null);
+      },
     }),
     [zoomAt, fit, deleteSelection]
   );
@@ -552,6 +594,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     if (!wrap) return;
     const where = P.current.surface || "page";
     const arb = (arbRef.current = new TouchArbiter(where));
+    // two-finger tap = undo, three = redo (any mode)
+    const taps = new TapSession();
     const log = (logRef.current = new ContactLog(where));
     const mode = () => P.current.inputMode;
     /** touch contacts go through the arbiter (Stylus/finger mode) */
@@ -617,6 +661,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
           src: e.pointerType,
           raw: [e.pressure || 0],
           real: false,
+          ts: [performance.now()],
         };
       } else if (t === "eraser") {
         action.current = { kind: "erase", pid: e.pointerId, last: null, erased: new Set(), at: [x, y] };
@@ -639,7 +684,69 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       if (action.current) {
         capture(e.pointerId);
         drawLive();
+        arm(e);
       }
+    };
+
+    // ---- long-press: the pen or the writing contact held still → a menu over ink, a palette on empty paper
+    const disarm = () => {
+      if (hold.current) window.clearTimeout(hold.current.timer);
+      hold.current = null;
+    };
+    /** pointers down on the surface now (a hold fires only for one still down) */
+    const downIds = new Set<number>();
+    const arm = (e: Ptr, scroll = false) => {
+      disarm();
+      const a = action.current;
+      if (!P.current.quick || (e.pointerType !== "pen" && e.pointerType !== "touch")) return;
+      // Scroll mode: nothing draws, so a still hold is safe to read as "open the menu" (the way back to writing)
+      if (!scroll && (!a || (a.kind !== "draw" && a.kind !== "erase"))) return;
+      const pid = e.pointerId;
+      const x = e.clientX;
+      const y = e.clientY;
+      hold.current = { pid, x, y, timer: window.setTimeout(() => fireHold(pid, x, y), HOLD_MS) };
+    };
+    const fireHold = (pid: number, x: number, y: number) => {
+      hold.current = null;
+      const a = action.current;
+      if (!downIds.has(pid)) return;
+      if (mode() === "scroll") {
+        // the pan the hold began stops; nothing else to undo
+        if (a?.pid === pid) action.current = null;
+        touches.current.delete(pid);
+      } else {
+        if (!a || a.pid !== pid || (a.kind !== "draw" && a.kind !== "erase")) return;
+        // the dot (or the eraser touch) the hold began goes; the rest of this pointer does nothing
+        cancelDraw();
+      }
+      heldPid.current = pid;
+      const [px, py] = toPage(x, y);
+      const r = Math.max(4, 14 / view.current.s);
+      const hitS = [...index().near({ x1: px - r, y1: py - r, x2: px + r, y2: py + r })].filter((s) => strokeHit(s, px, py, r));
+      const hitI = P.current.items.filter((it) => {
+        const b = itemBox(it);
+        return px >= b.x1 - r && px <= b.x2 + r && py >= b.y1 - r && py <= b.y2 + r;
+      });
+      try {
+        navigator.vibrate?.(12);
+      } catch {
+        // no haptics
+      }
+      if (!hitS.length && !hitI.length) {
+        setPress({ kind: "palette", x, y });
+        return;
+      }
+      // the strokes under the point, and the rest of the word they were written with
+      let seedBox: Box | null = null;
+      hitS.forEach((s) => (seedBox = unionBox(seedBox, strokeBox(s))));
+      const h = seedBox ? (seedBox as Box).y2 - (seedBox as Box).y1 : 30;
+      const ids = hitS.length ? wordGroup(P.current.strokes, new Set(hitS.map((s) => s.id)), Math.min(48, Math.max(12, h * 0.9))) : new Set<string>();
+      let box: Box | null = null;
+      P.current.strokes.forEach((s) => ids.has(s.id) && (box = unionBox(box, strokeBox(s))));
+      hitI.forEach((it) => (box = unionBox(box, itemBox(it))));
+      selVia.current = "press";
+      setSel({ strokes: ids, items: new Set(hitI.map((it) => it.id)), box: box! });
+      setPress({ kind: "sel", x, y });
     };
 
     /** a touch stroke's pressure, once its contact proves it real (a stylus the browser calls a finger) */
@@ -666,6 +773,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
           if ((qx - lx) ** 2 + (qy - ly) ** 2 < MIN_STEP2) continue;
           pts.push(qx, qy, pressureOf(a, ev.pressure));
           a.raw.push(ev.pressure || 0);
+          a.ts.push(ev.timeStamp ?? performance.now());
         }
         touchPressure(a);
       } else if (a.kind === "erase") {
@@ -687,7 +795,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       for (const ev of evs) {
         if (ev.type === "draw") {
           const c = arb.get(ev.id);
-          if (!c || !c.hist.length) continue;
+          if (!c || !c.hist.length || heldPid.current === c.id) continue;
           const h0 = c.hist[0];
           // the page: replay where the contact has been since it landed (nothing is lost when it takes over late)
           if (action.current?.kind === "pan") action.current = null;
@@ -748,7 +856,13 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       rect.current = wrap.getBoundingClientRect();
       const p = P.current;
       const m = mode();
+      downIds.add(e.pointerId);
+      if (e.pointerType === "touch") taps.down(e.pointerId, e.clientX, e.clientY, e.timeStamp);
+      // a second pointer while one is held still: no long-press
+      else disarm();
+      if (hold.current && hold.current.pid !== e.pointerId) disarm();
       if (isPen(e)) {
+        taps.reset();
         if (notePen()) p.onAutoPen?.();
         // a palm already panning: stop it, the pen wins
         touches.current.clear();
@@ -769,11 +883,13 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       }
       log.down(e);
       if (m === "scroll") {
-        // nothing draws: every pointer moves the page
+        // nothing draws: every pointer moves the page (a still hold opens the quick menu: the way back)
         if (e.pointerType === "touch") {
           fingerDown(e, false);
+          if (touches.current.size === 1) arm(e, true);
           return;
         }
+        if (e.pointerType === "pen") arm(e, true);
         if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1) return;
         action.current = { kind: "pan", pid: e.pointerId, last: [e.clientX, e.clientY], samples: [] };
         capture(e.pointerId);
@@ -798,6 +914,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     };
 
     const onMove = (e: PointerEvent) => {
+      if (hold.current && hold.current.pid === e.pointerId && Math.hypot(e.clientX - hold.current.x, e.clientY - hold.current.y) > HOLD_PX) disarm();
+      if (e.pointerType === "touch") taps.move(e.pointerId, e.clientX, e.clientY);
       if (arbitrated(e)) {
         if (!arb.get(e.pointerId)) return;
         apply(arb.move(e));
@@ -903,6 +1021,34 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
         return;
       }
       if (a.kind === "draw") {
+        const np = a.pts.length / 3;
+        if (np) {
+          const ex = a.pts[(np - 1) * 3] / Q;
+          const ey = a.pts[(np - 1) * 3 + 1] / Q;
+          const v = view.current;
+          const sx = ex * v.s + v.tx;
+          const sy = ey * v.s + v.ty;
+          // above and to the right of where the pen lifted; below / to the left near the surface's edges
+          setAnchor([ex, ey, sx + 18 + 56 > size.current.w ? -66 : 18, sy - 84 < 8 ? 36 : -84]);
+        }
+        // a fast zig-zag over strokes erases them instead of drawing
+        if (a.tool === "pen" && np >= 8 && !cancelled) {
+          const path: TimedPt[] = [];
+          for (let i = 0; i < np; i++) path.push({ x: a.pts[i * 3] / Q, y: a.pts[i * 3 + 1] / Q, t: a.ts[i] ?? 0 });
+          const sb = detectScribble(path, view.current.s);
+          if (sb) {
+            const near = index().near({ x1: sb.x1 - 4, y1: sb.y1 - 4, x2: sb.x2 + 4, y2: sb.y2 + 4 });
+            const gone = scribbleTargets(path, sb, near, Math.max(1.5, 3 / view.current.s));
+            if (gone.length) {
+              const ids = new Set(gone.map((x) => x.id));
+              commit({ strokes: P.current.strokes.filter((x) => !ids.has(x.id)) });
+              drawLive();
+              const q = P.current.quick;
+              inkToast(`Erased ${gone.length} ${gone.length === 1 ? "stroke" : "strokes"}`, q ? { label: "Undo", run: q.onUndo } : undefined);
+              return;
+            }
+          }
+        }
         if (a.pts.length >= 3) {
           const pts = a.src === "pen" && !penPressureUsable(a.pts) ? withoutPressure(a.pts) : a.pts;
           const st: Stroke = { id: newInkId(), tool: a.tool, color: a.color, size: a.size, pts };
@@ -970,7 +1116,34 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       }
     };
 
+    /** a two- or three-finger tap: undo or redo */
+    const fingerTap = (n: number) => {
+      const q = P.current.quick;
+      if (!q) return;
+      if (n === 2) {
+        q.onUndo();
+        inkToast("Undone · two-finger tap");
+      } else {
+        q.onRedo();
+        inkToast("Redone · three-finger tap");
+      }
+    };
+
     const finish = (e: PointerEvent, cancelled: boolean) => {
+      downIds.delete(e.pointerId);
+      if (hold.current?.pid === e.pointerId) disarm();
+      if (heldPid.current === e.pointerId) heldPid.current = null;
+      const touch = e.pointerType === "touch";
+      // a finger of a two- or three-finger tap leaves no dot
+      if (touch && taps.multiSoFar(e.timeStamp) && action.current?.pid === e.pointerId && action.current.kind === "draw") cancelDraw();
+      finishPointer(e, cancelled);
+      if (touch) {
+        const n = taps.up(e.pointerId, e.timeStamp);
+        if (n) fingerTap(n);
+      }
+    };
+
+    const finishPointer = (e: PointerEvent, cancelled: boolean) => {
       if (isPen(e)) penDown.current = false;
       if (e.pointerType === "touch" && mode() === "touch") {
         if (!arb.get(e.pointerId)) {
@@ -1050,6 +1223,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     wrap.addEventListener("gesturechange", onGesture);
     return () => {
       stopInertia();
+      disarm();
       wrap.removeEventListener("pointerdown", onDown);
       wrap.removeEventListener("pointermove", onMove);
       wrap.removeEventListener("pointerup", onUp);
@@ -1102,6 +1276,23 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
 
   const cursor = tool === "eraser" ? "cell" : tool === "lasso" ? "default" : tool === "text" ? "text" : "crosshair";
   const box = sel?.box;
+  const quick = props.quick;
+  // the long-press menu: one commit per action (one undo step each)
+  const closePress = () => {
+    setPress(null);
+    if (selVia.current === "press") {
+      selVia.current = "lasso";
+      if (tool !== "lasso") setSel(null);
+    }
+  };
+  const restyle = (fn: (s: Stroke) => Stroke) => {
+    const s = selRef.current;
+    if (!s || !s.strokes.size) return;
+    commit({ strokes: P.current.strokes.map((x) => (s.strokes.has(x.id) ? fn(x) : x)) });
+  };
+  const selStrokes = sel ? strokes.filter((x) => sel.strokes.has(x.id)) : [];
+  const flipTool = () => quick?.onTool(tool === "eraser" ? lastInk.current : "eraser");
+  const showSwitch = !!quick && switchOn && (tool === "pen" || tool === "highlighter" || tool === "eraser");
   return (
     <div
       ref={wrapRef}
@@ -1121,6 +1312,10 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
         {box && (
           <>
             <div className="absolute border-2 border-dashed border-signal" style={{ left: box.x1 - 6, top: box.y1 - 6, width: box.x2 - box.x1 + 12, height: box.y2 - box.y1 + 12, borderWidth: "calc(2px * var(--ink-inv, 1))" }} />
+          </>
+        )}
+        {box && tool === "lasso" && (
+          <>
             <div
               aria-hidden
               className="absolute bg-signal"
@@ -1139,7 +1334,78 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
             </div>
           </>
         )}
+        {showSwitch && anchor && (
+          <ToolSwitch
+            tool={tool}
+            onFlip={flipTool}
+            className="absolute"
+            style={{ left: Math.max(0, Math.min(PAGE_W, anchor[0])), top: Math.max(0, Math.min(PAGE_H, anchor[1])), transformOrigin: "0 0", transform: `scale(var(--ink-inv, 1)) translate(${anchor[2]}px, ${anchor[3]}px)` }}
+          />
+        )}
       </div>
+      {showSwitch && !anchor && <ToolSwitch tool={tool} onFlip={flipTool} className="absolute right-3 top-1/2 z-[6] -translate-y-1/2" />}
+      {quick && press?.kind === "sel" && sel && (
+        <PressMenu
+          x={press.x}
+          y={press.y}
+          count={sel.strokes.size + sel.items.size}
+          theme={theme}
+          colors={quick.colors}
+          marker={selStrokes.length > 0 && selStrokes.every((x) => x.tool === "highlighter")}
+          onErase={() => {
+            deleteSelection();
+            setPress(null);
+            selVia.current = "lasso";
+          }}
+          onColor={(c) => restyle((x) => ({ ...x, color: c }))}
+          onSize={(k) => restyle((x) => ({ ...x, size: Math.round(Math.max(1, Math.min(x.tool === "highlighter" ? 60 : 24, x.size * k)) * 10) / 10 }))}
+          onLasso={
+            quick.lasso
+              ? () => {
+                  selVia.current = "lasso";
+                  setPress(null);
+                  quick.onTool("lasso");
+                }
+              : undefined
+          }
+          onText={
+            quick.onText
+              ? () => {
+                  closePress();
+                  quick.onText!();
+                }
+              : undefined
+          }
+          onClose={closePress}
+        />
+      )}
+      {quick && press?.kind === "palette" && (
+        <QuickPalette
+          x={press.x}
+          y={press.y}
+          theme={theme}
+          tool={tool}
+          onTool={(t: QuickTool) => quick.onTool(t)}
+          colors={quick.colors}
+          color={quick.color}
+          onColor={(c) => {
+            quick.onColor(c);
+            if (tool === "eraser") quick.onTool(lastInk.current);
+          }}
+          sizes={quick.sizes}
+          sizeIndex={quick.sizeIndex}
+          onSize={
+            quick.onSize
+              ? (i) => {
+                  quick.onSize!(i);
+                  if (tool !== "pen") quick.onTool("pen");
+                }
+              : undefined
+          }
+          onClose={() => setPress(null)}
+        />
+      )}
+      <InkToastHost />
       <InkDebugOverlay />
     </div>
   );

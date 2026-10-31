@@ -18,7 +18,7 @@ import { INK_EVENTS, LIMITS, PAPERS, type InkColor, type NotebookPage, type Page
 import { loadPage, usePageAutosave, type SaveState } from "@/lib/learn/ink/usePageAutosave";
 import { PEN_FOUND, setInkInputMode, useInkInput } from "@/lib/learn/ink/inputMode";
 import InkCanvas, { type InkCanvasHandle, type InkContent, type InkToolId } from "./InkCanvas";
-import InkToolbar from "./InkToolbar";
+import InkToolbar, { COLORS } from "./InkToolbar";
 import PageAiActions from "./PageAiActions";
 import { usePageAi } from "./ai/usePageAi";
 import { ConvertNudge, PageTextControls, type PageMode } from "./ai/TextControls";
@@ -501,6 +501,22 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
             pad={panel ? 10 : 20}
             onCommit={commit}
             onAutoPen={onAutoPen}
+            quick={{
+              onTool: setTool,
+              color,
+              onColor: (c) => {
+                setColor(c);
+                if (tool !== "pen" && tool !== "highlighter") setTool("pen");
+              },
+              colors: COLORS,
+              sizes: PEN_SIZES,
+              sizeIndex,
+              onSize: setSizeIndex,
+              onUndo: undo,
+              onRedo: redo,
+              onText: !ai.blocked && page.strokes.length > 0 ? () => void convertNow() : undefined,
+              lasso: true,
+            }}
             onFull={() => setNotice({ text: "This page is full. Start a new page to keep writing.", action: { label: "New page", run: () => void addPage() } })}
             onZoom={setZoom}
             label={`Notebook page: ${page.title || "Untitled"}. ${page.strokes.length} strokes, ${page.items.length} items. Typed content follows.`}

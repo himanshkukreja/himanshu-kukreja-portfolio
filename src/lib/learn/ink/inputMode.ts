@@ -252,7 +252,7 @@ const P_RANGE = 0.25;
 const P_TOP = 0.3;
 const HISTORY_MAX = 600;
 
-export type ContactPoint = { clientX: number; clientY: number; pressure: number };
+export type ContactPoint = { clientX: number; clientY: number; pressure: number; timeStamp?: number };
 type PointerLike = { pointerId: number; pointerType: string; clientX: number; clientY: number; pressure: number; width: number; height: number; tiltX: number; tiltY: number; timeStamp: number };
 
 export type Contact = {
@@ -443,7 +443,7 @@ function sample(c: Contact, e: PointerLike, first = false) {
     if (c.pVals.size < 8) c.pVals.add(Math.round(p * 1000));
   }
   if (e.tiltX || e.tiltY) c.tilt = true;
-  if (c.hist.length < HISTORY_MAX) c.hist.push({ clientX: e.clientX, clientY: e.clientY, pressure: p });
+  if (c.hist.length < HISTORY_MAX) c.hist.push({ clientX: e.clientX, clientY: e.clientY, pressure: p, timeStamp: e.timeStamp });
 }
 
 /**

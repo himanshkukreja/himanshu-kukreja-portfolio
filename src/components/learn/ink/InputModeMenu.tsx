@@ -15,6 +15,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { ChevronDown, Hand, Pencil, Pointer, X } from "lucide-react";
 import { INPUT_MODES, MODE_LABEL, STYLUS_TIP, dismissInkHint, setInkInputMode, useInkInput, type InkInputMode, type InkSurface } from "@/lib/learn/ink/inputMode";
+import { setToolSwitch, useToolSwitch } from "@/lib/learn/ink/gestures";
 
 /** the button's label in a compact toolbar (the pad, the answer sheet): the menu names each mode in full */
 const SHORT: Record<InkInputMode, string> = { pen: "Pen only", touch: "Stylus", scroll: "Scroll" };
@@ -62,6 +63,7 @@ function useTouchDevice(): boolean {
 
 export default function InputModeMenu({ surface, up = false, compact = false, className = "" }: Props) {
   const { mode, penSeen, hint } = useInkInput();
+  const switchOn = useToolSwitch();
   const touch = useTouchDevice();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
@@ -165,6 +167,24 @@ export default function InputModeMenu({ surface, up = false, compact = false, cl
               </button>
             ))}
             <p className="m-0 border-t border-line px-3 py-2 text-[12.5px] leading-snug text-fg-2">{STYLUS_TIP}</p>
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={switchOn}
+              onClick={() => setToolSwitch(!switchOn)}
+              className="flex w-full items-center gap-2.5 border-t border-line px-3 py-2.5 text-left hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal"
+            >
+              <span aria-hidden className={`grid h-5 w-5 shrink-0 place-items-center border ${switchOn ? "border-signal bg-signal text-on-signal" : "border-line-strong"}`}>
+                {switchOn ? "✓" : ""}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-[14px] font-semibold text-fg">Pen ↔ eraser button</span>
+                <span className="block text-[12.5px] leading-snug text-fg-2">A round button near your writing: one tap flips between pen and eraser.</span>
+              </span>
+            </button>
+            <p className="m-0 border-t border-line px-3 py-2 text-[12px] leading-snug text-fg-3">
+              Shortcuts: hold still to select or pick a pen · scribble over ink to erase · two fingers tap to undo, three to redo · P / H / E keys.
+            </p>
           </div>,
           document.body
         )}

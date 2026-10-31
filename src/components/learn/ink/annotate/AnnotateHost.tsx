@@ -18,8 +18,10 @@ import type { InkTheme } from "@/lib/learn/ink/render";
 import type { InkColor } from "@/lib/learn/ink/types";
 import { canCapture } from "../capture/api";
 import { captureToast, isTyping } from "../capture/events";
-import { ANNOT_MARKER_SIZE, ANNOT_PEN_SIZES, registerAnnotateHost, setAnnotating, setShowMarks, useAnnotate } from "./mode";
+import { ANNOT_COLORS, ANNOT_MARKER_SIZE, ANNOT_PEN_SIZES, registerAnnotateHost, setAnnotating, setShowMarks, useAnnotate } from "./mode";
 import { PEN_FOUND, notePen, useInkInput } from "@/lib/learn/ink/inputMode";
+import { useToolSwitch } from "@/lib/learn/ink/gestures";
+import type { Box } from "@/lib/learn/ink/geometry";
 import { useAnnotations } from "./useAnnotations";
 import type { AnnotLayerHandle } from "./AnnotateLayer";
 import type { AnnotTool } from "./engine";
@@ -27,8 +29,15 @@ import type { AnnotTool } from "./engine";
 const AnnotateLayer = dynamic(() => import("./AnnotateLayer"), { ssr: false });
 const AnnotateToolbar = dynamic(() => import("./AnnotateToolbar"), { ssr: false });
 const InkDebugOverlay = dynamic(() => import("../InkDebugOverlay"), { ssr: false });
+const PressMenu = dynamic(() => import("../QuickInk").then((m) => m.PressMenu), { ssr: false });
+const QuickPalette = dynamic(() => import("../QuickInk").then((m) => m.QuickPalette), { ssr: false });
+const InkToastHost = dynamic(() => import("../QuickInk").then((m) => m.InkToastHost), { ssr: false });
+const ToolSwitch = dynamic(() => import("../QuickInk").then((m) => m.ToolSwitch), { ssr: false });
 
 const noop = () => () => {};
+/** after switching to Scroll from a long-press menu: a finger long-press over the lesson stays the browser's (text
+ * selection), so the way back is the toolbar's Input button */
+const ANNOT_SCROLL_HINT = "Scroll mode · switch back with Input in the toolbar";
 const coarse = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
 type Props = {
@@ -58,12 +67,34 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
   const [detachedIds, setDetachedIds] = useState<string[]>([]);
   const [sending, setSending] = useState<string | null>(null);
   const { mode: input, penSeen } = useInkInput();
+  // quick gestures: the long-press menu / palette, the selection's box, the floating pen ↔ eraser switch
+  const [press, setPress] = useState<{ kind: "sel" | "palette"; ids: string[]; x: number; y: number } | null>(null);
+  const [selBox, setSelBox] = useState<Box | null>(null);
+  const [anchor, setAnchor] = useState<[number, number] | null>(null);
+  const switchOn = useToolSwitch();
+  const lastInk = useRef<AnnotTool>("pen");
   const [touch, setTouch] = useState(false);
 
   useEffect(() => registerAnnotateHost(), []);
   useEffect(() => {
     // a device fact, read after mount so server and client markup match
     setTouch(coarse());
+  }, []);
+
+  useEffect(() => {
+    if (tool !== "eraser") lastInk.current = tool;
+  }, [tool]);
+  const onPress = useCallback((p: { kind: "sel" | "palette"; ids: string[]; x: number; y: number }) => {
+    setPress(p);
+    setSelBox(p.kind === "sel" ? (layerRef.current?.engine()?.selectionBox(p.ids) ?? null) : null);
+  }, []);
+  const closePress = useCallback(() => {
+    setPress(null);
+    setSelBox(null);
+  }, []);
+  const onStroke = useCallback((x: number, y: number) => {
+    const r = wrapRef.current?.getBoundingClientRect();
+    if (r) setAnchor([x - r.left, y - r.top]);
   }, []);
 
   const color = tool === "highlighter" ? hlColor : penColor;
@@ -149,6 +180,23 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
     }
   }, [user, openAuthModal, theme, lessonKey, title]);
 
+  // the selection follows its marks (restyled marks are placed again; undone or erased ones end it)
+  const pressIds = press?.kind === "sel" ? press.ids : null;
+  const marks = A.doc.marks;
+  useEffect(() => {
+    if (!pressIds) return;
+    const alive = pressIds.filter((id) => marks.some((m) => m.id === id));
+    if (!alive.length) {
+      closePress();
+      return;
+    }
+    const t = window.setTimeout(() => setSelBox(layerRef.current?.engine()?.selectionBox(alive) ?? null), 60);
+    return () => window.clearTimeout(t);
+  }, [marks, pressIds, closePress]);
+  useEffect(() => {
+    if (!on) closePress();
+  }, [on, closePress]);
+
   const needLayer = A.ready && (A.doc.marks.length > 0 || on);
   const hint = !on
     ? null
@@ -186,8 +234,63 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
           onDetached={setDetachedIds}
           onPenSeen={onPenSeen}
           input={input}
+          onUndo={undo}
+          onRedo={redo}
+          onPress={onPress}
+          onStroke={onStroke}
         />
       )}
+      {on && selBox && <div aria-hidden className="pointer-events-none absolute border-2 border-dashed border-signal" style={{ left: selBox.x1 - 5, top: selBox.y1 - 5, width: selBox.x2 - selBox.x1 + 10, height: selBox.y2 - selBox.y1 + 10, zIndex: 2 }} />}
+      {on && press?.kind === "sel" && (
+        <PressMenu
+          x={press.x}
+          y={press.y}
+          count={press.ids.length}
+          theme={theme}
+          colors={ANNOT_COLORS}
+          marker={press.ids.every((id) => marks.find((m) => m.id === id)?.tool === "highlighter")}
+          onErase={() => {
+            A.remove(new Set(press.ids));
+            closePress();
+          }}
+          onColor={(c) => A.patch(new Set(press.ids), (m) => ({ ...m, color: c }))}
+          onSize={(k) => A.patch(new Set(press.ids), (m) => ({ ...m, size: Math.round(Math.max(0.8, Math.min(m.tool === "highlighter" ? 40 : 12, m.size * k)) * 10) / 10 }))}
+          onClose={closePress}
+          scrollHint={ANNOT_SCROLL_HINT}
+        />
+      )}
+      {on && press?.kind === "palette" && (
+        <QuickPalette
+          x={press.x}
+          y={press.y}
+          theme={theme}
+          tool={tool}
+          onTool={setTool}
+          colors={ANNOT_COLORS}
+          color={color}
+          onColor={(c) => {
+            onColor(c);
+            if (tool === "eraser") setTool(lastInk.current);
+          }}
+          sizes={ANNOT_PEN_SIZES}
+          sizeIndex={sizeIndex}
+          onSize={(i) => {
+            setSizeIndex(i);
+            setTool("pen");
+          }}
+          onClose={closePress}
+          scrollHint={ANNOT_SCROLL_HINT}
+        />
+      )}
+      {on && input !== "scroll" && switchOn && (
+        <ToolSwitch
+          tool={tool}
+          onFlip={() => setTool(tool === "eraser" ? lastInk.current : "eraser")}
+          className={anchor ? "absolute" : "fixed right-3 top-1/2 -translate-y-1/2"}
+          style={anchor ? { left: Math.max(0, anchor[0] + 18), top: Math.max(0, anchor[1] - 84), zIndex: 40 } : { zIndex: 40 }}
+        />
+      )}
+      {on && <InkToastHost />}
       {on && <InkDebugOverlay />}
       {on && (
         <AnnotateToolbar

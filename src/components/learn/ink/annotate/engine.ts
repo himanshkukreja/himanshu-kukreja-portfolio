@@ -28,9 +28,16 @@
  *   Scroll         the mode takes no input at all, as if it were off.
  * A mouse stroke that moved swallows the click that follows (no link opens under a drawn line); a click without
  * movement on a link still opens it. A touch stroke always swallows its click.
+ *
+ * Quick gestures (lib/learn/ink/gestures.ts): the pen or the writing contact held still HOLD_MS → over a mark, it and
+ * the marks written with it (its group) are selected and the host shows a menu (onPress); on empty paper a palette.
+ * A fast zig-zag over marks erases them instead of drawing. A two-finger tap undoes, three fingers redo (both modes:
+ * in Pen only the fingers are only watched, never cancelled). onStroke tells the host where the last stroke ended
+ * (the floating pen ↔ eraser switch follows it).
  */
 import { buildLayer, fillLayer, fillStroke, outlinePathData, penPressureUsable, strokeInput, strokeOptions, withoutPressure, type InkTheme } from "@/lib/learn/ink/render";
 import { ContactLog, TouchArbiter, noteFingerDrag, pressureVaries, type ArbiterEvent, type ContactPoint, type InkInputMode } from "@/lib/learn/ink/inputMode";
+import { HOLD_MS, HOLD_PX, TapSession, detectScribble, inkToast, scribbleTargets, type TimedPt } from "@/lib/learn/ink/gestures";
 import { Q, strokeHit, unionBox, strokeBox, type Box } from "@/lib/learn/ink/geometry";
 import { getStroke } from "perfect-freehand";
 import type { InkColor, InkTool, Stroke } from "@/lib/learn/ink/types";
@@ -64,14 +71,23 @@ export type EngineProps = {
   onPenSeen: () => void;
   /** the device's input mode */
   input: InkInputMode;
+  onUndo?: () => void;
+  onRedo?: () => void;
+  /** a long-press: over marks (their ids, with their groups), or on empty paper (the palette); client px */
+  onPress?: (p: { kind: "sel" | "palette"; ids: string[]; x: number; y: number }) => void;
+  /** a stroke was drawn, ending here (client px) */
+  onStroke?: (x: number, y: number) => void;
 };
 
 type Tile = { i: number; hl: HTMLCanvasElement; ink: HTMLCanvasElement; v: number };
 
 type Action =
-  | { kind: "draw"; pid: number; type: string; tool: InkTool; color: InkColor; size: number; pts: number[]; predicted: number[]; moved: boolean; start: [number, number]; raw: number[]; real: boolean }
+  | { kind: "draw"; pid: number; type: string; tool: InkTool; color: InkColor; size: number; pts: number[]; predicted: number[]; moved: boolean; start: [number, number]; raw: number[]; real: boolean; ts: number[] }
   | { kind: "erase"; pid: number; type: string; erased: Set<string>; at: [number, number] | null; moved: boolean; start: [number, number] };
 
+/** a long-press selects the marks written with the one under it: within WORD_MS of each other, WORD_GAP px apart */
+const WORD_MS = 2500;
+const WORD_GAP = 32;
 /** a finger drag this long (px) over the lesson in Pen only would have been a stroke */
 const DRAG_PX = 12;
 
@@ -111,6 +127,11 @@ export class AnnotEngine {
   private arb = new TouchArbiter("annotate");
   /** Pen only: fingers over the lesson (dev log, the hint) */
   private fingers = new ContactLog("annotate");
+  /** two-finger tap = undo, three = redo */
+  private taps = new TapSession();
+  /** a long-press being timed, and the pointer whose hold fired (the rest of it does nothing) */
+  private hold: { pid: number; x: number; y: number; timer: number } | null = null;
+  private heldPid: number | null = null;
   /** two-finger scroll (Stylus/finger): the contacts, the last midpoint, recent samples for momentum */
   private scroll: { ids: number[]; last: [number, number]; samples: [number, number, number][] } | null = null;
   private inertia = 0;
@@ -212,7 +233,10 @@ export class AnnotEngine {
     const added: Placed[] = [];
     const det: string[] = this.detached.filter((id) => ids.has(id));
     for (const m of marks) {
-      if (this.placed.has(m.id) || det.includes(m.id)) continue;
+      const was = this.placed.get(m.id);
+      // a mark restyled (recoloured, thicker): placed again
+      if (was && was.mark !== m) this.placed.delete(m.id);
+      else if (was || det.includes(m.id)) continue;
       const strokes = placeMark(m, L);
       if (!strokes) {
         det.push(m.id);
@@ -478,6 +502,8 @@ export class AnnotEngine {
     window.removeEventListener("resize", this.sizeLive);
     if (this.action) this.cancelAction();
     this.resetTouch();
+    this.disarm();
+    this.taps.reset();
     document.documentElement.style.removeProperty("user-select");
     document.documentElement.style.removeProperty("-webkit-user-select");
   }
@@ -519,7 +545,9 @@ export class AnnotEngine {
 
   private onDown = (e: PointerEvent) => {
     this.stopInertia();
+    if (this.hold && this.hold.pid !== e.pointerId) this.disarm();
     if (e.pointerType === "touch") {
+      if (this.accepts(e)) this.taps.down(e.pointerId, e.clientX, e.clientY, e.timeStamp);
       if (this.P.input === "touch") this.touchDown(e);
       else if (this.accepts(e)) {
         // Pen only: fingers scroll, tap and select; one dragging over the lesson counts toward the hint
@@ -532,6 +560,7 @@ export class AnnotEngine {
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (!this.accepts(e)) return;
     if (e.pointerType === "pen") {
+      this.taps.reset();
       // the pen wins over a finger (or a palm) that started a stroke
       if (this.action && this.action.type === "touch") this.cancelAction();
       this.resetTouch();
@@ -562,11 +591,87 @@ export class AnnotEngine {
       }
       const [x, y] = this.toOverlay(e.clientX, e.clientY, o);
       const pr = e.pointerType === "pen" ? Math.max(1, Math.round((e.pressure || 0.5) * 100)) : 0;
-      this.action = { kind: "draw", pid: e.pointerId, type: e.pointerType, tool, color: p.color, size: p.size, pts: [x, y, pr], predicted: [], moved: false, start, raw: [e.pressure || 0], real: false };
+      this.action = { kind: "draw", pid: e.pointerId, type: e.pointerType, tool, color: p.color, size: p.size, pts: [x, y, pr], predicted: [], moved: false, start, raw: [e.pressure || 0], real: false, ts: [performance.now()] };
     }
     document.documentElement.style.setProperty("user-select", "none");
     document.documentElement.style.setProperty("-webkit-user-select", "none");
     this.drawLive();
+    this.arm(e.pointerId, e.pointerType, e.clientX, e.clientY);
+  }
+
+  // ------------------------------------------------------------------ long-press
+
+  private disarm() {
+    if (this.hold) window.clearTimeout(this.hold.timer);
+    this.hold = null;
+  }
+
+  private arm(pid: number, type: string, x: number, y: number) {
+    this.disarm();
+    if (!this.P.onPress || (type !== "pen" && type !== "touch") || !this.action) return;
+    this.hold = { pid, x, y, timer: window.setTimeout(() => this.fireHold(pid, x, y), HOLD_MS) };
+  }
+
+  private fireHold(pid: number, x: number, y: number) {
+    this.hold = null;
+    const a = this.action;
+    if (!a || a.pid !== pid) return;
+    // the dot the hold began goes; the rest of this pointer does nothing
+    this.cancelAction();
+    this.heldPid = pid;
+    const o = this.origin();
+    const px = x - o.x;
+    const py = y - o.y;
+    const r = 12;
+    const hit = new Set<string>();
+    for (const pl of this.placedList) {
+      if (!pl.box || px < pl.box.x1 - r || px > pl.box.x2 + r || py < pl.box.y1 - r || py > pl.box.y2 + r) continue;
+      if (pl.strokes.some((st) => strokeHit(st, px, py, r))) hit.add(pl.mark.id);
+    }
+    // the marks written with it: its group (margin notes), and the marks written just before or after it close by on
+    // the same line (a word written over the text)
+    const groups = new Set(this.placedList.filter((pl) => hit.has(pl.mark.id) && pl.mark.g).map((pl) => pl.mark.g));
+    for (const pl of this.placedList) if (pl.mark.g && groups.has(pl.mark.g)) hit.add(pl.mark.id);
+    if (hit.size) {
+      const byTime = this.placedList.filter((pl) => pl.box).sort((a, b) => a.mark.at - b.mark.at);
+      let box: Box | null = null;
+      for (const pl of byTime) if (hit.has(pl.mark.id)) box = unionBox(box, pl.box!);
+      const near = (b: Box) => {
+        const g = box!;
+        const dx = Math.max(0, b.x1 - g.x2, g.x1 - b.x2);
+        return dx <= WORD_GAP && Math.min(b.y2, g.y2) - Math.max(b.y1, g.y1) > -WORD_GAP / 4;
+      };
+      const idx = byTime.map((pl, i) => (hit.has(pl.mark.id) ? i : -1)).filter((i) => i >= 0);
+      for (let i = Math.min(...idx) - 1; i >= 0; i--) {
+        const pl = byTime[i];
+        if (byTime[i + 1].mark.at - pl.mark.at > WORD_MS || !near(pl.box!)) break;
+        hit.add(pl.mark.id);
+        box = unionBox(box, pl.box!);
+      }
+      for (let i = Math.max(...idx) + 1; i < byTime.length; i++) {
+        const pl = byTime[i];
+        if (pl.mark.at - byTime[i - 1].mark.at > WORD_MS || !near(pl.box!)) break;
+        hit.add(pl.mark.id);
+        box = unionBox(box, pl.box!);
+      }
+    }
+    try {
+      navigator.vibrate?.(12);
+    } catch {
+      // no haptics
+    }
+    this.P.onPress?.({ kind: hit.size ? "sel" : "palette", ids: [...hit], x, y });
+  }
+
+  /** the selection's box, relative to the wrapper (the host draws it there, so it scrolls with the lesson) */
+  selectionBox(ids: string[]): Box | null {
+    let b: Box | null = null;
+    for (const id of ids) {
+      const pl = this.placed.get(id);
+      if (pl?.box) b = unionBox(b, pl.box);
+    }
+    if (!b) return null;
+    return { x1: b.x1 - this.marginL, y1: b.y1, x2: b.x2 - this.marginL, y2: b.y2 };
   }
 
   // ------------------------------------------------------------------ touch (Stylus/finger)
@@ -589,7 +694,7 @@ export class AnnotEngine {
     for (const ev of evs) {
       if (ev.type === "draw") {
         const c = this.arb.get(ev.id);
-        if (!c || !c.hist.length || (this.action && this.action.type !== "touch")) continue;
+        if (!c || !c.hist.length || this.heldPid === c.id || (this.action && this.action.type !== "touch")) continue;
         if (this.action) this.cancelAction();
         this.scroll = null;
         const h0 = c.hist[0];
@@ -699,6 +804,16 @@ export class AnnotEngine {
   private touchUp(e: PointerEvent, cancelled: boolean): boolean {
     if (e.pointerType !== "touch") return false;
     this.fingerIds.delete(e.pointerId);
+    // a finger of a two- or three-finger tap leaves no dot; the tap undoes or redoes once every finger is up
+    if (this.taps.multiSoFar(e.timeStamp) && this.action?.pid === e.pointerId && this.action.type === "touch") this.cancelAction();
+    const n = this.taps.up(e.pointerId, e.timeStamp);
+    if (n === 2 && this.P.onUndo) {
+      this.P.onUndo();
+      inkToast("Undone · two-finger tap");
+    } else if (n === 3 && this.P.onRedo) {
+      this.P.onRedo();
+      inkToast("Redone · three-finger tap");
+    }
     if (this.P.input === "touch") {
       if (!this.arb.get(e.pointerId)) return false;
       const evs = this.arb.up(e);
@@ -715,7 +830,9 @@ export class AnnotEngine {
   }
 
   private onMove = (e: PointerEvent) => {
+    if (this.hold && this.hold.pid === e.pointerId && Math.hypot(e.clientX - this.hold.x, e.clientY - this.hold.y) > HOLD_PX) this.disarm();
     if (e.pointerType === "touch") {
+      this.taps.move(e.pointerId, e.clientX, e.clientY);
       if (this.P.input === "touch") {
         if (this.arb.get(e.pointerId)) {
           this.applyTouch(this.arb.move(e));
@@ -764,6 +881,7 @@ export class AnnotEngine {
         if ((qx - lx) ** 2 + (qy - ly) ** 2 < MIN_STEP2) continue;
         pts.push(qx, qy, this.pressureOf(a, ev.pressure));
         a.raw.push(ev.pressure || 0);
+        a.ts.push(ev.timeStamp ?? performance.now());
       }
       // a stylus the browser calls a finger, with real pressure: write with it
       if (!a.real && a.type === "touch") {
@@ -783,6 +901,8 @@ export class AnnotEngine {
   private onCancel = (e: PointerEvent) => this.finish(e, this.action?.kind !== "draw", true);
 
   private finish(e: PointerEvent, cancelled: boolean, pointerCancel = false) {
+    if (this.hold?.pid === e.pointerId) this.disarm();
+    if (this.heldPid === e.pointerId) this.heldPid = null;
     if (this.touchUp(e, pointerCancel)) return;
     const a = this.action;
     if (!a || a.pid !== e.pointerId) return;
@@ -810,8 +930,40 @@ export class AnnotEngine {
       this.drawLive();
       return;
     }
-    if (a.pts.length >= 3 && !cancelled) this.commitStroke(a);
+    if (!cancelled && a.tool === "pen" && this.scribbleErase(a)) {
+      this.drawLive();
+      return;
+    }
+    if (a.pts.length >= 3 && !cancelled) {
+      this.commitStroke(a);
+      const o = this.origin();
+      const n = a.pts.length;
+      this.P.onStroke?.(a.pts[n - 3] / Q + o.x, a.pts[n - 2] / Q + o.y);
+    }
     this.drawLive();
+  }
+
+  /** a fast zig-zag over marks: erase them instead of drawing (true when it did) */
+  private scribbleErase(a: Extract<Action, { kind: "draw" }>): boolean {
+    const np = a.pts.length / 3;
+    if (np < 8) return false;
+    const path: TimedPt[] = [];
+    for (let i = 0; i < np; i++) path.push({ x: a.pts[i * 3] / Q, y: a.pts[i * 3 + 1] / Q, t: a.ts[i] ?? 0 });
+    const sb = detectScribble(path, 1);
+    if (!sb) return false;
+    const owner = new Map<Stroke, string>();
+    for (const pl of this.placedList) {
+      if (!pl.box || pl.box.x2 < sb.x1 || pl.box.x1 > sb.x2 || pl.box.y2 < sb.y1 || pl.box.y1 > sb.y2) continue;
+      for (const st of pl.strokes) owner.set(st, pl.mark.id);
+    }
+    const gone = scribbleTargets(path, sb, owner.keys(), 3);
+    if (!gone.length) return false;
+    const ids = new Set(gone.map((st) => owner.get(st)!));
+    this.skip = new Set(ids);
+    this.bump();
+    this.P.onErase(ids);
+    inkToast(`Erased ${ids.size} ${ids.size === 1 ? "mark" : "marks"}`, this.P.onUndo ? { label: "Undo", run: this.P.onUndo } : undefined);
+    return true;
   }
 
   private commitStroke(a: Extract<Action, { kind: "draw" }>) {
@@ -928,6 +1080,8 @@ export class AnnotEngine {
 
   private onClick = (e: MouseEvent) => {
     if (performance.now() > this.swallowUntil) return;
+    // our own controls (the toolbar, the long-press menu, the pen ↔ eraser switch) always take their click
+    if (e.target instanceof Element && e.target.closest("[data-annot-ui], [data-ink-ui]")) return;
     this.swallowUntil = 0;
     e.preventDefault();
     e.stopPropagation();

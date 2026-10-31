@@ -11,7 +11,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { useTheme } from "next-themes";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import InkCanvas, { type InkCanvasHandle, type InkContent, type InkToolId } from "@/components/learn/ink/InkCanvas";
-import InkToolbar from "@/components/learn/ink/InkToolbar";
+import InkToolbar, { COLORS } from "@/components/learn/ink/InkToolbar";
 import { InkError } from "@/lib/learn/ink/client";
 import { pageBytes } from "@/lib/learn/ink/geometry";
 import { PEN_SIZES, type InkTheme } from "@/lib/learn/ink/render";
@@ -341,6 +341,25 @@ const AnswerSheet = forwardRef<AnswerSheetHandle, Props>(function AnswerSheet({ 
             pad={12}
             onCommit={commit}
             onAutoPen={onAutoPen}
+            quick={
+              readOnly
+                ? undefined
+                : {
+                    onTool: setTool,
+                    color,
+                    onColor: (c) => {
+                      setColor(c);
+                      if (tool !== "pen" && tool !== "highlighter") setTool("pen");
+                    },
+                    colors: COLORS,
+                    sizes: PEN_SIZES,
+                    sizeIndex,
+                    onSize: setSizeIndex,
+                    onUndo: () => step(true),
+                    onRedo: () => step(false),
+                    lasso: true,
+                  }
+            }
             onFull={() => setNotice("This sheet is full. Add a sheet to keep writing.")}
             onZoom={setZoom}
             label={`${label}, sheet ${s + 1} of ${sheets}: ${page.strokes.length} strokes${page.items.length ? `, ${page.items.length} text boxes` : ""}.`}
