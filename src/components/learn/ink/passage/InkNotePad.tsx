@@ -2,11 +2,12 @@
 
 /**
  * The writing pad of a handwritten note: the notebook ink engine (InkCanvas) on a ruled sheet, with the few tools a
- * margin note needs: pen, highlighter, eraser, the ink palette, undo / redo, and "Pencil only".
+ * margin note needs: pen, highlighter, eraser, the ink palette, undo / redo, and the input mode.
  *
- * Pencil only (the notebook's per-device setting, hk.ink.pencilOnly): once a stylus touches the pad it turns on by
- * itself; then only the pen writes, a finger scrolls the pad and two fingers pinch-zoom, and a palm resting while
- * the pen writes is ignored. Without a stylus a finger or a mouse writes, and two fingers (or the wheel) scroll.
+ * Input (the device's setting shared by every ink surface, lib/learn/ink/inputMode.ts): Pen only (an active pen
+ * writes, a finger scrolls the pad, two fingers pinch-zoom, a palm resting while the pen writes is ignored; the
+ * first pen on a device switches to it), Stylus/finger (a finger or a universal stylus writes, two fingers scroll,
+ * palms are rejected by contact size where the browser reports it), or Scroll (nothing writes).
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Eraser, Highlighter, PenLine, Redo2, Undo2 } from "lucide-react";
@@ -14,8 +15,9 @@ import InkCanvas, { type InkCanvasHandle, type InkContent, type InkToolId } from
 import { INK, INK_LABEL, MARKER, MARKER_LABEL, PEN_SIZES, type InkTheme } from "@/lib/learn/ink/render";
 import { inkBytes, INK_NOTE_MAX_BYTES, PAD_PAPER, type InkNoteInk } from "@/lib/learn/ink/passage";
 import type { InkColor, Stroke } from "@/lib/learn/ink/types";
+import { PEN_FOUND, useInkInput } from "@/lib/learn/ink/inputMode";
+import InputModeMenu from "@/components/learn/ink/InputModeMenu";
 
-const PENCIL_KEY = "hk.ink.pencilOnly";
 const COLOR_KEY = "hk.inknote.color";
 const PALETTE: InkColor[] = ["ink", "signal", "teal", "red", "grey"];
 const NO_ITEMS: InkContent["items"] = [];
@@ -23,22 +25,6 @@ const HISTORY = 100;
 
 export type PadTool = Extract<InkToolId, "pen" | "highlighter" | "eraser">;
 export type InkNotePadHandle = { undo: () => void; redo: () => void; setTool: (t: PadTool) => void };
-
-function readPencil(): boolean | null {
-  try {
-    const v = window.localStorage.getItem(PENCIL_KEY);
-    return v === null ? null : v === "1";
-  } catch {
-    return null;
-  }
-}
-function writePencil(v: boolean) {
-  try {
-    window.localStorage.setItem(PENCIL_KEY, v ? "1" : "0");
-  } catch {
-    // ignore
-  }
-}
 
 type Props = {
   ink: InkNoteInk;
@@ -59,8 +45,7 @@ const InkNotePad = forwardRef<InkNotePadHandle, Props>(function InkNotePad({ ink
       return "ink";
     }
   });
-  const [pencilOnly, setPencilOnly] = useState<boolean>(() => readPencil() ?? false);
-  const [coarse] = useState(() => typeof window !== "undefined" && !!window.matchMedia?.("(any-pointer: coarse)").matches);
+  const { mode: inputMode } = useInkInput();
   const past = useRef<Stroke[][]>([]);
   const future = useRef<Stroke[][]>([]);
   const [hist, setHist] = useState({ undo: 0, redo: 0 });
@@ -117,13 +102,7 @@ const InkNotePad = forwardRef<InkNotePadHandle, Props>(function InkNotePad({ ink
   const redo = useCallback(() => step(false), [step]);
   useImperativeHandle(ref, () => ({ undo, redo, setTool }), [undo, redo]);
 
-  const onPenSeen = useCallback(() => {
-    if (readPencil() === null) {
-      writePencil(true);
-      setPencilOnly(true);
-      onNotice("Pencil found: now only the pencil writes, and a finger scrolls the pad.");
-    }
-  }, [onNotice]);
+  const onAutoPen = useCallback(() => onNotice(PEN_FOUND), [onNotice]);
 
   const b = (on: boolean) => `grid h-11 w-11 shrink-0 place-items-center ${on ? "bg-fg text-bg" : "text-fg hover:bg-surface-2"} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal`;
   const marker = tool === "highlighter";
@@ -169,21 +148,7 @@ const InkNotePad = forwardRef<InkNotePadHandle, Props>(function InkNotePad({ ink
         <button type="button" onClick={redo} disabled={!hist.redo} aria-label="Redo" aria-keyshortcuts="Control+Shift+Z Meta+Shift+Z" title="Redo (⇧⌘Z)" className={`${b(false)} disabled:opacity-35`}>
           <Redo2 className="h-[18px] w-[18px]" aria-hidden />
         </button>
-        {(coarse || pencilOnly) && (
-          <button
-            type="button"
-            onClick={() => {
-              setPencilOnly(!pencilOnly);
-              writePencil(!pencilOnly);
-            }}
-            aria-pressed={pencilOnly}
-            title="Pencil only: a finger scrolls the pad, only the stylus writes"
-            className={`ml-auto flex h-9 shrink-0 items-center gap-1.5 px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] ${pencilOnly ? "bg-signal text-on-signal" : "border border-line-strong text-fg-2 hover:text-fg"}`}
-          >
-            <span aria-hidden className={`h-2 w-2 ${pencilOnly ? "bg-on-signal" : "border border-fg-3"}`} />
-            Pencil only
-          </button>
-        )}
+        <InputModeMenu surface="pad" compact className="ml-auto" />
       </div>
       <div className="relative min-h-0 flex-1">
         <InkCanvas
@@ -195,11 +160,12 @@ const InkNotePad = forwardRef<InkNotePadHandle, Props>(function InkNotePad({ ink
           color={color}
           penSize={PEN_SIZES[1]}
           theme={theme}
-          pencilOnly={pencilOnly}
+          inputMode={inputMode}
+          surface="pad"
           full={full}
           pad={0}
           onCommit={commit}
-          onPenSeen={onPenSeen}
+          onAutoPen={onAutoPen}
           onFull={() => onNotice("This note is full. Start another note to keep writing.")}
           label={label}
         />

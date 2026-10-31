@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * One answer, handwritten: the notebook's ink engine (InkCanvas + InkToolbar, perfect-freehand, pencil-only palm
- * rejection) on exam paper, with undo/redo, typed text boxes, and up to MAX_SHEETS sheets per answer. Each sheet is a
+ * One answer, handwritten: the notebook's ink engine (InkCanvas + InkToolbar, perfect-freehand, the device's input
+ * mode and palm rejection) on exam paper, with undo/redo, typed text boxes, and up to MAX_SHEETS sheets per answer. Each sheet is a
  * notebook page (lib/learn/ink/client.ts), made only when the learner first writes on it (browsing the questions makes
  * no pages), then autosaved like any page (usePageAutosave: 1 s after a change, at once on leaving, a copy on this
  * device while offline).
@@ -18,8 +18,8 @@ import { PEN_SIZES, type InkTheme } from "@/lib/learn/ink/render";
 import { LIMITS, type InkColor, type NotebookPage, type Paper } from "@/lib/learn/ink/types";
 import { loadPage, usePageAutosave } from "@/lib/learn/ink/usePageAutosave";
 import { MAX_SHEETS } from "@/lib/learn/papers/types";
+import { PEN_FOUND, useInkInput } from "@/lib/learn/ink/inputMode";
 
-const PENCIL_KEY = "hk.ink.pencilOnly";
 const PREFS_KEY = "hk.ink.prefs";
 const HISTORY = 100;
 const SHEET_PAPERS: { id: Paper; label: string }[] = [
@@ -27,22 +27,6 @@ const SHEET_PAPERS: { id: Paper; label: string }[] = [
   { id: "grid", label: "Grid" },
   { id: "blank", label: "Blank" },
 ];
-
-function readPencil(): boolean | null {
-  try {
-    const v = window.localStorage.getItem(PENCIL_KEY);
-    return v === null ? null : v === "1";
-  } catch {
-    return null;
-  }
-}
-function writePencil(v: boolean) {
-  try {
-    window.localStorage.setItem(PENCIL_KEY, v ? "1" : "0");
-  } catch {
-    // ignore
-  }
-}
 
 export type AnswerSheetHandle = {
   /** save everything now (before grading or leaving the question) */
@@ -82,14 +66,12 @@ const AnswerSheet = forwardRef<AnswerSheetHandle, Props>(function AnswerSheet({ 
   const [tool, setTool] = useState<InkToolId>("pen");
   const [color, setColor] = useState<InkColor>("ink");
   const [sizeIndex, setSizeIndex] = useState(0);
-  const [pencilOnly, setPencilOnly] = useState(false);
+  const { mode: inputMode } = useInkInput();
   const [zoom, setZoom] = useState(1);
   const [notice, setNotice] = useState<string | null>(null);
   const canvas = useRef<InkCanvasHandle>(null);
 
   useEffect(() => {
-    const p = readPencil();
-    if (p !== null) setPencilOnly(p);
     try {
       const prefs = JSON.parse(window.localStorage.getItem(PREFS_KEY) || "{}") as { color?: InkColor; size?: number };
       if (prefs.color) setColor(prefs.color);
@@ -267,13 +249,7 @@ const AnswerSheet = forwardRef<AnswerSheetHandle, Props>(function AnswerSheet({ 
     return () => window.clearTimeout(id);
   }, [notice]);
 
-  const onPenSeen = useCallback(() => {
-    if (readPencil() === null) {
-      writePencil(true);
-      setPencilOnly(true);
-      setNotice("Pencil found: now only the pencil writes, and fingers scroll and zoom. Turn off “Pencil only” to write with a finger.");
-    }
-  }, []);
+  const onAutoPen = useCallback(() => setNotice(PEN_FOUND), []);
 
   const sheets = Math.max(1, ids.length);
   const sheetNav = useMemo(
@@ -340,11 +316,7 @@ const AnswerSheet = forwardRef<AnswerSheetHandle, Props>(function AnswerSheet({ 
             zoom={zoom}
             onZoom={(k) => canvas.current?.zoomBy(k)}
             onFit={() => canvas.current?.fit()}
-            pencilOnly={pencilOnly}
-            onPencilOnly={(v) => {
-              setPencilOnly(v);
-              writePencil(v);
-            }}
+            surface="paper"
             compact
             extra={sheetNav}
           />
@@ -363,11 +335,12 @@ const AnswerSheet = forwardRef<AnswerSheetHandle, Props>(function AnswerSheet({ 
             color={color}
             penSize={PEN_SIZES[sizeIndex]}
             theme={theme}
-            pencilOnly={pencilOnly}
+            inputMode={inputMode}
+            surface="paper"
             full={pageBytes(page.strokes, page.items) >= LIMITS.pageBytes}
             pad={12}
             onCommit={commit}
-            onPenSeen={onPenSeen}
+            onAutoPen={onAutoPen}
             onFull={() => setNotice("This sheet is full. Add a sheet to keep writing.")}
             onZoom={setZoom}
             label={`${label}, sheet ${s + 1} of ${sheets}: ${page.strokes.length} strokes${page.items.length ? `, ${page.items.length} text boxes` : ""}.`}

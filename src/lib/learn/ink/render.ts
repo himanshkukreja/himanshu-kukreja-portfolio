@@ -64,6 +64,33 @@ export function strokeInput(pts: number[], n = pts.length): { points: number[][]
   return { points, simulate };
 }
 
+/** while a pen stroke is drawn, its pressure is judged once it has this many points (before that, drawn as reported) */
+const PRESSURE_DECIDE = 6;
+/**
+ * Is a pen stroke's reported pressure worth drawing with? Not when it is flat (every sample 0.5 or 1: a pen with
+ * no pressure sensor) or faint (never above 0.15: a stylus reporting noise, like the 0.02–0.05 an Honor Pad X9's
+ * Dot Pencil 2 sends, which as pressure would draw a hairline). Such strokes are stored with pressure 0 and
+ * simulate it from speed, like a finger. Decided at capture: strokes already saved draw as they always did.
+ */
+export function penPressureUsable(pts: number[], live = false): boolean {
+  const n = Math.floor(pts.length / 3);
+  if (live && n < PRESSURE_DECIDE) return true;
+  let max = 0;
+  let flat = true;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i * 3 + 2];
+    if (p > max) max = p;
+    if (p !== 50 && p !== 100) flat = false;
+  }
+  return !flat && max > 15;
+}
+/** the same points with pressure 0 (simulate it) */
+export function withoutPressure(pts: number[]): number[] {
+  const out = pts.slice();
+  for (let i = 2; i < out.length; i += 3) out[i] = 0;
+  return out;
+}
+
 /** SVG path data for a perfect-freehand outline (quadratic midpoints; closed). */
 export function outlinePathData(outline: number[][]): string {
   const n = outline.length;

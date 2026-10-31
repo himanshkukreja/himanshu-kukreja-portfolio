@@ -15,9 +15,14 @@
  * drawn onto them alone; they are redrawn whole only when strokes are removed or moved, or when a zoom settles far
  * from their resolution. While a stroke is drawn only the live canvas (viewport-sized) is touched.
  *
- * Palm rejection: once a pen is seen (pointerType "pen"), the editor turns "pencil only" on (remembered per
- * device): then only the pen draws, one finger pans, two fingers pan and pinch-zoom, and any touch that lands
- * while the pen is down is ignored (a resting palm). With no stylus, a finger draws and two fingers move the page.
+ * Input (the device's setting, lib/learn/ink/inputMode.ts, shared with the pad, written papers and annotate):
+ *   Pen only       only the pen (pointerType "pen") draws; one finger pans, two fingers pan and pinch-zoom, and any
+ *                  touch that lands while the pen is down is ignored (a resting palm). The first pen on a device
+ *                  that never chose switches it here (onAutoPen).
+ *   Stylus/finger  one contact draws: a finger, or a passive "universal" stylus the browser reports as a finger.
+ *                  Two fingers pan and pinch; palms are rejected by contact size (TouchArbiter); a stylus that
+ *                  reports real pressure writes with it. A pen or a mouse draws too.
+ *   Scroll         nothing draws: every pointer pans, two fingers pinch.
  * touch-action: none on the surface (plus preventDefault on touchstart/move, for iPad Safari) keeps the browser
  * from scrolling or zooming the page under the pen; the view handles finger scrolling itself (with momentum).
  * A pen's barrel / eraser button (button 5, buttons & 32) erases where the browser reports it.
@@ -41,8 +46,9 @@ import {
   unionBox,
   type Box,
 } from "@/lib/learn/ink/geometry";
-import { MARKER_SIZE, addToLayer, buildLayer, fillLayer, fillStroke, outlinePathData, strokeInput, strokeOptions, strokePath, type InkTheme, type Layer } from "@/lib/learn/ink/render";
+import { MARKER_SIZE, addToLayer, buildLayer, fillLayer, fillStroke, outlinePathData, penPressureUsable, strokeInput, strokeOptions, strokePath, withoutPressure, type InkTheme, type Layer } from "@/lib/learn/ink/render";
 import { PAGE_H, PAGE_W, type InkColor, type PageItem, type Paper, type Stroke } from "@/lib/learn/ink/types";
+import { ContactLog, TouchArbiter, noteFingerDrag, notePen, pressureVaries, type ArbiterEvent, type ContactPoint, type InkInputMode, type InkSurface } from "@/lib/learn/ink/inputMode";
 import PaperView from "./Paper";
 import PageItems from "./PageItems";
 
@@ -63,14 +69,18 @@ type Props = {
   color: InkColor;
   penSize: number;
   theme: InkTheme;
-  pencilOnly: boolean;
+  /** the device's input mode (lib/learn/ink/inputMode.ts) */
+  inputMode: InkInputMode;
+  /** which surface this is (the "your stylus looks like a finger" hint shows on its mode control) */
+  surface?: InkSurface;
   /** the page is at its size limit: new ink is refused (onFull) */
   full: boolean;
   /** space around the sheet at "fit width" (px) */
   pad?: number;
   /** a change made on the page; mergeKey folds consecutive changes into one undo step (typing) */
   onCommit: (next: InkContent, mergeKey?: string) => void;
-  onPenSeen?: () => void;
+  /** the first pen on this device switched it to Pen only (say so) */
+  onAutoPen?: () => void;
   onFull?: () => void;
   /** the zoom: 1 = 100% = the page at 1000 px wide */
   onZoom?: (z: number) => void;
@@ -81,7 +91,19 @@ type Props = {
 type View = { s: number; tx: number; ty: number };
 type Sel = { strokes: Set<string>; items: Set<string>; box: Box };
 type Action =
-  | { kind: "draw"; pid: number; tool: "pen" | "highlighter"; color: InkColor; size: number; pts: number[]; predicted: number[] }
+  | {
+      kind: "draw";
+      pid: number;
+      tool: "pen" | "highlighter";
+      color: InkColor;
+      size: number;
+      pts: number[];
+      predicted: number[];
+      /** the pointer type; a "touch" stroke uses its pressure only once it proves real (a stylus reported as touch) */
+      src: string;
+      raw: number[];
+      real: boolean;
+    }
   | { kind: "erase"; pid: number; last: [number, number] | null; erased: Set<string>; at: [number, number] }
   | { kind: "lasso"; pid: number; poly: number[] }
   | { kind: "move"; pid: number; from: [number, number]; dx: number; dy: number }
@@ -91,7 +113,11 @@ type Action =
 
 const MAX_RES = 2.5;
 const MIN_STEP2 = 8 * 8; // keep a point only when it is 0.8 page units from the last (pts are ×10)
-const isPen = (e: PointerEvent) => e.pointerType === "pen";
+/** a pointer down, real or replayed from a contact's history (a contact that takes over the pen late) */
+type Ptr = Pick<PointerEvent, "pointerId" | "pointerType" | "button" | "buttons" | "pressure" | "clientX" | "clientY">;
+const isPen = (e: Ptr) => e.pointerType === "pen";
+/** a single-finger drag this long (px) in Pen only would have been a stroke */
+const DRAG_PX = 12;
 const interactive = (t: EventTarget | null) => !!(t instanceof Element && t.closest("textarea, a, button, input, select, [data-ink-ui]"));
 
 const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, ref) {
@@ -231,7 +257,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     const v = view.current;
     const th = P.current.theme;
     if (a.kind === "draw") {
-      const all = a.predicted.length ? a.pts.concat(a.predicted) : a.pts;
+      let all = a.predicted.length ? a.pts.concat(a.predicted) : a.pts;
+      if (a.src === "pen" && !penPressureUsable(a.pts, true)) all = withoutPressure(all);
       const { points, simulate } = strokeInput(all);
       const outline = getStroke(points, strokeOptions({ tool: a.tool, size: a.size }, simulate, false));
       fillStroke(x, { id: "", tool: a.tool, color: a.color, size: a.size, pts: [] }, th, new Path2D(outlinePathData(outline)));
@@ -515,9 +542,19 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
 
   // ------------------------------------------------------------------ input
 
+  // one per surface: who writes among touch contacts (Stylus/finger), and per-pointer facts (dev log, the hint)
+  const arbRef = useRef<TouchArbiter | null>(null);
+  const logRef = useRef<ContactLog | null>(null);
+
   useEffect(() => {
     const wrap = wrapRef.current;
     if (!wrap) return;
+    const where = P.current.surface || "page";
+    const arb = (arbRef.current = new TouchArbiter(where));
+    const log = (logRef.current = new ContactLog(where));
+    const mode = () => P.current.inputMode;
+    /** touch contacts go through the arbiter (Stylus/finger mode) */
+    const arbitrated = (e: PointerEvent) => e.pointerType === "touch" && mode() === "touch";
 
     const stopInertia = () => {
       if (inertia.current) window.cancelAnimationFrame(inertia.current);
@@ -543,10 +580,22 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
         }
         action.current = null;
         drawLive();
+      } else if (a && (a.kind === "move" || a.kind === "scale")) {
+        action.current = null;
+        finishSelectionEdit(0, 0, 1);
+        drawLive();
       }
     };
 
-    const begin = (e: PointerEvent, x: number, y: number) => {
+    const capture = (id: number) => {
+      try {
+        wrap.setPointerCapture(id);
+      } catch {
+        // capture is best effort (a replayed contact, a pointer already up)
+      }
+    };
+
+    const begin = (e: Ptr, x: number, y: number) => {
       const p = P.current;
       const barrel = isPen(e) && (e.button === 5 || (e.buttons & 32) === 32);
       const t = barrel ? "eraser" : p.tool;
@@ -564,6 +613,9 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
           size: t === "highlighter" ? MARKER_SIZE : p.penSize,
           pts: [Math.round(x * Q), Math.round(y * Q), pr],
           predicted: [],
+          src: e.pointerType,
+          raw: [e.pressure || 0],
+          real: false,
         };
       } else if (t === "eraser") {
         action.current = { kind: "erase", pid: e.pointerId, last: null, erased: new Set(), at: [x, y] };
@@ -584,13 +636,109 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
         action.current = { kind: "tap", pid: e.pointerId, at: [x, y], client: [e.clientX, e.clientY] };
       }
       if (action.current) {
-        try {
-          wrap.setPointerCapture(e.pointerId);
-        } catch {
-          // capture is best effort
-        }
+        capture(e.pointerId);
         drawLive();
       }
+    };
+
+    /** a touch stroke's pressure, once its contact proves it real (a stylus the browser calls a finger) */
+    const touchPressure = (a: Extract<Action, { kind: "draw" }>) => {
+      if (a.real || a.src !== "touch") return;
+      const c = arb.get(a.pid);
+      if (!c || !pressureVaries(c)) return;
+      a.real = true;
+      for (let i = 0; i * 3 + 2 < a.pts.length; i++) a.pts[i * 3 + 2] = Math.max(1, Math.round((a.raw[i] || 0.5) * 100));
+    };
+    const pressureOf = (a: Extract<Action, { kind: "draw" }>, p: number) =>
+      a.src === "pen" ? Math.max(1, Math.round((p || 0.5) * 100)) : a.real ? Math.max(1, Math.round((p || 0.5) * 100)) : 0;
+
+    /** follow the pointer: points for the stroke, the eraser, the lasso */
+    const extend = (a: Action, list: ContactPoint[]) => {
+      if (a.kind === "draw") {
+        const pts = a.pts;
+        for (const ev of list) {
+          const [x, y] = toPage(ev.clientX, ev.clientY);
+          const qx = Math.round(Math.max(0, Math.min(PAGE_W, x)) * Q);
+          const qy = Math.round(Math.max(0, Math.min(PAGE_H, y)) * Q);
+          const lx = pts[pts.length - 3];
+          const ly = pts[pts.length - 2];
+          if ((qx - lx) ** 2 + (qy - ly) ** 2 < MIN_STEP2) continue;
+          pts.push(qx, qy, pressureOf(a, ev.pressure));
+          a.raw.push(ev.pressure || 0);
+        }
+        touchPressure(a);
+      } else if (a.kind === "erase") {
+        for (const ev of list) {
+          const [x, y] = toPage(ev.clientX, ev.clientY);
+          eraseAlong(a, x, y);
+        }
+      } else if (a.kind === "lasso") {
+        for (const ev of list) {
+          const [x, y] = toPage(ev.clientX, ev.clientY);
+          const n = a.poly.length;
+          if ((x - a.poly[n - 2]) ** 2 + (y - a.poly[n - 1]) ** 2 > 9) a.poly.push(x, y);
+        }
+      }
+    };
+
+    /** what the arbiter decided (Stylus/finger mode) */
+    const apply = (evs: ArbiterEvent[]) => {
+      for (const ev of evs) {
+        if (ev.type === "draw") {
+          const c = arb.get(ev.id);
+          if (!c || !c.hist.length) continue;
+          const h0 = c.hist[0];
+          // the page: replay where the contact has been since it landed (nothing is lost when it takes over late)
+          if (action.current?.kind === "pan") action.current = null;
+          const [x, y] = toPage(h0.clientX, h0.clientY);
+          begin({ pointerId: c.id, pointerType: "touch", button: 0, buttons: 1, pressure: h0.pressure, clientX: h0.clientX, clientY: h0.clientY }, x, y);
+          const a = action.current as Action | null;
+          if (a && a.pid === c.id && c.hist.length > 1) extend(a, c.hist.slice(1));
+          drawLive();
+        } else if (ev.type === "drop") {
+          if (action.current?.pid === ev.id) cancelDraw();
+        } else if (ev.type === "end") {
+          const a = action.current;
+          if (a?.pid === ev.id) complete(a, false, performance.now());
+        } else if (ev.type === "gesture") {
+          stopInertia();
+          if (action.current && action.current.kind !== "pan") cancelDraw();
+          action.current = null;
+          touches.current.clear();
+          for (const id of ev.ids) {
+            const c = arb.get(id);
+            if (c) touches.current.set(id, [c.x, c.y]);
+          }
+          startPinch();
+        } else if (ev.type === "gesture-end") {
+          pinch.current = null;
+          touches.current.clear();
+          const c = ev.left !== null ? arb.get(ev.left) : null;
+          action.current = c ? { kind: "pan", pid: c.id, last: [c.x, c.y], samples: [] } : null;
+          schedule();
+        }
+      }
+    };
+
+    /** a finger (Pen only, Scroll): one pans, two pan and pinch */
+    const fingerDown = (e: PointerEvent, textTap: boolean) => {
+      log.setRole(e.pointerId, "pan");
+      touches.current.set(e.pointerId, [e.clientX, e.clientY]);
+      capture(e.pointerId);
+      if (touches.current.size >= 2) {
+        // two fingers: whatever one finger started becomes a pinch
+        cancelDraw();
+        action.current = null;
+        for (const id of touches.current.keys()) log.setRole(id, "gesture");
+        startPinch();
+        return;
+      }
+      if (textTap && P.current.tool === "text") {
+        const [x, y] = toPage(e.clientX, e.clientY);
+        action.current = { kind: "tap", pid: e.pointerId, at: [x, y], client: [e.clientX, e.clientY] };
+        return;
+      }
+      action.current = { kind: "pan", pid: e.pointerId, last: [e.clientX, e.clientY], samples: [[e.clientX, e.clientY, e.timeStamp]] };
     };
 
     const onDown = (e: PointerEvent) => {
@@ -598,42 +746,47 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       stopInertia();
       rect.current = wrap.getBoundingClientRect();
       const p = P.current;
+      const m = mode();
       if (isPen(e)) {
-        p.onPenSeen?.();
+        if (notePen()) p.onAutoPen?.();
         // a palm already panning: stop it, the pen wins
         touches.current.clear();
         pinch.current = null;
         if (action.current?.kind === "pan") action.current = null;
+        if (m === "touch") {
+          // a stroke a finger (or a palm) started gives way to the pen
+          if (action.current && arb.get(action.current.pid)) cancelDraw();
+          arb.reset();
+        }
         penDown.current = true;
+      }
+      if (arbitrated(e)) {
+        if (penDown.current) return; // a palm while the pen writes
+        e.preventDefault();
+        apply(arb.down(e));
+        return;
+      }
+      log.down(e);
+      if (m === "scroll") {
+        // nothing draws: every pointer moves the page
+        if (e.pointerType === "touch") {
+          fingerDown(e, false);
+          return;
+        }
+        if (e.pointerType === "mouse" && e.button !== 0 && e.button !== 1) return;
+        action.current = { kind: "pan", pid: e.pointerId, last: [e.clientX, e.clientY], samples: [] };
+        capture(e.pointerId);
+        e.preventDefault();
+        return;
       }
       if (e.pointerType === "touch") {
         if (penDown.current) return; // a palm while the pen writes
-        touches.current.set(e.pointerId, [e.clientX, e.clientY]);
-        try {
-          wrap.setPointerCapture(e.pointerId);
-        } catch {
-          // ignore
-        }
-        if (touches.current.size >= 2) {
-          // two fingers: whatever one finger started becomes a pinch
-          cancelDraw();
-          action.current = null;
-          startPinch();
-          return;
-        }
-        if (p.pencilOnly) {
-          if (p.tool === "text") {
-            const [x, y] = toPage(e.clientX, e.clientY);
-            action.current = { kind: "tap", pid: e.pointerId, at: [x, y], client: [e.clientX, e.clientY] };
-            return;
-          }
-          action.current = { kind: "pan", pid: e.pointerId, last: [e.clientX, e.clientY], samples: [[e.clientX, e.clientY, e.timeStamp]] };
-          return;
-        }
+        fingerDown(e, true);
+        return;
       }
       if (e.pointerType === "mouse" && e.button === 1) {
         action.current = { kind: "pan", pid: e.pointerId, last: [e.clientX, e.clientY], samples: [] };
-        wrap.setPointerCapture(e.pointerId);
+        capture(e.pointerId);
         return;
       }
       if (e.pointerType === "mouse" && e.button !== 0) return;
@@ -644,6 +797,10 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     };
 
     const onMove = (e: PointerEvent) => {
+      if (arbitrated(e)) {
+        if (!arb.get(e.pointerId)) return;
+        apply(arb.move(e));
+      } else log.move(e);
       if (e.pointerType === "touch" && touches.current.has(e.pointerId)) {
         touches.current.set(e.pointerId, [e.clientX, e.clientY]);
         const pc = pinch.current;
@@ -683,33 +840,15 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       const evs = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
       const list = evs.length ? evs : [e];
       if (a.kind === "draw") {
-        const pts = a.pts;
-        for (const ev of list) {
-          const [x, y] = toPage(ev.clientX, ev.clientY);
-          const qx = Math.round(Math.max(0, Math.min(PAGE_W, x)) * Q);
-          const qy = Math.round(Math.max(0, Math.min(PAGE_H, y)) * Q);
-          const lx = pts[pts.length - 3];
-          const ly = pts[pts.length - 2];
-          if ((qx - lx) ** 2 + (qy - ly) ** 2 < MIN_STEP2) continue;
-          pts.push(qx, qy, pts[2] > 0 ? Math.max(1, Math.round((ev.pressure || 0.5) * 100)) : 0);
-        }
+        extend(a, list);
         a.predicted = [];
         const pred = typeof e.getPredictedEvents === "function" ? e.getPredictedEvents() : [];
         for (const ev of pred.slice(0, 2)) {
           const [x, y] = toPage(ev.clientX, ev.clientY);
-          a.predicted.push(Math.round(x * Q), Math.round(y * Q), pts[2] > 0 ? Math.max(1, Math.round((ev.pressure || 0.5) * 100)) : 0);
+          a.predicted.push(Math.round(x * Q), Math.round(y * Q), pressureOf(a, ev.pressure));
         }
-      } else if (a.kind === "erase") {
-        for (const ev of list) {
-          const [x, y] = toPage(ev.clientX, ev.clientY);
-          eraseAlong(a, x, y);
-        }
-      } else if (a.kind === "lasso") {
-        for (const ev of list) {
-          const [x, y] = toPage(ev.clientX, ev.clientY);
-          const n = a.poly.length;
-          if ((x - a.poly[n - 2]) ** 2 + (y - a.poly[n - 1]) ** 2 > 9) a.poly.push(x, y);
-        }
+      } else if (a.kind === "erase" || a.kind === "lasso") {
+        extend(a, list);
       } else if (a.kind === "move") {
         const [x, y] = toPage(e.clientX, e.clientY);
         a.dx = x - a.from[0];
@@ -731,22 +870,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       }
     };
 
-    const finish = (e: PointerEvent, cancelled: boolean) => {
-      if (isPen(e)) penDown.current = false;
-      if (e.pointerType === "touch") {
-        const wasPinch = touches.current.size >= 2;
-        touches.current.delete(e.pointerId);
-        if (wasPinch) {
-          pinch.current = null;
-          // the finger left on the glass carries on panning in pencil-only mode
-          const left = [...touches.current.entries()][0];
-          action.current = left && P.current.pencilOnly ? { kind: "pan", pid: left[0], last: left[1], samples: [] } : null;
-          schedule();
-          return;
-        }
-      }
-      const a = action.current;
-      if (!a || a.pid !== e.pointerId) return;
+    /** the action of a pointer that lifted (or turned into a palm after writing a while): finish it */
+    const complete = (a: Action, cancelled: boolean, timeStamp: number) => {
       action.current = null;
       if (a.kind === "pan") {
         // momentum
@@ -757,7 +882,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
           const dt = Math.max(8, t1 - t0);
           let vx = (x1 - x0) / dt;
           let vy = (y1 - y0) / dt;
-          if (e.timeStamp - t1 < 80 && Math.hypot(vx, vy) > 0.15) {
+          if (timeStamp - t1 < 80 && Math.hypot(vx, vy) > 0.15) {
             let last = performance.now();
             const step = (now: number) => {
               const dt2 = now - last;
@@ -778,7 +903,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       }
       if (a.kind === "draw") {
         if (a.pts.length >= 3) {
-          const st: Stroke = { id: newInkId(), tool: a.tool, color: a.color, size: a.size, pts: a.pts };
+          const pts = a.src === "pen" && !penPressureUsable(a.pts) ? withoutPressure(a.pts) : a.pts;
+          const st: Stroke = { id: newInkId(), tool: a.tool, color: a.color, size: a.size, pts };
           commit({ strokes: [...P.current.strokes, st] });
         }
         // the committed layer draws it (layout effect); clear what is left of the live one
@@ -843,6 +969,42 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       }
     };
 
+    const finish = (e: PointerEvent, cancelled: boolean) => {
+      if (isPen(e)) penDown.current = false;
+      if (e.pointerType === "touch" && mode() === "touch") {
+        if (!arb.get(e.pointerId)) {
+          if (!touches.current.has(e.pointerId) && action.current?.pid !== e.pointerId) return;
+        } else {
+          const evs = arb.up(e);
+          touches.current.delete(e.pointerId);
+          if (evs.length) {
+            apply(evs);
+            return;
+          }
+        }
+      } else {
+        const c = log.up(e);
+        // Pen only: a single finger dragged where a pen would have written (the "stylus looks like a finger" hint)
+        if (c && c.type === "touch" && c.role === "pan" && c.dist > DRAG_PX && mode() === "pen")
+          noteFingerDrag(P.current.surface || "page", { tilt: c.tilt, pressure: pressureVaries(c) });
+        if (e.pointerType === "touch") {
+          const wasPinch = touches.current.size >= 2;
+          touches.current.delete(e.pointerId);
+          if (wasPinch) {
+            pinch.current = null;
+            // the finger left on the glass carries on panning (fingers don't draw in these modes)
+            const left = [...touches.current.entries()][0];
+            action.current = left ? { kind: "pan", pid: left[0], last: left[1], samples: [] } : null;
+            schedule();
+            return;
+          }
+        }
+      }
+      const a = action.current;
+      if (!a || a.pid !== e.pointerId) return;
+      complete(a, cancelled, e.timeStamp);
+    };
+
     const onUp = (e: PointerEvent) => finish(e, false);
     const onCancel = (e: PointerEvent) => {
       // iPad Safari cancels a pen stroke when a system gesture starts: keep what was drawn
@@ -895,6 +1057,23 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- handlers read the latest props through P
   }, [clamp, setView, zoomAt, schedule, renderCommitted, drawLive, commit]);
+
+  // the mode changed: whatever fingers were doing stops (the next touch follows the new mode). A pen or a mouse
+  // carries on: the first pen on a device switches the mode while its stroke is being drawn
+  const inputMode = props.inputMode;
+  useEffect(() => {
+    const a = action.current;
+    const byTouch = !!a && (!!arbRef.current?.get(a.pid) || touches.current.has(a.pid));
+    arbRef.current?.reset();
+    touches.current.clear();
+    pinch.current = null;
+    if (a && byTouch) {
+      action.current = null;
+      hidden.current = null;
+      renderCommitted();
+      drawLive();
+    }
+  }, [inputMode, renderCommitted, drawLive]);
 
   // ------------------------------------------------------------------ text boxes
 

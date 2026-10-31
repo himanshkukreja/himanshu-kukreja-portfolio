@@ -1,11 +1,13 @@
 "use client";
 
-/** The notebook page tools: pen / highlighter / eraser / lasso / text, colour, size, undo/redo, zoom, pencil only. */
+/** The notebook page tools: pen / highlighter / eraser / lasso / text, colour, size, undo/redo, zoom, input mode. */
 import { Eraser, Highlighter, Lasso, PenLine, Redo2, Type, Undo2, ZoomIn, ZoomOut } from "lucide-react";
 import type { ReactNode } from "react";
 import { INK, INK_LABEL, MARKER, MARKER_LABEL, PEN_SIZES, type InkTheme } from "@/lib/learn/ink/render";
 import type { InkColor } from "@/lib/learn/ink/types";
+import type { InkSurface } from "@/lib/learn/ink/inputMode";
 import type { InkToolId } from "./InkCanvas";
+import InputModeMenu from "./InputModeMenu";
 
 export const COLORS: InkColor[] = ["ink", "signal", "teal", "red", "grey"];
 
@@ -32,8 +34,8 @@ type Props = {
   zoom: number;
   onZoom: (k: number) => void;
   onFit: () => void;
-  pencilOnly: boolean;
-  onPencilOnly: (v: boolean) => void;
+  /** the surface (for the input control's hint) */
+  surface: InkSurface;
   compact?: boolean;
   /** more controls at the end of the row (the panel's paper picker) */
   extra?: ReactNode;
@@ -112,16 +114,7 @@ export default function InkToolbar(p: Props) {
         <ZoomIn className="h-[18px] w-[18px]" aria-hidden />
       </button>
       {sep}
-      <button
-        type="button"
-        onClick={() => p.onPencilOnly(!p.pencilOnly)}
-        aria-pressed={p.pencilOnly}
-        title="Pencil only: fingers scroll and zoom, only the stylus draws"
-        className={`flex h-10 shrink-0 items-center gap-1.5 px-2.5 font-mono text-[11px] uppercase tracking-[0.06em] ${p.pencilOnly ? "bg-signal text-on-signal" : "border border-line-strong text-fg-2 hover:text-fg"}`}
-      >
-        <span aria-hidden className={`h-2 w-2 ${p.pencilOnly ? "bg-on-signal" : "border border-fg-3"}`} />
-        Pencil only
-      </button>
+      <InputModeMenu surface={p.surface} compact={p.compact} />
       {p.extra}
     </div>
   );

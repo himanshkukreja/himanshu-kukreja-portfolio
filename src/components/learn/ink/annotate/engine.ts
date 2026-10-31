@@ -15,13 +15,22 @@
  * all change the content's size: a ResizeObserver re-places every mark (annotate.ts placeMark) and redraws the tiles
  * near the viewport. DOM changes inside the content (highlights re-render it) rebuild the block index first.
  *
- * Input (mode on): window-level capture listeners. A pen ("pen" pointers) or a mouse draws; fingers are never
- * consumed, so they scroll, tap links and select as usual ("pencil only"). For the pen, touchstart / touchmove are
- * cancelled (iPad Safari reports the Pencil as a touch with touchType "stylus") so the page doesn't scroll or start
- * a text selection under it. A mouse stroke that moved swallows the click that follows (no link opens under a drawn
- * line); a click without movement on a link still opens it.
+ * Input (mode on): window-level capture listeners, per the device's input mode (lib/learn/ink/inputMode.ts).
+ *   Pen only       a pen ("pen" pointers) or a mouse draws; fingers are never consumed, so they scroll, tap links
+ *                  and select as usual. For the pen, touchstart / touchmove are cancelled (iPad Safari reports the
+ *                  Pencil as a touch with touchType "stylus") so the page doesn't scroll or start a text selection
+ *                  under it. Finger drags over the lesson are counted for the "your stylus looks like a finger" hint.
+ *   Stylus/finger  for passive styluses: one touch contact writes (TouchArbiter: palms by size, a second contact
+ *                  while the stroke is young makes a two-finger gesture). Over the lesson the wrapper gets
+ *                  touch-action: none and touchstart / touchmove / touchend are cancelled, so the browser neither
+ *                  scrolls nor selects nor opens links; two fingers scroll the lesson here (window.scrollBy, or the
+ *                  nearest scrolling ancestor, with momentum). Pinch-zoom of the page waits until annotate is done.
+ *   Scroll         the mode takes no input at all, as if it were off.
+ * A mouse stroke that moved swallows the click that follows (no link opens under a drawn line); a click without
+ * movement on a link still opens it. A touch stroke always swallows its click.
  */
-import { buildLayer, fillLayer, fillStroke, outlinePathData, strokeInput, strokeOptions, type InkTheme } from "@/lib/learn/ink/render";
+import { buildLayer, fillLayer, fillStroke, outlinePathData, penPressureUsable, strokeInput, strokeOptions, withoutPressure, type InkTheme } from "@/lib/learn/ink/render";
+import { ContactLog, TouchArbiter, noteFingerDrag, pressureVaries, type ArbiterEvent, type ContactPoint, type InkInputMode } from "@/lib/learn/ink/inputMode";
 import { Q, strokeHit, unionBox, strokeBox, type Box } from "@/lib/learn/ink/geometry";
 import { getStroke } from "perfect-freehand";
 import type { InkColor, InkTool, Stroke } from "@/lib/learn/ink/types";
@@ -53,13 +62,18 @@ export type EngineProps = {
   /** placements changed: which marks are detached */
   onDetached: (ids: string[]) => void;
   onPenSeen: () => void;
+  /** the device's input mode */
+  input: InkInputMode;
 };
 
 type Tile = { i: number; hl: HTMLCanvasElement; ink: HTMLCanvasElement; v: number };
 
 type Action =
-  | { kind: "draw"; pid: number; type: string; tool: InkTool; color: InkColor; size: number; pts: number[]; predicted: number[]; moved: boolean; start: [number, number] }
+  | { kind: "draw"; pid: number; type: string; tool: InkTool; color: InkColor; size: number; pts: number[]; predicted: number[]; moved: boolean; start: [number, number]; raw: number[]; real: boolean }
   | { kind: "erase"; pid: number; type: string; erased: Set<string>; at: [number, number] | null; moved: boolean; start: [number, number] };
+
+/** a finger drag this long (px) over the lesson in Pen only would have been a stroke */
+const DRAG_PX = 12;
 
 const UI_SEL = "[data-annot-ui], [data-reader-ui], [data-stage-rail], header, nav, aside, dialog, [role='dialog'], [data-hk-snip-ui], [data-ink-ui], [data-sd-chrome] button";
 
@@ -93,6 +107,13 @@ export class AnnotEngine {
   private ro: ResizeObserver;
   private mo: MutationObserver;
   private listening = false;
+  /** Stylus/finger: who writes among the touch contacts */
+  private arb = new TouchArbiter("annotate");
+  /** Pen only: fingers over the lesson (dev log, the hint) */
+  private fingers = new ContactLog("annotate");
+  /** two-finger scroll (Stylus/finger): the contacts, the last midpoint, recent samples for momentum */
+  private scroll: { ids: number[]; last: [number, number]; samples: [number, number, number][] } | null = null;
+  private inertia = 0;
   /** ms spent in the last full re-place, and per tile paint (dev numbers for the report / QA) */
   stats = { relayoutMs: 0, paints: 0, paintMs: 0, strokes: 0 };
 
@@ -163,8 +184,12 @@ export class AnnotEngine {
       this.hlLayer.style.mixBlendMode = p.theme === "dark" ? "screen" : "multiply";
       this.bump();
     }
-    if (p.on && !this.listening) this.startInput();
-    if (!p.on && this.listening) this.stopInput();
+    const take = p.on && p.input !== "scroll";
+    if (prev && prev.input !== p.input && this.listening) this.resetTouch();
+    if (take && !this.listening) this.startInput();
+    if (!take && this.listening) this.stopInput();
+    // Stylus/finger: the browser must not pan the lesson under a finger that writes (two fingers scroll, here)
+    this.wrap.style.touchAction = take && p.input === "touch" ? "none" : "";
     if (prev && prev.on !== p.on) this.scheduleRelayout(0);
     if (prev && prev.marks !== p.marks) this.syncMarks();
     if (prev && !prev.show && p.show) this.bump();
@@ -429,6 +454,8 @@ export class AnnotEngine {
     window.addEventListener("pointercancel", this.onCancel, o);
     window.addEventListener("touchstart", this.onTouch, o);
     window.addEventListener("touchmove", this.onTouch, o);
+    window.addEventListener("touchend", this.onTouch, o);
+    window.addEventListener("contextmenu", this.onContextMenu, o);
     window.addEventListener("click", this.onClick, o);
     window.addEventListener("selectstart", this.onSelectStart, o);
     this.sizeLive();
@@ -444,10 +471,13 @@ export class AnnotEngine {
     window.removeEventListener("pointercancel", this.onCancel, o);
     window.removeEventListener("touchstart", this.onTouch, o);
     window.removeEventListener("touchmove", this.onTouch, o);
+    window.removeEventListener("touchend", this.onTouch, o);
+    window.removeEventListener("contextmenu", this.onContextMenu, o);
     window.removeEventListener("click", this.onClick, o);
     window.removeEventListener("selectstart", this.onSelectStart, o);
     window.removeEventListener("resize", this.sizeLive);
     if (this.action) this.cancelAction();
+    this.resetTouch();
     document.documentElement.style.removeProperty("user-select");
     document.documentElement.style.removeProperty("-webkit-user-select");
   }
@@ -465,9 +495,13 @@ export class AnnotEngine {
 
   /** Is this pointer down for us: inside the overlay, not on chrome or our own UI? */
   private accepts(e: PointerEvent): boolean {
-    const t = e.target instanceof Element ? e.target : null;
+    return this.acceptsAt(e.target, e.clientX, e.clientY);
+  }
+
+  private acceptsAt(target: EventTarget | null, x: number, y: number): boolean {
+    const t = target instanceof Element ? target : null;
     const r = this.hlLayer.getBoundingClientRect();
-    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return false;
+    if (x < r.left || x > r.right || y < r.top || y > r.bottom) return false;
     // inside the lesson text: everything is paper (a pen writes over a quiz button rather than pressing it)
     if (t && this.root.contains(t)) return !t.closest("[data-annot-ui]");
     if (t?.closest(UI_SEL)) return false;
@@ -484,11 +518,33 @@ export class AnnotEngine {
   }
 
   private onDown = (e: PointerEvent) => {
-    if (e.pointerType === "touch") return; // fingers scroll, tap and select (pencil only)
+    this.stopInertia();
+    if (e.pointerType === "touch") {
+      if (this.P.input === "touch") this.touchDown(e);
+      else if (this.accepts(e)) {
+        // Pen only: fingers scroll, tap and select; one dragging over the lesson counts toward the hint
+        this.fingerIds.add(e.pointerId);
+        this.fingers.down(e, "pan");
+        if (this.fingerIds.size >= 2) for (const id of this.fingerIds) this.fingers.setRole(id, "gesture");
+      }
+      return;
+    }
     if (e.pointerType === "mouse" && e.button !== 0) return;
     if (!this.accepts(e)) return;
+    if (e.pointerType === "pen") {
+      // the pen wins over a finger (or a palm) that started a stroke
+      if (this.action && this.action.type === "touch") this.cancelAction();
+      this.resetTouch();
+    }
     if (this.action) return;
     if (e.pointerType === "pen") this.P.onPenSeen();
+    this.begin({ pointerId: e.pointerId, pointerType: e.pointerType, button: e.button, buttons: e.buttons, pressure: e.pressure, clientX: e.clientX, clientY: e.clientY });
+    // the pen / mouse writes: no text selection, no focus change, no drag of a link or image
+    e.preventDefault();
+    e.stopPropagation();
+  };
+
+  private begin(e: Pick<PointerEvent, "pointerId" | "pointerType" | "button" | "buttons" | "pressure" | "clientX" | "clientY">) {
     const p = this.P;
     // writing while the marks are hidden shows them again
     if (!p.show) setShowMarks(true);
@@ -506,42 +562,182 @@ export class AnnotEngine {
       }
       const [x, y] = this.toOverlay(e.clientX, e.clientY, o);
       const pr = e.pointerType === "pen" ? Math.max(1, Math.round((e.pressure || 0.5) * 100)) : 0;
-      this.action = { kind: "draw", pid: e.pointerId, type: e.pointerType, tool, color: p.color, size: p.size, pts: [x, y, pr], predicted: [], moved: false, start };
+      this.action = { kind: "draw", pid: e.pointerId, type: e.pointerType, tool, color: p.color, size: p.size, pts: [x, y, pr], predicted: [], moved: false, start, raw: [e.pressure || 0], real: false };
     }
-    // the pen / mouse writes: no text selection, no focus change, no drag of a link or image
-    e.preventDefault();
-    e.stopPropagation();
     document.documentElement.style.setProperty("user-select", "none");
     document.documentElement.style.setProperty("-webkit-user-select", "none");
     this.drawLive();
-  };
+  }
+
+  // ------------------------------------------------------------------ touch (Stylus/finger)
+
+  /** touch pointers down over the lesson */
+  private fingerIds = new Set<number>();
+
+  private touchDown(e: PointerEvent) {
+    if (!this.accepts(e)) return;
+    // a palm while the pen writes
+    if (this.action && this.action.type === "pen") return;
+    if (this.action && this.action.type === "mouse") return;
+    this.fingerIds.add(e.pointerId);
+    e.preventDefault();
+    e.stopPropagation();
+    this.applyTouch(this.arb.down(e));
+  }
+
+  private applyTouch(evs: ArbiterEvent[]) {
+    for (const ev of evs) {
+      if (ev.type === "draw") {
+        const c = this.arb.get(ev.id);
+        if (!c || !c.hist.length || (this.action && this.action.type !== "touch")) continue;
+        if (this.action) this.cancelAction();
+        this.scroll = null;
+        const h0 = c.hist[0];
+        this.begin({ pointerId: c.id, pointerType: "touch", button: 0, buttons: 1, pressure: h0.pressure, clientX: h0.clientX, clientY: h0.clientY });
+        const a = this.action as Action | null;
+        if (a && a.pid === c.id && c.hist.length > 1) {
+          this.extend(a, c.hist.slice(1));
+          a.moved = c.dist > 4;
+        }
+        this.drawLive();
+      } else if (ev.type === "drop") {
+        if (this.action?.pid === ev.id) this.cancelAction();
+      } else if (ev.type === "end") {
+        const a = this.action;
+        if (a?.pid === ev.id) this.complete(a, false);
+      } else if (ev.type === "gesture") {
+        if (this.action && this.action.type === "touch") this.cancelAction();
+        this.scroll = { ids: [...ev.ids], last: this.midpoint([...ev.ids]), samples: [] };
+      } else if (ev.type === "gesture-end") {
+        if (ev.left !== null) {
+          const ids = [ev.left];
+          this.scroll = { ids, last: this.midpoint(ids), samples: this.scroll?.samples ?? [] };
+        } else this.endScroll();
+      }
+    }
+  }
+
+  private midpoint(ids: number[]): [number, number] {
+    let x = 0;
+    let y = 0;
+    let n = 0;
+    for (const id of ids) {
+      const c = this.arb.get(id);
+      if (!c) continue;
+      x += c.x;
+      y += c.y;
+      n++;
+    }
+    return n ? [x / n, y / n] : [0, 0];
+  }
+
+  /** the element the lesson scrolls in: the nearest scrolling ancestor, or the page */
+  private scroller(): Element | null {
+    for (let n = this.wrap.parentElement; n && n !== document.body; n = n.parentElement) {
+      const oy = getComputedStyle(n).overflowY;
+      if ((oy === "auto" || oy === "scroll") && n.scrollHeight > n.clientHeight + 1) return n;
+    }
+    return null;
+  }
+
+  private scrollBy(dx: number, dy: number) {
+    const el = this.scroller();
+    if (el) el.scrollBy({ left: dx, top: dy, behavior: "instant" as ScrollBehavior });
+    else window.scrollBy({ left: dx, top: dy, behavior: "instant" as ScrollBehavior });
+  }
+
+  private moveScroll(e: PointerEvent) {
+    const s = this.scroll;
+    if (!s || !s.ids.includes(e.pointerId)) return;
+    const m = this.midpoint(s.ids);
+    const dx = m[0] - s.last[0];
+    const dy = m[1] - s.last[1];
+    s.last = m;
+    s.samples.push([m[0], m[1], e.timeStamp]);
+    if (s.samples.length > 6) s.samples.shift();
+    if (dx || dy) this.scrollBy(-dx, -dy);
+  }
+
+  /** the fingers left: the lesson glides on a little (momentum, like a native scroll) */
+  private endScroll() {
+    const s = this.scroll;
+    this.scroll = null;
+    if (!s || s.samples.length < 2) return;
+    const [x0, y0, t0] = s.samples[0];
+    const [x1, y1, t1] = s.samples[s.samples.length - 1];
+    const dt = Math.max(8, t1 - t0);
+    let vx = (x1 - x0) / dt;
+    let vy = (y1 - y0) / dt;
+    if (performance.now() - t1 > 100 || Math.hypot(vx, vy) < 0.15) return;
+    let last = performance.now();
+    const step = (now: number) => {
+      const d = now - last;
+      last = now;
+      const decay = Math.pow(0.995, d);
+      vx *= decay;
+      vy *= decay;
+      this.scrollBy(-vx * d, -vy * d);
+      this.inertia = Math.hypot(vx, vy) > 0.02 ? requestAnimationFrame(step) : 0;
+    };
+    this.inertia = requestAnimationFrame(step);
+  }
+
+  private stopInertia() {
+    if (this.inertia) cancelAnimationFrame(this.inertia);
+    this.inertia = 0;
+  }
+
+  private resetTouch() {
+    if (this.action && this.action.type === "touch") this.cancelAction();
+    this.arb.reset();
+    this.fingerIds.clear();
+    this.scroll = null;
+    this.stopInertia();
+  }
+
+  /** a touch contact lifted: Stylus/finger (the arbiter), or Pen only (the hint) */
+  private touchUp(e: PointerEvent, cancelled: boolean): boolean {
+    if (e.pointerType !== "touch") return false;
+    this.fingerIds.delete(e.pointerId);
+    if (this.P.input === "touch") {
+      if (!this.arb.get(e.pointerId)) return false;
+      const evs = this.arb.up(e);
+      if (this.scroll && this.scroll.ids.includes(e.pointerId) && !evs.some((v) => v.type === "gesture-end")) this.endScroll();
+      this.applyTouch(evs);
+      // a touch that wrote or scrolled never clicks what was under it
+      this.swallowUntil = performance.now() + 400;
+      return false;
+    }
+    const c = this.fingers.up(e);
+    // Pen only: the browser took a finger drag for a scroll (pointercancel) or it moved a stroke's length
+    if (c && c.role === "pan" && (cancelled || c.dist > DRAG_PX)) noteFingerDrag("annotate", { tilt: c.tilt, pressure: pressureVaries(c) });
+    return true;
+  }
 
   private onMove = (e: PointerEvent) => {
+    if (e.pointerType === "touch") {
+      if (this.P.input === "touch") {
+        if (this.arb.get(e.pointerId)) {
+          this.applyTouch(this.arb.move(e));
+          this.moveScroll(e);
+        }
+      } else this.fingers.move(e);
+    }
     const a = this.action;
     if (!a || a.pid !== e.pointerId) return;
     e.preventDefault();
     if (!a.moved && Math.hypot(e.clientX - a.start[0], e.clientY - a.start[1]) > 4) a.moved = true;
     const evs = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
     const list = evs.length ? evs : [e];
-    const o = this.origin();
+    this.extend(a, list);
     if (a.kind === "draw") {
-      const pts = a.pts;
-      const pen = pts[2] > 0;
-      for (const ev of list) {
-        const [qx, qy] = this.toOverlay(ev.clientX, ev.clientY, o);
-        const lx = pts[pts.length - 3];
-        const ly = pts[pts.length - 2];
-        if ((qx - lx) ** 2 + (qy - ly) ** 2 < MIN_STEP2) continue;
-        pts.push(qx, qy, pen ? Math.max(1, Math.round((ev.pressure || 0.5) * 100)) : 0);
-      }
+      const o = this.origin();
       a.predicted = [];
       const pred = typeof e.getPredictedEvents === "function" ? e.getPredictedEvents() : [];
       for (const ev of pred.slice(0, 2)) {
         const [qx, qy] = this.toOverlay(ev.clientX, ev.clientY, o);
-        a.predicted.push(qx, qy, pen ? Math.max(1, Math.round((ev.pressure || 0.5) * 100)) : 0);
+        a.predicted.push(qx, qy, this.pressureOf(a, ev.pressure));
       }
-    } else {
-      for (const ev of list) this.eraseAt(ev.clientX - o.x, ev.clientY - o.y);
     }
     if (!this.liveRaf) {
       this.liveRaf = requestAnimationFrame(() => {
@@ -552,13 +748,49 @@ export class AnnotEngine {
   };
   private liveRaf = 0;
 
+  private pressureOf(a: Extract<Action, { kind: "draw" }>, p: number) {
+    return a.type === "pen" || a.real ? Math.max(1, Math.round((p || 0.5) * 100)) : 0;
+  }
+
+  /** follow the pointer: points for the stroke, or the eraser */
+  private extend(a: Action, list: ContactPoint[]) {
+    const o = this.origin();
+    if (a.kind === "draw") {
+      const pts = a.pts;
+      for (const ev of list) {
+        const [qx, qy] = this.toOverlay(ev.clientX, ev.clientY, o);
+        const lx = pts[pts.length - 3];
+        const ly = pts[pts.length - 2];
+        if ((qx - lx) ** 2 + (qy - ly) ** 2 < MIN_STEP2) continue;
+        pts.push(qx, qy, this.pressureOf(a, ev.pressure));
+        a.raw.push(ev.pressure || 0);
+      }
+      // a stylus the browser calls a finger, with real pressure: write with it
+      if (!a.real && a.type === "touch") {
+        const c = this.arb.get(a.pid);
+        if (c && pressureVaries(c)) {
+          a.real = true;
+          for (let i = 0; i * 3 + 2 < pts.length; i++) pts[i * 3 + 2] = Math.max(1, Math.round((a.raw[i] || 0.5) * 100));
+        }
+      }
+    } else {
+      for (const ev of list) this.eraseAt(ev.clientX - o.x, ev.clientY - o.y);
+    }
+  }
+
   private onUp = (e: PointerEvent) => this.finish(e, false);
   /** iPad Safari cancels a pen stroke when a system gesture starts: keep what was drawn */
-  private onCancel = (e: PointerEvent) => this.finish(e, this.action?.kind !== "draw");
+  private onCancel = (e: PointerEvent) => this.finish(e, this.action?.kind !== "draw", true);
 
-  private finish(e: PointerEvent, cancelled: boolean) {
+  private finish(e: PointerEvent, cancelled: boolean, pointerCancel = false) {
+    if (this.touchUp(e, pointerCancel)) return;
     const a = this.action;
     if (!a || a.pid !== e.pointerId) return;
+    const t = e.target instanceof Element ? e.target : null;
+    this.complete(a, cancelled, t);
+  }
+
+  private complete(a: Action, cancelled: boolean, t: Element | null = null) {
     this.action = null;
     document.documentElement.style.removeProperty("user-select");
     document.documentElement.style.removeProperty("-webkit-user-select");
@@ -574,7 +806,6 @@ export class AnnotEngine {
       return;
     }
     // a mouse click on a link / button (no movement) is a click, not a dot
-    const t = e.target instanceof Element ? e.target : null;
     if (a.type === "mouse" && !a.moved && t?.closest("a, button, summary, input, label, [role='button']")) {
       this.drawLive();
       return;
@@ -586,7 +817,8 @@ export class AnnotEngine {
   private commitStroke(a: Extract<Action, { kind: "draw" }>) {
     const L = this.freshLayout();
     const now = Date.now();
-    const mark = anchorStroke({ tool: a.tool, color: a.color, size: a.size, pts: a.pts }, L, this.last, now);
+    const pts = a.type === "pen" && !penPressureUsable(a.pts) ? withoutPressure(a.pts) : a.pts;
+    const mark = anchorStroke({ tool: a.tool, color: a.color, size: a.size, pts }, L, this.last, now);
     if (!mark) return;
     // place it now so it doesn't blink between the live layer and the tiles
     const strokes = placeMark(mark, L);
@@ -596,7 +828,7 @@ export class AnnotEngine {
       this.rebuildList();
       this.drawOnTiles(p);
     }
-    this.last = mark.m === "g" ? { mark, box: rawBox(a.pts), at: now } : null;
+    this.last = mark.m === "g" ? { mark, box: rawBox(pts), at: now } : null;
     this.P.onAdd(mark);
   }
 
@@ -663,6 +895,17 @@ export class AnnotEngine {
   }
 
   private onTouch = (e: TouchEvent) => {
+    if (this.P.input === "touch") {
+      // Stylus/finger: a touch over the lesson is ours (a stroke, a palm, a two-finger scroll): the browser must
+      // not scroll, select, open the magnifier or click under it
+      const ours =
+        e.type === "touchstart"
+          ? Array.from(e.changedTouches).some((t) => this.acceptsAt(e.target, t.clientX, t.clientY))
+          : !!this.action || !!this.scroll || this.arb.contacts.size > 0 || (e.type === "touchend" && performance.now() < this.swallowUntil);
+      if (ours && e.cancelable) e.preventDefault();
+      return;
+    }
+    if (e.type === "touchend") return;
     // the Pencil on iPad Safari: no scroll, no selection, no magnifier under it. Fingers are left alone.
     const stylus = Array.from(e.changedTouches).some((t) => (t as Touch & { touchType?: string }).touchType === "stylus");
     if (stylus || (this.action && this.action.type === "pen")) {
@@ -676,6 +919,11 @@ export class AnnotEngine {
       }
       if (e.cancelable) e.preventDefault();
     }
+  };
+
+  /** Stylus/finger: a long press while writing opens no context menu */
+  private onContextMenu = (e: Event) => {
+    if (this.P.input === "touch" && (this.action || this.arb.contacts.size > 0)) e.preventDefault();
   };
 
   private onClick = (e: MouseEvent) => {
@@ -700,7 +948,8 @@ export class AnnotEngine {
     const d = Math.min(2, window.devicePixelRatio || 1);
     const o = this.origin();
     if (a.kind === "draw") {
-      const all = a.predicted.length ? a.pts.concat(a.predicted) : a.pts;
+      let all = a.predicted.length ? a.pts.concat(a.predicted) : a.pts;
+      if (a.type === "pen" && !penPressureUsable(a.pts, true)) all = withoutPressure(all);
       const { points, simulate } = strokeInput(all);
       const outline = getStroke(points, strokeOptions({ tool: a.tool, size: a.size }, simulate, false));
       ctx.setTransform(d, 0, 0, d, o.x * d, o.y * d);

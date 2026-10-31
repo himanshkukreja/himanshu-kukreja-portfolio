@@ -16,6 +16,7 @@ import { pageBytes, pageNearlyFull } from "@/lib/learn/ink/geometry";
 import { PEN_SIZES, type InkTheme } from "@/lib/learn/ink/render";
 import { INK_EVENTS, LIMITS, PAPERS, type InkColor, type NotebookPage, type PageItem, type Paper } from "@/lib/learn/ink/types";
 import { loadPage, usePageAutosave, type SaveState } from "@/lib/learn/ink/usePageAutosave";
+import { PEN_FOUND, setInkInputMode, useInkInput } from "@/lib/learn/ink/inputMode";
 import InkCanvas, { type InkCanvasHandle, type InkContent, type InkToolId } from "./InkCanvas";
 import InkToolbar from "./InkToolbar";
 import PageAiActions from "./PageAiActions";
@@ -24,7 +25,6 @@ import { ConvertNudge, PageTextControls, type PageMode } from "./ai/TextControls
 import TypedPanel from "./ai/TypedPanel";
 import { isLessonKey } from "./global/context";
 
-const PENCIL_KEY = "hk.ink.pencilOnly";
 const PREFS_KEY = "hk.ink.prefs";
 const HISTORY = 100;
 /** the pause after the last stroke before the "Turn into text?" chip shows */
@@ -33,22 +33,6 @@ const NUDGE_MS = 4000;
 const NUDGE_OFF = (pageId: string) => `hk.ink.nudgeOff:${pageId}`;
 
 type Snap = InkContent;
-
-function readPencil(): boolean | null {
-  try {
-    const v = window.localStorage.getItem(PENCIL_KEY);
-    return v === null ? null : v === "1";
-  } catch {
-    return null;
-  }
-}
-function writePencil(v: boolean) {
-  try {
-    window.localStorage.setItem(PENCIL_KEY, v ? "1" : "0");
-  } catch {
-    // ignore
-  }
-}
 
 const SAVE_TEXT: Record<SaveState, string> = {
   saved: "Saved",
@@ -84,7 +68,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
   const [tool, setTool] = useState<InkToolId>("pen");
   const [color, setColor] = useState<InkColor>("ink");
   const [sizeIndex, setSizeIndex] = useState(0);
-  const [pencilOnly, setPencilOnly] = useState(false);
+  const { mode: inputMode } = useInkInput();
   const [zoom, setZoom] = useState(1);
   const [notice, setNotice] = useState<{ text: string; action?: { label: string; run: () => void } } | null>(null);
   const canvas = useRef<InkCanvasHandle>(null);
@@ -99,11 +83,9 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
 
   // per-device preferences, read after mount
   useEffect(() => {
-    const p = readPencil();
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- a per-device preference
-    if (p !== null) setPencilOnly(p);
     try {
       const prefs = JSON.parse(window.localStorage.getItem(PREFS_KEY) || "{}") as { color?: InkColor; size?: number };
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- a per-device preference
       if (prefs.color) setColor(prefs.color);
       if (typeof prefs.size === "number" && prefs.size >= 0 && prefs.size < PEN_SIZES.length) setSizeIndex(prefs.size);
     } catch {
@@ -373,12 +355,8 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
     return () => window.clearTimeout(id);
   }, [notice]);
 
-  const onPenSeen = useCallback(() => {
-    if (readPencil() === null) {
-      writePencil(true);
-      setPencilOnly(true);
-      setNotice({ text: "Pencil found: now only the pencil draws, and fingers scroll and zoom. Turn off “Pencil only” to draw with a finger." });
-    }
+  const onAutoPen = useCallback(() => {
+    setNotice({ text: PEN_FOUND, action: { label: "Use Stylus/finger", run: () => setInkInputMode("touch") } });
   }, []);
 
   // ------------------------------------------------------------------ render
@@ -487,11 +465,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
           zoom={zoom}
           onZoom={(k) => canvas.current?.zoomBy(k)}
           onFit={() => canvas.current?.fit()}
-          pencilOnly={pencilOnly}
-          onPencilOnly={(v) => {
-            setPencilOnly(v);
-            writePencil(v);
-          }}
+          surface="page"
           compact={panel}
           extra={
             panel ? (
@@ -521,11 +495,12 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
             color={color}
             penSize={PEN_SIZES[sizeIndex]}
             theme={theme}
-            pencilOnly={pencilOnly}
+            inputMode={inputMode}
+            surface="page"
             full={full}
             pad={panel ? 10 : 20}
             onCommit={commit}
-            onPenSeen={onPenSeen}
+            onAutoPen={onAutoPen}
             onFull={() => setNotice({ text: "This page is full. Start a new page to keep writing.", action: { label: "New page", run: () => void addPage() } })}
             onZoom={setZoom}
             label={`Notebook page: ${page.title || "Untitled"}. ${page.strokes.length} strokes, ${page.items.length} items. Typed content follows.`}

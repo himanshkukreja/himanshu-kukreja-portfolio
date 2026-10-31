@@ -2,7 +2,8 @@
 
 /**
  * The ink toolbar of annotate mode: pen, highlighter, eraser, colour (the notebook's ink palette, no purple), pen
- * size, undo / redo, show my marks, send to notebook, the detached-marks tray, done.
+ * size, undo / redo, the input mode (Pen only · Stylus/finger · Scroll, shared with every ink surface), show my
+ * marks, send to notebook, the detached-marks tray, done.
  *
  * It takes the reading tools' place while annotating, so it covers no more of the lesson than they do: below 1024 px
  * (phones, iPad portrait) it is the bottom bar, in the reading bar's spot above the site dock; from 1024 px (iPad
@@ -18,6 +19,7 @@ import type { AnnotMark } from "@/lib/learn/ink/annotate";
 import type { AnnotTool } from "./engine";
 import type { AnnotSaveState } from "./useAnnotations";
 import { ANNOT_COLORS, ANNOT_PEN_SIZES } from "./mode";
+import InputModeMenu from "../InputModeMenu";
 
 type Props = {
   tool: AnnotTool;
@@ -172,6 +174,8 @@ export default function AnnotateToolbar(p: Props) {
       <button type="button" onClick={p.onRedo} disabled={!p.canRedo} aria-label="Redo" title="Redo (⇧⌘Z)" className={`${b(false)} disabled:opacity-35`}>
         <Redo2 className="h-[18px] w-[18px]" aria-hidden />
       </button>
+      {sep}
+      <InputModeMenu surface="annotate" up />
       {sep}
       <button type="button" onClick={() => p.onShow(!p.show)} aria-pressed={!p.show} aria-label={p.show ? "Hide my marks" : "Show my marks"} title={p.show ? "Hide my marks" : "Show my marks"} className={b(!p.show)}>
         {p.show ? <Eye className="h-[18px] w-[18px]" aria-hidden /> : <EyeOff className="h-[18px] w-[18px]" aria-hidden />}

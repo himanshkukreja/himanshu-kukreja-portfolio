@@ -19,6 +19,7 @@ import type { InkColor } from "@/lib/learn/ink/types";
 import { canCapture } from "../capture/api";
 import { captureToast, isTyping } from "../capture/events";
 import { ANNOT_MARKER_SIZE, ANNOT_PEN_SIZES, registerAnnotateHost, setAnnotating, setShowMarks, useAnnotate } from "./mode";
+import { PEN_FOUND, notePen, useInkInput } from "@/lib/learn/ink/inputMode";
 import { useAnnotations } from "./useAnnotations";
 import type { AnnotLayerHandle } from "./AnnotateLayer";
 import type { AnnotTool } from "./engine";
@@ -26,7 +27,6 @@ import type { AnnotTool } from "./engine";
 const AnnotateLayer = dynamic(() => import("./AnnotateLayer"), { ssr: false });
 const AnnotateToolbar = dynamic(() => import("./AnnotateToolbar"), { ssr: false });
 
-const PEN_KEY = "hk.annot.pen";
 const noop = () => () => {};
 const coarse = () => typeof window !== "undefined" && window.matchMedia("(pointer: coarse)").matches;
 
@@ -56,17 +56,12 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
   const [sizeIndex, setSizeIndex] = useState(1);
   const [detachedIds, setDetachedIds] = useState<string[]>([]);
   const [sending, setSending] = useState<string | null>(null);
-  const [penSeen, setPenSeen] = useState(false);
+  const { mode: input, penSeen } = useInkInput();
   const [touch, setTouch] = useState(false);
 
   useEffect(() => registerAnnotateHost(), []);
   useEffect(() => {
-    try {
-      // device facts, read after mount so server and client markup match
-      setPenSeen(window.localStorage.getItem(PEN_KEY) === "1");
-    } catch {
-      // storage unavailable
-    }
+    // a device fact, read after mount so server and client markup match
     setTouch(coarse());
   }, []);
 
@@ -74,16 +69,9 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
   const onColor = useCallback((c: InkColor) => (tool === "highlighter" ? setHlColor(c) : setPenColor(c)), [tool]);
   const size = tool === "highlighter" ? ANNOT_MARKER_SIZE : ANNOT_PEN_SIZES[sizeIndex];
 
+  // the first pen on this device switches it to Pen only (every ink surface shares the setting)
   const onPenSeen = useCallback(() => {
-    setPenSeen((was) => {
-      if (!was)
-        try {
-          window.localStorage.setItem(PEN_KEY, "1");
-        } catch {
-          // storage unavailable
-        }
-      return true;
-    });
+    if (notePen()) captureToast({ kind: "info", message: PEN_FOUND });
   }, []);
   const onFull = useCallback(() => captureToast({ kind: "info", message: "This lesson has as many marks as it can hold. Erase some to add more." }), []);
   const done = useCallback(() => setAnnotating(false), []);
@@ -161,7 +149,19 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
   }, [user, openAuthModal, theme, lessonKey, title]);
 
   const needLayer = A.ready && (A.doc.marks.length > 0 || on);
-  const hint = !on ? null : penSeen ? "Pencil writes · fingers scroll" : touch ? "Write with your Pencil · fingers scroll" : "Draw with the mouse";
+  const hint = !on
+    ? null
+    : input === "scroll"
+      ? "Scroll: nothing writes"
+      : input === "touch"
+        ? touch
+          ? "One finger or stylus writes · two fingers scroll"
+          : "Draw with the mouse"
+        : penSeen
+          ? "Pen writes · fingers scroll"
+          : touch
+            ? "Write with your pen · fingers scroll"
+            : "Draw with the mouse";
 
   return (
     <div ref={wrapRef} className="relative" data-annot-wrap="">
@@ -184,6 +184,7 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
           onFull={onFull}
           onDetached={setDetachedIds}
           onPenSeen={onPenSeen}
+          input={input}
         />
       )}
       {on && (
