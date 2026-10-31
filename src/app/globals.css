@@ -774,7 +774,8 @@ html.hk-nb-bottom body {
 html.hk-nb-bottom .hk-dock {
   display: none !important;
 }
-html.hk-nb-bottom [data-reader-ui].inset-x-0 {
+/* the top stage rail is inset-x-0 too: it keeps its top and its height */
+html.hk-nb-bottom [data-reader-ui].inset-x-0:not([data-stage-rail]) {
   bottom: var(--hk-nb-h, 50vh) !important;
 }
 html.hk-nb-bottom [data-reader-ui].right-3 {
