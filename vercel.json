@@ -1,8 +1,6 @@
 {
   "git": {
-    "deploymentEnabled": {
-      "redesign/level-up": false
-    }
+    "deploymentEnabled": false
   },
   "functions": {
     "src/app/api/newsletter/subscribe/route.ts": {
