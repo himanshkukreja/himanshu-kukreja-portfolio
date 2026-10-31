@@ -7,7 +7,7 @@
  * order: best first by engagement, never two from the same lecture in a row, categories mixed, 2 a day.
  * Hidden or scheduled shorts (/admin/publishing) aren't listed.
  */
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Card, Drawer, EmptyState, ErrorState, fmtNum, Kpi, LABEL, PageHead, Table, useAdminClient, useAdminData } from "@/components/admin/ui";
 import {
   categoryLabel,
@@ -16,6 +16,7 @@ import {
   lessonUrl,
   PLATFORMS,
   postStatus,
+  settlePost,
   suggestOrder,
   youtubeDescription,
   youtubeTitle,
@@ -42,7 +43,7 @@ const field = "min-h-9 border border-line-strong bg-bg px-2 font-mono text-xs te
 function StatusBadge({ s, p }: { s: DistShort; p: Platform }) {
   const post = s.posts[p];
   if (post?.status === "posted") return <Badge tone="ok" title={post.url || undefined}>posted{post.postedAt ? ` ${new Date(post.postedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}` : ""}</Badge>;
-  if (post?.status === "scheduled" && post.scheduledAt) return <Badge tone="signal" title={fmtWhen(post.scheduledAt)}>scheduled {new Date(post.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</Badge>;
+  if (post?.status === "scheduled" && post.scheduledAt) return <Badge tone="signal" title={`${fmtWhen(post.scheduledAt)}${post.url ? ` · ${post.url}` : ""}`}>scheduled {new Date(post.scheduledAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" })}</Badge>;
   return <Badge tone="muted">not posted</Badge>;
 }
 
@@ -65,7 +66,21 @@ export default function DistributionDashboard() {
   const [open, setOpen] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const { data, error, loading, refresh, mutate } = useAdminData<Resp>("/api/admin/distribution?days=90");
-  const all = useMemo(() => data?.shorts ?? [], [data]);
+  // a scheduled post whose time passes while the page is open shows as posted too (the server saves it on the next load)
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+  const all = useMemo(
+    () =>
+      (data?.shorts ?? []).map((s) => {
+        const posts: DistShort["posts"] = {};
+        for (const p of PLATFORMS) if (s.posts[p.id]) posts[p.id] = settlePost(s.posts[p.id]!, now);
+        return { ...s, posts };
+      }),
+    [data, now]
+  );
 
   const slots = useMemo<Record<Platform, Map<string, Slot>>>(() => ({ youtube: suggestOrder(all, "youtube"), instagram: suggestOrder(all, "instagram") }), [all]);
   const cats = useMemo(() => [...new Set(all.map((s) => s.category))], [all]);
@@ -101,6 +116,7 @@ export default function DistributionDashboard() {
               const posts = { ...s.posts };
               if (status === "none") delete posts[p];
               else posts[p] = { status, scheduledAt: status === "scheduled" ? at! : null, postedAt: status === "posted" ? at || new Date().toISOString() : null, url: url || null };
+              if (posts[p]) posts[p] = settlePost(posts[p]!);
               return { ...s, posts };
             }),
           }
@@ -394,7 +410,7 @@ function PostEditor({ s, p, slot, tracker, onSave }: { s: DistShort; p: Platform
   };
   const submit = async () => {
     setBusy(true);
-    const err = await onSave([s.id], p, status, status === "none" ? undefined : at ? new Date(at).toISOString() : undefined, status === "posted" ? url.trim() || undefined : undefined);
+    const err = await onSave([s.id], p, status, status === "none" ? undefined : at ? new Date(at).toISOString() : undefined, status === "none" ? undefined : url.trim() || undefined);
     setBusy(false);
     setMsg(err || "saved");
   };
@@ -405,7 +421,7 @@ function PostEditor({ s, p, slot, tracker, onSave }: { s: DistShort; p: Platform
         <span className={LABEL}>posting · {label}</span>
         <StatusBadge s={s} p={p} />
       </div>
-      {post?.status === "posted" && post.url && (
+      {post?.url && (
         <a href={post.url} target="_blank" rel="noreferrer" className="truncate font-mono text-xs text-signal-text underline underline-offset-4">
           {post.url}
         </a>
@@ -418,7 +434,7 @@ function PostEditor({ s, p, slot, tracker, onSave }: { s: DistShort; p: Platform
           <option value="posted">posted</option>
         </select>
         {status !== "none" && <input type="datetime-local" value={at} onChange={(e) => setAt(e.target.value)} aria-label={status === "scheduled" ? "Scheduled for" : "Posted on"} className={field} />}
-        {status === "posted" && <input type="url" placeholder={`https://… the ${label} post`} value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Post link" className={`${field} min-w-0 flex-1`} />}
+        {status !== "none" && <input type="url" placeholder={status === "scheduled" ? `https://… the ${label} link (given when you schedule)` : `https://… the ${label} post`} value={url} onChange={(e) => setUrl(e.target.value)} aria-label="Post link" className={`${field} min-w-0 flex-1`} />}
         <button type="button" onClick={() => void submit()} className={btn}>
           save
         </button>

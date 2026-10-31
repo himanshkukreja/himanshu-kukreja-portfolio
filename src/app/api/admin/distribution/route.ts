@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
-import { isPlatform, type DistShort, type Platform, type Post } from "@/lib/learn/shorts/distribution";
+import { isPlatform, settlePost, type DistShort, type Platform, type Post } from "@/lib/learn/shorts/distribution";
 import { listShorts } from "@/lib/learn/shorts/load";
 import { shortLines, shortPacks } from "@/lib/learn/shorts/pack";
 import { shortsStats, shortScore } from "@/lib/learn/shorts/stats";
@@ -15,11 +15,30 @@ const SETUP = "The posting tracker isn't set up yet: apply supabase/migrations/2
 
 type PostRow = { short_id: string; platform: string; status: "scheduled" | "posted"; scheduled_at: string | null; posted_at: string | null; url: string | null };
 
-/** Every tracked post, or null when the table isn't there yet (the page then works read-only). */
+/**
+ * Every tracked post, or null when the table isn't there yet (the page then works read-only). Scheduled posts whose
+ * time has passed went out on the platform by themselves: they're saved as posted here (posted_at = scheduled_at).
+ */
 async function readPosts(): Promise<{ rows: PostRow[]; error: string | null }> {
   const { data, error } = await supabase.from(TABLE).select("short_id, platform, status, scheduled_at, posted_at, url").limit(10_000);
   if (error) return { rows: [], error: /does not exist|could not find the table|schema cache/i.test(error.message) ? SETUP : error.message };
-  return { rows: (data || []) as PostRow[], error: null };
+  const rows = (data || []) as PostRow[];
+  const now = Date.now();
+  const due = rows.filter((r) => r.status === "scheduled" && r.scheduled_at && Date.parse(r.scheduled_at) <= now);
+  if (due.length) {
+    const at = new Date(now).toISOString();
+    // the page still shows them as posted if this write fails; the next load retries
+    await supabase
+      .from(TABLE)
+      .upsert(
+        due.map((r) => ({ short_id: r.short_id, platform: r.platform, status: "posted", scheduled_at: r.scheduled_at, posted_at: r.scheduled_at, url: r.url, updated_by: "auto: scheduled time passed", updated_at: at })),
+        { onConflict: "short_id,platform" }
+      )
+      .then(({ error: e }) => {
+        if (e) console.warn("[distribution] settling scheduled posts:", e.message);
+      });
+  }
+  return { rows, error: null };
 }
 
 /**
@@ -52,7 +71,7 @@ export async function GET(request: Request) {
     for (const r of posts.rows) {
       if (!isPlatform(r.platform)) continue;
       const m = byShort.get(r.short_id) || {};
-      m[r.platform] = { status: r.status, scheduledAt: r.scheduled_at, postedAt: r.posted_at, url: r.url };
+      m[r.platform] = settlePost({ status: r.status, scheduledAt: r.scheduled_at, postedAt: r.posted_at, url: r.url });
       byShort.set(r.short_id, m);
     }
     const shorts: DistShort[] = live.map((s) => {
@@ -88,7 +107,8 @@ type Body = { ids?: unknown; platform?: unknown; status?: unknown; at?: unknown;
 
 /**
  * POST { ids: [short id], platform: "youtube" | "instagram", status: "none" | "scheduled" | "posted", at?, url? }
- * none clears the row; scheduled needs `at`; posted takes `at` (default now) and an optional https `url`.
+ * none clears the row; scheduled needs `at`; posted takes `at` (default now). Both take an optional https `url` (the
+ * platforms give the link when a post is scheduled). A schedule time that's already past saves as posted.
  */
 export async function POST(request: Request) {
   const admin = await requireAdmin(request);
@@ -111,18 +131,20 @@ export async function POST(request: Request) {
   if (!Number.isFinite(t)) return NextResponse.json({ error: status === "scheduled" ? "Pick the date it's scheduled for." : "Bad date." }, { status: 400 });
   const at = new Date(t).toISOString();
   let url: string | null = null;
-  if (status === "posted" && b.url != null && String(b.url).trim()) {
+  if (b.url != null && String(b.url).trim()) {
     url = String(b.url).trim();
     if (!/^https:\/\/\S+$/.test(url) || url.length > 500) return NextResponse.json({ error: "The post link must be an https:// URL." }, { status: 400 });
     if (ids.length > 1) return NextResponse.json({ error: "A post link belongs to one short." }, { status: 400 });
   }
   const now = new Date().toISOString();
+  // scheduled for a time that's already gone: it's out
+  const saved = status === "scheduled" && t <= Date.now() ? "posted" : status;
   const rows = ids.map((short_id) => ({
     short_id,
     platform,
-    status,
+    status: saved,
     scheduled_at: status === "scheduled" ? at : null,
-    posted_at: status === "posted" ? at : null,
+    posted_at: saved === "posted" ? at : null,
     url,
     updated_by: admin.email,
     updated_at: now,

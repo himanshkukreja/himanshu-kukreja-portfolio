@@ -18,6 +18,15 @@ export const isPlatform = (p: unknown): p is Platform => p === "youtube" || p ==
 export type PostStatus = "none" | "scheduled" | "posted";
 export type Post = { status: "scheduled" | "posted"; scheduledAt: string | null; postedAt: string | null; url: string | null };
 
+/**
+ * A scheduled post whose time has come is posted: the platform publishes it on its own at the scheduled time, so the
+ * tracker flips it to posted (posted at the scheduled time, its link kept). Anything else is returned as it is.
+ */
+export function settlePost(p: Post, now = Date.now()): Post {
+  if (p.status !== "scheduled" || !p.scheduledAt || Date.parse(p.scheduledAt) > now) return p;
+  return { ...p, status: "posted", postedAt: p.scheduledAt };
+}
+
 /** One live short as the distribution page gets it from /api/admin/distribution. */
 export type DistShort = {
   id: string;
