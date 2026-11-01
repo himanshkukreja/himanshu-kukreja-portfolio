@@ -47,7 +47,7 @@ export async function POST(request: Request) {
   if (me instanceof NextResponse) return me;
   const req = readRequest(await request.json().catch(() => null), { endsWithUser: false });
   if (typeof req === "string") return NextResponse.json({ error: req }, { status: 400, headers: noStore });
-  const admin = isAdminEmail(me.email);
+  const admin = await isAdminEmail(me.email);
   const userKey = ownKey(request);
   after(() => updateMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: req.messages }).catch(() => false));
   return NextResponse.json({ ok: true }, { status: 202, headers: noStore });

@@ -62,7 +62,7 @@ export async function POST(request: Request) {
   const dev = !devUser && devPreview(request);
   const me = devUser ?? (dev ? { id: "", email: null } : await requireLearner(request));
   if (me instanceof NextResponse) return me;
-  const admin = dev || isAdminEmail(me.email);
+  const admin = dev || await isAdminEmail(me.email);
   const parsed = readRequest(await request.json().catch(() => null));
   if (typeof parsed === "string") return NextResponse.json({ error: parsed }, { status: 400, headers: noStore });
   const req = parsed;

@@ -240,7 +240,19 @@ export function resolveFixture(url: string, init?: RequestInit): unknown {
   const range = u.searchParams.get("range") || "7d";
   switch (u.pathname) {
     case "/api/admin/me":
-      return { email: "preview@localhost" };
+      return { admin: true, owner: true, email: "preview@localhost" };
+    case "/api/admin/admins":
+      return {
+        owners: [{ email: "preview@localhost", account: true }],
+        admins: [
+          { email: "editor@example.com", added_by: "preview@localhost", added_at: new Date(Date.now() - 3 * 86_400_000).toISOString(), note: "co-instructor", account: true },
+          { email: "new.helper@example.com", added_by: "preview@localhost", added_at: new Date(Date.now() - 3_600_000).toISOString(), note: null, account: false },
+        ],
+        table: true,
+        canManage: true,
+        you: "preview@localhost",
+        audit: [{ id: 1, at: new Date(Date.now() - 3_600_000).toISOString(), actor: "preview@localhost", action: "admin.add", target: "new.helper@example.com", note: null }],
+      };
     case "/api/admin/traffic/overview":
       return trafficOverview(range);
     case "/api/admin/traffic/live":

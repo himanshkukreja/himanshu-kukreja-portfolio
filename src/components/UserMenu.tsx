@@ -2,11 +2,15 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { ImagePlus, LogOut } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ImagePlus, LogOut, ShieldCheck } from "lucide-react";
 import { Spinner } from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 import UserAvatar from "@/components/avatar/UserAvatar";
 import AvatarPicker from "@/components/avatar/AvatarPickerLazy";
+import AdminLink from "@/components/site/AdminLink";
+import { isLearnRoute } from "@/components/site/LearnNav";
+import { useIsAdmin } from "@/lib/admin/useIsAdmin";
 
 const LINKS = [
   { href: "/learn", label: "course" },
@@ -22,6 +26,9 @@ export default function UserMenu() {
   const [pickerOpen, setPickerOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const { admin } = useIsAdmin();
+  // where the header has no room for its Admin button (the course on phones, any page under 360 px)
+  const learn = isLearnRoute(usePathname() || "/");
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -56,10 +63,15 @@ export default function UserMenu() {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         aria-expanded={isOpen}
-        aria-label="Account menu"
-        className="grid h-10 w-10 place-items-center overflow-hidden bg-fg font-display text-sm font-extrabold text-bg"
+        aria-label={admin ? "Account menu (admin)" : "Account menu"}
+        className="relative grid h-10 w-10 place-items-center overflow-hidden bg-fg font-display text-sm font-extrabold text-bg"
       >
         {loading && !profile ? <Spinner className="text-[13px]" /> : <UserAvatar src={avatarUrl} name={displayName} size={40} initialsClassName="bg-fg text-bg" />}
+        {admin && (
+          <span aria-hidden className={`absolute bottom-0 right-0 grid h-4 w-4 place-items-center bg-signal text-on-signal ${learn ? "sm:hidden" : "min-[360px]:hidden"}`}>
+            <ShieldCheck className="h-3 w-3" />
+          </span>
+        )}
       </button>
 
       {isOpen && (
@@ -80,6 +92,7 @@ export default function UserMenu() {
             </div>
           </div>
           <nav aria-label="Account" className="flex flex-col py-1.5 font-mono text-sm">
+            <AdminLink variant="menu" onClick={() => setIsOpen(false)} />
             {LINKS.map((l) => (
               <Link key={l.href} href={l.href} onClick={() => setIsOpen(false)} className="px-4 py-2.5 text-fg-2 hover:bg-surface-2 hover:text-fg">
                 <span className="text-signal-text">❯</span> {l.label}

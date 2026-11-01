@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "mock-scorecard",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => mockFullScorecardSystem({ company: mock.company.name, problem: problemText(mock), phases }, promptOptsFor(model, "mock-scorecard")),
     messages: [{ role: "user", content: "Grade my interview." }],

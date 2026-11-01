@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
-import { callsQuery, emailsFor, readCallQuery } from "@/lib/admin/aiCalls";
+import { callsQuery, emailsFor, readCallQuery, withExclusions } from "@/lib/admin/aiCalls";
 
 export const dynamic = "force-dynamic";
 
@@ -9,12 +9,17 @@ export const dynamic = "force-dynamic";
  * log, filtered and sorted in the database (lib/admin/aiCalls.ts), with each learner's email.
  * range: 24h | 7d | 30d (default) | 90d | 12m, or days=N (a page's own window). sort: new (default) or
  * cost|credits|in|out . asc|desc. user: a learner's id. content=1 adds the content jobs (eval, batch), left out by
- * default. scope=chat: the course chat's calls only (/admin/chat); learner=<id>: one learner's (their admin page).
+ * default. ext=1: external users only (the owner's and every admin's calls left out). scope=chat: the course chat's calls only (/admin/chat); learner=<id>: one learner's (their admin page).
  */
 export async function GET(request: Request) {
   const admin = await requireAdmin(request);
   if (admin instanceof NextResponse) return admin;
-  const q = readCallQuery(new URL(request.url).searchParams);
+  let q;
+  try {
+    q = await withExclusions(readCallQuery(new URL(request.url).searchParams));
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
+  }
   const { data, error, count } = await callsQuery(q);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   const emails = await emailsFor((data ?? []).map((r) => r.user_id as string | null).filter((id): id is string => !!id));

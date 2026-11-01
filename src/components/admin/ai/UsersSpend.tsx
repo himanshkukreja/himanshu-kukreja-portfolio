@@ -9,7 +9,7 @@
 import { useState } from "react";
 import { adminJson } from "@/lib/admin/fetch";
 import { Card, EmptyState, ErrorState, fmtNum, Table, timeAgo, useAdminData, type Chip } from "@/components/admin/ui";
-import { FilterBar, FilterSelect, Pager, usd, usePage, UserPicker, useUrlFilters } from "./filters";
+import { FilterBar, FilterSelect, Pager, usd, usePage, UserPicker, useExternalOnly, useUrlFilters } from "./filters";
 
 type Row = { user_id: string; email: string | null; calls: number; refused: number; cost: number; credits: number; tokens: number; today: number; last_at: string; blocked: boolean };
 type Resp = { rows: Row[]; total: number; page: number; pageSize: number; features: { id: string; label: string; calls: number }[]; users: { id: string; email: string | null; calls: number }[] };
@@ -30,8 +30,9 @@ export default function UsersSpend({ onShowUser, onLimit }: { onShowUser: (id: s
   const user = get("user");
   const sortRaw = get("sort");
   const sort = SORTS.some((s) => s.value === sortRaw) ? sortRaw : "new";
-  const [page, setPage] = usePage(JSON.stringify([feature, user, sort]));
-  const qs = new URLSearchParams({ page: String(page), ...(feature ? { feature } : {}), ...(user ? { user } : {}), ...(sort !== "new" ? { sort } : {}) });
+  const external = useExternalOnly().on;
+  const [page, setPage] = usePage(JSON.stringify([feature, user, sort, external]));
+  const qs = new URLSearchParams({ page: String(page), ...(external ? { ext: "1" } : {}), ...(feature ? { feature } : {}), ...(user ? { user } : {}), ...(sort !== "new" ? { sort } : {}) });
   const { data, error, loading, refresh } = useAdminData<Resp>(`/api/admin/ai/users?${qs}`, { refreshMs: 30_000 });
   const [busy, setBusy] = useState<string | null>(null);
   const block = async (r: Row) => {

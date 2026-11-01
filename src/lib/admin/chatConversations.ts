@@ -7,7 +7,7 @@ import "server-only";
  * a filter don't read them again. Emails come through lib/admin/aiCalls.ts (auth admin API, cached).
  */
 import { supabase } from "@/lib/supabase";
-import { emailsFor, userOf, windowOf, windowStart, withEmails, type CallWindow } from "./aiCalls";
+import { emailsFor, externalOnly, userOf, windowOf, windowStart, withEmails, type CallWindow } from "./aiCalls";
 
 export const CONV_PAGE = 25;
 const MAX_ROWS = 20_000;
@@ -37,7 +37,17 @@ export type Conv = {
   wrong: number;
 };
 
-export type ConvQuery = { window: CallWindow; sort: ConvSort; user: string | null; mode: Conv["mode"] | null; outcome: (typeof CONV_OUTCOMES)[number] | null; page: number };
+export type ConvQuery = {
+  window: CallWindow;
+  sort: ConvSort;
+  user: string | null;
+  mode: Conv["mode"] | null;
+  outcome: (typeof CONV_OUTCOMES)[number] | null;
+  /** external users only (`ext=1`): `exclude` holds the admins' user ids (filled with aiCalls.ts withExclusions) */
+  external: boolean;
+  exclude: string[];
+  page: number;
+};
 
 export function readConvQuery(p: URLSearchParams): ConvQuery {
   const pick = <T extends string>(v: string | null, of: readonly T[]) => (v && (of as readonly string[]).includes(v) ? (v as T) : null);
@@ -47,6 +57,8 @@ export function readConvQuery(p: URLSearchParams): ConvQuery {
     user: userOf(p.get("user")),
     mode: pick(p.get("mode"), CONV_MODES),
     outcome: pick(p.get("outcome"), CONV_OUTCOMES),
+    external: externalOnly(p),
+    exclude: [],
     page: Math.min(10_000, Math.max(1, Math.floor(Number(p.get("page"))) || 1)),
   };
 }
@@ -107,7 +119,10 @@ const SORT_KEY: Record<string, (c: Conv) => number | string> = { messages: (c) =
 
 export async function conversations(q: ConvQuery) {
   const w = await load(q.window);
-  let list = w.convs.filter(
+  const out = new Set(q.exclude);
+  // external users only: the admins' conversations leave the table, its total and the learner choices
+  const convs = out.size ? w.convs.filter((c) => !c.user || !out.has(c.user)) : w.convs;
+  let list = convs.filter(
     (c) =>
       (!q.user || c.user === q.user) &&
       (!q.mode || c.mode === q.mode) &&
@@ -123,7 +138,7 @@ export async function conversations(q: ConvQuery) {
   const page = list.slice((q.page - 1) * CONV_PAGE, q.page * CONV_PAGE);
   // the learner filter's choices: everyone with a conversation in the window
   const counts = new Map<string, number>();
-  for (const c of w.convs) if (c.user) counts.set(c.user, (counts.get(c.user) ?? 0) + 1);
+  for (const c of convs) if (c.user) counts.set(c.user, (counts.get(c.user) ?? 0) + 1);
   const [emails, users] = await Promise.all([emailsFor(page.map((c) => c.user).filter((u): u is string => !!u)), withEmails(counts)]);
   return {
     rows: page.map((c) => ({ ...c, email: c.user ? emails.get(c.user) ?? null : null })),

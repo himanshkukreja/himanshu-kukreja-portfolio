@@ -132,7 +132,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "snip-explain",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: snipExplainSystem({ kind, title: g.title || title, context: g.context }),
     // the image first, then the text about it (the Messages API's advice for image prompts)

@@ -8,7 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { adminJson } from "@/lib/admin/fetch";
 import { Badge, Card, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData } from "@/components/admin/ui";
 import CallLog, { shortModel, usd, useCallLogParams } from "./CallLog";
-import { ContentSwitch, useContentJobs } from "./filters";
+import { ContentSwitch, ExternalSwitch, useContentJobs, useExternalOnly } from "./filters";
 import UsersSpend from "./UsersSpend";
 
 type FeatureRow = { id: string; label: string; enabled: boolean; model: string; defaultModel: string; perDay: number; live: boolean; maxTokens: number; content?: boolean };
@@ -55,6 +55,14 @@ type Resp = {
   dashboard: Dash;
   /** this cycle without the content jobs (the "exclude content jobs" view) */
   live?: { byModel: { model: string; calls: number; cost: number }[]; byStatus: Record<string, number> };
+  /** `?ext=1` (external users only): the same views without the owner's and the admins' calls */
+  external?: {
+    dashboard: Dash;
+    live: { byModel: { model: string; calls: number; cost: number }[]; byStatus: Record<string, number> };
+    spent: { cycle: number; cycleLive: number; cycleContent: number; todayLive: number };
+    activeUsers: number;
+    admins: number;
+  } | null;
   features: FeatureRow[];
   models: { id: string; price: { input: number; output: number } }[];
 };
@@ -342,7 +350,9 @@ function UserLimits({ prefill, onChanged }: { prefill: { email: string; key: num
 }
 
 export default function AiDashboard() {
-  const { data, error, loading, refresh } = useAdminData<Resp>("/api/admin/ai", { refreshMs: 30_000 });
+  // "external users only" (localStorage): every number below without the owner's and the admins' calls
+  const ext = useExternalOnly();
+  const { data, error, loading, refresh } = useAdminData<Resp>(`/api/admin/ai${ext.on ? "?ext=1" : ""}`, { refreshMs: 30_000 });
   const [limitFor, setLimitFor] = useState<{ email: string; key: number } | null>(null);
   // the learner links below filter the call log (its filters live in the URL) and scroll to it
   const log = useCallLogParams();
@@ -353,11 +363,16 @@ export default function AiDashboard() {
   };
 
   if (error && !data) return <ErrorState error={error} onRetry={refresh} />;
-  const b = data?.budget;
-  const d = data?.dashboard;
+  const x = ext.on ? (data?.external ?? null) : null;
+  // the budget's own numbers, or (external users only) the same sums without the admins' calls
+  const b = data?.budget ? (x ? { ...data.budget, spentCycle: x.spent.cycle, spentCycleLive: x.spent.cycleLive, spentToday: x.spent.todayLive, activeUsers: x.activeUsers } : data.budget) : undefined;
+  const d = x?.dashboard ?? data?.dashboard;
+  const live = x?.live ?? data?.live;
+  // what the admins spent this cycle (the switch's note): the governor's total minus the external total
+  const adminSpend = x && data ? Math.max(0, data.budget.spentCycle - x.spent.cycle) : null;
   // the page-wide "exclude content jobs" switch (?content=1 shows them): the card, calls, chart, features, models
   const learnersOnly = !content.included;
-  const liveStatus = learnersOnly ? data?.live?.byStatus : d?.byStatus;
+  const liveStatus = learnersOnly ? live?.byStatus : d?.byStatus;
   const contentLeft = b ? Math.max(0, b.contentBudget - b.spentCycleContent) : 0;
   return (
     <div className="flex flex-col gap-6">
@@ -376,18 +391,21 @@ export default function AiDashboard() {
         }
       />
 
-      <ContentSwitch hidden={b ? { cost: b.spentCycleContent } : null} />
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <ContentSwitch hidden={b ? { cost: b.spentCycleContent } : null} />
+        <ExternalSwitch hidden={adminSpend != null ? `admins hidden · ${usd(adminSpend)} this cycle` : "admins hidden"} />
+      </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Kpi
           loading={loading && !data}
-          label={learnersOnly ? "spent this cycle · learners" : "spent this cycle · total"}
+          label={`${learnersOnly ? "spent this cycle · learners" : "spent this cycle · total"}${x ? " · external" : ""}`}
           value={b ? (learnersOnly ? `${usd(b.spentCycleLive)} / ${usd(b.liveBudget, 0)}` : `${usd(b.spentCycle)} / ${usd(b.monthlyBudget, 0)}`) : "–"}
           hint={
             b ? (
               <span className="flex flex-col gap-0.5">
                 <span>
-                  Learners {usd(b.spentCycleLive)} · content jobs {usd(b.spentCycleContent)} · total {usd(b.spentCycle)}
+                  {x ? "External learners" : "Learners"} {usd(b.spentCycleLive)} · content jobs {usd(x ? x.spent.cycleContent : b.spentCycleContent)} · total {usd(b.spentCycle)}
                 </span>
                 <span>
                   {fmtDate(b.cycle.start)} → {fmtDate(b.cycle.end)} · {b.cycle.daysLeft} days left
@@ -404,12 +422,12 @@ export default function AiDashboard() {
           value={b ? `${usd(b.spentCycleContent)} / ${usd(b.contentBudget)}` : "–"}
           hint={b ? `hard cap: ${Math.round((1 - (data?.settings.liveShare ?? 0)) * 100)}% of the month · ${contentLeft > 0 ? `${usd(contentLeft)} left` : "used: eval and batch jobs are refused"} · learners' budget ${usd(b.liveBudget, 0)}` : ""}
         />
-        <Kpi loading={loading && !data} label="today (live)" value={b ? `${usd(b.spentToday, 3)} / ${usd(b.todayBudget, 2)}` : "–"} hint="today's share = what's left ÷ days left" />
-        <Kpi loading={loading && !data} label="ai users · last 7 days" value={b ? fmtNum(b.activeUsers) : "–"} />
+        <Kpi loading={loading && !data} label={x ? "today (live) · external" : "today (live)"} value={b ? `${usd(b.spentToday, 3)} / ${usd(b.todayBudget, 2)}` : "–"} hint="today's share = what's left ÷ days left" />
+        <Kpi loading={loading && !data} label={x ? "ai users · last 7 days · external" : "ai users · last 7 days"} value={b ? fmtNum(b.activeUsers) : "–"} />
         <Kpi loading={loading && !data} label="each user's daily allowance" value={b ? `${fmtNum(b.userDailyCredits)} credits` : "–"} hint={b ? `${usd(b.userDailyUsd, 3)} · 1 credit = $0.001 · the course chat has its own messages` : ""} />
         <Kpi
           loading={loading && !data}
-          label={learnersOnly ? "learner calls this cycle" : "calls this cycle"}
+          label={`${learnersOnly ? "learner calls this cycle" : "calls this cycle"}${x ? " · external" : ""}`}
           value={liveStatus ? fmtNum(liveStatus.ok ?? 0) : "–"}
           hint={liveStatus ? Object.entries(liveStatus).filter(([k]) => k !== "ok").map(([k, v]) => `${k} ${v}`).join(" · ") || "nothing refused" : ""}
         />
@@ -439,7 +457,7 @@ export default function AiDashboard() {
         <Card label="models" title={learnersOnly ? "Learner spend by model" : "Spend by model"} pad={false}>
           <Table<{ model: string; calls: number; cost: number }>
             rowKey={(r) => r.model}
-            rows={(learnersOnly ? data?.live?.byModel : d?.byModel) ?? []}
+            rows={(learnersOnly ? live?.byModel : d?.byModel) ?? []}
             loading={loading && !data}
             minWidth={320}
             empty={<EmptyState title="No calls yet" />}

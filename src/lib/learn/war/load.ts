@@ -47,6 +47,14 @@ function lessonLink(ref: string | null, map: CourseMap | null): LessonLink | nul
   return l ? { title: l.title, href: l.href, code: l.tag } : null;
 }
 
+/** A room's fallback topic tag: the course week its lesson is in ("Failure-First Design"), broad enough not to give the answer away. */
+function weekTitle(ref: string | null, map: CourseMap | null): string {
+  const week = ref?.split("/")[0];
+  const t = (week && map?.weeks.find((w) => w.key === week)?.title) || "";
+  // a chip, not a heading: "Production Readiness and Operational Excellence" → "Production Readiness"
+  return t.length > 30 ? t.split(/\s+(?:and|&)\s+|:\s+/)[0] : t;
+}
+
 type Built = { stories: StorySummary[]; storyBySlug: Record<string, Story>; rooms: WarRoomSummary[]; roomBySlug: Record<string, WarRoom> };
 
 async function build(): Promise<Built> {
@@ -80,14 +88,16 @@ async function build(): Promise<Built> {
           if (process.env.NODE_ENV !== "production") console.warn(`[war-stories] ${f.name}: ${errors.join("; ")}`);
           return null;
         }
-        const { postmortem, real, lesson, ...r } = room;
+        const { postmortem, real, lesson, topic, ...r } = room;
         return {
           ...r,
+          topic: topic || weekTitle(lesson, map),
           href: warRoomHref(r.slug),
           decisions: r.beats.filter((b) => b.kind === "decision").length,
           postmortemHtml: await html(postmortem),
           realHtml: await html(real),
           lesson: lessonLink(lesson, map),
+          lessonRef: lesson,
         };
       }),
     )
@@ -98,12 +108,12 @@ async function build(): Promise<Built> {
   return {
     stories: stories.map(({ html: _h, sources: _s, lesson: _l, ...s }) => (void _h, void _s, void _l, s)),
     storyBySlug: Object.fromEntries(stories.map((s) => [s.slug, s])),
-    rooms: rooms.map(({ slug, title, sev, company, product, starts, minutes, decisions, basedOn, basedOnUrl, href }) => ({ slug, title, sev, company, product, starts, minutes, decisions, basedOn, basedOnUrl, href })),
+    rooms: rooms.map(({ slug, title, sev, topic, difficulty, company, product, starts, minutes, decisions, basedOn, basedOnUrl, href }) => ({ slug, title, sev, topic, difficulty, company, product, starts, minutes, decisions, basedOn, basedOnUrl, href })),
     roomBySlug: Object.fromEntries(rooms.map((r) => [r.slug, r])),
   };
 }
 
-const cached = unstable_cache(() => build(), ["war-stories-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache(() => build(), ["war-stories-v2"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
 
 async function data(): Promise<Built> {
   try {

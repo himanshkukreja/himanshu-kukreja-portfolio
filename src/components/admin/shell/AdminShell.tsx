@@ -44,6 +44,7 @@ export const ADMIN_GROUPS: { label: string; items: NavItem[] }[] = [
   },
   { label: "Video", items: [at("/admin/lectures", "Lectures", "lectures"), at("/admin/shorts", "Shorts", "shorts"), at("/admin/publishing", "Publishing", "publishing"), at("/admin/distribution", "Distribution", "distribution")] },
   { label: "AI", items: [at("/admin/ai", "AI", "ai"), at("/admin/chat", "Chat", "chat")] },
+  { label: "Settings", items: [at("/admin/admins", "Admins", "admins")] },
 ];
 export const ADMIN_NAV: NavItem[] = ADMIN_GROUPS.flatMap((g) => g.items);
 

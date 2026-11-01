@@ -14,6 +14,7 @@ import { useAutoHideChrome, useChromeHidden } from "./readerChrome";
 import { DockDot, TabPending } from "./LinkPending";
 import OfflineStrip from "@/components/offline/OfflineStrip";
 import AppBack, { useAppDepth } from "./AppBack";
+import AdminLink from "./AdminLink";
 
 const NAV = [
   { href: "/#career", label: "career", match: (p: string) => p === "/" },
@@ -194,6 +195,10 @@ export default function SiteHeader() {
                 ?
               </Link>
             )}
+            {/* admins only (the server says so; nothing renders for anyone else). The course tabs carry it on desktop;
+                phones in the course (no room in the row) and very narrow screens get it in the account menu, with a
+                shield on the account button */}
+            <AdminLink variant="header" display={learn ? "hidden sm:inline-flex lg:hidden" : "hidden min-[360px]:inline-flex"} />
             <button
               type="button"
               data-quest-toggle

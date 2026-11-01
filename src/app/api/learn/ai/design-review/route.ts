@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "design-review",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => designReviewSystem({ title: c.title, text: problem }, promptOptsFor(model, "design-review")),
     messages: [{ role: "user", content: md.slice(0, 15000) }],

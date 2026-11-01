@@ -5,7 +5,7 @@
  * incident) are returned raw for the course renderer; script text gets inline markdown only.
  */
 import matter from "gray-matter";
-import type { Beat, CastMember, DecisionOption, Reply, StorySource, StoryTheme } from "./types";
+import type { Beat, CastMember, DecisionOption, Reply, RoomLevel, StorySource, StoryTheme } from "./types";
 import { STORY_THEMES } from "./types";
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -88,11 +88,23 @@ export type WarRoomSource = {
   basedOn: string;
   basedOnUrl: string;
   lesson: string | null;
+  /** optional front matter: a short topic tag for the card, and how hard it plays */
+  topic: string;
+  difficulty: RoomLevel | null;
   cast: CastMember[];
   beats: Beat[];
   postmortem: string;
   real: string;
 };
+
+/** `difficulty:` in a war room's front matter, with the usual synonyms; anything else is ignored (never hides the room). */
+function level(v: unknown): RoomLevel | null {
+  const s = str(v).toLowerCase();
+  if (/^(intro|easy|warm-?up|beginner)$/.test(s)) return "intro";
+  if (/^(standard|medium|normal|intermediate)$/.test(s)) return "standard";
+  if (/^(hard|advanced|expert)$/.test(s)) return "hard";
+  return null;
+}
 
 const SYSTEM_SPEAKERS = new Set(["pager", "status", "note"]);
 const AT = /^@(\d{1,2}:\d{2})\s+(\S+)(?:\s+(.*))?$/;
@@ -205,6 +217,8 @@ export function parseWarRoom(raw: string, file: string): { room: WarRoomSource |
       basedOn,
       basedOnUrl,
       lesson: str(data.lesson) || null,
+      topic: str(data.topic).slice(0, 40),
+      difficulty: level(data.difficulty),
       cast,
       beats,
       postmortem: postmortem.trim(),

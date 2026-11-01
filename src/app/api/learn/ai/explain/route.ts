@@ -23,7 +23,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "explain-back",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => explainBackSystem({ term: c.term, keyPoints }, promptOptsFor(model, "explain-back")),
     messages: [{ role: "user", content: text }],

@@ -39,7 +39,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: review ? "lab-review" : "lab-hint",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => (review ? labReviewSystem : labHintSystem)({ title: lab.title, brief }, promptOptsFor(model, review ? "lab-review" : "lab-hint")),
     messages: [{ role: "user", content: user }],

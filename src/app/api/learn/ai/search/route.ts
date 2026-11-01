@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   const dev = devPreview(request);
   const me = dev ? { id: "", email: null } : await requireLearner(request);
   if (me instanceof NextResponse) return me;
-  const admin = dev || isAdminEmail(me.email);
+  const admin = dev || await isAdminEmail(me.email);
   if (!SMART_SEARCH_PUBLIC && !admin) return NextResponse.json({ error: "Not available yet" }, { status: 403 });
   const body = (await request.json().catch(() => ({}))) as { q?: unknown };
   const q = String(body.q ?? "").trim().slice(0, 300);

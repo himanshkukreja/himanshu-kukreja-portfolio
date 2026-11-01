@@ -34,7 +34,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "mock-interviewer",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     // the model is decided inside callClaude (admin setting, amber mode): it picks the prompt tuned for that model
     // the tuned (compact) prompt for every model (TUNED_FOR_EVERY_MODEL): in the blind eval it lifted Sonnet

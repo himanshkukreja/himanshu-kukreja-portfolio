@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade";
 
 export type FeatureDef = {
   label: string;
@@ -55,6 +55,13 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "canvas-review": { label: "Design canvas review", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 5, maxTokens: 1500, maxInputChars: 12000, think: true, live: true },
   // Haiku: in the blind eval it matched Sonnet on every case at about a third of the cost; Haiku 5.5 tied Haiku 4.5 (16 runs) at a tenth of its cost
   "war-room": { label: "War room free-text", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 40, maxTokens: 350, maxInputChars: 600, think: false, live: true },
+  // War room run review (1 Nov 2026): after a room ends, a button asks for "how a senior on-call would rate your run".
+  // Haiku 5.5, thinking off, on the shared credits. The room (its answer key, postmortem, real incident and lesson list)
+  // goes in the system prompt; maxInputChars caps the learner's run (picks + typed moves ≤ 600 each), sent as data.
+  "war-room-debrief": { label: "War room run review", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 12, maxTokens: 600, maxInputChars: 8000, think: false, live: true },
+  // "Ask about this incident" on a war room: one question (≤ 500 characters) answered from the room's channel so far
+  // (no later beats or postmortem while the room is in progress: no spoilers) and its lesson. Haiku 5.5, no thinking.
+  "war-room-ask": { label: "Ask about a war room", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 30, maxTokens: 450, maxInputChars: 600, think: false, live: true },
   // the learning path on /learn/chat: picks and orders resources from the ranked candidates (JSON, no thinking: it should arrive in seconds)
   // maxTokens: room for the short cited answer (~150 tokens) on top of the path (~400-500)
   "smart-search": { label: "Smart search learning path", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 30, maxTokens: 950, maxInputChars: 14000, think: false, live: true },

@@ -3,11 +3,12 @@ import "server-only";
  * /admin/ai's "Who spends what (this cycle)": each learner's AI use in the credit cycle, filtered by feature and
  * learner and sorted (most recent, cost, credits, tokens) here on the server, 25 a page. The cycle's learner rows
  * (five small columns) are read once and kept 30 seconds. Credits leave out the course chat's calls (its own
- * message quota, never the learner's credits); cost counts everything, as the budget does.
+ * message quota, never the learner's credits); cost counts everything, as the budget does. `ext=1` (external users
+ * only) leaves the owner's and every admin's rows out of the table, its totals and its filter choices.
  */
 import { supabase } from "@/lib/supabase";
 import { FEATURES } from "@/lib/ai/features";
-import { emailsFor, isChatFeature, userOf, withEmails } from "./aiCalls";
+import { emailsFor, excludedUserIds, externalOnly, isChatFeature, userOf, withEmails } from "./aiCalls";
 
 export const USERS_PAGE = 25;
 export const USER_SORTS = ["new", "cost.desc", "cost.asc", "credits.desc", "credits.asc", "tokens.desc", "tokens.asc"] as const;
@@ -44,7 +45,9 @@ export async function usersSpend(p: URLSearchParams, cycleStart: string, today: 
   const user = userOf(p.get("user"));
   const sort = (USER_SORTS as readonly string[]).includes(p.get("sort") || "") ? (p.get("sort") as (typeof USER_SORTS)[number]) : "new";
   const page = Math.min(10_000, Math.max(1, Math.floor(Number(p.get("page"))) || 1));
-  const rows = await cycleRows(cycleStart);
+  const exclude = new Set(await excludedUserIds(externalOnly(p)));
+  const all = await cycleRows(cycleStart);
+  const rows = exclude.size ? all.filter((r) => !exclude.has(r.user_id)) : all;
 
   // the filters' choices: the features learners used this cycle, and who used the picked one
   const byFeature = new Map<string, number>();

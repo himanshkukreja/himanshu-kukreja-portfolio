@@ -63,7 +63,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "lesson-qa",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: built.system,
     messages: [{ role: "user", content: built.ask }],

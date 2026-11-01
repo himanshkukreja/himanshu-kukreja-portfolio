@@ -55,11 +55,12 @@ export async function POST(request: Request) {
 
   const text = paperGradeInput({ title: paper.title, n: q.n, kind: q.kind, marks: q.marks, prompt: q.prompt, scheme: q.scheme, answer: q.answer, typed, sheets });
   const scheme = { scheme: q.scheme, marks: q.marks };
+  const adminPreview = await isAdminEmail(me.email);
   const call = (model?: string, pass = 1) =>
     callClaude({
       feature: "paper-grade",
       userId: me.id,
-      adminPreview: isAdminEmail(me.email),
+      adminPreview,
       userKey: ownKey(request),
       system: paperGradeSystem(),
       // the image first, then the text about it (the Messages API's advice for image prompts)

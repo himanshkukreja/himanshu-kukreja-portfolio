@@ -10,7 +10,7 @@
  */
 import { useState } from "react";
 import CallLog from "@/components/admin/ai/CallLog";
-import { FilterBar, FilterSelect, Pager, usePage, UserPicker, useUrlFilters } from "@/components/admin/ai/filters";
+import { ExternalSwitch, FilterBar, FilterSelect, Pager, usePage, UserPicker, useExternalOnly, useUrlFilters } from "@/components/admin/ai/filters";
 import { adminFetch, adminJson } from "@/lib/admin/fetch";
 import { Badge, BarList, Card, Drawer, EmptyState, ErrorState, fmtDate, fmtNum, Kpi, LABEL, PageHead, Table, timeAgo, TrendChart, useAdminData, type Chip } from "@/components/admin/ui";
 
@@ -26,6 +26,8 @@ type Resp = {
   tools: { tool: string; n: number }[];
   feedback: { up: number; down: number; wrong: number; worst: { callId: number; at: string; rating: number; wrong: boolean; note: string | null; question: string | null; answer: string | null }[] } | null;
   gaps: { q: string; n: number }[];
+  /** external users only (`ext=1`): what the admins' calls in the window came to */
+  adminHidden?: { messages: number; cost: number } | null;
 };
 type Msg = { id: number; created_at: string; model: string; status: string; cost_usd: number | null; latency_ms: number | null; meta: Record<string, unknown> | null; transcript: { input: string; output: string | null } | null };
 
@@ -138,8 +140,9 @@ function Conversations({ days, onOpen }: { days: number; onOpen: (c: Conv) => vo
   const mode = MODES.some((m) => m.value === get("mode")) ? get("mode") : "";
   const outcome = ["off_topic", "down", "wrong"].includes(get("outcome")) ? get("outcome") : "";
   const sort = CONV_SORTS.some((x) => x.value === get("sort")) ? get("sort") : "new";
-  const [page, setPage] = usePage(JSON.stringify([days, user, mode, outcome, sort]));
-  const qs = new URLSearchParams({ view: "conversations", days: String(days), page: String(page), ...(user ? { user } : {}), ...(mode ? { mode } : {}), ...(outcome ? { outcome } : {}), ...(sort !== "new" ? { sort } : {}) });
+  const external = useExternalOnly().on;
+  const [page, setPage] = usePage(JSON.stringify([days, user, mode, outcome, sort, external]));
+  const qs = new URLSearchParams({ view: "conversations", days: String(days), page: String(page), ...(external ? { ext: "1" } : {}), ...(user ? { user } : {}), ...(mode ? { mode } : {}), ...(outcome ? { outcome } : {}), ...(sort !== "new" ? { sort } : {}) });
   const { data, error, loading, refresh } = useAdminData<ConvResp>(`/api/admin/ai/chat?${qs}`, { refreshMs: 60_000 });
   const outcomes = [{ value: "off_topic", label: "declined off-topic" }, ...(data?.feedback !== false ? [{ value: "down", label: "thumbs down" }, { value: "wrong", label: "marked wrong" }] : [])];
   const emailOf = (id: string) => data?.users.find((u) => u.id === id)?.email || data?.rows.find((r) => r.user === id)?.email || null;
@@ -201,7 +204,8 @@ export default function ChatAdmin() {
   const url = useUrlFilters();
   const days = [7, 14, 30, 90].includes(Number(url.get("days"))) ? Number(url.get("days")) : 14;
   const setDays = (d: number) => url.set({ days: d === 14 ? null : String(d) });
-  const { data, error, loading, refresh } = useAdminData<Resp>(`/api/admin/ai/chat?days=${days}`, { refreshMs: 60_000 });
+  const external = useExternalOnly().on;
+  const { data, error, loading, refresh } = useAdminData<Resp>(`/api/admin/ai/chat?days=${days}${external ? "&ext=1" : ""}`, { refreshMs: 60_000 });
   const [open, setOpen] = useState<Conv | null>(null);
   const exportCases = async () => {
     const r = await adminFetch("/api/admin/ai/chat?export=feedback");
@@ -231,6 +235,7 @@ export default function ChatAdmin() {
           </span>
         }
       />
+      <ExternalSwitch hidden={data?.adminHidden ? `admins hidden · ${fmtNum(data.adminHidden.messages)} messages · ${usd(data.adminHidden.cost, 3)}` : external ? "admins hidden" : null} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi loading={loading && !data} label={`messages · ${days} days`} value={t ? fmtNum(t.messages) : "–"} hint={t ? `${fmtNum(t.users)} learners` : ""} />
         <Kpi loading={loading && !data} label="sonnet / fast mode" value={t ? `${100 - share}% / ${share}%` : "–"} hint={t ? `${fmtNum(t.sonnet)} Sonnet · ${fmtNum(t.fast)} Haiku 5.5` : ""} />

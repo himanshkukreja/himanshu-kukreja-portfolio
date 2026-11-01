@@ -13,7 +13,7 @@
  */
 import { useState } from "react";
 import { Badge, Card, Drawer, EmptyState, ErrorState, fmtDate, fmtNum, LABEL, RangePicker, Table, timeAgo, useAdminData, useRange, type Chip, type Column } from "@/components/admin/ui";
-import { ContentSwitch, FilterBar, FilterSelect, Pager, usd, usePage, UserPicker, useContentJobs, useUrlFilters } from "./filters";
+import { ContentSwitch, FilterBar, FilterSelect, Pager, usd, usePage, UserPicker, useContentJobs, useExternalOnly, useUrlFilters } from "./filters";
 
 export { usd };
 export type Call = { id: number; created_at: string; user_id: string | null; email: string | null; feature: string; model: string; input_tokens: number; output_tokens: number; cache_read_tokens: number; cost_usd: number; credits: number; latency_ms: number | null; status: string; error: string | null; request_id: string | null; byok?: boolean };
@@ -96,12 +96,15 @@ export default function CallLog({
   const user = learner ? "" : get("user");
   const status = get("status");
   const include = hasContent && content.included;
+  // "external users only" (the page's switch, kept in localStorage): not on a learner's own page
+  const external = useExternalOnly().on && !learner;
 
   const common: Record<string, string> = {
     ...(days ? { days: String(days) } : { range }),
     ...(scope ? { scope } : {}),
     ...(learner ? { learner } : {}),
     ...(include ? { content: "1" } : {}),
+    ...(external ? { ext: "1" } : {}),
   };
   const filterKey = JSON.stringify([common, sort, feature, user, status]);
   const [page, setPage] = usePage(filterKey);

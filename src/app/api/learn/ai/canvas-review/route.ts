@@ -36,7 +36,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "canvas-review",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => canvasReviewSystem(brief, promptOptsFor(model, "canvas-review")),
     messages: [{ role: "user", content: input.slice(0, 12000) }],

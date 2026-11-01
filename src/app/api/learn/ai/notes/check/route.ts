@@ -40,7 +40,7 @@ export async function POST(request: Request) {
   const r = await callClaude({
     feature: "notes-check",
     userId: me.id,
-    adminPreview: isAdminEmail(me.email),
+    adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: notesCheckSystem({ title: lesson.resource.title, text: context.text }),
     messages: [{ role: "user", content: input }],

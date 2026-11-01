@@ -8,10 +8,16 @@ import "server-only";
  * A surface narrows every query with its scope: the chat's features only (`scope=chat`), or one learner
  * (`learner=<id>`). Emails come from the auth admin API by user id (as the log always did), through a short cache
  * so the 30 s refresh and the dropdowns don't ask again for the same accounts.
+ *
+ * "External users only" (`ext=1`, every AI and chat view): the owner's and every admin's calls are left out, by their
+ * accounts' user ids (lib/admin/admins.ts adminUserIds: env owners and admin_users, matched over the auth users, so
+ * a row whose email can't be read is still caught). That covers their own-key and admin-preview calls too; calls
+ * without a user (guests, content jobs) stay.
  */
 import { supabase } from "@/lib/supabase";
 import { CHAT_FEATURES } from "@/lib/ai/chat/quota";
 import { CONTENT_FEATURES, FEATURES, type FeatureId } from "@/lib/ai/features";
+import { adminUserIds } from "./admins";
 
 export const PAGE_SIZE = 50;
 const DAY = 86_400_000;
@@ -40,7 +46,33 @@ export const userOf = (v: string | null) => (v && UUID.test(v) ? v : null);
 export type CallScope = { features: readonly FeatureId[] | null; learner: string | null };
 export const scopeOf = (p: URLSearchParams): CallScope => ({ features: p.get("scope") === "chat" ? CHAT_FEATURES : null, learner: userOf(p.get("learner")) });
 
-export type CallQuery = { scope: CallScope; window: CallWindow; sort: CallSort; feature: FeatureId | null; status: string | null; user: string | null; content: boolean; page: number };
+export type CallQuery = {
+  scope: CallScope;
+  window: CallWindow;
+  sort: CallSort;
+  feature: FeatureId | null;
+  status: string | null;
+  user: string | null;
+  content: boolean;
+  /** "external users only": `exclude` holds the admins' user ids (filled by `withExclusions`) */
+  external: boolean;
+  exclude: string[];
+  page: number;
+};
+
+/** "External users only" asked for (`ext=1`). */
+export const externalOnly = (p: URLSearchParams) => p.get("ext") === "1";
+
+/** The user ids to leave out: every admin's account when `ext=1`, else none. */
+export const excludedUserIds = async (external: boolean): Promise<string[]> => (external ? adminUserIds() : []);
+
+/** Fills `exclude` for a query read with `readCallQuery`. */
+export async function withExclusions<T extends { external: boolean; exclude: string[] }>(q: T): Promise<T> {
+  return { ...q, exclude: await excludedUserIds(q.external) };
+}
+
+/** PostgREST filter: no user, or a user not in `ids` (a bare `not in` would drop the rows without a user). */
+export const notAdminsFilter = (ids: readonly string[]) => `user_id.is.null,user_id.not.in.(${ids.join(",")})`;
 
 export function readCallQuery(p: URLSearchParams): CallQuery {
   const scope = scopeOf(p);
@@ -57,6 +89,8 @@ export function readCallQuery(p: URLSearchParams): CallQuery {
     // a learner's page has its learner fixed
     user: scope.learner ?? userOf(p.get("user")),
     content,
+    external: externalOnly(p),
+    exclude: [],
     page: Math.min(10_000, Math.max(1, Math.floor(Number(p.get("page"))) || 1)),
   };
 }
@@ -67,13 +101,14 @@ const CONTENT_LIST = `(${CONTENT_FEATURES.join(",")})`;
 
 /** The window, the scope and the content-jobs switch every log query shares. Live rows without a learner (a guest's
  *  smart search, a test script's lesson question) stay in: only content-job features are left out. */
-type Chain = { gte(c: string, v: string): Chain; in(c: string, v: readonly string[]): Chain; eq(c: string, v: string): Chain; not(c: string, op: string, v: string): Chain };
-function base<T>(x: T, q: Pick<CallQuery, "scope" | "window" | "content">): T {
+type Chain = { gte(c: string, v: string): Chain; in(c: string, v: readonly string[]): Chain; eq(c: string, v: string): Chain; not(c: string, op: string, v: string): Chain; or(f: string): Chain };
+function base<T>(x: T, q: Pick<CallQuery, "scope" | "window" | "content" | "exclude">): T {
   // (a small structural view of the query builder: its own generic types are too deep to thread through here)
   let y = (x as unknown as Chain).gte("created_at", windowStart(q.window));
   if (q.scope.features) y = y.in("feature", q.scope.features);
   if (q.scope.learner) y = y.eq("user_id", q.scope.learner);
   if (!q.content && !q.scope.features) y = y.not("feature", "in", CONTENT_LIST);
+  if (q.exclude.length) y = y.or(notAdminsFilter(q.exclude));
   return y as unknown as T;
 }
 
@@ -156,7 +191,7 @@ async function featureCounts(q: CallQuery) {
 }
 
 /** The learners with calls in the window (for one feature, or any): their user ids read in pages, counted here. */
-export async function userCounts(q: Pick<CallQuery, "scope" | "window" | "content">, feature: string | null) {
+export async function userCounts(q: Pick<CallQuery, "scope" | "window" | "content" | "exclude">, feature: string | null) {
   const page = (i: number) => {
     let x = base(supabase.from("ai_calls").select("user_id", i === 0 ? { count: "exact" } : undefined), q).not("user_id", "is", null);
     if (feature) x = x.eq("feature", feature);
@@ -193,7 +228,7 @@ export async function contentInWindow(w: CallWindow): Promise<{ calls: number; c
 }
 
 export async function callFacets(q: CallQuery): Promise<CallFacets> {
-  const key = [q.scope.features ? "chat" : "", q.scope.learner ?? "", q.window.key, q.feature ?? "", q.content ? 1 : 0].join("|");
+  const key = [q.scope.features ? "chat" : "", q.scope.learner ?? "", q.window.key, q.feature ?? "", q.content ? 1 : 0, q.exclude.join(",")].join("|");
   const hit = facetCache.get(key);
   if (hit && Date.now() - hit.at < FACET_TTL) return hit.v;
   const hides = !q.content && !q.scope.features && !q.scope.learner;

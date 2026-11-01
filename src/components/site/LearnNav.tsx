@@ -9,6 +9,7 @@ import Link from "next/link";
 import { BookOpen, Briefcase, CloudDownload, Flame, Smartphone, Sparkles, Swords, User, type LucideIcon } from "lucide-react";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { DockDot, TabPending } from "./LinkPending";
+import AdminLink from "./AdminLink";
 
 export const COURSE_HREF = "/learn/system-design-mastery";
 
@@ -121,6 +122,7 @@ export function LearnTabs({ pathname }: { pathname: string }) {
       >
         <CloudDownload className="h-3.5 w-3.5" aria-hidden />
       </Link>
+      <AdminLink variant="tab" />
     </nav>
   );
 }

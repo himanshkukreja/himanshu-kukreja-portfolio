@@ -40,10 +40,18 @@ export type Beat =
 export type Reply = { who: string; html: string };
 export type DecisionOption = { html: string; best: boolean; minutes: number; users: number; replies: Reply[] };
 
+/** How hard a war room plays (optional `difficulty:` in its front matter). */
+export const ROOM_LEVELS = ["intro", "standard", "hard"] as const;
+export type RoomLevel = (typeof ROOM_LEVELS)[number];
+export const ROOM_LEVEL_LABEL: Record<RoomLevel, string> = { intro: "Warm-up", standard: "Standard", hard: "Hard" };
+
 export type WarRoomSummary = {
   slug: string;
   title: string;
   sev: string;
+  /** the card's topic tag: `topic:` in the front matter, else the course week its lesson sits in ("Failure-First Design") */
+  topic: string;
+  difficulty: RoomLevel | null;
   company: string;
   product: string;
   starts: string;
@@ -60,7 +68,12 @@ export type WarRoom = WarRoomSummary & {
   postmortemHtml: string;
   realHtml: string;
   lesson: LessonLink | null;
+  /** `week-folder/lesson-slug` of the lesson (the AI routes load its text) */
+  lessonRef: string | null;
 };
+
+/** The run review's grade (fixed by the server from the run: wrong picks + harmful typed moves). */
+export type RunGrade = "strong" | "solid" | "shaky" | "rough";
 
 export const storyHref = (slug: string) => `/learn/war-stories/${slug}`;
 export const warRoomHref = (slug: string) => `/learn/war-stories/war-room/${slug}`;

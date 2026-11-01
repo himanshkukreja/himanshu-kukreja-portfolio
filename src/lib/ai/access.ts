@@ -3,7 +3,7 @@ import "server-only";
  * Who may use AI right now, and how much they have left today. Learners need the master switch and the
  * feature switch on; admins may preview a feature while it is off for learners (still metered).
  */
-import { adminEmails } from "@/lib/admin/auth";
+import { isAdminEmail } from "@/lib/admin/admins";
 import { supabase } from "@/lib/supabase";
 import { FEATURE_IDS, FEATURES, type FeatureId } from "./features";
 import { featureConfig, getAiSettings } from "./settings";
@@ -30,12 +30,13 @@ export type AiStatus = {
   ownKey: boolean;
 };
 
-export const isAdminEmail = (email: string | null | undefined) => !!email && adminEmails().includes(email.toLowerCase());
+/** An admin (owner or added: lib/admin/admins.ts, cached a minute): AI preview while a feature is off, and no daily cap. */
+export { isAdminEmail };
 
 export async function aiStatus(user: { id: string; email: string | null } | null, ownKey = false): Promise<AiStatus> {
   const s = await getAiSettings();
   const b = await getBudget(s);
-  const admin = isAdminEmail(user?.email);
+  const admin = await isAdminEmail(user?.email);
   const keyed = !!process.env.ANTHROPIC_API_KEY;
   const usable = keyed && !(b.mode === "off" && !(b.reason === "switched off" && admin)) && b.mode !== "red";
   const features: AiStatus["features"] = {};

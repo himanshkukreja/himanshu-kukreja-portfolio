@@ -7,7 +7,7 @@
  * jobs switch, the active-filter chips and the pager. Each surface builds its controls from these; the filtering,
  * sorting and paging happen on the server (lib/admin/aiCalls.ts, lib/admin/chatConversations.ts).
  */
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { FilterChips, fmtNum, LABEL, type Chip } from "@/components/admin/ui";
 
@@ -72,6 +72,68 @@ export function ContentSwitch({ hidden, className = "" }: { hidden?: { calls?: n
           </button>
         </span>
       )}
+    </span>
+  );
+}
+
+/* ─────────────────────────── external users only ─────────────────────────── */
+
+const EXT_KEY = "hk.admin.externalOnly";
+const EXT_EVENT = "hk-admin-external";
+const subscribeExt = (cb: () => void) => {
+  window.addEventListener("storage", cb);
+  window.addEventListener(EXT_EVENT, cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener(EXT_EVENT, cb);
+  };
+};
+const readExt = () => {
+  try {
+    return window.localStorage.getItem(EXT_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+
+/**
+ * "External users only": leave the owner's and every admin's calls out of /admin/ai and /admin/chat (rows, totals,
+ * cards and charts; applied on the server with `ext=1`). Off by default; remembered in this browser (localStorage),
+ * one switch for both pages.
+ */
+export function useExternalOnly() {
+  const on = useSyncExternalStore(subscribeExt, readExt, () => false);
+  const setOn = useCallback((v: boolean) => {
+    try {
+      if (v) window.localStorage.setItem(EXT_KEY, "1");
+      else window.localStorage.removeItem(EXT_KEY);
+    } catch {
+      /* storage blocked: the switch still works for this page view */
+    }
+    window.dispatchEvent(new Event(EXT_EVENT));
+  }, []);
+  return { on, setOn };
+}
+
+/** The switch, with what it hides when on (the admins' spend or messages), like the content-jobs switch. */
+export function ExternalSwitch({ hidden, className = "" }: { hidden?: ReactNode; className?: string }) {
+  const { on, setOn } = useExternalOnly();
+  return (
+    <span className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 ${className}`}>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        onClick={() => setOn(!on)}
+        title="Leave out the owner's and every admin's calls (their own-key and preview calls too)"
+        className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-2.5 font-mono text-xs text-fg-2 hover:text-fg"
+      >
+        <span aria-hidden className={`relative inline-block h-4 w-7 border ${on ? "border-signal bg-signal" : "border-line-strong bg-bg"}`}>
+          <span className={`absolute top-[1px] h-3 w-3 bg-fg transition-[left] ${on ? "left-[13px] bg-on-signal" : "left-[1px]"}`} />
+        </span>
+        external users only
+      </button>
+      {on && hidden && <span className="font-mono text-[11px] text-fg-4">{hidden}</span>}
     </span>
   );
 }

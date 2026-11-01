@@ -15,6 +15,7 @@ import { WAR_ROOM_XP, warRoomKey, type Beat, type CastMember, type WarRoom } fro
 import { readRuns, saveRun, WAR_EVENT } from "./store";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { setAiCredits, useAiStatus } from "@/components/learn/ai/useAiStatus";
+import { AskIncident, RunReview, type TypedMove } from "./WarRoomAi";
 
 const subscribe = (cb: () => void) => {
   window.addEventListener(WAR_EVENT, cb);
@@ -147,6 +148,8 @@ function Decision({
   open,
   seed,
   ai,
+  typed,
+  onTyped,
 }: {
   beat: Extract<Beat, { kind: "decision" }>;
   picks: Pick[];
@@ -156,22 +159,26 @@ function Decision({
   seed: string;
   /** free-text mode (AI): the room's slug and this decision's index in the script */
   ai?: { slug: string; beat: number } | null;
+  /** the moves typed at this call (kept by the player for the totals and the run review) */
+  typed: TypedMove[];
+  onTyped: (m: TypedMove) => void;
 }) {
   const tried = new Set(picks.map((p) => p.option));
   const shown = order(beat.options.length, seed);
   const [free, setFree] = useState("");
   const [freeBusy, setFreeBusy] = useState(false);
-  const [freeLog, setFreeLog] = useState<{ you: string; who: string; reply: string }[]>([]);
   const sendFree = async () => {
     if (!ai || !free.trim() || freeBusy) return;
     setFreeBusy(true);
     const you = free.trim();
     setFree("");
+    const at = ai.beat;
+    const log = (m: Omit<TypedMove, "beat" | "you">) => onTyped({ beat: at, you, ...m });
     try {
       const r = await aiFetch("/api/learn/ai/war-room", { method: "POST", body: JSON.stringify({ slug: ai.slug, beat: ai.beat, text: you }) });
-      const b = (await r.json().catch(() => ({}))) as { match?: number | null; who?: string; reply?: string; error?: string; creditsLeft?: number | null };
+      const b = (await r.json().catch(() => ({}))) as { match?: number | null; who?: string; reply?: string; verdict?: TypedMove["verdict"]; cost?: number; hint?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(b.creditsLeft);
-      if (!r.ok) setFreeLog((l) => [...l, { you, who: "", reply: b.error || "Something went wrong." }]);
+      if (!r.ok) log({ who: "", reply: b.error || "Something went wrong.", match: null, failed: true });
       else {
         // a move that matches an option plays out exactly like picking it (costs included); its scripted replies
         // then speak for the room, so the AI's own reply (often a copy of them) isn't shown a second time
@@ -185,12 +192,14 @@ function Decision({
             .replace(/&gt;/g, ">")
             .replace(/&amp;/g, "&")
             .trim();
-          setFreeLog((l) => [...l, { you, who: "", reply: label ? `That's the same call as: “${label}”` : "" }]);
+          log({ who: "", reply: label ? `That's the same call as: “${label}”` : "", match: b.match });
           onPick(b.match);
-        } else setFreeLog((l) => [...l, { you, who: b.who || "", reply: b.reply || "" }]);
+        } else if (typeof b.match === "number") log({ who: b.who || "", reply: b.reply || "", match: b.match });
+        // no option matched: judged in character, with a hint and (for a harmful move) the minutes it cost
+        else log({ who: b.who || "", reply: b.reply || "", match: null, verdict: b.verdict ?? null, cost: b.cost || 0, hint: b.hint || "" });
       }
     } catch {
-      setFreeLog((l) => [...l, { you, who: "", reply: "You seem to be offline." }]);
+      log({ who: "", reply: "You seem to be offline.", match: null, failed: true });
     }
     setFreeBusy(false);
   };
@@ -220,27 +229,41 @@ function Decision({
           );
         })}
       </div>
-      {freeLog.map((f, k) => (
-        <div key={`f${k}`} className="flex flex-col gap-1 border-l-2 border-signal pl-3 text-[14px] leading-relaxed">
-          <span className="text-fg">
-            <strong>You: </strong>
-            {f.you}
-          </span>
-          <span className="text-fg-2">
-            {f.who && <strong className="text-fg">{f.who}: </strong>}
-            {f.reply}
-          </span>
-        </div>
-      ))}
+      {typed.map((f, k) => {
+        const v = f.match === null && !f.failed ? f.verdict : null;
+        return (
+          <div key={`f${k}`} className={`flex flex-col gap-1 border-l-2 pl-3 text-[14px] leading-relaxed ${v === "hurts" ? "border-bad" : v === "helps" ? "border-ok" : "border-signal"}`}>
+            <span className="text-fg">
+              <strong>You: </strong>
+              {f.you}
+            </span>
+            {v && (
+              <span className={`font-mono text-[11px] uppercase tracking-label ${v === "hurts" ? "text-bad" : v === "helps" ? "text-ok" : "text-fg-3"}`}>
+                {v === "helps" ? "✓ would help" : v === "hurts" ? `✗ would hurt${f.cost ? ` · +${f.cost} min` : ""}` : "○ off track"}
+              </span>
+            )}
+            <span className="text-fg-2">
+              {f.who && <strong className="text-fg">{f.who}: </strong>}
+              {f.reply}
+            </span>
+            {f.hint && open && (
+              <span className="text-[13.5px] text-fg-3">
+                <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">hint · </span>
+                {f.hint}
+              </span>
+            )}
+          </div>
+        );
+      })}
       {open && ai && (
         <div className="flex flex-col gap-2 border-t border-line pt-3">
-          <span className="font-mono text-[11px] text-fg-3">or type what you&apos;d actually do (ai)</span>
+          <span className="font-mono text-[11px] text-fg-3">or type what you&apos;d actually do (optional ai: it plays as an option, or gets judged)</span>
           <div className="flex gap-2">
             <input
               value={free}
               onChange={(e) => setFree(e.target.value.slice(0, 600))}
               onKeyDown={(e) => e.key === "Enter" && void sendFree()}
-              placeholder="e.g. check what changed in the last hour"
+              placeholder="e.g. what you would check, change or say"
               aria-label="Your move, in your own words"
               className="min-h-11 min-w-0 flex-1 border border-line-strong bg-bg px-3 text-[15px] text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
             />
@@ -279,6 +302,11 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
   const freeText = !!(aiStatus?.signedIn && aiStatus.features["war-room"]);
   const [shown, setShown] = useState(0);
   const [picks, setPicks] = useState<Record<number, Pick[]>>({});
+  // moves typed in the learner's own words, by call (a harmful one adds its minutes to the night)
+  const [typed, setTyped] = useState<TypedMove[]>([]);
+  // a new run gets a fresh review (the review box is keyed by it)
+  const [run, setRun] = useState(0);
+  const askRef = useRef<HTMLDivElement>(null);
   const [fast, setFast] = useState(false);
   const [started, setStarted] = useState(false);
   const [gained, setGained] = useState<number | null>(null);
@@ -312,8 +340,10 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
         users += o.users;
       }
     }
+    // judged typed moves: only a harmful one costs (the server caps it)
+    for (const t of typed) if (!t.failed && t.match === null && t.verdict === "hurts") minutes += t.cost || 0;
     return { minutes, users, wrong };
-  }, [picks, beats]);
+  }, [picks, beats, typed]);
 
   // reveal the next beat after a pause sized to the message
   useEffect(() => {
@@ -326,6 +356,8 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
   }, [started, waiting, shown, beats, fast]);
 
   useEffect(() => {
+    // not while the learner is typing a question under the channel
+    if (askRef.current?.contains(document.activeElement)) return;
     if (started) endRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [shown, picks, started]);
 
@@ -357,6 +389,8 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
   const restart = () => {
     finishedRef.current = false;
     setPicks({});
+    setTyped([]);
+    setRun((n) => n + 1);
     setShown(0);
     setGained(null);
     setStarted(true);
@@ -422,7 +456,18 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
       <div role="log" aria-live="polite" aria-label="Incident channel" className="flex flex-col gap-4">
         {beats.slice(0, shown).map((b, i) =>
           b.kind === "decision" ? (
-            <Decision key={i} beat={b} picks={picks[i] || []} cast={room.cast} open={!resolved(i)} onPick={(o) => pick(i, o)} seed={`${room.slug}:${i}`} ai={freeText ? { slug: room.slug, beat: i } : null} />
+            <Decision
+              key={i}
+              beat={b}
+              picks={picks[i] || []}
+              cast={room.cast}
+              open={!resolved(i)}
+              onPick={(o) => pick(i, o)}
+              seed={`${room.slug}:${i}`}
+              ai={freeText ? { slug: room.slug, beat: i } : null}
+              typed={typed.filter((t) => t.beat === i)}
+              onTyped={(m) => setTyped((ts) => [...ts, m])}
+            />
           ) : (
             <Message key={i} beat={b} cast={room.cast} />
           ),
@@ -468,7 +513,9 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
             </div>
           </div>
 
-          <div className="flex flex-col gap-3">
+          <RunReview key={run} slug={room.slug} picks={Object.entries(picks).map(([b, ps]) => ({ beat: Number(b), options: ps.map((p) => p.option) }))} typed={typed} />
+
+          <div id="war-postmortem" className="flex scroll-mt-[calc(var(--hk-header-h,61px)+64px)] flex-col gap-3">
             <h2 className="m-0 font-display text-[28px] font-bold tracking-[-0.02em] text-fg">Postmortem</h2>
             <div className="course-content max-w-none" dangerouslySetInnerHTML={{ __html: room.postmortemHtml }} />
           </div>
@@ -492,6 +539,10 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
           )}
         </section>
       )}
+
+      <div ref={askRef}>
+        <AskIncident slug={room.slug} at={shown} over={done} lessonTitle={room.lesson?.title} />
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { featureConfig, getAiSettings } from "@/lib/ai/settings";
 import { FEATURES } from "@/lib/ai/features";
 import { conversations, readConvQuery } from "@/lib/admin/chatConversations";
+import { excludedUserIds, externalOnly, withExclusions } from "@/lib/admin/aiCalls";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +19,8 @@ const REFUSED = new Set(["over_quota", "rate_limited", "blocked", "disabled", "t
  * GET ?view=conversations&days=14&sort=&user=&mode=&outcome=&page= → one page of the window's conversations, filtered
  * and sorted on the server (lib/admin/chatConversations.ts).
  * GET ?chat=<id> → that conversation's messages with their transcripts (kept 30 days, admins only).
+ * `ext=1` on the stats and the conversations: external users only (the owner's and every admin's messages, memory and
+ * title calls and feedback left out of every number); the stats then say what was hidden (`adminHidden`).
  */
 export async function GET(request: Request) {
   const admin = await requireAdmin(request);
@@ -48,7 +51,7 @@ export async function GET(request: Request) {
 
   if (p.get("view") === "conversations") {
     try {
-      return NextResponse.json(await conversations(readConvQuery(p)), { headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json(await conversations(await withExclusions(readConvQuery(p))), { headers: { "Cache-Control": "no-store" } });
     } catch (e) {
       return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
     }
@@ -68,6 +71,13 @@ export async function GET(request: Request) {
   const days = Math.min(90, Math.max(1, Number(p.get("days")) || 14));
   const since = new Date(Date.now() - days * 86_400_000);
   since.setUTCHours(0, 0, 0, 0);
+  let exclude: Set<string>;
+  try {
+    exclude = new Set(await excludedUserIds(externalOnly(p)));
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });
+  }
+  const adminHidden = { messages: 0, cost: 0 };
   const rows: Row[] = [];
   for (let from = 0; from < 20_000; from += 1000) {
     const { data, error } = await supabase
@@ -78,9 +88,17 @@ export async function GET(request: Request) {
       .order("id", { ascending: true })
       .range(from, from + 999);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    rows.push(...((data ?? []) as Row[]));
+    for (const r of (data ?? []) as Row[]) {
+      if (r.user_id && exclude.has(r.user_id)) {
+        if (r.feature === "course-chat" && (r.status === "ok" || r.status === "off_topic")) adminHidden.messages++;
+        adminHidden.cost += Number(r.cost_usd) || 0;
+        continue;
+      }
+      rows.push(r);
+    }
     if ((data ?? []).length < 1000) break;
   }
+  const notAdmin = exclude.size ? `(${[...exclude].join(",")})` : null;
 
   type Day = { day: string; messages: number; users: Set<string>; sonnet: number; fast: number; cost: number; memoryCost: number; titleCost: number; tools: number; latency: number; offTopic: number; refused: number; errors: number };
   const byDay = new Map<string, Day>();
@@ -160,9 +178,13 @@ export async function GET(request: Request) {
   }));
   const sum = (k: keyof (typeof daily)[number]) => daily.reduce((a, d) => a + (Number(d[k]) || 0), 0);
 
-  const mem = await supabase.from("chat_memory").select("user_id", { count: "exact", head: true });
+  let memQ = supabase.from("chat_memory").select("user_id", { count: "exact", head: true });
+  if (notAdmin) memQ = memQ.not("user_id", "in", notAdmin);
+  const mem = await memQ;
   // answer feedback in the window: the rate, and the worst answers (thumbs down or "wrong") with their text
-  const fb = await supabase.from("chat_feedback").select("call_id, rating, wrong, note, created_at").gte("created_at", since.toISOString()).order("created_at", { ascending: false }).limit(2000);
+  let fbQ = supabase.from("chat_feedback").select("call_id, rating, wrong, note, created_at").gte("created_at", since.toISOString());
+  if (notAdmin) fbQ = fbQ.or(`user_id.is.null,user_id.not.in.${notAdmin}`);
+  const fb = await fbQ.order("created_at", { ascending: false }).limit(2000);
   const fbRows = fb.error ? null : ((fb.data ?? []) as { call_id: number; rating: number; wrong: boolean; note: string | null; created_at: string }[]);
   const worstRows = (fbRows ?? []).filter((r) => r.rating < 0 || r.wrong).slice(0, 15);
   const worstTr = worstRows.length ? await supabase.from("ai_transcripts").select("call_id, input, output").in("call_id", worstRows.map((r) => r.call_id)) : { data: [] };
@@ -211,6 +233,8 @@ export async function GET(request: Request) {
       tools: [...toolUse.entries()].sort((a, b) => b[1] - a[1]).map(([tool, n]) => ({ tool, n })),
       feedback,
       gaps: [...gaps.entries()].sort((a, b) => b[1] - a[1]).slice(0, 20).map(([q, n]) => ({ q, n })),
+      external: externalOnly(p),
+      adminHidden: externalOnly(p) ? adminHidden : null,
     },
     { headers: { "Cache-Control": "no-store" } },
   );
