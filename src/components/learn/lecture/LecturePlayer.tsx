@@ -39,6 +39,8 @@ import { nextProgress, progressKey, readProgress } from "@/lib/learn/lecture/pro
 import { LEVEL_TONE, type Level } from "@/lib/learn/level";
 import LectureCaptureHost from "@/components/learn/ink/capture/LectureCaptureHost";
 import { SNIP_START, startSnip } from "@/components/learn/ink/capture/events";
+import ChapterSegments from "@/components/learn/video/ChapterSegments";
+import { useIdle } from "@/components/learn/video/useIdle";
 
 declare global {
   interface Window {
@@ -248,23 +250,14 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   }, []);
   // full screen: the stage fills the screen and the controls float over it, fading out when idle
   const [fs, setFs] = useState(false);
-  const [idle, setIdle] = useState(false);
-  const idleTimer = useRef<number | undefined>(undefined);
-  const wake = useCallback(() => {
-    setIdle(false);
-    window.clearTimeout(idleTimer.current);
-    idleTimer.current = window.setTimeout(() => setIdle(true), 2500);
-  }, []);
+  const { idle, wake } = useIdle(2500);
   useEffect(() => {
     const on = () => {
       setFs(document.fullscreenElement === shellRef.current);
       wake();
     };
     document.addEventListener("fullscreenchange", on);
-    return () => {
-      document.removeEventListener("fullscreenchange", on);
-      window.clearTimeout(idleTimer.current);
-    };
+    return () => document.removeEventListener("fullscreenchange", on);
   }, [wake]);
 
   useEffect(() => {
@@ -918,19 +911,13 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
               if (e.key === "ArrowRight") seek(time + 5);
             }}
           >
-            {/* one segment per chapter, with a gap between, like the big video sites */}
-            {chapters.map((c, k) => {
-              const end = k + 1 < chapters.length ? chapters[k + 1].at : duration;
-              const left = (c.at / Math.max(1, duration)) * 100;
-              const width = ((end - c.at) / Math.max(1, duration)) * 100;
-              const filled = Math.max(0, Math.min(1, (time - c.at) / Math.max(0.01, end - c.at)));
-              const hot = hover && hover.tm >= c.at && hover.tm < end;
-              return (
-                <div key={c.k} className={`absolute top-1/2 -translate-y-1/2 overflow-hidden transition-[height] ${hot ? "h-2" : "h-1 group-hover:h-1.5"} ${c.s.kind === "quiz" ? "bg-[#1e3a2a]" : "bg-surface-2"}`} style={{ left: `calc(${left}% + 1px)`, width: `calc(${width}% - 2px)` }}>
-                  <div className="h-full bg-signal" style={{ width: `${filled * 100}%` }} />
-                </div>
-              );
-            })}
+            {/* one segment per chapter, with a gap between, like the big video sites (shared with the guide videos) */}
+            <ChapterSegments
+              segments={chapters.map((c, k) => ({ key: c.k, start: c.at, end: k + 1 < chapters.length ? chapters[k + 1].at : duration, tone: c.s.kind === "quiz" ? "bg-[#1e3a2a]" : undefined }))}
+              time={time}
+              duration={duration}
+              hoverTm={hover?.tm ?? null}
+            />
             {hover && (() => {
               const k = stepAt(hover.tm);
               const f = flat[k];
@@ -950,7 +937,6 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
                 </div>
               );
             })()}
-            <span className="pointer-events-none absolute top-1/2 h-3.5 w-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-signal opacity-0 shadow-[0_0_10px_rgba(255,107,43,0.7)] transition-opacity group-hover:opacity-100" style={{ left: `${(time / Math.max(1, duration)) * 100}%` }} />
           </div>
 
           {/* one row at every width: labels shorten and the least-needed buttons drop out on small screens */}

@@ -99,6 +99,7 @@ export default function GuideVideoModal({ id, at, from, onClose, onGo }: { id: s
                 from={from}
                 at={at}
                 autoPlay
+                autoFocus
                 onTime={setTime}
                 elRef={(v) => {
                   el.current = v;

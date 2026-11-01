@@ -31,7 +31,6 @@ export default function InlineVideo({
   const [start, setStart] = useState<number | null>(null);
   const [time, setTime] = useState(0);
   const el = useRef<HTMLVideoElement | null>(null);
-  const focusOnMount = useRef(false);
   if (!v) return null;
 
   const play = (at: number) => {
@@ -42,7 +41,6 @@ export default function InlineVideo({
       media.play().catch(() => {});
       return;
     }
-    focusOnMount.current = true;
     setStart(at);
   };
 
@@ -95,12 +93,9 @@ export default function InlineVideo({
             at={start}
             autoPlay
             onTime={setTime}
+            autoFocus
             elRef={(media) => {
               el.current = media;
-              if (media && focusOnMount.current) {
-                focusOnMount.current = false;
-                media.focus({ preventScroll: true });
-              }
             }}
           />
         )}
