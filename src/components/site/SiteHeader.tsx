@@ -182,6 +182,18 @@ export default function SiteHeader() {
           {/* min-w-0: in learn mode the search box gives up width before the row overflows */}
           <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             {learn && <SearchBar variant="nav" hotkey />}
+            {/* the guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here */}
+            {learn && (
+              <Link
+                href="/learn/guide"
+                aria-current={pathname.startsWith("/learn/guide") ? "page" : undefined}
+                aria-label="How the course works"
+                title="How the course works"
+                className={`grid h-10 w-10 shrink-0 place-items-center border font-mono text-[14px] lg:hidden ${pathname.startsWith("/learn/guide") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
+              >
+                ?
+              </Link>
+            )}
             <button
               type="button"
               data-quest-toggle
