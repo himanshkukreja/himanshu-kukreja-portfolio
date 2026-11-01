@@ -8,7 +8,7 @@
  * writes after uploading it to R2 (guide-videos/<id>/…), so a half-finished series never shows
  * broken players. The manifest's measured duration and script.md chapters win over the ones here.
  *
- * Media base: NEXT_PUBLIC_GUIDE_VIDEO_MEDIA, else NEXT_PUBLIC_LECTURE_MEDIA + /guide-videos
+ * Media base: NEXT_PUBLIC_GUIDE_VIDEO_MEDIA, else NEXT_PUBLIC_LECTURE_MEDIA with /lectures swapped for /guide-videos
  * (media.himanshukukreja.in), else /guide-videos-dev in `next dev` (publish.mjs --local).
  */
 import manifest from "./published.json";
@@ -334,7 +334,8 @@ export function guideMediaBase(): string {
   const own = process.env.NEXT_PUBLIC_GUIDE_VIDEO_MEDIA;
   if (own) return own.replace(/\/$/, "");
   const lecture = process.env.NEXT_PUBLIC_LECTURE_MEDIA;
-  if (lecture) return `${lecture.replace(/\/$/, "")}/guide-videos`;
+  // the lecture base is <bucket>/lectures; the guide videos live beside it at <bucket>/guide-videos
+  if (lecture) return `${lecture.replace(/\/$/, "").replace(/\/lectures$/, "")}/guide-videos`;
   return process.env.NODE_ENV === "development" ? "/guide-videos-dev" : "";
 }
 
