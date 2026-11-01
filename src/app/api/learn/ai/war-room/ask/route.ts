@@ -74,7 +74,9 @@ export async function POST(request: Request) {
 
   const t = r.text.replace(/\r\n?/g, "\n").trim();
   const sm = t.match(/\n?\s*\**SOURCES:?\**\s*(.*)\s*$/i);
-  const text = (sm ? t.slice(0, sm.index) : t).trim();
+  let text = (sm ? t.slice(0, sm.index) : t).trim();
+  // the spoiler line belongs only to a refusal (which opens with it); drop it wherever it sits in an answer we were allowed to give
+  if (!/^\W*I won['’]t spoil this call/i.test(text)) text = text.replace(/[ \t]*\**I won['’]t spoil[^.\n]*\.\**[ \t]*/gi, "").replace(/\n{3,}/g, "\n\n").trim() || text;
   const named = new Set((sm?.[1] || "").toLowerCase().split(/[,;|]/).map((x) => x.trim()));
   const sources: AskSource[] = [];
   if ([...named].some((x) => x.includes("channel"))) sources.push({ label: over ? "the channel" : "the channel so far" });

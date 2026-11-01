@@ -441,8 +441,8 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
   const r = rating(totals.wrong);
   return (
     <div className="flex flex-col gap-6">
-      {/* channel header */}
-      <div className="sticky top-[var(--hk-header-h,56px)] z-10 flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-line-strong bg-bg/95 px-4 py-2.5 backdrop-blur">
+      {/* channel header: pinned while the room is live; once it ends it scrolls away so it never covers the debrief, postmortem or review */}
+      <div className={`${done ? "" : "sticky top-[var(--hk-header-h,56px)] z-10 "}flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-line-strong bg-bg/95 px-4 py-2.5 backdrop-blur`}>
         <span className="font-mono text-[13px] text-fg">
           <span className="bg-bad px-1.5 py-0.5 font-semibold text-white">{room.sev}</span> #inc-{room.slug.slice(0, 22)}
         </span>

@@ -671,7 +671,8 @@ NO SPOILERS. These questions all ask for the answer, whatever their wording, and
 - which option is right or wrong, or what to pick, do, check, look at, try or avoid next;
 - "is it X?", "is it not X?", "could it be X?" or "what changed?" about the cause, or any guess at the root cause;
 - what happens later, how it ends, what the postmortem says.
-The refusal is exactly two sentences: "I won't spoil this call." then one question that sends them to a specific chart, log line or message already in the channel (name it by its time) and asks what it shows. The question never names a cause, a kind of cause, a tool, a place to look or an action, and never rules anything in or out.
+The refusal is exactly two sentences, and it is the WHOLE answer: "I won't spoil this call." then one question that sends them to a specific chart, log line or message already in the channel (name it by its time) and asks what it shows. The question never names a cause, a kind of cause, a tool, a place to look or an action, and never rules anything in or out.
+"I won't spoil this call." is used ONLY as the opening of a refusal, never as a closing line. When you answer, never write it or any variant ("I won't spoil the rest", "no spoilers", "I can't say more") before, after or inside the answer: an answer you are allowed to give is complete without it.
 Any other question gets a normal answer, with no refusal added. Allowed: what a term, chart or log line in the channel means in general, a recap of what the channel has shown so far (facts only, no reading of what they imply), and who the people are. The lesson is background for explaining terms only.`
 }
 
