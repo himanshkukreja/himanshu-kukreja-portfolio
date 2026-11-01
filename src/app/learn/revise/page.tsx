@@ -26,7 +26,7 @@ export default async function RevisePage() {
           Each lesson boiled down to swipeable cards: the key ideas, the numbers to remember, one trade-off table, the classic mistakes and what to say when the interviewer asks.
           Flip a whole world the night before. Save it offline and it works on the flight.
         </p>
-        <WatchHowItWorks id="arena-review" chapter="Revise mode" />
+        <WatchHowItWorks id="arena-review" chapter="Revise mode" guide="practice-revise" />
         <span className="font-mono text-xs text-fg-3">
           {lessons} lessons · {cards} cards ·{" "}
           <Link href="/learn/review" className="text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCompanies, getQuestionBank } from "@/lib/learn/prep/load";
 import QuestionBank from "@/components/learn/prep/QuestionBank";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
 export const revalidate = 86400;
@@ -30,6 +31,7 @@ export default async function QuestionsPage() {
         <p className="m-0 max-w-[700px] text-[17px] leading-relaxed text-fg-2">
           Every question from the company pages, merged: the most-reported first. Each one links the lessons that teach it and the companies it comes from.
         </p>
+        <WatchHowItWorks id="interview-prep" chapter="The question bank" guide="practice-companies" />
       </header>
       {bank.length ? (
         <QuestionBank bank={bank} companies={companies.map((c) => ({ slug: c.slug, name: c.name }))} />

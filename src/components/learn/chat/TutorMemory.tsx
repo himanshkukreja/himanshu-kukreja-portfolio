@@ -13,6 +13,7 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { userFetch } from "@/components/learn/progress/userFetch";
 import { track } from "@/lib/track";
 import { isEmptyMemory, type ChatMemory } from "@/lib/ai/chat/memory-model";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 type State = { available: boolean; paused: boolean; memory: ChatMemory };
 
@@ -88,6 +89,7 @@ export default function TutorMemory() {
           keeps short notes about your learning: your goals, your level, what you studied and found hard, how you like answers, recent practice results and a line about each chat. Only learning
           notes: no contact details, no links. You can clear them or switch memory off at any time.
         </p>
+        <WatchHowItWorks id="ai-tutor" chapter="It remembers you" guide="ai-chat" />
       </section>
 
       {loading ? null : !user ? (

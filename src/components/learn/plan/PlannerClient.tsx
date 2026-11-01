@@ -18,6 +18,7 @@ import PlanForm from "./PlanForm";
 import { computePlan, usePlanRecord, useToday, type PlanView } from "./usePlan";
 import { downloadIcs, googleDayLink } from "./exportPlan";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const dow = (d: string) => {
@@ -99,6 +100,7 @@ export default function PlannerClient({ map }: { map: CourseMap }) {
             numbers playground →
           </Link>
         </div>
+        <WatchHowItWorks id="getting-started" chapter="The study planner" guide="practice-plan" />
       </header>
 
       {!view || editing ? (

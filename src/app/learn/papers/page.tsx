@@ -36,7 +36,7 @@ export default async function PapersPage() {
         <p className="m-0 font-mono text-xs text-fg-3">
           {papers.length} paper{papers.length === 1 ? "" : "s"} · practice untimed or sit it as a timed exam · graded by AI on your daily credits
         </p>
-        <WatchHowItWorks id="notebook" chapter="Written papers" label="watch papers being marked" />
+        <WatchHowItWorks id="notebook" chapter="Written papers" label="watch papers being marked" guide="papers" />
       </header>
       <PapersIndex papers={papers} />
     </main>

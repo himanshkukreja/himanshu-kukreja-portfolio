@@ -11,7 +11,7 @@ export const revalidate = 3600;
 
 const TITLE = "How the course works · System Design Mastery · Himanshu Kukreja";
 const DESCRIPTION =
-  "A visual guide to System Design Mastery: worlds, lessons and stages, the video lectures, how progress counts, the Notebook, the daily standup, trials and boss fights, the Arena, XP, levels and leagues.";
+  "How System Design Mastery works, feature by feature, with a short video and step-by-step instructions for each: the course map and stages, lectures and Listen, shorts, side quests and war rooms, code labs, the Arena and review, the design canvas and boss fights, mock interviews, interview prep, the notebook, the AI tutor, and progress and certificates.";
 
 export const metadata: Metadata = {
   title: TITLE,

@@ -216,7 +216,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
           <p className="max-w-[620px] text-[17px] leading-relaxed text-fg-2 sm:text-lg">
             Five minutes on what you got wrong, flagged or highlighted. Recall it, flip it, grade yourself. Cards you know drift to bigger boxes and come back less often.
           </p>
-          <WatchHowItWorks id="arena-review" chapter="The Daily standup" />
+          <WatchHowItWorks id="arena-review" chapter="The Daily standup" guide="review" />
           <div className="grid grid-cols-2 gap-px self-stretch border border-line bg-line sm:flex sm:flex-wrap sm:self-start">
             {[
               [ready ? String(n) : "·", "cards today"],

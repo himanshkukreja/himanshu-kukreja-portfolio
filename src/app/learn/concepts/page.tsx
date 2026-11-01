@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getCatalogue } from "@/lib/concepts/load";
 import { refCode } from "@/lib/concepts/match";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed daily and on every content push.
@@ -26,6 +27,7 @@ export default async function ConceptsIndex() {
         <span className="font-mono text-xs uppercase tracking-label text-signal-text">Learn · concepts</span>
         <h1 className="font-display text-[40px] font-extrabold leading-[0.98] tracking-[-0.04em] text-fg sm:text-[56px]">{sorted.length} concepts, A to Z.</h1>
         <p className="m-0 max-w-[680px] text-[17px] leading-relaxed text-fg-2">Every idea the course teaches, in one line, with a two-minute refresher and the lesson that teaches it properly.</p>
+        <WatchHowItWorks id="interview-prep" chapter="Concepts A to Z" />
         <nav aria-label="Jump to letter" className="flex flex-wrap gap-1">
           {[...groups.keys()].map((k) => (
             <a key={k} href={`#l-${k}`} className="grid h-9 w-9 place-items-center border border-line-strong font-mono text-xs text-fg hover:border-fg-3">

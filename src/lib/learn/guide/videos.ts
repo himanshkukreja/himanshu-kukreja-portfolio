@@ -49,6 +49,8 @@ type Entry = {
   href: string;
   /** "Try it: <hrefLabel>" */
   hrefLabel: string;
+  /** its section on /learn/guide (#anchor) */
+  guide: string;
 };
 
 /** "1:08 A lesson's stages" lines → chapters. */
@@ -70,10 +72,16 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
     n: 0,
     title: "Welcome to System Design Mastery",
     summary: "Learn system design by doing, not watching: the whole course in two minutes.",
-    duration: 120,
-    chapters: [],
+    duration: 123,
+    chapters: ch(`
+0:00 Learn by doing
+0:11 Who it's for
+0:25 The tour
+1:47 Why it's different
+1:54 Start free`),
     href: HUB,
     hrefLabel: "the course",
+    guide: "overview",
   },
   {
     id: "getting-started",
@@ -92,6 +100,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 2:25 Pick a world`),
     href: HUB,
     hrefLabel: "the course map",
+    guide: "getting-started",
   },
   {
     id: "lectures-listen",
@@ -110,6 +119,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 2:03 Watch it. Ask it. Hear it.`),
     href: "/learn/prep/lectures",
     hrefLabel: "the lectures",
+    guide: "lectures",
   },
   {
     id: "shorts",
@@ -127,6 +137,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:50 Swipe. Learn. Go deeper.`),
     href: "/learn/shorts",
     hrefLabel: "Shorts",
+    guide: "shorts",
   },
   {
     id: "side-quests",
@@ -143,13 +154,14 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:50 Your call`),
     href: "/learn/war-stories",
     hrefLabel: "war stories and war rooms",
+    guide: "side-quests",
   },
   {
     id: "code-labs",
     n: 5,
     title: "Code labs",
     summary: "Write real Python in the browser, run real tests, and get AI hints that never hand you the answer.",
-    duration: 133,
+    duration: 135,
     chapters: ch(`
 0:00 Write, run, get a hint
 0:10 Sixteen labs, one per big idea
@@ -158,68 +170,89 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 0:48 Write get() and run
 1:00 Nine of twelve
 1:12 AI hints, never the answer
-1:32 His fix: 12 of 12
-1:43 An AI code review
-1:55 On an iPad too
-2:02 Write it, break it, fix it`),
+1:33 His fix: 12 of 12
+1:44 An AI code review
+1:56 On an iPad too
+2:03 Write it, break it, fix it`),
     href: "/learn/labs",
     hrefLabel: "code labs",
+    guide: "code-labs",
   },
   {
     id: "arena-review",
     n: 6,
     title: "Arena and review",
     summary: "The daily challenge, leagues and quick games, then spaced review that brings back what you missed.",
-    duration: 130,
+    duration: 140,
     chapters: ch(`
 0:00 Play, miss, review
 0:13 The Arena and the league
 0:25 The daily challenge
-0:50 Latency Ladder
-1:07 Quick checks in every lesson
-1:19 Revise mode, the night before
-1:31 The Daily standup
-1:59 Play, miss, review, remember`),
+0:57 Latency Ladder
+1:16 Quick checks in every lesson
+1:28 Revise mode, the night before
+1:40 The Daily standup
+2:08 Play, miss, review, remember`),
     href: "/learn/arena",
     hrefLabel: "the Arena",
+    guide: "arena",
   },
   {
     id: "design-boss",
     n: 7,
     title: "Design canvas and boss fights",
     summary: "Draw your design, get a staff-engineer review from the AI, fix it, then fight the world's boss.",
-    duration: 130,
+    duration: 129,
     chapters: ch(`
 0:00 Draw, get reviewed, fight the boss
 0:11 Draw it on the canvas
 0:32 A staff engineer's review
-0:55 Fix it, review again
-1:14 The boss fight
-1:37 Trials
-1:50 Design of the week
-1:58 Draw, get reviewed, fix, fight`),
+0:54 Fix it, review again
+1:13 The boss fight
+1:36 Trials
+1:49 Design of the week
+1:57 Draw, get reviewed, fix, fight`),
     href: "/learn/canvas",
     hrefLabel: "the design canvas",
+    guide: "design-boss",
   },
   {
     id: "mock-interviews",
     n: 8,
     title: "Mock interviews",
     summary: "A timed interview with a named interviewer and curveballs, then a levelled debrief and a verdict.",
-    duration: 150,
-    chapters: [],
+    duration: 134,
+    chapters: ch(`
+0:00 An interviewer who pushes back
+0:11 Eight timed mock interviews
+0:35 Clarify, with an AI interviewer
+0:59 Estimates, and pushback
+1:16 The deep dive and a curveball
+1:37 The AI scorecard
+2:02 Practise, get pushed, get graded`),
     href: "/learn/mock",
     hrefLabel: "mock interviews",
+    guide: "mocks",
   },
   {
     id: "interview-prep",
     n: 9,
     title: "Interview prep",
     summary: "Company pages, the question and problem banks, cheat sheets and revision decks for the last stretch.",
-    duration: 150,
-    chapters: [],
+    duration: 123,
+    chapters: ch(`
+0:00 What does Flipkart ask?
+0:11 The prep tab
+0:24 A page for every company
+0:53 The question bank
+1:04 Design sheets
+1:18 The numbers playground
+1:36 Cheat sheets
+1:41 Concepts A to Z
+1:50 Know the company, the questions, the numbers`),
     href: "/learn/prep",
     hrefLabel: "interview prep",
+    guide: "prep",
   },
   {
     id: "notebook",
@@ -241,26 +274,45 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 2:18 Read, write, check, revise`),
     href: "/learn/notebook",
     hrefLabel: "the notebook",
+    guide: "notebook",
   },
   {
     id: "ai-tutor",
     n: 11,
     title: "AI tutor",
     summary: "Ask any lesson, snip a diagram and ask about it, and get answers that quote the course.",
-    duration: 150,
-    chapters: [],
+    duration: 117,
+    chapters: ch(`
+0:00 Plans, answers, grades, remembers
+0:11 A plan from your progress
+0:31 Answers with sources
+0:47 Honest when the course doesn't cover it
+1:05 Quiz, graded against the course
+1:24 It remembers you
+1:45 Plan, ask, get graded, pick up where you left off`),
     href: "/learn/chat",
     hrefLabel: "Ask",
+    guide: "ai-tutor",
   },
   {
     id: "progress-profile",
     n: 12,
     title: "Progress and profile",
     summary: "Your streak, XP and level, concept mastery, certificates and a progress page you can share.",
-    duration: 150,
-    chapters: [],
+    duration: 126,
+    chapters: ch(`
+0:00 Progress and profile
+0:10 Your progress page
+0:27 The course map and your rhythm
+0:57 Your avatar
+1:04 Share my progress
+1:19 Certificates
+1:36 Search and saved paths
+1:50 Offline
+1:55 Track it. Share it. Prove it.`),
     href: "/learn/dashboard",
     hrefLabel: "your progress",
+    guide: "progress",
   },
   {
     id: "full-tour",
@@ -271,6 +323,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
     chapters: [],
     href: "/learn/guide",
     hrefLabel: "the guide",
+    guide: "overview",
   },
 ];
 
@@ -326,6 +379,12 @@ export const guideVideo = (id: GuideVideoId | string): GuideVideo | null => GUID
 /** The twelve feature videos that are published. */
 export const FEATURE_VIDEOS = GUIDE_VIDEOS.filter((v) => v.n >= 1 && v.n <= 12);
 export const SERIES_SIZE = GUIDE_VIDEO_CATALOG.filter((v) => v.n >= 1 && v.n <= 12).length;
+
+/** The guide section that explains a video's feature (works with the flag off: the guide is always written). */
+export function guideHref(id: GuideVideoId): string {
+  const e = GUIDE_VIDEO_CATALOG.find((v) => v.id === id);
+  return `/learn/guide#${e?.guide || "overview"}`;
+}
 
 /** 157 → "2:37" */
 export function fmtClock(sec: number): string {

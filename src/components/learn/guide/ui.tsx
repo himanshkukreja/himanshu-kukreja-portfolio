@@ -5,12 +5,13 @@ import type { ReactNode } from "react";
 export const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 export const PROSE = "flex max-w-[70ch] flex-col gap-4 text-[16px] leading-relaxed text-fg-2 [&_strong]:font-semibold [&_strong]:text-fg";
 
-export function Section({ id, n, kicker, title, lead, children }: { id: string; n: string; kicker: string; title: ReactNode; lead?: ReactNode; children: ReactNode }) {
+export function Section({ id, n, kicker, title, lead, children }: { id: string; n?: string; kicker: string; title: ReactNode; lead?: ReactNode; children: ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-h`} className="flex scroll-mt-[calc(var(--hk-header-h,61px)+72px)] flex-col gap-7 border-t border-line pt-10 lg:scroll-mt-[calc(var(--hk-header-h,61px)+24px)]">
       <div className="flex flex-col gap-3">
         <span className={LABEL}>
-          <span className="text-signal-text">{n}</span> · {kicker}
+          {n && <span className="text-signal-text">{n} · </span>}
+          {kicker}
         </span>
         <h2 id={`${id}-h`} className="font-display text-[32px] font-extrabold leading-[1] tracking-[-0.035em] text-fg sm:text-[44px]">
           {title}
@@ -23,11 +24,25 @@ export function Section({ id, n, kicker, title, lead, children }: { id: string; 
   );
 }
 
-export function Sub({ children, id }: { children: ReactNode; id?: string }) {
+/** A topic inside a feature's "in depth" part (h3), with an optional lead line. */
+export function Topic({ children, id, lead }: { children: ReactNode; id?: string; lead?: ReactNode }) {
   return (
-    <h3 id={id} className="scroll-mt-28 font-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-fg sm:text-[26px]">
+    <div className="flex flex-col gap-2 pt-2">
+      <h3 id={id} className="m-0 scroll-mt-[calc(var(--hk-header-h,61px)+64px)] font-display text-[26px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[32px] lg:scroll-mt-[calc(var(--hk-header-h,61px)+24px)]">
+        {children}
+      </h3>
+      {lead && <p className="m-0 max-w-[66ch] text-[16px] leading-relaxed text-fg-2 sm:text-[17px]">{lead}</p>}
+    </div>
+  );
+}
+
+/** A heading under a Topic (h4); `level={3}` where it sits straight under a feature. */
+export function Sub({ children, id, level = 4 }: { children: ReactNode; id?: string; level?: 3 | 4 }) {
+  const H = level === 3 ? "h3" : "h4";
+  return (
+    <H id={id} className="m-0 scroll-mt-[calc(var(--hk-header-h,61px)+64px)] font-display text-[20px] font-bold leading-tight tracking-[-0.02em] text-fg sm:text-[23px] lg:scroll-mt-[calc(var(--hk-header-h,61px)+24px)]">
       {children}
-    </h3>
+    </H>
   );
 }
 

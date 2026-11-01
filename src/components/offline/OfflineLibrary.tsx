@@ -44,6 +44,7 @@ import { fmtBytes, fmtSaved } from "./format";
 import { labRuntimeExtra } from "@/lib/offline/labs";
 import { lectureSharedExtra } from "@/lib/offline/lectures";
 import { trackRemove } from "@/lib/offline/analytics";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 type IconT = ComponentType<{ className?: string; "aria-hidden"?: boolean }>;
 
@@ -769,6 +770,7 @@ export default function OfflineLibrary() {
         <p className="m-0 max-w-[720px] text-[17px] leading-relaxed text-fg-2">
           Lessons, video lectures, side quests, problems, case files and more, saved on this device to read and watch with no internet. Progress you make offline syncs to your account when you&apos;re back.
         </p>
+        <WatchHowItWorks id="progress-profile" chapter="Offline" guide="offline" />
       </section>
 
       {!checked ? (

@@ -8,6 +8,7 @@ import type { ChallengeCard, DesignWeekHome as Home, WinnersBlock } from "@/lib/
 import ChallengeBlock from "./ChallengeBlock";
 import DevPersonaBar from "./DevPersonaBar";
 import { BASE, fmtDay, fmtIst, Kicker, LABEL, PageTitle, PhaseBadge, SectionTitle, SubmissionTile } from "./ui";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export function Hero({ title = "Design of the week", children }: { title?: string; children?: React.ReactNode }) {
   return (
@@ -19,6 +20,7 @@ export function Hero({ title = "Design of the week", children }: { title?: strin
           Every Monday a new system design problem. Write your design in markdown with Mermaid diagrams, then vote on everyone else&apos;s. The best ones are featured here and on the author&apos;s profile.
         </p>
       )}
+      <WatchHowItWorks id="design-boss" chapter="Design of the week" guide="practice-dow" />
     </section>
   );
 }

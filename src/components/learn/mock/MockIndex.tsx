@@ -30,7 +30,7 @@ export default function MockIndex({ map }: { map: CourseMap }) {
           Between the worlds of the course sit {mocks.length} timed mock interviews. Each one is an unseen problem from a fictional company, a named interviewer who keeps time and throws curveballs, and a debrief with model answers, a levelled
           rubric and a hire / no-hire verdict.
         </p>
-        <WatchHowItWorks id="mock-interviews" />
+        <WatchHowItWorks id="mock-interviews" guide={false} />
         <div className="flex flex-wrap gap-px self-start border border-line bg-line font-mono">
           <span className="bg-bg px-4 py-2.5 text-[13px] text-fg-3">
             <span className="text-xl font-semibold text-fg">{finished}</span>/{mocks.length} finished

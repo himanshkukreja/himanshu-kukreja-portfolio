@@ -19,6 +19,7 @@ import { hasStepDues, type SavedPath, type SavedStep } from "@/lib/learn/saved-p
 import { SITE_ORIGIN, savedPathPlan, toIcs } from "@/lib/learn/study-plan";
 import { track } from "@/lib/track";
 import { useSavedPaths } from "./useSavedPaths";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 const clock = (s: number) => {
   const h = Math.floor(s / 3600);
@@ -235,6 +236,7 @@ export default function SavedPaths() {
         <p className="m-0 max-w-[640px] text-[17px] leading-relaxed text-fg-2">
           Learning paths and results you saved from search, as checklists. Tick a step when you finish it; a lesson you complete ticks itself.
         </p>
+        <WatchHowItWorks id="progress-profile" chapter="Search and saved paths" />
         {hydrated && !user && (
           <div className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line-strong px-4 py-3">
             <span className="text-[15px] text-fg-2">Saved in this browser only. Sign in free to keep them on every device.</span>

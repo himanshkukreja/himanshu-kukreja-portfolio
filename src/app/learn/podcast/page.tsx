@@ -4,6 +4,7 @@ import { listLectures } from "@/lib/learn/lecture/load";
 import { PODCAST } from "@/lib/learn/podcast";
 import { SITE_URL } from "@/lib/site";
 import CopyField from "@/components/learn/podcast/CopyField";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
 export const revalidate = 86400;
@@ -35,6 +36,7 @@ export default async function PodcastPage() {
         <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
           Every lecture of the course as a podcast episode, in course order: the lessons, how UPI, WhatsApp, Netflix and Google Maps work, interview problems, low-level design, real outages and full mock interviews. Each episode links to its animated lecture, with the diagrams, quizzes and chapters, for when you&apos;re back at a screen.
         </p>
+        <WatchHowItWorks id="lectures-listen" chapter="The podcast" guide="podcast" />
       </header>
 
       <section aria-labelledby="follow-h" className="flex flex-col gap-4 border border-line-strong bg-surface p-5 sm:p-6">

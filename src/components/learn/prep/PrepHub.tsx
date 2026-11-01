@@ -118,7 +118,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
         <p className="max-w-[720px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
           The course teaches it; this gets you hired. See what each company asks, work the classic problems, sit a timed mock (alone or with a real person), and revise the night before.
         </p>
-        <WatchHowItWorks id="interview-prep" />
+        <WatchHowItWorks id="interview-prep" guide={false} />
         <dl className="m-0 grid grid-cols-2 gap-px self-start border border-line bg-line font-mono sm:flex sm:flex-wrap">
           <Stat label="lessons revised" value={ready ? `${lessonsRevised}` : "–"} of={data.revision.lessons} />
           <Stat label="labs cleared" value={hydrated ? `${labsCleared}` : "–"} of={data.labs.length} />
@@ -130,7 +130,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
         </dl>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
           <SaveOfflineButton title="Interview prep" kind="tool" url="/learn/prep" />
-          <Link href="/learn/guide#practice" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+          <Link href="/learn/guide#prep" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             how each tool works →
           </Link>
         </div>

@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * Guide contents: a sticky list beside the article on desktop, a sticky row of jump chips under
- * the site header on phones. Highlights the section being read.
+ * Guide contents: a sticky list beside the article on desktop, a sticky "jump to" menu under the
+ * site header on phones and tablets. Both highlight the section being read.
  */
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 export type TocItem = { id: string; label: string; n?: string };
 
@@ -51,29 +52,62 @@ export function GuideTocSide({ items }: { items: TocItem[] }) {
   );
 }
 
-export function GuideTocChips({ items }: { items: TocItem[] }) {
+/** Phones and tablets: one sticky bar under the site header that names the section you're in and opens the full list. */
+export function GuideTocMenu({ items }: { items: TocItem[] }) {
   const on = useActive(items);
-  const row = useRef<HTMLOListElement>(null);
-  // keep the active chip in view while scrolling the page
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLElement>(null);
+  const cur = items.find((i) => i.id === on) || items[0];
+
   useEffect(() => {
-    const el = row.current?.querySelector<HTMLElement>(`[data-id="${on}"]`);
-    const box = row.current;
-    if (!el || !box) return;
-    const left = el.offsetLeft - 16;
-    if (left < box.scrollLeft || el.offsetLeft + el.offsetWidth > box.scrollLeft + box.clientWidth) box.scrollTo({ left, behavior: "smooth" });
-  }, [on]);
+    if (!open) return;
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setOpen(false);
+        box.current?.querySelector<HTMLButtonElement>("button")?.focus();
+      }
+    };
+    const away = (e: PointerEvent) => {
+      if (box.current && !box.current.contains(e.target as Node)) setOpen(false);
+    };
+    window.addEventListener("keydown", key);
+    window.addEventListener("pointerdown", away);
+    return () => {
+      window.removeEventListener("keydown", key);
+      window.removeEventListener("pointerdown", away);
+    };
+  }, [open]);
+
   return (
-    <nav aria-label="Jump to a section" className="sticky top-[var(--hk-header-h,57px)] z-30 -mx-4 border-y border-line bg-bg/95 backdrop-blur sm:-mx-6 lg:hidden">
-      <ol ref={row} className="m-0 flex list-none gap-1.5 overflow-x-auto px-4 py-2 [scrollbar-width:none] sm:px-6 [&::-webkit-scrollbar]:hidden">
+    <nav ref={box} aria-label="Jump to a section" className="sticky top-[var(--hk-header-h,57px)] z-30 -mx-4 border-y border-line bg-bg/95 backdrop-blur sm:-mx-6 lg:hidden">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="guide-jump"
+        onClick={() => setOpen((o) => !o)}
+        className="flex min-h-12 w-full items-center gap-3 px-4 text-left sm:px-6"
+      >
+        <span className="shrink-0 font-mono text-[11px] uppercase tracking-label text-fg-3">jump to</span>
+        <span className="flex min-w-0 flex-1 items-baseline gap-2 text-[14px] font-semibold text-fg">
+          {cur?.n && <span className="font-mono text-[12px] text-signal-text">{cur.n}</span>}
+          <span className="truncate">{cur?.label}</span>
+        </span>
+        <ChevronDown aria-hidden className={`h-4 w-4 shrink-0 text-fg-3 transition-transform motion-reduce:transition-none ${open ? "rotate-180" : ""}`} />
+      </button>
+      <ol
+        id="guide-jump"
+        hidden={!open}
+        className={`absolute inset-x-0 top-full m-0 ${open ? "grid" : "hidden"} max-h-[min(70vh,560px)] list-none grid-cols-1 overflow-y-auto overscroll-contain border-b border-line-strong bg-bg p-2 shadow-[0_16px_32px_rgba(0,0,0,0.12)] sm:grid-cols-2 sm:px-4`}
+      >
         {items.map((it) => (
-          <li key={it.id} data-id={it.id} className="shrink-0">
+          <li key={it.id}>
             <a
               href={`#${it.id}`}
+              onClick={() => setOpen(false)}
               aria-current={on === it.id ? "true" : undefined}
-              className={`inline-flex min-h-10 items-center whitespace-nowrap border px-3 font-mono text-[12px] ${
-                on === it.id ? "border-signal bg-signal text-on-signal" : "border-line-strong text-fg-2"
-              }`}
+              className={`flex min-h-11 items-center gap-2.5 px-3 text-[14px] ${on === it.id ? "bg-surface-2 font-semibold text-fg" : "text-fg-2 hover:bg-surface-2"}`}
             >
+              <span className={`w-5 shrink-0 font-mono text-[12px] ${on === it.id ? "text-signal-text" : "text-fg-4"}`}>{it.n || ""}</span>
               {it.label}
             </a>
           </li>

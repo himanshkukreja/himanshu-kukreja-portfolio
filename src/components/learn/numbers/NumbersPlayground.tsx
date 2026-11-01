@@ -10,6 +10,7 @@ import { LESSONS } from "@/lib/learn/numbers/reference";
 import Calculator, { DEFAULT_Q, type CalcSource } from "./Calculator";
 import ReferenceTables from "./ReferenceTables";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
+import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export default function NumbersPlayground() {
   const [calc, setCalc] = useState<{ q: string; source: CalcSource }>({ q: DEFAULT_Q, source: "default" });
@@ -57,6 +58,7 @@ export default function NumbersPlayground() {
             reference numbers
           </a>
         </div>
+        <WatchHowItWorks id="interview-prep" chapter="The numbers playground" guide="practice-numbers" />
       </header>
 
       <section ref={calcRef} aria-labelledby="calc-h" className="scroll-mt-24">
