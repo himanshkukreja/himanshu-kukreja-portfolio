@@ -1,4 +1,701 @@
 {
-  "updated": null,
-  "videos": {}
+  "updated": "2026-11-01T08:30:50.734Z",
+  "videos": {
+    "welcome-trailer": {
+      "v": "cdcf09c8ff",
+      "duration": 122.67,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Learn by doing"
+        },
+        {
+          "t": 11,
+          "label": "Who it's for"
+        },
+        {
+          "t": 25,
+          "label": "The tour"
+        },
+        {
+          "t": 107,
+          "label": "Why it's different"
+        },
+        {
+          "t": 114,
+          "label": "Start free"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt",
+        "preview.mp4"
+      ],
+      "bytes": 78025069,
+      "source": "00-welcome-trailer",
+      "published": "2026-11-01T08:28:53.279Z"
+    },
+    "getting-started": {
+      "v": "db8a0914a0",
+      "duration": 157,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Getting started"
+        },
+        {
+          "t": 10,
+          "label": "The course hub"
+        },
+        {
+          "t": 26,
+          "label": "The skill tree: worlds, bosses, trials"
+        },
+        {
+          "t": 51,
+          "label": "A lesson's stages"
+        },
+        {
+          "t": 68,
+          "label": "Checkpoints, quick checks and XP"
+        },
+        {
+          "t": 97,
+          "label": "Checkpoints, levels and Continue"
+        },
+        {
+          "t": 113,
+          "label": "The study planner"
+        },
+        {
+          "t": 145,
+          "label": "Pick a world"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 67098089,
+      "source": "01-getting-started",
+      "published": "2026-11-01T08:29:03.247Z"
+    },
+    "lectures-listen": {
+      "v": "1eca67911e",
+      "duration": 134.38,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Lectures and Listen"
+        },
+        {
+          "t": 10,
+          "label": "An animated lecture for every lesson"
+        },
+        {
+          "t": 40,
+          "label": "Captions and speed"
+        },
+        {
+          "t": 48,
+          "label": "Ask about this moment"
+        },
+        {
+          "t": 69,
+          "label": "Quiz checkpoints and up next"
+        },
+        {
+          "t": 96,
+          "label": "Listen: every article, narrated"
+        },
+        {
+          "t": 114,
+          "label": "The podcast"
+        },
+        {
+          "t": 123,
+          "label": "Watch it. Ask it. Hear it."
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 55792935,
+      "source": "02-lectures-listen",
+      "published": "2026-11-01T08:29:10.196Z"
+    },
+    "shorts": {
+      "v": "45f0778eec",
+      "duration": 121.12,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Shorts"
+        },
+        {
+          "t": 11,
+          "label": "Open Shorts"
+        },
+        {
+          "t": 24,
+          "label": "Sound, the rail, swipe"
+        },
+        {
+          "t": 63,
+          "label": "Topics, and the full lecture"
+        },
+        {
+          "t": 90,
+          "label": "Save it, read it, revise with it"
+        },
+        {
+          "t": 104,
+          "label": "On a laptop"
+        },
+        {
+          "t": 110,
+          "label": "Swipe. Learn. Go deeper."
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 36355895,
+      "source": "03-shorts",
+      "published": "2026-11-01T08:29:16.023Z"
+    },
+    "side-quests": {
+      "v": "7a56ebcc94",
+      "duration": 122,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Side quests and war rooms"
+        },
+        {
+          "t": 11,
+          "label": "Side quests: real systems end to end"
+        },
+        {
+          "t": 28,
+          "label": "Case files and war stories"
+        },
+        {
+          "t": 47,
+          "label": "A war room: you're on call"
+        },
+        {
+          "t": 95,
+          "label": "The debrief and the real incident"
+        },
+        {
+          "t": 110,
+          "label": "Your call"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 62321390,
+      "source": "04-side-quests",
+      "published": "2026-11-01T08:29:24.273Z"
+    },
+    "code-labs": {
+      "v": "eb31282f23",
+      "duration": 134.58,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Write, run, get a hint"
+        },
+        {
+          "t": 10,
+          "label": "Sixteen labs, one per big idea"
+        },
+        {
+          "t": 26,
+          "label": "The brief and the tests"
+        },
+        {
+          "t": 36,
+          "label": "Python in the browser"
+        },
+        {
+          "t": 48,
+          "label": "Write get() and run"
+        },
+        {
+          "t": 60,
+          "label": "Nine of twelve"
+        },
+        {
+          "t": 72,
+          "label": "AI hints, never the answer"
+        },
+        {
+          "t": 93,
+          "label": "His fix: 12 of 12"
+        },
+        {
+          "t": 104,
+          "label": "An AI code review"
+        },
+        {
+          "t": 116,
+          "label": "On an iPad too"
+        },
+        {
+          "t": 123,
+          "label": "Write it, break it, fix it"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 65127928,
+      "source": "05-code-labs",
+      "published": "2026-11-01T08:29:32.228Z"
+    },
+    "arena-review": {
+      "v": "cf982bf73f",
+      "duration": 139.62,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Play, miss, review"
+        },
+        {
+          "t": 13,
+          "label": "The Arena and the league"
+        },
+        {
+          "t": 25,
+          "label": "The daily challenge"
+        },
+        {
+          "t": 57,
+          "label": "Latency Ladder"
+        },
+        {
+          "t": 76,
+          "label": "Quick checks in every lesson"
+        },
+        {
+          "t": 88,
+          "label": "Revise mode, the night before"
+        },
+        {
+          "t": 100,
+          "label": "The Daily standup"
+        },
+        {
+          "t": 128,
+          "label": "Play, miss, review, remember"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 49266266,
+      "source": "06-arena-review",
+      "published": "2026-11-01T08:29:38.239Z"
+    },
+    "design-boss": {
+      "v": "42c266b77f",
+      "duration": 128.77,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Draw, get reviewed, fight the boss"
+        },
+        {
+          "t": 11,
+          "label": "Draw it on the canvas"
+        },
+        {
+          "t": 32,
+          "label": "A staff engineer's review"
+        },
+        {
+          "t": 54,
+          "label": "Fix it, review again"
+        },
+        {
+          "t": 73,
+          "label": "The boss fight"
+        },
+        {
+          "t": 96,
+          "label": "Trials"
+        },
+        {
+          "t": 109,
+          "label": "Design of the week"
+        },
+        {
+          "t": 117,
+          "label": "Draw, get reviewed, fix, fight"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 63378812,
+      "source": "07-design-boss",
+      "published": "2026-11-01T08:29:50.862Z"
+    },
+    "mock-interviews": {
+      "v": "f93a738195",
+      "duration": 134.37,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "An interviewer who pushes back"
+        },
+        {
+          "t": 11,
+          "label": "Eight timed mock interviews"
+        },
+        {
+          "t": 35,
+          "label": "Clarify, with an AI interviewer"
+        },
+        {
+          "t": 59,
+          "label": "Estimates, and pushback"
+        },
+        {
+          "t": 76,
+          "label": "The deep dive and a curveball"
+        },
+        {
+          "t": 97,
+          "label": "The AI scorecard"
+        },
+        {
+          "t": 122,
+          "label": "Practise, get pushed, get graded"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 69393979,
+      "source": "08-mock-interviews",
+      "published": "2026-11-01T08:29:58.871Z"
+    },
+    "interview-prep": {
+      "v": "7671f6fb67",
+      "duration": 122.7,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "What does Flipkart ask?"
+        },
+        {
+          "t": 11,
+          "label": "The prep tab"
+        },
+        {
+          "t": 24,
+          "label": "A page for every company"
+        },
+        {
+          "t": 53,
+          "label": "The question bank"
+        },
+        {
+          "t": 64,
+          "label": "Design sheets"
+        },
+        {
+          "t": 78,
+          "label": "The numbers playground"
+        },
+        {
+          "t": 96,
+          "label": "Cheat sheets"
+        },
+        {
+          "t": 101,
+          "label": "Concepts A to Z"
+        },
+        {
+          "t": 110,
+          "label": "Know the company, the questions, the numbers"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 62343641,
+      "source": "09-interview-prep",
+      "published": "2026-11-01T08:30:06.899Z"
+    },
+    "notebook": {
+      "v": "d15cdb9005",
+      "duration": 150.42,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Notes that check themselves"
+        },
+        {
+          "t": 10,
+          "label": "The problem: two windows"
+        },
+        {
+          "t": 20,
+          "label": "The notebook beside every lesson"
+        },
+        {
+          "t": 37,
+          "label": "Clip, snip and ask"
+        },
+        {
+          "t": 58,
+          "label": "Lectures and the laptop split"
+        },
+        {
+          "t": 68,
+          "label": "Turn into text"
+        },
+        {
+          "t": 76,
+          "label": "Check against lesson"
+        },
+        {
+          "t": 87,
+          "label": "Review cards and revising by hand"
+        },
+        {
+          "t": 101,
+          "label": "Annotate the lesson, notes on a passage"
+        },
+        {
+          "t": 116,
+          "label": "Written papers, marked by AI; any stylus"
+        },
+        {
+          "t": 138,
+          "label": "Read, write, check, revise"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 54501176,
+      "source": "10-notebook",
+      "published": "2026-11-01T08:30:14.509Z"
+    },
+    "ai-tutor": {
+      "v": "79721f9147",
+      "duration": 117.35,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Plans, answers, grades, remembers"
+        },
+        {
+          "t": 11,
+          "label": "A plan from your progress"
+        },
+        {
+          "t": 31,
+          "label": "Answers with sources"
+        },
+        {
+          "t": 47,
+          "label": "Honest when the course doesn't cover it"
+        },
+        {
+          "t": 65,
+          "label": "Quiz, graded against the course"
+        },
+        {
+          "t": 84,
+          "label": "It remembers you"
+        },
+        {
+          "t": 105,
+          "label": "Plan, ask, get graded, pick up where you left off"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 63596660,
+      "source": "11-ai-tutor",
+      "published": "2026-11-01T08:30:22.625Z"
+    },
+    "progress-profile": {
+      "v": "c3160fff6c",
+      "duration": 126.17,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Progress and profile"
+        },
+        {
+          "t": 10,
+          "label": "Your progress page"
+        },
+        {
+          "t": 27,
+          "label": "The course map and your rhythm"
+        },
+        {
+          "t": 57,
+          "label": "Your avatar"
+        },
+        {
+          "t": 64,
+          "label": "Share my progress"
+        },
+        {
+          "t": 79,
+          "label": "Certificates"
+        },
+        {
+          "t": 96,
+          "label": "Search and saved paths"
+        },
+        {
+          "t": 110,
+          "label": "Offline"
+        },
+        {
+          "t": 115,
+          "label": "Track it. Share it. Prove it."
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 55528841,
+      "source": "12-progress-profile",
+      "published": "2026-11-01T08:30:30.264Z"
+    },
+    "full-tour": {
+      "v": "889d8123d6",
+      "duration": 702.77,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "The full tour"
+        },
+        {
+          "t": 6,
+          "label": "Getting started"
+        },
+        {
+          "t": 67,
+          "label": "Lectures & Listen"
+        },
+        {
+          "t": 130,
+          "label": "Shorts"
+        },
+        {
+          "t": 173,
+          "label": "Side quests & war rooms"
+        },
+        {
+          "t": 225,
+          "label": "Code labs"
+        },
+        {
+          "t": 284,
+          "label": "Arena & review"
+        },
+        {
+          "t": 330,
+          "label": "Design canvas & boss fights"
+        },
+        {
+          "t": 401,
+          "label": "Mock interviews"
+        },
+        {
+          "t": 471,
+          "label": "Interview prep"
+        },
+        {
+          "t": 519,
+          "label": "Notebook"
+        },
+        {
+          "t": 579,
+          "label": "AI tutor & chat"
+        },
+        {
+          "t": 639,
+          "label": "Progress & profile"
+        },
+        {
+          "t": 691,
+          "label": "Try it free"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 224449109,
+      "source": "99-full-tour",
+      "published": "2026-11-01T08:30:50.734Z"
+    }
+  }
 }
