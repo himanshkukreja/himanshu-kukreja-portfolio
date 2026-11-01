@@ -79,6 +79,8 @@ export class ChatState {
   mock: ChatMock | null = null;
   mockRef: string | null = null;
   toolCalls: string[] = [];
+  /** refs this message's tools looked up for the learner, in order (not their own context): fallbackAnswer cites them */
+  found: string[] = [];
   constructor(
     private deps: ChatDeps,
     private emit: (e: ChatEvent) => void,
@@ -151,7 +153,9 @@ export class ChatState {
 
   /** Refs to the page; `quiet`: the learner's own context, not something looked up for this answer. */
   sourcesSent(fresh: Record<string, ChatSource>, quiet = false) {
-    if (Object.keys(fresh).length) this.emit({ type: "sources", sources: fresh, ...(quiet ? { quiet: true } : {}) });
+    if (!Object.keys(fresh).length) return;
+    if (!quiet) for (const ref of Object.keys(fresh)) if (!this.found.includes(ref)) this.found.push(ref);
+    this.emit({ type: "sources", sources: fresh, ...(quiet ? { quiet: true } : {}) });
   }
 
   /** The status line for a tool call (what it reads, named where it's cheap), with what a read is for the trail. */
@@ -995,6 +999,24 @@ export function closingLine(st: ChatState, ran: { name: string; input: unknown }
     const path = st.paths.get(pref);
     if (path) return `Saved **${path.title}** to You → Saved paths, where you can tick off steps as you go, on any device.`;
   }
+  return null;
+}
+
+/**
+ * The answer when the tools ran but the model wrote nothing the learner can read, even after being told to answer
+ * (out of time, or a round that ended on a thinking block): a short answer from what this message's tools made,
+ * so work that succeeded never shows as an error. The card it names is already on the page. null: the tools made
+ * nothing to point at.
+ */
+export function fallbackAnswer(st: ChatState): string | null {
+  if (st.mock) return closingLine(st, [{ name: "start_mock", input: {} }]);
+  const path = st.flags.path ? [...st.paths.values()].at(-1) : undefined;
+  if (path && st.flags.plan) return `Here's your plan: **${path.title}**, ${path.steps.length} steps in study order. ${path.note ? `${path.note} ` : ""}Save it to tick steps off as you go, or download it to your calendar.`;
+  if (path) return `Here's your path: **${path.title}**, ${path.steps.length} steps in study order. Save it to tick steps off as you go, on any device.`;
+  if (st.flags.saved) return "Saved. It's under You → Saved paths, where you can tick off steps as you go, on any device.";
+  if (st.flags.quiz && !st.flags.graded) return "Here's a practice question from the course. Answer it in the box when you're ready.";
+  const refs = st.found.filter((r) => st.sources.has(r)).slice(0, 4);
+  if (refs.length) return `Here's what I found in the course for this:\n\n${refs.map((r) => `- **${st.sources.get(r)!.title}** [[${r}]]`).join("\n")}\n\nAsk me about any of them and I'll walk you through it.`;
   return null;
 }
 

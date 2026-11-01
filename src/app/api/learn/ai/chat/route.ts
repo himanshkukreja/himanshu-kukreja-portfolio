@@ -160,6 +160,8 @@ export async function POST(request: Request) {
             },
             ...(r.loop.refusal ? { refusal: r.loop.refusal } : {}),
             ...(r.fellBack ? { fellBack: r.fellBack } : {}),
+            // the model wrote nothing after its tools: "retry" (an answer-only round wrote it) or "fallback" (written from the tools' cards)
+            ...(r.loop.recovered ? { recovered: r.loop.recovered } : {}),
             ...(dev || devUser ? { dev: true } : {}),
           },
         });

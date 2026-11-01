@@ -19,12 +19,12 @@ import { cleanAnswer, citedRefs, followupFilter, splitCitations, splitFollowups,
 import { PASS_CHARS, paceStep, revealMs, safeCut, startPace, visibleText } from "../src/lib/ai/chat/reveal";
 import { cleanMemory, mergeMemory, MEMORY_LIMITS } from "../src/lib/ai/chat/memory-model";
 import { SITE_GUIDE, findGuide } from "../src/lib/ai/chat/siteGuide";
-import { HOLD_CHARS, runLoop } from "../src/lib/ai/chat/loop";
+import { ANSWER_NOW, HOLD_CHARS, runLoop } from "../src/lib/ai/chat/loop";
 import { chatDevLearner, chatDevPreview } from "../src/lib/ai/chat/dev";
 import { DECLINE_TEXT, readRequest, runChatCore } from "../src/lib/ai/chat/core";
 import { CHAT_TITLE_MAX, cleanChatTitle, titleInput, titlePassFor } from "../src/lib/ai/chat/title-model";
 import { sanitizeThread } from "../src/lib/learn/chat-history";
-import type { ChatDeps } from "../src/lib/ai/chat/tools";
+import { ChatState, fallbackAnswer, type ChatDeps } from "../src/lib/ai/chat/tools";
 
 let fails = 0;
 const ok = (cond: unknown, what: string) => {
@@ -168,6 +168,9 @@ ok(!/@|98765|https?:/.test(JSON.stringify(m)), "memory scrubs emails, phones and
 ok(m.goals.every((g) => g.length <= MEMORY_LIMITS.item) && m.studied.length <= MEMORY_LIMITS.studied, "memory stays within its caps");
 const merged = mergeMemory(m, { session: "Worked on caching", studied: ["caching"] }, "abc123", new Date("2026-10-29"));
 ok(merged.sessions[0].summary === "Worked on caching" && merged.sessions.filter((s) => s.chat === "abc123").length === 1, "a chat's summary replaces its own earlier one");
+const ids = cleanMemory({ studied: ["Nginx proxy_cache_lock", "`max_connections` in Postgres", "**bold** <b>tag</b> # heading"] });
+ok(ids.studied[0] === "Nginx proxy_cache_lock" && ids.studied[1] === "`max_connections` in Postgres", `memory keeps identifiers as written: underscores and backticks (${JSON.stringify(ids.studied)})`);
+ok(!/[*<>#]/.test(ids.studied[2]), "memory still drops markdown stars, headings and tags");
 
 const app = path.resolve("src/app");
 for (const t of SITE_GUIDE) {
@@ -261,12 +264,20 @@ const toolBlock = (i: number, name: string, input: unknown): Ev[] => [
   { type: "content_block_delta", index: i, delta: { type: "input_json_delta", partial_json: JSON.stringify(input) } },
   { type: "content_block_stop", index: i },
 ];
+const thinkingBlock = (i: number, text: string): Ev[] => [
+  { type: "content_block_start", index: i, content_block: { type: "thinking", thinking: "", signature: "" } },
+  { type: "content_block_delta", index: i, delta: { type: "thinking_delta", thinking: text } },
+  { type: "content_block_delta", index: i, delta: { type: "signature_delta", signature: "sig" } },
+  { type: "content_block_stop", index: i },
+];
 const msg = (blocks: Ev[], stop: string): Ev[] => [{ type: "message_start", message: { usage: { input_tokens: 10, output_tokens: 1 } } }, ...blocks, { type: "message_delta", delta: { stop_reason: stop }, usage: { output_tokens: 20 } }, { type: "message_stop" }];
 
 async function loopCase(rounds: { events?: Ev[]; failAfter?: number; status?: number }[], maxToolRounds = 4, opts: { deadline?: number; runTool?: (name: string) => Promise<string>; model?: string } = {}) {
   const realFetch = globalThis.fetch;
   let n = 0;
-  globalThis.fetch = (async () => {
+  const bodies: Record<string, unknown>[] = [];
+  globalThis.fetch = (async (_u: unknown, init?: RequestInit) => {
+    bodies.push(JSON.parse(String(init?.body ?? "{}")));
     const r = rounds[n++];
     if (r.status) return new Response(JSON.stringify({ error: { message: "Overloaded" } }), { status: r.status });
     return sse(r.events ?? [], { failAfter: r.failAfter });
@@ -274,7 +285,7 @@ async function loopCase(rounds: { events?: Ev[]; failAfter?: number; status?: nu
   const streamed: string[] = [];
   try {
     const r = await runLoop({ apiKey: "k", model: opts.model ?? "claude-sonnet-5-5", system: [], tools: [{ name: "t" }], messages: [{ role: "user", content: "x" }], maxTokens: 100, thinking: null, maxToolRounds, deadline: Date.now() + (opts.deadline ?? 20_000), runTool: opts.runTool ?? (async () => "ok"), onText: (d) => streamed.push(d) });
-    return { r, streamed: streamed.join(""), calls: n };
+    return { r, streamed: streamed.join(""), calls: n, bodies };
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -309,6 +320,43 @@ void (async () => {
   // the forced last round (no tools allowed) streams at once
   const d = await loopCase([{ events: msg(toolBlock(0, "search_course", { query: "x" }), "tool_use") }, { events: msg(textBlock(0, ["Short."]), "end_turn") }], 1);
   ok(d.r.text === "Short." && d.r.timing[1].first !== null, "loop: the answer-only round streams");
+
+  // the forced last round is told it can't look anything else up (after the tool results); earlier rounds aren't
+  const lastText = (b: Record<string, unknown>) => JSON.stringify((b.messages as { content: unknown }[]).at(-1));
+  ok((d.bodies[1].tool_choice as { type?: string })?.type === "none" && lastText(d.bodies[1]).includes(ANSWER_NOW) && !lastText(d.bodies[0]).includes(ANSWER_NOW), "loop: the answer-only round gets the answer-now note, the others don't");
+
+  // the owner's bug (1 Nov 2026): tools ran, then a round wrote only a thinking block (Sonnet 5.5's between-tools
+  // note) and ended: one more round, tools off and told to answer, writes the answer; never an empty message
+  const em = await loopCase([
+    { events: msg(toolBlock(0, "make_study_plan", { goal: "x" }), "tool_use") },
+    { events: msg(thinkingBlock(0, "The plan covers the framework first, then caching and queues, with a mock each week."), "end_turn") },
+    { events: msg(textBlock(0, ["Here's your 3-week plan."]), "end_turn") },
+  ]);
+  ok(em.calls === 3 && em.r.text === "Here's your 3-week plan." && em.streamed === em.r.text && em.r.recovered === "retry" && !em.r.error, `loop: a thinking-only round after tools gets an answer-only retry (${JSON.stringify({ calls: em.calls, text: em.r.text, rec: em.r.recovered })})`);
+  ok((em.bodies[2].tool_choice as { type?: string })?.type === "none" && lastText(em.bodies[2]).includes(ANSWER_NOW), "loop: the retry has tools off and the answer-now note");
+  // the retry runs once: two empty rounds end the loop (the caller then writes the answer from the tools' cards)
+  const em2 = await loopCase([{ events: msg(toolBlock(0, "search_course", { query: "x" }), "tool_use") }, { events: msg([], "end_turn") }, { events: msg([], "end_turn") }]);
+  ok(em2.calls === 3 && em2.r.text === "" && !em2.r.error, "loop: the answer-only retry runs once");
+  // no tools ran: an empty answer is not retried (nothing to answer from)
+  const em3 = await loopCase([{ events: msg([], "end_turn") }]);
+  ok(em3.calls === 1 && !em3.r.recovered, "loop: no retry when no tools ran");
+  // no time left for the retry: the loop ends and the caller writes the answer
+  const em4 = await loopCase([{ events: msg(toolBlock(0, "search_course", { query: "x" }), "tool_use") }, { events: msg(thinkingBlock(0, "note"), "end_turn") }], 4, { deadline: 6000 });
+  ok(em4.calls === 2 && !em4.r.recovered, "loop: no retry without time for it");
+
+  // what the caller writes when even the retry is empty: from the cards this message's tools made
+  const fst = new ChatState({ engine: {}, live: () => true } as unknown as ChatDeps, () => {});
+  ok(fallbackAnswer(fst) === null, "fallback: nothing made, no made-up answer");
+  fst.paths.set("p1", { pref: "p1", title: "Interview in 3 weeks", note: "21 days from 2026-11-01: about 1 h a day of course material.", steps: [{ ref: "s1", why: "a" }, { ref: "s2", why: "b" }] });
+  fst.flags.path = fst.flags.plan = true;
+  const fa = fallbackAnswer(fst) ?? "";
+  ok(fa.startsWith("Here's your plan: **Interview in 3 weeks**, 2 steps") && fa.includes("calendar"), `fallback: a plan is introduced (${fa})`);
+  fst.flags.plan = false;
+  ok((fallbackAnswer(fst) ?? "").startsWith("Here's your path:"), "fallback: a path is introduced");
+  const fs2 = new ChatState({ engine: {}, live: () => true } as unknown as ChatDeps, () => {});
+  fs2.sources.set("s1", { id: "L:w/a", kind: "lesson", title: "Caching Patterns", sub: "", href: "/learn/w/a", at: -1 });
+  fs2.sourcesSent({ s1: fs2.sources.get("s1")! });
+  ok((fallbackAnswer(fs2) ?? "").includes("**Caching Patterns** [[s1]]"), "fallback: otherwise what the tools found, cited");
 
   // the stream dies mid-answer: what was written is kept and reported with the error
   const e = await loopCase([{ events: msg(textBlock(0, [longGrade, "and more"]), "end_turn"), failAfter: 6 }]);

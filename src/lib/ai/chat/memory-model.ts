@@ -17,7 +17,7 @@ export type ChatMemory = {
   goals: string[];
   /** "3 years backend (Java), new to distributed systems" */
   level: string;
-  /** topics studied or discussed */
+  /** topics worked on in depth or practised (never ones only named in a plan or path) */
   studied: string[];
   /** topics they found hard or got wrong */
   struggles: string[];
@@ -34,7 +34,10 @@ export const MEMORY_LIMITS = { goals: 3, studied: 12, struggles: 8, prefs: 5, qu
 
 export const emptyMemory = (): ChatMemory => ({ v: 1, goals: [], level: "", studied: [], struggles: [], prefs: [], quiz: [], sessions: [], updatedAt: 0 });
 
-/** Text that may be stored: plain, short, no contact details or links. */
+/**
+ * Text that may be stored: plain, short, no contact details or links. Identifiers stay as written: underscores
+ * and backticks are kept (`proxy_cache_lock`, `max_connections`); only tag brackets and markdown's * and # go.
+ */
 export function scrub(x: unknown, max: number): string {
   if (typeof x !== "string") return "";
   return x
@@ -43,7 +46,7 @@ export function scrub(x: unknown, max: number): string {
     .replace(/(?:\+?\d[\d\s().-]{7,}\d)/g, "")
     .replace(/\b(?:https?:\/\/|www\.)\S+/gi, "")
     .replace(/\[\[[^\]]*\]\]/g, "")
-    .replace(/[<>`*_#]+/g, "")
+    .replace(/[<>*#]+/g, "")
     .replace(/\s+/g, " ")
     .trim()
     .slice(0, max);

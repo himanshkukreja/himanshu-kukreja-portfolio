@@ -4,7 +4,12 @@
  * page as they arrive; a round that stops with stop_reason "tool_use" runs its tools (in parallel), sends every
  * tool_result back in one user message with the assistant turn passed back unchanged (thinking blocks
  * included), and goes again. After `maxToolRounds` tool rounds the next round may not call tools (tool_choice
- * "none"), so every message ends with an answer. One deadline bounds the whole message.
+ * "none"), and is told so (ANSWER_NOW, after the tool results): without that note Claude Sonnet 5.5 writes the
+ * note it would write before its next tool call ("I still need refs for…") and stops, and with thinking
+ * "between_tools" a note longer than a sentence comes back as a thinking block, never shown: an empty answer.
+ * A round after tool results that still writes nothing the learner can read gets one more round, told to
+ * answer, while there's time (`recovered: "retry"`); the caller writes a short answer from what the tools made
+ * if even that is empty. One deadline bounds the whole message.
  *
  * What the learner sees is exactly what the answer is: text from every round is kept (joined by a blank line),
  * and `text` in the result is the text that was streamed, never only the last round's. A round that may still
@@ -56,6 +61,9 @@ export type LoopResult = {
   timing: RoundTiming[];
   /** ms from the loop's start to the first text the learner saw (null: none) */
   ttft: number | null;
+  /** "retry": a round after tool results wrote nothing and one more round was asked for the answer;
+   * "fallback": the caller wrote the answer from what the tools made (lib/ai/chat/core.ts) */
+  recovered?: "retry" | "fallback";
 };
 
 /**
@@ -66,6 +74,22 @@ export const HOLD_CHARS = 200;
 export const holdFor = (model: string) => (/haiku/.test(model) ? 700 : HOLD_CHARS);
 const RETRY_STATUS = [429, 500, 502, 503, 529];
 const RETRIES = 2;
+/** The answer-only round after an empty one runs only with this much of the deadline left. */
+const ANSWER_ROUND_MS = 7000;
+
+/**
+ * Sent after the tool results when the next round may not call tools. Text after tool results is rare (the
+ * model's own turn otherwise), so it goes only on that last round, never on every round.
+ */
+export const ANSWER_NOW =
+  "(From the chat app: no more lookups for this message. Write your answer to the learner now, from what the tools above returned. Don't say you need to look anything else up.)";
+
+/** The messages with ANSWER_NOW after the last user turn's tool results (only when it is one). */
+export function withAnswerNow(messages: ApiMessage[]): ApiMessage[] {
+  const last = messages[messages.length - 1];
+  if (!last || last.role !== "user" || !Array.isArray(last.content) || !last.content.some((b) => (b as { type?: string })?.type === "tool_result")) return messages;
+  return [...messages.slice(0, -1), { role: "user", content: [...last.content, { type: "text", text: ANSWER_NOW }] }];
+}
 
 export type LoopOpts = {
   apiKey: string;
@@ -293,22 +317,26 @@ export async function runLoop(o: LoopOpts): Promise<LoopResult> {
   const timing: RoundTiming[] = [];
   let ttft: number | null = null;
   let n = 0;
+  // a round after tool results wrote nothing: the next one may not call tools and is told to answer (once)
+  let answerNow = false;
+  let recovered: LoopResult["recovered"];
   const done = (error: string | null): LoopResult => {
     for (const r of timing) if (r.first !== null && ttft === null) ttft = r.first;
     let t = text;
     if (!error && stop === "max_tokens") t = trimCutOff(t);
     if (!error && stop === "refusal") t = "";
-    return { text: t, stop, rounds: n, toolCalls, usage: total, costUsd: cost, error, requestId, refusal, timing, ttft };
+    return { text: t, stop, rounds: n, toolCalls, usage: total, costUsd: cost, error, requestId, refusal, timing, ttft, ...(recovered ? { recovered } : {}) };
   };
   try {
     for (;;) {
       n++;
       o.onRound?.(n);
-      const toolsAllowed = n <= o.maxToolRounds;
+      const toolsAllowed = n <= o.maxToolRounds && !answerNow;
       roundText = "";
       const t: RoundTiming = { start: Date.now() - t0, ttfb: 0, first: null, end: 0, stop: "", tools: [], cacheRead: 0, cacheWrite: 0, input: 0, output: 0, dropped: 0 };
       timing.push(t);
-      const r = await round(o, messages, toolsAllowed, out, t, t0);
+      // the last round, after tools ran: told it can't look anything else up, so it answers
+      const r = await round(o, !toolsAllowed && toolCalls.length ? withAnswerNow(messages) : messages, toolsAllowed, out, t, t0);
       t.end = Date.now() - t0;
       t.stop = r.stop;
       t.cacheRead = r.usage.cache_read_input_tokens;
@@ -321,7 +349,17 @@ export async function runLoop(o: LoopOpts): Promise<LoopResult> {
       for (const k of Object.keys(total) as (keyof Usage)[]) total[k] += r.usage[k] ?? 0;
       stop = r.stop;
       const uses = r.blocks.filter((b): b is Extract<Block, { type: "tool_use" }> => b.type === "tool_use");
-      if (stop !== "tool_use" || !uses.length) break;
+      if (stop !== "tool_use" || !uses.length) {
+        // tools ran, and this round ended with nothing the learner can read (only a thinking block, or nothing
+        // after a tool's card): one more round, tools off, told to answer. Same message, so one quota message;
+        // the empty turn isn't sent back (it may hold only a thinking block), the round runs again with the note.
+        if (!r.kept.trim() && toolCalls.length && !answerNow && stop !== "refusal" && o.deadline - Date.now() > ANSWER_ROUND_MS && !o.signal?.aborted) {
+          answerNow = true;
+          recovered = "retry";
+          continue;
+        }
+        break;
+      }
       // the assistant turn goes back unchanged (thinking blocks with their signatures), minus empty text blocks
       messages.push({ role: "assistant", content: r.blocks.filter((b) => !(b.type === "text" && !b.text)) });
       const results = await Promise.all(

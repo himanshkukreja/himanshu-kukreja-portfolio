@@ -10,7 +10,7 @@ import { MODELS } from "@/lib/ai/prices";
 import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor } from "@/lib/ai/prompts";
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
-import { ChatState, closingLine, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
+import { ChatState, closingLine, fallbackAnswer, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
 import { cleanAnswer, followupFilter, isRef, OFF_TOPIC_MARK, splitFollowups, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
 
 /** Turns kept word for word; older ones become a short summary. */
@@ -231,7 +231,19 @@ export async function runChatCore(o: {
   const offTopic = OFF_TOPIC_MARK.test(loop.text);
   const latest = o.req.messages[o.req.messages.length - 1];
   const split = splitFollowups(loop.text, latest.text);
-  const text = cleanAnswer(split.text, (ref) => st.sources.has(ref));
+  let text = cleanAnswer(split.text, (ref) => st.sources.has(ref));
+  // the tools ran (a plan or path card may already be on the page) but no answer came, even from the answer-only
+  // round (lib/ai/chat/loop.ts), or time ran out after them: a short answer from what they made, never an error
+  // for work that succeeded. Still the one message (one ai_calls row, one quota message).
+  if (!text && loop.toolCalls.length && !loop.refusal && !o.signal?.aborted && (!loop.error || loop.error === "timeout")) {
+    const line = fallbackAnswer(st);
+    if (line) {
+      deltas.push(loop.ttft === null ? line : `\n\n${line}`);
+      deltas.flush();
+      loop = { ...loop, text: line, error: null, recovered: "fallback" };
+      text = cleanAnswer(line, (ref) => st.sources.has(ref));
+    }
+  }
   // cards only under a real, whole answer: not a decline, a practice question waiting for its answer, a mock just
   // started, a saved path's one line, or an answer that was cut off
   const followups = offTopic || st.flags.quiz || st.mock || loop.error || loop.stop !== "end_turn" || loop.refusal || !text ? [] : split.followups;
