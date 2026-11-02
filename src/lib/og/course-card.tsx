@@ -102,7 +102,7 @@ export async function lessonCard(l: LessonCardInput) {
   const size = len > 60 ? 64 : len > 44 ? 76 : len > 28 ? 90 : 104;
   return new ImageResponse(
     (
-      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>System Design Mastery</div>}>
+      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>systemdesignmastery.dev</div>}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 50 }}>
           <div
             style={{

@@ -10,7 +10,7 @@ import AvatarPicker from "@/components/avatar/AvatarPickerLazy";
 import AdminLink from "@/components/site/AdminLink";
 import { useSite } from "@/components/site/SiteMode";
 import { useIsAdmin } from "@/lib/admin/useIsAdmin";
-import { courseUrlFor } from "@/lib/site/hosts";
+import { courseUrlFor, portfolioUrl } from "@/lib/site/hosts";
 
 const LINKS = [
   // absolute: the menu is on both hosts (same-origin absolute links still navigate client-side)
@@ -102,6 +102,12 @@ export default function UserMenu() {
             <button type="button" onClick={openPicker} className="px-4 py-2.5 text-left text-fg-2 hover:bg-surface-2 hover:text-fg">
               <span className="text-signal-text">❯</span> change avatar
             </button>
+            {/* the course's header carries its own brand now: the author's portfolio is one click away here */}
+            {learn && (
+              <a href={portfolioUrl("/")} className="px-4 py-2.5 text-fg-3 hover:bg-surface-2 hover:text-fg">
+                <span className="text-signal-text">~</span> by Himanshu ↗
+              </a>
+            )}
           </nav>
           <div className="border-t border-line">
             <button

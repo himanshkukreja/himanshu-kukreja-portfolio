@@ -12,7 +12,7 @@ export async function portfolioCard() {
   const xp = durationLabel(shippingMonths());
   return new ImageResponse(
     (
-      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>himanshukukreja.in</div>}>
+      <Frame brand="portfolio" right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>himanshukukreja.in</div>}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 52 }}>
           <div style={{ width: 14, height: 14, background: C.ok }} />
           <Label color={C.fg2}>player 1 · online · {PERSON.city}</Label>

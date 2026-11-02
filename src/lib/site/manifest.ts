@@ -14,6 +14,8 @@ import type { MetadataRoute } from "next";
  * "fullscreen": that hides the system UI and the window buttons (the reader's focus mode goes
  * fullscreen on demand instead).
  *
+ * Icons: the course's own pixel "S" mark (public/course-brand), by its own paths so installed apps pick up the change.
+ *
  * `name` is what Chrome prefixes window titles with ("<name> - <page title>"), so it is the course
  * name alone and the installed app's page titles drop it (src/components/offline/AppWindow.tsx).
  */
@@ -32,14 +34,14 @@ export function courseManifest(): MetadataRoute.Manifest {
     theme_color: "#F5F4F0",
     categories: ["education", "books", "productivity"],
     icons: [
-      { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: "/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
-      { src: "/icon.svg", sizes: "any", type: "image/svg+xml" },
+      { src: "/course-brand/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
+      { src: "/course-brand/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: "/course-brand/icons/icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+      { src: "/course-brand/icon.svg", sizes: "any", type: "image/svg+xml" },
     ],
     shortcuts: [
-      { name: "Offline library", short_name: "Offline", url: "/offline", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
-      { name: "Course map", short_name: "Course", url: "/", icons: [{ src: "/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Offline library", short_name: "Offline", url: "/offline", icons: [{ src: "/course-brand/icons/icon-192.png", sizes: "192x192" }] },
+      { name: "Course map", short_name: "Course", url: "/", icons: [{ src: "/course-brand/icons/icon-192.png", sizes: "192x192" }] },
     ],
   };
 }

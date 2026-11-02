@@ -9,6 +9,7 @@ import { signInWithEmail, verifyOtp, signInWithGoogle } from "@/lib/supabase-cli
 import GoogleIdButton from "@/components/auth/GoogleIdButton";
 import { GIS_ENABLED } from "@/lib/auth/googleIdentity";
 import { BootLoader, Spinner } from "@/components/ui/loader";
+import { useSite } from "@/components/site/SiteMode";
 
 type AuthModalProps = {
   isOpen: boolean;
@@ -21,6 +22,7 @@ type Busy = null | "google" | "email" | "otp";
 const noopSubscribe = () => () => {};
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
+  const course = useSite() === "course";
   const { offline } = useConnectivity();
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
@@ -366,7 +368,8 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </h3>
                 <BootLoader
                   label="Signing you in"
-                  cmd={`ssh ${email.split("@")[0] || "you"}@himanshu`}
+                  prompt={course ? "~/sdm" : undefined}
+                  cmd={`ssh ${email.split("@")[0] || "you"}@${course ? "sdm" : "himanshu"}`}
                   steps={["code verified", "session saved", "syncing your progress"]}
                   className="max-w-none"
                 />

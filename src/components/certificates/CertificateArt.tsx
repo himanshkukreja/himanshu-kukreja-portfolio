@@ -90,7 +90,7 @@ export function CourseCertificate({ cert, theme = "paper", id }: { cert: Certifi
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: u(6) }}>
                 <span style={{ ...MONO, fontSize: u(15), letterSpacing: "0.18em", textTransform: "uppercase", color: p.accentInk, fontWeight: 600 }}>{ISSUER}</span>
-                <span style={{ ...MONO, fontSize: u(13), letterSpacing: "0.12em", textTransform: "uppercase", color: p.muted }}>~/himanshu · learn</span>
+                <span style={{ ...MONO, fontSize: u(13), letterSpacing: "0.12em", textTransform: "uppercase", color: p.muted }}>systemdesignmastery.dev</span>
               </div>
               <div style={{ ...MONO, display: "flex", flexDirection: "column", alignItems: "flex-end", gap: u(6), fontSize: u(13), color: p.muted }}>
                 <span>CERTIFICATE ID</span>

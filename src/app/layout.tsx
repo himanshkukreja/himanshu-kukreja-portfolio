@@ -88,13 +88,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning={true}>
       {/* Icons in <head> on every page. Pages with an async generateMetadata behind a loading.tsx
           (lessons, side quests) get their metadata streamed into <body>, where browsers ignore
-          favicons, so the file-convention <link>s alone left those tabs without an icon. */}
+          favicons, so the file-convention <link>s alone left those tabs without an icon. The course host answers
+          these paths with its own mark (next.config.ts courseIconRewrites); ?v=2 refreshed browsers' cached icons once. */}
       <head>
         {/* first: a one-time import of course state carried over from himanshukukreja.in (#hk-import=…, src/lib/site/carry.ts) */}
         <script dangerouslySetInnerHTML={{ __html: IMPORT_JS }} />
-        <link rel="icon" href="/favicon.ico" sizes="any" />
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-icon.png" />
+        <link rel="icon" href="/favicon.ico?v=2" sizes="any" />
+        <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/apple-icon.png?v=2" />
         {/* Offline reading / installable app (src/app/manifest.ts, public/sw.js); in <head> for the same reason. */}
         <link rel="manifest" href="/manifest.webmanifest" />
         <meta name="mobile-web-app-capable" content="yes" />

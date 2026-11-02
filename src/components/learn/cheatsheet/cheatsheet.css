@@ -92,11 +92,10 @@
   color: var(--ink);
 }
 
-.cs-mark i {
-  display: inline-block;
-  width: 0.5em;
-  height: 0.95em;
-  background: var(--signal);
+.cs-mark-icon {
+  width: 1.2em;
+  height: 1.2em;
+  margin-right: 0.2em;
 }
 
 .cs-legend {

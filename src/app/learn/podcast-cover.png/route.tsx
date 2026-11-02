@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { C, display, mono, Mark, ogFonts } from "@/lib/og/brand";
+import { C, CourseMark, display, mono, ogFonts } from "@/lib/og/brand";
 
 export const runtime = "nodejs";
 export const revalidate = 604800;
@@ -9,7 +9,7 @@ export async function GET() {
   return new ImageResponse(
     (
       <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", justifyContent: "space-between", padding: 120, backgroundColor: C.bg, backgroundImage: `radial-gradient(circle at 20px 20px, ${C.lineStrong} 7%, transparent 0%)`, backgroundSize: "40px 40px", color: C.fg }}>
-        <Mark size={64} />
+        <CourseMark size={150} />
         <div style={{ display: "flex", flexDirection: "column", gap: 28 }}>
           <div style={{ display: "flex", ...mono, fontSize: 52, letterSpacing: "0.14em", textTransform: "uppercase", color: C.signal }}>the podcast</div>
           <div style={{ display: "flex", flexDirection: "column", ...display, fontWeight: 800, fontSize: 250, lineHeight: 0.88, letterSpacing: "-0.05em" }}>

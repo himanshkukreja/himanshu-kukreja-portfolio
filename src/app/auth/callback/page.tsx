@@ -6,10 +6,15 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase-client";
 import { FullScreenLoader } from "@/components/ui/loader";
 import { courseUrlFor } from "@/lib/site/hosts";
+import { useSite } from "@/components/site/SiteMode";
 
 type Status = "processing" | "success" | "error";
 
-const BOOT_CMD = "ssh you@himanshu";
+/** The terminal's home and ssh target: the course's (~/sdm) on systemdesignmastery.dev, the portfolio's elsewhere. */
+function useBoot() {
+  const course = useSite() === "course";
+  return course ? { prompt: "~/sdm", cmd: "ssh you@sdm" } : { prompt: "~/himanshu", cmd: "ssh you@himanshu" };
+}
 const BOOT_STEPS = ["provider said yes", "exchange code for a session", "load your progress"];
 
 /** Only same-site paths: never bounce a fresh session to another origin. */
@@ -19,7 +24,8 @@ function safePath(p: string | null | undefined): string {
 }
 
 function Fallback() {
-  return <FullScreenLoader title="Signing you in." label="Signing you in" cmd={BOOT_CMD} steps={BOOT_STEPS} />;
+  const boot = useBoot();
+  return <FullScreenLoader title="Signing you in." label="Signing you in" prompt={boot.prompt} cmd={boot.cmd} steps={BOOT_STEPS} />;
 }
 
 /**
@@ -28,6 +34,7 @@ function Fallback() {
  * are stored with setSession. Then we hop back to where the visitor started.
  */
 function AuthCallbackContent() {
+  const boot = useBoot();
   const router = useRouter();
   const searchParams = useSearchParams();
   const [status, setStatus] = useState<Status>("processing");
@@ -96,10 +103,10 @@ function AuthCallbackContent() {
             Sign-in failed<span className="text-signal-text">.</span>
           </p>
           <div className="border border-line-strong bg-surface font-mono text-[13px] leading-6">
-            <div className="border-b border-line px-3.5 py-2 text-[11px] uppercase tracking-label text-fg-3">~/himanshu · exit 1</div>
+            <div className="border-b border-line px-3.5 py-2 text-[11px] uppercase tracking-label text-fg-3">{boot.prompt} · exit 1</div>
             <div className="flex flex-col px-3.5 py-3">
               <span>
-                <span className="text-signal-text">~/himanshu</span> <span className="text-fg-4">$</span> <span className="text-fg">{BOOT_CMD}</span>
+                <span className="text-signal-text">{boot.prompt}</span> <span className="text-fg-4">$</span> <span className="text-fg">{boot.cmd}</span>
               </span>
               <span className="break-words text-bad-text">[err] {message}</span>
               <span className="text-fg-3">sending you home in 5s…</span>
@@ -122,7 +129,8 @@ function AuthCallbackContent() {
     <FullScreenLoader
       title={status === "success" ? "Welcome in." : "Signing you in."}
       label={status === "success" ? "Signed in, redirecting" : "Signing you in"}
-      cmd={BOOT_CMD}
+      prompt={boot.prompt}
+      cmd={boot.cmd}
       steps={status === "success" ? [...BOOT_STEPS.slice(0, 2), `cd ${target}`] : BOOT_STEPS}
     />
   );

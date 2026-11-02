@@ -1,3 +1,4 @@
+import CourseMark from "@/components/site/CourseMark";
 import type { DeckWeek } from "@/lib/learn/revision/load";
 import type { RevCard, RevIdea, RevMistakes, RevNumbers, RevTradeoff } from "@/lib/learn/revision/parse";
 import { inline } from "@/lib/learn/revision/parse";
@@ -28,8 +29,9 @@ export default function CheatSheet({ id, week, url, site }: { id?: string; week:
           <h1 className="cs-title">{week.title}</h1>
         </div>
         <div className="cs-brand">
-          <span className="cs-mark" aria-label="~/himanshu">
-            <span style={{ color: "var(--signal)" }}>~</span>/himanshu<i aria-hidden />
+          <span className="cs-mark" aria-label="System Design Mastery">
+            <CourseMark className="cs-mark-icon" />
+            SD Mastery<span style={{ color: "var(--signal)" }}>.</span>
           </span>
           <span>free course · {site}/</span>
         </div>

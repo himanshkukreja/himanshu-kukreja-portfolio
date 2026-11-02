@@ -5,7 +5,7 @@
  */
 import { ImageResponse } from "next/og";
 import { CERT_TITLE, ISSUER, VERDICT_TEXT, type CertificateView } from "@/lib/certificates/core";
-import { C, display, mono, ogFonts } from "./brand";
+import { C, display, Mark, mono, ogFonts } from "./brand";
 
 export const CERT_OG_SIZE = { width: 1200, height: 627 };
 
@@ -13,13 +13,7 @@ function Shell({ badge, children }: { badge: string | null; children: React.Reac
   return (
     <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", padding: "56px 64px", backgroundColor: C.bg, backgroundImage: `radial-gradient(circle at 14px 14px, ${C.lineStrong} 6%, transparent 0%)`, backgroundSize: "28px 28px", color: C.fg, fontFamily: "Geist" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div style={{ display: "flex", ...mono, fontSize: 22, fontWeight: 600 }}>
-          <span style={{ color: C.signal }}>~/</span>
-          <span>himanshu</span>
-          <span style={{ color: C.fg4, margin: "0 10px" }}>/</span>
-          <span>learn</span>
-          <span style={{ color: C.signal }}>.</span>
-        </div>
+        <Mark size={26} />
         {badge && <div style={{ display: "flex", ...mono, fontSize: 18, letterSpacing: "0.14em", textTransform: "uppercase", border: `2px solid ${C.signal}`, color: C.signal, padding: "10px 16px" }}>{badge}</div>}
       </div>
       {children}

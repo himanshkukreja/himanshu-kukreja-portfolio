@@ -57,8 +57,37 @@ export function ogFonts() {
 export const mono = { fontFamily: "Geist Mono" } as const;
 export const display = { fontFamily: "Bricolage" } as const;
 
-/** `~/himanshu▌` — the site mark, cursor drawn as a block (no glyph dependency). */
-export function Mark({ size = 30 }: { size?: number }) {
+/** The course's pixel "S" mark (public/course-brand/icon.svg): white S + signal block on a black tile. */
+export function CourseMark({ size = 40 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 16 16" shapeRendering="crispEdges">
+      <rect width="16" height="16" fill="#000" />
+      <rect x="3" y="3" width="5" height="2" fill={C.fg} />
+      <rect x="2" y="4" width="2" height="3" fill={C.fg} />
+      <rect x="3" y="7" width="4" height="2" fill={C.fg} />
+      <rect x="6" y="8" width="2" height="4" fill={C.fg} />
+      <rect x="2" y="11" width="5" height="2" fill={C.fg} />
+      <rect x="10" y="6" width="4" height="7" fill={C.signal} />
+    </svg>
+  );
+}
+
+/**
+ * The site mark at the top of a card. Course cards (the default): the "S" mark + "System Design
+ * Mastery." Portfolio cards: `~/himanshu▌`, the cursor drawn as a block (no glyph dependency).
+ */
+export function Mark({ size = 30, brand = "course" }: { size?: number; brand?: "course" | "portfolio" }) {
+  if (brand === "course") {
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: size * 0.45, ...display, fontWeight: 800, fontSize: size * 1.05, letterSpacing: "-0.03em", color: C.fg }}>
+        <CourseMark size={size * 1.5} />
+        <div style={{ display: "flex" }}>
+          <span>System Design Mastery</span>
+          <span style={{ color: C.signal }}>.</span>
+        </div>
+      </div>
+    );
+  }
   return (
     <div style={{ display: "flex", alignItems: "center", ...mono, fontWeight: 600, fontSize: size, color: C.fg }}>
       <span style={{ color: C.signal }}>~</span>
@@ -76,7 +105,7 @@ export function Label({ children, color = C.fg3, size = 20 }: { children: ReactN
 }
 
 /** Full-bleed black card with the site's dot grid, a top bar and an orange baseline. */
-export function Frame({ right, children }: { right?: ReactNode; children: ReactNode }) {
+export function Frame({ right, children, brand = "course" }: { right?: ReactNode; children: ReactNode; brand?: "course" | "portfolio" }) {
   return (
     <div
       style={{
@@ -102,7 +131,7 @@ export function Frame({ right, children }: { right?: ReactNode; children: ReactN
           background: C.bg,
         }}
       >
-        <Mark />
+        <Mark brand={brand} />
         {right}
       </div>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "0 64px", position: "relative" }}>{children}</div>

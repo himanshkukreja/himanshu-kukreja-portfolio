@@ -4,7 +4,7 @@
  *  - <Spinner />        three ticking squares in currentColor, for buttons and tight spots
  *  - <InlineLoader />   spinner + mono label + cursor, for panels/lists ("loading the discussion")
  *  - <StageBar />       the stage-segment bar (a signal wave through square segments)
- *  - <BootLoader />     a `~/himanshu $` terminal boot log: typed command, staggered log lines, stage bar
+ *  - <BootLoader />     a `~/himanshu $` terminal boot log (`~/sdm $` on the course: prompt="~/sdm"): typed command, staggered log lines, stage bar
  *  - <FullScreenLoader /> BootLoader centred in the viewport (auth callback, gated screens)
  *  - <Skeleton />       flat surface-2 block with a sheen, for content placeholders
  *
@@ -66,10 +66,13 @@ export function BootLoader({
   cmd = "open .",
   steps = ["resolve route", "fetch data", "render"],
   label = "Loading",
+  prompt = "~/himanshu",
   className,
   children,
 }: {
   cmd?: string;
+  /** The terminal's home: "~/himanshu" on the portfolio, "~/sdm" on the course. */
+  prompt?: string;
   steps?: string[];
   /** Screen-reader text. */
   label?: string;
@@ -82,12 +85,12 @@ export function BootLoader({
       <span className="sr-only">{label}…</span>
       <div aria-hidden className="flex items-center gap-2 border-b border-line px-3.5 py-2 text-[11px] uppercase tracking-label text-fg-3">
         <span className="h-2 w-2 bg-signal" />
-        <span className="flex-1 truncate">~/himanshu</span>
+        <span className="flex-1 truncate">{prompt}</span>
         <span className="text-fg-4">tty1</span>
       </div>
       <div aria-hidden className="flex flex-col px-3.5 py-3">
         <div className="flex min-w-0 items-baseline whitespace-nowrap">
-          <span className="text-signal-text">~/himanshu</span>
+          <span className="text-signal-text">{prompt}</span>
           <span className="px-1.5 text-fg-4">$</span>
           <span className={cx(s.typed, "text-fg")} style={v({ "--n": cmd.length })}>
             {cmd}

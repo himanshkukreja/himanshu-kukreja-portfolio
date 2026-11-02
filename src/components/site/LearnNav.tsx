@@ -12,6 +12,7 @@ import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { DockDot, TabPending } from "./LinkPending";
 import AdminLink from "./AdminLink";
 import { portfolioUrl } from "@/lib/site/hosts";
+import CourseMark from "./CourseMark";
 
 export const COURSE_HREF = "/";
 
@@ -70,21 +71,21 @@ function DueBadge({ compact = false }: { compact?: boolean }) {
   );
 }
 
-/** `~/himanshu / learn.` — the course brand, with the portfolio one click away. */
+/**
+ * The course brand: the "S" mark + "System Design Mastery." ("SD Mastery." where the row is tight:
+ * phones, and desktops 1024–1399 px where the tabs share the row; the mark alone under 380 px). The portfolio is one tap away in the
+ * phone dock ("~") and the account menu.
+ */
 export function LearnBrand() {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1.5 sm:gap-2">
-      <a href={portfolioUrl("/")} aria-label="Himanshu Kukreja, the portfolio" className="inline-flex min-h-10 min-w-10 items-center justify-center py-2 font-mono sm:min-w-0 text-[15px] font-semibold text-fg-3 hover:text-fg sm:text-base">
-        <span className="text-signal-text">~</span>
-        <span data-wco-compact className="hidden sm:inline">/himanshu</span>
-      </a>
-      <span aria-hidden className="font-mono text-line-strong">
-        /
+    <Link href={COURSE_HREF} aria-label="System Design Mastery, course home" className="inline-flex min-h-10 shrink-0 items-center gap-2 py-1 font-display text-lg font-extrabold tracking-[-0.03em] text-fg sm:text-xl">
+      <CourseMark className="h-7 w-7" />
+      <span aria-hidden className="whitespace-nowrap max-[379px]:hidden">
+        <span className="hidden sm:inline lg:hidden min-[1400px]:inline">System Design Mastery</span>
+        <span className="sm:hidden lg:inline min-[1400px]:hidden">SD Mastery</span>
+        <span className="text-signal-text">.</span>
       </span>
-      <Link href={COURSE_HREF} className="inline-flex min-h-10 items-center py-1 font-display text-xl font-extrabold tracking-[-0.03em] text-fg">
-        learn<span className="text-signal-text">.</span>
-      </Link>
-    </span>
+    </Link>
   );
 }
 

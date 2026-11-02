@@ -120,9 +120,12 @@ export default function RouteLoading({
   steps,
   label = "Loading page",
   shape = "page",
+  prompt,
   bare = false,
 }: {
   cmd: string;
+  /** Terminal home (BootLoader): course routes pass "~/sdm". */
+  prompt?: string;
   steps: string[];
   label?: string;
   shape?: RouteShape;
@@ -133,7 +136,7 @@ export default function RouteLoading({
   return (
     <Tag data-route-loading aria-busy="true" className={bare ? "flex flex-col gap-6" : `${wrap} flex flex-col gap-8 pb-24 pt-8 sm:pt-12`}>
       <ProgressHold />
-      <BootLoader cmd={cmd} steps={steps} label={label} />
+      <BootLoader cmd={cmd} steps={steps} label={label} prompt={prompt} />
       <Shape shape={shape} />
     </Tag>
   );

@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { C, display, mono, Mark, ogFonts } from "@/lib/og/brand";
+import { C, display, mono, CourseMark, ogFonts } from "@/lib/og/brand";
 
 export const runtime = "nodejs";
 export const revalidate = 86400;
@@ -28,7 +28,10 @@ export async function GET(_req: Request, { params }: Ctx) {
           </div>
           <div style={{ display: "flex", ...mono, fontSize: 24, letterSpacing: "0.12em", textTransform: "uppercase", color: C.fg3 }}>{sub}</div>
         </div>
-        <Mark size={30} />
+        <div style={{ display: "flex", alignItems: "center", gap: 14, ...mono, fontSize: 24, color: C.fg3 }}>
+          <CourseMark size={44} />
+          systemdesignmastery.dev
+        </div>
       </div>
     ),
     { width: 600, height: 600, fonts: await ogFonts(), headers: { "access-control-allow-origin": "*" } }

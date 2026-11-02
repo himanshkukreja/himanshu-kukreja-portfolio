@@ -69,6 +69,22 @@ const posthogRewrites = POSTHOG_KEY
     ]
   : [];
 
+// systemdesignmastery.dev has its own mark (the pixel "S", public/course-brand). The favicon, app icons
+// and the installed app's icons keep their usual paths (browsers, crawlers, the service worker and the
+// push notifications ask for those), answered from public/course-brand on the course host.
+const courseHosts = ["systemdesignmastery.dev", "www.systemdesignmastery.dev"];
+try {
+  if (process.env.NEXT_PUBLIC_COURSE_ORIGIN) courseHosts.push(new URL(process.env.NEXT_PUBLIC_COURSE_ORIGIN).hostname);
+} catch {
+  // ignore env parse errors
+}
+const courseHostRe = courseHosts.map((h) => h.replace(/\./g, "\\.")).join("|");
+const courseIconRewrites = ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-icon.png", "/icons/:file(icon-[\\w-]+\\.png)"].map((source) => ({
+  source,
+  has: [{ type: "host" as const, value: `(?:${courseHostRe})` }],
+  destination: `/course-brand${source.replace(/:file\(.*\)$/, ":file")}`,
+}));
+
 // One id per deploy for offline reading: the service worker is registered as /sw.js?v=<id> (a new id
 // installs a new worker) and saved pages record the build whose app files they need. Set once here
 // so the build's worker processes (which inherit process.env) all inline the same value.
@@ -83,7 +99,7 @@ const nextConfig: NextConfig = {
   // only switched on, when the proxy is live).
   skipTrailingSlashRedirect: posthogRewrites.length > 0,
   async rewrites() {
-    return posthogRewrites;
+    return { beforeFiles: courseIconRewrites, afterFiles: posthogRewrites, fallback: [] };
   },
   // ...but keep the site's own canonical URLs: /learn/ → /learn as before (proxy paths excluded).
   async redirects() {
