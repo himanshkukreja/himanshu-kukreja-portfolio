@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const payload = await req.json().catch(() => ({}));
   const requestedSlugs: string[] | undefined = Array.isArray(payload?.slugs) ? payload.slugs : undefined;
   const requestedEmails: string[] | undefined = Array.isArray(payload?.emails) ? payload.emails : undefined;
-  const subject: string = typeof payload?.subject === "string" && payload.subject.trim() ? payload.subject.trim() : "🚀 Your Weekly Dose of Engineering Stories is Here!";
+  const subject: string = typeof payload?.subject === "string" && payload.subject.trim() ? payload.subject.trim() : "New case files · System Design Mastery";
   const headerTitle: string | undefined = typeof payload?.headerTitle === "string" && payload.headerTitle.trim() ? payload.headerTitle.trim() : undefined;
 
   const all = await getAllStories();

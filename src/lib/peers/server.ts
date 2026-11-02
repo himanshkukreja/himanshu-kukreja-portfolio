@@ -11,6 +11,7 @@ import { sendRawEmail } from "@/lib/mailer";
 // course URLs live on the course host
 import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
+import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
 export type PeerRole = "candidate" | "interviewer" | "either";
 type Row = { id: string; user_id: string; starts_at: string; duration_min: number; mock_slug: string; role: PeerRole; note: string; status: "open" | "paired" | "cancelled"; partner_id: string | null; room: string | null };
@@ -104,6 +105,7 @@ function pairedEmail(o: { toName: string; partnerName: string; partnerEmail: str
   return `<!doctype html><html><body style="margin:0;background:#000;color:#f3f2ee;font-family:Arial,Helvetica,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border:1px solid #3a3a40"><tr><td style="padding:28px">
+<p style="margin:0 0 18px;${COURSE_BRAND_CELL}">${courseBrand()}</p>
 <p style="margin:0 0 6px;font:12px monospace;letter-spacing:.12em;text-transform:uppercase;color:#ff6b2b">Peer mock interview</p>
 <h1 style="margin:0 0 12px;font-size:24px;line-height:1.25">Hi ${o.toName}, you're paired with ${o.partnerName}</h1>
 <p style="margin:0 0 6px;font-size:15px;color:#c9c8c4"><b style="color:#f3f2ee">When:</b> ${when(o.startsAt)}, ${o.minutes} minutes</p>

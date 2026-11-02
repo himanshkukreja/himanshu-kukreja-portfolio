@@ -1,6 +1,7 @@
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
 import type { StoryFrontmatter } from "@/lib/stories";
 import { absoluteCoverUrl } from "@/lib/utils";
+import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
 export type EmailTemplateOptions = {
   recipientEmail?: string;
@@ -9,6 +10,17 @@ export type EmailTemplateOptions = {
   isWelcome?: boolean;
 };
 
+/** Course email palette (light, like the site's default theme; explicit colours so dark-mode clients don't invert it badly). */
+const EC = { paper: "#F5F4F0", card: "#FFFFFF", ink: "#0B0B0B", ink2: "#2E2E33", ink3: "#55555B", line: "#DDDBD4", signal: "#FF6B2B", signalText: "#C2410C", onSignal: "#120700", black: "#000000" };
+const EF_DISPLAY = "'Bricolage Grotesque','Helvetica Neue',Helvetica,Arial,sans-serif";
+const EF_BODY = "'Geist','Helvetica Neue',Helvetica,Arial,sans-serif";
+const EF_MONO = "'Geist Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace";
+
+/**
+ * Case-file update emails (newsletter send, admin preview, the welcome mail for new subscribers): the course's
+ * brand bar (diagram mark + "System Design Mastery."), then each case file as cover, title, excerpt and a
+ * signal-orange button.
+ */
 export function buildStoriesEmailHtml(stories: StoryFrontmatter[], opts: EmailTemplateOptions = {}): string {
   const site = COURSE_ORIGIN; // case files + unsubscribe live on the course host
   const unsubscribeLink = opts.recipientEmail
@@ -16,154 +28,95 @@ export function buildStoriesEmailHtml(stories: StoryFrontmatter[], opts: EmailTe
     : `${site}/newsletter/unsubscribe`;
 
   const introText = opts.isWelcome
-    ? "Welcome to the community! Here are some wonderful stories to kickstart your learning journey in system and backend design."
-    : "These are some wonderful stories to help you master system/backend design — perfect for your learning journey!";
+    ? "Welcome aboard. Here are the latest case files: real systems, real outages, and the design decisions behind them."
+    : "New case files from System Design Mastery: real systems, real outages, and the design decisions behind them.";
 
   const items = stories
     .map((s) => {
       const cover = absoluteCoverUrl(s.cover); // emails need absolute URLs (local /covers/ files included)
       const coverImg = cover
-        ? `<img src="${cover}" width="560" style="display:block;width:100%;max-width:560px;height:auto;border-radius:8px;border:1px solid #e5e7eb;margin:0 0 10px 0;" alt="${escapeHtml(s.title)} cover" />`
+        ? `<img src="${cover}" width="528" style="display:block;width:100%;max-width:528px;height:auto;border:1px solid ${EC.line};margin:0 0 14px 0;" alt="${escapeHtml(s.title)} cover" />`
         : "";
       return `
         <tr>
-          <td class="story" style="padding:20px 0;border-bottom:1px solid #e5e7eb">
+          <td style="padding:24px 0;border-bottom:1px solid ${EC.line};">
             ${coverImg}
-            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-              <h3 class="story-title" style="margin:0;font-size:18px;color:#ffffff;font-weight:600;">${escapeHtml(s.title)}</h3>
-            </div>
-            ${s.excerpt ? `<p class="story-excerpt" style=\"margin:12px 0;font-size:15px;line-height:1.6\">${escapeHtml(s.excerpt)}</p>` : ""}
-            <div style="margin-top: 16px;">
-              <a class="btn" href="${site}/case-files/${s.slug}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">Read Full Story →</a>
-            </div>
+            <div style="font-family:${EF_DISPLAY};font-weight:800;font-size:21px;line-height:1.25;letter-spacing:-0.01em;color:${EC.ink};margin:0 0 8px 0;">${escapeHtml(s.title)}</div>
+            ${s.excerpt ? `<p style="margin:0 0 16px 0;font-family:${EF_BODY};font-size:15px;line-height:1.6;color:${EC.ink2};">${escapeHtml(s.excerpt)}</p>` : ""}
+            <a href="${site}/case-files/${s.slug}" style="display:inline-block;background:${EC.signal};color:${EC.onSignal};font-family:${EF_MONO};font-size:14px;font-weight:600;text-decoration:none;padding:12px 18px;border:1px solid ${EC.signal};">Read the case file →</a>
           </td>
         </tr>
       `;
     })
     .join("");
 
-  const subject = escapeHtml(opts.subjectTitle || "Engineering Stories");
-  const header = escapeHtml(
-    opts.headerTitle || (opts.isWelcome ? "Welcome to Engineering Stories!" : "This Week’s Engineering Stories")
-  );
+  const subject = escapeHtml(opts.subjectTitle || "Case files · System Design Mastery");
+  const header = escapeHtml(opts.headerTitle || (opts.isWelcome ? "Welcome to the case files" : "New case files"));
   const nowStr = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
 
-  return `
-  <!DOCTYPE html>
-  <html>
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="color-scheme" content="light dark">
-    <meta name="supported-color-schemes" content="light dark">
-    <title>${subject}</title>
-    <style>
-      /* Mobile tweaks */
-      @media only screen and (max-width: 600px) {
-        .container { width: 100% !important; padding: 16px !important; }
-        .content { padding: 16px !important; }
-        .story-title { font-size: 16px !important; }
-      }
-      :root { color-scheme: light dark; supported-color-schemes: light dark; }
-
-      /* Dark mode support (Apple Mail, some clients) */
-      @media (prefers-color-scheme: dark) {
-        body { background-color: #0b1020 !important; }
-        .outer { background: linear-gradient(135deg, #0b1020 0%, #111827 100%) !important; }
-        .container { background-color: #0f172a !important; }
-        .content, .content p, .content a { color: #e2e8f0 !important; }
-        .muted, .footer a { color: #94a3b8 !important; }
-        .divider { border-color: #1f2937 !important; }
-        .footer { background-color: #0b1324 !important; border-top-color: #1f2937 !important; }
-        .story { border-bottom-color: #1f2937 !important; }
-        .card { background: linear-gradient(135deg, #1e3a8a 0%, #4c1d95 100%) !important; }
-        .btn { background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%) !important; color: #ffffff !important; }
-        /* Ensure intro box is dark so light text is readable */
-        .intro { background: linear-gradient(135deg, #0b1220 0%, #111827 100%) !important; border-left-color: #38bdf8 !important; }
-        .intro p { color: #e2e8f0 !important; }
-        .story-excerpt { color: #cbd5e1 !important; }
-      }
-
-      /* Gmail iOS dark mode selector */
-      [data-ogsc] body { background-color: #0b1020 !important; }
-      [data-ogsc] .outer { background: linear-gradient(135deg, #0b1020 0%, #111827 100%) !important; }
-      [data-ogsc] .container { background-color: #0f172a !important; }
-      [data-ogsc] .content, [data-ogsc] .content p, [data-ogsc] .content a { color: #e2e8f0 !important; }
-      [data-ogsc] .muted, [data-ogsc] .footer a { color: #94a3b8 !important; }
-      [data-ogsc] .divider { border-color: #1f2937 !important; }
-      [data-ogsc] .footer { background-color: #0b1324 !important; border-top-color: #1f2937 !important; }
-      [data-ogsc] .story { border-bottom-color: #1f2937 !important; }
-      [data-ogsc] .card { background: linear-gradient(135deg, #1e3a8a 0%, #4c1d95 100%) !important; }
-      [data-ogsc] .btn { background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%) !important; color: #ffffff !important; }
-      /* Gmail iOS: intro box & excerpt */
-      [data-ogsc] .intro { background: linear-gradient(135deg, #0b1220 0%, #111827 100%) !important; border-left-color: #38bdf8 !important; }
-      [data-ogsc] .intro p { color: #e2e8f0 !important; }
-      [data-ogsc] .story-excerpt { color: #cbd5e1 !important; }
-    </style>
-  </head>
-  <body style="margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background-color: #f8fafc;">
-    <!-- Preheader text -->
-    <div style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">
-      ${opts.isWelcome ? "Welcome aboard!" : "Your latest engineering stories inside."}
-    </div>
-
-    <table role="presentation" cellpadding="0" cellspacing="0" width="100%" class="outer" style="background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); padding: 32px 0;">
-      <tr>
-        <td align="center">
-          <table role="presentation" cellpadding="0" cellspacing="0" width="600" class="container" style="background:#ffffff;border-radius:16px;box-shadow: 0 10px 25px rgba(0,0,0,0.1);overflow:hidden;max-width:600px;width:100%;">
-            
-            <!-- Header -->
-            <tr>
-              <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 32px 24px; text-align: center;">
-                <h1 style="margin:0;font-size:28px;color:#ffffff;font-weight:700;letter-spacing:-0.5px;">
-                  ${header}
-                </h1>
-                <p class="muted" style="margin:8px 0 0;color:#e2e8f0;font-size:14px;opacity:0.9;">
-                  ${nowStr}
-                </p>
-              </td>
-            </tr>
-            
-            <!-- Intro -->
-            <tr>
-              <td class="content" style="padding: 32px 24px 16px;">
-                <div class="intro" style="background: linear-gradient(135deg, #0f172a 0%, #0b1220 100%); border-left: 4px solid #38bdf8; padding: 20px; border-radius: 8px; margin-bottom: 24px;">
-                  <p style="margin: 0; color: #e5e7eb; font-size: 16px; line-height: 1.6; font-weight: 600;">
-                    ${introText}
-                  </p>
-                </div>
-              </td>
-            </tr>
-            
-            <!-- Stories -->
-            <tr>
-              <td class="content" style="padding: 0 24px;">
-                <table width="100%" cellpadding="0" cellspacing="0">
-                  ${items}
-                </table>
-              </td>
-            </tr>
-            
-            <!-- Footer -->
-            <tr>
-              <td class="footer" style="padding: 32px 24px; background-color: #f8fafc; border-top: 1px solid #e2e8f0; text-align: center;">
-                <p class="muted" style="margin: 0 0 12px; color: #64748b; font-size: 14px; line-height: 1.5;">
-                  You're receiving this because you subscribed to engineering stories from Himanshu Kukreja.
-                </p>
-                <p style="margin: 0; font-size: 12px;">
-                  <a href="${unsubscribeLink}" style="color: #64748b; text-decoration: underline;">Unsubscribe</a>
-                  <span style="color: #cbd5e1; margin: 0 8px;">•</span>
-                  <a href="${site}" style="color: #64748b; text-decoration: underline;">Visit Website</a>
-                </p>
-              </td>
-            </tr>
-            
-          </table>
-        </td>
-      </tr>
-    </table>
-  </body>
-  </html>`;
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light">
+  <meta name="supported-color-schemes" content="light">
+  <title>${subject}</title>
+  <style>
+    @media only screen and (max-width: 600px) {
+      .wrap { padding: 16px 8px !important; }
+      .pad { padding-left: 20px !important; padding-right: 20px !important; }
+      .h1 { font-size: 30px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;padding:0;background:${EC.paper};">
+  <div style="display:none!important;visibility:hidden;opacity:0;color:transparent;height:0;width:0;overflow:hidden;mso-hide:all;">
+    ${opts.isWelcome ? "Welcome aboard: the latest case files inside." : "New case files inside."}
+  </div>
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:${EC.paper};">
+    <tr>
+      <td class="wrap" align="center" style="padding:28px 12px;">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="width:100%;max-width:600px;background:${EC.card};border:1px solid ${EC.line};">
+          <tr>
+            <td class="pad" style="background:${EC.black};padding:18px 36px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
+                <td style="${COURSE_BRAND_CELL}"><a href="${site}" style="text-decoration:none;">${courseBrand()}</a></td>
+                <td align="right" style="font-family:${EF_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#A3A3A8;">case files</td>
+              </tr></table>
+            </td>
+          </tr>
+          <tr><td style="height:4px;line-height:4px;font-size:0;background:${EC.signal};">&nbsp;</td></tr>
+          <tr>
+            <td class="pad" style="padding:32px 36px 8px 36px;">
+              <div style="font-family:${EF_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:${EC.ink3};margin:0 0 12px 0;">${nowStr}</div>
+              <h1 class="h1" style="margin:0 0 16px 0;font-family:${EF_DISPLAY};font-weight:800;font-size:36px;line-height:1.06;letter-spacing:-0.03em;color:${EC.ink};">${header}<span style="color:${EC.signal};">.</span></h1>
+              <div style="padding:2px 0 2px 14px;border-left:3px solid ${EC.signal};font-family:${EF_BODY};font-size:16px;line-height:1.6;color:${EC.ink2};">${introText}</div>
+            </td>
+          </tr>
+          <tr>
+            <td class="pad" style="padding:0 36px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                ${items}
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="pad" style="padding:24px 36px 28px 36px;border-top:1px solid ${EC.line};">
+              <p style="margin:0 0 10px 0;font-family:${EF_BODY};font-size:13px;line-height:1.5;color:${EC.ink3};">You're receiving this because you subscribed to case files from System Design Mastery by Himanshu Kukreja.</p>
+              <p style="margin:0;font-family:${EF_MONO};font-size:12px;">
+                <a href="${unsubscribeLink}" style="color:${EC.ink3};text-decoration:underline;">Unsubscribe</a>
+                <span style="color:${EC.line};margin:0 8px;">·</span>
+                <a href="${site}" style="color:${EC.ink3};text-decoration:underline;">systemdesignmastery.dev</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
 }
 
 // Backward-compatible alias
@@ -174,8 +127,8 @@ export function buildNewsletterHtml(stories: StoryFrontmatter[]): string {
 export function buildWelcomeEmailHtml(stories: StoryFrontmatter[], opts: EmailTemplateOptions = {}): string {
   return buildStoriesEmailHtml(stories, {
     ...opts,
-    subjectTitle: "🎉 Welcome to Engineering Stories!",
-    headerTitle: "Welcome to Engineering Stories!",
+    subjectTitle: "Welcome to the case files · System Design Mastery",
+    headerTitle: "Welcome to the case files",
     isWelcome: true,
   });
 }

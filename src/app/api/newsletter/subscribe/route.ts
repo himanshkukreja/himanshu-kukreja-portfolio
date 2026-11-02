@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
       
       // Use Promise.race to timeout the email send after 25 seconds
       await Promise.race([
-        sendWelcomeEmail(email, "🎉 Welcome to Engineering Stories!", html),
+        sendWelcomeEmail(email, "Welcome to the case files · System Design Mastery", html),
         new Promise((_, reject) => 
           setTimeout(() => reject(new Error('Email timeout after 25s')), 25000)
         )
@@ -119,10 +119,10 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ 
     ok: true, 
     message: isNewUser 
-      ? "Welcome! You're now subscribed to Engineering Stories!" 
+      ? "Welcome! You're now subscribed to the case files." 
       : wasUnsubscribed 
-        ? "Welcome back! You're re-subscribed to Engineering Stories!"
-        : "You're already subscribed to Engineering Stories!",
+        ? "Welcome back! You're re-subscribed to the case files."
+        : "You're already subscribed to the case files.",
     welcomeEmailSent,
     isNewUser
   });

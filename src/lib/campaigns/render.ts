@@ -13,10 +13,7 @@
  */
 import { CONTROL_RE, MergeVars, TAG_RE, hasEmptyTag, resolveTags } from "./tags";
 import { allowedUrl, clickUrl, isOwnUrl, openPixelUrl } from "./links";
-import { COURSE_ORIGIN } from "@/lib/site/hosts";
-
-/** The course's mark for the brand bar (a PNG: mail clients don't render SVG). */
-const COURSE_MARK_PNG = `${COURSE_ORIGIN}/course-brand/icons/icon-192.png`;
+import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
 /* ───────────────────────────── document model ───────────────────────────── */
 
@@ -272,7 +269,7 @@ ${preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;c
         <tr>
           <td class="pad" style="background:${C.black};padding:18px 36px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              <td style="font-family:${F_DISPLAY};font-size:17px;font-weight:800;letter-spacing:-0.02em;color:#F3F2EE;white-space:nowrap;"><img src="${COURSE_MARK_PNG}" width="22" height="22" alt="" style="display:inline-block;width:22px;height:22px;border:0;vertical-align:-5px;margin-right:8px;">System Design Mastery<span style="color:${C.signal};">.</span></td>
+              <td style="${COURSE_BRAND_CELL}">${courseBrand()}</td>
               <td align="right" style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#A3A3A8;">${esc(doc.topLabel || "newsletter")}</td>
             </tr></table>
           </td>

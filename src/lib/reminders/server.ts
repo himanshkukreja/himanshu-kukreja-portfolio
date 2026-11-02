@@ -10,6 +10,7 @@ import { supabase } from "@/lib/supabase";
 import { sendRawEmail } from "@/lib/mailer";
 // course URLs live on the course host
 import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
+import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
 export type ReminderPrefs = { emailOn: boolean; pushOn: boolean; pushDevices: number; tz: string };
 type Row = { user_id: string; email_on: boolean; push_on: boolean; push_subs: PushSubscription[]; tz: string; last_sent_on: string | null; unsub_token: string };
@@ -84,7 +85,8 @@ function emailHtml(days: number, unsubUrl: string) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border:1px solid #3a3a40">
 <tr><td style="padding:28px">
-<p style="margin:0 0 6px;font:12px monospace;letter-spacing:.12em;text-transform:uppercase;color:#ff6b2b">System Design Mastery</p>
+<p style="margin:0 0 18px;${COURSE_BRAND_CELL}">${courseBrand()}</p>
+<p style="margin:0 0 6px;font:12px monospace;letter-spacing:.12em;text-transform:uppercase;color:#ff6b2b">Streak reminder</p>
 <h1 style="margin:0 0 12px;font-size:26px;line-height:1.2">Your ${days}-day streak ends tonight</h1>
 <p style="margin:0 0 20px;font-size:16px;line-height:1.55;color:#c9c8c4">One lesson, a revision deck or a quick arena run keeps it going. Five minutes is enough.</p>
 <a href="${link}" style="display:inline-block;background:#ff6b2b;color:#120700;text-decoration:none;font-weight:bold;padding:12px 20px">Keep my streak →</a>

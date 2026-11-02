@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   // Usage: /api/newsletter/preview?slugs=a,b,c&subject=...&headerTitle=...
   const { searchParams } = new URL(req.url);
   const slugsParam = searchParams.get("slugs");
-  const subject = (searchParams.get("subject") || "Engineering Stories").trim();
+  const subject = (searchParams.get("subject") || "New case files · System Design Mastery").trim();
   const headerTitle = searchParams.get("headerTitle")?.trim() || undefined;
 
   const selectedSlugs = slugsParam

@@ -1,4 +1,5 @@
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
+import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 /**
  * "System Design Mastery, rebuilt" announcement: HTML (table layout, inline styles, 600px, phone-safe)
  * + plain-text twin. Pure function, no I/O: the admin preview, the test send and the real send all
@@ -130,7 +131,7 @@ export function learnRevampHtml({ email, name }: AnnounceInput): string {
         <tr>
           <td class="pad" style="background:${C.black};padding:18px 36px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              <td style="font-family:${F_MONO};font-size:15px;font-weight:600;color:#F3F2EE;"><span style="color:${C.signal};">~</span>/himanshu<span style="display:inline-block;width:8px;height:15px;background:${C.signal};margin-left:4px;vertical-align:-2px;">&nbsp;</span></td>
+              <td style="${COURSE_BRAND_CELL}">${courseBrand()}</td>
               <td align="right" style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#A3A3A8;">patch notes · learn v2</td>
             </tr></table>
           </td>

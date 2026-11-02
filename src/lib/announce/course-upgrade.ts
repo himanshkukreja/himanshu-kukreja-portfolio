@@ -22,6 +22,7 @@
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
+import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
 /** the hub's "N ideas in under two minutes each" on the day it's sent */
 export const SHORTS_TOTAL = 556;
@@ -303,7 +304,7 @@ export function courseUpgradeHtml({ email, name }: CourseUpgradeInput): string {
         <tr>
           <td class="pad" style="background:${C.black};padding:18px 36px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              <td style="font-family:${F_MONO};font-size:15px;font-weight:600;color:#F3F2EE;"><span style="color:${C.signal};">~</span>/himanshu</td>
+              <td style="${COURSE_BRAND_CELL}">${courseBrand()}</td>
               <td align="right" style="font-family:${F_MONO};font-size:11px;letter-spacing:0.08em;text-transform:uppercase;color:#A3A3A8;">new · week 11</td>
             </tr></table>
           </td>

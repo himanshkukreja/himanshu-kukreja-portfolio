@@ -16,9 +16,7 @@
  */
 import { EMAIL, SOCIALS } from "@/lib/socials";
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
-
-/** The course's mark for the brand bar (a PNG: mail clients don't render SVG). */
-const COURSE_MARK_PNG = `${COURSE_ORIGIN}/course-brand/icons/icon-192.png`;
+import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
 /** Personal and action-first: the first lesson is the thing to click. */
 export const WELCOME_SUBJECT = "You're in. Your first system design lesson is ready";
@@ -245,7 +243,7 @@ export function welcomeHtml({ email, name }: WelcomeInput): string {
         <tr>
           <td class="pad" style="padding:20px 36px;border-bottom:1px solid ${C.line};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr>
-              <td style="font-family:${F_DISPLAY};font-size:17px;font-weight:800;letter-spacing:-0.02em;color:${C.ink};white-space:nowrap;"><a href="${WELCOME_LINKS.site}" style="color:${C.ink};text-decoration:none;"><img src="${COURSE_MARK_PNG}" width="22" height="22" alt="" style="display:inline-block;width:22px;height:22px;border:0;vertical-align:-5px;margin-right:8px;">System Design Mastery<span style="color:${C.signalText};">.</span></a></td>
+              <td style="${COURSE_BRAND_CELL}"><a href="${WELCOME_LINKS.site}" style="text-decoration:none;">${courseBrand({ ink: C.ink, dot: C.signalText })}</a></td>
               <td align="right" style="${LABEL_CSS}color:${C.ink3};white-space:nowrap;">new account</td>
             </tr></table>
           </td>
