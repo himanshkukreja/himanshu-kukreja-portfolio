@@ -6,6 +6,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { ReactNode } from "react";
+import { COURSE_MARK as M } from "@/lib/site/courseMark";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
@@ -57,23 +58,21 @@ export function ogFonts() {
 export const mono = { fontFamily: "Geist Mono" } as const;
 export const display = { fontFamily: "Bricolage" } as const;
 
-/** The course's pixel "S" mark (public/course-brand/icon.svg): white S + signal block on a black tile. */
+/** The course's mark (public/course-brand/icon.svg): white block wired to a signal-orange block, black tile. */
 export function CourseMark({ size = 40 }: { size?: number }) {
   return (
-    <svg width={size} height={size} viewBox="0 0 16 16" shapeRendering="crispEdges">
-      <rect width="16" height="16" fill="#000" />
-      <rect x="3" y="3" width="5" height="2" fill={C.fg} />
-      <rect x="2" y="4" width="2" height="3" fill={C.fg} />
-      <rect x="3" y="7" width="4" height="2" fill={C.fg} />
-      <rect x="6" y="8" width="2" height="4" fill={C.fg} />
-      <rect x="2" y="11" width="5" height="2" fill={C.fg} />
-      <rect x="10" y="6" width="4" height="7" fill={C.signal} />
+    <svg width={size} height={size} viewBox="0 0 100 100" shapeRendering="crispEdges">
+      <rect width="100" height="100" fill="#000" />
+      {[...M.wire, M.from].map((r, i) => (
+        <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} fill={C.fg} />
+      ))}
+      <rect x={M.to.x} y={M.to.y} width={M.to.w} height={M.to.h} fill={C.signal} />
     </svg>
   );
 }
 
 /**
- * The site mark at the top of a card. Course cards (the default): the "S" mark + "System Design
+ * The site mark at the top of a card. Course cards (the default): the diagram mark + "System Design
  * Mastery." Portfolio cards: `~/himanshu▌`, the cursor drawn as a block (no glyph dependency).
  */
 export function Mark({ size = 30, brand = "course" }: { size?: number; brand?: "course" | "portfolio" }) {

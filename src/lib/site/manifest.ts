@@ -14,7 +14,7 @@ import type { MetadataRoute } from "next";
  * "fullscreen": that hides the system UI and the window buttons (the reader's focus mode goes
  * fullscreen on demand instead).
  *
- * Icons: the course's own pixel "S" mark (public/course-brand), by its own paths so installed apps pick up the change.
+ * Icons: the course's own diagram mark (public/course-brand), by its own paths so installed apps pick up the change.
  *
  * `name` is what Chrome prefixes window titles with ("<name> - <page title>"), so it is the course
  * name alone and the installed app's page titles drop it (src/components/offline/AppWindow.tsx).

@@ -69,7 +69,7 @@ const posthogRewrites = POSTHOG_KEY
     ]
   : [];
 
-// systemdesignmastery.dev has its own mark (the pixel "S", public/course-brand). The favicon, app icons
+// systemdesignmastery.dev has its own mark (the diagram mark, public/course-brand). The favicon, app icons
 // and the installed app's icons keep their usual paths (browsers, crawlers, the service worker and the
 // push notifications ask for those), answered from public/course-brand on the course host.
 const courseHosts = ["systemdesignmastery.dev", "www.systemdesignmastery.dev"];

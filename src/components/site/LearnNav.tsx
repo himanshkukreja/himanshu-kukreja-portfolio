@@ -72,7 +72,7 @@ function DueBadge({ compact = false }: { compact?: boolean }) {
 }
 
 /**
- * The course brand: the "S" mark + "System Design Mastery." ("SD Mastery." where the row is tight:
+ * The course brand: the diagram mark + "System Design Mastery." ("SD Mastery." where the row is tight:
  * phones, and desktops 1024–1399 px where the tabs share the row; the mark alone under 380 px). The portfolio is one tap away in the
  * phone dock ("~") and the account menu.
  */
