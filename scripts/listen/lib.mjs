@@ -100,7 +100,7 @@ export async function listArticles() {
   const all = await github.getAllLearningResources();
   const out = all
     .filter((r) => r.type !== "mcq")
-    .map((r) => ({ key: manifest.listenKey(r.type, r.week, r.slug), kind: r.type, week: r.week, slug: r.slug, repo: "content", path: r.path, href: `/learn/${r.course}/${r.week}/${r.slug}` }));
+    .map((r) => ({ key: manifest.listenKey(r.type, r.week, r.slug), kind: r.type, week: r.week, slug: r.slug, repo: "content", path: r.path, href: `/${r.week}/${r.slug}` }));
   const files = new Map(
     mdFiles(path.join(ROOT, "content/stories"), /\.md$/).map((f) => {
       const fm = matter(fs.readFileSync(path.join(ROOT, "content/stories", f), "utf8")).data || {};
@@ -112,15 +112,15 @@ export async function listArticles() {
   for (const c of cases) {
     const db = c.origin === "db";
     if (!db && !files.has(c.slug)) continue;
-    out.push({ key: manifest.listenKey("case", "", c.slug), kind: "case", week: "stories", slug: c.slug, repo: db ? "db" : "site", path: db ? `case_files:${c.slug}` : `content/stories/${files.get(c.slug)}`, body: c.body, href: `/stories/${c.slug}` });
+    out.push({ key: manifest.listenKey("case", "", c.slug), kind: "case", week: "stories", slug: c.slug, repo: db ? "db" : "site", path: db ? `case_files:${c.slug}` : `content/stories/${files.get(c.slug)}`, body: c.body, href: `/case-files/${c.slug}` });
   }
   for (const f of mdFiles(path.join(content, "resources/war-stories/stories"))) {
     const slug = f.replace(/\.md$/, "");
-    out.push({ key: manifest.listenKey("war", "", slug), kind: "war", week: "war-stories", slug, repo: "content", path: `resources/war-stories/stories/${f}`, href: `/learn/war-stories/${slug}` });
+    out.push({ key: manifest.listenKey("war", "", slug), kind: "war", week: "war-stories", slug, repo: "content", path: `resources/war-stories/stories/${f}`, href: `/war-stories/${slug}` });
   }
   for (const f of mdFiles(path.join(content, "resources/mock-interviews"), /^mock-\d+-[\w-]+\.md$/)) {
     const slug = f.replace(/\.md$/, "");
-    out.push({ key: manifest.listenKey("mock", "", slug), kind: "mock", week: "mock-interviews", slug, repo: "content", path: `resources/mock-interviews/${f}`, href: `/learn/mock/${slug}` });
+    out.push({ key: manifest.listenKey("mock", "", slug), kind: "mock", week: "mock-interviews", slug, repo: "content", path: `resources/mock-interviews/${f}`, href: `/mock/${slug}` });
   }
   // stable: course order (or file name) within each group
   return out.map((a, i) => ({ a, i, g: GROUPS.indexOf(groupOf(a.kind)) })).sort((x, y) => x.g - y.g || x.i - y.i).map((x) => ({ ...x.a, group: GROUPS[x.g] }));

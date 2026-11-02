@@ -4,7 +4,7 @@
  * The Text side of a converted page: the typed version (page.convertedMd) shown in place of the handwriting, as a
  * page of its own (the Ink / Text toggle in the page toolbar switches). Read it, edit it (saved back on the page),
  * copy it, or save it to the learner's notes (a content_notes row under the page's lesson, the way a lesson note is
- * made: the browser inserts it, row-level security keeps it theirs; it then shows on /learn/notebook → Notes).
+ * made: the browser inserts it, row-level security keeps it theirs; it then shows on /notebook → Notes).
  * When the handwriting changed after it was typed up, a line says so with a one-tap update (which asks first when
  * the learner edited the text by hand, since an update replaces their edits).
  */
@@ -239,7 +239,7 @@ export default function TypedPanel(props: { ai: PageAi; convertedAt: string | nu
           {saved === "saved" && (
             <p className="m-0 text-[13px] text-fg-2" role="status">
               Saved under this lesson.{" "}
-              <Link href="/learn/notebook?tab=notes" className="font-semibold text-signal-text">
+              <Link href="/notebook?tab=notes" className="font-semibold text-signal-text">
                 Open my notes ›
               </Link>
             </p>

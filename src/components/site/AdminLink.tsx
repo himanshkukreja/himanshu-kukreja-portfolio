@@ -8,13 +8,13 @@
  *   menu    a row in the account menu
  */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { ShieldCheck } from "lucide-react";
 import { useIsAdmin } from "@/lib/admin/useIsAdmin";
 
 export default function AdminLink({ variant, className = "", display = "inline-flex", onClick }: { variant: "header" | "tab" | "menu"; className?: string; display?: string; onClick?: () => void }) {
   const { admin } = useIsAdmin();
-  const on = (usePathname() || "").startsWith("/admin");
+  const on = (useCoursePathname() || "").startsWith("/admin");
   if (!admin) return null;
   if (variant === "menu")
     return (

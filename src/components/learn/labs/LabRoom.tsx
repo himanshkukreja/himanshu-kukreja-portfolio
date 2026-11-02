@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * A code lab (/learn/labs/[id]): the brief, example tests, given code, hints and solution on the
+ * A code lab (/labs/[id]): the brief, example tests, given code, hints and solution on the
  * left; the editor, Run and the test results on the right (stacked on phones, editor first and
  * collapsible). Python runs in a Web Worker (src/lib/learn/labs/runner.ts); code autosaves per lab
  * in this browser; passing every test awards the lab's XP once (game key "lab:<id>").
@@ -206,11 +206,11 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
     <main className="mx-auto flex max-w-[1480px] flex-col gap-6 px-4 pb-28 pt-6 sm:px-6 sm:pt-10 lg:pb-16" data-hk-lab={lab.id}>
       <header className="flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-xs text-fg-3">
-          <Link href="/learn/system-design-mastery" className="hover:text-fg">
+          <Link href="/" className="hover:text-fg">
             Learn
           </Link>
           <span aria-hidden>/</span>
-          <Link href="/learn/labs" className="hover:text-fg">
+          <Link href="/labs" className="hover:text-fg">
             Code labs
           </Link>
           <span aria-hidden>/</span>

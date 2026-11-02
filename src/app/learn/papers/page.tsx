@@ -11,7 +11,7 @@ export const metadata = {
   title: "Written papers · System Design Mastery",
   description:
     "Question papers you answer by hand, with handwriting and diagrams on an iPad, a tablet or a laptop, graded point by point against a marking scheme. One for every week and side quest.",
-  alternates: { canonical: "/learn/papers" },
+  alternates: { canonical: "/papers" },
 };
 
 export default async function PapersPage() {
@@ -20,7 +20,7 @@ export default async function PapersPage() {
     <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-14">
       <header className="flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/arena" className="hover:text-fg">
+          <Link href="/arena" className="hover:text-fg">
             Arena
           </Link>
           <span aria-hidden>/</span>

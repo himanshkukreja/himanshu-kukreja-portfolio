@@ -90,7 +90,7 @@ export default function ContinueReadingBanner({ ready, resume, stages, dueCount,
       <Link href={d.href} className="flex min-h-[52px] items-center justify-center bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
         {cta}
       </Link>
-      <Link href="/learn/review" className="flex min-h-12 items-center justify-between gap-3 border border-line-strong px-3.5 py-2 text-sm text-fg hover:bg-surface-2">
+      <Link href="/review" className="flex min-h-12 items-center justify-between gap-3 border border-line-strong px-3.5 py-2 text-sm text-fg hover:bg-surface-2">
         <span>{dueReady ? (dueCount ? `Daily standup · ${dueCount} card${dueCount === 1 ? "" : "s"} · ~${Math.max(1, Math.ceil((dueCount * 25) / 60))} min` : "Daily standup · nothing due today") : "Daily standup"}</span>
         <span className="shrink-0 whitespace-nowrap font-mono text-signal-text">review →</span>
       </Link>

@@ -233,7 +233,7 @@ export function trialLinkFor(
     part: part.n,
     title: part.title,
     questions: part.questions,
-    href: `/learn/${r.course}/${mcq.week}/${mcq.slug}?part=${part.n}`,
+    href: `/${mcq.week}/${mcq.slug}?part=${part.n}`,
   };
 }
 
@@ -252,7 +252,7 @@ export function buildRail(
     return {
       week: r.week,
       slug: r.slug,
-      href: `/learn/${r.course}/${r.week}/${r.slug}`,
+      href: `/${r.week}/${r.slug}`,
       label: railLabel(r, title),
       title,
       kind: r.type,

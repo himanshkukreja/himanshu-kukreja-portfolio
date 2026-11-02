@@ -23,7 +23,7 @@ const SP = await import("../../src/lib/learn/study-plan.ts");
 const SV = await import("../../src/lib/learn/saved-paths.ts");
 const { buildStudyPlan, toIcs, estimateMinutes, planDueDates, savedPathPlan, foldLine, escapeText, icsUid, addDays, weekdayOf, isDate } = SP;
 
-const C = "/learn/system-design-mastery";
+const C = "";
 const L = (n, minutes, extra = {}) => ({ id: `L:week-01/day-0${n}`, kind: "lesson", title: `Lesson ${n}`, href: `${C}/week-01/day-0${n}`, readingMinutes: minutes, ...extra });
 
 // ------------------------------------------------------------- estimates
@@ -40,7 +40,7 @@ test("estimates: explicit minutes win, then reading + lecture + lab, then words,
 // ------------------------------------------------------------- packing
 
 test("packing: items fill days in order at hours per day, split reading, then revision and a final mock day", () => {
-  const items = [L(1, 50), L(2, 100), L(3, 40), L(4, 30), { id: "lab:x", kind: "lab", title: "Lab X", href: "/learn/labs/x", labMinutes: 45 }];
+  const items = [L(1, 50), L(2, 100), L(3, 40), L(4, 30), { id: "lab:x", kind: "lab", title: "Lab X", href: "/labs/x", labMinutes: 45 }];
   const plan = buildStudyPlan({ goal: "Data at scale", days: 7, startDate: "2026-11-02", hoursPerDay: 1, items });
   assert.equal(plan.problem, null);
   assert.equal(plan.fits, true);
@@ -73,7 +73,7 @@ test("packing: items fill days in order at hours per day, split reading, then re
 });
 
 test("packing: a lab or mock is never split; a mock in the list becomes the final day", () => {
-  const items = [L(1, 20), { id: "lab:y", kind: "lab", title: "Lab Y", href: "/learn/labs/y", labMinutes: 50 }, L(2, 20), { id: "mock:m1", kind: "mock", title: "Mock 1", href: "/learn/mock/m1", minutes: 75 }];
+  const items = [L(1, 20), { id: "lab:y", kind: "lab", title: "Lab Y", href: "/labs/y", labMinutes: 50 }, L(2, 20), { id: "mock:m1", kind: "mock", title: "Mock 1", href: "/mock/m1", minutes: 75 }];
   const plan = buildStudyPlan({ goal: "g", days: 4, startDate: "2026-11-02", hoursPerDay: 1, items });
   const lab = plan.days.flatMap((d) => d.steps).filter((s) => s.id === "lab:y");
   assert.equal(lab.length, 1);
@@ -147,7 +147,7 @@ function unescape(v) {
 test("ics: structure, CRLF, all-day dates, stable UIDs, DTSTAMP", () => {
   const items = [L(1, 50), L(2, 70), L(3, 40)];
   const plan = buildStudyPlan({ goal: "Crack the loop", days: 5, startDate: "2026-11-02", hoursPerDay: 1, items });
-  const ics = toIcs(plan, { title: "SDM plan", url: "https://www.himanshukukreja.in/learn/saved#p-abc", now: NOW });
+  const ics = toIcs(plan, { title: "SDM plan", url: "https://systemdesignmastery.dev/saved#p-abc", now: NOW });
   // CRLF everywhere, nothing bare
   assert.ok(ics.endsWith("\r\n"));
   assert.equal(ics.replace(/\r\n/g, "").includes("\n"), false);
@@ -182,9 +182,9 @@ test("ics: structure, CRLF, all-day dates, stable UIDs, DTSTAMP", () => {
     for (const s of day.steps) {
       assert.ok(summary.includes(s.title) || day.steps.length > 3, `summary lists ${s.title}`);
       assert.ok(desc.includes(s.title));
-      assert.ok(desc.includes(`https://www.himanshukukreja.in${s.href}`), `desc links ${s.href}`);
+      assert.ok(desc.includes(`https://systemdesignmastery.dev${s.href}`), `desc links ${s.href}`);
     }
-    assert.equal(prop("URL:"), "https://www.himanshukukreja.in/learn/saved#p-abc");
+    assert.equal(prop("URL:"), "https://systemdesignmastery.dev/saved#p-abc");
   });
   assert.equal(uids.size, events.length);
   // same goal + start → same UIDs on a re-plan
@@ -195,15 +195,15 @@ test("ics: structure, CRLF, all-day dates, stable UIDs, DTSTAMP", () => {
 
 test("ics: dates don't move with the machine's time zone (UTC maths only)", () => {
   const plan = buildStudyPlan({ goal: "tz", days: 2, startDate: "2026-11-02", hoursPerDay: 1, items: [L(1, 20)] });
-  const ics = toIcs(plan, { title: "t", url: "https://www.himanshukukreja.in/learn/saved", now: NOW });
+  const ics = toIcs(plan, { title: "t", url: "https://systemdesignmastery.dev/saved", now: NOW });
   assert.ok(ics.includes("DTSTART;VALUE=DATE:20261102\r\n"));
   assert.ok(ics.includes("DTEND;VALUE=DATE:20261103\r\n"));
 });
 
 test("ics: TEXT escaping (backslash, semicolon, comma, newline)", () => {
   assert.equal(escapeText("a\\b;c,d\ne\r\nf"), "a\\\\b\\;c\\,d\\ne\\nf");
-  const plan = { id: "spx", goal: "Caching; fast, cheap", days: [{ date: "2026-11-02", n: 1, type: "study", minutes: 10, steps: [{ id: "a", kind: "lesson", title: "Read-through, write-behind; TTL \\ eviction", href: "/learn/x?a=1,2", minutes: 10, part: null }] }] };
-  const ics = unfold(toIcs(plan, { title: "Plan, v2", url: "https://www.himanshukukreja.in/learn/saved", now: NOW }));
+  const plan = { id: "spx", goal: "Caching; fast, cheap", days: [{ date: "2026-11-02", n: 1, type: "study", minutes: 10, steps: [{ id: "a", kind: "lesson", title: "Read-through, write-behind; TTL \\ eviction", href: "/x?a=1,2", minutes: 10, part: null }] }] };
+  const ics = unfold(toIcs(plan, { title: "Plan, v2", url: "https://systemdesignmastery.dev/saved", now: NOW }));
   const summary = ics.split("\r\n").find((l) => l.startsWith("SUMMARY:"));
   assert.ok(summary.includes("Read-through\\, write-behind\\; TTL \\\\ eviction"));
   assert.ok(ics.includes("X-WR-CALNAME:Plan\\, v2"));
@@ -211,7 +211,7 @@ test("ics: TEXT escaping (backslash, semicolon, comma, newline)", () => {
   // a raw newline never reaches the file; unescaped it round-trips
   assert.ok(desc.includes("\\n"));
   assert.ok(unescape(desc.slice(12)).includes("Goal: Caching; fast, cheap"));
-  assert.ok(unescape(desc.slice(12)).includes("https://www.himanshukukreja.in/learn/x?a=1,2"));
+  assert.ok(unescape(desc.slice(12)).includes("https://systemdesignmastery.dev/x?a=1,2"));
 });
 
 test("ics: lines folded at 75 octets, UTF-8 safe, unfolding restores them", () => {
@@ -224,13 +224,13 @@ test("ics: lines folded at 75 octets, UTF-8 safe, unfolding restores them", () =
   // every line of a real file
   const items = Array.from({ length: 6 }, (_, i) => L(i + 1, 25, { title: `A rather long lesson title about consistent hashing and virtual nodes, part ${i + 1}` }));
   const plan = buildStudyPlan({ goal: "Long titles", days: 6, startDate: "2026-11-02", hoursPerDay: 2, items });
-  const ics = toIcs(plan, { title: "SDM", url: "https://www.himanshukukreja.in/learn/saved", now: NOW });
+  const ics = toIcs(plan, { title: "SDM", url: "https://systemdesignmastery.dev/saved", now: NOW });
   for (const line of ics.split("\r\n")) assert.ok(Buffer.byteLength(line, "utf8") <= 75, line);
 });
 
 test("ics: links that aren't site-relative or https are left out", () => {
   const plan = { id: "spx", days: [{ date: "2026-11-02", n: 1, type: "study", minutes: 10, steps: [{ id: "a", kind: "lesson", title: "Evil", href: "javascript:alert(1)", minutes: 5, part: null }, { id: "b", kind: "lesson", title: "Ext", href: "https://example.com/x", minutes: 5, part: null }] }] };
-  const ics = unfold(toIcs(plan, { title: "t", url: "https://www.himanshukukreja.in/learn/saved", now: NOW }));
+  const ics = unfold(toIcs(plan, { title: "t", url: "https://systemdesignmastery.dev/saved", now: NOW }));
   assert.equal(ics.includes("javascript"), false);
   assert.ok(ics.includes("https://example.com/x"));
 });
@@ -285,8 +285,8 @@ test("saved paths: schedule from a study plan, merge keeps the newer copy's date
   const sp = savedPathPlan(SV.cleanSavedPath(merged[key]));
   assert.equal(sp.id, `spath-${base.id}`);
   assert.deepEqual(sp.days.map((d) => d.date), [...new Set(Object.values(dues))].sort());
-  const ics = unfold(toIcs(sp, { title: base.title, url: `https://www.himanshukukreja.in/learn/saved#p-${base.id}`, now: NOW, sequence: Math.floor(dated.updatedAt / 1000) }));
+  const ics = unfold(toIcs(sp, { title: base.title, url: `https://systemdesignmastery.dev/saved#p-${base.id}`, now: NOW, sequence: Math.floor(dated.updatedAt / 1000) }));
   assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, sp.days.length);
-  for (const s of base.steps) assert.ok(ics.includes(`https://www.himanshukukreja.in${s.href}`));
+  for (const s of base.steps) assert.ok(ics.includes(`https://systemdesignmastery.dev${s.href}`));
   assert.equal(savedPathPlan(base), null);
 });

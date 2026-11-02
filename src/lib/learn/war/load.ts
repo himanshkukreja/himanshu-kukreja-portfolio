@@ -58,7 +58,7 @@ function weekTitle(ref: string | null, map: CourseMap | null): string {
 type Built = { stories: StorySummary[]; storyBySlug: Record<string, Story>; rooms: WarRoomSummary[]; roomBySlug: Record<string, WarRoom> };
 
 async function build(): Promise<Built> {
-  const [storyFiles, roomFiles, map] = await Promise.all([list(`${DIR}/stories`), list(`${DIR}/war-room`), getCourseMap(COURSE_ID).catch(() => null)]);
+  const [storyFiles, roomFiles, map] = await Promise.all([list(`${DIR}/case-files`), list(`${DIR}/war-room`), getCourseMap(COURSE_ID).catch(() => null)]);
 
   const stories = (
     await Promise.all(
@@ -165,7 +165,7 @@ export async function getShorts(): Promise<PlayableShort[]> {
         category: "stories" as const,
         topics: ["incidents"],
         lecture,
-        full: `/learn/lectures/${lecture}`,
+        full: `/lectures/${lecture}`,
         article: st.href,
         src: `${base}/${lecture}/short.mp4?v=${x.v}`,
         poster: `${base}/${lecture}/short.jpg?v=${x.v}`,

@@ -134,7 +134,7 @@ function useTrialData(courseId: string, week: string) {
 export default function TrialApp(props: TrialAppProps) {
   const { assessment, courseId, week, lessonSlug, parts } = props;
   const params = useSearchParams();
-  const base = `/learn/${courseId}/${week}/${lessonSlug}`;
+  const base = `/${week}/${lessonSlug}`;
   const hrefFor = useCallback((n: number) => `${base}?part=${n}`, [base]);
   const data = useTrialData(courseId, week);
   const { done, hydrated } = useGame();
@@ -191,13 +191,13 @@ export default function TrialApp(props: TrialAppProps) {
     let continueHref: string = base;
     let continueLabel = "Back to the week's trials";
     if (nextPart?.lesson) {
-      continueHref = `/learn/${courseId}/${week}/${nextPart.lesson.slug}`;
+      continueHref = `/${week}/${nextPart.lesson.slug}`;
       continueLabel = nextPart.boss ? `Continue: the boss · ${nextPart.lesson.title}` : `Continue: ${nextPart.lesson.label} · ${nextPart.lesson.title}`;
     } else if (nextPart) {
       continueHref = hrefFor(nextPart.n);
       continueLabel = `Next: Part ${nextPart.n} trial`;
     } else if (props.nextResource) {
-      continueHref = `/learn/${courseId}/${props.nextResource.week}/${props.nextResource.slug}`;
+      continueHref = `/${props.nextResource.week}/${props.nextResource.slug}`;
       continueLabel = `${props.nextLabel || "Continue"}: ${props.nextResource.title}`;
     }
     return (

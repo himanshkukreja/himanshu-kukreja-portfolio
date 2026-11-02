@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/mock/peers: post a slot or pair up with another learner for a live mock interview. One
+ * /mock/peers: post a slot or pair up with another learner for a live mock interview. One
  * interviews from the mock's page (phases, curveballs, rubric), the other designs, then swap.
  * Server: src/lib/peers/server.ts (names and emails are shared only between the two who paired).
  */
@@ -80,7 +80,7 @@ export default function PeerMocks({ mocks }: { mocks: Mock[] }) {
   return (
     <main className="mx-auto flex w-full max-w-[960px] flex-col gap-8 px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
       <header className="flex flex-col gap-3">
-        <Link href="/learn/mock" className="font-mono text-xs uppercase tracking-label text-fg-3 hover:text-fg">
+        <Link href="/mock" className="font-mono text-xs uppercase tracking-label text-fg-3 hover:text-fg">
           ← mock interviews
         </Link>
         <h1 className="font-display text-[40px] font-extrabold leading-[0.98] tracking-[-0.04em] text-fg sm:text-[56px]">Practise with a real person.</h1>

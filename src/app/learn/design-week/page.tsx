@@ -10,7 +10,7 @@ export const revalidate = 300;
 export const metadata: Metadata = {
   title: "Design of the week · System Design Mastery",
   description: "One open system design problem a week. Submit your design with diagrams, vote on the community's, and get featured with your profile. Free.",
-  alternates: { canonical: "/learn/design-week" },
+  alternates: { canonical: "/design-week" },
 };
 
 export default async function DesignWeekPage() {

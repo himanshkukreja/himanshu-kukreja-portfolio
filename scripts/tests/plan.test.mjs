@@ -10,7 +10,7 @@ import { buildIcs, escapeText, foldLine, googleLink, transitions, tzOffset, uidF
 
 // ------------------------------------------------------------- a small course map
 
-const C = "/learn/system-design-mastery";
+const C = "";
 const lesson = (week, slug, title, minutes, kind = "day-content", tag = "") => ({ week, slug, title, kind, minutes, code: "", label: title, tag, href: `${C}/${week}/${slug}` });
 const W0 = "week-00-foundations";
 const W1 = "week-01-data-at-scale";
@@ -67,7 +67,7 @@ const MAP = {
     },
   ],
   sideQuests: [lesson("bonus-problems", "bonus-01-upi", "UPI", 40, "bonus", "SQ-01"), lesson("bonus-problems", "bonus-02-whatsapp", "WhatsApp", 120, "bonus", "SQ-02")],
-  mocks: [{ id: "m1", slug: "mock-01", n: 1, code: "M1", title: "Autopay", company: "BillBolt", interviewer: "", role: "", after: W1, afterCode: "W01", coversLabel: "", level: "sde", badge: "", minutes: 60, phases: 4, curveballs: 0, signals: 0, href: "/learn/mock/mock-01" }],
+  mocks: [{ id: "m1", slug: "mock-01", n: 1, code: "M1", title: "Autopay", company: "BillBolt", interviewer: "", role: "", after: W1, afterCode: "W01", coversLabel: "", level: "sde", badge: "", minutes: 60, phases: 4, curveballs: 0, signals: 0, href: "/mock/mock-01" }],
   stats: {},
 };
 

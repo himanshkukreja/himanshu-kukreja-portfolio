@@ -10,17 +10,17 @@ export const revalidate = 86400;
 export const metadata: Metadata = {
   title: "Lectures · Interview prep · System Design Mastery",
   description: "Animated, narrated system design lectures for the course's lessons and side quests, with quiz checkpoints, chapters, captions and an AI you can ask about any moment.",
-  alternates: { canonical: "/learn/prep/lectures" },
+  alternates: { canonical: "/prep/lectures" },
 };
 
-/** /learn/prep/lectures: every lecture in sequence (course weeks, side quests, problems, LLD, case files). */
+/** /prep/lectures: every lecture in sequence (course weeks, side quests, problems, LLD, case files). */
 export default async function LecturesPage() {
   const lectures = await listLectures().catch(() => []);
   const minutes = lectures.reduce((a, l) => a + l.minutes, 0);
   return (
     <main className="mx-auto flex max-w-[1240px] flex-col gap-8 px-4 pb-28 pt-8 sm:px-6 sm:pt-12">
       <header className="flex flex-col gap-3">
-        <Link href="/learn/prep" className="self-start font-mono text-xs text-fg-3 hover:text-fg">
+        <Link href="/prep" className="self-start font-mono text-xs text-fg-3 hover:text-fg">
           ← prep
         </Link>
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
@@ -32,7 +32,7 @@ export default async function LecturesPage() {
         <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
           Animated, narrated lectures that walk through each lesson and side quest: the idea, where the obvious design breaks, the real one, and what to say in the interview. Each one links back to what it builds on, stops for quick checkpoints, and lets you ask the AI about any moment.
         </p>
-        <Link href="/learn/podcast" className="self-start font-mono text-[13px] text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">
+        <Link href="/podcast" className="self-start font-mono text-[13px] text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">
           or listen to them as a podcast →
         </Link>
         <WatchHowItWorks id="lectures-listen" />

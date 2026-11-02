@@ -66,7 +66,7 @@ function fullSnapshot(): Node {
 function events(): Ev[] {
   const out: Ev[] = [];
   const at = (ms: number) => START + ms;
-  out.push({ type: 4, timestamp: at(0), data: { href: "https://www.himanshukukreja.in/learn/system-design-mastery/week-01-data-at-scale/day-01-partitioning-deep-dive", width: W, height: H } });
+  out.push({ type: 4, timestamp: at(0), data: { href: "https://systemdesignmastery.dev/week-01-data-at-scale/day-01-partitioning-deep-dive", width: W, height: H } });
   out.push({ type: 2, timestamp: at(5), data: { node: fullSnapshot(), initialOffset: { top: 0, left: 0 } } });
   const move = (from: number, to: number, path: [number, number][]) => {
     const steps = Math.max(2, Math.floor((to - from) / 180));

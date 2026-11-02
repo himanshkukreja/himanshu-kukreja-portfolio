@@ -7,7 +7,8 @@
  * progress sync. Mounted once in the root layout.
  */
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
+import { currentSite } from "@/lib/site/hosts";
 import type { Catalog, CatalogItem, SavedMeta } from "@/lib/offline/types";
 import { APP_BUILD, askWorker, listSaved, offlineSupported, onLibraryChanged, pathOf, type SaveInput } from "@/lib/offline/store";
 import { ping, setPageSource, startConnectivity, useConnectivity, type PageSource } from "@/lib/offline/connectivity";
@@ -116,7 +117,7 @@ function isIos() {
 const SW_OFF = process.env.NEXT_PUBLIC_OFFLINE_DISABLED === "1";
 
 export default function OfflineProvider({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname() || "/";
+  const pathname = useCoursePathname() || "/";
   const [checked, setChecked] = useState(false);
   const [supported, setSupported] = useState(false);
   const [ready, setReady] = useState(false);
@@ -140,13 +141,17 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
       // not supported
     }
     const ok = offlineSupported();
+    // the course (and its offline reading) moved to systemdesignmastery.dev: on the portfolio the worker
+    // and its caches are retired (course URLs here only redirect now)
+    const retired = currentSite() === "portfolio";
     // client-only capability checks, read after mount so server and client markup match
-    setSupported(ok && !SW_OFF);
+    setSupported(ok && !SW_OFF && !retired);
     setChecked(true);
     setIos(isIos());
     if (!("serviceWorker" in navigator)) return;
-    if (SW_OFF) {
+    if (SW_OFF || retired) {
       void navigator.serviceWorker.getRegistrations().then((rs) => rs.forEach((r) => void r.unregister()));
+      if (retired && "caches" in window) void caches.keys().then((ks) => ks.filter((k) => k.startsWith("hk-")).forEach((k) => void caches.delete(k))).catch(() => {});
       return;
     }
     // dev: no worker (it would cache dev chunks across HMR); production builds only
@@ -167,7 +172,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
           void ping();
           // opened from this device's copy (analytics: offline_open)
           const path = window.location.pathname;
-          const src = rec.source === "shell" ? (path.startsWith("/learn/offline") ? "library" : "fallback") : rec.source === "recent" ? "recent" : "saved";
+          const src = rec.source === "shell" ? (/^\/offline\/?$/.test(path) ? "library" : "fallback") : rec.source === "recent" ? "recent" : "saved";
           void listSaved().then((list) => {
             const p = pathOf(path);
             trackOpen(src, path, list.find((m) => m.url === p) ?? null);
@@ -291,7 +296,7 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     } catch {
       // storage unavailable
     }
-    if (Date.now() - last < CHECK_EVERY_MS && !pathname.startsWith("/learn/offline")) return;
+    if (Date.now() - last < CHECK_EVERY_MS && !pathname.startsWith("/offline")) return;
     const t = window.setTimeout(async () => {
       const cat = await loadCatalog();
       if (!cat) return;

@@ -10,7 +10,7 @@ export default function PrepDetails() {
       </Topic>
       <div className={PROSE}>
         <p>
-          The <A href="/learn/prep">Prep</A> page opens with the <strong>video lectures</strong> (the whole playlist, a chip per section and where to start), then <strong>mock interviews</strong>, one card each: start the
+          The <A href="/prep">Prep</A> page opens with the <strong>video lectures</strong> (the whole playlist, a chip per section and where to start), then <strong>mock interviews</strong>, one card each: start the
           round, or <strong>watch it done well</strong> in its recorded version. The rest is grouped as <strong>who&apos;s hiring</strong> (company pages, the question bank), <strong>classic problems</strong> (the problem bank, low-level
           design), <strong>interview night</strong> (revision decks, cheat sheets, design sheets), <strong>the real loop</strong> (code labs, mock interviews, peer mocks) and <strong>tools</strong> (numbers playground, study planner). The
           row under the title counts what you have revised, the labs you cleared, the mocks you finished and your study plan. All of it works as a guest. Saved for offline use, each card says whether its page is saved on this
@@ -23,12 +23,12 @@ export default function PrepDetails() {
       </Topic>
       <div className={PROSE}>
         <p>
-          Each <A href="/learn/prep/companies">company page</A> says what the company builds, the topics its questions lean on, and two lists. <strong>Reported by candidates</strong>: questions people wrote up after
+          Each <A href="/prep/companies">company page</A> says what the company builds, the topics its questions lean on, and two lists. <strong>Reported by candidates</strong>: questions people wrote up after
           interviewing there, each with a link to that write-up. <strong>Likely, from what they build</strong>: our pick of questions that fit its products, clearly labelled as ours. Every question links the lessons that teach it,
           and the page ends with a <strong>study path</strong> through them. No company publishes its questions; we only call a question reported when a write-up we could read says so.
         </p>
         <p>
-          The <A href="/learn/prep/questions">question bank</A> merges every company&apos;s questions, most-reported first: filter by type (system design, low-level design, concept), by company or to reported ones only.
+          The <A href="/prep/questions">question bank</A> merges every company&apos;s questions, most-reported first: filter by type (system design, low-level design, concept), by company or to reported ones only.
           A filled dot next to a company means reported with a source; an outline means likely.
         </p>
         <p>
@@ -47,7 +47,7 @@ export default function PrepDetails() {
         </p>
         <p>
           <strong>Download PDF</strong> prints it in the light theme with every diagram drawn, no diagram split across pages. Each side quest ends with an <strong>open the sheet</strong> card, and the{" "}
-          <A href="/learn/sheets">design sheets</A> page lists them all, with how many diagrams each holds.
+          <A href="/sheets">design sheets</A> page lists them all, with how many diagrams each holds.
         </p>
       </div>
       <Shot id="sheets-index" />
@@ -71,7 +71,7 @@ export default function PrepDetails() {
         <a href="#practice-plan" className="text-signal-text underline underline-offset-4">getting started</a>.
       </p>
       <Where>
-        the <A href="/learn/prep">prep</A> tab (top of every Learn page; bottom dock on phones). The hub&apos;s &ldquo;Beyond the course&rdquo; block and the end of each lesson link to the tools too.
+        the <A href="/prep">prep</A> tab (top of every Learn page; bottom dock on phones). The hub&apos;s &ldquo;Beyond the course&rdquo; block and the end of each lesson link to the tools too.
       </Where>
     </>
   );

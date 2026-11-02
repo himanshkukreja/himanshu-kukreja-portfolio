@@ -2,7 +2,7 @@
 
 /**
  * The course chat's history: past conversations grouped by day, newest first. Open one to read and continue it;
- * rename or delete each, or delete them all. The same list is the sidebar on /learn/chat (computers), a drawer
+ * rename or delete each, or delete them all. The same list is the sidebar on /chat (computers), a drawer
  * there on phones and tablets, and a view inside the Ask panel. Storage and sync: ./history.ts.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";

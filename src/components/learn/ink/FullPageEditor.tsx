@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/notebook/page/<id>: one notebook page, full screen (over the site header and the You tabs), so the page
+ * /notebook/page/<id>: one notebook page, full screen (over the site header and the You tabs), so the page
  * gets the whole iPad. Signed-out visitors get a sign-in prompt instead.
  */
 import Link from "next/link";
@@ -22,7 +22,7 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
   // the browser's back/forward between pages opened here
   useEffect(() => {
     const onPop = () => {
-      const m = window.location.pathname.match(/\/learn\/notebook\/page\/([0-9a-f-]{36})/i);
+      const m = window.location.pathname.match(/\/notebook\/page\/([0-9a-f-]{36})/i);
       if (m) setId(m[1].toLowerCase());
     };
     window.addEventListener("popstate", onPop);
@@ -49,11 +49,11 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
 
   // switch pages without a navigation (the shell is the same); the URL follows
   const open = useCallback((next: string) => {
-    window.history.pushState(null, "", `/learn/notebook/page/${next}`);
+    window.history.pushState(null, "", `/notebook/page/${next}`);
     setId(next);
   }, []);
 
-  const back = `/learn/notebook?tab=pages${notebookId ? `&nb=${notebookId}` : ""}`;
+  const back = `/notebook?tab=pages${notebookId ? `&nb=${notebookId}` : ""}`;
 
   return (
     <div className="fixed inset-0 z-[70] flex flex-col bg-bg pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
@@ -68,11 +68,11 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
             <button type="button" onClick={openAuthModal} className="min-h-12 bg-signal px-5 text-[15px] font-semibold text-on-signal">
               Sign in free
             </button>
-            <button type="button" onClick={() => router.push("/learn/notebook")} className="min-h-12 border border-line-strong px-5 text-[15px] text-fg">
+            <button type="button" onClick={() => router.push("/notebook")} className="min-h-12 border border-line-strong px-5 text-[15px] text-fg">
               Back to the notebook
             </button>
           </div>
-          <Link href="/learn" className="text-sm text-fg-3 underline">
+          <Link href="/" className="text-sm text-fg-3 underline">
             Reading never needs an account
           </Link>
         </div>

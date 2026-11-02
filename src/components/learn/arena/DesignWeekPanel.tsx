@@ -39,7 +39,7 @@ export default function DesignWeekPanel() {
         : "Read the brief, then the designs the community submitted."
     : "A new system design problem every Monday. Submit your design, vote on everyone else's, get featured.";
   return (
-    <Link href="/learn/design-week" className="flex flex-wrap items-center justify-between gap-4 border border-line bg-surface px-5 py-4 hover:border-fg-4 sm:px-6">
+    <Link href="/design-week" className="flex flex-wrap items-center justify-between gap-4 border border-line bg-surface px-5 py-4 hover:border-fg-4 sm:px-6">
       <span className="flex min-w-0 flex-[1_1_420px] flex-col gap-1">
         <span className={LABEL}>design of the week · {phase}</span>
         <span className="text-[17px] font-semibold text-fg">{c ? c.title : "One open problem a week"}</span>

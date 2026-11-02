@@ -44,7 +44,8 @@ export type Catalogue = { version: number; settings: CatalogueSettings; concepts
 
 export const DEFAULT_SETTINGS: CatalogueSettings = { scope: "stage", maxPerSection: 12 };
 
-export const COURSE_BASE = "/learn/system-design-mastery";
+/** lesson hrefs are clean (/<week>/<slug>): no prefix */
+export const COURSE_BASE = "";
 
 export const refHref = (r: ConceptRef) => `${COURSE_BASE}/${r.lesson}#${r.anchor}`;
 

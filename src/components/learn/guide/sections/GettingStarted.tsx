@@ -20,12 +20,12 @@ export default function GettingStartedDetails({ d }: { d: GuideData }) {
         head={["Tab", "The question", "What's in it"]}
         rows={[
           [<A key="c" href={COURSE}>course</A>, "Learn it", "The worlds and their lessons, bosses and trials, side quests and their design sheets, concepts A–Z, the reading trail."],
-          [<A key="p" href="/learn/prep">prep</A>, "Get hired", "The video lectures, mock interviews (solo or with a peer, each with a recorded model round), company pages and the question bank, the problem bank and low-level design, revision decks, cheat and design sheets, code labs, the design canvas, the numbers playground, the study planner."],
-          [<A key="a" href="/learn/arena">arena</A>, "Play", "The daily challenge, weekly leagues, quick games, your review queue (daily standup) and design of the week."],
-          [<A key="k" href="/learn/chat">ask</A>, "Ask anything", "The AI tutor: questions about any lesson, answered from the course with sources, study plans, quizzes and a memory you control."],
-          [<A key="h" href="/learn/shorts">shorts</A>, "Two minutes free", "Vertical videos, one idea each, cut from the lessons, side quests, incidents and interview problems."],
-          [<A key="s" href="/learn/war-stories">stories</A>, "See it for real", "True stories of real systems at their limits, and war rooms: incidents you play as the on-call engineer."],
-          [<A key="y" href="/learn/dashboard">you</A>, "My stuff", "Progress, the notebook (handwritten pages, highlights, notes, bookmarks), saved paths, the tutor's memory, concept mastery and certificates."],
+          [<A key="p" href="/prep">prep</A>, "Get hired", "The video lectures, mock interviews (solo or with a peer, each with a recorded model round), company pages and the question bank, the problem bank and low-level design, revision decks, cheat and design sheets, code labs, the design canvas, the numbers playground, the study planner."],
+          [<A key="a" href="/arena">arena</A>, "Play", "The daily challenge, weekly leagues, quick games, your review queue (daily standup) and design of the week."],
+          [<A key="k" href="/chat">ask</A>, "Ask anything", "The AI tutor: questions about any lesson, answered from the course with sources, study plans, quizzes and a memory you control."],
+          [<A key="h" href="/shorts">shorts</A>, "Two minutes free", "Vertical videos, one idea each, cut from the lessons, side quests, incidents and interview problems."],
+          [<A key="s" href="/war-stories">stories</A>, "See it for real", "True stories of real systems at their limits, and war rooms: incidents you play as the on-call engineer."],
+          [<A key="y" href="/dashboard">you</A>, "My stuff", "Progress, the notebook (handwritten pages, highlights, notes, bookmarks), saved paths, the tutor's memory, concept mastery and certificates."],
         ]}
       />
 
@@ -58,7 +58,7 @@ export default function GettingStartedDetails({ d }: { d: GuideData }) {
         </p>
         <p>
           The classic interview problems and low-level design live in the <a href="#practice-companies" className="text-signal-text underline underline-offset-4">Prep tab</a>, next to the company pages. Under the side quests,{" "}
-          <strong>Beyond the course</strong> points to Prep, the Arena and War stories, plus <A href="/learn/concepts">concepts A–Z</A> (every concept with its own page: definition, key points, the lessons that teach it, related
+          <strong>Beyond the course</strong> points to Prep, the Arena and War stories, plus <A href="/concepts">concepts A–Z</A> (every concept with its own page: definition, key points, the lessons that teach it, related
           concepts), the reading trail and the design sheets. Below that, <strong>Read offline</strong> saves the whole course or opens the{" "}
           <a href="#offline" className="text-signal-text underline underline-offset-4">offline library</a>, and the dashed card at the bottom, <strong>The Plan</strong>, is the 11-week roadmap.
         </p>
@@ -74,7 +74,7 @@ export default function GettingStartedDetails({ d }: { d: GuideData }) {
       <div className={PROSE}>
         <p>
           At the end of a lesson, <strong>Go deeper · reading trail</strong> shows two or three real write-ups (company engineering blogs, papers, talks, postmortems), each in three lines: what it is, the key idea and why it&apos;s
-          here. <strong>Mark read</strong> keeps track (signed in, it follows you). The <A href="/learn/reading">reading trail</A> page lists them all by world, with search and company and type filters. The cards work offline in a saved
+          here. <strong>Mark read</strong> keeps track (signed in, it follows you). The <A href="/reading">reading trail</A> page lists them all by world, with search and company and type filters. The cards work offline in a saved
           copy; only the links out need a connection.
         </p>
       </div>
@@ -222,7 +222,7 @@ export default function GettingStartedDetails({ d }: { d: GuideData }) {
         ]}
       />
       <Where>
-        the stage rail and Finish card in every lesson; the Continue card on the <A href={COURSE}>hub</A>; the <A href="/learn/dashboard">progress</A> tab for everything at once.
+        the stage rail and Finish card in every lesson; the Continue card on the <A href={COURSE}>hub</A>; the <A href="/dashboard">progress</A> tab for everything at once.
       </Where>
 
       <Topic id="practice-plan" lead="Pick your interview date and how much time you have; get a day-by-day plan built from your real progress.">
@@ -239,7 +239,7 @@ export default function GettingStartedDetails({ d }: { d: GuideData }) {
         </p>
       </div>
       <Where>
-        <A href="/learn/plan">the study planner</A>, from the prep tab; today&apos;s session also shows on the <A href="/learn/dashboard">progress page</A>.
+        <A href="/plan">the study planner</A>, from the prep tab; today&apos;s session also shows on the <A href="/dashboard">progress page</A>.
       </Where>
     </>
   );

@@ -12,7 +12,7 @@ export default function DesignBossDetails() {
       </Topic>
       <div className={PROSE}>
         <p>
-          On the <A href="/learn/canvas">design canvas</A>, pick a classic interview problem, a week&apos;s capstone or your own idea. The board is the same one the mock interviews use: building blocks with icons drop in with a click,{" "}
+          On the <A href="/canvas">design canvas</A>, pick a classic interview problem, a week&apos;s capstone or your own idea. The board is the same one the mock interviews use: building blocks with icons drop in with a click,{" "}
           <strong>Tech logos</strong> adds any technology by name, and an arrow drawn from one block to another stays attached when you move them. Write a few lines of notes under it, the way you&apos;d say the design out loud.
         </p>
         <p>
@@ -68,7 +68,7 @@ export default function DesignBossDetails() {
         </p>
       </div>
       <Where>
-        <A href="/learn/design-week">design of the week</A>, from the arena tab.
+        <A href="/design-week">design of the week</A>, from the arena tab.
       </Where>
     </>
   );

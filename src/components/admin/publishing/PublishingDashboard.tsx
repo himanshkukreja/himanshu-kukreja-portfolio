@@ -170,7 +170,7 @@ export default function PublishingDashboard() {
                 header: "Short",
                 sort: (r) => r.title,
                 render: (r) => (
-                  <a href={`/learn/shorts/${r.id}`} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 hover:underline">
+                  <a href={`/shorts/${r.id}`} target="_blank" rel="noreferrer" className="flex min-w-0 items-center gap-2 hover:underline">
                     {/* eslint-disable-next-line @next/next/no-img-element -- the short's poster on the media host */}
                     <img src={r.poster} alt="" loading="lazy" className="h-12 w-[27px] shrink-0 border border-line object-cover" />
                     <span className="flex min-w-0 flex-col">

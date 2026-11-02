@@ -1,37 +1,22 @@
-import { getCourseMap } from "@/lib/learn/course";
-import { getAllStories } from "@/lib/stories";
-import { SITE_URL } from "@/lib/site";
+import { COURSE_ORIGIN, PORTFOLIO_ORIGIN } from "@/lib/site/hosts";
 
-// Static, refreshed daily: a plain-text map of the site for AI assistants (llmstxt.org).
-export const revalidate = 86400;
+// himanshukukreja.in/llms.txt: a plain-text map of the portfolio for AI assistants (llmstxt.org).
+// The course has its own at systemdesignmastery.dev/llms.txt (src/app/learn/llms.txt/route.ts).
+export const dynamic = "force-static";
 
-export async function GET() {
-  const [map, stories] = await Promise.all([getCourseMap().catch(() => null), getAllStories().catch(() => [])]);
-  const lines: string[] = [
+export function GET() {
+  const lines = [
     "# Himanshu Kukreja",
     "",
-    "> Backend engineer. Author of System Design Mastery, a free system design course (lessons, interview bosses, trials, mock interviews, side quests on real systems such as UPI, IRCTC Tatkal, Zerodha and Netflix), and of engineering case files on real outages and designs.",
+    "> Backend engineer. Author of System Design Mastery, a free system design course, and of engineering case files on real outages and designs.",
     "",
     "## Main pages",
-    `- [System Design Mastery course](${SITE_URL}/learn/system-design-mastery): the full course map`,
-    `- [Case files](${SITE_URL}/stories): outages and design write-ups`,
-    `- [Projects](${SITE_URL}/projects): open-source and product work`,
+    `- [Portfolio](${PORTFOLIO_ORIGIN}/): career, skills and contact`,
+    `- [Projects](${PORTFOLIO_ORIGIN}/projects): open-source and product work`,
+    `- [Now](${PORTFOLIO_ORIGIN}/now): what I'm working on`,
+    `- [System Design Mastery](${COURSE_ORIGIN}/): the free course (full map at ${COURSE_ORIGIN}/llms.txt)`,
+    `- [Case files](${COURSE_ORIGIN}/case-files): outages and design write-ups`,
     "",
   ];
-  if (map) {
-    for (const w of map.weeks) {
-      lines.push(`## Week ${w.code}: ${w.title}`);
-      for (const l of [...w.lessons, ...(w.boss ? [w.boss] : [])]) lines.push(`- [${l.title}](${SITE_URL}${l.href})`);
-      lines.push("");
-    }
-    lines.push("## Side quests: real systems");
-    for (const l of map.sideQuests) lines.push(`- [${l.title}](${SITE_URL}${l.href})`);
-    lines.push("");
-  }
-  if (stories.length) {
-    lines.push("## Case files");
-    for (const s of stories) lines.push(`- [${s.title}](${SITE_URL}/stories/${s.slug})${s.excerpt ? `: ${s.excerpt}` : ""}`);
-    lines.push("");
-  }
   return new Response(lines.join("\n"), { headers: { "Content-Type": "text/plain; charset=utf-8" } });
 }

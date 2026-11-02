@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Course hub (/learn/[course]): hero with real numbers, Continue + Daily standup, skill tree of
+ * Course hub (/[course]): hero with real numbers, Continue + Daily standup, skill tree of
  * every world (nodes per lesson, boss, trial parts), selected-world panel, side quests, and the
  * world-cleared / level-up moments. Progress: one batched load (useLearnProgress).
  */
@@ -142,7 +142,7 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
           </p>
           <CourseProgressStats stats={map.stats} learner={counts} />
           <span className="flex flex-wrap items-center gap-x-5 gap-y-1">
-            <Link href="/learn/guide" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            <Link href="/guide" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
               how the course works: stages, XP, trials, Arena →
             </Link>
             <WatchHowItWorks id="getting-started" />
@@ -222,7 +222,7 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
           </h2>
           <span className="text-[15px] text-fg-3">
             Real systems, designed end to end, easiest first. All open. +{LEARN_XP.sideQuest} XP each.{" "}
-            <Link href="/learn/sheets" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
+            <Link href="/sheets" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
               design sheets →
             </Link>
           </span>
@@ -270,13 +270,13 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
         <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(300px,100%),1fr))]">
           {[
             {
-              href: "/learn/prep",
+              href: "/prep",
               tab: "prep · get hired",
               title: "Interview prep",
               body: `Company pages with what candidates were asked, the question bank, ${(map.problems || []).length} classic problems, ${(map.lld || []).length} low-level design rounds, timed mocks, cheat and design sheets.`,
             },
-            { href: "/learn/arena", tab: "arena · play", title: "Arena", body: "The daily challenge, weekly leagues, quick games, your review queue and design of the week." },
-            { href: "/learn/war-stories", tab: "stories · see it for real", title: "War stories", body: "True stories of real systems at their limits, and war rooms where you take the page." },
+            { href: "/arena", tab: "arena · play", title: "Arena", body: "The daily challenge, weekly leagues, quick games, your review queue and design of the week." },
+            { href: "/war-stories", tab: "stories · see it for real", title: "War stories", body: "True stories of real systems at their limits, and war rooms where you take the page." },
           ].map((c) => (
             <Link key={c.href} href={c.href} className="group flex flex-col gap-2 border border-line bg-surface p-5 hover:border-fg-3">
               <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">{c.tab}</span>
@@ -287,13 +287,13 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
         </div>
         <p className="m-0 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[13px]">
           <span className="text-fg-3">in the course too:</span>
-          <Link href="/learn/concepts" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+          <Link href="/concepts" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             concepts A–Z →
           </Link>
-          <Link href="/learn/reading" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+          <Link href="/reading" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             reading trail →
           </Link>
-          <Link href="/learn/sheets" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+          <Link href="/sheets" className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             side-quest design sheets →
           </Link>
         </p>
@@ -351,7 +351,7 @@ function ReadOffline() {
       </div>
       <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
         <SaveCourseButton />
-        <Link href="/learn/offline" className="inline-flex min-h-[52px] items-center border border-line-strong px-4 text-[15px] font-medium text-fg hover:bg-surface-2">
+        <Link href="/offline" className="inline-flex min-h-[52px] items-center border border-line-strong px-4 text-[15px] font-medium text-fg hover:bg-surface-2">
           Offline library
         </Link>
         <InstallButton className="min-h-[52px]" />

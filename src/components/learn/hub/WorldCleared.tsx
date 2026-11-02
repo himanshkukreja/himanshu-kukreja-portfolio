@@ -114,12 +114,12 @@ export default function WorldCleared({
             Enter World {next.code} · {next.title} →
           </Link>
         ) : (
-          <Link href="/learn/dashboard" onClick={onClose} className="inline-flex min-h-[52px] items-center bg-signal px-5 font-semibold text-on-signal">
+          <Link href="/dashboard" onClick={onClose} className="inline-flex min-h-[52px] items-center bg-signal px-5 font-semibold text-on-signal">
             See your profile →
           </Link>
         )}
         <ShareButton kind="world" achievement={`world-${week.code}`} title={week.code} detail={week.title} label="Share it" className="min-h-[52px] text-[14px]" />
-        <Link href="/learn/review" onClick={onClose} className="inline-flex min-h-[52px] items-center border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
+        <Link href="/review" onClick={onClose} className="inline-flex min-h-[52px] items-center border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
           {dueCount ? `Review ${dueCount} due card${dueCount === 1 ? "" : "s"}` : "Open the daily standup"}
         </Link>
         {next && firstNext && (

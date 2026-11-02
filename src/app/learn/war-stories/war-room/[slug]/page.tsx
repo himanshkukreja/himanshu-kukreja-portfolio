@@ -31,12 +31,12 @@ export default async function WarRoomPage({ params }: Props) {
     <main className="mx-auto flex w-full max-w-[820px] flex-col gap-6 px-4 pb-28 pt-6 sm:px-6 sm:pt-12">
       <JsonLd
         data={breadcrumbs([
-          { name: "War stories", path: "/learn/war-stories" },
+          { name: "War stories", path: "/war-stories" },
           { name: r.title, path: r.href },
         ])}
       />
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-        <Link href="/learn/war-stories" className="hover:text-fg">
+        <Link href="/war-stories" className="hover:text-fg">
           War stories
         </Link>
         <span aria-hidden>/</span>

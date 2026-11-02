@@ -10,10 +10,10 @@ export default function SharedProfileNotFound() {
       </h1>
       <p className="m-0 text-[16px] leading-relaxed text-fg-2">The learner may have made it private, changed their handle, or it never existed. Progress pages are opt-in.</p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Link href="/learn" className="inline-flex min-h-[52px] items-center justify-between gap-3 bg-signal px-5 font-semibold text-on-signal hover:brightness-110">
+        <Link href="/" className="inline-flex min-h-[52px] items-center justify-between gap-3 bg-signal px-5 font-semibold text-on-signal hover:brightness-110">
           Start the free course <span aria-hidden className="font-mono">→</span>
         </Link>
-        <Link href="/learn/arena/daily" className="inline-flex min-h-[52px] items-center border border-line-strong px-5 text-fg hover:bg-surface-2">
+        <Link href="/arena/daily" className="inline-flex min-h-[52px] items-center border border-line-strong px-5 text-fg hover:bg-surface-2">
           Today&apos;s daily challenge
         </Link>
       </div>

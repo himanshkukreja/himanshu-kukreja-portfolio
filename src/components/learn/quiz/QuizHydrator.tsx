@@ -28,7 +28,7 @@ const KEYS = "ABCDEF";
 
 type Scope = { course: string; week: string; lesson: string; id: string };
 
-/** /learn/<course>/<week>/<lesson> or /stories/<slug>; lessonKey ("<week>/<slug>" or "story/<slug>") wins for week/lesson. */
+/** /<course>/<week>/<lesson> or /case-files/<slug>; lessonKey ("<week>/<slug>" or "story/<slug>") wins for week/lesson. */
 function scopeFor(lessonKey?: string): Scope {
   const path = window.location.pathname.replace(/\/$/, "");
   const seg = path.split("/").filter(Boolean);

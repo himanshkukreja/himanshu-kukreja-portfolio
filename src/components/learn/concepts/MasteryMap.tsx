@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/mastery: every concept of the course as a tile, grouped by the week it is taught in and
+ * /mastery: every concept of the course as a tile, grouped by the week it is taught in and
  * coloured by how well this learner knows it (src/lib/concepts/mastery.ts). Tapping a tile opens
  * its 2-minute refresher: definition, the key points, the evidence, "go to the lesson" and
  * "practise". Guests: this browser's data; signed in: the account's synced progress, trial attempts
@@ -165,7 +165,7 @@ export default function MasteryMap({ data, map }: Props) {
     [results],
   );
 
-  // /learn/mastery#c-<id> (from a term card's "concept map" link) opens that refresher
+  // /mastery#c-<id> (from a term card's "concept map" link) opens that refresher
   const deepLinked = useRef(false);
   const openRef = useRef(openConcept);
   useEffect(() => {
@@ -209,7 +209,7 @@ export default function MasteryMap({ data, map }: Props) {
     <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-32 pt-8 sm:px-6 sm:pt-12 lg:gap-10 lg:pb-24">
       <header className="flex flex-col gap-5">
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-[11px] uppercase tracking-label text-fg-3">
-          <Link href="/learn/dashboard" className="hover:text-fg">
+          <Link href="/dashboard" className="hover:text-fg">
             ← progress
           </Link>
           <span aria-hidden>/</span>
@@ -379,7 +379,7 @@ function Refresher({ concept: c, a, data, onClose, onOpen }: { concept: MasteryC
   if (a.trial.total) evidence.push(`Trial: ${a.trial.right} of ${a.trial.total} right`);
   if (a.review.cards) evidence.push(`Review: ${a.review.cards} card${a.review.cards > 1 ? "s" : ""}${a.review.avgBox !== null ? `, box ${a.review.avgBox}` : ""}${a.review.again ? `, ${a.review.again} marked again` : ""}`);
   if (!evidence.length) evidence.push(a.seen ? "Read, but not tested yet." : "Not read or tested yet.");
-  const practise = c.practice.quiz || c.practice.trial || "/learn/review";
+  const practise = c.practice.quiz || c.practice.trial || "/review";
   const practiseLabel = c.practice.quiz ? "Practise · quick check" : c.practice.trial ? "Practise · trial questions" : "Practise · review queue";
 
   return createPortal(

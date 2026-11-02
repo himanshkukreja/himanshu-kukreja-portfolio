@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/certificate: earning a certificate. The checklist (checked on the server from the
+ * /certificate: earning a certificate. The checklist (checked on the server from the
  * database: lessons, capstones, re-scored trial answers, bosses, mock scorecards) with what's left and where
  * to finish it → Claim → confirm the name + public page → "You're certified" with Add to LinkedIn,
  * Download PDF and Share. Below it, one certificate per world with its own claim.
@@ -40,6 +40,7 @@ import {
   MOCKS_NEEDED,
 } from "@/lib/certificates/core";
 import "@/components/certificates/certificate.css";
+import { portfolioUrl } from "@/lib/site/hosts";
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label";
 type Target = { kind: CertKind; world: string | null; title: string };
@@ -205,7 +206,7 @@ export default function CertificateFlow() {
     <main className="mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-32 pt-6 sm:px-6 sm:pt-10 lg:pb-24">
       <div ref={topRef} className="scroll-mt-28">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs text-fg-3">
-          <Link href="/learn/dashboard" className="hover:text-fg">
+          <Link href="/dashboard" className="hover:text-fg">
             progress
           </Link>
           <span aria-hidden>›</span>
@@ -248,7 +249,7 @@ function SignedOut({ onSignIn }: { onSignIn: () => void }) {
           <button type="button" onClick={onSignIn} className="inline-flex min-h-12 items-center bg-signal px-5 font-semibold text-on-signal hover:brightness-110">
             Sign in
           </button>
-          <Link href="/learn/dashboard#data" className="inline-flex min-h-12 items-center border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
+          <Link href="/dashboard#data" className="inline-flex min-h-12 items-center border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
             Import from the Progress page
           </Link>
         </div>
@@ -625,7 +626,7 @@ function Issued({
       {revoked ? (
         <p className="m-0 max-w-[640px] text-[15px] leading-relaxed text-fg-2">
           It was revoked{cert.revokedAt ? ` on ${fmtCertDate(cert.revokedAt)}` : ""} and no longer certifies completion; its verification page says so. If you think this is a mistake, get in touch through{" "}
-          <Link href="/#contact" className="font-semibold text-signal-text underline underline-offset-4">
+          <Link href={portfolioUrl("/#contact")} className="font-semibold text-signal-text underline underline-offset-4">
             the contact form
           </Link>
           .
@@ -891,7 +892,7 @@ function FinePrint() {
       <p className="m-0">{DISCLAIMER}</p>
       <p className="m-0">
         Every requirement is checked on the server from your account&apos;s records when you claim. Each certificate gets an ID, a signature and a verification page; it can be revoked if it was earned dishonestly. Its public page stays off until you turn it on, and you can withdraw a certificate at any time.{" "}
-        <Link href="/learn/guide#certificates" className="font-semibold text-signal-text underline underline-offset-4">
+        <Link href="/guide#certificates" className="font-semibold text-signal-text underline underline-offset-4">
           How certificates work →
         </Link>
       </p>

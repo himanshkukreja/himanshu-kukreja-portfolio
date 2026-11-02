@@ -29,7 +29,7 @@ export default function PlanCard({ map, lessons, done, goalTarget }: Props) {
           Get a day-by-day plan to it from your real progress, with revision days at the end and a calendar file. Fall behind and it adjusts.
           {goalTarget ? ` Starts from your goal's target, ${fmtDate(goalTarget, true)}.` : ""}
         </p>
-        <Link href="/learn/plan" className="inline-flex min-h-11 items-center self-start border border-signal px-4 text-sm font-semibold text-signal-text hover:bg-surface-2">
+        <Link href="/plan" className="inline-flex min-h-11 items-center self-start border border-signal px-4 text-sm font-semibold text-signal-text hover:bg-surface-2">
           Make a study plan →
         </Link>
       </div>
@@ -61,7 +61,7 @@ export default function PlanCard({ map, lessons, done, goalTarget }: Props) {
         {day ? `Today, ${fmtMinutes(day.minutes)}: ${dayTitle(day)}.` : next ? `No session today. Next: ${fmtDate(next.date)} · ${dayTitle(next)}.` : "Nothing left to schedule."}
         {!view.live.fits && view.needMinutes ? ` At this pace it runs past the interview: ${fmtMinutes(view.needMinutes)}/day would fit.` : ""}
       </p>
-      <Link href="/learn/plan" className="inline-flex min-h-11 items-center self-start border border-line-strong px-4 text-sm text-fg hover:bg-surface-2">
+      <Link href="/plan" className="inline-flex min-h-11 items-center self-start border border-line-strong px-4 text-sm text-fg hover:bg-surface-2">
         Open plan · calendar →
       </Link>
     </div>

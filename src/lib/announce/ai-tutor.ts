@@ -14,6 +14,7 @@
  * give an example, say it in an interview, in Hinglish); privacy text as in AI_PRIVACY.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export const AI_TUTOR_KEY = "announce:ai-tutor-2026-10";
 export const AI_TUTOR_SUBJECT = "Your system design course has an AI tutor now (free for now)";
@@ -23,8 +24,9 @@ export function aiTutorSubject(name?: string | null): string {
 }
 export const AI_TUTOR_PREHEADER = "Ask any lesson, get hints in code labs, practise with an AI interviewer and get graded. Free for every signed-in learner, for a limited time.";
 
-const SITE = "https://www.himanshukukreja.in";
-const L = `${SITE}/learn`;
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
+const L = `${SITE}/`;
 const C_ = `${L}/system-design-mastery`;
 export const AI_TUTOR_LINKS = {
   hub: C_,
@@ -265,13 +267,13 @@ export function aiTutorHtml({ email, name }: AiTutorInput): string {
           <td class="pad" style="padding:18px 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">Try one this week. If an answer looks wrong, reply to this email with what you asked. I read every reply, and it's how the tutor gets better.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -300,10 +302,10 @@ export function aiTutorText({ email, name }: AiTutorInput): string {
     "Try one this week. If an answer looks wrong, reply to this email with what you asked. I read every reply, and it's how the tutor gets better.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ].join("\n");
 }

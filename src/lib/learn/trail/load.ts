@@ -56,7 +56,7 @@ export async function getTrailForLesson(week: string, slug: string): Promise<Tra
 
 const refOf = (l: CourseLesson): TrailLessonRef => ({ key: `${l.week}/${l.slug}`, week: l.week, slug: l.slug, title: l.title, code: l.code, tag: l.tag, href: l.href });
 
-/** Every trail entry grouped by world (course order) and then side quests, for /learn/reading. */
+/** Every trail entry grouped by world (course order) and then side quests, for /reading. */
 export async function getTrailIndex(): Promise<{ groups: TrailIndexGroup[]; total: number }> {
   const [all, map] = await Promise.all([sources(), getCourseMap(COURSE_ID).catch((): CourseMap | null => null)]);
   if (!map) return { groups: [], total: 0 };

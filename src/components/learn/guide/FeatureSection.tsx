@@ -13,7 +13,7 @@ import AiFreeNote from "@/components/learn/ai/AiFreeNote";
 import { LABEL } from "./ui";
 
 export type Feature = {
-  /** the section's anchor: /learn/guide#<id> */
+  /** the section's anchor: /guide#<id> */
   id: string;
   /** older anchors that should still land here */
   aliases?: string[];

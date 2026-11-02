@@ -41,7 +41,7 @@ export default function LectureStats({ lectures }: { lectures: LectureLite[] }) 
         kicker="video lectures"
         title="What you've watched"
         right={
-          <Link href="/learn/prep/lectures" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+          <Link href="/prep/lectures" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             all {lectures.length} lectures →
           </Link>
         }
@@ -55,7 +55,7 @@ export default function LectureStats({ lectures }: { lectures: LectureLite[] }) 
       {hydrated && rows.length === 0 ? (
         <p className="m-0 border border-dashed border-line-strong p-5 text-[15px] text-fg-2">
           No lectures yet. Every lesson has an animated lecture: the &ldquo;watch it first&rdquo; card at the top of a lesson, or the{" "}
-          <Link href="/learn/prep/lectures" className="text-signal-text underline underline-offset-4">
+          <Link href="/prep/lectures" className="text-signal-text underline underline-offset-4">
             playlist
           </Link>
           .

@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { listLectures } from "@/lib/learn/lecture/load";
 import { PODCAST } from "@/lib/learn/podcast";
-import { SITE_URL } from "@/lib/site";
+// course URLs live on the course host
+import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 import CopyField from "@/components/learn/podcast/CopyField";
 import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
@@ -15,7 +16,7 @@ export const metadata: Metadata = {
   alternates: { canonical: PODCAST.pagePath, types: { "application/rss+xml": PODCAST.feedPath } },
 };
 
-/** /learn/podcast: the lectures as a podcast, and how to follow it in any app. */
+/** /podcast: the lectures as a podcast, and how to follow it in any app. */
 export default async function PodcastPage() {
   const lectures = await listLectures().catch(() => []);
   const minutes = lectures.reduce((a, l) => a + l.minutes, 0);
@@ -24,7 +25,7 @@ export default async function PodcastPage() {
   return (
     <main className="mx-auto flex max-w-[980px] flex-col gap-10 px-4 pb-28 pt-8 sm:px-6 sm:pt-12">
       <header className="flex flex-col gap-3">
-        <Link href="/learn/prep/lectures" className="self-start font-mono text-xs text-fg-3 hover:text-fg">
+        <Link href="/prep/lectures" className="self-start font-mono text-xs text-fg-3 hover:text-fg">
           ← lectures
         </Link>
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">

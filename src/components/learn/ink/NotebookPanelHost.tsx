@@ -11,7 +11,7 @@
  * docked) opens that place's page; on a phone, where the panel covers the page, a new page closes it.
  */
 import dynamic from "next/dynamic";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 import { contextFor, NOTEBOOK_CLOSE, notebookAllowed, useLessonContext } from "./global/context";
@@ -46,7 +46,7 @@ const typing = (t: EventTarget | null) => {
 };
 
 export default function NotebookPanelHost() {
-  const pathname = usePathname() || "";
+  const pathname = useCoursePathname() || "";
   const lesson = useLessonContext();
   const allowed = notebookAllowed(pathname);
   const [open, setOpen] = useState(false);

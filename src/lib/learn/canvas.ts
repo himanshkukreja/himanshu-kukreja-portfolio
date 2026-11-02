@@ -159,7 +159,7 @@ export async function capstoneDesign(
   return {
     key,
     title: p?.title || "Capstone design",
-    href: p?.href || "/learn/canvas",
+    href: p?.href || "/canvas",
     brief: p ? await promptBrief(p).catch(() => p.title) : "",
     drawing: sketchSummary(d.scene),
     notes: d.notes || "",

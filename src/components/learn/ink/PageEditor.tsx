@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * One notebook page, editable: the full-screen editor (/learn/notebook/page/<id>) and the Notebook panel beside a
+ * One notebook page, editable: the full-screen editor (/notebook/page/<id>) and the Notebook panel beside a
  * lesson both use it. Loads the page (this device's unsaved copy first, if any), keeps undo/redo, autosaves,
  * registers itself as the open page (so clips and snips land here), and mounts the AI in its toolbar: "Turn into
  * text" (then an Ink / Text toggle) as a first-class action, the AI menu (check, cards) beside it, and, after the

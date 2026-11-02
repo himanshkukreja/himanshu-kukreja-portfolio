@@ -99,7 +99,7 @@ export default function ArenaDetails() {
         </p>
       </div>
       <Where>
-        the <A href="/learn/arena">arena</A> tab; the <A href="/learn/arena/leaderboard">leaderboard</A> (&ldquo;full board&rdquo;); the <A href="/learn/arena/daily">daily challenge</A>.
+        the <A href="/arena">arena</A> tab; the <A href="/arena/leaderboard">leaderboard</A> (&ldquo;full board&rdquo;); the <A href="/arena/daily">daily challenge</A>.
       </Where>
 
       <Topic id="review" lead="A few minutes a day on cards made from your own mistakes. Cards you know come back less and less often; cards you don't come back tomorrow.">
@@ -131,7 +131,7 @@ export default function ArenaDetails() {
       </p>
       <Shot id="review-card" size="medium" />
       <Where>
-        the <A href="/learn/review">daily standup</A>: from the Arena tab (the orange number is cards due), the Daily standup line on the hub&apos;s Continue card, or the progress page. Keys: <Kbd>Space</Kbd> shows the answer,{" "}
+        the <A href="/review">daily standup</A>: from the Arena tab (the orange number is cards due), the Daily standup line on the hub&apos;s Continue card, or the progress page. Keys: <Kbd>Space</Kbd> shows the answer,{" "}
         <Kbd>1</Kbd>–<Kbd>4</Kbd> grade.
       </Where>
 
@@ -155,7 +155,7 @@ export default function ArenaDetails() {
           &ldquo;Save as PDF&rdquo;), and Share sends the link. Day lessons, Foundations parts and bosses end with a <strong>Revise … in 5 min</strong> card and a link to their world&apos;s sheet.
         </p>
         <p>
-          <strong>Everything at once:</strong> <A href="/learn/cheatsheet/all">every cheat sheet as one PDF</A>, one world per page, and an <A href="/learn/revise/anki.txt">Anki export</A> of all the revision cards (in Anki, File → Import: one deck,
+          <strong>Everything at once:</strong> <A href="/cheatsheet/all">every cheat sheet as one PDF</A>, one world per page, and an <A href="/revise/anki.txt">Anki export</A> of all the revision cards (in Anki, File → Import: one deck,
           tagged by world and lesson) to keep revising in your own spaced-repetition app.
         </p>
       </div>

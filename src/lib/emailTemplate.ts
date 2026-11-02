@@ -1,3 +1,4 @@
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 import type { StoryFrontmatter } from "@/lib/stories";
 import { absoluteCoverUrl } from "@/lib/utils";
 
@@ -9,7 +10,7 @@ export type EmailTemplateOptions = {
 };
 
 export function buildStoriesEmailHtml(stories: StoryFrontmatter[], opts: EmailTemplateOptions = {}): string {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "";
+  const site = COURSE_ORIGIN; // case files + unsubscribe live on the course host
   const unsubscribeLink = opts.recipientEmail
     ? `${site}/newsletter/unsubscribe?email=${encodeURIComponent(opts.recipientEmail)}`
     : `${site}/newsletter/unsubscribe`;
@@ -33,7 +34,7 @@ export function buildStoriesEmailHtml(stories: StoryFrontmatter[], opts: EmailTe
             </div>
             ${s.excerpt ? `<p class="story-excerpt" style=\"margin:12px 0;font-size:15px;line-height:1.6\">${escapeHtml(s.excerpt)}</p>` : ""}
             <div style="margin-top: 16px;">
-              <a class="btn" href="${site}/stories/${s.slug}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">Read Full Story →</a>
+              <a class="btn" href="${site}/case-files/${s.slug}" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; font-weight: 500; font-size: 14px;">Read Full Story →</a>
             </div>
           </td>
         </tr>

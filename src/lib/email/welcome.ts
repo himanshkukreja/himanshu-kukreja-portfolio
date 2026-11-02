@@ -5,16 +5,17 @@
  * so what the owner previews is exactly what a new learner gets.
  *
  * Every claim is checked against what ships (Oct 2026): course map (src/lib/learn/course.ts: 75 core
- * lessons, 11 bosses, SIDE_QUESTS side quests), video lectures (/learn/prep/lectures: 137 live, so "130+",
- * quiz checkpoints, ask the AI, save offline), the 8 mock interviews (/learn/mock: AI interviewer turns,
+ * lessons, 11 bosses, SIDE_QUESTS side quests), video lectures (/prep/lectures: 137 live, so "130+",
+ * quiz checkpoints, ask the AI, save offline), the 8 mock interviews (/mock: AI interviewer turns,
  * dictation, whiteboard, per-phase coach, AI scorecard with a hire / no-hire verdict), design sheets
- * (/learn/sheets: one per side quest, PDF), cheat sheets and revision decks (/learn/cheatsheet,
- * /learn/revise), war stories (/learn/war-stories: 20 stories + war rooms), case files (/stories: 12),
+ * (/sheets: one per side quest, PDF), cheat sheets and revision decks (/cheatsheet,
+ * /revise), war stories (/war-stories: 20 stories + war rooms), case files (/stories: 12),
  * quick checks ("1,000+"), Arena daily (DAILY_N = 5, DAILY_SECONDS = 20, Asia/Kolkata day), leagues,
  * progress page, review, notebook, the in-lesson AI (lesson-qa: signed-in, free for now with a daily
  * allowance) and Ask Claude / ChatGPT (src/lib/learn/askAi.ts). Round counts down when they grow.
  */
 import { EMAIL, SOCIALS } from "@/lib/socials";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 /** Personal and action-first: the first lesson is the thing to click. */
 export const WELCOME_SUBJECT = "You're in. Your first system design lesson is ready";
@@ -27,24 +28,25 @@ export const WELCOME_PREHEADER = "130+ video lectures, an AI mock interviewer, d
 /** side quests in the course map (update with the course) */
 const SIDE_QUESTS = 36;
 
-const SITE = "https://www.himanshukukreja.in";
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
 const UTM = "utm_source=email&utm_medium=welcome&utm_campaign=welcome";
 const withUtm = (path: string) => `${SITE}${path}${path.includes("?") ? "&" : "?"}${UTM}`;
 
-const FIRST_LESSON = "/learn/system-design-mastery/week-00-foundations/foundations-part-1-basic-concepts";
+const FIRST_LESSON = "/week-00-foundations/foundations-part-1-basic-concepts";
 
 export const WELCOME_LINKS = {
   firstLesson: withUtm(FIRST_LESSON),
-  learn: withUtm("/learn"),
-  daily: withUtm("/learn/arena/daily"),
-  leaderboard: withUtm("/learn/arena/leaderboard"),
-  progress: withUtm("/learn/dashboard"),
-  practice: withUtm("/learn/prep"),
-  lectures: withUtm("/learn/prep/lectures"),
-  mock: withUtm("/learn/mock"),
-  sheets: withUtm("/learn/sheets"),
-  warStories: withUtm("/learn/war-stories"),
-  stories: withUtm("/stories"),
+  learn: withUtm("/"),
+  daily: withUtm("/arena/daily"),
+  leaderboard: withUtm("/arena/leaderboard"),
+  progress: withUtm("/dashboard"),
+  practice: withUtm("/prep"),
+  lectures: withUtm("/prep/lectures"),
+  mock: withUtm("/mock"),
+  sheets: withUtm("/sheets"),
+  warStories: withUtm("/war-stories"),
+  stories: withUtm("/case-files"),
   site: withUtm("/"),
 };
 
@@ -191,7 +193,7 @@ export function welcomeHtml({ email, name }: WelcomeInput): string {
   ).join("");
 
   const socials = [
-    `<a href="${WELCOME_LINKS.site}" style="color:${C.ink2};text-decoration:none;">himanshukukreja.in</a>`,
+    `<a href="${WELCOME_LINKS.site}" style="color:${C.ink2};text-decoration:none;">systemdesignmastery.dev</a>`,
     ...FOOTER_SOCIALS.map((s) => `<a href="${s.href}" style="color:${C.ink2};text-decoration:none;">${s.id === "x" ? "X" : s.id === "github" ? "GitHub" : "LinkedIn"}</a>`),
   ].join(`<span style="color:${C.lineStrong};">&nbsp;&nbsp;/&nbsp;&nbsp;</span>`);
 
@@ -322,7 +324,7 @@ export function welcomeHtml({ email, name }: WelcomeInput): string {
         <!-- footer -->
         <tr>
           <td class="pad" bgcolor="${C.paper}" style="padding:20px 36px 24px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.65;color:${C.ink3};">You're getting this once because you created an account at himanshukukreja.in with <span style="color:${C.ink2};">${esc(email)}</span>. There's no drip sequence; occasional course updates may follow, and you can <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">unsubscribe</a> from them any time. Export or reset your learning data from your <a href="${WELCOME_LINKS.progress}" style="color:${C.ink3};text-decoration:underline;">progress page</a>.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.65;color:${C.ink3};">You're getting this once because you created an account at systemdesignmastery.dev with <span style="color:${C.ink2};">${esc(email)}</span>. There's no drip sequence; occasional course updates may follow, and you can <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">unsubscribe</a> from them any time. Export or reset your learning data from your <a href="${WELCOME_LINKS.progress}" style="color:${C.ink3};text-decoration:underline;">progress page</a>.</p>
           </td>
         </tr>
       </table>
@@ -359,10 +361,10 @@ export function welcomeText({ email, name }: WelcomeInput): string {
     "",
     "Happy building,",
     "Himanshu Kukreja",
-    `himanshukukreja.in · ${FOOTER_SOCIALS.map((s) => s.href).join(" · ")}`,
+    `systemdesignmastery.dev · ${FOOTER_SOCIALS.map((s) => s.href).join(" · ")}`,
     "",
     "--",
-    `You're getting this once because you created an account at himanshukukreja.in with ${email}. There's no drip sequence; occasional course updates may follow.`,
+    `You're getting this once because you created an account at systemdesignmastery.dev with ${email}. There's no drip sequence; occasional course updates may follow.`,
     `Unsubscribe: ${welcomeUnsubscribeUrl(email)}`,
     `Export or reset your learning data: ${WELCOME_LINKS.progress}`,
   ];

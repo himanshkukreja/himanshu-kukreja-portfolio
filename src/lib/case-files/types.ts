@@ -180,7 +180,7 @@ export function slugify(s: string): string {
 }
 
 export const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
-/** Paths under /stories that are not case files (or must never become one). */
+/** Paths under /case-files that are not case files (or must never become one). */
 export const RESERVED_SLUGS = new Set(["new", "preview", "frame", "index", "feed", "rss", "admin", "api", "draft", "drafts", "archive", "page"]);
 
 export const UPLOAD_LIMITS = {

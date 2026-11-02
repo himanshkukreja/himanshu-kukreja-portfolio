@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Which notebook page belongs to the page a learner is on. The Notebook panel opens on every /learn page (and the
+ * Which notebook page belongs to the page a learner is on. The Notebook panel opens on every / page (and the
  * case files), so it needs to know "where am I": the host derives that from the pathname, and the lesson reader
  * adds what the URL can't tell (the week's label and topic, for naming the notebook a new page goes in).
  *
@@ -19,6 +19,7 @@
  * "overview"), so isLessonKey() tells the two apart.
  */
 import { useSyncExternalStore } from "react";
+import { cleanPath, isLessonPath, parseLessonPath } from "@/lib/learn/paths";
 
 export type InkContextKind = "lesson" | "war" | "case" | "lab" | "short" | "lecture" | "concept" | "sheet" | "cheatsheet" | "company" | "design" | "answer";
 
@@ -80,25 +81,23 @@ export function pageHeading(): string {
 }
 
 const RULES: [RegExp, InkContextKind | "lesson-revise"][] = [
-  [/^\/learn\/war-stories\/war-room\/([^/]+)/, "war"],
-  [/^\/learn\/war-stories\/(?!shorts(?:\/|$))([^/]+)/, "war"],
-  [/^\/stories\/([^/]+)/, "case"],
-  [/^\/learn\/labs\/([^/]+)/, "lab"],
-  [/^\/learn\/shorts\/([^/]+)/, "short"],
-  [/^\/learn\/lectures\/([^/]+)/, "lecture"],
-  [/^\/learn\/concepts\/([^/]+)/, "concept"],
-  [/^\/learn\/sheets\/([^/]+)/, "sheet"],
-  [/^\/learn\/cheatsheet\/(?!all(?:\/|$))([^/]+)/, "cheatsheet"],
-  [/^\/learn\/prep\/companies\/([^/]+)/, "company"],
-  [/^\/learn\/design-week\/([^/]+)/, "design"],
-  [/^\/learn\/answer\/([^/]+)/, "answer"],
+  // clean course paths (src/lib/learn/paths.ts); callers' paths go through cleanPath first
+  [/^\/war-stories\/war-room\/([^/]+)/, "war"],
+  [/^\/war-stories\/(?!shorts(?:\/|$))([^/]+)/, "war"],
+  [/^\/case-files\/([^/]+)/, "case"],
+  [/^\/labs\/([^/]+)/, "lab"],
+  [/^\/shorts\/([^/]+)/, "short"],
+  [/^\/lectures\/([^/]+)/, "lecture"],
+  [/^\/concepts\/([^/]+)/, "concept"],
+  [/^\/sheets\/([^/]+)/, "sheet"],
+  [/^\/cheatsheet\/(?!all(?:\/|$))([^/]+)/, "cheatsheet"],
+  [/^\/prep\/companies\/([^/]+)/, "company"],
+  [/^\/design-week\/([^/]+)/, "design"],
+  [/^\/answer\/([^/]+)/, "answer"],
 ];
 
-/**
- * /learn/<course>/<week>/<slug>: a lesson reader page. Not the other three-level routes: a design-week entry, a
- * revision deck, the full-screen page editor, a company's prep page, a war room, a certificate print.
- */
-export const isReaderRoute = (p: string) => /^\/learn\/(?!(?:design-week|revise|notebook|prep|war-stories|certificate|arena|mock|canvas|labs|shorts|lectures|concepts|sheets|cheatsheet|answer)\/)[^/]+\/[^/]+\/[^/]+/.test(p);
+/** /<week>/<slug>: a lesson reader page (any content area: weeks, side quests, problem bank, LLD, the plan). */
+export const isReaderRoute = (p: string) => isLessonPath(p);
 
 const safe = (s: string) => decodeURIComponent(s).replace(/[^A-Za-z0-9-]/g, "-").slice(0, 120);
 
@@ -114,17 +113,17 @@ function weekName(week: string): string {
 
 /** The context of a path (the title is read from the page when the panel opens). */
 export function contextFor(pathname: string, lesson?: LessonContext | null): InkContext {
-  const p = pathname.replace(/\/+$/, "") || "/";
+  const p = cleanPath(pathname).replace(/\/+$/, "") || "/";
   const title = pageHeading();
   const base = { href: p, title };
-  const reader = p.match(/^\/learn\/[^/]+\/([^/]+)\/([^/]+)/);
-  if (reader && isReaderRoute(p)) {
-    const [week, slug] = [safe(reader[1]), safe(reader[2])];
+  const reader = parseLessonPath(p);
+  if (reader) {
+    const [week, slug] = [safe(reader.week), safe(reader.slug)];
     const key = `${week}/${slug}`;
     if (lesson && lesson.key === key) return { ...base, key, kind: "lesson", title: lesson.title || title, notebook: lesson.notebook };
     return { ...base, key, kind: "lesson", notebook: weekName(week) };
   }
-  const revise = p.match(/^\/learn\/revise\/([^/]+)\/([^/]+)/);
+  const revise = p.match(/^\/revise\/([^/]+)\/([^/]+)/);
   if (revise) return { ...base, key: `${safe(revise[1])}/${safe(revise[2])}`, kind: "lesson", title: title.replace(/^Revise:?\s*/i, ""), notebook: weekName(safe(revise[1])) };
   for (const [re, kind] of RULES) {
     const m = p.match(re);
@@ -180,11 +179,12 @@ export const useLessonContext = () =>
  * No notebook here: the full-screen page editor and the notebook itself, the Shorts feed, and the full-screen tools
  * (the design canvas, a mock interview room, an Arena game), as the chat button does.
  */
-export const NO_NOTEBOOK = /^\/learn\/(?:notebook(?:\/|$)|shorts$|canvas\/|papers\/[^/]+|mock\/(?!peers)[^/]+|arena\/(?!leaderboard|daily)[^/]+)/;
-export const notebookAllowed = (p: string) => !NO_NOTEBOOK.test(p) && (p === "/learn" || p.startsWith("/learn/") || /^\/stories\/[^/]+/.test(p));
+export const NO_NOTEBOOK = /^\/(?:notebook(?:\/|$)|shorts$|canvas\/|papers\/[^/]+|mock\/(?!peers)[^/]+|arena\/(?!leaderboard|daily)[^/]+)/;
+/** Course pages only (these components render inside the course and case-file layouts); clean or old paths. */
+export const notebookAllowed = (p: string) => !NO_NOTEBOOK.test(cleanPath(p));
 
 /** The floating pen: everywhere the panel is, except where the page brings its own Notebook button (the lesson reader's tools). */
-export const showPenButton = (p: string) => notebookAllowed(p) && !isReaderRoute(p);
+export const showPenButton = (p: string) => notebookAllowed(p) && !isReaderRoute(cleanPath(p));
 
 // ------------------------------------------------------------------ small shared memory (this device)
 

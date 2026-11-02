@@ -1,5 +1,5 @@
 /**
- * The whiteboard's component library, shared by the design canvas (/learn/canvas) and the mock
+ * The whiteboard's component library, shared by the design canvas (/canvas) and the mock
  * interview room: the categories, the components in each (name, icon, shape, search words), the
  * colours, and the Excalidraw elements one component is drawn with. Plain data, no Excalidraw import:
  * the board turns these skeletons into elements with convertToExcalidrawElements.

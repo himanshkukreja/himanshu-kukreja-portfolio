@@ -6,6 +6,7 @@ import { publicCertificate, type PublicCert } from "@/lib/certificates/service";
 import { CertificateArt } from "@/components/certificates/CertificateArt";
 import { PdfLink, ViewBeacon } from "@/components/certificates/CertClient";
 import "@/components/certificates/certificate.css";
+import { portfolioUrl } from "@/lib/site/hosts";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache (on-demand ISR); issuing, revoking, restoring or hiding a
@@ -156,7 +157,7 @@ export default async function CertificatePage({ params }: Props) {
           ) : (
             <>
               <strong className="text-fg">This record didn&apos;t pass its integrity check.</strong> It may have been changed after it was issued, so it can&apos;t be relied on. Contact the issuer through{" "}
-              <Link href="/" className="font-semibold text-signal-text underline underline-offset-4">
+              <Link href={portfolioUrl("/")} className="font-semibold text-signal-text underline underline-offset-4">
                 himanshukukreja.in
               </Link>
               .
@@ -213,7 +214,7 @@ export default async function CertificatePage({ params }: Props) {
             <span className="text-[15px] leading-relaxed text-fg-2">
               Creator and instructor of {ISSUER}. Senior software engineer leading engineering at Senseloaf AI; previously founding engineer at NativeBridge and AutoFlow.
             </span>
-            <Link href="/" className="self-start text-[15px] font-semibold text-signal-text underline underline-offset-4">
+            <Link href={portfolioUrl("/")} className="self-start text-[15px] font-semibold text-signal-text underline underline-offset-4">
               himanshukukreja.in →
             </Link>
           </div>
@@ -242,7 +243,7 @@ export default async function CertificatePage({ params }: Props) {
         <p className="m-0 max-w-[560px] text-[15px] text-fg-2">
           {ISSUER} is {worldsPhrase(worldsTotal)} with trials, interview bosses and mock interviews. Certificates are earned, not given.
         </p>
-        <Link href="/learn" className="inline-flex min-h-12 items-center gap-3 border border-line-strong px-5 font-mono text-[14px] text-fg hover:bg-surface-2">
+        <Link href="/" className="inline-flex min-h-12 items-center gap-3 border border-line-strong px-5 font-mono text-[14px] text-fg hover:bg-surface-2">
           Start the course <span aria-hidden>→</span>
         </Link>
       </div>

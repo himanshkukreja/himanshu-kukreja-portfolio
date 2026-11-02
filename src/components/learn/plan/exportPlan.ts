@@ -24,7 +24,7 @@ const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…`
 /** One calendar event for a plan day. */
 export function icsDay(day: PlanDay, view: PlanView, origin: string): IcsDay {
   const s = view.settings;
-  const planUrl = `${origin}/learn/plan`;
+  const planUrl = `${origin}/plan`;
   const first = day.entries[0];
   const lines: string[] = [];
   if (day.type === "buffer") {
@@ -63,8 +63,8 @@ export function exportDays(view: PlanView, origin: string): { days: IcsDay[]; ca
       start: view.settings.time,
       minutes: view.settings.minutes,
       summary: "SDM · (removed from your plan)",
-      description: `This session moved when your plan was adjusted. Your plan: ${origin}/learn/plan`,
-      url: `${origin}/learn/plan`,
+      description: `This session moved when your plan was adjusted. Your plan: ${origin}/plan`,
+      url: `${origin}/plan`,
       status: "CANCELLED",
     })
   );

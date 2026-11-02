@@ -37,7 +37,7 @@ export default function ShortsTeaser({ shorts, total }: { shorts: TeaserShort[];
         </h2>
         <span className="text-[15px] text-fg-3">
           {total} ideas in under two minutes each, swipe through them like Reels.{" "}
-          <Link href="/learn/shorts" className="font-mono text-signal-text hover:underline">
+          <Link href="/shorts" className="font-mono text-signal-text hover:underline">
             watch all ›
           </Link>
         </span>
@@ -45,7 +45,7 @@ export default function ShortsTeaser({ shorts, total }: { shorts: TeaserShort[];
       <ul className="m-0 flex list-none gap-3 overflow-x-auto p-0 pb-1 [scrollbar-width:thin]">
         {pick.map((s) => (
           <li key={s.id} className="group w-[150px] shrink-0 sm:w-[170px]">
-            <Link href={`/learn/shorts?v=${encodeURIComponent(s.id)}`} className="flex flex-col gap-2">
+            <Link href={`/shorts?v=${encodeURIComponent(s.id)}`} className="flex flex-col gap-2">
               <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[#0b0b0c] transition-colors group-hover:border-signal">
                 {/* eslint-disable-next-line @next/next/no-img-element -- the short's own poster frame from the media host */}
                 <img src={s.poster} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />

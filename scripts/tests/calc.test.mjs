@@ -298,7 +298,7 @@ test("every preset evaluates without an error and matches the lesson's answer", 
     assert.ok(r.ok, `${p.id}: ${JSON.stringify(r.lines.filter((l) => !l.ok))}`);
     assert.ok(want[p.id], `no expectation for preset ${p.id}`);
     want[p.id](r);
-    assert.match(p.taught.href, /^\/learn\/system-design-mastery\//);
+    assert.match(p.taught.href, /^\/week-\d+-[a-z0-9-]+\//);
   }
 });
 

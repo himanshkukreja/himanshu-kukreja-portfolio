@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/shorts: every vertical short in a swipe-through feed, filtered by category (course, side quests,
+ * /shorts: every vertical short in a swipe-through feed, filtered by category (course, side quests,
  * real incidents, …) and topic (caching, databases, …). The short in view plays, muted until the viewer
  * turns the sound on. Every short links to its full lecture at that moment and to its written article, and
  * takes upvotes and a discussion.
@@ -302,7 +302,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
   }, [list, dealt]);
 
   const share = async (s: PlayableShort) => {
-    const url = `${window.location.origin}/learn/shorts?v=${encodeURIComponent(s.id)}`;
+    const url = `${window.location.origin}/shorts?v=${encodeURIComponent(s.id)}`;
     try {
       if (navigator.share && window.matchMedia("(pointer: coarse)").matches) await navigator.share({ title: s.title, url });
       else {
@@ -315,7 +315,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
       // dismissed
     }
   };
-  const back = () => (window.history.length > 1 ? router.back() : router.push("/learn"));
+  const back = () => (window.history.length > 1 ? router.back() : router.push("/"));
 
   const chip = (on: boolean) => `min-h-8 shrink-0 whitespace-nowrap border px-2.5 font-mono text-[11px] ${on ? "border-signal bg-signal text-on-signal" : "border-line-strong text-fg-2 hover:text-fg"}`;
   // over the video on phones: translucent, readable on any frame

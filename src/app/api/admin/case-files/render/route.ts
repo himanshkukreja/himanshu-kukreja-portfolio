@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * POST { fields, id? } → { html, checkpoints, minutes, caseId, meta, totalCases, validation }.
- * The working copy (saved or not) through the exact renderer the public /stories/[slug] page uses,
+ * The working copy (saved or not) through the exact renderer the public /case-files/[slug] page uses,
  * plus the validator. Nothing is stored.
  */
 export async function POST(req: NextRequest) {

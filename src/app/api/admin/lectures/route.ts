@@ -125,7 +125,7 @@ export async function GET(request: Request) {
         id,
         title: meta.get(id)?.title || id,
         group: meta.get(id)?.group || "",
-        href: meta.get(id)?.href || `/learn/lectures/${id}`,
+        href: meta.get(id)?.href || `/lectures/${id}`,
         length: meta.get(id)?.minutes || null,
         plays: p.plays,
         viewers: p.viewers.size,

@@ -49,11 +49,11 @@ export default function QuestHero({ meta }: { meta: ReaderMeta }) {
     <section style={accent} className="mx-auto max-w-[1320px] px-4 pb-6 pt-2 sm:px-6 sm:pt-4 lg:pb-8 lg:pt-7" aria-label={`Side quest ${code}: ${meta.title}`}>
       <div className="flex items-center gap-2">
         <nav aria-label="Breadcrumb" className="flex min-w-0 flex-1 items-center gap-x-2 whitespace-nowrap font-mono text-[12px] sm:text-[13px]">
-          <Link href={`/learn/${meta.course}`} className="shrink-0 py-3 text-fg-3 hover:text-fg lg:py-1.5">
+          <Link href={`/`} className="shrink-0 py-3 text-fg-3 hover:text-fg lg:py-1.5">
             course
           </Link>
           <span aria-hidden className="text-line-strong">›</span>
-          <Link href={`/learn/${meta.course}#side-h`} className="min-w-0 truncate py-3 text-fg-3 hover:text-fg lg:py-1.5">
+          <Link href={`/#side-h`} className="min-w-0 truncate py-3 text-fg-3 hover:text-fg lg:py-1.5">
             side quests
           </Link>
           <span aria-hidden className="text-line-strong">›</span>

@@ -51,7 +51,7 @@ export default function CollapsibleStoriesNav({
         {allStories.map((s) => (
           <Link
             key={s.slug}
-            href={`/stories/${s.slug}`}
+            href={`/case-files/${s.slug}`}
             className={`block px-3 py-2 rounded text-xs transition-all ${
               s.slug === currentSlug
                 ? 'bg-blue-500/20 text-blue-400 font-medium'

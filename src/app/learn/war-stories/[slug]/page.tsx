@@ -53,12 +53,12 @@ export default async function StoryPage({ params }: Props) {
       <ListenProvider listenKey={listenKey("war", "", s.slug)}>
         <JsonLd
           data={breadcrumbs([
-            { name: "War stories", path: "/learn/war-stories" },
+            { name: "War stories", path: "/war-stories" },
             { name: s.title, path: s.href },
           ])}
         />
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/war-stories" className="hover:text-fg">
+          <Link href="/war-stories" className="hover:text-fg">
             War stories
           </Link>
           <span aria-hidden>/</span>
@@ -110,7 +110,7 @@ export default async function StoryPage({ params }: Props) {
           </Link>
         )}
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-          <Link href="/learn/war-stories" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
+          <Link href="/war-stories" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
             ← all war stories
           </Link>
           {next && (

@@ -7,13 +7,13 @@
  * app the header is the window's title bar and sits under the iPhone status bar.)
  */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { useEffect, useState } from "react";
 import { pathOf } from "@/lib/offline/store";
 import { useOffline } from "./OfflineProvider";
 
 export default function OfflineStrip() {
-  const pathname = usePathname() || "/";
+  const pathname = useCoursePathname() || "/";
   const { offline, source, saved, supported } = useOffline();
   const [back, setBack] = useState<string | null>(null);
 
@@ -56,8 +56,8 @@ export default function OfflineStrip() {
       <div className="mx-auto flex max-w-[1320px] items-center gap-2.5 px-4 py-1.5 font-mono text-[12px] text-fg-2 sm:px-6">
         <span aria-hidden className={`h-2 w-2 shrink-0 ${offline ? "bg-signal" : "bg-ok"}`} />
         <span className="min-w-0 flex-1 truncate">{text}</span>
-        {offline && !pathname.startsWith("/learn/offline") && (
-          <Link href="/learn/offline" className="shrink-0 py-1 text-signal-text underline decoration-line-strong underline-offset-4">
+        {offline && !pathname.startsWith("/offline") && (
+          <Link href="/offline" className="shrink-0 py-1 text-signal-text underline decoration-line-strong underline-offset-4">
             offline library →
           </Link>
         )}

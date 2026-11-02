@@ -331,7 +331,7 @@ function Detail({ s, slots, tracker, onSave }: { s: DistShort; slots: Record<Pla
             <a href={s.poster} target="_blank" rel="noreferrer" className={btn}>
               poster
             </a>
-            <a href={`/learn/shorts/${s.id}`} target="_blank" rel="noreferrer" className={btn}>
+            <a href={`/shorts/${s.id}`} target="_blank" rel="noreferrer" className={btn}>
               watch page ↗
             </a>
           </div>

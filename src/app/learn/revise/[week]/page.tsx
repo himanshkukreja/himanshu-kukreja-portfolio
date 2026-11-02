@@ -33,11 +33,11 @@ export default async function ReviseWeekPage({ params }: Props) {
         <span className="font-mono text-xs uppercase tracking-label text-signal-text">Revise · World {w.code}</span>
         <h1 className="font-display text-[36px] font-bold leading-[1.02] tracking-[-0.03em] text-fg">{w.title}: cards on the way</h1>
         <p className="text-[17px] leading-relaxed text-fg-2">The revision cards for this world aren&apos;t written yet. The other worlds are ready.</p>
-        <Link href="/learn/revise" className="self-start font-mono text-sm text-signal-text underline underline-offset-4">
+        <Link href="/revise" className="self-start font-mono text-sm text-signal-text underline underline-offset-4">
           all revision decks →
         </Link>
       </main>
     );
   }
-  return <RevisionDeck course={COURSE_ID} week={w} exitHref="/learn/revise" exitLabel="all revision decks" />;
+  return <RevisionDeck course={COURSE_ID} week={w} exitHref="/revise" exitLabel="all revision decks" />;
 }

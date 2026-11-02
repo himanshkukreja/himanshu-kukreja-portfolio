@@ -3,9 +3,12 @@
  * Only links to these hosts are wrapped for click tracking, and the redirect only ever sends
  * people to these hosts, so /api/email/c can't be used as an open redirect.
  */
-export const SITE = "https://www.himanshukukreja.in";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
-export const OWN_HOSTS = ["himanshukukreja.in", "www.himanshukukreja.in"];
+/** Campaign links go to the course host (the course, case files, unsubscribe); the sender stays himanshukukreja.in. */
+export const SITE = COURSE_ORIGIN;
+
+export const OWN_HOSTS = ["himanshukukreja.in", "www.himanshukukreja.in", "systemdesignmastery.dev", "www.systemdesignmastery.dev"];
 export const KNOWN_HOSTS = [
   "github.com",
   "www.github.com",

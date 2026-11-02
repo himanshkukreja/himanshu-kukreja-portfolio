@@ -111,7 +111,7 @@ export default function CardsPanel({ cards, pageId, pageTitle, lessonKey }: { ca
         <p className="m-0 text-[13px] text-fg-2" role="status">
           {msg}{" "}
           {state === "added" && (
-            <Link href="/learn/review" className="font-semibold text-signal-text">
+            <Link href="/review" className="font-semibold text-signal-text">
               Open review ›
             </Link>
           )}

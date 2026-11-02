@@ -6,6 +6,7 @@
 import type { EmbedRes, LiveFeedRes, LiveFilter, LiveRes, LiveSession, LiveWindow, NotConfigured, OfflineRes, PageDetailRes, PathsRes, PeopleRes, PersonRes, PersonRow, PhStatus, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "@/lib/analytics/journeys";
 import { computePaths, describe, type PathRow, type Props, type TitleOf } from "@/lib/analytics/journeysModel";
 import { replayFixtureChunk, replayFixtureSources } from "./replayFixture";
+import { isCourseVisit, isLessonPath } from "@/lib/learn/paths";
 
 if (process.env.NODE_ENV !== "development") {
   throw new Error("journeys fixtures are dev-only");
@@ -37,15 +38,15 @@ const STORIES: [slug: string, title: string][] = [
 ];
 const TITLES = new Map<string, string>([
   ["/", "Home"],
-  ["/learn", "Learn hub"],
-  ["/stories", "Case files"],
+  ["/", "Learn hub"],
+  ["/case-files", "Case files"],
   ["/play", "Arcade"],
-  ["/learn/dashboard", "Learn · progress"],
-  ...LESSONS.map(([w, s, t]) => [`/learn/${C}/${w}/${s}`, t] as [string, string]),
-  ...STORIES.map(([s, t]) => [`/stories/${s}`, t] as [string, string]),
+  ["/dashboard", "Learn · progress"],
+  ...LESSONS.map(([w, s, t]) => [`/${w}/${s}`, t] as [string, string]),
+  ...STORIES.map(([s, t]) => [`/case-files/${s}`, t] as [string, string]),
 ]);
 const titleOf: TitleOf = (p) => (p ? (TITLES.get(p) ?? null) : null);
-const lessonPath = (i: number) => `/learn/${C}/${LESSONS[i][0]}/${LESSONS[i][1]}`;
+const lessonPath = (i: number) => `/${LESSONS[i][0]}/${LESSONS[i][1]}`;
 
 const hex = (r: () => number, n: number) => Array.from({ length: n }, () => "0123456789abcdef"[Math.floor(r() * 16)]).join("");
 const uuid = (r: () => number) => `${hex(r, 8)}-${hex(r, 4)}-7${hex(r, 3)}-a${hex(r, 3)}-${hex(r, 12)}`;
@@ -90,7 +91,7 @@ const PEOPLE: PersonRow[] = NAMES.map(([email, name, city, country, device, brow
     browser,
     os,
     referrer: ref === "$direct" ? "direct" : ref,
-    topPages: [lessonPath(i % LESSONS.length), "/learn", i % 3 ? "/" : `/stories/${STORIES[0][0]}`],
+    topPages: [lessonPath(i % LESSONS.length), "/", i % 3 ? "/" : `/case-files/${STORIES[0][0]}`],
   };
 });
 
@@ -104,12 +105,12 @@ function sessionScript(r: () => number, li: number, signIn: boolean): Raw[] {
   const L = { course: C, week, lesson: slug };
   const out: Raw[] = [
     { event: "$pageview", props: { $pathname: "/" } },
-    { event: "$autocapture", props: { $pathname: "/", $event_type: "click", $el_text: "Start the course" }, chain: 'a.btn:text="Start the course"attr__href="/learn"' },
-    { event: "$pageview", props: { $pathname: "/learn" } },
+    { event: "$autocapture", props: { $pathname: "/", $event_type: "click", $el_text: "Start the course" }, chain: 'a.btn:text="Start the course"attr__href="/"' },
+    { event: "$pageview", props: { $pathname: "/" } },
   ];
-  if (signIn) out.push({ event: "signed_in", props: { $pathname: "/learn", provider: "google" } });
+  if (signIn) out.push({ event: "signed_in", props: { $pathname: "/", provider: "google" } });
   out.push(
-    { event: "$autocapture", props: { $pathname: "/learn", $event_type: "click", $el_text: LESSONS[li][2] }, chain: `a:text="${LESSONS[li][2]}"attr__href="${lp}"` },
+    { event: "$autocapture", props: { $pathname: "/", $event_type: "click", $el_text: LESSONS[li][2] }, chain: `a:text="${LESSONS[li][2]}"attr__href="${lp}"` },
     { event: "$pageview", props: { $pathname: lp } },
     { event: "lesson_open", props: { $pathname: lp, ...L, stage: "intro" } },
     { event: "read_progress", props: { $pathname: lp, content_type: "lesson", ...L, pct: 25 } },
@@ -257,7 +258,7 @@ function live(): LiveRes {
     live: 3,
     pages: [
       { path: lessonPath(2), title: titleOf(lessonPath(2)), n: 2 },
-      { path: "/learn", title: "Learn hub", n: 1 },
+      { path: "/", title: "Learn hub", n: 1 },
     ],
     events,
   };
@@ -321,7 +322,7 @@ function liveFeed(u: URL): LiveFeedRes {
   const all = liveSessions().filter(
     (s) =>
       Date.now() - new Date(s.last).getTime() < span &&
-      (f === "signed" ? s.identified : f === "learn" ? s.timeline.some((e) => e.path?.startsWith("/learn")) : f === "recorded" ? !!s.recording : true)
+      (f === "signed" ? s.identified : f === "learn" ? s.timeline.some((e) => isCourseVisit(e.path)) : f === "recorded" ? !!s.recording : true)
   );
   const page = all.filter((s) => !before || s.last < before);
   const r = rng(Math.floor(Date.now() / 15_000));
@@ -334,7 +335,7 @@ function liveFeed(u: URL): LiveFeedRes {
     perMinute: Array.from({ length: 30 }, (_, i) => Math.round(3 + 4 * Math.sin(i / 4) + r() * 6 + (i > 24 ? 6 : 0))),
     pages: [
       { path: lessonPath(2), title: titleOf(lessonPath(2)), n: 2 },
-      { path: "/learn", title: "Learn hub", n: 1 },
+      { path: "/", title: "Learn hub", n: 1 },
     ],
     sessions: page.slice(0, 10),
     hasMore: page.length > 10,
@@ -355,10 +356,10 @@ function paths(days: number): PathsRes {
       t += (0.5 + r() * 3) * MIN;
     };
     const entry = r();
-    const first = entry < 0.42 ? "/" : entry < 0.62 ? "/learn" : entry < 0.8 ? lessonPath(Math.floor(r() * LESSONS.length)) : entry < 0.92 ? `/stories/${STORIES[Math.floor(r() * 2)][0]}` : "/play";
+    const first = entry < 0.42 ? "/" : entry < 0.62 ? "/" : entry < 0.8 ? lessonPath(Math.floor(r() * LESSONS.length)) : entry < 0.92 ? `/case-files/${STORIES[Math.floor(r() * 2)][0]}` : "/play";
     push("$pageview", first);
     if (r() < 0.35) continue;
-    if (first !== "/learn") push("$pageview", r() < 0.6 ? "/learn" : "/stories");
+    if (first !== "/") push("$pageview", r() < 0.6 ? "/" : "/case-files");
     if (r() < 0.3) continue;
     const li = Math.floor(r() * LESSONS.length);
     push("$pageview", lessonPath(li));
@@ -367,14 +368,14 @@ function paths(days: number): PathsRes {
     push("stage_done", lessonPath(li));
     if (r() < 0.55) continue;
     push("lesson_complete", lessonPath(li));
-    if (r() < 0.5) push("$pageview", "/learn/dashboard");
+    if (r() < 0.5) push("$pageview", "/dashboard");
   }
   return { configured: true, ...computePaths(rows, titleOf, days) };
 }
 
 function page(path: string, days: number): PageDetailRes {
   const r = rng(path.length * 7 + days);
-  const isLesson = path.startsWith("/learn/") && path.split("/").length === 5;
+  const isLesson = isLessonPath(path);
   const clicks = isLesson
     ? [
         ["Mark complete", "button"],

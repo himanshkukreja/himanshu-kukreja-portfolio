@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/shorts/<id>: in record mode (the exporter, ?record=1) the portrait stage; otherwise the short's
+ * /shorts/<id>: in record mode (the exporter, ?record=1) the portrait stage; otherwise the short's
  * own watch page (`children`, server-rendered, so search engines see the video, its transcript and links).
  */
 import { useEffect, useState } from "react";

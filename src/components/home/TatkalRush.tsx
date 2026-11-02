@@ -28,6 +28,7 @@ import {
   type Scenario,
   type ShieldId,
 } from "./tatkal-engine";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 /** First scenario is fixed so server and client render the same telemetry; every retry rolls a new one. */
 const FIRST_SEED = 20260805;
@@ -310,7 +311,7 @@ export default function TatkalRush() {
                 ./tatkal-rush --new-morning
               </button>
               <Link
-                href="/stories/irctc-tatkal-500-seats-2-million-users"
+                href={courseUrlFor("/case-files/irctc-tatkal-500-seats-2-million-users")}
                 className={`text-[14.5px] font-semibold underline ${score.win ? "text-on-signal" : "text-signal-text"}`}
               >
                 How IRCTC actually does it →
@@ -381,7 +382,7 @@ export function RushSection() {
               <span className="text-signal-text">status</span> · {won ? "cleared ✓" : "not cleared yet"}
             </li>
           </ul>
-          <Link href="/stories/irctc-tatkal-500-seats-2-million-users" className="font-mono text-sm text-signal-text underline underline-offset-4">
+          <Link href={courseUrlFor("/case-files/irctc-tatkal-500-seats-2-million-users")} className="font-mono text-sm text-signal-text underline underline-offset-4">
             Spoilers: how IRCTC actually does it →
           </Link>
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Progress (/learn/dashboard): where a learner tracks, understands and resets their learning.
+ * Progress (/dashboard): where a learner tracks, understands and resets their learning.
  * Overview (level, streak, time, course %, resume), course map, activity, weekly goal, mastery
  * (trials, review queue, notebook, badges) and data controls (export, import, reset).
  * Guests see this browser's data; signed-in learners see their account merged with this browser.
@@ -222,7 +222,7 @@ export default function DashboardClient({ map, lectures = [] }: { map: CourseMap
 
       <SectionNav />
 
-      <Link href="/learn/guide#progress" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg lg:-mt-10">
+      <Link href="/guide#progress" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg lg:-mt-10">
         what do these numbers mean? read the guide →
       </Link>
 

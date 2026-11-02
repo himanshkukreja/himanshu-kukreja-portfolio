@@ -112,7 +112,7 @@ export default function ShareProgress() {
   const fullName = (profile?.full_name || "").trim();
   const shownName = cur.visibility.name === "none" || !fullName ? `@${cur.handle || "handle"}` : cur.visibility.name === "full" ? fullName : firstLast(fullName);
   const sum = share.state?.summary ?? null;
-  const origin = typeof window !== "undefined" ? window.location.host : "himanshukukreja.in";
+  const origin = typeof window !== "undefined" ? window.location.host : "systemdesignmastery.dev";
 
   let body: ReactNode;
   if (!share.signedIn && !share.authLoading) {

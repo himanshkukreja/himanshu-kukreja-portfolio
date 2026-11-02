@@ -31,7 +31,7 @@ export default function CheatSheet({ id, week, url, site }: { id?: string; week:
           <span className="cs-mark" aria-label="~/himanshu">
             <span style={{ color: "var(--signal)" }}>~</span>/himanshu<i aria-hidden />
           </span>
-          <span>free course · {site}/learn</span>
+          <span>free course · {site}/</span>
         </div>
       </header>
       <div className="cs-legend" aria-hidden data-drop="1">
@@ -128,7 +128,7 @@ export default function CheatSheet({ id, week, url, site }: { id?: string; week:
       </div>
       <footer className="cs-foot">
         <span>
-          <b>Free course:</b> {site}/learn · 12 worlds · interview bosses · 5-minute revision decks
+          <b>Free course:</b> {site}/ · 12 worlds · interview bosses · 5-minute revision decks
         </span>
         <span>
           <em>{url}</em>

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/arena — the fun centre of the course: today's challenge, your league, design of the week, the review queue and
+ * /arena — the fun centre of the course: today's challenge, your league, design of the week, the review queue and
  * the practice games (Arena games + the Engineering Playground boards, each tied to the lessons that
  * teach it).
  */
@@ -147,7 +147,7 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
               </div>
               <p className="m-0 text-[15px] text-fg-2">Done for today. Replays are practice; come back after midnight IST to keep the streak.</p>
               <div className="flex flex-wrap gap-2">
-                <Link href="/learn/arena/daily" className={BTN_GHOST}>
+                <Link href="/arena/daily" className={BTN_GHOST}>
                   Share · practice replay
                 </Link>
               </div>
@@ -164,7 +164,7 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
                 {streakNow > 0 ? ` Your ${streakNow}-day streak is on the line.` : ""}
               </p>
               <div>
-                <Link href="/learn/arena/daily" className={`${BTN} min-h-12 px-7 text-[15px]`}>
+                <Link href="/arena/daily" className={`${BTN} min-h-12 px-7 text-[15px]`}>
                   Play today&apos;s challenge →
                 </Link>
               </div>
@@ -176,7 +176,7 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
         <div className="flex min-w-0 flex-col gap-3 border border-line bg-raised p-4 sm:p-5">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span className={LABEL}>{league ? `${league.code} ${league.name} league · this week` : "this week"}</span>
-            <Link href="/learn/arena/leaderboard" className="font-mono text-xs text-signal-text underline underline-offset-4">
+            <Link href="/arena/leaderboard" className="font-mono text-xs text-signal-text underline underline-offset-4">
               full board →
             </Link>
           </div>
@@ -204,7 +204,7 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
 
       {/* Review */}
       <Link
-        href="/learn/review"
+        href="/review"
         className="flex flex-wrap items-center justify-between gap-4 border border-line bg-surface px-5 py-4 hover:border-fg-4 sm:px-6"
       >
         <span className="flex min-w-0 flex-col gap-1">
@@ -222,7 +222,7 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
 
       {/* Written papers: exam papers answered by hand, AI-graded */}
       <Link
-        href="/learn/papers"
+        href="/papers"
         className="flex flex-wrap items-center justify-between gap-4 border border-line bg-surface px-5 py-4 hover:border-fg-4 sm:px-6"
       >
         <span className="flex min-w-0 flex-col gap-1">
@@ -256,14 +256,14 @@ export default function ArenaHub({ bank }: { bank: { questions: number; quizzes:
         </ul>
       </section>
 
-      <Link href="/learn/arena/leaderboard#pts-h" className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line-strong px-5 py-4 hover:border-fg-4">
+      <Link href="/arena/leaderboard#pts-h" className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line-strong px-5 py-4 hover:border-fg-4">
         <span className="flex flex-col gap-1">
           <span className={LABEL}>how scoring works</span>
           <span className="text-[15px] text-fg-2">Lessons +50 · stages +5 · quick checks +3 · daily up to +60 · trials +40 · review +10 · active day +5</span>
         </span>
         <span className="font-mono text-sm text-signal-text">points table →</span>
       </Link>
-      <Link href="/learn/guide#arena" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg sm:-mt-8">
+      <Link href="/guide#arena" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg sm:-mt-8">
         new to the Arena? XP vs points, leagues and streaks explained →
       </Link>
     </main>

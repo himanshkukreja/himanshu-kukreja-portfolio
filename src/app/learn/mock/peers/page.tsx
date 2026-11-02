@@ -9,7 +9,7 @@ export const revalidate = 86400;
 export const metadata = {
   title: "Peer mock interviews · System Design Mastery",
   description: "Pair up with another learner for a live system design mock interview: one interviews with the course's rubric, the other designs, then swap. Free.",
-  alternates: { canonical: "/learn/mock/peers" },
+  alternates: { canonical: "/mock/peers" },
 };
 
 export default async function PeerMocksPage() {

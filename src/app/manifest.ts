@@ -1,6 +1,11 @@
 import type { MetadataRoute } from "next";
 
 /**
+ * himanshukukreja.in's manifest, unchanged on purpose: apps installed before the course moved keep
+ * their identity (id /learn) and open /learn, which now forwards to systemdesignmastery.dev (the
+ * bridge carries the browser's course state across once). The course host serves its own manifest
+ * (src/lib/site/manifest.ts).
+ *
  * Web app manifest: "Install" on Android / desktop Chrome and "Add to Home Screen" on iPhone open
  * the course as an app, which is also what keeps saved lessons on iPhone (Safari can clear a
  * website's storage after a week without a visit; home-screen apps keep theirs).

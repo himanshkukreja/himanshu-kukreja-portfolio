@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 import { isNonTrackingToken } from "@/lib/campaigns/links";
 import { getStore, unsubscribeEverywhere } from "@/lib/campaigns/store";
 
@@ -7,7 +8,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const done = (req: NextRequest) => {
-  const site = process.env.NEXT_PUBLIC_SITE_URL || req.nextUrl.origin;
+  // the newsletter lives on the course host now (its hub reads ?unsubscribed=1); same in dev
+  const site = process.env.NODE_ENV === "production" ? COURSE_ORIGIN : req.nextUrl.origin;
   return NextResponse.redirect(new URL("/?unsubscribed=1", site), { status: 302 });
 };
 

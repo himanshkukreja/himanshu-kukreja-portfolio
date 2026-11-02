@@ -5,7 +5,8 @@ import { getCatalogue, lessonLabels } from "@/lib/concepts/load";
 import { refCode, refHref, type ConceptRef } from "@/lib/concepts/match";
 import { getCourseMap } from "@/lib/learn/course";
 import { JsonLd, breadcrumbs } from "@/lib/seo/jsonld";
-import { SITE_URL } from "@/lib/site";
+// course URLs live on the course host
+import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache (on-demand ISR), refreshed daily and on every content push.
@@ -28,7 +29,7 @@ export async function generateMetadata({ params }: Props) {
   return {
     title: `${c.term}: system design concept · System Design Mastery`,
     description: `${c.definition} A two-minute refresher and the free lesson that teaches it.`,
-    alternates: { canonical: `/learn/concepts/${c.id}` },
+    alternates: { canonical: `/concepts/${c.id}` },
   };
 }
 
@@ -38,7 +39,7 @@ export default async function ConceptPage({ params }: Props) {
   const labels = lessonLabels(await getCourseMap().catch(() => null));
   const label = (r: ConceptRef) => labels[r.lesson]?.title || r.lesson.split("/")[1]?.replace(/-/g, " ") || r.lesson;
   const related = c.related.map((id) => all.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => !!x);
-  const path = `/learn/concepts/${c.id}`;
+  const path = `/concepts/${c.id}`;
   const refLink = (r: ConceptRef, primary = false) => (
     <Link key={`${r.lesson}#${r.anchor}`} href={refHref(r)} className={`flex items-center justify-between gap-3 border p-4 ${primary ? "border-signal" : "border-line"} hover:border-fg-3`}>
       <span className="flex min-w-0 flex-col gap-0.5">
@@ -52,15 +53,15 @@ export default async function ConceptPage({ params }: Props) {
     <main className="mx-auto flex w-full max-w-[760px] flex-col gap-8 px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
       <JsonLd
         data={[
-          { "@context": "https://schema.org", "@type": "DefinedTerm", name: c.term, description: c.definition, url: `${SITE_URL}${path}`, inDefinedTermSet: `${SITE_URL}/learn/concepts`, ...(c.aliases.length ? { alternateName: c.aliases } : {}) },
+          { "@context": "https://schema.org", "@type": "DefinedTerm", name: c.term, description: c.definition, url: `${SITE_URL}${path}`, inDefinedTermSet: `${SITE_URL}/concepts`, ...(c.aliases.length ? { alternateName: c.aliases } : {}) },
           breadcrumbs([
-            { name: "Concepts", path: "/learn/concepts" },
+            { name: "Concepts", path: "/concepts" },
             { name: c.term, path },
           ]),
         ]}
       />
       <header className="flex flex-col gap-3">
-        <Link href="/learn/concepts" className="font-mono text-xs uppercase tracking-label text-fg-3 hover:text-fg">
+        <Link href="/concepts" className="font-mono text-xs uppercase tracking-label text-fg-3 hover:text-fg">
           ← all concepts
         </Link>
         <h1 className="font-display text-[40px] font-extrabold leading-[0.98] tracking-[-0.04em] text-fg sm:text-[52px]">
@@ -98,7 +99,7 @@ export default async function ConceptPage({ params }: Props) {
           <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
             {related.map((r) => (
               <li key={r.id}>
-                <Link href={`/learn/concepts/${r.id}`} className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm text-fg hover:border-fg-3">
+                <Link href={`/concepts/${r.id}`} className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm text-fg hover:border-fg-3">
                   {r.term}
                 </Link>
               </li>

@@ -52,7 +52,7 @@ export default function LearningResources() {
 
               {/* CTA Button */}
               <Link
-                href="/learn/system-design-mastery"
+                href="/"
                 className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-medium rounded-lg transition-all shadow-lg shadow-blue-500/50 hover:shadow-xl hover:shadow-blue-500/60 group/btn"
               >
                 <BookOpen className="w-5 h-5" />

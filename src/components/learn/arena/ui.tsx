@@ -49,7 +49,7 @@ export function TierBadge({ tier, size = "sm" }: { tier: number; size?: "sm" | "
   );
 }
 
-export function BackLink({ href = "/learn/arena", children = "arena" }: { href?: string; children?: ReactNode }) {
+export function BackLink({ href = "/arena", children = "arena" }: { href?: string; children?: ReactNode }) {
   return (
     <Link href={href} className="inline-flex min-h-10 items-center gap-1.5 font-mono text-[13px] text-fg-3 hover:text-fg">
       <span aria-hidden>←</span> {children}

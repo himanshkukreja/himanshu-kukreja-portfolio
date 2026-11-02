@@ -116,7 +116,7 @@ export default function CollapsibleWeekNav({ course, rail }: Props) {
       <div className={`${open ? "flex" : "hidden"} flex-col gap-1 xl:flex`}>
         {prev && (
           <Link
-            href={`/learn/${course}`}
+            href={`/`}
             className="flex min-h-11 items-center gap-2.5 border border-line px-2 py-1 text-[13px] text-fg-3 hover:text-fg"
           >
             {prevCleared ? <span className={`${MARK} bg-fg text-bg`}>✓</span> : <span className={`${MARK} border border-dashed border-line-strong`} />}

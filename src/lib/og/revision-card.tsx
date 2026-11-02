@@ -27,7 +27,7 @@ export async function revisionCard(w: DeckWeek | null, mode: "cheatsheet" | "dec
   const tag = mode === "cheatsheet" ? `CHEAT SHEET · WORLD ${w?.code ?? ""}` : `REVISE IN ${Math.max(5, (w?.lessons.length || 1) * 5)} MIN · WORLD ${w?.code ?? ""}`;
   return new ImageResponse(
     (
-      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>himanshukukreja.in/learn</div>}>
+      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>systemdesignmastery.dev</div>}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 44 }}>
           <div style={{ display: "flex", padding: "6px 12px", background: C.signal, ...mono, fontSize: 20, fontWeight: 600, letterSpacing: "0.08em", color: C.onSignal }}>{tag}</div>
           <Label color={C.fg2}>{mode === "cheatsheet" ? "one printable page · free" : "swipeable cards · works offline"}</Label>

@@ -10,7 +10,7 @@ export const revalidate = 86400;
 export const metadata = {
   title: "System design concepts, A to Z · System Design Mastery",
   description: "Every system design concept the course teaches, defined in one line with a 2-minute refresher and the lesson that teaches it: sharding, consistent hashing, idempotency, CAP, sagas and more. Free.",
-  alternates: { canonical: "/learn/concepts" },
+  alternates: { canonical: "/concepts" },
 };
 
 export default async function ConceptsIndex() {
@@ -42,7 +42,7 @@ export default async function ConceptsIndex() {
           <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2">
             {list.map((c) => (
               <li key={c.id}>
-                <Link href={`/learn/concepts/${c.id}`} className="flex h-full flex-col gap-1 border border-line bg-surface p-4 hover:border-fg-3">
+                <Link href={`/concepts/${c.id}`} className="flex h-full flex-col gap-1 border border-line bg-surface p-4 hover:border-fg-3">
                   <span className="flex items-baseline justify-between gap-3">
                     <span className="font-semibold text-fg">{c.term}</span>
                     <span className="shrink-0 font-mono text-[11px] text-fg-3">{refCode(c.taught.lesson)}</span>

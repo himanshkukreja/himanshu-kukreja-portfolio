@@ -8,7 +8,8 @@ import "server-only";
 import webpush, { type PushSubscription } from "web-push";
 import { supabase } from "@/lib/supabase";
 import { sendRawEmail } from "@/lib/mailer";
-import { SITE_URL } from "@/lib/site";
+// course URLs live on the course host
+import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 
 export type ReminderPrefs = { emailOn: boolean; pushOn: boolean; pushDevices: number; tz: string };
 type Row = { user_id: string; email_on: boolean; push_on: boolean; push_subs: PushSubscription[]; tz: string; last_sent_on: string | null; unsub_token: string };
@@ -78,7 +79,7 @@ export async function unsubscribeByToken(token: string): Promise<boolean> {
 }
 
 function emailHtml(days: number, unsubUrl: string) {
-  const link = `${SITE_URL}/learn/dashboard?utm_source=reminder&utm_medium=email`;
+  const link = `${SITE_URL}/dashboard?utm_source=reminder&utm_medium=email`;
   return `<!doctype html><html><body style="margin:0;background:#000;color:#f3f2ee;font-family:Arial,Helvetica,sans-serif">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:32px 16px">
 <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="max-width:560px;border:1px solid #3a3a40">
@@ -112,7 +113,7 @@ export async function runReminders(now = new Date()): Promise<{ checked: number;
       const keep: PushSubscription[] = [];
       for (const s of r.push_subs) {
         try {
-          await webpush.sendNotification(s, JSON.stringify({ title: `Your ${streak}-day streak ends tonight`, body: "Five minutes keeps it going: one lesson or a revision deck.", url: "/learn/dashboard?utm_source=reminder&utm_medium=push", tag: "streak" }), { TTL: 6 * 3600 });
+          await webpush.sendNotification(s, JSON.stringify({ title: `Your ${streak}-day streak ends tonight`, body: "Five minutes keeps it going: one lesson or a revision deck.", url: "/dashboard?utm_source=reminder&utm_medium=push", tag: "streak" }), { TTL: 6 * 3600 });
           keep.push(s);
           sent = true;
           out.pushed++;

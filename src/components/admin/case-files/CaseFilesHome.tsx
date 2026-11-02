@@ -93,7 +93,7 @@ function Home() {
           ) : (
             <span className="line-clamp-2 font-semibold text-fg">{r.title}</span>
           )}
-          <span className="truncate font-mono text-[11px] text-fg-4">/stories/{r.slug}</span>
+          <span className="truncate font-mono text-[11px] text-fg-4">/case-files/{r.slug}</span>
         </div>
       ),
     },
@@ -303,14 +303,14 @@ function RowActions({
   const link = cx("inline-flex min-h-9 items-center whitespace-nowrap border border-line-strong px-2.5 font-mono text-[11px] text-fg-2 hover:bg-surface-2 hover:text-fg", wide && "min-h-10");
   const items: MenuItem[] = [];
   if (r.origin === "file") {
-    items.push({ key: "view", label: "view on site ↗", href: `/stories/${r.slug}`, external: true });
+    items.push({ key: "view", label: "view on site ↗", href: `/case-files/${r.slug}`, external: true });
     if (!r.overriddenBy) {
       items.push({ key: "import", label: "import to edit here", run: () => onCreate("import", r.id), disabled: !ready, title: "Copy this repo story into the CMS; once published, the CMS version replaces the repo file" });
       items.push({ key: "dup", label: "duplicate as a new case file", run: () => onCreate("duplicate", r.id), disabled: !ready });
     }
   } else {
     items.push({ key: "preview", label: "preview ↗", href: `/admin/case-files/frame?id=${r.id}${client.preview ? "&preview=1" : ""}`, external: true });
-    if (r.status === "published") items.push({ key: "view", label: "view on site ↗", href: `/stories/${r.slug}`, external: true });
+    if (r.status === "published") items.push({ key: "view", label: "view on site ↗", href: `/case-files/${r.slug}`, external: true });
     items.push({ key: "dup", label: "duplicate", run: () => onCreate("duplicate", r.id), disabled: !ready });
     if (r.status === "draft") items.push({ key: "publish", label: r.errors ? `publish (fix ${r.errors} errors first)` : "publish", run: () => onAct(r, "publish"), confirm: true, disabled: !ready || !!r.errors });
     if (r.status === "published") items.push({ key: "unpublish", label: "unpublish", run: () => onAct(r, "unpublish"), confirm: true, danger: true });

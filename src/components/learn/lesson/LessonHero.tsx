@@ -52,11 +52,11 @@ export default function LessonHero({ meta }: { meta: ReaderMeta }) {
           aria-label="Breadcrumb"
           className="col-start-1 row-start-1 flex min-w-0 items-center gap-x-2 whitespace-nowrap font-mono text-[12px] sm:text-[13px] lg:flex-wrap lg:gap-x-2.5 lg:gap-y-1 lg:whitespace-normal"
         >
-          <Link href={`/learn/${meta.course}`} className="shrink-0 py-3 text-fg-3 hover:text-fg lg:py-1.5">
+          <Link href={`/`} className="shrink-0 py-3 text-fg-3 hover:text-fg lg:py-1.5">
             course
           </Link>
           <span aria-hidden className="text-line-strong">›</span>
-          <Link href={`/learn/${meta.course}#${meta.week}`} className="min-w-0 truncate py-3 text-fg-3 hover:text-fg lg:py-1.5">
+          <Link href={`/#${meta.week}`} className="min-w-0 truncate py-3 text-fg-3 hover:text-fg lg:py-1.5">
             <span className="lg:hidden">{phoneWeek}</span>
             <span className="hidden lg:inline">
               {meta.weekLabel} · {meta.weekTopic}

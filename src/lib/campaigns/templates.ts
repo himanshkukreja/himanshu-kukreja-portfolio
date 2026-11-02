@@ -174,7 +174,7 @@ function courseChatTemplate(): TemplateInfo {
     id: "course-chat",
     name: "What's new: the course chat (Ask)",
     description:
-      "The course chat at /learn/chat: answers from the whole course with sources, the exact second in a lecture, quiz me, interview plans (save, calendar), design review, plus memory, mocks in chat, voice/listen/share, history, the daily allowance and privacy. Tap-to-ask example links. With screenshots of real answers. Generated from src/lib/announce/course-chat.ts.",
+      "The course chat at /chat: answers from the whole course with sources, the exact second in a lecture, quiz me, interview plans (save, calendar), design review, plus memory, mocks in chat, voice/listen/share, history, the daily allowance and privacy. Tap-to-ask example links. With screenshots of real answers. Generated from src/lib/announce/course-chat.ts.",
     topic: COURSE_CHAT_KEY,
     ...subjectTemplate(courseChatSubject),
     preheader: COURSE_CHAT_PREHEADER,
@@ -230,10 +230,10 @@ export function blankDoc(): BlocksDoc {
   return {
     layout: "blocks",
     topLabel: "newsletter",
-    footer: "You're getting this because you have an account or subscribed at himanshukukreja.in with {{email}}.",
+    footer: "You're getting this because you have an account or subscribed at systemdesignmastery.dev with {{email}}.",
     blocks: [
       { id: newBlockId(), type: "hero", eyebrow: "❯ system design mastery", title: "A headline that earns the open." },
-      { id: newBlockId(), type: "text", md: "Hi {{first_name|there}},\n\nWrite the update here. **Bold**, *italic*, [links](https://www.himanshukukreja.in/learn) and lists work.\n\n- You're on a **{{streak}}-day** streak\n- {{lessons_completed}} lessons done so far" },
+      { id: newBlockId(), type: "text", md: "Hi {{first_name|there}},\n\nWrite the update here. **Bold**, *italic*, [links](https://systemdesignmastery.dev/) and lists work.\n\n- You're on a **{{streak}}-day** streak\n- {{lessons_completed}} lessons done so far" },
       { id: newBlockId(), type: "button", label: "Pick up where you left off →", url: "{{resume_url}}" },
       { id: newBlockId(), type: "text", md: "Reply to this email if anything looks off. I read every reply.\n\nHimanshu" },
     ],

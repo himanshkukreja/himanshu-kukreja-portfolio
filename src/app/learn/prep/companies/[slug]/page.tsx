@@ -77,17 +77,17 @@ export default async function CompanyPage({ params }: Props) {
     <main className="mx-auto flex w-full max-w-[920px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-12">
       <JsonLd
         data={breadcrumbs([
-          { name: "Interview prep", path: "/learn/prep" },
-          { name: "Companies", path: "/learn/prep/companies" },
+          { name: "Interview prep", path: "/prep" },
+          { name: "Companies", path: "/prep/companies" },
           { name: c.name, path: c.href },
         ])}
       />
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-        <Link href="/learn/prep" className="hover:text-fg">
+        <Link href="/prep" className="hover:text-fg">
           Prep
         </Link>
         <span aria-hidden>/</span>
-        <Link href="/learn/prep/companies" className="hover:text-fg">
+        <Link href="/prep/companies" className="hover:text-fg">
           Companies
         </Link>
         <span aria-hidden>/</span>
@@ -200,10 +200,10 @@ export default async function CompanyPage({ params }: Props) {
 
       <p className="m-0 text-[12px] leading-relaxed text-fg-4">{LOGO_NOTE}</p>
       <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-line pt-5">
-        <Link href="/learn/prep/companies" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
+        <Link href="/prep/companies" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
           ← all companies
         </Link>
-        <Link href={curated?.mock?.href ?? "/learn/mock"} className="text-[15px] font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+        <Link href={curated?.mock?.href ?? "/mock"} className="text-[15px] font-semibold text-fg underline decoration-line-strong underline-offset-4 hover:decoration-signal">
           {curated?.mock ? `Sit the ${curated.mock.title} mock →` : "Sit a timed mock interview →"}
         </Link>
       </footer>

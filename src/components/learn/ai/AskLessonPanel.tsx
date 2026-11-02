@@ -46,7 +46,7 @@ export default function AskLessonPanel({
   slug: string;
   lessonTitle: string;
   selection: string;
-  /** a case file (/stories/<slug>) rather than a course lesson; `week` is ignored */
+  /** a case file (/case-files/<slug>) rather than a course lesson; `week` is ignored */
   story?: boolean;
 }) {
   const status = useAiStatus();

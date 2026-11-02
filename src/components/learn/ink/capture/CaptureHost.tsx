@@ -164,6 +164,6 @@ export default function CaptureHost({ rootRef, title, lessonKey }: Props) {
 function lectureHref(): string | null {
   const el = document.querySelector<HTMLElement>("[data-hk-lecture]");
   const id = el?.dataset.hkLecture;
-  if (!id || !window.location.pathname.startsWith("/learn/lectures/")) return null;
-  return `${window.location.origin}/learn/lectures/${id}?t=${Math.floor(Number(el.dataset.hkAt) || 0)}`;
+  if (!id || !window.location.pathname.startsWith("/lectures/")) return null;
+  return `${window.location.origin}/lectures/${id}?t=${Math.floor(Number(el.dataset.hkAt) || 0)}`;
 }

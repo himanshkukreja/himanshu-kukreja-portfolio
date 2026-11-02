@@ -30,7 +30,7 @@ export default function CompareDesign({ meta, title, onClose }: { meta: DesignFi
   const [error, setError] = useState("");
   const [tab, setTab] = useState<Tab>("mine");
   const closeRef = useRef<HTMLButtonElement>(null);
-  const canvasHref = `/learn/canvas/${encodeURIComponent(meta.key)}`;
+  const canvasHref = `/canvas/${encodeURIComponent(meta.key)}`;
 
   useEffect(() => {
     if (!user?.id) return;

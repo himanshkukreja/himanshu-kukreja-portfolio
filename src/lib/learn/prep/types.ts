@@ -1,4 +1,4 @@
-/** Interview prep (/learn/prep): companies and the question bank built from them. */
+/** Interview prep (/prep): companies and the question bank built from them. */
 
 export const PREP_CATEGORIES = ["big-tech", "fintech", "commerce", "food-and-delivery", "mobility", "media", "trading", "saas", "travel", "gaming", "social", "other"] as const;
 export type PrepCategory = (typeof PREP_CATEGORIES)[number];
@@ -54,7 +54,7 @@ export type BankQuestion = {
   companies: { slug: string; name: string; evidence: Evidence; sources: PrepSource[] }[];
 };
 
-export const companyHref = (slug: string) => `/learn/prep/companies/${slug}`;
+export const companyHref = (slug: string) => `/prep/companies/${slug}`;
 /** "Design a URL Shortener" ≈ "design a url-shortener" */
 export const questionKey = (q: string) =>
   q

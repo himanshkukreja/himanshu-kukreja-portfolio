@@ -10,7 +10,7 @@ export const revalidate = 3600;
 export const metadata = {
   title: "Shorts · System Design Mastery",
   description: "System design in 2–3 minute vertical videos: one idea each, from the course, side quests, real incidents and interview problems, each linked to its full lecture and article.",
-  alternates: { canonical: "/learn/shorts" },
+  alternates: { canonical: "/shorts" },
 };
 
 export default async function ShortsPage() {

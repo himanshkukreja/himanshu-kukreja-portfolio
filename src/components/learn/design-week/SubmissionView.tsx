@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/design-week/<slug>/<id>: one design, rendered like a lesson, with its author, votes and a report link. */
+/** /design-week/<slug>/<id>: one design, rendered like a lesson, with its author, votes and a report link. */
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 import Link from "next/link";

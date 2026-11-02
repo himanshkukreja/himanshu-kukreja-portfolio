@@ -43,7 +43,7 @@ export default async function ReviseLessonPage({ params }: Props) {
       lesson={l.slug}
       exitHref={l.href}
       exitLabel={l.label}
-      next={after ? { href: `/learn/revise/${w.id}/${after.slug}`, label: `Revise ${after.short}` } : null}
+      next={after ? { href: `/revise/${w.id}/${after.slug}`, label: `Revise ${after.short}` } : null}
     />
   );
 }

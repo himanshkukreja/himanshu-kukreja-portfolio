@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Mock interview (/learn/mock/[slug]): lobby → interview room → debrief.
+ * Mock interview (/mock/[slug]): lobby → interview room → debrief.
  * The run lives in this browser (lib/learn/mock/store.ts); XP, the badge and the verdict go
  * through the game engine (synced to the account when signed in). See the content repo's
  * resources/mock-interviews/README.md for the format and scoring rules.

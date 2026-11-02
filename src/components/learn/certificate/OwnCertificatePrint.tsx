@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/certificate/print/<code>: the learner's own certificate on one A4 page, whether or not its
+ * /certificate/print/<code>: the learner's own certificate on one A4 page, whether or not its
  * public page is on (the public /cert/<code>/print is only for public certificates). Loaded with the
  * learner's session from /api/learn/certificates, never cached, never indexed.
  */
@@ -37,7 +37,7 @@ export default function OwnCertificatePrint({ code }: { code: string }) {
     <div className="flex flex-col gap-3 border border-line bg-surface p-5">
       <h1 className="m-0 font-display text-[26px] font-extrabold leading-tight tracking-[-0.03em] text-fg">{title}</h1>
       <p className="m-0 text-[15px] leading-relaxed text-fg-2">{body}</p>
-      <Link href="/learn/certificate" className="inline-flex min-h-11 items-center self-start border border-line-strong px-4 font-mono text-[13px] text-fg hover:border-signal">
+      <Link href="/certificate" className="inline-flex min-h-11 items-center self-start border border-line-strong px-4 font-mono text-[13px] text-fg hover:border-signal">
         ← your certificates
       </Link>
     </div>
@@ -64,7 +64,7 @@ export default function OwnCertificatePrint({ code }: { code: string }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <PrintButton code={res.cert.code} kind={res.cert.kind} />
-            <Link href="/learn/certificate" className="inline-flex min-h-12 items-center border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
+            <Link href="/certificate" className="inline-flex min-h-12 items-center border border-line-strong px-4 text-[15px] text-fg hover:bg-surface-2">
               Your certificates
             </Link>
           </div>

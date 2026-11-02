@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/canvas/<key>: the design canvas. The brief (a problem, a capstone, or your own title and
+ * /canvas/<key>: the design canvas. The brief (a problem, a capstone, or your own title and
  * one-liner), the whiteboard (the mock interview's Excalidraw board: blocks, tech logos, arrows that
  * stay attached), notes, and the AI review of what's saved. Autosaves to your account a moment after
  * each change, with a copy in this browser in case the connection drops.
@@ -169,7 +169,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
       /* ignore */
     }
     track("canvas_delete", { kind: promptKey.split(":")[0] });
-    router.push("/learn/canvas");
+    router.push("/canvas");
   };
 
   if (authLoading) return <p className="m-0 font-mono text-[13px] text-fg-3">Loading…</p>;
@@ -187,7 +187,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
     return (
       <div className="flex flex-col items-start gap-3 border border-line-strong bg-surface p-5">
         <p className="m-0 text-[15px] text-fg-2">{error}</p>
-        <Link href="/learn/canvas" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
+        <Link href="/canvas" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
           ← all designs
         </Link>
       </div>
@@ -201,7 +201,7 @@ export default function CanvasEditor({ promptKey }: { promptKey: string }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-1.5">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs text-fg-3">
-            <Link href="/learn/canvas" className="hover:text-fg">
+            <Link href="/canvas" className="hover:text-fg">
               design canvas
             </Link>
             <span aria-hidden>›</span>

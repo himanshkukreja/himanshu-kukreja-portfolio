@@ -120,7 +120,7 @@ export type CourseMock = {
   href: string;
 };
 
-export const mockHref = (slug: string) => `/learn/mock/${slug}`;
+export const mockHref = (slug: string) => `/mock/${slug}`;
 export const mockDoneKey = (id: string) => `mock:${id}`;
 export const mockOfferKey = (id: string) => `offer:${id}`;
 export const mockFlagKey = (id: string) => `mock:${id}`;

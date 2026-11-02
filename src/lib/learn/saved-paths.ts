@@ -16,7 +16,7 @@
  * course chat's study plan, lib/learn/study-plan.ts planDueDates). Optional and additive: a path saved before
  * dates existed reads as before, a malformed date is dropped, and saving the same search again keeps each
  * remaining step's date unless the new copy brings its own. A path with dates downloads as an .ics on
- * /learn/saved. Dates ride inside the path, so the per-path newer-`updatedAt`-wins merge carries them too.
+ * /saved. Dates ride inside the path, so the per-path newer-`updatedAt`-wins merge carries them too.
  */
 import { queryKey } from "@/lib/search/smart/text";
 import { KINDS, type Hit, type Kind } from "@/lib/search/smart/types";
@@ -47,7 +47,7 @@ export type SavedPath = {
   id: string;
   /** "path": an AI learning path · "results": a set of search results */
   source: "path" | "results";
-  /** the search it came from (opens again at /learn/chat?q=) */
+  /** the search it came from (opens again at /chat?q=) */
   q: string;
   /** what the learner is after, in a line (the AI's intent; the query for a set of results) */
   title: string;
@@ -72,7 +72,7 @@ export type SaveInput = {
 
 const KIND_SET = new Set<string>(KINDS);
 const str = (x: unknown, max: number) => (typeof x === "string" ? x.replace(/[\u0000-\u001f\u007f]+/g, " ").trim().slice(0, max) : "");
-/** site-relative links only: "/learn/…" (never "//host", "javascript:", or anything the model could have written) */
+/** site-relative links only: "/…" (never "//host", "javascript:", or anything the model could have written) */
 const safeHref = (x: unknown) => {
   const h = str(x, 400);
   return /^\/(?!\/)[^\s\\]*$/.test(h) ? h : "";

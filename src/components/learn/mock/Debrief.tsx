@@ -134,7 +134,7 @@ export default function Debrief(props: Props) {
           <button type="button" onClick={props.onRetry} className="min-h-12 bg-fg px-5 text-[15px] font-semibold text-bg">
             Book another round
           </button>
-          <Link href="/learn/mock" className="inline-flex min-h-12 items-center border border-line-strong px-4 text-[15px] text-fg hover:border-fg-3">
+          <Link href="/mock" className="inline-flex min-h-12 items-center border border-line-strong px-4 text-[15px] text-fg hover:border-fg-3">
             All mock interviews
           </Link>
         </span>

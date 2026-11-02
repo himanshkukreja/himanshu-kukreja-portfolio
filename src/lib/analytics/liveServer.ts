@@ -43,7 +43,7 @@ const SESSION_COLS = `properties.$session_id AS sid,
     argMax(properties.$browser, timestamp) AS br,
     argMax(properties.$os, timestamp) AS os,
     argMin(properties.$referring_domain, timestamp) AS ref,
-    countIf(startsWith(coalesce(properties.$pathname, ''), '/learn')) AS learn`;
+    countIf(startsWith(coalesce(properties.$pathname, ''), '/learn') OR endsWith(coalesce(properties.$host, ''), 'systemdesignmastery.dev')) AS learn`;
 
 async function stats() {
   const [s, m, p] = await Promise.all([

@@ -89,7 +89,7 @@ async function build(course: string): Promise<Catalog> {
   // the course map itself (skill tree) and the plan
   const courseItems: CatalogItem[] = [
     {
-      url: `/learn/${course}`,
+      url: `/`,
       title: "Course map · skill tree",
       kind: "hub",
       tag: "MAP",
@@ -101,21 +101,21 @@ async function build(course: string): Promise<Catalog> {
   if (map.plan) courseItems.push(await item(map.plan.href, map.plan.title, "plan", "PLAN", "course", await md(map.plan.week, map.plan.slug)));
   // prep tools: client-side pages (the planner carries the course map, the playground its tables)
   courseItems.push(
-    { url: "/learn/plan", title: "Study planner", kind: "tool", tag: "PLANNER", group: "course", version: courseItems[0].version, bytes: 60_000 },
-    { url: "/learn/numbers", title: "Numbers playground", kind: "tool", tag: "NUMBERS", group: "course", version: REFERENCE_VERSION, bytes: 45_000 }
+    { url: "/plan", title: "Study planner", kind: "tool", tag: "PLANNER", group: "course", version: courseItems[0].version, bytes: 60_000 },
+    { url: "/numbers", title: "Numbers playground", kind: "tool", tag: "NUMBERS", group: "course", version: REFERENCE_VERSION, bytes: 45_000 }
   );
   // code labs: the index here, each lab in its world (saving a lab also stores the Python runtime once)
   const labs = await getLabSummaries().catch(() => []);
-  if (labs.length) courseItems.push({ url: "/learn/labs", title: `Code labs · ${labs.length} labs`, kind: "lab", tag: "LABS", group: "course", version: hash(labs.map((l) => l.version).join()), bytes: 40_000 });
+  if (labs.length) courseItems.push({ url: "/labs", title: `Code labs · ${labs.length} labs`, kind: "lab", tag: "LABS", group: "course", version: hash(labs.map((l) => l.version).join()), bytes: 40_000 });
   // the practice hub: links to every tool, live state from this browser (counts ship in the page)
-  courseItems.push({ url: "/learn/prep", title: "Interview prep", kind: "tool", tag: "PRACTICE", group: "course", version: hash([courseItems[0].version, ...labs.map((l) => l.version)].join()), bytes: 15_000 });
+  courseItems.push({ url: "/prep", title: "Interview prep", kind: "tool", tag: "PRACTICE", group: "course", version: hash([courseItems[0].version, ...labs.map((l) => l.version)].join()), bytes: 15_000 });
   // the other toolkit indexes the practice hub links to (small pages; their data ships in the page)
-  courseItems.push({ url: "/learn/revise", title: "Revision decks", kind: "tool", tag: "REVISE", group: "course", version: courseItems[0].version, bytes: 20_000 });
-  courseItems.push({ url: "/learn/mock", title: "Mock interviews", kind: "tool", tag: "MOCKS", group: "course", version: courseItems[0].version, bytes: 20_000 });
-  courseItems.push({ url: "/learn/mastery", title: "Concept map", kind: "tool", tag: "CONCEPTS", group: "course", version: courseItems[0].version, bytes: 120_000 });
+  courseItems.push({ url: "/revise", title: "Revision decks", kind: "tool", tag: "REVISE", group: "course", version: courseItems[0].version, bytes: 20_000 });
+  courseItems.push({ url: "/mock", title: "Mock interviews", kind: "tool", tag: "MOCKS", group: "course", version: courseItems[0].version, bytes: 20_000 });
+  courseItems.push({ url: "/mastery", title: "Concept map", kind: "tool", tag: "CONCEPTS", group: "course", version: courseItems[0].version, bytes: 120_000 });
   // the reading trail index (measured ~140 KB gzip: every entry with its summary ships in the page)
   const trail = await getTrailIndex().catch(() => null);
-  if (trail?.total) courseItems.push({ url: "/learn/reading", title: `Reading trail · ${trail.total} reads`, kind: "tool", tag: "READING", group: "course", version: hash(JSON.stringify(trail.groups)), bytes: 140_000 });
+  if (trail?.total) courseItems.push({ url: "/reading", title: `Reading trail · ${trail.total} reads`, kind: "tool", tag: "READING", group: "course", version: hash(JSON.stringify(trail.groups)), bytes: 140_000 });
   groups.push({ id: "course", title: "Course map", kind: "course", items: courseItems });
 
   // interview-night revision: one deck per world (its lesson decks ride along) + the cheat sheet
@@ -144,10 +144,10 @@ async function build(course: string): Promise<Catalog> {
         : []),
     ]);
     if (rev) {
-      const decks = rev.lessons.map((l) => `/learn/revise/${rev.id}/${l.slug}`);
+      const decks = rev.lessons.map((l) => `/revise/${rev.id}/${l.slug}`);
       items.push(
-        { url: `/learn/revise/${rev.id}`, title: `Revision deck · ${rev.cards} cards`, kind: "revision", tag: `W${w.code} · REVISE`, group: w.key, version: rev.version, bytes: (1 + decks.length) * 30_000, variants: decks },
-        { url: `/learn/cheatsheet/${rev.id}`, title: `Cheat sheet · ${w.title}`, kind: "cheatsheet", tag: `W${w.code} · SHEET`, group: w.key, version: rev.version, bytes: 30_000 }
+        { url: `/revise/${rev.id}`, title: `Revision deck · ${rev.cards} cards`, kind: "revision", tag: `W${w.code} · REVISE`, group: w.key, version: rev.version, bytes: (1 + decks.length) * 30_000, variants: decks },
+        { url: `/cheatsheet/${rev.id}`, title: `Cheat sheet · ${w.title}`, kind: "cheatsheet", tag: `W${w.code} · SHEET`, group: w.key, version: rev.version, bytes: 30_000 }
       );
     }
     for (const l of labs.filter((x) => x.weekKey === w.key)) {
@@ -190,7 +190,7 @@ async function build(course: string): Promise<Catalog> {
       id: "case-files",
       title: "Case files",
       kind: "case-files",
-      items: await Promise.all(cases.map((c) => item(`/stories/${c.slug}`, c.title, "story", c.caseId, "case-files", body.get(c.slug) || ""))),
+      items: await Promise.all(cases.map((c) => item(`/case-files/${c.slug}`, c.title, "story", c.caseId, "case-files", body.get(c.slug) || ""))),
     });
   } catch {
     // case files unavailable: the course still saves
@@ -202,7 +202,7 @@ async function build(course: string): Promise<Catalog> {
     if (stories.length || rooms.length) {
       const [full, sims] = await Promise.all([Promise.all(stories.map((s) => getStory(s.slug))), Promise.all(rooms.map((r) => getWarRoom(r.slug)))]);
       const items: CatalogItem[] = [
-        { url: "/learn/war-stories", title: `War stories · ${stories.length} stories, ${rooms.length} war rooms`, kind: "warstory", tag: "HUB", group: "war-stories", version: hash(JSON.stringify({ stories, rooms })), bytes: 30_000 },
+        { url: "/war-stories", title: `War stories · ${stories.length} stories, ${rooms.length} war rooms`, kind: "warstory", tag: "HUB", group: "war-stories", version: hash(JSON.stringify({ stories, rooms })), bytes: 30_000 },
         ...stories.map((s, i) => {
           const html = full[i]?.html || "";
           return { url: s.href, title: s.title, kind: "warstory" as const, tag: (THEME_LABEL[s.theme] || "Story").toUpperCase(), group: "war-stories", version: hash(html || s.href), bytes: Math.round(14_000 + html.length * 0.45) };

@@ -17,6 +17,7 @@
  * quests, 16 case files, 20 problems, 8 low-level design), 10 break-it labs; problem bank 20, LLD 8.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export const WATCH_TRY_KEY = "announce:watch-and-try-2026-10";
 export const WATCH_TRY_SUBJECT = "Prep by company, war stories and six new side quests";
@@ -27,8 +28,9 @@ export function watchTrySubject(name?: string | null): string {
 export const WATCH_TRY_PREHEADER =
   "45 company pages with the questions candidates reported, war rooms where you're on call, six new side quests with design sheets, and five tabs that make it all easy to find.";
 
-const SITE = "https://www.himanshukukreja.in";
-const L = `${SITE}/learn`;
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
+const L = `${SITE}/`;
 const C_ = `${L}/system-design-mastery`;
 export const WATCH_TRY_LINKS = {
   hub: C_,
@@ -50,7 +52,7 @@ export const WATCH_TRY_LINKS = {
   concepts: `${L}/concepts`,
   pdf: `${L}/cheatsheet/all`,
   revise: `${L}/revise`,
-  caseFiles: `${SITE}/stories`,
+  caseFiles: `${SITE}/case-files`,
 };
 const IMG_BASE = `${SITE}/email/whats-new-oct-3`;
 
@@ -347,13 +349,13 @@ export function watchTryHtml({ email, name }: WatchTryInput): string {
           <td class="pad" style="padding:18px 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">Pick one thing and try it this week. If something breaks or a number looks wrong, just reply to this email. I read every reply.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -392,10 +394,10 @@ export function watchTryText({ email, name }: WatchTryInput): string {
     "Pick one thing and try it this week. If something breaks or a number looks wrong, just reply to this email. I read every reply.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ];
   return lines.join("\n");

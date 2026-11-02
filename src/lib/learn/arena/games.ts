@@ -1,8 +1,10 @@
+import { portfolioUrl } from "@/lib/site/hosts";
+
 /**
  * Practice games and the lessons that teach them. Isomorphic (no server or client APIs): the
  * renderer uses it for the in-lesson "practice this" card, the Arena hub for "taught in" links.
  *
- * - kind "arena": quick 60–90 s course games under /learn/arena/<slug>
+ * - kind "arena": quick 60–90 s course games under /arena/<slug>
  * - kind "play":  the Engineering Playground boards at /play (deep link /play?g=<key>)
  */
 
@@ -39,7 +41,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "latency",
     name: "Latency Ladder",
     hook: "Order the numbers every engineer should know, L1 cache to a cross-continent round trip.",
-    href: "/learn/arena/latency",
+    href: "/arena/latency",
     quest: "arena:latency",
     seconds: 90,
     lessons: [
@@ -55,7 +57,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "store",
     name: "Pick the Store",
     hook: "A use case drops in. Send it to the datastore that fits before the clock runs out.",
-    href: "/learn/arena/store",
+    href: "/arena/store",
     quest: "arena:store",
     seconds: 75,
     lessons: [
@@ -72,7 +74,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "outage",
     name: "Fix the Outage",
     hook: "Symptom on the left, pattern on the right. Name the fix that stops the bleeding.",
-    href: "/learn/arena/outage",
+    href: "/arena/outage",
     quest: "arena:outage",
     seconds: 75,
     lessons: [
@@ -90,7 +92,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "cache",
     name: "Cache or Miss",
     hook: "Beat LRU at eviction.",
-    href: "/play?g=cache",
+    href: portfolioUrl("/play?g=cache"),
     quest: "play:cache",
     lessons: [
       L("week-04-caching", "day-01-caching-patterns", "W04 · Day 1 · Caching patterns"),
@@ -104,7 +106,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "ring",
     name: "Hash Ring",
     hook: "Add a node, move the fewest keys.",
-    href: "/play?g=ring",
+    href: portfolioUrl("/play?g=ring"),
     quest: "play:ring",
     lessons: [
       L("week-01-data-at-scale", "day-01-partitioning-deep-dive", "W01 · Day 1 · Partitioning"),
@@ -118,7 +120,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "breaker",
     name: "Trip the Breaker",
     hook: "You can't see the service while it's open.",
-    href: "/play?g=breaker",
+    href: portfolioUrl("/play?g=breaker"),
     quest: "play:breaker",
     lessons: [L("week-02-failure-first-design", "day-03-circuit-breakers", "W02 · Day 3 · Circuit breakers")],
     titleRe: /\bCircuit Breakers?\b/i,
@@ -129,7 +131,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "env",
     name: "Back of the Envelope",
     hook: "Estimate WhatsApp-scale in seconds.",
-    href: "/play?g=env",
+    href: portfolioUrl("/play?g=env"),
     quest: "play:envelope",
     lessons: [
       L("week-00-foundations", "foundations-part-3-back-of-the-envelope-estimation", "W00 · Part 3 · Estimation"),
@@ -143,7 +145,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "race",
     name: "Race Condition",
     hook: "Double-book a seat, then fix it.",
-    href: "/play?g=race",
+    href: portfolioUrl("/play?g=race"),
     quest: "play:race",
     lessons: [
       L("week-05-consistency-and-coordination", "day-01-consistency-models", "W05 · Day 1 · Consistency models"),
@@ -157,7 +159,7 @@ export const PRACTICE_GAMES: PracticeGame[] = [
     key: "inc",
     name: "Incident Commander",
     hook: "The pager just went off.",
-    href: "/play?g=inc",
+    href: portfolioUrl("/play?g=inc"),
     quest: "play:incident",
     lessons: [
       L("week-10-production-readiness-and-operational-excellence", "day-05-incident-management", "W10 · Day 5 · Incident management"),
@@ -177,4 +179,4 @@ export function practiceFor(title: string): PracticeGame[] {
     .slice(0, 2);
 }
 
-export const lessonHref = (course: string, l: LessonRef) => `/learn/${course}/${l.week}/${l.slug}`;
+export const lessonHref = (course: string, l: LessonRef) => `/${l.week}/${l.slug}`;

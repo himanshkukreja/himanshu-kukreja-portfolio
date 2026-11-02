@@ -54,7 +54,7 @@ export default function TourCard() {
         <span className="text-[14px] leading-snug text-fg-2">Stages, XP, the Notebook, the daily standup, trials, bosses and the Arena, with screenshots.</span>
       </span>
       <span className="flex items-center gap-2">
-        <Link href="/learn/guide" onClick={close} className="inline-flex min-h-11 items-center bg-signal px-5 text-[15px] font-semibold text-on-signal hover:brightness-110">
+        <Link href="/guide" onClick={close} className="inline-flex min-h-11 items-center bg-signal px-5 text-[15px] font-semibold text-on-signal hover:brightness-110">
           Take the tour →
         </Link>
         <button type="button" onClick={close} aria-label="Dismiss the tour card" className="grid h-11 w-11 place-items-center border border-line-strong text-fg-3 hover:text-fg">

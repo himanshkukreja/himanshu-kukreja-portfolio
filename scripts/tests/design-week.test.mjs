@@ -456,10 +456,10 @@ test("rate limiter: sliding window", () => {
 /* ------------------------------------------------------------------ sanitizer */
 
 test("sanitizer: unsafe links → text, safe links stay", () => {
-  const { md, report } = sanitizeDesignMarkdown("Click [here](javascript:alert(1)) or [docs](https://example.com/x) or <javascript:alert(2)> and [rel](/learn).");
+  const { md, report } = sanitizeDesignMarkdown("Click [here](javascript:alert(1)) or [docs](https://example.com/x) or <javascript:alert(2)> and [rel](/).");
   assert.ok(!md.includes("javascript:alert(1)"));
   assert.ok(md.includes("[docs](https://example.com/x)"));
-  assert.ok(md.includes("[rel](/learn)"));
+  assert.ok(md.includes("[rel](/)"));
   assert.equal(report.links, 2);
   assert.equal(safeUrl("data:text/html,x"), false);
   assert.equal(safeUrl("//evil.example.com"), false);

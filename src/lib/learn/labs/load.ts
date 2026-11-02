@@ -143,7 +143,7 @@ export async function getLab(id: string): Promise<Lab | null> {
 
 /** Labs that practise a lesson (its "Try it in code" card), by the lesson's path. */
 export async function getLabsForLesson(course: string, week: string, slug: string): Promise<LessonLabLink[]> {
-  const base = `/learn/${course}/${week}/${slug}`;
+  const base = `/${week}/${slug}`;
   return (await data()).summaries
     .filter((s) => s.lessons.some((l) => l.href === base || l.href.startsWith(`${base}#`)))
     .map(({ id, title, topic, summary, href, difficulty, minutes, xp, tests }) => ({ id, title, topic, summary, href, difficulty, minutes, xp, tests }));

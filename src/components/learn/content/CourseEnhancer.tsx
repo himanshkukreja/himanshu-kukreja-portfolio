@@ -23,6 +23,7 @@ import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { internalPath } from "@/lib/learn/paths";
 
 type Props = {
   /** stable lesson key, e.g. "week-02-failure-first-design/day-03-circuit-breakers" (defaults to the URL path) */
@@ -69,7 +70,9 @@ function setAttr(el: Element | null, name: string, value: string | null) {
 }
 
 function defaultKey() {
-  return window.location.pathname.replace(/^\/learn\//, "").replace(/\/$/, "") || "lesson";
+  // keyed by the internal route, as before the move to clean URLs (keeps saved state)
+  const p = internalPath(window.location.pathname) ?? window.location.pathname;
+  return p.replace(/^\/learn\//, "").replace(/\/$/, "") || "lesson";
 }
 
 /** index of an element among same-kind components in the root (stable for a given HTML) */

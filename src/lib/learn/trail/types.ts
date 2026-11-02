@@ -78,7 +78,7 @@ export type TrailIndexGroup = {
 };
 
 /**
- * The id of an entry's card on /learn/reading ("trail-<week folder>--<lesson slug>--<entry id>"), so a link
+ * The id of an entry's card on /reading ("trail-<week folder>--<lesson slug>--<entry id>"), so a link
  * (smart search's results) can open the page at that card.
  */
 export const trailAnchor = (lesson: TrailLessonKey, entry: string) => `trail-${lesson.replace("/", "--")}--${entry}`;

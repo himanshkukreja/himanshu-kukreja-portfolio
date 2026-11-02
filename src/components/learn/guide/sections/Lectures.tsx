@@ -36,7 +36,7 @@ export default function LecturesDetails({ d }: { d: GuideData }) {
             title: "The playlist",
             body: (
               <>
-                <A href="/learn/prep/lectures">Prep → Video lectures</A> lists every lecture in course order, then the recorded mock interviews, the side quests, interview problems, low-level design and case files. On a
+                <A href="/prep/lectures">Prep → Video lectures</A> lists every lecture in course order, then the recorded mock interviews, the side quests, interview problems, low-level design and case files. On a
                 computer the sidebar lists every section with how many you have watched; on a phone the tracks are buttons, with a <strong>jump to</strong> menu for the sections.
               </>
             ),
@@ -113,7 +113,7 @@ export default function LecturesDetails({ d }: { d: GuideData }) {
         </p>
       </Note>
       <Where>
-        <A href="/learn/prep/lectures">the playlist</A>; the &ldquo;watch it first&rdquo; card at the top of any lesson; a mock interview&apos;s lobby; <A href="/learn/dashboard#videos">progress → videos</A> for your watch time.
+        <A href="/prep/lectures">the playlist</A>; the &ldquo;watch it first&rdquo; card at the top of any lesson; a mock interview&apos;s lobby; <A href="/dashboard#videos">progress → videos</A> for your watch time.
       </Where>
 
       <Topic id="listen" lead="No screen? Every article in the course is narrated in the same natural voice as the lectures.">
@@ -136,7 +136,7 @@ export default function LecturesDetails({ d }: { d: GuideData }) {
       </Topic>
       <div className={PROSE}>
         <p>
-          The <A href="/learn/podcast">podcast page</A> lists every episode by section, with how to follow it: in Apple Podcasts use <strong>Follow a Show by URL</strong>; in Pocket Casts, Overcast, AntennaPod or Podcast Addict,{" "}
+          The <A href="/podcast">podcast page</A> lists every episode by section, with how to follow it: in Apple Podcasts use <strong>Follow a Show by URL</strong>; in Pocket Casts, Overcast, AntennaPod or Podcast Addict,{" "}
           <strong>add by URL</strong>; anything else takes the RSS feed. Copy the feed from the page. Every episode links back to its animated lecture, for when you want to see the diagram.
         </p>
       </div>

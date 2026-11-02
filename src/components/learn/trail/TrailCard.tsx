@@ -14,7 +14,7 @@ type Props = {
   offline: boolean;
   /** where the card is shown, for analytics */
   surface: "lesson" | "index";
-  /** the card's id on /learn/reading (trailAnchor), so links can open the page at it */
+  /** the card's id on /reading (trailAnchor), so links can open the page at it */
   anchor?: string;
 };
 

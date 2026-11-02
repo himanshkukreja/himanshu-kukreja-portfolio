@@ -24,7 +24,7 @@ export type OfflineKind =
   | "tool";
 
 export type CatalogItem = {
-  /** path, e.g. /learn/system-design-mastery/week-02-…/day-03-circuit-breakers */
+  /** path, e.g. /week-02-…/day-03-circuit-breakers */
   url: string;
   title: string;
   kind: OfflineKind;
@@ -108,7 +108,7 @@ export const OFFLINE_CACHES = {
  * leaves out only the course map: it is answered by its own HUB rule there).
  */
 export const SAVEABLE_PATH =
-  /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/learn\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/learn\/labs(?:\/[^/]+)?\/?$|^\/learn\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/learn\/lectures\/[^/]+\/?$|^\/learn\/war-stories(?:\/[^/]+)?\/?$|^\/stories\/[^/]+\/?$|^\/learn\/system-design-mastery\/?$/;
+  /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$|^\/$/;
 
 /** A lecture's recorded media file (any origin): the service worker answers saved ones from hk-media. */
 export const LECTURE_FILE = /\/[A-Za-z0-9-]+\/(?:media\.json|narration\.mp3|music\.mp3|captions\.vtt|poster\.jpg|chapters\.json)$/;

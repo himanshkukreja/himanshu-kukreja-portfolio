@@ -516,7 +516,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   const openRef = (id: string) => {
     pause();
     track("lecture_ref", { from: slug, to: id });
-    router.push(`/learn/lectures/${id}`);
+    router.push(`/lectures/${id}`);
   };
   // deep links: ?at=<scene id> or ?t=<seconds>, once the timeline is known
   const linked = useRef(false);
@@ -850,7 +850,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
             <Scissors className="h-4 w-4 text-signal-text" aria-hidden />
             Snip
           </button>
-          <SaveOfflineButton title={lecture.title} kind="lecture" url={`/learn/lectures/${slug}`} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
+          <SaveOfflineButton title={lecture.title} kind="lecture" url={`/lectures/${slug}`} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
           <LectureVote id={slug} />
         </div>
         {gated && (
@@ -1078,7 +1078,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
               ← {readLabel(lecture).toLowerCase()}: {quest.title}
             </Link>
           )}
-          <Link href="/learn/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
+          <Link href="/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
             all lectures
           </Link>
         </aside>

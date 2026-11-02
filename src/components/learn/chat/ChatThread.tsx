@@ -135,7 +135,7 @@ function PathCardView({ conv, pref, onSave }: { conv: Conversation; pref: string
           {p.note && <span className="border-l-2 border-signal pl-2 text-[13.5px] text-fg-2">{p.note}</span>}
         </span>
         {saved ? (
-          <Link href="/learn/saved" className="inline-flex min-h-10 items-center gap-1.5 border border-ok px-3 font-mono text-[12px] text-fg">
+          <Link href="/saved" className="inline-flex min-h-10 items-center gap-1.5 border border-ok px-3 font-mono text-[12px] text-fg">
             <Check className="h-3.5 w-3.5 text-ok" aria-hidden /> {p.saved === "updated" ? "Updated" : "Saved"} · open
           </Link>
         ) : (

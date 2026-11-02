@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * You → Saved paths (/learn/saved): learning paths and sets of results saved from smart search (or the
+ * You → Saved paths (/saved): learning paths and sets of results saved from smart search (or the
  * course chat), each a checklist to follow from any tab or device. A step that is a whole lesson or side
  * quest is also done once the lesson is completed in normal progress. A path whose steps have dates (scheduled
  * by the course chat's study plan) shows them and downloads as a calendar (.ics), built in the browser.
@@ -40,7 +40,7 @@ const dueLabel = (d: string) => {
 function downloadPathIcs(p: SavedPath): number {
   const plan = savedPathPlan(p);
   if (!plan) return 0;
-  const ics = toIcs(plan, { title: p.title, url: `${SITE_ORIGIN}/learn/saved#p-${p.id}`, now: new Date(), sequence: Math.floor(p.updatedAt / 1000) });
+  const ics = toIcs(plan, { title: p.title, url: `${SITE_ORIGIN}/saved#p-${p.id}`, now: new Date(), sequence: Math.floor(p.updatedAt / 1000) });
   const blob = new Blob([ics], { type: "text/calendar;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -131,7 +131,7 @@ function PathCard({ p, open, onToggle, onRemove }: { p: SavedPath; open: boolean
             </button>
           )}
           {p.q && (
-            <Link href={`/learn/chat?q=${encodeURIComponent(p.q)}`} className="inline-flex min-h-11 items-center gap-2 px-3 text-[14px] text-fg-3 hover:text-fg">
+            <Link href={`/chat?q=${encodeURIComponent(p.q)}`} className="inline-flex min-h-11 items-center gap-2 px-3 text-[14px] text-fg-3 hover:text-fg">
               <Search className="h-4 w-4" aria-hidden />
               Search again
             </Link>
@@ -270,7 +270,7 @@ export default function SavedPaths() {
             {starters.map((x) => (
               <li key={x.text}>
                 <Link
-                  href={`/learn/chat?q=${encodeURIComponent(x.text)}${x.ai ? "&ask=1" : ""}`}
+                  href={`/chat?q=${encodeURIComponent(x.text)}${x.ai ? "&ask=1" : ""}`}
                   className="inline-flex min-h-10 items-center border border-dashed border-line-strong px-3 text-[14px] text-fg-2 hover:border-fg-3 hover:text-fg"
                 >
                   {x.text}

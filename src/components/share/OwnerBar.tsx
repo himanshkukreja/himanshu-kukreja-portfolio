@@ -15,7 +15,7 @@ export default function OwnerBar({ handle }: { handle: string }) {
         This is exactly what visitors see.
       </span>
       <span className="flex flex-wrap gap-2">
-        <Link href="/learn/dashboard#share" className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-[12px] text-fg hover:bg-surface-2">
+        <Link href="/dashboard#share" className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-[12px] text-fg hover:bg-surface-2">
           Edit what&apos;s visible
         </Link>
         <ShareButton kind="profile" variant="solid" label="Share" className="min-h-10" />

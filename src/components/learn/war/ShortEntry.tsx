@@ -31,7 +31,7 @@ export default function ShortEntry({ short }: { short: PlayableShort }) {
         <div role="dialog" aria-label={`Short: ${short.title}`} className="fixed inset-0 z-[90] flex items-center justify-center bg-black/85 p-3" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
           <div className="flex h-full max-h-[min(92dvh,900px)] flex-col items-center gap-2">
             <div className="flex w-full items-center justify-between gap-3 font-mono text-xs text-[#c9c8c4]">
-              <Link href={`/learn/shorts?v=${encodeURIComponent(short.id)}`} className="underline decoration-[#3a3a40] underline-offset-4 hover:text-white">
+              <Link href={`/shorts?v=${encodeURIComponent(short.id)}`} className="underline decoration-[#3a3a40] underline-offset-4 hover:text-white">
                 all shorts →
               </Link>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="grid h-10 w-10 place-items-center text-[#c9c8c4] hover:text-white">

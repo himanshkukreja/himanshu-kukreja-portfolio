@@ -28,7 +28,7 @@ export default function ReadingTrail({ lesson, entries }: { lesson: string; entr
               {Math.min(done, entries.length)}/{entries.length} read
             </span>
           )}
-          <Link href="/learn/reading" className="text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          <Link href="/reading" className="text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
             all reading →
           </Link>
         </span>

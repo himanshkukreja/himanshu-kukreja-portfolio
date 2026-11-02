@@ -42,7 +42,7 @@ const MERMAID_CLASSES = new Set(Object.keys((palette as { classes: Record<string
 const LESSONS_RE = /lessons?|takeaways?|what (we|i) learned|never again|playbook|for any engineer/i;
 const SUMMARY_RE = /summary|conclusion|closing|epilogue|the end|final thoughts|wrap(ping)? up/i;
 /** Top-level routes a story may link to (anything else under / is probably a typo). */
-const SITE_ROUTES = ["/", "/stories", "/learn", "/play", "/projects", "/newsletter", "/privacy", "/guide", "/auth", "/covers", "/case-files", "/learn-art", "/resume.pdf", "/blueprints"];
+const SITE_ROUTES = ["/", "/case-files", "/", "/play", "/projects", "/newsletter", "/privacy", "/guide", "/auth", "/covers", "/case-files", "/learn-art", "/resume.pdf", "/blueprints"];
 
 type Pos = { start: { line: number; offset?: number }; end: { line: number; offset?: number } };
 type AnyNode = { type: string; children?: AnyNode[]; position?: Pos; value?: string; depth?: number; url?: string; alt?: string | null; lang?: string | null };
@@ -106,8 +106,8 @@ export async function validateCaseFile(f: CaseFileFields, ctx: ValidateCtx): Pro
   else if (RESERVED_SLUGS.has(slug)) error("details", "slug-reserved", `"${slug}" is reserved.`, { field: "slug" });
   else {
     const other = ctx.cmsSlugs.get(slug);
-    if (other && other !== ctx.id) error("details", "slug-taken", `Another case file in the CMS already uses /stories/${slug}.`, { field: "slug" });
-    if (ctx.repoSlugs.has(slug) && !ctx.overridesFile) error("details", "slug-taken", `A repo story (content/stories/${slug}.md) already uses /stories/${slug}. Use "Import" on that story to edit it here.`, { field: "slug" });
+    if (other && other !== ctx.id) error("details", "slug-taken", `Another case file in the CMS already uses /case-files/${slug}.`, { field: "slug" });
+    if (ctx.repoSlugs.has(slug) && !ctx.overridesFile) error("details", "slug-taken", `A repo story (content/stories/${slug}.md) already uses /case-files/${slug}. Use "Import" on that story to edit it here.`, { field: "slug" });
   }
 
   const excerpt = f.excerpt.trim();
@@ -351,12 +351,12 @@ export async function validateCaseFile(f: CaseFileFields, ctx: ValidateCtx): Pro
         return;
       }
       if (/^http:\/\//i.test(url)) warn("body", "link-http", "Insecure http:// link: use https://.", { line });
-      if (/^https?:\/\/(www\.)?himanshukukreja\.in(\/|$)/i.test(url)) warn("body", "link-absolute", "Link to this site with a relative path (/stories/…) so it works on previews too.", { line });
+      if (/^https?:\/\/(www\.)?himanshukukreja\.in(\/|$)/i.test(url)) warn("body", "link-absolute", "Link to this site with a relative path (/case-files/…) so it works on previews too.", { line });
       if (url.startsWith("/")) {
         const path = url.split(/[?#]/)[0].replace(/\/$/, "") || "/";
         const story = /^\/stories\/([^/]+)$/.exec(path);
         if (story) {
-          if (!ctx.liveSlugs.has(story[1]) && story[1] !== slug) error("body", "link-story", `Broken link: /stories/${story[1]} isn't a published case file.`, { line });
+          if (!ctx.liveSlugs.has(story[1]) && story[1] !== slug) error("body", "link-story", `Broken link: /case-files/${story[1]} isn't a published case file.`, { line });
           return;
         }
         if (!SITE_ROUTES.some((r) => (r === "/" ? path === "/" : path === r || path.startsWith(r + "/")))) warn("body", "link-route", `Unknown site path ${path}: check the link.`, { line });

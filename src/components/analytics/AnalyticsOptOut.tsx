@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSyncExternalStore } from "react";
 import { OPTOUT_EVENT, analyticsTools, isOptedOut, privacySignal, setAnalyticsOptOut } from "@/lib/analytics/client";
+import { portfolioUrl } from "@/lib/site/hosts";
 
 const subscribe = (cb: () => void) => {
   window.addEventListener(OPTOUT_EVENT, cb);
@@ -44,7 +45,7 @@ export default function AnalyticsOptOut({ compact = false }: { compact?: boolean
   if (compact)
     return (
       <span className="inline-flex flex-wrap items-center gap-x-2 gap-y-1">
-        <Link href="/now" className="min-h-10 content-center hover:text-fg">
+        <Link href={portfolioUrl("/now")} className="min-h-10 content-center hover:text-fg">
           now
         </Link>
         <Link href="/privacy" className="min-h-10 content-center hover:text-fg">

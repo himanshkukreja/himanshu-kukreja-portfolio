@@ -507,7 +507,7 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
               <button type="button" onClick={restart} className="min-h-11 border border-line-strong px-4 text-sm font-medium text-fg hover:border-fg-3">
                 Play it again
               </button>
-              <Link href="/learn/war-stories" className="inline-flex min-h-11 items-center border border-line-strong px-4 text-sm font-medium text-fg-2 hover:border-fg-3 hover:text-fg">
+              <Link href="/war-stories" className="inline-flex min-h-11 items-center border border-line-strong px-4 text-sm font-medium text-fg-2 hover:border-fg-3 hover:text-fg">
                 All war stories
               </Link>
             </div>

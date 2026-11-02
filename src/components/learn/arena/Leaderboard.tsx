@@ -253,7 +253,7 @@ export default function Leaderboard() {
           />
         )}
         <div className="flex flex-wrap gap-2">
-          <Link href="/learn/arena/daily" className={BTN}>
+          <Link href="/arena/daily" className={BTN}>
             Play today&apos;s challenge →
           </Link>
         </div>

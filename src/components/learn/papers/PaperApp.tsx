@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/papers/<key>: a written paper. Start screen (practice or exam, the rules, marks and time) → the answering
+ * /papers/<key>: a written paper. Start screen (practice or exam, the rules, marks and time) → the answering
  * view (full screen: the question beside the answer sheet in landscape, above it in portrait; a question navigator;
  * the clock in exam mode) → grading → results.
  *
@@ -503,7 +503,7 @@ export default function PaperApp({ paper }: { paper: PaperView }) {
     <main ref={topRef} className="mx-auto flex max-w-[980px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-12">
       <header className="flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/papers" className="hover:text-fg">
+          <Link href="/papers" className="hover:text-fg">
             Written papers
           </Link>
           <span aria-hidden>/</span>

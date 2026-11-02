@@ -465,7 +465,7 @@ function Gate(
 ) {
   const { part, N, pm, cd, record, locked, resumable, weekLabel, weekTopic } = props;
   const lesson = part.lesson;
-  const lessonHref = lesson ? `/learn/${props.courseId}/${props.week}/${lesson.slug}` : null;
+  const lessonHref = lesson ? `/${props.week}/${lesson.slug}` : null;
   const attemptN = (record?.attempts ?? 0) + 1;
   const passed = !!record?.passed;
   const last = record?.last;

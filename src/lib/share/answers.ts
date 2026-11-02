@@ -2,10 +2,10 @@ import "server-only";
 /**
  * Storage for shared smart-search answers (`shared_answers`, supabase/migrations/20261029_shared_answers.sql).
  * Until the migration is applied everything reports "not enabled": the endpoint returns { enabled: false },
- * the button stays hidden and /learn/answer/<id> is a 404.
+ * the button stays hidden and /answer/<id> is a 404.
  *
  * Dev QA (NODE_ENV !== "production" AND SHARE_FIXTURES=1, like Share my progress): shares live in memory and
- * /learn/answer/fxdemo0001 is a sample. Production never takes that branch.
+ * /answer/fxdemo0001 is a sample. Production never takes that branch.
  */
 import { randomBytes } from "node:crypto";
 import { unstable_cache } from "next/cache";
@@ -51,9 +51,9 @@ const FIXTURE: Row = {
     ".",
   ],
   cites: [
-    { kind: "concept", title: "Consistent hashing", sub: "Taught in Partitioning deep dive", href: "/learn/concepts/consistent-hashing" },
-    { kind: "concept", title: "Virtual nodes", sub: "Taught in Partitioning deep dive", href: "/learn/concepts/virtual-nodes" },
-    { kind: "section", title: "Consistent hashing: the elegant solution", sub: "W01 · Day 1 · Partitioning deep dive", href: "/learn/system-design-mastery/week-01-data-at-scale/day-01-partitioning-deep-dive#s-3-2-consistent-hashing-the-elegant-solution" },
+    { kind: "concept", title: "Consistent hashing", sub: "Taught in Partitioning deep dive", href: "/concepts/consistent-hashing" },
+    { kind: "concept", title: "Virtual nodes", sub: "Taught in Partitioning deep dive", href: "/concepts/virtual-nodes" },
+    { kind: "section", title: "Consistent hashing: the elegant solution", sub: "W01 · Day 1 · Partitioning deep dive", href: "/week-01-data-at-scale/day-01-partitioning-deep-dive#s-3-2-consistent-hashing-the-elegant-solution" },
   ],
   hidden: false,
 };

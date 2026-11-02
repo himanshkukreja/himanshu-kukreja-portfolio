@@ -70,13 +70,13 @@ export function StartCta({ handle, who, compact = false }: { handle: string; who
         {who} is learning with {COURSE_NAME}: 12 worlds, 11 interview bosses, 1,000+ quick checks and a daily challenge. Start where they started.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-        <Link href={withRef("/learn", handle)} className="flex min-h-[52px] items-center justify-between gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
+        <Link href={withRef("/", handle)} className="flex min-h-[52px] items-center justify-between gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
           <span>Start the free course</span>
           <span aria-hidden className="font-mono">
             →
           </span>
         </Link>
-        <Link href={withRef("/learn/arena/daily", handle)} className="flex min-h-[52px] items-center justify-between gap-3 border border-line-strong px-5 text-[15px] text-fg hover:bg-surface-2">
+        <Link href={withRef("/arena/daily", handle)} className="flex min-h-[52px] items-center justify-between gap-3 border border-line-strong px-5 text-[15px] text-fg hover:bg-surface-2">
           <span>Take today&apos;s daily challenge</span>
           <span aria-hidden className="font-mono text-signal-text">
             →
@@ -188,7 +188,7 @@ export default function PublicProfile({ p, map }: { p: Profile; map: CourseMap }
         <div className="flex min-w-0 flex-col gap-3 self-start">
           <StartCta handle={p.handle} who={who} compact />
           {a?.bestDaily && (
-            <Link href={withRef("/learn/arena/daily", p.handle)} className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-3 hover:border-line-strong">
+            <Link href={withRef("/arena/daily", p.handle)} className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-3 hover:border-line-strong">
               <span className="flex min-w-0 flex-col gap-0.5">
                 <span className={LABEL}>can you beat their score?</span>
                 <span className="text-sm text-fg">
@@ -225,7 +225,7 @@ export default function PublicProfile({ p, map }: { p: Profile; map: CourseMap }
               <Stat value={a.dailyStreak} unit="d" label="daily streak" sub="daily challenges in a row" />
             </div>
           </div>
-          <Link href={withRef("/learn/arena/daily", p.handle)} className="flex min-h-[52px] items-center justify-between gap-3 border border-signal bg-surface px-5 hover:bg-surface-2 sm:self-start">
+          <Link href={withRef("/arena/daily", p.handle)} className="flex min-h-[52px] items-center justify-between gap-3 border border-signal bg-surface px-5 hover:bg-surface-2 sm:self-start">
             <span className="text-[15px] font-semibold text-fg">Can you beat {who}? Take today&apos;s daily challenge</span>
             <span aria-hidden className="font-mono text-signal-text">
               →
@@ -291,7 +291,7 @@ export default function PublicProfile({ p, map }: { p: Profile; map: CourseMap }
 
       <p className="m-0 text-center font-mono text-[12px] leading-relaxed text-fg-4">
         {p.name || `@${p.handle}`} chose to share this page. Learners&apos; pages are private until they turn sharing on.{" "}
-        <Link href={withRef("/learn/dashboard#share", p.handle)} className="text-fg-3 underline underline-offset-4 hover:text-fg">
+        <Link href={withRef("/dashboard#share", p.handle)} className="text-fg-3 underline underline-offset-4 hover:text-fg">
           make your own →
         </Link>
       </p>

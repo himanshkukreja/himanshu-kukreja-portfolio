@@ -1,5 +1,5 @@
 // Server-only: story markdown → the article HTML + checkpoints StoryReader shows. Shared by the public
-// reader (/stories/[slug]) and the admin CMS preview, so a draft previews exactly as it will publish.
+// reader (/case-files/[slug]) and the admin CMS preview, so a draft previews exactly as it will publish.
 import { renderLessonDetailed, type RenderStats } from "@/lib/course/render";
 import type { TermsOpts } from "@/lib/course/terms";
 import { extractHeadings, addHeadingIds } from "@/lib/toc";

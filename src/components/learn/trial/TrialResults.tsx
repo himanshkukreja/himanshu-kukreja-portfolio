@@ -134,7 +134,7 @@ export default function TrialResults({ part, questions, result, weekLabel, views
         </span>
         <div className="flex flex-wrap gap-2">
           <Link
-            href="/learn/review"
+            href="/review"
             className="inline-flex min-h-[52px] items-center border border-signal px-[18px] text-[15px] font-semibold text-signal-text no-underline hover:bg-surface-2"
           >
             Open review queue →

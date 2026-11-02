@@ -36,6 +36,7 @@ import {
   type CaseFile,
   type Debrief,
 } from "./case-types";
+import { portfolioUrl } from "@/lib/site/hosts";
 
 export type Checkpoint = { id: string; label: string };
 export type CaseLink = Pick<CaseFile, "slug" | "caseId" | "type" | "title">;
@@ -357,7 +358,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
       {/* Reader bar: back link, checkpoint, progress with checkpoint ticks */}
       <div ref={barRef} data-sticky-header className="sticky z-40 border-b border-line bg-[color-mix(in_srgb,var(--c-bg)_92%,transparent)] backdrop-blur" style={{ top: siteTop }}>
         <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-5 gap-y-0 px-4 sm:px-6">
-          <Link href="/stories" className="inline-flex min-h-11 items-center gap-2 text-sm text-fg-3 no-underline hover:text-fg">
+          <Link href="/case-files" className="inline-flex min-h-11 items-center gap-2 text-sm text-fg-3 no-underline hover:text-fg">
             ← Case files
           </Link>
           <span className="font-mono text-xs text-fg-3">
@@ -478,7 +479,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
               </span>
               <span className="grow" />
               <div className="flex flex-wrap gap-1.5">
-                <SaveOfflineButton title={meta.title} kind="story" url={`/stories/${meta.slug}`} />
+                <SaveOfflineButton title={meta.title} kind="story" url={`/case-files/${meta.slug}`} />
                 {ai?.features["lesson-qa"] && (
                   <button
                     type="button"
@@ -595,7 +596,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                   ))}
                 </div>
               )}
-              <Link href="/stories" className="self-start font-mono text-xs text-signal-text no-underline hover:underline">
+              <Link href="/case-files" className="self-start font-mono text-xs text-signal-text no-underline hover:underline">
                 All case files →
               </Link>
             </section>
@@ -620,7 +621,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
             {(prev || next) && (
               <nav aria-label="More case files" className="grid grid-cols-[repeat(auto-fit,minmax(min(280px,100%),1fr))] gap-3">
                 {prev && (
-                  <Link href={`/stories/${prev.slug}`} className="flex flex-col gap-2 border border-line p-5 text-fg no-underline hover:border-line-strong hover:bg-surface hover:text-fg">
+                  <Link href={`/case-files/${prev.slug}`} className="flex flex-col gap-2 border border-line p-5 text-fg no-underline hover:border-line-strong hover:bg-surface hover:text-fg">
                     <span className="font-mono text-xs text-fg-3">
                       ← {prev.caseId} · {CASE_TYPE_LABEL[prev.type].toUpperCase()}
                     </span>
@@ -629,7 +630,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                 )}
                 {next && (
                   <Link
-                    href={`/stories/${next.slug}`}
+                    href={`/case-files/${next.slug}`}
                     className="flex flex-col gap-2 border border-line p-5 text-right text-fg no-underline hover:border-line-strong hover:bg-surface hover:text-fg"
                   >
                     <span className="font-mono text-xs text-fg-3">
@@ -704,7 +705,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
           <div className="flex flex-wrap items-center justify-between gap-4 border border-dashed border-line-strong px-5 py-5 sm:px-6">
             <span className="text-[15px] leading-normal text-fg-2">You&apos;ve seen the theory. Now try holding the door yourself.</span>
             <Link
-              href="/#rush"
+              href={portfolioUrl("/#rush")}
               className="inline-flex min-h-11 items-center border border-signal px-4 text-sm font-semibold text-signal-text hover:bg-signal hover:text-on-signal"
             >
               Replay as Tatkal Rush →

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/prep/questions: every company's questions merged by title, most-reported first. Filter by
+ * /prep/questions: every company's questions merged by title, most-reported first. Filter by
  * type, company and evidence, or search; each row links the lessons that teach it and the companies
  * (a filled dot = reported with a source, an outline = likely from their products).
  */
@@ -80,7 +80,7 @@ export default function QuestionBank({ bank, companies }: { bank: BankQuestion[]
                 {b.companies.map((c) => (
                   <Link
                     key={c.slug}
-                    href={`/learn/prep/companies/${c.slug}`}
+                    href={`/prep/companies/${c.slug}`}
                     title={c.evidence === "reported" ? `Reported at ${c.name}` : `Likely at ${c.name}, from its products`}
                     className={c.evidence === "reported" ? "text-fg hover:text-signal-text" : "text-fg-3 hover:text-fg"}
                   >

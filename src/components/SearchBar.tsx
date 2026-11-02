@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Course search (⌘K on /learn). Grouped results: lessons, case files, moments inside lectures and shorts,
+ * Course search (⌘K on /). Grouped results: lessons, case files, moments inside lectures and shorts,
  * interview questions, your notes. Data: the existing /api/search payload (loaded the first time the palette
  * opens, not on mount), the transcript index /api/search/transcripts (loaded only once a query has 3+
  * characters) and, for signed-in learners, their own content_notes.
@@ -41,7 +41,6 @@ type Hit = {
   words?: boolean;
 };
 
-const COURSE = "system-design-mastery";
 const RECENT_KEY = "hk.search.recent";
 export const COURSE_SEARCH_EVENT = "hk:course-search";
 
@@ -225,7 +224,7 @@ type NoteRow = { id: string; week: string; lesson_slug: string; note_text: strin
 function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const { user } = useAuth();
-  // smart search (/learn/chat): an "Ask" row, for admins only until it launches (lib/search/smart/flag.ts)
+  // smart search (/chat): an "Ask" row, for admins only until it launches (lib/search/smart/flag.ts)
   const smart = useSmartAccess() === "open";
   const [docs, setDocs] = useState<Doc[] | null>(null);
   const [cases, setCases] = useState<CaseDoc[]>([]);
@@ -378,7 +377,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       title: d.title,
       sub: snippet(d.content || d.excerpt || "", t, 60) || topicFor(d.week),
       meta: topicFor(d.week),
-      href: `/learn/${COURSE}/${d.week}/${d.slug}?highlight=${encodeURIComponent(t)}`,
+      href: `/${d.week}/${d.slug}?highlight=${encodeURIComponent(t)}`,
     }));
     const qHits: Hit[] = questions
       .filter((x) => x.text.toLowerCase().includes(lower))
@@ -389,7 +388,7 @@ function Palette({ onClose }: { onClose: () => void }) {
         badge: `Q ${x.n}`,
         title: `“${x.text}”`,
         sub: `${x.doc.title} · ${topicFor(x.doc.week)} · strong answer inside`,
-        href: `/learn/${COURSE}/${x.doc.week}/${x.doc.slug}?highlight=${encodeURIComponent(x.text.slice(0, 60))}`,
+        href: `/${x.doc.week}/${x.doc.slug}?highlight=${encodeURIComponent(x.text.slice(0, 60))}`,
       }));
     const nHits: Hit[] = notes
       .filter((n) => `${n.note_text || ""} ${n.highlight_text || ""}`.toLowerCase().includes(lower))
@@ -402,7 +401,7 @@ function Palette({ onClose }: { onClose: () => void }) {
           badge: isNote ? "NOTE" : "HL",
           title: (isNote ? n.note_text : n.highlight_text) || "",
           sub: `${isNote ? "note" : "highlight"} · ${titleOf.get(`${n.week}/${n.lesson_slug}`) || n.lesson_slug} · ${new Date(n.created_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`,
-          href: `/learn/${COURSE}/${n.week}/${n.lesson_slug}${n.highlight_offset !== null ? `#note-${n.highlight_offset}` : ""}`,
+          href: `/${n.week}/${n.lesson_slug}${n.highlight_offset !== null ? `#note-${n.highlight_offset}` : ""}`,
         };
       });
     const cHits: Hit[] = (caseFuse?.search(t).slice(0, 5) || []).map(({ item: c }) => ({
@@ -411,7 +410,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       badge: "CASE",
       title: c.title,
       sub: snippet(c.content || c.excerpt, t, 60) || c.excerpt.slice(0, 90),
-      href: `/stories/${c.slug}`,
+      href: `/case-files/${c.slug}`,
     }));
     const coHits: Hit[] = (companyFuse?.search(t).slice(0, 4) || []).map(({ item: c }) => ({
       id: `co:${c.slug}`,
@@ -419,14 +418,14 @@ function Palette({ onClose }: { onClose: () => void }) {
       badge: "CO",
       title: `${c.name} · interview prep`,
       sub: `${c.count} questions${c.reported ? `, ${c.reported} reported by candidates` : ""} · ${c.builds}`.slice(0, 140),
-      href: `/learn/prep/companies/${c.slug}`,
+      href: `/prep/companies/${c.slug}`,
     }));
     const tHits: Hit[] = transcripts && typeof transcripts === "object" ? searchTranscripts(transcripts, t) : [];
     const askHits: Hit[] =
       smart && t.length >= 2
         ? [
-            { id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "The course tutor answers with its sources, a learning path to save and a quick quiz", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` },
-            { id: "all", group: "ask", badge: "ALL", title: `See all results for “${t.slice(0, 120)}”`, sub: "Every lesson, lecture moment, short, quest and story that matches, grouped (no AI)", href: `/learn/chat?q=${encodeURIComponent(t.slice(0, 300))}&view=results` },
+            { id: "ask", group: "ask", badge: "ASK", title: `Ask: “${t.slice(0, 120)}”`, sub: "The course tutor answers with its sources, a learning path to save and a quick quiz", href: `/chat?q=${encodeURIComponent(t.slice(0, 300))}&ask=1` },
+            { id: "all", group: "ask", badge: "ALL", title: `See all results for “${t.slice(0, 120)}”`, sub: "Every lesson, lecture moment, short, quest and story that matches, grouped (no AI)", href: `/chat?q=${encodeURIComponent(t.slice(0, 300))}&view=results` },
           ]
         : [];
     const askFirst = isNaturalQuery(t);
@@ -506,7 +505,7 @@ function Palette({ onClose }: { onClose: () => void }) {
       e.preventDefault();
       remember();
       onClose();
-      router.push(`/learn/chat?q=${encodeURIComponent(q.trim().slice(0, 300))}`);
+      router.push(`/chat?q=${encodeURIComponent(q.trim().slice(0, 300))}`);
     } else if (e.key === "Enter" && visible[sel]) {
       e.preventDefault();
       open(visible[sel], e.metaKey || e.ctrlKey);
@@ -531,12 +530,12 @@ function Palette({ onClose }: { onClose: () => void }) {
   const askFirst = isNaturalQuery(q.trim());
   const groups: { key: Group; label: string; more?: { label: string; href: string } }[] = [
     ...(askFirst ? [askGroup] : []),
-    { key: "companies", label: "Companies", more: { label: "all companies →", href: "/learn/prep/companies" } },
+    { key: "companies", label: "Companies", more: { label: "all companies →", href: "/prep/companies" } },
     { key: "lessons", label: "Lessons" },
-    { key: "cases", label: "Case files", more: { label: "all case files →", href: "/stories" } },
-    { key: "transcripts", label: "In lectures", more: { label: "all lectures →", href: "/learn/lectures" } },
+    { key: "cases", label: "Case files", more: { label: "all case files →", href: "/case-files" } },
+    { key: "transcripts", label: "In lectures", more: { label: "all lectures →", href: "/lectures" } },
     { key: "questions", label: "Interview questions" },
-    { key: "notes", label: "Your notes", more: { label: "open notebook →", href: "/learn/notebook?tab=notes" } },
+    { key: "notes", label: "Your notes", more: { label: "open notebook →", href: "/notebook?tab=notes" } },
     ...(askFirst ? [] : [askGroup]),
   ];
   const chip = (on: boolean) =>
@@ -611,7 +610,7 @@ function Palette({ onClose }: { onClose: () => void }) {
           {q.trim() && failed && visible.length === 0 && (
             <p className="px-2 py-6 text-sm leading-relaxed text-fg-3">
               Search needs a connection. Lessons saved on this device are in the{" "}
-              <Link href="/learn/offline" onClick={onClose} className="text-signal-text underline decoration-line-strong underline-offset-4">
+              <Link href="/offline" onClick={onClose} className="text-signal-text underline decoration-line-strong underline-offset-4">
                 offline library
               </Link>
               .

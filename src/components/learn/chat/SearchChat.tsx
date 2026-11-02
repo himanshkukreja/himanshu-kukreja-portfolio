@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/chat: the course chat as an app (design notes: the chat redesign of 29 Oct 2026).
+ * /chat: the course chat as an app (design notes: the chat redesign of 29 Oct 2026).
  *
  * Zones by width:
  *   >= 1280  history sidebar (collapsible) · the conversation (760px reading width) · the context rail
@@ -190,7 +190,7 @@ function ChatPage() {
     sentFor.current = q;
     // the URL asked for it (?ask=1): send once, as if the learner pressed Ask
     if (canChat) ask(q);
-    router.replace(`/learn/chat?q=${encodeURIComponent(q)}${dev ? "&preview=1" : ""}`, { scroll: false });
+    router.replace(`/chat?q=${encodeURIComponent(q)}${dev ? "&preview=1" : ""}`, { scroll: false });
   }, [asked, q, loading, user, ai, canChat, ask, router, dev]);
 
   // keep the newest message in view while it is written, unless the learner scrolled up to read (then a "new

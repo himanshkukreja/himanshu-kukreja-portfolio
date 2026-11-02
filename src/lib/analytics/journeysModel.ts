@@ -4,6 +4,7 @@
  * server routes and the dev fixtures alike).
  */
 import type { PathsRes, TimelineKind } from "./journeys";
+import { isCourseVisit } from "@/lib/learn/paths";
 
 export type TitleOf = (path: string | null | undefined) => string | null;
 export type Props = Record<string, string | number | boolean | null | undefined>;
@@ -82,7 +83,7 @@ export function propsFrom(row: unknown[], offset: number): Props {
 
 /**
  * PostHog `elements_chain`: elements from the clicked one outwards, `;`-separated, e.g.
- * `button.btn:text="Start lesson"nth-child="2"attr__href="/learn";div.wrap:nth-child="1"`.
+ * `button.btn:text="Start lesson"nth-child="2"attr__href="/";div.wrap:nth-child="1"`.
  */
 export function parseElements(chain: string | null | undefined): { tag: string | null; text: string | null; href: string | null } {
   if (!chain) return { tag: null, text: null, href: null };
@@ -115,12 +116,12 @@ const clip = (s: string, n = 60) => (s.length > n ? `${s.slice(0, n - 1)}…` : 
 const s = (v: unknown) => (v == null ? "" : String(v));
 
 function lessonName(p: Props, titleOf: TitleOf): string {
-  if (p.course && p.week && p.lesson) return titleOf(`/learn/${p.course}/${p.week}/${p.lesson}`) || s(p.lesson);
+  if (p.course && p.week && p.lesson) return titleOf(`/${p.week}/${p.lesson}`) || s(p.lesson);
   return s(p.lesson || p.slug || "a lesson");
 }
 function storyName(p: Props, titleOf: TitleOf): string {
   const slug = s(p.story || p.slug);
-  return (slug && titleOf(`/stories/${slug}`)) || slug || "a case file";
+  return (slug && titleOf(`/case-files/${slug}`)) || slug || "a case file";
 }
 
 const mb = (v: unknown) => {
@@ -237,7 +238,7 @@ export type PathRow = [string, string, string | null, string | null, string];
 
 export const FUNNEL_STEPS = [
   { key: "land", label: "Landed" },
-  { key: "learn", label: "Visited /learn" },
+  { key: "learn", label: "Visited the course" },
   { key: "lesson_open", label: "Opened a lesson" },
   { key: "stage_done", label: "Finished a stage" },
   { key: "lesson_complete", label: "Completed a lesson" },
@@ -269,7 +270,7 @@ export function computePaths(rows: PathRow[], titleOf: TitleOf, days: number): O
       step === "land"
         ? event === "$pageview"
         : step === "learn"
-          ? event === "$pageview" && !!path && (path === "/learn" || path.startsWith("/learn/"))
+          ? event === "$pageview" && isCourseVisit(path)
           : event === step;
     if (hit) people.set(person, next);
   }

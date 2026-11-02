@@ -13,7 +13,7 @@ export const metadata = {
   title: "Design sheets · System Design Mastery",
   description:
     "Every side quest's system design on a few printable pages: numbers, architecture diagrams with real tech icons, sequence, class and state diagrams, decisions and failure modes. Revise a whole design in minutes.",
-  alternates: { canonical: "/learn/sheets" },
+  alternates: { canonical: "/sheets" },
 };
 
 export default async function SheetsIndex() {
@@ -23,7 +23,7 @@ export default async function SheetsIndex() {
     <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-14">
       <header className="flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/prep" className="hover:text-fg">
+          <Link href="/prep" className="hover:text-fg">
             Prep
           </Link>
           <span aria-hidden>/</span>

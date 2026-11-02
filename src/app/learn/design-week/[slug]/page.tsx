@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return {
     title: `${d.challenge.title} · Design of the week`,
     description: d.challenge.summary || "One open system design problem a week, voted by the community.",
-    alternates: { canonical: `/learn/design-week/${slug}` },
+    alternates: { canonical: `/design-week/${slug}` },
   };
 }
 

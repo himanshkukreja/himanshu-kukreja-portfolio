@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       shorts: st.shorts
         .map((s) => {
           const m = meta.get(s.id);
-          return { ...s, title: m?.title || s.id, group: m ? `${label.get(m.category) || m.category} · ${m.label}` : "", href: `/learn/shorts?v=${encodeURIComponent(s.id)}`, length: m?.seconds ?? null, score: Math.round(shortScore(s) * 100) / 100 };
+          return { ...s, title: m?.title || s.id, group: m ? `${label.get(m.category) || m.category} · ${m.label}` : "", href: `/shorts?v=${encodeURIComponent(s.id)}`, length: m?.seconds ?? null, score: Math.round(shortScore(s) * 100) / 100 };
         })
         .sort((a, b) => b.viewers - a.viewers),
     });

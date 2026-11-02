@@ -11,7 +11,7 @@ export default function NotebookDetails() {
       <div className={PROSE}>
         <p>
           The pen button (<Kbd>N</Kbd> on a keyboard) opens the notebook beside whatever you&apos;re reading: a lesson, a side quest, a lecture. On a laptop or a tablet held sideways it docks at the side; on a tablet held upright the lesson
-          stays on top and your page sits below, with a handle to resize the split. The panel keeps your recent pages one tap away, and the <A href="/learn/notebook">notebook</A> lists every page, newest first.
+          stays on top and your page sits below, with a handle to resize the split. The panel keeps your recent pages one tap away, and the <A href="/notebook">notebook</A> lists every page, newest first.
         </p>
         <p>
           <strong>Writing:</strong> pen, highlighter, eraser and lasso, with real pressure on an active pen. Scribble over strokes to erase them, hold the pen still for a quick menu (erase, recolour, thicker, thinner, turn into text),
@@ -53,7 +53,7 @@ export default function NotebookDetails() {
       </Topic>
       <div className={PROSE}>
         <p>
-          Every week of the course and every side quest has a <A href="/learn/papers">written paper</A>: questions built from its checkpoints, drills and design prompts. Sit it untimed (practice) or against the clock (exam) and
+          Every week of the course and every side quest has a <A href="/papers">written paper</A>: questions built from its checkpoints, drills and design prompts. Sit it untimed (practice) or against the clock (exam) and
           answer each question by hand on a sheet. The AI marks every point of the question&apos;s marking scheme and shows the evidence it found on your sheet; then read the model answer and send what you missed to review. A
           paper&apos;s card also sits next to the week&apos;s trial.
         </p>
@@ -92,7 +92,7 @@ export default function NotebookDetails() {
         </p>
       </Note>
       <Where>
-        the <A href="/learn/notebook">notebook</A> tab; the pencil button in the phone reading toolbar; the Notebook card on the progress page.
+        the <A href="/notebook">notebook</A> tab; the pencil button in the phone reading toolbar; the Notebook card on the progress page.
       </Where>
     </>
   );

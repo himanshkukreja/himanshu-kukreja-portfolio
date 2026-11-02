@@ -2,7 +2,7 @@
 
 /**
  * Written papers in the browser: the paper index (which weeks and quests have a paper; one cached request per tab,
- * /learn/papers/index.json) and a learner's record for a paper (the game flag `paper:<key>`).
+ * /papers/index.json) and a learner's record for a paper (the game flag `paper:<key>`).
  */
 import { useEffect, useSyncExternalStore } from "react";
 import { useGame } from "@/game/GameProvider";
@@ -14,7 +14,7 @@ const subs = new Set<() => void>();
 
 function load() {
   if (index || loading) return;
-  loading = fetch("/learn/papers/index.json")
+  loading = fetch("/papers/index.json")
     .then((r) => (r.ok ? (r.json() as Promise<PaperIndexEntry[]>) : []))
     .catch(() => [] as PaperIndexEntry[])
     .then((list) => {

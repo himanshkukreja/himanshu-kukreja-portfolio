@@ -139,7 +139,7 @@ export default function ActivityShell({ slug, caseId, def }: { slug: string; cas
   };
 
   const share = async () => {
-    const url = `${window.location.origin}/stories/${slug}`;
+    const url = `${window.location.origin}/case-files/${slug}`;
     const text = [`$ debrief --interactive --case ${caseId}`, `> ${def.title}`, `> score ${total}/${max} · ${rank(total, max)}`, `> ${url}`].join("\n");
     const ok = await copyText(text);
     setCopied(ok ? "ok" : "fail");

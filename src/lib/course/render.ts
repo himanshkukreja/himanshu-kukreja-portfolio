@@ -24,6 +24,7 @@ import { missionFrom, neutralizeDirectives } from "./detect/directives";
 import type { ContainerDirective } from "mdast-util-directive";
 import { practiceFor, type PracticeGame } from "@/lib/learn/arena/games";
 import { markTerms, type TermsOpts } from "./terms";
+import { cleanHtmlLinks } from "@/lib/learn/paths";
 
 export type RenderStats = Record<string, number>;
 
@@ -567,7 +568,8 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
   const hast = (await toHast.run(outRoot)) as HastRoot;
   hastPass(hast, stats, { check: 0 });
   if (opts.terms) stats.terms = markTerms(hast, opts.terms).marks;
-  const html = unified().use(rehypeStringify).stringify(hast);
+  // the course repo's own links still say /learn/… (and /stories/…): clean course paths
+  const html = cleanHtmlLinks(unified().use(rehypeStringify).stringify(hast));
 
   const readingMinutes = stages.reduce((a, s) => a + s.minutes, 0);
   return {

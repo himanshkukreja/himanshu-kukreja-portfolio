@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getLearningResource } from "@/lib/github";
-import { COURSE_ID } from "@/lib/learn/course";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { parseCheck } from "@/lib/ai/notes";
@@ -50,7 +49,7 @@ export async function POST(request: Request) {
   if (!r.ok) return aiError(r);
   await saveTranscript(r.callId, me.id, "notes-check", input, r.text);
   const parsed = parseCheck(r.text, context.sections, context.texts, notes, context.outline);
-  const href = `/learn/${COURSE_ID}/${lk.week}/${lk.slug}`;
+  const href = `/${lk.week}/${lk.slug}`;
   // an answer that isn't the JSON asked for: show it as text rather than lose what was paid for
   if (!parsed) return NextResponse.json({ summary: "", items: [], raw: r.text.slice(0, 4000), lesson: { title: lesson.resource.title, href }, credits: r.credits, creditsLeft: r.creditsLeft });
   return NextResponse.json({ ...parsed, lesson: { title: lesson.resource.title, href }, credits: r.credits, creditsLeft: r.creditsLeft });

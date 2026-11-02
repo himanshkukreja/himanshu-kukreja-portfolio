@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { lectureMediaBase } from "@/lib/learn/lecture/load";
-import { SITE_URL } from "@/lib/site";
+// course URLs live on the course host
+import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 
 export const runtime = "nodejs";
 export const revalidate = 86400;
@@ -20,7 +21,7 @@ export async function GET(_req: Request, { params }: Ctx) {
   if (!res?.ok) return NextResponse.json({ error: "Not found." }, { status: 404 });
   const ch = (await res.json()) as { title: string; at: number }[];
   return NextResponse.json(
-    { version: "1.2.0", chapters: ch.filter((c) => c && Number.isFinite(c.at)).map((c) => ({ startTime: Math.round(c.at * 10) / 10, title: c.title, url: `${SITE_URL}/learn/lectures/${id}?t=${Math.floor(c.at)}` })) },
+    { version: "1.2.0", chapters: ch.filter((c) => c && Number.isFinite(c.at)).map((c) => ({ startTime: Math.round(c.at * 10) / 10, title: c.title, url: `${SITE_URL}/lectures/${id}?t=${Math.floor(c.at)}` })) },
     { headers: { "content-type": "application/json+chapters; charset=utf-8", "access-control-allow-origin": "*" } }
   );
 }

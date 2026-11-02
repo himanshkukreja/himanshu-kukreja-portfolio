@@ -1,4 +1,4 @@
-/** War stories (/learn/war-stories): real stories and war-room incident simulations. */
+/** War stories (/war-stories): real stories and war-room incident simulations. */
 
 export const STORY_THEMES = ["scale", "outage", "migration", "cost", "human", "oddity"] as const;
 export type StoryTheme = (typeof STORY_THEMES)[number];
@@ -75,7 +75,7 @@ export type WarRoom = WarRoomSummary & {
 /** The run review's grade (fixed by the server from the run: wrong picks + harmful typed moves). */
 export type RunGrade = "strong" | "solid" | "shaky" | "rough";
 
-export const storyHref = (slug: string) => `/learn/war-stories/${slug}`;
-export const warRoomHref = (slug: string) => `/learn/war-stories/war-room/${slug}`;
+export const storyHref = (slug: string) => `/war-stories/${slug}`;
+export const warRoomHref = (slug: string) => `/war-stories/war-room/${slug}`;
 export const warRoomKey = (slug: string) => `warroom:${slug}`;
 export const WAR_ROOM_XP = 60;

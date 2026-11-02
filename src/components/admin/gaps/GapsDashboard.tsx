@@ -104,7 +104,7 @@ function TopicsPanel() {
         <div className="flex min-w-0 flex-col gap-1 py-1">
           <div className="flex flex-wrap items-center gap-2">
             {t.conceptId ? (
-              <Link href={`/learn/concepts/${t.conceptId}`} className="font-semibold text-fg hover:underline" target="_blank">
+              <Link href={`/concepts/${t.conceptId}`} className="font-semibold text-fg hover:underline" target="_blank">
                 {t.label}
               </Link>
             ) : (
@@ -272,7 +272,7 @@ function SharesPanel() {
       render: (s) => (
         <div className="flex min-w-0 flex-col gap-0.5 py-1">
           <span className={`text-[14px] ${s.hidden ? "text-fg-4 line-through" : "text-fg"}`}>{s.question}</span>
-          <span className="font-mono text-[11px] text-fg-4">/learn/answer/{s.id}</span>
+          <span className="font-mono text-[11px] text-fg-4">/answer/{s.id}</span>
         </div>
       ),
     },
@@ -285,7 +285,7 @@ function SharesPanel() {
       render: (s) => (
         <div className="flex items-center justify-end gap-2">
           {!s.hidden && (
-            <a href={`/learn/answer/${s.id}`} target="_blank" rel="noopener" className="inline-flex min-h-8 items-center gap-1 px-2 text-[12px] text-fg-3 hover:text-fg" aria-label="Open the page">
+            <a href={`/answer/${s.id}`} target="_blank" rel="noopener" className="inline-flex min-h-8 items-center gap-1 px-2 text-[12px] text-fg-3 hover:text-fg" aria-label="Open the page">
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             </a>
           )}
@@ -299,7 +299,7 @@ function SharesPanel() {
   ];
   if (error && !data) return <ErrorState error={error} onRetry={reload} />;
   if (data && !data.enabled)
-    return <EmptyState title="Answer sharing is off" hint="It switches on when the shared_answers migration (supabase/migrations/20261029_shared_answers.sql) is applied. Until then /learn/chat hides Share." />;
+    return <EmptyState title="Answer sharing is off" hint="It switches on when the shared_answers migration (supabase/migrations/20261029_shared_answers.sql) is applied. Until then /chat hides Share." />;
   return (
     <Card label={`Shared answers${data ? ` · ${fmtNum(data.total)}` : ""}`} pad={false}>
       {loading && !data ? (

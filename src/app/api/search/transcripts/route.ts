@@ -74,7 +74,7 @@ export async function GET() {
   for (const { s, l: sh } of shortScripts) {
     const text = sh ? shortText(sh) : "";
     if (!text) continue;
-    const k = l.push([s.id, s.title, s.label, `/learn/shorts?v=${encodeURIComponent(s.id)}`, TRANSCRIPT_SHORT]) - 1;
+    const k = l.push([s.id, s.title, s.label, `/shorts?v=${encodeURIComponent(s.id)}`, TRANSCRIPT_SHORT]) - 1;
     m.push([k, -1, text]);
   }
 

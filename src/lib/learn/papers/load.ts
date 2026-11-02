@@ -18,6 +18,7 @@ import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import type { CourseLesson, CourseMap } from "@/lib/learn/types";
 import { PAPER_KEY_RE, parsePaper, sourceHref, type PaperKind, type ParsedPaper } from "./parse";
 import type { PaperSummary, PaperView } from "./types";
+import { cleanHtmlLinks } from "@/lib/learn/paths";
 
 export const PAPERS_DIR = "resources/papers";
 const NEXT_DIR = "resources/papers-next";
@@ -31,7 +32,7 @@ async function md2html(md: string): Promise<string> {
   const rehypeStringify = (await import("rehype-stringify")).default;
   // raw HTML in the Markdown is dropped (remark-rehype's default): the content is text, tables and code only
   const file = await unified().use(remarkParse).use(remarkGfm).use(remarkRehype).use(rehypeStringify).process(md);
-  return String(file);
+  return cleanHtmlLinks(String(file));
 }
 
 /** Markdown as one line of plain text (review cards, the grader's context). */
@@ -77,7 +78,7 @@ function owners(map: CourseMap): Map<string, Owner> {
   const out = new Map<string, Owner>();
   map.weeks.forEach((w) => {
     const first = w.lessons[0];
-    out.set(w.key, { kind: "week", code: `W${w.code}`, label: `Week ${w.code} · ${w.title}`, title: w.title, href: first?.href ?? `/learn/${map.courseId}`, order: w.num, week: w.key });
+    out.set(w.key, { kind: "week", code: `W${w.code}`, label: `Week ${w.code} · ${w.title}`, title: w.title, href: first?.href ?? `/`, order: w.num, week: w.key });
   });
   map.sideQuests.forEach((q, i) => {
     out.set(q.slug, { kind: "quest", code: q.code, label: `${q.code} · ${q.title}`, title: q.title, href: q.href, order: 1000 + i, week: q.week });
@@ -124,7 +125,7 @@ async function buildView(p: ParsedPaper, owner: Owner, lessons: Map<string, Cour
     ownerHref: owner.href,
     week: owner.week,
     order: owner.order,
-    href: `/learn/papers/${p.key}`,
+    href: `/papers/${p.key}`,
     kinds,
     version: createHash("sha1").update(raw).digest("hex").slice(0, 10),
     questions,

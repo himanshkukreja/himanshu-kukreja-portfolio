@@ -11,15 +11,16 @@
  * 2x, dark theme, analytics blocked; rings added in an HTML compose step) and are referenced by
  * absolute URL, so they load only once that folder is deployed.
  *
- * Facts checked against the live site on 18 Oct 2026: /learn/practice, /learn/revise (66 lessons,
- * 604 cards), /learn/labs (8 labs), /learn/mock (4 loops after W02/W05/W08/W10), /learn/design-week
+ * Facts checked against the live site on 18 Oct 2026: /practice, /revise (66 lessons,
+ * 604 cards), /labs (8 labs), /mock (4 loops after W02/W05/W08/W10), /design-week
  * (first challenge "Design a URL shortener for 10B links": opens Mon 19 Oct 09:00 IST, submissions
- * close Sat 24 Oct 09:00 IST, voting closes Mon 26 Oct 09:00 IST), /learn/numbers, /learn/plan
- * (.ics + Google Calendar), /learn/mastery (213 concepts), /learn/reading (218 write-ups, 58
+ * close Sat 24 Oct 09:00 IST, voting closes Mon 26 Oct 09:00 IST), /numbers, /plan
+ * (.ics + Google Calendar), /mastery (213 concepts), /reading (218 write-ups, 58
  * companies), week 3-10 trials (150 questions, 6 parts), side quests 12-15.
  * Design of the week dates are time-bound: update DOW below if the challenge changes.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export const PRACTICE_TOOLKIT_KEY = "announce:practice-toolkit-2026-10";
 export const PRACTICE_TOOLKIT_SUBJECT = "System Design Mastery now has a Practice tab";
@@ -30,8 +31,9 @@ export function practiceToolkitSubject(name?: string | null): string {
 export const PRACTICE_TOOLKIT_PREHEADER =
   "Revision decks for all 66 lessons, 8 Python code labs, 4 timed mock interviews, trials for every week, and the first Design of the week opens Monday.";
 
-const SITE = "https://www.himanshukukreja.in";
-const L = `${SITE}/learn`;
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
+const L = `${SITE}/`;
 export const PRACTICE_LINKS = {
   practice: `${L}/practice`,
   hub: `${L}/system-design-mastery`,
@@ -368,14 +370,14 @@ export function practiceToolkitHtml({ email, name }: PracticeToolkitInput): stri
           <td class="pad" style="padding:0 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">That's a lot at once, so pick one thing and try it this week. If something breaks or a number looks wrong, just reply to this email. I read every reply.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
 
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -417,10 +419,10 @@ export function practiceToolkitText({ email, name }: PracticeToolkitInput): stri
     "That's a lot at once, so pick one thing and try it this week. If something breaks or a number looks wrong, just reply to this email. I read every reply.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ];
   return lines.join("\n");

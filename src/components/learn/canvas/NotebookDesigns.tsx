@@ -26,14 +26,14 @@ export default function NotebookDesigns({ userId }: { userId: string }) {
         <h2 id="nb-designs" className="m-0 font-mono text-xs uppercase tracking-label text-signal-text">
           designs · {r.designs.length}
         </h2>
-        <Link href="/learn/canvas" className="font-mono text-xs text-fg-3 hover:text-fg">
+        <Link href="/canvas" className="font-mono text-xs text-fg-3 hover:text-fg">
           design canvas ›
         </Link>
       </div>
       <ul className="m-0 grid list-none gap-2 p-0 sm:grid-cols-2 lg:grid-cols-3">
         {r.designs.map((d) => (
           <li key={d.id}>
-            <Link href={`/learn/canvas/${encodeURIComponent(d.prompt_key)}`} className="flex min-h-[64px] flex-col justify-center gap-1 border border-line bg-surface px-4 py-3 hover:border-signal">
+            <Link href={`/canvas/${encodeURIComponent(d.prompt_key)}`} className="flex min-h-[64px] flex-col justify-center gap-1 border border-line bg-surface px-4 py-3 hover:border-signal">
               <span className="line-clamp-2 text-[14px] font-semibold text-fg">{title.get(d.prompt_key) || d.title || "My own design"}</span>
               <span className="font-mono text-[11px] text-fg-3">
                 {new Date(d.updated_at).toLocaleDateString(undefined, { day: "numeric", month: "short" })}

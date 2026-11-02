@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/prep: everything for the interview itself, grouped as who's hiring (companies, the question
+ * /prep: everything for the interview itself, grouped as who's hiring (companies, the question
  * bank), classic problems (problem bank, low-level design), interview night (revision decks, cheat
  * sheets, design sheets), the real loop (mock interviews solo and with a peer, code labs) and tools
  * (numbers playground, study planner). Each card carries this browser's state where it is cheap to read
@@ -35,7 +35,7 @@ export type PracticeData = {
   revision: { weeks: { key: string; id: string; code: string; title: string; lessons: string[] }[]; lessons: number; cards: number };
   labs: { id: string; xp: number }[];
   mocks: CourseMock[];
-  /** war rooms (incident simulations) at /learn/war-stories/war-room */
+  /** war rooms (incident simulations) at /war-stories/war-room */
   warRooms: number;
   /** companies with a prep page, and the question bank's size */
   companies: CompanySummary[];
@@ -129,8 +129,8 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           </div>
         </dl>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
-          <SaveOfflineButton title="Interview prep" kind="tool" url="/learn/prep" />
-          <Link href="/learn/guide#prep" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+          <SaveOfflineButton title="Interview prep" kind="tool" url="/prep" />
+          <Link href="/guide#prep" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             how each tool works →
           </Link>
         </div>
@@ -140,18 +140,18 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
       {data.lectures.count > 0 && (
         <Group id="lectures" kicker="video lectures" title="Watch it, in order" aside="Every lecture in course sequence, then the side quests and the rest.">
           <Card
-            href="/learn/prep/lectures"
+            href="/prep/lectures"
             icon={PlayCircle}
             kicker="all lectures"
             state={`${data.lectures.count} lectures`}
             title="The whole playlist"
             pitch="Animated, narrated lectures for the course's lessons, the side quests and more: the idea, where the obvious design breaks, the real one, and what to say. Quiz checkpoints, and ask the AI about any moment."
             meta={`${Math.floor(data.lectures.minutes / 60)} h ${data.lectures.minutes % 60} min · captions · chapters`}
-            reach={reach("/learn/prep/lectures")}
+            reach={reach("/prep/lectures")}
             footer={
               <WorldChips
                 label="jump to"
-                items={data.lectures.groups.map((g) => ({ href: `/learn/prep/lectures#${g.anchor}`, code: g.code, title: `${g.name} · ${g.count} lecture${g.count === 1 ? "" : "s"}` }))}
+                items={data.lectures.groups.map((g) => ({ href: `/prep/lectures#${g.anchor}`, code: g.code, title: `${g.name} · ${g.count} lecture${g.count === 1 ? "" : "s"}` }))}
                 reach={reach}
               />
             }
@@ -174,14 +174,14 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
       {/* design canvas */}
       <Group id="canvas" kicker="design canvas" title="Draw it, get it reviewed" aside="The whiteboard round, on your own time: any interview problem, any capstone, or your own system.">
         <Card
-          href="/learn/canvas"
+          href="/canvas"
           icon={PenTool}
           kicker="whiteboard + ai review"
           state="new"
           title="Design canvas"
           pitch="Sketch the architecture with blocks, tech logos and arrows, then get a staff-engineer review of what you drew: the gaps worst first, the fix for each, and what you'd be asked next. Saves to your account."
           meta="interview problems · capstones · your own idea"
-          reach={reach("/learn/canvas")}
+          reach={reach("/canvas")}
         />
       </Group>
 
@@ -235,10 +235,10 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
             <p className="m-0 border border-dashed border-line p-5 text-[15px] text-fg-3">The company pages are being researched.</p>
           )}
           <div className="flex flex-wrap gap-2">
-            <Link href="/learn/prep/companies" className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-medium text-fg hover:border-fg-3">
+            <Link href="/prep/companies" className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-medium text-fg hover:border-fg-3">
               <Building2 className="h-4 w-4" aria-hidden /> All {data.companies.length} companies
             </Link>
-            <Link href="/learn/prep/questions" className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-medium text-fg hover:border-fg-3">
+            <Link href="/prep/questions" className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-medium text-fg hover:border-fg-3">
               <ListChecks className="h-4 w-4" aria-hidden /> Question bank · {data.bank.questions} questions{data.bank.reported ? ` · ${data.bank.reported} reported` : ""}
             </Link>
           </div>
@@ -257,20 +257,20 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
       {/* interview night */}
       <Group id="night" kicker="interview night" title="Revise fast" aside="For the evening before, or the train to the office.">
         <Card
-          href="/learn/revise"
+          href="/revise"
           icon={Layers}
           kicker="revision decks"
           state={ready ? (lessonsRevised ? `${lessonsRevised}/${data.revision.lessons} revised${worldsRevised ? ` · ${worldsRevised} world${worldsRevised === 1 ? "" : "s"} ✓` : ""}` : "not started") : null}
           title="Five minutes a lesson"
           pitch="Swipeable cards: key ideas, numbers to remember, the trade-off table, classic mistakes and what to say when asked."
           meta={`${data.revision.cards} cards · ${data.revision.lessons} lessons`}
-          reach={reach("/learn/revise")}
+          reach={reach("/revise")}
           footer={
             data.revision.weeks.length > 0 && (
               <WorldChips
                 label="revise a world"
                 items={data.revision.weeks.map((w) => ({
-                  href: `/learn/revise/${w.id}`,
+                  href: `/revise/${w.id}`,
                   code: w.code,
                   title: `World ${w.code} · ${w.title} deck`,
                   done: !!revised && weekRevised(revised, w.key, w.lessons),
@@ -281,30 +281,30 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
           }
         />
         <Card
-          href={data.revision.weeks[0] ? `/learn/cheatsheet/${data.revision.weeks[0].id}` : "/learn/revise"}
+          href={data.revision.weeks[0] ? `/cheatsheet/${data.revision.weeks[0].id}` : "/revise"}
           icon={FileText}
           kicker="cheat sheets"
           state={`${data.revision.weeks.length} world${data.revision.weeks.length === 1 ? "" : "s"}`}
           title="A whole world on one page"
           pitch="Prints on a single A4 or Letter sheet. Download it as a PDF or share the link."
           meta="print · PDF · share"
-          reach={reach(data.revision.weeks[0] ? `/learn/cheatsheet/${data.revision.weeks[0].id}` : "/learn/revise")}
+          reach={reach(data.revision.weeks[0] ? `/cheatsheet/${data.revision.weeks[0].id}` : "/revise")}
           footer={
             data.revision.weeks.length > 0 && (
-              <WorldChips label="open a sheet" items={data.revision.weeks.map((w) => ({ href: `/learn/cheatsheet/${w.id}`, code: w.code, title: `World ${w.code} · ${w.title} cheat sheet` }))} reach={reach} />
+              <WorldChips label="open a sheet" items={data.revision.weeks.map((w) => ({ href: `/cheatsheet/${w.id}`, code: w.code, title: `World ${w.code} · ${w.title} cheat sheet` }))} reach={reach} />
             )
           }
         />
         {data.sheets.length > 0 && (
           <Card
-            href="/learn/sheets"
+            href="/sheets"
             icon={MapIcon}
             kicker="design sheets"
             state={`${data.sheets.length} side quest${data.sheets.length === 1 ? "" : "s"}`}
             title="A whole design in ten minutes"
             pitch="Each side quest on a few pages: the numbers, the architecture with real tech icons, sequence, class and state diagrams, the decisions and what breaks."
             meta={`${data.sheets.reduce((a, s) => a + s.diagrams, 0)} diagrams · PDF · share`}
-            reach={reach("/learn/sheets")}
+            reach={reach("/sheets")}
             footer={
               <WorldChips
                 label="open a sheet"
@@ -319,27 +319,27 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
       {/* build & drill */}
       <Group id="drill" kicker="the real loop" title="Do it for real" aside="Timed rounds, a real person, working code.">
         <Card
-          href="/learn/labs"
+          href="/labs"
           icon={Code2}
           kicker="code labs"
           state={hydrated ? `${labsCleared}/${data.labs.length} cleared` : null}
           title="Implement it in Python"
           pitch="A rate limiter, an LRU cache, a hash ring, an outbox relay: write it in the browser and run it against hidden tests."
           meta={hydrated && labXpLeft ? `+${labXpLeft} XP to earn` : "runs on your device"}
-          reach={reach("/learn/labs")}
+          reach={reach("/labs")}
         />
         <Card
-          href="/learn/mock"
+          href="/mock"
           icon={Mic}
           kicker="mock interviews"
           state={hydrated ? (mockLive ? "round in progress" : `${mocksDone}/${data.mocks.length} done${offers ? ` · ${offers} offer${offers === 1 ? "" : "s"}` : ""}`) : null}
           title="The real loop, timed"
           pitch="An unseen problem from a fictional company, a named interviewer, curveballs, then a levelled rubric and a verdict."
           meta={`${data.mocks.length} loops between worlds`}
-          reach={reach("/learn/mock")}
+          reach={reach("/mock")}
         />
         <Card
-          href="/learn/mock/peers"
+          href="/mock/peers"
           icon={Users}
           kicker="peer mocks"
           state="with a real person"
@@ -350,14 +350,14 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
         />
         {data.warRooms > 0 && (
           <Card
-            href="/learn/war-stories/war-room"
+            href="/war-stories/war-room"
             icon={Siren}
             kicker="war rooms"
             state="you're on call"
             title="Take the page"
             pitch="A SEV-1 plays out in the incident channel and you make the calls. Each night is modelled on a real postmortem: practice for on-call and for “tell me about an incident”."
             meta={`${data.warRooms} incident nights · 8–15 min`}
-            reach={reach("/learn/war-stories/war-room")}
+            reach={reach("/war-stories/war-room")}
           />
         )}
       </Group>
@@ -365,24 +365,24 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
       {/* tools */}
       <Group id="tools" kicker="tools" title="Numbers and a plan" aside="Estimate out loud; plan to your interview date.">
         <Card
-          href="/learn/numbers"
+          href="/numbers"
           icon={Calculator}
           kicker="numbers playground"
           state="works offline"
           title="50k QPS × 2 KB × 30 days = ?"
           pitch="Type an estimate the way you'd say it and get the worked answer, next to the latency and size numbers the course teaches."
           meta="calculator · reference numbers"
-          reach={reach("/learn/numbers")}
+          reach={reach("/numbers")}
         />
         <Card
-          href="/learn/plan"
+          href="/plan"
           icon={CalendarDays}
           kicker="study planner"
           state={hydrated ? (record ? `to ${fmtDate(record.settings.target, true)}` : "no plan yet") : null}
           title={record && daysLeft !== null && daysLeft > 0 ? `Interview in ${daysLeft} day${daysLeft === 1 ? "" : "s"}` : "Plan to your interview date"}
           pitch="A day-by-day plan from your real progress, with revision days at the end. Fall behind and it adjusts."
           meta="calendar file · Google Calendar"
-          reach={reach("/learn/plan")}
+          reach={reach("/plan")}
         />
       </Group>
     </main>

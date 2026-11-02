@@ -2,9 +2,10 @@
  * schema.org structured data for search engines (rich results). Server-rendered once with the page,
  * so it costs nothing per visit on cached (ISR) pages.
  */
-import { SITE_URL } from "@/lib/site";
+// structured data of course pages (and case files): URLs on the course host; the author is the portfolio
+import { COURSE_ORIGIN as SITE_URL, PORTFOLIO_ORIGIN } from "@/lib/site/hosts";
 
-const AUTHOR = { "@type": "Person", name: "Himanshu Kukreja", url: SITE_URL };
+const AUTHOR = { "@type": "Person", name: "Himanshu Kukreja", url: PORTFOLIO_ORIGIN };
 const COURSE_NAME = "System Design Mastery";
 
 type Crumb = { name: string; path: string };
@@ -43,7 +44,7 @@ export function course(o: { path: string; description: string; lessons: number; 
     url: `${SITE_URL}${o.path}`,
     inLanguage: "en",
     isAccessibleForFree: true,
-    provider: { "@type": "Person", name: "Himanshu Kukreja", sameAs: SITE_URL },
+    provider: { "@type": "Person", name: "Himanshu Kukreja", sameAs: PORTFOLIO_ORIGIN },
     offers: { "@type": "Offer", price: 0, priceCurrency: "INR", category: "Free" },
     hasCourseInstance: {
       "@type": "CourseInstance",

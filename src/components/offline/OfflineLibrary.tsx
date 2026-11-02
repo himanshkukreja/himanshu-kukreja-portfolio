@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/offline: everything saved on this device, sorted by type (the course by world, video
+ * /offline: everything saved on this device, sorted by type (the course by world, video
  * lectures by playlist section, side quests, interview problems, LLD, mocks, case files, war
  * stories, revision, code labs, tools), with counts and sizes, search, per-type save all / remove
  * all, updates, storage (videos vs articles), persistence and install.

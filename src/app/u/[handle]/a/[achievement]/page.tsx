@@ -82,7 +82,7 @@ export default async function AchievementPage({ params }: Params) {
         </div>
       </section>
       <StartCta handle={p.handle} who={who} />
-      <Link href={withRef("/learn/arena/daily", p.handle)} className="self-center font-mono text-[13px] text-signal-text underline underline-offset-4">
+      <Link href={withRef("/arena/daily", p.handle)} className="self-center font-mono text-[13px] text-signal-text underline underline-offset-4">
         or take today&apos;s 2-minute daily challenge →
       </Link>
     </main>

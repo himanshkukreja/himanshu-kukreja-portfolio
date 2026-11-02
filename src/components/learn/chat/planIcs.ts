@@ -4,6 +4,7 @@
  */
 import { studyPlanId, toIcs, type StudyDay } from "@/lib/learn/study-plan";
 import type { ChatSource, PathCard } from "@/lib/ai/chat/text";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export function buildIcsForPath(p: PathCard, sources: Record<string, ChatSource>): string {
   const byDate = new Map<string, StudyDay>();
@@ -15,5 +16,5 @@ export function buildIcsForPath(p: PathCard, sources: Record<string, ChatSource>
     byDate.set(s.date, d);
   }
   const days = [...byDate.values()].sort((a, b) => a.date.localeCompare(b.date));
-  return toIcs({ id: studyPlanId(p.title, p.plan?.start ?? days[0]?.date ?? ""), days, goal: p.title }, { title: p.title, url: "https://www.himanshukukreja.in/learn/saved" });
+  return toIcs({ id: studyPlanId(p.title, p.plan?.start ?? days[0]?.date ?? ""), days, goal: p.title }, { title: p.title, url: `${COURSE_ORIGIN}/saved` });
 }

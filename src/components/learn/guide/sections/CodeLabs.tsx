@@ -26,7 +26,7 @@ export default function CodeLabsDetails() {
         </p>
       </div>
       <Where>
-        <A href="/learn/labs">code labs</A> in the prep tab; the <strong>Try it in code</strong> card at the end of a lesson that has one.
+        <A href="/labs">code labs</A> in the prep tab; the <strong>Try it in code</strong> card at the end of a lesson that has one.
       </Where>
     </>
   );

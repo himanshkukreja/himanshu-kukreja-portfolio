@@ -17,10 +17,10 @@ type LessonCardProps = {
   code?: string;
 };
 
-export default function LessonCard({ resource, course, readingTime, progress, current = false, code }: LessonCardProps) {
+export default function LessonCard({ resource, readingTime, progress, current = false, code }: LessonCardProps) {
   const done = progress?.status === "completed";
   const stagesDone = progress?.completedStages.length || 0;
-  const href = `/learn/${course}/${resource.week}/${resource.slug}${!done && progress?.lastStage ? `#${progress.lastStage}` : ""}`;
+  const href = `/${resource.week}/${resource.slug}${!done && progress?.lastStage ? `#${progress.lastStage}` : ""}`;
   const label = code || (resource.day ? resource.day.replace("day-", "D").replace(/^D0/, "D") : resource.type === "capstone" ? "B" : resource.type === "week-preview" ? "PRE" : "");
 
   return (

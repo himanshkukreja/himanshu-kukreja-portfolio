@@ -96,7 +96,7 @@ export async function profileCard(p: PublicProfile) {
   const pct = p.course && p.level ? p.course.pct : null;
   return new ImageResponse(
     (
-      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>himanshukukreja.in/u/{p.handle}</div>}>
+      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>systemdesignmastery.dev/u/{p.handle}</div>}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 40 }}>
           <Who p={p} />
           {p.level && (
@@ -154,7 +154,7 @@ export async function achievementCard(p: PublicProfile, a: Achievement) {
   const size = len > 30 ? 84 : len > 20 ? 100 : 120;
   return new ImageResponse(
     (
-      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>himanshukukreja.in/u/{p.handle}</div>}>
+      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>systemdesignmastery.dev/u/{p.handle}</div>}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 44 }}>
           <div style={{ display: "flex", padding: "6px 12px", background: C.signal, ...mono, fontSize: 20, fontWeight: 600, letterSpacing: "0.08em", color: C.onSignal }}>ACHIEVEMENT</div>
           <Label color={C.fg2}>{a.kicker}</Label>

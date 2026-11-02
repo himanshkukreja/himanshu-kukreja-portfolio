@@ -31,6 +31,7 @@ import {
   type PlanSettings,
   type Schedule,
 } from "@/lib/learn/plan/schedule";
+import { parseLessonPath } from "@/lib/learn/paths";
 
 export const PLAN_FLAG = "plan:sdm";
 const EXPORT_KEY = "hk.plan.ics.v1";
@@ -60,10 +61,10 @@ export function itemStatus(items: PlanItem[], lessons: Record<string, LessonProg
   return out;
 }
 
-/** "/learn/<course>/<week>/<slug>" → "<week>/<slug>" */
+/** "/<week>/<slug>" (or the old "/learn/<course>/<week>/<slug>") → "<week>/<slug>" */
 function lessonKeyFromHref(href: string): string | null {
-  const m = /^\/learn\/[^/]+\/([^/]+)\/([^/?#]+)/.exec(href);
-  return m ? lessonKey(m[1], m[2]) : null;
+  const m = parseLessonPath(href);
+  return m ? lessonKey(m.week, m.slug) : null;
 }
 
 const startOfDay = (d: string) => {

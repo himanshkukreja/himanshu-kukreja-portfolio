@@ -64,7 +64,7 @@ export default function SaveToast() {
         </p>
       )}
       {job.status !== "running" && (
-        <Link href="/learn/offline" onClick={dismissJob} className="mt-2 inline-flex min-h-9 items-center font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4">
+        <Link href="/offline" onClick={dismissJob} className="mt-2 inline-flex min-h-9 items-center font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4">
           open the offline library →
         </Link>
       )}

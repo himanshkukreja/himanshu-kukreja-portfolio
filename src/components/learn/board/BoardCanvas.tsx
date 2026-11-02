@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The whiteboard for the design canvas (/learn/canvas) and the mock interview room: an Excalidraw
+ * The whiteboard for the design canvas (/canvas) and the mock interview room: an Excalidraw
  * canvas (MIT) with the site's component library beside it (a side panel when the board is wide, a
  * bottom sheet on a phone). Click a component to drop it in the middle of the view, or drag it onto
  * the board; each one is a grouped, labelled block (a cylinder for a database, slots for a queue…)

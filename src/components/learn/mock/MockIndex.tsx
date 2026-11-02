@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/mock: every mock interview loop, where it sits in the course, and how you did. */
+/** /mock: every mock interview loop, where it sits in the course, and how you did. */
 import Link from "next/link";
 import { useMemo } from "react";
 import type { CourseMap } from "@/lib/learn/types";
@@ -43,10 +43,10 @@ export default function MockIndex({ map }: { map: CourseMap }) {
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-          <Link href="/learn/mock/peers" className="inline-flex min-h-11 items-center border border-signal px-4 font-mono text-[13px] font-semibold text-signal-text hover:bg-surface-2">
+          <Link href="/mock/peers" className="inline-flex min-h-11 items-center border border-signal px-4 font-mono text-[13px] font-semibold text-signal-text hover:bg-surface-2">
             practise with a real person: peer mocks →
           </Link>
-          <Link href="/learn/guide#mocks" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+          <Link href="/guide#mocks" className="inline-flex min-h-10 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             how mock interviews work →
           </Link>
         </div>

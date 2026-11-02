@@ -37,8 +37,8 @@ export default function Mastery(p: Props) {
     <section aria-labelledby="mastery-h" id="mastery" className="flex min-w-0 scroll-mt-28 flex-col gap-4">
       <SectionHead id="mastery-h" n="04" kicker="mastery" title="What stuck" />
 
-      {/* concept map (/learn/mastery) */}
-      <Link href="/learn/mastery" className="group flex min-w-0 items-center justify-between gap-4 border border-line bg-surface p-4 hover:border-line-strong sm:p-5">
+      {/* concept map (/mastery) */}
+      <Link href="/mastery" className="group flex min-w-0 items-center justify-between gap-4 border border-line bg-surface p-4 hover:border-line-strong sm:p-5">
         <span className="flex min-w-0 flex-col gap-1">
           <Label>concept map</Label>
           <span className="text-[15px] font-semibold text-fg">Every concept, coloured by how well you know it</span>
@@ -107,7 +107,7 @@ export default function Mastery(p: Props) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         {/* review queue */}
-        <Link href="/learn/review" className="group flex min-w-0 flex-col gap-3 border border-line bg-surface p-4 hover:border-line-strong sm:p-5">
+        <Link href="/review" className="group flex min-w-0 flex-col gap-3 border border-line bg-surface p-4 hover:border-line-strong sm:p-5">
           <div className="flex items-baseline justify-between gap-2">
             <Label>review queue</Label>
             <span className="font-mono text-[12px] text-signal-text group-hover:underline">review →</span>
@@ -142,7 +142,7 @@ export default function Mastery(p: Props) {
           <div className="flex items-baseline justify-between gap-2">
             <Label>notebook</Label>
             {p.signedIn && (
-              <Link href="/learn/notebook" className="inline-flex min-h-10 items-center font-mono text-[12px] text-signal-text hover:underline">
+              <Link href="/notebook" className="inline-flex min-h-10 items-center font-mono text-[12px] text-signal-text hover:underline">
                 open →
               </Link>
             )}
@@ -156,7 +156,7 @@ export default function Mastery(p: Props) {
                   ["bookmarks", p.notebook?.bookmarks, "bookmarks"],
                 ] as const
               ).map(([k, n, tab]) => (
-                <Link key={k} href={`/learn/notebook?tab=${tab}`} className="flex min-h-[72px] flex-col justify-center gap-1 bg-bg px-3 hover:bg-surface-2">
+                <Link key={k} href={`/notebook?tab=${tab}`} className="flex min-h-[72px] flex-col justify-center gap-1 bg-bg px-3 hover:bg-surface-2">
                   <span className="font-display text-[26px] font-extrabold leading-none tracking-[-0.04em] text-fg">{n ?? "·"}</span>
                   <span className="text-[12px] text-fg-3">{k}</span>
                 </Link>

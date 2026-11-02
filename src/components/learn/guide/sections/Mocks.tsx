@@ -28,7 +28,7 @@ export default function MocksDetails({ d }: { d: GuideData }) {
             <>Mock interviews sit between the worlds, numbered in course order.</>
           )}{" "}
           Each covers <strong>everything taught up to that point</strong>, not just the last week. They appear on the <A href={COURSE}>skill tree</A> as their own rows between worlds (the square node with an orange corner), in the
-          &ldquo;After this world&rdquo; card of a world&apos;s panel, on the Prep page and all together at <A href="/learn/mock">/learn/mock</A>.
+          &ldquo;After this world&rdquo; card of a world&apos;s panel, on the Prep page and all together at <A href="/mock">/mock</A>.
         </p>
       </div>
       <Table
@@ -127,7 +127,7 @@ export default function MocksDetails({ d }: { d: GuideData }) {
       </div>
       <div className={PROSE}>
         <p>
-          <strong>Practise with a real person:</strong> on <A href="/learn/mock/peers">peer mock interviews</A>, post a time slot and pick one of the course&apos;s mocks and a role (candidate, interviewer or either). When another
+          <strong>Practise with a real person:</strong> on <A href="/mock/peers">peer mock interviews</A>, post a time slot and pick one of the course&apos;s mocks and a role (candidate, interviewer or either). When another
           learner pairs up, you both get an email with a free video room; the interviewer runs the round from the mock&apos;s page (phases, curveballs, the rubric), then you swap. Only your first name and email go to your partner;
           times show in your own time zone. Posting and pairing need an account.
         </p>
@@ -139,8 +139,8 @@ export default function MocksDetails({ d }: { d: GuideData }) {
         </p>
       </Note>
       <Where>
-        the mock rows between worlds on the <A href={COURSE}>skill tree</A>; <A href="/learn/mock">all mock interviews</A>; the mock interviews group on the <A href="/learn/prep">Prep page</A>; the &ldquo;between worlds&rdquo; row
-        of the <A href="/learn/dashboard#map">progress page&apos;s course map</A>.
+        the mock rows between worlds on the <A href={COURSE}>skill tree</A>; <A href="/mock">all mock interviews</A>; the mock interviews group on the <A href="/prep">Prep page</A>; the &ldquo;between worlds&rdquo; row
+        of the <A href="/dashboard#map">progress page&apos;s course map</A>.
       </Where>
     </>
   );

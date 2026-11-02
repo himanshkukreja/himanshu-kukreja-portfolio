@@ -73,7 +73,7 @@ async function questionsOf(r: LearningResource): Promise<BankQuestion[]> {
   } catch {
     return [];
   }
-  const href = `/learn/${COURSE_ID}/${r.week}/${r.slug}`;
+  const href = `/${r.week}/${r.slug}`;
   if (r.type === "mcq") {
     if (!isMCQDocument(md)) return [];
     const a = parseMCQMarkdown(md);

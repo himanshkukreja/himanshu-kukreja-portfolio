@@ -319,7 +319,7 @@ export default function NotebookPanel({ ctx, target, onClose }: { ctx: InkContex
         </div>
       )}
       {pageId && (
-        <Link href={`/learn/notebook/page/${pageId}`} aria-label="Open this page full screen" title="Full screen" className="grid h-10 w-10 place-items-center text-fg hover:bg-surface-2">
+        <Link href={`/notebook/page/${pageId}`} aria-label="Open this page full screen" title="Full screen" className="grid h-10 w-10 place-items-center text-fg hover:bg-surface-2">
           <Maximize2 className="h-[18px] w-[18px]" aria-hidden />
         </Link>
       )}

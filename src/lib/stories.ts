@@ -1,5 +1,5 @@
 /**
- * Case files ("stories"): ONE source of truth for every public surface (/stories, /stories/[slug],
+ * Case files ("stories"): ONE source of truth for every public surface (/case-files, /case-files/[slug],
  * home teaser, newsletter "case file update", analytics titles, /api/stories).
  *
  * Two origins, merged here:

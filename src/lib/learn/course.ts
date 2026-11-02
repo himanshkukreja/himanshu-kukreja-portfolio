@@ -46,7 +46,7 @@ function stripPartPrefix(title: string) {
 function toLesson(r: LearningResource, courseId: string, minutes: number): CourseLesson {
   const n = weekNum(r.week);
   const W = n >= 0 ? `W${pad(n)}` : "";
-  const href = `/learn/${courseId}/${r.week}/${r.slug}`;
+  const href = `/${r.week}/${r.slug}`;
   if (r.type === "foundations") {
     const part = parseInt(r.slug.match(/part-(\d+)/)?.[1] || "1", 10);
     const title = stripPartPrefix(r.title);
@@ -90,7 +90,7 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
         if (r.type === "mcq") {
           if (!isMCQDocument(md)) return;
           const a = parseMCQMarkdown(md);
-          const base = `/learn/${courseId}/${r.week}/${r.slug}`;
+          const base = `/${r.week}/${r.slug}`;
           const parts = a.sections
             .filter((s) => s.questions.length > 0)
             .map((s, i) => ({

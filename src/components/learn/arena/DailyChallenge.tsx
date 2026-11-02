@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Daily challenge runner (/learn/arena/daily): five questions, 20 s each, the same for everyone on an
+ * Daily challenge runner (/arena/daily): five questions, 20 s each, the same for everyone on an
  * Asia/Kolkata day. One scored run per day (kept in this browser; the server also counts only the first
  * reported run), unlimited unscored practice replays. Score = 100 per correct answer + 5 per second left.
  */
@@ -186,14 +186,14 @@ export default function DailyChallenge() {
     const results = phase.answers.map((a) => a.correct);
     const score = phase.answers.reduce((s, a) => s + dailyQuestionScore(a.correct, a.ms), 0);
     const ms = phase.answers.reduce((s, a) => s + a.ms, 0);
-    const origin = typeof window !== "undefined" ? window.location.host : "himanshukukreja.in";
-    return dailyShare(set, results, score, ms, `${origin}/learn/arena/daily${myHandle ? `?ref=${myHandle}` : ""}`);
+    const origin = typeof window !== "undefined" ? window.location.host : "systemdesignmastery.dev";
+    return dailyShare(set, results, score, ms, `${origin}/arena/daily${myHandle ? `?ref=${myHandle}` : ""}`);
   }, [set, phase, myHandle]);
 
   const playedShare = useMemo(() => {
     if (!set || !played) return "";
-    const origin = typeof window !== "undefined" ? window.location.host : "himanshukukreja.in";
-    return dailyShare(set, played.results, played.score, played.ms, `${origin}/learn/arena/daily${myHandle ? `?ref=${myHandle}` : ""}`);
+    const origin = typeof window !== "undefined" ? window.location.host : "systemdesignmastery.dev";
+    return dailyShare(set, played.results, played.score, played.ms, `${origin}/arena/daily${myHandle ? `?ref=${myHandle}` : ""}`);
   }, [set, played, myHandle]);
 
   const copy = async (text: string) => {
@@ -354,13 +354,13 @@ export default function DailyChallenge() {
           </div>
           <SharePanel text={shareText} copied={copied} onCopy={() => copy(shareText)} />
           <div className="flex flex-wrap gap-2">
-            <Link href="/learn/arena/leaderboard" className={BTN}>
+            <Link href="/arena/leaderboard" className={BTN}>
               Leaderboard →
             </Link>
             <button type="button" onClick={() => start(true)} className={BTN_GHOST}>
               Practice replay
             </button>
-            <Link href="/learn/arena" className={BTN_GHOST}>
+            <Link href="/arena" className={BTN_GHOST}>
               Arena
             </Link>
           </div>
@@ -405,7 +405,7 @@ export default function DailyChallenge() {
             <button type="button" onClick={() => start(true)} className={BTN_GHOST}>
               Practice replay · unscored
             </button>
-            <Link href="/learn/arena/leaderboard" className={BTN_GHOST}>
+            <Link href="/arena/leaderboard" className={BTN_GHOST}>
               Leaderboard
             </Link>
             <Countdown />
@@ -448,7 +448,7 @@ function SharePanel({ text, copied, onCopy }: { text: string; copied: boolean; o
         <button type="button" onClick={onCopy} className={BTN_GHOST}>
           {copied ? "Copied" : "Copy result"}
         </button>
-        <ShareButton kind="daily" variant="solid" label="Challenge a friend" url={() => "/learn/arena/daily"} text={() => buildShareText({ kind: "daily", detail: grid })} />
+        <ShareButton kind="daily" variant="solid" label="Challenge a friend" url={() => "/arena/daily"} text={() => buildShareText({ kind: "daily", detail: grid })} />
         <span aria-live="polite" className="font-mono text-xs text-fg-3">
           {copied ? "paste it anywhere" : ""}
         </span>

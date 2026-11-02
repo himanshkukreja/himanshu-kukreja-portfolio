@@ -1129,7 +1129,7 @@ ${p.candidate || "(nothing written)"}
 
 
 /**
- * Smart search (/learn/chat): the learner's query and the ranked candidates from the course index go
+ * Smart search (/chat): the learner's query and the ranked candidates from the course index go
  * in the user message (see lib/search/smart/ai.ts); the model returns JSON naming candidate ids only.
  * The route checks every id against the candidates and drops anything else, so a link can't be invented.
  * Static, so the prompt is the same for every query. No learner data is ever part of it.
@@ -1239,7 +1239,7 @@ Before the JSON, check: scope from the plan; stages in order and the plan's prac
 /* ------------------------------------------------------------------ the course chat (lib/ai/chat) */
 
 /**
- * The course chat (/learn/chat and the Ask panel on Learn pages): a multi-turn tutor that works through
+ * The course chat (/chat and the Ask panel on Learn pages): a multi-turn tutor that works through
  * deterministic tools (lib/ai/chat/tools.ts): the smart-search index, the course map, the learner's own
  * progress, the course's own practice items and saved paths. The model never writes a link: tools give it
  * refs (s1, s2, …) for real index entries and it cites them as [[s3]]; the route keeps only refs the tools
@@ -1376,7 +1376,7 @@ STEP 2. WRITE THE ANSWER:
 - First sentence answers the question directly. Then the reason in two to four sentences. Under 150 words, unless they asked for a plan or schedule. No headings, no tables, no emojis, no URLs.
 - Cite course resources with refs in double brackets right after the sentence that uses them: [[s3]], one ref per bracket ([[s3]] [[s7]] for two). Only refs that tools returned in this conversation. Never write a link, a page path or a timestamp (a moment's card shows its time). For "the moment where…", cite the ONE best moment.
   good: "A cache stampede is many requests missing the same key at once and all hitting the database [[s2]]. Request coalescing lets one request rebuild the value while the others wait [[s4]]."
-  bad: "See the lesson at /learn/... (2:13)." (a link and a timestamp you wrote)
+  bad: "See the lesson at /... (2:13)." (a link and a timestamp you wrote)
 - Never name a lesson, lecture, number or fact from the course that a tool didn't show you. General system design knowledge is fine for explaining, but don't say the course teaches it.
 - Every real answer cites at least one ref. No facts about real companies or numbers that no tool result gave you.
 - Gap rule: if the search shows no lesson, section, concept or lecture whose TITLE or subject is the topic, your first sentence is "The course has no lesson on X yet." Then a short general answer (if it is system design) and the closest material with refs.

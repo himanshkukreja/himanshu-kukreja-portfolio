@@ -36,7 +36,7 @@ export default function SideQuestsDetails({ d }: { d: GuideData }) {
           it as often as you like to raise your best. Solve all of them for the Case cracker quest (+{quest("cases:all")} XP) and badge.
         </p>
         <p>
-          Every case file opens with an explainer that plays the whole story (with Narrate), and a new case file comes out every <strong>Monday</strong>. Follow the <A href="/stories/feed.xml">RSS feed</A> to hear about each one.
+          Every case file opens with an explainer that plays the whole story (with Narrate), and a new case file comes out every <strong>Monday</strong>. Follow the <A href="/case-files/feed.xml">RSS feed</A> to hear about each one.
         </p>
       </div>
       <Shot id="case-activity" only="desktop" size="medium" />
@@ -64,7 +64,7 @@ export default function SideQuestsDetails({ d }: { d: GuideData }) {
         </p>
       </div>
       <Where>
-        <A href="/stories">Case files</A> in the site header (outside the course). Your record (closed · solved) is at the top of the index.
+        <A href="/case-files">Case files</A> in the site header (outside the course). Your record (closed · solved) is at the top of the index.
       </Where>
 
       <Topic id="war-stories" lead="Two halves. True stories of real systems at their limits, in two minutes each. And war rooms, where an incident plays out in its chat channel and you make the calls.">
@@ -88,7 +88,7 @@ export default function SideQuestsDetails({ d }: { d: GuideData }) {
         </p>
       </div>
       <Where>
-        the <A href="/learn/war-stories">stories</A> tab (top of every Learn page; bottom dock on phones), and the &ldquo;Beyond the course&rdquo; block on the course hub.
+        the <A href="/war-stories">stories</A> tab (top of every Learn page; bottom dock on phones), and the &ldquo;Beyond the course&rdquo; block on the course hub.
       </Where>
     </>
   );

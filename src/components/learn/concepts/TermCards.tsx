@@ -341,7 +341,7 @@ export default function TermCards({ lessonKey }: { lessonKey?: string }) {
               </div>
             )}
             <div className="flex items-center justify-between gap-3 border-t border-line pt-2">
-              <Link href={`/learn/mastery#c-${c.id}`} onClick={() => close()} className="inline-flex min-h-9 items-center font-mono text-[11px] text-fg-3 hover:text-fg hover:underline">
+              <Link href={`/mastery#c-${c.id}`} onClick={() => close()} className="inline-flex min-h-9 items-center font-mono text-[11px] text-fg-3 hover:text-fg hover:underline">
                 concept map
               </Link>
               <button type="button" onClick={hide} className="inline-flex min-h-9 items-center font-mono text-[11px] text-fg-3 hover:text-fg hover:underline">

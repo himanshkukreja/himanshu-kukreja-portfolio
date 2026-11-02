@@ -1,5 +1,5 @@
 /**
- * Shareable smart-search answers (/learn/answer/<id>): the stored shape and the validation every share goes
+ * Shareable smart-search answers (/answer/<id>): the stored shape and the validation every share goes
  * through. Pure, shared by the endpoint, the store, the page and the button.
  *
  * Only the answer leaves the learner's search: the question, the answer's plain-text runs and citation
@@ -25,8 +25,8 @@ const HAS_CTRL = new RegExp(CTRL_CLASS);
 const clean = (s: string, max: number) => s.replace(CTRL, " ").replace(/\s+/g, " ").trim().slice(0, max);
 
 /**
- * A site-relative course link: /learn/... (lessons, lectures, concepts, labs, revise, reading...) or
- * /stories/<slug> (case files). No scheme, no host, no protocol-relative "//", no backslashes.
+ * A site-relative course link: /... (lessons, lectures, concepts, labs, revise, reading...) or
+ * /case-files/<slug> (case files). No scheme, no host, no protocol-relative "//", no backslashes.
  */
 export function isCourseHref(href: unknown): href is string {
   if (typeof href !== "string" || href.length < 6 || href.length > 400) return false;

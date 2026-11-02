@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/design-week/<slug>/edit: write a design in markdown with a live preview (same sanitizer +
+ * /design-week/<slug>/edit: write a design in markdown with a live preview (same sanitizer +
  * renderer as the public page, Mermaid included), autosave to the server (and a local backup in
  * case the connection drops), submit, keep editing until submissions close, withdraw or delete.
  */
@@ -374,7 +374,7 @@ function Writer({ c, initial, who }: { c: ChallengeView; initial: MySubmission |
           <input type="checkbox" checked={showAuthor} onChange={(e) => edit(() => setShowAuthor(e.target.checked))} className="mt-1 h-4 w-4 accent-[var(--c-signal)]" />
           <span>
             Show my public profile on this design. <span className="text-fg-3">Only if you share your progress (your name follows those settings); otherwise you&apos;re &ldquo;anonymous learner&rdquo; either way.</span>{" "}
-            <Link href="/learn/dashboard" className="text-signal-text underline underline-offset-4">
+            <Link href="/dashboard" className="text-signal-text underline underline-offset-4">
               sharing settings
             </Link>
           </span>

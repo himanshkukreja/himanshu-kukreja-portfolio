@@ -61,13 +61,13 @@ type Props = {
 };
 
 export async function generateMetadata({ params }: Props) {
-  const { course, week, slug } = await params;
+  const { week, slug } = await params;
   const data = await getLearningResource(week, slug);
   if (!data) return { title: "Not Found" };
   // the lesson's own opening line makes a better search snippet than a generic one
   const teaser = await teaserFor(data.resource);
   const where = `${weekLabel(week)} · ${weekTopic(week)} · free System Design Mastery course.`;
-  const path = `/learn/${course}/${week}/${slug}`;
+  const path = `/${week}/${slug}`;
   return {
     title: `${data.resource.title} | System Design Mastery`,
     description: teaser ? `${teaser.replace(/[.\s]+$/, "")}. ${where}` : `${data.resource.title} · ${where}`,
@@ -127,7 +127,7 @@ export default async function LearningResourcePage({ params }: Props) {
       ? {
           week: r.week,
           slug: r.slug,
-          href: `/learn/${course}/${r.week}/${r.slug}`,
+          href: `/${r.week}/${r.slug}`,
           title: titleFor(r),
           label: r.week !== week ? `${dir} · ${weekLabel(r.week)}` : dir,
           kicker: `${shortLabel(r).toUpperCase()}${r.week !== week ? ` · ${weekCode(r.week)}` : ""}`,
@@ -230,13 +230,13 @@ export default async function LearningResourcePage({ params }: Props) {
     designFirst: resource.type === "capstone" ? designFirstFor(content, week, rendered.stages) : null,
   };
 
-  const path = `/learn/${course}/${week}/${slug}`;
+  const path = `/${week}/${slug}`;
   const ld = [
-    lessonArticle({ title, description: meta.subtitle ?? null, path, coursePath: `/learn/${course}`, section: `${weekLabel(week)} · ${weekTopic(week)}` }),
+    lessonArticle({ title, description: meta.subtitle ?? null, path, coursePath: `/`, section: `${weekLabel(week)} · ${weekTopic(week)}` }),
     breadcrumbs([
-      { name: "Learn", path: "/learn" },
-      { name: "System Design Mastery", path: `/learn/${course}` },
-      { name: resource.type === "bonus" ? "Side quests" : `${weekLabel(week)} · ${weekTopic(week)}`, path: `/learn/${course}` },
+      { name: "Learn", path: "/" },
+      { name: "System Design Mastery", path: `/` },
+      { name: resource.type === "bonus" ? "Side quests" : `${weekLabel(week)} · ${weekTopic(week)}`, path: `/` },
       { name: title, path },
     ]),
   ];

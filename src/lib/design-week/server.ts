@@ -11,7 +11,7 @@ import { renderDesign } from "./render";
 import { getStore } from "./store";
 import type { ChallengeCard, ChallengePageData, ChallengeView, DesignWeekHome, HubSummary, MeState, RelatedLesson, SubmissionCard, SubmissionPageData, WinnersBlock } from "./views";
 
-export const BASE = "/learn/design-week";
+export const BASE = "/design-week";
 export const challengeHref = (slug: string) => `${BASE}/${slug}`;
 export const submissionHref = (slug: string, id: string) => `${BASE}/${slug}/${id}`;
 

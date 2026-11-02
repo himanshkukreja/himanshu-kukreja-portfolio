@@ -13,9 +13,9 @@ export const MERGE_TAGS = [
   { tag: "streak", label: "Current streak", hint: "days, 0 if none", sample: "4" },
   { tag: "lessons_completed", label: "Lessons completed", hint: "count, 0 if none", sample: "12" },
   { tag: "current_lesson", label: "Current lesson", hint: "last lesson opened; empty if none", sample: "Consistent hashing" },
-  { tag: "resume_url", label: "Resume link", hint: "last lesson, or /learn", sample: "https://www.himanshukukreja.in/learn" },
-  { tag: "unsubscribe_url", label: "Unsubscribe link", hint: "one-click, per recipient", sample: "https://www.himanshukukreja.in/newsletter/unsubscribe?t=preview" },
-  { tag: "site_url", label: "Site", hint: "https://www.himanshukukreja.in", sample: "https://www.himanshukukreja.in" },
+  { tag: "resume_url", label: "Resume link", hint: "last lesson, or /", sample: "https://systemdesignmastery.dev/" },
+  { tag: "unsubscribe_url", label: "Unsubscribe link", hint: "one-click, per recipient", sample: "https://systemdesignmastery.dev/newsletter/unsubscribe?t=preview" },
+  { tag: "site_url", label: "Site", hint: "https://systemdesignmastery.dev", sample: "https://systemdesignmastery.dev" },
 ] as const;
 
 export type MergeTag = (typeof MERGE_TAGS)[number]["tag"];

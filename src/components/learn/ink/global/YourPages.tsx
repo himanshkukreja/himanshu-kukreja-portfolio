@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "Your pages" at the top of /learn/notebook: the newest handwritten pages as big cards (a horizontal row on a
+ * "Your pages" at the top of /notebook: the newest handwritten pages as big cards (a horizontal row on a
  * phone), so a saved page is the first thing there, not at the end of a tab. One small query lists them
  * (recentPages: no ink); the thumbnails' ink loads after first paint in one more query and each card draws when it
  * scrolls into view (PageThumb). No pages yet: how to start one.
@@ -31,7 +31,7 @@ function Card({ p, ink }: { p: PageSummary; ink: Ink | undefined }) {
   const t = Date.parse(p.updatedAt);
   return (
     <Link
-      href={`/learn/notebook/page/${p.id}`}
+      href={`/notebook/page/${p.id}`}
       className="group flex w-[152px] shrink-0 snap-start flex-col border border-line-strong bg-surface hover:border-fg focus-visible:border-fg sm:w-full"
     >
       {/* the top of the page, where the writing starts */}
@@ -84,7 +84,7 @@ export default function YourPages({ onAllNotebooks }: { onAllNotebooks: () => vo
       // in the notebook used last, else "Notes"
       const nbId = pages?.[0]?.notebookId || (await notebookNamed("Notes")).id;
       const p = await createPage(nbId, { paper: "ruled" });
-      router.push(`/learn/notebook/page/${p.id}`);
+      router.push(`/notebook/page/${p.id}`);
     } catch (e) {
       setFailed(e instanceof InkError ? e.message : "Couldn't start a page.");
       setBusy(false);

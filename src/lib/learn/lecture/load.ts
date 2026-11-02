@@ -46,7 +46,7 @@ export function lectureCard(l: Lecture | null) {
   if (!l || l.v !== 2) return null;
   // course-lesson lectures appear once their whole phase is released; side quests are all live
   const words = l.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
-  return { href: `/learn/lectures/${l.quest}`, minutes: Math.max(1, Math.round((words / 150) * 1.08)), checkpoints: l.scenes.filter((s) => s.kind === "quiz").length, chapters: l.scenes.length };
+  return { href: `/lectures/${l.quest}`, minutes: Math.max(1, Math.round((words / 150) * 1.08)), checkpoints: l.scenes.filter((s) => s.kind === "quiz").length, chapters: l.scenes.length };
 }
 
 export type LectureSummary = {
@@ -82,7 +82,7 @@ export async function listLectures(): Promise<LectureSummary[]> {
   const problems = (map.problems ?? []).map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: "Interview problems", track: "problems" as const }));
   const lld = (map.lld ?? []).map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: "Low-level design", track: "lld" as const }));
   const mocks = (map.mocks ?? []).map((m) => ({ id: lessonLectureId("mock-interviews", m.slug), l: { tag: `M${String(m.n).padStart(2, "0")}`, code: `M${String(m.n).padStart(2, "0")}`, title: `${m.company} · ${m.title}`, href: m.href, level: mockLevel(m.level) }, group: "Mock interviews", track: "mocks" as const }));
-  const files = [...cases].reverse().map((c) => ({ id: lessonLectureId("case-files", c.slug), l: { tag: c.caseId, code: c.caseId, title: c.title, href: `/stories/${c.slug}`, level: "Intermediate" as Level }, group: "Case files", track: "cases" as const }));
+  const files = [...cases].reverse().map((c) => ({ id: lessonLectureId("case-files", c.slug), l: { tag: c.caseId, code: c.caseId, title: c.title, href: `/case-files/${c.slug}`, level: "Intermediate" as Level }, group: "Case files", track: "cases" as const }));
   const stories = war.stories.map((w, k) => ({ id: lessonLectureId("war-stories", w.slug), l: { tag: `WS${String(k + 1).padStart(2, "0")}`, code: `WS${String(k + 1).padStart(2, "0")}`, title: w.title, href: w.href, level: "Beginner" as Level }, group: "War stories", track: "stories" as const }));
   const all = await Promise.all(
     [...course, ...mocks, ...quests, ...problems, ...lld, ...files, ...stories].map(async ({ id, l, group, track }) => {
@@ -108,7 +108,7 @@ export async function lectureSubject(l: Lecture): Promise<{ title: string; href:
   }
   if (l.lesson?.week === "case-files") {
     const c = (await getCaseFiles().catch(() => [])).find((x) => x.slug === l.lesson!.slug);
-    return c ? { title: c.title, href: `/stories/${c.slug}`, code: c.caseId, level: "Intermediate" } : null;
+    return c ? { title: c.title, href: `/case-files/${c.slug}`, code: c.caseId, level: "Intermediate" } : null;
   }
   if (l.lesson) {
     const { week, slug } = l.lesson;

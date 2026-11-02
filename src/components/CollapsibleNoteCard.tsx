@@ -34,7 +34,7 @@ export default function CollapsibleNoteCard({ note, noteTypeLabels, formatLesson
   const [isExpanded, setIsExpanded] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const col = HIGHLIGHT_COLOURS[note.color] || HIGHLIGHT_COLOURS.yellow;
-  const noteUrl = `/learn/${note.course_id}/${note.week}/${note.lesson_slug}${note.highlight_offset !== null ? `#note-${note.highlight_offset}` : ""}`;
+  const noteUrl = `/${note.week}/${note.lesson_slug}${note.highlight_offset !== null ? `#note-${note.highlight_offset}` : ""}`;
   const typeLabel = noteTypeLabels?.[note.note_type] ? noteTypeLabel(note.note_type) : noteTypeLabel(note.note_type);
   const panelId = `note-${note.id}-body`;
 

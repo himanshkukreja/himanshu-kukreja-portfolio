@@ -249,7 +249,7 @@ export default function CaseFilesIndex({ cases }: { cases: CaseFile[] }) {
 function Featured({ c, s, readDone }: { c: CaseFile; s: Status; readDone: boolean }) {
   return (
     <Link
-      href={`/stories/${c.slug}`}
+      href={`/case-files/${c.slug}`}
       className="group grid border border-signal bg-surface text-fg no-underline hover:text-fg lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]"
     >
       {/* The plate carries its own CASE / FIG labels, so nothing is laid over it; on wide screens it sits centred on the blueprint grid. */}
@@ -301,7 +301,7 @@ function CaseCard({ c, s }: { c: CaseFile; s: Status }) {
   return (
     <li className="flex min-w-0">
       <Link
-        href={`/stories/${c.slug}`}
+        href={`/case-files/${c.slug}`}
         className="group flex w-full min-w-0 flex-col border border-line bg-surface text-fg no-underline transition-colors hover:border-fg-4 hover:text-fg"
       >
         <span className={`relative block aspect-[3/2] overflow-hidden border-b border-line ${BLUEPRINT_BG}`}>

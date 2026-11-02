@@ -6,7 +6,7 @@
  * notebook went course-wide, or at once the first time a stylus touches a course page. Remembered in localStorage
  * (hk.ink.coach) the moment it shows, so nobody sees it twice; dismissed by its buttons, Esc, or opening the notebook.
  */
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
@@ -34,7 +34,7 @@ function anchor(): HTMLElement | null {
 type Pos = { right: number; bottom: number; arrowRight: number };
 
 export default function NotebookCoach() {
-  const pathname = usePathname() || "";
+  const pathname = useCoursePathname() || "";
   const allowed = notebookAllowed(pathname);
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);

@@ -9,7 +9,7 @@ import type { SubmissionCard } from "@/lib/design-week/views";
 
 export { BTN, BTN_GHOST, Kicker, LABEL, PageTitle, SectionTitle } from "@/components/learn/arena/ui";
 
-export const BASE = "/learn/design-week";
+export const BASE = "/design-week";
 
 export const fmtIst = (iso: string, withDay = true) => {
   const d = new Date(iso);

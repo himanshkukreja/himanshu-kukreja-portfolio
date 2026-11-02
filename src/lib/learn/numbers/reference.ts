@@ -1,10 +1,10 @@
 /**
- * Reference numbers for the Numbers playground (/learn/numbers), transcribed from the lessons that
+ * Reference numbers for the Numbers playground (/numbers), transcribed from the lessons that
  * teach them. Every value here must match its lesson exactly: when a lesson changes, change it here
  * (the "taught in" link on each table says which section to compare against). Where the course
  * leans on an outside figure, the table names that source too.
  */
-const COURSE = "/learn/system-design-mastery";
+const COURSE = "";
 const W00 = `${COURSE}/week-00-foundations`;
 export const LESSONS = {
   part3: `${W00}/foundations-part-3-back-of-the-envelope-estimation`,

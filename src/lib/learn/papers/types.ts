@@ -55,7 +55,7 @@ export type PaperSummary = {
 
 export type PaperView = Omit<PaperSummary, "questions"> & { questions: PaperQuestionView[] };
 
-/** The paper index the course map and lesson pages read (/learn/papers/index.json). */
+/** The paper index the course map and lesson pages read (/papers/index.json). */
 export type PaperIndexEntry = Pick<PaperSummary, "key" | "title" | "minutes" | "marks" | "kind" | "code" | "label" | "week" | "href" | "questions">;
 
 export const PAPER_XP = 100;

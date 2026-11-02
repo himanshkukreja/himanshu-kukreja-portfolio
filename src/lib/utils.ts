@@ -36,6 +36,7 @@ export function resolveCoverUrl(src?: string): string | undefined {
 export function absoluteCoverUrl(src?: string): string | undefined {
   const u = resolveCoverUrl(src);
   if (!u || /^https?:\/\//i.test(u)) return u;
-  const site = (process.env.NEXT_PUBLIC_SITE_URL || "https://himanshukukreja.in").replace(/\/$/, "");
+  // covers are case-file art: absolute on the course host (public files are served on both hosts)
+  const site = (process.env.NEXT_PUBLIC_COURSE_ORIGIN || "https://systemdesignmastery.dev").replace(/\/$/, "");
   return `${site}${u.startsWith("/") ? "" : "/"}${u}`;
 }

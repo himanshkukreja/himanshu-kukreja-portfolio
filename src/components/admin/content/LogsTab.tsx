@@ -1,6 +1,6 @@
 "use client";
 
-/** Newsletter send logs (newsletter_logs) + ops: revalidate the /learn cache. */
+/** Newsletter send logs (newsletter_logs) + ops: revalidate the / cache. */
 import { useMemo, useState } from "react";
 import { Badge, Card, ConfirmButton, ErrorState, Kpi, Table, fmtDate, fmtNum, timeAgo, useAdminClient, useAdminData, type Column } from "../ui";
 import type { SendLog } from "../shell/types";
@@ -69,9 +69,9 @@ export default function LogsTab({ say }: { say: Say }) {
       </Card>
       <Card label="ops" title="Course cache">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="max-w-prose text-sm text-fg-3">Pushed new lessons to the course repo? Revalidate /learn so the next visitor gets them without waiting for the cache to expire.</p>
+          <p className="max-w-prose text-sm text-fg-3">Pushed new lessons to the course repo? Revalidate / so the next visitor gets them without waiting for the cache to expire.</p>
           <ConfirmButton tone="signal" confirmLabel="revalidate now?" onConfirm={revalidate} className="shrink-0">
-            ↻ revalidate /learn
+            ↻ revalidate /
           </ConfirmButton>
         </div>
       </Card>

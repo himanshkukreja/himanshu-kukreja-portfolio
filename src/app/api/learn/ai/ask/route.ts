@@ -21,7 +21,7 @@ const SLUG = /^[A-Za-z0-9-]{1,120}$/;
 
 /**
  * POST /api/learn/ai/ask { week, slug, question, selection?, mode? } → { text, creditsLeft }
- * or { story, question, selection?, mode? } for a case file (/stories/<story>).
+ * or { story, question, selection?, mode? } for a case file (/case-files/<story>).
  * Signed-in learners only. The lesson's (or case file's) outline and its most relevant sections go as context.
  */
 export async function POST(request: Request) {

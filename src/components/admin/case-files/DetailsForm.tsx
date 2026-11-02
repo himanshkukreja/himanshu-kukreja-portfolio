@@ -114,7 +114,7 @@ export default function DetailsForm({ f, set, problems, slugLocked, readOnly, on
             Slug
           </FieldLabel>
           <div className="flex items-stretch">
-            <span className="hidden items-center border border-r-0 border-line-strong bg-surface-2 px-2.5 font-mono text-[12px] text-fg-3 sm:flex">/stories/</span>
+            <span className="hidden items-center border border-r-0 border-line-strong bg-surface-2 px-2.5 font-mono text-[12px] text-fg-3 sm:flex">/case-files/</span>
             <input
               id={id("slug")}
               className={cx(INPUT, "font-mono text-[13px]")}
@@ -286,7 +286,7 @@ export default function DetailsForm({ f, set, problems, slugLocked, readOnly, on
           <FieldProblems problems={problems} field="seoDescription" />
         </div>
         <div className="border border-line bg-bg p-3" aria-label="Search result preview">
-          <div className="truncate font-mono text-[11px] text-fg-3">himanshukukreja.in › stories › {f.slug || "…"}</div>
+          <div className="truncate font-mono text-[11px] text-fg-3">systemdesignmastery.dev › case-files › {f.slug || "…"}</div>
           <div className="truncate text-[16px] font-semibold text-signal-text">{(f.seoTitle || f.title || "Untitled") + " · Case files"}</div>
           <p className="m-0 line-clamp-2 text-[13px] text-fg-2">{f.seoDescription || f.excerpt || "No description yet."}</p>
         </div>

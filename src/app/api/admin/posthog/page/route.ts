@@ -5,7 +5,7 @@ import { getPage } from "@/lib/analytics/journeysServer";
 
 export const dynamic = "force-dynamic";
 
-/** GET ?path=/learn/…&days= → most clicked elements, reading depth and PostHog heatmap links for one page. */
+/** GET ?path=/…&days= → most clicked elements, reading depth and PostHog heatmap links for one page. */
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin(request);
   if (admin instanceof NextResponse) return admin;

@@ -109,7 +109,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           chapter. The questions learners often ask are answered already and free to read; your own use {credits}.
         </p>
       ),
-      try: { href: "/learn/prep/lectures", label: "the lectures" },
+      try: { href: "/prep/lectures", label: "the lectures" },
       details: <LecturesDetails d={d} />,
     },
     {
@@ -145,7 +145,7 @@ export function guideFeatures(d: GuideData): Feature[] {
         <>Open the discussion and the short shrinks to the top and keeps playing while you write.</>,
         <>On a laptop the feed sits in one column, with the details and actions beside it.</>,
       ],
-      try: { href: "/learn/shorts", label: "Shorts" },
+      try: { href: "/shorts", label: "Shorts" },
     },
     {
       id: "side-quests",
@@ -187,7 +187,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           call. Typed moves use {credits}; picking from the options is free.
         </p>
       ),
-      try: { href: "/learn/war-stories", label: "war stories and war rooms" },
+      try: { href: "/war-stories", label: "war stories and war rooms" },
       details: <SideQuestsDetails d={d} />,
     },
     {
@@ -228,7 +228,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           Both use {credits}; the written hints and the solution are free.
         </p>
       ),
-      try: { href: "/learn/labs", label: "code labs" },
+      try: { href: "/labs", label: "code labs" },
       details: <CodeLabsDetails />,
     },
     {
@@ -267,7 +267,7 @@ export function guideFeatures(d: GuideData): Feature[] {
         </>,
         <>Each graded card is +{REVIEW_XP_PER_CARD} XP, and a review session keeps your streak alive.</>,
       ],
-      try: { href: "/learn/arena", label: "the Arena" },
+      try: { href: "/arena", label: "the Arena" },
       details: <ArenaDetails />,
     },
     {
@@ -312,7 +312,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           design. Each review uses {credits}. Bosses and trials are scored by you and the answer key, with no AI.
         </p>
       ),
-      try: { href: "/learn/canvas", label: "the design canvas" },
+      try: { href: "/canvas", label: "the design canvas" },
       details: <DesignBossDetails />,
     },
     {
@@ -356,7 +356,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           the round against the levelled rubric, quoting your words. It sits beside your own scores and never changes XP. These use {credits} (an interviewer turn is about 10).
         </p>
       ),
-      try: { href: "/learn/mock", label: "mock interviews" },
+      try: { href: "/mock", label: "mock interviews" },
       details: <MocksDetails d={d} />,
     },
     {
@@ -398,7 +398,7 @@ export function guideFeatures(d: GuideData): Feature[] {
         </>,
         <>Saved for offline use, each prep card says whether its page is on this device.</>,
       ],
-      try: { href: "/learn/prep", label: "interview prep" },
+      try: { href: "/prep", label: "interview prep" },
       details: <PrepDetails />,
     },
     {
@@ -447,7 +447,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           lesson you snipped; written papers are marked point by point against their marking scheme. Each uses {credits}.
         </p>
       ),
-      try: { href: "/learn/notebook", label: "the notebook" },
+      try: { href: "/notebook", label: "the notebook" },
       details: <NotebookDetails />,
     },
     {
@@ -483,7 +483,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           goes to Anthropic&apos;s AI to answer it and isn&apos;t used for training.
         </p>
       ),
-      try: { href: "/learn/chat", label: "Ask" },
+      try: { href: "/chat", label: "Ask" },
       details: <AiTutorDetails />,
     },
     {
@@ -529,7 +529,7 @@ export function guideFeatures(d: GuideData): Feature[] {
           Progress page, where you can also add your own API key.
         </p>
       ),
-      try: { href: "/learn/dashboard", label: "your progress" },
+      try: { href: "/dashboard", label: "your progress" },
       details: <ProgressDetails d={d} />,
     },
   ];

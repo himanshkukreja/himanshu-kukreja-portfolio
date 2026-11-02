@@ -10,7 +10,7 @@ export type StoryInput = { slug: string; caseId: string; title: string; typeLabe
 
 export function storyDoc(s: StoryInput): BlocksDoc {
   const utm = `utm_source=email&utm_medium=email&utm_campaign=case-${s.slug}`.slice(0, 160);
-  const url = `${SITE}/stories/${s.slug}?${utm}`;
+  const url = `${SITE}/case-files/${s.slug}?${utm}`;
   const blocks: BlocksDoc["blocks"] = [
     { id: newBlockId(), type: "hero", eyebrow: `${s.caseId} · ${s.typeLabel} · ${s.mins} min read`, title: s.title },
   ];
@@ -26,11 +26,11 @@ export function storyDoc(s: StoryInput): BlocksDoc {
     label: s.activity ? `${s.activity.minutes ? `${s.activity.minutes}-minute ` : ""}${s.activity.kind} at the end of the file →` : "Take the challenge →",
     url: `${url}#act-${s.slug}-h`,
   });
-  blocks.push({ id: newBlockId(), type: "text", md: `Every case file so far: [himanshukukreja.in/stories](${SITE}/stories?${utm}).\n\nReply if you've lived through one like this. I read every reply.\n\nHimanshu` });
+  blocks.push({ id: newBlockId(), type: "text", md: `Every case file so far: [systemdesignmastery.dev/case-files](${SITE}/case-files?${utm}).\n\nReply if you've lived through one like this. I read every reply.\n\nHimanshu` });
   return {
     layout: "blocks",
     topLabel: "case files",
-    footer: "You're getting this because you subscribed or have an account at himanshukukreja.in with {{email}}.",
+    footer: "You're getting this because you subscribed or have an account at systemdesignmastery.dev with {{email}}.",
     blocks,
     story: { slug: s.slug, caseId: s.caseId, title: s.title },
   };

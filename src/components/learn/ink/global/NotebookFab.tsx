@@ -10,7 +10,7 @@
  * panel doesn't open (context.ts: the notebook itself, the Shorts feed, full-screen tools).
  */
 import dynamic from "next/dynamic";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { useEffect, useRef, useState } from "react";
 import { ChevronUp } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -25,7 +25,7 @@ const LONG_PRESS_MS = 480;
 const devStandIn = () => process.env.NODE_ENV === "development" && readLS("hk.ink.dev") === "1";
 
 export default function NotebookFab() {
-  const pathname = usePathname() || "";
+  const pathname = useCoursePathname() || "";
   const { user } = useAuth();
   const lesson = useLessonContext();
   const open = useNotebookOpen();

@@ -1,5 +1,5 @@
 /**
- * Server: one mock interview, rendered, for /learn/mock/[slug]. Cached like the course map
+ * Server: one mock interview, rendered, for /mock/[slug]. Cached like the course map
  * (Next data cache, tag "course-map", 5 min), so /api/revalidate-courses refreshes both.
  * Kept apart from load.ts so course.ts can import load.ts without a cycle.
  */

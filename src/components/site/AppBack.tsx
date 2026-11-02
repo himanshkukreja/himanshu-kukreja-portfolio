@@ -7,27 +7,23 @@
  *
  * Back means the reader's own history when there is an earlier page in this app window (Navigation
  * API where available, else our own count of in-app navigations), and otherwise "up": a lesson goes
- * to the course map, a case file to the case files, a learn page to /learn, anything else home. It
- * is hidden on the two roots (/ and /learn), where back would leave the app.
+ * to the course map (/), a case file to the case files, anything else one level up. It is hidden on
+ * the root, where back would leave the app.
  */
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { appDisplayMode, isInstalledMode, watchDisplayMode } from "@/lib/pwa/displayMode";
+import { cleanPath, isLessonPath } from "@/lib/learn/paths";
 
 const DEPTH_KEY = "hk.app.depth";
-const ROOTS = new Set(["/", "/learn"]);
+const ROOTS = new Set(["/"]);
 
-/** Where "up" goes from a page. */
+/** Where "up" goes from a page (clean course paths: a lesson goes to the hub, anything else one level up). */
 export function parentOf(pathname: string): string {
-  const p = pathname.replace(/\/+$/, "") || "/";
-  const lesson = /^\/learn\/([^/]+)\/(?!(?:design-week|revise)\/)[^/]+\/[^/]+$/.exec(p);
-  if (lesson && !["design-week", "revise", "arena", "labs", "mock", "cheatsheet"].includes(lesson[1])) return `/learn/${lesson[1]}`;
-  if (p.startsWith("/learn/")) {
-    const parts = p.split("/").filter(Boolean); // ["learn", ...]
-    return parts.length > 2 ? `/${parts.slice(0, -1).join("/")}` : "/learn";
-  }
-  if (p.startsWith("/stories/")) return "/stories";
-  return "/";
+  const p = cleanPath(pathname).replace(/\/+$/, "") || "/";
+  if (isLessonPath(p)) return "/";
+  const parts = p.split("/").filter(Boolean);
+  return parts.length > 1 ? `/${parts.slice(0, -1).join("/")}` : "/";
 }
 
 type NavigationLike = { canGoBack?: boolean };
@@ -81,7 +77,7 @@ export function useAppDepth() {
 }
 
 export default function AppBack({ className = "" }: { className?: string }) {
-  const pathname = usePathname() || "/";
+  const pathname = cleanPath(usePathname() || "/");
   const router = useRouter();
   const installed = useInstalled();
   if (!installed || ROOTS.has(pathname.replace(/\/+$/, "") || "/")) return null;

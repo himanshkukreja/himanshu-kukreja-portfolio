@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/war-stories: story of the day, the real stories (filter by theme, read ones ticked) and the
+ * /war-stories: story of the day, the real stories (filter by theme, read ones ticked) and the
  * war rooms (cleared ones ticked, best run). Read / cleared state is this browser's plus the game state.
  */
 import Link from "next/link";
@@ -89,7 +89,7 @@ export default function WarStoriesHub({ stories, rooms, videos = {}, shorts = 0 
           {stories.length} real stories{Object.keys(videos).length ? ` · ${Object.keys(videos).length} with a short video` : ""}{local ? ` · ${readCount} read` : ""} · {rooms.length} war room{rooms.length === 1 ? "" : "s"}
         </p>
         {shorts > 0 && (
-          <Link href="/learn/shorts?cat=stories" className="inline-flex min-h-11 items-center gap-2 self-start bg-signal px-4 font-mono text-sm font-semibold text-on-signal">
+          <Link href="/shorts?cat=stories" className="inline-flex min-h-11 items-center gap-2 self-start bg-signal px-4 font-mono text-sm font-semibold text-on-signal">
             ▶ swipe through {shorts} shorts
           </Link>
         )}
@@ -204,7 +204,7 @@ export default function WarStoriesHub({ stories, rooms, videos = {}, shorts = 0 
           </h2>
           <span className="flex max-w-[520px] flex-col gap-1 text-[14px] text-fg-3 sm:items-end sm:text-right">
             Fictional company and people; each night is modelled on a real public postmortem, named at the end.
-            <Link href="/learn/war-stories/war-room" className="font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            <Link href="/war-stories/war-room" className="font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
               all {rooms.length} war rooms →
             </Link>
           </span>
@@ -231,7 +231,7 @@ function Level({ level }: { level: RoomLevel }) {
 }
 
 /**
- * The war-room cards (the hub and /learn/war-stories/war-room): topic and difficulty tags, cleared and best-run
+ * The war-room cards (the hub and /war-stories/war-room): topic and difficulty tags, cleared and best-run
  * markers from this browser and the game state. With more than a handful of rooms: filters by topic, difficulty and
  * "not played yet"; `limit` shows the first few with a "Show all" that opens the rest in place.
  */

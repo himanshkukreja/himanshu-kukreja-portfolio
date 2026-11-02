@@ -66,13 +66,13 @@ export default function Navbar() {
                         </Link>
                     ))}
                     <Link
-                        href="/stories"
+                        href="/case-files"
                         className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80"
                     >
                         All Stories
                     </Link>
                     <Link
-                        href="/learn"
+                        href="/"
                         className="px-3 py-2 rounded-full text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
                     >
                         Learn
@@ -128,14 +128,14 @@ export default function Navbar() {
                             </Link>
                         ))}
                         <Link
-                            href="/stories"
+                            href="/case-files"
                             className="block px-4 py-2 rounded-lg text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80"
                             onClick={() => setMobileMenuOpen(false)}
                         >
                             All Stories
                         </Link>
                         <Link
-                            href="/learn"
+                            href="/"
                             className="block px-4 py-2 rounded-lg text-sm transition-colors hover:bg-black/5 dark:hover:bg-white/5 text-gray-700 dark:text-white/80 bg-gradient-to-r from-blue-500/10 to-purple-500/10"
                             onClick={() => setMobileMenuOpen(false)}
                         >

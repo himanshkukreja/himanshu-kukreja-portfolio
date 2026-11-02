@@ -8,7 +8,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { agoLabel, collectClientSignals, dayIn, lessonSignals, mergeClientSignals, rankDueReviews } from "../../src/lib/learn/review-due-core.ts";
 
-const C = "/learn/system-design-mastery";
+const C = "";
 const W = "week-05-scaling";
 const lesson = (slug, title, minutes = 40) => ({ week: W, slug, title, kind: "day-content", minutes, code: "D1", label: title, tag: "W05 · DAY 01", href: `${C}/${W}/${slug}` });
 const MAP = {
@@ -51,12 +51,12 @@ test("lecture checkpoint misses: the why line, and fixed misses drop out", () =>
     { lecture: "consistent-hashing", scene: "q2", right: false, at },
     { lecture: "consistent-hashing", scene: "q3", right: true, at },
   ];
-  const r = rankDueReviews({ now: NOW, map: MAP, lectureQuiz, lectures: { "consistent-hashing": { title: "Consistent hashing", href: "/learn/lectures/consistent-hashing" } } });
+  const r = rankDueReviews({ now: NOW, map: MAP, lectureQuiz, lectures: { "consistent-hashing": { title: "Consistent hashing", href: "/lectures/consistent-hashing" } } });
   assert.equal(r.items.length, 1);
   const it = r.items[0];
   assert.equal(it.kind, "checkpoint");
   assert.equal(it.why, "you missed 2 of 3 checkpoint questions on Consistent hashing 4 days ago");
-  assert.equal(it.href, "/learn/lectures/consistent-hashing");
+  assert.equal(it.href, "/lectures/consistent-hashing");
   assert.equal(it.dueAt, "2026-10-26");
   // re-answered right later, or a right answer on record in game_done: no longer due
   const later = rankDueReviews({ now: NOW, map: MAP, lectureQuiz: [...lectureQuiz, { lecture: "consistent-hashing", scene: "q1", right: true, at: at + DAY }], done: { "lecture-quiz:consistent-hashing:q2": at } });
@@ -151,7 +151,7 @@ test("saved-path steps past their date, not done", () => {
   const planSteps = [
     { pathId: "pa", pathTitle: "Caching in a week", stepId: "L:a", title: "Cache aside", href: `${C}/${W}/day-01-consistent-hashing`, kind: "lesson", due: "2026-10-27", done: false },
     { pathId: "pa", pathTitle: "Caching in a week", stepId: "L:b", title: "Write-behind", href: `${C}/${W}/day-02-sharding`, kind: "lesson", due: "2026-10-28", done: false },
-    { pathId: "pa", pathTitle: "Caching in a week", stepId: "L:c", title: "Later", href: "/learn/x", kind: "lesson", due: "2026-11-02", done: false },
+    { pathId: "pa", pathTitle: "Caching in a week", stepId: "L:c", title: "Later", href: "/x", kind: "lesson", due: "2026-11-02", done: false },
   ];
   const r = rankDueReviews({ now: NOW, map: MAP, planSteps });
   assert.equal(r.items.length, 1);

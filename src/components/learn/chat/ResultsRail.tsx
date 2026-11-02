@@ -98,7 +98,7 @@ export function useSmartResults(q: string, headers?: Record<string, string>, fro
   return load;
 }
 
-export const allResultsHref = (q: string, dev = false) => `/learn/chat?q=${encodeURIComponent(q)}&view=results${dev ? "&preview=1" : ""}`;
+export const allResultsHref = (q: string, dev = false) => `/chat?q=${encodeURIComponent(q)}&view=results${dev ? "&preview=1" : ""}`;
 
 /**
  * Instant matches under the box (phones, tablets and narrower computers, where there is no results rail): the top

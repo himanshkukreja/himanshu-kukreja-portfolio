@@ -5,19 +5,19 @@
  * as one place for your own stuff. Keep in sync with YOU_ROUTES in src/components/site/LearnNav.tsx.
  */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 
 const ITEMS = [
-  { href: "/learn/dashboard", label: "Progress", match: /^\/learn\/dashboard/ },
-  { href: "/learn/notebook", label: "Notebook", match: /^\/learn\/(notebook|notes|bookmarks)/ },
-  { href: "/learn/saved", label: "Saved paths", match: /^\/learn\/saved/ },
-  { href: "/learn/memory", label: "Tutor memory", match: /^\/learn\/memory/ },
-  { href: "/learn/mastery", label: "Concept mastery", match: /^\/learn\/mastery/ },
-  { href: "/learn/certificate", label: "Certificates", match: /^\/learn\/certificate/ },
+  { href: "/dashboard", label: "Progress", match: /^\/dashboard/ },
+  { href: "/notebook", label: "Notebook", match: /^\/(notebook|notes|bookmarks)/ },
+  { href: "/saved", label: "Saved paths", match: /^\/saved/ },
+  { href: "/memory", label: "Tutor memory", match: /^\/memory/ },
+  { href: "/mastery", label: "Concept mastery", match: /^\/mastery/ },
+  { href: "/certificate", label: "Certificates", match: /^\/certificate/ },
 ];
 
 export default function YouNav() {
-  const p = usePathname() || "";
+  const p = useCoursePathname() || "";
   return (
     <nav aria-label="You" className="mx-auto w-full max-w-[1320px] px-4 pt-4 sm:px-6">
       <ul className="m-0 flex list-none gap-1 overflow-x-auto border-b border-line p-0 [scrollbar-width:none]">

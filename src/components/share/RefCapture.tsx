@@ -7,7 +7,7 @@
  * Skipped entirely when the admin's no-track flag is set.
  */
 import { useEffect } from "react";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { useAuth } from "@/contexts/AuthContext";
 import { isValidHandle } from "@/lib/share/handle";
 import { userFetch } from "@/components/learn/progress/userFetch";
@@ -52,7 +52,7 @@ const visitorId = () => {
 };
 
 export default function RefCapture({ handle }: { handle?: string }) {
-  const pathname = usePathname();
+  const pathname = useCoursePathname();
   const { user, session } = useAuth();
   const uid = user?.id ?? null;
   const token = session?.access_token ?? null;

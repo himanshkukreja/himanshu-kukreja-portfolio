@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { motion, cubicBezier } from "framer-motion";
 import Link from "next/link";
 import { ArrowRight, Mail, FileText, Github, Linkedin, Instagram, Twitter, MapPin, Bell, BookOpen } from "lucide-react";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 type StoryCard = {
   slug: string;
@@ -246,7 +247,7 @@ export default function Hero() {
                 <span className="sm:hidden">Subscribe</span>
               </button>
               <Link
-                href="/learn/system-design-mastery"
+                href={courseUrlFor("/")}
                 className="group relative inline-flex items-center gap-2 rounded-xl border border-emerald-500/30 dark:border-emerald-500/30 bg-emerald-500/10 dark:bg-emerald-500/10 px-4 py-2 text-sm font-medium text-emerald-700 dark:text-emerald-200 hover:bg-emerald-500/20 transition-all duration-300"
               >
                 <BookOpen className="h-4 w-4" />
@@ -412,7 +413,7 @@ export default function Hero() {
             {/* Story Spotlight pill to keep symmetry */}
             <div className="absolute right-4 top-4">
               <Link
-                href={latest ? `/stories/${latest.slug}` : "/stories"}
+                href={courseUrlFor(latest ? `/case-files/${latest.slug}` : "/case-files")}
                 className="group inline-flex items-center gap-2 rounded-xl border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5 px-3 py-1.5 text-xs text-gray-700 dark:text-white/85 hover:bg-black/10 dark:hover:bg-white/10"
               >
                 <span className="grid h-6 w-6 place-items-center rounded-md bg-gradient-to-br from-indigo-500/20 to-blue-500/20 text-indigo-500 dark:text-indigo-300 ring-1 ring-inset ring-black/10 dark:ring-white/10">

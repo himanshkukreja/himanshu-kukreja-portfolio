@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The "Pages" tab of /learn/notebook: the learner's notebooks, then the pages of the one picked (thumbnails drawn
+ * The "Pages" tab of /notebook: the learner's notebooks, then the pages of the one picked (thumbnails drawn
  * from the ink). Create a notebook or a page (choose its paper), rename, reorder pages, delete with undo (the
  * delete is held back for a few seconds so Undo needs no copy, and runs at once if the tab is left).
  */
@@ -201,7 +201,7 @@ export default function PagesTab({ onCount }: { onCount?: (n: number) => void })
       const p = await createPage(nb.id, { paper });
       setPages((x) => [...(x || []), p]);
       setNotebooks((x) => (x || []).map((b) => (b.id === nb.id ? { ...b, pageCount: (b.pageCount || 0) + 1 } : b)));
-      window.location.assign(`/learn/notebook/page/${p.id}`);
+      window.location.assign(`/notebook/page/${p.id}`);
     } catch (e) {
       fail(e, "Couldn't add a page.");
     }
@@ -427,7 +427,7 @@ export default function PagesTab({ onCount }: { onCount?: (n: number) => void })
                 }}
                 className="group flex min-w-0 flex-col gap-1.5"
               >
-                <Link href={`/learn/notebook/page/${p.id}`} className="relative block border border-line-strong bg-surface transition hover:border-fg" aria-label={`Open page ${i + 1}: ${p.title || "Untitled page"}`}>
+                <Link href={`/notebook/page/${p.id}`} className="relative block border border-line-strong bg-surface transition hover:border-fg" aria-label={`Open page ${i + 1}: ${p.title || "Untitled page"}`}>
                   <PageThumb page={p} width={220} />
                   <span className="absolute left-0 top-0 bg-fg px-1.5 py-0.5 font-mono text-[11px] text-bg">{i + 1}</span>
                   {p.convertedMd && <span className="absolute right-0 top-0 bg-signal px-1.5 py-0.5 font-mono text-[10px] text-on-signal">TYPED</span>}

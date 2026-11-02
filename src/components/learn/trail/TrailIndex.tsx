@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/reading: every reading-trail entry by world and lesson, with search and company / type filters. */
+/** /reading: every reading-trail entry by world and lesson, with search and company / type filters. */
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search, X } from "lucide-react";

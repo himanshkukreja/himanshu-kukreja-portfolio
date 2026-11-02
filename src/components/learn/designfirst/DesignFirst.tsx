@@ -207,7 +207,7 @@ export default function DesignFirst({ meta, week, title, contentRef }: Props) {
     window.requestAnimationFrame(() => headRef.current?.focus({ preventScroll: true }));
   };
 
-  const canvasHref = `/learn/canvas/${encodeURIComponent(meta.key)}`;
+  const canvasHref = `/canvas/${encodeURIComponent(meta.key)}`;
   const solutionCss = useMemo(() => foldCss(gated), [gated]);
 
   return (

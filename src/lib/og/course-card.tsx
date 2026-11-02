@@ -46,7 +46,7 @@ function WorldTrack({ active }: { active?: number }) {
 export async function courseCard() {
   return new ImageResponse(
     (
-      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>himanshukukreja.in/learn</div>}>
+      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>systemdesignmastery.dev</div>}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 44 }}>
           <div style={{ display: "flex", padding: "6px 12px", background: C.signal, ...mono, fontSize: 20, fontWeight: 600, letterSpacing: "0.08em", color: C.onSignal }}>
             FREE COURSE
@@ -144,7 +144,7 @@ export async function lessonCard(l: LessonCardInput) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <Label>{l.worldNum >= 0 ? `world ${String(l.worldNum).padStart(2, "0")} of ${LAST}` : "side quest"}</Label>
             <div style={{ display: "flex", ...mono, fontSize: 22, color: C.fg3 }}>
-              {l.minutes > 0 ? `${l.minutes} min read · ` : ""}himanshukukreja.in/learn
+              {l.minutes > 0 ? `${l.minutes} min read · ` : ""}systemdesignmastery.dev
             </div>
           </div>
           <WorldTrack active={l.worldNum} />

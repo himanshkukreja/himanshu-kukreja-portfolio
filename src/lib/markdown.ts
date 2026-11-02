@@ -1,3 +1,5 @@
+import { cleanHtmlLinks } from "@/lib/learn/paths";
+
 /**
  * Shared markdown to HTML conversion utility
  * Used by both stories and learning resources
@@ -71,5 +73,5 @@ export async function markdownToHtml(md: string): Promise<string> {
     .use(rehypeStringify)
     .process(md);
 
-  return String(file);
+  return cleanHtmlLinks(String(file));
 }

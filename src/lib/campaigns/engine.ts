@@ -24,6 +24,7 @@ import { checkSender, envSenders, formatFrom, isFatalSendError, isRecipientRejec
 import { getStore, SchedulingMissingError, TablesMissingError, type DbMessage } from "./store";
 import { extraHosts } from "./tracking";
 import type { Campaign, CampaignSummary, Sender, TickResult, TransportId } from "./types";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export { contentProblems };
 
@@ -38,9 +39,9 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 export function trackingBase(): string {
   const explicit = process.env.EMAIL_TRACKING_BASE;
   if (explicit) return explicit.replace(/\/$/, "");
-  const site = process.env.NEXT_PUBLIC_SITE_URL || "";
-  if (process.env.NODE_ENV === "production" && /^https:\/\//.test(site)) return site.replace(/\/$/, "");
-  return "https://www.himanshukukreja.in";
+  // pixel / click / unsubscribe links on the course host, where the emails' links point (any host
+  // serves /api and /newsletter/unsubscribe, so emails already sent keep working)
+  return COURSE_ORIGIN;
 }
 
 export const newToken = () => crypto.randomBytes(18).toString("base64url");

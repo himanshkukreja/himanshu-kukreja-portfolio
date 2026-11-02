@@ -39,7 +39,7 @@ export default function StoriesGrid({
   initial,
   limit,
   showExplore,
-  exploreHref = "/stories",
+  exploreHref = "/case-files",
   exploreLabel = "Explore more stories",
 }: {
   initial?: StoryCard[];
@@ -98,7 +98,7 @@ export default function StoriesGrid({
         return (
           <Link
             key={s.slug}
-            href={`/stories/${s.slug}`}
+            href={`/case-files/${s.slug}`}
             className="group flex flex-col border border-line bg-surface text-fg no-underline hover:border-line-strong hover:text-fg"
           >
             <span className={`relative block aspect-[16/9] border-b border-line ${BLUEPRINT_BG}`}>

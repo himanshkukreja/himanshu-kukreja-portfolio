@@ -87,14 +87,9 @@ const nextConfig: NextConfig = {
   },
   // ...but keep the site's own canonical URLs: /learn/ → /learn as before (proxy paths excluded).
   async redirects() {
-    // The Practice tab became Interview prep; company tracks became its company pages.
-    const moved = [
-      { source: "/learn/practice", destination: "/learn/prep", permanent: true },
-      { source: "/learn/tracks", destination: "/learn/prep/companies", permanent: true },
-      { source: "/learn/tracks/:company", destination: "/learn/prep/companies/:company", permanent: true },
-      // the search page became the course chat (smart search lives inside it); ?q= and ?ask= carry over
-      { source: "/learn/search", destination: "/learn/chat", permanent: true },
-    ];
+    // Moved course pages (practice → prep, tracks → prep/companies, search → chat) are redirected by the
+    // middleware with the move to systemdesignmastery.dev (src/lib/learn/paths.ts legacyTarget), in one hop.
+    const moved: { source: string; destination: string; permanent: boolean }[] = [];
     return posthogRewrites.length
       ? [...moved, { source: `/:path((?!${PH.slice(1)}(?:/|$)).+)/`, destination: "/:path", permanent: true }]
       : moved;

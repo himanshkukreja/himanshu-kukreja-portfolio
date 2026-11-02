@@ -17,11 +17,11 @@ export const metadata: Metadata = {
   title: "Interview prep · System Design Mastery",
   description:
     "System design interview prep in one place: company pages with reported questions and sources, a question bank, the classic problems and low-level design, timed mock interviews (solo or with a peer), revision decks, cheat and design sheets, code labs, a numbers playground and a study planner.",
-  alternates: { canonical: "/learn/prep" },
+  alternates: { canonical: "/prep" },
 };
 
 /**
- * /learn/prep: the Prep tab's hub. The counts come from the same loaders as each tool's own page (all
+ * /prep: the Prep tab's hub. The counts come from the same loaders as each tool's own page (all
  * cached, none of them can fail the page); the learner's state is read in the browser, so a saved copy
  * works offline.
  */

@@ -7,7 +7,7 @@
  * that has a video lecture offers that too (never saved automatically: it is ~10–20 MB).
  */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { useEffect, useRef, useState } from "react";
 import { Check, CloudDownload, Loader2, RefreshCw, WifiOff } from "lucide-react";
 import type { CatalogItem, OfflineKind } from "@/lib/offline/types";
@@ -33,7 +33,7 @@ type Props = {
 };
 
 export default function SaveOfflineButton({ title, kind, url, compact = false, mediaBase, className = "" }: Props) {
-  const pathname = usePathname() || "/";
+  const pathname = useCoursePathname() || "/";
   const target = url ?? pathname;
   const { supported, saved, updates, offline, catalog, loadCatalog } = useOffline();
   const job = useSaveJob();
@@ -163,7 +163,7 @@ export default function SaveOfflineButton({ title, kind, url, compact = false, m
             >
               remove
             </button>
-            <Link href="/learn/offline" onClick={() => setOpen(false)} className="inline-flex min-h-10 items-center px-1 font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4">
+            <Link href="/offline" onClick={() => setOpen(false)} className="inline-flex min-h-10 items-center px-1 font-mono text-xs text-signal-text underline decoration-line-strong underline-offset-4">
               offline library →
             </Link>
           </div>

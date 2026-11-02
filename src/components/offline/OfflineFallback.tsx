@@ -35,7 +35,7 @@ export default function OfflineFallback() {
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Link href="/learn/offline" className="inline-flex min-h-[52px] items-center bg-signal px-5 text-[15px] font-semibold text-on-signal">
+        <Link href="/offline" className="inline-flex min-h-[52px] items-center bg-signal px-5 text-[15px] font-semibold text-on-signal">
           Open the offline library
         </Link>
         <button type="button" onClick={() => window.location.assign(path ?? window.location.href)} className="min-h-[52px] border border-line-strong px-5 text-[15px] font-medium text-fg hover:bg-surface-2">

@@ -42,8 +42,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: `${title} · Case files`,
     description,
-    alternates: { canonical: `/stories/${slug}` },
-    openGraph: { type: "article", title, description, url: `/stories/${slug}`, ...(images ? { images } : {}) },
+    alternates: { canonical: `/case-files/${slug}` },
+    openGraph: { type: "article", title, description, url: `/case-files/${slug}`, ...(images ? { images } : {}) },
     twitter: { card: "summary_large_image", title, description, ...(cover ? { images: [cover] } : {}) },
   };
 }
@@ -92,10 +92,10 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
     <main className="min-h-screen">
       <JsonLd
         data={[
-          caseFileArticle({ title: story.title, description: story.seoDescription || story.excerpt || "", path: `/stories/${slug}`, date: story.date, image: resolveCoverUrl(story.cover) || undefined }),
+          caseFileArticle({ title: story.title, description: story.seoDescription || story.excerpt || "", path: `/case-files/${slug}`, date: story.date, image: resolveCoverUrl(story.cover) || undefined }),
           breadcrumbs([
-            { name: "Case files", path: "/stories" },
-            { name: story.title, path: `/stories/${slug}` },
+            { name: "Case files", path: "/case-files" },
+            { name: story.title, path: `/case-files/${slug}` },
           ]),
         ]}
       />

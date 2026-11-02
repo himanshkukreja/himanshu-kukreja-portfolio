@@ -9,7 +9,7 @@ export const revalidate = 86400;
 export const metadata = {
   title: "War rooms · System Design Mastery",
   description: "You're on call: incident simulations played out in the channel, each modelled on a real public postmortem, where you make the calls.",
-  alternates: { canonical: "/learn/war-stories/war-room" },
+  alternates: { canonical: "/war-stories/war-room" },
 };
 
 export default async function WarRoomsPage() {
@@ -17,7 +17,7 @@ export default async function WarRoomsPage() {
   return (
     <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-14">
       <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-        <Link href="/learn/war-stories" className="hover:text-fg">
+        <Link href="/war-stories" className="hover:text-fg">
           War stories
         </Link>
         <span aria-hidden>/</span>
@@ -33,7 +33,7 @@ export default async function WarRoomsPage() {
           postmortem, named at the end. Good practice for on-call and for the &ldquo;tell me about an incident&rdquo; interview question.
         </p>
         <p className="m-0 font-mono text-xs text-fg-3">
-          {rooms.length} war room{rooms.length === 1 ? "" : "s"} · 8–15 minutes each · <Link href="/learn/war-stories" className="underline decoration-line-strong underline-offset-4 hover:text-fg">read the true stories →</Link>
+          {rooms.length} war room{rooms.length === 1 ? "" : "s"} · 8–15 minutes each · <Link href="/war-stories" className="underline decoration-line-strong underline-offset-4 hover:text-fg">read the true stories →</Link>
         </p>
       </header>
       <WarRoomGrid rooms={rooms} />

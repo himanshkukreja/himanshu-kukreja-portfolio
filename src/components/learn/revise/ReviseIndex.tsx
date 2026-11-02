@@ -15,7 +15,7 @@ export type ReviseWeekSummary = {
   lessons: { slug: string; short: string; title: string; cards: number }[];
 };
 
-/** /learn/revise: every world's deck, its lesson decks and cheat sheet, with what this browser revised. */
+/** /revise: every world's deck, its lesson decks and cheat sheet, with what this browser revised. */
 export default function ReviseIndex({ weeks }: { weeks: ReviseWeekSummary[] }) {
   const s = useRevisedState();
   return (
@@ -43,10 +43,10 @@ export default function ReviseIndex({ weeks }: { weeks: ReviseWeekSummary[] }) {
               </div>
               {has && (
                 <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row">
-                  <Link href={`/learn/revise/${w.id}`} className="flex min-h-[48px] items-center justify-center bg-signal px-5 text-[15px] font-semibold text-on-signal">
+                  <Link href={`/revise/${w.id}`} className="flex min-h-[48px] items-center justify-center bg-signal px-5 text-[15px] font-semibold text-on-signal">
                     Revise this world
                   </Link>
-                  <Link href={`/learn/cheatsheet/${w.id}`} className="flex min-h-[48px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">
+                  <Link href={`/cheatsheet/${w.id}`} className="flex min-h-[48px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">
                     Cheat sheet
                   </Link>
                 </div>
@@ -59,7 +59,7 @@ export default function ReviseIndex({ weeks }: { weeks: ReviseWeekSummary[] }) {
                   return (
                     <Link
                       key={l.slug}
-                      href={`/learn/revise/${w.id}/${l.slug}`}
+                      href={`/revise/${w.id}/${l.slug}`}
                       title={`${l.title} · ${l.cards} cards`}
                       className={`inline-flex min-h-[40px] items-center gap-1.5 border px-3 font-mono text-xs ${done ? "border-fg-3 text-fg" : "border-line text-fg-2 hover:border-fg-3 hover:text-fg"}`}
                     >

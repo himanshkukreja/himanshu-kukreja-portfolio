@@ -1,10 +1,11 @@
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 /**
  * "System Design Mastery, rebuilt" announcement: HTML (table layout, inline styles, 600px, phone-safe)
  * + plain-text twin. Pure function, no I/O: the admin preview, the test send and the real send all
  * render through here so what you preview is exactly what goes out.
  *
  * Copy is checked against the shipped features (lesson stages/StageRail, CourseEnhancer quick checks,
- * Arena daily/leagues/games, review queue, themed course blocks, /learn/dashboard, case-file activities).
+ * Arena daily/leagues/games, review queue, themed course blocks, /dashboard, case-file activities).
  */
 
 export const ANNOUNCE_KEY = "announce:learn-revamp-2026-10";
@@ -16,16 +17,17 @@ export function announceSubject(name?: string | null): string {
 }
 const PREHEADER = "1,000+ quick checks, a daily 5-question challenge and weekly leagues. Pick up right where you left off.";
 
-const SITE = "https://www.himanshukukreja.in";
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
 const UTM = "utm_source=email&utm_medium=email&utm_campaign=learn-revamp-2026";
 const withUtm = (path: string) => `${SITE}${path}${path.includes("?") ? "&" : "?"}${UTM}`;
 
 export const LINKS = {
-  learn: withUtm("/learn"),
-  daily: withUtm("/learn/arena/daily"),
-  arena: withUtm("/learn/arena"),
-  progress: withUtm("/learn/dashboard"),
-  stories: withUtm("/stories"),
+  learn: withUtm("/"),
+  daily: withUtm("/arena/daily"),
+  arena: withUtm("/arena"),
+  progress: withUtm("/dashboard"),
+  stories: withUtm("/case-files"),
 };
 
 export function unsubscribeUrl(email: string) {
@@ -181,14 +183,14 @@ export function learnRevampHtml({ email, name }: AnnounceInput): string {
           <td class="pad" style="padding:0 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">Lessons you already finished are still marked done when you sign in with the same account. If something looks broken or confusing, just reply to this email. I read every reply.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
 
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this one-off update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this one-off update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -215,10 +217,10 @@ export function learnRevampText({ email, name }: AnnounceInput): string {
     "Lessons you already finished are still marked done when you sign in with the same account. If something looks broken or confusing, just reply to this email. I read every reply.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this one-off update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this one-off update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ];
   return lines.join("\n");

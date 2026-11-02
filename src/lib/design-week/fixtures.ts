@@ -4,7 +4,7 @@
  * stable for a QA session:
  *   two closed weeks (winners featured), the current week with submissions open, next week's
  *   challenge scheduled, one draft. Flip the current week to voting from /admin?preview=1.
- * Learner personas sign in with `Bearer fixture.<id>` (the dev persona bar on /learn/design-week):
+ * Learner personas sign in with `Bearer fixture.<id>` (the dev persona bar on /design-week):
  *   fx-ada     eligible learner with no submission yet (the QA "you")
  *   fx-newbie  account an hour old, no lessons: can't vote yet
  *   fx-grace / fx-linus / fx-margaret share profiles (full name / first name / handle only)

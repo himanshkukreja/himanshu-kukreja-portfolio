@@ -37,7 +37,7 @@ export type EmailDoc = BlocksDoc | RawDoc;
 export type EmailContent = { subject: string; subjectFallback?: string | null; preheader?: string | null; doc: EmailDoc };
 
 export type RenderOptions = {
-  /** Public base URL for pixel + click links (https://www.himanshukukreja.in). */
+  /** Public base URL for pixel + click links (the course host, https://systemdesignmastery.dev). */
   base: string;
   /** Per-recipient token; "preview"/"test" render the same markup but the routes ignore them. */
   token?: string;
@@ -354,13 +354,13 @@ export function emptyBlock(type: BlockType): Block {
     case "hero":
       return { id, type, eyebrow: "", title: "A headline" };
     case "text":
-      return { id, type, md: "Write something. **Bold**, *italic*, [links](https://www.himanshukukreja.in) and lists work." };
+      return { id, type, md: "Write something. **Bold**, *italic*, [links](https://systemdesignmastery.dev) and lists work." };
     case "button":
       return { id, type, label: "Open the course →", url: "{{resume_url}}" };
     case "feature":
       return { id, type, tag: "01 · new", title: "Feature title", md: "One or two sentences about it." };
     case "callout":
-      return { id, type, eyebrow: "today", title: "A short, punchy line.", label: "Go →", url: "https://www.himanshukukreja.in/learn" };
+      return { id, type, eyebrow: "today", title: "A short, punchy line.", label: "Go →", url: "https://systemdesignmastery.dev/" };
     case "image":
       return { id, type, src: "", alt: "", href: "" };
     case "divider":

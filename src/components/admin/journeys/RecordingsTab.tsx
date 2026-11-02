@@ -46,7 +46,7 @@ export default function RecordingsTab() {
             <input
               value={pathDraft}
               onChange={(e) => setPathDraft(e.target.value)}
-              placeholder="visited page, e.g. /learn"
+              placeholder="visited page, e.g. /"
               className="min-h-10 w-full border border-line-strong bg-surface px-3 font-mono text-[13px] text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
             />
           </label>

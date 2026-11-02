@@ -1,6 +1,6 @@
 /**
  * "Design it first" on the capstones (boss lessons): before the solution phases, the learner sketches
- * their own design on the design canvas (/learn/canvas/capstone:<week>), then compares it with the
+ * their own design on the design canvas (/canvas/capstone:<week>), then compares it with the
  * capstone's and can ask for the canvas AI review.
  *
  * Pure (no server or browser imports): the capstone page reads the brief out of the markdown at

@@ -167,10 +167,10 @@ export default function GameShell({
             <button type="button" onClick={start} className={BTN}>
               Play again →
             </button>
-            <Link href="/learn/arena" className={BTN_GHOST}>
+            <Link href="/arena" className={BTN_GHOST}>
               Arena
             </Link>
-            <Link href="/learn/arena/daily" className={BTN_GHOST}>
+            <Link href="/arena/daily" className={BTN_GHOST}>
               Daily challenge
             </Link>
           </div>

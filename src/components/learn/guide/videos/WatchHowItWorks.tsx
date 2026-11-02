@@ -3,11 +3,11 @@
 /**
  * The quiet "▶ watch how it works · 2:13 · read the guide →" line on a feature page: opens that
  * feature's video in the shared player (optionally at a chapter), and links to the feature's section
- * of /learn/guide. Renders nothing until the video is published and the NEXT_PUBLIC_GUIDE_VIDEOS flag
+ * of /guide. Renders nothing until the video is published and the NEXT_PUBLIC_GUIDE_VIDEOS flag
  * is on. `guide={false}` where the page already links to the guide (or in a tight chip row).
  */
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { Play } from "lucide-react";
 import { chapterAt, fmtClock, guideHref, guideVideo, openGuideVideo, type GuideVideoId } from "@/lib/learn/guide/videos";
 
@@ -29,7 +29,7 @@ export default function WatchHowItWorks({
   guide?: boolean | string;
   className?: string;
 }) {
-  const path = usePathname() || "";
+  const path = useCoursePathname() || "";
   const v = guideVideo(id);
   if (!v) return null;
   const at = chapterAt(v, chapter);
@@ -53,7 +53,7 @@ export default function WatchHowItWorks({
     <span className={`inline-flex flex-wrap items-center gap-x-4 gap-y-0 self-start ${className}`}>
       {button}
       <Link
-        href={typeof guide === "string" ? `/learn/guide#${guide}` : guideHref(id)}
+        href={typeof guide === "string" ? `/guide#${guide}` : guideHref(id)}
         className={`inline-flex ${compact ? "min-h-8 text-[12px]" : "min-h-10 text-[13px]"} items-center whitespace-nowrap font-mono text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg hover:decoration-signal`}
       >
         read the guide →

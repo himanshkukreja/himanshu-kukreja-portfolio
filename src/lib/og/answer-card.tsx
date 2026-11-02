@@ -6,14 +6,14 @@ export const ANSWER_ALT = "A question answered from System Design Mastery, a fre
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).replace(/\s+\S*$/, "")}…` : s);
 
-/** The card for /learn/answer/<id>: the question big, the number of course sources under it. */
+/** The card for /answer/<id>: the question big, the number of course sources under it. */
 export async function answerCard(a: Pick<SharedAnswer, "question" | "cites">) {
   const q = clip(a.question, 150);
   const size = q.length > 110 ? 50 : q.length > 70 ? 58 : 68;
   const kinds = [...new Set(a.cites.map((c) => c.kind))].length;
   return new ImageResponse(
     (
-      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>himanshukukreja.in/learn</div>}>
+      <Frame right={<div style={{ display: "flex", ...mono, fontSize: 24, color: C.fg3 }}>systemdesignmastery.dev</div>}>
         <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 48 }}>
           <div style={{ display: "flex", padding: "6px 12px", background: C.signal, ...mono, fontSize: 20, fontWeight: 600, letterSpacing: "0.08em", color: C.onSignal }}>ASKED &amp; ANSWERED</div>
           <Label color={C.fg2}>from the course, with sources</Label>

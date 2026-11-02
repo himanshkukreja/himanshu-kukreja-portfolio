@@ -3,7 +3,7 @@
 /**
  * One challenge: header with phase + countdown, the call to action for this viewer, the brief,
  * constraints and rubric, the lessons it builds on, and (from voting on) the gallery.
- * Shared by /learn/design-week (current challenge) and /learn/design-week/<slug> (archive).
+ * Shared by /design-week (current challenge) and /design-week/<slug> (archive).
  */
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";

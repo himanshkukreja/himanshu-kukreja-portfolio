@@ -13,10 +13,10 @@ export default function CertificateNotFound() {
         may also have hidden its page.
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Link href="/learn" className="inline-flex min-h-[52px] items-center justify-between gap-3 bg-signal px-5 font-semibold text-on-signal hover:brightness-110">
+        <Link href="/" className="inline-flex min-h-[52px] items-center justify-between gap-3 bg-signal px-5 font-semibold text-on-signal hover:brightness-110">
           Start the course <span aria-hidden className="font-mono">→</span>
         </Link>
-        <Link href="/learn/guide#certificates" className="inline-flex min-h-[52px] items-center border border-line-strong px-5 text-fg hover:bg-surface-2">
+        <Link href="/guide#certificates" className="inline-flex min-h-[52px] items-center border border-line-strong px-5 text-fg hover:bg-surface-2">
           How certificates are earned
         </Link>
       </div>

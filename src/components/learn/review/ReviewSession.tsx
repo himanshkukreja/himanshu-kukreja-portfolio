@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Daily standup (/learn/review): Leitner boxes 1-5 (1/3/7/16/35 days), card front/back,
+ * Daily standup (/review): Leitner boxes 1-5 (1/3/7/16/35 days), card front/back,
  * Again / Hard / Good / Easy, +5 XP per card, finish screen. Cards come from review_cards
  * (signed in, when the table exists) or localStorage, via src/lib/learn/review.ts.
  */
@@ -343,7 +343,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
               );
             })}
           </div>
-          <Link href="/learn/notebook?tab=highlights" className="inline-flex min-h-11 items-center text-sm font-semibold text-signal-text">
+          <Link href="/notebook?tab=highlights" className="inline-flex min-h-11 items-center text-sm font-semibold text-signal-text">
             Turn highlights into cards in your notebook ›
           </Link>
         </div>
@@ -492,10 +492,10 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
                   : "Cards arrive on their own: a wrong answer in a trial, a question you flag, a highlight you turn into a card, or an interview answer you mark “review again”."}
               </span>
               <div className="flex flex-wrap gap-2.5">
-                <Link href={`/learn/${map.courseId}`} className="inline-flex min-h-12 items-center bg-signal px-5 font-semibold text-on-signal">
+                <Link href={`/`} className="inline-flex min-h-12 items-center bg-signal px-5 font-semibold text-on-signal">
                   Back to the skill tree
                 </Link>
-                <Link href="/learn/notebook?tab=highlights" className="inline-flex min-h-12 items-center border border-line-strong px-5 text-[15px] text-fg">
+                <Link href="/notebook?tab=highlights" className="inline-flex min-h-12 items-center border border-line-strong px-5 text-[15px] text-fg">
                   Open notebook
                 </Link>
               </div>
@@ -540,7 +540,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
                 {results.filter((r) => r.g === "again").length} went back to Box 1.{streak ? ` Streak is now ${streak} day${streak === 1 ? "" : "s"}.` : ""}
               </span>
               <div className="flex flex-wrap items-center gap-2.5">
-                <Link href={`/learn/${map.courseId}`} className="inline-flex min-h-[52px] items-center bg-signal px-6 text-base font-semibold text-on-signal">
+                <Link href={`/`} className="inline-flex min-h-[52px] items-center bg-signal px-6 text-base font-semibold text-on-signal">
                   Back to course ›
                 </Link>
                 {resume && resume.mode !== "start" && (
@@ -548,7 +548,7 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
                     Resume {resume.lesson.kind === "week-preview" ? `W${resume.lesson.tag.slice(1, 3)} Preview` : resume.lesson.label.split(" · ")[0]}
                   </Link>
                 )}
-                <Link href="/learn/notebook" className="inline-flex min-h-[52px] items-center border border-line-strong px-5 text-[15px] text-fg">
+                <Link href="/notebook" className="inline-flex min-h-[52px] items-center border border-line-strong px-5 text-[15px] text-fg">
                   Open notebook
                 </Link>
               </div>

@@ -16,8 +16,8 @@ const DESCRIPTION =
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/learn/guide" },
-  openGraph: { title: "How System Design Mastery works", description: DESCRIPTION, url: "/learn/guide", type: "article" },
+  alternates: { canonical: "/guide" },
+  openGraph: { title: "How System Design Mastery works", description: DESCRIPTION, url: "/guide", type: "article" },
   twitter: { card: "summary_large_image", title: "How System Design Mastery works", description: DESCRIPTION },
 };
 

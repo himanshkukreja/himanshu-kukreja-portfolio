@@ -26,7 +26,7 @@ export async function generateMetadata({ params }: Props) {
     ? { openGraph: { title, description: l.summary, type: "video.other" as const, images: [{ url: poster, width: 1920, height: 1080, alt: l.title }] }, twitter: { card: "summary_large_image" as const, title, description: l.summary, images: [poster] } }
     : {};
   // v2 lectures are the released format; the v1 experiments stay out of search
-  return { title, description: l.summary, alternates: { canonical: `/learn/lectures/${l.quest}` }, ...social, ...(l.v === 2 ? {} : { robots: { index: false, follow: false } }) };
+  return { title, description: l.summary, alternates: { canonical: `/lectures/${l.quest}` }, ...social, ...(l.v === 2 ? {} : { robots: { index: false, follow: false } }) };
 }
 
 export default async function LecturePage({ params }: Props) {
@@ -45,7 +45,7 @@ export default async function LecturePage({ params }: Props) {
       ? videoObject({
           name: l.title,
           description: l.summary,
-          path: `/learn/lectures/${l.quest}`,
+          path: `/lectures/${l.quest}`,
           thumbnailUrl: media.thumbnailUrl,
           contentUrl: media.contentUrl,
           uploadDate: media.uploadDate,

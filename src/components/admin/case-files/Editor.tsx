@@ -296,13 +296,13 @@ function Editor({ initial }: { initial: CaseFileDetail }) {
           text: (
             <>
               Published as <strong className="text-signal-text">{d.caseId}</strong>. The case files index, home teaser and this story&apos;s page are refreshing.{" "}
-              <a href={`/stories/${d.row.slug}`} target="_blank" rel="noreferrer" className="text-signal-text underline">
-                view /stories/{d.row.slug} ↗
+              <a href={`/case-files/${d.row.slug}`} target="_blank" rel="noreferrer" className="text-signal-text underline">
+                view /case-files/{d.row.slug} ↗
               </a>
             </>
           ),
         });
-      else if (action === "unpublish") setNotice({ tone: "warn", text: "Unpublished: /stories/" + d.row.slug + " now answers 404. The case number stays reserved." });
+      else if (action === "unpublish") setNotice({ tone: "warn", text: "Unpublished: /case-files/" + d.row.slug + " now answers 404. The case number stays reserved." });
       else if (action === "archive") setNotice({ tone: "warn", text: "Archived: read-only and off the site. Restore it to edit again." });
       else setNotice({ tone: "neutral", text: "Restored as a draft." });
     } catch (e) {
@@ -458,7 +458,7 @@ function Editor({ initial }: { initial: CaseFileDetail }) {
             {busy === "duplicate" ? "duplicating…" : "duplicate"}
           </button>
           {row.status === "published" && (
-            <a className={BTN} href={`/stories/${row.slug}`} target="_blank" rel="noreferrer">
+            <a className={BTN} href={`/case-files/${row.slug}`} target="_blank" rel="noreferrer">
               view live ↗
             </a>
           )}

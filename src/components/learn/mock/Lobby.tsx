@@ -66,11 +66,11 @@ export default function Lobby({
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[12px] text-fg-3">
-          <Link href="/learn/system-design-mastery" className="hover:text-fg">
+          <Link href="/" className="hover:text-fg">
             course
           </Link>
           <span aria-hidden>/</span>
-          <Link href="/learn/mock" className="hover:text-fg">
+          <Link href="/mock" className="hover:text-fg">
             mock interviews
           </Link>
           <span aria-hidden>/</span>

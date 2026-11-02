@@ -35,9 +35,9 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `/learn/answer/${a.id}` },
+    alternates: { canonical: `/answer/${a.id}` },
     robots: ANSWER_PAGES_INDEXABLE ? { index: true, follow: true } : { index: false, follow: true, googleBot: { index: false, follow: true } },
-    openGraph: { title, description, url: `/learn/answer/${a.id}`, type: "article" },
+    openGraph: { title, description, url: `/answer/${a.id}`, type: "article" },
     twitter: { card: "summary_large_image", title, description },
   };
 }
@@ -105,11 +105,11 @@ export default async function SharedAnswerPage({ params }: Params) {
         <p className="m-0 font-display text-[22px] font-bold leading-snug text-fg">Got your own system design question?</p>
         <p className="m-0 text-[15px] leading-relaxed text-fg-2">Search the whole free course, lessons, lectures, labs and interview problems, and get an answer that cites where it comes from.</p>
         <div className="flex flex-wrap gap-3">
-          <Link href="/learn/chat" className="flex min-h-[52px] items-center gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
+          <Link href="/chat" className="flex min-h-[52px] items-center gap-3 bg-signal px-5 text-base font-semibold text-on-signal hover:brightness-110">
             <Sparkles className="h-4 w-4" aria-hidden />
             <span>Ask your own question</span>
           </Link>
-          <Link href="/learn" className="flex min-h-[52px] items-center gap-2 border border-line-strong px-5 text-base text-fg hover:border-fg-3">
+          <Link href="/" className="flex min-h-[52px] items-center gap-2 border border-line-strong px-5 text-base text-fg hover:border-fg-3">
             <span>Start the course</span>
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>

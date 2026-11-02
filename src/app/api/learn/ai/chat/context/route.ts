@@ -61,7 +61,7 @@ export async function GET(request: Request) {
       lessonsDone: s.lessonsDone,
       lessonsTotal: s.lessonsTotal,
       week: s.currentWeek ? { code: s.currentWeek.code, title: s.currentWeek.title } : null,
-      next: n ? { title: n.title, href: `/learn/${COURSE_ID}/${n.week}/${n.slug}`, code: n.code, minutes: n.minutes } : null,
+      next: n ? { title: n.title, href: `/${n.week}/${n.slug}`, code: n.code, minutes: n.minutes } : null,
     };
   }
   const v: ChatContext = { due: (due?.items ?? []).map((i) => ({ kind: i.kind, title: i.title, href: i.href, why: i.why, minutes: i.minutes })), progress };

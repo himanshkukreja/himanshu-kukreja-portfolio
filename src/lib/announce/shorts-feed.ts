@@ -10,12 +10,13 @@
  * Screenshots: public/email/shorts/ (captured from the live site on 29 Oct 2026, dark theme, 2x, webkit,
  * analytics blocked; phone: the UPI side quest short "Your bank took the money. Then the other bank timed out.", laptop: the Facebook 2021 war story).
  *
- * Facts checked against the live /learn/shorts on 29 Oct 2026: SHORTS_LIVE shorts, by category as in
+ * Facts checked against the live /shorts on 29 Oct 2026: SHORTS_LIVE shorts, by category as in
  * SHORTS_BY_CATEGORY; speed 0.5x-2x in 0.1 steps, ] or > faster, [ or < slower, \ back to 1x, remembered
  * on the device (ShortSpeed); unseen shorts come first, shuffled (ShortsFeed); "full lecture" opens the
  * lecture at that moment; shorts already on the device play with no network; watching needs no account.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export const SHORTS_LIVE = 486;
 export const SHORTS_BY_CATEGORY: [number, string][] = [
@@ -36,8 +37,9 @@ export function shortsFeedSubject(name?: string | null): string {
 }
 export const SHORTS_FEED_PREHEADER = `${SHORTS_LIVE} one-minute shorts: real outages, UPI, caching, interview problems. Swipe like Reels, speed them up, and open the full lecture at that moment.`;
 
-const SITE = "https://www.himanshukukreja.in";
-const L = `${SITE}/learn`;
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
+const L = `${SITE}/`;
 export const SHORTS_FEED_LINKS = {
   shorts: `${L}/shorts`,
   upi: `${L}/shorts?v=shorts--bonus-01-indian-upi-system--deemed-success`,
@@ -253,13 +255,13 @@ export function shortsFeedHtml({ email, name }: ShortsFeedInput): string {
           <td class="pad" style="padding:18px 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">Watch three on your next break and tell me which one stuck. Just reply to this email. I read every reply, and it decides which shorts I make next.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -289,10 +291,10 @@ export function shortsFeedText({ email, name }: ShortsFeedInput): string {
     "Watch three on your next break and tell me which one stuck. Just reply to this email. I read every reply, and it decides which shorts I make next.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ].join("\n");
 }

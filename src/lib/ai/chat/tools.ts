@@ -28,8 +28,9 @@ import type { ProgressSnapshot } from "./progress-model";
 import { findGuide, guideTopic, type GuideTopic } from "./siteGuide";
 import type { MockInterview } from "@/lib/learn/mock/types";
 import { fromCourseMock, fromQuest, mockCard, type ChatMock } from "./mock";
+import { cleanPath } from "@/lib/learn/paths";
 
-/** The learner's latest design on the canvas (/learn/canvas), as canvas-review reads it. */
+/** The learner's latest design on the canvas (/canvas), as canvas-review reads it. */
 export type DesignCtx = { key: string; title: string; brief: string; drawing: string; notes: string; updatedAt: string };
 /** Something due for review (contract with lib/learn/review-due.ts). */
 export type DueItem = { kind: string; id: string; title: string; href: string; why: string; dueAt: string };
@@ -299,7 +300,7 @@ export const TOOLS = [
   },
   {
     name: "review_my_design",
-    description: "The learner's design from the design canvas (/learn/canvas): the problem, what they drew (boxes and arrows as text) and their notes. Use when they ask you to review, critique or check their design or diagram. Then review it and point each gap to a lesson (search for it).",
+    description: "The learner's design from the design canvas (/canvas): the problem, what they drew (boxes and arrows as text) and their notes. Use when they ask you to review, critique or check their design or diagram. Then review it and point each gap to a lesson (search for it).",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -439,7 +440,7 @@ async function startMock(st: ChatState, input: Record<string, unknown>): Promise
 
 async function reviewDesign(st: ChatState, _input: Record<string, unknown>): Promise<string> {
   void _input;
-  const onCanvas = /^\/learn\/canvas\/([^/?#]+)/.exec(st.d.page?.path ?? "")?.[1];
+  const onCanvas = /^\/canvas\/([^/?#]+)/.exec(cleanPath(st.d.page?.path ?? ""))?.[1];
   const d = await st.d.design(onCanvas ? decodeURIComponent(onCanvas) : undefined).catch(() => null);
   if (!d) return "The learner has no saved design on the design canvas yet. Suggest drawing one at the design canvas (site_guide: canvas), then asking again.";
   st.flags.design = true;
@@ -582,9 +583,10 @@ function pageDoc(st: ChatState): Doc | null {
   const p = st.d.page;
   if (!p?.path) return null;
   const [pathPart, query = ""] = p.path.split("#")[0].split("?");
-  const path = pathPart.replace(/\/$/, "");
-  // a short: /learn/shorts/<id> or the feed at /learn/shorts?v=<id>
-  const short = /^\/learn\/shorts\/([^/]+)$/.exec(path)?.[1] ?? (path === "/learn/shorts" ? new URLSearchParams(query).get("v") : null);
+  // clean course paths (an old /learn/… path from an older client maps to the same page)
+  const path = cleanPath(pathPart).replace(/\/$/, "");
+  // a short: /shorts/<id> or the feed at /shorts?v=<id>
+  const short = /^\/shorts\/([^/]+)$/.exec(path)?.[1] ?? (path === "/shorts" ? new URLSearchParams(query).get("v") : null);
   if (short) {
     const d = st.liveDoc(`SH:${decodeURIComponent(short)}`);
     if (d) return d;

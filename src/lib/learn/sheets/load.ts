@@ -38,7 +38,7 @@ export type DesignSheet = SheetSummary & { html: string };
 
 type Built = { summaries: SheetSummary[]; sheets: Record<string, DesignSheet> };
 
-export const sheetHref = (slug: string) => `/learn/sheets/${slug}`;
+export const sheetHref = (slug: string) => `/sheets/${slug}`;
 
 const decode = (s: string) =>
   s

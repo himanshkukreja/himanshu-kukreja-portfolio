@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The answer while it is being written, shared by /learn/chat and the Ask panel:
+ * The answer while it is being written, shared by /chat and the Ask panel:
  * - Thinking: shows the moment a message is sent, in the reply's place. The step the server is on (one status line
  *   per tool call: "Searching the course for “cache stampede”…", "Reading “Caching patterns”…") cross-fades in, the
  *   finished steps make a short trail (✓ searched the course · ✓ read 3 lessons), what was looked up shows as small

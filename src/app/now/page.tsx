@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 // A "now" page (nownownow.com): what I'm focused on this month. Static; edit the list below and redeploy.
 export const metadata: Metadata = {
@@ -37,10 +38,10 @@ const SECTIONS: { id: string; label: string; title: string; items: { head: strin
       {
         head: "System Design Mastery",
         body: "The free course: this month every lesson is getting a whole-lesson animated explainer you can play with narration, and every real-world number in the side quests was checked against its source.",
-        href: "/learn/system-design-mastery",
+        href: courseUrlFor("/"),
         cta: "open the course →",
       },
-      { head: "Case files", body: "A new real-world incident or design story every Monday.", href: "/stories", cta: "read the case files →" },
+      { head: "Case files", body: "A new real-world incident or design story every Monday.", href: courseUrlFor("/case-files"), cta: "read the case files →" },
     ],
   },
   {

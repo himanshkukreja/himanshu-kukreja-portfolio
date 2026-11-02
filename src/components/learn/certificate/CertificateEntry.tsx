@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Progress page entry to /learn/certificate. Uses only what the page already has (no request):
+ * Progress page entry to /certificate. Uses only what the page already has (no request):
  * worlds cleared from this page's merged progress, and the `cert:*` keys once certificates are
  * claimed. The real check happens on the server when the learner claims.
  */
@@ -22,7 +22,7 @@ export default function CertificateEntry({ states, done, signedIn }: { states: W
     : `${cleared}/${states.length} worlds cleared · ${offer ? `Hire on ${MOCKS_NEEDED} mocks ✓` : `${offers}/${MOCKS_NEEDED} Hire mocks`}${worldCerts ? ` · ${worldCerts} world certificate${worldCerts === 1 ? "" : "s"}` : ""}`;
   return (
     <section id="certificate" aria-labelledby="cert-entry-h" className="scroll-mt-28">
-      <Link href="/learn/certificate" className="group flex flex-col gap-4 border border-line-strong bg-surface p-5 hover:border-signal sm:flex-row sm:items-center sm:justify-between sm:p-6">
+      <Link href="/certificate" className="group flex flex-col gap-4 border border-line-strong bg-surface p-5 hover:border-signal sm:flex-row sm:items-center sm:justify-between sm:p-6">
         <span className="flex items-start gap-4">
           <span aria-hidden className={`grid h-12 w-12 shrink-0 place-items-center ${certified ? "bg-signal text-on-signal" : "border border-line-strong text-signal-text group-hover:border-signal"}`}>
             <Award className="h-5 w-5" strokeWidth={1.75} />

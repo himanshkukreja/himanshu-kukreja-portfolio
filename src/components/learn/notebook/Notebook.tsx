@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * Notebook (/learn/notebook): Highlights (content_notes without note text) · Notes · Bookmarks.
+ * Notebook (/notebook): Highlights (content_notes without note text) · Notes · Bookmarks.
  * Search, week + colour filters, grouped by lesson with real titles, "Open at Part II" links
  * (stage located on the server; falls back to the old #note- / #bookmark- offsets), inline edit,
  * inline delete confirm with undo, "+ Review card", Export Markdown.
- * Saved shorts (bookmarks under course "shorts", saved from /learn/shorts) sit in their own row on top.
+ * Saved shorts (bookmarks under course "shorts", saved from /shorts) sit in their own row on top.
  * Pages (components/learn/ink/PagesTab): handwritten notebook pages, next to Notes: both are the learner's own
  * writing, and Highlights stays the tab a visit lands on (from the Notebook's pen or panel, ?from=pen, it is Pages when
  * there are some). Above the tabs, "Your pages" (ink/global/YourPages): the newest pages as cards, first on screen.
@@ -150,7 +150,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
     if (q.get("from") !== "pen" || q.get("tab")) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time switch once the page count is known
     setTab("pages");
-    window.history.replaceState(null, "", "/learn/notebook?tab=pages");
+    window.history.replaceState(null, "", "/notebook?tab=pages");
   }, [pageCount]);
 
   const toastSeq = useRef(0);
@@ -225,7 +225,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
     setColour("all");
     setEditId(null);
     setConfirmId(null);
-    window.history.replaceState(null, "", `/learn/notebook?tab=${t}`);
+    window.history.replaceState(null, "", `/notebook?tab=${t}`);
   };
 
   const all = useMemo(() => {
@@ -359,7 +359,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
     });
     flash(
       r.ok
-        ? { text: r.duplicate ? "Already in your review deck" : "Added to review · due today in Box 1", link: { label: "Open review ›", href: "/learn/review" } }
+        ? { text: r.duplicate ? "Already in your review deck" : "Added to review · due today in Box 1", link: { label: "Open review ›", href: "/review" } }
         : { text: "Couldn't add the card" }
     );
   };
@@ -496,7 +496,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
         </div>
         {userId && !pagesTab && (
           <div className="flex flex-wrap items-center gap-2.5">
-            <Link href="/learn/review" className="inline-flex min-h-12 items-center gap-2.5 border border-line-strong px-[18px] text-[15px] text-fg hover:bg-surface-2">
+            <Link href="/review" className="inline-flex min-h-12 items-center gap-2.5 border border-line-strong px-[18px] text-[15px] text-fg hover:bg-surface-2">
               <span className="font-mono text-signal-text">{inReview}</span>in your review deck ›
             </Link>
             <button
@@ -547,7 +547,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
           <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-4">
             <AuthPromptBanner variant="notebook" persistent layout="stack" />
             <p className="text-sm text-fg-3">
-              Reading never needs an account. <Link href={`/learn/${map.courseId}`} className="text-signal-text underline">Go to the skill tree</Link>.
+              Reading never needs an account. <Link href={`/`} className="text-signal-text underline">Go to the skill tree</Link>.
             </p>
           </div>
           <CaptureTips />
@@ -787,7 +787,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                                 </button>
                               )}
                               {x.kind !== "bookmarks" && card && (
-                                <Link href="/learn/review" className="inline-flex min-h-11 items-center gap-1.5 border border-line bg-surface-2 px-2.5 text-[13px] text-fg">
+                                <Link href="/review" className="inline-flex min-h-11 items-center gap-1.5 border border-line bg-surface-2 px-2.5 text-[13px] text-fg">
                                   <span aria-hidden className="font-mono text-signal-text">
                                     ✓
                                   </span>
@@ -922,7 +922,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                         {ql ? "Clear search and filters" : "Show all weeks"}
                       </button>
                     )}
-                    <Link href={`/learn/${map.courseId}`} className="inline-flex min-h-12 items-center border border-line-strong px-[18px] text-[15px] text-fg">
+                    <Link href={`/`} className="inline-flex min-h-12 items-center border border-line-strong px-[18px] text-[15px] text-fg">
                       Go to the skill tree
                     </Link>
                   </div>
@@ -1010,7 +1010,7 @@ function CaptureTips() {
       <div className="flex flex-col gap-2.5 border border-line bg-surface p-[18px]">
         <span className="font-mono text-xs uppercase tracking-label text-fg-3">Highlight → review card</span>
         <span className="text-sm leading-normal text-fg-2">“+ Review card” blanks the key phrase and adds it to your daily standup in Box 1.</span>
-        <Link href="/learn/review" className="inline-flex min-h-11 items-center text-sm font-semibold text-signal-text">
+        <Link href="/review" className="inline-flex min-h-11 items-center text-sm font-semibold text-signal-text">
           Open daily standup ›
         </Link>
       </div>
@@ -1027,14 +1027,14 @@ function SavedShorts({ rows, onRemove }: { rows: BookmarkRow[]; onRemove: (row: 
         <h2 id="nb-shorts" className="m-0 font-mono text-xs uppercase tracking-label text-signal-text">
           saved shorts · {rows.length}
         </h2>
-        <Link href="/learn/shorts" className="font-mono text-xs text-fg-3 hover:text-fg">
+        <Link href="/shorts" className="font-mono text-xs text-fg-3 hover:text-fg">
           watch more ›
         </Link>
       </div>
       <ul className="m-0 flex list-none gap-3 overflow-x-auto p-0 pb-1 [scrollbar-width:thin]">
         {rows.map((r) => (
           <li key={r.id} className="group relative w-[132px] shrink-0 sm:w-[150px]">
-            <Link href={`/learn/shorts?v=${encodeURIComponent(r.lesson_slug)}`} className="flex flex-col gap-1.5">
+            <Link href={`/shorts?v=${encodeURIComponent(r.lesson_slug)}`} className="flex flex-col gap-1.5">
               <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[#0b0b0c]">
                 {media && (
                   // eslint-disable-next-line @next/next/no-img-element -- the short's own poster frame from the media host

@@ -77,7 +77,7 @@ export function fallbackMeta(courseId: string, week: string, slug: string): Less
     slug,
     tag: code ? `W${code}` : week.toUpperCase(),
     title: slug.replace(/^(day-\d+-|week-\d+-|foundations-|bonus-\d+-)/, "").replace(/-/g, " "),
-    href: `/learn/${courseId}/${week}/${slug}`,
+    href: `/${week}/${slug}`,
     order: 9999,
     weekCode: code,
   };

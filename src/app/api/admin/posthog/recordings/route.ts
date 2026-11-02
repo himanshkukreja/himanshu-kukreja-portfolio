@@ -5,7 +5,7 @@ import { getRecordings } from "@/lib/analytics/journeysServer";
 
 export const dynamic = "force-dynamic";
 
-/** GET ?person=<uuid>&path=/learn/…&days=7|30|90&offset=0 → session recordings (newest first, 50 per page). */
+/** GET ?person=<uuid>&path=/…&days=7|30|90&offset=0 → session recordings (newest first, 50 per page). */
 export async function GET(request: NextRequest) {
   const admin = await requireAdmin(request);
   if (admin instanceof NextResponse) return admin;

@@ -97,7 +97,7 @@ const varsOf = (p: Person) => ({
   streak: String(p.streak),
   lessons_completed: String(p.completed),
   current_lesson: p.lesson,
-  resume_url: p.lesson ? `${SITE}/learn/system-design-mastery/week-03/consistent-hashing` : `${SITE}/learn`,
+  resume_url: p.lesson ? `${SITE}/week-03/consistent-hashing` : `${SITE}/`,
   site_url: SITE,
   unsubscribe_url: "",
 });
@@ -272,7 +272,7 @@ function open(e: Entry, m: Msg, at: string, click = false) {
     m.clickCount++;
     m.firstClickAt ||= at;
     m.lastClickAt = at;
-    e.events.unshift({ at, type: "click", email: m.email, url: `${SITE}/learn?utm_source=email` });
+    e.events.unshift({ at, type: "click", email: m.email, url: `${SITE}/?utm_source=email` });
   }
 }
 
@@ -501,7 +501,7 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
   const p = u.pathname.replace(/^\/api\/admin\/newsletter/, "");
   if (p === "" && method === "GET") return info();
   if (p === "/templates") return { templates: templates() };
-  if (p === "/stories") return { stories: storyOptions() };
+  if (p === "/case-files") return { stories: storyOptions() };
   if (p === "/senders") return method === "GET" ? { senders: SENDERS, transports: info().transports, dbError: null } : { sender: body(init) };
   if (p.startsWith("/senders/")) return { ok: true };
   if (p === "/recipients") {

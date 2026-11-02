@@ -52,7 +52,7 @@ export function ChatFinePrint({ memory, history, className = "" }: { memory: { a
         {memory?.available && (
           <>
             {memory.paused ? "Memory is off." : "The tutor remembers your learning between chats."}{" "}
-            <Link href="/learn/memory" className="underline decoration-line-strong underline-offset-2 hover:text-fg-2">
+            <Link href="/memory" className="underline decoration-line-strong underline-offset-2 hover:text-fg-2">
               {memory.paused ? "Turn it on" : "See or clear it"}
             </Link>
             .

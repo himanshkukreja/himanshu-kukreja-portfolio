@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The right side of /learn/chat: what helps next to the conversation, instead of empty space. In a conversation,
+ * The right side of /chat: what helps next to the conversation, instead of empty space. In a conversation,
  * what the last answer brought comes first (its sources, its learning path or plan with Save); then the instant
  * results for what is typed (or was last asked), what is due for review and the learner's progress
  * (GET /api/learn/ai/chat/context, cached), and quick actions. A rail on wide screens, a sheet on smaller ones.
@@ -177,7 +177,7 @@ export default function ContextRail({
           </ol>
           <div className="flex flex-wrap gap-1.5">
             {pathSaved ? (
-              <Link href="/learn/saved" className="inline-flex min-h-10 items-center gap-1.5 border border-ok px-3 font-mono text-[12px] text-fg">
+              <Link href="/saved" className="inline-flex min-h-10 items-center gap-1.5 border border-ok px-3 font-mono text-[12px] text-fg">
                 <Check className="h-3.5 w-3.5 text-ok" aria-hidden /> Saved · open
               </Link>
             ) : (

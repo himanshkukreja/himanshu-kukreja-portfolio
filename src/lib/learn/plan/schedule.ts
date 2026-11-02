@@ -317,7 +317,7 @@ export const REVISION_ENTRY = (minutes: number, last: boolean): Entry => ({
   kind: "revision",
   title: last ? "Final revision · review queue, cheat sheets, numbers drill, sleep early" : "Revision · review queue, weak trial parts, numbers drill",
   tag: "REVISION",
-  href: "/learn/review",
+  href: "/review",
   minutes,
   part: null,
   done: false,

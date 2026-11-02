@@ -3,6 +3,7 @@ import Link from "next/link";
 import { EMAIL } from "@/lib/socials";
 import { gaEnabled, posthogEnabled } from "@/lib/analytics/config";
 import AnalyticsOptOut from "@/components/analytics/AnalyticsOptOut";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 export const metadata: Metadata = {
   title: "Privacy & analytics · Himanshu Kukreja",
@@ -111,7 +112,7 @@ export default function PrivacyPage() {
           <li>Use the switch at the top of this page (or &quot;opt out&quot; in the footer). It stops all three analytics tools in this browser.</li>
           <li>Turn on Global Privacy Control in your browser (built into Brave and Firefox, or an extension elsewhere): the site then sends nothing to PostHog or Google. The older Do Not Track setting doesn&apos;t switch analytics off; use the switch above.</li>
           <li>
-            Reset your learning progress any time from <Link href="/learn/dashboard" className="text-fg underline underline-offset-4">your progress page</Link>.
+            Reset your learning progress any time from <Link href={courseUrlFor("/dashboard")} className="text-fg underline underline-offset-4">your progress page</Link>.
           </li>
           <li>
             To delete your account and its data, or to ask what is stored about you, email{" "}

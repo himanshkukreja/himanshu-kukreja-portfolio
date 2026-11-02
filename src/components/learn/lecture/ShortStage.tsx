@@ -223,7 +223,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
 
       {/* the site, small */}
       <div className="absolute inset-x-0 bottom-[3.2%] text-center font-mono text-[2.6cqw] tracking-[0.06em] text-[#8a8a90]">
-        <span className="text-[#ff6b2b]">~</span>/himanshukukreja.in/learn
+        <span className="text-[#ff6b2b]">~</span>/systemdesignmastery.dev
       </div>
     </div>
   );

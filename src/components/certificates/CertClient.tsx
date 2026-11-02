@@ -24,7 +24,7 @@ export function ViewBeacon({ code, kind, status }: { code: string; kind: string;
 /** Public certificates print from /cert/<code>/print; hidden ones from the owner's own page (signed in). */
 export function PdfLink({ code, kind, className, children, from, isPublic = true }: { code: string; kind: string; className: string; children?: React.ReactNode; from: string; isPublic?: boolean }) {
   return (
-    <Link href={isPublic ? `/cert/${code}/print?print=1` : `/learn/certificate/print/${code}?print=1`} onClick={() => track("cert_pdf", { kind, from })} className={className}>
+    <Link href={isPublic ? `/cert/${code}/print?print=1` : `/certificate/print/${code}?print=1`} onClick={() => track("cert_pdf", { kind, from })} className={className}>
       {children ?? (
         <>
           <Download className="h-4 w-4" aria-hidden /> Download certificate (PDF)

@@ -227,5 +227,5 @@ export function parsePaper(src: string, key: string): ParseResult {
 
 /** The lesson URL of a source line (deep link to its section). */
 export function sourceHref(courseId: string, s: PaperSource): string {
-  return `/learn/${courseId}/${s.week}/${s.slug}${s.anchor ? `#${s.anchor}` : ""}`;
+  return `/${s.week}/${s.slug}${s.anchor ? `#${s.anchor}` : ""}`;
 }

@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props) {
   if (!map) return { title: "Not Found" };
   return {
     title: `${map.title} · Learn · Himanshu Kukreja`,
-    alternates: { canonical: `/learn/${course}` },
+    alternates: { canonical: `/` },
     description: `${map.stats.worlds} worlds, ${map.stats.coreLessons} core lessons, ${map.stats.bosses} interview bosses and ${map.stats.sideQuests} side quests. Free, no sign-up to read.`,
   };
 }
@@ -36,14 +36,14 @@ export default async function CoursePage({ params }: Props) {
     .filter((_, k) => k % stride === 0)
     .slice(0, 24)
     .map((s) => ({ id: s.id, title: s.title, label: s.label, poster: s.poster }));
-  const path = `/learn/${course}`;
+  const path = `/`;
   return (
     <>
       <JsonLd
         data={[
           courseLd({ path, description: map.description, lessons: map.stats.coreLessons, hours: map.stats.totalHours }),
           breadcrumbs([
-            { name: "Learn", path: "/learn" },
+            { name: "Learn", path: "/" },
             { name: map.title, path },
           ]),
         ]}

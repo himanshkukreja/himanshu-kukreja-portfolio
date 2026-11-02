@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase-client";
 import { FullScreenLoader } from "@/components/ui/loader";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 type Status = "processing" | "success" | "error";
 
@@ -108,7 +109,7 @@ function AuthCallbackContent() {
             <Link href="/" className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal hover:brightness-110">
               cd ~
             </Link>
-            <Link href="/learn" className="inline-flex min-h-11 items-center border border-line-strong px-5 font-mono text-sm text-fg hover:bg-surface-2">
+            <Link href={courseUrlFor("/")} className="inline-flex min-h-11 items-center border border-line-strong px-5 font-mono text-sm text-fg hover:bg-surface-2">
               open the course
             </Link>
           </div>

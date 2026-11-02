@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
@@ -9,19 +8,23 @@ import AuthButton from "@/components/AuthButton";
 import { useGame } from "@/game/GameProvider";
 import { BADGES, MAIN_QUESTS, levelProgress } from "@/game/catalog";
 import SearchBar from "@/components/SearchBar";
-import { LearnBrand, LearnDock, LearnTabs, isLearnRoute } from "./LearnNav";
+import { LearnBrand, LearnDock, LearnTabs } from "./LearnNav";
+import { useCoursePathname, useSite } from "./SiteMode";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
+import { isLessonPath } from "@/lib/learn/paths";
 import { useAutoHideChrome, useChromeHidden } from "./readerChrome";
 import { DockDot, TabPending } from "./LinkPending";
 import OfflineStrip from "@/components/offline/OfflineStrip";
 import AppBack, { useAppDepth } from "./AppBack";
 import AdminLink from "./AdminLink";
 
+// Portfolio nav. The course (and its case files) lives on its own domain now: "learn ↗" goes there.
 const NAV = [
   { href: "/#career", label: "career", match: (p: string) => p === "/" },
   { href: "/projects", label: "projects", match: (p: string) => p.startsWith("/projects") },
   { href: "/play", label: "play", match: (p: string) => p.startsWith("/play") },
-  { href: "/stories", label: "case-files", match: (p: string) => p.startsWith("/stories") },
-  { href: "/learn", label: "learn", match: (p: string) => p.startsWith("/learn") },
+  { href: "/now", label: "now", match: (p: string) => p.startsWith("/now") },
+  { href: COURSE_ORIGIN, label: "learn ↗", match: () => false },
   { href: "/#contact", label: "POST /hire", match: () => false },
 ];
 
@@ -29,13 +32,9 @@ const DOCK = [
   { href: "/", label: "home", match: (p: string) => p === "/" },
   { href: "/projects", label: "projects", match: (p: string) => p.startsWith("/projects") },
   { href: "/play", label: "play", match: (p: string) => p.startsWith("/play") },
-  { href: "/stories", label: "cases", match: (p: string) => p.startsWith("/stories") },
-  { href: "/learn", label: "learn", match: (p: string) => p.startsWith("/learn") },
+  { href: "/now", label: "now", match: (p: string) => p.startsWith("/now") },
+  { href: COURSE_ORIGIN, label: "learn ↗", match: () => false },
 ];
-
-// /learn/<course>/<week>/<slug> (not the three-level practice routes: a design of the week entry or
-// its editor, a lesson's revision deck, which keep the header and the phone dock)
-const isLessonRoute = (p: string) => /^\/learn\/(?!(?:design-week|revise)\/)[^/]+\/[^/]+\/[^/]+/.test(p);
 
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
@@ -126,15 +125,17 @@ function useHeaderHeightVar() {
 }
 
 export default function SiteHeader() {
-  const pathname = usePathname() || "/";
+  // clean course path on the course host (the same on the server render and in the browser)
+  const pathname = useCoursePathname();
+  const site = useSite();
   const { xp, hydrated, done, setTerminalOpen } = useGame();
   const [questsOpen, setQuestsOpen] = useState(false);
   const headerRef = useHeaderHeightVar();
   useAppDepth();
   const p = levelProgress(hydrated ? xp : 0);
   const doneCount = MAIN_QUESTS.filter((q) => done[q.id]).length;
-  const learn = isLearnRoute(pathname);
-  const lesson = isLessonRoute(pathname);
+  const learn = site === "course";
+  const lesson = learn && isLessonPath(pathname);
   // lesson pages: the header slides away while reading down, back on scroll up
   useAutoHideChrome(lesson && !questsOpen);
   const hidden = useChromeHidden() && lesson;
@@ -186,11 +187,11 @@ export default function SiteHeader() {
             {/* the guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here */}
             {learn && (
               <Link
-                href="/learn/guide"
-                aria-current={pathname.startsWith("/learn/guide") ? "page" : undefined}
+                href="/guide"
+                aria-current={pathname.startsWith("/guide") ? "page" : undefined}
                 aria-label="How the course works"
                 title="How the course works"
-                className={`grid h-10 w-10 shrink-0 place-items-center border font-mono text-[14px] lg:hidden ${pathname.startsWith("/learn/guide") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
+                className={`grid h-10 w-10 shrink-0 place-items-center border font-mono text-[14px] lg:hidden ${pathname.startsWith("/guide") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
               >
                 ?
               </Link>
@@ -230,7 +231,7 @@ export default function SiteHeader() {
                 >
                   quests {hydrated ? doneCount : 0}/{MAIN_QUESTS.length}
                 </button>
-                {/* On /learn ⌘K is the course search, so the terminal button only lives on the portfolio. */}
+                {/* On / ⌘K is the course search, so the terminal button only lives on the portfolio. */}
                 <button type="button" onClick={() => setTerminalOpen(true)} aria-label="Open terminal" className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2">
                   ⌘K
                 </button>

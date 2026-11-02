@@ -14,7 +14,7 @@ import { describeKey } from "./context";
 
 export { NotebookPenIcon } from "./PenIcon";
 
-export const ALL_NOTES_HREF = "/learn/notebook?from=pen";
+export const ALL_NOTES_HREF = "/notebook?from=pen";
 
 export function useRecentPages(limit: number, enabled: boolean, refresh = 0) {
   const [pages, setPages] = useState<PageSummary[] | null>(null);

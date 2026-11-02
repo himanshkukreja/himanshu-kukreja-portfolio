@@ -14,6 +14,7 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { track } from "@/lib/track";
 import { channelHref, channelLink, DEFAULT_VISIBILITY, profilePath, shareText, type ShareChannel, type ShareKind, type ShareSummary } from "@/lib/share/model";
 import { saveShare, useShare } from "./useShare";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export type ShareTarget = {
   kind: ShareKind;
@@ -42,7 +43,7 @@ const KIND_LABEL: Record<ShareKind, string> = {
   certificate: "your certificate",
 };
 
-const origin = () => (typeof window !== "undefined" ? window.location.origin : "https://himanshukukreja.in");
+const origin = () => (typeof window !== "undefined" ? window.location.origin : COURSE_ORIGIN);
 const canNativeShare = () => typeof navigator !== "undefined" && typeof navigator.share === "function";
 
 function XLogo() {
@@ -138,7 +139,7 @@ export default function ShareSheet({ target, onClose }: { target: ShareTarget; o
       return u.toString();
     }
     if (handle) return `${o}${profilePath(handle, target.achievement)}`;
-    return `${o}/learn`;
+    return `${o}/`;
   }, [target, handle]);
   const text = useMemo(() => (target.text ? target.text(summary) : shareText({ kind: target.kind, summary, title: target.title, detail: target.detail })), [target, summary]);
   const courseText = "Learning system design for free: System Design Mastery — 12 worlds, interview bosses, 1,000+ quick checks and a daily challenge. Come along.";
@@ -163,7 +164,7 @@ export default function ShareSheet({ target, onClose }: { target: ShareTarget; o
   } else if (!share.signedIn) {
     body = courseOnly || target.url ? (
       <div className="flex flex-col gap-4">
-        <Channels url={target.url ? url : `${origin()}/learn`} text={target.url ? text : courseText} kind={target.url ? target.kind : "profile"} />
+        <Channels url={target.url ? url : `${origin()}/`} text={target.url ? text : courseText} kind={target.url ? target.kind : "profile"} />
         <p className="m-0 border-t border-line pt-3 text-[14px] text-fg-2">
           Want a link to <em>your</em> level, skill tree and scores?{" "}
           <button type="button" onClick={() => (onClose(), openAuthModal())} className="font-semibold text-signal-text underline underline-offset-4">
@@ -204,7 +205,7 @@ export default function ShareSheet({ target, onClose }: { target: ShareTarget; o
     body = (
       <div className="flex flex-col gap-4">
         <p className="m-0 border border-line bg-surface-2 p-4 text-[14px] leading-relaxed text-fg-2">Public progress pages are switching on soon. Meanwhile, share the course:</p>
-        <Channels url={target.url ? url : `${origin()}/learn`} text={target.url ? text : courseText} kind={target.kind} />
+        <Channels url={target.url ? url : `${origin()}/`} text={target.url ? text : courseText} kind={target.kind} />
       </div>
     );
   } else if (!live && !target.url) {
@@ -229,7 +230,7 @@ export default function ShareSheet({ target, onClose }: { target: ShareTarget; o
           <button type="button" onClick={() => void enable()} disabled={busy} className="inline-flex min-h-12 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal hover:brightness-110 disabled:opacity-50">
             {busy ? "Turning on…" : "Turn on & get my link →"}
           </button>
-          <Link href="/learn/dashboard#share" onClick={onClose} className="inline-flex min-h-12 items-center border border-line-strong px-4 font-mono text-[13px] text-fg hover:bg-surface-2">
+          <Link href="/dashboard#share" onClick={onClose} className="inline-flex min-h-12 items-center border border-line-strong px-4 font-mono text-[13px] text-fg hover:bg-surface-2">
             Choose what&apos;s visible
           </Link>
         </div>
@@ -247,7 +248,7 @@ export default function ShareSheet({ target, onClose }: { target: ShareTarget; o
           ) : (
             <span>no public page yet · the link still works</span>
           )}
-          <Link href="/learn/dashboard#share" onClick={onClose} className="underline underline-offset-4 hover:text-fg">
+          <Link href="/dashboard#share" onClick={onClose} className="underline underline-offset-4 hover:text-fg">
             {handle ? "what's visible →" : "turn on my page →"}
           </Link>
         </div>

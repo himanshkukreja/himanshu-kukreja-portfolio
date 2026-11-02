@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Data for /learn/dashboard. Guests: this browser only (game done keys, hk.lesson.v1, trial
+ * Data for /dashboard. Guests: this browser only (game done keys, hk.lesson.v1, trial
  * stores, review log, goal). Signed in: one /api/learn/progress call (rows, streak days, profile
  * counters, notebook counts, trial scores, goal) merged with this browser's copy.
  */

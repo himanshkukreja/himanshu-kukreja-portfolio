@@ -2,7 +2,7 @@
  * Study plan for a goal ("crack the Amazon SDE2 loop", "learn caching for Friday"): an ordered list of course
  * items packed into dated study days, plus an RFC 5545 calendar of it. Used by the course chat (a tool that
  * turns a learning path into a schedule) and by You → Saved paths (a path whose steps carry `due` dates
- * downloads as an .ics). The full planner at /learn/plan (lib/learn/plan/schedule.ts) is the course-wide
+ * downloads as an .ics). The full planner at /plan (lib/learn/plan/schedule.ts) is the course-wide
  * one; this is the light, item-list version.
  *
  * Time per item comes from the course's own estimates, in this order:
@@ -37,7 +37,7 @@ export type StudyItem = {
   /** search kind (lesson, lecture, lab, quest, problem, lld, mock, …) or plan kind (trial, boss, review) */
   kind: string;
   title: string;
-  /** site-relative ("/learn/…") or absolute https */
+  /** site-relative ("/…") or absolute https */
   href: string;
   /** explicit total minutes (wins over the parts below) */
   minutes?: number;
@@ -205,8 +205,8 @@ export const studyPlanId = (goal: string, startDate: string) => `sp${hash(`${goa
 const SLACK = 0.1;
 const MIN_CHUNK = 15;
 const REVIEW_QUEUE_MIN = 20;
-const MOCK_HREF = "/learn/mock";
-const REVIEW_HREF = "/learn/review";
+const MOCK_HREF = "/mock";
+const REVIEW_HREF = "/review";
 const MAX_REVISE_STEPS = 8;
 
 type Work = { item: StudyItem; minutes: number; split: boolean };
@@ -393,7 +393,7 @@ export function planDueDates(plan: Pick<StudyPlan, "days">): Record<string, stri
 
 /**
  * A saved path with dated steps as a plan (one study day per due date, steps in path order), for the
- * calendar download on /learn/saved. Undated steps are left out; null when no step has a date.
+ * calendar download on /saved. Undated steps are left out; null when no step has a date.
  */
 export function savedPathPlan(p: Pick<SavedPath, "id" | "title" | "steps">): Pick<StudyPlan, "id" | "goal" | "days"> | null {
   const byDate = new Map<string, StudyStep[]>();
@@ -414,7 +414,9 @@ export function savedPathPlan(p: Pick<SavedPath, "id" | "title" | "steps">): Pic
 
 const CRLF = "\r\n";
 export const ICS_DOMAIN = "himanshukukreja.in";
-export const SITE_ORIGIN = "https://www.himanshukukreja.in";
+// the course host (src/lib/site/hosts.ts COURSE_ORIGIN; inlined: this module also runs under node --test without path aliases)
+const COURSE_ORIGIN = (process.env.NEXT_PUBLIC_COURSE_ORIGIN || "https://systemdesignmastery.dev").replace(/\/+$/, "");
+export const SITE_ORIGIN = COURSE_ORIGIN;
 
 /** RFC 5545 §3.3.11 TEXT escaping: backslash, semicolon, comma, newline. */
 export function escapeText(s: string): string {

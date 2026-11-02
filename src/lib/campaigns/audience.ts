@@ -285,11 +285,11 @@ function varsFromBase(b: Base, email: string, overrides?: Map<string, NameOverri
   const p = b.people.get(lc(email));
   const name = (nameOf(b, email, overrides).name || "").trim();
   let current = "";
-  let resume = `${SITE}/learn`;
+  let resume = `${SITE}/`;
   if (p?.current) {
     const t = b.titles.get(`${p.current.week}/${p.current.slug}`);
     current = t?.title || p.current.slug.replace(/^\d+[-_]?/, "").replace(/[-_]+/g, " ").replace(/^\w/, (c) => c.toUpperCase());
-    resume = `${SITE}${t?.href || `/learn/${p.current.course}/${p.current.week}/${p.current.slug}`}`;
+    resume = `${SITE}${t?.href || `/${p.current.week}/${p.current.slug}`}`;
   }
   return {
     first_name: firstNameOf(name),

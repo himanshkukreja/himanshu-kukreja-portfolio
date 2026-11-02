@@ -62,10 +62,10 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // "Ask about this incident" on a war room: one question (≤ 500 characters) answered from the room's channel so far
   // (no later beats or postmortem while the room is in progress: no spoilers) and its lesson. Haiku 5.5, no thinking.
   "war-room-ask": { label: "Ask about a war room", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 30, maxTokens: 450, maxInputChars: 600, think: false, live: true },
-  // the learning path on /learn/chat: picks and orders resources from the ranked candidates (JSON, no thinking: it should arrive in seconds)
+  // the learning path on /chat: picks and orders resources from the ranked candidates (JSON, no thinking: it should arrive in seconds)
   // maxTokens: room for the short cited answer (~150 tokens) on top of the path (~400-500)
   "smart-search": { label: "Smart search learning path", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 30, maxTokens: 950, maxInputChars: 14000, think: false, live: true },
-  // the course chat (/learn/chat and the Ask panel): a tool-use conversation (lib/ai/chat). Its own quota, outside the
+  // the course chat (/chat and the Ask panel): a tool-use conversation (lib/ai/chat). Its own quota, outside the
   // shared credits: `perDay` messages a day on Sonnet, then Haiku 5.5 with its tuned prompt ("fast mode") up to `ceiling`.
   // maxTokens caps each model turn (tool calls or the answer); no thinking: answers stream in seconds.
   "course-chat": { label: "Course chat message", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 30, ceiling: 300, maxTokens: 1400, haikuMaxTokens: 1600, maxInputChars: 2000, think: false, live: true },

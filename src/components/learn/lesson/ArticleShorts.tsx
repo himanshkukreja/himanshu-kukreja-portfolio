@@ -9,7 +9,7 @@ export type ArticleShort = { id: string; title: string; poster: string; seconds:
  */
 export default function ArticleShorts({ of, shorts, what = "lesson", className = "mt-10" }: { of: string; shorts: ArticleShort[]; what?: string; className?: string }) {
   if (!shorts.length) return null;
-  const href = (id?: string) => `/learn/shorts?of=${encodeURIComponent(of)}${id ? `&v=${encodeURIComponent(id)}` : ""}`;
+  const href = (id?: string) => `/shorts?of=${encodeURIComponent(of)}${id ? `&v=${encodeURIComponent(id)}` : ""}`;
   return (
     <section aria-labelledby="article-shorts-h" className={`${className} flex flex-col gap-3 border-t border-line pt-6`}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">

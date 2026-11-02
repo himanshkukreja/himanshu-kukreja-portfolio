@@ -1,6 +1,7 @@
 import Link from "next/link";
 import CoverImage from "@/components/CoverImage";
 import { Prompt, container, ghostBtn, h2Class } from "./ui";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 export type CaseTeaser = {
   id: string;
@@ -24,7 +25,7 @@ export default function CaseFilesTeaser({ cases, total }: { cases: CaseTeaser[];
             Incidents, rushes and rescues
           </h2>
         </div>
-        <Link href="/stories" className={ghostBtn}>
+        <Link href={courseUrlFor("/case-files")} className={ghostBtn}>
           cd case-files&nbsp;&nbsp;# {total} →
         </Link>
       </div>
@@ -33,7 +34,7 @@ export default function CaseFilesTeaser({ cases, total }: { cases: CaseTeaser[];
           {cases.map((c, i) => (
             <li key={c.slug} className={`flex min-w-0 ${i === 2 ? "sm:hidden lg:flex" : ""}`}>
               <Link
-                href={`/stories/${c.slug}`}
+                href={courseUrlFor(`/case-files/${c.slug}`)}
                 className="group grid w-full min-w-0 grid-cols-[112px_minmax(0,1fr)] border border-line bg-surface text-fg no-underline transition-colors hover:border-fg-4 hover:text-fg sm:flex sm:flex-col"
               >
                 {/* Phone: thumbnail on the left. Tablet and up: the full 3:2 plate on top. */}

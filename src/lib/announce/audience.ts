@@ -2,7 +2,7 @@
  * Who gets a learn announcement. Server-only (service-role Supabase). Read-only: nothing here writes.
  *
  *   learners = auth users with an email AND any learn activity (progress, streaks, quick-check/trial
- *              answers, notes, bookmarks, arena results, or a signed-in /learn page view)
+ *              answers, notes, bookmarks, arena results, or a signed-in / page view)
  *   all      = every auth user with an email
  *
  * Both exclude anyone unsubscribed in newsletter_subscribers (the same switch the newsletter honours)

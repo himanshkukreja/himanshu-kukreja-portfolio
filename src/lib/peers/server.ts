@@ -8,7 +8,8 @@ import "server-only";
 import crypto from "crypto";
 import { supabase } from "@/lib/supabase";
 import { sendRawEmail } from "@/lib/mailer";
-import { SITE_URL } from "@/lib/site";
+// course URLs live on the course host
+import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 
 export type PeerRole = "candidate" | "interviewer" | "either";
@@ -133,7 +134,7 @@ export async function joinSlot(me: string, id: string): Promise<void> {
   const host = who.get(r.user_id) || "A learner";
   const guest = who.get(me) || "A learner";
   const roleText = r.role === "candidate" ? `${host} is the candidate, ${guest} interviews` : r.role === "interviewer" ? `${host} interviews, ${guest} is the candidate` : "decide together (swap halfway)";
-  const base = { startsAt: r.starts_at, minutes: r.duration_min, mockTitle: mock ? `${mock.title} (${mock.company})` : r.mock_slug, mockHref: mock?.href || "/learn/mock", role: roleText, room };
+  const base = { startsAt: r.starts_at, minutes: r.duration_min, mockTitle: mock ? `${mock.title} (${mock.company})` : r.mock_slug, mockHref: mock?.href || "/mock", role: roleText, room };
   const sends: Promise<unknown>[] = [];
   if (hostEmail) sends.push(sendRawEmail(hostEmail, `Paired: peer mock interview with ${guest}`, pairedEmail({ ...base, toName: host, partnerName: guest, partnerEmail: meEmail })));
   if (meEmail) sends.push(sendRawEmail(meEmail, `Paired: peer mock interview with ${host}`, pairedEmail({ ...base, toName: guest, partnerName: host, partnerEmail: hostEmail })));
@@ -148,10 +149,10 @@ export async function cancelSlot(me: string, id: string): Promise<void> {
   if (r.user_id === me) {
     await supabase.from("peer_slots").update({ status: "cancelled", updated_at: new Date().toISOString() }).eq("id", id);
     const other = r.partner_id ? await emailOf(r.partner_id) : null;
-    if (other) await sendRawEmail(other, "Your peer mock interview was cancelled", `<p>Your partner cancelled the peer mock interview planned for ${when(r.starts_at)}. Find another slot at <a href="${SITE_URL}/learn/mock/peers">${SITE_URL}/learn/mock/peers</a>.</p>`).catch(() => null);
+    if (other) await sendRawEmail(other, "Your peer mock interview was cancelled", `<p>Your partner cancelled the peer mock interview planned for ${when(r.starts_at)}. Find another slot at <a href="${SITE_URL}/mock/peers">${SITE_URL}/mock/peers</a>.</p>`).catch(() => null);
   } else if (r.partner_id === me) {
     await supabase.from("peer_slots").update({ status: "open", partner_id: null, room: null, paired_at: null, updated_at: new Date().toISOString() }).eq("id", id);
     const host = await emailOf(r.user_id);
-    if (host) await sendRawEmail(host, "Your peer mock partner can't make it", `<p>Your partner left the slot for ${when(r.starts_at)}. It's open again, so someone else can pair with you: <a href="${SITE_URL}/learn/mock/peers">${SITE_URL}/learn/mock/peers</a>.</p>`).catch(() => null);
+    if (host) await sendRawEmail(host, "Your peer mock partner can't make it", `<p>Your partner left the slot for ${when(r.starts_at)}. It's open again, so someone else can pair with you: <a href="${SITE_URL}/mock/peers">${SITE_URL}/mock/peers</a>.</p>`).catch(() => null);
   } else throw httpError("That isn't your slot.", 403);
 }

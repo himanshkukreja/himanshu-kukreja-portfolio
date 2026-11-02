@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/canvas: your designs (signed in), "my own idea", and every problem and capstone to design. */
+/** /canvas: your designs (signed in), "my own idea", and every problem and capstone to design. */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -11,7 +11,7 @@ import { userJson } from "@/components/learn/progress/userFetch";
 type Prompt = { key: string; kind: "problem" | "capstone"; title: string; group: string; href: string };
 type Mine = { id: string; prompt_key: string; title: string | null; reviewed_at: string | null; reviews: number; updated_at: string };
 
-export const canvasHref = (key: string) => `/learn/canvas/${encodeURIComponent(key)}`;
+export const canvasHref = (key: string) => `/canvas/${encodeURIComponent(key)}`;
 const newFreeKey = () => {
   const a = new Uint8Array(9);
   crypto.getRandomValues(a);

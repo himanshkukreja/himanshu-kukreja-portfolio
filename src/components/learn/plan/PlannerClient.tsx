@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/plan: pick an interview date and get a day-by-day plan from the real course (lesson order
+ * /plan: pick an interview date and get a day-by-day plan from the real course (lesson order
  * and minutes) and the learner's real progress. The plan recomputes from today on every visit, so
  * falling behind or racing ahead adjusts it; the page says by how much against the plan accepted.
  * Exports to any calendar (.ics) and per day to Google Calendar.
@@ -92,11 +92,11 @@ export default function PlannerClient({ map }: { map: CourseMap }) {
             : "Pick your interview date and how much time you have. You get a day-by-day plan through the course, a final revision stretch, and a calendar file. Fall behind and it adjusts."}
         </p>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[12.5px] sm:text-[13px]">
-          <SaveOfflineButton title="Study planner" kind="tool" url="/learn/plan" />
-          <Link href="/learn/dashboard#goals" className="inline-flex min-h-10 items-center text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          <SaveOfflineButton title="Study planner" kind="tool" url="/plan" />
+          <Link href="/dashboard#goals" className="inline-flex min-h-10 items-center text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
             weekly goal on Progress →
           </Link>
-          <Link href="/learn/numbers" className="inline-flex min-h-10 items-center text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          <Link href="/numbers" className="inline-flex min-h-10 items-center text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
             numbers playground →
           </Link>
         </div>

@@ -10,14 +10,15 @@
  * Screenshots: public/email/lectures-shorts/ (captured from the live site, dark theme, 2x,
  * analytics blocked), referenced by absolute URL.
  *
- * Facts checked against the live site on 28 Oct 2026: /learn/prep/lectures lists 193 lectures, 49 h
+ * Facts checked against the live site on 28 Oct 2026: /prep/lectures lists 193 lectures, 49 h
  * 58 min (course 76, side quests 25, interview problems 20, low-level design 22, case files 12, war
  * stories 30, mock interviews 8); mock interviews run 42-52 min (player and lecture list); the first minute of a lecture
  * is open to everyone and the rest needs a free sign-in; a signed-in sharer's link plays in full
  * (LectureShare); player speeds 0.75-2x, 10 XP a checkpoint (LecturePlayer); SHORTS_COUNT shorts
- * live on /learn/shorts.
+ * live on /shorts.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export const SHORTS_COUNT = 404;
 
@@ -30,8 +31,9 @@ export function lecturesShortsSubject(name?: string | null): string {
 export const LECTURES_SHORTS_PREHEADER =
   "193 narrated lectures, nearly 50 hours: every lesson, side quest, problem, case file and mock interview. And a Shorts feed: one idea in a minute.";
 
-const SITE = "https://www.himanshukukreja.in";
-const L = `${SITE}/learn`;
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
+const L = `${SITE}/`;
 export const LECTURES_SHORTS_LINKS = {
   hub: `${L}/system-design-mastery`,
   lectures: `${L}/prep/lectures`,
@@ -235,13 +237,13 @@ export function lecturesShortsHtml({ email, name }: LecturesShortsInput): string
           <td class="pad" style="padding:18px 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">Watch one this week. If a lecture gets something wrong or moves too fast, reply and tell me where. I read every reply.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -271,10 +273,10 @@ export function lecturesShortsText({ email, name }: LecturesShortsInput): string
     "Watch one this week. If a lecture gets something wrong or moves too fast, reply and tell me where. I read every reply.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ].join("\n");
 }

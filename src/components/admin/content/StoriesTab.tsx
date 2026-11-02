@@ -21,7 +21,7 @@ export default function StoriesTab() {
       header: "story",
       sort: (s) => s.title.toLowerCase(),
       render: (s) => (
-        <Link href={`/stories/${encodeURIComponent(s.slug)}`} target="_blank" className="block max-w-[320px] truncate text-fg hover:text-signal-text">
+        <Link href={`/case-files/${encodeURIComponent(s.slug)}`} target="_blank" className="block max-w-[320px] truncate text-fg hover:text-signal-text">
           {s.title}
         </Link>
       ),
@@ -61,7 +61,7 @@ export default function StoriesTab() {
         <BarList
           loading={loading}
           limit={10}
-          items={[...(d?.stories ?? [])].sort((a, b) => b[metric] - a[metric]).map((s) => ({ key: s.slug, label: s.title, value: s[metric], href: `/stories/${encodeURIComponent(s.slug)}` }))}
+          items={[...(d?.stories ?? [])].sort((a, b) => b[metric] - a[metric]).map((s) => ({ key: s.slug, label: s.title, value: s[metric], href: `/case-files/${encodeURIComponent(s.slug)}` }))}
           empty="No story views yet"
         />
       </Card>

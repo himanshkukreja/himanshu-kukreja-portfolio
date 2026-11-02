@@ -1,6 +1,6 @@
 /**
  * Mock interviews inside the course chat ("Interview me on designing WhatsApp"): phased and timed like
- * /learn/mock, with the same interviewer and scorecard prompts (mockInterviewerSystem, mockFullScorecardSystem,
+ * /mock, with the same interviewer and scorecard prompts (mockInterviewerSystem, mockFullScorecardSystem,
  * tuned per model the same way) and the same rubrics. Two kinds:
  *   mock:<slug>   one of the course's mock interviews (resources/mock-interviews): its phases, budgets,
  *                 interviewer, prompts, curveballs, levelled rubric and model answers;

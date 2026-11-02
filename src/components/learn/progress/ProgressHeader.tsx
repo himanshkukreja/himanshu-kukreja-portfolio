@@ -103,7 +103,7 @@ export default function ProgressHeader(p: Props) {
           </Link>
         )}
         {p.due !== null && (
-          <Link href="/learn/review" className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-2.5 hover:border-line-strong">
+          <Link href="/review" className="flex min-h-14 items-center justify-between gap-3 border border-line bg-surface px-4 py-2.5 hover:border-line-strong">
             <span className="flex min-w-0 flex-col gap-0.5">
               <Label>daily standup</Label>
               <span className="text-sm text-fg">{p.due ? `${p.due} review card${p.due === 1 ? "" : "s"} due` : "Nothing due today"}</span>

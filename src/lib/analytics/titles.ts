@@ -2,6 +2,7 @@ import "server-only";
 import { getCourseIndex } from "@/lib/admin/learners/course";
 import { getAllStories } from "@/lib/stories";
 import type { TitleOf } from "./journeysModel";
+import { cleanPath } from "@/lib/learn/paths";
 
 /**
  * Path → readable title for the journeys screens (lesson and case-file titles from the course map
@@ -11,18 +12,17 @@ const TTL = 10 * 60_000;
 let memo: { at: number; value: Promise<TitleOf> } | null = null;
 
 const STATIC: Record<string, string> = {
-  "/": "Home",
-  "/learn": "Learn hub",
-  "/stories": "Case files",
+  "/": "Home / course hub",
+  "/case-files": "Case files",
   "/play": "Arcade",
   "/projects": "Projects",
   "/privacy": "Privacy & analytics",
-  "/learn/dashboard": "Learn · progress",
-  "/learn/review": "Learn · review",
-  "/learn/notebook": "Learn · notebook",
-  "/learn/notes": "Learn · notes",
-  "/learn/bookmarks": "Learn · bookmarks",
-  "/learn/arena": "Learn · arena",
+  "/dashboard": "Learn · progress",
+  "/review": "Learn · review",
+  "/notebook": "Learn · notebook",
+  "/notes": "Learn · notes",
+  "/bookmarks": "Learn · bookmarks",
+  "/arena": "Learn · arena",
 };
 
 async function build(): Promise<TitleOf> {
@@ -32,11 +32,12 @@ async function build(): Promise<TitleOf> {
     for (const r of course.value.byKey.values()) map.set(r.href.replace(/\/$/, ""), r.title);
   }
   if (stories.status === "fulfilled") {
-    for (const st of stories.value) map.set(`/stories/${st.slug}`, st.title);
+    for (const st of stories.value) map.set(`/case-files/${st.slug}`, st.title);
   }
   return (path) => {
     if (!path) return null;
-    const clean = path.split(/[?#]/)[0].replace(/\/$/, "") || "/";
+    // events from before the move carry /learn/… and /stories/… paths: same titles
+    const clean = cleanPath(path.split(/[?#]/)[0]).replace(/\/$/, "") || "/";
     return map.get(clean) ?? null;
   };
 }

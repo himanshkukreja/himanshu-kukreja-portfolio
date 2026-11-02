@@ -31,7 +31,9 @@ import { supabaseClient } from "@/lib/supabase-client";
 import { startEngagedClock, type EngagedClock } from "@/lib/learn/engagedClock";
 import { isOffline, pageSource, reportNetworkFailure } from "@/lib/offline/connectivity";
 import { onProduct, onRouteStart, type ProductProps } from "./bus";
-import { GA_ID, POSTHOG_KEY, POSTHOG_PROXY_PATH, POSTHOG_UI_HOST, gaEnabled, posthogEnabled } from "./config";
+import { COURSE_ID, cleanPath, parseLessonPath } from "@/lib/learn/paths";
+import { currentSite } from "@/lib/site/hosts";
+import { GA_ID as GA_ID_PORTFOLIO, GA_ID_COURSE, POSTHOG_KEY, POSTHOG_PROXY_PATH, POSTHOG_UI_HOST, gaEnabled, posthogEnabled } from "./config";
 import { clearEvents, enqueueEvent, newEventId, pendingEvents, removeEvents, withFlushLock, type QueuedEvent } from "./offlineQueue";
 
 export const NOTRACK_KEY = "hk.notrack";
@@ -64,35 +66,38 @@ export function isOptedOut(): boolean {
 
 /** Analytics may run for this visitor at all (path checks are separate). */
 const allowed = () => !isOptedOut() && !privacySignal();
+/** Which of the two sites this tab is on: every event says so (PostHog also records $host). */
+const site = () => (isBrowser() ? currentSite() : "portfolio");
+/** GA4: the course host has its own stream when NEXT_PUBLIC_GA_ID_COURSE is set. */
+const GA_ID = isBrowser() && currentSite() === "course" ? GA_ID_COURSE : GA_ID_PORTFOLIO;
 const currentPath = () => (isBrowser() ? window.location.pathname : "/");
 
 /* ───────────────────────────── content context ───────────────────────────── */
-
-const LEARN_RESERVED = new Set(["dashboard", "notes", "bookmarks", "review", "arena", "notebook"]);
 
 export type ContentRef =
   | { content_type: "lesson"; course: string; week: string; lesson: string }
   | { content_type: "story"; story: string };
 
-/** /learn/<course>/<week>/<slug> → lesson, /stories/<slug> → story. */
+/** /<week>/<slug> → lesson, /case-files/<slug> → story (old /learn/… and /stories/… paths too). */
 export function contentOf(pathname: string): ContentRef | null {
-  const seg = pathname.split("/").filter(Boolean).map((s) => {
+  const lp = parseLessonPath(pathname);
+  if (lp) return { content_type: "lesson", course: COURSE_ID, week: lp.week, lesson: lp.slug };
+  const seg = cleanPath(pathname).split("/").filter(Boolean).map((s) => {
     try {
       return decodeURIComponent(s);
     } catch {
       return s;
     }
   });
-  if (seg[0] === "learn" && seg.length === 4 && !LEARN_RESERVED.has(seg[1])) return { content_type: "lesson", course: seg[1], week: seg[2], lesson: seg[3] };
-  if (seg[0] === "stories" && seg.length === 2) return { content_type: "story", story: seg[1] };
+  if (seg[0] === "case-files" && seg.length === 2 && seg[1] !== "feed.xml") return { content_type: "story", story: seg[1] };
   return null;
 }
 
 function pageContext(pathname: string): Properties {
   const c = contentOf(pathname);
-  if (!c) return {};
+  if (!c) return { site: site() };
   const hash = window.location.hash.slice(1);
-  return { ...c, ...(hash && hash.length <= 80 ? { stage: hash } : {}), page_title: document.title };
+  return { ...c, site: site(), ...(hash && hash.length <= 80 ? { stage: hash } : {}), page_title: document.title };
 }
 
 /* ───────────────────────────── PostHog ───────────────────────────── */
@@ -412,7 +417,7 @@ function onProductEvent(name: string, props: ProductProps) {
 /** Context added to every event captured with no connection. */
 function offlineProps(): Properties {
   const src = pageSource();
-  const shell = window.location.pathname.startsWith("/learn/offline") ? "library" : "fallback";
+  const shell = /^\/offline\/?$/.test(window.location.pathname) ? "library" : "fallback";
   return { offline: true, ...(src && src !== "network" ? { offline_source: src === "shell" ? shell : src } : {}) };
 }
 

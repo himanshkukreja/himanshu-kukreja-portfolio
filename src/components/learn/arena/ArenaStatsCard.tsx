@@ -20,7 +20,7 @@ export default function ArenaStatsCard() {
         <h2 id="arena-stats-h" className="font-display text-[28px] font-bold tracking-[-0.025em] text-fg">
           Arena
         </h2>
-        <Link href="/learn/arena" className="font-mono text-xs text-signal-text underline underline-offset-4">
+        <Link href="/arena" className="font-mono text-xs text-signal-text underline underline-offset-4">
           open the arena →
         </Link>
       </div>
@@ -31,7 +31,7 @@ export default function ArenaStatsCard() {
         </div>
         <div className="flex flex-col gap-1.5 bg-bg px-4 py-3">
           <span className={LABEL}>today</span>
-          {run ? <ResultSquares results={run.results} size={14} /> : <Link href="/learn/arena/daily" className="font-mono text-sm text-signal-text underline underline-offset-4">play →</Link>}
+          {run ? <ResultSquares results={run.results} size={14} /> : <Link href="/arena/daily" className="font-mono text-sm text-signal-text underline underline-offset-4">play →</Link>}
         </div>
         <div className="flex flex-col gap-1.5 bg-bg px-4 py-3">
           <span className={LABEL}>league</span>

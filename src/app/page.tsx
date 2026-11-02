@@ -9,6 +9,7 @@ import PinnedRepos from "@/components/home/PinnedRepos";
 import ContribSection, { ContribSectionSkeleton } from "@/components/home/contrib/ContribSection";
 import Dependencies from "@/components/home/Dependencies";
 import CaseFilesTeaser, { type CaseTeaser } from "@/components/home/CaseFilesTeaser";
+import CreatorCard from "@/components/home/CreatorCard";
 import LearnCta from "@/components/home/LearnCta";
 import HireApi from "@/components/home/HireApi";
 import HomeFooter from "@/components/home/HomeFooter";
@@ -24,7 +25,7 @@ function monthYear(date?: string): string | null {
   return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
 }
 
-// Same case ids and reading times as /stories (one source: getCaseFiles).
+// Same case ids and reading times as /case-files (one source: getCaseFiles).
 function toTeaser(c: CaseFile): CaseTeaser {
   const meta = [monthYear(c.date), c.mins ? `${c.mins} min` : null].filter(Boolean).join(" · ");
   return { id: c.caseId, slug: c.slug, meta, title: c.title, excerpt: c.excerpt, cover: c.cover };
@@ -39,6 +40,7 @@ export default async function Home() {
     <>
       <main id="top">
         <HeroIntro />
+        <CreatorCard />
         <CareerReplay />
         <Dependencies />
         <RushSection />

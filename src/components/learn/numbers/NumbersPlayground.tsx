@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/numbers: the estimation calculator on top, the reference numbers below, a drill link to
+ * /numbers: the estimation calculator on top, the reference numbers below, a drill link to
  * the estimation trial. All client-side; the query lives in ?q= so a link reproduces the maths.
  */
 import Link from "next/link";
@@ -47,7 +47,7 @@ export default function NumbersPlayground() {
           Type an estimate the way you&apos;d say it in an interview and get the worked answer: storage, bandwidth, QPS, servers. Below are the numbers the course teaches, each linked to the lesson it comes from.
         </p>
         <div className="flex flex-wrap items-center gap-x-5 gap-y-1 font-mono text-[12.5px] sm:text-[13px]">
-          <SaveOfflineButton title="Numbers playground" kind="tool" url="/learn/numbers" />
+          <SaveOfflineButton title="Numbers playground" kind="tool" url="/numbers" />
           <Link href={LESSONS.part3} className="inline-flex min-h-10 items-center text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
             the estimation lesson →
           </Link>

@@ -23,7 +23,8 @@ export const holdContext = (c: { selection: string; path?: string; heading?: str
 export function readPageContext(): PageContext | null {
   if (typeof window === "undefined") return null;
   const path = `${window.location.pathname}${window.location.search}`;
-  if (!(path.startsWith("/learn") || path.startsWith("/stories/")) || path.startsWith("/learn/chat")) return null;
+  // course pages only (the panel lives in the course and case-file layouts); not the chat page itself
+  if (path.startsWith("/chat")) return null;
   const root = document.querySelector<HTMLElement>("[data-sd-content]") ?? document.querySelector<HTMLElement>("main") ?? document.body;
   // the last heading above the reading line (a quarter down the screen), else the first one on screen
   const line = window.innerHeight * 0.25;
@@ -37,7 +38,7 @@ export function readPageContext(): PageContext | null {
     }
   }
   const sel = (window.getSelection?.()?.toString() ?? "").trim().slice(0, 1500) || held;
-  const video = /^\/learn\/(lectures|shorts)\b/.test(window.location.pathname) ? document.querySelector<HTMLVideoElement>("video") : null;
+  const video = /^\/(lectures|shorts)\b/.test(window.location.pathname) ? document.querySelector<HTMLVideoElement>("video") : null;
   const id = heading?.id || heading?.closest<HTMLElement>("[id]")?.id || "";
   if (heldAt.path && held && !window.getSelection?.()?.toString().trim())
     return { path: heldAt.path, title: document.title.slice(0, 160), heading: heldAt.heading, selection: held };

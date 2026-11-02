@@ -29,15 +29,15 @@ export default async function RevisePage() {
         <WatchHowItWorks id="arena-review" chapter="Revise mode" guide="practice-revise" />
         <span className="font-mono text-xs text-fg-3">
           {lessons} lessons · {cards} cards ·{" "}
-          <Link href="/learn/review" className="text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          <Link href="/review" className="text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">
             cards you mark &quot;again&quot; join your Daily standup
           </Link>
         </span>
         <div className="flex flex-wrap gap-2">
-          <Link href="/learn/cheatsheet/all" className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg hover:border-fg-3">
+          <Link href="/cheatsheet/all" className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg hover:border-fg-3">
             Every cheat sheet as one PDF
           </Link>
-          <a href="/learn/revise/anki.txt" download className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg hover:border-fg-3">
+          <a href="/revise/anki.txt" download className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg hover:border-fg-3">
             Download all {cards} cards for Anki
           </a>
         </div>

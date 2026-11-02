@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Companies with a name search and a category filter (/learn/prep/companies). On the Prep hub (`limit`)
+ * Companies with a name search and a category filter (/prep/companies). On the Prep hub (`limit`)
  * it shows the first few until you search, then every match.
  */
 import Link from "next/link";
@@ -70,7 +70,7 @@ export default function CompanyGrid({ companies, limit }: { companies: CompanySu
       {shown.length === 0 && (
         <p className="m-0 text-[15px] text-fg-3">
           No company matches &ldquo;{q}&rdquo;. Try the{" "}
-          <Link href="/learn/prep/questions" className="text-signal-text underline underline-offset-4">
+          <Link href="/prep/questions" className="text-signal-text underline underline-offset-4">
             question bank
           </Link>
           , or a similar company in the same space.
@@ -79,7 +79,7 @@ export default function CompanyGrid({ companies, limit }: { companies: CompanySu
       {limit && !needle && list.length > shown.length && (
         <p className="m-0 font-mono text-xs text-fg-3">
           showing {shown.length} of {list.length} · search above or{" "}
-          <Link href="/learn/prep/companies" className="text-signal-text underline underline-offset-4">
+          <Link href="/prep/companies" className="text-signal-text underline underline-offset-4">
             see them all
           </Link>
         </p>

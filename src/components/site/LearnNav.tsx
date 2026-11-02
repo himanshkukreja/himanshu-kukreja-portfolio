@@ -1,19 +1,19 @@
 "use client";
 
 /**
- * Learn mode for the global SiteHeader. On /learn routes the portfolio nav is swapped for the
- * course's own tabs (one header, not a header plus a sub-nav), and on phones the bottom dock
- * becomes the course dock with a way back to the site.
+ * Course mode for the global SiteHeader. On the course host (systemdesignmastery.dev) the header
+ * carries the course's own tabs (one header, not a header plus a sub-nav), and on phones the bottom
+ * dock is the course dock with a way to the portfolio. Paths here are clean course paths
+ * (src/lib/learn/paths.ts; SiteHeader passes useCoursePathname()).
  */
 import Link from "next/link";
 import { BookOpen, Briefcase, CloudDownload, Flame, Smartphone, Sparkles, Swords, User, type LucideIcon } from "lucide-react";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { DockDot, TabPending } from "./LinkPending";
 import AdminLink from "./AdminLink";
+import { portfolioUrl } from "@/lib/site/hosts";
 
-export const COURSE_HREF = "/learn/system-design-mastery";
-
-export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/learn/");
+export const COURSE_HREF = "/";
 
 /**
  * Seven tabs, one question each:
@@ -21,37 +21,38 @@ export const isLearnRoute = (p: string) => p === "/learn" || p.startsWith("/lear
  *   prep    · get hired   companies, the question bank, problem bank + low-level design, mock interviews,
  *                         revision decks, cheat and design sheets, code labs, numbers, the study planner
  *   arena   · play        daily challenge, leagues, games, the review queue, design of the week
- *   ask     · ask it      the course tutor (chat) with instant search, /learn/chat; the middle tab
+ *   ask     · ask it      the course tutor (chat) with instant search, /chat; the middle tab
  *   shorts  · watch it   2-3 minute vertical shorts of everything, one idea each
  *   stories · see it real real stories and the war room
  *   you     · your stuff  progress, notebook, bookmarks, saved paths, the tutor's memory, concept mastery, certificates
  * Keep in sync with the Prep hub (src/components/learn/prep) and the You sub-nav (src/components/learn/you).
  */
 export const PREP_ROUTES = ["prep", "practice", "revise", "cheatsheet", "sheets", "labs", "mock", "numbers", "plan", "tracks", "canvas", "podcast"] as const;
-const PREP_RE = new RegExp(`^/learn/(?:${PREP_ROUTES.join("|")})(?:/|$)`);
+const PREP_RE = new RegExp(`^/(?:${PREP_ROUTES.join("|")})(?:/|$)`);
 /** the problem bank and the low-level design track are lessons, but they belong to interview prep */
-const PREP_LESSON_RE = /^\/learn\/[^/]+\/(?:problem-bank|low-level-design)\//;
+const PREP_LESSON_RE = /^\/(?:problem-bank|low-level-design)\//;
 export const isPrep = (p: string) => PREP_RE.test(p) || PREP_LESSON_RE.test(p);
 
-const isArena = (p: string) => /^\/learn\/(arena|review|design-week)(\/|$)/.test(p);
-const isStories = (p: string) => /^\/learn\/war-stories(\/|$)/.test(p);
-const isShorts = (p: string) => /^\/learn\/shorts(\/|$)/.test(p);
+const isArena = (p: string) => /^\/(arena|review|design-week)(\/|$)/.test(p);
+const isStories = (p: string) => /^\/war-stories(\/|$)/.test(p);
+const isShorts = (p: string) => /^\/shorts(\/|$)/.test(p);
 export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "saved", "memory", "mastery", "certificate"] as const;
-const isYou = (p: string) => new RegExp(`^/learn/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
-const isCourse = (p: string) => isLearnRoute(p) && !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/learn\/(guide|offline|chat|search)(\/|$)/.test(p);
+const isYou = (p: string) => new RegExp(`^/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
+/** the course tab: the hub, lessons, side quests, concepts, the reading trail, case files… everything not under another tab */
+const isCourse = (p: string) => !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/(guide|offline|chat|search|privacy|cert|u)(\/|$)/.test(p);
 
-const isAsk = (p: string) => /^\/learn\/(chat|search)(\/|$)/.test(p);
+const isAsk = (p: string) => /^\/(chat|search)(\/|$)/.test(p);
 
 type Tab = { href: string; label: string; on: boolean; icon: LucideIcon; badge?: boolean; primary?: boolean };
 function tabs(pathname: string): Tab[] {
   return [
     { href: COURSE_HREF, label: "course", on: isCourse(pathname), icon: BookOpen },
-    { href: "/learn/prep", label: "prep", on: isPrep(pathname), icon: Briefcase },
-    { href: "/learn/arena", label: "arena", on: isArena(pathname), icon: Swords, badge: true },
-    { href: "/learn/chat", label: "ask", on: isAsk(pathname), icon: Sparkles, primary: true },
-    { href: "/learn/shorts", label: "shorts", on: isShorts(pathname), icon: Smartphone },
-    { href: "/learn/war-stories", label: "stories", on: isStories(pathname), icon: Flame },
-    { href: "/learn/dashboard", label: "you", on: isYou(pathname), icon: User },
+    { href: "/prep", label: "prep", on: isPrep(pathname), icon: Briefcase },
+    { href: "/arena", label: "arena", on: isArena(pathname), icon: Swords, badge: true },
+    { href: "/chat", label: "ask", on: isAsk(pathname), icon: Sparkles, primary: true },
+    { href: "/shorts", label: "shorts", on: isShorts(pathname), icon: Smartphone },
+    { href: "/war-stories", label: "stories", on: isStories(pathname), icon: Flame },
+    { href: "/dashboard", label: "you", on: isYou(pathname), icon: User },
   ];
 }
 
@@ -73,10 +74,10 @@ function DueBadge({ compact = false }: { compact?: boolean }) {
 export function LearnBrand() {
   return (
     <span className="inline-flex shrink-0 items-center gap-1.5 sm:gap-2">
-      <Link href="/" aria-label="Back to the portfolio" className="inline-flex min-h-10 min-w-10 items-center justify-center py-2 font-mono sm:min-w-0 text-[15px] font-semibold text-fg-3 hover:text-fg sm:text-base">
+      <a href={portfolioUrl("/")} aria-label="Himanshu Kukreja, the portfolio" className="inline-flex min-h-10 min-w-10 items-center justify-center py-2 font-mono sm:min-w-0 text-[15px] font-semibold text-fg-3 hover:text-fg sm:text-base">
         <span className="text-signal-text">~</span>
         <span data-wco-compact className="hidden sm:inline">/himanshu</span>
-      </Link>
+      </a>
       <span aria-hidden className="font-mono text-line-strong">
         /
       </span>
@@ -105,20 +106,20 @@ export function LearnTabs({ pathname }: { pathname: string }) {
         </Link>
       ))}
       <Link
-        href="/learn/guide"
-        aria-current={pathname.startsWith("/learn/guide") ? "page" : undefined}
+        href="/guide"
+        aria-current={pathname.startsWith("/guide") ? "page" : undefined}
         aria-label="How the course works"
         title="How the course works"
-        className={`ml-1 grid h-7 w-7 place-items-center border text-[12px] ${pathname.startsWith("/learn/guide") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
+        className={`ml-1 grid h-7 w-7 place-items-center border text-[12px] ${pathname.startsWith("/guide") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
       >
         ?
       </Link>
       <Link
-        href="/learn/offline"
-        aria-current={pathname.startsWith("/learn/offline") ? "page" : undefined}
+        href="/offline"
+        aria-current={pathname.startsWith("/offline") ? "page" : undefined}
         aria-label="Offline library: save lessons to read without internet"
         title="Offline library: save lessons to read without internet"
-        className={`ml-1 grid h-7 w-7 place-items-center border ${pathname.startsWith("/learn/offline") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
+        className={`ml-1 grid h-7 w-7 place-items-center border ${pathname.startsWith("/offline") ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
       >
         <CloudDownload className="h-3.5 w-3.5" aria-hidden />
       </Link>
@@ -136,9 +137,9 @@ export function LearnTabs({ pathname }: { pathname: string }) {
 export function LearnDock({ pathname, className }: { pathname: string; className: string }) {
   return (
     <nav aria-label="Course" className={`${className} grid-cols-[26px_repeat(7,minmax(0,1fr))] !gap-0 !px-1.5 max-[359px]:!px-1`}>
-      <Link href="/" aria-label="Back to the site" title="Back to the site" className="flex min-h-[52px] items-center justify-center font-mono text-[15px] font-semibold text-fg-3">
+      <a href={portfolioUrl("/")} aria-label="Himanshu Kukreja, the portfolio" title="Himanshu Kukreja, the portfolio" className="flex min-h-[52px] items-center justify-center font-mono text-[15px] font-semibold text-fg-3">
         <span aria-hidden>~</span>
-      </Link>
+      </a>
       {tabs(pathname).map((l) => {
         const I = l.icon;
         return (

@@ -3,7 +3,10 @@
  * panel, the share sheet and the API. Pure — safe on the server and in the browser.
  */
 
-export const SITE_ORIGIN = "https://himanshukukreja.in";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
+
+/** Learner profiles, share links and certificates live on the course host. */
+export const SITE_ORIGIN = COURSE_ORIGIN;
 export const COURSE_NAME = "System Design Mastery";
 
 /* ------------------------------------------------------------------ visibility */

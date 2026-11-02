@@ -11,7 +11,7 @@ export const metadata = {
   title: "Companies · Interview prep · System Design Mastery",
   description:
     "System design and machine coding interview prep by company: questions candidates reported (with sources), questions that fit what each company builds, and the free lessons that teach them.",
-  alternates: { canonical: "/learn/prep/companies" },
+  alternates: { canonical: "/prep/companies" },
 };
 
 export default async function CompaniesPage() {
@@ -21,7 +21,7 @@ export default async function CompaniesPage() {
     <main className="mx-auto flex max-w-[1320px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-14">
       <header className="flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/prep" className="hover:text-fg">
+          <Link href="/prep" className="hover:text-fg">
             Prep
           </Link>
           <span aria-hidden>/</span>
@@ -36,7 +36,7 @@ export default async function CompaniesPage() {
         </p>
         <p className="m-0 font-mono text-xs text-fg-3">
           {companies.length} companies · {reported} reported questions with sources ·{" "}
-          <Link href="/learn/prep/questions" className="text-signal-text underline underline-offset-4">
+          <Link href="/prep/questions" className="text-signal-text underline underline-offset-4">
             the whole question bank →
           </Link>
         </p>

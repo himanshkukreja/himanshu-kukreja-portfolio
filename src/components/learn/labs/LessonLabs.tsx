@@ -15,7 +15,7 @@ export default function LessonLabs({ labs }: { labs: LessonLabLink[] }) {
     <div className="flex flex-col gap-2.5" data-hk-lesson-labs="">
       <span className="flex items-center justify-between gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
         <span>Try it in code</span>
-        <Link href="/learn/labs" className="normal-case tracking-normal text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+        <Link href="/labs" className="normal-case tracking-normal text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
           all labs →
         </Link>
       </span>

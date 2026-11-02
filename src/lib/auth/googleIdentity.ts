@@ -6,7 +6,7 @@
  * the app's name, instead of the Supabase project domain the OAuth redirect flow shows.
  *
  * Requires, in Google Cloud Console for this OAuth client: Authorized JavaScript origins
- * https://www.himanshukukreja.in, https://himanshukukreja.in (and http://localhost:3000 / :3100 for dev).
+ * https://www.himanshukukreja.in, https://himanshukukreja.in, https://systemdesignmastery.dev (and http://localhost:3000 / :3100 for dev).
  * Until those exist GIS_ENABLED stays false and the classic redirect flow is used.
  */
 import { supabaseClient } from "@/lib/supabase-client";
@@ -14,8 +14,13 @@ import { supabaseClient } from "@/lib/supabase-client";
 /** Public OAuth web client id (Supabase's Google provider lists it first, so ID tokens for it are accepted). */
 export const GOOGLE_CLIENT_ID = "282795995682-5io18icb5lacgdglrt0ivp3fu1e4urcn.apps.googleusercontent.com";
 
-/** On: the JavaScript origins above are authorised for this client. */
-export const GIS_ENABLED = true;
+/**
+ * Origins already authorised as JavaScript origins for this client. Elsewhere (e.g. the course domain before
+ * it's added in Google Cloud Console) the classic redirect flow is used, which needs no JS origin.
+ */
+const GIS_ORIGINS = ["https://himanshukukreja.in", "https://www.himanshukukreja.in", "http://localhost:3000", "http://localhost:3100"];
+/** On: this page's origin is authorised for this client (decided in the browser; the server render shows the classic button). */
+export const GIS_ENABLED = typeof window !== "undefined" && GIS_ORIGINS.includes(window.location.origin);
 
 type IdConfig = {
   client_id: string;

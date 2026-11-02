@@ -116,7 +116,7 @@ function buildRow(i: number): LearnerRow {
           title: cur.n[2],
           tag: cur.n[3],
           weekCode: cur.weekCode,
-          href: `/learn/system-design-mastery/${cur.week}/${cur.n[0]}`,
+          href: `/${cur.week}/${cur.n[0]}`,
           stage: `part-${st}`,
           stageLabel: `${STAGES[st]} · ${STAGE_TITLES[st]}`,
           stageSource: i % 3 === 0 ? "event" : "estimate",
@@ -215,7 +215,7 @@ function detail(id: string): LearnerDetail | undefined {
       code: n[1],
       title: n[2],
       kind: "day-content",
-      href: `/learn/system-design-mastery/${week}/${n[0]}`,
+      href: `/${week}/${n[0]}`,
       status,
       pct: status === "completed" ? 100 : status === "in_progress" ? pct : 0,
       timeSec: status === "completed" ? Math.round(n[4] * 60 * (0.6 + r() * 0.8)) : status === "in_progress" ? Math.round(n[4] * 60 * (pct / 100)) : 0,
@@ -242,7 +242,7 @@ function detail(id: string): LearnerDetail | undefined {
         country: row.country,
         city: row.city,
         pages: [
-          { path: "/learn/system-design-mastery", title: "Learn hub", at: c.startedAt! },
+          { path: "/", title: "Learn hub", at: c.startedAt! },
           { path: c.href, title: `${c.code} · ${c.title}`, at: c.startedAt! },
         ],
       });
@@ -263,8 +263,8 @@ function detail(id: string): LearnerDetail | undefined {
   });
   return {
     lectures: [
-      { id: "week-04-caching--day-03-thundering-herd", title: "Thundering herd", href: "/learn/lectures/week-04-caching--day-03-thundering-herd", minutes: 17.5, pct: 100, done: true, lastAt: new Date(Date.now() - 3_600_000).toISOString() },
-      { id: "bonus-01-indian-upi-system", title: "India's UPI", href: "/learn/lectures/bonus-01-indian-upi-system", minutes: 6.2, pct: 41, done: false, lastAt: new Date(Date.now() - 86_400_000).toISOString() },
+      { id: "week-04-caching--day-03-thundering-herd", title: "Thundering herd", href: "/lectures/week-04-caching--day-03-thundering-herd", minutes: 17.5, pct: 100, done: true, lastAt: new Date(Date.now() - 3_600_000).toISOString() },
+      { id: "bonus-01-indian-upi-system", title: "India's UPI", href: "/lectures/bonus-01-indian-upi-system", minutes: 6.2, pct: 41, done: false, lastAt: new Date(Date.now() - 86_400_000).toISOString() },
     ],
     lectureMinutes: 24,
     generatedAt: new Date().toISOString(),
@@ -292,7 +292,7 @@ function detail(id: string): LearnerDetail | undefined {
       { label: `${row.city}, ${row.country}`, n: 128 },
       { label: "Mumbai, IN", n: 14 },
     ],
-    firstVisit: { at: row.signedUpAt!, path: "/stories/the-cache-that-lied", referrer: "linkedin.com", utm: null, device: row.device, country: row.country, city: row.city },
+    firstVisit: { at: row.signedUpAt!, path: "/case-files/the-cache-that-lied", referrer: "linkedin.com", utm: null, device: row.device, country: row.country, city: row.city },
     streakDays: Array.from({ length: Math.min(6, done) }, (_, n) => ({ d: dayKey(Date.now() - n * 2 * DAY), lessons: 1, timeSec: 2400 })),
     game: null,
     features: { stageColumns: false, gameColumns: false, trialAttempts: false, reviewCards: false, learnEvents: true, pageLeave: true },
@@ -317,7 +317,7 @@ function course(u: URL): CourseAnalytics {
       weekCode: o.weekCode,
       order: i,
       core,
-      href: `/learn/system-design-mastery/${o.week}/${o.n[0]}`,
+      href: `/${o.week}/${o.n[0]}`,
       opened,
       reached50,
       completed,

@@ -3,7 +3,7 @@
  *
  * A passage link carries two locators:
  *
- *   https://himanshukukreja.in/learn/…/lesson?at=s-2-1-write-path,1,the+commit+log,before+the+ack
+ *   https://systemdesignmastery.dev/<week>/<lesson>?at=s-2-1-write-path,1,the+commit+log,before+the+ack
  *     #:~:text=prefix-,the%20commit%20log,before%20the%20ack,-suffix
  *
  * - `#:~:text=…` is a W3C Text Fragment: Chrome, Edge, Safari and Firefox scroll to the text and

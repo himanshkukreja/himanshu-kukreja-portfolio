@@ -2,21 +2,22 @@
 
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { ImagePlus, LogOut, ShieldCheck } from "lucide-react";
 import { Spinner } from "@/components/ui/loader";
 import { useAuth } from "@/contexts/AuthContext";
 import UserAvatar from "@/components/avatar/UserAvatar";
 import AvatarPicker from "@/components/avatar/AvatarPickerLazy";
 import AdminLink from "@/components/site/AdminLink";
-import { isLearnRoute } from "@/components/site/LearnNav";
+import { useSite } from "@/components/site/SiteMode";
 import { useIsAdmin } from "@/lib/admin/useIsAdmin";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 const LINKS = [
-  { href: "/learn", label: "course" },
-  { href: "/learn/dashboard", label: "profile" },
-  { href: "/learn/bookmarks", label: "bookmarks" },
-  { href: "/learn/notes", label: "notes" },
+  // absolute: the menu is on both hosts (same-origin absolute links still navigate client-side)
+  { href: courseUrlFor("/"), label: "course" },
+  { href: courseUrlFor("/dashboard"), label: "profile" },
+  { href: courseUrlFor("/bookmarks"), label: "bookmarks" },
+  { href: courseUrlFor("/notes"), label: "notes" },
 ];
 
 export default function UserMenu() {
@@ -28,7 +29,7 @@ export default function UserMenu() {
   const buttonRef = useRef<HTMLButtonElement>(null);
   const { admin } = useIsAdmin();
   // where the header has no room for its Admin button (the course on phones, any page under 360 px)
-  const learn = isLearnRoute(usePathname() || "/");
+  const learn = useSite() === "course";
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

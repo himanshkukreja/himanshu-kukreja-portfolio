@@ -72,7 +72,7 @@ export async function GET(req: NextRequest) {
       text: toText(c.raw_content || c.content),
       // shorts reuse lesson_comments under course "shorts"
       where: c.course_id === "shorts" ? `shorts/${c.lesson_slug.replace(/^shorts--/, "")}` : `${c.week}/${c.lesson_slug}`,
-      href: c.course_id === "shorts" ? `/learn/shorts?v=${encodeURIComponent(c.lesson_slug)}` : `/learn/${encodeURIComponent(c.course_id)}/${encodeURIComponent(c.week)}/${encodeURIComponent(c.lesson_slug)}`,
+      href: c.course_id === "shorts" ? `/shorts?v=${encodeURIComponent(c.lesson_slug)}` : `/${encodeURIComponent(c.week)}/${encodeURIComponent(c.lesson_slug)}`,
       parentId: c.parent_id,
       upvotes: c.upvotes ?? 0,
       createdAt: c.created_at,
@@ -84,7 +84,7 @@ export async function GET(req: NextRequest) {
       name: c.user_name,
       text: toText(c.raw_content || c.content),
       where: `stories/${c.story_slug}`,
-      href: `/stories/${encodeURIComponent(c.story_slug)}`,
+      href: `/case-files/${encodeURIComponent(c.story_slug)}`,
       parentId: c.parent_id,
       upvotes: c.upvotes ?? 0,
       createdAt: c.created_at,

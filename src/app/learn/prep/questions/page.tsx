@@ -10,7 +10,7 @@ export const metadata = {
   title: "Question bank · Interview prep · System Design Mastery",
   description:
     "Every system design and machine coding question from our company pages in one list: which companies it was reported at (with sources), and the free lessons that teach it.",
-  alternates: { canonical: "/learn/prep/questions" },
+  alternates: { canonical: "/prep/questions" },
 };
 
 export default async function QuestionsPage() {
@@ -19,7 +19,7 @@ export default async function QuestionsPage() {
     <main className="mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-14">
       <header className="flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/prep" className="hover:text-fg">
+          <Link href="/prep" className="hover:text-fg">
             Prep
           </Link>
           <span aria-hidden>/</span>

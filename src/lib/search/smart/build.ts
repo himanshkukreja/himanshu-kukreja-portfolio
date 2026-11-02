@@ -217,7 +217,7 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
   // case files (repo and published CMS ones)
   for (const c of await listStorySources().catch(() => [])) {
     const text = mdPlain(c.body);
-    docs.push(doc({ id: `C:${c.slug}`, kind: "case", title: c.title, sub: "Case file", href: `/stories/${c.slug}`, summary: lead(c.excerpt || text, 200), text: text.slice(0, DOC_CHARS), kw: (c.tags ?? []).join(" ") }));
+    docs.push(doc({ id: `C:${c.slug}`, kind: "case", title: c.title, sub: "Case file", href: `/case-files/${c.slug}`, summary: lead(c.excerpt || text, 200), text: text.slice(0, DOC_CHARS), kw: (c.tags ?? []).join(" ") }));
   }
 
   // mock interviews
@@ -276,7 +276,7 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
         kind: "concept",
         title: c.term,
         sub: `Taught in ${titleOf.get(c.taught.lesson) ?? c.taught.lesson}`,
-        href: `/learn/concepts/${c.id}`,
+        href: `/concepts/${c.id}`,
         summary: lead(c.definition, 200),
         text: [c.definition, ...c.refresher].join(" "),
         kw: c.aliases.join(" · "),
@@ -344,7 +344,7 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
     );
   });
 
-  // the reading trail (/learn/reading): each write-up, opened at its card there
+  // the reading trail (/reading): each write-up, opened at its card there
   const kindOf = new Map(lessons.map((x) => [`${x.l.week}/${x.l.slug}`, x.kind]));
   const trail = await getTrailIndex().catch(() => ({ groups: [] }));
   // a write-up several lessons cite is one result, at its first card (course order: worlds, then side quests)
@@ -362,7 +362,7 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
           kind: "trail",
           title: e.title,
           sub: `${TRAIL_TYPE_LABEL[e.type]} · ${e.company} · for ${l.title}`,
-          href: `/learn/reading#${trailAnchor(l.key, e.id)}`,
+          href: `/reading#${trailAnchor(l.key, e.id)}`,
           summary: lead(e.summary.idea, 200),
           text: `${e.summary.what} ${e.summary.idea} ${e.summary.connects} Taught here: ${e.concept}.`,
           kw: [e.company, e.publisher, e.concept, ...e.authors.slice(0, 3)].filter(Boolean).join(" · "),
@@ -375,7 +375,7 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
     }
   }
 
-  // revision cards (/learn/revise/<world>/<lesson>), each opened at its card in the lesson's deck
+  // revision cards (/revise/<world>/<lesson>), each opened at its card in the lesson's deck
   for (const w of await getRevisionWeeks().catch(() => [])) {
     for (const l of w.lessons) {
       if (!kindOf.has(`${w.key}/${l.slug}`)) continue;
@@ -387,7 +387,7 @@ async function partC(): Promise<{ docs: Doc[]; syn: string[][] }> {
             kind: "card",
             title: generic ? `${plain(c.title)}: ${l.title}` : plain(c.title),
             sub: `Revision · ${l.tag} · ${l.title}`,
-            href: `/learn/revise/${w.id}/${encodeURIComponent(l.slug)}?card=${encodeURIComponent(c.id)}`,
+            href: `/revise/${w.id}/${encodeURIComponent(l.slug)}?card=${encodeURIComponent(c.id)}`,
             text: cardText(c),
             parent: lessonId(w.key, l.slug),
           }),

@@ -4,7 +4,8 @@
  * and the suggested posting order. Pure and deterministic (no AI, no I/O): the admin page runs it in the
  * browser, so marking a post updates the order at once.
  */
-import { SITE_URL } from "@/lib/site";
+// course URLs live on the course host
+import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 import { SHORT_CATEGORIES, type ShortCategory } from "./types";
 
 export const COURSE_NAME = "System Design Mastery";
@@ -109,7 +110,7 @@ export function hashtags(s: Pick<DistShort, "topics" | "category">, platform: Pl
 
 /** The full lesson on the site with the campaign tags (the article; else the lecture; else the short's page). */
 export function lessonUrl(s: Pick<DistShort, "id" | "article" | "full">, platform: Platform): string {
-  const path = s.article || s.full || `/learn/shorts/${s.id}`;
+  const path = s.article || s.full || `/shorts/${s.id}`;
   const u = new URL(path, SITE_URL);
   u.searchParams.set("utm_source", platform);
   u.searchParams.set("utm_medium", platform === "youtube" ? "shorts" : "reels");
@@ -253,7 +254,7 @@ export function distributionCsv(rows: DistShort[], slots: Record<Platform, Map<s
       Math.round(s.duration),
       s.score.toFixed(3),
       s.viewers,
-      `${SITE_URL}/learn/shorts/${s.id}`,
+      `${SITE_URL}/shorts/${s.id}`,
       s.video,
       s.poster,
       ...per("youtube"),

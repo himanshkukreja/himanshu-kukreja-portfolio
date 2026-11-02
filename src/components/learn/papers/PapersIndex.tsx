@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/papers: every written paper, weeks then side quests, with the learner's best score (from the game flags). */
+/** /papers: every written paper, weeks then side quests, with the learner's best score (from the game flags). */
 import Link from "next/link";
 import { useGame } from "@/game/GameProvider";
 import { paperStatus, readRecord, paperFlagKey, type PaperRecord, type PaperSummary } from "@/lib/learn/papers/types";

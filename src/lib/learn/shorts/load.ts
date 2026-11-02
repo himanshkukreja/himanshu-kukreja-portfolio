@@ -57,7 +57,7 @@ async function load(): Promise<FeedShort[]> {
         category: categoryOf(l.short.of),
         topics: l.short.topics ?? [],
         lecture: l.short.of,
-        full: !lectures.size || lectures.has(l.short.of) ? `/learn/lectures/${l.short.of}${l.short.at ? `?at=${encodeURIComponent(l.short.at)}` : ""}` : null,
+        full: !lectures.size || lectures.has(l.short.of) ? `/lectures/${l.short.of}${l.short.at ? `?at=${encodeURIComponent(l.short.at)}` : ""}` : null,
         article: l.short.article,
         src: `${base}/${l.quest}/video.mp4?v=${v}`,
         poster: `${base}/${l.quest}/poster.jpg?v=${v}`,

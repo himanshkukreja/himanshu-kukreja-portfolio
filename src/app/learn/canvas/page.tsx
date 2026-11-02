@@ -10,16 +10,16 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Design canvas · System Design Mastery",
   description: "Draw your architecture for a classic interview problem, a capstone or your own idea, and get a staff-engineer style AI review of what you drew: the gaps, worst first, and what an interviewer would ask next.",
-  alternates: { canonical: "/learn/canvas" },
+  alternates: { canonical: "/canvas" },
 };
 
-/** /learn/canvas: pick something to design; your designs are listed once you're signed in. */
+/** /canvas: pick something to design; your designs are listed once you're signed in. */
 export default async function CanvasPage() {
   const prompts = (await canvasPrompts().catch(() => [])).map(({ path: _p, ...p }) => (void _p, p));
   return (
     <main className="mx-auto flex max-w-[1100px] flex-col gap-10 px-4 pb-28 pt-8 sm:px-6 sm:pt-12">
       <header className="flex flex-col gap-3">
-        <Link href="/learn/prep" className="self-start font-mono text-xs text-fg-3 hover:text-fg">
+        <Link href="/prep" className="self-start font-mono text-xs text-fg-3 hover:text-fg">
           ← prep
         </Link>
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">design canvas</span>

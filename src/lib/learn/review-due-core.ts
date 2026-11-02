@@ -188,7 +188,7 @@ export function rankDueReviews(sig: ReviewSignals, opts: RankOptions = {}): DueR
   const done = sig.done || {};
   const lessonOf = (week: string | null, slug: string | null): LessonInfo | null => (week && slug ? ix.lessons.get(`${week}/${slug}`) || null : null);
   const lessonTitle = (week: string, slug: string) => lessonOf(week, slug)?.title || humanize(slug);
-  const lessonHref = (week: string, slug: string) => lessonOf(week, slug)?.href || `/learn/${ix.courseId}/${week}/${slug}`;
+  const lessonHref = (week: string, slug: string) => lessonOf(week, slug)?.href || `/${week}/${slug}`;
   const ago = (at: number) => agoLabel(daysBetween(dayIn(at, tz), today));
   const out: Scored[] = [];
 
@@ -223,7 +223,7 @@ export function rankDueReviews(sig: ReviewSignals, opts: RankOptions = {}): DueR
         kind: "review",
         id: lesson ? `review:${k}` : `review:${k.slice(1)}`,
         title: `${name} · ${plural(cards.length, "review card")}`,
-        href: "/learn/review",
+        href: "/review",
         why: totalDue > cards.length ? `${why} (${totalDue} due in all)` : why,
         dueAt: oldest,
         minutes: Math.max(1, Math.ceil((cards.length * 25) / 60)),
@@ -314,7 +314,7 @@ export function rankDueReviews(sig: ReviewSignals, opts: RankOptions = {}): DueR
         kind: "checkpoint",
         id: `checkpoint:lecture:${lecture}`,
         title: `Lecture checkpoints · ${topic}`,
-        href: info?.href || `/learn/lectures/${lecture}`,
+        href: info?.href || `/lectures/${lecture}`,
         why: `you missed ${missed.length} of ${plural(scenes.size, "checkpoint question")} on ${topic} ${ago(at)}`,
         dueAt,
         minutes: Math.max(3, missed.length * 3),
@@ -364,7 +364,7 @@ export function rankDueReviews(sig: ReviewSignals, opts: RankOptions = {}): DueR
         kind: "weak",
         id: `weak:trial:${k}`,
         title: name,
-        href: part?.href || `/learn/${ix.courseId}`,
+        href: part?.href || `/`,
         why: `your best on ${part?.title ? `“${part.title}”` : `part ${t.part}`} is ${t.score}/${t.total} (${pct}%), the pass mark is ${passPct}%${t.last ? `; last try ${ago(t.last)}` : ""}${t.attempts > 1 ? ` after ${t.attempts} attempts` : ""}`,
         dueAt,
         minutes: Math.max(10, part?.questions || t.total),
@@ -437,9 +437,9 @@ export function rankDueReviews(sig: ReviewSignals, opts: RankOptions = {}): DueR
   return { items: picked.map(({ score: _s, ...rest }) => (void _s, rest)) };
 }
 
-/** "<week>/<slug>" of a lesson link (/learn/<course>/<week>/<slug>[#…]), else null. */
+/** "<week>/<slug>" of a lesson link (clean /<week>/<slug>[#…], or the old /learn/<course>/<week>/<slug>), else null. */
 export function lessonKeyOfHref(href: string): string | null {
-  const m = /^\/learn\/[^/]+\/(week-[^/#?]+|bonus-[^/#?]+|problem-bank|low-level-design)\/([^/#?]+)/.exec(href);
+  const m = /^(?:\/learn\/[^/]+)?\/(week-[^/#?]+|bonus-[^/#?]+|problem-bank|low-level-design)\/([^/#?]+)/.exec(href);
   return m ? `${m[1]}/${m[2]}` : null;
 }
 

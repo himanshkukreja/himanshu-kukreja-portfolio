@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/design-week: the current challenge, last week's winners, what's next, the archive, how it works. */
+/** /design-week: the current challenge, last week's winners, what's next, the archive, how it works. */
 import Link from "next/link";
 import { useEffect } from "react";
 import { track } from "@/lib/track";
@@ -33,7 +33,7 @@ export function ComingSoon() {
       <p className="m-0 max-w-[620px] text-[15px] leading-relaxed text-fg-2">
         One open design problem a week: a URL shortener for 10 billion links, a cricket-final notification fan-out, a rate limiter for UPI… Until it opens, the capstones and side quests are the best practice.
       </p>
-      <Link href="/learn/system-design-mastery" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+      <Link href="/" className="inline-flex min-h-10 items-center self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
         back to the course →
       </Link>
     </section>

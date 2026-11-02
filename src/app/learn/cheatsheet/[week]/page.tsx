@@ -29,13 +29,13 @@ export async function generateMetadata({ params }: Props) {
 export default async function CheatSheetPage({ params }: Props) {
   const w = await getRevisionWeek((await params).week);
   if (!w) notFound();
-  const path = `/learn/cheatsheet/${w.id}`;
+  const path = `/cheatsheet/${w.id}`;
   const host = SITE_ORIGIN.replace(/^https?:\/\//, "");
   return (
     <main className="cs-root mx-auto flex w-full max-w-[1000px] flex-col gap-6 px-4 pb-16 pt-6 sm:px-6 sm:pt-10">
       <div className="cs-noprint flex flex-col gap-4">
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/learn/revise" className="hover:text-fg">
+          <Link href="/revise" className="hover:text-fg">
             Revision
           </Link>
           <span aria-hidden>/</span>
@@ -54,7 +54,7 @@ export default async function CheatSheetPage({ params }: Props) {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {w.lessons.length > 0 && (
-            <Link href={`/learn/revise/${w.id}`} className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg-2 hover:border-fg-3 hover:text-fg">
+            <Link href={`/revise/${w.id}`} className="inline-flex min-h-11 items-center border border-line-strong px-3.5 text-sm font-medium text-fg-2 hover:border-fg-3 hover:text-fg">
               Revise it as cards · ~{w.lessons.length * 5} min
             </Link>
           )}

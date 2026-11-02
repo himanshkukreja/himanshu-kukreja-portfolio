@@ -16,6 +16,10 @@ import GlobalAuthModal from "@/components/GlobalAuthModal";
 import AuthHashHandler from "@/components/AuthHashHandler";
 import RouteProgress from "@/components/site/RouteProgress";
 import OfflineProvider from "@/components/offline/OfflineProvider";
+import { SiteModeProvider } from "@/components/site/SiteMode";
+import { CourseLinkCarry, MovedNotice } from "@/components/site/DomainMove";
+import { IMPORT_JS } from "@/lib/site/carry";
+import { PORTFOLIO_ORIGIN, courseUrlFor } from "@/lib/site/hosts";
 
 
 
@@ -39,7 +43,7 @@ const PERSON_LD = {
   "@context": "https://schema.org",
   "@type": "Person",
   name: "Himanshu Kukreja",
-  url: "https://himanshukukreja.in",
+  url: PORTFOLIO_ORIGIN,
   jobTitle: "Senior Software Engineer",
   worksFor: { "@type": "Organization", name: "Senseloaf AI", url: "https://senseloaf.ai" },
   email: `mailto:${EMAIL}`,
@@ -50,12 +54,13 @@ export const metadata: Metadata = {
   title: "Himanshu Kukreja — Portfolio",
   description:
     "Senior software engineer leading engineering at Senseloaf AI. Ships product end to end, streams real devices to browsers, open-sources the tools, writes case files and teaches system design.",
-  // Apex 307-redirects to www, so absolute OG/Twitter image URLs point straight at www.
-  metadataBase: new URL("https://www.himanshukukreja.in"),
-  alternates: { types: { "application/rss+xml": [{ url: "/stories/feed.xml", title: "Case files · Himanshu Kukreja" }] } },
+  // Apex 307-redirects to www, so absolute OG/Twitter image URLs point straight at www. Course pages
+  // (src/app/learn, stories, cert, u) set the course host as their metadataBase in their layouts.
+  metadataBase: new URL(PORTFOLIO_ORIGIN),
+  alternates: { types: { "application/rss+xml": [{ url: courseUrlFor("/case-files/feed.xml"), title: "Case files · System Design Mastery" }] } },
   // No title/description/images here on purpose: og:title/description fall back to each page's own
   // title/description, and the card images come from the opengraph-image / twitter-image routes
-  // (src/app, src/app/learn, src/app/learn/[course]/[week]/[slug]); /stories/[slug] sets its cover.
+  // (src/app, src/app/learn, src/app/learn/[course]/[week]/[slug]); /case-files/[slug] sets its cover.
   openGraph: {
     type: "website",
     siteName: "Himanshu Kukreja",
@@ -85,6 +90,8 @@ export default function RootLayout({
           (lessons, side quests) get their metadata streamed into <body>, where browsers ignore
           favicons, so the file-convention <link>s alone left those tabs without an icon. */}
       <head>
+        {/* first: a one-time import of course state carried over from himanshukukreja.in (#hk-import=…, src/lib/site/carry.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: IMPORT_JS }} />
         <link rel="icon" href="/favicon.ico" sizes="any" />
         <link rel="icon" href="/icon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-icon.png" />
@@ -113,6 +120,7 @@ export default function RootLayout({
         <RouteProgress />
         <AnalyticsTracker />
         <AnalyticsProvider />
+        <SiteModeProvider>
         <AuthProvider>
           <AuthModalProvider>
             <ThemeProvider>
@@ -124,11 +132,14 @@ export default function RootLayout({
                   <XPToaster />
                   <Terminal />
                   <GlobalAuthModal />
+                  <CourseLinkCarry />
+                  <MovedNotice />
                 </OfflineProvider>
               </GameProvider>
             </ThemeProvider>
           </AuthModalProvider>
         </AuthProvider>
+        </SiteModeProvider>
         <Analytics />
       </body>
     </html>

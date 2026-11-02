@@ -21,8 +21,11 @@
 
 /* ------------------------------------------------------------------ wording */
 
-export const CERT_ORIGIN = "https://www.himanshukukreja.in";
-export const CERT_HOST = "himanshukukreja.in";
+// the course host (src/lib/site/hosts.ts COURSE_ORIGIN; inlined: this module also runs under node --test without path aliases)
+const COURSE_ORIGIN = (process.env.NEXT_PUBLIC_COURSE_ORIGIN || "https://systemdesignmastery.dev").replace(/\/+$/, "");
+/** Certificates verify on the course host (old himanshukukreja.in/cert/<code> links 301 there). */
+export const CERT_ORIGIN = COURSE_ORIGIN;
+export const CERT_HOST = COURSE_ORIGIN.replace(/^https?:\/\//, "");
 export const ISSUER = "System Design Mastery";
 export const SIGNER = "Himanshu Kukreja";
 export const SIGNER_ROLE = "Creator & instructor";
@@ -118,7 +121,7 @@ const worldsPhraseN = (n: number) => `${/^(8|11|18)(\D|$)/.test(String(n)) || /^
 export const certPath = (code: string) => `/cert/${code}`;
 export const certUrl = (code: string) => `${CERT_ORIGIN}${certPath(code)}`;
 export const certPrintPath = (code: string) => `/cert/${code}/print`;
-/** "himanshukukreja.in/cert/SDM-7F3K-92QX" */
+/** "systemdesignmastery.dev/cert/SDM-7F3K-92QX" */
 export const certDisplayUrl = (code: string) => `${CERT_HOST}${certPath(code)}`;
 
 /* ------------------------------------------------------------------ names */
@@ -385,7 +388,7 @@ function lessonsReq(worlds: CertWorld[], ev: LearnerEvidence, scope: "course" | 
     have: done,
     need: all.length,
     todo: all.filter(({ l }) => !ev.lessons[lessonKey(l.week, l.slug)]).map(({ w, l }) => ({ label: `W${w.code} · ${l.label}`, href: l.href })),
-    href: all.find(({ l }) => !ev.lessons[lessonKey(l.week, l.slug)])?.l.href || "/learn/system-design-mastery",
+    href: all.find(({ l }) => !ev.lessons[lessonKey(l.week, l.slug)])?.l.href || "/",
     hrefLabel: "Continue reading",
   };
 }
@@ -404,7 +407,7 @@ function trialsReq(worlds: CertWorld[], ev: LearnerEvidence, scope: "course" | "
     have: passed,
     need: all.length,
     todo,
-    href: todo[0]?.href || "/learn/system-design-mastery",
+    href: todo[0]?.href || "/",
     hrefLabel: "Take the next part",
   };
 }
@@ -421,7 +424,7 @@ function bossesReq(worlds: CertWorld[], ev: LearnerEvidence, scope: "course" | "
     have: beaten,
     need: all.length,
     todo,
-    href: todo[0]?.href || "/learn/system-design-mastery",
+    href: todo[0]?.href || "/",
     hrefLabel: "Fight the boss",
   };
 }
@@ -438,7 +441,7 @@ function capstonesReq(worlds: CertWorld[], ev: LearnerEvidence): Requirement {
     have: read,
     need: all.length,
     todo: unread.map((w) => ({ label: `W${w.code} capstone · ${w.boss!.title}`, href: w.boss!.href })),
-    href: unread[0]?.boss!.href || "/learn/system-design-mastery",
+    href: unread[0]?.boss!.href || "/",
     hrefLabel: "Read the next capstone",
   };
 }
@@ -482,7 +485,7 @@ function mockReq(course: CertCourse, ev: LearnerEvidence): Requirement {
     have,
     need: MOCKS_NEEDED,
     todo: course.mocks.filter((m) => !offers.some((o) => o.mock.id === m.id)).map((m) => ({ label: `Mock ${String(m.n).padStart(2, "0")} · ${m.company}`, href: m.href })),
-    href: "/learn/mock",
+    href: "/mock",
     hrefLabel: "Sit a mock interview",
   };
 }

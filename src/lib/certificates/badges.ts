@@ -91,7 +91,7 @@ export const ob2Issuer = () => ({
   type: "Issuer",
   id: ISSUER_URL,
   name: ISSUER,
-  url: `${ORIGIN}/learn`,
+  url: `${ORIGIN}/`,
   description: `${ISSUER}: a free online course on designing systems at scale, by Himanshu Kukreja.`,
   image: badgeImageUrl("course"),
 });
@@ -105,7 +105,7 @@ export function ob2BadgeClass(kind: string, worldTitle?: string | null) {
     name: a.name,
     description: a.description,
     image: badgeImageUrl(kind),
-    criteria: { id: `${ORIGIN}/learn/certificate`, narrative: a.criteria },
+    criteria: { id: `${ORIGIN}/certificate`, narrative: a.criteria },
     issuer: ISSUER_URL,
   };
 }
@@ -140,7 +140,7 @@ export function ob3Credential(c: CertificateView, email: string | null) {
     "@context": ["https://www.w3.org/ns/credentials/v2", "https://purl.imsglobal.org/spec/ob/v3p0/context-3.0.3.json"],
     id: `${certUrl(c.code)}#ob3`,
     type: ["VerifiableCredential", "OpenBadgeCredential"],
-    issuer: { id: ISSUER_URL, type: ["Profile"], name: ISSUER, url: `${ORIGIN}/learn` },
+    issuer: { id: ISSUER_URL, type: ["Profile"], name: ISSUER, url: `${ORIGIN}/` },
     validFrom: c.issuedAt,
     name: a.name,
     credentialSubject: {
@@ -152,7 +152,7 @@ export function ob3Credential(c: CertificateView, email: string | null) {
         achievementType: "Certificate",
         name: a.name,
         description: a.description,
-        criteria: { id: `${ORIGIN}/learn/certificate`, narrative: a.criteria },
+        criteria: { id: `${ORIGIN}/certificate`, narrative: a.criteria },
         image: { id: badgeImageUrl(kind), type: "Image" },
         creator: { id: ISSUER_URL, type: ["Profile"], name: ISSUER },
       },

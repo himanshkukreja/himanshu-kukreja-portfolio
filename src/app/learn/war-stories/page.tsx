@@ -12,7 +12,7 @@ export const metadata = {
   title: "War stories · System Design Mastery",
   description:
     "True stories from real systems at their limits, in two minutes each with sources, and war rooms: incident simulations modelled on real postmortems where you make the on-call calls.",
-  alternates: { canonical: "/learn/war-stories" },
+  alternates: { canonical: "/war-stories" },
 };
 
 export default async function WarStoriesPage() {

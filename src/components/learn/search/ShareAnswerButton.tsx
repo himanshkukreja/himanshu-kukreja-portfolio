@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * "Share" for the smart-search answer: makes a public read-only link (/learn/answer/<id>) holding only the
+ * "Share" for the smart-search answer: makes a public read-only link (/answer/<id>) holding only the
  * question, the answer and its course sources. Hidden unless answer sharing is switched on (GET
  * /api/learn/share/answer says so once the shared_answers table exists) and the learner is signed in.
  */

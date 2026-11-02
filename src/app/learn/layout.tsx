@@ -5,6 +5,10 @@ import NotebookFab from "@/components/learn/ink/global/NotebookFab";
 import NotebookCoach from "@/components/learn/ink/global/NotebookCoach";
 import GuideVideoHost from "@/components/learn/guide/videos/GuideVideoHost";
 import { GUIDE_VIDEOS_ON } from "@/lib/learn/guide/videos";
+import { COURSE_LAYOUT_METADATA } from "@/lib/site/course-metadata";
+
+// every course page is canonical on the course host (systemdesignmastery.dev)
+export const metadata = COURSE_LAYOUT_METADATA;
 
 // The course nav lives in the global SiteHeader (learn mode), so this layout adds no chrome.
 // RefCapture: links from shared progress pages carry ?ref=<handle>; it keeps the referrer through sign-up.

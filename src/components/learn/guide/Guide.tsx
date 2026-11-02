@@ -1,5 +1,5 @@
 /**
- * /learn/guide: how System Design Mastery works. The welcome trailer up top, then the twelve features
+ * /guide: how System Design Mastery works. The welcome trailer up top, then the twelve features
  * in the order of the video series, each with its video (or a real screenshot until the video is
  * published), "How to use it" steps, tips, where the AI helps, and the in-depth reference. Numbers
  * come from the code that enforces them (./facts.ts, <ReadingFact/>) and from the live course map, so

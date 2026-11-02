@@ -147,7 +147,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
 
       {/* watermark */}
       <div aria-hidden className="absolute bottom-[1.6%] right-[1.6%] font-mono text-[0.95cqw] tracking-[0.06em] text-[#f3f2ee] opacity-[0.28]">
-        <span className="text-[#ff6b2b]">~</span>/himanshukukreja.in/learn
+        <span className="text-[#ff6b2b]">~</span>/systemdesignmastery.dev
       </div>
       <div className="absolute inset-x-0 bottom-0 h-[0.35cqh] bg-[#1d1d20]">
         <div className="h-full bg-[#ff6b2b]" style={{ width: `${((i + Math.min(1, t / Math.max(dur, 0.1))) / total) * 100}%` }} />

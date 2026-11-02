@@ -11,6 +11,7 @@ import { addReviewCard } from "@/lib/learn/review";
 import { NOTES_COURSE_ID as COURSE_ID } from "@/lib/ai/notes";
 import { BAND_LABEL, ESCALATION_TEXT, marksByKind, type QuestionGrade } from "@/lib/learn/papers/grade";
 import { attemptResult, pct, type AttemptSummary, type PaperQuestionView, type PaperView, type QuestionMarks } from "@/lib/learn/papers/types";
+import { parseLessonPath } from "@/lib/learn/paths";
 
 export const MODEL_LABEL = { haiku: "Haiku 5.5", sonnet: "Sonnet 5.5" } as const;
 const MONO = "font-mono text-[11px] uppercase tracking-label";
@@ -149,7 +150,8 @@ export default function PaperResults({ paper, last, details, best, xp, onRetry, 
       const m = last.marks[q.n];
       const missed = q.scheme.filter((pt, i) => (m.p[i] ?? 0) < pt.marks);
       if (!missed.length) continue;
-      const src = q.sources[0]?.href.match(/^\/learn\/[^/]+\/([^/]+)\/([^/#?]+)/);
+      const lp = parseLessonPath(q.sources[0]?.href);
+      const src = lp ? ([null, lp.week, lp.slug] as const) : null;
       const r = await addReviewCard({
         source: "notes",
         sourceRef: `paper:${paper.key}:q${q.n}:${hashStr(missed.map((p) => p.text).join("|"))}`,
@@ -232,14 +234,14 @@ export default function PaperResults({ paper, last, details, best, xp, onRetry, 
               {cards === "adding" ? "Adding…" : "Add missed points to review"}
             </button>
           )}
-          <Link href="/learn/papers" className="inline-flex min-h-12 items-center px-3 font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          <Link href="/papers" className="inline-flex min-h-12 items-center px-3 font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
             all papers
           </Link>
         </div>
         {cards && cards !== "adding" && (
           <p role="status" className="m-0 text-[14px] text-fg-2">
             {cards}{" "}
-            <Link href="/learn/review" className="text-signal-text underline underline-offset-4">
+            <Link href="/review" className="text-signal-text underline underline-offset-4">
               Open your review
             </Link>
           </p>
@@ -260,7 +262,7 @@ export default function PaperResults({ paper, last, details, best, xp, onRetry, 
               </header>
               {/* a partial practice run lists the questions it skipped as skipped, not as 0 marks with every point crossed */}
               {m && (res.full || m.g !== "none") ? (
-                <QuestionResult q={q} m={m} g={details[q.n]} answerHref={sheets[0] ? `/learn/notebook/page/${sheets[0]}` : null} />
+                <QuestionResult q={q} m={m} g={details[q.n]} answerHref={sheets[0] ? `/notebook/page/${sheets[0]}` : null} />
               ) : (
                 <p className="m-0 text-[14px] text-fg-3">{last.pending.includes(q.n) ? "Not graded yet." : res.full ? "Not answered." : "Not answered in this practice run: it doesn't count towards the score."}</p>
               )}

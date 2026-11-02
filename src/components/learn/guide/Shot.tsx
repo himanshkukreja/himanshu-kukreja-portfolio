@@ -38,7 +38,7 @@ function Frame({ v, kind, sizes, priority, example }: { v: Variant; kind: "deskt
           <span className="h-1.5 w-1.5 bg-line-strong" />
           <span className="h-1.5 w-1.5 bg-line-strong" />
         </span>
-        <span className="min-w-0 flex-1 truncate">himanshukukreja.in{v.url}</span>
+        <span className="min-w-0 flex-1 truncate">systemdesignmastery.dev{v.url}</span>
         {example && <span className="shrink-0 border border-line-strong px-1.5 text-[10px] uppercase tracking-label">example data</span>}
       </div>
       <div className="relative">

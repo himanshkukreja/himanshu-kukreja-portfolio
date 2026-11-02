@@ -5,7 +5,7 @@ import { PenTool } from "lucide-react";
 export default function CanvasEntry({ promptKey }: { promptKey: string }) {
   return (
     <Link
-      href={`/learn/canvas/${encodeURIComponent(promptKey)}`}
+      href={`/canvas/${encodeURIComponent(promptKey)}`}
       className="group mb-6 flex items-center gap-3 border border-line-strong bg-surface px-4 py-3 hover:border-signal"
     >
       <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center border border-line-strong text-signal-text group-hover:border-signal">

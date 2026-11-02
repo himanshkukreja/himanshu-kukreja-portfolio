@@ -3,7 +3,7 @@
 /**
  * The course chat as a panel on any Learn page: docked on the right on a computer (the page makes room, as
  * "Ask this lesson" did: html.hk-ask-open in globals.css) and a sheet on a phone. Same conversation as
- * /learn/chat. It knows the page: each message carries where the learner is (the lesson and the section on
+ * /chat. It knows the page: each message carries where the learner is (the lesson and the section on
  * screen, the lecture and its second, the selected text), so "explain this section" just works.
  *
  * On a lesson it takes over from "Ask this lesson": the lesson's free saved answers ("questions learners
@@ -26,8 +26,9 @@ import { NewMessagePill, useFollow } from "./ChatLive";
 import { ChatFinePrint, QuotaLine } from "./ChatMeta";
 import { clearHeldSelection, heldPassage, readPageContext } from "./pageContext";
 import { useCourseChat } from "./useCourseChat";
+import { parseLessonPath } from "@/lib/learn/paths";
 
-const LESSON_RE = /^\/learn\/([^/]+)\/([^/]+)\/([^/?#]+)/;
+
 
 const QUICK = [
   { label: "explain this section", ask: "Explain the section I'm reading, simply." },
@@ -59,10 +60,10 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
   const composer = useRef<ComposerHandle>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const lesson = LESSON_RE.exec(pathname);
-  const isLesson = !!lesson && !/^(design-week|revise)$/.test(lesson[1]);
-  const faq = useLessonFaq(isLesson ? lesson![2] : null, isLesson ? lesson![3] : "");
-  // the panel's History view (the same list as the sidebar on /learn/chat)
+  const lesson = parseLessonPath(pathname);
+  const isLesson = !!lesson;
+  const faq = useLessonFaq(lesson ? lesson.week : null, lesson ? lesson.slug : "");
+  // the panel's History view (the same list as the sidebar on /chat)
   const [showHistory, setShowHistory] = useState(false);
   const history = useChatHistory(uid, !dev && !!user && open);
   // phones: the sheet rides on top of the on-screen keyboard (iOS doesn't move fixed things for it)
@@ -84,7 +85,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
       // the page context (with the passage) was read as the message went out; it goes once
       clearHeldSelection();
       setAttached("");
-      track("chat_ask", { from: "panel", page: pathname.split("/").slice(0, 3).join("/") });
+      track("chat_ask", { from: "panel", page: pathname.split("/").slice(0, 2).join("/") || "/" });
     },
     [canChat, chat, pathname],
   );
@@ -152,7 +153,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
             </span>
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {canChat && <QuotaLine quota={chat.quota} />}
-              <Link href="/learn/chat" onClick={onClose} className="inline-flex items-center gap-1 font-mono text-[11px] text-fg-3 hover:text-fg">
+              <Link href="/chat" onClick={onClose} className="inline-flex items-center gap-1 font-mono text-[11px] text-fg-3 hover:text-fg">
                 full page <ExternalLink className="h-3 w-3" aria-hidden />
               </Link>
             </span>

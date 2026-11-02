@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /learn/chat: one box for the whole course. Keywords or plain English; the results (from
+ * /chat: one box for the whole course. Keywords or plain English; the results (from
  * /api/search/smart, no AI) come grouped by kind in a few hundred ms, and for a question or a plain-English
  * ask a signed-in learner also gets a short learning path (/api/learn/ai/search) chosen only from those
  * results. The path loads on its own: the results never wait for it, and if it fails they stay as they are.
@@ -143,7 +143,7 @@ function ResultRow({ h, words }: { h: Hit; words: string[] }) {
 /** "Save path" / "Save results": the search's copy in You → Saved paths (same search again: updated, ticks kept). */
 function SaveButton({ saved, onSave, label, savedLabel }: { saved: boolean; onSave: () => void; label: string; savedLabel: string }) {
   return saved ? (
-    <Link href="/learn/saved" className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3 text-[14px] text-fg hover:border-fg-3">
+    <Link href="/saved" className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3 text-[14px] text-fg hover:border-fg-3">
       <BookmarkCheck className="h-4 w-4 text-signal-text" aria-hidden />
       {savedLabel}
     </Link>
@@ -188,7 +188,7 @@ export default function SmartSearch() {
         return;
       }
       // Search stays on this grouped results view; Ask goes to the chat and asks the tutor
-      router.push(`/learn/chat?q=${encodeURIComponent(t)}${ask ? "&ask=1" : "&view=results"}${dev ? "&preview=1" : ""}`, { scroll: false });
+      router.push(`/chat?q=${encodeURIComponent(t)}${ask ? "&ask=1" : "&view=results"}${dev ? "&preview=1" : ""}`, { scroll: false });
     },
     [router, dev],
   );
@@ -202,7 +202,7 @@ export default function SmartSearch() {
   const onSaved = (r: ReturnType<typeof saved.save>, what: string) =>
     setToast(
       r.ok
-        ? { id: Date.now(), text: r.updated ? `${what} updated` : `${what} saved`, link: { label: "Open", href: `/learn/saved#p-${r.id}` } }
+        ? { id: Date.now(), text: r.updated ? `${what} updated` : `${what} saved`, link: { label: "Open", href: `/saved#p-${r.id}` } }
         : { id: Date.now(), text: r.reason === "full" ? `You have ${saved.max} saved. Remove one in You → Saved paths first.` : "Couldn't save that. Try again." },
     );
 

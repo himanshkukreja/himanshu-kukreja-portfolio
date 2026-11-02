@@ -10,6 +10,7 @@ import TripTheBreaker from "./TripTheBreaker";
 import BackOfEnvelope from "./BackOfEnvelope";
 import RaceCondition from "./RaceCondition";
 import IncidentCommander from "./IncidentCommander";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 type Best = { v: number; t: string };
 type BestMap = Partial<Record<GameKey, Best>>;
@@ -190,7 +191,7 @@ export default function PlaygroundShell() {
             <span className="text-[15px] leading-normal text-fg">{cur.lesson}</span>
           </div>
           <Link
-            href="/learn"
+            href={courseUrlFor("/")}
             className="flex min-h-12 items-center justify-between gap-3 border border-line-strong px-3.5 text-sm text-fg hover:bg-surface-2"
           >
             <span>{cur.week}</span>

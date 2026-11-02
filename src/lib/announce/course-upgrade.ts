@@ -13,14 +13,15 @@
  * with only tiles 34-36 left showing (760 px), and the Design it first panel on the Week 11 capstone.
  *
  * Facts checked on 30 Oct 2026 against the live site and system-design-mastery (66b32e7): the hub reads
- * 12 worlds, 75 core lessons, 11 bosses, 36 side quests, 8 mock interviews; /learn/labs lists 16 labs;
+ * 12 worlds, 75 core lessons, 11 bosses, 36 side quests, 8 mock interviews; /labs lists 16 labs;
  * every Week 11 lesson has a lecture (preview 8 min, Days 1-5 24 min, capstone 28 min), shorts and a
- * whole-lesson explainer; /learn/revise/week-11 and the Week 11 reading trail are live; the Design it
+ * whole-lesson explainer; /revise/week-11 and the Week 11 reading trail are live; the Design it
  * first panel is on all 11 capstones; 353 checkpoints (::::checkpoint) across Weeks 0-11; certificates
  * claimed after launch count the new lessons, issued ones stay as they are (src/lib/certificates/core.ts).
  * SHORTS_TOTAL is the hub's count on 30 Oct: check it before sending.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 /** the hub's "N ideas in under two minutes each" on the day it's sent */
 export const SHORTS_TOTAL = 556;
@@ -34,8 +35,9 @@ export function courseUpgradeSubject(name?: string | null): string {
 export const COURSE_UPGRADE_PREHEADER =
   "LLM serving, vector search, RAG, evals and guardrails, and cost. Plus Weeks 6 and 7 rebuilt, 4 new code labs, and side quests on Amazon Prime Day, FASTag and Slack.";
 
-const SITE = "https://www.himanshukukreja.in";
-const L = `${SITE}/learn`;
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
+const L = `${SITE}/`;
 const C_ = `${L}/system-design-mastery`;
 const W11 = `${C_}/week-11-designing-ai-systems`;
 export const COURSE_UPGRADE_LINKS = {
@@ -354,13 +356,13 @@ export function courseUpgradeHtml({ email, name }: CourseUpgradeInput): string {
           <td class="pad" style="padding:18px 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">${esc(SIGN_OFF)}</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -397,10 +399,10 @@ export function courseUpgradeText({ email, name }: CourseUpgradeInput): string {
     SIGN_OFF,
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ].join("\n");
 }

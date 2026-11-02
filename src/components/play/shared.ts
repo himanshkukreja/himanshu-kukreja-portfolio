@@ -1,4 +1,5 @@
 export type GameKey = "cache" | "ring" | "breaker" | "env" | "race" | "inc";
+import { courseUrlFor } from "@/lib/site/hosts";
 
 /** Called by a game when the player clears it. `v` is the numeric score used to keep the best run, `t` is its label. */
 export type WinFn = (v: number, t: string) => void;
@@ -92,7 +93,7 @@ export const GAMES: GameMeta[] = [
     hook: "Double-book a seat, then fix it.",
     week: "Week 05 · Consistency models",
     caseFile: "CASE-010 · The Tatkal Gamble",
-    caseHref: "/stories/irctc-tatkal-500-seats-2-million-users",
+    caseHref: courseUrlFor("/case-files/irctc-tatkal-500-seats-2-million-users"),
     rules:
       "Mission 1: interleave thread A and B so both pay for the one seat. Mission 2: turn on the row lock and try to break it again.",
     lesson:
@@ -107,7 +108,7 @@ export const GAMES: GameMeta[] = [
     hook: "The pager just went off.",
     week: "Week 10 · Incident management",
     caseFile: "CASE-004 · Cache poisoning",
-    caseHref: "/stories/cdn-cache-poisoning-disaster",
+    caseHref: courseUrlFor("/case-files/cdn-cache-poisoning-disaster"),
     rules:
       "Five pages, one action each. The right first move costs 4 minutes; a wrong one costs 25. Finish under 45 minutes of downtime: one wrong call is survivable, two are not.",
     lesson: "Mitigate first, diagnose second. Rollback is the most underrated button in production.",

@@ -24,7 +24,7 @@ async function questViews(since: string): Promise<Map<string, { views: number; v
       .from("analytics_events")
       .select("page_path, visitor_id, user_id, metadata")
       .eq("event_type", "page_view")
-      .like("page_path", `/learn/${COURSE_ID}/bonus-problems/%`)
+      .like("page_path", `/bonus-problems/%`)
       .gte("created_at", since)
       .range(from, from + 999);
     if (error || !data?.length) break;
@@ -98,7 +98,7 @@ export async function GET(request: Request) {
           return {
             slug: q.slug,
             title: q.title,
-            href: `/learn/${COURSE_ID}/${q.week}/${q.slug}`,
+            href: `/${q.week}/${q.slug}`,
             status: state(c),
             publishAt: c?.publish_at ?? null,
             views: v?.views ?? 0,

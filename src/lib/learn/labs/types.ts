@@ -87,6 +87,6 @@ export const LAB_XP: Record<LabDifficulty, number> = { easy: 60, medium: 90, har
 /** Progress / XP key for a lab (GameProvider.awardOnce). */
 export const labKey = (id: string) => `lab:${id}`;
 
-export const labHref = (id: string) => `/learn/labs/${id}`;
+export const labHref = (id: string) => `/labs/${id}`;
 
 export const DIFFICULTY_LABEL: Record<LabDifficulty, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };

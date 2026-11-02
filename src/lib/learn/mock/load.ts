@@ -9,6 +9,7 @@ import { renderBlockHtml } from "@/lib/course/block-html";
 import type { CourseLesson, CourseWeek } from "@/lib/learn/types";
 import { parseMock, type RawMock } from "./parse";
 import { mockHref, type MockInterview, type MockMessage, type MockPhase, type StudyRef } from "./types";
+import { cleanHtmlLinks } from "@/lib/learn/paths";
 
 export const MOCK_DIR = "resources/mock-interviews";
 const FILE_RE = /^mock-(\d+)-[\w-]+\.md$/;
@@ -87,7 +88,7 @@ async function mdToHtml(md: string): Promise<string> {
   const remarkRehype = (await import("remark-rehype")).default;
   const rehypeStringify = (await import("rehype-stringify")).default;
   const file = await unified().use(remarkParse).use(remarkGfm).use(remarkRehype).use(rehypeStringify).process(md);
-  return String(file);
+  return cleanHtmlLinks(String(file));
 }
 
 /** Course renderer output without the stage wrapper and its "Lesson · N min" header (scripts/listen renders the same). */

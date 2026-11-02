@@ -3,7 +3,7 @@
 /**
  * "Written paper" entry for a week or a side quest: on the course map's week panel (beside the trial), at the end of a
  * week's last lesson ("Next: written paper") and at the end of a side quest. Shows nothing unless that paper exists
- * (the paper index, /learn/papers/index.json), and the learner's best score once they have one.
+ * (the paper index, /papers/index.json), and the learner's best score once they have one.
  */
 import Link from "next/link";
 import { useGame } from "@/game/GameProvider";

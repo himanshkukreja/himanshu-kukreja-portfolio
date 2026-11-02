@@ -32,7 +32,7 @@ export default function Reference() {
           </p>
         </div>
         <Where>
-          sign in from the header; <A href="/learn/dashboard#data">progress → your data</A> to export or reset; <A href="/privacy">privacy &amp; analytics</A> to opt out.
+          sign in from the header; <A href="/dashboard#data">progress → your data</A> to export or reset; <A href="/privacy">privacy &amp; analytics</A> to opt out.
         </Where>
       </Section>
 
@@ -80,7 +80,7 @@ const FAQ: [string, React.ReactNode][] = [
   [
     "Do the videos remember where I stopped?",
     <>
-      Yes. Each lecture resumes where you left it, and the <A href="/learn/prep/lectures">playlist</A> shows continue watching, how much of each lecture you have seen and a watched mark at 90%. Signed in, this follows you to
+      Yes. Each lecture resumes where you left it, and the <A href="/prep/lectures">playlist</A> shows continue watching, how much of each lecture you have seen and a watched mark at 90%. Signed in, this follows you to
       your other devices.
     </>,
   ],
@@ -94,7 +94,7 @@ const FAQ: [string, React.ReactNode][] = [
   [
     "Can I watch the lectures offline?",
     <>
-      Yes. Press <strong>Save offline</strong> under a lecture&apos;s title, or save a whole playlist section from the <Link href="/learn/offline#lectures">offline library</Link>. Each lecture is about 10–20 MB, so save them on wifi.
+      Yes. Press <strong>Save offline</strong> under a lecture&apos;s title, or save a whole playlist section from the <Link href="/offline#lectures">offline library</Link>. Each lecture is about 10–20 MB, so save them on wifi.
       Asking the AI about a moment needs a connection.
     </>,
   ],
@@ -123,7 +123,7 @@ const FAQ: [string, React.ReactNode][] = [
   [
     "I cleared my browser (or changed phones) and my progress is gone.",
     <>
-      As a guest, progress lives only in that browser, so clearing site data removes it. Signed in, it&apos;s in your account: just sign in again. To keep a copy either way, use <Link href="/learn/dashboard#data">Download my data</Link> on the
+      As a guest, progress lives only in that browser, so clearing site data removes it. Signed in, it&apos;s in your account: just sign in again. To keep a copy either way, use <Link href="/dashboard#data">Download my data</Link> on the
       progress page.
     </>,
   ],
@@ -155,7 +155,7 @@ const FAQ: [string, React.ReactNode][] = [
   [
     "Can other people see my progress?",
     <>
-      Not unless you turn on your public page in <Link href="/learn/dashboard#share">Progress → share</Link>; it&apos;s off by default. You pick the handle, the name shown (full, first name + initial or anonymous) and which of six parts appear.
+      Not unless you turn on your public page in <Link href="/dashboard#share">Progress → share</Link>; it&apos;s off by default. You pick the handle, the name shown (full, first name + initial or anonymous) and which of six parts appear.
       Your email, notes, highlights, bookmarks and exact study times are never shown. Switch it off and the link shows a 404 at once.
     </>,
   ],
@@ -182,7 +182,7 @@ const FAQ: [string, React.ReactNode][] = [
   [
     "Where do I find revision decks, labs and the other tools?",
     <>
-      In the <Link href="/learn/prep">Prep</Link> tab: the video lectures, mocks, revision decks, cheat and design sheets, code labs, the numbers playground and the planner. Lessons also end with their revision deck and any code lab that practises
+      In the <Link href="/prep">Prep</Link> tab: the video lectures, mocks, revision decks, cheat and design sheets, code labs, the numbers playground and the planner. Lessons also end with their revision deck and any code lab that practises
       them. Design of the week is in the Arena; your concept mastery and certificates are under You.
     </>,
   ],
@@ -192,7 +192,7 @@ const FAQ: [string, React.ReactNode][] = [
   [
     "How do I start over?",
     <>
-      Progress page → <Link href="/learn/dashboard#data">Your data</Link> → Reset. Choose one lesson, one week, the whole course or everything, and which kinds of data to clear. Download your data first if you might want it back.
+      Progress page → <Link href="/dashboard#data">Your data</Link> → Reset. Choose one lesson, one week, the whole course or everything, and which kinds of data to clear. Download your data first if you might want it back.
     </>,
   ],
 ];

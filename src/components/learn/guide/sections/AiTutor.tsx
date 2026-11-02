@@ -19,14 +19,14 @@ export default function AiTutorDetails() {
         </p>
         <p>
           <strong>Plans and paths.</strong> Ask for a plan and it reads your progress and the course&apos;s own week plans, then lays the plan out as a learning path; <strong>Save path</strong> keeps it under{" "}
-          <A href="/learn/saved">Saved paths</A> as a checklist that ticks itself off as you read.
+          <A href="/saved">Saved paths</A> as a checklist that ticks itself off as you read.
         </p>
         <p>
           <strong>Quizzes.</strong> &ldquo;Quiz me&rdquo; picks a checkpoint from what you&apos;ve been reading; answer in your own words and it grades you against the course&apos;s reference answer: what you got, what you missed.
         </p>
         <p>
           <strong>Memory.</strong> When a chat ends, a small model writes a few short notes: your goals, what you studied, what you found hard. The next chat starts from them. Read them, switch memory off or clear it on the{" "}
-          <A href="/learn/memory">memory page</A> (you → memory). Past chats are in the history list.
+          <A href="/memory">memory page</A> (you → memory). Past chats are in the history list.
         </p>
       </div>
 
@@ -70,7 +70,7 @@ export default function AiTutorDetails() {
         </p>
       </div>
       <Where>
-        the ask tab; the AI panels inside lessons, video lectures, case files, code labs, concept pages, the notebook, written papers, the design canvas, mock interviews, Design of the week and war rooms; your credits and your own key on the <A href="/learn/dashboard">Progress</A> page.
+        the ask tab; the AI panels inside lessons, video lectures, case files, code labs, concept pages, the notebook, written papers, the design canvas, mock interviews, Design of the week and war rooms; your credits and your own key on the <A href="/dashboard">Progress</A> page.
       </Where>
     </>
   );

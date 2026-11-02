@@ -1,6 +1,6 @@
 /**
  * The feature-video series ("watch how it works"): the welcome trailer, one 2–3 minute video per
- * feature (01–12) and the master full tour. Shown on /learn/guide, as the first-visit welcome card
+ * feature (01–12) and the master full tour. Shown on /guide, as the first-visit welcome card
  * on the course hub, and as a quiet "watch how it works" line on each feature page.
  *
  * Everything is behind NEXT_PUBLIC_GUIDE_VIDEOS=1; with it off, nothing on the site changes.
@@ -49,7 +49,7 @@ type Entry = {
   href: string;
   /** "Try it: <hrefLabel>" */
   hrefLabel: string;
-  /** its section on /learn/guide (#anchor) */
+  /** its section on /guide (#anchor) */
   guide: string;
 };
 
@@ -64,7 +64,7 @@ const ch = (lines: string): Chapter[] =>
     })
     .filter((c): c is Chapter => !!c);
 
-const HUB = "/learn/system-design-mastery";
+const HUB = "/";
 
 export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
   {
@@ -117,7 +117,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:36 Listen: every article, narrated
 1:54 The podcast
 2:03 Watch it. Ask it. Hear it.`),
-    href: "/learn/prep/lectures",
+    href: "/prep/lectures",
     hrefLabel: "the lectures",
     guide: "lectures",
   },
@@ -135,7 +135,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:30 Save it, read it, revise with it
 1:44 On a laptop
 1:50 Swipe. Learn. Go deeper.`),
-    href: "/learn/shorts",
+    href: "/shorts",
     hrefLabel: "Shorts",
     guide: "shorts",
   },
@@ -152,7 +152,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 0:47 A war room: you're on call
 1:35 The debrief and the real incident
 1:50 Your call`),
-    href: "/learn/war-stories",
+    href: "/war-stories",
     hrefLabel: "war stories and war rooms",
     guide: "side-quests",
   },
@@ -174,7 +174,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:44 An AI code review
 1:56 On an iPad too
 2:03 Write it, break it, fix it`),
-    href: "/learn/labs",
+    href: "/labs",
     hrefLabel: "code labs",
     guide: "code-labs",
   },
@@ -193,7 +193,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:28 Revise mode, the night before
 1:40 The Daily standup
 2:08 Play, miss, review, remember`),
-    href: "/learn/arena",
+    href: "/arena",
     hrefLabel: "the Arena",
     guide: "arena",
   },
@@ -212,7 +212,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:36 Trials
 1:49 Design of the week
 1:57 Draw, get reviewed, fix, fight`),
-    href: "/learn/canvas",
+    href: "/canvas",
     hrefLabel: "the design canvas",
     guide: "design-boss",
   },
@@ -230,7 +230,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:16 The deep dive and a curveball
 1:37 The AI scorecard
 2:02 Practise, get pushed, get graded`),
-    href: "/learn/mock",
+    href: "/mock",
     hrefLabel: "mock interviews",
     guide: "mocks",
   },
@@ -250,7 +250,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:36 Cheat sheets
 1:41 Concepts A to Z
 1:50 Know the company, the questions, the numbers`),
-    href: "/learn/prep",
+    href: "/prep",
     hrefLabel: "interview prep",
     guide: "prep",
   },
@@ -272,7 +272,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:41 Annotate the lesson, notes on a passage
 1:56 Written papers, marked by AI; any stylus
 2:18 Read, write, check, revise`),
-    href: "/learn/notebook",
+    href: "/notebook",
     hrefLabel: "the notebook",
     guide: "notebook",
   },
@@ -290,7 +290,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:05 Quiz, graded against the course
 1:24 It remembers you
 1:45 Plan, ask, get graded, pick up where you left off`),
-    href: "/learn/chat",
+    href: "/chat",
     hrefLabel: "Ask",
     guide: "ai-tutor",
   },
@@ -310,7 +310,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
 1:36 Search and saved paths
 1:50 Offline
 1:55 Track it. Share it. Prove it.`),
-    href: "/learn/dashboard",
+    href: "/dashboard",
     hrefLabel: "your progress",
     guide: "progress",
   },
@@ -321,7 +321,7 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
     summary: "Every feature, end to end, in one video with chapters.",
     duration: 720,
     chapters: [],
-    href: "/learn/guide",
+    href: "/guide",
     hrefLabel: "the guide",
     guide: "overview",
   },
@@ -384,7 +384,7 @@ export const SERIES_SIZE = GUIDE_VIDEO_CATALOG.filter((v) => v.n >= 1 && v.n <= 
 /** The guide section that explains a video's feature (works with the flag off: the guide is always written). */
 export function guideHref(id: GuideVideoId): string {
   const e = GUIDE_VIDEO_CATALOG.find((v) => v.id === id);
-  return `/learn/guide#${e?.guide || "overview"}`;
+  return `/guide#${e?.guide || "overview"}`;
 }
 
 /** 157 → "2:37" */

@@ -1,12 +1,12 @@
 /**
- * Course chat announcement (end of October 2026): the Ask tab, /learn/chat, a tutor that searches the whole
+ * Course chat announcement (end of October 2026): the Ask tab, /chat, a tutor that searches the whole
  * course and works with the learner's own progress. One block per thing it does, each with a screenshot of a
  * real answer, then "things to try" links that open the chat and ask (?q=…&ask=1), the extras, the daily
  * allowance and privacy. HTML (table layout, inline styles, 600px, phone-safe) + plain-text twin. Pure
  * function, no I/O: src/lib/campaigns/templates.ts turns it into the "course-chat" campaign template.
  *
  * Links are plain (no UTM): the campaign engine adds utm_* and click tracking per send.
- * Screenshots: public/email/course-chat/. Captured from the real /learn/chat UI on a scratch build of the
+ * Screenshots: public/email/course-chat/. Captured from the real /chat UI on a scratch build of the
  * site with real model answers (Sonnet 5.5 through /api/learn/chat) for a demo learner (its progress, due
  * reviews and memory are fixtures), dark theme, 2x, cropped to the conversation.
  *
@@ -15,9 +15,10 @@
  * company pages and revision cards before answering; quizzes use the course's own questions (check_answer);
  * study plans save and download as .ics; review_my_design reads the design canvas; start_mock; memory can be
  * seen and cleared; history is saved to the account for 90 days after the last message; CHAT_PER_DAY must match /admin/chat
- * (perDay) on the day it's sent; privacy text as on /learn/chat.
+ * (perDay) on the day it's sent; privacy text as on /chat.
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 /** full answers a day before fast mode: check /admin/chat before sending */
 export const CHAT_PER_DAY = 30;
@@ -31,8 +32,9 @@ export function courseChatSubject(name?: string | null): string {
 export const COURSE_CHAT_PREHEADER =
   "One chat that has read every lesson, lecture, side quest and war story. It finds the exact second in a lecture, quizzes you, plans your interview prep and reviews your design.";
 
-const SITE = "https://www.himanshukukreja.in";
-const L = `${SITE}/learn`;
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
+const L = `${SITE}/`;
 const CHAT = `${L}/chat`;
 const ask = (q: string) => `${CHAT}?q=${encodeURIComponent(q)}&ask=1`;
 export const COURSE_CHAT_LINKS = {
@@ -289,13 +291,13 @@ export function courseChatHtml({ email, name }: CourseChatInput): string {
           <td class="pad" style="padding:18px 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">Ask it the question you'd be embarrassed to ask in an interview. If an answer looks wrong, press the flag under it or reply to this email with what you asked. I read every reply.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -329,10 +331,10 @@ export function courseChatText({ email, name }: CourseChatInput): string {
     "Ask it the question you'd be embarrassed to ask in an interview. If an answer looks wrong, press the flag under it or reply to this email with what you asked. I read every reply.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ].join("\n");
 }

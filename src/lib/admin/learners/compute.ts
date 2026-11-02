@@ -15,12 +15,13 @@ import type {
   Segment,
   WeekSegment,
 } from "./types";
+import { COURSE_ID, isCourseVisit, parseLessonPath as parseCleanLesson } from "@/lib/learn/paths";
 
 /**
  * Learner analytics computed in memory from the shared dataset.
  *
  * Definitions (also shown in the admin UI):
- * - activity: any learning signal of a signed-in learner — a /learn page view or learn event, a
+ * - activity: any learning signal of a signed-in learner — a / page view or learn event, a
  *   learning_progress start/access/completion, a streak day, an MCQ answer, a note, bookmark or comment.
  * - active day: a calendar day (admin tz) with at least one activity.
  * - current position: the latest lesson-level activity (learn event > progress row > lesson page view,
@@ -120,15 +121,17 @@ const ms = (s: string | null | undefined) => {
 export type LessonPath = { course: string; week: string; slug: string };
 const NON_COURSE = new Set(["notes", "bookmarks", "dashboard", "review", "profile", "notebook", "search"]);
 
+/** A lesson page path: the old /learn/<course>/<week>/<slug> (events before the move) or the clean /<week>/<slug>. */
 export function parseLessonPath(path: string | null | undefined): LessonPath | null {
   if (!path) return null;
   const clean = path.split(/[?#]/)[0].replace(/\/+$/, "");
   const m = clean.match(/^\/learn\/([^/]+)\/([^/]+)\/([^/]+)$/);
-  if (!m || NON_COURSE.has(m[1])) return null;
-  return { course: decodeURIComponent(m[1]), week: decodeURIComponent(m[2]), slug: decodeURIComponent(m[3]) };
+  if (m && !NON_COURSE.has(m[1])) return { course: decodeURIComponent(m[1]), week: decodeURIComponent(m[2]), slug: decodeURIComponent(m[3]) };
+  const c = parseCleanLesson(clean);
+  return c ? { course: COURSE_ID, week: c.week, slug: c.slug } : null;
 }
 
-export const isLearnPath = (p: string | null | undefined) => !!p && (p === "/learn" || p.startsWith("/learn/") || p.startsWith("/learn?"));
+export const isLearnPath = (p: string | null | undefined) => isCourseVisit(p);
 
 const LEARN_EVENTS = new Set(["lesson_open", "stage_reach", "stage_done", "lesson_complete", "trial_result", "review_session"]);
 
@@ -510,7 +513,7 @@ export async function buildModel(tz: string, opts: { fresh?: boolean } = {}): Pr
       title: lessonTitle(idx, week, slug),
       tag: lessonTag(idx, week, slug),
       weekCode: ref?.weekCode || (week.match(/week-(\d+)/)?.[1]?.padStart(2, "0") ?? week),
-      href: ref?.href || `/learn/${idx.map.courseId}/${week}/${slug}`,
+      href: ref?.href || `/${week}/${slug}`,
       stage,
       stageLabel,
       stageSource,

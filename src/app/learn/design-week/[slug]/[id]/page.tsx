@@ -31,7 +31,7 @@ export async function generateMetadata({ params }: Params): Promise<Metadata> {
   return {
     title: `${d.submission.title} · ${d.challenge.title}`,
     description: `A design by ${who} for "${d.challenge.title}", Design of the week on System Design Mastery. ${d.submission.excerpt}`.slice(0, 300),
-    alternates: { canonical: `/learn/design-week/${slug}/${id}` },
+    alternates: { canonical: `/design-week/${slug}/${id}` },
     robots: { index: d.challenge.phase === "closed", follow: true },
   };
 }

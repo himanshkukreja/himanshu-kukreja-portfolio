@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/design-week/<slug>: one challenge (current or archived), its gallery and winners. */
+/** /design-week/<slug>: one challenge (current or archived), its gallery and winners. */
 import Link from "next/link";
 import { useEffect } from "react";
 import { track } from "@/lib/track";

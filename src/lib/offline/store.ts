@@ -42,7 +42,7 @@ export function normPath(p: string): string {
   }
 }
 
-/** /learn/x/y (no trailing slash, encoded) for any URL or path. */
+/** /x/y (no trailing slash, encoded) for any URL or path. */
 export function pathOf(url: string): string {
   const u = new URL(url, window.location.origin);
   return normPath(u.pathname.replace(/\/+$/, "") || "/");

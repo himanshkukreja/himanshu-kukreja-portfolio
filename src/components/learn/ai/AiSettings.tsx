@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * You → Progress (/learn/dashboard#ai): today's AI credits, the course chat's own messages (the chat never spends
+ * You → Progress (/dashboard#ai): today's AI credits, the course chat's own messages (the chat never spends
  * credits: its own daily quota, lib/ai/chat/quota.ts) and "use your own Anthropic key" (bring your own key). The key
  * is kept only in this browser and sent only with AI requests; calls on it are billed to the learner's Anthropic
  * account, so the site's daily limits don't apply.

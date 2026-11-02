@@ -38,7 +38,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title,
     description,
-    alternates: { canonical: `/learn/shorts/${l.quest}` },
+    alternates: { canonical: `/shorts/${l.quest}` },
     openGraph: { title, description, type: "video.other", ...(s ? { images: [{ url: s.poster, width: 1080, height: 1920, alt: l.title }], videos: [{ url: s.src, type: "video/mp4", width: 1080, height: 1920 }] } : {}) },
     twitter: { card: "summary_large_image", title, description, ...(s ? { images: [s.poster] } : {}) },
   };
@@ -60,7 +60,7 @@ export default async function ShortPage({ params }: Props) {
   const media = await mediaInfo(l.quest);
   const paras = transcript(l);
   const cat = s ? SHORT_CATEGORIES.find((c) => c.id === s.category)?.label : null;
-  const path = `/learn/shorts/${l.quest}`;
+  const path = `/shorts/${l.quest}`;
   return (
     <ShortRecord lecture={l} source={lectureHash(l)} mediaBase={lectureMediaBase()}>
       {media && (
@@ -68,8 +68,8 @@ export default async function ShortPage({ params }: Props) {
           data={[
             videoObject({ name: l.title, description: paras.join(" ").slice(0, 2000), path, thumbnailUrl: media.thumbnailUrl, contentUrl: media.contentUrl, uploadDate: media.uploadDate, duration: isoDuration(media.duration) }),
             breadcrumbs([
-              { name: "Learn", path: "/learn" },
-              { name: "Shorts", path: "/learn/shorts" },
+              { name: "Learn", path: "/" },
+              { name: "Shorts", path: "/shorts" },
               { name: l.title, path },
             ]),
           ]}
@@ -83,7 +83,7 @@ export default async function ShortPage({ params }: Props) {
         )}
         <article className="flex min-w-0 flex-1 flex-col gap-5">
           <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs text-fg-3">
-            <Link href="/learn/shorts" className="hover:text-fg">
+            <Link href="/shorts" className="hover:text-fg">
               shorts
             </Link>
             <span aria-hidden>›</span>
@@ -94,7 +94,7 @@ export default async function ShortPage({ params }: Props) {
             <h1 className="m-0 font-display text-[34px] font-extrabold leading-[1.02] tracking-[-0.03em] text-fg sm:text-[44px]">{l.title}</h1>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href={`/learn/shorts?v=${encodeURIComponent(l.quest)}`} className="inline-flex min-h-11 items-center bg-signal px-4 font-mono text-[13px] font-semibold text-on-signal hover:brightness-110">
+            <Link href={`/shorts?v=${encodeURIComponent(l.quest)}`} className="inline-flex min-h-11 items-center bg-signal px-4 font-mono text-[13px] font-semibold text-on-signal hover:brightness-110">
               keep swiping →
             </Link>
             {s?.full && (

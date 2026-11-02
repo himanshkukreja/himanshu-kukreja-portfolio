@@ -118,7 +118,7 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
       </div>
 
       <Where>
-        the <A href="/learn/dashboard">progress</A> tab. Sections: overview · map · activity · videos · goals · mastery · share · data (the sticky row under the header jumps between them).
+        the <A href="/dashboard">progress</A> tab. Sections: overview · map · activity · videos · goals · mastery · share · data (the sticky row under the header jumps between them).
       </Where>
 
       <Topic id="xp" lead="XP is your running total. Every amount below comes straight from the code; each one-time reward is paid once, however often you repeat the thing.">
@@ -165,7 +165,7 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
         </p>
       </div>
       <Where>
-        click the level chip (e.g. &ldquo;L4 · Senior&rdquo;) in the header for the quest log and badges; the <A href="/learn/dashboard#mastery">progress page</A> lists every badge and an XP log of recent rewards.
+        click the level chip (e.g. &ldquo;L4 · Senior&rdquo;) in the header for the quest log and badges; the <A href="/dashboard#mastery">progress page</A> lists every badge and an XP log of recent rewards.
       </Where>
 
       <Topic id="share" lead="Your progress is private. Turn on a public page and you get one link, showing only the parts you pick, to send on WhatsApp, LinkedIn or X.">
@@ -178,7 +178,7 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
           nobody can see your progress, and switching it off again makes your link show a 404 straight away.
         </p>
         <p>
-          <strong>Handle.</strong> Your page lives at <strong>himanshukukreja.in/u/&lt;handle&gt;</strong>. A handle is {HANDLE_MIN}–{HANDLE_MAX} lowercase letters, numbers or single hyphens. One is suggested from your name, and
+          <strong>Handle.</strong> Your page lives at <strong>systemdesignmastery.dev/u/&lt;handle&gt;</strong>. A handle is {HANDLE_MIN}–{HANDLE_MAX} lowercase letters, numbers or single hyphens. One is suggested from your name, and
           whatever you type is checked as you go: taken, reserved and offensive handles are refused. Changing it later breaks links you already sent.
         </p>
         <p>
@@ -267,7 +267,7 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
         </p>
       </Note>
       <Where>
-        the share section of the <A href="/learn/dashboard#share">progress page</A> (signed in); the Share buttons above, at the moments worth sharing; your page itself at /u/&lt;handle&gt;.
+        the share section of the <A href="/dashboard#share">progress page</A> (signed in); the Share buttons above, at the moments worth sharing; your page itself at /u/&lt;handle&gt;.
       </Where>
 
       <Topic id="certificates" lead="A certificate of completion for the whole course and one for each world, each with an ID, a QR code and a public page anyone can use to check it.">
@@ -289,7 +289,7 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
       />
       <div className={PROSE}>
         <p>
-          <strong>Where:</strong> the <A href="/learn/certificate">certificate page</A> (from the Progress page or the row of links under the You tab). It shows a checklist with what&apos;s done, what&apos;s left and a link to finish each item. It needs an
+          <strong>Where:</strong> the <A href="/certificate">certificate page</A> (from the Progress page or the row of links under the You tab). It shows a checklist with what&apos;s done, what&apos;s left and a link to finish each item. It needs an
           account and a connection: your progress is checked on the server, from your account&apos;s records, when you claim. Progress made as a guest lives in that browser, so sign in and import it from the Progress page first.
         </p>
         <p>
@@ -310,13 +310,13 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
       </div>
       <Note title="Checking a certificate" tone="signal">
         <p>
-          Every certificate has an ID like <strong>SDM-7F3K-92QX</strong> (course) or <strong>W02-4QX8</strong> (world), using 2–9 and A–Z without I or O. Its page at himanshukukreja.in/cert/&lt;ID&gt; says whether it&apos;s valid,
+          Every certificate has an ID like <strong>SDM-7F3K-92QX</strong> (course) or <strong>W02-4QX8</strong> (world), using 2–9 and A–Z without I or O. Its page at systemdesignmastery.dev/cert/&lt;ID&gt; says whether it&apos;s valid,
           shows the name, the date, the numbers and how it was earned, and links to the holder&apos;s public progress page only if that page is on. Each record is signed when it&apos;s issued, and the page checks the signature. A
           hidden or unknown ID is a 404. A revoked certificate says so, with the date; the reason is never shown.
         </p>
       </Note>
       <Where>
-        <A href="/learn/certificate">Certificates</A> in the You tab; the entry card on the <A href="/learn/dashboard#certificate">progress page</A>.
+        <A href="/certificate">Certificates</A> in the You tab; the entry card on the <A href="/dashboard#certificate">progress page</A>.
       </Where>
 
       <Topic id="offline" lead="Save lessons on your phone or laptop and read them on a flight, on the metro, anywhere. No app store: the website saves them, and it can be installed like an app.">
@@ -341,7 +341,7 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
             title: <>Read anywhere</>,
             body: (
               <>
-                With no connection, a saved page opens from its usual link, from the course map or from the <A href="/learn/offline">offline library</A> (the cloud icon next to <strong>?</strong> in the course header). A line at the top says{" "}
+                With no connection, a saved page opens from its usual link, from the course map or from the <A href="/offline">offline library</A> (the cloud icon next to <strong>?</strong> in the course header). A line at the top says{" "}
                 <strong>Offline · saved copy</strong>. Diagrams, code, quick checks, trials, stage clears and XP all work; a page you didn&apos;t save shows a short &ldquo;you&apos;re offline&rdquo; page with a link to your library.
               </>
             ),
@@ -372,7 +372,7 @@ export default function ProgressDetails({ d }: { d: GuideData }) {
       <Shot id="offline-library" />
       <div className={PROSE}>
         <p>
-          The <A href="/learn/offline">offline library</A> lists everything saved on this device, by type: the course (by world), video lectures (by playlist section), side quests, interview problems, low-level design, mock
+          The <A href="/offline">offline library</A> lists everything saved on this device, by type: the course (by world), video lectures (by playlist section), side quests, interview problems, low-level design, mock
           interviews, case files, war stories, revision and cheat sheets, code labs and tools. <strong>Everything saved</strong> shows it all with a search; pick a type to see what is saved out of what could be, switch between{" "}
           <strong>on device</strong> and <strong>all</strong>, and save or remove a whole type or section at once. Each row has its size and when it was saved, and <strong>update</strong> when a newer version is online.
         </p>

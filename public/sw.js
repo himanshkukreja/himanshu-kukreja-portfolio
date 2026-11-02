@@ -7,7 +7,8 @@
  *
  * Caches (Cache Storage, shared with the page, which writes the saved library itself — see
  * src/lib/offline/store.ts):
- *   hk-shell-<v>  offline fallback (/offline) + library (/learn/offline) HTML, icons, manifest; per build
+ *   hk-shell-<v>  offline fallback (/offline/fallback) + library (/offline) HTML, icons, manifest; per build
+ *                 (clean course paths of systemdesignmastery.dev; the portfolio host unregisters this worker)
  *   hk-static     /_next/static/** (content-hashed, immutable): cache-first, pruned on activate to
  *                 what saved pages still reference
  *   hk-media      images/fonts outside /_next/static: stale-while-revalidate + saved-page images,
@@ -58,20 +59,20 @@ const SHORT_FILE = /\/lectures\/shorts--[A-Za-z0-9-]+\/(?:video\.mp4|poster\.jpg
 const RUNTIME_VERSION = "314.0.7";
 const RUNTIME_PREFIX = "/pyodide/" + RUNTIME_VERSION + "/";
 const RUNTIME_PATH = /^\/(?:pyodide|labs-runtime)\//;
-const SHELL_PAGES = ["/offline", "/learn/offline"];
+const SHELL_PAGES = ["/offline/fallback", "/offline"];
 const SHELL_FILES = ["/manifest.webmanifest", "/icon.svg", "/favicon.ico", "/apple-icon.png", "/icons/icon-192.png", "/icons/icon-512.png"];
-const COURSE_START = /^\/learn(?:\/system-design-mastery)?\/?$/;
-const HUB = "/learn/system-design-mastery";
+const COURSE_START = /^\/$/;
+const HUB = "/";
 const NAV_TIMEOUT_MS = 4000;
 const RECENT_MAX = 10;
 const BYPASS = /^\/(?:api|admin|auth|hkr|_vercel|monitoring)(?:\/|$)|^\/sw\.js$|\/(?:opengraph|twitter)-image(?:[/-]|$)/;
 // keep in sync with SAVEABLE_PATH in src/lib/offline/types.ts (minus the course map, the HUB rule)
-const ARTICLE = /^\/learn\/[^/]+\/[^/]+\/[^/]+\/?$|^\/learn\/mock\/[^/]+\/?$|^\/learn\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/learn\/labs(?:\/[^/]+)?\/?$|^\/learn\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/learn\/lectures\/[^/]+\/?$|^\/learn\/war-stories(?:\/[^/]+)?\/?$|^\/stories\/[^/]+\/?$/;
+const ARTICLE = /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$/;
 // a lecture's recorded media, on R2 or /lecture-media (keep in sync with LECTURE_FILE in types.ts)
 const LECTURE_FILE = /\/[A-Za-z0-9-]+\/(?:media\.json|narration\.mp3|music\.mp3|captions\.vtt|poster\.jpg|chapters\.json)$/;
 const MEDIA_JSON_TIMEOUT_MS = 4000;
 // never kept as a "recent" copy: design of the week is live (phases, votes, drafts) and needs a connection
-const NO_RECENT = /^\/learn\/design-week(?:\/|$)/;
+const NO_RECENT = /^\/design-week(?:\/|$)/;
 const IMAGE_HOSTS = /(?:^|\.)imagekit\.io$|(?:^|\.)githubusercontent\.com$/;
 
 /** where each navigation was answered from, by the client it created (asked for by the page) */
@@ -351,7 +352,7 @@ async function navigate(event, url) {
   // the network answered (pages, redirects, 404s as they are); a 5xx falls back to a saved copy
   if (net && (net.status < 500 || !saved)) {
     mark(event, url.href, "network");
-    if (net.ok && net.status === 200 && (ARTICLE.test(url.pathname) || url.pathname === HUB || url.pathname === "/learn/shorts") && !NO_RECENT.test(url.pathname) && !saved && (net.headers.get("content-type") || "").includes("text/html")) {
+    if (net.ok && net.status === 200 && (ARTICLE.test(url.pathname) || url.pathname === HUB || url.pathname === "/shorts") && !NO_RECENT.test(url.pathname) && !saved && (net.headers.get("content-type") || "").includes("text/html")) {
       event.waitUntil(remember(url, net.clone()).catch(() => {}));
     }
     return net;
@@ -370,18 +371,18 @@ async function navigate(event, url) {
     mark(event, url.href, "recent");
     return inflate(recent, "recent");
   }
-  // The installed app opens on /learn: go to the saved course map, else the library. Redirects,
+  // The installed app opens on /: go to the saved course map, else the library. Redirects,
   // not rewrites: a page hydrating under another URL would not match its server render.
   if (COURSE_START.test(url.pathname)) {
     const hub = url.pathname.replace(/\/+$/, "") !== HUB && (await findDoc(PAGES, HUB).catch(() => null));
     if (hub) return Response.redirect(HUB, 302);
-    if (await caches.match("/learn/offline", { cacheName: SHELL })) return Response.redirect("/learn/offline", 302);
+    if (await caches.match("/offline", { cacheName: SHELL })) return Response.redirect("/offline", 302);
   }
-  if (await caches.match("/offline", { cacheName: SHELL })) {
-    return Response.redirect("/offline?from=" + encodeURIComponent(url.pathname + url.search), 302);
+  if (await caches.match("/offline/fallback", { cacheName: SHELL })) {
+    return Response.redirect("/offline/fallback?from=" + encodeURIComponent(url.pathname + url.search), 302);
   }
   return new Response(
-    '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Offline</title><body style="font:16px system-ui;padding:24px;background:#000;color:#f3f2ee">You are offline and this page is not saved. <a style="color:#ff6b2b" href="/learn/offline">Open your offline library</a>.',
+    '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Offline</title><body style="font:16px system-ui;padding:24px;background:#000;color:#f3f2ee">You are offline and this page is not saved. <a style="color:#ff6b2b" href="/offline">Open your offline library</a>.',
     { status: 503, headers: { "content-type": "text/html; charset=utf-8" } }
   );
 }
@@ -659,14 +660,14 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-192.png",
       tag: data.tag || "sdm",
-      data: { url: data.url || "/learn/dashboard" },
+      data: { url: data.url || "/dashboard" },
     })
   );
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const target = new URL((event.notification.data && event.notification.data.url) || "/learn/dashboard", self.location.origin).href;
+  const target = new URL((event.notification.data && event.notification.data.url) || "/dashboard", self.location.origin).href;
   event.waitUntil(
     self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((wins) => {
       for (const w of wins) {

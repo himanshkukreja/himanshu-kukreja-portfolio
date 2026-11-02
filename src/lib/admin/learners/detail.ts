@@ -102,7 +102,7 @@ async function lectureWatch(events: UserModel["events"]): Promise<{ lectures: Le
   const all = await listLectures().catch(() => []);
   const meta = new Map(all.map((l) => [l.slug, l]));
   const lectures = [...by.entries()]
-    .map(([id, r]) => ({ id, title: meta.get(id)?.title || id, href: meta.get(id)?.href || `/learn/lectures/${id}`, minutes: Math.round((r.sec / 60) * 10) / 10, pct: r.done ? Math.max(r.pct, 90) : r.pct, done: r.done, lastAt: r.lastAt }))
+    .map(([id, r]) => ({ id, title: meta.get(id)?.title || id, href: meta.get(id)?.href || `/lectures/${id}`, minutes: Math.round((r.sec / 60) * 10) / 10, pct: r.done ? Math.max(r.pct, 90) : r.pct, done: r.done, lastAt: r.lastAt }))
     .sort((a, b) => b.lastAt.localeCompare(a.lastAt));
   return { lectures, lectureMinutes: Math.round(lectures.reduce((a, l) => a + l.minutes, 0)) };
 }

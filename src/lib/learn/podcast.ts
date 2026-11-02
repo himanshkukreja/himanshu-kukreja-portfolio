@@ -6,7 +6,8 @@ import "server-only";
  */
 import crypto from "node:crypto";
 import { lectureMediaBase, listLectures, type LectureSummary } from "@/lib/learn/lecture/load";
-import { SITE_URL } from "@/lib/site";
+// course URLs live on the course host
+import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 
 export const PODCAST = {
   title: "System Design Mastery",
@@ -15,9 +16,9 @@ export const PODCAST = {
   email: "kukreja.him@gmail.com",
   summary:
     "System design, explained the way it works at real companies: data at scale, failure, caching, messaging, consistency, search, analytics, multi-tenancy and production readiness, plus how UPI, WhatsApp, Aadhaar, Netflix and Google Maps work, interview problems, low-level design, real outages and full mock interviews. Every episode is the narration of an animated lecture; the visuals, quizzes and article are one link away.",
-  feedPath: "/learn/podcast.xml",
-  pagePath: "/learn/podcast",
-  coverPath: "/learn/podcast-cover.png",
+  feedPath: "/podcast.xml",
+  pagePath: "/podcast",
+  coverPath: "/podcast-cover.png",
 };
 
 export type Episode = {
@@ -71,7 +72,7 @@ async function episode(base: string, l: LectureSummary): Promise<Omit<Episode, "
       bytes,
       duration: Math.round(m.duration),
       published: new Date(Number.isFinite(lm) ? lm : Date.now()).toUTCString(),
-      chapters: `${SITE_URL}/learn/podcast/chapters/${l.slug}`,
+      chapters: `${SITE_URL}/podcast/chapters/${l.slug}`,
     };
   } catch {
     return null;

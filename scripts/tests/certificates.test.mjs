@@ -32,7 +32,7 @@ const require = createRequire(import.meta.url);
 
 // ------------------------------------------------------------- a small course: 3 worlds
 
-const C = "/learn/system-design-mastery";
+const C = "";
 const L = (week, slug, title, kind = "day-content") => ({ week, slug, title, label: title, href: `${C}/${week}/${slug}`, kind });
 function world(num, title, withBoss = true, parts = 2) {
   const key = `week-${String(num).padStart(2, "0")}-${title.toLowerCase().replace(/\s+/g, "-")}`;
@@ -46,7 +46,7 @@ function world(num, title, withBoss = true, parts = 2) {
     trial: { week: key, slug: `week-${num}-mcq`, href: `${C}/${key}/mcq`, parts: Array.from({ length: parts }, (_, i) => ({ n: i + 1, title: `P${i + 1}`, questions: 5, href: `${C}/${key}/mcq?part=${i + 1}` })) },
   };
 }
-const MOCK = (n, company) => ({ id: `m${n}`, n, code: `M${n}`, company, href: `/learn/mock/m${n}` });
+const MOCK = (n, company) => ({ id: `m${n}`, n, code: `M${n}`, company, href: `/mock/m${n}` });
 const COURSE = { worlds: [world(0, "Foundations", false), world(1, "Data"), world(2, "Failure")], mocks: [MOCK(1, "BillBolt"), MOCK(2, "Wanderstay"), MOCK(3, "Paisly"), MOCK(4, "Cartwala")] };
 
 function fullEvidence() {
@@ -299,7 +299,7 @@ test("LinkedIn add-to-profile link", () => {
   assert.equal(u.searchParams.get("organizationId"), null, "organizationId and organizationName can't both be set");
   assert.equal(u.searchParams.get("issueYear"), "2026");
   assert.equal(u.searchParams.get("issueMonth"), "10");
-  assert.equal(u.searchParams.get("certUrl"), "https://www.himanshukukreja.in/cert/SDM-7F3K-92QX");
+  assert.equal(u.searchParams.get("certUrl"), "https://systemdesignmastery.dev/cert/SDM-7F3K-92QX");
   assert.equal(u.searchParams.get("certId"), "SDM-7F3K-92QX");
   assert.ok(!u.search.includes("+"), "spaces as %20");
   // month in IST: 31 Dec 20:00 UTC is already 1 Jan in India

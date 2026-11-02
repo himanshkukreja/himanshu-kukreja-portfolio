@@ -501,7 +501,7 @@ function EndScreen({
           </ul>
           <span className="text-sm text-fg-3">
             {queued > 0 ? `${queued} card${queued === 1 ? "" : "s"} added to ` : "They're in "}
-            <Link href="/learn/review" className="text-signal-text underline decoration-line-strong underline-offset-4">
+            <Link href="/review" className="text-signal-text underline decoration-line-strong underline-offset-4">
               your Daily standup review queue
             </Link>{" "}
             with spaced repetition.
@@ -519,11 +519,11 @@ function EndScreen({
             {next.label} →
           </Link>
         )}
-        <Link href={`/learn/cheatsheet/${week.id}`} className="flex min-h-[52px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">
+        <Link href={`/cheatsheet/${week.id}`} className="flex min-h-[52px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">
           World {week.code} cheat sheet
         </Link>
         {mode === "lesson" && (
-          <Link href={`/learn/revise/${week.id}`} className="flex min-h-[52px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">
+          <Link href={`/revise/${week.id}`} className="flex min-h-[52px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">
             Flip the whole world
           </Link>
         )}
@@ -537,7 +537,7 @@ function EndScreen({
             ← back to the lesson
           </Link>
         )}
-        <Link href="/learn/revise" className="text-fg-3 hover:text-fg">
+        <Link href="/revise" className="text-fg-3 hover:text-fg">
           all revision decks
         </Link>
       </div>

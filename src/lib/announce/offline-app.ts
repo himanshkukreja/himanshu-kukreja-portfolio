@@ -12,9 +12,10 @@
  * Copy is checked against the shipped UI: SaveOfflineButton (cloud icon, "Saved for offline"),
  * SaveGroupButton ("Save this world offline"), CourseHub ReadOffline card ("Save the entire course",
  * "Offline library", "Install the app"), IosInstallSheet (Share → Add to Home Screen → Add),
- * OfflineStrip ("Offline · saved copy", "Back online"), OfflineLibrary (/learn/offline).
+ * OfflineStrip ("Offline · saved copy", "Back online"), OfflineLibrary (/offline).
  */
 import { firstName, unsubscribeUrl } from "./learn-revamp";
+import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 export const OFFLINE_APP_KEY = "announce:offline-app-2026-10";
 export const OFFLINE_APP_SUBJECT = "Take System Design Mastery on your next flight";
@@ -24,11 +25,12 @@ export function offlineAppSubject(name?: string | null): string {
 }
 export const OFFLINE_APP_PREHEADER = "Install it like an app, save a lesson, a world or the whole course, and read with no internet. Progress syncs when you're back online.";
 
-const SITE = "https://www.himanshukukreja.in";
+// emails link to the course host (the sender stays himanshukukreja.in)
+const SITE = COURSE_ORIGIN;
 export const OFFLINE_LINKS = {
-  hub: `${SITE}/learn/system-design-mastery`,
-  library: `${SITE}/learn/offline`,
-  guide: `${SITE}/learn/guide#offline`,
+  hub: `${SITE}/`,
+  library: `${SITE}/offline`,
+  guide: `${SITE}/guide#offline`,
 };
 const IMG_BASE = `${SITE}/email/offline-app`;
 
@@ -101,7 +103,7 @@ const STEPS: Step[] = [
     n: "4",
     title: "Check your Offline library",
     html: [
-      `Press ${b("Offline library")} on the Read offline card (or open <a href="${OFFLINE_LINKS.library}" style="color:${C.signalText};text-decoration:underline;">himanshukukreja.in/learn/offline</a>). It lists everything saved on this device with sizes, lets you update or remove things, and has buttons to save more.`,
+      `Press ${b("Offline library")} on the Read offline card (or open <a href="${OFFLINE_LINKS.library}" style="color:${C.signalText};text-decoration:underline;">systemdesignmastery.dev/offline</a>). It lists everything saved on this device with sizes, lets you update or remove things, and has buttons to save more.`,
     ],
     text: [`Press Offline library on the Read offline card, or open ${OFFLINE_LINKS.library}`, "It lists everything saved on this device with sizes, lets you update or remove things, and has buttons to save more."],
     shots: [SHOTS.library],
@@ -270,14 +272,14 @@ export function offlineAppHtml({ email, name }: OfflineAppInput): string {
           <td class="pad" style="padding:0 36px 34px 36px;">
             <p style="margin:0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink2};">Try it on your next trip and tell me how it went. If a lesson didn't open offline or something looks off, just reply to this email. I read every reply.</p>
             <p style="margin:16px 0 0 0;font-family:${F_BODY};font-size:15px;line-height:1.6;color:${C.ink};">Himanshu</p>
-            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">himanshukukreja.in</a></p>
+            <p style="margin:2px 0 0 0;font-family:${F_MONO};font-size:12px;color:${C.ink3};"><a href="${SITE}" style="color:${C.ink3};text-decoration:none;">systemdesignmastery.dev</a></p>
           </td>
         </tr>
 
         <!-- footer -->
         <tr>
           <td class="pad" style="padding:18px 36px 22px 36px;border-top:1px solid ${C.line};background:${C.paper};">
-            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up at himanshukukreja.in/learn with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
+            <p style="margin:0;font-family:${F_BODY};font-size:12px;line-height:1.6;color:${C.ink3};">You're getting this course update because you signed up for System Design Mastery with ${esc(email)}. <a href="${unsub}" style="color:${C.ink3};text-decoration:underline;">Unsubscribe</a> and you won't get course or newsletter emails again.</p>
           </td>
         </tr>
       </table>
@@ -314,10 +316,10 @@ export function offlineAppText({ email, name }: OfflineAppInput): string {
     "Try it on your next trip and tell me how it went. If a lesson didn't open offline or something looks off, just reply to this email. I read every reply.",
     "",
     "Himanshu",
-    "himanshukukreja.in",
+    "systemdesignmastery.dev",
     "",
     "--",
-    `You're getting this course update because you signed up at himanshukukreja.in/learn with ${email}.`,
+    `You're getting this course update because you signed up for System Design Mastery with ${email}.`,
     `Unsubscribe: ${unsubscribeUrl(email)}`,
   ];
   return lines.join("\n");

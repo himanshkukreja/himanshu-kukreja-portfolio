@@ -85,14 +85,14 @@ function trafficOverview(range: string): TrafficOverview {
 const trafficLive: TrafficLive = {
   live: 4,
   pages: [
-    { path: "/learn/system-design-mastery/week-03/consistent-hashing", n: 2 },
+    { path: "/week-03/consistent-hashing", n: 2 },
     { path: "/", n: 1 },
-    { path: "/stories/the-night-the-queue-froze", n: 1 },
+    { path: "/case-files/the-night-the-queue-froze", n: 1 },
   ],
   recent: [
-    { at: ago(0.4 * MIN), path: "/learn/system-design-mastery/week-03/consistent-hashing", country: "IN", city: "Bengaluru", device: "desktop", channel: "Direct" },
+    { at: ago(0.4 * MIN), path: "/week-03/consistent-hashing", country: "IN", city: "Bengaluru", device: "desktop", channel: "Direct" },
     { at: ago(1.2 * MIN), path: "/", country: "US", city: "Seattle", device: "mobile", channel: "Social" },
-    { at: ago(3 * MIN), path: "/stories/the-night-the-queue-froze", country: "DE", city: "Berlin", device: "desktop", channel: "Search" },
+    { at: ago(3 * MIN), path: "/case-files/the-night-the-queue-froze", country: "DE", city: "Berlin", device: "desktop", channel: "Search" },
   ],
 };
 
@@ -193,10 +193,10 @@ const users: AdminUserRow[] = NAMES.map((name, i) => ({
 }));
 
 const comments: AdminComment[] = [
-  { kind: "lesson", id: "c1", userId: "u-2", name: "Priya Nair", text: "The ring diagram finally made virtual nodes click for me. Could you add a note on how many vnodes Cassandra uses by default?", where: "week-03/consistent-hashing", href: "/learn/system-design-mastery/week-03/consistent-hashing", parentId: null, upvotes: 6, createdAt: ago(3 * HOUR) },
-  { kind: "lesson", id: "c2", userId: "u-5", name: "Kabir Singh", text: "<img src=x onerror=alert(1)> spam spam buy followers", where: "week-02/caching-patterns", href: "/learn/system-design-mastery/week-02/caching-patterns", parentId: null, upvotes: 0, createdAt: ago(7 * HOUR) },
-  { kind: "story", id: "c3", userId: "u-7", name: "Dev Patel", text: "We hit exactly this with RabbitMQ prefetch last year. Great write-up.", where: "stories/the-night-the-queue-froze", href: "/stories/the-night-the-queue-froze", parentId: null, upvotes: 3, createdAt: ago(1.5 * DAY) },
-  { kind: "lesson", id: "c4", userId: "u-3", name: "Rohan Gupta", text: "+1, same question.", where: "week-03/consistent-hashing", href: "/learn/system-design-mastery/week-03/consistent-hashing", parentId: "c1", upvotes: 1, createdAt: ago(2 * DAY) },
+  { kind: "lesson", id: "c1", userId: "u-2", name: "Priya Nair", text: "The ring diagram finally made virtual nodes click for me. Could you add a note on how many vnodes Cassandra uses by default?", where: "week-03/consistent-hashing", href: "/week-03/consistent-hashing", parentId: null, upvotes: 6, createdAt: ago(3 * HOUR) },
+  { kind: "lesson", id: "c2", userId: "u-5", name: "Kabir Singh", text: "<img src=x onerror=alert(1)> spam spam buy followers", where: "week-02/caching-patterns", href: "/week-02/caching-patterns", parentId: null, upvotes: 0, createdAt: ago(7 * HOUR) },
+  { kind: "story", id: "c3", userId: "u-7", name: "Dev Patel", text: "We hit exactly this with RabbitMQ prefetch last year. Great write-up.", where: "stories/the-night-the-queue-froze", href: "/case-files/the-night-the-queue-froze", parentId: null, upvotes: 3, createdAt: ago(1.5 * DAY) },
+  { kind: "lesson", id: "c4", userId: "u-3", name: "Rohan Gupta", text: "+1, same question.", where: "week-03/consistent-hashing", href: "/week-03/consistent-hashing", parentId: "c1", upvotes: 1, createdAt: ago(2 * DAY) },
 ];
 
 const stories: StoryLite[] = [

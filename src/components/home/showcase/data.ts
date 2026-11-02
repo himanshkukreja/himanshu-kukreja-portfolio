@@ -373,8 +373,8 @@ export const SKILLS: Skill[] = [
   ] },
   { id: "lead", name: "Eng lead", branch: "lead", proof: [{ era: "senseloaf", text: "leads engineering of the hiring platform" }] },
   { id: "writing", name: "Writing & teaching", branch: "lead", proof: [
-    { era: "writing", text: "engineering case files at /stories" },
-    { era: "writing", text: "a free System Design Mastery course at /learn" },
+    { era: "writing", text: "engineering case files at systemdesignmastery.dev/case-files" },
+    { era: "writing", text: "a free System Design Mastery course at systemdesignmastery.dev" },
   ] },
 ];
 

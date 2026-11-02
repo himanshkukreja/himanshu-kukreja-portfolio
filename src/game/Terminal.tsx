@@ -2,23 +2,26 @@
 
 import { useEffect, useRef, useState } from "react";
 import { EMAIL, SOCIALS } from "@/lib/socials";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useSite } from "@/components/site/SiteMode";
+import { courseUrlFor, portfolioUrl } from "@/lib/site/hosts";
 import { useGame } from "./GameProvider";
 import { LEVELS, MAIN_QUESTS, levelIndex } from "./catalog";
 
 type Line = { kind: "in" | "out" | "sys"; text: string };
 
+// absolute: the course (and its case files) live on their own domain
 const ROUTES: Record<string, string> = {
-  home: "/",
-  "~": "/",
-  projects: "/projects",
-  arcade: "/projects",
-  play: "/play",
-  playground: "/play",
-  "case-files": "/stories",
-  cases: "/stories",
-  stories: "/stories",
-  learn: "/learn",
+  home: portfolioUrl("/"),
+  "~": portfolioUrl("/"),
+  projects: portfolioUrl("/projects"),
+  arcade: portfolioUrl("/projects"),
+  play: portfolioUrl("/play"),
+  playground: portfolioUrl("/play"),
+  "case-files": courseUrlFor("/case-files"),
+  cases: courseUrlFor("/case-files"),
+  stories: courseUrlFor("/case-files"),
+  learn: courseUrlFor("/"),
 };
 
 export default function Terminal() {
@@ -27,12 +30,12 @@ export default function Terminal() {
   const [input, setInput] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
-  const pathname = usePathname();
+  const course = useSite() === "course";
 
-  // ⌘K / Ctrl+K opens the terminal everywhere except /learn, where ⌘K is course search.
+  // ⌘K / Ctrl+K opens the terminal on the portfolio; on the course host ⌘K is course search.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !pathname.startsWith("/learn")) {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !course) {
         e.preventDefault();
         setTerminalOpen(true);
       }
@@ -40,7 +43,7 @@ export default function Terminal() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [pathname, setTerminalOpen]);
+  }, [course, setTerminalOpen]);
 
   useEffect(() => {
     if (!terminalOpen) return;

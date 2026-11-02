@@ -13,7 +13,7 @@
  * - Analytics: the display mode as a super/person property; a first launch of the home-screen app
  *   counts as an install where the browser has no `appinstalled` event (iPhone).
  */
-import { usePathname } from "next/navigation";
+import { useCoursePathname } from "@/components/site/SiteMode";
 import { useEffect, useState } from "react";
 import { track } from "@/lib/track";
 import { setAnalyticsContext } from "@/lib/analytics/client";
@@ -30,7 +30,7 @@ export function markInstalled() {
 }
 
 export default function AppWindow({ onMode }: { onMode?: (m: DisplayMode) => void }) {
-  const pathname = usePathname() || "/";
+  const pathname = useCoursePathname() || "/";
   const [mode, setMode] = useState<DisplayMode | null>(null);
 
   useEffect(() => {

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState, type RefObject } from "react";
 
 export type ReadAloudState = "unsupported" | "idle" | "playing" | "paused";
 
-// ReadAloud (shared with /learn) has no controlled API, so the reader's toolbar button
+// ReadAloud (shared with /) has no controlled API, so the reader's toolbar button
 // drives its own floating controls by their titles and mirrors their state.
 const SEL = {
   start: 'button[title="Start Reading"]',

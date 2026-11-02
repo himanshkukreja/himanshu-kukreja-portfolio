@@ -10,6 +10,7 @@
  *   NEXT_PUBLIC_POSTHOG_KEY   phc_…  PostHog → Project settings → General → "Project API key"
  *   NEXT_PUBLIC_POSTHOG_HOST  "us" | "eu" (or https://us.i.posthog.com / https://eu.i.posthog.com)
  *   NEXT_PUBLIC_GA_ID         G-…    GA4 → Admin → Data streams → Web → "Measurement ID"
+ *   NEXT_PUBLIC_GA_ID_COURSE  G-…    the systemdesignmastery.dev stream (optional; falls back to NEXT_PUBLIC_GA_ID)
  *
  * Server-only secrets for /admin/journeys (never NEXT_PUBLIC, read at request time):
  *   POSTHOG_PERSONAL_API_KEY  phx_…  PostHog → Settings → Personal API keys
@@ -58,6 +59,9 @@ export const POSTHOG_UI_HOST = `https://${REGION}.posthog.com`;
 
 /** GA4 measurement id, or "" when unset/malformed. */
 export const GA_ID = /^G-[A-Z0-9]{4,}$/i.test(GA) ? GA.toUpperCase() : "";
+const GA_C = (process.env.NEXT_PUBLIC_GA_ID_COURSE || "").trim();
+/** The course host's own GA4 web stream (systemdesignmastery.dev), else the site-wide id. */
+export const GA_ID_COURSE = /^G-[A-Z0-9]{4,}$/i.test(GA_C) ? GA_C.toUpperCase() : GA_ID;
 
 /** Project id for the private API (server side): env POSTHOG_PROJECT_ID, else the default above. */
 export const POSTHOG_PROJECT_ID_DEFAULT = HARDCODED.posthogProjectId;

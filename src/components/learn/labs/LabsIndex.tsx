@@ -1,6 +1,6 @@
 "use client";
 
-/** /learn/labs: every code lab by world, with difficulty, time, tests and your progress. */
+/** /labs: every code lab by world, with difficulty, time, tests and your progress. */
 import Link from "next/link";
 import { useMemo } from "react";
 import { useGame } from "@/game/GameProvider";

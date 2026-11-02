@@ -197,7 +197,7 @@ async function addNames(sig: ReviewSignals): Promise<ReviewSignals> {
     }
   }
   const names: Record<string, { title: string; href: string }> = {};
-  for (const [slug, l] of lecs) if (l) names[slug] = { title: l.title, href: `/learn/lectures/${slug}` };
+  for (const [slug, l] of lecs) if (l) names[slug] = { title: l.title, href: `/lectures/${slug}` };
   return { ...sig, prompts, answers, lectures: names };
 }
 
