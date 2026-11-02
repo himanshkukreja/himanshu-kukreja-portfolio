@@ -1,9 +1,9 @@
 {
-  "updated": "2026-11-01T08:30:50.734Z",
+  "updated": "2026-11-02T08:28:31.338Z",
   "videos": {
     "welcome-trailer": {
-      "v": "cdcf09c8ff",
-      "duration": 122.67,
+      "v": "0419c0dd1f",
+      "duration": 122.17,
       "chapters": [
         {
           "t": 0,
@@ -34,13 +34,13 @@
         "captions.vtt",
         "preview.mp4"
       ],
-      "bytes": 78025069,
+      "bytes": 77952668,
       "source": "00-welcome-trailer",
-      "published": "2026-11-01T08:28:53.279Z"
+      "published": "2026-11-02T08:26:34.038Z"
     },
     "getting-started": {
-      "v": "db8a0914a0",
-      "duration": 157,
+      "v": "f95608eb55",
+      "duration": 156.65,
       "chapters": [
         {
           "t": 0,
@@ -82,13 +82,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 67098089,
+      "bytes": 67069723,
       "source": "01-getting-started",
-      "published": "2026-11-01T08:29:03.247Z"
+      "published": "2026-11-02T08:26:42.532Z"
     },
     "lectures-listen": {
-      "v": "1eca67911e",
-      "duration": 134.38,
+      "v": "9585eb642b",
+      "duration": 134.03,
       "chapters": [
         {
           "t": 0,
@@ -130,13 +130,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 55792935,
+      "bytes": 55758241,
       "source": "02-lectures-listen",
-      "published": "2026-11-01T08:29:10.196Z"
+      "published": "2026-11-02T08:26:50.258Z"
     },
     "shorts": {
-      "v": "45f0778eec",
-      "duration": 121.12,
+      "v": "9bad848d87",
+      "duration": 120.75,
       "chapters": [
         {
           "t": 0,
@@ -174,13 +174,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 36355895,
+      "bytes": 36275914,
       "source": "03-shorts",
-      "published": "2026-11-01T08:29:16.023Z"
+      "published": "2026-11-02T08:26:56.069Z"
     },
     "side-quests": {
-      "v": "7a56ebcc94",
-      "duration": 122,
+      "v": "6fdfd7bd06",
+      "duration": 121.63,
       "chapters": [
         {
           "t": 0,
@@ -214,13 +214,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 62321390,
+      "bytes": 62269345,
       "source": "04-side-quests",
-      "published": "2026-11-01T08:29:24.273Z"
+      "published": "2026-11-02T08:27:04.339Z"
     },
     "code-labs": {
-      "v": "eb31282f23",
-      "duration": 134.58,
+      "v": "fd9d814268",
+      "duration": 134.02,
       "chapters": [
         {
           "t": 0,
@@ -274,13 +274,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 65127928,
+      "bytes": 64973110,
       "source": "05-code-labs",
-      "published": "2026-11-01T08:29:32.228Z"
+      "published": "2026-11-02T08:27:12.527Z"
     },
     "arena-review": {
-      "v": "cf982bf73f",
-      "duration": 139.62,
+      "v": "ec390603a9",
+      "duration": 139.07,
       "chapters": [
         {
           "t": 0,
@@ -322,13 +322,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 49266266,
+      "bytes": 49144368,
       "source": "06-arena-review",
-      "published": "2026-11-01T08:29:38.239Z"
+      "published": "2026-11-02T08:27:20.035Z"
     },
     "design-boss": {
-      "v": "42c266b77f",
-      "duration": 128.77,
+      "v": "b382f212a4",
+      "duration": 128.2,
       "chapters": [
         {
           "t": 0,
@@ -370,13 +370,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 63378812,
+      "bytes": 63204580,
       "source": "07-design-boss",
-      "published": "2026-11-01T08:29:50.862Z"
+      "published": "2026-11-02T08:27:29.535Z"
     },
     "mock-interviews": {
-      "v": "f93a738195",
-      "duration": 134.37,
+      "v": "ef95d9eebe",
+      "duration": 133.8,
       "chapters": [
         {
           "t": 0,
@@ -414,13 +414,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 69393979,
+      "bytes": 69385736,
       "source": "08-mock-interviews",
-      "published": "2026-11-01T08:29:58.871Z"
+      "published": "2026-11-02T08:27:37.079Z"
     },
     "interview-prep": {
-      "v": "7671f6fb67",
-      "duration": 122.7,
+      "v": "9582c31c09",
+      "duration": 122.15,
       "chapters": [
         {
           "t": 0,
@@ -466,13 +466,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 62343641,
+      "bytes": 62268905,
       "source": "09-interview-prep",
-      "published": "2026-11-01T08:30:06.899Z"
+      "published": "2026-11-02T08:27:45.263Z"
     },
     "notebook": {
-      "v": "d15cdb9005",
-      "duration": 150.42,
+      "v": "b537f7d4b7",
+      "duration": 150.03,
       "chapters": [
         {
           "t": 0,
@@ -526,13 +526,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 54501176,
+      "bytes": 54407865,
       "source": "10-notebook",
-      "published": "2026-11-01T08:30:14.509Z"
+      "published": "2026-11-02T08:27:52.467Z"
     },
     "ai-tutor": {
-      "v": "79721f9147",
-      "duration": 117.35,
+      "v": "2acbacdbbb",
+      "duration": 116.8,
       "chapters": [
         {
           "t": 0,
@@ -570,13 +570,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 63596660,
+      "bytes": 63485804,
       "source": "11-ai-tutor",
-      "published": "2026-11-01T08:30:22.625Z"
+      "published": "2026-11-02T08:28:00.382Z"
     },
     "progress-profile": {
-      "v": "c3160fff6c",
-      "duration": 126.17,
+      "v": "a4620449b4",
+      "duration": 125.8,
       "chapters": [
         {
           "t": 0,
@@ -622,13 +622,13 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 55528841,
+      "bytes": 55561801,
       "source": "12-progress-profile",
-      "published": "2026-11-01T08:30:30.264Z"
+      "published": "2026-11-02T08:28:07.571Z"
     },
     "full-tour": {
-      "v": "889d8123d6",
-      "duration": 702.77,
+      "v": "df8b5680a3",
+      "duration": 702.4,
       "chapters": [
         {
           "t": 0,
@@ -693,9 +693,9 @@
         "thumb.jpg",
         "captions.vtt"
       ],
-      "bytes": 224449109,
+      "bytes": 224463663,
       "source": "99-full-tour",
-      "published": "2026-11-01T08:30:50.734Z"
+      "published": "2026-11-02T08:28:31.338Z"
     }
   }
 }
