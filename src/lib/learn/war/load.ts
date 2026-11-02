@@ -1,6 +1,7 @@
 import "server-only";
 /**
- * Server: War stories from the content repo (resources/war-stories/stories/*.md and war-room/*.md),
+ * Server: War stories from the content repo (resources/war-stories/stories/*.md and war-room/*.md; the folder
+ * keeps its name: only the case-file URLs moved from /stories to /case-files),
  * through the same GitHub / SDM_LOCAL_DIR layer and course renderer as the lessons. Cached like the
  * course map (tag "course-map"); a missing folder or a broken file means fewer stories, never an error page.
  */
@@ -58,7 +59,7 @@ function weekTitle(ref: string | null, map: CourseMap | null): string {
 type Built = { stories: StorySummary[]; storyBySlug: Record<string, Story>; rooms: WarRoomSummary[]; roomBySlug: Record<string, WarRoom> };
 
 async function build(): Promise<Built> {
-  const [storyFiles, roomFiles, map] = await Promise.all([list(`${DIR}/case-files`), list(`${DIR}/war-room`), getCourseMap(COURSE_ID).catch(() => null)]);
+  const [storyFiles, roomFiles, map] = await Promise.all([list(`${DIR}/stories`), list(`${DIR}/war-room`), getCourseMap(COURSE_ID).catch(() => null)]);
 
   const stories = (
     await Promise.all(
