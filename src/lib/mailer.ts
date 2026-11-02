@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { EMAIL } from "@/lib/socials";
 
 // Retry function for handling SMTP timeouts in serverless environments
 async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2, delay = 1000): Promise<T> {
@@ -96,12 +97,21 @@ function fromAddress() {
   return process.env.SMTP_FROM || `Himanshu Kukreja <${process.env.SMTP_USER}>`;
 }
 
+/**
+ * Where replies go: the mail is sent as himanshu@systemdesignmastery.dev, and "just reply" lands in Himanshu's
+ * inbox directly (SMTP_REPLY_TO, else the public contact address), whatever the domain's forwarding does.
+ */
+export function replyAddress(): string {
+  return process.env.SMTP_REPLY_TO || EMAIL;
+}
+
 export async function sendRawEmail(to: string, subject: string, html: string) {
   return withRetry(async () => {
     const transporter = getTransport();
     try {
       const result = await transporter.sendMail({ 
         from: fromAddress(), 
+        replyTo: replyAddress(),
         to, 
         subject, 
         html 
@@ -127,7 +137,7 @@ export async function sendBulk(emails: string[], subject: string, htmlFor: (emai
         const transporter = getTransport();
         try {
           const html = htmlFor(to);
-          const result = await transporter.sendMail({ from: fromAddress(), to, subject, html });
+          const result = await transporter.sendMail({ from: fromAddress(), replyTo: replyAddress(), to, subject, html });
           return result;
         } finally {
           transporter.close();
@@ -150,6 +160,7 @@ export async function sendWelcomeEmail(to: string, subject: string, html: string
     try {
       const result = await transporter.sendMail({ 
         from: fromAddress(), 
+        replyTo: replyAddress(),
         to, 
         subject, 
         html 

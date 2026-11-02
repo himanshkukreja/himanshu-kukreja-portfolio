@@ -8,6 +8,7 @@
  */
 import nodemailer from "nodemailer";
 import { supabase } from "@/lib/supabase";
+import { EMAIL } from "@/lib/socials";
 import { ANNOUNCE_KEY, learnRevampEmail, unsubscribeUrl } from "./learn-revamp";
 import type { Recipient } from "./audience";
 
@@ -55,6 +56,7 @@ function message(to: Recipient, subjectPrefix = "") {
   const unsub = unsubscribeUrl(to.email);
   return {
     from: fromAddress(),
+    replyTo: process.env.SMTP_REPLY_TO || EMAIL,
     to: to.email,
     subject: `${subjectPrefix}${mail.subject}`,
     html: mail.html,

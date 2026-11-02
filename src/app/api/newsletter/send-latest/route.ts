@@ -3,7 +3,7 @@ import { requireAdmin } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
 import { getAllStories } from "@/lib/stories";
 import { buildStoriesEmailHtml } from "@/lib/emailTemplate";
-import { getTransport } from "@/lib/mailer";
+import { getTransport, replyAddress } from "@/lib/mailer";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     emails.map(async (to) => {
       try {
         const html = buildStoriesEmailHtml(stories, { recipientEmail: to, subjectTitle: subject, headerTitle });
-        await transporter.sendMail({ from, to, subject, html });
+        await transporter.sendMail({ from, replyTo: replyAddress(), to, subject, html });
         await supabase.from("newsletter_logs").insert({ 
           email: to, 
           status: "sent", 
