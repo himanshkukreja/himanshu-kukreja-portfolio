@@ -18,7 +18,7 @@ export const GOOGLE_CLIENT_ID = "282795995682-5io18icb5lacgdglrt0ivp3fu1e4urcn.a
  * Origins already authorised as JavaScript origins for this client. Elsewhere (e.g. the course domain before
  * it's added in Google Cloud Console) the classic redirect flow is used, which needs no JS origin.
  */
-const GIS_ORIGINS = ["https://himanshukukreja.in", "https://www.himanshukukreja.in", "http://localhost:3000", "http://localhost:3100"];
+const GIS_ORIGINS = ["https://himanshukukreja.in", "https://www.himanshukukreja.in", "https://systemdesignmastery.dev", "http://localhost:3000", "http://localhost:3100"];
 /** On: this page's origin is authorised for this client (decided in the browser; the server render shows the classic button). */
 export const GIS_ENABLED = typeof window !== "undefined" && GIS_ORIGINS.includes(window.location.origin);
 
