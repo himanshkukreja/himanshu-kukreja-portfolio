@@ -17,7 +17,7 @@ import AuthHashHandler from "@/components/AuthHashHandler";
 import RouteProgress from "@/components/site/RouteProgress";
 import OfflineProvider from "@/components/offline/OfflineProvider";
 import { SiteModeProvider } from "@/components/site/SiteMode";
-import { CourseLinkCarry, MovedNotice } from "@/components/site/DomainMove";
+import { CourseLinkCarry, MovedNotice, SignInOnce } from "@/components/site/DomainMove";
 import { IMPORT_JS } from "@/lib/site/carry";
 import { PORTFOLIO_ORIGIN, courseUrlFor } from "@/lib/site/hosts";
 
@@ -134,6 +134,7 @@ export default function RootLayout({
                   <GlobalAuthModal />
                   <CourseLinkCarry />
                   <MovedNotice />
+                  <SignInOnce />
                 </OfflineProvider>
               </GameProvider>
             </ThemeProvider>

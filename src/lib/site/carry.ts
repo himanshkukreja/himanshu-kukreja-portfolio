@@ -25,10 +25,12 @@
 export const MOVED_COOKIE = "hk_moved";
 export const IMPORT_PARAM = "hk-import";
 export const MAX_FRAGMENT = 60000;
+/** Set on the course host when the carried browser was signed in on the old domain (a flag, never a token). */
+export const SIGNIN_KEY = "hk.moved.signin";
 
 /**
  * Defines window.__hkCarry(target) on the old host. Keys never carried: Supabase sessions (sign in
- * again on the new domain; tokens don't belong in a URL), PostHog / analytics queues and leases,
+ * again on the new domain; tokens don't belong in a URL; only a yes/no "was signed in" flag goes along), PostHog / analytics queues and leases,
  * admin caches, chat locks, the offline library's records (its Cache Storage can't move).
  */
 export const CARRY_JS = `(function(){
@@ -42,12 +44,14 @@ window.__hkCarry=function(target){
   var went=false,go=function(frag){if(went)return;went=true;setCookie();location.replace(target+(frag||""));};
   var hash=(target.indexOf("#")<0&&location.hash&&location.hash.indexOf("${IMPORT_PARAM}=")<0)?location.hash:"";
   try{
-    var d={},keys=[],i,k,v;
-    for(i=0;i<localStorage.length;i++){k=localStorage.key(i);if(k==null||SKIP.test(k))continue;v=localStorage.getItem(k);if(v==null)continue;d[k]=v;keys.push(k);}
-    if(!keys.length)return go(hash);
+    var d={},keys=[],i,k,v,si=0;
+    for(i=0;i<localStorage.length;i++){k=localStorage.key(i);if(k==null)continue;
+      if(/^sb-.*-auth-token$/.test(k)){v=localStorage.getItem(k);if(v&&v.indexOf("access_token")>=0)si=1;continue;}
+      if(SKIP.test(k))continue;v=localStorage.getItem(k);if(v==null)continue;d[k]=v;keys.push(k);}
+    if(!keys.length&&!si)return go(hash);
     var order=keys.slice().sort(function(a,b){var ta=BIG.test(a)?1:0,tb=BIG.test(b)?1:0;return tb-ta||d[b].length-d[a].length;});
     var dropped=[];
-    var pack=function(){return gz(JSON.stringify({v:1,at:Date.now(),h:hash,x:dropped,d:d}));};
+    var pack=function(){return gz(JSON.stringify({v:1,at:Date.now(),h:hash,x:dropped,s:si,d:d}));};
     var attempt=function(n){return pack().then(function(s){
       if(s.length<=MAX||!order.length||n>60)return s.length<=MAX?s:null;
       var k2=order.shift();dropped.push(k2);delete d[k2];return attempt(n+1);
@@ -75,7 +79,8 @@ function mig(v){if(typeof v!=="string")return v;if(v.indexOf("/learn")===0||v.in
   return v.split('"/learn/system-design-mastery/').join('"/').split('"/learn/system-design-mastery"').join('"/"').split('"/learn/').join('"/').split('"/learn"').join('"/"').split('"/stories/').join('"/case-files/').split('"/stories"').join('"/case-files"');}
 text.then(function(t){var p=JSON.parse(t),n=0,s=0,k;
   for(k in p.d){if(!Object.prototype.hasOwnProperty.call(p.d,k))continue;if(had[k]){s++;continue;}try{localStorage.setItem(k,mig(p.d[k]));n++;}catch(e){}}
-  try{sessionStorage.setItem("hk.moved",JSON.stringify({n:n,kept:s,dropped:p.x||[]}));}catch(e){}
+  try{sessionStorage.setItem("hk.moved",JSON.stringify({n:n,kept:s,dropped:p.x||[],s:p.s?1:0}));}catch(e){}
+  if(p.s){try{localStorage.setItem("${SIGNIN_KEY}",String(Date.now()));}catch(e){}}
   if(n>0)location.replace(location.pathname+location.search+(p.h||""));
   else if(p.h)history.replaceState(history.state,"",location.pathname+location.search+p.h);
 }).catch(function(){});
