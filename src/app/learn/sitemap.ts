@@ -92,13 +92,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   for (const r of war.rooms) out.push({ url: url(r.href), changeFrequency: "monthly", priority: 0.5 });
   for (const l of labs) out.push({ url: url(`/labs/${l.id}`), changeFrequency: "monthly", priority: 0.5 });
   for (const s of sheets) out.push({ url: url(s.href), changeFrequency: "monthly", priority: 0.6 });
+  // Next.js writes the video fields into the XML without escaping them: a title like "AT&T" makes the whole sitemap
+  // unreadable to Google, so escape them here (the slice keeps a cut from splitting an entity)
+  const x = (v: string, n: number) => v.slice(0, n).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   for (const l of lectures)
     out.push({
       url: url(l.href),
       changeFrequency: "monthly",
       priority: 0.6,
       ...(hasMedia
-        ? { videos: [{ title: l.title.slice(0, 100), description: (l.summary || l.title).slice(0, 2048), thumbnail_loc: `${media}/${l.slug}/poster.jpg`, content_loc: `${media}/${l.slug}/video.mp4`, duration: Math.max(1, Math.round(l.minutes * 60)), family_friendly: "yes" as const }] }
+        ? { videos: [{ title: x(l.title, 100), description: x(l.summary || l.title, 2048), thumbnail_loc: `${media}/${l.slug}/poster.jpg`, content_loc: `${media}/${l.slug}/video.mp4`, duration: Math.max(1, Math.round(l.minutes * 60)), family_friendly: "yes" as const }] }
         : {}),
     });
   // every short has its own watch page (video, transcript, links)
@@ -107,7 +110,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       url: url(`/shorts/${s.id}`),
       changeFrequency: "monthly",
       priority: 0.5,
-      videos: [{ title: s.title.slice(0, 100), description: `${s.label}: ${s.title}`.slice(0, 2048), thumbnail_loc: s.poster, content_loc: s.src, duration: Math.max(1, s.seconds), family_friendly: "yes" as const }],
+      videos: [{ title: x(s.title, 100), description: x(`${s.label}: ${s.title}`, 2048), thumbnail_loc: s.poster, content_loc: s.src, duration: Math.max(1, s.seconds), family_friendly: "yes" as const }],
     });
   for (const s of stories) {
     out.push({ url: url(`/case-files/${s.slug}`), changeFrequency: "monthly", priority: 0.7, ...(s.date ? { lastModified: new Date(s.date) } : {}) });
