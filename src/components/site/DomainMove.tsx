@@ -121,7 +121,12 @@ export function SignInOnce() {
     }
     if (!at) return;
     if (user || Date.now() - at > 14 * 864e5) {
-      clear();
+      // signed in (or too old): forget the flag; `show` is already false here
+      try {
+        localStorage.removeItem(SIGNIN_KEY);
+      } catch {
+        /* ignore */
+      }
       return;
     }
     const t = setTimeout(() => setShow(true), 600);
