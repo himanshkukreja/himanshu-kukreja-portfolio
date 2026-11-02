@@ -4,7 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { isPlatform, settlePost, type DistShort, type Platform, type Post } from "@/lib/learn/shorts/distribution";
 import { listShorts } from "@/lib/learn/shorts/load";
 import { shortLines, shortPacks } from "@/lib/learn/shorts/pack";
-import { shortsStats, shortScore } from "@/lib/learn/shorts/stats";
+import { adminShortsStats, shortScore } from "@/lib/learn/shorts/stats";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -64,7 +64,7 @@ export async function GET(request: Request) {
     }
 
     const days = Math.min(180, Math.max(1, Number(q.get("days")) || 90));
-    const [live, packs, stats, posts] = await Promise.all([listShorts(), shortPacks(), shortsStats(days), readPosts()]);
+    const [live, packs, stats, posts] = await Promise.all([listShorts(), shortPacks(), adminShortsStats(days), readPosts()]);
     const pack = new Map(packs.map((p) => [p.id, p]));
     const st = new Map(stats.shorts.map((s) => [s.id, s]));
     const byShort = new Map<string, Partial<Record<Platform, Post>>>();

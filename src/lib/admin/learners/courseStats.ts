@@ -1,6 +1,7 @@
 import "server-only";
+import { sharedCache } from "@/lib/admin/sharedCache";
 import { getStages, lessonTitle } from "./course";
-import { buildModel, cappedTime, dowHour, eventLesson, eventName, RANGE_MS } from "./compute";
+import { buildModel, cappedTime, dowHour, eventLesson, eventName, LEARNERS_DATA_TAG, RANGE_MS } from "./compute";
 import type { AdminRange, CourseAnalytics, CourseLessonStat, StageDropoff } from "./types";
 
 const ms = (s: string | null | undefined) => {
@@ -20,7 +21,7 @@ const median = (xs: number[]) => {
  * excluded), because learning_progress keeps only the latest state per lesson. Guest readers,
  * page views and the activity heatmap use the selected range.
  */
-export async function getCourseAnalytics(range: AdminRange, tz: string): Promise<CourseAnalytics> {
+async function computeGetCourseAnalytics(range: AdminRange, tz: string): Promise<CourseAnalytics> {
   const model = await buildModel(tz);
   const { ds, idx, now } = model;
   const since = now - RANGE_MS[range];
@@ -203,7 +204,7 @@ export async function getCourseAnalytics(range: AdminRange, tz: string): Promise
 }
 
 /** Stage drop-off for one lesson: stage_reach / stage_done events, else learning_progress.completed_stages. */
-export async function getStageDropoff(week: string, lesson: string, tz: string): Promise<StageDropoff> {
+async function computeGetStageDropoff(week: string, lesson: string, tz: string): Promise<StageDropoff> {
   const model = await buildModel(tz);
   const { ds, idx } = model;
   const stages = await getStages(week, lesson);
@@ -246,3 +247,8 @@ export async function getStageDropoff(week: string, lesson: string, tz: string):
     stages: stages.map((s) => ({ id: s.id, label: s.label, title: s.title, minutes: s.minutes, reached: reach.get(s.id)?.size || 0, done: done.get(s.id)?.size || 0 })),
   };
 }
+
+/** Shared data cache (see compute.ts): course analytics 5 min, one lesson's stage drop-off 5 min. */
+export const getCourseAnalytics = sharedCache("course_analytics", computeGetCourseAnalytics, { revalidate: 300, maxAge: 3600, tags: [LEARNERS_DATA_TAG] });
+
+export const getStageDropoff = sharedCache("course_stage_dropoff", computeGetStageDropoff, { revalidate: 300, maxAge: 3600, tags: [LEARNERS_DATA_TAG] });

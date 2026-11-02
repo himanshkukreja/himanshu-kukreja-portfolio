@@ -1,8 +1,9 @@
 import "server-only";
+import { sharedCache } from "@/lib/admin/sharedCache";
 import { supabase } from "@/lib/supabase";
 import { parseUA } from "@/lib/analytics/ua";
 import { lessonTitle, lessonTag } from "./course";
-import { buildModel, cappedTime, dayKey, eventLesson, eventName, lastDays, sessionMinutes, sessionsOf, type Model, type UserModel } from "./compute";
+import { buildModel, cappedTime, dayKey, eventLesson, eventName, LEARNERS_DATA_TAG, lastDays, sessionMinutes, sessionsOf, type Model, type UserModel } from "./compute";
 import type { LearnerDetail, MapCell, McqResult, TimelineItem } from "./types";
 import { listLectures } from "@/lib/learn/lecture/load";
 
@@ -107,7 +108,7 @@ async function lectureWatch(events: UserModel["events"]): Promise<{ lectures: Le
   return { lectures, lectureMinutes: Math.round(lectures.reduce((a, l) => a + l.minutes, 0)) };
 }
 
-export async function getLearnerDetail(userId: string, tz: string): Promise<LearnerDetail | null> {
+async function computeGetLearnerDetail(userId: string, tz: string): Promise<LearnerDetail | null> {
   const model = await buildModel(tz);
   const u = model.byId.get(userId);
   if (!u) return null;
@@ -381,3 +382,6 @@ export async function getLearnerDetail(userId: string, tz: string): Promise<Lear
     features: ds.features,
   };
 }
+
+/** One learner's page: shared data cache, 60 s (a reset revalidates it). */
+export const getLearnerDetail = sharedCache("learner_detail", computeGetLearnerDetail, { revalidate: 60, maxAge: 900, tags: [LEARNERS_DATA_TAG] });

@@ -3,7 +3,7 @@
  * ../shell/fixtures.ts, which production bundles never load. Deterministic (seeded).
  * Add `&setup=1` to the page URL to preview the "not configured" setup card instead.
  */
-import type { EmbedRes, LiveFeedRes, LiveFilter, LiveRes, LiveSession, LiveWindow, NotConfigured, OfflineRes, PageDetailRes, PathsRes, PeopleRes, PersonRes, PersonRow, PhStatus, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "@/lib/analytics/journeys";
+import type { EmbedRes, LiveFeedRes, LiveFilter, LiveHeadRes, LiveReplaysRes, LiveRes, LiveSession, LiveSessionsRes, LiveWindow, NotConfigured, OfflineRes, PageDetailRes, PathsRes, PeopleRes, PersonRes, PersonRow, PhStatus, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "@/lib/analytics/journeys";
 import { computePaths, describe, type PathRow, type Props, type TitleOf } from "@/lib/analytics/journeysModel";
 import { replayFixtureChunk, replayFixtureSources } from "./replayFixture";
 import { isCourseVisit, isLessonPath } from "@/lib/learn/paths";
@@ -314,6 +314,21 @@ function liveSessions(): LiveSession[] {
   return out.sort((a, b) => (a.last < b.last ? 1 : -1));
 }
 
+/** the split feed (?part=head | sessions | replays) the live page uses; no part → the all-in-one response */
+function liveFeedPart(u: URL): LiveHeadRes | LiveSessionsRes | LiveReplaysRes | LiveFeedRes {
+  const part = u.searchParams.get("part");
+  if (part === "replays") {
+    const ids = new Set((u.searchParams.get("ids") || "").split(",").filter(Boolean));
+    const recordings: LiveReplaysRes["recordings"] = {};
+    for (const s of liveSessions()) if (ids.has(s.id) && s.recording) recordings[s.id] = s.recording;
+    return { configured: true, generatedAt: new Date().toISOString(), recordings, error: null };
+  }
+  const all = liveFeed(u);
+  if (part === "head") return { configured: true, generatedAt: all.generatedAt, stats: all.stats, perMinute: all.perMinute, pages: all.pages };
+  if (part === "sessions") return { configured: true, window: all.window, filter: all.filter, generatedAt: all.generatedAt, sessions: all.sessions.map((s) => ({ ...s, recording: null })), hasMore: all.hasMore };
+  return all;
+}
+
 function liveFeed(u: URL): LiveFeedRes {
   const w = (["30m", "24h", "7d"].includes(u.searchParams.get("window") || "") ? u.searchParams.get("window") : "24h") as LiveWindow;
   const f = (["all", "signed", "learn", "recorded"].includes(u.searchParams.get("filter") || "") ? u.searchParams.get("filter") : "all") as LiveFilter;
@@ -500,7 +515,7 @@ export function resolveJourneysFixture(u: URL, init?: RequestInit): unknown {
     case "/api/admin/posthog/live":
       return live();
     case "/api/admin/posthog/feed":
-      return liveFeed(u);
+      return liveFeedPart(u);
     case "/api/admin/posthog/recordings/snapshots":
       return u.searchParams.has("from") ? undefined : replayFixtureSources(u.searchParams.get("id") || "");
     case "/api/admin/posthog/people": {

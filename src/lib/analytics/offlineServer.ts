@@ -2,6 +2,7 @@ import "server-only";
 import type { OfflinePerson, OfflineRes } from "./journeys";
 import { hogql, iso, num, softError, str, type Row } from "./posthogServer";
 import { whoOf } from "./journeysServer";
+import { sharedCache } from "@/lib/admin/sharedCache";
 
 /**
  * /admin Overview → "Offline reading": who saves the course for offline reading, what, how much,
@@ -34,7 +35,7 @@ async function section<T>(errors: Record<string, string>, name: string, fallback
   }
 }
 
-export async function getOffline(days: number): Promise<OfflineRes> {
+async function computeOffline(days: number): Promise<OfflineRes> {
   const d = Math.round(days);
   const since = `timestamp > now() - INTERVAL ${d} DAY`;
   const errors: Record<string, string> = {};
@@ -184,6 +185,16 @@ export async function getOffline(days: number): Promise<OfflineRes> {
 
   return { configured: true, days: d, savers, stored, totals, byScope, topArticles, topWorlds, installs, prompts, modes, series, recent, errors };
 }
+
+/**
+ * Shared across instances (eleven HogQL queries behind PostHog's 3-at-a-time limit take 5–20 s cold): 2 min for the
+ * 24 h view, 10 min for longer ones; refreshed in the background.
+ */
+export const getOffline = sharedCache("offline", computeOffline, {
+  revalidate: (days) => (days <= 1 ? 120 : 600),
+  maxAge: (days) => (days <= 1 ? 1800 : 6 * 3600),
+  keep: (v) => !Object.keys(v.errors).length,
+});
 
 /** Zero-filled buckets for the chart (hours for 24h, weeks past 90 days, days otherwise). */
 function fillSeries(points: OfflineRes["series"], days: number): OfflineRes["series"] {

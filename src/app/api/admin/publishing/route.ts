@@ -7,7 +7,7 @@ import { getAllLearningResources } from "@/lib/github";
 import { COURSE_ID, COURSE_MAP_TAG } from "@/lib/learn/course";
 import { CONTROLS_TAG, getControls, isLive, questKey, shortKey, type Control } from "@/lib/learn/controls";
 import { listAllShorts } from "@/lib/learn/shorts/load";
-import { shortsStats } from "@/lib/learn/shorts/stats";
+import { adminShortsStats } from "@/lib/learn/shorts/stats";
 import { SHORT_CATEGORIES } from "@/lib/learn/shorts/types";
 
 export const dynamic = "force-dynamic";
@@ -53,7 +53,7 @@ export async function GET(request: Request) {
     const [shorts, controls, stats, resources, qv, votes] = await Promise.all([
       listAllShorts(),
       getControls(),
-      shortsStats(days),
+      adminShortsStats(days),
       getAllLearningResources(),
       questViews(since),
       supabase.from("lecture_votes").select("lecture_id").like("lecture_id", "bonus-%").limit(20000),

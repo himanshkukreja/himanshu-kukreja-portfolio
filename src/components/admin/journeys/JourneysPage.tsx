@@ -7,7 +7,7 @@
  * (server-side PostHog API with the personal key). Without config → the setup card.
  */
 import { useSearchParams } from "next/navigation";
-import { Badge, PageHead, Skeleton, Tabs, useAdminData } from "@/components/admin/ui";
+import { Badge, PageHead, Tabs, useAdminData } from "@/components/admin/ui";
 import type { NotConfigured, PhStatus } from "@/lib/analytics/journeys";
 import { ExtLink, useSetParams, PhErrorState } from "./bits";
 import SetupCard from "./SetupCard";
@@ -53,11 +53,11 @@ export default function JourneysPage() {
       />
       {error ? (
         <PhErrorState error={error} onRetry={refresh} />
-      ) : !status ? (
-        <Skeleton className="h-64 w-full" />
-      ) : !status.configured ? (
+      ) : status && !status.configured ? (
         <SetupCard status={status} />
       ) : (
+        // the tabs start loading without waiting for the status check (their endpoints answer
+        // { configured: false } themselves when PostHog isn't set up)
         <>
           <Tabs tabs={TABS.map((t) => ({ id: t.id, label: t.label }))} value={tab} onChange={(id) => setParams({ tab: id === "live" ? null : id, person: null, path: null, q: null })} label="Journeys sections" className="mb-5" />
           {tab === "live" && <LiveTab />}

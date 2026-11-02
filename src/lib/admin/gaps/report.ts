@@ -1,4 +1,6 @@
 import "server-only";
+import { revalidateTag } from "next/cache";
+import { sharedCache } from "@/lib/admin/sharedCache";
 /**
  * The content-gap radar's report: read every source, group the asks into topics (cluster.ts), find each
  * topic's closest course material and decide gap / thin / covered. Admin-only (GET /api/admin/gaps), so it
@@ -31,7 +33,7 @@ const TTL = 5 * 60_000;
 
 const memo = new Map<string, { at: number; report: Promise<GapReport> }>();
 
-export function gapReport(opts: { days: number; origin: string; fresh?: boolean }): Promise<GapReport> {
+function memoReport(opts: { days: number; origin: string; fresh?: boolean }): Promise<GapReport> {
   const sample = gapFixtures();
   const k = `${opts.days}|${sample}`;
   const hit = memo.get(k);
@@ -40,6 +42,24 @@ export function gapReport(opts: { days: number; origin: string; fresh?: boolean 
   memo.set(k, { at: Date.now(), report });
   report.catch(() => memo.delete(k));
   return report;
+}
+
+// `sample` (dev fixtures on/off) keys the entry; memoReport reads the flag itself
+const sharedGaps = sharedCache("gaps_report", (days: number, origin: string, sample: boolean) => memoReport({ days, origin, fresh: sample !== gapFixtures() }), {
+  revalidate: 300,
+  maxAge: 3600,
+});
+
+/**
+ * The report for a window: shared across instances (data cache, refreshed in the background) on top of the 5-minute
+ * memo per instance. `fresh` rebuilds now and marks the cached windows stale.
+ */
+export function gapReport(opts: { days: number; origin: string; fresh?: boolean }): Promise<GapReport> {
+  if (opts.fresh) {
+    revalidateTag("admin:gaps_report");
+    return memoReport(opts);
+  }
+  return sharedGaps(opts.days, opts.origin, gapFixtures());
 }
 
 async function withTimeout<T>(p: Promise<T>, ms: number, what: string): Promise<T> {

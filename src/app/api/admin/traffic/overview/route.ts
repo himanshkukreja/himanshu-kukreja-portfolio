@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
-import { overviewReport, readParams } from "@/lib/admin/traffic/query";
+import { cachedOverview, reportArgs } from "@/lib/admin/traffic/query";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,8 +11,8 @@ export async function GET(request: Request) {
   if (admin instanceof NextResponse) return admin;
   try {
     const url = new URL(request.url);
-    const params = readParams(url, admin.id);
-    return NextResponse.json(await overviewReport(params), { headers: { "Cache-Control": "no-store" } });
+    const args = reportArgs(url, admin.id);
+    return NextResponse.json(await cachedOverview(args), { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     console.error("[traffic/overview]", e);
     return NextResponse.json({ error: e instanceof Error ? e.message : "Failed" }, { status: 500 });

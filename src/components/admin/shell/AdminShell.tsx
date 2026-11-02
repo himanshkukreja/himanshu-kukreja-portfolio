@@ -22,6 +22,9 @@ import Forbidden from "./Forbidden";
 const DEV = process.env.NODE_ENV === "development";
 const PREVIEW_KEY = "hk.adminPreview";
 const NOTRACK_KEY = "hk.notrack";
+/** last confirmed admin check this tab: { userId, email, at } (lets a reload paint the section while /me re-checks) */
+const ADMIN_OK_KEY = "hk.adminOk";
+const ADMIN_OK_MS = 30 * 60_000;
 
 type NavItem = { href: string; label: string; key: string; match: (p: string) => boolean };
 const at = (href: string, label: string, key: string): NavItem => ({ href, label, key, match: (p: string) => p.startsWith(href) });
@@ -115,15 +118,32 @@ function GatedRuntime({ children }: { children: ReactNode }) {
   const [nonce, setNonce] = useState(0);
   const userId = user?.id ?? null;
 
+  // This tab confirmed this user as admin recently: paint the section at once and re-check in the background
+  // (every /api/admin call is authorised on the server anyway; a failed re-check drops to the 403 screen).
+  const rememberedRaw = useSyncExternalStore(subscribeStore, () => readStore("session", ADMIN_OK_KEY), () => null);
+  const remembered = useMemo(() => {
+    try {
+      const r = rememberedRaw ? (JSON.parse(rememberedRaw) as { userId?: string; email?: string; at?: number }) : null;
+      return r?.userId && r.email && typeof r.at === "number" ? { userId: r.userId, email: r.email, at: r.at } : null;
+    } catch {
+      return null;
+    }
+  }, [rememberedRaw]);
+
   useEffect(() => {
     if (!userId) return;
     let off = false;
     adminJson<{ email: string }>("/api/admin/me")
       .then((r) => {
-        if (!off) setCheck({ userId, status: "ok", email: r.email });
+        if (off) return;
+        setCheck({ userId, status: "ok", email: r.email });
+        writeStore("session", ADMIN_OK_KEY, JSON.stringify({ userId, email: r.email, at: Date.now() }));
       })
       .catch((e: AdminError) => {
-        if (!off) setCheck({ userId, status: e?.status === 401 || e?.status === 403 ? "denied" : "error" });
+        if (off) return;
+        const denied = e?.status === 401 || e?.status === 403;
+        if (denied) writeStore("session", ADMIN_OK_KEY, null);
+        setCheck({ userId, status: denied ? "denied" : "error" });
       });
     return () => {
       off = true;
@@ -131,11 +151,16 @@ function GatedRuntime({ children }: { children: ReactNode }) {
   }, [userId, nonce]);
 
   const onUnauthorized = useCallback(() => {
+    writeStore("session", ADMIN_OK_KEY, null);
     if (userId) setCheck({ userId, status: "denied" });
   }, [userId]);
   const client = useMemo<AdminClient>(() => ({ json: adminJson, text: adminText, preview: false, onUnauthorized }), [onUnauthorized]);
 
-  const current = check && check.userId === userId ? check : null;
+  const checked = check && check.userId === userId ? check : null;
+  // nowMs is read once per remembered value (React purity: no Date.now() in render)
+  const [nowMs] = useState(() => Date.now());
+  const optimistic = !checked && !!userId && !!remembered && remembered.userId === userId && nowMs - remembered.at < ADMIN_OK_MS;
+  const current: Check | null = checked ?? (optimistic ? { userId: userId!, status: "ok", email: remembered!.email } : null);
   // Once this user is confirmed as admin, keep the screen mounted through auth refreshes: swapping
   // in the "checking" state would unmount open editors (and lose their in-memory state).
   if (!(current?.status === "ok") && (loading || (userId && !current))) return <Forbidden mode="checking" />;

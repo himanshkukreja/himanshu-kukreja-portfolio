@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { invalidateDataset } from "@/lib/admin/learners/dataset";
+import { LEARNERS_DATA_TAG } from "@/lib/admin/learners/compute";
 import { resetLearnerData, type ResetParts, type ResetScope } from "@/lib/learn/reset";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   try {
     const result = await resetLearnerData(id, body.scope, parts);
     invalidateDataset();
+    revalidateTag(LEARNERS_DATA_TAG);
     console.info("admin reset", { by: admin.email, user: id, scope: body.scope, parts, deleted: result.deleted });
     return NextResponse.json(result);
   } catch (e) {

@@ -205,7 +205,9 @@ export type LiveSession = {
   referrer: string | null;
   /** last event < 5 min ago */
   active: boolean;
-  recording: { id: string; duration: number; active: number; ongoing: boolean } | null;
+  recording: LiveRec | null;
+  /** the replay lookup for this row hasn't answered yet (the split feed loads replays after the list) */
+  replayPending?: boolean;
   /** latest events, oldest first (capped; `events` is the full count) */
   timeline: LiveEvent[];
 };
@@ -224,6 +226,23 @@ export type LiveFeedRes = {
   hasMore: boolean;
   /** replay lookup failed (e.g. missing session_recording:read): sessions still show */
   recordingsError: { error: string; scope: string | null } | null;
+};
+
+export type LiveRec = { id: string; duration: number; active: number; ongoing: boolean };
+
+/** GET /api/admin/posthog/feed?part=head → the header strip (one query, cached ~30 s across instances). */
+export type LiveHeadRes = Pick<LiveFeedRes, "configured" | "generatedAt" | "stats" | "perMinute" | "pages">;
+
+/** GET /api/admin/posthog/feed?part=sessions&window=&filter=&before= → the session list; `recording` is null here (see part=replays). */
+export type LiveSessionsRes = Pick<LiveFeedRes, "configured" | "window" | "filter" | "generatedAt" | "sessions" | "hasMore">;
+
+/** GET /api/admin/posthog/feed?part=replays&ids=a,b → which of these sessions have a replay (absent id = none). */
+export type LiveReplaysRes = {
+  configured: true;
+  generatedAt: string;
+  recordings: Record<string, LiveRec>;
+  /** lookup failed: rows show without replays */
+  error: { error: string; scope: string | null } | null;
 };
 
 /** GET /api/admin/posthog/recordings/snapshots?id= → blob sources for our own player. */

@@ -5,21 +5,33 @@
  * the pages people are on, then every recent session (events grouped by $session_id, newest /
  * ongoing first) with a compact event timeline and its replay inline.
  *
- * Polls /api/admin/posthog/feed every 30 s while the tab is visible (refreshes on return). While the
- * admin is reading (scrolled into the feed, a row expanded or a replay playing) the list freezes
- * and a "new activity" pill offers the update instead of jumping the list; the stats strip always
- * stays live.
+ * Loads in three parts so it paints progressively (each answered from the server's shared cache):
+ * the header strip (?part=head), the session list (?part=sessions) and, once the list is on screen,
+ * which rows have a replay (?part=replays, only for ids it hasn't looked up in the last 90 s).
+ * Header and list poll every 60 s while the tab is visible; a poll never starts while the previous one
+ * is in flight, backs off after errors, and when the server answered from a cache it's refreshing
+ * the page asks again a few seconds later. While the admin is reading (scrolled into the feed, a row
+ * expanded or a replay playing) the list freezes and a "new activity" pill offers the update instead
+ * of jumping the list; the stats strip always stays live.
  */
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Card, EmptyState, Kpi, LABEL, LiveDot, PageHead, Skeleton, fmtNum, timeAgo, useAdminClient, useAdminData, useNow, type AdminError } from "@/components/admin/ui";
-import type { LiveFeedRes, LiveFilter, LiveSession, LiveWindow, NotConfigured, PhStatus } from "@/lib/analytics/journeys";
+import type { LiveFilter, LiveHeadRes, LiveRec, LiveReplaysRes, LiveSession, LiveSessionsRes, LiveWindow, NotConfigured, PhStatus } from "@/lib/analytics/journeys";
 import { ExtLink, PhErrorState, cx, useSetParams } from "@/components/admin/journeys/bits";
 import SetupCard from "@/components/admin/journeys/SetupCard";
 import SessionRow, { ReplaySheet } from "./SessionRow";
 
-const POLL_MS = 30_000;
+const POLL_MS = 60_000;
+/** server cache refreshes every 30 s: an answer older than this was served stale while it refreshes → ask again soon */
+const STALE_MS = 45_000;
+const REPLAY_TTL_MS = 90_000;
+const REPLAY_CHUNK = 40;
+const FEED = "/api/admin/posthog/feed";
+
+const followUp = (d: { generatedAt?: string } | NotConfigured) =>
+  "generatedAt" in d && d.generatedAt && Date.now() - new Date(d.generatedAt).getTime() > STALE_MS ? 5_000 : null;
 
 const WINDOWS: { id: LiveWindow; label: string }[] = [
   { id: "30m", label: "live · 30 min" },
@@ -44,21 +56,16 @@ export default function LivePage() {
   const filter: LiveFilter = isFilter(rawF) ? rawF : "all";
   const [paused, setPaused] = useState(false);
   const { data: status } = useAdminData<PhStatus>("/api/admin/posthog/status");
-  const url = `/api/admin/posthog/feed?window=${win}&filter=${filter}`;
-  const { data, error, loading, refresh } = useAdminData<LiveFeedRes | NotConfigured>(status?.configured ? url : null, { refreshMs: paused ? undefined : POLL_MS });
+  // don't wait for the status check: the feed answers { configured: false } itself when PostHog isn't set up
+  const on = status ? status.configured : true;
+  const poll = { refreshMs: paused ? undefined : POLL_MS, followUpMs: followUp };
+  const headQ = useAdminData<LiveHeadRes | NotConfigured>(on ? `${FEED}?part=head` : null, poll);
+  const listQ = useAdminData<LiveSessionsRes | NotConfigured>(on ? `${FEED}?part=sessions&window=${win}&filter=${filter}` : null, poll);
   const now = useNow(10_000);
 
-  // refresh as soon as the admin comes back to the tab (polling pauses while hidden)
-  useEffect(() => {
-    if (paused) return;
-    const onVis = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    document.addEventListener("visibilitychange", onVis);
-    return () => document.removeEventListener("visibilitychange", onVis);
-  }, [paused, refresh]);
-
-  const feed = data && data.configured !== false ? (data as LiveFeedRes) : undefined;
+  const head = headQ.data && headQ.data.configured !== false ? (headQ.data as LiveHeadRes) : undefined;
+  const list = listQ.data && listQ.data.configured !== false ? (listQ.data as LiveSessionsRes) : undefined;
+  const notConfigured = [headQ.data, listQ.data].find((d): d is NotConfigured => !!d && d.configured === false);
 
   return (
     <div>
@@ -66,7 +73,7 @@ export default function LivePage() {
         path="admin/live"
         title={
           <span className="inline-flex items-center gap-3">
-            Live <LiveDot on={!!feed?.stats.online && !paused} />
+            Live <LiveDot on={!!head?.stats.online && !paused} />
           </span>
         }
         sub="Everything happening on the site: sessions as they happen, what each person did, and their replay."
@@ -82,7 +89,7 @@ export default function LivePage() {
                   paused ? "border-line-strong text-fg-3 hover:bg-surface-2" : "border-signal text-signal-text hover:bg-signal/10"
                 )}
               >
-                {paused ? "❚❚ paused · resume" : "● live · ↻ 30s"}
+                {paused ? "❚❚ paused · resume" : "● live · ↻ 60s"}
               </button>
               <Link href="/admin/journeys" className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-xs text-fg-2 hover:border-signal hover:text-signal-text">
                 journeys →
@@ -92,21 +99,19 @@ export default function LivePage() {
           ) : null
         }
       />
-      {!status ? (
-        <Skeleton className="h-64 w-full" />
-      ) : !status.configured ? (
+      {status && !status.configured ? (
         <SetupCard status={status} />
-      ) : data && data.configured === false ? (
-        <SetupCard status={data.status} />
+      ) : notConfigured ? (
+        <SetupCard status={notConfigured.status} />
       ) : (
         <>
-          <StatsStrip feed={feed} error={error} />
+          <StatsStrip head={head} error={headQ.error} />
           <Feed
             key={`${win}:${filter}`}
-            feed={feed}
-            error={error}
-            loading={loading}
-            refresh={refresh}
+            feed={list}
+            error={listQ.error}
+            loading={listQ.loading}
+            refresh={listQ.refresh}
             win={win}
             filter={filter}
             now={now}
@@ -122,7 +127,7 @@ export default function LivePage() {
 
 /* ───────────────────────────── header strip ───────────────────────────── */
 
-function StatsStrip({ feed, error }: { feed?: LiveFeedRes; error?: AdminError }) {
+function StatsStrip({ head: feed, error }: { head?: LiveHeadRes; error?: AdminError }) {
   const loading = !feed && !error;
   const pages = feed?.pages ?? [];
   return (
@@ -176,7 +181,7 @@ function Feed({
   onWindow,
   onFilter,
 }: {
-  feed?: LiveFeedRes;
+  feed?: LiveSessionsRes;
   error?: AdminError;
   loading: boolean;
   refresh: () => void;
@@ -189,7 +194,7 @@ function Feed({
 }) {
   const client = useAdminClient();
   const listRef = useRef<HTMLDivElement>(null);
-  const [frozen, setFrozen] = useState<LiveFeedRes | null>(null);
+  const [frozen, setFrozen] = useState<LiveSessionsRes | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [watching, setWatching] = useState<string | null>(null);
@@ -242,11 +247,20 @@ function Feed({
     listRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
-  const sessions = useMemo(() => {
+  const listed = useMemo(() => {
     const head = shown?.sessions ?? [];
     const seen = new Set(head.map((s) => s.id));
     return [...head, ...older.sessions.filter((s) => !seen.has(s.id))];
   }, [shown, older.sessions]);
+  // replays load after the list (never hold it up) and are merged in at render, frozen list or not
+  const replays = useReplays(
+    listed.map((s) => s.id),
+    feed?.generatedAt
+  );
+  const sessions = useMemo(
+    () => listed.map((s) => ({ ...s, recording: replays.recs[s.id] ?? null, replayPending: !replays.seen[s.id] })),
+    [listed, replays]
+  );
 
   const loadOlder = async () => {
     const last = sessions[sessions.length - 1];
@@ -254,7 +268,7 @@ function Feed({
     freeze();
     setOlder((o) => ({ ...o, loading: true, error: null }));
     try {
-      const res = await client.json<LiveFeedRes>(`/api/admin/posthog/feed?window=${win}&filter=${filter}&before=${encodeURIComponent(last.last)}`);
+      const res = await client.json<LiveSessionsRes>(`${FEED}?part=sessions&window=${win}&filter=${filter}&before=${encodeURIComponent(last.last)}`);
       setOlder((o) => ({ sessions: [...o.sessions, ...res.sessions], hasMore: res.hasMore, loading: false, error: null }));
     } catch (e) {
       setOlder((o) => ({ ...o, loading: false, error: (e as Error)?.message || "failed" }));
@@ -304,7 +318,7 @@ function Feed({
         </div>
       )}
 
-      {shown?.recordingsError && <PhErrorState className="mb-3" error={shown.recordingsError.error} scope={shown.recordingsError.scope} title="Replays couldn't be looked up (sessions still show)" />}
+      {replays.error && <PhErrorState className="mb-3" error={replays.error.error} scope={replays.error.scope} title="Replays couldn't be looked up (sessions still show)" />}
 
       <Card
         label={win === "30m" ? "last 30 minutes" : win === "24h" ? "last 24 hours" : "last 7 days"}
@@ -380,6 +394,50 @@ function Feed({
       {sheet && <ReplaySheet s={sheet} onClose={closeSheet} now={now} />}
     </div>
   );
+}
+
+/**
+ * Replay status for the sessions on screen: looks up only ids it hasn't checked in the last 90 s (40 per request),
+ * re-checking when the list refreshes (`refreshKey`), so a new or ongoing replay shows up without blocking the list.
+ */
+function useReplays(ids: string[], refreshKey: string | undefined) {
+  const client = useAdminClient();
+  const [state, setState] = useState<{ recs: Record<string, LiveRec>; seen: Record<string, number>; error: LiveReplaysRes["error"] }>({ recs: {}, seen: {}, error: null });
+  const checked = useRef<Record<string, number>>({});
+  const idsKey = ids.join(",");
+
+  useEffect(() => {
+    const t = Date.now();
+    const want = idsKey.split(",").filter((id) => id && !(t - (checked.current[id] ?? 0) < REPLAY_TTL_MS));
+    if (!want.length) return;
+    const ctrl = new AbortController();
+    for (let i = 0; i < want.length; i += REPLAY_CHUNK) {
+      const chunk = want.slice(i, i + REPLAY_CHUNK);
+      client
+        .json<LiveReplaysRes | NotConfigured>(`${FEED}?part=replays&ids=${chunk.join(",")}`, { signal: ctrl.signal })
+        .then((r) => {
+          if (ctrl.signal.aborted || r.configured === false) return;
+          const at = Date.now();
+          for (const id of chunk) checked.current[id] = at;
+          setState((s) => {
+            const recs = { ...s.recs };
+            const seen = { ...s.seen };
+            for (const id of chunk) {
+              seen[id] = at;
+              if (r.recordings[id]) recs[id] = r.recordings[id];
+              else delete recs[id];
+            }
+            return { recs, seen, error: r.error };
+          });
+        })
+        .catch(() => {
+          // aborted or failed: these ids stay unchecked and are asked again on the next refresh
+        });
+    }
+    return () => ctrl.abort();
+  }, [idsKey, refreshKey, client]);
+
+  return state;
 }
 
 function Segmented<T extends string>({ label, options, value, onChange }: { label: string; options: { id: T; label: string }[]; value: T; onChange: (v: T) => void }) {

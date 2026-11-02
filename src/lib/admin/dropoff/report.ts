@@ -1,4 +1,6 @@
 import "server-only";
+import { revalidateTag } from "next/cache";
+import { sharedCache } from "@/lib/admin/sharedCache";
 /**
  * Section drop-off report for /admin/course/dropoff (see ./aggregate.ts for what is counted). Admin-only and on
  * demand: GET /api/admin/course/dropoff reads the four lesson events of the window once, drops the owner's test
@@ -176,7 +178,7 @@ function built(days: number, fresh = false): Promise<Built> {
 }
 
 /** The summary of every lesson for the window, plus the funnel of `lessonKey` (`<week>/<slug>`) when given. */
-export async function dropoffReport(opts: { days: number; lessonKey?: string | null; fresh?: boolean }): Promise<DropoffResponse> {
+async function computeDropoff(opts: { days: number; lessonKey?: string | null; fresh?: boolean }): Promise<DropoffResponse> {
   const b = await built(opts.days, opts.fresh);
   const { byKey, refs, ...rest } = b;
   let detail: DropoffDetail | null = null;
@@ -189,4 +191,18 @@ export async function dropoffReport(opts: { days: number; lessonKey?: string | n
     detail = { ...aggregateLesson(ref.week, ref.slug, byKey.get(k) ?? [], secs), key: k, title: ref.title, tag: ref.tag, href: ref.href };
   }
   return { ...rest, detail };
+}
+
+const sharedDropoff = sharedCache("course_dropoff", (days: number, lessonKey: string | null) => computeDropoff({ days, lessonKey }), { revalidate: 300, maxAge: 3600 });
+
+/**
+ * Shared across instances (data cache, refreshed in the background); `fresh` recomputes now and marks every cached
+ * window stale so the next reads pick it up.
+ */
+export async function dropoffReport(opts: { days: number; lessonKey?: string | null; fresh?: boolean }): Promise<DropoffResponse> {
+  if (opts.fresh) {
+    revalidateTag("admin:course_dropoff");
+    return computeDropoff(opts);
+  }
+  return sharedDropoff(opts.days, opts.lessonKey ?? null);
 }

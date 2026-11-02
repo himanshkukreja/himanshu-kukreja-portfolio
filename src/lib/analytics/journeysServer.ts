@@ -5,6 +5,7 @@ import type { EmbedRes, LiveRes, PageDetailRes, PathsRes, PeopleRes, PersonInfo,
 import { computePaths, describe, eventPropsSelect, parseElements, propsFrom, type PathRow, type TitleOf } from "./journeysModel";
 import { appUrl, cached, uncache, hogql, iso, isUuid, NOISE, INTERNAL, num, phFetch, PhError, softError, str, type Row } from "./posthogServer";
 import { titleResolver } from "./titles";
+import { sharedCache } from "@/lib/admin/sharedCache";
 
 const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://www.himanshukukreja.in").replace(/\/$/, "");
 
@@ -41,30 +42,42 @@ function streamEvent(r: Row, titleOf: TitleOf): StreamEvent {
   };
 }
 
-export async function getLive(): Promise<LiveRes> {
-  const [titleOf, liveRows, pageRows, eventRows] = await Promise.all([
+async function computeLive(): Promise<LiveRes> {
+  const [titleOf, nowRows, eventRows] = await Promise.all([
     titleResolver(),
-    hogql(`SELECT count(DISTINCT person_id) FROM events WHERE timestamp > now() - INTERVAL 5 MINUTE ${INTERNAL}`, { name: "live_count", ttlMs: 25_000 }),
+    // visitors in the last 5 min + the pages they're on (distinct people per path), one query
     hogql(
-      `SELECT properties.$pathname AS path, count(DISTINCT person_id) AS n FROM events WHERE event = '$pageview' AND timestamp > now() - INTERVAL 5 MINUTE ${INTERNAL} GROUP BY path ORDER BY n DESC LIMIT 10`,
-      { name: "live_pages", ttlMs: 25_000 }
+      `SELECT count(DISTINCT person_id), groupUniqArrayIf(tuple(properties.$pathname, toString(person_id)), event = '$pageview')
+        FROM events WHERE timestamp > now() - INTERVAL 5 MINUTE ${INTERNAL}`,
+      { name: "live_now", ttlMs: 10_000 }
     ),
     hogql(`SELECT ${STREAM_HEAD}, ${eventPropsSelect()} FROM events WHERE timestamp > now() - INTERVAL 1 DAY AND event NOT IN ${NOISE} ${INTERNAL} ORDER BY timestamp DESC LIMIT 60`, {
       name: "live_stream",
-      ttlMs: 25_000,
+      ttlMs: 10_000,
     }),
   ]);
+  const byPath = new Map<string, number>();
+  for (const t of (Array.isArray(nowRows[0]?.[1]) ? nowRows[0][1] : []) as unknown[]) {
+    const path = Array.isArray(t) ? str(t[0]) : null;
+    if (path) byPath.set(path, (byPath.get(path) ?? 0) + 1);
+  }
   return {
     configured: true,
-    live: num(liveRows[0]?.[0]),
-    pages: pageRows.filter((r) => r[0]).map((r) => ({ path: String(r[0]), title: titleOf(String(r[0])), n: num(r[1]) })),
+    live: num(nowRows[0]?.[0]),
+    pages: [...byPath.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 10)
+      .map(([path, n]) => ({ path, title: titleOf(path), n })),
     events: eventRows.map((r) => streamEvent(r, titleOf)),
   };
 }
 
+/** Journeys → Live tab (polled): shared across instances, refreshed in the background every 30 s. */
+export const getLive = sharedCache("journeys_live", computeLive, { revalidate: 30, maxAge: 300 });
+
 /* ───────────────────────────── people ───────────────────────────── */
 
-export async function getPeople(opts: { q: string; days: number; kind: "all" | "identified" | "anonymous" }): Promise<PeopleRes> {
+async function computePeople(opts: { q: string; days: number; kind: "all" | "identified" | "anonymous" }): Promise<PeopleRes> {
   const q = opts.q.trim().slice(0, 80);
   const where = q
     ? "AND (person.properties.email ILIKE {q} OR person.properties.name ILIKE {q} OR distinct_id ILIKE {q} OR toString(person_id) ILIKE {q} OR properties.$geoip_country_code ILIKE {q} OR properties.$geoip_city_name ILIKE {q})"
@@ -123,6 +136,8 @@ export async function getPeople(opts: { q: string; days: number; kind: "all" | "
   return { configured: true, people, days: opts.days };
 }
 
+export const getPeople = sharedCache("journeys_people", computePeople, { revalidate: 120, maxAge: 3600 });
+
 /* ───────────────────────────── recordings ───────────────────────────── */
 
 export type ApiRecording = {
@@ -173,11 +188,15 @@ function mapRecording(r: ApiRecording, extra?: { pages: string[]; pageviews: num
   };
 }
 
-/** Per-session pages + frustration signals for a set of session ids (one HogQL query). */
-async function sessionExtras(ids: string[]) {
+/**
+ * Per-session pages + frustration signals for a set of session ids (one HogQL query). `since` = the oldest
+ * recording's start: the scan covers those sessions' days, not the last 90.
+ */
+async function sessionExtras(ids: string[], since: number | null) {
   const safe = ids.filter(isUuid).slice(0, 200);
   const out = new Map<string, { pages: string[]; pageviews: number; rage: number; dead: number }>();
   if (!safe.length) return out;
+  const from = new Date(Math.max(since != null && Number.isFinite(since) ? since - 3600_000 : 0, Date.now() - 90 * 86400_000)).toISOString();
   const rows = await hogql(
     `SELECT properties.$session_id AS sid,
         groupUniqArrayIf(properties.$pathname, event = '$pageview') AS pages,
@@ -185,9 +204,9 @@ async function sessionExtras(ids: string[]) {
         countIf(event = '$rageclick') AS rage,
         countIf(event = '$dead_click') AS dead
       FROM events
-      WHERE properties.$session_id IN (${safe.map((s) => `'${s}'`).join(", ")}) AND timestamp > now() - INTERVAL 90 DAY
+      WHERE properties.$session_id IN (${safe.map((s) => `'${s}'`).join(", ")}) AND timestamp > toDateTime({from})
       GROUP BY sid`,
-    { name: "session_extras", ttlMs: 60_000 }
+    { name: "session_extras", values: { from }, ttlMs: 60_000 }
   ).catch(() => [] as Row[]);
   for (const r of rows) out.set(String(r[0]), { pages: Array.isArray(r[1]) ? (r[1] as unknown[]).filter(Boolean).map(String).slice(0, 6) : [], pageviews: num(r[2]), rage: num(r[3]), dead: num(r[4]) });
   return out;
@@ -199,9 +218,17 @@ async function listRecordings(params: Record<string, string>): Promise<{ results
   return { results: r?.results ?? [], hasNext: !!(r?.has_next ?? r?.next) };
 }
 
-export async function getRecordings(opts: { person?: string | null; path?: string | null; days: number; offset: number; limit: number }): Promise<RecordingsRes> {
+async function computeRecordings(opts: { person?: string | null; path?: string | null; days: number; offset: number; limit: number }): Promise<RecordingsRes> {
   const params: Record<string, string> = { limit: String(opts.limit), offset: String(opts.offset), date_from: `-${opts.days}d` };
   if (opts.person && isUuid(opts.person)) params.person_uuid = opts.person;
+  // sessions that viewed the page (path filter): asked alongside the replay list, not after it
+  const pathSessions = opts.path
+    ? hogql(
+        `SELECT DISTINCT properties.$session_id FROM events WHERE event = '$pageview' AND properties.$pathname = {path} AND timestamp > now() - INTERVAL ${opts.days} DAY LIMIT 2000`,
+        { name: "sessions_on_path", values: { path: opts.path.slice(0, 300) }, ttlMs: 60_000 }
+      ).then((rows) => new Set(rows.map((r) => String(r[0]))))
+    : Promise.resolve(null);
+  pathSessions.catch(() => null);
   const listed = await listRecordings(params);
   // internal traffic: the owner's test accounts and localhost sessions aren't shown
   let results = listed.results.filter((r) => {
@@ -217,18 +244,18 @@ export async function getRecordings(opts: { person?: string | null; path?: strin
   const hasNext = listed.hasNext;
   // belt and braces: keep only this person's recordings even if the filter param is ignored
   if (opts.person) results = results.filter((r) => !r.person?.uuid || r.person.uuid === opts.person);
-  if (opts.path) {
-    const path = opts.path.slice(0, 300);
-    const rows = await hogql(
-      `SELECT DISTINCT properties.$session_id FROM events WHERE event = '$pageview' AND properties.$pathname = {path} AND timestamp > now() - INTERVAL ${opts.days} DAY LIMIT 2000`,
-      { name: "sessions_on_path", values: { path }, ttlMs: 60_000 }
-    );
-    const ids = new Set(rows.map((r) => String(r[0])));
-    results = results.filter((r) => ids.has(r.id));
-  }
-  const extras = await sessionExtras(results.map((r) => r.id));
+  const onPath = await pathSessions;
+  if (onPath) results = results.filter((r) => onPath.has(r.id));
+  const starts = results.map((r) => Date.parse(r.start_time || "")).filter(Number.isFinite);
+  const extras = await sessionExtras(
+    results.map((r) => r.id),
+    starts.length ? Math.min(...starts) : null
+  );
   return { configured: true, recordings: results.map((r) => mapRecording(r, extras.get(r.id))), hasNext };
 }
+
+/** Replay list (Journeys → Recordings, person pages): shared across instances, 60 s. */
+export const getRecordings = sharedCache("journeys_recordings", computeRecordings, { revalidate: 60, maxAge: 900 });
 
 /** Turn on sharing for one recording and return PostHog's embeddable player URL. */
 export async function shareRecording(id: string, enabled = true): Promise<EmbedRes> {
@@ -247,17 +274,23 @@ export async function shareRecording(id: string, enabled = true): Promise<EmbedR
 
 /* ───────────────────────────── person ───────────────────────────── */
 
+async function lookupPerson(d: string): Promise<string | null> {
+  const rows = await hogql("SELECT person_id FROM events WHERE distinct_id = {d} ORDER BY timestamp DESC LIMIT 1", { name: "resolve_person", values: { d }, ttlMs: 300_000 });
+  return str(rows[0]?.[0]);
+}
+/** distinct id → person: stable, so it's shared for a day */
+const personOf = sharedCache("journeys_person_id", lookupPerson, { revalidate: 6 * 3600, maxAge: 86400 });
+
 export async function resolvePersonId(idOrDistinct: string): Promise<string | null> {
   // A PostHog person UUID, or a distinct id (signed-in learners: their Supabase user id, also a UUID).
   // Try it as a distinct id first; fall back to treating a UUID as the person id itself.
   const d = idOrDistinct.slice(0, 200);
-  const rows = await hogql("SELECT person_id FROM events WHERE distinct_id = {d} ORDER BY timestamp DESC LIMIT 1", { name: "resolve_person", values: { d }, ttlMs: 300_000 });
-  return str(rows[0]?.[0]) || (isUuid(d) ? d : null);
+  return (await personOf(d)) || (isUuid(d) ? d : null);
 }
 
 const EVENT_LIMIT = 1500;
 
-export async function getPerson(idOrDistinct: string, days: number): Promise<PersonRes | null> {
+async function computePerson(idOrDistinct: string, days: number): Promise<PersonRes | null> {
   const id = await resolvePersonId(idOrDistinct);
   if (!id || !isUuid(id)) return null;
   const [titleOf, infoRows, eventRows, recs] = await Promise.all([
@@ -310,9 +343,12 @@ export async function getPerson(idOrDistinct: string, days: number): Promise<Per
   return { configured: true, person, events, recordings: recs.recordings, recordingsError: recs.error, days, truncated: eventRows.length >= EVENT_LIMIT };
 }
 
+/** One person's profile, timeline and replays: shared across instances, 60 s. */
+export const getPerson = sharedCache("journeys_person", computePerson, { revalidate: 60, maxAge: 900 });
+
 /* ───────────────────────────── paths & funnel ───────────────────────────── */
 
-export async function getPaths(days: number): Promise<PathsRes> {
+async function computePaths_(days: number): Promise<PathsRes> {
   const [titleOf, rows] = await Promise.all([
     titleResolver(),
     hogql(
@@ -328,9 +364,12 @@ export async function getPaths(days: number): Promise<PathsRes> {
   return { configured: true, ...computePaths(data, titleOf, days) };
 }
 
+/** Entry/exit pages, paths, learn funnel over 7–90 days: shared, 10 min. */
+export const getPaths = sharedCache("journeys_paths", computePaths_, { revalidate: 600, maxAge: 6 * 3600 });
+
 /* ───────────────────────────── one page (clicks + read depth) ───────────────────────────── */
 
-export async function getPage(path: string, days: number): Promise<PageDetailRes> {
+async function computePage(path: string, days: number): Promise<PageDetailRes> {
   const clean = path.split(/[?#]/)[0].slice(0, 300) || "/";
   const [titleOf, clickRows, depthRows] = await Promise.all([
     titleResolver(),
@@ -364,3 +403,6 @@ export async function getPage(path: string, days: number): Promise<PageDetailRes
     siteUrl,
   };
 }
+
+/** One page's clicks and reading depth: shared, 10 min. */
+export const getPage = sharedCache("journeys_page", computePage, { revalidate: 600, maxAge: 6 * 3600 });

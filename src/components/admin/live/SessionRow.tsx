@@ -132,6 +132,10 @@ export default function SessionRow({
               >
                 {watching ? "■ close" : `▶ watch · ${clock(s.recording.duration)}`}
               </button>
+            ) : s.replayPending ? (
+              <span className="inline-flex min-h-10 w-[92px] animate-pulse items-center border border-dashed border-line px-3 font-mono text-[11px] text-fg-4" aria-label="Looking up the replay">
+                replay…
+              </span>
             ) : (
               <span className="inline-flex min-h-10 items-center border border-dashed border-line-strong px-3 font-mono text-[11px] text-fg-4" title="PostHog didn't record a replay for this session (too short, Global Privacy Control, or not sampled)">
                 no replay

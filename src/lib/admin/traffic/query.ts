@@ -22,6 +22,7 @@ import {
   type Filters,
 } from "./report";
 import { resolveWindow, startOf, validTz, type Window } from "./time";
+import { sharedCache } from "@/lib/admin/sharedCache";
 
 export type Params = { win: Window; filters: Filters; meUser: string | null; tz: string; now: number };
 
@@ -99,3 +100,52 @@ export async function retentionReport(p: Params) {
   const ds = await getDataset(first, p.now, p.meUser);
   return { cohorts: retention(ds, p.filters, p.tz, p.now), ...meta(p, ds) };
 }
+
+/* ───────────────────────────── shared cache ───────────────────────────── */
+
+/**
+ * What a report depends on, normalised (no `now`): the key of the shared data cache. Every Vercel instance answers
+ * from the same entry and refreshes it in the background, so the six cards of a Traffic page load don't each re-scan
+ * analytics_events on whichever cold instance they land on.
+ */
+export type ReportArgs = { range: string | null; from: string | null; to: string | null; tz: string; f: string | null; me: string | null };
+
+export function reportArgs(url: URL, adminId: string | null): ReportArgs {
+  const sp = url.searchParams;
+  const filters = parseFilters(sp.get("f"));
+  return {
+    range: sp.get("range"),
+    from: sp.get("from"),
+    to: sp.get("to"),
+    tz: validTz(sp.get("tz")),
+    f: Object.keys(filters).length ? JSON.stringify(filters) : null,
+    me: sp.get("me") === "include" ? null : adminId,
+  };
+}
+
+function paramsOf(a: ReportArgs): Params {
+  const now = Date.now();
+  return { win: resolveWindow(a.range, a.tz, now, a.from, a.to), filters: parseFilters(a.f), meUser: a.me, tz: a.tz, now };
+}
+
+/** 24 h (or shorter / custom) windows refresh every minute; 7 d every 5; longer ones every 10. */
+const windowMs = (a: ReportArgs) => {
+  const w = paramsOf(a).win;
+  return w.end - w.start;
+};
+const revalidateFor = (a: ReportArgs) => (windowMs(a) <= 2 * 86_400_000 ? 60 : windowMs(a) <= 8 * 86_400_000 ? 300 : 600);
+const maxAgeFor = (a: ReportArgs) => (windowMs(a) <= 2 * 86_400_000 ? 900 : windowMs(a) <= 8 * 86_400_000 ? 3600 : 6 * 3600);
+const opts = { revalidate: revalidateFor, maxAge: maxAgeFor };
+
+export const cachedOverview = sharedCache("traffic_overview", (a: ReportArgs) => overviewReport(paramsOf(a)), opts);
+export const cachedBreakdowns = sharedCache("traffic_breakdowns", (a: ReportArgs) => breakdownsReport(paramsOf(a)), opts);
+export const cachedPages = sharedCache("traffic_pages", (a: ReportArgs) => pagesReport(paramsOf(a)), opts);
+export const cachedEvents = sharedCache("traffic_events", (a: ReportArgs) => eventsReport(paramsOf(a)), opts);
+export const cachedFunnel = sharedCache("traffic_funnel", (a: ReportArgs, steps: string | null) => funnelReport(paramsOf(a), steps), opts);
+/** last 8 weeks whatever the range (the range only shows in its window meta) */
+export const cachedRetention = sharedCache("traffic_retention", (a: ReportArgs) => retentionReport(paramsOf(a)), { revalidate: 600, maxAge: 6 * 3600 });
+/** visitors on the site now (admin rail badge on every page + Traffic's live card): 20 s */
+export const cachedLive = sharedCache("traffic_live", (f: string | null, me: string | null) => liveReport({ filters: parseFilters(f), meUser: me, now: Date.now() }), {
+  revalidate: 20,
+  maxAge: 120,
+});

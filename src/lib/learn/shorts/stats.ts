@@ -12,6 +12,7 @@ import "server-only";
  */
 import { supabase } from "@/lib/supabase";
 import { dropInternal } from "@/lib/analytics/excludeServer";
+import { sharedCache } from "@/lib/admin/sharedCache";
 
 type Row = { created_at: string; visitor_id: string | null; user_id: string | null; metadata: Record<string, unknown> | null };
 
@@ -159,6 +160,9 @@ export async function shortsStats(days = 30): Promise<ShortsStats> {
     shorts,
   };
 }
+
+/** For the admin screens (shorts, publishing, distribution): shared across instances, 5 min, refreshed in the background. */
+export const adminShortsStats = sharedCache("shorts_stats", (days: number) => shortsStats(days), { revalidate: 300, maxAge: 3600 });
 
 /**
  * Engagement score for the feed's "top" order: upvotes, saves, discussion and finished views count,

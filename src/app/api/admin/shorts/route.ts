@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/auth";
-import { shortsStats, shortScore } from "@/lib/learn/shorts/stats";
+import { adminShortsStats, shortScore } from "@/lib/learn/shorts/stats";
 import { listShorts } from "@/lib/learn/shorts/load";
 import { SHORT_CATEGORIES } from "@/lib/learn/shorts/types";
 
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   if (admin instanceof NextResponse) return admin;
   const days = Math.min(180, Math.max(1, Number(new URL(request.url).searchParams.get("days")) || 30));
   try {
-    const [st, list] = await Promise.all([shortsStats(days), listShorts().catch(() => [])]);
+    const [st, list] = await Promise.all([adminShortsStats(days), listShorts().catch(() => [])]);
     const meta = new Map(list.map((s) => [s.id, s]));
     const label = new Map<string, string>(SHORT_CATEGORIES.map((c) => [c.id, c.label]));
     return NextResponse.json({

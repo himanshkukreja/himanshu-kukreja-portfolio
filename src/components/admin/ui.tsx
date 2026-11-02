@@ -127,48 +127,139 @@ export const useAdminClient = () => useContext(AdminClientContext);
 
 export type AdminError = Error & { status?: number };
 
-type DataState<T> = { key: string; data?: T; error?: AdminError };
+type DataState<T> = { key: string; data?: T; error?: AdminError; /** consecutive failures (poll back-off) */ fails?: number };
+
+/**
+ * One request per URL at a time across every hook on the page (the rail's live badge and a page asking for the same
+ * thing share it). Each caller passes its own signal; the network request is aborted only when no caller still waits.
+ */
+type Flight = { p: Promise<unknown>; ctrl: AbortController; waiting: number };
+const flights = new WeakMap<AdminClient, Map<string, Flight>>();
+
+function sharedJson<T>(client: AdminClient, url: string, signal: AbortSignal): Promise<T> {
+  let byUrl = flights.get(client);
+  if (!byUrl) flights.set(client, (byUrl = new Map()));
+  const m = byUrl;
+  let f = m.get(url);
+  if (!f) {
+    const ctrl = new AbortController();
+    const flight: Flight = {
+      ctrl,
+      waiting: 0,
+      p: client.json<T>(url, { signal: ctrl.signal }).finally(() => {
+        if (m.get(url) === flight) m.delete(url);
+      }),
+    };
+    flight.p.catch(() => {});
+    m.set(url, flight);
+    f = flight;
+  }
+  const flight = f;
+  flight.waiting++;
+  return new Promise<T>((resolve, reject) => {
+    let done = false;
+    const leave = () => {
+      if (done) return;
+      done = true;
+      flight.waiting--;
+      if (flight.waiting <= 0 && m.get(url) === flight) {
+        m.delete(url);
+        flight.ctrl.abort();
+      }
+      reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+    };
+    if (signal.aborted) return leave();
+    signal.addEventListener("abort", leave, { once: true });
+    flight.p.then(
+      (v) => {
+        if (done) return;
+        done = true;
+        flight.waiting--;
+        signal.removeEventListener("abort", leave);
+        resolve(v as T);
+      },
+      (e) => {
+        if (done) return;
+        done = true;
+        flight.waiting--;
+        signal.removeEventListener("abort", leave);
+        reject(e);
+      }
+    );
+  });
+}
 
 /**
  * GET an admin API. `url = null` skips the request. Keeps the last data while refreshing.
- * `refreshMs` polls (e.g. live visitors). Returns { data, error, loading, refresh, mutate }.
+ * Returns { data, error, loading, refresh, mutate }.
+ *
+ * `refreshMs` polls (e.g. live visitors), and never piles requests up: the next poll is scheduled only once the
+ * current request has answered, it waits while the tab is hidden (and fires as soon as it's visible again if it came
+ * due meanwhile), and after a failure the gap doubles (up to 5 min) until a request succeeds. `refresh()` and a URL
+ * change abort the request in flight. `followUpMs(data)` → ms: ask again sooner than the poll (e.g. the server
+ * answered from a cache it's refreshing in the background), at most four times in a row.
  */
-export function useAdminData<T>(url: string | null, opts: { refreshMs?: number } = {}) {
+export function useAdminData<T>(url: string | null, opts: { refreshMs?: number; followUpMs?: (data: T) => number | null } = {}) {
   const client = useAdminClient();
   const [nonce, setNonce] = useState(0);
   const [state, setState] = useState<DataState<T>>({ key: "" });
   const key = url ? `${url}#${nonce}` : "";
-  const { refreshMs } = opts;
+  const { refreshMs, followUpMs } = opts;
+  const followUps = useRef(0);
+  // the latest callback without re-arming the poll timer on every render (callers pass inline arrows)
+  const followUpRef = useRef(followUpMs);
+  useEffect(() => {
+    followUpRef.current = followUpMs;
+  });
 
   useEffect(() => {
     if (!url) return;
-    let off = false;
-    client
-      .json<T>(url)
+    const ctrl = new AbortController();
+    sharedJson<T>(client, url, ctrl.signal)
       .then((data) => {
-        if (!off) setState({ key, data });
+        if (!ctrl.signal.aborted) setState({ key, data, fails: 0 });
       })
       .catch((e: AdminError) => {
-        if (off) return;
+        if (ctrl.signal.aborted) return;
         if (e?.status === 401) client.onUnauthorized();
-        setState((s) => ({ key, data: s.data, error: e instanceof Error ? e : new Error(String(e)) }));
+        setState((s) => ({ key, data: s.data, error: e instanceof Error ? e : new Error(String(e)), fails: (s.fails ?? 0) + 1 }));
       });
-    return () => {
-      off = true;
-    };
+    return () => ctrl.abort();
   }, [url, key, client]);
 
+  const settled = state.key === key;
+  const fails = state.fails ?? 0;
+  const latest = state.data;
+
   useEffect(() => {
-    if (!url || !refreshMs) return;
-    const id = window.setInterval(() => {
-      if (document.visibilityState === "visible") setNonce((n) => n + 1);
-    }, refreshMs);
-    return () => window.clearInterval(id);
-  }, [url, refreshMs]);
+    if (!url || !settled) return;
+    let delay: number | null = refreshMs ? (fails ? Math.min(refreshMs * 2 ** fails, 5 * 60_000) : refreshMs) : null;
+    const follow = followUpRef.current;
+    const soon = !fails && latest !== undefined && follow ? follow(latest) : null;
+    if (soon != null && followUps.current < 4) {
+      followUps.current++;
+      delay = delay == null ? soon : Math.min(delay, soon);
+    } else if (soon == null) followUps.current = 0;
+    if (delay == null) return;
+    let timer = 0;
+    const go = () => setNonce((n) => n + 1);
+    const onVis = () => {
+      if (document.visibilityState !== "visible") return;
+      document.removeEventListener("visibilitychange", onVis);
+      go();
+    };
+    timer = window.setTimeout(() => {
+      if (document.visibilityState === "visible") go();
+      else document.addEventListener("visibilitychange", onVis);
+    }, delay);
+    return () => {
+      window.clearTimeout(timer);
+      document.removeEventListener("visibilitychange", onVis);
+    };
+  }, [url, settled, refreshMs, fails, latest]);
 
   const refresh = useCallback(() => setNonce((n) => n + 1), []);
   const mutate = useCallback((fn: (d: T | undefined) => T | undefined) => setState((s) => ({ ...s, data: fn(s.data) })), []);
-  const settled = state.key === key;
   // Keep data from the same URL while a refresh is in flight; drop it when the URL changes.
   const sameUrl = state.key.slice(0, state.key.lastIndexOf("#")) === url;
   return {

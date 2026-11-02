@@ -1,4 +1,5 @@
 import "server-only";
+import { sharedCache } from "@/lib/admin/sharedCache";
 import { parseUA } from "@/lib/analytics/ua";
 import { getCourseIndex, getMcqKey, getStages, lessonTag, lessonTitle, stageAtPct, type CourseIndex, type McqKey } from "./course";
 import { getDataset, type Dataset, type EventRow, type ProgressRow } from "./dataset";
@@ -653,7 +654,7 @@ const SORTS: Record<LearnersSort, (r: LearnerRow) => number | string> = {
   notes: (r) => r.notes + r.bookmarks,
 };
 
-export async function getLearners(query: LearnersQuery): Promise<LearnersResponse> {
+async function computeGetLearners(query: LearnersQuery): Promise<LearnersResponse> {
   const model = await buildModel(query.tz);
   const all = model.users.map((u) => u.row);
   const segCount = (s: Segment) => all.filter((r) => r.segments.includes(s)).length;
@@ -698,7 +699,7 @@ export async function getLearners(query: LearnersQuery): Promise<LearnersRespons
 
 // ------------------------------------------------------------------ summary (Overview page)
 
-export async function getLearnersSummary(range: AdminRange, tz: string): Promise<LearnersSummary> {
+async function computeGetLearnersSummary(range: AdminRange, tz: string): Promise<LearnersSummary> {
   const model = await buildModel(tz);
   const { ds, idx, now } = model;
   const since = now - RANGE_MS[range];
@@ -794,3 +795,12 @@ export async function getLearnersSummary(range: AdminRange, tz: string): Promise
     recent,
   };
 }
+
+/**
+ * Responses sit in the shared data cache (every instance; refreshed in the background): the learner model is built
+ * from every progress row and event, 3–6 s cold. A reset (POST /api/admin/learners/:id/reset) revalidates the tag.
+ */
+export const LEARNERS_DATA_TAG = "admin-learners-data";
+export const getLearners = sharedCache("learners_list", computeGetLearners, { revalidate: 60, maxAge: 1800, tags: [LEARNERS_DATA_TAG] });
+
+export const getLearnersSummary = sharedCache("learners_summary", computeGetLearnersSummary, { revalidate: 120, maxAge: 1800, tags: [LEARNERS_DATA_TAG] });
