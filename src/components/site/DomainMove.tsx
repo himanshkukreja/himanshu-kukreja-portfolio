@@ -16,6 +16,7 @@ import { useEffect, useState } from "react";
 import { CARRY_JS, MOVED_COOKIE, SIGNIN_KEY, droppedKinds } from "@/lib/site/carry";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
+import { holdAttention } from "@/lib/learn/guide/attention";
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
 import { useSite } from "./SiteMode";
 
@@ -110,6 +111,7 @@ export function SignInOnce() {
       /* ignore */
     }
     setShow(false);
+    setHold(false);
   };
   useEffect(() => {
     if (site !== "course" || loading) return;
@@ -132,6 +134,19 @@ export function SignInOnce() {
     const t = setTimeout(() => setShow(true), 600);
     return () => clearTimeout(t);
   }, [site, user, loading]);
+  // one first-visit popup at a time: from the first moment a returning learner is detected (before the sign-in
+  // check finishes) the notebook tip and the welcome card wait; released once signed in or dismissed
+  const [hold, setHold] = useState(() => {
+    try {
+      return typeof window !== "undefined" && !!localStorage.getItem(SIGNIN_KEY);
+    } catch {
+      return false;
+    }
+  });
+  useEffect(() => {
+    if (!hold || user || site !== "course") return;
+    return holdAttention();
+  }, [hold, user, site]);
   if (!show || user) return null;
   return (
     <div role="region" aria-label="Sign in on the new domain" className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] z-[60] mx-auto flex max-w-[560px] flex-col gap-3 border border-signal bg-surface px-4 py-3 shadow-lg sm:flex-row sm:items-center lg:bottom-6">
