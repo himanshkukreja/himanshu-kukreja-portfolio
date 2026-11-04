@@ -154,7 +154,7 @@ export default function SiteHeader() {
         inert={hidden || undefined}
         className={`hk-header hk-titlebar sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
       >
-        <div className="hk-titlebar-row relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6">
+        <div className="hk-titlebar-row relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6 lg:gap-x-3 xl:gap-x-5">
           <AppBack />
           {learn ? (
             <>

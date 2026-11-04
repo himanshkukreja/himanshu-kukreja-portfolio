@@ -72,8 +72,9 @@ function DueBadge({ compact = false }: { compact?: boolean }) {
 }
 
 /**
- * The course brand: the diagram mark + "System Design Mastery." ("SD Mastery." where the row is tight:
- * phones, and desktops 1024–1399 px where the tabs share the row; the mark alone under 380 px). The portfolio is one tap away in the
+ * The course brand: the diagram mark + "SD Mastery." (the mark alone under 380 px). The full name doesn't fit: on
+ * tablets the signed-in row (Admin button, avatar) has no spare room, and from 1024 px the tabs share the row inside
+ * its 1320 px cap; it overflowed both and scrolled the page sideways. The portfolio is one tap away in the
  * phone dock ("~") and the account menu.
  */
 export function LearnBrand() {
@@ -81,9 +82,7 @@ export function LearnBrand() {
     <Link href={COURSE_HREF} aria-label="System Design Mastery, course home" className="inline-flex min-h-10 shrink-0 items-center gap-2 py-1 font-display text-lg font-extrabold tracking-[-0.03em] text-fg sm:text-xl">
       <CourseMark className="h-7 w-7" />
       <span aria-hidden className="whitespace-nowrap max-[379px]:hidden">
-        <span className="hidden sm:inline lg:hidden min-[1400px]:inline">System Design Mastery</span>
-        <span className="sm:hidden lg:inline min-[1400px]:hidden">SD Mastery</span>
-        <span className="text-signal-text">.</span>
+        SD Mastery<span className="text-signal-text">.</span>
       </span>
     </Link>
   );
