@@ -1,12 +1,9 @@
 /* Lesson reader: things Tailwind can't reach inside the rendered course HTML. */
 
-.content {
-  --reader-size: 17px;
-}
-
-/* Text size control (17 / 19 / 21 px): the content's base size follows the variable. */
+/* Text size (17 / 19 / 21 px, the reading panel): the content's base size follows --reader-size, which the
+   reading settings put on <html> before first paint (src/lib/learn/readingModes.ts). */
 .content :global(:is(.md-content, .sd-body)) {
-  font-size: var(--reader-size);
+  font-size: var(--reader-size, 17px);
 }
 
 /* Anchors and programmatic jumps land under the sticky header + stage rail. */
@@ -16,8 +13,8 @@
 
 /* Read-aloud: the block being spoken. Text nodes are never split. */
 .content :global(.reading-highlight) {
-  background: rgba(255, 107, 43, 0.1);
-  outline: 1px solid rgba(255, 107, 43, 0.55);
+  background: color-mix(in srgb, var(--c-signal) 10%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--c-signal) 55%, transparent);
   outline-offset: 4px;
 }
 

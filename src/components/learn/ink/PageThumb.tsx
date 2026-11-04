@@ -3,7 +3,7 @@
 /** A page's thumbnail, drawn from its strokes (paper, items as blocks, ink) when it scrolls into view. `width` is the
  * drawing resolution (CSS px); the canvas fills its box at the page's aspect ratio. */
 import { memo, useEffect, useRef } from "react";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { drawPage } from "@/lib/learn/ink/render";
 import { PAGE_H, PAGE_W, type NotebookPage } from "@/lib/learn/ink/types";
 
@@ -11,8 +11,8 @@ const NO_IMAGES = new Map<string, CanvasImageSource>();
 
 function PageThumb({ page, width }: { page: Pick<NotebookPage, "paper" | "strokes" | "items">; width: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
-  const { resolvedTheme } = useTheme();
-  const theme = resolvedTheme === "dark" ? "dark" : "light";
+  // the page's tone: a reading mode (Sepia, Dusk…) can differ from the site theme
+  const theme = usePageTone().dark ? "dark" : "light";
   const height = Math.round((width * PAGE_H) / PAGE_W);
 
   useEffect(() => {

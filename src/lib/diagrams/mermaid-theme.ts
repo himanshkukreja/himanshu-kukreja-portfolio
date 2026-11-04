@@ -9,11 +9,11 @@ const CLASSES = palette.classes as Record<string, Record<DiagramTheme, Style>>;
 const CLASSDEF_KINDS = /^(flowchart|graph|stateDiagram(-v2)?|classDiagram)\b/;
 
 /** `note` is a keyword in class diagrams (`note for X "…"`), so a classDef by that name breaks them. */
-function classDefs(theme: DiagramTheme, classDiagram = false): string[] {
+function classDefs(theme: DiagramTheme, classDiagram = false, over?: Record<string, Style>): string[] {
   return Object.entries(CLASSES)
     .filter(([name]) => !(classDiagram && name === "note"))
     .map(([name, t]) => {
-      const s = t[theme];
+      const s = { ...t[theme], ...over?.[name] };
       const parts = Object.entries(s).map(([k, v]) => `${k}:${v}`);
       return `  classDef ${name} ${parts.join(",")}`;
     });
@@ -24,7 +24,7 @@ function classDefs(theme: DiagramTheme, classDiagram = false): string[] {
  * hot, ok, bad, note) right after the diagram header, so content only names classes and the
  * site decides the colours for the active theme.
  */
-export function prepareMermaidSource(src: string, theme: DiagramTheme): string {
+export function prepareMermaidSource(src: string, theme: DiagramTheme, over?: ModeLook): string {
   const lines = src.replace(/\r\n/g, "\n").split("\n");
   // skip leading blank lines, front matter and %% comments / %%{init}%% directives
   let i = 0;
@@ -43,7 +43,7 @@ export function prepareMermaidSource(src: string, theme: DiagramTheme): string {
     : lines.slice(i + 1);
   return [
     ...lines.slice(0, i + 1),
-    ...classDefs(theme, /^classDiagram\b/.test(header)),
+    ...classDefs(theme, /^classDiagram\b/.test(header), over?.classes),
     ...body,
   ].join("\n");
 }
@@ -64,12 +64,66 @@ function squareIcons(line: string): string {
   });
 }
 
-export function mermaidConfig(theme: DiagramTheme) {
+/**
+ * A reading mode's own neutrals (sepia, paper, mint, dusk: src/lib/learn/readingModes.ts) for the theme variables and
+ * the grey node classes, from its --c-* tokens (`tok("surface")` → the value). The coloured classes keep the palette.
+ */
+export type ModeLook = { vars: Style; classes: Record<string, Style> };
+
+export function modeLook(tok: (name: string) => string): ModeLook {
+  const [bg, surface, s2, raised, line, fg, fg2, fg3, fg4, accent] = ["bg", "surface", "surface-2", "raised", "line-strong", "fg", "fg-2", "fg-3", "fg-4", "signal-text"].map(tok);
+  return {
+    vars: {
+      primaryColor: s2,
+      mainBkg: s2,
+      stateBkg: s2,
+      secondaryColor: s2,
+      tertiaryColor: surface,
+      primaryTextColor: fg,
+      textColor: fg,
+      titleColor: fg,
+      actorTextColor: fg,
+      signalTextColor: fg,
+      labelTextColor: fg,
+      stateLabelColor: fg,
+      primaryBorderColor: line,
+      nodeBorder: line,
+      clusterBorder: line,
+      actorLineColor: line,
+      labelBoxBorderColor: line,
+      lineColor: fg4,
+      transitionColor: fg4,
+      signalColor: fg2,
+      loopTextColor: fg2,
+      transitionLabelColor: fg2,
+      clusterBkg: raised,
+      compositeBackground: raised,
+      edgeLabelBackground: bg,
+      actorBkg: surface,
+      labelBoxBkgColor: surface,
+      altBackground: surface,
+      actorBorder: accent,
+      activationBorderColor: accent,
+      attributeBackgroundColorOdd: surface,
+      attributeBackgroundColorEven: bg,
+      rowOdd: surface,
+      rowEven: bg,
+    },
+    classes: {
+      client: { fill: surface, stroke: fg3, color: fg },
+      service: { fill: s2, stroke: fg2, color: fg },
+      external: { fill: raised, stroke: fg4, color: fg2 },
+      note: { fill: surface, stroke: line, color: fg3 },
+    },
+  };
+}
+
+export function mermaidConfig(theme: DiagramTheme, over?: ModeLook) {
   return {
     startOnLoad: false,
     securityLevel: "strict" as const,
     theme: "base" as const,
-    themeVariables: (palette.theme as Record<DiagramTheme, Style>)[theme],
+    themeVariables: { ...(palette.theme as Record<DiagramTheme, Style>)[theme], ...over?.vars },
     flowchart: {
       curve: "basis" as const,
       padding: 14,

@@ -11,15 +11,10 @@
 /* ------------------------------------------------------------ tone tokens */
 
 .course-content {
-  /* sky + amber come from src/lib/diagrams/palette.json (edge / queue strokes) */
-  --sdb-sky: #1d6fb8;
-  --sdb-amber: #a16207;
-  --sdb-ok-text: #15803d;
-}
-.dark .course-content {
-  --sdb-sky: #4fb3ff;
-  --sdb-amber: #f5b83d;
-  --sdb-ok-text: #3dd68c;
+  /* sky + amber come from src/lib/diagrams/palette.json (edge / queue strokes); tokens, so the reading modes set them */
+  --sdb-sky: var(--c-sky);
+  --sdb-amber: var(--c-amber);
+  --sdb-ok-text: var(--c-ok-text);
 }
 
 .course-content .sdb,

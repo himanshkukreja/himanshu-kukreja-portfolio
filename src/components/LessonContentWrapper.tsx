@@ -17,7 +17,7 @@ type LessonContentWrapperProps = {
   week: string;
   lessonSlug: string;
   lessonTitle: string;
-  /** reading size in px (17 / 19 / 21), applied through --reader-size */
+  /** reading size in px, applied through --reader-size; omitted, the reading settings' size on <html> applies */
   textSize?: number;
 };
 
@@ -26,11 +26,11 @@ type LessonContentWrapperProps = {
  * reader tools find stages inside it by DOM (`section[data-sd=stage]`).
  */
 const LessonContentWrapper = forwardRef<HTMLDivElement, LessonContentWrapperProps>(function LessonContentWrapper(
-  { htmlContent, courseId, week, lessonSlug, lessonTitle, textSize = 17 },
+  { htmlContent, courseId, week, lessonSlug, lessonTitle, textSize },
   ref
 ) {
   return (
-    <div ref={ref} className={`course-content ${styles.content}`} style={{ ["--reader-size" as string]: `${textSize}px` }}>
+    <div ref={ref} className={`course-content ${styles.content}`} style={textSize ? { ["--reader-size" as string]: `${textSize}px` } : undefined}>
       <HighlightableContent htmlContent={htmlContent} courseId={courseId} week={week} lessonSlug={lessonSlug} lessonTitle={lessonTitle} />
       <CourseEnhancer lessonKey={`${week}/${lessonSlug}`} />
     </div>

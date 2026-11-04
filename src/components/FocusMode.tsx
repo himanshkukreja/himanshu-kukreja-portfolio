@@ -62,7 +62,8 @@ export default function FocusMode({ children, sidebarLeft, sidebarRight, focus, 
         }
       >
         {sidebarLeft && !isFocus && <aside data-reader-left className={`${leftOnMobile ? "" : "hidden"} min-w-0 lg:hidden xl:block`}>{sidebarLeft}</aside>}
-        <article className="w-full min-w-0 max-w-[740px] justify-self-center">{children}</article>
+        {/* the reading panel's page width (--read-measure, src/lib/learn/readingModes.ts) */}
+        <article className="w-full min-w-0 max-w-[var(--read-measure,740px)] justify-self-center">{children}</article>
         {sidebarRight && !isFocus && <aside data-reader-right className="hidden min-w-0 lg:block">{sidebarRight}</aside>}
       </div>
     </>

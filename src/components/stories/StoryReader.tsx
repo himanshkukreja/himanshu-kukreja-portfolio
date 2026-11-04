@@ -37,6 +37,7 @@ import {
   type Debrief,
 } from "./case-types";
 import { portfolioUrl } from "@/lib/site/hosts";
+import { ReadingButton } from "@/components/learn/reading/ReadingPanel";
 
 export type Checkpoint = { id: string; label: string };
 export type CaseLink = Pick<CaseFile, "slug" | "caseId" | "type" | "title">;
@@ -398,8 +399,8 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
         <div
           className={
             focus
-              ? "mx-auto max-w-[760px]"
-              : "lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[240px_minmax(0,760px)_240px] xl:justify-center xl:gap-12"
+              ? "mx-auto max-w-[var(--read-measure,760px)]"
+              : "lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-10 xl:grid-cols-[240px_minmax(0,var(--read-measure,760px))_240px] xl:justify-center xl:gap-12"
           }
         >
           {!focus && (
@@ -521,6 +522,7 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
                 >
                   {focus ? "Exit focus" : "Focus mode"}
                 </button>
+                <ReadingButton />
                 <button
                   type="button"
                   onClick={toggleSave}

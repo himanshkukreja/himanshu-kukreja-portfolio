@@ -17,6 +17,8 @@ import { DockDot, TabPending } from "./LinkPending";
 import OfflineStrip from "@/components/offline/OfflineStrip";
 import AppBack, { useAppDepth } from "./AppBack";
 import AdminLink from "./AdminLink";
+import { usePageTone } from "@/components/learn/reading/useReading";
+import { updateReading } from "@/lib/learn/readingModes";
 
 // Portfolio nav. The course (and its case files) lives on its own domain now: "learn ↗" goes there.
 const NAV = [
@@ -37,15 +39,21 @@ const DOCK = [
 ];
 
 function ThemeToggle() {
-  const { resolvedTheme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
+  // the page's tone: a reading mode (the reader's "Aa" panel) decides it on reading pages
+  const tone = usePageTone();
   // true on the client, false during SSR — avoids a theme-icon hydration mismatch.
   // Light is the default theme, so the server renders the light-mode icon.
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
-  const dark = mounted ? resolvedTheme === "dark" : false;
+  const dark = mounted ? tone.dark : false;
   return (
     <button
       type="button"
-      onClick={() => setTheme(dark ? "light" : "dark")}
+      onClick={() => {
+        // flipping the page by hand hands the colours back to the site theme
+        if (tone.override) updateReading({ mode: "site" });
+        setTheme(dark ? "light" : "dark");
+      }}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       className="grid h-10 w-10 place-items-center border border-line-strong text-fg hover:bg-surface-2"
     >

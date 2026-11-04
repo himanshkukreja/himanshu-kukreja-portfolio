@@ -60,7 +60,7 @@ export function QuestionResult({ q, m, g, compact, answerHref }: { q: PaperQuest
           const ev = g?.points[i]?.evidence;
           return (
             <li key={i} className="flex gap-3 border-b border-line px-3 py-2.5 last:border-b-0">
-              <span aria-hidden className={`mt-[1px] grid h-6 w-6 shrink-0 place-items-center font-mono text-[13px] font-bold ${ok ? "bg-ok text-[#04140B]" : part ? "border border-signal text-signal-text" : "border border-bad text-bad-text"}`}>
+              <span aria-hidden className={`mt-[1px] grid h-6 w-6 shrink-0 place-items-center font-mono text-[13px] font-bold ${ok ? "bg-ok text-on-ok" : part ? "border border-signal text-signal-text" : "border border-bad text-bad-text"}`}>
                 {ok ? "✓" : part ? "½" : "✗"}
               </span>
               <span className="flex min-w-0 flex-1 flex-col gap-1">
@@ -187,7 +187,7 @@ export default function PaperResults({ paper, last, details, best, xp, onRetry, 
           </h2>
           <div className="flex flex-col gap-2 pb-1">
             {band ? (
-              <span className={`self-start px-3 py-[7px] font-mono text-sm font-semibold tracking-label ${band === "distinction" ? "bg-signal text-on-signal" : band === "pass" ? "bg-ok text-[#04140B]" : "border border-bad text-bad-text"}`}>
+              <span className={`self-start px-3 py-[7px] font-mono text-sm font-semibold tracking-label ${band === "distinction" ? "bg-signal text-on-signal" : band === "pass" ? "bg-ok text-on-ok" : "border border-bad text-bad-text"}`}>
                 {pct(res.score, res.max)}% · {BAND_LABEL[band].toUpperCase()}
               </span>
             ) : (

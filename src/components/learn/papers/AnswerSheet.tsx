@@ -8,7 +8,7 @@
  * device while offline).
  */
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import InkCanvas, { type InkCanvasHandle, type InkContent, type InkToolId } from "@/components/learn/ink/InkCanvas";
 import InkToolbar, { COLORS } from "@/components/learn/ink/InkToolbar";
@@ -49,8 +49,8 @@ type Props = {
 const blankDraft = (paper: Paper): NotebookPage => ({ id: "", notebookId: "", title: "", paper, position: 0, lessonKey: null, strokes: [], items: [], convertedMd: null, convertedAt: null, createdAt: "", updatedAt: "" });
 
 const AnswerSheet = forwardRef<AnswerSheetHandle, Props>(function AnswerSheet({ ids, onIds, make, readOnly, defaultPaper, label, onSave }, ref) {
-  const { resolvedTheme } = useTheme();
-  const theme: InkTheme = resolvedTheme === "dark" ? "dark" : "light";
+  // the page's tone (a reading mode can make a paper dark while the site theme is light, or the other way round)
+  const theme: InkTheme = usePageTone().dark ? "dark" : "light";
   const [s, setS] = useState(0);
   const [page, setPage] = useState<NotebookPage | null>(null);
   const [dirty, setDirty] = useState(false);

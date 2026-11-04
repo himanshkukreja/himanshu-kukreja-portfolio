@@ -10,9 +10,10 @@
   --sd-display: var(--font-display), ui-sans-serif, system-ui, sans-serif;
   --sd-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --sd-grid: color-mix(in srgb, var(--c-line) 40%, transparent);
-  font-family: var(--sd-sans);
+  /* the reading panel (src/lib/learn/readingModes.ts) sets the font, size and spacing on reading pages */
+  font-family: var(--read-font, var(--sd-sans));
   font-size: var(--reader-size, 17px);
-  line-height: 1.75;
+  line-height: var(--read-leading, 1.75);
   color: var(--c-fg);
   overflow-wrap: break-word;
 }
@@ -27,7 +28,7 @@
   margin: 0 0 1.1em;
 }
 .course-content a {
-  color: var(--c-signal-text);
+  color: var(--c-link);
   text-decoration: underline;
   text-decoration-thickness: 1px;
   text-underline-offset: 3px;
@@ -822,7 +823,7 @@
 
 .course-content .sd-code {
   border: 1px solid var(--c-line);
-  background: var(--c-surface);
+  background: var(--c-code-bg);
   margin: 24px 0;
 }
 .course-content .sd-code-head {
@@ -903,6 +904,38 @@
 }
 .dark .course-content .sd-code-pre.shiki span[style] {
   color: var(--shiki-dark);
+}
+/* shiki's github-light / github-dark colours (always paired) → the syntax tokens (globals.css), so code reads
+   on every theme and reading mode; github's purple function names become teal */
+:root .course-content .sd-code-pre.shiki span[style*="light:#24292E" i] {
+  color: var(--c-code-plain);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#D73A49" i] {
+  color: var(--c-code-kw);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#032F62" i] {
+  color: var(--c-code-str);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#6F42C1" i] {
+  color: var(--c-code-fn);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#005CC5" i] {
+  color: var(--c-code-num);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#6A737D" i] {
+  color: var(--c-code-com);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#E36209" i] {
+  color: var(--c-code-var);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#22863A" i] {
+  color: var(--c-code-tag);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#B31D28" i] {
+  color: var(--c-bad-text);
+}
+:root .course-content .sd-code-pre.shiki span[style*="light:#586069" i] {
+  color: var(--c-fg-3);
 }
 .course-content .sd-code-more {
   display: block;
@@ -1086,7 +1119,7 @@
 .course-content .sd-rv-verdict .sd-btn[data-sd-action="knew"][aria-pressed="true"] {
   background: var(--c-ok);
   border-color: var(--c-ok);
-  color: #000;
+  color: var(--c-on-ok);
 }
 .course-content .sd-rv-verdict .sd-btn[data-sd-action="review"][aria-pressed="true"] {
   background: var(--c-signal);
@@ -1639,7 +1672,7 @@
 /* ------------------------------------------------------------ highlights (content layer) */
 
 mark.sd-mark {
-  --hl-tint: rgba(255, 107, 43, 0.22);
+  --hl-tint: var(--c-hl);
   --hl-sw: #ff6b2b;
   padding: 0;
   background: var(--hl-tint);
@@ -1871,4 +1904,11 @@ pre mark {
   .course-content .sd-bp-body {
     padding: 12px;
   }
+}
+
+/* Dusk (a reading mode, src/lib/learn/readingModes.ts): figures with white backgrounds keep them, toned down a touch
+   inside a hairline frame so they don't glare off the soft dark page (the dark blueprint plates are left alone) */
+html[data-read-mode="dusk"] .course-content img:not(.sd-art *) {
+  border: 1px solid var(--c-line-strong);
+  filter: brightness(0.86) contrast(0.96);
 }

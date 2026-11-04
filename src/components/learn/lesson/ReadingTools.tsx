@@ -14,6 +14,8 @@ import { ASK_LESSON_EVENT } from "@/components/learn/ai/AskLessonPanel";
 import { openNotebookPanel } from "@/lib/learn/ink/client";
 import SnipButton from "@/components/learn/ink/capture/SnipButton";
 import AnnotateButton from "@/components/learn/ink/annotate/AnnotateButton";
+import ReadingSettings from "@/components/learn/reading/ReadingPanel";
+import { TEXT_SIZES } from "@/lib/learn/readingModes";
 
 const openAsk = () => window.dispatchEvent(new Event(ASK_LESSON_EVENT));
 
@@ -60,14 +62,14 @@ export function AskPrompt() {
   );
 }
 
-export const TEXT_SIZES = [17, 19, 21] as const;
+export { TEXT_SIZES };
 
 type Props = {
   readAloud: ReadAloudController;
   focus: boolean;
   onFocus: () => void;
+  /** the reading size (px), shown on the "Aa" button; "Aa" opens the reading panel (mode, font, size, spacing, width) */
   size: number;
-  onSize: () => void;
   onContents: () => void;
 };
 
@@ -87,7 +89,7 @@ const FocusIcon = () => (
 );
 
 /** Desktop reading tools: Ask AI above; stage indicator · Listen · Focus · Aa. Bottom right, lg and up. */
-export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) {
+export function ReadingDock({ readAloud, focus, onFocus, size }: Props) {
   const p = useLessonProgress();
   const ai = useAiStatus();
   const listening = readAloud.playing && !readAloud.paused;
@@ -122,12 +124,26 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
         <SnipButton variant="dock" />
         <AnnotateButton variant="dock" />
         <TermsToggle variant="dock" />
-        <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] text-fg hover:bg-surface-2">
-          <span aria-hidden className="font-display text-base font-bold leading-none">
-            Aa
-          </span>
-          <span className="font-mono text-[10px] tracking-[0.06em]">{size}PX</span>
-        </button>
+        <ReadingSettings placement="up" as="popover" className="flex">
+          {(t) => (
+            <button
+              type="button"
+              ref={t.ref}
+              onClick={t.onClick}
+              aria-expanded={t["aria-expanded"]}
+              aria-haspopup={t["aria-haspopup"]}
+              aria-controls={t["aria-controls"]}
+              aria-label={`Reading settings: mode, font, text size (${size} pixels)`}
+              title="Reading settings"
+              className={`flex min-h-[52px] min-w-14 flex-col items-center justify-center gap-[3px] ${t["aria-expanded"] ? "bg-signal text-on-signal" : "text-fg hover:bg-surface-2"}`}
+            >
+              <span aria-hidden className="font-display text-base font-bold leading-none">
+                Aa
+              </span>
+              <span aria-hidden className="font-mono text-[10px] tracking-[0.06em]">{size}PX</span>
+            </button>
+          )}
+        </ReadingSettings>
       </div>
     </div>
   );
@@ -137,7 +153,7 @@ export function ReadingDock({ readAloud, focus, onFocus, size, onSize }: Props) 
  * Phone reading toolbar: Listen · Contents · Aa · Focus · Notebook · Save, with the Ask AI pill floating above. Sits directly above the site's
  * bottom dock (its height is measured into --site-dock), never on top of it.
  */
-export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus }: Props) {
+export function MobileReadingBar({ readAloud, size, onContents, onFocus }: Props) {
   const p = useLessonProgress();
   const ai = useAiStatus();
   // slides away with the header while reading down
@@ -212,9 +228,22 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
               <path d="M4 6h16M4 12h16M4 18h10" />
             </svg>
           </button>
-          <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className={`${sq} font-display text-[15px] font-bold`}>
-            Aa
-          </button>
+          <ReadingSettings as="sheet" className="flex shrink-0">
+            {(t) => (
+              <button
+                type="button"
+                ref={t.ref}
+                onClick={t.onClick}
+                aria-expanded={t["aria-expanded"]}
+                aria-haspopup={t["aria-haspopup"]}
+                aria-controls={t["aria-controls"]}
+                aria-label={`Reading settings: mode, font, text size (${size} pixels)`}
+                className={`${sq} font-display text-[15px] font-bold`}
+              >
+                Aa
+              </button>
+            )}
+          </ReadingSettings>
           <button type="button" onClick={onFocus} aria-label="Focus: just the lesson, full screen" className={sq}>
             <FocusIcon />
           </button>
@@ -240,9 +269,9 @@ export function MobileReadingBar({ readAloud, size, onSize, onContents, onFocus 
 
 /**
  * The only chrome left in focus mode: a hairline stage progress bar along the top edge and a
- * small, quiet control cluster (text size, exit) that wakes up on hover/tap.
+ * small, quiet control cluster (reading settings, exit) that wakes up on hover/tap.
  */
-export function FocusControls({ stages, size, onSize, onExit }: { stages: Stage[]; size: number; onSize: () => void; onExit: () => void }) {
+export function FocusControls({ stages, size, onExit }: { stages: Stage[]; size: number; onExit: () => void }) {
   return (
     <>
       <StageSegments stages={stages} height="h-[3px]" className="fixed inset-x-0 top-[var(--hk-top-inset,0px)] z-[60]" />
@@ -251,9 +280,22 @@ export function FocusControls({ stages, size, onSize, onExit }: { stages: Stage[
         aria-label="Focus mode"
         className="fixed right-3 top-[calc(var(--hk-top-inset,0px)+12px)] z-[60] flex items-stretch border border-line bg-bg/80 opacity-60 backdrop-blur transition-opacity hover:opacity-100 focus-within:opacity-100"
       >
-        <button type="button" onClick={onSize} aria-label={`Text size ${size} pixels, change`} className="grid h-10 w-11 place-items-center border-r border-line font-display text-[15px] font-bold text-fg hover:bg-surface-2">
-          Aa
-        </button>
+        <ReadingSettings placement="down" className="flex">
+          {(t) => (
+            <button
+              type="button"
+              ref={t.ref}
+              onClick={t.onClick}
+              aria-expanded={t["aria-expanded"]}
+              aria-haspopup={t["aria-haspopup"]}
+              aria-controls={t["aria-controls"]}
+              aria-label={`Reading settings: mode, font, text size (${size} pixels)`}
+              className="grid h-10 w-11 place-items-center border-r border-line font-display text-[15px] font-bold text-fg hover:bg-surface-2"
+            >
+              Aa
+            </button>
+          )}
+        </ReadingSettings>
         <button type="button" onClick={onExit} className="flex h-10 items-center gap-2 px-3 font-mono text-[11px] text-fg hover:bg-surface-2">
           exit focus
           <kbd className="hidden border border-line-strong px-1 text-[10px] text-fg-3 sm:inline">esc</kbd>

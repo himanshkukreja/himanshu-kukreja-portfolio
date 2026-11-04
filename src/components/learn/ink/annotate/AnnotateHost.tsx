@@ -10,7 +10,7 @@
  */
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { annotDevStore } from "@/lib/learn/ink/annotateStore";
@@ -57,8 +57,8 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
   const dev = useSyncExternalStore(noop, annotDevStore, () => false);
   const signedIn = !!user || dev;
   const A = useAnnotations(lessonKey, signedIn, loading && !dev);
-  const { resolvedTheme } = useTheme();
-  const theme: InkTheme = resolvedTheme === "dark" ? "dark" : "light";
+  // the page's tone: a reading mode (Sepia, Dusk…) can differ from the site theme
+  const theme: InkTheme = usePageTone().dark ? "dark" : "light";
 
   const [tool, setTool] = useState<AnnotTool>("pen");
   const [penColor, setPenColor] = useState<InkColor>("signal");

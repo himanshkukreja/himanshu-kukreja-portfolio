@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect } from "react";
-import { mermaidConfig, prepareMermaidSource, type DiagramTheme } from "@/lib/diagrams/mermaid-theme";
+import { mermaidConfig, modeLook, prepareMermaidSource, type DiagramTheme, type ModeLook } from "@/lib/diagrams/mermaid-theme";
 import { loadMermaid as importMermaid } from "@/lib/offline/lazy";
 import { refreshSteps, stepsAction } from "./mermaidSteps";
 
 type MermaidApi = typeof import("mermaid").default;
 
 let mermaidPromise: Promise<MermaidApi> | null = null;
-let configuredFor: DiagramTheme | null = null;
+let configuredFor: string | null = null;
 let seq = 0;
 
 function loadMermaid(): Promise<MermaidApi> {
@@ -21,24 +21,44 @@ function currentTheme(): DiagramTheme {
   return document.documentElement.classList.contains("dark") ? "dark" : "light";
 }
 
+/** The reading mode tinting the page (src/lib/learn/readingModes.ts), when it has its own neutrals (light / night don't). */
+function tintMode(): string | null {
+  const m = document.documentElement.dataset.readMode;
+  return m && m !== "light" && m !== "night" ? m : null;
+}
+
+/** What a diagram was drawn for: the tone, plus the reading mode when it tints the neutrals. */
+const lookKey = (theme: DiagramTheme) => {
+  const m = tintMode();
+  return m ? `${theme}:${m}` : theme;
+};
+
+function currentLook(): ModeLook | undefined {
+  if (!tintMode()) return undefined;
+  const cs = window.getComputedStyle(document.documentElement);
+  return modeLook((name) => cs.getPropertyValue(`--c-${name}`).trim());
+}
+
 async function renderFigure(fig: HTMLElement, theme: DiagramTheme) {
-  if (fig.dataset.mermaidTheme === theme && fig.querySelector(".sd-mermaid-canvas svg")) return;
+  const key = lookKey(theme);
+  if (fig.dataset.mermaidTheme === key && fig.querySelector(".sd-mermaid-canvas svg")) return;
   const src = fig.querySelector<HTMLElement>(".sd-mermaid-src")?.textContent || "";
   const canvas = fig.querySelector<HTMLElement>(".sd-mermaid-canvas");
   if (!src.trim() || !canvas) return;
   const mermaid = await loadMermaid();
-  if (configuredFor !== theme) {
-    const cfg = mermaidConfig(theme);
+  const look = currentLook();
+  if (configuredFor !== key) {
+    const cfg = mermaidConfig(theme, look);
     // Mermaid measures label widths with this font, so hand it the page's real (next/font hashed) family.
     const bodyFont = window.getComputedStyle(document.body).fontFamily;
     mermaid.initialize({ ...cfg, themeVariables: { ...cfg.themeVariables, fontFamily: bodyFont } });
-    configuredFor = theme;
+    configuredFor = key;
   }
   try {
-    const { svg } = await mermaid.render(`sd-mmd-${++seq}`, prepareMermaidSource(src, theme));
+    const { svg } = await mermaid.render(`sd-mmd-${++seq}`, prepareMermaidSource(src, theme, look));
     // securityLevel "strict" sanitizes the SVG; it is generated from our own course content.
     canvas.innerHTML = svg;
-    fig.dataset.mermaidTheme = theme;
+    fig.dataset.mermaidTheme = key;
     fig.dataset.mermaidState = "ok";
     refreshSteps(fig); // a playing step-through keeps its step across re-renders (theme switch)
   } catch (err) {
@@ -115,11 +135,11 @@ export default function MermaidHydrator({ rootSelector = "body" }: { rootSelecto
       scheduled = 0;
       const figs = Array.from(root.querySelectorAll<HTMLElement>("figure.sd-mermaid"));
       if (!figs.length) return;
-      const theme = currentTheme();
+      const key = lookKey(currentTheme());
       for (const f of figs) {
         const drawn = !!f.querySelector(".sd-mermaid-canvas svg");
         if (drawn) {
-          if (f.dataset.mermaidTheme !== theme) enqueue(f); // theme switch: redraw what was drawn
+          if (f.dataset.mermaidTheme !== key) enqueue(f); // theme or reading mode switch: redraw what was drawn
         } else if (io) io.observe(f); // drawn when it nears the viewport (observe is idempotent)
         else enqueue(f);
       }
@@ -137,7 +157,7 @@ export default function MermaidHydrator({ rootSelector = "body" }: { rootSelecto
     });
     contentObserver.observe(root, { childList: true, subtree: true });
     const themeObserver = new MutationObserver(schedule);
-    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ["class", "data-read-mode"] });
     root.addEventListener("click", onClick);
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape") return;

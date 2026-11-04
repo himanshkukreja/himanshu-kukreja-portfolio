@@ -28,7 +28,8 @@ import BossEntry from "./BossEntry";
 import DesignFirst from "@/components/learn/designfirst/DesignFirst";
 import LessonNotebookContext from "@/components/learn/ink/global/LessonNotebookContext";
 import AnnotateHost from "@/components/learn/ink/annotate/AnnotateHost";
-import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock, TEXT_SIZES } from "./ReadingTools";
+import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock } from "./ReadingTools";
+import { useReadingSettings } from "@/components/learn/reading/useReading";
 import { headerStackBottom, stageRailHeight } from "./layout";
 import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
 
@@ -42,8 +43,6 @@ type Props = {
   next: NavLink | null;
   trial: TrialPartLink | null;
 };
-
-const SIZE_KEY = "hk.reader.size";
 
 /** Keeps --reader-top / --reader-rail / --site-dock in sync with the real chrome heights. */
 function useChromeVars(root: React.RefObject<HTMLDivElement | null>) {
@@ -91,35 +90,12 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
   const rootRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [focus, setFocus] = useState(false);
-  const [size, setSize] = useState<number>(TEXT_SIZES[0]);
+  // text size, mode, font… live in the reading settings (src/lib/learn/readingModes.ts, on <html>); the size shows on "Aa"
+  const { size } = useReadingSettings();
   const [sheet, setSheet] = useState(false);
   // the recorded natural-voice narration, when scripts/listen has made one for this text
   const readAloud = useReadAloud(contentRef, { listenKey: listenKey(meta.kind, meta.week, meta.slug) });
   useChromeVars(rootRef);
-
-  useEffect(() => {
-    try {
-      const saved = Number(window.localStorage.getItem(SIZE_KEY));
-      // a per-viewer preference, read after mount so server and client markup match
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if ((TEXT_SIZES as readonly number[]).includes(saved)) setSize(saved);
-    } catch {
-      // storage unavailable
-    }
-  }, []);
-
-  const cycleSize = useCallback(() => {
-    setSize((s) => {
-      const i = (TEXT_SIZES as readonly number[]).indexOf(s);
-      const n = TEXT_SIZES[(i + 1) % TEXT_SIZES.length];
-      try {
-        window.localStorage.setItem(SIZE_KEY, String(n));
-      } catch {
-        // storage unavailable
-      }
-      return n;
-    });
-  }, []);
 
   // Focus = the article alone: every bit of chrome hidden (html.hk-focus) and, where the browser
   // allows it (not iPhone Safari), real fullscreen. Called from click/key handlers so the
@@ -171,7 +147,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
   const closeSheet = useCallback(() => setSheet(false), []);
   const openSheet = useCallback(() => setSheet(true), []);
 
-  const tools = { readAloud, focus, onFocus: toggleFocus, size, onSize: cycleSize, onContents: openSheet };
+  const tools = { readAloud, focus, onFocus: toggleFocus, size, onContents: openSheet };
 
   return (
     <LessonProgressProvider courseId={meta.course} week={meta.week} lessonSlug={meta.slug} title={meta.title} stages={stages} contentVersion={meta.contentVersion}>
@@ -212,7 +188,6 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
                 week={meta.week}
                 lessonSlug={meta.slug}
                 lessonTitle={meta.title}
-                textSize={size}
               />
             </AnnotateHost>
             <DeepLinkResolver rootRef={contentRef} />
@@ -233,7 +208,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
 
         <ReadingDock {...tools} />
         <MobileReadingBar {...tools} />
-        {focus && <FocusControls stages={stages} size={size} onSize={cycleSize} onExit={() => changeFocus(false)} />}
+        {focus && <FocusControls stages={stages} size={size} onExit={() => changeFocus(false)} />}
         <LessonNotebookContext lesson={{ week: meta.week, slug: meta.slug, title: meta.title, weekLabel: meta.weekLabel, weekTopic: meta.weekTopic }} />
         <ContentsSheet open={sheet} onClose={closeSheet} toc={toc} stages={stages} kicker={meta.shortLabel.toUpperCase()} title={meta.title} />
       </div>

@@ -6,14 +6,14 @@
  * viewer in the lesson and the notebook's Notes tab.
  */
 import { memo, useEffect, useRef } from "react";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { inkCrop, paintInkNote, type InkNoteInk } from "@/lib/learn/ink/passage";
 
 function InkNoteThumb({ ink, label, className = "", minH = 150 }: { ink: InkNoteInk; label: string; className?: string; minH?: number }) {
   const wrap = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement>(null);
-  const { resolvedTheme } = useTheme();
-  const theme = resolvedTheme === "dark" ? "dark" : "light";
+  // the page's tone: a reading mode (Sepia, Dusk…) can differ from the site theme
+  const theme = usePageTone().dark ? "dark" : "light";
   const crop = inkCrop(ink, minH);
   const ratio = (crop.x2 - crop.x1) / Math.max(1, crop.y2 - crop.y1);
 

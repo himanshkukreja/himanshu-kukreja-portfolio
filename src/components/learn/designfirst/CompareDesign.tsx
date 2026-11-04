@@ -9,7 +9,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { PenTool, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -188,8 +188,8 @@ function Note({ children }: { children: React.ReactNode }) {
 function SceneSvg({ scene }: { scene: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
-  const { resolvedTheme } = useTheme();
-  const dark = resolvedTheme !== "light";
+  // the page's tone: the site theme, or the reading mode on a lesson
+  const { dark } = usePageTone();
   const summary = sketchSummary(scene);
 
   useEffect(() => {
@@ -236,7 +236,8 @@ function SceneSvg({ scene }: { scene: string }) {
 function Architecture({ source, title }: { source: string; title: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [state, setState] = useState<"drawing" | "ok" | "error">("drawing");
-  const { resolvedTheme } = useTheme();
+  // redraw when the page's tone changes (site theme or reading mode)
+  const { dark } = usePageTone();
 
   useEffect(() => {
     const el = box.current;
@@ -250,7 +251,7 @@ function Architecture({ source, title }: { source: string; title: string }) {
     return () => {
       off = true;
     };
-  }, [source, resolvedTheme]);
+  }, [source, dark]);
 
   return (
     <div ref={box} className="df-arch flex flex-col gap-2 border border-line bg-surface p-3">

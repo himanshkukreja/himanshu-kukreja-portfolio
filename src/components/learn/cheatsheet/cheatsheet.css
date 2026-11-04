@@ -314,6 +314,32 @@
   }
 }
 
+/* A tinted reading mode (src/lib/learn/readingModes.ts: sepia, paper, mint, dusk) takes the sheet on screen too, so
+   it doesn't glare off the page; the print below stays ink on white. */
+@media screen {
+  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"]) .cs-paper {
+    --ink: var(--c-fg);
+    --ink-2: var(--c-fg-2);
+    --ink-3: var(--c-fg-3);
+    --ink-4: var(--c-fg-4);
+    --rule: var(--c-line);
+    --rule-strong: var(--c-line-strong);
+    --tint: var(--c-surface-2);
+    --signal: var(--c-signal);
+    --signal-ink: var(--c-signal-text);
+    --bad-ink: var(--c-bad-text);
+    background: var(--c-surface);
+  }
+  /* the dark lesson bars: the mode's "screen" plate (its accent keeps the day label readable) */
+  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"]) .cs-lesson-head {
+    background: var(--c-plate);
+    color: var(--c-plate-fg);
+  }
+  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"]) .cs-lesson-head b {
+    color: var(--c-plate-accent);
+  }
+}
+
 /* phones and small tablets: the same sheet, fluid and readable (printing still uses the paper) */
 @media screen and (max-width: 899px) {
   .cs-paper:not(.cs-measure) {

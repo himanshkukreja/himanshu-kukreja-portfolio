@@ -47,6 +47,30 @@
   --c-bad: #DC2626;
   --c-bad-text: #B91C1C;
   --c-dot: #DDDBD4;
+  /* reading tokens (the reading modes below set their own) */
+  --c-link: var(--c-signal-text);
+  --c-ok-text: #15803D;
+  /* text on an ok fill (quiz keys, pass badges) */
+  --c-on-ok: #04140B;
+  --c-sky: #1D6FB8;
+  --c-amber: #A16207;
+  --c-code-bg: var(--c-surface);
+  --c-hl: rgba(255, 107, 43, 0.22);
+  /* the dark "screen" plates (lecture entry, video tiles): dark in every theme, tinted by the reading modes */
+  --c-plate: #0B0B0C;
+  --c-plate-fg: #F3F2EE;
+  --c-plate-fg-2: #A3A3A8;
+  --c-plate-accent: #FF6B2B;
+  /* code syntax (shiki's github themes mapped onto tokens: course-content.css; teal instead of github's purple) */
+  --c-code-plain: #24292E;
+  --c-code-kw: #CF222E;
+  --c-code-str: #0A3069;
+  --c-code-fn: #0F766E;
+  --c-code-num: #0550AE;
+  --c-code-com: #6A737D;
+  --c-code-var: #B45309;
+  --c-code-tag: #1A7F37;
+  color-scheme: light;
 
   /* legacy names still used by older components */
   --background: var(--c-bg);
@@ -78,7 +102,196 @@
   --c-bad: #E5484D;
   --c-bad-text: #FF8A8D;
   --c-dot: #1A1A1D;
+  --c-ok-text: #3DD68C;
+  --c-sky: #4FB3FF;
+  --c-amber: #F5B83D;
+  --c-code-plain: #E1E4E8;
+  --c-code-kw: #F97583;
+  --c-code-str: #9ECBFF;
+  --c-code-fn: #5EC9BD;
+  --c-code-num: #79B8FF;
+  --c-code-com: #8B949E;
+  --c-code-var: #FFAB70;
+  --c-code-tag: #85E89D;
   color-scheme: dark;
+}
+
+/* ---------------------------------------------------------------------------------------------
+   Reading modes (src/lib/learn/readingModes.ts, the reader's "Aa" panel). Set on <html> on reading pages
+   only; "light" and "night" are the site's own two themes (html.dark follows the mode's tone), the rest
+   are full token sets, where every text / background pair passes WCAG AA (body text 4.5:1, UI 3:1); dusk is
+   a soft dark (~10:1 body text, not 18:1). No purple. Keep the swatches in readingModes.ts in step.
+   --------------------------------------------------------------------------------------------- */
+/* screen only: printing falls back to the site theme's tokens (light, or dark under html.dark) */
+@media screen {
+  html[data-read-mode="sepia"] {
+    --c-bg: #F4ECD8;
+    --c-surface: #FAF5E9;
+    --c-surface-2: #EBE1C9;
+    --c-raised: #F7F0E0;
+    --c-line: #DCCFB2;
+    --c-line-strong: #C4B391;
+    --c-fg: #3B2F20;
+    --c-fg-2: #4D3E2B;
+    --c-fg-3: #62523C;
+    --c-fg-4: #6E5D45;
+    --c-signal: #D65C1E;
+    --c-on-signal: #120700;
+    --c-signal-text: #9A4A12;
+    --c-link: #9A4A12;
+    --c-ok: #3E7B2C;
+    --c-ok-text: #356A25;
+    --c-on-ok: #FFFFFF;
+    --c-bad: #B8332A;
+    --c-bad-text: #A02C22;
+    --c-sky: #235F96;
+    --c-amber: #8A5A08;
+    --c-dot: #E3D7BB;
+    --c-hl: rgba(214, 92, 30, 0.2);
+    --c-plate: #2E2418;
+    --c-plate-fg: #F4ECD8;
+    --c-plate-fg-2: #CDBFA3;
+    --c-plate-accent: #F0894A;
+    --c-code-plain: #3B2F20;
+    --c-code-kw: #A8321F;
+    --c-code-str: #1F4F7A;
+    --c-code-fn: #22685E;
+    --c-code-num: #235F96;
+    --c-code-com: #6E6250;
+    --c-code-var: #9A4A12;
+    --c-code-tag: #3E6B1F;
+  }
+  html[data-read-mode="paper"] {
+    --c-bg: #F7F3EA;
+    --c-surface: #FCFAF5;
+    --c-surface-2: #F0EBE0;
+    --c-raised: #FAF7F0;
+    --c-line: #DFD8C8;
+    --c-line-strong: #C7BEA9;
+    --c-fg: #222018;
+    --c-fg-2: #38352C;
+    --c-fg-3: #55514A;
+    --c-fg-4: #66625A;
+    --c-signal: #E4621F;
+    --c-on-signal: #120700;
+    --c-signal-text: #B04A10;
+    --c-link: #B04A10;
+    --c-ok: #2E7A39;
+    --c-ok-text: #2A6E33;
+    --c-on-ok: #FFFFFF;
+    --c-bad: #C0352B;
+    --c-bad-text: #A82A20;
+    --c-sky: #1D6AAE;
+    --c-amber: #8F5A06;
+    --c-dot: #E7E1D3;
+    --c-hl: rgba(228, 98, 31, 0.2);
+    --c-plate: #24221C;
+    --c-plate-fg: #F7F3EA;
+    --c-plate-fg-2: #C2BCAE;
+    --c-plate-accent: #F07A3A;
+    --c-code-plain: #222018;
+    --c-code-kw: #B5301F;
+    --c-code-str: #18406B;
+    --c-code-fn: #1C6B60;
+    --c-code-num: #1D5FA0;
+    --c-code-com: #6A665C;
+    --c-code-var: #A9480E;
+    --c-code-tag: #2E6B1F;
+  }
+  html[data-read-mode="mint"] {
+    --c-bg: #E6EEDF;
+    --c-surface: #F0F5EB;
+    --c-surface-2: #D8E3CF;
+    --c-raised: #EAF1E4;
+    --c-line: #C6D4BB;
+    --c-line-strong: #A9BB9C;
+    --c-fg: #23301F;
+    --c-fg-2: #33432E;
+    --c-fg-3: #475843;
+    --c-fg-4: #53644E;
+    --c-signal: #D4601F;
+    --c-on-signal: #120700;
+    --c-signal-text: #94420E;
+    --c-link: #94420E;
+    --c-ok: #2C7533;
+    --c-ok-text: #276A2D;
+    --c-on-ok: #FFFFFF;
+    --c-bad: #B3302A;
+    --c-bad-text: #9C2A23;
+    --c-sky: #1D5F96;
+    --c-amber: #7D5208;
+    --c-dot: #D6E1CD;
+    --c-hl: rgba(212, 96, 31, 0.2);
+    --c-plate: #1F2A1C;
+    --c-plate-fg: #E6EEDF;
+    --c-plate-fg-2: #B9C6B0;
+    --c-plate-accent: #EE8040;
+    --c-code-plain: #23301F;
+    --c-code-kw: #A62F22;
+    --c-code-str: #1C4670;
+    --c-code-fn: #1B6458;
+    --c-code-num: #1D5A90;
+    --c-code-com: #5E6A58;
+    --c-code-var: #94420E;
+    --c-code-tag: #2D641E;
+  }
+  html[data-read-mode="dusk"] {
+    --c-bg: #23201C;
+    --c-surface: #2A2622;
+    --c-surface-2: #332E28;
+    --c-raised: #26231F;
+    --c-line: #3D3730;
+    --c-line-strong: #544C42;
+    --c-fg: #D9CFBF;
+    --c-fg-2: #C7BDAD;
+    --c-fg-3: #ADA393;
+    --c-fg-4: #A09686;
+    --c-signal: #E07B3C;
+    --c-on-signal: #1A0C03;
+    --c-signal-text: #E0965A;
+    --c-link: #E0965A;
+    --c-ok: #6FBF86;
+    --c-ok-text: #86CC9A;
+    --c-bad: #C9483D;
+    --c-bad-text: #EE9A8F;
+    --c-sky: #7DB3DE;
+    --c-amber: #D9A94E;
+    --c-dot: #2D2924;
+    --c-hl: rgba(224, 123, 60, 0.24);
+    --c-plate: #171512;
+    --c-plate-fg: #D9CFBF;
+    --c-plate-fg-2: #ADA393;
+    --c-plate-accent: #E0965A;
+    --c-code-plain: #D9CFBF;
+    --c-code-kw: #E8907F;
+    --c-code-str: #A9C7E0;
+    --c-code-fn: #7CC7B8;
+    --c-code-num: #8DBBE0;
+    --c-code-com: #9C9282;
+    --c-code-var: #E0A26E;
+    --c-code-tag: #A3C98A;
+  }
+  html[data-read-mode="dusk"] ::selection {
+    background: rgba(224, 123, 60, 0.35);
+  }
+}
+
+/* the reading panel's type settings (on reading pages; each reader reads the variables, see course-content.css).
+   The font on body: next/font defines --font-literata there, not on <html>. */
+html[data-read-font="serif"] body {
+  --read-font: var(--font-literata), "Iowan Old Style", Georgia, Cambria, "Times New Roman", serif;
+}
+html[data-read-leading="compact"] {
+  --read-leading: 1.6;
+}
+html[data-read-leading="relaxed"] {
+  --read-leading: 1.95;
+}
+html[data-read-width="narrow"] {
+  --read-measure: 640px;
+}
+html[data-read-width="wide"] {
+  --read-measure: 880px;
 }
 
 html { scroll-behavior: smooth; }

@@ -9,7 +9,7 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { ArrowLeft, ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { createPage, InkError, movePage, pageOutline, registerOpenPage } from "@/lib/learn/ink/client";
 import { pageBytes, pageNearlyFull } from "@/lib/learn/ink/geometry";
@@ -55,8 +55,8 @@ export type PageEditorProps = {
 };
 
 export default function PageEditor({ pageId, variant, onOpenPage, backHref, headerExtra }: PageEditorProps) {
-  const { resolvedTheme } = useTheme();
-  const theme: InkTheme = resolvedTheme === "dark" ? "dark" : "light";
+  // the page's tone: a reading mode (Sepia, Dusk…) can differ from the site theme
+  const theme: InkTheme = usePageTone().dark ? "dark" : "light";
   const [page, setPage] = useState<NotebookPage | null>(null);
   const [restored, setRestored] = useState(false);
   const [loadError, setLoadError] = useState<InkError | null>(null);

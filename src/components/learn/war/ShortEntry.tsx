@@ -18,7 +18,7 @@ export default function ShortEntry({ short }: { short: PlayableShort }) {
   return (
     <>
       <button type="button" onClick={() => setOpen(true)} className="group flex items-center gap-4 border border-line-strong bg-surface p-4 text-left hover:border-signal sm:p-5">
-        <span className="grid h-14 w-10 shrink-0 place-items-center border border-line-strong bg-[#0b0b0c] text-signal-text">
+        <span className="grid h-14 w-10 shrink-0 place-items-center border border-line-strong bg-[var(--c-plate)] text-[var(--c-plate-accent)]">
           <Smartphone className="h-5 w-5" aria-hidden />
         </span>
         <span className="flex min-w-0 flex-col gap-1">

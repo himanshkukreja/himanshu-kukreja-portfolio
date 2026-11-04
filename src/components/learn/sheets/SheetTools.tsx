@@ -3,13 +3,14 @@
 /**
  * A design sheet's screen chrome: Download PDF and share.
  *
- * Download PDF prints in the light theme whatever the reader uses: it drops the `dark` class, asks the
+ * Download PDF prints in the light theme whatever the reader uses: it drops the `dark` class (and the reading mode), asks the
  * MermaidHydrator to draw every figure (the synthetic `beforeprint`), waits until each one is drawn in
  * light (or ~8 s), prints, then puts the theme back. Ctrl+P still works; the sheet CSS keeps it legible.
  */
 import { useState } from "react";
 import { Check, Download, Link2, Loader2, Share2 } from "lucide-react";
 import { track } from "@/lib/track";
+import { ReadingButton } from "@/components/learn/reading/ReadingPanel";
 
 const sleep = (ms: number) => new Promise((r) => window.setTimeout(r, ms));
 
@@ -17,6 +18,9 @@ async function printLight(root: string) {
   const html = document.documentElement;
   const wasDark = html.classList.contains("dark");
   if (wasDark) html.classList.remove("dark");
+  // a reading mode (src/lib/learn/readingModes.ts) steps aside too: the diagrams redraw in plain light
+  const mode = html.getAttribute("data-read-mode");
+  if (mode) html.removeAttribute("data-read-mode");
   const prevScheme = html.style.colorScheme;
   html.style.colorScheme = "light";
   window.dispatchEvent(new Event("beforeprint"));
@@ -27,6 +31,7 @@ async function printLight(root: string) {
   const restore = () => {
     window.removeEventListener("afterprint", restore);
     if (wasDark) html.classList.add("dark");
+    if (mode) html.setAttribute("data-read-mode", mode);
     html.style.colorScheme = prevScheme;
   };
   window.addEventListener("afterprint", restore);
@@ -92,6 +97,7 @@ export default function SheetTools({ title, url, slug, root }: { title: string; 
         >
           <Share2 className="h-4 w-4" aria-hidden /> Share
         </button>
+        <ReadingButton />
       </div>
       {open && (
         <div className="flex animate-hk-in flex-wrap gap-2">

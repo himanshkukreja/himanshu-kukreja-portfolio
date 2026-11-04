@@ -143,16 +143,16 @@ export default function Lobby({
       </div>
 
       {lecture && (
-        <Link href={lecture.href} className="group flex items-center gap-4 border border-line-strong bg-[#0b0b0c] p-4 hover:border-signal sm:gap-5 sm:p-5">
+        <Link href={lecture.href} className="group flex items-center gap-4 border border-line-strong bg-[var(--c-plate)] p-4 hover:border-signal sm:gap-5 sm:p-5">
           <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_28px_rgba(255,107,43,0.45)] transition-transform group-hover:scale-105">
             <svg viewBox="0 0 24 24" className="h-6 w-6 translate-x-[2px]" fill="currentColor" aria-hidden>
               <path d="M7 4l13 8-13 8z" />
             </svg>
           </span>
           <span className="flex min-w-0 flex-col gap-1">
-            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">watch it first · a model interview</span>
-            <span className="font-display text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee] sm:text-[21px]">See this exact round done well: a {lecture.minutes}-minute recorded interview</span>
-            <span className="text-[13px] leading-snug text-[#a3a3a8]">Two voices, start to finish: how it opens, the clarifying questions, the estimates, the design, the curveballs, the wrap-up. Then try it yourself below.</span>
+            <span className="font-mono text-[11px] uppercase tracking-label text-[var(--c-plate-accent)]">watch it first · a model interview</span>
+            <span className="font-display text-[19px] font-extrabold leading-tight tracking-[-0.02em] text-[var(--c-plate-fg)] sm:text-[21px]">See this exact round done well: a {lecture.minutes}-minute recorded interview</span>
+            <span className="text-[13px] leading-snug text-[var(--c-plate-fg-2)]">Two voices, start to finish: how it opens, the clarifying questions, the estimates, the design, the curveballs, the wrap-up. Then try it yourself below.</span>
           </span>
         </Link>
       )}

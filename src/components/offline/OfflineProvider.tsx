@@ -20,6 +20,7 @@ import { track } from "@/lib/track";
 import AppWindow, { markInstalled } from "./AppWindow";
 import SaveToast from "./SaveToast";
 import OfflineSync from "./OfflineSync";
+import { chromeColor } from "@/lib/learn/readingModes";
 
 type BeforeInstallPromptEvent = Event & { prompt: () => Promise<void>; userChoice: Promise<{ outcome: "accepted" | "dismissed" }> };
 
@@ -222,18 +223,18 @@ export default function OfflineProvider({ children }: { children: React.ReactNod
     return outcome === "accepted";
   }, [deferred]);
 
-  // ---- browser theme colour follows the site theme toggle (the meta tags only know the OS one) --
+  // ---- browser theme colour follows the page: the site theme toggle and the reading modes (the meta tags only know the OS one) --
   useEffect(() => {
     const root = document.documentElement;
     const apply = () => {
-      const color = root.classList.contains("dark") ? "#000000" : "#F5F4F0";
+      const color = chromeColor(root);
       document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((m) => {
-        m.content = color;
+        if (m.content !== color) m.content = color;
       });
     };
     apply();
     const mo = new MutationObserver(apply);
-    mo.observe(root, { attributes: true, attributeFilter: ["class"] });
+    mo.observe(root, { attributes: true, attributeFilter: ["class", "data-read-mode"] });
     return () => mo.disconnect();
   }, []);
 

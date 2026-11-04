@@ -43,6 +43,7 @@ import {
 import AnswerSheet, { type AnswerSheetHandle } from "./AnswerSheet";
 import PaperResults, { QuestionResult } from "./PaperResults";
 import { ScoreBadge } from "./PapersIndex";
+import { ReadingButton } from "@/components/learn/reading/ReadingPanel";
 import "./papers.css";
 
 type Screen = "start" | "answer" | "grading" | "results";
@@ -502,15 +503,18 @@ export default function PaperApp({ paper }: { paper: PaperView }) {
   return (
     <main ref={topRef} className="mx-auto flex max-w-[980px] flex-col gap-8 px-4 pb-28 pt-6 sm:px-6 sm:pt-12">
       <header className="flex flex-col gap-4">
-        <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
-          <Link href="/papers" className="hover:text-fg">
-            Written papers
-          </Link>
-          <span aria-hidden>/</span>
-          <Link href={paper.ownerHref} className="text-signal-text hover:text-fg">
-            {paper.label}
-          </Link>
-        </nav>
+        <div className="flex items-center justify-between gap-3">
+          <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
+            <Link href="/papers" className="hover:text-fg">
+              Written papers
+            </Link>
+            <span aria-hidden>/</span>
+            <Link href={paper.ownerHref} className="text-signal-text hover:text-fg">
+              {paper.label}
+            </Link>
+          </nav>
+          <ReadingButton />
+        </div>
         <h1 className="m-0 font-display text-[clamp(34px,6vw,60px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">{paper.title}</h1>
         <p className="m-0 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[13px] text-fg-2">
           <span>{Q} questions</span>

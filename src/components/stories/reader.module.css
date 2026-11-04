@@ -1,9 +1,12 @@
 /* Story reader ("case file") — rendered markdown, scoped to the stories reader only. */
 
+/* the reading panel (src/lib/learn/readingModes.ts) steps the size up from this base (--reader-bump: 0 / 2 / 4px)
+   and sets the font and spacing */
 .prose {
   --reader-p: 19px;
-  font-size: var(--reader-p);
-  line-height: 1.75;
+  font-family: var(--read-font, inherit);
+  font-size: calc(var(--reader-p) + var(--reader-bump, 0px));
+  line-height: var(--read-leading, 1.75);
   color: var(--c-fg-2);
   overflow-wrap: break-word;
 }
@@ -11,7 +14,7 @@
 @media (max-width: 639px) {
   .prose {
     --reader-p: 17px;
-    line-height: 1.7;
+    line-height: var(--read-leading, 1.7);
   }
 }
 

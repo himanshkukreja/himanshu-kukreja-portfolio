@@ -7,6 +7,7 @@ import { THEME_LABEL } from "@/lib/learn/war/types";
 import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
 import StoryRead from "@/components/learn/war/StoryRead";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
+import { ReadingButton } from "@/components/learn/reading/ReadingPanel";
 import LectureEntry from "@/components/learn/sidequest/LectureEntry";
 import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
 import { lessonLectureId } from "@/lib/learn/lecture/types";
@@ -48,7 +49,7 @@ export default async function StoryPage({ params }: Props) {
   const i = stories.findIndex((x) => x.slug === s.slug);
   const next = stories.length > 1 ? stories[(i + 1) % stories.length] : null;
   return (
-    <main className="mx-auto flex w-full max-w-[760px] flex-col gap-6 px-4 pb-24 pt-6 sm:px-6 sm:pt-12">
+    <main className="mx-auto flex w-full max-w-[var(--read-measure,760px)] flex-col gap-6 px-4 pb-24 pt-6 sm:px-6 sm:pt-12">
       {/* Listen: the recorded natural voice (scripts/listen, key war/<slug>) when it matches this text, else the browser's */}
       <ListenProvider listenKey={listenKey("war", "", s.slug)}>
         <JsonLd
@@ -77,6 +78,7 @@ export default async function StoryPage({ params }: Props) {
           <div className="flex flex-wrap items-center gap-2">
             <ListenButton />
             <SaveOfflineButton title={`War story · ${s.title}`} kind="warstory" url={s.href} />
+            <ReadingButton />
           </div>
         </header>
         {lecture && <LectureEntry lecture={lecture} what="The whole story" className="m-0" />}

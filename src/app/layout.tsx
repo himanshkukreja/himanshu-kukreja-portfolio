@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { EMAIL, SOCIALS } from "@/lib/socials";
-import { Bricolage_Grotesque, Geist, Geist_Mono } from "next/font/google";
+import { Bricolage_Grotesque, Geist, Geist_Mono, Literata } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
@@ -19,6 +19,8 @@ import OfflineProvider from "@/components/offline/OfflineProvider";
 import { SiteModeProvider } from "@/components/site/SiteMode";
 import { CourseLinkCarry, MovedNotice, SignInOnce } from "@/components/site/DomainMove";
 import { IMPORT_JS } from "@/lib/site/carry";
+import { READING_JS } from "@/lib/learn/readingModes";
+import ReadingModeHost from "@/components/learn/reading/ReadingModeHost";
 import { PORTFOLIO_ORIGIN, courseUrlFor } from "@/lib/site/hosts";
 
 
@@ -37,6 +39,15 @@ const display = Bricolage_Grotesque({
   variable: "--font-display",
   subsets: ["latin"],
   weight: ["700", "800"],
+});
+
+// The reading panel's serif (src/lib/learn/readingModes.ts). Not preloaded: the browser fetches it only when
+// a reader picks Serif (or opens the panel, whose sample is set in it); Georgia & co. stand in meanwhile.
+const literata = Literata({
+  variable: "--font-literata",
+  subsets: ["latin"],
+  preload: false,
+  display: "swap",
 });
 
 const PERSON_LD = {
@@ -72,8 +83,8 @@ export const metadata: Metadata = {
   },
 };
 
-// Browser chrome colour: the default (light) theme's paper; the offline provider re-points it when
-// the reader picks dark (the site's theme ignores the OS setting). viewport-fit=cover lets the
+// Browser chrome colour: the default (light) theme's paper; READING_JS and the offline provider re-point it
+// to the page's own background (dark theme, reading modes; the site's theme ignores the OS setting). viewport-fit=cover lets the
 // installed iPhone app draw under the status bar and the home indicator: the header, docks and
 // toolbars pad themselves with the safe-area insets (globals.css "Installed app window").
 export const viewport: Viewport = {
@@ -93,6 +104,8 @@ export default function RootLayout({
       <head>
         {/* first: a one-time import of course state carried over from himanshukukreja.in (#hk-import=…, src/lib/site/carry.ts) */}
         <script dangerouslySetInnerHTML={{ __html: IMPORT_JS }} />
+        {/* then the page's tone and reading mode, before first paint (src/lib/learn/readingModes.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: READING_JS }} />
         <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
         <link rel="icon" href="/icon.svg?v=3" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/apple-icon.png?v=3" />
@@ -116,7 +129,7 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable} antialiased pb-24 lg:pb-0`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${display.variable} ${literata.variable} antialiased pb-24 lg:pb-0`}>
         <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(PERSON_LD) }} />
         <RouteProgress />
         <AnalyticsTracker />
@@ -128,6 +141,7 @@ export default function RootLayout({
               <GameProvider>
                 <OfflineProvider>
                   <AuthHashHandler />
+                  <ReadingModeHost />
                   <SiteHeader />
                   {children}
                   <XPToaster />

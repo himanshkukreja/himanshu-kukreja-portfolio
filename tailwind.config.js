@@ -34,11 +34,16 @@ module.exports = {
         ok: tok("ok"),
         bad: tok("bad"),
         "bad-text": tok("bad-text"),
+        "ok-text": tok("ok-text"),
+        "on-ok": tok("on-ok"),
+        link: tok("link"),
       },
       fontFamily: {
         display: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
         sans: ["var(--font-geist-sans)", "ui-sans-serif", "system-ui", "sans-serif"],
         mono: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+        // the reading panel's book serif (Literata, downloaded only once something is set in it)
+        serif: ["var(--font-literata)", "Iowan Old Style", "Georgia", "Cambria", "Times New Roman", "serif"],
       },
       letterSpacing: {
         tightest: "-0.055em",

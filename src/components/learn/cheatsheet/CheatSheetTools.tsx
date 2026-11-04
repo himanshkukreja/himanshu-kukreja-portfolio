@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { Check, Download, Link2, Share2 } from "lucide-react";
 import { track } from "@/lib/track";
+import { ReadingButton } from "@/components/learn/reading/ReadingPanel";
 
 const MM = 96 / 25.4;
 /** content box both A4 and US Letter fit with 8 mm margins */
@@ -122,6 +123,7 @@ export default function CheatSheetTools({ title, url, week }: { title: string; u
         >
           <Share2 className="h-4 w-4" aria-hidden /> Share
         </button>
+        <ReadingButton />
       </div>
       {open && (
         <div className="flex animate-hk-in flex-wrap gap-2">

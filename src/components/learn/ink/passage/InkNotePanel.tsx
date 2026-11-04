@@ -18,7 +18,7 @@
  */
 import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { Check, FileText, Loader2, PenLine, Trash2, X } from "lucide-react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { setAiCredits, useAiStatus } from "@/components/learn/ai/useAiStatus";
@@ -76,8 +76,8 @@ function place(r: DOMRect | null, W: number, H: number): { left: number; top: nu
 }
 
 export default function InkNotePanel({ target, userId, lessonTitle, getRect, dev = false, onCreated, onChanged, onDeleted, onClose }: Props) {
-  const { resolvedTheme } = useTheme();
-  const theme = resolvedTheme === "dark" ? "dark" : "light";
+  // the page's tone: a reading mode (Sepia, Dusk…) can differ from the site theme
+  const theme = usePageTone().dark ? "dark" : "light";
   const layout = useSyncExternalStore(subscribeResize, layoutOf, () => "wide");
   const phone = layout === "phone";
   const portrait = layout === "portrait";
