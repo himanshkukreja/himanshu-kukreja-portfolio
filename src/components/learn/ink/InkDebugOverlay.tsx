@@ -3,13 +3,19 @@
 /**
  * ?inkdebug=1: a small translucent panel over the ink surfaces listing the last contact decisions (lib/learn/ink/
  * inputMode.ts: pointer type, size, pressure, contacts down, each one's travel, decision and reason), with "Copy log"
- * and "Off". For a tablet owner to show what the ink engine saw. It takes no input except its two buttons
+ * and "Off". For a tablet owner to show what the ink engine saw. Under it, the live stroke's numbers (lib/learn/ink/
+ * liveStroke.ts: paint time per frame, median and p95; the frame interval; frames dropped while drawing; whether the
+ * low-latency canvas is on) and two switches to compare on the device: the old renderer (hk.ink.classic) and the
+ * low-latency canvas (hk.ink.desync). It takes no input except its two buttons
  * (pointer-events: none elsewhere; data-ink-ui / data-annot-ui so no surface writes under them). Rendered once per
  * page, by whichever surface mounted first.
  */
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { inkDebugText, setInkDebug, useInkDebug, useInkInput } from "@/lib/learn/ink/inputMode";
+import { inkFlags, inkPerf, setInkFlag, subscribeInkFlags } from "@/lib/learn/ink/liveStroke";
+
+const SERVER_FLAGS = { classic: false, desync: true };
 
 let seq = 0;
 let owners: number[] = [];
@@ -37,7 +43,15 @@ export default function InkDebugOverlay() {
     () => 0
   );
   const [copied, setCopied] = useState(false);
-  if (!on || owner !== me) return null;
+  const flags = useSyncExternalStore(subscribeInkFlags, inkFlags, () => SERVER_FLAGS);
+  const shown = on && owner === me;
+  const [perf, setPerf] = useState<ReturnType<typeof inkPerf> | null>(null);
+  useEffect(() => {
+    if (!shown) return;
+    const t = window.setInterval(() => setPerf(inkPerf()), 500);
+    return () => window.clearInterval(t);
+  }, [shown]);
+  if (!shown) return null;
 
   const copy = async () => {
     const text = inkDebugText();
@@ -65,6 +79,19 @@ export default function InkDebugOverlay() {
         </button>
         <button type="button" data-ink-ui data-annot-ui onClick={() => setInkDebug(false)} className="pointer-events-auto border border-white/60 px-2 py-1">
           off
+        </button>
+      </div>
+      <div className="mt-1 flex items-center gap-2 border-t border-white/20 pt-1">
+        <span className="flex-1">
+          {perf && perf.frames
+            ? `paint ${perf.paint.toFixed(1)} ms (p95 ${perf.paint95.toFixed(1)}) · frame ${perf.frame.toFixed(1)} ms · dropped ${perf.dropped}/${perf.frames}${perf.lowLatency ? " · low latency" : ""}`
+            : "draw a stroke: frame times show here"}
+        </span>
+        <button type="button" data-ink-ui data-annot-ui onClick={() => setInkFlag("classic", !flags.classic)} className="pointer-events-auto border border-white/60 px-2 py-1">
+          {flags.classic ? "classic" : "new"}
+        </button>
+        <button type="button" data-ink-ui data-annot-ui onClick={() => setInkFlag("desync", !flags.desync)} className="pointer-events-auto border border-white/60 px-2 py-1" disabled={flags.classic}>
+          {flags.desync ? "lowlat on" : "lowlat off"}
         </button>
       </div>
       {rows.length === 0 && <p className="m-0 mt-1 opacity-80">Touch the page: each contact&apos;s decision shows here.</p>}

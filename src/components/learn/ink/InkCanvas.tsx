@@ -8,12 +8,19 @@
  * Layers, bottom to top:
  *   paper (SVG) + items (DOM: clips, snips, text boxes), moved with one CSS transform;
  *   highlighter canvas (under the ink) and ink canvas, in the same page layer;
- *   live canvas (only the stroke being drawn, the lasso, the selection being moved), selection overlay (DOM).
+ *   live canvas (the lasso, the eraser, the selection being moved, a highlighter stroke being drawn), wet canvas (a
+ *   pen stroke being drawn, on a low-latency context where the browser has one), selection overlay (DOM).
  * The highlighter and ink canvases are page-sized (drawn at device resolution for the current zoom, capped) and sit
  * inside the page layer, so panning and pinching move them with the paper in one CSS transform: no redraw at all.
  * They are drawn from one combined Path2D per colour (render.ts), appended to as strokes are added; a new stroke is
  * drawn onto them alone; they are redrawn whole only when strokes are removed or moved, or when a zoom settles far
- * from their resolution. While a stroke is drawn only the live canvas (viewport-sized) is touched.
+ * from their resolution. While a stroke is drawn only the live (or wet) canvas, viewport-sized, is touched, and only
+ * around the nib: lib/learn/ink/liveStroke.ts outlines the settled part of the stroke once, in pieces, and the tail
+ * every frame, so a frame costs the same at the end of a page-long stroke as at its start. The tail is outlined as
+ * the finished stroke would be, so the ink ends under the nib (plus up to a frame of predicted points) and nothing
+ * moves on pen-up. A pen's pointerrawupdate events add points (and, on a low-latency canvas, draw) between frames.
+ * localStorage hk.ink.classic = "1" (or ?inkclassic=1, or the ?inkdebug=1 overlay) keeps the old renderer: the
+ * whole stroke outlined and filled every frame.
  *
  * Input (the device's setting, lib/learn/ink/inputMode.ts, shared with the pad, written papers and annotate):
  *   Pen only       only the pen (pointerType "pen") draws; one finger pans, two fingers pan and pinch-zoom, and any
@@ -53,6 +60,7 @@ import {
   type Box,
 } from "@/lib/learn/ink/geometry";
 import { MARKER_SIZE, addToLayer, buildLayer, fillLayer, fillStroke, outlinePathData, penPressureUsable, strokeInput, strokeOptions, strokePath, withoutPressure, type InkTheme, type Layer } from "@/lib/learn/ink/render";
+import { LivePainter, frameInterval, frameStart, inkFlags, noteFrame, noteLowLatency, type LiveXf } from "@/lib/learn/ink/liveStroke";
 import { PAGE_H, PAGE_W, type InkColor, type PageItem, type Paper, type Stroke } from "@/lib/learn/ink/types";
 import { ContactLog, TouchArbiter, noteFingerDrag, notePen, pressureVaries, type ArbiterEvent, type ContactPoint, type InkInputMode, type InkSurface } from "@/lib/learn/ink/inputMode";
 import PaperView from "./Paper";
@@ -133,6 +141,13 @@ type Action =
       real: boolean;
       /** when each kept point came (scribble-to-erase) */
       ts: number[];
+      /** when each predicted point is due, and when the last move came (a pen held still drops them) */
+      predTs: number[];
+      moveAt: number;
+      /** once pointerrawupdate events come: the newest event taken, by either (older ones are skipped) */
+      rawT: number;
+      /** where it is drawn (null: the old renderer, hk.ink.classic) */
+      painter: LivePainter | null;
     }
   | { kind: "erase"; pid: number; last: [number, number] | null; erased: Set<string>; at: [number, number] }
   | { kind: "lasso"; pid: number; poly: number[] }
@@ -143,6 +158,8 @@ type Action =
 
 const MAX_RES = 2.5;
 const MIN_STEP2 = 8 * 8; // keep a point only when it is 0.8 page units from the last (pts are ×10)
+/** predicted points per move at most (they reach a frame ahead); the old renderer took 2 */
+const MAX_PREDICTED = 8;
 /** a pointer down, real or replayed from a contact's history (a contact that takes over the pen late) */
 type Ptr = Pick<PointerEvent, "pointerId" | "pointerType" | "button" | "buttons" | "pressure" | "clientX" | "clientY">;
 const isPen = (e: Ptr) => e.pointerType === "pen";
@@ -159,6 +176,9 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
   const hlRef = useRef<HTMLCanvasElement>(null);
   const inkRef = useRef<HTMLCanvasElement>(null);
   const liveRef = useRef<HTMLCanvasElement>(null);
+  const wetRef = useRef<HTMLCanvasElement>(null);
+  /** the live stroke's painters: on the live canvas, and on the wet one (low latency only) */
+  const painters = useRef<{ live: LivePainter | null; wet: LivePainter | null; wetTried: boolean }>({ live: null, wet: null, wetTried: false });
 
   // everything the native handlers read, kept current without re-binding them
   const P = useRef(props);
@@ -283,14 +303,40 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     return ctx;
   };
 
+  const liveXf = (): LiveXf => {
+    const { dpr } = size.current;
+    const v = view.current;
+    return { k: dpr * v.s, x: dpr * v.tx, y: dpr * v.ty };
+  };
+
+  /** The stroke being drawn (liveStroke.ts): only what changed near the nib. */
+  const paintStroke = (a: Extract<Action, { kind: "draw" }>) => {
+    const pts = a.pts;
+    const simulate = (a.src === "pen" && !penPressureUsable(pts, true)) || !(pts[2] > 0);
+    // predicted points still ahead of the newest real one
+    let pred = a.predicted;
+    if (a.predTs.length && a.predTs[0] <= a.rawT) {
+      pred = [];
+      for (let i = 0; i < a.predTs.length; i++) if (a.predTs[i] > a.rawT) pred.push(a.predicted[i * 3], a.predicted[i * 3 + 1], a.predicted[i * 3 + 2]);
+    }
+    a.painter!.paint(pts, simulate, pred, liveXf());
+  };
+
   /** The live layer: the stroke being drawn, the lasso, the eraser, a selection being moved. */
   const drawLive = useCallback(() => {
+    const a = action.current;
+    // a stroke's painter that lost its stroke (cancelled, dropped for a gesture): clear it
+    const P2 = painters.current;
+    for (const pp of [P2.live, P2.wet]) if (pp?.active && !(a?.kind === "draw" && a.painter === pp)) pp.clear();
+    if (a?.kind === "draw" && a.painter) {
+      paintStroke(a);
+      return;
+    }
     const c = liveRef.current;
     const ctx = c?.getContext("2d");
     if (!c || !ctx) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.width, c.height);
-    const a = action.current;
     if (!a) return;
     const x = ctxAtView(c)!;
     const v = view.current;
@@ -333,9 +379,35 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       for (const st of P.current.strokes) if (s.strokes.has(st.id)) fillStroke(x, st, th);
       x.restore();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- paintStroke reads refs only
   }, []);
 
   const eraserR = () => Math.max(6, 12 / view.current.s);
+
+  /** where a new stroke is drawn: a pen on the wet canvas where it gets a low-latency context, else the live one */
+  const painterFor = (tool: "pen" | "highlighter"): LivePainter | null => {
+    const f = inkFlags();
+    if (f.classic) return null;
+    const P2 = painters.current;
+    if (tool === "pen" && f.desync) {
+      const c = wetRef.current;
+      if (!P2.wetTried && c) {
+        P2.wetTried = true;
+        const w = new LivePainter(c, true);
+        if (w.lowLatency) {
+          P2.wet = w;
+          const { w: vw, h: vh, dpr } = size.current;
+          c.width = Math.round(vw * dpr);
+          c.height = Math.round(vh * dpr);
+          c.style.width = `${vw}px`;
+          c.style.height = `${vh}px`;
+        }
+      }
+      if (P2.wet) return P2.wet;
+    }
+    if (!P2.live && liveRef.current) P2.live = new LivePainter(liveRef.current, false);
+    return P2.live;
+  };
 
   /**
    * Apply the view: one transform moves the paper, items and ink together, so a pan or pinch is compositing only.
@@ -417,8 +489,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       if (prev.w === w && prev.h === h && prev.dpr === dpr) return;
       const oldFit = prev.w ? Math.min(1, Math.max(0.05, (prev.w - pad * 2) / PAGE_W)) : 0;
       size.current = { w, h, dpr };
-      const live = liveRef.current;
-      if (live) {
+      for (const live of [liveRef.current, painters.current.wet ? wetRef.current : null]) {
+        if (!live) continue;
         live.width = Math.round(w * dpr);
         live.height = Math.round(h * dpr);
         live.style.width = `${w}px`;
@@ -601,6 +673,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     /** touch contacts go through the arbiter (Stylus/finger mode) */
     const arbitrated = (e: PointerEvent) => e.pointerType === "touch" && mode() === "touch";
 
+    let frameRaf = 0;
     const stopInertia = () => {
       if (inertia.current) window.cancelAnimationFrame(inertia.current);
       inertia.current = 0;
@@ -650,19 +723,42 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
           return;
         }
         const pr = isPen(e) ? Math.max(1, Math.round((e.pressure || 0.5) * 100)) : 0;
+        const nib = t === "highlighter" ? MARKER_SIZE : p.penSize;
+        const painter = painterFor(t);
+        painter?.start({ tool: t, color: p.color, size: nib }, p.theme);
+        noteLowLatency(!!painter?.lowLatency);
         action.current = {
           kind: "draw",
           pid: e.pointerId,
           tool: t,
           color: p.color,
-          size: t === "highlighter" ? MARKER_SIZE : p.penSize,
+          size: nib,
           pts: [Math.round(x * Q), Math.round(y * Q), pr],
           predicted: [],
           src: e.pointerType,
           raw: [e.pressure || 0],
           real: false,
           ts: [performance.now()],
+          predTs: [],
+          moveAt: 0,
+          rawT: 0,
+          painter,
         };
+        // frame times for the ?inkdebug=1 overlay
+        window.cancelAnimationFrame(frameRaf);
+        frameStart();
+        const tick = (now: number) => {
+          noteFrame(now);
+          const a = action.current;
+          // the pen stopped: the predicted points (where it was heading) go
+          if (a?.kind === "draw" && a.predicted.length && performance.now() - a.moveAt > frameInterval() * 2) {
+            a.predicted = [];
+            a.predTs = [];
+            drawLive();
+          }
+          frameRaf = a?.kind === "draw" ? window.requestAnimationFrame(tick) : 0;
+        };
+        frameRaf = window.requestAnimationFrame(tick);
       } else if (t === "eraser") {
         action.current = { kind: "erase", pid: e.pointerId, last: null, erased: new Set(), at: [x, y] };
         eraseAlong(action.current, x, y);
@@ -756,6 +852,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       if (!c || !pressureVaries(c)) return;
       a.real = true;
       for (let i = 0; i * 3 + 2 < a.pts.length; i++) a.pts[i * 3 + 2] = Math.max(1, Math.round((a.raw[i] || 0.5) * 100));
+      a.painter?.restart();
     };
     const pressureOf = (a: Extract<Action, { kind: "draw" }>, p: number) =>
       a.src === "pen" ? Math.max(1, Math.round((p || 0.5) * 100)) : a.real ? Math.max(1, Math.round((p || 0.5) * 100)) : 0;
@@ -959,12 +1056,22 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       const evs = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
       const list = evs.length ? evs : [e];
       if (a.kind === "draw") {
-        extend(a, list);
+        // points a pointerrawupdate already added come again here (and either may run ahead of the other)
+        if (a.rawT) {
+          extend(a, list.filter((ev) => ev.timeStamp > a.rawT));
+          a.rawT = Math.max(a.rawT, list[list.length - 1].timeStamp);
+        } else extend(a, list);
         a.predicted = [];
+        a.predTs = [];
+        a.moveAt = performance.now();
         const pred = typeof e.getPredictedEvents === "function" ? e.getPredictedEvents() : [];
-        for (const ev of pred.slice(0, 2)) {
+        // up to a frame ahead of the pen, the first one always (the old renderer: the first two)
+        const horizon = e.timeStamp + frameInterval();
+        for (const ev of a.painter ? pred.slice(0, MAX_PREDICTED) : pred.slice(0, 2)) {
+          if (a.painter && a.predTs.length && ev.timeStamp > horizon) break;
           const [x, y] = toPage(ev.clientX, ev.clientY);
           a.predicted.push(Math.round(x * Q), Math.round(y * Q), pressureOf(a, ev.pressure));
+          a.predTs.push(ev.timeStamp);
         }
       } else if (a.kind === "erase" || a.kind === "lasso") {
         extend(a, list);
@@ -982,6 +1089,30 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
         previewItems(0, 0, a.k);
       }
       if (!raf.current) {
+        raf.current = window.requestAnimationFrame(() => {
+          raf.current = 0;
+          drawLive();
+        });
+      }
+    };
+
+    /**
+     * A pen's raw moves, as they come rather than once a frame (Chrome): the points go in now, and a low-latency
+     * canvas draws them now (at most twice a frame); the next pointermove adds the predicted points.
+     */
+    let lastRawPaint = 0;
+    const onRaw = (e: PointerEvent) => {
+      const a = action.current;
+      if (!a || a.kind !== "draw" || a.pid !== e.pointerId || !a.painter || e.pointerType !== "pen") return;
+      const evs = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
+      const list = evs.length ? evs : [e];
+      extend(a, a.rawT ? list.filter((ev) => ev.timeStamp > a.rawT) : list);
+      a.rawT = Math.max(a.rawT, list[list.length - 1].timeStamp);
+      const now = performance.now();
+      if (a.painter.lowLatency && now - lastRawPaint >= frameInterval() / 2) {
+        lastRawPaint = now;
+        paintStroke(a);
+      } else if (!raf.current) {
         raf.current = window.requestAnimationFrame(() => {
           raf.current = 0;
           drawLive();
@@ -1053,6 +1184,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
           const pts = a.src === "pen" && !penPressureUsable(a.pts) ? withoutPressure(a.pts) : a.pts;
           const st: Stroke = { id: newInkId(), tool: a.tool, color: a.color, size: a.size, pts };
           commit({ strokes: [...P.current.strokes, st] });
+          // a low-latency canvas keeps it up until the committed layer has reached the screen
+          a.painter?.retire(strokePath(st), liveXf());
         }
         // the committed layer draws it (layout effect); clear what is left of the live one
         drawLive();
@@ -1213,6 +1346,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
 
     wrap.addEventListener("pointerdown", onDown);
     wrap.addEventListener("pointermove", onMove);
+    wrap.addEventListener("pointerrawupdate", onRaw as EventListener);
     wrap.addEventListener("pointerup", onUp);
     wrap.addEventListener("pointercancel", onCancel);
     wrap.addEventListener("lostpointercapture", onLost);
@@ -1226,6 +1360,8 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       disarm();
       wrap.removeEventListener("pointerdown", onDown);
       wrap.removeEventListener("pointermove", onMove);
+      wrap.removeEventListener("pointerrawupdate", onRaw as EventListener);
+      window.cancelAnimationFrame(frameRaf);
       wrap.removeEventListener("pointerup", onUp);
       wrap.removeEventListener("pointercancel", onCancel);
       wrap.removeEventListener("lostpointercapture", onLost);
@@ -1308,6 +1444,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
         <canvas ref={inkRef} aria-hidden className="pointer-events-none absolute left-0 top-0" style={{ width: PAGE_W, height: PAGE_H }} />
       </div>
       <canvas ref={liveRef} aria-hidden className="pointer-events-none absolute left-0 top-0" style={{ zIndex: 4 }} />
+      <canvas ref={wetRef} aria-hidden width={1} height={1} className="pointer-events-none absolute left-0 top-0" style={{ zIndex: 4 }} />
       <div ref={overRef} className="pointer-events-none absolute left-0 top-0 origin-top-left" style={{ width: PAGE_W, height: PAGE_H, zIndex: 5 }}>
         {box && (
           <>

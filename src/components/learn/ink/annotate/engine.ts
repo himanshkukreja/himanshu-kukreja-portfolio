@@ -34,12 +34,17 @@
  * A fast zig-zag over marks erases them instead of drawing. A two-finger tap undoes, three fingers redo (both modes:
  * in Pen only the fingers are only watched, never cancelled). onStroke tells the host where the last stroke ended
  * (the floating pen ↔ eraser switch follows it).
+ *
+ * The stroke being drawn is drawn by lib/learn/ink/liveStroke.ts (the settled part once, the tail each frame, a
+ * frame of predicted points, ending under the nib; hk.ink.classic = "1" keeps the old whole-stroke redraw). The
+ * overlay's origin is read once per stroke (again after a scroll), not per pointer event.
  */
 import { buildLayer, fillLayer, fillStroke, outlinePathData, penPressureUsable, strokeInput, strokeOptions, withoutPressure, type InkTheme } from "@/lib/learn/ink/render";
 import { ContactLog, TouchArbiter, noteFingerDrag, pressureVaries, type ArbiterEvent, type ContactPoint, type InkInputMode } from "@/lib/learn/ink/inputMode";
 import { HOLD_MS, HOLD_PX, TapSession, detectScribble, inkToast, scribbleTargets, type TimedPt } from "@/lib/learn/ink/gestures";
 import { Q, strokeHit, unionBox, strokeBox, type Box } from "@/lib/learn/ink/geometry";
 import { getStroke } from "perfect-freehand";
+import { LivePainter, frameInterval, inkFlags } from "@/lib/learn/ink/liveStroke";
 import type { InkColor, InkTool, Stroke } from "@/lib/learn/ink/types";
 import { setShowMarks } from "./mode";
 import { BlockIndex, Layout, anchorStroke, clampGroups, placeMark, type AnnotMark, type GroupHint, type Placed } from "@/lib/learn/ink/annotate";
@@ -47,6 +52,8 @@ import { BlockIndex, Layout, anchorStroke, clampGroups, placeMark, type AnnotMar
 
 export const TILE = 1024;
 const MIN_STEP2 = 6 * 6; // a point is kept 0.6 px from the last (×Q)
+/** predicted points per move at most (they reach a frame ahead); the old renderer took 2 */
+const MAX_PREDICTED = 8;
 const MARGIN_MAX = 220;
 /** room a margin note needs on the right (px); a narrower margin opens a gutter (measureBox) */
 const GUTTER = 72;
@@ -82,7 +89,7 @@ export type EngineProps = {
 type Tile = { i: number; hl: HTMLCanvasElement; ink: HTMLCanvasElement; v: number };
 
 type Action =
-  | { kind: "draw"; pid: number; type: string; tool: InkTool; color: InkColor; size: number; pts: number[]; predicted: number[]; moved: boolean; start: [number, number]; raw: number[]; real: boolean; ts: number[] }
+  | { kind: "draw"; pid: number; type: string; tool: InkTool; color: InkColor; size: number; pts: number[]; predicted: number[]; moved: boolean; start: [number, number]; raw: number[]; real: boolean; ts: number[]; painter: LivePainter | null }
   | { kind: "erase"; pid: number; type: string; erased: Set<string>; at: [number, number] | null; moved: boolean; start: [number, number] };
 
 /** a long-press selects the marks written with the one under it: within WORD_MS of each other, WORD_GAP px apart */
@@ -264,9 +271,14 @@ export class AnnotEngine {
     return this.index;
   }
 
+  /** the overlay's origin while a stroke is drawn (a scroll or a resize reads it again) */
+  private org: { x: number; y: number } | null = null;
   private origin() {
+    if (this.org) return this.org;
     const r = this.hlLayer.getBoundingClientRect();
-    return { x: r.left, y: r.top };
+    const o = { x: r.left, y: r.top };
+    if (this.action) this.org = o;
+    return o;
   }
 
   private freshLayout(): Layout {
@@ -274,7 +286,10 @@ export class AnnotEngine {
     return this.layout;
   }
 
-  private onResize = () => this.scheduleRelayout(0);
+  private onResize = () => {
+    this.org = null;
+    this.scheduleRelayout(0);
+  };
 
   private scheduleRelayout(ms: number) {
     window.clearTimeout(this.relayoutTimer);
@@ -380,7 +395,10 @@ export class AnnotEngine {
     this.scheduleTiles();
   }
 
-  private onScroll = () => this.scheduleTiles();
+  private onScroll = () => {
+    this.org = null;
+    this.scheduleTiles();
+  };
 
   private scheduleTiles() {
     if (this.raf) return;
@@ -591,7 +609,10 @@ export class AnnotEngine {
       }
       const [x, y] = this.toOverlay(e.clientX, e.clientY, o);
       const pr = e.pointerType === "pen" ? Math.max(1, Math.round((e.pressure || 0.5) * 100)) : 0;
-      this.action = { kind: "draw", pid: e.pointerId, type: e.pointerType, tool, color: p.color, size: p.size, pts: [x, y, pr], predicted: [], moved: false, start, raw: [e.pressure || 0], real: false, ts: [performance.now()] };
+      if (!inkFlags().classic) this.painter ||= new LivePainter(this.live, false);
+      const painter = inkFlags().classic ? null : this.painter;
+      painter?.start({ tool, color: p.color, size: p.size }, p.theme);
+      this.action = { kind: "draw", pid: e.pointerId, type: e.pointerType, tool, color: p.color, size: p.size, pts: [x, y, pr], predicted: [], moved: false, start, raw: [e.pressure || 0], real: false, ts: [performance.now()], painter };
     }
     document.documentElement.style.setProperty("user-select", "none");
     document.documentElement.style.setProperty("-webkit-user-select", "none");
@@ -851,7 +872,10 @@ export class AnnotEngine {
       const o = this.origin();
       a.predicted = [];
       const pred = typeof e.getPredictedEvents === "function" ? e.getPredictedEvents() : [];
-      for (const ev of pred.slice(0, 2)) {
+      // up to a frame ahead of the pen, the first one always (the old renderer: the first two)
+      const horizon = e.timeStamp + frameInterval();
+      for (const [k, ev] of (a.painter ? pred.slice(0, MAX_PREDICTED) : pred.slice(0, 2)).entries()) {
+        if (a.painter && k > 0 && ev.timeStamp > horizon) break;
         const [qx, qy] = this.toOverlay(ev.clientX, ev.clientY, o);
         a.predicted.push(qx, qy, this.pressureOf(a, ev.pressure));
       }
@@ -862,8 +886,18 @@ export class AnnotEngine {
         this.drawLive();
       });
     }
+    // the pen stops: the predicted points (where it was heading) go
+    if (a.kind === "draw" && a.predicted.length) {
+      window.clearTimeout(this.predTimer);
+      this.predTimer = window.setTimeout(() => {
+        if (this.action !== a || !a.predicted.length) return;
+        a.predicted = [];
+        this.drawLive();
+      }, frameInterval() * 2.5);
+    }
   };
   private liveRaf = 0;
+  private predTimer = 0;
 
   private pressureOf(a: Extract<Action, { kind: "draw" }>, p: number) {
     return a.type === "pen" || a.real ? Math.max(1, Math.round((p || 0.5) * 100)) : 0;
@@ -889,6 +923,7 @@ export class AnnotEngine {
         if (c && pressureVaries(c)) {
           a.real = true;
           for (let i = 0; i * 3 + 2 < pts.length; i++) pts[i * 3 + 2] = Math.max(1, Math.round((a.raw[i] || 0.5) * 100));
+          a.painter?.restart();
         }
       }
     } else {
@@ -912,6 +947,7 @@ export class AnnotEngine {
 
   private complete(a: Action, cancelled: boolean, t: Element | null = null) {
     this.action = null;
+    this.org = null;
     document.documentElement.style.removeProperty("user-select");
     document.documentElement.style.removeProperty("-webkit-user-select");
     if (a.type === "mouse" && a.moved) this.swallowUntil = performance.now() + 400;
@@ -1008,6 +1044,7 @@ export class AnnotEngine {
   private cancelAction() {
     const a = this.action;
     this.action = null;
+    this.org = null;
     if (a?.kind === "erase") {
       this.skip = null;
       this.bump();
@@ -1091,15 +1128,25 @@ export class AnnotEngine {
     if (this.action) e.preventDefault();
   };
 
+  /** the live stroke's painter (liveStroke.ts), made on the first stroke */
+  private painter: LivePainter | null = null;
+
   private drawLive() {
+    const a = this.action;
+    const d = Math.min(2, window.devicePixelRatio || 1);
+    if (this.painter?.active && !(a?.kind === "draw" && a.painter)) this.painter.clear();
+    if (a?.kind === "draw" && a.painter) {
+      const o = this.origin();
+      const simulate = (a.type === "pen" && !penPressureUsable(a.pts, true)) || !(a.pts[2] > 0);
+      a.painter.paint(a.pts, simulate, a.predicted, { k: d, x: o.x * d, y: o.y * d });
+      return;
+    }
     const c = this.live;
     const ctx = c.getContext("2d");
     if (!ctx) return;
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, c.width, c.height);
-    const a = this.action;
     if (!a) return;
-    const d = Math.min(2, window.devicePixelRatio || 1);
     const o = this.origin();
     if (a.kind === "draw") {
       let all = a.predicted.length ? a.pts.concat(a.predicted) : a.pts;
