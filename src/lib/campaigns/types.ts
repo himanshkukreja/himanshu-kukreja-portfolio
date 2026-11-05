@@ -149,6 +149,22 @@ export type TemplateInfo = {
 };
 
 export type Recipient = { email: string; name: string | null; userId: string | null };
+
+/** One row of the "choose people" list: everyone an email could go to, with enough to recognise them. */
+export type PickPerson = {
+  email: string;
+  name: string | null;
+  /** an account (signed up) or a newsletter subscriber without one */
+  kind: "account" | "subscriber";
+  /** lessons completed (accounts) */
+  completed: number;
+  /** last learn activity, ms (0 = never) */
+  lastActivity: number;
+  /** signed up, never opened a lesson */
+  neverStarted: boolean;
+  /** never emailed: unsubscribed or bounced / suppressed */
+  blocked: "unsubscribed" | "suppressed" | null;
+};
 export type RecipientPreview = Recipient & { vars: MergeVars; source: "account" | "subscriber" | "custom"; nameSource?: NameSource };
 
 /** A person in the Recipients panel: the name the campaign service uses + where it came from. */

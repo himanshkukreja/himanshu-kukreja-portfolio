@@ -25,7 +25,7 @@ import { firstNameOf, type MergeVars } from "./tags";
 import { getStore } from "./store";
 import { getNamesStore, type NameOverride } from "./names";
 import { resolveName, type NameSource } from "./names-core";
-import type { AudienceCount, AudienceSpec, NamedPerson, Recipient, RecipientPreview } from "./types";
+import type { AudienceCount, AudienceSpec, NamedPerson, PickPerson, Recipient, RecipientPreview } from "./types";
 
 const PAGE = 1000;
 const EMAIL_RE = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
@@ -350,6 +350,20 @@ export async function searchRecipients(q: string, limit = 8): Promise<RecipientP
     if (!b.people.has(e) && hit(e)) push(e, "subscriber");
   }
   return out;
+}
+
+/** Everyone who could be emailed (accounts, then subscribers without one), most recently active first, for "choose people". */
+export async function pickablePeople(): Promise<PickPerson[]> {
+  const b = await base();
+  const blocked = (e: string): PickPerson["blocked"] => (b.unsubscribed.has(e) ? "unsubscribed" : b.suppressed.has(e) ? "suppressed" : null);
+  const accounts = [...b.people.values()]
+    .sort((x, y) => y.lastActivity - x.lastActivity || x.email.localeCompare(y.email))
+    .map((p): PickPerson => ({ email: p.email, name: nameOf(b, p.email).name, kind: "account", completed: p.completed, lastActivity: p.lastActivity, neverStarted: !p.active, blocked: blocked(p.email) }));
+  const subs = [...b.subscribers]
+    .filter((e) => !b.people.has(e))
+    .sort()
+    .map((e): PickPerson => ({ email: e, name: nameOf(b, e).name, kind: "subscriber", completed: 0, lastActivity: 0, neverStarted: false, blocked: blocked(e) }));
+  return [...accounts, ...subs];
 }
 
 /** One address as the Recipients panel shows it. */

@@ -2,7 +2,8 @@
 
 /**
  * Audience: presets (all accounts, learners, subscribers), segments (active in N days, never started,
- * completed ≥ N lessons) and a pasted list. Live counts after unsubscribes, bounces and duplicates.
+ * completed ≥ N lessons) and chosen people (picked from a list or pasted). Live counts after unsubscribes,
+ * bounces and duplicates.
  */
 import { useEffect, useState } from "react";
 import { Card, Kpi, LABEL, fmtNum, useAdminClient } from "@/components/admin/ui";
@@ -10,6 +11,7 @@ import { Field, inputCls } from "@/components/admin/content/common";
 import type { AudienceCount, AudienceKind, AudienceSpec, NamedPerson } from "@/lib/campaigns/types";
 import { Note, cx, jsonInit, textareaCls, useDebounced } from "./bits";
 import RecipientNames from "./RecipientNames";
+import PeoplePicker from "./PeoplePicker";
 
 type Presets = Record<"all" | "learners" | "subscribers" | "subscribers_learners" | "never_started", number>;
 export type AudienceReply = { count: AudienceCount; presets: Presets };
@@ -22,7 +24,7 @@ const OPTIONS: { kind: AudienceKind; label: string; hint: string }[] = [
   { kind: "active", label: "Active recently", hint: "lesson progress or streak in the last N days" },
   { kind: "never_started", label: "Never started", hint: "signed up, never opened a lesson" },
   { kind: "completed", label: "Completed ≥ N lessons", hint: "finished at least N lessons" },
-  { kind: "custom", label: "Custom list", hint: "paste addresses" },
+  { kind: "custom", label: "Choose people", hint: "pick learners from the list, or paste addresses" },
 ];
 
 /** Live count for a spec (campaignId → only people not already in that campaign). */
@@ -106,8 +108,9 @@ export default function AudiencePicker({
             <input className={`${inputCls} max-w-[160px] font-mono`} type="number" min={1} max={1000} value={spec.min ?? 3} readOnly={readOnly} onChange={(e) => onChange({ ...spec, min: Number(e.target.value) || 1 })} />
           </Field>
         )}
+        {spec.kind === "custom" && <PeoplePicker emails={spec.emails || ""} readOnly={readOnly} onChange={(emails) => onChange({ ...spec, emails })} />}
         {spec.kind === "custom" && (
-          <Field label="Addresses (comma, space or one per line)" hint="Matched to accounts for names and progress; unknown addresses get empty merge data (fallbacks apply).">
+          <Field label="Addresses (picked above, or paste: comma, space or one per line)" hint="Matched to accounts for names and progress; unknown addresses get empty merge data (fallbacks apply).">
             <textarea className={`${textareaCls} font-mono text-[13px]`} rows={6} value={spec.emails || ""} readOnly={readOnly} onChange={(e) => onChange({ ...spec, emails: e.target.value })} placeholder={"priya@example.com\nrohan@example.com"} />
           </Field>
         )}

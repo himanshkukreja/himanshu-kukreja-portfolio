@@ -5,7 +5,7 @@
  */
 import { listTemplates } from "@/lib/campaigns/templates";
 import { SITE } from "@/lib/campaigns/links";
-import type { AudienceCount, AudienceSpec, Campaign, CampaignCounts, CampaignSummary, EventRow, MessageRow, NewsletterInfo, RecipientPreview, Sender, TemplateInfo } from "@/lib/campaigns/types";
+import type { AudienceCount, AudienceSpec, Campaign, CampaignCounts, CampaignSummary, EventRow, MessageRow, NewsletterInfo, RecipientPreview, Sender, TemplateInfo, PickPerson } from "@/lib/campaigns/types";
 import { displayStatus } from "@/lib/campaigns/types";
 import type { StoryOption } from "@/lib/campaigns/types";
 import { storyContent } from "@/lib/campaigns/story-doc";
@@ -513,6 +513,18 @@ export function resolveNewsletterFixture(u: URL, init?: RequestInit): unknown {
     return { recipients: list };
   }
   if (p === "/names") return namesFixture(u, method, body(init));
+  if (p === "/people") {
+    const people: PickPerson[] = PEOPLE.map((x, i) => ({
+      email: x.email,
+      name: x.name,
+      kind: x.userId ? "account" : "subscriber",
+      completed: x.completed,
+      lastActivity: x.active ? Date.now() - x.lastDays * 86400_000 : 0,
+      neverStarted: !!x.userId && !x.active,
+      blocked: i % 37 === 5 ? "unsubscribed" : i % 53 === 7 ? "suppressed" : null,
+    }));
+    return { people };
+  }
   if (p === "/audience") {
     const b = body(init);
     const e = b.campaignId ? state.get(b.campaignId) : undefined;
