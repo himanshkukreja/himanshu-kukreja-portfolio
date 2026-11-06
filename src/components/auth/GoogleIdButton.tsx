@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
 import { mountGoogleButton } from "@/lib/auth/googleIdentity";
 import { Spinner } from "@/components/ui/loader";
 
@@ -12,7 +12,8 @@ import { Spinner } from "@/components/ui/loader";
  */
 export default function GoogleIdButton({ onDone, onError, onFallback }: { onDone: () => void; onError: (m: string) => void; onFallback: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
-  const { resolvedTheme } = useTheme();
+  // the page's tone (the course theme on the course host)
+  const dark = usePageTone().dark;
   const [state, setState] = useState<"loading" | "ready" | "signing" | "failed">("loading");
   const cbs = useRef({ onDone, onError });
   useEffect(() => {
@@ -25,7 +26,7 @@ export default function GoogleIdButton({ onDone, onError, onFallback }: { onDone
     let cleanup: (() => void) | null = null;
     let off = false;
     mountGoogleButton(el, {
-      theme: resolvedTheme === "dark" ? "dark" : "light",
+      theme: dark ? "dark" : "light",
       width: el.parentElement?.clientWidth || 360,
       onStart: () => setState("signing"),
       onDone: () => cbs.current.onDone(),
@@ -44,7 +45,7 @@ export default function GoogleIdButton({ onDone, onError, onFallback }: { onDone
       off = true;
       cleanup?.();
     };
-  }, [resolvedTheme]);
+  }, [dark]);
 
   return (
     <div className="mb-4 flex flex-col items-stretch gap-2">

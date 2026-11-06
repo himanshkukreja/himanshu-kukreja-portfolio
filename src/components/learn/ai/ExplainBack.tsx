@@ -13,7 +13,7 @@ import AiFreeNote from "./AiFreeNote";
 import { AI_PRIVACY } from "./AskLessonPanel";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
 
-const TONE: Record<string, string> = { solid: "border-ok text-ok", partial: "border-signal text-signal-text", misconception: "border-bad text-bad" };
+const TONE: Record<string, string> = { solid: "border-ok text-ok-text", partial: "border-signal text-signal-text", misconception: "border-bad text-bad-text" };
 const LABEL: Record<string, string> = { solid: "solid ✓", partial: "partly there", misconception: "a misconception" };
 
 function parse(t: string) {

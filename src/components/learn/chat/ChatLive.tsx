@@ -115,7 +115,7 @@ export function Trail({ items, className = "" }: { items: string[]; className?: 
       <span className="sr-only">What the tutor did: </span>
       {items.map((t) => (
         <span key={t} className="inline-flex items-center gap-1">
-          <Check className="h-3 w-3 text-ok" aria-hidden />
+          <Check className="h-3 w-3 text-ok-text" aria-hidden />
           {t}
         </span>
       ))}

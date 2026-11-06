@@ -136,7 +136,7 @@ export default function ChatHistory({ uid, sync, onNew, onOpened, beforeSwitch, 
                   onNew();
                   track("chat_history_delete", { all: true, n: threads.length });
                 }}
-                className="min-h-10 bg-bad px-3 text-[13px] font-semibold text-white"
+                className="min-h-10 bg-bad px-3 text-[13px] font-semibold text-on-bad"
               >
                 Delete all
               </button>
@@ -179,7 +179,7 @@ function Rename({ t, uid, onDone }: { t: LocalThread; uid: string; onDone: () =>
               e.stopPropagation();
               onDone();
             }} className="min-h-10 min-w-0 flex-1 bg-transparent px-1.5 text-[16px] sm:text-[14px] text-fg outline-none focus-visible:outline-none" />
-          <button type="submit" aria-label="Save the name" className="grid h-10 w-10 shrink-0 place-items-center text-ok hover:text-fg">
+          <button type="submit" aria-label="Save the name" className="grid h-10 w-10 shrink-0 place-items-center text-ok-text hover:text-fg">
             <Check className="h-4 w-4" aria-hidden />
           </button>
           <button type="button" onClick={onDone} aria-label="Cancel" className="grid h-10 w-10 shrink-0 place-items-center text-fg-3 hover:text-fg">
@@ -204,7 +204,7 @@ function Row({ t, on, editing, onEdit, onOpen, uid, touch }: { t: LocalThread; o
             void deleteThread(uid, t.id);
             track("chat_history_delete", { all: false });
           }}
-          className="min-h-9 bg-bad px-2.5 text-[12.5px] font-semibold text-white"
+          className="min-h-9 bg-bad px-2.5 text-[12.5px] font-semibold text-on-bad"
         >
           Delete
         </button>

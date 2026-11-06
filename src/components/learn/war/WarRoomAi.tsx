@@ -67,13 +67,13 @@ function useAiGate(feature: string): {
 }
 
 const GRADE: Record<RunGrade, { label: string; tone: string }> = {
-  strong: { label: "Strong", tone: "border-ok bg-ok/10 text-ok" },
+  strong: { label: "Strong", tone: "border-ok bg-ok/10 text-ok-text" },
   solid: {
     label: "Solid",
     tone: "border-signal bg-signal/10 text-signal-text",
   },
-  shaky: { label: "Shaky", tone: "border-bad/70 bg-bad/5 text-bad" },
-  rough: { label: "Rough", tone: "border-bad bg-bad/10 text-bad" },
+  shaky: { label: "Shaky", tone: "border-bad/70 bg-bad/5 text-bad-text" },
+  rough: { label: "Rough", tone: "border-bad bg-bad/10 text-bad-text" },
 };
 
 type Review = {
@@ -171,7 +171,7 @@ export function RunReview({ slug, picks, typed }: { slug: string; picks: { beat:
           <div className="grid gap-4 md:grid-cols-2">
             {review.well.length > 0 && (
               <div className="flex flex-col gap-1.5">
-                <span className={`${LABEL} text-ok`}>what you did well</span>
+                <span className={`${LABEL} text-ok-text`}>what you did well</span>
                 <ul className="m-0 flex list-disc flex-col gap-1.5 pl-5 text-[14.5px] leading-relaxed text-fg-2">
                   {review.well.map((w, i) => (
                     <li key={i}>{w}</li>

@@ -18,7 +18,7 @@ import OfflineStrip from "@/components/offline/OfflineStrip";
 import AppBack, { useAppDepth } from "./AppBack";
 import AdminLink from "./AdminLink";
 import { usePageTone } from "@/components/learn/reading/useReading";
-import { updateReading } from "@/lib/learn/readingModes";
+import ThemeMenu from "./ThemeMenu";
 
 // Portfolio nav. The course (and its case files) lives on its own domain now: "learn ↗" goes there.
 const NAV = [
@@ -38,9 +38,9 @@ const DOCK = [
   { href: COURSE_ORIGIN, label: "learn ↗", match: () => false },
 ];
 
+/** The portfolio's and /admin's light / dark switch (the course pages have the theme menu instead). */
 function ThemeToggle() {
   const { setTheme } = useTheme();
-  // the page's tone: a reading mode (the reader's "Aa" panel) decides it on reading pages
   const tone = usePageTone();
   // true on the client, false during SSR — avoids a theme-icon hydration mismatch.
   // Light is the default theme, so the server renders the light-mode icon.
@@ -49,11 +49,7 @@ function ThemeToggle() {
   return (
     <button
       type="button"
-      onClick={() => {
-        // flipping the page by hand hands the colours back to the site theme
-        if (tone.override) updateReading({ mode: "site" });
-        setTheme(dark ? "light" : "dark");
-      }}
+      onClick={() => setTheme(dark ? "light" : "dark")}
       aria-label={dark ? "Switch to light mode" : "Switch to dark mode"}
       className="grid h-10 w-10 place-items-center border border-line-strong text-fg hover:bg-surface-2"
     >
@@ -143,6 +139,8 @@ export default function SiteHeader() {
   const p = levelProgress(hydrated ? xp : 0);
   const doneCount = MAIN_QUESTS.filter((q) => done[q.id]).length;
   const learn = site === "course";
+  // the course's theme menu on every course page; /admin keeps the plain light / dark switch
+  const themes = learn && !/^\/admin(?:\/|$)/.test(pathname);
   const lesson = learn && isLessonPath(pathname);
   // lesson pages: the header slides away while reading down, back on scroll up
   useAutoHideChrome(lesson && !questsOpen);
@@ -245,7 +243,7 @@ export default function SiteHeader() {
                 </button>
               </>
             )}
-            <ThemeToggle />
+            {themes ? <ThemeMenu /> : <ThemeToggle />}
             <AuthButton />
           </div>
           {questsOpen && <QuestLog onClose={() => setQuestsOpen(false)} />}

@@ -309,7 +309,7 @@ export function WarRoomGrid({ rooms, limit }: { rooms: WarRoomSummary[]; limit?:
                 <Link href={r.href} className={`flex h-full flex-col gap-3 border p-4 hover:border-fg-3 sm:p-5 ${c ? "border-line-strong bg-surface-2" : "border-line bg-surface"}`}>
                   <span className="flex items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-label">
                     <span className="min-w-0 truncate">
-                      <span className="bg-bad px-1.5 py-0.5 font-semibold text-white">{r.sev}</span>{" "}
+                      <span className="bg-bad px-1.5 py-0.5 font-semibold text-on-bad">{r.sev}</span>{" "}
                       <span className="text-fg-3">
                         · {r.starts} · {r.company}
                       </span>

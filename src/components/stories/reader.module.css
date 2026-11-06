@@ -389,7 +389,7 @@
 }
 
 .comments :global([class*="text-green-"]) {
-  color: var(--c-ok) !important;
+  color: var(--c-ok-text) !important;
 }
 
 .comments :global([class*="bg-white"]) {

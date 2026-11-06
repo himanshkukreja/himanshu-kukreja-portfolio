@@ -1,21 +1,27 @@
 /**
- * Reading modes (Kindle-style): the colour mode, font, text size, line spacing and page width a learner
- * picks in the reader's "Aa" panel (components/learn/reading/ReadingPanel).
+ * Site themes and reading settings (Kindle-style).
  *
- * - Reading routes only (lessons, side quests, problem bank, LLD, case files, war stories, papers,
- *   revision, cheat sheets, mock interviews): every other page keeps the site's light/dark theme.
- * - The mode is a token set in globals.css under html[data-read-mode="<mode>"]; everything built on the
- *   --c-* tokens follows. The html `dark` class is the page's tone: on a reading route it follows the
- *   mode (dusk and night are dark, the rest light), elsewhere the site theme (next-themes keeps that in
- *   html[data-theme], src/components/ThemeProvider.tsx). So `dark:` variants, `.dark` rules, mermaid and
- *   the code palette all match the mode too.
+ * - The theme (Light, Paper, Sepia, Mint, Dusk, Night) is the colour of the whole course site
+ *   (systemdesignmastery.dev, every page but /admin): picked from the header's theme menu
+ *   (components/site/ThemeMenu) or the theme row of the reader's "Aa" panel (components/learn/reading/
+ *   ReadingPanel), one shared setting. The portfolio (himanshukukreja.in) and /admin keep the plain
+ *   light / dark site theme (next-themes, html[data-theme], src/components/ThemeProvider.tsx).
+ * - Font, text size, line spacing and page width apply on reading routes only (READING_ROUTE: lessons, side
+ *   quests, problem bank, LLD, case files, war stories, papers, revision, cheat sheets, mock interviews).
+ * - The theme is a token set in globals.css under html[data-read-mode="<theme>"] (light and night are the
+ *   :root and .dark tokens themselves); everything built on the --c-* tokens follows. The html `dark` class
+ *   is the page's tone: on a themed page it follows the theme (dusk and night are dark), elsewhere the site
+ *   theme. So `dark:` variants, `.dark` rules, mermaid and the code palette all match the theme too.
  * - Saved in this browser (localStorage, read before paint by READING_JS in <head>); signed-in learners
  *   also carry it in their game flags (READING_FLAG), so it follows the account.
- * - Going site-wide later: widen READING_ROUTE (or drop the route check) and the tokens already apply.
+ * - "site" is a stored mode that was never picked, or the old "Site theme" choice: it resolves to Light or
+ *   Night from the browser's old light / dark choice (resolveMode), and ReadingModeHost saves that once.
  */
 import { CONTENT_AREA, COURSE_ID, cleanPath } from "./paths";
+import { COURSE_HOST_NAMES, PORTFOLIO_HOST_NAMES, isPortfolioHost } from "@/lib/site/hosts";
 
-export type ReadMode = "site" | "light" | "sepia" | "paper" | "mint" | "dusk" | "night";
+export type ThemeId = "light" | "sepia" | "paper" | "mint" | "dusk" | "night";
+export type ReadMode = "site" | ThemeId;
 export type ReadFont = "sans" | "serif";
 export type ReadLeading = "compact" | "normal" | "relaxed";
 export type ReadWidth = "narrow" | "normal" | "wide";
@@ -44,8 +50,10 @@ export const READING_FLAG = "pref:reader";
 export const DEFAULT_READING: ReadingSettings = { mode: "site", font: "sans", size: TEXT_SIZES[0], leading: "normal", width: "normal", updatedAt: 0 };
 
 type ModeInfo = {
-  id: Exclude<ReadMode, "site">;
+  id: ThemeId;
   name: string;
+  /** a few words under the name in the theme menu */
+  hint: string;
   dark: boolean;
   /** preview colours for the panel swatches and the browser chrome (keep in sync with globals.css) */
   bg: string;
@@ -54,12 +62,12 @@ type ModeInfo = {
 };
 
 export const READ_MODES: ModeInfo[] = [
-  { id: "light", name: "Light", dark: false, bg: "#F5F4F0", fg: "#0B0B0B", accent: "#C2410C" },
-  { id: "paper", name: "Paper", dark: false, bg: "#F7F3EA", fg: "#222018", accent: "#B04A10" },
-  { id: "sepia", name: "Sepia", dark: false, bg: "#F4ECD8", fg: "#3B2F20", accent: "#9A4A12" },
-  { id: "mint", name: "Mint", dark: false, bg: "#E6EEDF", fg: "#23301F", accent: "#94420E" },
-  { id: "dusk", name: "Dusk", dark: true, bg: "#23201C", fg: "#D9CFBF", accent: "#E0965A" },
-  { id: "night", name: "Night", dark: true, bg: "#000000", fg: "#F3F2EE", accent: "#FF6B2B" },
+  { id: "light", name: "Light", hint: "Bright and crisp", dark: false, bg: "#F5F4F0", fg: "#0B0B0B", accent: "#B93D0B" },
+  { id: "paper", name: "Paper", hint: "Softer white", dark: false, bg: "#F7F3EA", fg: "#222018", accent: "#A8460F" },
+  { id: "sepia", name: "Sepia", hint: "Warm, easy on the eyes", dark: false, bg: "#F4ECD8", fg: "#3B2F20", accent: "#9A4A12" },
+  { id: "mint", name: "Mint", hint: "Pale sage green", dark: false, bg: "#E6EEDF", fg: "#23301F", accent: "#94420E" },
+  { id: "dusk", name: "Dusk", hint: "Soft, warm dark", dark: true, bg: "#23201C", fg: "#D9CFBF", accent: "#E0965A" },
+  { id: "night", name: "Night", hint: "True black", dark: true, bg: "#000000", fg: "#F3F2EE", accent: "#FF6B2B" },
 ];
 
 export const FONTS: { id: ReadFont; name: string }[] = [
@@ -97,8 +105,18 @@ export function cleanReading(raw: unknown, size?: unknown): ReadingSettings {
   };
 }
 
-export const sameReading = (a: ReadingSettings, b: ReadingSettings) =>
-  a.mode === b.mode && a.font === b.font && a.size === b.size && a.leading === b.leading && a.width === b.width;
+export const sameReading = (a: ReadingSettings, b: ReadingSettings) => a.mode === b.mode && sameType(a, b);
+
+/** The same type settings (font, size, spacing, width), whatever the theme. */
+export const sameType = (a: ReadingSettings, b: ReadingSettings) => a.font === b.font && a.size === b.size && a.leading === b.leading && a.width === b.width;
+
+export const themeInfo = (id: ThemeId) => READ_MODES.find((m) => m.id === id) ?? READ_MODES[0];
+
+/** The theme a stored mode stands for: "site" (never picked, or the old "Site theme") follows the old light / dark choice. */
+export function resolveMode(mode: ReadMode, siteDark: boolean): ThemeId {
+  if (mode !== "site" && READ_MODES.some((m) => m.id === mode)) return mode;
+  return siteDark ? "night" : "light";
+}
 
 // ---- the reading routes ----------------------------------------------------------------------------
 
@@ -113,6 +131,33 @@ export const READING_ROUTE = new RegExp(
 );
 
 export const isReadingPath = (path: string | null | undefined) => !!path && READING_ROUTE.test(cleanPath(path).replace(/[?#].*$/, ""));
+
+// ---- the themed pages ------------------------------------------------------------------------------
+
+/** /admin keeps the plain light / dark site theme, on the course host too. */
+const ADMIN_ROUTE = /^\/admin(?:\/|$)/;
+/** The course's own internal routes (what a preview host or an old link shows): course pages wherever they are served. */
+const COURSE_ROUTE = /^\/(?:learn|stories)(?:\/|$)|^\/(?:cert|u)\//;
+
+/**
+ * Does the theme colour this page? Every page on the course host but /admin (shared routes such as
+ * /auth/callback, /privacy and /newsletter follow the host). The real portfolio host never; any other host
+ * (localhost, previews) when the dev switch says course (the hk_site cookie, src/middleware.ts), else on the
+ * course's internal routes. READING_JS makes the same call before paint: keep the two in step.
+ */
+export function isThemedPage(host: string, path: string, cookie = ""): boolean {
+  const p = (path || "/").replace(/[?#].*$/, "");
+  if (ADMIN_ROUTE.test(p)) return false;
+  const h = (host || "").trim().toLowerCase();
+  if (COURSE_HOST_NAMES.includes(h) || COURSE_HOST_NAMES.includes(h.replace(/:\d+$/, ""))) return true;
+  if (!h || isPortfolioHost(h)) return false;
+  const forced = /(?:^|;\s*)hk_site=(course|portfolio)/.exec(cookie)?.[1];
+  if (forced) return forced === "course";
+  return COURSE_ROUTE.test(p);
+}
+
+/** isThemedPage for this tab (false during the server render). */
+export const isThemedHere = (path: string) => typeof window !== "undefined" && isThemedPage(window.location.host, path, document.cookie);
 
 // ---- storage -----------------------------------------------------------------------------------------
 
@@ -158,8 +203,18 @@ export function updateReading(patch: Partial<Omit<ReadingSettings, "updatedAt">>
   writeReading({ ...readReading(), ...patch, updatedAt: Date.now() });
 }
 
+/** Back to the default font, size, spacing and width; the theme is the site's and stays. */
 export function resetReading() {
-  writeReading({ ...DEFAULT_READING, updatedAt: Date.now() });
+  writeReading({ ...DEFAULT_READING, mode: readReading().mode, updatedAt: Date.now() });
+}
+
+/** The browser's old light / dark choice (next-themes' localStorage "theme"); null when storage is unavailable. */
+export function storedSiteDark(): boolean | null {
+  try {
+    return window.localStorage.getItem("theme") === "dark";
+  } catch {
+    return null;
+  }
 }
 
 export function subscribeReading(cb: () => void) {
@@ -177,10 +232,10 @@ export function subscribeReading(cb: () => void) {
 
 // ---- the page --------------------------------------------------------------------------------------
 
-/** Is the page dark? A reading route follows its mode; "site" (and every other page) the site theme. */
-export function pageIsDark(reading: boolean, s: ReadingSettings, siteDark: boolean): boolean {
-  if (!reading || s.mode === "site") return siteDark;
-  return READ_MODES.find((m) => m.id === s.mode)?.dark ?? siteDark;
+/** Is the page dark? A themed page follows its theme, every other page (portfolio, /admin) the site theme. */
+export function pageIsDark(themed: boolean, s: ReadingSettings, siteDark: boolean): boolean {
+  if (!themed) return siteDark;
+  return themeInfo(resolveMode(s.mode, siteDark)).dark;
 }
 
 /** The browser chrome colour (meta theme-color) for the page as it is now. */
@@ -190,16 +245,20 @@ export function chromeColor(root: HTMLElement = document.documentElement): strin
   return root.classList.contains("dark") ? SITE_CHROME.dark : SITE_CHROME.light;
 }
 
-/** Puts the settings on <html> (READING_JS does the same before paint; keep the two in step). */
-export function applyReading(reading: boolean, s: ReadingSettings, siteDark: boolean) {
+/**
+ * Puts the theme and the reading settings on <html> (READING_JS does the same before paint; keep the two in
+ * step): the theme on themed pages, the type settings on reading routes there.
+ */
+export function applyReading(themed: boolean, reading: boolean, s: ReadingSettings, siteDark: boolean) {
   const root = document.documentElement;
   const on = (name: string, value: string | null) => (value ? root.setAttribute(name, value) : root.removeAttribute(name));
-  root.classList.toggle("dark", pageIsDark(reading, s, siteDark));
-  on("data-read-mode", reading && s.mode !== "site" ? s.mode : null);
-  on("data-read-font", reading && s.font !== "sans" ? s.font : null);
-  on("data-read-leading", reading && s.leading !== "normal" ? s.leading : null);
-  on("data-read-width", reading && s.width !== "normal" ? s.width : null);
-  if (reading) {
+  const read = themed && reading;
+  root.classList.toggle("dark", pageIsDark(themed, s, siteDark));
+  on("data-read-mode", themed ? resolveMode(s.mode, siteDark) : null);
+  on("data-read-font", read && s.font !== "sans" ? s.font : null);
+  on("data-read-leading", read && s.leading !== "normal" ? s.leading : null);
+  on("data-read-width", read && s.width !== "normal" ? s.width : null);
+  if (read) {
     root.style.setProperty("--reader-size", `${s.size}px`);
     // readers with their own base size (case files: 19px) step up from it instead
     root.style.setProperty("--reader-bump", `${s.size - TEXT_SIZES[0]}px`);
@@ -210,17 +269,24 @@ export function applyReading(reading: boolean, s: ReadingSettings, siteDark: boo
 }
 
 /**
- * Plain ES2017, second in <head> (after IMPORT_JS): the page's tone and the saved reading settings on
- * <html> before first paint, and the browser chrome colour to match. The site theme is next-themes'
- * localStorage("theme"), light by default.
+ * Plain ES2017, second in <head> (after IMPORT_JS): the page's theme, tone and reading settings on <html>
+ * before first paint, and the browser chrome colour to match. Themed or not from the host and path
+ * (isThemedPage); the site theme (portfolio, /admin, and the fallback for a theme never picked) is
+ * next-themes' localStorage("theme"), light by default.
  */
 export const READING_JS = `(function(){try{
 var r=document.documentElement,ls=window.localStorage,dark=false,s={},size=0;
 try{dark=ls.getItem("theme")==="dark";s=JSON.parse(ls.getItem(${JSON.stringify(LOOK_KEY)})||"{}")||{};size=Number(ls.getItem(${JSON.stringify(SIZE_KEY)}))}catch(e){}
-var p=location.pathname.replace(/^\\/learn\\/${COURSE_ID}(?=\\/|$)/,"").replace(/^\\/learn(?=\\/|$)/,"").replace(/^\\/stories(?=\\/|$)/,"/case-files")||"/";
-var read=${READING_ROUTE.toString()}.test(p);
+var raw=location.pathname,h=location.host.toLowerCase(),hb=h.replace(/:\\d+$/,""),ch=${JSON.stringify(COURSE_HOST_NAMES)},ph=${JSON.stringify(PORTFOLIO_HOST_NAMES)};
+var themed;
+if(${ADMIN_ROUTE.toString()}.test(raw))themed=false;
+else if(ch.indexOf(h)>=0||ch.indexOf(hb)>=0)themed=true;
+else if(!h||ph.indexOf(h)>=0||ph.indexOf(hb)>=0)themed=false;
+else{var f=/(?:^|;\\s*)hk_site=(course|portfolio)/.exec(document.cookie);themed=f?f[1]==="course":${COURSE_ROUTE.toString()}.test(raw)}
+var p=raw.replace(/^\\/learn\\/${COURSE_ID}(?=\\/|$)/,"").replace(/^\\/learn(?=\\/|$)/,"").replace(/^\\/stories(?=\\/|$)/,"/case-files")||"/";
+var read=themed&&${READING_ROUTE.toString()}.test(p);
 var modes=${JSON.stringify(Object.fromEntries(READ_MODES.map((m) => [m.id, [m.dark ? 1 : 0, m.bg]])))};
-var m=read&&modes[s.mode]?s.mode:null;
+var m=themed?(Object.prototype.hasOwnProperty.call(modes,s.mode)?s.mode:dark?"night":"light"):null;
 if(m)dark=!!modes[m][0];
 r.classList.toggle("dark",dark);
 if(m)r.setAttribute("data-read-mode",m);

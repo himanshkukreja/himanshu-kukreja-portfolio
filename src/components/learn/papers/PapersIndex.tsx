@@ -9,7 +9,7 @@ import { paperStatus, readRecord, paperFlagKey, type PaperRecord, type PaperSumm
 export function ScoreBadge({ rec, small }: { rec: PaperRecord; small?: boolean }) {
   const st = paperStatus(rec);
   if (!st) return null;
-  const tone = st.tone === "pass" ? "text-ok" : st.tone === "distinction" ? "text-signal-text" : st.tone === "open" ? "text-signal-text" : "text-fg-3";
+  const tone = st.tone === "pass" ? "text-ok-text" : st.tone === "distinction" ? "text-signal-text" : st.tone === "open" ? "text-signal-text" : "text-fg-3";
   const dot = st.tone === "pass" ? "bg-ok" : st.tone === "distinction" ? "bg-signal" : st.tone === "practice" ? "border border-dashed border-fg-3" : st.tone === "open" ? "rounded-full bg-signal" : "border border-fg-3";
   return (
     <span className={`inline-flex min-w-0 items-center gap-1.5 font-mono ${small ? "text-[11px]" : "text-[12px]"} ${tone}`}>

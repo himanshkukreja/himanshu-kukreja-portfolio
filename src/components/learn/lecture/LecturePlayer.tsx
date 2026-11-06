@@ -36,7 +36,7 @@ import { userFetch } from "@/components/learn/progress/userFetch";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INTRO } from "./anim";
 import { nextProgress, progressKey, readProgress } from "@/lib/learn/lecture/progress";
-import { LEVEL_TONE, type Level } from "@/lib/learn/level";
+import { LEVEL_TONE_PAGE, type Level } from "@/lib/learn/level";
 import LectureCaptureHost from "@/components/learn/ink/capture/LectureCaptureHost";
 import { SNIP_START, startSnip } from "@/components/learn/ink/capture/events";
 import ChapterSegments from "@/components/learn/video/ChapterSegments";
@@ -126,7 +126,7 @@ function readLabel(lecture: Lecture): string {
 }
 
 export function LevelBadge({ level }: { level: Level }) {
-  const t = LEVEL_TONE[level];
+  const t = LEVEL_TONE_PAGE[level];
   return (
     <span className="inline-flex items-center border px-1.5 py-px font-mono text-[10px] uppercase tracking-label" style={{ color: t.fg, borderColor: t.border }} title={`Difficulty: ${level}`}>
       {level}

@@ -324,7 +324,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
   return (
     <main
       ref={root}
-      className={`hk-app-fill fixed inset-0 z-[60] flex flex-col bg-black lg:relative lg:inset-auto lg:z-auto lg:bg-transparent lg:transition-[margin] lg:duration-300 ${talk ? "lg:ml-0 lg:mr-[420px]" : "lg:mx-auto lg:w-full lg:max-w-[1100px]"}`}
+      className={`hk-app-fill fixed inset-0 z-[60] flex flex-col bg-[var(--c-plate)] lg:relative lg:inset-auto lg:z-auto lg:bg-transparent lg:transition-[margin] lg:duration-300 ${talk ? "lg:ml-0 lg:mr-[420px]" : "lg:mx-auto lg:w-full lg:max-w-[1100px]"}`}
     >
       {/* laptops: filters above the feed */}
       <div className="hidden flex-col gap-1.5 border-b border-line px-6 py-2 lg:flex">
@@ -408,7 +408,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
       </button>
 
       {list.length === 0 ? (
-        <p className="m-6 mt-20 border border-dashed border-line p-6 text-[15px] text-fg-3 lg:mt-6">No shorts here yet.</p>
+        <p className="m-6 mt-20 border border-dashed border-white/25 p-6 text-[15px] text-[var(--c-plate-fg-2)] lg:mt-6 lg:border-line lg:text-fg-3">No shorts here yet.</p>
       ) : (
         <ol
           // a fresh list only if the deal changed the first short (scroll-snap would hold on to the old one);

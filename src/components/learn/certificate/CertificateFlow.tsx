@@ -444,7 +444,7 @@ function Confirm({ target, state, onBack, onIssued, onStale }: { target: Target;
           </span>
         </div>
         <label className="flex cursor-pointer items-start gap-3 border border-line bg-surface p-3.5 text-[14px] leading-snug text-fg-2">
-          <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-[#FF6B2B]" />
+          <input type="checkbox" checked={isPublic} onChange={(e) => setIsPublic(e.target.checked)} className="mt-0.5 h-[18px] w-[18px] shrink-0 accent-signal" />
           <span>
             <span className="block font-semibold text-fg">Publish a public page so recruiters can verify it</span>
             Shows your name, the certificate and how it was earned at {certDisplayUrl("…")}. Never your email. Off unless you tick it; you can switch it on or off any time.
@@ -778,7 +778,7 @@ function WorldCard({
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate text-[15px] font-semibold text-fg">{w.title}</span>
-          <span className={`font-mono text-[12px] ${state === "revoked" ? "text-bad-text" : state === "issued" ? "text-ok" : state === "ready" ? "text-signal-text" : "text-fg-3"}`}>
+          <span className={`font-mono text-[12px] ${state === "revoked" ? "text-bad-text" : state === "issued" ? "text-ok-text" : state === "ready" ? "text-signal-text" : "text-fg-3"}`}>
             {state === "issued" ? `issued · ${c!.code}` : state === "revoked" ? `revoked · ${c!.code}` : state === "ready" ? "ready to claim" : `${e.met}/${e.total} requirements met`}
           </span>
         </span>

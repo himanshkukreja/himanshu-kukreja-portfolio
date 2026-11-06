@@ -103,7 +103,7 @@ export default function CardsPanel({ cards, pageId, pageTitle, lessonKey }: { ca
           {state === "added" ? "Added to review" : state === "adding" ? "Adding…" : `Add ${kept.length} to my review`}
         </button>
         <button type="button" disabled={!kept.length || !lessonKey || note === "saving" || note === "saved"} onClick={() => void saveNote()} className={BTN} title={lessonKey ? undefined : "Link this page to a lesson to save them under that lesson's notes"}>
-          {note === "saved" ? <Check className="h-3.5 w-3.5 text-ok" aria-hidden /> : <NotebookPen className="h-3.5 w-3.5" aria-hidden />}
+          {note === "saved" ? <Check className="h-3.5 w-3.5 text-ok-text" aria-hidden /> : <NotebookPen className="h-3.5 w-3.5" aria-hidden />}
           {note === "saved" ? "Saved as a note" : "Save as a note"}
         </button>
       </div>

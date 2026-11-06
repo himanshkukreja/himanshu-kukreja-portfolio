@@ -32,7 +32,7 @@ const GLYPH_COLOR: Record<MasteryState, string> = {
   "not-started": "text-fg-4",
   seen: "text-fg-3",
   shaky: "text-bad-text",
-  solid: "text-ok",
+  solid: "text-ok-text",
   mastered: "text-on-signal",
 };
 const SEGMENT: Record<MasteryState, string> = {
@@ -315,7 +315,7 @@ export default function MasteryMap({ data, map }: Props) {
                       >
                         <span className="line-clamp-2 text-[13.5px] font-semibold leading-snug">{c.term}</span>
                         <span className="flex items-center justify-between gap-2 font-mono text-[10.5px] uppercase tracking-[0.06em]">
-                          <span className={`flex items-center gap-1 ${state === "mastered" ? "text-on-signal" : "opacity-80"}`}>
+                          <span className={`flex items-center gap-1 ${state === "mastered" ? "text-on-signal" : ""}`}>
                             <span aria-hidden className={GLYPH_COLOR[state]}>
                               {meta.glyph}
                             </span>

@@ -542,7 +542,7 @@ function TestRow({ t, onLine }: { t: HarnessTest; onLine: (line: number) => void
   return (
     <li className="flex flex-col gap-2 border-b border-line px-3 py-2.5 last:border-b-0">
       <span className="flex items-start gap-2.5">
-        <span aria-hidden className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center ${t.ok ? "bg-ok text-black" : "bg-bad text-white"}`}>
+        <span aria-hidden className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center ${t.ok ? "bg-ok text-on-ok" : "bg-bad text-on-bad"}`}>
           {t.ok ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
         </span>
         <span className="min-w-0 flex-1 text-sm leading-snug text-fg">

@@ -162,7 +162,7 @@ export default function AiInterviewer({ slug, startedAt, phaseId, interviewer, n
                 type="button"
                 onClick={call ? endCall : startCall}
                 aria-pressed={call}
-                className={`inline-flex min-h-10 items-center gap-2 px-3.5 font-mono text-xs font-semibold ${call ? "bg-bad text-white" : "border border-signal text-signal-text hover:bg-signal hover:text-on-signal"}`}
+                className={`inline-flex min-h-10 items-center gap-2 px-3.5 font-mono text-xs font-semibold ${call ? "bg-bad text-on-bad" : "border border-signal text-signal-text hover:bg-signal hover:text-on-signal"}`}
               >
                 {call ? <PhoneOff className="h-3.5 w-3.5" aria-hidden /> : <Phone className="h-3.5 w-3.5" aria-hidden />}
                 {call ? "end voice call" : `voice call with ${first}`}

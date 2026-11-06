@@ -25,7 +25,7 @@ export default function ArticleShorts({ of, shorts, what = "lesson", className =
         {shorts.map((s) => (
           <li key={s.id} className="w-[132px] shrink-0 sm:w-[150px]">
             <Link href={href(s.id)} className="group flex flex-col gap-1.5">
-              <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[#0b0b0c] group-hover:border-signal">
+              <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[var(--c-plate)] group-hover:border-signal">
                 {/* eslint-disable-next-line @next/next/no-img-element -- the short's own poster frame on the media host */}
                 <img src={s.poster} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                 <span className="absolute bottom-1 right-1 bg-black/75 px-1 font-mono text-[10px] text-[#f3f2ee]">

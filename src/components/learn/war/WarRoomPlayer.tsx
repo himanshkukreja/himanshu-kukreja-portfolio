@@ -90,7 +90,7 @@ function Message({ beat, cast }: { beat: Exclude<Beat, { kind: "decision" }>; ca
     const pager = beat.who === "pager";
     return (
       <div className={`flex flex-col gap-1 border px-4 py-3 ${pager ? "border-bad bg-bad/10" : "border-line-strong bg-surface"}`}>
-        <span className={`${LABEL} ${pager ? "text-bad" : "text-fg-3"}`}>
+        <span className={`${LABEL} ${pager ? "text-bad-text" : "text-fg-3"}`}>
           {pager ? "🔔 page" : "status page"} · {beat.at}
         </span>
         <span className="text-[15px] font-semibold leading-snug text-fg" dangerouslySetInnerHTML={{ __html: beat.html }} />
@@ -224,7 +224,7 @@ function Decision({
               } disabled:cursor-default`}
             >
               <span dangerouslySetInnerHTML={{ __html: o.html }} />
-              {was && <span className={`shrink-0 font-mono text-[12px] no-underline ${o.best ? "text-ok" : "text-bad"}`}>{o.best ? "✓ right call" : cost || "✗"}</span>}
+              {was && <span className={`shrink-0 font-mono text-[12px] no-underline ${o.best ? "text-ok-text" : "text-bad-text"}`}>{o.best ? "✓ right call" : cost || "✗"}</span>}
             </button>
           );
         })}
@@ -238,7 +238,7 @@ function Decision({
               {f.you}
             </span>
             {v && (
-              <span className={`font-mono text-[11px] uppercase tracking-label ${v === "hurts" ? "text-bad" : v === "helps" ? "text-ok" : "text-fg-3"}`}>
+              <span className={`font-mono text-[11px] uppercase tracking-label ${v === "hurts" ? "text-bad-text" : v === "helps" ? "text-ok-text" : "text-fg-3"}`}>
                 {v === "helps" ? "✓ would help" : v === "hurts" ? `✗ would hurt${f.cost ? ` · +${f.cost} min` : ""}` : "○ off track"}
               </span>
             )}
@@ -444,12 +444,12 @@ export default function WarRoomPlayer({ room }: { room: WarRoom }) {
       {/* channel header: pinned while the room is live; once it ends it scrolls away so it never covers the debrief, postmortem or review */}
       <div className={`${done ? "" : "sticky top-[var(--hk-header-h,56px)] z-10 "}flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border border-line-strong bg-bg/95 px-4 py-2.5 backdrop-blur`}>
         <span className="font-mono text-[13px] text-fg">
-          <span className="bg-bad px-1.5 py-0.5 font-semibold text-white">{room.sev}</span> #inc-{room.slug.slice(0, 22)}
+          <span className="bg-bad px-1.5 py-0.5 font-semibold text-on-bad">{room.sev}</span> #inc-{room.slug.slice(0, 22)}
         </span>
         <span className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px] text-fg-3">
           <span>⏱ {clock}</span>
-          <span className={totals.minutes ? "text-bad" : ""}>lost {totals.minutes} min</span>
-          <span className={totals.users ? "text-bad" : ""}>+{totals.users.toLocaleString("en-IN")} users hurt</span>
+          <span className={totals.minutes ? "text-bad-text" : ""}>lost {totals.minutes} min</span>
+          <span className={totals.users ? "text-bad-text" : ""}>+{totals.users.toLocaleString("en-IN")} users hurt</span>
         </span>
       </div>
 

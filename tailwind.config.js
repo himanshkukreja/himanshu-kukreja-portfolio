@@ -34,6 +34,7 @@ module.exports = {
         ok: tok("ok"),
         bad: tok("bad"),
         "bad-text": tok("bad-text"),
+        "on-bad": tok("on-bad"),
         "ok-text": tok("ok-text"),
         "on-ok": tok("on-ok"),
         link: tok("link"),

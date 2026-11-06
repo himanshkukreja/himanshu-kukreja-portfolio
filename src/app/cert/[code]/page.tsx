@@ -74,7 +74,7 @@ function StatusBadge({ c }: { c: PublicCert }) {
       </span>
     );
   return (
-    <span className="inline-flex min-h-11 items-center gap-2.5 border border-ok/70 bg-ok/10 px-3.5 font-mono text-[14px] uppercase tracking-label text-ok">
+    <span className="inline-flex min-h-11 items-center gap-2.5 border border-ok/70 bg-surface px-3.5 font-mono text-[14px] uppercase tracking-label text-ok-text">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden>
         <path d="M5 12.5l4.5 4.5L19 7" />
       </svg>
@@ -173,7 +173,7 @@ export default async function CertificatePage({ params }: Props) {
           </span>
           <h1 id="cert-h" className={`m-0 break-words font-display text-[clamp(44px,7vw,88px)] font-extrabold leading-[0.95] tracking-[-0.04em] ${revoked ? "text-fg-3 line-through decoration-bad decoration-[3px]" : "text-fg"}`}>
             {v.name}
-            {!/[.!?]$/.test(v.name) && <span className="text-signal">.</span>}
+            {!/[.!?]$/.test(v.name) && <span className="text-signal-text">.</span>}
           </h1>
           <p className="m-0 max-w-[640px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
             {v.kind === "course" ? (

@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePageTone } from "@/components/learn/reading/useReading";
+import { boardPaper } from "@/components/learn/board/paper";
 import { PenTool, X } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -188,8 +189,8 @@ function Note({ children }: { children: React.ReactNode }) {
 function SceneSvg({ scene }: { scene: string }) {
   const box = useRef<HTMLDivElement>(null);
   const [failed, setFailed] = useState(false);
-  // the page's tone: the site theme, or the reading mode on a lesson
-  const { dark } = usePageTone();
+  // the page's tone and theme (the board's paper follows a tinted theme)
+  const { dark, theme } = usePageTone();
   const summary = sketchSummary(scene);
 
   useEffect(() => {
@@ -201,7 +202,7 @@ function SceneSvg({ scene }: { scene: string }) {
         const svg = await exportToSvg({
           elements: s.elements.filter((e) => !e.isDeleted) as never,
           files: (s.files ?? null) as never,
-          appState: { exportBackground: true, viewBackgroundColor: "#ffffff", exportWithDarkMode: dark } as never,
+          appState: { exportBackground: true, viewBackgroundColor: dark ? "#ffffff" : boardPaper(), exportWithDarkMode: dark } as never,
           exportPadding: 24,
         });
         if (off || !box.current) return;
@@ -215,11 +216,11 @@ function SceneSvg({ scene }: { scene: string }) {
     return () => {
       off = true;
     };
-  }, [scene, dark, summary]);
+  }, [scene, dark, theme, summary]);
 
   return (
     <>
-      <div ref={box} className={`df-svg grid min-h-[200px] place-items-center overflow-hidden border border-line ${dark ? "bg-[#121212]" : "bg-white"}`}>
+      <div ref={box} className={`df-svg grid min-h-[200px] place-items-center overflow-hidden border border-line ${dark ? "bg-[#121212]" : "bg-surface"}`}>
         <span className="font-mono text-xs text-fg-3">{failed ? "The drawing couldn't be shown here; its text is below." : "drawing your board…"}</span>
       </div>
       {summary && (

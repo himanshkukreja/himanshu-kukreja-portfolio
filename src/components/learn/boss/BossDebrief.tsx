@@ -92,7 +92,7 @@ export default function BossDebrief(props: {
             {items.map((text, k) => (
               <li key={k} className="border-b border-line last:border-b-0">
                 <label className={`flex min-h-[52px] cursor-pointer items-center gap-3.5 px-2 py-2.5 ${rub[k] ? "text-fg" : "text-fg-2"}`}>
-                  <input type="checkbox" checked={!!rub[k]} onChange={() => toggle(k)} className="m-0 h-5 w-5 shrink-0 accent-[#FF6B2B]" />
+                  <input type="checkbox" checked={!!rub[k]} onChange={() => toggle(k)} className="m-0 h-5 w-5 shrink-0 accent-signal" />
                   <span className="flex-grow text-base leading-snug">{text}</span>
                 </label>
               </li>

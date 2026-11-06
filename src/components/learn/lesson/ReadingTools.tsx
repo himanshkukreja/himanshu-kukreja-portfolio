@@ -38,7 +38,7 @@ function AskPill({ compact = false }: { compact?: boolean }) {
     >
       <AskIcon />
       Ask AI
-      {!compact && <span className="font-normal opacity-80">about this lesson</span>}
+      {!compact && <span className="font-normal">about this lesson</span>}
     </button>
   );
 }
@@ -55,7 +55,7 @@ export function AskPrompt() {
       <p className="min-w-0 flex-1 text-[14px] leading-snug text-fg-2">
         <strong className="text-fg">Stuck on something here?</strong> Ask the course tutor about this lesson: it answers with the sections it used. Select any text and press <em>Explain</em>, or ask the tutor.
       </p>
-      <button type="button" onClick={openAsk} className="shrink-0 border border-line-strong px-3 py-1.5 font-mono text-[12px] text-fg hover:border-signal hover:text-signal">
+      <button type="button" onClick={openAsk} className="shrink-0 border border-line-strong px-3 py-1.5 font-mono text-[12px] text-fg hover:border-signal hover:text-signal-text">
         Ask this lesson →
       </button>
     </div>

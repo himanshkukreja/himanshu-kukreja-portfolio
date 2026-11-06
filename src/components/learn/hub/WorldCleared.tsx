@@ -76,7 +76,7 @@ export default function WorldCleared({
               "—"
             )}
           </span>
-          <span className={`text-xs ${parts ? "text-ok" : "text-fg-3"}`}>{parts ? "trial parts passed" : "no trial for this world yet"}</span>
+          <span className={`text-xs ${parts ? "text-ok-text" : "text-fg-3"}`}>{parts ? "trial parts passed" : "no trial for this world yet"}</span>
         </div>
         <div className="flex flex-col gap-1 bg-bg px-4 py-4">
           <span className="font-mono text-[26px] font-semibold text-fg">{week.boss ? "◆" : "—"}</span>

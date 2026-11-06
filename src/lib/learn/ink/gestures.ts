@@ -6,7 +6,7 @@
  *     empty paper → a quick palette. A tap still draws a dot: the dot is dropped only when the hold completes.
  *   - scribble-to-erase: a fast zig-zag over existing strokes erases them instead of drawing (detectScribble).
  *   - two-finger tap = undo, three-finger tap = redo (TapSession).
- *   - the toast ("Erased · Undo") and the floating pen ↔ eraser switch's preference.
+ *   - the toast ("Erased · Undo").
  * Plain functions and tiny stores; the surfaces wire them to their own input handling.
  */
 import { useSyncExternalStore } from "react";

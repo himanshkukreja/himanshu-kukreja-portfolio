@@ -356,7 +356,7 @@ function CustomForm({ onAdd, disabled, initialName }: { onAdd: (b: Block, rememb
         </div>
       </div>
       <label className="flex items-center gap-2 text-[12px] text-fg-2">
-        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-[#FF6B2B]" />
+        <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} className="h-4 w-4 accent-signal" />
         keep it in my blocks
       </label>
       <button type="submit" disabled={disabled || !name} className="min-h-9 bg-signal px-3 text-[13px] font-semibold text-on-signal disabled:opacity-50">

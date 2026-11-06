@@ -6,7 +6,7 @@
  * world-cleared / level-up moments. Progress: one batched load (useLearnProgress).
  */
 import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
-import { LEVEL_TONE } from "@/lib/learn/level";
+import { LEVEL_TONE_PAGE } from "@/lib/learn/level";
 import Link from "next/link";
 import QuestEmblem from "@/components/learn/sidequest/QuestEmblem";
 import { questBrand } from "@/components/learn/sidequest/brands";
@@ -251,7 +251,7 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
                     {isDone ? "COMPLETED ✓" : started ? `IN PROGRESS · +${LEARN_XP.sideQuest} XP` : `+${LEARN_XP.sideQuest} XP`}
                   </span>
                   {q.level && (
-                    <span className="border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-label" style={{ color: LEVEL_TONE[q.level].fg, borderColor: LEVEL_TONE[q.level].border }} title={`Difficulty: ${q.level}`}>
+                    <span className="border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-label" style={{ color: LEVEL_TONE_PAGE[q.level].fg, borderColor: LEVEL_TONE_PAGE[q.level].border }} title={`Difficulty: ${q.level}`}>
                       {q.level}
                     </span>
                   )}

@@ -44,7 +44,7 @@ export default function ConfirmDialog({
           <button type="button" autoFocus onClick={onCancel} className="min-h-11 border border-line-strong px-5 font-medium text-fg hover:bg-surface-2">
             {cancelText}
           </button>
-          <button type="button" onClick={onConfirm} className="min-h-11 bg-bad px-5 font-semibold text-black hover:opacity-90">
+          <button type="button" onClick={onConfirm} className="min-h-11 bg-bad px-5 font-semibold text-on-bad hover:opacity-90">
             {confirmText}
           </button>
         </div>

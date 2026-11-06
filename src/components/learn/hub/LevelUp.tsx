@@ -117,7 +117,7 @@ export default function LevelUp({ from, reason, onClose }: { from: number; reaso
               <input type="checkbox" checked={showMeta} onChange={(e) => setShowMeta(e.target.checked)} className="h-4 w-4 accent-[var(--c-signal)]" />
               Show my level and badges next to my handle
             </label>
-            {state === "saved" && <span className="font-mono text-xs text-ok">Saved · @{handle}</span>}
+            {state === "saved" && <span className="font-mono text-xs text-ok-text">Saved · @{handle}</span>}
             {state === "local" && <span className="font-mono text-xs text-fg-3">Saved on this device as @{handle}. It goes public once your account syncs.</span>}
           </>
         )}

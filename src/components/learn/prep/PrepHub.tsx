@@ -200,7 +200,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
                     <span className="font-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-fg">{m.company}</span>
                     <span className="text-[14px] leading-snug text-fg-2">{m.title}</span>
                   </span>
-                  <span className={`shrink-0 font-mono text-[11px] ${state === "done" ? "text-ok" : state === "live" ? "text-signal-text" : "text-fg-3"}`}>
+                  <span className={`shrink-0 font-mono text-[11px] ${state === "done" ? "text-ok-text" : state === "live" ? "text-signal-text" : "text-fg-3"}`}>
                     {!hydrated ? "" : state === "done" ? `✓ ${result ? VERDICT_LABEL[result.best.verdict] : "done"}${offer ? " · offer" : ""}` : state === "live" ? "in progress" : ""}
                   </span>
                 </div>
@@ -443,7 +443,7 @@ type Reach = "online" | "saved" | "away";
 
 function ReachTag({ reach }: { reach: Reach }) {
   if (reach === "online") return null;
-  return <span className={`${LABEL} ${reach === "saved" ? "text-ok" : "text-fg-4"}`}>{reach === "saved" ? "saved ✓" : "needs a connection"}</span>;
+  return <span className={`${LABEL} ${reach === "saved" ? "text-ok-text" : "text-fg-4"}`}>{reach === "saved" ? "saved ✓" : "needs a connection"}</span>;
 }
 
 /**

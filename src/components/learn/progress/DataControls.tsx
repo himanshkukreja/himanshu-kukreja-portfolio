@@ -297,7 +297,7 @@ function ResetCard({ map, signedIn, rows, defaultLesson, onReset }: Props) {
             return (
               <label key={k} className={`flex min-h-14 cursor-pointer items-start gap-3 bg-bg px-3 py-2.5 ${off ? "cursor-not-allowed opacity-50" : "hover:bg-surface-2"}`}>
                 <input type="checkbox" className="peer sr-only" checked={on} disabled={off} onChange={(e) => setPicked((x) => ({ ...x, [k]: e.target.checked }))} />
-                <span aria-hidden className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center border font-mono text-[12px] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-signal ${on ? "border-bad bg-bad text-white" : "border-line-strong"}`}>
+                <span aria-hidden className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center border font-mono text-[12px] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-signal ${on ? "border-bad bg-bad text-on-bad" : "border-line-strong"}`}>
                   {on ? "✓" : ""}
                 </span>
                 <span className="flex min-w-0 flex-col gap-0.5">
@@ -374,7 +374,7 @@ function ResetCard({ map, signedIn, rows, defaultLesson, onReset }: Props) {
           </button>
         ) : (
           <>
-            <button type="button" disabled={!scope || !anyPart || !typedOk || busy} onClick={() => void run()} className="min-h-12 bg-bad px-5 text-sm font-semibold text-white hover:brightness-110 disabled:opacity-40">
+            <button type="button" disabled={!scope || !anyPart || !typedOk || busy} onClick={() => void run()} className="min-h-12 bg-bad px-5 text-sm font-semibold text-on-bad hover:brightness-110 disabled:opacity-40">
               {busy ? "Resetting…" : kind === "lesson" ? "Yes, reset it" : kind === "all" ? "Reset everything" : kind === "course" ? "Reset the course" : `Reset ${phrase}`}
             </button>
             {kind === "lesson" && (

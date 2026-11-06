@@ -44,7 +44,7 @@ export default async function WarRoomPage({ params }: Props) {
       </nav>
       <header className="flex flex-col gap-3">
         <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">
-          <span className="bg-bad px-1.5 py-0.5 font-semibold text-white">{r.sev}</span> · {r.company} · {r.starts}
+          <span className="bg-bad px-1.5 py-0.5 font-semibold text-on-bad">{r.sev}</span> · {r.company} · {r.starts}
         </span>
         <h1 className="m-0 font-display text-[clamp(32px,6vw,52px)] font-extrabold leading-[1] tracking-[-0.04em] text-fg">
           {r.title}

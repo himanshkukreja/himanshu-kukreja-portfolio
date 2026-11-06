@@ -31,6 +31,23 @@
   --button-hover-bg: #2a1c14;
 }
 
+/* The tinted light course themes (Paper, Sepia, Mint; src/lib/learn/readingModes.ts): the toolbars and menus take the
+   theme's surface instead of white, like the board's paper (./paper.ts). Light keeps Excalidraw's own; the dark themes
+   use its dark look. */
+@media screen {
+  html:is([data-read-mode="paper"], [data-read-mode="sepia"], [data-read-mode="mint"]) .hk-board .excalidraw {
+    --island-bg-color: var(--c-surface);
+    --default-bg-color: var(--c-surface);
+    --popup-bg-color: var(--c-surface);
+    --sidebar-bg-color: var(--c-surface);
+    --input-bg-color: var(--c-surface);
+    --button-gray-1: var(--c-surface-2);
+    --color-surface-low: var(--c-surface-2);
+    --color-surface-lowest: var(--c-surface);
+    --color-surface-high: var(--c-surface-2);
+  }
+}
+
 /* Clutter off: Excalidraw's own (empty) library button — the component panel replaces it. */
 .hk-board .default-sidebar-trigger {
   display: none !important;

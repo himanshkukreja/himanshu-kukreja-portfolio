@@ -78,7 +78,7 @@ export default function LabsIndex({ labs }: { labs: LabSummary[] }) {
                   <Link href={l.href} className={`flex h-full flex-col gap-3 border bg-surface p-5 hover:border-fg-3 ${s === "done" ? "border-line" : "border-line-strong"}`}>
                     <span className="flex items-center justify-between gap-2 font-mono text-[11px] tracking-label">
                       <span className="text-signal-text">LAB · W{l.weekCode} · {l.topic.toUpperCase()}</span>
-                      <span className={s === "done" ? "text-ok" : s === "started" ? "text-signal-text" : "text-fg-3"}>{s === "done" ? "CLEARED ✓" : s === "started" ? `${runs} RUN${runs === 1 ? "" : "S"}` : "NEW"}</span>
+                      <span className={s === "done" ? "text-ok-text" : s === "started" ? "text-signal-text" : "text-fg-3"}>{s === "done" ? "CLEARED ✓" : s === "started" ? `${runs} RUN${runs === 1 ? "" : "S"}` : "NEW"}</span>
                     </span>
                     <span className="font-display text-[24px] font-bold leading-[1.08] tracking-[-0.02em] text-fg">{l.title}</span>
                     {l.summary && <span className="text-sm leading-relaxed text-fg-2">{l.summary}</span>}

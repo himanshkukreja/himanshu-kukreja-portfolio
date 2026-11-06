@@ -47,7 +47,7 @@ function CellBox({ c }: { c: Cell }) {
       ) : trial ? (
         <span className="flex flex-col items-center gap-1">
           <span>{c.code}</span>
-          <span className="text-[9px] font-normal opacity-80">{c.score !== undefined ? `${c.score}%` : "—"}</span>
+          <span className="text-[9px] font-normal">{c.score !== undefined ? `${c.score}%` : "—"}</span>
         </span>
       ) : (
         c.code

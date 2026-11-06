@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { DEFAULT_READING, FONTS, LEADINGS, READ_MODES, TEXT_SIZES, WIDTHS, resetReading, sameReading, updateReading, type ReadMode } from "@/lib/learn/readingModes";
-import { useReadingSettings } from "./useReading";
+import { DEFAULT_READING, FONTS, LEADINGS, READ_MODES, TEXT_SIZES, WIDTHS, resetReading, resolveMode, sameType, themeInfo, updateReading } from "@/lib/learn/readingModes";
+import { usePageTone, useReadingSettings } from "./useReading";
 import styles from "@/components/learn/lesson/reader.module.css";
 
 type Trigger = {
@@ -25,9 +25,9 @@ type Props = {
 };
 
 /**
- * The reading panel behind the reader's "Aa": colour mode, font, text size, line spacing, page width
- * (src/lib/learn/readingModes.ts). A compact popover on the desktop reading dock, a bottom sheet on the
- * phone / tablet reading bar. Every change applies at once (the page shows through the sheet's light scrim).
+ * The reading panel behind the reader's "Aa": the site theme (the same setting as the header's theme menu),
+ * font, text size, line spacing, page width (src/lib/learn/readingModes.ts). A compact popover on the desktop
+ * reading dock, a bottom sheet on the phone / tablet reading bar. Every change applies at once (the page shows through the sheet's light scrim).
  */
 type Open = { kind: "sheet" } | { kind: "popover"; placement: "up" | "down"; maxHeight: number };
 
@@ -71,7 +71,7 @@ export function ReadingButton({ placement = "down", className = "" }: { placemen
           aria-expanded={t["aria-expanded"]}
           aria-haspopup={t["aria-haspopup"]}
           aria-controls={t["aria-controls"]}
-          aria-label="Reading settings: mode, font, text size"
+          aria-label="Reading settings: theme, font, text size"
           title="Reading settings"
           className={`grid min-h-11 min-w-11 place-items-center border px-2.5 font-display text-[15px] font-bold ${t["aria-expanded"] ? "border-signal text-signal-text" : "border-line-strong text-fg hover:bg-surface-2"}`}
         >
@@ -177,8 +177,6 @@ function Sheet({ id, trigger, onClose }: { id: string; trigger: RefObject<HTMLBu
   );
 }
 
-const MODE_NAME: Record<ReadMode, string> = { site: "Site theme", ...Object.fromEntries(READ_MODES.map((m) => [m.id, m.name])) } as Record<ReadMode, string>;
-
 /** A native radio (arrow keys, screen readers) under a styled face: the face follows it with peer-checked. */
 function Choice({ name, checked, onChange, className = "", label, children }: { name: string; checked: boolean; onChange: () => void; className?: string; label?: string; children: ReactNode }) {
   return (
@@ -219,9 +217,13 @@ function Segmented<T extends string>({ name, options, value, onPick }: { name: s
 
 function PanelBody({ onClose }: { onClose: () => void }) {
   const s = useReadingSettings();
+  const { siteDark } = usePageTone();
+  // the theme in force ("site", never picked, stands for Light or Night until the host saves it)
+  const theme = resolveMode(s.mode, siteDark);
   const name = useId();
   const i = Math.max(0, (TEXT_SIZES as readonly number[]).indexOf(s.size));
-  const isDefault = sameReading(s, DEFAULT_READING);
+  // Reset is for the type settings: the theme is the whole site's
+  const isDefault = sameType(s, DEFAULT_READING);
   const step = (d: number) => updateReading({ size: TEXT_SIZES[Math.min(TEXT_SIZES.length - 1, Math.max(0, i + d))] });
   const sizeBtn = "grid h-11 w-12 shrink-0 place-items-center text-fg hover:bg-surface-2 disabled:text-fg-4 disabled:hover:bg-transparent";
   return (
@@ -242,41 +244,22 @@ function PanelBody({ onClose }: { onClose: () => void }) {
       </div>
 
       <div className="flex flex-col gap-3.5 px-4 pb-4 pt-3">
-        <Group label="Mode" value={MODE_NAME[s.mode]}>
-          <div className="flex flex-col gap-1.5">
-            <Choice name={`${name}-mode`} checked={s.mode === "site"} onChange={() => updateReading({ mode: "site" })} label="Site theme: follows the light / dark switch">
-              <span className={`flex items-center gap-2.5 border border-line-strong p-1.5 pr-2.5 hover:bg-surface-2 peer-checked:border-signal peer-checked:outline peer-checked:outline-1 peer-checked:-outline-offset-2 peer-checked:outline-signal ${RING}`}>
-                <span aria-hidden className="flex h-7 w-10 shrink-0 border border-line">
-                  <span className="flex-1" style={{ background: "#F5F4F0" }} />
-                  <span className="flex-1" style={{ background: "#000000" }} />
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col leading-tight">
-                  <span className="text-[13px] font-semibold text-fg">Site theme</span>
-                  <span className="text-[12px] text-fg-3">Follows the light / dark switch</span>
-                </span>
-                {s.mode === "site" && (
-                  <span aria-hidden className="font-mono text-[12px] text-signal-text">
-                    ✓
+        <Group label="Theme" value={themeInfo(theme).name}>
+          <div className="grid grid-cols-3 gap-1.5">
+            {READ_MODES.map((m) => (
+              <Choice key={m.id} name={`${name}-mode`} checked={theme === m.id} onChange={() => updateReading({ mode: m.id })} label={m.name}>
+                <span className={`flex flex-col border border-line-strong peer-checked:border-signal peer-checked:outline peer-checked:outline-1 peer-checked:-outline-offset-2 peer-checked:outline-signal ${RING}`}>
+                  <span aria-hidden className="relative grid h-10 place-items-center" style={{ background: m.bg, color: m.fg }}>
+                    <span className="-mt-0.5 font-display text-[17px] font-bold leading-none">Aa</span>
+                    <span className="absolute bottom-1.5 left-1/2 h-[2px] w-6 -translate-x-1/2" style={{ background: m.accent }} />
                   </span>
-                )}
-              </span>
-            </Choice>
-            <div className="grid grid-cols-3 gap-1.5">
-              {READ_MODES.map((m) => (
-                <Choice key={m.id} name={`${name}-mode`} checked={s.mode === m.id} onChange={() => updateReading({ mode: m.id })} label={m.name}>
-                  <span className={`flex flex-col border border-line-strong peer-checked:border-signal peer-checked:outline peer-checked:outline-1 peer-checked:-outline-offset-2 peer-checked:outline-signal ${RING}`}>
-                    <span aria-hidden className="relative grid h-10 place-items-center" style={{ background: m.bg, color: m.fg }}>
-                      <span className="-mt-0.5 font-display text-[17px] font-bold leading-none">Aa</span>
-                      <span className="absolute bottom-1.5 left-1/2 h-[2px] w-6 -translate-x-1/2" style={{ background: m.accent }} />
-                    </span>
-                    <span aria-hidden className="flex items-center justify-between border-t border-line px-1.5 py-1 font-mono text-[11px] text-fg-2">
-                      {m.name}
-                      {s.mode === m.id && <span className="text-signal-text">✓</span>}
-                    </span>
+                  <span aria-hidden className="flex items-center justify-between border-t border-line px-1.5 py-1 font-mono text-[11px] text-fg-2">
+                    {m.name}
+                    {theme === m.id && <span className="text-signal-text">✓</span>}
                   </span>
-                </Choice>
-              ))}
-            </div>
+                </span>
+              </Choice>
+            ))}
           </div>
         </Group>
 

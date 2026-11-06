@@ -10,7 +10,7 @@ export type CheckData = { summary: string; items: CheckItem[]; raw?: string; les
 const GROUPS: { kind: CheckItem["kind"]; title: string; mark: string; tone: string }[] = [
   { kind: "wrong", title: "Doesn't match the lesson", mark: "✕", tone: "text-bad-text" },
   { kind: "missing", title: "Missing from your notes", mark: "+", tone: "text-signal-text" },
-  { kind: "right", title: "Matches the lesson", mark: "✓", tone: "text-ok" },
+  { kind: "right", title: "Matches the lesson", mark: "✓", tone: "text-ok-text" },
   { kind: "outside", title: "Not in this lesson", mark: "·", tone: "text-fg-3" },
 ];
 

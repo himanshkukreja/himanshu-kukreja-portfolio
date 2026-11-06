@@ -448,7 +448,7 @@ export default function InkNotePanel({ target, userId, lessonTitle, getRect, dev
             <button type="button" autoFocus onClick={() => setConfirmDelete(false)} className={`${btn} border border-line-strong text-fg`}>
               Keep it
             </button>
-            <button type="button" onClick={() => void remove()} disabled={busy === "delete"} className={`${btn} bg-bad text-[#120203]`}>
+            <button type="button" onClick={() => void remove()} disabled={busy === "delete"} className={`${btn} bg-bad text-on-bad`}>
               {busy === "delete" ? "Deleting…" : "Delete"}
             </button>
           </span>

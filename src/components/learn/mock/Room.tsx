@@ -131,7 +131,7 @@ function CallBar({ mock, run, running, phase, onToggle, onGo, onEnd, onLobby, on
         <button
           type="button"
           onClick={() => (confirmEnd ? onEnd() : setConfirmEnd(true))}
-          className={`min-h-11 shrink-0 px-2.5 text-sm sm:px-3 ${confirmEnd ? "bg-bad text-white" : "border border-line-strong text-fg hover:border-fg-3"}`}
+          className={`min-h-11 shrink-0 px-2.5 text-sm sm:px-3 ${confirmEnd ? "bg-bad text-on-bad" : "border border-line-strong text-fg hover:border-fg-3"}`}
         >
           {confirmEnd ? "End now?" : "End"}
         </button>
@@ -224,7 +224,7 @@ function CallMenu({ onLobby, onRestart }: { onLobby: () => void; onRestart: () =
                     setConfirm(false);
                     onRestart();
                   }}
-                  className="min-h-10 bg-bad px-3 text-sm font-semibold text-white"
+                  className="min-h-10 bg-bad px-3 text-sm font-semibold text-on-bad"
                 >
                   Restart
                 </button>
@@ -259,7 +259,7 @@ export function parseCoach(text: string): { label: string; body: string }[] {
   return parts.length ? parts : [{ label: "READ", body: text }];
 }
 
-const COACH_TONE = (read: string) => (/^\s*strong/i.test(read) ? "text-ok" : /^\s*needs work/i.test(read) ? "text-signal-text" : "text-fg");
+const COACH_TONE = (read: string) => (/^\s*strong/i.test(read) ? "text-ok-text" : /^\s*needs work/i.test(read) ? "text-signal-text" : "text-fg");
 
 export function CoachNote({ text }: { text: string }) {
   return (
@@ -285,7 +285,7 @@ function CoachCard({ phase, text, on, onToggle }: { phase: MockPhase; text?: str
         </button>
         {onToggle && (
           <label className="flex items-center gap-2 font-mono text-[11px] text-fg-3">
-            <input type="checkbox" checked={on} onChange={(e) => onToggle(e.target.checked)} className="h-3.5 w-3.5 accent-[#FF6B2B]" />
+            <input type="checkbox" checked={on} onChange={(e) => onToggle(e.target.checked)} className="h-3.5 w-3.5 accent-signal" />
             coach after each phase
           </label>
         )}

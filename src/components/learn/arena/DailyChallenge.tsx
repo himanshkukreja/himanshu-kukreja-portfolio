@@ -289,7 +289,7 @@ export default function DailyChallenge() {
                   <span
                     aria-hidden
                     className={`grid h-6 w-6 shrink-0 place-items-center border font-mono text-xs font-semibold ${
-                      state === "right" ? "border-ok bg-ok text-[#000]" : state === "wrong" ? "border-bad bg-bad text-white" : "border-line-strong text-fg-2"
+                      state === "right" ? "border-ok bg-ok text-on-ok" : state === "wrong" ? "border-bad bg-bad text-on-bad" : "border-line-strong text-fg-2"
                     }`}
                   >
                     {KEYS[k]}
@@ -297,7 +297,7 @@ export default function DailyChallenge() {
                   <span className="min-w-0 flex-1">
                     <Inline text={o} />
                   </span>
-                  {a && (isPick || isRight) && <span className={`self-center font-mono text-[11px] uppercase tracking-label ${isRight ? "text-ok" : "text-bad-text"}`}>{isRight ? (isPick ? "correct" : "answer") : "your pick"}</span>}
+                  {a && (isPick || isRight) && <span className={`self-center font-mono text-[11px] uppercase tracking-label ${isRight ? "text-ok-text" : "text-bad-text"}`}>{isRight ? (isPick ? "correct" : "answer") : "your pick"}</span>}
                 </button>
               </li>
             );
@@ -307,7 +307,7 @@ export default function DailyChallenge() {
         <div aria-live="polite" className="min-h-[1px]">
           {a && (
             <div className="flex flex-col gap-3 border border-line bg-surface p-4">
-              <p className={`m-0 font-mono text-sm font-semibold ${a.correct ? "text-ok" : "text-bad-text"}`}>
+              <p className={`m-0 font-mono text-sm font-semibold ${a.correct ? "text-ok-text" : "text-bad-text"}`}>
                 {a.correct ? `Correct · +${dailyQuestionScore(true, a.ms)}` : a.pick < 0 ? `Time's up · the answer is ${KEYS[q.answer]}` : `Not quite · the answer is ${KEYS[q.answer]}`}
               </p>
               {q.explain && (
@@ -476,7 +476,7 @@ function Review({ set, answers }: { set: DailySet; answers: Answer[] }) {
                 <Inline text={q.prompt} />
               </span>
               <span className="text-[14px] text-fg-2">
-                <span className="font-mono text-xs text-ok">answer {KEYS[q.answer]}</span> · <Inline text={q.options[q.answer]} />
+                <span className="font-mono text-xs text-ok-text">answer {KEYS[q.answer]}</span> · <Inline text={q.options[q.answer]} />
               </span>
               <Link href={q.source.href} className="self-start font-mono text-xs text-signal-text underline underline-offset-4">
                 read the lesson →

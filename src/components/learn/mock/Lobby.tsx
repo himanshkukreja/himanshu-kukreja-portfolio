@@ -195,7 +195,7 @@ export default function Lobby({
               {MOCK_LEVELS.map((l) => (
                 <label key={l} className={`flex min-h-[72px] cursor-pointer flex-col justify-center gap-1 px-3.5 py-3 ${level === l ? "border-2 border-signal bg-surface" : "border border-line-strong hover:border-fg-3"}`}>
                   <span className="flex items-center gap-2.5">
-                    <input type="radio" name="mock-level" checked={level === l} onChange={() => setLevel(l)} className="m-0 h-4 w-4 accent-[#FF6B2B]" />
+                    <input type="radio" name="mock-level" checked={level === l} onChange={() => setLevel(l)} className="m-0 h-4 w-4 accent-signal" />
                     <span className="font-display text-xl font-bold text-fg">{LEVEL_LABEL[l]}</span>
                   </span>
                   <span className="font-mono text-[11px] text-fg-3">{LEVEL_HINT[l]}</span>
@@ -258,7 +258,7 @@ export default function Lobby({
                 <div className="flex flex-col gap-2.5 border border-bad px-4 py-3">
                   <span className="text-sm text-fg">Start over at {LEVEL_LABEL[level]}? The round in progress (answers, whiteboard, clock) is cleared.</span>
                   <div className="flex gap-2">
-                    <button type="button" onClick={begin} className="min-h-11 bg-bad px-4 text-sm font-semibold text-white">
+                    <button type="button" onClick={begin} className="min-h-11 bg-bad px-4 text-sm font-semibold text-on-bad">
                       Start over
                     </button>
                     <button type="button" onClick={() => setConfirmNew(false)} className="min-h-11 border border-line-strong px-4 text-sm text-fg hover:border-fg-3">

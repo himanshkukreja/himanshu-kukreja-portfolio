@@ -887,7 +887,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
                                 <button type="button" autoFocus onClick={() => setConfirmId(null)} className="min-h-11 border border-line-strong px-4 text-sm text-fg">
                                   Keep it
                                 </button>
-                                <button type="button" onClick={() => doDelete(x)} disabled={busy === x.id} className="min-h-11 bg-bad px-4 text-sm font-semibold text-[#120203] disabled:opacity-60">
+                                <button type="button" onClick={() => doDelete(x)} disabled={busy === x.id} className="min-h-11 bg-bad px-4 text-sm font-semibold text-on-bad disabled:opacity-60">
                                   {busy === x.id ? "Deleting…" : "Delete"}
                                 </button>
                               </span>
@@ -1035,7 +1035,7 @@ function SavedShorts({ rows, onRemove }: { rows: BookmarkRow[]; onRemove: (row: 
         {rows.map((r) => (
           <li key={r.id} className="group relative w-[132px] shrink-0 sm:w-[150px]">
             <Link href={`/shorts?v=${encodeURIComponent(r.lesson_slug)}`} className="flex flex-col gap-1.5">
-              <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[#0b0b0c]">
+              <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[var(--c-plate)]">
                 {media && (
                   // eslint-disable-next-line @next/next/no-img-element -- the short's own poster frame from the media host
                   <img src={`${media}/${r.lesson_slug}/poster.jpg`} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform group-hover:scale-[1.03]" />

@@ -144,7 +144,7 @@ export default function TutorMemory() {
                 {confirm ? (
                   <>
                     <span className="text-[14px] text-fg-2">Forget all of this? It can&apos;t be undone.</span>
-                    <button type="button" disabled={busy} onClick={clear} className="min-h-10 bg-bad px-3.5 font-mono text-[12.5px] font-semibold text-white">
+                    <button type="button" disabled={busy} onClick={clear} className="min-h-10 bg-bad px-3.5 font-mono text-[12.5px] font-semibold text-on-bad">
                       Yes, clear it
                     </button>
                     <button type="button" onClick={() => setConfirm(false)} className="min-h-10 border border-line-strong px-3.5 font-mono text-[12.5px] text-fg-2">
@@ -152,7 +152,7 @@ export default function TutorMemory() {
                     </button>
                   </>
                 ) : (
-                  <button type="button" onClick={() => setConfirm(true)} className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3.5 font-mono text-[12.5px] text-fg-2 hover:border-bad hover:text-bad">
+                  <button type="button" onClick={() => setConfirm(true)} className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3.5 font-mono text-[12.5px] text-fg-2 hover:border-bad hover:text-bad-text">
                     <Trash2 className="h-3.5 w-3.5" aria-hidden /> Clear memory
                   </button>
                 )}

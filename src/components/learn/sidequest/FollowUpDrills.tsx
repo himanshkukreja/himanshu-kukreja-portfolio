@@ -73,7 +73,7 @@ export default function FollowUpDrills({ drills, title }: { drills: QuestDrills;
           Follow-up drills
         </h2>
         <span className="font-mono text-[11px] text-fg-3" aria-live="polite">
-          <span className={practised === items.length ? "text-ok" : "text-fg-2"}>
+          <span className={practised === items.length ? "text-ok-text" : "text-fg-2"}>
             {practised} of {items.length}
           </span>{" "}
           practised
@@ -119,7 +119,7 @@ export default function FollowUpDrills({ drills, title }: { drills: QuestDrills;
           <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">
             Follow-up {idx + 1} / {items.length}
             {it.kind ? <span className="text-signal-text"> · {KIND_LABEL[it.kind]}</span> : null}
-            {done ? <span className="text-ok"> · practised</span> : null}
+            {done ? <span className="text-ok-text"> · practised</span> : null}
           </span>
           <h3 id={`${uid}-q`} ref={qRef} tabIndex={-1} className="m-0 font-display text-[21px] font-bold leading-[1.2] tracking-[-0.01em] text-fg outline-none sm:text-[24px]">
             “{it.q}”
@@ -191,7 +191,7 @@ function Answer({ it }: { it: DrillItem }) {
   return (
     <>
       <div className="flex flex-col gap-2 border-l-2 border-ok pl-3 sm:pl-4">
-        <span className="font-mono text-[11px] uppercase tracking-label text-ok">Strong answer</span>
+        <span className="font-mono text-[11px] uppercase tracking-label text-ok-text">Strong answer</span>
         {it.strong.map((p, i) => (
           <p key={i} className="m-0 text-[15px] leading-relaxed text-fg-2">
             {inline(p)}

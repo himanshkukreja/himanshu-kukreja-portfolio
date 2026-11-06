@@ -16,7 +16,8 @@
 import "@excalidraw/excalidraw/index.css";
 import "./board.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTheme } from "next-themes";
+import { usePageTone } from "@/components/learn/reading/useReading";
+import { boardPaper } from "./paper";
 import { Maximize2, Minimize2, PanelLeftClose, PanelLeftOpen, Shapes } from "lucide-react";
 import { convertToExcalidrawElements, Excalidraw } from "@excalidraw/excalidraw";
 import { parseSketch, type Sketch } from "@/lib/learn/mock/sketch";
@@ -118,8 +119,9 @@ function seedElements(seed: { title: string; sticky: string }) {
 export default function BoardCanvas({ value, onChange, seed }: { value: string; onChange: (v: string) => void; seed?: { title: string; sticky: string } | null }) {
   const [api, setApi] = useState<API | null>(null);
   const [full, setFull] = useState(false);
-  const { resolvedTheme } = useTheme();
-  const theme = resolvedTheme === "light" ? "light" : "dark";
+  // the page's tone (the course theme: Dusk and Night are dark), and the board's paper to match the theme
+  const tone = usePageTone();
+  const theme = tone.dark ? "dark" : "light";
   const root = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDivElement>(null);
   // the panel sits beside the board when there's room for both, else it's a bottom sheet over the board
@@ -304,11 +306,16 @@ export default function BoardCanvas({ value, onChange, seed }: { value: string; 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [!!drag, api, add]);
 
+  // a theme picked while the board is open repaints its paper (the scene itself keeps no background)
+  useEffect(() => {
+    api?.updateScene({ appState: { viewBackgroundColor: boardPaper() } as never });
+  }, [api, tone.theme, theme]);
+
   const initialData = useMemo(
     () => ({
       elements: (initial?.elements ?? []) as never,
       files: refreshOldIcons(initial?.files) as never,
-      appState: { viewBackgroundColor: "#ffffff", currentItemRoughness: 0, currentItemFontFamily: 6, currentItemEndArrowhead: "arrow", currentItemStrokeWidth: 2 } as never,
+      appState: { viewBackgroundColor: boardPaper(), currentItemRoughness: 0, currentItemFontFamily: 6, currentItemEndArrowhead: "arrow", currentItemStrokeWidth: 2 } as never,
       scrollToContent: (initial?.elements.length ?? 0) > 0,
     }),
     [initial],

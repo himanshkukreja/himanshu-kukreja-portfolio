@@ -33,7 +33,7 @@ function parse(text: string): Part[] {
     });
 }
 
-const TONE: Record<string, string> = { staff: "text-ok border-ok", senior: "text-ok border-ok", sde: "text-signal-text border-signal", junior: "text-bad border-bad" };
+const TONE: Record<string, string> = { staff: "text-ok-text border-ok", senior: "text-ok-text border-ok", sde: "text-signal-text border-signal", junior: "text-bad-text border-bad" };
 
 export default function AiScorecard({ mock, run }: { mock: MockInterview; run: MockRun }) {
   const status = useAiStatus();

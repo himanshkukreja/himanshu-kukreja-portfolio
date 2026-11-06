@@ -32,7 +32,7 @@ export default async function PodcastPage() {
           podcast · {lectures.length} episodes · {Math.floor(minutes / 60)} h {minutes % 60} min
         </span>
         <h1 className="m-0 font-display text-[clamp(34px,6vw,64px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
-          Learn system design on the move<span className="text-signal">.</span>
+          Learn system design on the move<span className="text-signal-text">.</span>
         </h1>
         <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
           Every lecture of the course as a podcast episode, in course order: the lessons, how UPI, WhatsApp, Netflix and Google Maps work, interview problems, low-level design, real outages and full mock interviews. Each episode links to its animated lecture, with the diagrams, quizzes and chapters, for when you&apos;re back at a screen.

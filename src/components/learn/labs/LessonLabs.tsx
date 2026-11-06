@@ -28,7 +28,7 @@ export default function LessonLabs({ labs }: { labs: LessonLabLink[] }) {
                 <span className="inline-flex items-center gap-1.5 text-signal-text">
                   <Code2 className="h-3.5 w-3.5" aria-hidden /> CODE LAB · {DIFFICULTY_LABEL[l.difficulty].toUpperCase()}
                 </span>
-                <span className={cleared ? "text-ok" : "text-fg-3"}>{cleared ? "CLEARED ✓" : `~${l.minutes} MIN`}</span>
+                <span className={cleared ? "text-ok-text" : "text-fg-3"}>{cleared ? "CLEARED ✓" : `~${l.minutes} MIN`}</span>
               </span>
               <span className="font-display text-[24px] font-bold leading-[1.05] tracking-[-0.02em]">{l.title}</span>
               {l.summary && <span className="text-sm leading-normal text-fg-2">{l.summary}</span>}

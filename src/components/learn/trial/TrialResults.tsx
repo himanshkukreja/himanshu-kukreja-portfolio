@@ -77,7 +77,7 @@ export default function TrialResults({ part, questions, result, weekLabel, views
             </span>
             <div className="flex flex-col gap-2.5 pb-1.5">
               <span
-                className={`self-start px-3 py-[7px] font-mono text-sm font-semibold tracking-label ${passed ? "bg-ok text-[#04140B]" : "border border-bad text-bad-text"}`}
+                className={`self-start px-3 py-[7px] font-mono text-sm font-semibold tracking-label ${passed ? "bg-ok text-on-ok" : "border border-bad text-bad-text"}`}
               >
                 {passed ? "PASSED ✓" : "NOT YET ✕"}
               </span>
@@ -173,14 +173,14 @@ export default function TrialResults({ part, questions, result, weekLabel, views
               <div className="flex items-start gap-3.5">
                 <span
                   aria-hidden="true"
-                  className={`grid h-[30px] w-[30px] shrink-0 place-items-center font-mono text-sm font-semibold ${ok ? "bg-ok text-[#04140B]" : "bg-bad text-[#1A0405]"}`}
+                  className={`grid h-[30px] w-[30px] shrink-0 place-items-center font-mono text-sm font-semibold ${ok ? "bg-ok text-on-ok" : "bg-bad text-on-bad"}`}
                 >
                   {ok ? "✓" : "✕"}
                 </span>
                 <div className="flex min-w-0 flex-grow flex-col gap-2.5">
                   <div className="flex flex-wrap items-center gap-2 font-mono text-xs tracking-[0.06em]">
                     <span className="text-fg-3">Q{q.number}</span>
-                    <span className={ok ? "text-ok" : "text-bad-text"}>{ok ? "CORRECT · FLAGGED" : !p ? "SKIPPED · COUNTS AS A MISS" : "WRONG · ADDED TO REVIEW"}</span>
+                    <span className={ok ? "text-ok-text" : "text-bad-text"}>{ok ? "CORRECT · FLAGGED" : !p ? "SKIPPED · COUNTS AS A MISS" : "WRONG · ADDED TO REVIEW"}</span>
                     {flag && <span className="text-signal-text">⚑ flagged</span>}
                   </div>
                   <span className="text-[17px] font-semibold leading-snug text-fg">{q.text}</span>
@@ -191,7 +191,7 @@ export default function TrialResults({ part, questions, result, weekLabel, views
                     </span>
                   )}
                   <span className="flex gap-2.5 text-[15px] leading-normal text-fg">
-                    <span className="w-[74px] shrink-0 pt-[3px] font-mono text-xs text-ok">ANSWER ✓</span>
+                    <span className="w-[74px] shrink-0 pt-[3px] font-mono text-xs text-ok-text">ANSWER ✓</span>
                     <span>{text(q, q.correctAnswer)}</span>
                   </span>
                   {q.explanation && <span className="border-t border-line pt-2.5 text-[15px] leading-relaxed text-fg-2">{q.explanation}</span>}
@@ -214,7 +214,7 @@ export default function TrialResults({ part, questions, result, weekLabel, views
               <ol className="m-0 list-none border border-line bg-raised p-0">
                 {okRest.map(({ q }) => (
                   <li key={q.number} className="flex flex-wrap items-baseline gap-x-3.5 gap-y-1 border-b border-line px-4 py-3 text-sm leading-snug last:border-b-0">
-                    <span className="w-11 shrink-0 font-mono text-xs text-ok">✓ Q{q.number}</span>
+                    <span className="w-11 shrink-0 font-mono text-xs text-ok-text">✓ Q{q.number}</span>
                     <span className="min-w-0 flex-[1_1_300px] text-fg-2">{q.text}</span>
                     <span className="min-w-0 flex-[1_1_260px] text-fg-3">{text(q, q.correctAnswer)}</span>
                   </li>

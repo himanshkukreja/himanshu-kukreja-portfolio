@@ -688,7 +688,7 @@ function ModeCard({ on, onPick, name, tag, text, accent }: { on: boolean; onPick
   return (
     <label className={`flex cursor-pointer flex-col gap-2.5 p-5 ${on ? "border-2 border-signal bg-surface" : "border border-line-strong bg-transparent hover:border-fg-3"}`}>
       <span className="flex items-center gap-3">
-        <input type="radio" name="boss-mode" checked={on} onChange={onPick} className="m-0 h-5 w-5 accent-[#FF6B2B]" />
+        <input type="radio" name="boss-mode" checked={on} onChange={onPick} className="m-0 h-5 w-5 accent-signal" />
         <span className="font-display text-2xl font-bold tracking-[-0.02em] text-fg">{name}</span>
       </span>
       <span className={`font-mono text-xs tracking-label ${accent ? "text-signal-text" : "text-fg-3"}`}>{tag}</span>
@@ -758,7 +758,7 @@ function FightPanel(props: {
       ) : (
         <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-raised px-5 py-4">
           <span className="flex min-w-0 flex-[1_1_360px] flex-col gap-1">
-            <span className="font-mono text-[11px] uppercase tracking-label text-ok">Model answer revealed</span>
+            <span className="font-mono text-[11px] uppercase tracking-label text-ok-text">Model answer revealed</span>
             <span className="text-[15px] leading-normal text-fg-2">
               {props.hasSection ? `Phase ${phase.n} is open in the capstone below. Read it against what you wrote.` : "Read this phase in the capstone below and compare it with what you wrote."}
               {!props.isLast && props.nextName ? ` Next up: ${props.nextName}.` : ""}

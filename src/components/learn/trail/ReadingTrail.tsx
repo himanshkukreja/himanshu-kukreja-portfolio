@@ -24,7 +24,7 @@ export default function ReadingTrail({ lesson, entries }: { lesson: string; entr
         </h2>
         <span className="flex items-center gap-3 font-mono text-xs text-fg-3">
           {done > 0 && (
-            <span className="text-ok">
+            <span className="text-ok-text">
               {Math.min(done, entries.length)}/{entries.length} read
             </span>
           )}

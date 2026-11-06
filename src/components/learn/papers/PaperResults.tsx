@@ -43,7 +43,7 @@ export function QuestionResult({ q, m, g, compact, answerHref }: { q: PaperQuest
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <span className={`font-display text-[28px] font-bold leading-none tracking-[-0.02em] ${full ? "text-ok" : m.s === 0 ? "text-bad-text" : "text-fg"}`}>
+        <span className={`font-display text-[28px] font-bold leading-none tracking-[-0.02em] ${full ? "text-ok-text" : m.s === 0 ? "text-bad-text" : "text-fg"}`}>
           {m.s}
           <span className="text-[18px] text-fg-3">/{m.m}</span>
         </span>
@@ -71,7 +71,7 @@ export function QuestionResult({ q, m, g, compact, answerHref }: { q: PaperQuest
                 {ev && !compact && <span className={`text-[13px] leading-snug ${ev === "not found" ? "text-fg-4" : "text-fg-3"}`}>{ev === "not found" ? "not found on your sheet" : `on your sheet: ${ev}`}</span>}
                 {ev && compact && ev !== "not found" && <span className="text-[13px] leading-snug text-fg-3">on your sheet: {ev}</span>}
               </span>
-              <span className={`shrink-0 font-mono text-[12px] ${ok ? "text-ok" : "text-fg-3"}`}>
+              <span className={`shrink-0 font-mono text-[12px] ${ok ? "text-ok-text" : "text-fg-3"}`}>
                 {got}/{pt.marks}
               </span>
             </li>

@@ -178,7 +178,7 @@ export default function ContextRail({
           <div className="flex flex-wrap gap-1.5">
             {pathSaved ? (
               <Link href="/saved" className="inline-flex min-h-10 items-center gap-1.5 border border-ok px-3 font-mono text-[12px] text-fg">
-                <Check className="h-3.5 w-3.5 text-ok" aria-hidden /> Saved · open
+                <Check className="h-3.5 w-3.5 text-ok-text" aria-hidden /> Saved · open
               </Link>
             ) : (
               <button type="button" onClick={() => onSave(path.pref)} className="inline-flex min-h-10 items-center gap-1.5 bg-signal px-3 font-mono text-[12px] font-semibold text-on-signal">

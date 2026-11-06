@@ -369,7 +369,7 @@ export default function PaperApp({ paper }: { paper: PaperView }) {
                   }`}
                 >
                   <span className="font-semibold">Q{qq.n}</span>
-                  <span className={`mt-0.5 text-[10px] ${on ? "text-bg/80" : g ? (g.s >= g.m / 2 ? "text-ok" : "text-bad-text") : "text-fg-4"}`}>{g ? `${g.s}/${g.m}` : `${qq.marks}m`}</span>
+                  <span className={`mt-0.5 text-[10px] ${on ? "text-bg/80" : g ? (g.s >= g.m / 2 ? "text-ok-text" : "text-bad-text") : "text-fg-4"}`}>{g ? `${g.s}/${g.m}` : `${qq.marks}m`}</span>
                 </button>
               );
             })}
@@ -539,7 +539,7 @@ export default function PaperApp({ paper }: { paper: PaperView }) {
             {jobs.map((j) => (
               <li key={j.n} className="flex items-center justify-between gap-3 border-b border-line px-3 py-2.5 last:border-b-0">
                 <span className="text-[15px] text-fg">Question {j.n}</span>
-                <span className={`font-mono text-[13px] ${j.state === "done" ? "text-ok" : j.state === "fail" ? "text-bad-text" : "text-fg-3"}`}>
+                <span className={`font-mono text-[13px] ${j.state === "done" ? "text-ok-text" : j.state === "fail" ? "text-bad-text" : "text-fg-3"}`}>
                   {j.state === "wait" ? "waiting" : j.state === "run" ? j.text || "reading…" : j.state === "blank" ? "blank · 0" : j.text}
                 </span>
               </li>

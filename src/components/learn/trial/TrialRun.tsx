@@ -591,7 +591,7 @@ function Gate(
           <div className="flex flex-col gap-2.5 border border-line-strong bg-surface p-5">
             <div className="flex items-center gap-2.5">
               {passed ? (
-                <span className="bg-ok px-2 py-1 font-mono text-[11px] font-semibold tracking-label text-[#04140B]">CLEARED</span>
+                <span className="bg-ok px-2 py-1 font-mono text-[11px] font-semibold tracking-label text-on-ok">CLEARED</span>
               ) : locked ? (
                 <span className="border border-dashed border-line-strong px-2 py-1 font-mono text-[11px] font-semibold tracking-label text-fg-3">LOCKED</span>
               ) : (
@@ -632,9 +632,9 @@ function Gate(
             <RecordRow
               label="Last attempt"
               value={last ? `${last.score}/${last.total} · ${last.passed ? "passed" : "failed"}` : "—"}
-              cls={last ? (last.passed ? "text-ok" : "text-bad-text") : undefined}
+              cls={last ? (last.passed ? "text-ok-text" : "text-bad-text") : undefined}
             />
-            <RecordRow label="Retry cooldown" value={cd > 0 ? mmss(cd) : "ready ✓"} cls={cd > 0 ? "text-signal-text" : "text-ok"} />
+            <RecordRow label="Retry cooldown" value={cd > 0 ? mmss(cd) : "ready ✓"} cls={cd > 0 ? "text-signal-text" : "text-ok-text"} />
             <span className="pt-2.5 text-[13px] leading-normal text-fg-3">
               After a fail the trial rests for 10 minutes, then comes back with a new option order. Passing locks in your XP; retries only raise your best score.
             </span>
@@ -677,7 +677,7 @@ function Gate(
 function GateStat({ value, label, accent, ok }: { value: React.ReactNode; label: string; accent?: boolean; ok?: boolean }) {
   return (
     <div className="flex flex-col gap-1 bg-bg px-[18px] py-4">
-      <span className={`font-mono text-[28px] font-semibold ${accent ? "text-signal-text" : ok ? "text-ok" : "text-fg"}`}>{value}</span>
+      <span className={`font-mono text-[28px] font-semibold ${accent ? "text-signal-text" : ok ? "text-ok-text" : "text-fg"}`}>{value}</span>
       <span className="text-[13px] text-fg-3">{label}</span>
     </div>
   );

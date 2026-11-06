@@ -79,8 +79,8 @@ function QuizCard({ conv, qref, onAnswer, busy }: { conv: Conversation; qref: st
               >
                 <span className="font-mono text-[12px] font-bold text-signal-text">{L}</span>
                 <span className="min-w-0 flex-1">{o.replace(/`([^`]+)`/g, "$1")}</span>
-                {r && right && <Check className="h-4 w-4 shrink-0 text-ok" aria-label="correct answer" />}
-                {r && picked && !right && <X className="h-4 w-4 shrink-0 text-bad" aria-label="your answer" />}
+                {r && right && <Check className="h-4 w-4 shrink-0 text-ok-text" aria-label="correct answer" />}
+                {r && picked && !right && <X className="h-4 w-4 shrink-0 text-bad-text" aria-label="your answer" />}
               </button>
             );
           })}
@@ -136,7 +136,7 @@ function PathCardView({ conv, pref, onSave }: { conv: Conversation; pref: string
         </span>
         {saved ? (
           <Link href="/saved" className="inline-flex min-h-10 items-center gap-1.5 border border-ok px-3 font-mono text-[12px] text-fg">
-            <Check className="h-3.5 w-3.5 text-ok" aria-hidden /> {p.saved === "updated" ? "Updated" : "Saved"} · open
+            <Check className="h-3.5 w-3.5 text-ok-text" aria-hidden /> {p.saved === "updated" ? "Updated" : "Saved"} · open
           </Link>
         ) : (
           <button type="button" onClick={() => onSave(pref)} className="inline-flex min-h-10 items-center gap-1.5 bg-signal px-3 font-mono text-[12px] font-semibold text-on-signal">

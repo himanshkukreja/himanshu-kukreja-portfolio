@@ -130,7 +130,7 @@ export default function JoinBriefing({
               </p>
               {coachAvailable ? (
                 <label className="flex items-center gap-2 text-[14px] text-fg">
-                  <input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} className="h-4 w-4 accent-[#FF6B2B]" />
+                  <input type="checkbox" checked={coach} onChange={(e) => setCoach(e.target.checked)} className="h-4 w-4 accent-signal" />
                   Coach me after each phase
                 </label>
               ) : (
@@ -154,7 +154,7 @@ export default function JoinBriefing({
 
         <div className="flex flex-col gap-3 border-t border-line px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <label className="flex items-center gap-2 font-mono text-[12px] text-fg-3">
-            <input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} className="h-3.5 w-3.5 accent-[#FF6B2B]" />
+            <input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} className="h-3.5 w-3.5 accent-signal" />
             don&apos;t show this again
           </label>
           <div className="flex gap-2">

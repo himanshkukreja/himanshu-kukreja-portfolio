@@ -177,7 +177,7 @@
   color: var(--c-on-ok);
 }
 .course-content .sd-quiz-btn[data-correct] .sd-quiz-mark {
-  color: var(--q-ok);
+  color: var(--c-ok-text);
 }
 .course-content .sd-quiz-btn[data-picked]:not([data-correct]) {
   border-color: var(--q-bad);
@@ -186,7 +186,7 @@
 .course-content .sd-quiz-btn[data-picked]:not([data-correct]) .sd-quiz-key {
   border-color: var(--q-bad);
   background: var(--q-bad);
-  color: #fff;
+  color: var(--c-on-bad);
 }
 .course-content .sd-quiz-btn[data-picked]:not([data-correct]) .sd-quiz-mark {
   color: var(--c-bad-text);
@@ -231,7 +231,7 @@
   display: none;
 }
 .course-content .sd-quiz-q[data-state="right"] .sd-quiz-status {
-  color: var(--q-ok);
+  color: var(--c-ok-text);
 }
 .course-content .sd-quiz-q[data-state="wrong"] .sd-quiz-status {
   color: var(--c-bad-text);

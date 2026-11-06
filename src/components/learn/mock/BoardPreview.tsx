@@ -58,7 +58,7 @@ export default function BoardPreview({ sketch, notes }: { sketch?: string; notes
       </div>
       {has && (
         <div ref={box} className="grid min-h-[160px] place-items-center overflow-hidden border border-line bg-[#121212]">
-          <span className="font-mono text-xs text-fg-3">{state === "failed" ? "The drawing couldn't be shown here; its text is below." : "drawing your board…"}</span>
+          <span className="font-mono text-xs text-[#a3a3a8]">{state === "failed" ? "The drawing couldn't be shown here; its text is below." : "drawing your board…"}</span>
         </div>
       )}
       {summary && (

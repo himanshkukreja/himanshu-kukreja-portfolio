@@ -716,7 +716,7 @@
 }
 .course-content .sd-cmp-pane[data-pol="good"] .sd-cmp-glyph,
 .course-content .sd-cmp-pane[data-pol="good"] .sd-cmp-label {
-  color: var(--c-ok);
+  color: var(--c-ok-text);
 }
 .course-content .sd-cmp-pane[data-pol="neutral"] .sd-cmp-glyph {
   color: var(--c-fg-3);
@@ -1069,7 +1069,7 @@
   color: var(--c-fg-3);
 }
 .course-content .sd-reveal[data-verdict="knew"] .sd-rv-status {
-  color: var(--c-ok);
+  color: var(--c-ok-text);
 }
 .course-content .sd-reveal[data-verdict="review"] .sd-rv-status {
   color: var(--c-signal-text);
@@ -1331,7 +1331,7 @@
 }
 .course-content .sd-pc-col[data-pol="pro"] li::before {
   content: "+";
-  color: var(--c-ok);
+  color: var(--c-ok-text);
 }
 .course-content .sd-pc-col[data-pol="con"] li::before {
   content: "\2212";
@@ -1444,7 +1444,7 @@
   color: var(--c-fg);
 }
 .course-content .sd-yes {
-  color: var(--c-ok);
+  color: var(--c-ok-text);
 }
 .course-content .sd-no {
   color: var(--c-bad-text);

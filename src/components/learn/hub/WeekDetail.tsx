@@ -127,7 +127,7 @@ export default function WeekDetail({
                   href={p.href}
                   className={`flex min-h-11 flex-col gap-0.5 px-2 py-1.5 hover:bg-surface-2 ${passed ? "border border-line-strong" : "border border-signal/60"}`}
                 >
-                  <span className={`font-mono text-[11px] ${passed ? "text-ok" : "text-signal-text"}`}>
+                  <span className={`font-mono text-[11px] ${passed ? "text-ok-text" : "text-signal-text"}`}>
                     P{p.n} · {passed ? "passed" : `${p.questions} Q`}
                   </span>
                   <span className="line-clamp-2 text-xs text-fg-2">{p.title}</span>

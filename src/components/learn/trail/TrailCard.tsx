@@ -84,7 +84,7 @@ export default function TrailCard({ entry, lesson, read, onToggleRead, offline, 
           onClick={onToggleRead}
           aria-pressed={read}
           className={`inline-flex min-h-11 items-center gap-1.5 border px-3 font-mono text-[12px] ${
-            read ? "border-line bg-surface-2 text-ok" : "border-line-strong text-fg-2 hover:border-fg-3 hover:text-fg"
+            read ? "border-line bg-surface-2 text-ok-text" : "border-line-strong text-fg-2 hover:border-fg-3 hover:text-fg"
           }`}
         >
           {read ? (

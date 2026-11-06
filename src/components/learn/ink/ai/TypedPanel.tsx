@@ -136,7 +136,7 @@ export default function TypedPanel(props: { ai: PageAi; convertedAt: string | nu
               <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
             </button>
             <button type="button" onClick={() => void doCopy()} className={BTN}>
-              {copied ? <Check className="h-3.5 w-3.5 text-ok" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+              {copied ? <Check className="h-3.5 w-3.5 text-ok-text" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
               {copied ? "Copied" : "Copy"}
             </button>
             <button
@@ -146,7 +146,7 @@ export default function TypedPanel(props: { ai: PageAi; convertedAt: string | nu
               className={BTN}
               title={props.lessonKey ? "Save this text under the lesson's notes" : "Link this page to a lesson to save it under that lesson's notes"}
             >
-              {saved === "saved" ? <Check className="h-3.5 w-3.5 text-ok" aria-hidden /> : <NotebookPen className="h-3.5 w-3.5" aria-hidden />}
+              {saved === "saved" ? <Check className="h-3.5 w-3.5 text-ok-text" aria-hidden /> : <NotebookPen className="h-3.5 w-3.5" aria-hidden />}
               {saved === "saved" ? "Saved to my notes" : saved === "saving" ? "Saving…" : "Save to my notes"}
             </button>
             {/* on a phone the toolbar's Ink / Text toggle sits just above: no second way back taking a row */}

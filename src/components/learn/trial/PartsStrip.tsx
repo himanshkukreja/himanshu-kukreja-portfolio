@@ -40,7 +40,7 @@ export default function PartsStrip({ views, hrefFor, now, highlight }: { views: 
         let name = "text-fg";
         if (state === "pass") {
           stateText = `✓ ${best}/${n}`;
-          stateCls = "text-ok";
+          stateCls = "text-ok-text";
           bar = "bg-ok";
           note = `Passed · best ${pct}%`;
         } else if (state === "fail") {

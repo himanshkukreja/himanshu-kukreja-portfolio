@@ -24,7 +24,7 @@ export default async function CanvasPage() {
         </Link>
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">design canvas</span>
         <h1 className="m-0 font-display text-[clamp(34px,6vw,64px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
-          Draw it. Get it reviewed<span className="text-signal">.</span>
+          Draw it. Get it reviewed<span className="text-signal-text">.</span>
         </h1>
         <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
           Sketch the architecture the way you would on an interview whiteboard: boxes, arrows, real technologies. Then ask for a review: a staff-engineer read of your drawing against the brief, with the gaps that would sink it worst first, the fix for each, and what you&apos;d be asked next. Your designs save to your account as you draw.

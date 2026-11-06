@@ -1334,7 +1334,7 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--c-ok);
+  color: var(--c-ok-text);
 }
 .course-content .sd-checkpoint .sd-rv-gate {
   border-style: dashed;

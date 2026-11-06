@@ -71,7 +71,7 @@ export default function QuestClear({ meta }: { meta: ReaderMeta }) {
           <li key={r.label} className="flex flex-col gap-0.5 bg-bg px-4 py-3">
             <span className={`font-mono text-xl font-semibold ${r.full ? "text-fg" : "text-fg-2"}`}>
               {r.value}
-              {r.full && <span className="ml-1.5 text-sm text-ok">✓</span>}
+              {r.full && <span className="ml-1.5 text-sm text-ok-text">✓</span>}
             </span>
             <span className="text-xs text-fg-3">{r.label}</span>
           </li>

@@ -396,7 +396,7 @@ export default function ExplainPanel({ shot, saved, question, onSaved, onClose }
                     {!footer &&
                       (savedTo ? (
                         <button type="button" onClick={() => openSaved(savedTo.pageId)} className={quiet}>
-                          <Check className="h-4 w-4 text-ok" aria-hidden />
+                          <Check className="h-4 w-4 text-ok-text" aria-hidden />
                           <span className="max-w-[220px] truncate">Snip saved · open {savedTo.pageTitle}</span>
                         </button>
                       ) : (
@@ -453,7 +453,7 @@ export default function ExplainPanel({ shot, saved, question, onSaved, onClose }
             {answered.length === 0 ? (
               savedTo ? (
                 <button type="button" onClick={() => openSaved(savedTo.pageId)} className={quiet}>
-                  <Check className="h-4 w-4 text-ok" aria-hidden />
+                  <Check className="h-4 w-4 text-ok-text" aria-hidden />
                   <span className="max-w-[220px] truncate">Snip saved · open {savedTo.pageTitle}</span>
                 </button>
               ) : (
@@ -480,7 +480,7 @@ export default function ExplainPanel({ shot, saved, question, onSaved, onClose }
                   Ask in the course chat
                 </button>
                 <button type="button" onClick={() => void copy()} className={quiet} aria-label={copied ? "Copied" : turns.length > 1 ? "Copy the answers" : "Copy the explanation"}>
-                  {copied ? <Check className="h-4 w-4 text-ok" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
+                  {copied ? <Check className="h-4 w-4 text-ok-text" aria-hidden /> : <Copy className="h-4 w-4" aria-hidden />}
                   {copied ? "Copied" : "Copy"}
                 </button>
               </>

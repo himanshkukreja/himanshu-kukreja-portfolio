@@ -23,6 +23,22 @@
   --lab-op: #a3a3a8;
 }
 
+/* The tinted course themes (src/lib/learn/readingModes.ts: paper, sepia, mint, dusk): the theme's own code palette,
+   AA on its surfaces (the colours above dip just under 4.5:1 on those grounds). Light and Night keep the two above. */
+@media screen {
+  :global(html:is([data-read-mode="paper"], [data-read-mode="sepia"], [data-read-mode="mint"], [data-read-mode="dusk"])) .editor {
+    --lab-kw: var(--c-code-kw);
+    --lab-str: var(--c-code-tag);
+    --lab-num: var(--c-code-var);
+    --lab-com: var(--c-code-com);
+    --lab-fn: var(--c-code-num);
+    --lab-type: var(--c-code-fn);
+    --lab-self: var(--c-signal-text);
+    --lab-prop: var(--c-fg-2);
+    --lab-op: var(--c-fg-3);
+  }
+}
+
 .editor :global(.cm-editor) {
   height: 100%;
 }

@@ -35,6 +35,10 @@ const hostOf = (origin: string) => {
 const COURSE_HOSTS = new Set([COURSE_HOST, `www.${COURSE_HOST}`, hostOf(COURSE_ORIGIN)]);
 const PORTFOLIO_HOSTS = new Set([PORTFOLIO_HOST, `www.${PORTFOLIO_HOST}`, hostOf(PORTFOLIO_ORIGIN)]);
 
+/** The course's hosts (apex, www, the configured origin's), for scripts that decide before React runs. */
+export const COURSE_HOST_NAMES = [...COURSE_HOSTS].filter(Boolean);
+export const PORTFOLIO_HOST_NAMES = [...PORTFOLIO_HOSTS].filter(Boolean);
+
 const bare = (host: string | null | undefined) => (host || "").trim().toLowerCase();
 const noPort = (host: string) => host.replace(/:\d+$/, "");
 

@@ -31,7 +31,7 @@ export default function CheatSheet({ id, week, url, site }: { id?: string; week:
         <div className="cs-brand">
           <span className="cs-mark" aria-label="System Design Mastery">
             <CourseMark className="cs-mark-icon" />
-            SD Mastery<span style={{ color: "var(--signal)" }}>.</span>
+            SD Mastery<span style={{ color: "var(--signal-ink)" }}>.</span>
           </span>
           <span>free course · {site}/</span>
         </div>

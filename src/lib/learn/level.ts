@@ -30,3 +30,12 @@ export const LEVEL_TONE: Record<Level, { fg: string; border: string }> = {
   Advanced: { fg: "#ff8a4c", border: "#ff8a4c66" },
   Expert: { fg: "#ff5c5c", border: "#ff5c5c66" },
 };
+
+const tone = (v: string) => ({ fg: `var(${v})`, border: `color-mix(in srgb, var(${v}) 45%, transparent)` });
+/** The same four tones from the course theme's tokens, for badges on the page itself (AA in every theme); LEVEL_TONE stays for badges over dark video. */
+export const LEVEL_TONE_PAGE: Record<Level, { fg: string; border: string }> = {
+  Beginner: tone("--c-ok-text"),
+  Intermediate: tone("--c-sky"),
+  Advanced: tone("--c-signal-text"),
+  Expert: tone("--c-bad-text"),
+};

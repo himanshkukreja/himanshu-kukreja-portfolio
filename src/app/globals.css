@@ -46,6 +46,8 @@
   --c-ok: #16A34A;
   --c-bad: #DC2626;
   --c-bad-text: #B91C1C;
+  /* text on a bad fill (delete buttons, severity badges, wrong answers) */
+  --c-on-bad: #FFFFFF;
   --c-dot: #DDDBD4;
   /* reading tokens (the reading modes below set their own) */
   --c-link: var(--c-signal-text);
@@ -101,6 +103,8 @@
   --c-ok: #3DD68C;
   --c-bad: #E5484D;
   --c-bad-text: #FF8A8D;
+  /* white on this red is 3.9:1: near-black instead (5.1:1) */
+  --c-on-bad: #1A0405;
   --c-dot: #1A1A1D;
   --c-ok-text: #3DD68C;
   --c-sky: #4FB3FF;
@@ -117,13 +121,21 @@
 }
 
 /* ---------------------------------------------------------------------------------------------
-   Reading modes (src/lib/learn/readingModes.ts, the reader's "Aa" panel). Set on <html> on reading pages
-   only; "light" and "night" are the site's own two themes (html.dark follows the mode's tone), the rest
-   are full token sets, where every text / background pair passes WCAG AA (body text 4.5:1, UI 3:1); dusk is
+   Course themes (src/lib/learn/readingModes.ts: the header's theme menu, the reader's "Aa" panel). Set on
+   <html> on every course page but /admin; "light" and "night" are the site's own two themes (html.dark
+   follows the theme's tone; light darkens two text tokens), the rest are full token sets, where every text / background pair passes WCAG AA (body text 4.5:1, UI 3:1); dusk is
    a soft dark (~10:1 body text, not 18:1). No purple. Keep the swatches in readingModes.ts in step.
    --------------------------------------------------------------------------------------------- */
 /* screen only: printing falls back to the site theme's tokens (light, or dark under html.dark) */
 @media screen {
+  /* the course's Light: the site's light tokens with the two that missed AA on its tinted surfaces darkened a
+     step (orange text on surface-2 was 4.4:1, amber on the page 4.5:1, green on its tint 4.1:1); the portfolio keeps its own */
+  html[data-read-mode="light"] {
+    --c-signal-text: #B93D0B;
+    --c-amber: #9A5B06;
+    /* green text on a 10% green tint (pass / valid badges) was 4.1:1 */
+    --c-ok-text: #137336;
+  }
   html[data-read-mode="sepia"] {
     --c-bg: #F4ECD8;
     --c-surface: #FAF5E9;
@@ -174,8 +186,8 @@
     --c-fg-4: #66625A;
     --c-signal: #E4621F;
     --c-on-signal: #120700;
-    --c-signal-text: #B04A10;
-    --c-link: #B04A10;
+    --c-signal-text: #A8460F;
+    --c-link: #A8460F;
     --c-ok: #2E7A39;
     --c-ok-text: #2A6E33;
     --c-on-ok: #FFFFFF;
@@ -254,6 +266,7 @@
     --c-ok-text: #86CC9A;
     --c-bad: #C9483D;
     --c-bad-text: #EE9A8F;
+    --c-on-bad: #FFFFFF;
     --c-sky: #7DB3DE;
     --c-amber: #D9A94E;
     --c-dot: #2D2924;

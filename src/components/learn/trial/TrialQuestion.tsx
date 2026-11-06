@@ -171,7 +171,7 @@ export default function TrialQuestion(props: Props) {
               <span className="sm:hidden">{part.title} · </span>Question {i + 1} of {N}
             </span>
           </div>
-          <span role="status" aria-live="polite" className={`font-mono text-[11px] sm:hidden ${props.save === "saved" || props.save === "local" ? "text-ok" : "text-fg-3"}`}>
+          <span role="status" aria-live="polite" className={`font-mono text-[11px] sm:hidden ${props.save === "saved" || props.save === "local" ? "text-ok-text" : "text-fg-3"}`}>
             {props.save === "saving" ? "saving…" : props.save === "idle" ? "" : "saved ✓"}
           </span>
         </div>
@@ -184,11 +184,11 @@ export default function TrialQuestion(props: Props) {
               let label = `Q${qq.number}: `;
               let text = "";
               if (p && p === qq.correctAnswer) {
-                cls = "bg-ok text-[#04140B]";
+                cls = "bg-ok text-on-ok";
                 label += "correct";
                 text = "✓";
               } else if (p) {
-                cls = "bg-bad text-[#1A0405]";
+                cls = "bg-bad text-on-bad";
                 label += "wrong";
                 text = "✕";
               } else if (k === i) {
@@ -231,7 +231,7 @@ export default function TrialQuestion(props: Props) {
         <span
           role="status"
           aria-live="polite"
-          className={`hidden border border-line px-2.5 py-1.5 font-mono text-xs sm:inline ${props.save === "saved" || props.save === "local" ? "text-ok" : "text-fg-3"}`}
+          className={`hidden border border-line px-2.5 py-1.5 font-mono text-xs sm:inline ${props.save === "saved" || props.save === "local" ? "text-ok-text" : "text-fg-3"}`}
         >
           {saveLabel}
         </span>
@@ -260,9 +260,9 @@ export default function TrialQuestion(props: Props) {
               if (revealed) {
                 if (isRight) {
                   cls = "border-2 border-ok text-fg";
-                  keyCls = "bg-ok text-[#04140B]";
+                  keyCls = "bg-ok text-on-ok";
                   verdict = chosen ? "✓ YOUR PICK" : "✓ ANSWER";
-                  verdictCls = "text-ok";
+                  verdictCls = "text-ok-text";
                 } else if (chosen) {
                   cls = "border-2 border-bad text-fg";
                   keyCls = "border border-bad text-bad-text";
@@ -304,7 +304,7 @@ export default function TrialQuestion(props: Props) {
           {revealed && (
             <div className={`flex animate-hk-in flex-col gap-2.5 border bg-surface px-5 py-[18px] ${right ? "border-ok" : "border-bad"}`}>
               <span
-                className={`self-start px-2 py-1 font-mono text-xs font-semibold tracking-label ${right ? "bg-ok text-[#04140B]" : "border border-bad text-bad-text"}`}
+                className={`self-start px-2 py-1 font-mono text-xs font-semibold tracking-label ${right ? "bg-ok text-on-ok" : "border border-bad text-bad-text"}`}
               >
                 {right ? (run.combo >= 3 ? `CORRECT · COMBO ×${run.combo}` : "CORRECT") : "NOT QUITE · COMBO RESET"}
               </span>
@@ -414,7 +414,7 @@ export default function TrialQuestion(props: Props) {
               <span className="text-xl text-fg-3">/{N}</span>
             </span>
             <span className="pb-2 text-[13px] text-fg-3">counted against all {N}, not just the ones answered</span>
-            <ScoreRow label="Correct" value={correct} cls="text-ok" />
+            <ScoreRow label="Correct" value={correct} cls="text-ok-text" />
             <ScoreRow label="Wrong" value={wrong} cls="text-bad-text" />
             <ScoreRow label="Still to answer" value={N - answered} />
             <ScoreRow label="Pass needs" value={pm} />

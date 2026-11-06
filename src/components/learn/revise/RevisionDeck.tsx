@@ -411,7 +411,7 @@ export default function RevisionDeck({ course, week, lesson, exitHref, exitLabel
               Again <span className="hidden font-mono text-[11px] font-normal text-fg-3 sm:inline">A</span>
             </button>
             <button type="button" onClick={() => mark("got")} className="h-[52px] bg-signal px-3 text-[15px] font-semibold text-on-signal hover:brightness-110">
-              Got it <span className="hidden font-mono text-[11px] font-normal opacity-70 sm:inline">G</span>
+              Got it <span className="hidden font-mono text-[11px] font-normal sm:inline">G</span>
             </button>
             <button type="button" onClick={() => go(1)} aria-label="Next card" className="grid h-[52px] place-items-center border border-line-strong text-fg-2 hover:text-fg">
               <ChevronRight className="h-5 w-5" aria-hidden />

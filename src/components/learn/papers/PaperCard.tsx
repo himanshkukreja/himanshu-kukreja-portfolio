@@ -18,7 +18,7 @@ export default function PaperCard({ paperKey, variant = "hub" }: { paperKey: str
   // the same status the papers index shows: best whole-paper result, else the last practice run (no verdict)
   const st = hydrated ? paperStatus(rec) : null;
   const status = st?.text ?? "";
-  const tone = st?.tone === "pass" || st?.tone === "distinction" ? "text-ok" : "text-fg-3";
+  const tone = st?.tone === "pass" || st?.tone === "distinction" ? "text-ok-text" : "text-fg-3";
 
   if (variant === "hub")
     return (

@@ -46,7 +46,7 @@ export default function ShortsTeaser({ shorts, total }: { shorts: TeaserShort[];
         {pick.map((s) => (
           <li key={s.id} className="group w-[150px] shrink-0 sm:w-[170px]">
             <Link href={`/shorts?v=${encodeURIComponent(s.id)}`} className="flex flex-col gap-2">
-              <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[#0b0b0c] transition-colors group-hover:border-signal">
+              <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[var(--c-plate)] transition-colors group-hover:border-signal">
                 {/* eslint-disable-next-line @next/next/no-img-element -- the short's own poster frame from the media host */}
                 <img src={s.poster} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.04]" />
                 <span className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100" aria-hidden>

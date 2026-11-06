@@ -308,7 +308,7 @@ function Thumb({ e }: { e: Entry }) {
   const Icon = ICON[e.section];
   if (e.section === "lectures" && e.poster)
     return (
-      <span className="relative block h-[45px] w-[80px] shrink-0 overflow-hidden border border-line bg-[#0b0b0c]">
+      <span className="relative block h-[45px] w-[80px] shrink-0 overflow-hidden border border-line bg-[var(--c-plate)]">
         {/* eslint-disable-next-line @next/next/no-img-element -- poster lives on the media host (R2) or this device's saved copy */}
         <img src={e.poster} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" onError={(ev) => ((ev.currentTarget as HTMLImageElement).style.visibility = "hidden")} />
         <span className="absolute inset-0 grid place-items-center">

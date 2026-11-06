@@ -159,7 +159,7 @@ function ScoreButtons({ value, onPick, disabled, label }: { value: SignalScore |
             disabled={disabled}
             onClick={() => onPick(on ? null : v)}
             className={`min-h-10 min-w-[64px] px-2 font-mono text-[11px] uppercase tracking-label disabled:cursor-default ${
-              on ? (v === 2 ? "bg-fg text-bg" : v === 1 ? "bg-signal text-on-signal" : "bg-bad text-white") : "bg-bg text-fg-3 hover:text-fg"
+              on ? (v === 2 ? "bg-fg text-bg" : v === 1 ? "bg-signal text-on-signal" : "bg-bad text-on-bad") : "bg-bg text-fg-3 hover:text-fg"
             }`}
           >
             {SCORE_LABEL[v]}
@@ -342,7 +342,7 @@ function Scorecard({ mock, run, score, totalWords, minWords, alreadyDone, onClai
 
       {run.claimed ? (
         <div className="flex flex-col gap-2 border border-line-strong bg-bg px-4 py-4">
-          <span className="font-mono text-[11px] uppercase tracking-label text-ok">Scorecard submitted ✓</span>
+          <span className="font-mono text-[11px] uppercase tracking-label text-ok-text">Scorecard submitted ✓</span>
           <span className="text-[15px] text-fg-2">
             +{LEARN_XP.mock} XP{score.offer ? ` · +${LEARN_XP.mockOffer} offer bonus` : ""} · badge <strong className="font-semibold text-fg">{mock.badge}</strong>
             {alreadyDone && run.history.length > 1 ? " (each reward is paid once; this round is in your history)" : ""}
