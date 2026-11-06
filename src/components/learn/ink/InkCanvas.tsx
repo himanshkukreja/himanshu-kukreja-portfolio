@@ -66,8 +66,8 @@ import { ContactLog, TouchArbiter, noteFingerDrag, notePen, pressureVaries, type
 import PaperView from "./Paper";
 import PageItems from "./PageItems";
 import InkDebugOverlay from "./InkDebugOverlay";
-import { InkToastHost, PressMenu, QuickPalette, ToolSwitch, type QuickTool } from "./QuickInk";
-import { HOLD_MS, HOLD_PX, TapSession, detectScribble, inkToast, scribbleTargets, useToolSwitch, wordGroup, type TimedPt } from "@/lib/learn/ink/gestures";
+import { InkToastHost, PressMenu, QuickPalette, type QuickTool } from "./QuickInk";
+import { HOLD_MS, HOLD_PX, TapSession, detectScribble, inkToast, scribbleTargets, wordGroup, type TimedPt } from "@/lib/learn/ink/gestures";
 
 export type InkToolId = "pen" | "highlighter" | "eraser" | "lasso" | "text";
 /** what the quick gestures need from the surface (its tool state and its undo history) */
@@ -115,7 +115,7 @@ type Props = {
   onCommit: (next: InkContent, mergeKey?: string) => void;
   /** the first pen on this device switched it to Pen only (say so) */
   onAutoPen?: () => void;
-  /** quick gestures: long-press menu and palette, finger-tap undo / redo, the floating pen ↔ eraser switch */
+  /** quick gestures: long-press menu and palette, finger-tap undo / redo */
   quick?: InkQuick;
   onFull?: () => void;
   /** the zoom: 1 = 100% = the page at 1000 px wide */
@@ -206,15 +206,12 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
   const selRef = useRef<Sel | null>(null);
   selRef.current = sel;
   const [editingId, setEditingId] = useState<string | null>(null);
-  // quick gestures: the long-press menu / palette, how the selection was made, the last stroke's end (the switch)
+  // quick gestures: the long-press menu / palette, how the selection was made
   const [press, setPress] = useState<{ kind: "sel" | "palette"; x: number; y: number } | null>(null);
   const selVia = useRef<"lasso" | "press">("lasso");
-  /** where the last stroke ended (page units) and which way the switch sits from it (CSS px), clear of the edges */
-  const [anchor, setAnchor] = useState<[number, number, number, number] | null>(null);
   const hold = useRef<{ pid: number; x: number; y: number; timer: number } | null>(null);
   const heldPid = useRef<number | null>(null);
   const lastInk = useRef<InkToolId>("pen");
-  const switchOn = useToolSwitch();
 
   // ------------------------------------------------------------------ view
 
@@ -1155,15 +1152,6 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       }
       if (a.kind === "draw") {
         const np = a.pts.length / 3;
-        if (np) {
-          const ex = a.pts[(np - 1) * 3] / Q;
-          const ey = a.pts[(np - 1) * 3 + 1] / Q;
-          const v = view.current;
-          const sx = ex * v.s + v.tx;
-          const sy = ey * v.s + v.ty;
-          // above and to the right of where the pen lifted; below / to the left near the surface's edges
-          setAnchor([ex, ey, sx + 18 + 56 > size.current.w ? -66 : 18, sy - 84 < 8 ? 36 : -84]);
-        }
         // a fast zig-zag over strokes erases them instead of drawing
         if (a.tool === "pen" && np >= 8 && !cancelled) {
           const path: TimedPt[] = [];
@@ -1432,8 +1420,6 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     commit({ strokes: P.current.strokes.map((x) => (s.strokes.has(x.id) ? fn(x) : x)) });
   };
   const selStrokes = sel ? strokes.filter((x) => sel.strokes.has(x.id)) : [];
-  const flipTool = () => quick?.onTool(tool === "eraser" ? lastInk.current : "eraser");
-  const showSwitch = !!quick && switchOn && (tool === "pen" || tool === "highlighter" || tool === "eraser");
   return (
     <div
       ref={wrapRef}
@@ -1476,16 +1462,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
             </div>
           </>
         )}
-        {showSwitch && anchor && (
-          <ToolSwitch
-            tool={tool}
-            onFlip={flipTool}
-            className="absolute"
-            style={{ left: Math.max(0, Math.min(PAGE_W, anchor[0])), top: Math.max(0, Math.min(PAGE_H, anchor[1])), transformOrigin: "0 0", transform: `scale(var(--ink-inv, 1)) translate(${anchor[2]}px, ${anchor[3]}px)` }}
-          />
-        )}
       </div>
-      {showSwitch && !anchor && <ToolSwitch tool={tool} onFlip={flipTool} className="absolute right-3 top-1/2 z-[6] -translate-y-1/2" />}
       {quick && press?.kind === "sel" && sel && (
         <PressMenu
           x={press.x}

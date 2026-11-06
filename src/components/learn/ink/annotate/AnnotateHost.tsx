@@ -20,7 +20,6 @@ import { canCapture } from "../capture/api";
 import { captureToast, isTyping } from "../capture/events";
 import { ANNOT_COLORS, ANNOT_MARKER_SIZE, ANNOT_PEN_SIZES, registerAnnotateHost, setAnnotating, setShowMarks, useAnnotate } from "./mode";
 import { PEN_FOUND, notePen, useInkInput } from "@/lib/learn/ink/inputMode";
-import { useToolSwitch } from "@/lib/learn/ink/gestures";
 import type { Box } from "@/lib/learn/ink/geometry";
 import { useAnnotations } from "./useAnnotations";
 import type { AnnotLayerHandle } from "./AnnotateLayer";
@@ -32,7 +31,6 @@ const InkDebugOverlay = dynamic(() => import("../InkDebugOverlay"), { ssr: false
 const PressMenu = dynamic(() => import("../QuickInk").then((m) => m.PressMenu), { ssr: false });
 const QuickPalette = dynamic(() => import("../QuickInk").then((m) => m.QuickPalette), { ssr: false });
 const InkToastHost = dynamic(() => import("../QuickInk").then((m) => m.InkToastHost), { ssr: false });
-const ToolSwitch = dynamic(() => import("../QuickInk").then((m) => m.ToolSwitch), { ssr: false });
 
 const noop = () => () => {};
 /** after switching to Scroll from a long-press menu: a finger long-press over the lesson stays the browser's (text
@@ -67,11 +65,9 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
   const [detachedIds, setDetachedIds] = useState<string[]>([]);
   const [sending, setSending] = useState<string | null>(null);
   const { mode: input, penSeen } = useInkInput();
-  // quick gestures: the long-press menu / palette, the selection's box, the floating pen ↔ eraser switch
+  // quick gestures: the long-press menu / palette, the selection's box
   const [press, setPress] = useState<{ kind: "sel" | "palette"; ids: string[]; x: number; y: number } | null>(null);
   const [selBox, setSelBox] = useState<Box | null>(null);
-  const [anchor, setAnchor] = useState<[number, number] | null>(null);
-  const switchOn = useToolSwitch();
   const lastInk = useRef<AnnotTool>("pen");
   const [touch, setTouch] = useState(false);
 
@@ -91,10 +87,6 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
   const closePress = useCallback(() => {
     setPress(null);
     setSelBox(null);
-  }, []);
-  const onStroke = useCallback((x: number, y: number) => {
-    const r = wrapRef.current?.getBoundingClientRect();
-    if (r) setAnchor([x - r.left, y - r.top]);
   }, []);
 
   const color = tool === "highlighter" ? hlColor : penColor;
@@ -237,7 +229,6 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
           onUndo={undo}
           onRedo={redo}
           onPress={onPress}
-          onStroke={onStroke}
         />
       )}
       {on && selBox && <div aria-hidden className="pointer-events-none absolute border-2 border-dashed border-signal" style={{ left: selBox.x1 - 5, top: selBox.y1 - 5, width: selBox.x2 - selBox.x1 + 10, height: selBox.y2 - selBox.y1 + 10, zIndex: 2 }} />}
@@ -280,14 +271,6 @@ export default function AnnotateHost({ contentRef, lessonKey, title, children }:
           }}
           onClose={closePress}
           scrollHint={ANNOT_SCROLL_HINT}
-        />
-      )}
-      {on && input !== "scroll" && switchOn && (
-        <ToolSwitch
-          tool={tool}
-          onFlip={() => setTool(tool === "eraser" ? lastInk.current : "eraser")}
-          className={anchor ? "absolute" : "fixed right-3 top-1/2 -translate-y-1/2"}
-          style={anchor ? { left: Math.max(0, anchor[0] + 18), top: Math.max(0, anchor[1] - 84), zIndex: 40 } : { zIndex: 40 }}
         />
       )}
       {on && <InkToastHost />}

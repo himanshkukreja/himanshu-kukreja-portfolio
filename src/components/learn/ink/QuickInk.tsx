@@ -6,7 +6,6 @@
  *   QuickPalette  after a long-press on empty paper: pen / highlighter / eraser, colours, nib sizes
  *   InkToastHost  "Erased · Undo", "Undone" (one per page)
  *   ModeSwitch    in both menus: Pen only · Stylus/finger · Scroll (the device's setting, lib/learn/ink/inputMode.ts)
- *   ToolSwitch    the floating one-tap pen ↔ eraser button near the writing hand
  * Menus render into <body>, fixed beside the press point (above it, clear of the hand), clamped to the screen; they
  * close on a tap elsewhere or Esc. Everything carries data-ink-ui / data-annot-ui so no surface writes under it.
  */
@@ -272,21 +271,3 @@ export function InkToastHost() {
   );
 }
 
-/** The floating one-tap pen ↔ eraser switch (the caller positions it). */
-export function ToolSwitch({ tool, onFlip, style, className = "" }: { tool: string; onFlip: () => void; style?: React.CSSProperties; className?: string }) {
-  const erasing = tool === "eraser";
-  return (
-    <button
-      type="button"
-      {...UI}
-      data-ink-switch
-      onClick={onFlip}
-      aria-label={erasing ? "Eraser on: switch to the pen" : "Switch to the eraser"}
-      title={erasing ? "Back to the pen" : "Eraser"}
-      style={style}
-      className={`pointer-events-auto grid h-12 w-12 place-items-center rounded-full border shadow-[0_6px_20px_rgba(0,0,0,0.22)] ${erasing ? "border-signal bg-signal text-on-signal" : "border-line-strong bg-surface text-fg"} ${className}`}
-    >
-      {erasing ? TOOL_ICON.eraser : tool === "highlighter" ? TOOL_ICON.highlighter : TOOL_ICON.pen}
-    </button>
-  );
-}

@@ -32,8 +32,7 @@
  * Quick gestures (lib/learn/ink/gestures.ts): the pen or the writing contact held still HOLD_MS → over a mark, it and
  * the marks written with it (its group) are selected and the host shows a menu (onPress); on empty paper a palette.
  * A fast zig-zag over marks erases them instead of drawing. A two-finger tap undoes, three fingers redo (both modes:
- * in Pen only the fingers are only watched, never cancelled). onStroke tells the host where the last stroke ended
- * (the floating pen ↔ eraser switch follows it).
+ * in Pen only the fingers are only watched, never cancelled).
  *
  * The stroke being drawn is drawn by lib/learn/ink/liveStroke.ts (the settled part once, the tail each frame, a
  * frame of predicted points, ending under the nib; hk.ink.classic = "1" keeps the old whole-stroke redraw). The
@@ -82,8 +81,6 @@ export type EngineProps = {
   onRedo?: () => void;
   /** a long-press: over marks (their ids, with their groups), or on empty paper (the palette); client px */
   onPress?: (p: { kind: "sel" | "palette"; ids: string[]; x: number; y: number }) => void;
-  /** a stroke was drawn, ending here (client px) */
-  onStroke?: (x: number, y: number) => void;
 };
 
 type Tile = { i: number; hl: HTMLCanvasElement; ink: HTMLCanvasElement; v: number };
@@ -972,9 +969,6 @@ export class AnnotEngine {
     }
     if (a.pts.length >= 3 && !cancelled) {
       this.commitStroke(a);
-      const o = this.origin();
-      const n = a.pts.length;
-      this.P.onStroke?.(a.pts[n - 3] / Q + o.x, a.pts[n - 2] / Q + o.y);
     }
     this.drawLive();
   }
