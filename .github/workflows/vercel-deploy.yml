@@ -52,8 +52,11 @@ jobs:
       - name: Build
         run: npx --yes vercel@latest build --prod --token="$VERCEL_TOKEN"
 
+      # --archive=tgz: one compressed upload instead of thousands of files. Every prerendered page carries the build
+      # id, so each deploy changed thousands of files and a few deploys a day used up Vercel's 40,000 file
+      # uploads/day ("Upload aborted", 6 Nov 2026).
       - name: Deploy the prebuilt output
         run: |
-          url=$(npx --yes vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN" \
+          url=$(npx --yes vercel@latest deploy --prebuilt --prod --archive=tgz --token="$VERCEL_TOKEN" \
             --meta githubCommitSha="$GITHUB_SHA" --meta githubCommitRef="$GITHUB_REF_NAME" --meta source=actions)
           echo "Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
