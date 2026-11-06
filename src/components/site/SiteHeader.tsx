@@ -217,7 +217,7 @@ export default function SiteHeader() {
               {p.level.code}
               <span data-wco-compact className="hidden sm:inline"> · {p.level.name}</span>
             </button>
-            <div data-wco-hide className={`${learn ? "hidden min-[1360px]:flex" : "hidden sm:flex"} w-[150px] shrink-0 flex-col gap-1.5`}>
+            <div data-wco-hide className={`${learn ? "hidden min-[1360px]:flex" : "hidden sm:flex"} w-max min-w-[150px] shrink-0 flex-col gap-1.5`}>
               <div className="h-1.5 bg-surface-2">
                 <div className="h-1.5 bg-signal transition-[width] duration-500" style={{ width: `${p.pct}%` }} />
               </div>
