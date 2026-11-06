@@ -418,18 +418,12 @@ let flags: { classic: boolean; desync: boolean } | null = null;
 const flagListeners = new Set<() => void>();
 
 /**
- * Low latency only where it's known to work: Chromium (Android, ChromeOS, Windows, macOS Chrome). WebKit (Safari,
- * and every browser on iPad / iPhone, CriOS included) reports a desynchronized 2D context but paints it black on
- * iPad, so it always gets the normal canvas there.
+ * Low latency (a desynchronized canvas) is opt-in only (?inkdesync=1, or the overlay's toggle): browsers report it as
+ * supported where it paints the whole canvas black on the first pen stroke (the owner's Android tablet, Honor Pad X8;
+ * WebKit claims it too), so every device writes on the normal canvas by default.
  */
-function lowLatencyPlatform() {
-  if (typeof navigator === "undefined") return false;
-  const ua = navigator.userAgent;
-  return /(?:Chrome|Chromium|Edg|OPR)\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
-}
-
 function readFlags() {
-  const f = { classic: false, desync: lowLatencyPlatform() };
+  const f = { classic: false, desync: false };
   if (typeof window === "undefined") return f;
   try {
     const q = new URLSearchParams(window.location.search);
@@ -437,10 +431,10 @@ function readFlags() {
     if (c === "1") window.localStorage.setItem(CLASSIC_KEY, "1");
     else if (c === "0") window.localStorage.removeItem(CLASSIC_KEY);
     const d = q.get("inkdesync");
-    if (d === "0") window.localStorage.setItem(DESYNC_KEY, "0");
-    else if (d === "1") window.localStorage.removeItem(DESYNC_KEY);
+    if (d === "1") window.localStorage.setItem(DESYNC_KEY, "1");
+    else if (d === "0") window.localStorage.removeItem(DESYNC_KEY);
     f.classic = window.localStorage.getItem(CLASSIC_KEY) === "1";
-    f.desync = f.desync && window.localStorage.getItem(DESYNC_KEY) !== "0";
+    f.desync = window.localStorage.getItem(DESYNC_KEY) === "1";
   } catch {
     // no URL / storage: the defaults
   }
@@ -460,8 +454,8 @@ export function setInkFlag(k: "classic" | "desync", on: boolean) {
     if (k === "classic") {
       if (on) window.localStorage.setItem(CLASSIC_KEY, "1");
       else window.localStorage.removeItem(CLASSIC_KEY);
-    } else if (on) window.localStorage.removeItem(DESYNC_KEY);
-    else window.localStorage.setItem(DESYNC_KEY, "0");
+    } else if (on) window.localStorage.setItem(DESYNC_KEY, "1");
+    else window.localStorage.removeItem(DESYNC_KEY);
   } catch {
     // storage unavailable: this page only
   }

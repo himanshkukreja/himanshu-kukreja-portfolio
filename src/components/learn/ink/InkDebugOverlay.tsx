@@ -15,7 +15,7 @@ import { createPortal } from "react-dom";
 import { inkDebugText, setInkDebug, useInkDebug, useInkInput } from "@/lib/learn/ink/inputMode";
 import { inkFlags, inkPerf, setInkFlag, subscribeInkFlags } from "@/lib/learn/ink/liveStroke";
 
-const SERVER_FLAGS = { classic: false, desync: true };
+const SERVER_FLAGS = { classic: false, desync: false };
 
 let seq = 0;
 let owners: number[] = [];
