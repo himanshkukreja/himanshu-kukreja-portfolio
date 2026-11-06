@@ -60,7 +60,7 @@ import {
   type Box,
 } from "@/lib/learn/ink/geometry";
 import { MARKER_SIZE, addToLayer, buildLayer, fillLayer, fillStroke, outlinePathData, penPressureUsable, strokeInput, strokeOptions, strokePath, withoutPressure, type InkTheme, type Layer } from "@/lib/learn/ink/render";
-import { LivePainter, frameInterval, frameStart, inkFlags, noteFrame, noteLowLatency, type LiveXf } from "@/lib/learn/ink/liveStroke";
+import { LivePainter, frameInterval, frameStart, inkFlags, inputStart, noteFrame, noteInput, noteLowLatency, noteStrokeEnd, type LiveXf } from "@/lib/learn/ink/liveStroke";
 import { PAGE_H, PAGE_W, type InkColor, type PageItem, type Paper, type Stroke } from "@/lib/learn/ink/types";
 import { ContactLog, TouchArbiter, noteFingerDrag, notePen, pressureVaries, type ArbiterEvent, type ContactPoint, type InkInputMode, type InkSurface } from "@/lib/learn/ink/inputMode";
 import PaperView from "./Paper";
@@ -747,6 +747,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
         // frame times for the ?inkdebug=1 overlay
         window.cancelAnimationFrame(frameRaf);
         frameStart();
+        inputStart();
         const tick = (now: number) => {
           noteFrame(now);
           const a = action.current;
@@ -1056,6 +1057,7 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
       const evs = typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [];
       const list = evs.length ? evs : [e];
       if (a.kind === "draw") {
+        noteInput(list.length, e.timeStamp);
         // points a pointerrawupdate already added come again here (and either may run ahead of the other)
         if (a.rawT) {
           extend(a, list.filter((ev) => ev.timeStamp > a.rawT));
@@ -1316,10 +1318,13 @@ const InkCanvas = forwardRef<InkCanvasHandle, Props>(function InkCanvas(props, r
     // capture lost by the surface itself (it was released, or the surface went away) ends the pointer; a child losing
     // the browser's implicit touch capture when the surface takes it mid-stroke (a contact taking the pen) does not
     const onLost = (e: PointerEvent) => {
-      if (e.target === wrap) finish(e, false);
+      if (e.target !== wrap) return;
+      if (action.current?.kind === "draw") noteStrokeEnd("lost");
+      finish(e, false);
     };
     const onCancel = (e: PointerEvent) => {
       // iPad Safari cancels a pen stroke when a system gesture starts: keep what was drawn
+      if (action.current?.kind === "draw") noteStrokeEnd("cancel");
       finish(e, !(action.current?.kind === "draw"));
     };
 

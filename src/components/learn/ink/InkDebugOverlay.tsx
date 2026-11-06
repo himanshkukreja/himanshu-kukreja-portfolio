@@ -6,7 +6,8 @@
  * and "Off". For a tablet owner to show what the ink engine saw. Under it, the live stroke's numbers (lib/learn/ink/
  * liveStroke.ts: paint time per frame, median and p95; the frame interval; frames dropped while drawing; whether the
  * low-latency canvas is on) and two switches to compare on the device: the old renderer (hk.ink.classic) and the
- * low-latency canvas (hk.ink.desync). It takes no input except its two buttons
+ * low-latency canvas (hk.ink.desync); and how the browser delivers the pen (events/s, samples per event, gaps, strokes
+ * it cut short). It takes no input except its two buttons
  * (pointer-events: none elsewhere; data-ink-ui / data-annot-ui so no surface writes under them). Rendered once per
  * page, by whichever surface mounted first.
  */
@@ -54,7 +55,8 @@ export default function InkDebugOverlay() {
   if (!shown) return null;
 
   const copy = async () => {
-    const text = inkDebugText();
+    const pf = inkPerf();
+    const text = `${inkDebugText()}\nperf: ${JSON.stringify(pf)}`;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
@@ -94,6 +96,11 @@ export default function InkDebugOverlay() {
           {flags.desync ? "lowlat on" : "lowlat off"}
         </button>
       </div>
+      {perf && perf.frames > 0 && (
+        <p className="m-0 mt-1 border-t border-white/20 pt-1">
+          {`input ${perf.input.hz} ev/s · ${perf.input.perEvent} samples/ev · gap p95 ${perf.input.gap95} ms, max ${perf.input.gapMax} ms · cut short ${perf.input.cancels} (lost ${perf.input.lost}) · coalesced ${perf.input.coalesced ? "yes" : "no"}, predicted ${perf.input.predicted ? "yes" : "no"}`}
+        </p>
+      )}
       {rows.length === 0 && <p className="m-0 mt-1 opacity-80">Touch the page: each contact&apos;s decision shows here.</p>}
       <ol className="m-0 mt-1 list-none p-0">
         {rows.slice(-8).map((r, i) => (

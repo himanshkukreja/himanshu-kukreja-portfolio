@@ -418,12 +418,23 @@ let flags: { classic: boolean; desync: boolean } | null = null;
 const flagListeners = new Set<() => void>();
 
 /**
- * Low latency (a desynchronized canvas) is opt-in only (?inkdesync=1, or the overlay's toggle): browsers report it as
- * supported where it paints the whole canvas black on the first pen stroke (the owner's Android tablet, Honor Pad X8;
- * WebKit claims it too), so every device writes on the normal canvas by default.
+ * Low latency (a desynchronized canvas) is on by default only on desktop Chromium. Tablets report it as supported
+ * but paint the whole canvas black on the first pen stroke (the owner's Android tablet, Honor Pad X8; WebKit claims
+ * it too), so they write on the normal canvas; ?inkdesync=1 / =0 (or the overlay's toggle) overrides either way.
  */
+/**
+ * Desktop Chrome / Edge / Opera without a touch screen, where the low-latency canvas works (the owner checked).
+ * Never a tablet: iPadOS and Chrome on Android tablets ask for the desktop site, so their user agents look like a
+ * Mac or Linux desktop; a touch screen gives them away.
+ */
+function lowLatencyByDefault() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /(?:Chrome|Chromium|Edg|OPR)\//.test(ua) && !/Android|Mobile|CrOS|CriOS|FxiOS|EdgiOS/.test(ua) && !(navigator.maxTouchPoints > 0);
+}
+
 function readFlags() {
-  const f = { classic: false, desync: false };
+  const f = { classic: false, desync: lowLatencyByDefault() };
   if (typeof window === "undefined") return f;
   try {
     const q = new URLSearchParams(window.location.search);
@@ -431,10 +442,10 @@ function readFlags() {
     if (c === "1") window.localStorage.setItem(CLASSIC_KEY, "1");
     else if (c === "0") window.localStorage.removeItem(CLASSIC_KEY);
     const d = q.get("inkdesync");
-    if (d === "1") window.localStorage.setItem(DESYNC_KEY, "1");
-    else if (d === "0") window.localStorage.removeItem(DESYNC_KEY);
+    if (d === "1" || d === "0") window.localStorage.setItem(DESYNC_KEY, d);
     f.classic = window.localStorage.getItem(CLASSIC_KEY) === "1";
-    f.desync = window.localStorage.getItem(DESYNC_KEY) === "1";
+    const saved = window.localStorage.getItem(DESYNC_KEY);
+    if (saved === "1" || saved === "0") f.desync = saved === "1";
   } catch {
     // no URL / storage: the defaults
   }
@@ -454,8 +465,7 @@ export function setInkFlag(k: "classic" | "desync", on: boolean) {
     if (k === "classic") {
       if (on) window.localStorage.setItem(CLASSIC_KEY, "1");
       else window.localStorage.removeItem(CLASSIC_KEY);
-    } else if (on) window.localStorage.setItem(DESYNC_KEY, "1");
-    else window.localStorage.removeItem(DESYNC_KEY);
+    } else window.localStorage.setItem(DESYNC_KEY, on ? "1" : "0");
   } catch {
     // storage unavailable: this page only
   }
@@ -506,12 +516,51 @@ const pct = (a: Float32Array, n: number, k: number) => {
   const s = Array.from(a.subarray(0, m)).sort((x, y) => x - y);
   return s[Math.min(m - 1, Math.floor(k * (m - 1)))];
 };
+// input numbers: how the browser delivers the pen (events/s, samples per event, the longest gap inside a stroke)
+const gapMs = new Float32Array(RING);
+let gapN = 0;
+let lastInput = 0;
+let events = 0;
+let samples = 0;
+let gapMax = 0;
+const ends = { cancel: 0, lost: 0 };
+/** a stroke starts: no gap from the previous one */
+export function inputStart() {
+  lastInput = 0;
+}
+/** a pointermove during a stroke, carrying `n` samples (coalesced), at event time `t` */
+export function noteInput(n: number, t: number) {
+  events++;
+  samples += n;
+  if (lastInput && t > lastInput) {
+    const d = t - lastInput;
+    gapMs[gapN++ % RING] = d;
+    if (d > gapMax) gapMax = d;
+  }
+  lastInput = t;
+}
+/** a stroke the browser cut short (pointercancel, e.g. a system gesture) or whose capture it took away */
+export function noteStrokeEnd(kind: "cancel" | "lost") {
+  ends[kind]++;
+}
+
 export function inkPerf() {
   const m = Math.min(frameN, RING);
   const med = pct(frameMs, frameN, 0.5) || 16.7;
   let dropped = 0;
   for (let i = 0; i < m; i++) dropped += Math.max(0, Math.round(frameMs[i] / med) - 1);
-  return { paint: pct(paintMs, paintN, 0.5), paint95: pct(paintMs, paintN, 0.95), frame: med, dropped, frames: m, lowLatency, ...inkFlags() };
+  const gap = pct(gapMs, gapN, 0.5);
+  const input = {
+    hz: gap ? Math.round(1000 / gap) : 0,
+    perEvent: events ? Math.round((samples / events) * 10) / 10 : 0,
+    gap95: Math.round(pct(gapMs, gapN, 0.95)),
+    gapMax: Math.round(gapMax),
+    cancels: ends.cancel,
+    lost: ends.lost,
+    coalesced: typeof PointerEvent !== "undefined" && "getCoalescedEvents" in PointerEvent.prototype,
+    predicted: typeof PointerEvent !== "undefined" && "getPredictedEvents" in PointerEvent.prototype,
+  };
+  return { paint: pct(paintMs, paintN, 0.5), paint95: pct(paintMs, paintN, 0.95), frame: med, dropped, frames: m, lowLatency, input, ...inkFlags() };
 }
 
 // ------------------------------------------------------------------ painting
