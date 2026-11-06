@@ -417,8 +417,19 @@ const DESYNC_KEY = "hk.ink.desync";
 let flags: { classic: boolean; desync: boolean } | null = null;
 const flagListeners = new Set<() => void>();
 
+/**
+ * Low latency only where it's known to work: Chromium (Android, ChromeOS, Windows, macOS Chrome). WebKit (Safari,
+ * and every browser on iPad / iPhone, CriOS included) reports a desynchronized 2D context but paints it black on
+ * iPad, so it always gets the normal canvas there.
+ */
+function lowLatencyPlatform() {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /(?:Chrome|Chromium|Edg|OPR)\//.test(ua) && !/CriOS|FxiOS|EdgiOS/.test(ua);
+}
+
 function readFlags() {
-  const f = { classic: false, desync: true };
+  const f = { classic: false, desync: lowLatencyPlatform() };
   if (typeof window === "undefined") return f;
   try {
     const q = new URLSearchParams(window.location.search);
@@ -429,7 +440,7 @@ function readFlags() {
     if (d === "0") window.localStorage.setItem(DESYNC_KEY, "0");
     else if (d === "1") window.localStorage.removeItem(DESYNC_KEY);
     f.classic = window.localStorage.getItem(CLASSIC_KEY) === "1";
-    f.desync = window.localStorage.getItem(DESYNC_KEY) !== "0";
+    f.desync = f.desync && window.localStorage.getItem(DESYNC_KEY) !== "0";
   } catch {
     // no URL / storage: the defaults
   }
