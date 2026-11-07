@@ -46,7 +46,12 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // model: tuned Haiku 5.5 didn't reach it on any of these (scores in prompts.ts, TUNED_FOR_HAIKU55).
   // haikuMaxTokens: room for the private plan Haiku's prompts write first. Haiku 5.5 was cut off at 900 (lab-review) and
   // 500 (mock-coach); with 1500 / 800 its longest answers were 667 / 504 tokens, Haiku 4.5's 836 / 336, none cut off.
-  "lab-review": { label: "Code review after a pass", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 10, maxTokens: 900, haikuMaxTokens: 1500, maxInputChars: 8000, think: true, live: true },
+  // Lab review v2 (7 Nov 2026, owner: Haiku 5.5, no Sonnet): a structured rubric review (JSON via output_config.format:
+  // correctness / complexity / edge cases / readability, ranked issues, 2-3 interviewer follow-ups) from a fixed, cached
+  // system prompt with worked examples (prompts.ts LAB_REVIEW_V2_SYSTEM); only the lab's brief and the reader's code
+  // vary. The route pins the model to Haiku 5.5 so an admin model override can't move it back to Sonnet; amber keeps
+  // Haiku 5.5 too. maxTokens: the JSON ran ~350-650 tokens in testing; maxInputChars: code ≤ 8,000 + the brief ≤ 4,500.
+  "lab-review": { label: "Code review after a pass", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 10, maxTokens: 1100, maxInputChars: 14000, think: false, live: true },
   "explain-back": { label: "Explain-it-back grade", model: MODELS.sonnet, amberModel: MODELS.haiku, perDay: 40, maxTokens: 400, maxInputChars: 1500, think: true, live: true },
   "mock-interviewer": { label: "AI mock interviewer (turn)", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 80, maxTokens: 450, maxInputChars: 4000, think: false, live: true },
   "mock-coach": { label: "AI mock live coach (per phase)", model: MODELS.sonnet, amberModel: MODELS.haiku55, perDay: 40, maxTokens: 500, haikuMaxTokens: 800, maxInputChars: 14000, think: false, live: true },

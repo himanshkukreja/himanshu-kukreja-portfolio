@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * The code-lab editor: CodeMirror 6 with Python, themed from the site's tokens (CSS variables, so
- * it follows light/dark with no re-render). Loaded on demand through loadCodeEditor() in
+ * The code-lab editor: CodeMirror 6 with Python, JavaScript or TypeScript (switched in place through a
+ * compartment), themed from the site's tokens (CSS variables, so it follows every theme with no re-render). Loaded on demand through loadCodeEditor() in
  * src/lib/offline/lazy.ts, the same import offline saving warms, so it is one chunk either way.
  */
 import { useEffect, useImperativeHandle, useRef, type RefObject } from "react";
@@ -22,6 +22,7 @@ import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirro
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
+import { javascript } from "@codemirror/lang-javascript";
 import { tags as t } from "@lezer/highlight";
 import styles from "./labs.module.css";
 
@@ -33,7 +34,12 @@ export type CodeEditorHandle = {
   goToLine(line: number): void;
 };
 
+export type EditorLang = "python" | "javascript" | "typescript";
+const langExt = (l: EditorLang) => (l === "python" ? python() : javascript({ typescript: l === "typescript" }));
+
 type Props = {
+  /** the language to highlight (defaults to Python) */
+  language?: EditorLang;
   /** filled with the editor's handle (a prop, not `ref`, so it survives next/dynamic) */
   handle: RefObject<CodeEditorHandle | null>;
   initial: string;
@@ -75,11 +81,13 @@ const theme = EditorView.theme({
   ".cm-nonmatchingBracket": { color: "var(--c-bad-text)" },
 });
 
-export default function CodeEditor({ handle, initial, fontSize, label, onChange, onRun, onFocus }: Props) {
+export default function CodeEditor({ handle, initial, fontSize, label, onChange, onRun, onFocus, language = "python" }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const cb = useRef({ onChange, onRun, onFocus });
   const fontComp = useRef(new Compartment());
+  const langComp = useRef(new Compartment());
+  const indentComp = useRef(new Compartment());
 
   useEffect(() => {
     cb.current = { onChange, onRun, onFocus };
@@ -110,13 +118,13 @@ export default function CodeEditor({ handle, initial, fontSize, label, onChange,
           dropCursor(),
           EditorState.allowMultipleSelections.of(true),
           indentOnInput(),
-          indentUnit.of("    "),
+          indentComp.current.of(indentUnit.of(language === "python" ? "    " : "  ")),
           EditorState.tabSize.of(4),
           bracketMatching(),
           closeBrackets(),
           rectangularSelection(),
           highlightActiveLine(),
-          python(),
+          langComp.current.of(langExt(language)),
           syntaxHighlighting(highlight),
           theme,
           fontComp.current.of(EditorView.theme({ "&": { fontSize: `${fontSize}px` } })),
@@ -138,6 +146,10 @@ export default function CodeEditor({ handle, initial, fontSize, label, onChange,
     // the editor is created once; `initial` only seeds it (setValue replaces it later)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: [langComp.current.reconfigure(langExt(language)), indentComp.current.reconfigure(indentUnit.of(language === "python" ? "    " : "  "))] });
+  }, [language]);
 
   useEffect(() => {
     view.current?.dispatch({ effects: fontComp.current.reconfigure(EditorView.theme({ "&": { fontSize: `${fontSize}px` } })) });

@@ -1,12 +1,14 @@
 "use client";
 
 /**
- * Offline code labs. A saved lab needs, besides its page: the editor chunk (warmed here so it is in
- * the document's resource list, which saveArticle copies into hk-static) and the Python runtime
+ * Offline code labs. A saved lab needs, besides its page: the editor chunk and the JavaScript /
+ * TypeScript worker chunk (both warmed here so they are in the document's resource list, which
+ * saveArticle copies into hk-static) and the Python runtime
  * (Pyodide + the worker, ~13.5 MB, stored once in hk-runtime and shared by every lab). The service
  * worker answers /pyodide/** and /labs-runtime/** from hk-runtime first (public/sw.js).
  */
 import { RUNTIME_URLS } from "@/lib/learn/labs/runtime";
+import { getRunner } from "@/lib/learn/labs/runner";
 import { loadCodeEditor } from "./lazy";
 import { OfflineSaveError } from "./store";
 import { OFFLINE_CACHES as C, type Catalog, type SavedMeta } from "./types";
@@ -16,6 +18,8 @@ const isQuota = (e: unknown) => /quota/i.test(`${(e as { name?: string })?.name 
 /** Cache the editor chunk and the Python runtime; returns the runtime URLs (recorded on the saved lab). */
 export async function cacheLabRuntime(): Promise<string[]> {
   await loadCodeEditor().catch(() => undefined);
+  // the JS worker (harness + sucrase) is one hashed /_next/static chunk: starting it fetches it
+  await getRunner("js").warm();
   const cache = await caches.open(C.runtime);
   for (const u of RUNTIME_URLS) {
     const key = new URL(u, window.location.origin).href;

@@ -11,9 +11,9 @@ import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetc
 import { renderLesson } from "@/lib/course/render";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import { resolveStudy, type MockCtx } from "@/lib/learn/mock/load";
-import { labTestCounts, parseLab } from "./parse";
+import { countTests, labTestCounts, parseLab } from "./parse";
 import { PYODIDE_VERSION, WORKER_REV } from "./runtime";
-import { labHref, type Lab, type LabLesson, type LabSource, type LabSummary, type LessonLabLink } from "./types";
+import { familyOf, labHref, type Lab, type LabLang, type LabLangView, type LabLesson, type LabSource, type LabSrc, type LabSummary, type LessonLabLink } from "./types";
 
 export const LABS_DIR = "resources/labs";
 const FILE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
@@ -56,6 +56,9 @@ const pad = (n: number) => String(n).padStart(2, "0");
 
 type Built = { summaries: LabSummary[]; labs: Record<string, Lab> };
 
+const FENCE: Record<LabLang, string> = { python: "python", javascript: "js", typescript: "ts" };
+const srcFence = (s: LabSrc | null, lang: LabLang) => (s ? (lang === "python" ? "python" : s.ts ? "ts" : "js") : "python");
+
 async function build(): Promise<Built> {
   const [map, sources] = await Promise.all([getCourseMap(COURSE_ID), loadLabSources()]);
   const ctx: MockCtx = { weeks: map?.weeks ?? [], sideQuests: map?.sideQuests ?? [] };
@@ -76,6 +79,7 @@ async function build(): Promise<Built> {
       id: s.id,
       title: s.title,
       topic: s.topic,
+      type: s.type,
       week: s.week,
       weekCode: pad(s.week),
       weekKey: week?.key ?? null,
@@ -83,44 +87,87 @@ async function build(): Promise<Built> {
       order: s.order,
       difficulty: s.difficulty,
       minutes: s.minutes,
+      interviewMinutes: s.interviewMinutes,
       xp: s.xp,
       summary: s.summary,
       href: labHref(s.id),
       lessons,
+      languages: s.languages,
+      paths: s.paths,
       tests: labTestCounts(s),
+      features: { stages: s.stages.length, followUps: s.followUps.length, viz: s.viz?.view ?? null, chaos: !!s.chaos, scale: !!s.scale },
       // a runtime upgrade is a new version too, so saved copies refresh with it
       version: `${s.version}-${PYODIDE_VERSION}-${WORKER_REV}`,
     };
     summaries.push(summary);
-    const fence = (code: string) => (code.trim() ? blockHtml("```python\n" + code.replace(/\s+$/, "") + "\n```") : Promise.resolve(""));
-    const [briefHtml, solutionNotesHtml, hints, givenHtml, visibleTestsHtml, solutionHtml] = await Promise.all([
-      blockHtml(s.brief),
-      blockHtml(s.solutionNotes),
-      Promise.all(s.hints.map(async (h) => ({ title: h.title, html: await blockHtml(h.md) }))),
-      fence(s.given),
-      fence(s.visible),
-      fence(s.solution),
+    const fence = (code: string, lang: string) => (code.trim() ? blockHtml("```" + lang + "\n" + code.replace(/\s+$/, "") + "\n```") : Promise.resolve(""));
+    const langs: Partial<Record<LabLang, LabLangView>> = {};
+    for (const lang of s.languages) {
+      const fam = familyOf(lang);
+      const fc = s.family[fam];
+      const lc = s.code[lang]!;
+      const [solutionHtml, givenHtml, visibleTestsHtml, reproHtml, stageHtml] = await Promise.all([
+        fence(lc.solution, FENCE[lang]),
+        fence(fc?.given?.code ?? "", srcFence(fc?.given ?? null, lang)),
+        fence(fc?.visible?.code ?? "", srcFence(fc?.visible ?? null, lang)),
+        fence(fc?.repro?.code ?? "", srcFence(fc?.repro ?? null, lang)),
+        Promise.all(s.stages.map((st) => fence(st.family[fam]?.visible?.code ?? "", srcFence(st.family[fam]?.visible ?? null, lang)))),
+      ]);
+      langs[lang] = {
+        lang,
+        starter: lc.starter,
+        solution: lc.solution,
+        solutionHtml,
+        given: fc?.given ?? null,
+        givenHtml,
+        visible: fc?.visible ?? null,
+        visibleTestsHtml,
+        hidden: fc?.hidden ?? null,
+        repro: fc?.repro ?? null,
+        reproHtml,
+        chaos: fc?.chaos ?? null,
+        scale: fc?.scale ?? null,
+        tests: { visible: countTests(fc?.visible, fam), hidden: countTests(fc?.hidden, fam), repro: countTests(fc?.repro, fam) },
+        stages: s.stages.map((st, i) => ({
+          delta: st.lang[lang]?.delta ?? "",
+          solution: st.lang[lang]?.solution ?? "",
+          visible: st.family[fam]?.visible ?? null,
+          hidden: st.family[fam]?.hidden ?? null,
+          visibleTestsHtml: stageHtml[i],
+          tests: { visible: countTests(st.family[fam]?.visible, fam), hidden: countTests(st.family[fam]?.hidden, fam) },
+        })),
+        followUps: s.followUps.map((f) => ({ tests: f.tests[fam] ?? null, count: countTests(f.tests[fam], fam) })),
+      };
+    }
+    const html = (md: string) => blockHtml(md);
+    const hintsHtml = (hs: { title: string; md: string }[]) => Promise.all(hs.map(async (h) => ({ title: h.title, html: await blockHtml(h.md) })));
+    const [briefHtml, solutionNotesHtml, hints, stages, followUps, incident] = await Promise.all([
+      html(s.brief),
+      html(s.solutionNotes),
+      hintsHtml(s.hints),
+      Promise.all(s.stages.map(async (st) => ({ title: st.title, briefHtml: await html(st.brief), hints: await hintsHtml(st.hints) }))),
+      Promise.all(s.followUps.map(async (f) => ({ title: f.title, promptHtml: await html(f.prompt), answerHtml: await html(f.answer) }))),
+      s.incident ? Promise.all([html(s.incident.report), html(s.incident.story)]).then(([reportHtml, storyHtml]) => ({ reportHtml, storyHtml })) : Promise.resolve(null),
     ]);
     labs[s.id] = {
       ...summary,
       briefHtml,
-      givenHtml,
-      visibleTestsHtml,
-      solutionHtml,
-      given: s.given,
-      starter: s.starter,
       hints,
-      solution: s.solution,
       solutionNotesHtml,
-      visibleTests: s.visible,
-      hiddenTests: s.hidden,
       timeoutSec: s.timeoutSec,
+      langs,
+      stages,
+      followUps,
+      incident,
+      viz: s.viz,
+      chaos: s.chaos,
+      scale: s.scale,
     };
   }
   return { summaries, labs };
 }
 
-const cached = unstable_cache(() => build(), ["code-labs-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache(() => build(), ["code-labs-v2"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
 
 async function data(): Promise<Built> {
   try {
@@ -146,5 +193,5 @@ export async function getLabsForLesson(course: string, week: string, slug: strin
   const base = `/${week}/${slug}`;
   return (await data()).summaries
     .filter((s) => s.lessons.some((l) => l.href === base || l.href.startsWith(`${base}#`)))
-    .map(({ id, title, topic, summary, href, difficulty, minutes, xp, tests }) => ({ id, title, topic, summary, href, difficulty, minutes, xp, tests }));
+    .map(({ id, title, topic, summary, href, difficulty, minutes, xp, tests, languages, type }) => ({ id, title, topic, summary, href, difficulty, minutes, xp, tests, languages, type }));
 }

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Code2 } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useLabProgress } from "@/lib/learn/labs/progress";
-import { DIFFICULTY_LABEL, labKey, type LessonLabLink } from "@/lib/learn/labs/types";
+import { DIFFICULTY_LABEL, labKey, LANG_LABEL, TYPE_LABEL, type LessonLabLink } from "@/lib/learn/labs/types";
 
 export default function LessonLabs({ labs }: { labs: LessonLabLink[] }) {
   const { done, hydrated } = useGame();
@@ -26,14 +26,14 @@ export default function LessonLabs({ labs }: { labs: LessonLabLink[] }) {
             <Link key={l.id} href={l.href} className="flex flex-col gap-2.5 border border-line-strong bg-raised p-[18px] text-fg no-underline hover:border-fg-3">
               <span className="flex justify-between gap-2 font-mono text-xs tracking-[0.06em]">
                 <span className="inline-flex items-center gap-1.5 text-signal-text">
-                  <Code2 className="h-3.5 w-3.5" aria-hidden /> CODE LAB · {DIFFICULTY_LABEL[l.difficulty].toUpperCase()}
+                  <Code2 className="h-3.5 w-3.5" aria-hidden /> {l.type === "lab" ? "CODE LAB" : TYPE_LABEL[l.type].toUpperCase()} · {DIFFICULTY_LABEL[l.difficulty].toUpperCase()}
                 </span>
                 <span className={cleared ? "text-ok-text" : "text-fg-3"}>{cleared ? "CLEARED ✓" : `~${l.minutes} MIN`}</span>
               </span>
               <span className="font-display text-[24px] font-bold leading-[1.05] tracking-[-0.02em]">{l.title}</span>
               {l.summary && <span className="text-sm leading-normal text-fg-2">{l.summary}</span>}
               <span className="font-mono text-[13px] text-fg">
-                Implement it in Python · {l.tests.visible + l.tests.hidden} tests{cleared ? "" : ` · +${l.xp} XP`} →
+                {l.type === "incident" ? "Fix it" : "Implement it"} in {(l.languages ?? ["python"]).map((x) => LANG_LABEL[x]).join(" or ")} · {l.tests.visible + l.tests.hidden} tests{cleared ? "" : ` · +${l.xp} XP`} →
               </span>
             </Link>
           );

@@ -38,12 +38,16 @@ function trimCutOff(text: string): string {
 }
 
 export type AiMessage = { role: "user" | "assistant"; content: AiContent };
+/** A system prompt: one string (cached whole when long), or blocks with explicit cache breakpoints (a fixed,
+ *  byte-identical prefix marked `cache: true`, then anything that varies per call). */
+export type AiSystemBlock = { text: string; cache?: boolean };
+export type AiSystem = string | AiSystemBlock[];
 export type AiRequest = {
   feature: FeatureId;
   userId?: string | null;
   /** cached as a prompt prefix when long (lesson text, rubric). A function gets the model actually
    *  used (after admin settings and amber mode), for prompts tuned per model. */
-  system: string | ((model: string) => string);
+  system: AiSystem | ((model: string) => AiSystem);
   messages: AiMessage[];
   /** override the feature's model (evals, admin tests) */
   model?: string;
@@ -57,6 +61,8 @@ export type AiRequest = {
   userKey?: string | null;
   /** give up after this long (logged as an error; the caller shows its non-AI fallback) */
   timeoutMs?: number;
+  /** structured output: the JSON schema the answer must follow (sent as output_config.format) */
+  outputSchema?: Record<string, unknown>;
   /** the call rides on a request its caller already admitted under its own limits (a course-chat title, made with an
    *  admitted message): the block list, the per-minute rate and the off-topic pause were checked there; the switches,
    *  the budget, the governor and the feature's calls-per-day still apply (chat calls never use the shared credits) */
@@ -69,7 +75,7 @@ export function ownKey(request: Request): string | null {
   return /^sk-ant-[A-Za-z0-9_-]{20,200}$/.test(k) ? k : null;
 }
 export type AiResult =
-  | { ok: true; text: string; model: string; costUsd: number; credits: number; mode: Mode; creditsLeft: number | null; callId: number | null }
+  | { ok: true; text: string; model: string; costUsd: number; credits: number; mode: Mode; creditsLeft: number | null; callId: number | null; usage?: Usage; stopReason?: string }
   | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "error" | "too_long" | "off_topic"; message: string; mode: Mode; creditsLeft: number | null };
 
 /** What a learner sees when a request is outside the course's scope (the model answered OFF_TOPIC). */
@@ -178,7 +184,12 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
 
   // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up
   const prompt = typeof req.system === "function" ? req.system(model) : req.system;
-  const system = prompt.length > 4000 ? [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }] : prompt;
+  const system =
+    typeof prompt !== "string"
+      ? prompt.map((b) => ({ type: "text", text: b.text, ...(b.cache ? { cache_control: { type: "ephemeral" } } : {}) }))
+      : prompt.length > 4000
+        ? [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }]
+        : prompt;
   // Haiku doesn't think (Haiku 5.5 thinks by default, so it is told not to); Sonnet 5.x can be told not to;
   // others (Opus) always may, so they get the room
   const haiku = /haiku/.test(model);
@@ -192,7 +203,14 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     const res = await fetch(API, {
       method: "POST",
       headers: { "content-type": "application/json", "x-api-key": apiKey, "anthropic-version": "2023-06-01" },
-      body: JSON.stringify({ model, max_tokens: maxTokens, ...(thinkingOff ? { thinking: thinkingOff } : {}), system, messages: req.messages }),
+      body: JSON.stringify({
+        model,
+        max_tokens: maxTokens,
+        ...(thinkingOff ? { thinking: thinkingOff } : {}),
+        ...(req.outputSchema ? { output_config: { format: { type: "json_schema", schema: req.outputSchema } } } : {}),
+        system,
+        messages: req.messages,
+      }),
       ...(req.timeoutMs ? { signal: AbortSignal.timeout(req.timeoutMs) } : {}),
     });
     const latency = Date.now() - t0;
@@ -224,8 +242,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
       request_id: requestId,
     });
     if (offTopic) return { ok: false, status: "off_topic", message: OFF_TOPIC_MESSAGE, mode: budget.mode, creditsLeft };
-    const text = body.stop_reason === "max_tokens" ? trimCutOff(raw) : raw;
-    return { ok: true, text, model, costUsd: cost, credits, mode: budget.mode, creditsLeft: creditsLeft === null ? null : Math.max(0, creditsLeft - credits), callId };
+    const text = body.stop_reason === "max_tokens" && !req.outputSchema ? trimCutOff(raw) : raw;
+    return { ok: true, text, model, costUsd: cost, credits, mode: budget.mode, creditsLeft: creditsLeft === null ? null : Math.max(0, creditsLeft - credits), callId, usage: u, stopReason: body.stop_reason };
   } catch (e) {
     await log({ ...base, model, status: "error", error: (e as Error).message.slice(0, 300), latency_ms: Date.now() - t0 });
     return { ok: false, status: "error", message: "The AI didn't answer. Try again in a moment.", mode: budget.mode, creditsLeft };

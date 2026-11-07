@@ -12,7 +12,7 @@
 export const PYODIDE_VERSION = "314.0.7";
 export const PYTHON_VERSION = "3.14";
 export const PYODIDE_BASE = `/pyodide/${PYODIDE_VERSION}/`;
-export const WORKER_REV = "1";
+export const WORKER_REV = "2";
 export const WORKER_URL = `/labs-runtime/py-worker.mjs?v=${PYODIDE_VERSION}-${WORKER_REV}`;
 
 /** Every file a lab run needs, in load order (the worker, the loader, the interpreter, the stdlib). */

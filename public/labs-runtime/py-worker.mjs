@@ -9,7 +9,9 @@
  *
  * Messages in:
  *   { type: "init", base: "/pyodide/<version>/", harness: "<python source>" }
- *   { type: "run", id, code, given, groups: [{ name, src }], maxOutput }
+ *   { type: "run", id, entry, args: [...], maxOutput }
+ *     entry: "__hk_lab_run" (code, given, groups_json) | "__hk_lab_chaos" (code, given, chaos, opts_json)
+ *            | "__hk_lab_scale" (code, given, scale, opts_json): see src/lib/learn/labs/harness.ts
  * Messages out:
  *   { type: "ready", ms, version, python }         interpreter loaded and harness defined
  *   { type: "fatal", message }                     the runtime could not load
@@ -22,7 +24,8 @@
  * network (Python's socket module doesn't work in the browser anyway).
  */
 let py = null;
-let runFn = null;
+let entries = null; // harness entry points by name
+const ENTRIES = ["__hk_lab_run", "__hk_lab_chaos", "__hk_lab_scale"];
 let current = null; // { id, sent, cap, buf, last, truncated }
 
 const FLUSH_BYTES = 4096;
@@ -89,7 +92,7 @@ async function init(msg) {
       },
     });
     py.runPython(msg.harness);
-    runFn = py.globals.get("__hk_lab_run");
+    entries = Object.fromEntries(ENTRIES.map((n) => [n, py.globals.get(n)]));
     const python = py.runPython("import sys; '.'.join(map(str, sys.version_info[:3]))");
     lockDown(py);
     self.postMessage({ type: "ready", ms: Math.round(performance.now() - t0), version: py.version, python });
@@ -102,7 +105,9 @@ function run(msg) {
   current = { id: msg.id, sent: 0, cap: msg.maxOutput || 50000, buf: "", last: Date.now(), truncated: false };
   const t0 = performance.now();
   try {
-    const result = runFn(msg.code, msg.given || "", JSON.stringify(msg.groups || []));
+    const fn = entries[msg.entry];
+    if (!fn) throw new Error("unknown harness entry " + msg.entry);
+    const result = fn(...(msg.args || []));
     flush(true);
     self.postMessage({ type: "done", id: msg.id, result: String(result), ms: Math.round(performance.now() - t0) });
   } catch (e) {
@@ -117,7 +122,7 @@ self.onmessage = (e) => {
   const msg = e.data || {};
   if (msg.type === "init") void init(msg);
   else if (msg.type === "run") {
-    if (!runFn) self.postMessage({ type: "error", id: msg.id, message: "Python is still loading" });
+    if (!entries) self.postMessage({ type: "error", id: msg.id, message: "Python is still loading" });
     else run(msg);
   }
 };

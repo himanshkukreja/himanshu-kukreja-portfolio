@@ -2,14 +2,16 @@
 
 /**
  * Code-lab tutor under the test results: after a failing run, "Get a hint" (level 1 nudge → 2 the
- * exact spot → 3 the fix in words, never the solution); after a pass, "Review my code". Hidden tests
- * go by message only. Signed-in learners; hidden when AI isn't available.
+ * exact spot → 3 the fix in words, never the solution). Hidden tests go by message only. Signed-in
+ * learners; hidden when AI isn't available. The review after a pass is its own card
+ * (src/components/learn/labs/LabReview.tsx).
  */
 import { useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { aiFetch } from "./aiFetch";
 import type { HarnessResult } from "@/lib/learn/labs/harness";
+import type { LabLang } from "@/lib/learn/labs/types";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
 import AiText from "./AiText";
@@ -19,12 +21,12 @@ import { setAiCredits, useAiStatus } from "./useAiStatus";
 type Item = { kind: "hint" | "review"; level: number; text?: string; error?: string; pending?: boolean };
 const LEVEL = ["", "a nudge", "the exact spot", "the fix, in words"];
 
-export default function LabTutor({ labId, getCode, result, passed }: { labId: string; getCode: () => string; result: HarnessResult | null; passed: boolean }) {
+export default function LabTutor({ labId, getCode, result, passed, lang = "python", stage = null }: { labId: string; getCode: () => string; result: HarnessResult | null; passed: boolean; lang?: LabLang; stage?: number | null }) {
   const status = useAiStatus();
   const { openAuthModal } = useAuthModal();
   const [items, setItems] = useState<Item[]>([]);
   // for guests the feature flags say whether AI is on for learners: pitch sign-in only then
-  if (!status || (!status.features["lab-hint"] && !status.features["lab-review"]) || !result) return null;
+  if (!status || !status.features["lab-hint"] || !result || passed) return null;
   if (!status.signedIn) {
     return (
       <div className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-line-strong px-4 py-3">
@@ -47,7 +49,7 @@ export default function LabTutor({ labId, getCode, result, passed }: { labId: st
     try {
       const res = await aiFetch("/api/learn/ai/lab", {
         method: "POST",
-        body: JSON.stringify({ labId, kind, level: item.level, code: getCode(), failures, setup: result.setup?.message }),
+        body: JSON.stringify({ labId, kind, lang, stage, level: item.level, code: getCode(), failures, setup: result.setup?.message }),
       });
       const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
@@ -83,11 +85,6 @@ export default function LabTutor({ labId, getCode, result, passed }: { labId: st
         {!passed && status.features["lab-hint"] && hints.length < 3 && (
           <button type="button" disabled={busy} onClick={() => void ask("hint")} className="min-h-10 bg-signal px-4 font-mono text-xs font-semibold text-on-signal disabled:opacity-50">
             {hints.length ? `Another hint · ${LEVEL[nextLevel]}` : "Stuck? Get a hint"}
-          </button>
-        )}
-        {passed && status.features["lab-review"] && !items.some((i) => i.kind === "review") && (
-          <button type="button" disabled={busy} onClick={() => void ask("review")} className="min-h-10 bg-signal px-4 font-mono text-xs font-semibold text-on-signal disabled:opacity-50">
-            Review my code
           </button>
         )}
         {!passed && hints.length >= 3 && <span className="self-center text-[13px] text-fg-3">That&apos;s every hint level. The worked solution unlocks after a few more runs.</span>}

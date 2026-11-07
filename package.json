@@ -16,6 +16,7 @@
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.3",
     "@codemirror/commands": "^6.11.1",
+    "@codemirror/lang-javascript": "6.2.4",
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/language": "^6.13.1",
     "@codemirror/state": "^6.7.6",
@@ -47,6 +48,7 @@
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.1",
     "shiki": "^3.23.0",
+    "sucrase": "3.35.0",
     "unified": "^11.0.5",
     "unist-util-visit": "^5.0.0",
     "web-push": "^3.6.7",
