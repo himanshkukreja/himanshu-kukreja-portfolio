@@ -31,7 +31,8 @@ jobs:
           node --input-type=module -e '
             const api = async (path, init = {}) => {
               const r = await fetch(`https://api.cloudflare.com/client/v4${path}`, { ...init, headers: { authorization: `Bearer ${process.env.CF_TOKEN}`, "content-type": "application/json" } });
-              const j = await r.json();
+              const text = await r.text(); // some calls (DELETE a Workers domain) answer 204 with no body
+              const j = text ? JSON.parse(text) : { success: r.ok, result: null, errors: r.ok ? [] : [r.status] };
               if (!j.success) throw new Error(`${init.method || "GET"} ${path}: ${JSON.stringify(j.errors)}`);
               return j.result;
             };
