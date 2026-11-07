@@ -1,0 +1,61 @@
+# Moves systemdesignmastery.dev (apex + www) between Vercel and the sdm-course Worker.
+#   attach: delete the two Vercel CNAMEs, then attach both hostnames to the Worker as Workers Custom Domains
+#           (Cloudflare creates the proxied records and the certificate).
+#   detach: remove the Worker custom domains, then recreate the Vercel CNAMEs (DNS only) = rollback.
+# Email routing, Brevo DKIM/SPF/DMARC, the wildcard and every other record are never touched.
+name: cloudflare-domain
+
+on:
+  workflow_dispatch:
+    inputs:
+      action:
+        description: "attach (to Cloudflare) or detach (back to Vercel)"
+        type: choice
+        options: [attach, detach]
+
+permissions:
+  contents: read
+
+jobs:
+  domain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      ZONE: d5398c708f63d9bfb10962bb209da8ed
+      ACTION: ${{ inputs.action }}
+    steps:
+      - name: Switch
+        run: |
+          node --input-type=module -e '
+            const api = async (path, init = {}) => {
+              const r = await fetch(`https://api.cloudflare.com/client/v4${path}`, { ...init, headers: { authorization: `Bearer ${process.env.CF_TOKEN}`, "content-type": "application/json" } });
+              const j = await r.json();
+              if (!j.success) throw new Error(`${init.method || "GET"} ${path}: ${JSON.stringify(j.errors)}`);
+              return j.result;
+            };
+            const { ACCOUNT, ZONE, ACTION } = process.env;
+            const VERCEL = { "systemdesignmastery.dev": "f0ca187af14f0b67.vercel-dns-017.com", "www.systemdesignmastery.dev": "cname.vercel-dns-016.com" };
+            for (const host of Object.keys(VERCEL)) {
+              const recs = await api(`/zones/${ZONE}/dns_records?name=${host}&per_page=50`);
+              const domains = await api(`/accounts/${ACCOUNT}/workers/domains?hostname=${host}`);
+              if (ACTION === "attach") {
+                for (const r of recs.filter((r) => ["CNAME", "A", "AAAA"].includes(r.type) && !domains.length)) {
+                  await api(`/zones/${ZONE}/dns_records/${r.id}`, { method: "DELETE" });
+                  console.log(`deleted ${r.type} ${host} -> ${r.content}`);
+                }
+                const d = await api(`/accounts/${ACCOUNT}/workers/domains`, { method: "PUT", body: JSON.stringify({ hostname: host, service: "sdm-course", environment: "production", zone_id: ZONE }) });
+                console.log(`attached ${host} -> sdm-course (${d.id})`);
+              } else {
+                for (const d of domains) {
+                  await api(`/accounts/${ACCOUNT}/workers/domains/${d.id}`, { method: "DELETE" });
+                  console.log(`detached ${host} from ${d.service}`);
+                }
+                const left = await api(`/zones/${ZONE}/dns_records?name=${host}&per_page=50`);
+                for (const r of left.filter((r) => ["CNAME", "A", "AAAA"].includes(r.type))) await api(`/zones/${ZONE}/dns_records/${r.id}`, { method: "DELETE" });
+                await api(`/zones/${ZONE}/dns_records`, { method: "POST", body: JSON.stringify({ type: "CNAME", name: host, content: VERCEL[host], proxied: false, ttl: 60 }) });
+                console.log(`restored CNAME ${host} -> ${VERCEL[host]} (DNS only)`);
+              }
+            }
+          '
