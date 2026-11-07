@@ -4,6 +4,11 @@ name: cloudflare-check
 
 on:
   workflow_dispatch:
+    inputs:
+      quick:
+        description: "Only a handful of pages (with their log lines) instead of the full sweep"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -31,7 +36,13 @@ jobs:
           printf '%s\n' /api/search /api/search/transcripts /api/search/index/a /prep/lectures /labs /labs/lru-cache /labs/raft-leader-election \
             /week-04-caching/day-01-cache-patterns/opengraph-image /cheatsheet/week-04-caching/opengraph-image /podcast.xml /llms.txt /case-files \
             /favicon.ico /icon.png /u/himanshu > "$RUNNER_TEMP/extras.txt"
-          node scripts/cf/sweep.mjs "$BASE" "$RUNNER_TEMP/extras.txt" | tee "$RUNNER_TEMP/sweep.txt"
+          if [ "${{ inputs.quick }}" = "true" ]; then
+            for p in /concepts/lease /concepts/webhook / /labs/lru-cache /week-02-failure-first-design/day-02-idempotency-in-practice /concepts/lease; do
+              curl -s -o /dev/null -H "Accept: text/html" -w "%{http_code} %{time_total}s $p\n" "$BASE$p"
+            done | tee "$RUNNER_TEMP/sweep.txt"
+          else
+            node scripts/cf/sweep.mjs "$BASE" "$RUNNER_TEMP/extras.txt" | tee "$RUNNER_TEMP/sweep.txt"
+          fi
           sleep 20
           kill $TAIL || true
       - name: Summary
@@ -53,6 +64,13 @@ jobs:
               console.log("events", ev.length, JSON.stringify(by));
               if (cpu.length) console.log(`cpu ms p50=${q(0.5)} p90=${q(0.9)} p99=${q(0.99)} max=${cpu.at(-1)}`);
               console.log(slow.slice(0, 40).join("\n"));
+              const msgs = {};
+              for (const e of ev) {
+                for (const l of e.logs || []) if (l.level === "warn" || l.level === "error") { const m = `${l.level}: ${JSON.stringify(l.message).slice(0, 300)}`; msgs[m] = (msgs[m] || 0) + 1; }
+                for (const x of e.exceptions || []) { const m = `exception: ${x.name}: ${String(x.message).slice(0, 300)}`; msgs[m] = (msgs[m] || 0) + 1; }
+              }
+              console.log("--- warn/error log lines (count)");
+              console.log(Object.entries(msgs).sort((a, b) => b[1] - a[1]).slice(0, 25).map(([m, n]) => `${n}x ${m}`).join("\n"));
             ' "$RUNNER_TEMP/tail.jsonl"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
