@@ -21,8 +21,14 @@ const edgeCache = () => (globalThis as unknown as { caches?: { default?: Cache }
 const cacheablePageRequest = (r: Request) =>
   r.method === "GET" && !r.headers.has("rsc") && !r.headers.has("next-router-prefetch") && !r.headers.has("authorization") && (r.headers.get("accept") || "").includes("text/html");
 
+// This Worker serves the course host only: its favicon and app icons come from public/course-brand (next.config.ts
+// rewrites them on Vercel; OpenNext doesn't serve a static file reached through a rewrite, so they are answered here).
+const COURSE_ICON = /^\/(?:favicon\.ico|icon\.svg|icon\.png|apple-icon\.png|icons\/icon-[\w-]+\.png)$/;
+
 export default {
-  async fetch(request: Request, env: unknown, ctx: Ctx) {
+  async fetch(request: Request, env: { ASSETS?: { fetch(r: Request): Promise<Response> } }, ctx: Ctx) {
+    const url = new URL(request.url);
+    if (COURSE_ICON.test(url.pathname) && env.ASSETS) return env.ASSETS.fetch(new Request(new URL(`/course-brand${url.pathname}`, url), request));
     const cache = cacheablePageRequest(request) ? edgeCache() : undefined;
     const key = cache ? new Request(new URL(request.url).toString(), { method: "GET" }) : null;
     if (cache && key) {
