@@ -104,7 +104,7 @@ export default function RootLayout({
       <head>
         {/* first: a one-time import of course state carried over from himanshukukreja.in (#hk-import=…, src/lib/site/carry.ts) */}
         <script dangerouslySetInnerHTML={{ __html: IMPORT_JS }} />
-        {/* then the page's theme (the course's six on its host, light / dark elsewhere) and tone, before first paint (src/lib/learn/readingModes.ts) */}
+        {/* then the page's theme (the course's eight on its host, light / dark elsewhere) and tone, before first paint (src/lib/learn/readingModes.ts) */}
         <script dangerouslySetInnerHTML={{ __html: READING_JS }} />
         <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
         <link rel="icon" href="/icon.svg?v=3" type="image/svg+xml" />

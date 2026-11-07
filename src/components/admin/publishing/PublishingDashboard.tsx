@@ -77,7 +77,7 @@ export default function PublishingDashboard() {
   const s = data?.shorts ?? [];
   const qs = data?.quests ?? [];
   const btn = "min-h-9 border border-line-strong px-2.5 font-mono text-xs text-fg hover:border-signal disabled:opacity-40";
-  const check = (k: string) => <input type="checkbox" aria-label="Select" checked={sel.has(k)} onChange={() => toggle(k)} onClick={(e) => e.stopPropagation()} className="h-4 w-4 accent-[#FF6B2B]" />;
+  const check = (k: string) => <input type="checkbox" aria-label="Select" checked={sel.has(k)} onChange={() => toggle(k)} onClick={(e) => e.stopPropagation()} className="h-4 w-4 accent-signal" />;
 
   return (
     <main className="flex flex-col gap-6">
@@ -162,7 +162,7 @@ export default function PublishingDashboard() {
             columns={[
               {
                 key: "sel",
-                header: <input type="checkbox" aria-label="Select all shown" checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(visibleKeys))} className="h-4 w-4 accent-[#FF6B2B]" />,
+                header: <input type="checkbox" aria-label="Select all shown" checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(visibleKeys))} className="h-4 w-4 accent-signal" />,
                 render: (r) => check(keyOf("short", r.id)),
               },
               {
@@ -216,7 +216,7 @@ export default function PublishingDashboard() {
             columns={[
               {
                 key: "sel",
-                header: <input type="checkbox" aria-label="Select all shown" checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(visibleKeys))} className="h-4 w-4 accent-[#FF6B2B]" />,
+                header: <input type="checkbox" aria-label="Select all shown" checked={allOn} onChange={() => setSel(allOn ? new Set() : new Set(visibleKeys))} className="h-4 w-4 accent-signal" />,
                 render: (r) => check(keyOf("quest", r.slug)),
               },
               {

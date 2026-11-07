@@ -122,7 +122,7 @@ export function PositionCell({ p, compact }: { p: Position | null; compact?: boo
     <div className="min-w-0">
       <div className="flex items-center gap-1.5 font-mono text-[11px] text-fg-3">
         <span className="text-signal-text">{p.tag}</span>
-        {p.status === "completed" ? <span className="text-ok">✓ done</span> : p.pct > 0 ? <span>{p.pct}%</span> : null}
+        {p.status === "completed" ? <span className="text-ok-text">✓ done</span> : p.pct > 0 ? <span>{p.pct}%</span> : null}
       </div>
       <div className={cx("truncate text-[13px] font-medium text-fg", compact ? "max-w-full" : "max-w-[260px]")} title={p.title}>
         {p.title}

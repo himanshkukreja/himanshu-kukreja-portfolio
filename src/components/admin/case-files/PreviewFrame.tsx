@@ -16,6 +16,7 @@ import { parseDebrief, type CaseFile, type Debrief } from "@/components/stories/
 import type { CaseActivityData } from "@/components/stories/activities/data";
 import { adminJson } from "@/lib/admin/fetch";
 import { PREVIEW_HEADER, type CaseFileDetail, type RenderResult } from "@/lib/case-files/types";
+import { themeInfo, type ThemeId } from "@/lib/learn/readingModes";
 
 export type FramePayload = {
   meta: CaseFile;
@@ -26,7 +27,7 @@ export type FramePayload = {
   totalCases: number;
 };
 
-export type FrameMessage = { type: "cf:render"; payload: FramePayload } | { type: "cf:theme"; theme: "light" | "dark" } | { type: "cf:scroll"; id: string };
+export type FrameMessage = { type: "cf:render"; payload: FramePayload } | { type: "cf:theme"; theme: ThemeId } | { type: "cf:scroll"; id: string };
 export type FrameReply = { type: "cf:ready" } | { type: "cf:diagrams"; total: number; failed: number };
 
 /** In-memory game state with the real provider's API (no persistence, no sync, no toasts). */
@@ -65,11 +66,14 @@ function GameSandbox({ children }: { children: ReactNode }) {
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
 }
 
-function applyTheme(theme: "light" | "dark") {
+/** The editor's pick of the course themes, pinned on this frame (src/lib/learn/readingModes.ts applyReading leaves a pinned page alone). */
+function applyTheme(theme: ThemeId) {
   const root = document.documentElement;
-  root.classList.toggle("dark", theme === "dark");
-  root.classList.toggle("light", theme === "light");
-  root.style.colorScheme = theme;
+  const dark = themeInfo(theme).dark;
+  root.setAttribute("data-read-pin", "");
+  root.setAttribute("data-read-mode", theme);
+  root.classList.toggle("dark", dark);
+  root.style.colorScheme = dark ? "dark" : "light";
 }
 
 export default function PreviewFrame() {

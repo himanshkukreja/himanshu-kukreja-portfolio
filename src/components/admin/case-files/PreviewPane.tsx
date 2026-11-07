@@ -8,6 +8,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { FrameMessage, FramePayload, FrameReply } from "./PreviewFrame";
 import { cx } from "./client";
+import { READ_MODES, type ThemeId } from "@/lib/learn/readingModes";
 
 type Device = "desktop" | "phone";
 const WIDTH: Record<Device, number> = { desktop: 1280, phone: 390 };
@@ -28,7 +29,7 @@ export default function PreviewPane({
   className?: string;
 }) {
   const [device, setDevice] = useState<Device>("desktop");
-  const [theme, setTheme] = useState<"light" | "dark">("dark");
+  const [theme, setTheme] = useState<ThemeId>("night");
   const [ready, setReady] = useState(false);
   const [box, setBox] = useState({ w: 600, h: 800 });
   const frame = useRef<HTMLIFrameElement>(null);
@@ -38,10 +39,12 @@ export default function PreviewPane({
     diag.current = onDiagrams;
   }, [onDiagrams]);
 
-  // start in the admin's own theme
+  // start in the admin's own theme (the course theme on the course host, else light / night from the site theme)
   useLayoutEffect(() => {
+    const root = document.documentElement;
+    const mode = READ_MODES.find((m) => m.id === root.dataset.readMode)?.id;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time read of the page theme after mount
-    setTheme(document.documentElement.classList.contains("dark") ? "dark" : "light");
+    setTheme(mode ?? (root.classList.contains("dark") ? "night" : "light"));
   }, []);
 
   useEffect(() => {
@@ -88,15 +91,19 @@ export default function PreviewPane({
               { id: "phone", label: "phone" },
             ]}
           />
-          <Seg
-            label="Theme"
+          {/* the course's eight themes, as readers see them */}
+          <select
+            aria-label="Theme"
             value={theme}
-            onChange={setTheme}
-            options={[
-              { id: "light", label: "light" },
-              { id: "dark", label: "dark" },
-            ]}
-          />
+            onChange={(e) => setTheme(e.target.value as ThemeId)}
+            className="min-h-9 border border-line-strong bg-surface px-2 font-mono text-[11px] text-fg-2 hover:bg-surface-2"
+          >
+            {READ_MODES.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name.toLowerCase()}
+              </option>
+            ))}
+          </select>
         </div>
         <div className="flex items-center gap-2 font-mono text-[11px] text-fg-3">
           <span aria-live="polite">{error ? <span className="text-bad-text">render failed</span> : loading ? "rendering…" : `${w}px${scale < 1 ? ` · ${Math.round(scale * 100)}%` : ""}`}</span>

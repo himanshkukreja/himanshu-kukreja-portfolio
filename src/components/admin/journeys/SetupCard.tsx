@@ -95,7 +95,7 @@ export default function SetupCard({ status, compact = false }: { status: PhStatu
             <li key={s.env} className="flex gap-3 border-b border-line py-3 last:border-0">
               <span
                 aria-hidden
-                className={cx("grid h-7 w-7 shrink-0 place-items-center border font-mono text-xs", ok ? "border-ok bg-ok/10 text-ok" : "border-line-strong text-fg-3")}
+                className={cx("grid h-7 w-7 shrink-0 place-items-center border font-mono text-xs", ok ? "border-ok bg-ok/10 text-ok-text" : "border-line-strong text-fg-3")}
               >
                 {ok ? "✓" : i + 1}
               </span>

@@ -314,10 +314,10 @@
   }
 }
 
-/* A tinted reading mode (src/lib/learn/readingModes.ts: sepia, paper, mint, dusk) takes the sheet on screen too, so
+/* A tinted reading mode (src/lib/learn/readingModes.ts: sepia, paper, mint, dusk, calm, quiet) takes the sheet on screen too, so
    it doesn't glare off the page; the print below stays ink on white. */
 @media screen {
-  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"]) .cs-paper {
+  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"], [data-read-mode="calm"], [data-read-mode="quiet"]) .cs-paper {
     --ink: var(--c-fg);
     --ink-2: var(--c-fg-2);
     --ink-3: var(--c-fg-3);
@@ -331,11 +331,11 @@
     background: var(--c-surface);
   }
   /* the dark lesson bars: the mode's "screen" plate (its accent keeps the day label readable) */
-  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"]) .cs-lesson-head {
+  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"], [data-read-mode="calm"], [data-read-mode="quiet"]) .cs-lesson-head {
     background: var(--c-plate);
     color: var(--c-plate-fg);
   }
-  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"]) .cs-lesson-head b {
+  html:is([data-read-mode="sepia"], [data-read-mode="paper"], [data-read-mode="mint"], [data-read-mode="dusk"], [data-read-mode="calm"], [data-read-mode="quiet"]) .cs-lesson-head b {
     color: var(--c-plate-accent);
   }
 }

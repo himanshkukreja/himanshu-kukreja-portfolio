@@ -426,7 +426,7 @@ export function Badge({ tone = "neutral", children, className, title }: { tone?:
     muted: "border border-dashed border-line-strong text-fg-4",
     signal: "border border-signal text-signal-text",
     solid: "bg-signal text-on-signal",
-    ok: "border border-ok/60 text-ok",
+    ok: "border border-ok/60 text-ok-text",
     bad: "border border-bad/60 text-bad-text",
   };
   return (
@@ -526,7 +526,7 @@ export function Kpi({
       <div className="mt-2 flex min-h-7 items-end justify-between gap-2">
         <div className="min-w-0 font-mono text-[11px] leading-4">
           {!loading && d != null && Math.abs(d) >= 0.0005 ? (
-            <span className={good ? "text-ok" : "text-bad-text"} title="vs previous period">
+            <span className={good ? "text-ok-text" : "text-bad-text"} title="vs previous period">
               {d > 0 ? "▲" : "▼"} {fmtPct(Math.abs(d), Math.abs(d) < 0.1 ? 1 : 0)}
               <span className="hidden text-fg-4 sm:inline"> vs prev</span>
             </span>
@@ -904,7 +904,7 @@ export function ConfirmButton({
         autoFocus
         disabled={busy}
         onClick={run}
-        className={cx(h, "font-mono text-xs font-semibold disabled:opacity-60", tone === "bad" ? "bg-bad text-white" : "bg-signal text-on-signal")}
+        className={cx(h, "font-mono text-xs font-semibold disabled:opacity-60", tone === "bad" ? "bg-bad text-on-bad" : "bg-signal text-on-signal")}
       >
         {busy ? "…" : confirmLabel}
       </button>

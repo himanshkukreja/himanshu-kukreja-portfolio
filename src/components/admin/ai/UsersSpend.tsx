@@ -97,7 +97,7 @@ export default function UsersSpend({ onShowUser, onLimit }: { onShowUser: (id: s
               key: "block",
               header: "",
               render: (r) => (
-                <button type="button" disabled={busy === r.user_id} onClick={() => block(r)} className={`min-h-8 px-2 font-mono text-xs ${r.blocked ? "bg-bad text-white" : "border border-line-strong text-fg-3 hover:text-bad"}`}>
+                <button type="button" disabled={busy === r.user_id} onClick={() => block(r)} className={`min-h-8 px-2 font-mono text-xs ${r.blocked ? "bg-bad text-on-bad" : "border border-line-strong text-fg-3 hover:text-bad-text"}`}>
                   {r.blocked ? "blocked · undo" : "block"}
                 </button>
               ),

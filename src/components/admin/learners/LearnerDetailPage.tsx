@@ -685,7 +685,7 @@ function McqCard({ mcq, trials }: { mcq: McqResult[]; trials: LearnerDetail["tri
                         <span className="truncate text-fg-2" title={p.title}>
                           P{p.n} · {p.title}
                         </span>
-                        <span className={cx("shrink-0", p.passed ? "text-ok" : "text-fg-3")}>
+                        <span className={cx("shrink-0", p.passed ? "text-ok-text" : "text-fg-3")}>
                           {p.correct}/{p.total}
                           {p.passed && " ✓"}
                         </span>
@@ -702,7 +702,7 @@ function McqCard({ mcq, trials }: { mcq: McqResult[]; trials: LearnerDetail["tri
                   <div className="border-t border-line px-3 py-3">
                     <div className={cx(LABEL, "mb-2 flex flex-wrap gap-3")}>
                       <span>
-                        <span className="text-ok">✓</span> correct
+                        <span className="text-ok-text">✓</span> correct
                       </span>
                       <span>
                         <span className="text-bad-text">✗</span> wrong
@@ -718,7 +718,7 @@ function McqCard({ mcq, trials }: { mcq: McqResult[]; trials: LearnerDetail["tri
                           title={`Q${x.n}: picked ${x.picked}${x.correct ? `, answer ${x.correct}` : ""}`}
                           className={cx(
                             "grid h-10 w-10 place-items-center border font-mono text-[11px]",
-                            x.ok === true ? "border-ok/60 text-ok" : x.ok === false ? "border-bad/60 bg-bad/10 text-bad-text" : "border-line text-fg-4",
+                            x.ok === true ? "border-ok/60 text-ok-text" : x.ok === false ? "border-bad/60 bg-bad/10 text-bad-text" : "border-line text-fg-4",
                             sel?.n === x.n && "outline outline-1 outline-fg"
                           )}
                         >
@@ -730,7 +730,7 @@ function McqCard({ mcq, trials }: { mcq: McqResult[]; trials: LearnerDetail["tri
                     {sel && (
                       <div className="mt-3 border-l-2 border-signal pl-3">
                         <div className="font-mono text-[11px] text-fg-3">
-                          Q{sel.n} · part {sel.part} · picked <span className={sel.ok ? "text-ok" : "text-bad-text"}>{sel.picked}</span>
+                          Q{sel.n} · part {sel.part} · picked <span className={sel.ok ? "text-ok-text" : "text-bad-text"}>{sel.picked}</span>
                           {sel.correct && <> · answer {sel.correct}</>}
                         </div>
                         <p className="mt-1 text-sm text-fg">{sel.text}</p>
@@ -750,7 +750,7 @@ function McqCard({ mcq, trials }: { mcq: McqResult[]; trials: LearnerDetail["tri
                     <span className="truncate text-fg-2">
                       {t.week} · part {t.part}
                     </span>
-                    <span className={t.passed ? "text-ok" : "text-fg-3"}>
+                    <span className={t.passed ? "text-ok-text" : "text-fg-3"}>
                       {t.score}/{t.total}
                       {t.passed ? " passed" : ""} · {timeAgo(t.at)}
                     </span>
@@ -950,7 +950,7 @@ function ResetDrawer({ open, onClose, data, onDone }: { open: boolean; onClose: 
         {err && <ErrorState error={err} title="Reset failed" />}
         {result && (
           <div className="border border-ok/50 px-3 py-2.5">
-            <div className="font-mono text-xs text-ok">done · rows removed</div>
+            <div className="font-mono text-xs text-ok-text">done · rows removed</div>
             <ul className="mt-1.5 grid grid-cols-2 gap-x-3 gap-y-0.5 font-mono text-[11px] text-fg-2">
               {Object.entries(result).map(([k, v]) => (
                 <li key={k} className="flex justify-between gap-2">

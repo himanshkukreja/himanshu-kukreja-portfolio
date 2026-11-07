@@ -123,8 +123,10 @@
 /* ---------------------------------------------------------------------------------------------
    Course themes (src/lib/learn/readingModes.ts: the header's theme menu, the reader's "Aa" panel). Set on
    <html> on every course page but /admin; "light" and "night" are the site's own two themes (html.dark
-   follows the theme's tone; light darkens two text tokens), the rest are full token sets, where every text / background pair passes WCAG AA (body text 4.5:1, UI 3:1); dusk is
-   a soft dark (~10:1 body text, not 18:1). No purple. Keep the swatches in readingModes.ts in step.
+   follows the theme's tone; light darkens two text tokens), the rest are full token sets, where every text / background pair passes WCAG AA (body text 4.5:1, UI 3:1); dusk,
+   calm and quiet are soft darks (~10-11.5:1 body text, not 18:1). Every text token is tinted toward its theme's hue (sepia and calm
+   warm browns, mint green-greys, paper warm neutrals, dusk warm beige-greys, quiet neutral greys), the cool accents (sky, code
+   strings and numbers) too, so no page mixes in another palette's ink. No purple. Keep the swatches in readingModes.ts in step.
    --------------------------------------------------------------------------------------------- */
 /* screen only: printing falls back to the site theme's tokens (light, or dark under html.dark) */
 @media screen {
@@ -156,7 +158,7 @@
     --c-on-ok: #FFFFFF;
     --c-bad: #B8332A;
     --c-bad-text: #A02C22;
-    --c-sky: #235F96;
+    --c-sky: #28547C;
     --c-amber: #8A5A08;
     --c-dot: #E3D7BB;
     --c-hl: rgba(214, 92, 30, 0.2);
@@ -166,9 +168,9 @@
     --c-plate-accent: #F0894A;
     --c-code-plain: #3B2F20;
     --c-code-kw: #A8321F;
-    --c-code-str: #1F4F7A;
-    --c-code-fn: #22685E;
-    --c-code-num: #235F96;
+    --c-code-str: #254866;
+    --c-code-fn: #285B50;
+    --c-code-num: #28547C;
     --c-code-com: #6E6250;
     --c-code-var: #9A4A12;
     --c-code-tag: #3E6B1F;
@@ -193,7 +195,7 @@
     --c-on-ok: #FFFFFF;
     --c-bad: #C0352B;
     --c-bad-text: #A82A20;
-    --c-sky: #1D6AAE;
+    --c-sky: #1E5F98;
     --c-amber: #8F5A06;
     --c-dot: #E7E1D3;
     --c-hl: rgba(228, 98, 31, 0.2);
@@ -203,9 +205,9 @@
     --c-plate-accent: #F07A3A;
     --c-code-plain: #222018;
     --c-code-kw: #B5301F;
-    --c-code-str: #18406B;
+    --c-code-str: #1A3B5F;
     --c-code-fn: #1C6B60;
-    --c-code-num: #1D5FA0;
+    --c-code-num: #1E568C;
     --c-code-com: #6A665C;
     --c-code-var: #A9480E;
     --c-code-tag: #2E6B1F;
@@ -230,7 +232,7 @@
     --c-on-ok: #FFFFFF;
     --c-bad: #B3302A;
     --c-bad-text: #9C2A23;
-    --c-sky: #1D5F96;
+    --c-sky: #1E567E;
     --c-amber: #7D5208;
     --c-dot: #D6E1CD;
     --c-hl: rgba(212, 96, 31, 0.2);
@@ -240,9 +242,9 @@
     --c-plate-accent: #EE8040;
     --c-code-plain: #23301F;
     --c-code-kw: #A62F22;
-    --c-code-str: #1C4670;
+    --c-code-str: #1D4260;
     --c-code-fn: #1B6458;
-    --c-code-num: #1D5A90;
+    --c-code-num: #1E5279;
     --c-code-com: #5E6A58;
     --c-code-var: #94420E;
     --c-code-tag: #2D641E;
@@ -267,7 +269,7 @@
     --c-bad: #C9483D;
     --c-bad-text: #EE9A8F;
     --c-on-bad: #FFFFFF;
-    --c-sky: #7DB3DE;
+    --c-sky: #91B9D7;
     --c-amber: #D9A94E;
     --c-dot: #2D2924;
     --c-hl: rgba(224, 123, 60, 0.24);
@@ -277,9 +279,9 @@
     --c-plate-accent: #E0965A;
     --c-code-plain: #D9CFBF;
     --c-code-kw: #E8907F;
-    --c-code-str: #A9C7E0;
-    --c-code-fn: #7CC7B8;
-    --c-code-num: #8DBBE0;
+    --c-code-str: #B4C9D9;
+    --c-code-fn: #90C9B6;
+    --c-code-num: #9EC0D9;
     --c-code-com: #9C9282;
     --c-code-var: #E0A26E;
     --c-code-tag: #A3C98A;
@@ -287,6 +289,96 @@
   html[data-read-mode="dusk"] ::selection {
     background: rgba(224, 123, 60, 0.35);
   }
+  /* Calm: Apple Books' "Calm" at night (deep warm brown page, warm beige ink; ~11.5:1 body text). Every
+     text token is a warm brown-beige, the code palette leans warm too */
+  html[data-read-mode="calm"] {
+    --c-bg: #29231C;
+    --c-surface: #2F2821;
+    --c-surface-2: #382F27;
+    --c-raised: #2C261F;
+    --c-line: #463B30;
+    --c-line-strong: #5F5143;
+    --c-fg: #EADCC5;
+    --c-fg-2: #D9C9B0;
+    --c-fg-3: #C4B299;
+    --c-fg-4: #B5A389;
+    --c-signal: #E2823F;
+    --c-on-signal: #1C0D03;
+    --c-signal-text: #EEA46C;
+    --c-link: #EEA46C;
+    --c-ok: #86BD80;
+    --c-ok-text: #A3CB92;
+    --c-on-ok: #121A0B;
+    /* bright enough to read as a 3:1 rule on surface-2; dark ink on it, as Night and Quiet do */
+    --c-bad: #D65E4C;
+    --c-bad-text: #F0A091;
+    --c-on-bad: #1F0905;
+    --c-sky: #AEBDC0;
+    --c-amber: #DDB062;
+    --c-dot: #322A22;
+    --c-hl: rgba(226, 130, 63, 0.26);
+    --c-plate: #1E1914;
+    --c-plate-fg: #EADCC5;
+    --c-plate-fg-2: #C4B299;
+    --c-plate-accent: #EEA46C;
+    --c-code-plain: #EADCC5;
+    --c-code-kw: #EE9A85;
+    --c-code-str: #BDC99A;
+    --c-code-fn: #9EC6AE;
+    --c-code-num: #B2BFC2;
+    --c-code-com: #AE9C84;
+    --c-code-var: #E9AE74;
+    --c-code-tag: #CFC98A;
+  }
+  html[data-read-mode="calm"] ::selection {
+    background: rgba(226, 130, 63, 0.36);
+  }
+  /* Quiet: Apple Books' "Quiet" at night (soft graphite page, light grey ink; ~10.8:1 body text). Neutral greys
+     throughout; the brand orange a step lighter so it passes as text on every surface */
+  html[data-read-mode="quiet"] {
+    --c-bg: #2C2C2E;
+    --c-surface: #313133;
+    --c-surface-2: #38383B;
+    --c-raised: #2F2F31;
+    --c-line: #434346;
+    --c-line-strong: #5B5B60;
+    --c-fg: #E2E2E5;
+    --c-fg-2: #CFCFD3;
+    --c-fg-3: #B5B5BA;
+    --c-fg-4: #A9A9AE;
+    --c-signal: #FF6B2B;
+    --c-on-signal: #120700;
+    --c-signal-text: #FF9259;
+    --c-link: #FF9259;
+    --c-ok: #5FC983;
+    --c-ok-text: #86D7A0;
+    --c-on-ok: #04140B;
+    --c-bad: #E5645A;
+    --c-bad-text: #EA988C;
+    --c-on-bad: #1A0405;
+    --c-sky: #8CC0EC;
+    --c-amber: #E9B95C;
+    --c-dot: #343436;
+    --c-hl: rgba(255, 107, 43, 0.24);
+    --c-plate: #1F1F21;
+    --c-plate-fg: #E2E2E5;
+    --c-plate-fg-2: #B5B5BA;
+    --c-plate-accent: #FF9259;
+    --c-code-plain: #E2E2E5;
+    --c-code-kw: #F49A8E;
+    --c-code-str: #A9CBEA;
+    --c-code-fn: #7FD0C2;
+    --c-code-num: #9EC6EE;
+    --c-code-com: #A3A3A9;
+    --c-code-var: #F3AE7A;
+    --c-code-tag: #A3D79D;
+  }
+}
+
+/* field placeholders on the course's themed pages: the theme's faint ink instead of Tailwind's cool grey (#9CA3AF,
+   2.4:1 and off-palette on the tinted themes). Zero specificity, so a field's own placeholder: class still wins */
+:where(html[data-read-mode]) :is(input, textarea)::placeholder {
+  color: var(--c-fg-4);
 }
 
 /* the reading panel's type settings (on reading pages; each reader reads the variables, see course-content.css).

@@ -97,7 +97,7 @@ export default function AdminsPage() {
               </button>
             </div>
             <p className="m-0 text-[13px] text-fg-3">They need a site account on this exact email to sign in (Google or email sign-in, the same address). Removing someone takes effect within a minute.</p>
-            {msg && <p className={`m-0 font-mono text-xs ${msg.ok ? "text-ok" : "text-bad-text"}`}>{msg.text}</p>}
+            {msg && <p className={`m-0 font-mono text-xs ${msg.ok ? "text-ok-text" : "text-bad-text"}`}>{msg.text}</p>}
           </form>
         </Card>
       ) : (

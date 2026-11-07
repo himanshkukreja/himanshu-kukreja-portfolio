@@ -1906,9 +1906,9 @@ pre mark {
   }
 }
 
-/* Dusk (a reading mode, src/lib/learn/readingModes.ts): figures with white backgrounds keep them, toned down a touch
-   inside a hairline frame so they don't glare off the soft dark page (the dark blueprint plates are left alone) */
-html[data-read-mode="dusk"] .course-content img:not(.sd-art *) {
+/* Dusk, Calm and Quiet (the soft dark themes, src/lib/learn/readingModes.ts): figures with white backgrounds keep them,
+   toned down a touch inside a hairline frame so they don't glare off the soft dark page (the dark blueprint plates are left alone) */
+html:is([data-read-mode="dusk"], [data-read-mode="calm"], [data-read-mode="quiet"]) .course-content img:not(.sd-art *) {
   border: 1px solid var(--c-line-strong);
   filter: brightness(0.86) contrast(0.96);
 }

@@ -23,10 +23,11 @@
   --lab-op: #a3a3a8;
 }
 
-/* The tinted course themes (src/lib/learn/readingModes.ts: paper, sepia, mint, dusk): the theme's own code palette,
-   AA on its surfaces (the colours above dip just under 4.5:1 on those grounds). Light and Night keep the two above. */
+/* Every course theme (src/lib/learn/readingModes.ts, html[data-read-mode]): the theme's own code palette, the same as
+   the lessons' code blocks and AA on its surfaces (the colours above dip just under 4.5:1 on the tinted grounds); the
+   two above stay as the fallback off the course host. */
 @media screen {
-  :global(html:is([data-read-mode="paper"], [data-read-mode="sepia"], [data-read-mode="mint"], [data-read-mode="dusk"])) .editor {
+  :global(html[data-read-mode]) .editor {
     --lab-kw: var(--c-code-kw);
     --lab-str: var(--c-code-tag);
     --lab-num: var(--c-code-var);

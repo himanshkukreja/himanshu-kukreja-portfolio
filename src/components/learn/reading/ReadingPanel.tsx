@@ -245,7 +245,8 @@ function PanelBody({ onClose }: { onClose: () => void }) {
 
       <div className="flex flex-col gap-3.5 px-4 pb-4 pt-3">
         <Group label="Theme" value={themeInfo(theme).name}>
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* eight themes: two rows of four */}
+          <div className="grid grid-cols-4 gap-1.5">
             {READ_MODES.map((m) => (
               <Choice key={m.id} name={`${name}-mode`} checked={theme === m.id} onChange={() => updateReading({ mode: m.id })} label={m.name}>
                 <span className={`flex flex-col border border-line-strong peer-checked:border-signal peer-checked:outline peer-checked:outline-1 peer-checked:-outline-offset-2 peer-checked:outline-signal ${RING}`}>

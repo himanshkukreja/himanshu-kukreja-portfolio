@@ -14,7 +14,7 @@ export default function ChecksPanel({ v, onJump, diagrams, compact }: { v: Valid
     <section aria-label="Checks" className="flex flex-col border border-line bg-surface">
       <header className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5">
         <span className="font-mono text-[12px]">
-          {v.ok ? <span className="font-semibold text-ok">✓ ready to publish</span> : <span className="font-semibold text-bad-text">✗ {errors.length} error{errors.length === 1 ? "" : "s"} block publishing</span>}
+          {v.ok ? <span className="font-semibold text-ok-text">✓ ready to publish</span> : <span className="font-semibold text-bad-text">✗ {errors.length} error{errors.length === 1 ? "" : "s"} block publishing</span>}
           <span className="text-fg-3"> · {warnings.length} warning{warnings.length === 1 ? "" : "s"}</span>
         </span>
         <span className="font-mono text-[11px] text-fg-4">

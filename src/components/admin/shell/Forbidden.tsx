@@ -40,7 +40,7 @@ export default function Forbidden({
           ) : (
             <>
               <h1 className="mt-3 font-display text-[56px] font-extrabold leading-[0.9] tracking-tightest text-fg sm:text-[88px]">
-                403<span className="text-signal">_</span>
+                403<span className="text-signal-text">_</span>
                 <span className="mt-2 block text-[34px] leading-[1.05] tracking-tight sm:text-[48px]">sudo required</span>
               </h1>
               <p className="mt-5 max-w-md text-[15px] leading-relaxed text-fg-2">

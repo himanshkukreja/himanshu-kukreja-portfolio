@@ -73,7 +73,7 @@ export function FlashLine({ flash, onDismiss }: { flash: Flash; onDismiss: () =>
     <div
       role="status"
       aria-live="polite"
-      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] left-3 right-3 z-[75] flex animate-hk-in items-center gap-3 py-2 pl-4 pr-2 lg:bottom-6 lg:left-auto lg:right-6 lg:max-w-[440px] ${flash.tone === "bad" ? "bg-bad text-white" : "bg-fg text-bg"}`}
+      className={`fixed bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] left-3 right-3 z-[75] flex animate-hk-in items-center gap-3 py-2 pl-4 pr-2 lg:bottom-6 lg:left-auto lg:right-6 lg:max-w-[440px] ${flash.tone === "bad" ? "bg-bad text-on-bad" : "bg-fg text-bg"}`}
     >
       <span className="font-mono text-xs">{flash.tone === "bad" ? "✗" : "✓"}</span>
       <span className="min-w-0 flex-1 text-sm font-semibold">{flash.text}</span>

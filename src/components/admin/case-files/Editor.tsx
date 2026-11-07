@@ -630,7 +630,7 @@ function Confirm({ label, onConfirm, busy, danger, primary, disabled }: { label:
       <button
         type="button"
         autoFocus
-        className={cx("min-h-10 px-3 font-mono text-xs font-semibold", danger ? "bg-bad text-white" : "bg-signal text-on-signal")}
+        className={cx("min-h-10 px-3 font-mono text-xs font-semibold", danger ? "bg-bad text-on-bad" : "bg-signal text-on-signal")}
         onClick={() => {
           setArmed(false);
           onConfirm();

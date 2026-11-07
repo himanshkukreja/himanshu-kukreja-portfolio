@@ -1,16 +1,16 @@
 /**
  * Site themes and reading settings (Kindle-style).
  *
- * - The theme (Light, Paper, Sepia, Mint, Dusk, Night) is the colour of the whole course site
- *   (systemdesignmastery.dev, every page but /admin): picked from the header's theme menu
+ * - The theme (Light, Paper, Sepia, Mint, Dusk, Calm, Quiet, Night) is the colour of the whole course site
+ *   (systemdesignmastery.dev, every page, /admin included): picked from the header's theme menu
  *   (components/site/ThemeMenu) or the theme row of the reader's "Aa" panel (components/learn/reading/
- *   ReadingPanel), one shared setting. The portfolio (himanshukukreja.in) and /admin keep the plain
+ *   ReadingPanel), one shared setting. The portfolio (himanshukukreja.in, /admin there too) keeps the plain
  *   light / dark site theme (next-themes, html[data-theme], src/components/ThemeProvider.tsx).
  * - Font, text size, line spacing and page width apply on reading routes only (READING_ROUTE: lessons, side
  *   quests, problem bank, LLD, case files, war stories, papers, revision, cheat sheets, mock interviews).
  * - The theme is a token set in globals.css under html[data-read-mode="<theme>"] (light and night are the
  *   :root and .dark tokens themselves); everything built on the --c-* tokens follows. The html `dark` class
- *   is the page's tone: on a themed page it follows the theme (dusk and night are dark), elsewhere the site
+ *   is the page's tone: on a themed page it follows the theme (dusk, calm, quiet and night are dark), elsewhere the site
  *   theme. So `dark:` variants, `.dark` rules, mermaid and the code palette all match the theme too.
  * - Saved in this browser (localStorage, read before paint by READING_JS in <head>); signed-in learners
  *   also carry it in their game flags (READING_FLAG), so it follows the account.
@@ -20,7 +20,7 @@
 import { CONTENT_AREA, COURSE_ID, cleanPath } from "./paths";
 import { COURSE_HOST_NAMES, PORTFOLIO_HOST_NAMES, isPortfolioHost } from "@/lib/site/hosts";
 
-export type ThemeId = "light" | "sepia" | "paper" | "mint" | "dusk" | "night";
+export type ThemeId = "light" | "sepia" | "paper" | "mint" | "dusk" | "calm" | "quiet" | "night";
 export type ReadMode = "site" | ThemeId;
 export type ReadFont = "sans" | "serif";
 export type ReadLeading = "compact" | "normal" | "relaxed";
@@ -67,6 +67,9 @@ export const READ_MODES: ModeInfo[] = [
   { id: "sepia", name: "Sepia", hint: "Warm, easy on the eyes", dark: false, bg: "#F4ECD8", fg: "#3B2F20", accent: "#9A4A12" },
   { id: "mint", name: "Mint", hint: "Pale sage green", dark: false, bg: "#E6EEDF", fg: "#23301F", accent: "#94420E" },
   { id: "dusk", name: "Dusk", hint: "Soft, warm dark", dark: true, bg: "#23201C", fg: "#D9CFBF", accent: "#E0965A" },
+  // Apple Books' night themes, matched by eye (github.com/rohitdotonl/nine-turtles, decision 0046)
+  { id: "calm", name: "Calm", hint: "Warm brown, like Apple Books at night", dark: true, bg: "#29231C", fg: "#EADCC5", accent: "#EEA46C" },
+  { id: "quiet", name: "Quiet", hint: "Soft graphite grey", dark: true, bg: "#2C2C2E", fg: "#E2E2E5", accent: "#FF9259" },
   { id: "night", name: "Night", hint: "True black", dark: true, bg: "#000000", fg: "#F3F2EE", accent: "#FF6B2B" },
 ];
 
@@ -134,20 +137,17 @@ export const isReadingPath = (path: string | null | undefined) => !!path && READ
 
 // ---- the themed pages ------------------------------------------------------------------------------
 
-/** /admin keeps the plain light / dark site theme, on the course host too. */
-const ADMIN_ROUTE = /^\/admin(?:\/|$)/;
 /** The course's own internal routes (what a preview host or an old link shows): course pages wherever they are served. */
 const COURSE_ROUTE = /^\/(?:learn|stories)(?:\/|$)|^\/(?:cert|u)\//;
 
 /**
- * Does the theme colour this page? Every page on the course host but /admin (shared routes such as
- * /auth/callback, /privacy and /newsletter follow the host). The real portfolio host never; any other host
+ * Does the theme colour this page? Every page on the course host (shared routes such as
+ * /admin, /auth/callback, /privacy and /newsletter follow the host). The real portfolio host never; any other host
  * (localhost, previews) when the dev switch says course (the hk_site cookie, src/middleware.ts), else on the
  * course's internal routes. READING_JS makes the same call before paint: keep the two in step.
  */
 export function isThemedPage(host: string, path: string, cookie = ""): boolean {
   const p = (path || "/").replace(/[?#].*$/, "");
-  if (ADMIN_ROUTE.test(p)) return false;
   const h = (host || "").trim().toLowerCase();
   if (COURSE_HOST_NAMES.includes(h) || COURSE_HOST_NAMES.includes(h.replace(/:\d+$/, ""))) return true;
   if (!h || isPortfolioHost(h)) return false;
@@ -232,7 +232,7 @@ export function subscribeReading(cb: () => void) {
 
 // ---- the page --------------------------------------------------------------------------------------
 
-/** Is the page dark? A themed page follows its theme, every other page (portfolio, /admin) the site theme. */
+/** Is the page dark? A themed page follows its theme, every other page (the portfolio host) the site theme. */
 export function pageIsDark(themed: boolean, s: ReadingSettings, siteDark: boolean): boolean {
   if (!themed) return siteDark;
   return themeInfo(resolveMode(s.mode, siteDark)).dark;
@@ -251,6 +251,8 @@ export function chromeColor(root: HTMLElement = document.documentElement): strin
  */
 export function applyReading(themed: boolean, reading: boolean, s: ReadingSettings, siteDark: boolean) {
   const root = document.documentElement;
+  // a page that pins its own theme (the case file editor's preview frame shows the theme picked there)
+  if (root.hasAttribute("data-read-pin")) return;
   const on = (name: string, value: string | null) => (value ? root.setAttribute(name, value) : root.removeAttribute(name));
   const read = themed && reading;
   root.classList.toggle("dark", pageIsDark(themed, s, siteDark));
@@ -271,7 +273,7 @@ export function applyReading(themed: boolean, reading: boolean, s: ReadingSettin
 /**
  * Plain ES2017, second in <head> (after IMPORT_JS): the page's theme, tone and reading settings on <html>
  * before first paint, and the browser chrome colour to match. Themed or not from the host and path
- * (isThemedPage); the site theme (portfolio, /admin, and the fallback for a theme never picked) is
+ * (isThemedPage); the site theme (the portfolio host, and the fallback for a theme never picked) is
  * next-themes' localStorage("theme"), light by default.
  */
 export const READING_JS = `(function(){try{
@@ -279,8 +281,7 @@ var r=document.documentElement,ls=window.localStorage,dark=false,s={},size=0;
 try{dark=ls.getItem("theme")==="dark";s=JSON.parse(ls.getItem(${JSON.stringify(LOOK_KEY)})||"{}")||{};size=Number(ls.getItem(${JSON.stringify(SIZE_KEY)}))}catch(e){}
 var raw=location.pathname,h=location.host.toLowerCase(),hb=h.replace(/:\\d+$/,""),ch=${JSON.stringify(COURSE_HOST_NAMES)},ph=${JSON.stringify(PORTFOLIO_HOST_NAMES)};
 var themed;
-if(${ADMIN_ROUTE.toString()}.test(raw))themed=false;
-else if(ch.indexOf(h)>=0||ch.indexOf(hb)>=0)themed=true;
+if(ch.indexOf(h)>=0||ch.indexOf(hb)>=0)themed=true;
 else if(!h||ph.indexOf(h)>=0||ph.indexOf(hb)>=0)themed=false;
 else{var f=/(?:^|;\\s*)hk_site=(course|portfolio)/.exec(document.cookie);themed=f?f[1]==="course":${COURSE_ROUTE.toString()}.test(raw)}
 var p=raw.replace(/^\\/learn\\/${COURSE_ID}(?=\\/|$)/,"").replace(/^\\/learn(?=\\/|$)/,"").replace(/^\\/stories(?=\\/|$)/,"/case-files")||"/";

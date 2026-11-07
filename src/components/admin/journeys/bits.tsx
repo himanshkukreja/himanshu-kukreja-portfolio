@@ -104,7 +104,7 @@ export function KindMark({ kind, className }: { kind: TimelineKind; className?: 
       : m.tone === "bad"
         ? "border-bad bg-bad/15 text-bad-text"
         : m.tone === "ok"
-          ? "border-ok/70 bg-surface text-ok"
+          ? "border-ok/70 bg-surface text-ok-text"
           : "border-line-strong bg-surface text-fg-3";
   return (
     <span aria-hidden title={m.name} className={cx("grid h-6 w-6 shrink-0 place-items-center border font-mono text-[12px] leading-none", tone, className)}>

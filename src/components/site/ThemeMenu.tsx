@@ -6,8 +6,8 @@ import { READ_MODES, resolveMode, updateReading, type ThemeId } from "@/lib/lear
 import { usePageTone, useReadingSettings } from "@/components/learn/reading/useReading";
 
 /**
- * The course header's theme button (systemdesignmastery.dev, every page but /admin): a small menu of the six
- * themes as swatches, the current one ticked. One tap switches the whole site; the choice is the same setting
+ * The course header's theme button (systemdesignmastery.dev, every page, /admin included): a small menu of the
+ * eight themes as swatches, the current one ticked. One tap switches the whole site; the choice is the same setting
  * as the theme row of the reader's "Aa" panel (src/lib/learn/readingModes.ts), so it is saved in this browser
  * and synced to the account the same way.
  */
@@ -110,7 +110,7 @@ export default function ThemeMenu() {
           role="menu"
           aria-label="Theme"
           onKeyDown={onKey}
-          className="absolute right-0 top-[calc(100%+8px)] z-[60] w-[248px] max-w-[calc(100vw-24px)] animate-hk-in border border-line-strong bg-surface p-1.5 text-left shadow-[0_16px_48px_rgba(0,0,0,0.22)]"
+          className="absolute right-0 top-[calc(100%+8px)] z-[60] max-h-[calc(100dvh-var(--hk-header-h,64px)-16px)] w-[264px] max-w-[calc(100vw-24px)] animate-hk-in overflow-y-auto border border-line-strong bg-surface p-1.5 text-left shadow-[0_16px_48px_rgba(0,0,0,0.22)]"
         >
           <div aria-hidden className="px-2 pb-1.5 pt-1 font-mono text-[11px] uppercase tracking-label text-fg-3">
             Theme
@@ -133,7 +133,7 @@ export default function ThemeMenu() {
                 </span>
                 <span className="flex min-w-0 flex-1 flex-col leading-tight">
                   <span className="text-[13px] font-semibold text-fg">{m.name}</span>
-                  <span className="truncate text-[12px] text-fg-3">{m.hint}</span>
+                  <span className="text-[12px] leading-snug text-fg-3">{m.hint}</span>
                 </span>
                 <span aria-hidden className={`w-4 shrink-0 text-center font-mono text-[13px] text-signal-text ${on ? "" : "invisible"}`}>
                   ✓

@@ -393,7 +393,7 @@ function RowMenu({ items, busy, label, className }: { items: MenuItem[]; busy: b
                     disabled={it.disabled}
                     className={cx(
                       "flex min-h-10 w-full items-center px-3 text-left font-mono text-[12px] disabled:cursor-not-allowed disabled:opacity-40",
-                      armed === it.key ? (it.danger ? "bg-bad font-semibold text-white" : "bg-signal font-semibold text-on-signal") : it.danger ? "text-fg-2 hover:bg-surface-2 hover:text-bad-text" : "text-fg-2 hover:bg-surface-2 hover:text-fg"
+                      armed === it.key ? (it.danger ? "bg-bad font-semibold text-on-bad" : "bg-signal font-semibold text-on-signal") : it.danger ? "text-fg-2 hover:bg-surface-2 hover:text-bad-text" : "text-fg-2 hover:bg-surface-2 hover:text-fg"
                     )}
                     onClick={() => {
                       if (it.confirm && armed !== it.key) return setArmed(it.key);

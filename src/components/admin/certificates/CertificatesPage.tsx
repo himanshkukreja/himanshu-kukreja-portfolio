@@ -276,7 +276,7 @@ function Actions({ row, onAct }: { row: AdminCertRow; onAct: (r: AdminCertRow, a
         Reason for revoking {row.code} (private)
       </label>
       <input id={`reason-${row.id}`} autoFocus value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} placeholder="reason (private)" className={`${INPUT} w-[180px]`} />
-      <button type="submit" disabled={busy || !reason.trim()} className="inline-flex min-h-10 items-center bg-bad px-3 font-mono text-[12px] font-semibold text-white disabled:opacity-50">
+      <button type="submit" disabled={busy || !reason.trim()} className="inline-flex min-h-10 items-center bg-bad px-3 font-mono text-[12px] font-semibold text-on-bad disabled:opacity-50">
         {busy ? "…" : "revoke"}
       </button>
       <button type="button" disabled={busy} onClick={() => setOpen(false)} className={BTN}>

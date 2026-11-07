@@ -38,7 +38,7 @@ const DOCK = [
   { href: COURSE_ORIGIN, label: "learn ↗", match: () => false },
 ];
 
-/** The portfolio's and /admin's light / dark switch (the course pages have the theme menu instead). */
+/** The portfolio host's light / dark switch (its /admin too); the course host's pages have the theme menu instead. */
 function ThemeToggle() {
   const { setTheme } = useTheme();
   const tone = usePageTone();
@@ -139,8 +139,6 @@ export default function SiteHeader() {
   const p = levelProgress(hydrated ? xp : 0);
   const doneCount = MAIN_QUESTS.filter((q) => done[q.id]).length;
   const learn = site === "course";
-  // the course's theme menu on every course page; /admin keeps the plain light / dark switch
-  const themes = learn && !/^\/admin(?:\/|$)/.test(pathname);
   const lesson = learn && isLessonPath(pathname);
   // lesson pages: the header slides away while reading down, back on scroll up
   useAutoHideChrome(lesson && !questsOpen);
@@ -243,7 +241,9 @@ export default function SiteHeader() {
                 </button>
               </>
             )}
-            {themes ? <ThemeMenu /> : <ThemeToggle />}
+            {/* the course's theme menu on every course-host page, /admin too (src/lib/learn/readingModes.ts isThemedPage);
+                the portfolio host (its /admin too) keeps the plain light / dark switch */}
+            {learn ? <ThemeMenu /> : <ThemeToggle />}
             <AuthButton />
           </div>
           {questsOpen && <QuestLog onClose={() => setQuestsOpen(false)} />}

@@ -65,7 +65,7 @@ function squareIcons(line: string): string {
 }
 
 /**
- * A reading mode's own neutrals (sepia, paper, mint, dusk: src/lib/learn/readingModes.ts) for the theme variables and
+ * A reading mode's own neutrals (sepia, paper, mint, dusk, calm, quiet: src/lib/learn/readingModes.ts) for the theme variables and
  * the grey node classes, from its --c-* tokens (`tok("surface")` → the value). The coloured classes keep the palette.
  */
 export type ModeLook = { vars: Style; classes: Record<string, Style> };

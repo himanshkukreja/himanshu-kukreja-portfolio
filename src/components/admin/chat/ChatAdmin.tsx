@@ -58,7 +58,7 @@ function Controls({ s, onSaved }: { s: Resp["settings"]; onSaved: () => void }) 
       label="the switch and the limits"
       title={!s.masterOn ? "AI is off for learners (master switch in /admin/ai)" : s.enabled ? "The course chat is on" : "The course chat is off"}
       action={
-        <button type="button" disabled={busy} onClick={() => save({ enabled: !s.enabled })} className={`min-h-10 px-4 font-mono text-sm font-semibold ${s.enabled ? "border border-bad text-bad" : "bg-signal text-on-signal"}`}>
+        <button type="button" disabled={busy} onClick={() => save({ enabled: !s.enabled })} className={`min-h-10 px-4 font-mono text-sm font-semibold ${s.enabled ? "border border-bad text-bad-text" : "bg-signal text-on-signal"}`}>
           {s.enabled ? "Switch chat off" : "Switch chat on"}
         </button>
       }

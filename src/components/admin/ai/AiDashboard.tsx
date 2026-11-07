@@ -109,7 +109,7 @@ function Controls({ s, onSaved }: { s: Settings; onSaved: () => void }) {
           type="button"
           disabled={busy}
           onClick={() => save({ enabled: !s.enabled })}
-          className={`min-h-10 px-4 font-mono text-sm font-semibold ${s.enabled ? "border border-bad text-bad" : "bg-signal text-on-signal"}`}
+          className={`min-h-10 px-4 font-mono text-sm font-semibold ${s.enabled ? "border border-bad text-bad-text" : "bg-signal text-on-signal"}`}
         >
           {s.enabled ? "Switch AI off" : "Switch AI on"}
         </button>
@@ -302,7 +302,7 @@ function UserLimits({ prefill, onChanged }: { prefill: { email: string; key: num
             {busy ? "saving…" : "set limit"}
           </button>
         </form>
-        {msg && <p className={`m-0 font-mono text-xs ${msg.ok ? "text-ok" : "text-bad-text"}`}>{msg.text}</p>}
+        {msg && <p className={`m-0 font-mono text-xs ${msg.ok ? "text-ok-text" : "text-bad-text"}`}>{msg.text}</p>}
       </div>
       {error ? (
         <ErrorState error={error} title="Couldn't load the limits" />
@@ -336,7 +336,7 @@ function UserLimits({ prefill, onChanged }: { prefill: { email: string; key: num
                   >
                     edit
                   </button>
-                  <button type="button" onClick={() => remove(r)} className="min-h-8 border border-line-strong px-2 font-mono text-xs text-fg-3 hover:text-bad">
+                  <button type="button" onClick={() => remove(r)} className="min-h-8 border border-line-strong px-2 font-mono text-xs text-fg-3 hover:text-bad-text">
                     reset
                   </button>
                 </span>
