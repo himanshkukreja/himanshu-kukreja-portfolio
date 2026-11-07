@@ -38,7 +38,7 @@ async function media(id: string): Promise<Media | null> {
   const b = base();
   if (!/^https?:\/\//.test(b)) return null;
   try {
-    const res = await fetch(`${b}/${id}/media.json`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${b}/${id}/media.json`, { next: { revalidate: 86400 } });
     return res.ok ? ((await res.json()) as Media) : null;
   } catch {
     return null;
@@ -93,7 +93,7 @@ async function load(): Promise<ShortPack[]> {
   return packs.filter((p): p is ShortPack => !!p);
 }
 
-export const shortPacks = unstable_cache(load, ["shorts-pack-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+export const shortPacks = unstable_cache(load, ["shorts-pack-v1"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
 
 /** One short's narration: each step's line and the scene it is in (the drop-off detail and the transcript). */
 export async function shortLines(id: string): Promise<{ scene: number; sceneTitle: string; say: string }[] | null> {

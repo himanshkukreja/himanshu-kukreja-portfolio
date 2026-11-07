@@ -223,7 +223,7 @@ async function buildCourseMap(courseId: string): Promise<CourseMap> {
 // de-duplicates concurrent builds within one instance.
 export const COURSE_MAP_TAG = "course-map";
 const buildCached = unstable_cache((courseId: string) => buildCourseMap(courseId), ["course-map-v2"], {
-  revalidate: 3600,
+  revalidate: 604800,
   tags: [COURSE_MAP_TAG],
 });
 const cache = new Map<string, { at: number; map: Promise<CourseMap> }>();

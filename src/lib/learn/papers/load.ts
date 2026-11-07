@@ -174,7 +174,7 @@ async function build(): Promise<Built> {
   };
 }
 
-const cached = unstable_cache(() => build(), ["written-papers-v1"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache(() => build(), ["written-papers-v1"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
 
 async function data(): Promise<Built> {
   try {

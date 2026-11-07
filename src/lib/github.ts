@@ -137,8 +137,8 @@ export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
 
   const response = await fetch(url, {
     headers,
-    // Cached for an hour (tag "sdm-content"); POST /api/revalidate-courses refreshes it at once
-    next: { revalidate: 3600, tags: [SDM_CONTENT_TAG] }
+    // Cached for a week (tag "sdm-content"): every content release calls POST /api/revalidate-courses, which refreshes it at once; an hourly expiry re-fetched every file all day (~90k ISR writes a day, Nov 2026)
+    next: { revalidate: 604800, tags: [SDM_CONTENT_TAG] }
   });
 
   if (!response.ok) {
@@ -179,8 +179,8 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
 
   const response = await fetch(url, {
     headers,
-    // Cached for an hour (tag "sdm-content"); POST /api/revalidate-courses refreshes it at once
-    next: { revalidate: 3600, tags: [SDM_CONTENT_TAG] }
+    // Cached for a week (tag "sdm-content"): every content release calls POST /api/revalidate-courses, which refreshes it at once; an hourly expiry re-fetched every file all day (~90k ISR writes a day, Nov 2026)
+    next: { revalidate: 604800, tags: [SDM_CONTENT_TAG] }
   });
 
   if (!response.ok) {

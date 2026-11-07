@@ -254,7 +254,7 @@ async function build(course: string): Promise<Catalog> {
   return { course, build: "", generatedAt: Date.now(), appBytes: APP_BYTES, runtimeBytes: RUNTIME_BYTES, lectureSharedBytes: lectureMediaBase() ? LECTURE_SHARED_BYTES : 0, groups };
 }
 
-const cached = unstable_cache((course: string) => build(course), ["offline-catalog-v2"], { revalidate: 300, tags: [COURSE_MAP_TAG] });
+const cached = unstable_cache((course: string) => build(course), ["offline-catalog-v2"], { revalidate: 86400, tags: [COURSE_MAP_TAG] });
 
 export async function getOfflineCatalog(course: string = COURSE_ID): Promise<Catalog | null> {
   if (course !== COURSE_ID) return null;

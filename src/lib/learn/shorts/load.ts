@@ -88,7 +88,7 @@ export function hourlyOrder<T>(items: T[], now = Date.now()): T[] {
 }
 
 /** Every released short, whatever its publishing state (the admin's view). */
-export const listAllShorts = unstable_cache(load, ["shorts-feed-v2"], { revalidate: 3600, tags: [COURSE_MAP_TAG] });
+export const listAllShorts = unstable_cache(load, ["shorts-feed-v2"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
 
 /**
  * The shorts the site shows: live per the publishing controls (a hidden or not-yet-due short, or any short of
