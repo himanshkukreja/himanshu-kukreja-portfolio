@@ -63,13 +63,22 @@ export function useDictation({ onFinal, continuous = true, onEnd }: { onFinal: (
     r.lang = navigator.language || "en-IN";
     r.continuous = continuous;
     r.interimResults = true;
+    // Chrome on Android sends each final result with the earlier ones repeated as a prefix ("how", "how does",
+    // "how does caching"): hand over only the new words, or the answer fills with repeats
+    let lastFinal = "";
+    const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
     r.onresult = (e) => {
       let live = "";
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const res = e.results[i];
-        const text = res[0].transcript;
-        if (res.isFinal) finalRef.current(text.trim());
-        else live += text;
+        const text = res[0].transcript.replace(/\s+/g, " ").trim();
+        if (res.isFinal) {
+          if (lastFinal && norm(text).startsWith(norm(lastFinal))) {
+            const words = text.split(" ").slice(lastFinal.split(" ").length).join(" ").trim();
+            if (words) finalRef.current(words);
+          } else if (!(lastFinal && norm(lastFinal).endsWith(norm(text)))) finalRef.current(text);
+          lastFinal = text;
+        } else live += (live ? " " : "") + text;
       }
       setInterim(live);
     };

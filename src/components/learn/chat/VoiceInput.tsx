@@ -45,6 +45,28 @@ function recognitionCtor(): RecognitionCtor | null {
   return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
 }
 
+const isAndroid = () => typeof navigator !== "undefined" && /android/i.test(navigator.userAgent);
+
+/**
+ * The session's transcript from its results. Some engines (Chrome on Android, some desktop builds after a
+ * restart) send results that repeat the earlier ones as a prefix ("how", "how does", "how does caching"):
+ * concatenating them gave a garbled, repeated transcript. A result that extends the previous one replaces it,
+ * one already contained in it is dropped, anything else is appended.
+ */
+export function joinResults(results: RecognitionResultList): string {
+  const parts: string[] = [];
+  const norm = (t: string) => t.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  for (let i = 0; i < results.length; i++) {
+    const t = results[i][0]?.transcript.replace(/\s+/g, " ").trim() ?? "";
+    if (!t) continue;
+    const prev = parts[parts.length - 1];
+    if (prev !== undefined && norm(t).startsWith(norm(prev))) parts[parts.length - 1] = t;
+    else if (prev !== undefined && norm(prev).endsWith(norm(t))) continue;
+    else parts.push(t);
+  }
+  return parts.join(" ").replace(/\s+/g, " ").trim();
+}
+
 const noop = () => () => {};
 const LANGS = ["en-IN", "en-US"] as const;
 
@@ -77,7 +99,9 @@ export default function VoiceInput({ onTranscript, disabled = false }: { onTrans
     function run(Ctor: RecognitionCtor) {
       const rec = new Ctor();
       rec.lang = LANGS[langRef.current];
-      rec.continuous = true;
+      // Chrome on Android repeats earlier words in every result of a continuous session ("how how does how does
+      // caching…"); one utterance per tap there avoids it (tap again to keep talking)
+      rec.continuous = !isAndroid();
       rec.interimResults = true;
       rec.maxAlternatives = 1;
       let heard = "";
@@ -86,15 +110,9 @@ export default function VoiceInput({ onTranscript, disabled = false }: { onTrans
       let retryLang = false;
       rec.onstart = () => setStatus("listening");
       rec.onresult = (e) => {
-        let finalText = "";
-        let interim = "";
-        for (let i = 0; i < e.results.length; i++) {
-          const r = e.results[i];
-          if (r.isFinal) finalText += r[0].transcript;
-          else interim += r[0].transcript;
-        }
-        heard = (finalText + interim).replace(/\s+/g, " ").trim();
-        handed = interim.trim() === "";
+        heard = joinResults(e.results);
+        const last = e.results[e.results.length - 1];
+        handed = !last || last.isFinal;
         cb.current(heard, handed);
       };
       rec.onerror = (e) => {
