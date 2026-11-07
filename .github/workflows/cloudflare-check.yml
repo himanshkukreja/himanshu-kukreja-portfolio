@@ -1,0 +1,59 @@
+# Measures the staging Worker for real: a route sweep (scripts/cf/sweep.mjs) while `wrangler tail` records every
+# request's outcome (ok / exception / exceededMemory / exceededCpu) and CPU time. Read the job summary.
+name: cloudflare-check
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      BASE: https://sdm-course-staging.markdrop-in.workers.dev
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Sweep with tail
+        run: |
+          npx wrangler tail --env staging --format json > "$RUNNER_TEMP/tail.jsonl" 2> "$RUNNER_TEMP/tail.err" &
+          TAIL=$!
+          sleep 15
+          printf '%s\n' /api/search /api/search/transcripts /api/search/index/a /prep/lectures /labs /labs/lru-cache /labs/raft-leader-election \
+            /week-04-caching/day-01-cache-patterns/opengraph-image /cheatsheet/week-04-caching/opengraph-image /podcast.xml /llms.txt /case-files \
+            /favicon.ico /icon.png /u/himanshu > "$RUNNER_TEMP/extras.txt"
+          node scripts/cf/sweep.mjs "$BASE" "$RUNNER_TEMP/extras.txt" | tee "$RUNNER_TEMP/sweep.txt"
+          sleep 20
+          kill $TAIL || true
+      - name: Summary
+        run: |
+          {
+            echo '### Sweep'; echo '```'; tail -4 "$RUNNER_TEMP/sweep.txt"; echo '```'
+            echo '### Worker outcomes (wrangler tail)'; echo '```'
+            node -e '
+              const lines = require("fs").readFileSync(process.argv[1], "utf8").split(/\n(?=\{)/).filter(Boolean);
+              const ev = []; for (const l of lines) { try { ev.push(JSON.parse(l)); } catch {} }
+              const by = {}; const cpu = []; const slow = [];
+              for (const e of ev) {
+                by[e.outcome] = (by[e.outcome] || 0) + 1;
+                const c = e.cpuTime ?? e.event?.cpuTime; if (typeof c === "number") cpu.push(c);
+                if (e.outcome !== "ok") slow.push(`${e.outcome} ${e.event?.request?.url || ""}`);
+                if (typeof c === "number" && c > 200) slow.push(`cpu ${c}ms ${e.event?.request?.url || ""}`);
+              }
+              cpu.sort((a, b) => a - b); const q = (f) => cpu[Math.min(cpu.length - 1, Math.floor(cpu.length * f))];
+              console.log("events", ev.length, JSON.stringify(by));
+              if (cpu.length) console.log(`cpu ms p50=${q(0.5)} p90=${q(0.9)} p99=${q(0.99)} max=${cpu.at(-1)}`);
+              console.log(slow.slice(0, 40).join("\n"));
+            ' "$RUNNER_TEMP/tail.jsonl"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cat "$GITHUB_STEP_SUMMARY"
