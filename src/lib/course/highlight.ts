@@ -52,12 +52,13 @@ const cache = globalThis as typeof globalThis & { __sdShikiHighlighter?: Promise
 function getHighlighter(): Promise<HighlighterCore> {
   if (!cache.__sdShikiHighlighter) {
     cache.__sdShikiHighlighter = (async () => {
-      const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([import("shiki/core"), import("shiki/engine/javascript")]);
-      // JavaScript regex engine: no oniguruma WASM to ship or instantiate
+      const [{ createHighlighterCore }, { createOnigurumaEngine }] = await Promise.all([import("shiki/core"), import("shiki/engine/oniguruma")]);
+      // Oniguruma (WASM), not shiki's JavaScript regex engine: the JS engine took ~37 s of CPU on one lab
+      // page's TypeScript (the JS/TS grammars' lookbehind-heavy regexes), oniguruma under a second.
       return createHighlighterCore({
         themes: [import("@shikijs/themes/github-light"), import("@shikijs/themes/github-dark")],
         langs: [],
-        engine: createJavaScriptRegexEngine(),
+        engine: createOnigurumaEngine(import("shiki/wasm")),
       });
     })().catch((err) => {
       cache.__sdShikiHighlighter = null;
