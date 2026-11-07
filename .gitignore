@@ -55,3 +55,8 @@ scripts/ai-batch/.state/
 
 # build-time bundles of runtime files (scripts/build/gen-runtime-files.mjs)
 /src/generated/
+
+# Cloudflare (OpenNext) build output and local state
+/.open-next/
+/.wrangler/
+.dev.vars

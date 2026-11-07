@@ -17,6 +17,8 @@ import { request } from "https";
  * Configured by SDM_R2_ACCOUNT_ID, SDM_R2_BUCKET, SDM_R2_ACCESS_KEY_ID, SDM_R2_SECRET_ACCESS_KEY
  * (a read-only R2 token is enough). Unset → callers fall back to the snapshot / GitHub API.
  * SDM_R2_ENDPOINT (e.g. http://127.0.0.1:9100) overrides the R2 host, for local tests against a stand-in.
+ * On Cloudflare the Worker's R2 binding SDM_CONTENT (wrangler.jsonc) is used instead: same bucket, no
+ * signing, no public network hop.
  */
 
 type Manifest = { sha: string; dirs: Map<string, string[]>; checkedAt: number; etag: string | null };
@@ -33,7 +35,17 @@ const cfg = () => {
   return { host: endpoint.host, hostname: endpoint.hostname, port: endpoint.port, secure: endpoint.protocol === "https:", bucket: e.SDM_R2_BUCKET, key: e.SDM_R2_ACCESS_KEY_ID, secret: e.SDM_R2_SECRET_ACCESS_KEY };
 };
 
-export const r2ContentConfigured = () => cfg() !== null && process.env.SDM_R2 !== "off";
+type R2ObjectLike = { httpEtag: string; arrayBuffer?: () => Promise<ArrayBuffer> };
+type R2BucketLike = { get(key: string, opts?: { onlyIf?: { etagDoesNotMatch: string } }): Promise<R2ObjectLike | null> };
+
+/** The Worker's R2 binding, when running on Cloudflare (OpenNext keeps the request's env on this symbol). */
+function binding(): R2BucketLike | null {
+  const ctx = (globalThis as Record<symbol, { env?: Record<string, unknown> } | undefined>)[Symbol.for("__cloudflare-context__")];
+  const b = ctx?.env?.SDM_CONTENT as R2BucketLike | undefined;
+  return b && typeof b.get === "function" ? b : null;
+}
+
+export const r2ContentConfigured = () => (binding() !== null || cfg() !== null) && process.env.SDM_R2 !== "off";
 
 const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const hmac = (k: Buffer | string, s: string) => createHmac("sha256", k).update(s).digest();
@@ -60,7 +72,17 @@ async function limited<T>(fn: () => Promise<T>): Promise<T> {
 
 /** A signed S3 GET (SigV4, region "auto"). 404 → null. */
 function get(key: string, extra: Record<string, string> = {}): Promise<{ status: number; etag: string | null; body: Buffer } | null> {
+  const b = binding();
+  if (b) return getBound(b, key, extra["if-none-match"]);
   return limited(() => getNow(key, extra));
+}
+
+/** Read through the R2 binding (Cloudflare): a 304-like result when the etag still matches. */
+async function getBound(b: R2BucketLike, key: string, ifNoneMatch?: string): Promise<{ status: number; etag: string | null; body: Buffer } | null> {
+  const o = await b.get(key, ifNoneMatch ? { onlyIf: { etagDoesNotMatch: ifNoneMatch.replace(/^W\//, "").replace(/"/g, "") } } : undefined);
+  if (!o) return null;
+  if (typeof o.arrayBuffer !== "function") return { status: 304, etag: o.httpEtag, body: Buffer.alloc(0) };
+  return { status: 200, etag: o.httpEtag, body: Buffer.from(await o.arrayBuffer()) };
 }
 
 function getNow(key: string, extra: Record<string, string> = {}): Promise<{ status: number; etag: string | null; body: Buffer } | null> {
