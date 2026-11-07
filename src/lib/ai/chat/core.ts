@@ -7,11 +7,12 @@
  */
 import { answerTokens, FEATURES } from "@/lib/ai/features";
 import { MODELS } from "@/lib/ai/prices";
+import { isAnswerStyle, messageLines, pickActions, styleLine, type FollowupAction } from "@/lib/ai/answerStyle";
 import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor, replyFrom, type PromptSystem } from "@/lib/ai/prompts";
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
 import { ChatState, closingLine, fallbackAnswer, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
-import { cleanAnswer, followupFilter, isRef, OFF_TOPIC_MARK, splitFollowups, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
+import { cleanAnswer, followupFilter, isRef, OFF_TOPIC_MARK, REF_RE, splitFollowups, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
 
 /** Turns kept word for word; older ones become a short summary. */
 export const KEEP_TURNS = 10;
@@ -87,8 +88,17 @@ export function readRequest(body: unknown, opts: { endsWithUser?: boolean } = {}
     }
   }
   const title = b.title === "first" || b.title === "again" ? b.title : undefined;
-  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock, ...(title ? { title } : {}) };
+  const style = isAnswerStyle(b.style) && b.style !== "tutor" ? b.style : undefined;
+  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock, ...(title ? { title } : {}), ...(style ? { style } : {}) };
 
+}
+
+/** "> **Quick check:** …" in a tutor answer (the question is group 1) */
+const QUICK_CHECK_RE = /^\s*>\s*\*\*\s*quick check\s*:?\s*\*\*\s*:?\s*(.+)$/im;
+/** the quick check the tutor's last answer ended with (the newest message may answer it), if any */
+function quickCheckOf(req: ChatRequest): string | null {
+  const prev = req.messages[req.messages.length - 2];
+  return prev?.role === "assistant" && !req.answerTo ? (QUICK_CHECK_RE.exec(prev.text)?.[1] ?? null) : null;
 }
 
 const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
@@ -123,7 +133,13 @@ export function buildMessages(req: ChatRequest, st: ChatState, context: string):
   if (head.length) out.push({ role: "user", content: `<chat_so_far>\n${head.join("\n")}\n</chat_so_far>` });
   for (const t of keep) out.push({ role: t.role, content: t.text });
   const ask = req.answerTo && st.quizzes.has(req.answerTo) ? `My answer to practice question ${req.answerTo}: ${latest.text}` : latest.text;
-  out.push({ role: "user", content: context ? `${ask}\n\n${context}` : ask });
+  // the tutor's quick check at the end of its last answer: this message may be the learner's answer to it
+  const qc = quickCheckOf(req);
+  const check = qc
+    ? `<quick_check>Your last answer ended with this Quick check: "${clip(qc.replace(REF_RE, "").trim(), 300)}". If this message answers it, grade their answer to THAT question. Before the first word, work out the correct answer and compare it with theirs ("${clip(latest.text.replace(/\s+/g, " ").trim(), 200)}"): the same answer or the same idea in other words → "Right!"; the right idea with a slip or missing piece → "Close!"; a different number, option or idea → "Not quite." Then the correct answer with its one-line reason (the arithmetic for a number), in two or three sentences in all, and nothing else (no shape, no callouts). If it is a new question, answer that instead.</quick_check>`
+    : "";
+  // the answer style the learner picked goes with their words (the system prompt stays one cached block)
+  out.push({ role: "user", content: [ask, check, styleLine(req.style), ...messageLines(latest.text, req.style), context].filter(Boolean).join("\n\n") });
   // the API wants the first message from the user; consecutive same-role messages are joined by the API
   if (out[0].role !== "user") out.unshift({ role: "user", content: "(continuing our chat)" });
   return out;
@@ -150,6 +166,8 @@ export type CoreResult = {
   fellBack?: string;
   /** likely next questions for the page's cards (none for a quiz question, a decline, a mock or a cut-off answer) */
   followups?: string[];
+  /** the standard actions offered beside them (an explanation's "Explain simpler", "Quiz me"…) */
+  actions?: FollowupAction[];
 };
 
 /** What the learner sees when every model declined (a safety decline is never an error to retry). */
@@ -175,6 +193,8 @@ export async function runChatCore(o: {
   signal?: AbortSignal;
   /** false: no server-side lookups before the model (the eval's A/B) */
   prefetch?: boolean;
+  /** another system prompt for the course map (the eval's old-vs-new prompt A/B); the route never sets it */
+  system?: (map: string) => string;
 }): Promise<CoreResult> {
   const t0 = Date.now();
   const st = new ChatState(o.deps, o.emit);
@@ -183,15 +203,17 @@ export async function runChatCore(o: {
   const first = o.req.messages.filter((m) => m.role === "user").length === 1;
   // the page shows each step as it happens (the first message of a chat also works out what's due for review)
   if (first) o.emit({ type: "status", tool: "context", label: TOOL_LABEL.context });
-  const context = await learnerContext(st, o.memory, first);
+  const recentAnswers = o.req.messages.filter((m) => m.role === "assistant").slice(-3).map((m) => m.text);
+  const context = await learnerContext(st, o.memory, first, Date.now(), { recentAnswers });
   // looked up before the model runs, so most answers need no tool round (see prefetchContext)
   const pre = o.prefetch === false ? { text: "", ran: [] as string[] } : await prefetchContext(st, latestText, { answerTo: o.req.answerTo });
   const ctxMs = Date.now() - t0;
   const messages = buildMessages(o.req, st, [context, pre.text ? `<looked_up_for_this_message>\n${pre.text}\n</looked_up_for_this_message>` : ""].filter(Boolean).join("\n\n"));
-  const system = courseChatSystem(o.map, promptOptsFor(o.model, "course-chat"));
+  const system = o.system ? o.system(o.map) : courseChatSystem(o.map, promptOptsFor(o.model, "course-chat"));
   const loopAt = Date.now() - t0;
   // the follow-ups line at the end of an answer never streams (its own event, after the loop)
   const deltas = followupFilter((d) => o.emit({ type: "delta", text: d }));
+  const grading = !!quickCheckOf(o.req);
   const run = (model: string, sys: string) =>
     runLoop({
       apiKey: o.apiKey,
@@ -199,8 +221,11 @@ export async function runChatCore(o: {
       system: [{ type: "text", text: sys, cache_control: { type: "ephemeral" } }],
       tools: TOOLS,
       messages,
-      maxTokens: answerTokens("course-chat", model),
-      thinking: thinkingFor(model),
+      // an answer to the tutor's quick check: Haiku 5.5 thinks first (low effort). Without it, the verdict came before
+      // the working and "800?" was "Right!" with 200 worked out after it (local test, 8 Nov 2026)
+      maxTokens: answerTokens("course-chat", model) + (grading && /haiku-5-5/.test(model) ? 2000 : 0),
+      thinking: grading && /haiku-5-5/.test(model) ? { type: "adaptive" } : thinkingFor(model),
+      ...(grading && /haiku-5-5/.test(model) ? { effort: "low" as const } : {}),
       maxToolRounds: MAX_TOOL_ROUNDS,
       deadline: o.deadline,
       signal: o.signal,
@@ -251,8 +276,14 @@ export async function runChatCore(o: {
   }
   // cards only under a real, whole answer: not a decline, a practice question waiting for its answer, a mock just
   // started, a saved path's one line, or an answer that was cut off
-  const followups = offTopic || st.flags.quiz || st.mock || loop.error || loop.stop !== "end_turn" || loop.refusal || !text ? [] : split.followups;
-  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups };
+  const cards = !(offTopic || st.flags.quiz || st.mock || loop.error || loop.stop !== "end_turn" || loop.refusal || !text);
+  const followups = cards ? split.followups : [];
+  // the buttons for "explain simpler", "quiz me"…: under an explanation, not under a path, plan, saved path, quiz
+  // grade, mock, gap ("no lesson on X yet": nothing of the course's to simplify, deepen or quiz on) or a one-line answer
+  const explained = cards && !st.flags.path && !st.flags.plan && !st.flags.saved && !st.flags.graded && !o.req.answerTo && text.split(/\s+/).length >= 40;
+  const gap = /^\s*The course has no lesson on\b|\bnot in a lesson of (?:its|their) own\b/i.test(text);
+  const actions = explained && !gap ? pickActions(followups, { asked: latest.text }) : [];
+  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups, actions };
 }
 
 /** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */

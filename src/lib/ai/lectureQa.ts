@@ -7,6 +7,7 @@ import type { Lecture } from "@/lib/learn/lecture/types";
 import { isQuizLocked, LECTURE_PRESETS, lectureOutline, onScreen, sceneInFull, showableNodes, type LecturePreset } from "@/lib/learn/lecture/moment";
 import { lectureQaSystem } from "./prompts";
 import { lessonContext } from "./retrieve";
+import { styleLine, type AnswerStyle } from "./answerStyle";
 
 export function buildLectureQa(a: {
   lecture: Lecture;
@@ -18,13 +19,16 @@ export function buildLectureQa(a: {
   question: string;
   preset?: LecturePreset | null;
   previous?: { q: string; a: string } | null;
+  /** the learner's answer style (added to their message; a preset still says what to do) */
+  style?: AnswerStyle | null;
 }) {
   const scene = a.lecture.scenes.find((s) => s.id === a.sceneId);
   if (!scene) return null;
   const step = Math.max(0, Math.min(scene.steps.length - 1, Math.floor(a.step) || 0));
   const picked = scene.kind === "quiz" && a.picked != null && a.picked >= 0 && a.picked < (scene.options?.length ?? 0) ? a.picked : null;
   const locked = isQuizLocked(scene, step, picked);
-  const ask = [a.question, a.preset ? LECTURE_PRESETS[a.preset].ask : ""].filter(Boolean).join("\n\n") || "Explain this moment.";
+  const asked = [a.question, a.preset ? LECTURE_PRESETS[a.preset].ask : ""].filter(Boolean).join("\n\n") || "Explain this moment.";
+  const ask = [asked, styleLine(a.style)].filter(Boolean).join("\n\n");
   const narration = scene.steps[step]?.say ?? "";
   const system = lectureQaSystem({
     lecture: a.lecture.title,
@@ -34,7 +38,7 @@ export function buildLectureQa(a: {
     onScreen: onScreen(a.lecture, scene, step, picked),
     showable: showableNodes(scene),
     quizLocked: locked,
-    questText: a.questMarkdown ? lessonContext(a.questMarkdown, ask, `${scene.title}. ${narration}`, 9000) : "(not available)",
+    questText: a.questMarkdown ? lessonContext(a.questMarkdown, asked, `${scene.title}. ${narration}`, 9000) : "(not available)",
     previous: a.previous ? { q: a.previous.q.slice(0, 300), a: a.previous.a.slice(0, 700) } : null,
   });
   return { scene, step, system, ask };

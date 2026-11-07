@@ -14,6 +14,8 @@ import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Mic
 import { KIND_LABEL } from "@/lib/search/smart/types";
 import { atClock } from "@/lib/search/smart/engine";
 import { citedRefs, streamingText, trailOf, type ChatSource } from "@/lib/ai/chat/text";
+import { ANSWER_STYLES } from "@/lib/ai/answerStyle";
+import Followups from "./Followups";
 import ChatMarkdown from "./ChatMarkdown";
 import { Thinking, Trail, useReducedMotion, useReveal } from "./ChatLive";
 import SourceIcon from "./SourceIcon";
@@ -194,30 +196,6 @@ function PathCardView({ conv, pref, onSave }: { conv: Conversation; pref: string
 
 export type ThreadActions = { feedback: boolean; share: boolean; onRate?: (callId: number, r: Omit<Rating, "sent">) => void };
 
-/** Likely next questions under the last answer: one tap sends it (as if typed). */
-function Followups({ items, onAsk, className = "" }: { items: string[]; onAsk: (q: string) => void; className?: string }) {
-  return (
-    // data-chat-transient: only the last answer has them; they go when the next message is sent (by design)
-    <div data-chat-transient role="group" aria-label="Suggested follow-up questions" className={`flex flex-col gap-1.5 ${className}`}>
-      <span className="font-mono text-[10.5px] uppercase tracking-label text-fg-4">ask next</span>
-      <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-        {items.map((q) => (
-          <li key={q} className="flex min-w-0 grow basis-[200px]">
-            <button
-              type="button"
-              onClick={() => onAsk(q)}
-              className="group flex min-h-11 w-full min-w-0 items-start justify-between gap-2 border border-line bg-bg px-3 py-2.5 text-left text-[13.5px] leading-snug text-fg-2 hover:border-signal hover:text-fg focus-visible:border-signal"
-            >
-              <span className="min-w-0 break-words">{q}</span>
-              <ArrowRight className="mt-0.5 h-3.5 w-3.5 shrink-0 text-fg-4 group-hover:text-signal-text group-focus-visible:text-signal-text" aria-hidden />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }: { m: ChatMsg; conv: Conversation; onAnswer: (q: string, a: string) => void; onSave: (p: string) => void; busy: boolean; actions: ThreadActions; animate: boolean; onAsk?: (q: string) => void }) {
   const order = m.cites ?? citedRefs(m.text);
   const cited = order.map((r) => conv.sources[r]).filter(Boolean);
@@ -269,7 +247,7 @@ function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }:
           {actions.share && m.mode !== "interviewer" && m.mode !== "scorecard" && <ShareAnswer m={m} conv={conv} />}
         </div>
       )}
-      {settled && onAsk && !!m.followups?.length && !m.error && <Followups items={m.followups} onAsk={onAsk} className={rise} />}
+      {settled && onAsk && !!(m.followups?.length || m.actions?.length) && !m.error && <Followups items={m.followups ?? []} actions={m.actions} onAsk={onAsk} className={rise} />}
     </div>
   );
 }
@@ -423,6 +401,7 @@ export default function ChatThread({
                 {m.answerTo && <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-label text-fg-3">my answer</span>}
                 {m.mockPhase && <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-label text-fg-3">to the interviewer</span>}
                 {m.text}
+                {m.style && <span className="ml-2 whitespace-nowrap font-mono text-[10.5px] text-fg-4">· {ANSWER_STYLES.find((x) => x.id === m.style)?.label.toLowerCase()}</span>}
               </div>
             ) : pending ? (
               // the same order as the finished answer (trail, text, then its cards after the text), so nothing jumps when it lands

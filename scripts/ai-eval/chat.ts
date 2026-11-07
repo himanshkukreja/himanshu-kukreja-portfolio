@@ -14,12 +14,16 @@
  *   EVAL_MODELS=<id>,<id>  the models (default Sonnet 5.5 and Haiku 5.5) · EVAL_NOJUDGE=1 answers only
  *   EVAL_REUSE=<results.json> + EVAL_REUSE_MODELS=<id>[,<id>]  take those models' conversations from an earlier run
  *                          instead of running them again (a prompt change for one model then pays for that model and the judge)
+ *   EVAL_OLD_PROMPTS=<prompts.ts>  an earlier prompts.ts (e.g. `git show <rev>:src/lib/ai/prompts.ts`, saved next to a copy
+ *                          of that revision's src/lib/ai/chat/text.ts as chat/text.ts): a candidate "<model>#old" answers with
+ *                          its course chat prompt, so EVAL_MODELS=claude-haiku-5-5#old,claude-haiku-5-5 is a blind old-vs-new A/B
  */
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
 import { callClaude } from "@/lib/ai/client";
 import { MODELS } from "@/lib/ai/prices";
+import { promptOptsFor } from "@/lib/ai/prompts";
 import { SmartEngine, transcriptDocs } from "@/lib/search/smart/engine";
 import { rowToDoc, type DocIndex } from "@/lib/search/smart/types";
 import type { TranscriptIndex } from "@/lib/learn/lecture/transcript";
@@ -47,6 +51,17 @@ const JUDGE = MODELS.opus;
 const KEY = process.env.ANTHROPIC_API_KEY || "";
 const REUSE: Row[] = process.env.EVAL_REUSE ? (JSON.parse(fs.readFileSync(process.env.EVAL_REUSE, "utf8")) as Row[]) : [];
 const REUSE_MODELS = (process.env.EVAL_REUSE_MODELS || "").split(",").filter(Boolean);
+/** "<model>#old": that model with the course chat prompt of EVAL_OLD_PROMPTS */
+const modelOf = (cand: string) => cand.split("#")[0];
+type OldPrompts = { courseChatSystem: (map: string, opts: ReturnType<typeof promptOptsFor>) => string };
+let oldPrompts: Promise<OldPrompts> | null = null;
+async function systemFor(cand: string): Promise<((map: string) => string) | undefined> {
+  if (!cand.endsWith("#old")) return undefined;
+  if (!process.env.EVAL_OLD_PROMPTS) throw new Error(`${cand}: set EVAL_OLD_PROMPTS to the earlier prompts.ts`);
+  oldPrompts ??= import(path.resolve(process.env.EVAL_OLD_PROMPTS)) as Promise<OldPrompts>;
+  const old = await oldPrompts;
+  return (map) => old.courseChatSystem(map, promptOptsFor(modelOf(cand), "course-chat"));
+}
 
 async function engine(): Promise<SmartEngine> {
   const get = async <T,>(p: string) => {
@@ -121,6 +136,7 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
     design: async () => (c.ctx?.design ? DESIGN : null),
     dueReviews: async () => (c.ctx?.due ? [{ kind: "review", id: "review:x", title: "Cache invalidation", href: "/learn/review", why: "2 review cards due", dueAt: "2026-10-29" }] : []),
     studyPlan: planFor,
+    learnerName: async () => c.ctx?.name ?? null,
   };
   const turns: TurnLog[] = [];
   for (const t of c.turns) {
@@ -150,9 +166,10 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
       answerTo: t.answerTo,
       page,
       mock: t.mock && m ? { key: m.key, phase: phaseId, history: m.turns[phaseId] ?? [], action: t.mock, ...(t.mock === "end" ? { phases: m.turns } : {}) } : null,
+      ...(t.style ? { style: t.style } : {}),
     };
     const t0 = Date.now();
-    const r = await (req.mock ? runMockCore : runChatCore)({ deps, req, model, apiKey: KEY, map: courseMapSummary(map), memory: c.ctx?.memory ?? null, emit, deadline: Date.now() + 90_000 });
+    const r = await (req.mock ? runMockCore : runChatCore)({ deps, req, model: modelOf(model), apiKey: KEY, map: courseMapSummary(map), memory: c.ctx?.memory ?? null, emit, deadline: Date.now() + 90_000, system: await systemFor(model) });
     mode = r.mode;
     // link validity: every cited ref resolves to a live index entry (or a guide topic) with the same link
     const refs = citedRefs(r.text);
@@ -169,15 +186,21 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
     const shownNow = Object.keys(quizCards).filter((q) => !shownBefore.has(q));
     messages.push({ role: "assistant", text: r.text, ...(shownNow.length ? { quizzes: shownNow } : {}) } as ChatTurn);
     if (m && mode === "interviewer" && r.text) m.turns[phaseId] = [...(m.turns[phaseId] ?? []), { role: "user", text: t.user }, { role: "assistant", text: r.text }];
-    console.log(`  ${c.id} · ${model.replace("claude-", "")} · turn ${turns.length}: ${(Date.now() - t0) / 1000}s ttft ${turns[turns.length - 1].ttft === null ? "-" : (turns[turns.length - 1].ttft! / 1000).toFixed(1)}s rounds ${r.loop.rounds} $${r.loop.costUsd.toFixed(4)} tools=[${called.join(",")}] refs=${refs.length} bad=${bad.length}${r.loop.error ? ` ERROR ${r.loop.error}` : ""}${r.loop.stop === "refusal" || r.loop.refusal ? ` REFUSAL ${r.loop.refusal}` : ""}${r.fellBack ? ` (fell back to ${r.fellBack})` : ""}`);
+    console.log(`  ${c.id} · ${model.replace("claude-", "")}${t.style ? ` [${t.style}]` : ""} · turn ${turns.length}: ${(Date.now() - t0) / 1000}s ttft ${turns[turns.length - 1].ttft === null ? "-" : (turns[turns.length - 1].ttft! / 1000).toFixed(1)}s rounds ${r.loop.rounds} $${r.loop.costUsd.toFixed(4)} tools=[${called.join(",")}] refs=${refs.length} bad=${bad.length}${r.loop.error ? ` ERROR ${r.loop.error}` : ""}${r.loop.stop === "refusal" || r.loop.refusal ? ` REFUSAL ${r.loop.refusal}` : ""}${r.fellBack ? ` (fell back to ${r.fellBack})` : ""}`);
   }
   return { model, turns, sources, quizzes: quizCards, paths, mock };
 }
 
 async function judge(c: ChatCase, A: ModelRun, B: ModelRun) {
-  const conv = (run: ModelRun) => run.turns.map((t, i) => `[turn ${i + 1}] LEARNER: ${t.user}\n[tools called: ${t.tools.join(", ") || "none"}]\nTUTOR: ${t.text || "(no answer)"}`).join("\n\n");
+  const conv = (run: ModelRun) => run.turns.map((t, i) => `[turn ${i + 1}] LEARNER: ${t.user}${c.turns[i]?.style ? ` [answer style picked: ${c.turns[i].style}]` : ""}\n[tools called: ${t.tools.join(", ") || "none"}]\nTUTOR: ${t.text || "(no answer)"}`).join("\n\n");
   const exp = c.turns.map((t, i) => `turn ${i + 1}:\n${t.expect.map((x) => `  MUST: ${x}`).join("\n")}${(t.mustNot ?? []).map((x) => `\n  MUST NOT: ${x}`).join("")}`).join("\n");
-  const system = `You grade two conversations between a learner and the course tutor of the free course "System Design Mastery" (a chat that answers from the course with citations like [[s3]], builds paths, quizzes, runs mock interviews, answers questions about the site). Citations [[sN]] and [[sN, sM]] are both the correct format; the page turns them into numbered links and source cards, and a lecture moment's card opens the video at its second. Practice questions and learning paths are shown as cards on the page (the tutor shouldn't repeat them). Judge strictly against the expectations, and the house rules: concise, warm, accurate; course claims cited; honest about gaps; off-topic and injection politely refused; replies in the learner's language register. Reply with JSON only:
+  const system = `You grade two conversations between a learner and the course tutor of the free course "System Design Mastery" (a chat that answers from the course with citations like [[s3]], builds paths, quizzes, runs mock interviews, answers questions about the site). Citations [[sN]] and [[sN, sM]] are both the correct format; the page turns them into numbered links and source cards, and a lecture moment's card opens the video at its second. Practice questions and learning paths are shown as cards on the page (the tutor shouldn't repeat them). The page renders Markdown: **bold**, "### " labels, small tables, "> **Key takeaway:** …" / "> **Quick check:** …" lines as callout boxes, and \`\`\`mermaid blocks as diagrams; the follow-up questions and the standard buttons ("Explain simpler", "Quiz me"…) are shown separately and are not part of the text. Judge strictly against the expectations, and the house rules:
+- Correctness first: no invented course facts, lessons or numbers; course claims cited with refs that fit; honest about gaps ("The course has no lesson on X yet" when the course has none); worked-example arithmetic right. A correctness or citation slip outweighs any style.
+- Then clarity: the direct answer first, simple words, jargon defined; easy to scan. An everyday analogy, a worked example with numbers or a small diagram earns credit only when it makes the idea clearer and is accurate; a forced analogy, a decorative diagram or one that contradicts the text loses credit.
+- Warmth: patient and encouraging like a good mentor, mistakes corrected gently; but praise openers ("Great question!"), filler and padding lose credit.
+- Never reward length for itself: of two equally correct, clear answers, prefer the shorter. Explanations should stay under ~250 words; a quick question deserves a short answer.
+- Off-topic and injection politely refused; replies in the learner's language register (or the answer style they picked).
+Reply with JSON only:
 {"A":{"score":1-5,"expectMet":[true/false per MUST/MUST NOT line in order],"violations":["..."],"note":"one sentence"},"B":{...},"better":"A"|"B"|"tie"}`;
   const user = `CASE: ${c.title}\n${c.ctx ? `CONTEXT: ${JSON.stringify(c.ctx)}\n` : ""}EXPECTATIONS:\n${exp}\n\n=== CONVERSATION A ===\n${conv(A)}\n\n=== CONVERSATION B ===\n${conv(B)}`;
   const r = await callClaude({ feature: "eval", model: JUDGE, system, messages: [{ role: "user", content: user }], maxTokens: 1500, meta: { case: c.id, as: "chat-judge" } });

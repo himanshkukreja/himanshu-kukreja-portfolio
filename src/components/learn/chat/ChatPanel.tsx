@@ -18,6 +18,7 @@ import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { useLessonFaq } from "@/components/learn/ai/useLessonFaq";
 import { matchFaq } from "@/lib/learn/faq/parse";
 import { track } from "@/lib/track";
+import AnswerStylePicker from "./AnswerStylePicker";
 import ChatComposer, { type ComposerHandle } from "./ChatComposer";
 import ChatHistory, { useChatHistory } from "./ChatHistory";
 import { useKeyboardInset } from "./ui";
@@ -253,7 +254,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
             <p className="m-0 text-[14px] text-fg-3">{ai ? "The tutor is resting right now. Search the course from the box at the top." : "Checking the tutor…"}</p>
           ) : (
             <>
-              <ChatComposer ref={composer} id="chat-panel-input" value={text} onChange={setText} onAsk={() => send(text)} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder={isLesson ? "Ask about this lesson, or anything…" : "Ask the course…"} />
+              <ChatComposer ref={composer} id="chat-panel-input" value={text} onChange={setText} onAsk={() => send(text)} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder={isLesson ? "Ask about this lesson, or anything…" : "Ask the course…"} tools={<AnswerStylePicker from="panel" />} />
               {attached && (
                 <p className="m-0 flex items-start gap-2 border-l-2 border-signal pl-2 text-[13px] text-fg-3">
                   <span className="min-w-0 flex-1">

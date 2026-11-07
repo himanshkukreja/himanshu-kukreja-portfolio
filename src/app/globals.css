@@ -856,6 +856,16 @@ html.dark body { color-scheme: dark; }
 .sd-mermaid[data-fullscreen] .sd-mermaid-canvas { flex: 1; overflow: auto; align-items: flex-start; }
 .sd-mermaid[data-fullscreen] .sd-mermaid-canvas svg { max-width: none; min-width: min(100%, 1400px); }
 
+/* A diagram in a tutor answer (components/learn/chat/ChatDiagram): the lessons' figure, compact, no header. While it
+   draws, a placeholder stands in (never the half-drawn source); if it can't be drawn, its source shows as code. */
+.sd-mermaid.hk-chat-diagram { position: relative; margin: 0; }
+.hk-chat-diagram .sd-mermaid-canvas { display: block; padding: 12px 10px; overscroll-behavior-x: contain; }
+/* centred while it fits; a wider one starts at its left edge and scrolls (flex centring would cut its left side off) */
+.hk-chat-diagram .sd-mermaid-canvas svg { display: block; margin: 0 auto; }
+.hk-chat-diagram .sd-mermaid-src { padding: 12px; font-size: 12px; }
+.hk-chat-diagram[data-chat-diagram="wait"] .sd-mermaid-src { display: none; }
+.hk-chat-diagram > [role="status"] { border: 0; background: transparent; }
+
 /* Stories reuse the course renderer; a story is one continuous read, so no stage header. */
 .story-content .sd-stage-head { display: none; }
 

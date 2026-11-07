@@ -27,6 +27,8 @@
  *   (each finished case also lands in results.partial.json as it is done; add that file to EVAL_REUSE to resume a run)
  *   EVAL_HAIKU_THINK=0                 Haiku never thinks, whatever the feature says (the client before Haiku 5.5 thought
  *                                      adaptively: a baseline of the earlier behaviour)
+ *   EVAL_OLD_PROMPTS=<prompts.ts>      an earlier prompts.ts (with that revision's chat/text.ts beside it): a lesson-qa candidate
+ *                                      "<model>#old" answers with its lesson Q&A prompt (an old-vs-new prompt A/B on one model)
  */
 import crypto from "crypto";
 import fs from "fs";
@@ -54,6 +56,7 @@ import {
   type MockPhase,
 } from "@/lib/ai/prompts";
 import { lessonContext } from "@/lib/ai/retrieve";
+import { splitFollowups } from "@/lib/ai/chat/text";
 import { problemText, promptPhase } from "@/lib/ai/mock";
 import { buildMock } from "@/lib/learn/mock/load";
 import { parseLab } from "@/lib/learn/labs/parse";
@@ -249,10 +252,18 @@ async function build(c: EvalCase): Promise<Built> {
     case "lesson-qa": {
       const text = read(s(x.lessonPath));
       const selection = s(x.selection);
-      const MODES: Record<string, string> = { simple: "Explain it like I'm new to this.", hinglish: "Answer in Hinglish.", example: "Give one concrete real-world example.", interview: "How would I say this in an interview, in 3-4 sentences?" };
+      // as api/learn/ai/ask builds it
+      const MODES: Record<string, string> = { simple: "Explain it like I'm new to this.", hinglish: "Answer in Hinglish.", example: "Give one concrete real-world example.", detailed: "Explain it in more depth.", interview: "How would I say this in an interview, in 3-4 sentences?", check: "Check that I understood: ask me one short question." };
       const ask = [selection ? `About this part of the lesson:\n"""${selection}"""` : "", c.input || "Explain this part.", MODES[s(x.mode)] ?? ""].filter(Boolean).join("\n\n");
       const ctxText = lessonContext(text, c.input, selection);
-      return { system: (m) => lessonQaSystem({ title: s(x.title), text: ctxText }, optsFor(m, c.feature)), messages: one(ask), context: `LESSON: ${s(x.title)} (the answer sees the lesson's most relevant sections)` };
+      const old = process.env.EVAL_OLD_PROMPTS ? ((await import(path.resolve(process.env.EVAL_OLD_PROMPTS))) as { lessonQaSystem: typeof lessonQaSystem }) : null;
+      return {
+        system: (m) => (m.endsWith("#old") && old ? old.lessonQaSystem : lessonQaSystem)({ title: s(x.title), text: ctxText }, optsFor(m, c.feature)),
+        messages: one(ask),
+        // the route sends the follow-ups line to the panel's cards, not into the answer
+        post: (t) => splitFollowups(stripPrivatePlan(t), c.input).text,
+        context: `LESSON: ${s(x.title)} (the answer sees the lesson's most relevant sections)`,
+      };
     }
     case "smart-search": {
       const e = await engine();
@@ -313,7 +324,7 @@ const HOUSE: Partial<Record<EvalCase["feature"], string>> = {
   "explain-back": `HOUSE RULES: exact VERDICT / GOT / MISSING / FIX format, under ~70 words; strict verdict (any missing key point = partial, anything wrong = misconception); kind tone.`,
   "lab-hint": `HOUSE RULES: one hint at the requested level, never the full solution or more than 3 lines of code, under ~90 words; doesn't guess hidden test names.`,
   "lab-review": `HOUSE RULES: like a senior code review: what is good, then up to 4 concrete improvements ranked by importance, quoting the exact lines; under ~200 words; claims about the code must be true.`,
-  "lesson-qa": `HOUSE RULES: lead with the direct answer; cite the lesson section in [brackets] when it uses the lesson; "Beyond this lesson:" when it goes beyond; under ~120 words unless asked for more; correct.`,
+  "lesson-qa": `HOUSE RULES (each broken rule lowers the score): correct above all (no claim, number, contrast or caveat the lesson doesn't support); leads with the direct answer (in bold is fine); cites the lesson section in [brackets] when it uses the lesson; "Beyond this lesson:" exactly when it goes beyond, never when the lesson covers it; a short question gets a short answer (about 100 words), an explanation stays under ~180 words unless a mode asks for more. Clarity and warmth count: simple words, an analogy, worked example with numbers, a "Key takeaway" line or a small diagram earn credit only when they make it clearer and are accurate; praise openers, filler and padding lose credit. Never reward length for itself. The trailing <<followups>> line, if any, is shown as cards and is not part of the answer.`,
   "war-room": `HOUSE RULES: a match is exactly "MATCH: <n>" then "REPLY: <Name>: <1-3 sentences in character>"; a move that matches none is "MATCH: none", "VERDICT: helps|hurts|off-track", "COST: <minutes, 0 unless hurts>", "REPLY: <Name>: <1-2 sentences: that would help/hurt because...>", "HINT: <one nudge, a direction not the answer>"; matches by intent; never names or paraphrases the best option when the move matches none.`,
   "design-review": `HOUSE RULES: STRENGTHS / RISKS (3, worst first, each: what breaks, when, the fix) / QUESTIONS; under ~250 words; only real problems of THIS design, no invented components.`,
   "canvas-review": `HOUSE RULES: VERDICT / STRENGTHS / GAPS (3, worst first, each with a box or arrow fix) / NEXT; under ~280 words; judges only what is drawn and written.`,

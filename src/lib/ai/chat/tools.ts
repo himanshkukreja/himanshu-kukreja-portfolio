@@ -64,6 +64,8 @@ export type ChatDeps = {
   dueReviews: () => Promise<DueItem[] | null>;
   /** dated steps for a study plan (null: not available) */
   studyPlan: (p: PlanInput) => Promise<PlanStep[] | null>;
+  /** the learner's first name, cleaned (lib/ai/answerStyle.ts learnerFirstName; null: unknown) */
+  learnerName?: () => Promise<string | null>;
 };
 
 /** What a conversation has handed out so far (rebuilt from the request and checked again every message). */
@@ -1062,9 +1064,10 @@ export async function prefetchContext(st: ChatState, ask: string, opts: { answer
   // a course search for their words (skipped for a bare greeting or a quiz request: nothing to look up)
   const words = q.split(" ").filter((w) => w.length > 2);
   // skipped for a bare greeting and for requests that a tool of their own answers (a quiz, a path or plan, a mock,
-  // a design review, a save): with results in hand the fast model wrote a path as prose instead of building it
+  // a design review, a save, their progress): with results in hand the fast model wrote a path as prose instead of
+  // building it, and took a search for "what should I learn next" (a URL shortener, an interview guide) for their next lessons
   const ownTool =
-    /^(please )?(quiz|test) me\b|\b(quiz|test) me (on|about)\b|^(ok(ay)?[,. ]+)?(give me |ask me )?(another|the next|next)( one| question)?\b|\b(learning|study) (path|plan)\b|\b(make|build|give) me a (short )?(path|plan|schedule|roadmap)\b|\bplan my\b|\binterview me\b|\bmock interview\b|\bgrill me\b|\breview my\b|\bcheck my (design|diagram|canvas)\b|\bsave (it|this|that|the path)\b|\bsaved paths?\b/i.test(q);
+    /^(please )?(quiz|test) me\b|\b(quiz|test) me (on|about)\b|^(ok(ay)?[,. ]+)?(give me |ask me )?(another|the next|next)( one| question)?\b|\b(learning|study) (path|plan)\b|\b(make|build|give) me a (short )?(path|plan|schedule|roadmap)\b|\bplan my\b|\binterview me\b|\bmock interview\b|\bgrill me\b|\breview my\b|\bcheck my (design|diagram|canvas)\b|\bsave (it|this|that|the path)\b|\bsaved paths?\b|\bwhat (should|do|can) i (learn|study|do|read|watch)( next)?\b|\bwhat('s| is) next\b|\bwhere (am i|was i|were we|should (i|we) (start|begin|pick up))\b|\bpick up (today|where)\b|\bmy (progress|weak (spots?|areas?))\b|\bi have \d+ (min|minutes|hours?)\b/i.test(q);
   if (words.length >= 3 && !ownTool && q.length <= 600) {
     st.status("search_course", {});
     const fresh: Record<string, ChatSource> = {};
@@ -1094,14 +1097,22 @@ const ago = (at: number, now: number) => {
  * recent activity. Everything in it is the learner's own data or course data, and is framed as data. Refs it
  * mentions are registered like any tool's, so the model can cite them without another call.
  */
-export async function learnerContext(st: ChatState, memory: string[] | null, first = false, now = Date.now()): Promise<string> {
+export async function learnerContext(st: ChatState, memory: string[] | null, first = false, now = Date.now(), o: { recentAnswers?: string[] } = {}): Promise<string> {
   const fresh: Record<string, ChatSource> = {};
   const parts: string[] = [];
+  // what's due for review is worked out once, at the start of a chat (it reads a lot)
+  const [p, saved, due, name] = await Promise.all([
+    st.d.progress().catch(() => null),
+    st.d.savedPaths().catch(() => null),
+    first ? st.d.dueReviews().catch(() => null) : Promise.resolve(null),
+    st.d.learnerName ? st.d.learnerName().catch(() => null) : Promise.resolve(null),
+  ]);
+  // the name now and then, not in every answer: only when none of the tutor's last few answers used it (told to use
+  // it "now and then", the model used it in most answers)
+  if (name && !(o.recentAnswers ?? []).some((t) => t.includes(name))) parts.push(`Their first name: ${name} (you may use it once in this answer, or not at all).`);
   const page = pageParts(st, fresh).lines;
   if (page.length) parts.push(`Where they are now:\n${page.map((l) => `- ${l}`).join("\n")}`);
   if (memory?.length) parts.push(`What you remember from earlier chats (their own learning notes):\n${memory.map((l) => `- ${l}`).join("\n")}`);
-  // what's due for review is worked out once, at the start of a chat (it reads a lot)
-  const [p, saved, due] = await Promise.all([st.d.progress().catch(() => null), st.d.savedPaths().catch(() => null), first ? st.d.dueReviews().catch(() => null) : Promise.resolve(null)]);
   if (p) {
     const ref = (week: string, slug: string) => {
       const d = st.liveDoc(`L:${week}/${slug}`);

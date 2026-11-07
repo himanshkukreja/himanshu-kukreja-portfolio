@@ -4,6 +4,7 @@
  * The chat's input: a growing text box and one action, Ask (send to the tutor). Typing feeds the instant
  * matches (the page shows them as you type, no button needed); Enter asks, Shift+Enter is a new line. When the
  * learner can't ask (signed out), the page decides what Ask does (it shows the instant matches and a sign-in line).
+ * `tools` sit on a row under the box, before the hint (the answer-style switch).
  */
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { ArrowUp, Square } from "lucide-react";
@@ -20,6 +21,8 @@ type Props = {
   canAsk: boolean;
   placeholder?: string;
   hint?: React.ReactNode;
+  /** small controls under the box (the answer-style switch) */
+  tools?: React.ReactNode;
   id?: string;
   autoFocus?: boolean;
   compact?: boolean;
@@ -27,7 +30,7 @@ type Props = {
   onFocusChange?: (focused: boolean) => void;
 };
 
-const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ value, onChange, onAsk, onStop, busy, canAsk, placeholder, hint, id = "chat-input", autoFocus, compact, onFocusChange }, ref) {
+const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ value, onChange, onAsk, onStop, busy, canAsk, placeholder, hint, tools, id = "chat-input", autoFocus, compact, onFocusChange }, ref) {
   const ta = useRef<HTMLTextAreaElement>(null);
   // speech: the transcript of this listening session goes after whatever was typed before it started
   const before = useRef<string | null>(null);
@@ -97,7 +100,12 @@ const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ v
           </button>
         )}
       </div>
-      {hint && <div className="px-0.5 text-[12px] leading-snug text-fg-4">{hint}</div>}
+      {(tools || hint) && (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 px-0.5">
+          {tools}
+          {hint && <div className="min-w-0 flex-1 basis-[220px] text-[12px] leading-snug text-fg-4">{hint}</div>}
+        </div>
+      )}
     </form>
   );
 });

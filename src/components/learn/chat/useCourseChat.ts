@@ -15,6 +15,8 @@ import { track } from "@/lib/track";
 import { citedRefs, cleanAnswer, historyText, trailOf, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
 import { useChatPathSaver } from "./savePath";
 import { isHistoryKey, isNamed, readActive, saveActive } from "./history";
+import { readAnswerStyle } from "./useAnswerStyle";
+import { isFollowupAction, type AnswerStyle, type FollowupAction } from "@/lib/ai/answerStyle";
 
 export type ChatMsg = {
   id: string;
@@ -40,6 +42,10 @@ export type ChatMsg = {
   trail?: string[];
   /** likely next questions (cards under the last answer; a tap sends one) */
   followups?: string[];
+  /** the standard actions under it ("Explain simpler", "Quiz me"…: buttons; a tap sends their words) */
+  actions?: FollowupAction[];
+  /** a learner message asked in this answer style (not the default) */
+  style?: AnswerStyle;
 };
 
 /** A mock interview running in the chat: its phases, the one on now (and since when), and each phase's exchange. */
@@ -270,7 +276,9 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       // a mock interview is on: the message goes to the interviewer (or ends the interview for its scorecard)
       const ms = base.mock?.status === "live" && !extra.answerTo ? base.mock : null;
       const phaseId = ms ? ms.phases[ms.phase]?.id : undefined;
-      const user: ChatMsg = { id: rid(), role: "user", text: t.slice(0, 2000), at: Date.now(), ...(extra.answerTo ? { answerTo: extra.answerTo } : {}), ...(ms && !extra.mockEnd ? { mockPhase: phaseId } : {}) };
+      // the answer style picked beside the box (remembered per learner); a mock interview keeps its own voice
+      const style = ms ? "tutor" : readAnswerStyle();
+      const user: ChatMsg = { id: rid(), role: "user", text: t.slice(0, 2000), at: Date.now(), ...(extra.answerTo ? { answerTo: extra.answerTo } : {}), ...(ms && !extra.mockEnd ? { mockPhase: phaseId } : {}), ...(style !== "tutor" ? { style } : {}) };
       const reply: ChatMsg = { id: rid(), role: "assistant", text: "", at: Date.now() };
       const withUser: Conversation = { ...base, messages: [...base.messages, user], updatedAt: Date.now() };
       // the lock first, so another tab that reads the new reply knows it is on its way (not interrupted)
@@ -298,6 +306,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         page: pageOf?.() ?? null,
         mock: ms && phaseId ? { key: ms.key, phase: phaseId, history: ms.turns[phaseId] ?? [], action: extra.mockEnd ? "end" : "turn", ...(extra.mockEnd ? { phases: ms.turns } : {}) } : null,
         ...(titlePass && !ms ? { title: titlePass } : {}),
+        ...(style !== "tutor" ? { style } : {}),
       };
       let started: MockCard | null = null;
       const ctrl = new AbortController();
@@ -366,7 +375,10 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
               break;
             }
             case "followups":
-              if (Array.isArray(e.items)) patchReply((m) => ({ ...m, followups: e.items.filter((x) => typeof x === "string").slice(0, 3) }));
+              if (Array.isArray(e.items)) {
+                const actions = Array.isArray(e.actions) ? e.actions.filter(isFollowupAction) : [];
+                patchReply((m) => ({ ...m, followups: e.items.filter((x) => typeof x === "string").slice(0, 3), ...(actions.length ? { actions } : {}) }));
+              }
               break;
             case "round":
               // a new tool round: the text so far stays (the server only streams what it keeps)

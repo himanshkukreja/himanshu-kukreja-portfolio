@@ -7,6 +7,7 @@
  * the index's own hrefs, resolved from the refs.
  */
 import type { Kind } from "@/lib/search/smart/types";
+import type { AnswerStyle, FollowupAction } from "@/lib/ai/answerStyle";
 
 /** A cited resource, copied from the index or the site guide (never from the model). */
 export type ChatSource = { id: string; kind: Kind | "guide"; title: string; sub: string; href: string; at: number };
@@ -80,6 +81,8 @@ export type ChatRequest = {
   mock?: MockState | null;
   /** name the conversation: "first" on its first message, "again" on the second when the first had no topic (title-model.ts) */
   title?: "first" | "again";
+  /** the answer style the learner picked (lib/ai/answerStyle.ts; none: the default tutor style) */
+  style?: AnswerStyle;
 };
 
 /** The chat's quota today (GET /api/learn/ai/chat, and on every answer): one daily message limit (Haiku 5.5 answers
@@ -107,8 +110,9 @@ export type ChatEvent =
   | { type: "save"; pref: string }
   | { type: "mock"; mock: MockCard }
   | { type: "round"; n: number }
-  /** 2–3 likely next questions for this answer (sent just before done; none for a quiz question, a decline or a mock) */
-  | { type: "followups"; items: string[] }
+  /** 2–3 likely next questions for this answer, and the standard actions that fit under it (buttons: "Explain simpler",
+   *  "Quiz me"…; at most MAX_CHIPS together). Sent just before done; none for a quiz question, a decline or a mock */
+  | { type: "followups"; items: string[]; actions?: FollowupAction[] }
   /** the conversation's name for the history list (title-model.ts), sent as soon as it is made; null: the first
    *  message had no topic yet ("hi"), so the page asks again with the next one */
   | { type: "title"; text: string | null }

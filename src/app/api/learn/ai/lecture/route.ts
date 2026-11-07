@@ -8,6 +8,8 @@ import { isAdminEmail } from "@/lib/ai/access";
 import { buildLectureQa } from "@/lib/ai/lectureQa";
 import { getStorySource } from "@/lib/stories";
 import { fetchMarkdownContent } from "@/lib/github";
+import { isAnswerStyle } from "@/lib/ai/answerStyle";
+import { splitFollowups } from "@/lib/ai/chat/text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,8 +18,8 @@ export const maxDuration = 30;
 const SLUG = /^[A-Za-z0-9-]{1,120}$/;
 
 /**
- * POST /api/learn/ai/lecture { slug, scene, step, question?, preset?, picked?, previous? }
- *   → { text, show, jump, creditsLeft }
+ * POST /api/learn/ai/lecture { slug, scene, step, question?, preset?, picked?, previous?, style? }
+ *   → { text, show, jump, followups, creditsLeft }
  * "Ask about this moment" in a side-quest lecture. Signed-in learners only; same feature, quotas and
  * guardrail as lesson Q&A. The server rebuilds the moment from the lecture itself, and keeps only the
  * answer's [[show]] / [[jump]] tags that point at real nodes and scenes.
@@ -25,7 +27,7 @@ const SLUG = /^[A-Za-z0-9-]{1,120}$/;
 export async function POST(request: Request) {
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
-  const body = (await request.json().catch(() => ({}))) as { slug?: string; scene?: string; step?: number; question?: string; preset?: string; picked?: number | null; previous?: { q?: string; a?: string } | null };
+  const body = (await request.json().catch(() => ({}))) as { slug?: string; scene?: string; step?: number; question?: string; preset?: string; picked?: number | null; previous?: { q?: string; a?: string } | null; style?: string };
   const slug = String(body.slug || "");
   const sceneId = String(body.scene || "");
   const question = String(body.question || "").trim().slice(0, 600);
@@ -57,6 +59,7 @@ export async function POST(request: Request) {
     question,
     preset,
     previous: prev,
+    style: isAnswerStyle(body.style) ? body.style : null,
   });
   if (!built) return NextResponse.json({ error: "Unknown chapter" }, { status: 400 });
 
@@ -71,6 +74,8 @@ export async function POST(request: Request) {
   });
   if (!r.ok) return NextResponse.json({ error: r.message, status: r.status, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
   await saveTranscript(r.callId, me.id, "lesson-qa", `[lecture ${slug} · ${built.scene.id} · step ${built.step + 1}]\n${built.ask}`, r.text);
-  const { text, show, jump } = readTags(r.text, lecture, built.scene);
-  return NextResponse.json({ text, show, jump, creditsLeft: r.creditsLeft });
+  // the tags first (wherever they are), then the follow-ups line off the end
+  const tagged = readTags(r.text, lecture, built.scene);
+  const { text, followups } = splitFollowups(tagged.text, question);
+  return NextResponse.json({ text, show: tagged.show, jump: tagged.jump, followups, creditsLeft: r.creditsLeft });
 }

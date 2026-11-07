@@ -21,12 +21,14 @@ import type { PageContext } from "./text";
 import { buildSnapshot, type ProgressRaw, type ProgressSnapshot } from "./progress-model";
 import { cleanMemory, emptyMemory, type ChatMemory } from "./memory-model";
 import { dueReviewsFor, planFor } from "./reviewSeams";
+import { learnerFirstName } from "@/lib/ai/answerStyle";
 
 const isMissing = (e: { code?: string; message?: string } | null) => !!e && (["42P01", "42703", "PGRST204", "PGRST205"].includes(e.code || "") || /does not exist|could not find the/i.test(e.message || ""));
 
 /** One learner's raw progress and saved paths, kept a minute per instance (a chat sends a few messages a minute). */
-const cache = new Map<string, { at: number; p: Promise<{ raw: ProgressRaw; flags: Record<string, unknown> }> }>();
-function loadRaw(userId: string): Promise<{ raw: ProgressRaw; flags: Record<string, unknown> }> {
+type Raw = { raw: ProgressRaw; flags: Record<string, unknown>; name: string | null };
+const cache = new Map<string, { at: number; p: Promise<Raw> }>();
+function loadRaw(userId: string): Promise<Raw> {
   const hit = cache.get(userId);
   if (hit && Date.now() - hit.at < 60_000) return hit.p;
   const p = (async () => {
@@ -36,7 +38,7 @@ function loadRaw(userId: string): Promise<{ raw: ProgressRaw; flags: Record<stri
       supabase.from("trial_attempts").select("week, part, score, total, passed").eq("user_id", userId).eq("course_id", COURSE_ID).limit(1000),
       supabase.from("review_cards").select("front, week, lesson_slug, box, last_grade, due_at").eq("user_id", userId).eq("course_id", COURSE_ID).limit(500),
     ]);
-    const prof = (profile.data ?? null) as (ProgressRaw["profile"] & { game_flags?: Record<string, unknown> | null }) | null;
+    const prof = (profile.data ?? null) as (ProgressRaw["profile"] & { game_flags?: Record<string, unknown> | null; full_name?: string | null }) | null;
     return {
       raw: {
         profile: prof ? { xp: prof.xp, game_done: prof.game_done, current_streak: prof.current_streak } : null,
@@ -45,6 +47,8 @@ function loadRaw(userId: string): Promise<{ raw: ProgressRaw; flags: Record<stri
         cards: cards.error ? [] : ((cards.data ?? []) as ProgressRaw["cards"]),
       },
       flags: (prof?.game_flags && typeof prof.game_flags === "object" ? prof.game_flags : {}) as Record<string, unknown>,
+      // the tutor may call them by their first name (only a clean one: letters, no email-like profile name)
+      name: learnerFirstName(prof?.full_name),
     };
   })();
   cache.set(userId, { at: Date.now(), p });
@@ -89,7 +93,7 @@ export function within<T>(p: Promise<T>, ms: number, fallback: T | (() => T), wh
   return Promise.race([p.catch(() => value()), late]).finally(() => clearTimeout(timer));
 }
 
-export async function makeDeps(a: { origin: string; userId: string | null; page: PageContext | null }): Promise<{ deps: ChatDeps; map: CourseMap | null }> {
+export async function makeDeps(a: { origin: string; userId: string | null; page: PageContext | null; devName?: string | null }): Promise<{ deps: ChatDeps; map: CourseMap | null }> {
   const warming = Symbol("warming");
   const [engine, live, map] = await Promise.all([
     within<Awaited<ReturnType<typeof getEngine>> | typeof warming>(getEngine(a.origin), ENGINE_WAIT_MS, warming, "course search"),
@@ -122,6 +126,7 @@ export async function makeDeps(a: { origin: string; userId: string | null; page:
     // seams for lib/learn/review-due.ts and lib/learn/study-plan.ts (helper B): wired in reviewSeams.ts
     dueReviews: async () => (a.userId ? dueReviewsFor(a.userId) : null),
     studyPlan: async (p) => planFor(p),
+    learnerName: async () => (a.devName !== undefined ? a.devName : a.userId ? (await loadRaw(a.userId)).name : null),
   };
   return { deps, map };
 }

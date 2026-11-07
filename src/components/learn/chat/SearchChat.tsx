@@ -30,6 +30,7 @@ import { EXAMPLE_CATEGORIES, examplesIn, type SearchExample } from "@/lib/search
 import { isNaturalQuery } from "@/lib/search/smart/text";
 import { whenLabel } from "@/lib/learn/chat-history";
 import { track } from "@/lib/track";
+import AnswerStylePicker from "./AnswerStylePicker";
 import ChatComposer, { type ComposerHandle } from "./ChatComposer";
 import ChatHistory, { useChatHistory } from "./ChatHistory";
 import ChatThread from "./ChatThread";
@@ -280,6 +281,7 @@ function ChatPage() {
         autoFocus={wide && empty && !q}
         placeholder={phone ? "Ask the course…" : "Ask anything about system design…"}
         hint={hint}
+        tools={canChat ? <AnswerStylePicker from="page" /> : undefined}
         onFocusChange={(f) => (f ? setFocused(true) : window.setTimeout(() => setFocused(false), 180))}
       />
       {pinned && rail && <div className="mt-2 border border-line-strong">{signInLine}</div>}

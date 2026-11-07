@@ -13,7 +13,7 @@ import { ChatWarmingError, loadMemory, makeDeps, MEMORY_WAIT_MS, within } from "
 import { traceOf } from "@/lib/ai/chat/tools";
 import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 import type { ChatEvent } from "@/lib/ai/chat/text";
-import { chatDevLearner } from "@/lib/ai/chat/dev";
+import { chatDevLearner, chatDevName } from "@/lib/ai/chat/dev";
 import { makeChatTitle } from "@/lib/ai/chat/title";
 import { titlePassFor } from "@/lib/ai/chat/title-model";
 
@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       try {
         const tPrep = Date.now();
         // every part of the setup is bounded (lib/ai/chat/server.ts): a cold server answers without what isn't ready
-        const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null }), me.id ? within(loadMemory(me.id), MEMORY_WAIT_MS, null, "memory") : Promise.resolve(null)]);
+        const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null, devName: chatDevName(request) }), me.id ? within(loadMemory(me.id), MEMORY_WAIT_MS, null, "memory") : Promise.resolve(null)]);
         const memory = mem && mem.available && !mem.paused ? memoryLines(mem.memory) : null;
         const prepMs = Date.now() - tPrep;
         const r = await (req.mock ? runMockCore : runChatCore)({ deps, req, model: admit.model, apiKey: admit.apiKey, map: courseMapSummary(map), memory, emit, deadline: t0 + DEADLINE_MS, signal: request.signal });
@@ -166,7 +166,7 @@ export async function POST(request: Request) {
         if (ok) {
           // the conversation text, kept 90 days (the chat's retention: abuse checks and improving the tutor), with a trace of the tools
           await saveTranscript(callId, me.id || null, "course-chat", r.ask, `${r.text}\n\n— tools: ${r.loop.toolCalls.map((t) => traceOf(t.name, t.input)).join("; ") || "none"}`);
-          if (r.followups?.length) emit({ type: "followups", items: r.followups });
+          if (r.followups?.length || r.actions?.length) emit({ type: "followups", items: r.followups ?? [], ...(r.actions?.length ? { actions: r.actions } : {}) });
           emit({ type: "done", text: r.text, offTopic: r.offTopic, quota: admit.quota ? afterMessage(admit.quota) : null, tools: r.loop.toolCalls.length, ms: Date.now() - t0, callId, mode: r.mode, ttft });
           // every few messages the tutor's memory of this learner is brought up to date (after the answer is out)
           if (me.id && userTurns % MEMORY_EVERY === 0 && !r.offTopic)

@@ -4,6 +4,9 @@
  * "Ask this lesson": a side panel (a bottom sheet on phones) where a signed-in learner asks about the
  * lesson or the passage they selected. Each question is answered from the lesson's most relevant
  * sections (server: /api/learn/ai/ask). Shows credits left, the free-for-now line and what's sent.
+ * Answers render like the course chat's (ChatMarkdown: callouts, small tables, a diagram when the tutor draws one),
+ * with follow-up cards under the latest one. The answer-style chips are the learner's remembered answer style
+ * (useAnswerStyle, shared with the chat); "give an example" is a one-off for the next question.
  */
 import { useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles, X } from "lucide-react";
@@ -11,20 +14,26 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { aiFetch } from "./aiFetch";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
-import AiText from "./AiText";
+import ChatMarkdown from "@/components/learn/chat/ChatMarkdown";
+import Followups from "@/components/learn/chat/Followups";
+import { useAnswerStyle } from "@/components/learn/chat/useAnswerStyle";
+import { FOLLOWUP_ACTIONS, isAnswerStyle, pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
 import { useLessonFaq } from "./useLessonFaq";
 import { matchFaq, type FaqItem } from "@/lib/learn/faq/parse";
 
+/** "" is the default tutor style; all but "example" are answer styles (remembered); "check" is the "Quiz me" card's mode */
 const MODES = [
   { id: "", label: "just answer" },
   { id: "simple", label: "explain simply" },
+  { id: "detailed", label: "more detail" },
   { id: "example", label: "give an example" },
   { id: "interview", label: "say it in an interview" },
   { id: "hinglish", label: "in Hinglish" },
 ] as const;
+const MODE_LABEL: Record<string, string> = { ...Object.fromEntries(MODES.map((m) => [m.id, m.label])), check: "quiz me" };
 
-type Turn = { q: string; selection: string; mode: string; answer?: string; error?: string; pending?: boolean; saved?: boolean };
+type Turn = { q: string; selection: string; mode: string; answer?: string; error?: string; pending?: boolean; saved?: boolean; followups?: string[] };
 
 /** Window event: open the panel for the current lesson with no selection (reading toolbar's "Ask AI"). */
 export const ASK_LESSON_EVENT = "hk:ask-lesson";
@@ -55,7 +64,15 @@ export default function AskLessonPanel({
   const { openAuthModal } = useAuthModal();
   const [q, setQ] = useState("");
   const [sel, setSel] = useState(selection);
-  const [mode, setMode] = useState("");
+  // the remembered answer style picks the mode; "give an example" is for the next question only
+  const [style, setStyle] = useAnswerStyle();
+  const [oneOff, setOneOff] = useState(false);
+  const mode = oneOff ? "example" : style === "tutor" ? "" : style;
+  const setMode = (id: string) => {
+    if (id === "example") return setOneOff(true);
+    setOneOff(false);
+    setStyle(isAnswerStyle(id) ? id : "tutor", "lesson-panel");
+  };
   const [turns, setTurns] = useState<Turn[]>([]);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const endRef = useRef<HTMLDivElement>(null);
@@ -88,29 +105,45 @@ export default function AskLessonPanel({
   const canAsk = !!(q.trim() || sel) && !busy;
 
   // a saved answer costs nothing: offer it when the question matches one
-  const dup = q.trim() && !sel && !mode && faq ? matchFaq(faq.items, q) : null;
+  const dup = q.trim() && !sel && !oneOff && faq ? matchFaq(faq.items, q) : null;
   const showSaved = (it: FaqItem) => {
     setTurns((t) => [...t, { q: it.q, selection: "", mode: "", answer: `${it.a}${it.section ? ` [${it.section}]` : ""}`, saved: true }]);
     setQ("");
     track("ai_faq_saved", { lesson: `${week}/${slug}` });
   };
 
-  const ask = async () => {
-    if (!canAsk) return;
-    const turn: Turn = { q: q.trim(), selection: sel, mode, pending: true };
+  // the last answer (not a saved one): sent along, so "explain that more simply" or a quick check's answer has its context
+  const lastAnswered = [...turns].reverse().find((t) => t.answer && !t.saved);
+  const send = async (question: string, m: string) => {
+    const turn: Turn = { q: question, selection: sel, mode: m, pending: true };
+    const previous = lastAnswered ? { q: lastAnswered.q || "Explain this part.", a: lastAnswered.answer } : null;
     setTurns((t) => [...t, turn]);
     setQ("");
-    track("ai_ask", { feature: "lesson-qa", mode: mode || "plain", selection: !!sel, ...(story ? { story: slug } : {}) });
+    setOneOff(false);
+    track("ai_ask", { feature: "lesson-qa", mode: m || "plain", selection: !!sel, ...(story ? { story: slug } : {}) });
     try {
-      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined }) });
-      const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
+      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined, previous }) });
+      const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null; followups?: unknown };
       setAiCredits(body.creditsLeft);
-      setTurns((t) => t.map((x) => (x === turn ? { ...x, pending: false, ...(res.ok ? { answer: body.text || "" } : { error: body.error || "Something went wrong. Try again." }) } : x)));
+      const followups = Array.isArray(body.followups) ? body.followups.filter((x): x is string => typeof x === "string").slice(0, 3) : [];
+      setTurns((t) => t.map((x) => (x === turn ? { ...x, pending: false, ...(res.ok ? { answer: body.text || "", followups } : { error: body.error || "Something went wrong. Try again." }) } : x)));
     } catch {
       setTurns((t) => t.map((x) => (x === turn ? { ...x, pending: false, error: "You seem to be offline. Try again when you're back." } : x)));
     }
     setSel("");
   };
+  const ask = () => {
+    if (canAsk) void send(q.trim(), mode);
+  };
+  // a card under the latest answer: its question, or an action ("Quiz me" asks the tutor for one short check question)
+  const onCard = (text: string) => {
+    if (busy) return;
+    const action = (Object.keys(FOLLOWUP_ACTIONS) as FollowupAction[]).find((a) => FOLLOWUP_ACTIONS[a].ask === text);
+    track("ai_followup", { feature: "lesson-qa", action: action ?? "question" });
+    if (action === "quiz") void send("", "check");
+    else void send(text, action ? "" : mode);
+  };
+  const latest = turns[turns.length - 1];
 
   return (
     <div
@@ -152,8 +185,8 @@ export default function AskLessonPanel({
             <div key={i} className="flex flex-col gap-2">
               <div className="self-end border border-line-strong bg-surface-2 px-3 py-2 text-[14px] text-fg">
                 {t.selection && <span className="mb-1 block border-l-2 border-signal pl-2 text-[13px] text-fg-3">&ldquo;{t.selection.slice(0, 220)}{t.selection.length > 220 ? "…" : ""}&rdquo;</span>}
-                {t.q || "Explain this part."}
-                {t.mode && <span className="ml-2 font-mono text-[11px] text-fg-4">· {MODES.find((m) => m.id === t.mode)?.label}</span>}
+                {t.q || (t.mode === "check" ? "Quiz me on this." : "Explain this part.")}
+                {t.mode && <span className="ml-2 font-mono text-[11px] text-fg-4">· {MODE_LABEL[t.mode]}</span>}
               </div>
               {t.saved && <span className="font-mono text-[11px] text-fg-4">saved answer · no credits used</span>}
               {t.pending ? (
@@ -163,7 +196,12 @@ export default function AskLessonPanel({
               ) : t.error ? (
                 <p className="m-0 border border-bad/50 px-3 py-2 text-[14px] text-fg-2">{t.error}</p>
               ) : (
-                <AiText text={t.answer || ""} />
+                <>
+                  <ChatMarkdown text={t.answer || ""} className="!text-[15px]" />
+                  {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && (
+                    <Followups items={t.followups ?? []} actions={pickActions(t.followups ?? [], { asked: t.q })} onAsk={onCard} />
+                  )}
+                </>
               )}
             </div>
           ))}
@@ -189,7 +227,7 @@ export default function AskLessonPanel({
               )}
               <div className="flex flex-wrap gap-1.5" role="group" aria-label="How to answer">
                 {MODES.map((m) => (
-                  <button key={m.id} type="button" aria-pressed={mode === m.id} onClick={() => setMode(m.id)} className={`min-h-8 border px-2.5 font-mono text-[11px] ${mode === m.id ? "border-signal bg-signal text-on-signal" : "border-line-strong text-fg-2 hover:text-fg"}`}>
+                  <button key={m.id} type="button" aria-pressed={mode === m.id} onClick={() => setMode(m.id)} title={m.id === "example" ? "For your next question" : "Remembered for your next questions (the chat too)"} className={`min-h-8 border px-2.5 font-mono text-[11px] ${mode === m.id ? "border-signal bg-signal text-on-signal" : "border-line-strong text-fg-2 hover:text-fg"}`}>
                     {m.label}
                   </button>
                 ))}
@@ -202,7 +240,7 @@ export default function AskLessonPanel({
                   onKeyDown={(e) => {
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
-                      void ask();
+                      ask();
                     }
                   }}
                   rows={2}
@@ -210,7 +248,7 @@ export default function AskLessonPanel({
                   aria-label="Your question"
                   className="min-h-[52px] flex-1 resize-none border border-line-strong bg-bg px-3 py-2 text-[15px] text-fg placeholder:text-fg-4 focus:border-signal focus:outline-none"
                 />
-                <button type="button" onClick={() => void ask()} disabled={!canAsk} className="min-h-[52px] bg-signal px-4 text-[15px] font-semibold text-on-signal disabled:opacity-50">
+                <button type="button" onClick={ask} disabled={!canAsk} className="min-h-[52px] bg-signal px-4 text-[15px] font-semibold text-on-signal disabled:opacity-50">
                   Ask
                 </button>
               </div>

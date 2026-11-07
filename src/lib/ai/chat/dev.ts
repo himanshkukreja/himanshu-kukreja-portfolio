@@ -6,6 +6,8 @@
  * "production", so neither header does anything there (scripts/chat-check.ts asserts it).
  */
 
+import { learnerFirstName } from "@/lib/ai/answerStyle";
+
 export const DEV_USER_RE = /^00000000-0000-4000-8000-0000000000\d\d$/;
 
 const isDevServer = () => process.env.NODE_ENV === "development";
@@ -18,4 +20,11 @@ export function chatDevLearner(request: Request): { id: string; email: null } | 
   if (!chatDevPreview(request)) return null;
   const id = (request.headers.get("x-chat-dev-user") || "").trim();
   return DEV_USER_RE.test(id) ? { id, email: null } : null;
+}
+
+/** `next dev` and the preview header: a stand-in first name for the tutor (x-chat-dev-name), to try the personal touch locally. */
+export function chatDevName(request: Request): string | null | undefined {
+  if (!chatDevPreview(request)) return undefined;
+  const n = (request.headers.get("x-chat-dev-name") || "").trim();
+  return n ? learnerFirstName(n) : undefined;
 }
