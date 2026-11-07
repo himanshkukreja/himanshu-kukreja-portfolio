@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import { POSTHOG_ASSETS_HOST, POSTHOG_INGEST_HOST, POSTHOG_KEY, POSTHOG_PROXY_PATH } from "./src/lib/analytics/config";
+import { COURSE_ROOT, LEARN_FEATURES, LEARN_FILES } from "./src/lib/learn/paths";
 
 // Attempt to configure Image Optimization for remote ImageKit (if provided via env)
 const imageKitBase = process.env.NEXT_PUBLIC_IMAGEKIT_BASE_URL;
@@ -78,7 +79,22 @@ try {
 } catch {
   // ignore env parse errors
 }
+for (const h of (process.env.NEXT_PUBLIC_EXTRA_COURSE_HOSTS || "").split(",")) if (h.trim()) courseHosts.push(h.trim().toLowerCase());
 const courseHostRe = courseHosts.map((h) => h.replace(/\./g, "\\.")).join("|");
+// The course host's clean URLs → the internal routes that render them (the same map as internalPath() in
+// src/lib/learn/paths.ts, which the middleware still uses for dev/preview overrides). Done here rather than with a
+// middleware rewrite: self-hosted Next (Cloudflare/OpenNext, next start) serves a page reached through a
+// middleware rewrite as "private, no-store" when it wasn't prerendered, so on-demand ISR pages (lessons, labs,
+// concepts…) were rendered on every request; a config rewrite keeps them cached. Case files stay in the middleware
+// (storyGate).
+const onCourse = [{ type: "host" as const, value: `(?:${courseHostRe})` }];
+const courseRewrites = [
+  { source: "/", has: onCourse, destination: COURSE_ROOT },
+  ...LEARN_FILES.map((f) => ({ source: `/${f}`, has: onCourse, destination: `/learn/${f}` })),
+  { source: `/:seg(${LEARN_FEATURES.join("|")})/:rest*`, has: onCourse, destination: "/learn/:seg/:rest*" },
+  { source: "/:area(week-\\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)/:rest*", has: onCourse, destination: `${COURSE_ROOT}/:area/:rest*` },
+];
+
 const courseIconRewrites = ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-icon.png", "/icons/:file(icon-[\\w-]+\\.png)"].map((source) => ({
   source,
   has: [{ type: "host" as const, value: `(?:${courseHostRe})` }],
@@ -115,7 +131,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   async rewrites() {
-    return { beforeFiles: courseIconRewrites, afterFiles: posthogRewrites, fallback: [] };
+    return { beforeFiles: [...courseIconRewrites, ...courseRewrites], afterFiles: posthogRewrites, fallback: [] };
   },
   // ...but keep the site's own canonical URLs: /learn/ → /learn as before (proxy paths excluded).
   async redirects() {

@@ -136,6 +136,9 @@ async function courseHost(req: NextRequest): Promise<NextResponse> {
   if (PROD && devOnly(internal)) return new NextResponse("Not found", { status: 404, headers: { "x-robots-tag": "noindex" } });
   const to = new URL(internal + search, req.url);
   const rewrite = () => NextResponse.rewrite(to);
+  // on a real course host next.config.ts rewrites these (courseRewrites), which keeps on-demand ISR pages cacheable
+  // when self-hosted; the middleware rewrite is only for dev/preview hosts acting as the course
+  const configRewrites = siteOfHost(req.headers.get("host")) === "course" && !internal.startsWith("/stories");
   const story = /^\/stories\/([^/]+)\/?$/.exec(internal);
   if (story && story[1] !== "feed.xml") {
     let slug = story[1];
@@ -146,7 +149,7 @@ async function courseHost(req: NextRequest): Promise<NextResponse> {
     }
     return storyGate(req, slug, rewrite);
   }
-  return rewrite();
+  return configRewrites ? NextResponse.next() : rewrite();
 }
 
 /* ------------------------------------------------------------------ portfolio host */
