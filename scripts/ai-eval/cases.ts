@@ -149,6 +149,37 @@ const SMART_SEARCH: EvalCase[] = [
     expect: ["says the course has no lesson on vector databases or RAG yet", "any path steps are honestly the nearest material (embeddings in the recommendation side quests, search), each described as what it is"],
     mustNot: ["presents vector clocks, leader election or the order system as related to vector databases"],
   }),
+  // added 8 Nov 2026 (query shapes the set lacked; must-haves checked against the index's top candidates)
+  // a definition
+  ss("def-cap", "Definition: what is the CAP theorem", "what is the CAP theorem", ["K:cap-theorem|foundations-part-6-terminology-and-theory|week-05-preview#the-cap-theorem"], {
+    expect: ["starts with the definition (the CAP concept or the CAP section), then where the trade-off is applied (PACELC, consistency models or replication trade-offs)"],
+  }),
+  // a comparison with a product context
+  ss("cmp-sql-nosql", "Comparison: SQL vs NoSQL for e-commerce", "SQL vs NoSQL for an e-commerce app", ["sql-vs-nosql|foundations-part-8-databases-in-depth"], {
+    expect: ["leads with a SQL vs NoSQL comparison section before e-commerce case material"],
+  }),
+  // hands-on practice
+  ss("prac-rate-limiter", "Practice: code a rate limiter", "practice coding a rate limiter", ["LB:token-bucket|LB:sliding-window-counter", "lld-03-rate-limiter|problem-02-rate-limiter"], {
+    expect: ["mostly hands-on practice (code labs, the LLD round, the problem), with at most one or two idea steps first"],
+  }),
+  // "design X", a classic problem
+  ss("design-whatsapp", "Design problem: design WhatsApp", "design WhatsApp", ["bonus-02-whatsapp-messaging", "problem-08-chat-system|day-04-scale-reliability-edge-cases"]),
+  // Hinglish
+  ss("hinglish-shard", "Hinglish: how do you shard a database", "database ko shard kaise karte hain", ["K:sharding|day-01-partitioning-deep-dive", "K:partition-key|K:hash-partitioning|K:range-partitioning|day-01-partitioning-deep-dive"], {
+    expect: ["treats the Hinglish query as a normal sharding question (scope covered, not off_topic)"],
+  }),
+  // an interview skill rather than a topic
+  ss("est-qps", "Interview skill: estimating QPS and storage", "how do I estimate QPS and storage for a design interview", ["foundations-part-3-back-of-the-envelope-estimation|K:back-of-the-envelope-estimation"], {
+    expect: ["starts from the back-of-the-envelope estimation lesson or concept and ends with a worked estimate or practice"],
+  }),
+  // a symptom in the learner's words
+  ss("sym-redis-down", "Symptom: the service went down when Redis failed", "why did my service go down when Redis failed", ["day-01-caching-patterns|K:fail-open|problem-11-distributed-cache|capstone-interview-week-4-ecommerce-product-catalog"], {
+    expect: ["reads it as cache failure handling (what to do when the cache is down: fall back, fail open, protect the database), not as Redis basics"],
+  }),
+  // real incidents
+  ss("real-dns", "Real incidents: outage stories about DNS", "real outage stories about DNS", ["WS:robinhood-thundering-herd-dns"], {
+    expect: ["leads with real incident stories (war stories, case files) rather than DNS basics"],
+  }),
 ];
 
 export const CASES: EvalCase[] = [

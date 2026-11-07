@@ -168,10 +168,15 @@ async function build(c: EvalCase): Promise<Built> {
         c.feature === "lab-review"
           ? `My solution passes every test. Review it.\n\n\`\`\`python\n${s(x.code)}\n\`\`\``
           : x.code
-            ? `Hint level ${s(x.level) || "1"}.\n\nMy code:\n\`\`\`python\n${s(x.code)}\n\`\`\`\n\n${x.setup ? `It doesn't load: ${s(x.setup)}` : `Failing:\n${s(x.failures) || "- (no details)"}`}`
-            : `Hint level ${s(x.level)}.\n\n${c.input}`;
+            ? `Hint level ${s(x.level) || "1"}. Language: Python.\n\nMy code:\n\`\`\`python\n${s(x.code)}\n\`\`\`\n\n${x.setup ? `It doesn't load: ${s(x.setup)}` : `Failing:\n${s(x.failures) || "- (no details)"}`}`
+            : `Hint level ${s(x.level) || "1"}. Language: Python.\n\n${c.input}`;
       const sys = c.feature === "lab-review" ? labReviewSystem : labHintSystem;
-      return { system: (m) => sys({ title, brief }, optsFor(m, c.feature)), messages: one(user), context: `LAB: ${title}\n${brief.slice(0, 2500)}` };
+      // a hint case with ctx.code has an empty `input`: the judge sees the code and test output the AI got, as the AI got them
+      return {
+        system: (m) => sys({ title, brief }, optsFor(m, c.feature)),
+        messages: one(user),
+        context: `LAB: ${title}\n${brief.slice(0, 2500)}${c.feature === "lab-hint" && x.code ? `\n\nTHE LEARNER'S MESSAGE (code and test output):\n${user}` : ""}`,
+      };
     }
     case "explain-back": {
       let term = s(x.term);

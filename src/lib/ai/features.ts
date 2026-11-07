@@ -56,6 +56,11 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   //   lab-hint, canvas-review: the re-tunes scored lower in two passes (hint 3.89 / 4.00, canvas 3.88 / 3.75) than the
   //   29 Oct setup (hint 4.33 / 4.22, canvas 4.25 / 4.13; Sonnet hint 4.67 / 4.67, canvas 3.13 / 2.88), so that setup runs:
   //   hint $0.0066 → $0.0003, canvas $0.0114 → $0.0006, thinking off.
+  // 8 Nov 2026, a second Haiku re-tune of the three features still behind Sonnet (one blind 3-way pass each, same Opus judge):
+  //   lab-hint         Sonnet 4.33 · old Haiku 4.22 · new 4.67   $0.0060 → $0.0004  (its own Haiku prompt: labHintH55)
+  //   mock-interviewer Sonnet 4.29 · old Haiku 3.43 · new 3.93   $0.0076 → $0.0005  (haikuMaxTokens 650: the plan cut a turn off at 450)
+  //   smart-search     Sonnet 4.11 · old Haiku 3.81 · new 4.03   $0.0133 → $0.0008
+  //   Low-effort thinking for the interviewer was tried again: no better (3.86 both ways) and p50 2.0 s → 3.8 s, so it stays off.
   // think: Haiku 5.5 thinks adaptively at `effort` (client.ts); the live turn features (interviewer, coach, search, chat)
   // keep thinking off and their private plan line or check field: thinking made the interviewer slower (up to 8 s) and no better.
   // haikuMaxTokens: room for the private plan Haiku's prompts write first. Haiku 5.5 was cut off at 900 (lab-review) and
@@ -69,7 +74,7 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // Haiku 5.5 too. maxTokens: the JSON ran ~350-650 tokens in testing; maxInputChars: code ≤ 8,000 + the brief ≤ 4,500.
   "lab-review": { label: "Code review after a pass", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 40, maxTokens: 1100, maxInputChars: 14000, think: false, live: true },
   "explain-back": { label: "Explain-it-back grade", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 150, maxTokens: 400, maxInputChars: 1500, think: true, effort: "low", live: true },
-  "mock-interviewer": { label: "AI mock interviewer (turn)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 450, maxInputChars: 4000, think: false, live: true },
+  "mock-interviewer": { label: "AI mock interviewer (turn)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 450, haikuMaxTokens: 650, maxInputChars: 4000, think: false, live: true },
   "mock-coach": { label: "AI mock live coach (per phase)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 150, maxTokens: 500, haikuMaxTokens: 800, maxInputChars: 14000, think: false, live: true },
   "mock-scorecard": { label: "AI mock scorecard", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 12, maxTokens: 3000, maxInputChars: 60000, think: true, effort: "medium", live: true },
   "design-review": { label: "Design review", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1500, maxInputChars: 15000, think: true, effort: "medium", live: true },
