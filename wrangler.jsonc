@@ -42,7 +42,7 @@
       },
       "placement": { "mode": "smart" },
       "observability": { "enabled": true },
-      "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
+      "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off" },
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" }],
       "r2_buckets": [
         { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "sdm-course-cache-staging" },

@@ -13,13 +13,16 @@ export default {
   async fetch(request: Request, env: unknown, ctx: Ctx) {
     const res: Response = await handler.fetch(request, env, ctx);
     const cc = res.headers.get("cache-control") || "";
+    // test deploys on workers.dev are never indexed
+    const testHost = new URL(request.url).hostname.endsWith(".workers.dev");
+    if (!/s-maxage|stale-while-revalidate/i.test(cc) && !testHost) return res;
+    const out = new Response(res.body, res);
     if (/s-maxage|stale-while-revalidate/i.test(cc)) {
-      const out = new Response(res.body, res);
       out.headers.set("cache-control", "public, max-age=0, must-revalidate");
       out.headers.set("cdn-cache-control", cc);
-      return out;
     }
-    return res;
+    if (testHost) out.headers.set("x-robots-tag", "noindex, nofollow");
+    return out;
   },
   async scheduled(_event: unknown, env: unknown, ctx: Ctx) {
     ctx.waitUntil(handler.fetch(new Request("https://systemdesignmastery.dev/api/cron/publish-due"), env, ctx));
