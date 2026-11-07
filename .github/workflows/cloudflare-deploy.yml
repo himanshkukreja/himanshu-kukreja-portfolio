@@ -84,4 +84,5 @@ jobs:
         run: npx opennextjs-cloudflare populateCache remote $WENV
 
       - name: Summary
-        run: grep -Eo "https://[a-z0-9.-]+workers.dev" "$RUNNER_TEMP/deploy.log" | head -1 | sed 's/^/Deployed: /' >> "$GITHUB_STEP_SUMMARY" || true
+        run: |
+          grep -Eo "https://[a-z0-9.-]+workers.dev" "$RUNNER_TEMP/deploy.log" | head -1 | sed 's/^/Deployed: /' >> "$GITHUB_STEP_SUMMARY" || true
