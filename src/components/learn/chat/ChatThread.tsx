@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { buildIcsForPath } from "./planIcs";
 import SpeakButton from "./SpeakButton";
-import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Mic, Route, Share2, ThumbsDown, ThumbsUp, X, Zap } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Mic, Route, Share2, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { KIND_LABEL } from "@/lib/search/smart/types";
 import { atClock } from "@/lib/search/smart/engine";
 import { citedRefs, streamingText, trailOf, type ChatSource } from "@/lib/ai/chat/text";
@@ -267,11 +267,6 @@ function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }:
           <SpeakButton text={m.text} />
           {actions.feedback && m.callId ? <Feedback callId={m.callId} r={conv.ratings?.[m.callId]} onRate={actions.onRate} /> : null}
           {actions.share && m.mode !== "interviewer" && m.mode !== "scorecard" && <ShareAnswer m={m} conv={conv} />}
-          {m.fast && (
-            <span className="ml-1 inline-flex items-center gap-1 font-mono text-[10.5px] text-fg-4" title="After today's first messages, the chat answers with a faster model">
-              <Zap className="h-3 w-3" aria-hidden /> fast mode
-            </span>
-          )}
         </div>
       )}
       {settled && onAsk && !!m.followups?.length && !m.error && <Followups items={m.followups} onAsk={onAsk} className={rise} />}

@@ -5,9 +5,8 @@ import { isAdminEmail } from "@/lib/ai/access";
 import { FEATURES } from "@/lib/ai/features";
 import { checkImage, IMAGE_TYPES, type AiImageBlock, type ImageMediaType } from "@/lib/ai/image";
 import { firstJson } from "@/lib/ai/notes";
-import { MODELS } from "@/lib/ai/prices";
-import { paperGradeInput, paperGradeSystem } from "@/lib/ai/prompts";
-import { checkGrade, escalationReasons, type CheckedGrade, type EscalationReason, type QuestionGrade } from "@/lib/learn/papers/grade";
+import { paperGradeInput, paperGradeSystem, paperRecheckInput } from "@/lib/ai/prompts";
+import { checkGrade, ESCALATION_TEXT, escalationReasons, type CheckedGrade, type EscalationReason, type QuestionGrade } from "@/lib/learn/papers/grade";
 import { getParsedPaper } from "@/lib/learn/papers/load";
 
 export const runtime = "nodejs";
@@ -26,8 +25,9 @@ const aiError = (r: Extract<AiResult, { ok: false }>) =>
  *
  * The browser renders the answer's sheets into one PNG (lib/learn/papers/client.ts answerImage) and sends it only when
  * the learner asks for grading; the question, the scheme and the model answer are read here from the cached paper
- * (never from the request), so the grade is always against the real scheme. Haiku 5.5 grades first; Sonnet 5.5
- * re-grades when grade.ts escalationReasons says so, and its result is kept. Every grade is checked against the
+ * (never from the request), so the grade is always against the real scheme. Haiku 5.5 grades first; when grade.ts
+ * escalationReasons says so, a second, stricter Haiku 5.5 pass re-grades from scratch with adaptive thinking (medium
+ * effort) and its result is kept (7 Nov 2026: this replaced the Sonnet 5.5 re-grade, at about a tenth of its cost). Every grade is checked against the
  * scheme (checkGrade) before it is returned. Nothing is stored here: the browser keeps the marks (game flag) and the
  * page image is never stored (the transcript keeps the text only).
  */
@@ -56,24 +56,27 @@ export async function POST(request: Request) {
   const text = paperGradeInput({ title: paper.title, n: q.n, kind: q.kind, marks: q.marks, prompt: q.prompt, scheme: q.scheme, answer: q.answer, typed, sheets });
   const scheme = { scheme: q.scheme, marks: q.marks };
   const adminPreview = await isAdminEmail(me.email);
-  const call = (model?: string, pass = 1) =>
+  const call = (recheck?: string) =>
     callClaude({
       feature: "paper-grade",
       userId: me.id,
       adminPreview,
       userKey: ownKey(request),
+      // one fixed system prompt (cached across learners). The re-check can't read the first pass's cache: a different
+      // thinking setting starts a new cache entry (measured 7 Nov 2026), so only the system prompt is marked.
       system: paperGradeSystem(),
-      // the image first, then the text about it (the Messages API's advice for image prompts)
-      messages: [{ role: "user", content: [image, { type: "text", text }] }],
-      ...(model ? { model } : {}),
-      meta: { paper: paper.key, q: q.n, kind: q.kind, pass, sheets },
-      timeoutMs: pass === 1 ? 25_000 : 32_000,
+      // the image first, then the text about it (the Messages API's advice for image prompts); a re-check adds its
+      // instruction last
+      messages: [{ role: "user", content: [image, { type: "text", text }, ...(recheck ? [{ type: "text" as const, text: recheck }] : [])] }],
+      // the re-check thinks before it grades (the first pass doesn't: it is fast and cheap)
+      ...(recheck ? { think: true, effort: "medium" as const } : {}),
+      meta: { paper: paper.key, q: q.n, kind: q.kind, pass: recheck ? 2 : 1, sheets },
+      timeoutMs: recheck ? 40_000 : 25_000,
     });
 
   const first = await call();
   if (!first.ok) return aiError(first);
   const g1 = checkGrade(firstJson(first.text), scheme);
-  const isSonnet = (m: string) => /sonnet/.test(m);
   let kept: { g: CheckedGrade; model: string } | null = g1 ? { g: g1, model: first.model } : null;
   let credits = first.credits;
   let creditsLeft = first.creditsLeft;
@@ -81,24 +84,21 @@ export async function POST(request: Request) {
   let recheckFailed = false;
   const reasons: EscalationReason[] = g1 ? escalationReasons(g1, q.kind) : ["unreadable"];
 
-  // re-grade with Sonnet 5.5 when Haiku was unsure, the answer is drawn, or the mark is on the pass line. Not when the
-  // first grade already came from Sonnet (an admin's model choice), nor in amber mode (Sonnet is paused to save budget).
-  if (reasons.length && !isSonnet(first.model)) {
-    if (first.mode === "amber") recheckFailed = true;
-    else {
-      const second = await call(MODELS.sonnet, 2);
-      if (second.ok) {
-        credits += second.credits;
-        creditsLeft = second.creditsLeft;
-        const g2 = checkGrade(firstJson(second.text), scheme);
-        if (g2) {
-          firstScore = g1 ? g1.score : null;
-          kept = { g: g2, model: second.model };
-        } else recheckFailed = true;
-      } else {
-        recheckFailed = true;
-        if (second.creditsLeft !== null) creditsLeft = second.creditsLeft;
-      }
+  // re-grade with a second, stricter Haiku 5.5 pass (thinking) when the first was unsure, the answer is drawn, or the
+  // mark is on the pass line; it runs in amber mode too (it is Haiku-priced)
+  if (reasons.length) {
+    const second = await call(paperRecheckInput(reasons.map((r) => ESCALATION_TEXT[r]).join("; ")));
+    if (second.ok) {
+      credits += second.credits;
+      creditsLeft = second.creditsLeft;
+      const g2 = checkGrade(firstJson(second.text), scheme);
+      if (g2) {
+        firstScore = g1 ? g1.score : null;
+        kept = { g: g2, model: second.model };
+      } else recheckFailed = true;
+    } else {
+      recheckFailed = true;
+      if (second.creditsLeft !== null) creditsLeft = second.creditsLeft;
     }
   }
   if (!kept) return NextResponse.json({ error: "The grader couldn't read this answer. Try again, or write a little larger.", status: "error", creditsLeft }, { status: 502, headers: noStore });
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
     read: kept.g.read,
     missing: kept.g.missing,
     feedback: kept.g.feedback,
-    model: isSonnet(kept.model) ? "sonnet" : "haiku",
+    model: /sonnet/.test(kept.model) ? "sonnet" : "haiku",
     firstScore,
     escalated: reasons,
     ...(recheckFailed && reasons.length ? { recheckFailed: true } : {}),

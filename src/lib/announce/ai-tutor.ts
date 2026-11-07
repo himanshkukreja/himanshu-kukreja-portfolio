@@ -7,7 +7,7 @@
  *
  * Links are plain (no UTM): the campaign engine adds utm_* and click tracking per send.
  * Screenshots: public/email/ai-tutor/. Each was captured from the real UI on 25 Oct 2026 with a
- * real model answer (Sonnet 5.5 through /api/learn/ai/*, logged in ai_calls), dark theme, 2x.
+ * real model answer (Haiku 5.5 since 7 Nov 2026, through /api/learn/ai/*, logged in ai_calls), dark theme, 2x.
  *
  * Facts checked on 25 Oct 2026: 8 code labs, 3 hint levels; 213 concept pages; 4 mock interviews;
  * 5 war rooms; 999 "questions learners ask" on 125 pages; ask modes (just answer, explain simply,

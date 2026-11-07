@@ -22,11 +22,11 @@ function hashStr(s: string): string {
   return (h >>> 0).toString(36);
 }
 
-/** Who graded and what it cost, honestly: the re-check by the stronger model costs more. */
+/** Who graded and what it cost, honestly: the re-check is a second, more careful pass and costs a little more. */
 export function GradedBy({ g, m }: { g?: QuestionGrade | null; m: QuestionMarks }) {
   if (m.g === "none" || g?.blank) return <span className="text-fg-3">not answered · no credits used</span>;
   const credits = g?.credits ?? m.c;
-  const re = g && g.model === "sonnet" && g.escalated.length;
+  const re = g && g.escalated.length && !g.recheckFailed;
   return (
     <span className="text-fg-3">
       graded by {MODEL_LABEL[m.g]}

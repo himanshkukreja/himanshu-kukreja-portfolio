@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { mockFullScorecardSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
+import { mockFullScorecardSystem, promptOptsFor, replyFrom } from "@/lib/ai/prompts";
 import { problemText, promptPhase } from "@/lib/ai/mock";
 
 export const runtime = "nodejs";
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     meta: { mock: mock.slug },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  const text = stripPrivatePlan(r.text);
+  const text = replyFrom(r.text, "### P1");
   await saveTranscript(r.callId, me.id, "mock-scorecard", phases.map((p) => `## ${p.title}\n${p.candidate}`).join("\n\n"), text);
   return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

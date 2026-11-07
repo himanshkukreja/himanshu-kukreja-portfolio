@@ -2,17 +2,17 @@ import { after, NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { isAdminEmail } from "@/lib/ai/access";
 import { ownKey, saveTranscript } from "@/lib/ai/client";
-import { MODELS } from "@/lib/ai/prices";
+import { FEATURES } from "@/lib/ai/features";
 import { devPreview, originOf } from "@/lib/search/smart/server";
 import { runChatCore, runMockCore, readRequest } from "@/lib/ai/chat/core";
 import { courseMapSummary } from "@/lib/ai/chat/mapSummary";
 import { memoryLines } from "@/lib/ai/chat/memory-model";
 import { MEMORY_EVERY, updateMemory } from "@/lib/ai/chat/memory";
-import { admitChat, afterMessage, chatLimits, chatToday, logChatCall } from "@/lib/ai/chat/quota";
+import { admitChat, afterMessage, chatLimits, chatToday, logChatCall, quotaFor } from "@/lib/ai/chat/quota";
 import { ChatWarmingError, loadMemory, makeDeps, MEMORY_WAIT_MS, within } from "@/lib/ai/chat/server";
 import { traceOf } from "@/lib/ai/chat/tools";
 import { feedbackEnabled } from "@/lib/ai/chat/feedback";
-import type { ChatEvent, ChatQuota } from "@/lib/ai/chat/text";
+import type { ChatEvent } from "@/lib/ai/chat/text";
 import { chatDevLearner } from "@/lib/ai/chat/dev";
 import { makeChatTitle } from "@/lib/ai/chat/title";
 import { titlePassFor } from "@/lib/ai/chat/title-model";
@@ -33,12 +33,11 @@ const noStore = { "Cache-Control": "private, no-store" };
 export async function GET(request: Request) {
   // `next dev` only (lib/ai/chat/dev.ts): a stand-in learner gets the real quota line; the bare preview a fixed one
   const devUser = chatDevLearner(request);
-  if (!devUser && devPreview(request)) return NextResponse.json({ quota: { mainLeft: 30, mainPerDay: 30, totalLeft: 300, fast: false, ownKey: false }, memory: { available: false, paused: false, has: false }, feedback: true }, { headers: noStore });
+  if (!devUser && devPreview(request)) return NextResponse.json({ quota: quotaFor(FEATURES["course-chat"].perDay, 0, false), memory: { available: false, paused: false, has: false }, feedback: true }, { headers: noStore });
   const me = devUser ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
-  const [{ perDay, ceiling }, t, m, fb] = await Promise.all([chatLimits(), chatToday(me.id), loadMemory(me.id), feedbackEnabled()]);
-  const own = !!ownKey(request);
-  const quota: ChatQuota = { mainLeft: own ? perDay : Math.max(0, perDay - t.main), mainPerDay: perDay, totalLeft: own ? ceiling : Math.max(0, ceiling - t.total), fast: !own && t.main >= perDay, ownKey: own };
+  const [{ perDay }, t, m, fb] = await Promise.all([chatLimits(), chatToday(me.id), loadMemory(me.id), feedbackEnabled()]);
+  const quota = quotaFor(perDay, t.total, !!ownKey(request));
   return NextResponse.json({ quota, memory: { available: m.available, paused: m.paused, has: m.available && m.memory.updatedAt > 0 }, feedback: fb }, { headers: noStore });
 }
 
@@ -69,10 +68,10 @@ export async function POST(request: Request) {
   const userKey = ownKey(request);
 
   const admit = dev
-    ? ({ ok: true, model: MODELS.sonnet, fast: false, quota: null, mode: "green", byok: false, apiKey: process.env.ANTHROPIC_API_KEY || "" } as const)
+    ? ({ ok: true, model: FEATURES["course-chat"].model, quota: null, mode: "green", byok: false, apiKey: process.env.ANTHROPIC_API_KEY || "" } as const)
     : await admitChat({ userId: me.id, admin, userKey });
   if (!admit.ok) {
-    await logChatCall({ user_id: me.id || null, feature: "course-chat", model: MODELS.sonnet, status: admit.status, error: admit.message, meta: { chat: req.chat }, byok: !!userKey });
+    await logChatCall({ user_id: me.id || null, feature: "course-chat", model: FEATURES["course-chat"].model, status: admit.status, error: admit.message, meta: { chat: req.chat }, byok: !!userKey });
     return NextResponse.json({ error: admit.message, status: admit.status, quota: admit.quota }, { status: admit.status === "disabled" ? 403 : 429, headers: noStore });
   }
   if (!admit.apiKey) return NextResponse.json({ error: "AI is not configured" }, { status: 403, headers: noStore });
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
           open = false;
         }
       };
-      emit({ type: "start", fast: admit.fast, model: admit.model });
+      emit({ type: "start", model: admit.model });
       // the conversation's name, beside the answer: sent the moment it is ready (a failure just keeps the page's title)
       const pass = titlePassFor(req.title, req.messages, req.mock);
       const titled = pass
@@ -140,7 +139,6 @@ export async function POST(request: Request) {
             graded: st.flags.graded,
             path: st.flags.path,
             saved: st.flags.saved,
-            fast: admit.fast,
             page: req.page?.path ? req.page.path.split("/").slice(0, 3).join("/") : null,
             memory: !!memory?.length,
             mode: r.mode,
@@ -169,7 +167,7 @@ export async function POST(request: Request) {
           // the conversation text, kept 90 days (the chat's retention: abuse checks and improving the tutor), with a trace of the tools
           await saveTranscript(callId, me.id || null, "course-chat", r.ask, `${r.text}\n\n— tools: ${r.loop.toolCalls.map((t) => traceOf(t.name, t.input)).join("; ") || "none"}`);
           if (r.followups?.length) emit({ type: "followups", items: r.followups });
-          emit({ type: "done", text: r.text, offTopic: r.offTopic, quota: admit.quota ? afterMessage(admit.quota, admit.model) : null, tools: r.loop.toolCalls.length, ms: Date.now() - t0, callId, mode: r.mode, ttft });
+          emit({ type: "done", text: r.text, offTopic: r.offTopic, quota: admit.quota ? afterMessage(admit.quota) : null, tools: r.loop.toolCalls.length, ms: Date.now() - t0, callId, mode: r.mode, ttft });
           // every few messages the tutor's memory of this learner is brought up to date (after the answer is out)
           if (me.id && userTurns % MEMORY_EVERY === 0 && !r.offTopic)
             after(() => updateMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: [...req.messages, { role: "assistant", text: r.text }] }).catch(() => false));

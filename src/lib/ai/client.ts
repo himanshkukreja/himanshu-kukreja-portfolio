@@ -17,7 +17,7 @@ import "server-only";
  */
 import { supabase } from "@/lib/supabase";
 import { costOf, creditsFor, type Usage } from "./prices";
-import { answerTokens, FEATURES, type FeatureId } from "./features";
+import { answerTokens, FEATURES, type Effort, type FeatureId } from "./features";
 import { featureConfig, getAiSettings } from "./settings";
 import { CONTENT_CAP_MESSAGE, contentCapReached, getBudget, startOfToday, type Mode } from "./governor";
 import { dailyAllowanceUsd } from "./limits";
@@ -55,6 +55,8 @@ export type AiRequest = {
   meta?: Record<string, string | number | boolean | null>;
   /** evals: think (or not) the way the live feature does, so the eval measures what learners get */
   think?: boolean;
+  /** evals: the feature's thinking effort on Haiku 5.5 (FeatureDef.effort) */
+  effort?: Effort;
   /** an admin trying a feature while it is switched off for learners (still metered, still within budget) */
   adminPreview?: boolean;
   /** the learner's own Anthropic key (bring your own key): their cost, so no budget or daily limits; never stored */
@@ -182,20 +184,25 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     if (!req.admitted && !chatCall && !byok && t.spent >= allowance) return refuse("over_quota", "You've used today's AI credits. They refill at midnight UTC, or add your own key under You → AI");
   }
 
-  // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up
+  // long system prompts (lesson text, rubrics) are cached: 90% cheaper on every follow-up. Haiku 5.5 caches a prefix
+  // from about 512 tokens (an 862-token prefix was read back, 7 Nov 2026), so a string from ~2,000 characters is marked
   const prompt = typeof req.system === "function" ? req.system(model) : req.system;
   const system =
     typeof prompt !== "string"
       ? prompt.map((b) => ({ type: "text", text: b.text, ...(b.cache ? { cache_control: { type: "ephemeral" } } : {}) }))
-      : prompt.length > 4000
+      : prompt.length > 2048
         ? [{ type: "text", text: prompt, cache_control: { type: "ephemeral" } }]
         : prompt;
-  // Haiku doesn't think (Haiku 5.5 thinks by default, so it is told not to); Sonnet 5.x can be told not to;
-  // others (Opus) always may, so they get the room
+  // Haiku 5.5 thinks adaptively at the feature's effort when the feature thinks, else it is told not to (it thinks
+  // by default); Haiku 4.5 never thinks here; Sonnet 5.x can be told not to; others (Opus) always may, so they get the room
   const haiku = /haiku/.test(model);
+  const haiku55 = /haiku-5-5/.test(model);
   const canSkip = /sonnet-5/.test(model);
-  const thinks = !haiku && ((req.think ?? def.think) || !canSkip);
-  const thinkingOff = thinks ? null : canSkip ? { type: "between_tools" } : haiku ? { type: "disabled" } : null;
+  const wantsThink = req.think ?? def.think;
+  const thinks = haiku55 ? wantsThink : !haiku && (wantsThink || !canSkip);
+  const thinking = thinks ? (haiku55 ? { type: "adaptive" } : null) : canSkip ? { type: "between_tools" } : haiku ? { type: "disabled" } : null;
+  const effort = thinks && haiku55 ? (req.effort ?? def.effort ?? "low") : null;
+  const outputConfig = { ...(req.outputSchema ? { format: { type: "json_schema", schema: req.outputSchema } } : {}), ...(effort ? { effort } : {}) };
   const answerCap = Math.min(req.maxTokens ?? answerTokens(req.feature, model), answerTokens(req.feature, model));
   const maxTokens = thinks ? answerCap + THINK_HEADROOM : answerCap;
   const t0 = Date.now();
@@ -206,8 +213,8 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
       body: JSON.stringify({
         model,
         max_tokens: maxTokens,
-        ...(thinkingOff ? { thinking: thinkingOff } : {}),
-        ...(req.outputSchema ? { output_config: { format: { type: "json_schema", schema: req.outputSchema } } } : {}),
+        ...(thinking ? { thinking } : {}),
+        ...(Object.keys(outputConfig).length ? { output_config: outputConfig } : {}),
         system,
         messages: req.messages,
       }),

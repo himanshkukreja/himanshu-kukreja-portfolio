@@ -74,7 +74,7 @@ const calls: Row[] = (() => {
     // a few learners use AI much more than the rest; users 9-11 only use the chat
     const u = USERS[Math.floor(r() ** 1.6 * USERS.length)];
     const user = system ? null : feature !== "course-chat" && feature !== "chat-title" && Number(u.id.slice(-2)) >= 9 ? USERS[Math.floor(r() * 8)] : u;
-    const model = feature === "chat-title" || feature === "chat-memory" || feature === "war-room" ? MODELS.haiku55 : feature === "batch" ? MODELS.opus : feature === "eval" ? MODELS.haiku : r() < 0.15 ? MODELS.haiku55 : MODELS.sonnet;
+    const model = feature === "chat-title" || feature === "chat-memory" || feature === "war-room" ? MODELS.haiku55 : feature === "batch" ? MODELS.opus : feature === "eval" ? MODELS.haiku : MODELS.haiku55;
     const roll = r();
     const status = roll < 0.86 ? "ok" : roll < 0.9 ? "off_topic" : roll < 0.94 ? "over_quota" : roll < 0.97 ? "rate_limited" : "error";
     const billed = status === "ok" || status === "off_topic";
@@ -292,7 +292,7 @@ function chatDashboard(u: URL) {
   const cost = msgs.reduce((a, m) => a + m.cost_usd, 0);
   const fast = msgs.filter((m) => /haiku/.test(m.model)).length;
   return {
-    settings: { masterOn: true, enabled: true, perDay: 30, ceiling: 300, model: MODELS.sonnet, features: {} },
+    settings: { masterOn: true, enabled: true, perDay: 500, model: MODELS.haiku55, features: {} },
     days,
     daily,
     totals: { messages: msgs.length, users: new Set(msgs.map((m) => m.user_id)).size, sonnet: msgs.length - fast, fast, cost, memoryCost: 0.03, titleCost: 0.01, offTopic: msgs.filter((m) => m.status === "off_topic").length, refused: 3, errors: 1, avgTools: 1.4, avgRounds: 1.8, p50: 4200, p95: 11800, quizzes: 6, graded: 4, paths: 3, saved: 2, memoryUsers: 7 },

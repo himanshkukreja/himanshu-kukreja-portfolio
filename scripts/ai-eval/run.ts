@@ -19,11 +19,19 @@
  *                                      both answers are unchanged): rounds that only change one model's prompt
  *                                      then pay for that model and the judge only.
  *   EVAL_NOJUDGE=1                     answers only, no judge (cheap prompt iterations you read yourself)
+ *   EVAL_CANDIDATES=<a>,<b>[,<c>]      two or three candidates judged in ONE blind pass (A/B/C shuffled per case). A
+ *                                      candidate "<model id>@old" is that model's answer taken from EVAL_REUSE as it is
+ *                                      (whatever prompt made it), e.g. claude-sonnet-5-5,claude-haiku-5-5@old,claude-haiku-5-5:
+ *                                      Sonnet, the earlier Haiku prompt and the re-tuned one, scored side by side
+ *                                      (the judge's scores drift between passes, so compare within one pass).
+ *   (each finished case also lands in results.partial.json as it is done; add that file to EVAL_REUSE to resume a run)
+ *   EVAL_HAIKU_THINK=0                 Haiku never thinks, whatever the feature says (the client before Haiku 5.5 thought
+ *                                      adaptively: a baseline of the earlier behaviour)
  */
 import crypto from "crypto";
 import fs from "fs";
 import path from "path";
-import { callClaude, type AiMessage } from "@/lib/ai/client";
+import { callClaude, type AiMessage, type AiSystem } from "@/lib/ai/client";
 import { answerTokens, FEATURES } from "@/lib/ai/features";
 import { MODELS } from "@/lib/ai/prices";
 import {
@@ -37,6 +45,8 @@ import {
   mockFullScorecardSystem,
   mockInterviewerSystem,
   promptOptsFor,
+  replyFrom,
+  SMART_SEARCH_SCHEMA,
   smartSearchSystem,
   stripPrivatePlan,
   warRoomPromptInput,
@@ -67,8 +77,13 @@ if (AB && !MODELS[AB]) throw new Error(`EVAL_AB: unknown model ${AB}`);
 /** EVAL_MODELS=<id>,<id>: two model ids head to head (e.g. an old and a new Haiku), each with its production prompt */
 const PAIR = (process.env.EVAL_MODELS || "").split(",").filter(Boolean);
 if (PAIR.length && PAIR.length !== 2) throw new Error("EVAL_MODELS: give exactly two model ids");
-const CANDIDATES = AB ? [`${MODELS[AB]}#shared`, `${MODELS[AB]}#compact`] : PAIR.length ? PAIR : [MODELS.haiku, MODELS.sonnet];
-const modelOf = (cand: string) => cand.split("#")[0];
+const LIST = (process.env.EVAL_CANDIDATES || "").split(",").filter(Boolean);
+if (LIST.length && (LIST.length < 2 || LIST.length > 3)) throw new Error("EVAL_CANDIDATES: give two or three candidates");
+const CANDIDATES = LIST.length ? LIST : AB ? [`${MODELS[AB]}#shared`, `${MODELS[AB]}#compact`] : PAIR.length ? PAIR : [MODELS.haiku, MODELS.sonnet];
+/** "<model>#variant" (a prompt variant) and "<model>@old" (an earlier run's answer) both run on <model> */
+const modelOf = (cand: string) => cand.split(/[#@]/)[0];
+/** the judge's labels for the candidates, in their shuffled order */
+const LETTERS = ["A", "B", "C"] as const;
 const JUDGE = MODELS.opus;
 const REUSE: Row[] = (process.env.EVAL_REUSE || "")
   .split(",")
@@ -132,8 +147,8 @@ const SMART = new Map<string, { candidates: Ranked[]; ids: Map<string, Ranked>; 
 const famOf = (id: string) => id.replace(/--/g, "/");
 const matches = (pattern: string, ids: string[]) => pattern.split("|").some((p) => ids.some((id) => famOf(id).includes(p)));
 
-/** `post`: what the route does to the model's text before the learner sees it */
-type Built = { system: (model: string) => string; messages: AiMessage[]; context: string; post?: (text: string) => string };
+/** `post`: what the route does to the model's text before the learner sees it; `schema`: the structured output the route asks for */
+type Built = { system: (model: string) => AiSystem; messages: AiMessage[]; context: string; post?: (text: string) => string; schema?: Record<string, unknown> };
 
 /** The request exactly as the feature's route builds it, for any model. `context` is what the judge sees of the material. */
 async function build(c: EvalCase): Promise<Built> {
@@ -168,7 +183,7 @@ async function build(c: EvalCase): Promise<Built> {
         term = k.term;
         keyPoints = [k.definition, ...k.refresher];
       }
-      return { system: (m) => explainBackSystem({ term, keyPoints }, optsFor(m, c.feature)), messages: one(c.input), context: `CONCEPT: ${term}\nKEY POINTS:\n${keyPoints.map((k) => `- ${k}`).join("\n")}` };
+      return { system: (m) => explainBackSystem({ term, keyPoints }, optsFor(m, c.feature)), messages: one(c.input), post: (t) => replyFrom(t, "VERDICT:"), context: `CONCEPT: ${term}\nKEY POINTS:\n${keyPoints.map((k) => `- ${k}`).join("\n")}` };
     }
     case "mock-interviewer": {
       const m = await mockCtx(c);
@@ -184,6 +199,7 @@ async function build(c: EvalCase): Promise<Built> {
       return {
         system: (model) => mockCoachSystem({ company: m.company, problem: m.problem, phase: m.phase }, optsFor(model, c.feature)),
         messages: one(c.input),
+        post: (t) => replyFrom(t, "READ:"),
         context: `PROBLEM:\n${m.problem}\n\nPHASE: ${m.phase.title}\nRUBRIC:\n${m.phase.rubric}`,
       };
     }
@@ -198,6 +214,7 @@ async function build(c: EvalCase): Promise<Built> {
       return {
         system: (model) => mockFullScorecardSystem({ company: m.company.name, problem: problemText(m), phases }, optsFor(model, c.feature)),
         messages: one("Grade my interview."),
+        post: (t) => replyFrom(t, "### P1"),
         context: phases.map((p, i) => `### P${i + 1} · ${p.title}\nRUBRIC:\n${p.rubric}\nCANDIDATE:\n${p.candidate || "(nothing written)"}`).join("\n\n"),
       };
     }
@@ -211,7 +228,7 @@ async function build(c: EvalCase): Promise<Built> {
         title = t.title;
         text = `${t.title}\n\n${t.briefMd}\n\nConstraints:\n${t.constraints.map((q) => `- ${q}`).join("\n")}`;
       }
-      return { system: (m) => designReviewSystem({ title, text }, optsFor(m, c.feature)), messages: one(c.input), context: `PROBLEM: ${title}\n${text.slice(0, 3000)}` };
+      return { system: (m) => designReviewSystem({ title, text }, optsFor(m, c.feature)), messages: one(c.input), post: (t) => replyFrom(t, "STRENGTHS"), context: `PROBLEM: ${title}\n${text.slice(0, 3000)}` };
     }
     case "canvas-review": {
       // a problem-bank brief (ctx.problem = file name), cut the way the canvas route cuts it
@@ -222,7 +239,7 @@ async function build(c: EvalCase): Promise<Built> {
         title = title || md.match(/^#\s+(.+)$/m)?.[1]?.trim() || s(x.problem);
         text = briefFromMarkdown(md, "problem");
       }
-      return { system: (m) => canvasReviewSystem({ title, text }, optsFor(m, c.feature)), messages: one(c.input), context: `PROBLEM: ${title}\n${text}` };
+      return { system: (m) => canvasReviewSystem({ title, text }, optsFor(m, c.feature)), messages: one(c.input), post: (t) => replyFrom(t, "VERDICT:"), context: `PROBLEM: ${title}\n${text}` };
     }
     case "lesson-qa": {
       const text = read(s(x.lessonPath));
@@ -242,6 +259,7 @@ async function build(c: EvalCase): Promise<Built> {
       SMART.set(c.id, { candidates: res.candidates, ids, fam, cap, ms });
       return {
         system: (model) => smartSearchSystem(optsFor(model, c.feature)),
+        schema: SMART_SEARCH_SCHEMA,
         messages: one(smartSearchUser(c.input, text)),
         context: `CANDIDATES (the only resources the answer may use):\n${text}`,
         // the page's view of the answer: ids resolved to titles, unknown ids dropped
@@ -298,14 +316,24 @@ const HOUSE: Partial<Record<EvalCase["feature"], string>> = {
   "mock-scorecard": `HOUSE RULES: per phase "### P<n> · title" with LEVEL / MET (with quotes) / MISSED / NEXT, then "### Overall"; grades only what the candidate wrote; a signal counts only if their words show it.`,
 };
 
-type Answer = { model: string; text: string; raw?: string; costUsd: number; ok: boolean; hash: string; reused?: boolean; ms?: number };
+type Answer = { model: string; text: string; raw?: string; costUsd: number; ok: boolean; hash: string; reused?: boolean; ms?: number; usage?: Record<string, unknown> };
 /** relevant: smart search only, one per path step */
 type Judged = { score: number; expectMet: boolean[]; violations: string[]; verdict: string | null; note: string; relevant?: boolean[] };
-type Row = { id: string; feature: string; title: string; input: string; answers: Answer[]; order: string[]; judge: { A: Judged; B: Judged; better: string } | null; judgeCost: number; judgeHash?: string };
+type Verdicts = Partial<Record<(typeof LETTERS)[number], Judged>> & { better: string };
+type Row = { id: string; feature: string; title: string; input: string; answers: Answer[]; order: string[]; judge: Verdicts | null; judgeCost: number; judgeHash?: string };
 
 async function answer(c: EvalCase, b: Built, model: string): Promise<Answer> {
+  // "<model>@old": that model's answer from the earlier run (EVAL_REUSE), whatever prompt made it
+  if (model.includes("@")) {
+    const all = REUSE.filter((r) => r.id === c.id).flatMap((r) => r.answers);
+    // a resumed 3-way run has the "@old" answer under its own name; a plain earlier run has it under the model id
+    const prev = all.find((a) => a.model === model && a.ok) ?? all.find((a) => a.model === modelOf(model) && a.ok);
+    return prev ? { ...prev, model, reused: true } : { model, text: "[missing] no earlier answer for this case", costUsd: 0, ok: false, hash: "", reused: true };
+  }
+  const f = { ...FEATURES[c.feature] };
+  if (process.env.EVAL_HAIKU_THINK === "0" && /haiku/.test(modelOf(model))) f.think = false;
   // the hash names the real model and the prompt it got, so an A/B candidate reuses a plain run's answer
-  const hash = sha(JSON.stringify([modelOf(model), b.system(model), b.messages, answerTokens(c.feature, modelOf(model)), FEATURES[c.feature].think]));
+  const hash = sha(JSON.stringify([modelOf(model), b.system(model), b.messages, answerTokens(c.feature, modelOf(model)), f.think, ...(f.effort ? [f.effort] : []), ...(b.schema ? [b.schema] : [])]));
   const old = REUSE.filter((r) => r.id === c.id)
     .flatMap((r) => r.answers)
     .find((a) => modelOf(a.model) === modelOf(model) && a.hash === hash && a.ok);
@@ -313,18 +341,19 @@ async function answer(c: EvalCase, b: Built, model: string): Promise<Answer> {
   // an A/B candidate keeps its prompt variant (unless callClaude ends up on another model)
   const system = (m: string) => b.system(m === modelOf(model) ? model : m);
   const t0 = Date.now();
-  const r = await callClaude({ feature: "eval", model: modelOf(model), system, messages: b.messages, maxTokens: answerTokens(c.feature, modelOf(model)), think: FEATURES[c.feature].think, meta: { case: c.id, as: c.feature } });
+  const r = await callClaude({ feature: "eval", model: modelOf(model), system, messages: b.messages, maxTokens: answerTokens(c.feature, modelOf(model)), think: f.think, effort: f.effort, outputSchema: b.schema, meta: { case: c.id, as: c.feature } });
   const ms = Date.now() - t0;
   // every route strips a tuned prompt's private plan line before the learner sees the text
   const post = b.post ?? stripPrivatePlan;
-  return r.ok ? { model, text: post(r.text), raw: r.text, costUsd: r.costUsd, ok: true, hash, ms } : { model, text: `[${r.status}] ${r.message}`, costUsd: 0, ok: false, hash, ms };
+  return r.ok ? { model, text: post(r.text), raw: r.text, costUsd: r.costUsd, ok: true, hash, ms, usage: r.usage as Record<string, unknown> } : { model, text: `[${r.status}] ${r.message}`, costUsd: 0, ok: false, hash, ms };
 }
 
 const transcript = (c: EvalCase) =>
   [...(c.history ?? []).map((m) => `${m.role === "user" ? "LEARNER" : "AI"}: ${m.content}`), `LEARNER: ${c.input}`].join("\n\n");
 
-async function judge(c: EvalCase, b: Built, A: string, B: string) {
-  const system = `You are a strict evaluator of answers from an AI tutor in a system design course. Score each answer independently against the case's expectations and the feature's house rules, then say which is better for a learner. Return only JSON.`;
+async function judge(c: EvalCase, b: Built, texts: string[]) {
+  const L = LETTERS.slice(0, texts.length);
+  const system = `You are a strict evaluator of answers from an AI tutor in a system design course. Score each answer independently against the case's expectations and the feature's house rules, then say which is ${L.length > 2 ? "best" : "better"} for a learner. Return only JSON.`;
   const user = `CASE: ${c.title}
 FEATURE: ${c.feature}
 
@@ -338,18 +367,10 @@ ${c.mustNot?.length ? `IT MUST NOT:\n${c.mustNot.map((e) => `- ${e}`).join("\n")
 ${c.answer ? `CORRECT VERDICT/LEVEL/MATCH: ${c.answer}` : ""}
 ${HOUSE[c.feature] ?? ""}
 
-ANSWER A:
-<<<
-${A}
->>>
-
-ANSWER B:
-<<<
-${B}
->>>
+${texts.map((t, i) => `ANSWER ${L[i]}:\n<<<\n${t}\n>>>`).join("\n\n")}
 
 Return JSON exactly like:
-{"A":{"score":1-5,"expectMet":[true/false per expectation],"violations":["any MUST NOT or house rule broken"],"verdict":"the verdict/level/match the answer gave or null","note":"one sentence"${c.feature === "smart-search" ? `,"relevant":[true/false per numbered path step: does that step genuinely help with this query?]` : ""}},"B":{...same...},"better":"A"|"B"|"tie"}
+{"A":{"score":1-5,"expectMet":[true/false per expectation],"violations":["any MUST NOT or house rule broken"],"verdict":"the verdict/level/match the answer gave or null","note":"one sentence"${c.feature === "smart-search" ? `,"relevant":[true/false per numbered path step: does that step genuinely help with this query?]` : ""}},${L.slice(1).map((x) => `"${x}":{...same...}`).join(",")},"better":${L.map((x) => `"${x}"`).join("|")}|"tie"}
 Score 5 = meets every expectation and house rule, specific and correct; 3 = partly; 1 = wrong or broke a rule badly.`;
   const judgeHash = sha(system + user);
   const old = REUSE.find((r) => r.id === c.id && r.judgeHash === judgeHash && r.judge);
@@ -397,6 +418,14 @@ function verdictOk(c: EvalCase, text: string): boolean | null {
   }
 }
 
+function shuffle<T>(a: T[]): T[] {
+  for (let i = a.length - 1; i > 0; i--) {
+    const k = crypto.randomInt(i + 1);
+    [a[i], a[k]] = [a[k], a[i]];
+  }
+  return a;
+}
+
 async function pool<T, R>(items: T[], n: number, fn: (t: T) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);
   let i = 0;
@@ -418,8 +447,8 @@ function reviewHtml(rows: Row[]): string {
     .map(
       (r, i) => `<section><h2>${i + 1}. ${esc(r.title)} <small>${r.feature}</small></h2>
 <details><summary>What the learner sent</summary><pre>${esc(r.input)}</pre></details>
-<div class="pair">${["A", "B"].map((L, k) => `<div><h3>${L}</h3><pre>${esc(r.answers.find((a) => a.model === r.order[k])!.text)}</pre></div>`).join("")}</div>
-<p class="pick">Better for a learner: ${["A", "B", "same"].map((v) => `<label><input type="radio" name="${r.id}" value="${v}"> ${v}</label>`).join(" ")} <input class="note" data-id="${r.id}" placeholder="note (optional)"></p></section>`,
+<div class="pair">${r.order.map((m, k) => `<div><h3>${LETTERS[k]}</h3><pre>${esc(r.answers.find((a) => a.model === m)!.text)}</pre></div>`).join("")}</div>
+<p class="pick">Better for a learner: ${[...LETTERS.slice(0, r.order.length), "same"].map((v) => `<label><input type="radio" name="${r.id}" value="${v}"> ${v}</label>`).join(" ")} <input class="note" data-id="${r.id}" placeholder="note (optional)"></p></section>`,
     )
     .join("\n");
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>AI model blind review</title>
@@ -546,23 +575,30 @@ body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-
 async function main() {
   fs.mkdirSync(OUT, { recursive: true });
   const cases = CASES.filter((c) => !ONLY.length || ONLY.includes(c.id) || ONLY.includes(c.feature));
+  // the search index first, before any paid call: a site that isn't up fails the run here, not after the judging
+  if (cases.some((c) => c.feature === "smart-search")) await engine();
   let spent = 0;
+  // every finished case is written as it lands: a run that dies later keeps them (pass this file in EVAL_REUSE to resume)
+  const done: Row[] = [];
   const rows = await pool(cases, 4, async (c): Promise<Row> => {
     const b = await build(c);
     const answers = await Promise.all(CANDIDATES.map((m) => answer(c, b, m)));
     const prev = REUSE.find((r) => r.id === c.id);
     // keep the earlier A/B order when re-judging, so a reused judgement maps to the same answers
-    const order = prev && CANDIDATES.every((m) => prev.order.includes(m)) ? prev.order : (Math.random() < 0.5 ? [...CANDIDATES] : [...CANDIDATES].reverse());
-    const { j, cost, judgeHash, reused } = process.env.EVAL_NOJUDGE ? { j: null, cost: 0, judgeHash: undefined, reused: false } : await judge(c, b, answers.find((a) => a.model === order[0])!.text, answers.find((a) => a.model === order[1])!.text);
+    const order = prev && prev.order.length === CANDIDATES.length && CANDIDATES.every((m) => prev.order.includes(m)) ? prev.order : shuffle([...CANDIDATES]);
+    const { j, cost, judgeHash, reused } = process.env.EVAL_NOJUDGE ? { j: null, cost: 0, judgeHash: undefined, reused: false } : await judge(c, b, order.map((m) => answers.find((a) => a.model === m)!.text));
     spent += (reused ? 0 : cost) + answers.reduce((a, x) => a + (x.reused ? 0 : x.costUsd), 0);
     process.stderr.write(`${c.id} `);
-    return { id: c.id, feature: c.feature, title: c.title, input: c.input, answers, order, judge: j, judgeCost: cost, judgeHash };
+    const row: Row = { id: c.id, feature: c.feature, title: c.title, input: c.input, answers, order, judge: j, judgeCost: cost, judgeHash };
+    done.push(row);
+    fs.writeFileSync(path.join(OUT, "results.partial.json"), JSON.stringify(done));
+    return row;
   });
   fs.writeFileSync(path.join(OUT, "results.json"), JSON.stringify(rows, null, 2));
   fs.writeFileSync(path.join(OUT, "review.html"), reviewHtml(rows));
 
   // summary per feature and model
-  const byModel = (r: Row, m: string): Judged | null => (r.judge ? (r.order[0] === m ? r.judge.A : r.judge.B) : null);
+  const byModel = (r: Row, m: string): Judged | null => (r.judge ? (r.judge[LETTERS[r.order.indexOf(m)]] ?? null) : null);
   const feats = [...new Set(rows.map((r) => r.feature))];
   console.log("\nfeature            model                       score  expect met  verdict ok  prefers  words  q-marks  cost/call");
   for (const f of feats) {
@@ -572,7 +608,7 @@ async function main() {
       const avg = js.reduce((a, j) => a + j.score, 0) / Math.max(1, js.length);
       const met = js.flatMap((j) => j.expectMet ?? []);
       const keyed = rs.map((r) => verdictOk(CASES.find((c) => c.id === r.id)!, r.answers.find((x) => x.model === m)?.text ?? "")).filter((v): v is boolean => v !== null);
-      const prefers = rs.filter((r) => r.judge && r.judge.better !== "tie" && r.order[r.judge.better === "A" ? 0 : 1] === m).length;
+      const prefers = rs.filter((r) => r.judge && r.order[LETTERS.indexOf(r.judge.better as (typeof LETTERS)[number])] === m).length;
       const texts = rs.map((r) => r.answers.find((x) => x.model === m)?.text ?? "");
       const words = texts.reduce((a, t) => a + t.split(/\s+/).filter(Boolean).length, 0) / Math.max(1, texts.length);
       const qs = texts.reduce((a, t) => a + (t.match(/\?/g)?.length ?? 0), 0) / Math.max(1, texts.length);

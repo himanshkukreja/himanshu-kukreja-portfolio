@@ -7,8 +7,8 @@ export type Price = { input: number; output: number; cacheWrite: number; cacheRe
 
 export const MODELS = {
   haiku: "claude-haiku-4-5-20251001",
-  /** Claude Haiku 5.5: the war room, and the amber fallback where it matched or beat Haiku 4.5 in the A/B
-   *  (scripts/ai-eval, 29 Oct 2026). Roll a feature back by pointing it at MODELS.haiku again. */
+  /** Claude Haiku 5.5: every learner feature's model since 7 Nov 2026 (owner's decision; scores in features.ts),
+   *  amber mode included. Sonnet stays here for evals, admin overrides and a learner's own key choices. */
   haiku55: "claude-haiku-5-5",
   sonnet: "claude-sonnet-5-5",
   opus: "claude-opus-5-5",

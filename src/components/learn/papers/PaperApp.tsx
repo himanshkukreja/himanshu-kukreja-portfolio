@@ -673,7 +673,7 @@ function StartScreen(p: {
           <li>One question at a time, up to 3 sheets an answer. Show your working: estimates earn marks for the steps.</li>
           <li>Marks come only from the marking scheme and only for what is on your sheet. Pass at 50%, distinction at 75%{p.hydrated && !rec.attempts ? `, +${PAPER_XP} XP the first time you pass` : ""}.</li>
           <li>Your sheets are saved as pages in your notebook (&ldquo;Written papers&rdquo;).</li>
-          <li>Grading uses your AI credits: about 1 an answer; drawn or borderline answers are double-checked by a stronger model (Sonnet 5.5), which costs more (up to ~20).{p.creditsLeft !== null ? ` You have ${p.creditsLeft} left today.` : ""}</li>
+          <li>Grading uses your AI credits: about 1 an answer; drawn or borderline answers get a second, more careful check, which uses a little more (about 2 to 4).{p.creditsLeft !== null ? ` You have ${p.creditsLeft} left today.` : ""}</li>
         </ul>
       </section>
 

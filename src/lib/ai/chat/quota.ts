@@ -1,17 +1,18 @@
 import "server-only";
 /**
  * The course chat's own quota (the owner's rule, 29 Oct 2026): chat messages don't spend the shared daily AI
- * credits or the other features' per-day limits. Each learner gets `perDay` messages a day on the main model
- * (Sonnet 5.5, admin-editable, default 30), then "fast mode": Claude Haiku 5.5 with its tuned prompt, up to
- * `ceiling` messages a day in all (an anti-abuse limit, admin-editable, default 300). No hard stop before that.
+ * credits or the other features' per-day limits. Each learner gets `perDay` messages a day (admin-editable, default
+ * 500). Since 7 Nov 2026 (owner's decision) every message is answered by Claude Haiku 5.5 with its tuned prompt: the
+ * earlier split (30 Sonnet 5.5 messages, then "fast mode" up to a 300-message ceiling) is gone, so the chat has this
+ * one limit, raised from the old ceiling.
  *
  * Still under the same budget and switches as every AI feature: the master switch and the chat's own switch
  * (the kill switch in /admin/ai and /admin/chat), the monthly budget (off), the governor's red mode (today's
- * share is used: the page keeps its instant results) and amber mode (fast mode for everyone), the block list,
+ * share is used: the page keeps its instant results) and amber mode (the amber model, Haiku 5.5 too), the block list,
  * 10 calls a minute and the off-topic pause. Every message is one ai_calls row (feature "course-chat"), so
  * spend, latency and refusals show on /admin/ai like any feature; the memory updates are "chat-memory" rows and
  * the conversation titles "chat-title" rows (chat spend, never counted as messages or in the per-minute limit).
- * A learner's own key (BYOK): their cost, Sonnet, no quota.
+ * A learner's own key (BYOK): their cost, the same model, no quota.
  */
 import { supabase } from "@/lib/supabase";
 import { FEATURES } from "@/lib/ai/features";
@@ -26,8 +27,8 @@ const OFF_TOPIC_PER_DAY = 5;
 
 type Row = { feature: string; model: string; status: string; cost_usd: number | null; byok: boolean | null };
 
-/** Today's chat rows for one learner: messages on the main model, messages in all, and what chat spent. */
-export async function chatToday(userId: string): Promise<{ main: number; total: number; spend: number }> {
+/** Today's chat rows for one learner: the messages counted against the quota, and what chat spent. */
+export async function chatToday(userId: string): Promise<{ total: number; spend: number }> {
   const { data, error } = await supabase
     .from("ai_calls")
     .select("feature, model, status, cost_usd, byok")
@@ -35,8 +36,7 @@ export async function chatToday(userId: string): Promise<{ main: number; total: 
     .in("feature", [...CHAT_FEATURES])
     .gte("created_at", startOfToday().toISOString())
     .limit(3000);
-  if (error || !data) return { main: 0, total: 0, spend: 0 };
-  let main = 0;
+  if (error || !data) return { total: 0, spend: 0 };
   let total = 0;
   let spend = 0;
   for (const r of data as Row[]) {
@@ -45,9 +45,8 @@ export async function chatToday(userId: string): Promise<{ main: number; total: 
     spend += Number(r.cost_usd) || 0;
     if (r.feature !== "course-chat") continue;
     total++;
-    if (!/haiku/.test(r.model)) main++;
   }
-  return { main, total, spend };
+  return { total, spend };
 }
 
 /** What chat spent today for this learner (the shared credits leave it out). Fails soft to 0. */
@@ -56,18 +55,21 @@ export async function chatSpendToday(userId: string): Promise<number> {
 }
 
 export type Admit =
-  | { ok: true; model: string; fast: boolean; quota: ChatQuota; mode: Mode; byok: boolean; apiKey: string }
+  | { ok: true; model: string; quota: ChatQuota; mode: Mode; byok: boolean; apiKey: string }
   | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "off_topic"; message: string; quota: ChatQuota | null; mode: Mode };
 
 export async function chatLimits() {
   const s = await getAiSettings();
   const cfg = featureConfig(s, "course-chat");
-  return { s, cfg, perDay: cfg.perDay, ceiling: cfg.ceiling || FEATURES["course-chat"].ceiling || 300 };
+  return { s, cfg, perDay: cfg.perDay || FEATURES["course-chat"].perDay };
 }
+
+/** The quota line for a learner who has sent `sent` counted messages today (their own key: no quota). */
+export const quotaFor = (perDay: number, sent: number, ownKey: boolean): ChatQuota => ({ left: ownKey ? perDay : Math.max(0, perDay - sent), perDay, ownKey });
 
 /** May this learner send a chat message now, and on which model? */
 export async function admitChat(a: { userId: string; admin: boolean; userKey: string | null }): Promise<Admit> {
-  const { s, cfg, perDay, ceiling } = await chatLimits();
+  const { s, cfg, perDay } = await chatLimits();
   const budget = await getBudget(s);
   const byok = !!a.userKey;
   const apiKey = a.userKey || process.env.ANTHROPIC_API_KEY || "";
@@ -86,21 +88,19 @@ export async function admitChat(a: { userId: string; admin: boolean; userKey: st
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).neq("feature", "chat-title").gte("created_at", new Date(Date.now() - 60_000).toISOString()),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).eq("status", "off_topic").gte("created_at", today),
   ]);
-  const fastNow = !byok && (t.main >= perDay || budget.mode === "amber");
-  const quota: ChatQuota = { mainLeft: byok ? perDay : Math.max(0, perDay - t.main), mainPerDay: perDay, totalLeft: byok ? ceiling : Math.max(0, ceiling - t.total), fast: fastNow, ownKey: byok };
+  const quota = quotaFor(perDay, t.total, byok);
   if (blocked.data) return refuse("blocked", "AI features are turned off for this account.", quota);
   if ((lastMinute.count ?? 0) >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute.", quota);
   if ((offTopic.count ?? 0) >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.", quota);
-  if (!byok && t.total >= ceiling) return refuse("over_quota", `You've sent today's ${ceiling} chat messages. The chat is back after midnight UTC; the search results still work.`, quota);
-  const model = byok ? cfg.model : fastNow ? FEATURES["course-chat"].amberModel || MODELS.haiku55 : cfg.model;
-  return { ok: true, model, fast: /haiku/.test(model), quota, mode: budget.mode, byok, apiKey };
+  if (!byok && t.total >= perDay) return refuse("over_quota", `You've sent today's ${perDay} chat messages. The chat is back after midnight UTC; the search results still work.`, quota);
+  // amber mode: the amber model (Haiku 5.5, the chat's model too); an admin's model override applies otherwise
+  const model = !byok && budget.mode === "amber" ? FEATURES["course-chat"].amberModel || MODELS.haiku55 : cfg.model;
+  return { ok: true, model, quota, mode: budget.mode, byok, apiKey };
 }
 
-/** The quota after one more message on `model`. */
-export function afterMessage(q: ChatQuota, model: string): ChatQuota {
-  if (q.ownKey) return q;
-  const mainLeft = /haiku/.test(model) ? q.mainLeft : Math.max(0, q.mainLeft - 1);
-  return { ...q, mainLeft, totalLeft: Math.max(0, q.totalLeft - 1), fast: mainLeft <= 0 || q.fast };
+/** The quota after one more message. */
+export function afterMessage(q: ChatQuota): ChatQuota {
+  return q.ownKey ? q : { ...q, left: Math.max(0, q.left - 1) };
 }
 
 /** One metered row in ai_calls (the same columns callClaude writes). */

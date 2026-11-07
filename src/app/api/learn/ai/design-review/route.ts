@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getStore } from "@/lib/design-week/store";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { designReviewSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
+import { designReviewSystem, promptOptsFor, replyFrom } from "@/lib/ai/prompts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -31,7 +31,7 @@ export async function POST(request: Request) {
     meta: { challenge: c.slug },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  const text = stripPrivatePlan(r.text);
+  const text = replyFrom(r.text, "STRENGTHS");
   await saveTranscript(r.callId, me.id, "design-review", md, text);
   return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

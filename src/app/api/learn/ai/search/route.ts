@@ -2,7 +2,7 @@ import { after, NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { promptOptsFor, smartSearchSystem, stripPrivatePlan } from "@/lib/ai/prompts";
+import { promptOptsFor, SMART_SEARCH_SCHEMA, smartSearchSystem, stripPrivatePlan } from "@/lib/ai/prompts";
 import { candidateLines, parseSmartAnswer, PER_FAMILY, smartSearchUser } from "@/lib/search/smart/ai";
 import { SMART_SEARCH_PUBLIC } from "@/lib/search/smart/flag";
 import { devPreview, getEngine, liveCheck, originOf } from "@/lib/search/smart/server";
@@ -81,12 +81,14 @@ export async function POST(request: Request) {
         // the model actually used (after admin settings and amber mode) picks the prompt: Haiku 5.5 gets its tuned one
         system: (model) => smartSearchSystem(promptOptsFor(model, "smart-search")),
         messages: [{ role: "user", content: user }],
+        // structured output: always valid JSON; its first field is Haiku 5.5's private check, which the parser ignores
+        outputSchema: SMART_SEARCH_SCHEMA,
         timeoutMs: TIMEOUT_MS,
         meta: { candidates: res.candidates.length, natural: res.natural },
       });
       if (!r.ok) return { error: r.message, status: r.status === "error" ? 502 : 429, creditsLeft: r.creditsLeft };
       // a goal that spans topics (an interview, a beginner's start) gets at most 2 steps per lesson family
-      // Haiku 5.5's tuned prompt writes a private plan line before the JSON
+      // an older prompt's private plan line before the JSON (other models, admin overrides) is stripped
       const answer = stripPrivatePlan(r.text);
       const p = parseSmartAnswer(answer, ids, fam, res.intents.includes("interview") || res.intents.includes("beginner") ? 2 : PER_FAMILY);
       await saveTranscript(r.callId, me.id || null, "smart-search", q, answer);

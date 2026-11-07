@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { canvasReviewSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
+import { canvasReviewSystem, promptOptsFor, replyFrom } from "@/lib/ai/prompts";
 import { canvasPrompts, FREE_RE, getDesign, isPromptKey, promptBrief, saveReview } from "@/lib/learn/canvas";
 import { sketchSummary } from "@/lib/learn/mock/sketch";
 
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
   // a tuned prompt's private plan line never reaches the learner (or the saved review)
-  const text = stripPrivatePlan(r.text);
+  const text = replyFrom(r.text, "VERDICT:");
   await saveTranscript(r.callId, me.id, "canvas-review", input, text);
   await saveReview(d.id, text, d.reviews + 1).catch(() => undefined);
   return NextResponse.json({ text, creditsLeft: r.creditsLeft });

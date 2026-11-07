@@ -12,6 +12,8 @@
  * read-only Supabase stand-in (tsconfig paths in the session scratchpad), so nothing touches the production DB:
  *   NODE_PATH=<stub dir with server-only> npx tsx --tsconfig <stub tsconfig> --env-file=.env --env-file=.env.local scripts/ai-eval/chat.ts <out dir> [case-id ...]
  *   EVAL_MODELS=<id>,<id>  the models (default Sonnet 5.5 and Haiku 5.5) · EVAL_NOJUDGE=1 answers only
+ *   EVAL_REUSE=<results.json> + EVAL_REUSE_MODELS=<id>[,<id>]  take those models' conversations from an earlier run
+ *                          instead of running them again (a prompt change for one model then pays for that model and the judge)
  */
 import crypto from "crypto";
 import fs from "fs";
@@ -43,6 +45,8 @@ const ORIGIN = (process.env.EVAL_SEARCH_ORIGIN || "http://localhost:3318").repla
 const MODELS_RUN = (process.env.EVAL_MODELS || `${MODELS.sonnet},${MODELS.haiku55}`).split(",").filter(Boolean);
 const JUDGE = MODELS.opus;
 const KEY = process.env.ANTHROPIC_API_KEY || "";
+const REUSE: Row[] = process.env.EVAL_REUSE ? (JSON.parse(fs.readFileSync(process.env.EVAL_REUSE, "utf8")) as Row[]) : [];
+const REUSE_MODELS = (process.env.EVAL_REUSE_MODELS || "").split(",").filter(Boolean);
 
 async function engine(): Promise<SmartEngine> {
   const get = async <T,>(p: string) => {
@@ -198,7 +202,11 @@ async function main() {
   const rows: Row[] = [];
   for (const c of cases) {
     const runs: ModelRun[] = [];
-    for (const m of MODELS_RUN) runs.push(await runCase(c, m, e, map));
+    for (const m of MODELS_RUN) {
+      const old = REUSE_MODELS.includes(m) ? REUSE.find((r) => r.id === c.id)?.runs.find((x) => x.model === m) : undefined;
+      // a reused run keeps its cost per message for the summary (the "total spend" line then counts it again)
+      runs.push(old ?? (await runCase(c, m, e, map)));
+    }
     const order = crypto.randomInt(2) ? [runs[0].model, runs[1]?.model ?? runs[0].model] : [runs[1]?.model ?? runs[0].model, runs[0].model];
     const byM = (m: string) => runs.find((r) => r.model === m)!;
     const { j, cost } = process.env.EVAL_NOJUDGE || runs.length < 2 ? { j: null, cost: 0 } : await judge(c, byM(order[0]), byM(order[1]));

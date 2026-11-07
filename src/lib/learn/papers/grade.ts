@@ -9,7 +9,8 @@
  *   - no evidence, no marks: a point awarded with an empty or "not found" evidence is set to 0;
  *   - the total is the sum of the points, computed here (the model's own total is never used).
  *
- * Escalation (Haiku 5.5 first, then Sonnet 5.5 re-grades and its result is kept) when any of:
+ * Escalation (Haiku 5.5 first, then a second, stricter Haiku 5.5 pass with adaptive thinking re-grades and its result
+ * is kept; before 7 Nov 2026 Sonnet 5.5 re-graded) when any of:
  *   - a point's confidence is below ESCALATE_CONFIDENCE (0.6), or the grader couldn't read the page;
  *   - the question is a `diagram` or `design` question (drawings are where a small model misreads most);
  *   - the total sits on the question's pass line or one mark below it (passMark = half the marks, rounded up):
@@ -30,6 +31,7 @@ export function bandOf(score: number, max: number): Band {
   return r >= PAPER_DISTINCTION ? "distinction" : r >= PAPER_PASS ? "pass" : "not-yet";
 }
 
+/** "sonnet": a grade kept from before 7 Nov 2026, when Sonnet 5.5 did the re-checks */
 export type GradeModel = "haiku" | "sonnet";
 export type EscalationReason = "confidence" | "kind" | "boundary" | "unreadable";
 
@@ -47,7 +49,7 @@ export type QuestionGrade = {
   feedback: string;
   /** the model whose result was kept */
   model: GradeModel;
-  /** Haiku's total, when Sonnet re-graded (null: no re-grade) */
+  /** the first pass's total, when the re-check re-graded (null: no re-grade) */
   firstScore: number | null;
   escalated: EscalationReason[];
   /** escalation was wanted but the re-grade couldn't run (budget, limit, error): Haiku's result stands */
@@ -125,7 +127,7 @@ export function checkGrade(raw: unknown, q: Pick<PaperQuestion, "scheme" | "mark
   };
 }
 
-/** Why a first (Haiku) grade should be re-graded by Sonnet; empty: keep it. */
+/** Why a first grade should be re-graded by the stricter second pass; empty: keep it. */
 export function escalationReasons(g: CheckedGrade, kind: PaperKind): EscalationReason[] {
   const out: EscalationReason[] = [];
   if (g.unreadable) out.push("unreadable");

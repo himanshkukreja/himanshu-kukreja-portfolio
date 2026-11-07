@@ -57,9 +57,7 @@ export default function AiSettings({ signedIn, onSignIn }: { signedIn: boolean; 
             {status.chat && status.features["course-chat"] && (
               <p className="m-0 font-mono text-xs text-fg-3">
                 Course chat:{" "}
-                {status.chat.fast
-                  ? `fast mode for the rest of today (${status.chat.totalLeft} messages left)`
-                  : `${status.chat.mainLeft} of ${status.chat.mainPerDay} messages left today`}
+                {`${status.chat.left} of ${status.chat.perDay} messages left today`}
                 {" "}· its own daily messages, it doesn&apos;t use credits
               </p>
             )}

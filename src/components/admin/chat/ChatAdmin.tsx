@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * /admin/chat: the course chat. Its switch and its two limits (Sonnet messages per learner a day, then the
- * fast-mode ceiling), stored in ai_settings.features["course-chat"] like every feature's; then messages,
- * learners, the Sonnet / fast share, cost, tools and latency per day, declines and failures, what people ask
+ * /admin/chat: the course chat. Its switch and its one limit (messages per learner a day; Haiku 5.5 answers every
+ * message since 7 Nov 2026), stored in ai_settings.features["course-chat"] like every feature's; then messages,
+ * learners, the Sonnet / Haiku share (Sonnet only in the days before the switch), cost, tools and latency per day, declines and failures, what people ask
  * about (the course's own titles), quizzes and saved paths, the conversations (filtered, sorted and paged on the
  * server) with their text (kept 90 days), and the chat's call log (messages, titles, memory updates). The window
  * (?days=) and every filter live in the URL; conversations under the "c" prefix, the call log under "m".
@@ -18,7 +18,7 @@ type Day = { day: string; messages: number; users: number; sonnet: number; fast:
 type Conv = { chat: string; user: string | null; email: string | null; messages: number; first: string; last: string; fast: number; own: number; mode: "main" | "fast" | "own"; cost: number; tokens: number; offTopic: number; down: number; wrong: number };
 type ConvResp = { rows: Conv[]; total: number; page: number; pageSize: number; users: { id: string; email: string | null; calls: number }[]; feedback: boolean; partial: boolean };
 type Resp = {
-  settings: { masterOn: boolean; enabled: boolean; perDay: number; ceiling: number; model: string; features: Record<string, Record<string, unknown>> };
+  settings: { masterOn: boolean; enabled: boolean; perDay: number; model: string; features: Record<string, Record<string, unknown>> };
   days: number;
   daily: Day[];
   totals: { messages: number; users: number; sonnet: number; fast: number; cost: number; memoryCost: number; titleCost?: number; offTopic: number; refused: number; errors: number; avgTools: number; avgRounds: number; p50: number | null; p95: number | null; quizzes: number; graded: number; paths: number; saved: number; memoryUsers: number | null };
@@ -36,7 +36,6 @@ const INPUT = "min-h-10 w-28 border border-line-strong bg-bg px-3 font-mono text
 
 function Controls({ s, onSaved }: { s: Resp["settings"]; onSaved: () => void }) {
   const [perDay, setPerDay] = useState(String(s.perDay));
-  const [ceiling, setCeiling] = useState(String(s.ceiling));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const save = async (patch: Record<string, unknown>) => {
@@ -65,22 +64,17 @@ function Controls({ s, onSaved }: { s: Resp["settings"]; onSaved: () => void }) 
     >
       <div className="flex flex-wrap items-end gap-5">
         <label className="flex flex-col gap-1">
-          <span className={LABEL}>sonnet messages / learner / day</span>
-          <input type="number" min={0} max={1000} value={perDay} onChange={(e) => setPerDay(e.target.value)} className={INPUT} />
-          <span className="text-[12px] text-fg-4">then fast mode (Haiku 5.5)</span>
+          <span className={LABEL}>messages / learner / day</span>
+          <input type="number" min={0} max={5000} value={perDay} onChange={(e) => setPerDay(e.target.value)} className={INPUT} />
+          <span className="text-[12px] text-fg-4">Haiku 5.5 answers every message</span>
         </label>
-        <label className="flex flex-col gap-1">
-          <span className={LABEL}>daily ceiling (all messages)</span>
-          <input type="number" min={0} max={5000} value={ceiling} onChange={(e) => setCeiling(e.target.value)} className={INPUT} />
-          <span className="text-[12px] text-fg-4">anti-abuse stop for the day</span>
-        </label>
-        <button type="button" disabled={busy} onClick={() => save({ perDay: Number(perDay), ceiling: Number(ceiling) })} className="min-h-10 border border-line-strong px-4 font-mono text-sm text-fg hover:border-fg-3">
+        <button type="button" disabled={busy} onClick={() => save({ perDay: Number(perDay) })} className="min-h-10 border border-line-strong px-4 font-mono text-sm text-fg hover:border-fg-3">
           Save limits
         </button>
         {msg && <span className="font-mono text-xs text-fg-3">{msg}</span>}
       </div>
       <p className="m-0 mt-3 text-[12.5px] text-fg-4">
-        The chat has its own quota: its messages don&apos;t use the shared AI credits. The monthly budget still applies: amber mode puts everyone in fast mode, red mode rests the chat (the search page keeps its instant results). A learner&apos;s own key: Sonnet, no limits. Changes apply within 20 seconds.
+        The chat has its own quota: its messages don&apos;t use the shared AI credits. The monthly budget still applies: red mode rests the chat (the search page keeps its instant results). A learner&apos;s own key: no limits. Changes apply within 20 seconds.
       </p>
     </Card>
   );
@@ -174,7 +168,7 @@ function Conversations({ days, onOpen }: { days: number; onOpen: (c: Conv) => vo
           columns={[
             { key: "u", header: "Learner", render: (r) => r.email || (r.user ? r.user.slice(0, 8) : "dev preview") },
             { key: "n", header: "Messages", align: "right", render: (r) => fmtNum(r.messages) },
-            { key: "mode", header: "Mode", hideOnPhone: true, render: (r) => <span className="font-mono text-xs">{r.mode === "own" ? "own key" : r.mode === "fast" ? `fast ${r.fast}/${r.messages}` : "main"}</span> },
+            { key: "mode", header: "Mode", hideOnPhone: true, render: (r) => <span className="font-mono text-xs">{r.mode === "own" ? "own key" : r.mode === "fast" ? `haiku ${r.fast}/${r.messages}` : "sonnet"}</span> },
             {
               key: "o",
               header: "Outcome",
@@ -238,7 +232,7 @@ export default function ChatAdmin() {
       <ExternalSwitch hidden={data?.adminHidden ? `admins hidden · ${fmtNum(data.adminHidden.messages)} messages · ${usd(data.adminHidden.cost, 3)}` : external ? "admins hidden" : null} />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kpi loading={loading && !data} label={`messages · ${days} days`} value={t ? fmtNum(t.messages) : "–"} hint={t ? `${fmtNum(t.users)} learners` : ""} />
-        <Kpi loading={loading && !data} label="sonnet / fast mode" value={t ? `${100 - share}% / ${share}%` : "–"} hint={t ? `${fmtNum(t.sonnet)} Sonnet · ${fmtNum(t.fast)} Haiku 5.5` : ""} />
+        <Kpi loading={loading && !data} label="sonnet / haiku 5.5" value={t ? `${100 - share}% / ${share}%` : "–"} hint={t ? `${fmtNum(t.sonnet)} Sonnet · ${fmtNum(t.fast)} Haiku 5.5` : ""} />
         <Kpi loading={loading && !data} label="cost" value={t ? usd(t.cost + t.memoryCost + (t.titleCost ?? 0), 2) : "–"} hint={t && t.messages ? `${usd(t.cost / t.messages, 4)} a message · memory ${usd(t.memoryCost, 3)} · titles ${usd(t.titleCost ?? 0, 3)}` : ""} />
         <Kpi loading={loading && !data} label="latency p50 / p95" value={t && t.p50 ? `${(t.p50 / 1000).toFixed(1)} / ${((t.p95 ?? 0) / 1000).toFixed(1)} s` : "–"} hint={t ? `${t.avgTools.toFixed(1)} tools · ${t.avgRounds.toFixed(1)} rounds a message` : ""} />
         <Kpi loading={loading && !data} label="off-topic declined" value={t ? fmtNum(t.offTopic) : "–"} />
@@ -249,13 +243,13 @@ export default function ChatAdmin() {
 
       {data && <Controls key={JSON.stringify(data.settings)} s={data.settings} onSaved={refresh} />}
 
-      <Card label="messages per day" title="Sonnet and fast mode">
+      <Card label="messages per day" title="By model (Sonnet until 7 Nov 2026)">
         <TrendChart
           loading={loading && !data}
           data={(data?.daily ?? []).map((d) => ({ t: d.day, sonnet: d.sonnet, fast: d.fast, users: d.users }))}
           series={[
             { key: "sonnet", label: "Sonnet" },
-            { key: "fast", label: "fast mode" },
+            { key: "fast", label: "Haiku 5.5" },
             { key: "users", label: "learners", dashed: true },
           ]}
           empty="No chat messages yet"

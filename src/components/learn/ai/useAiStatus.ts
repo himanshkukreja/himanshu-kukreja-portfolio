@@ -19,7 +19,7 @@ export type AiStatus = {
   creditsLeft: number | null;
   creditsPerDay: number;
   /** the course chat's own quota: messages, never credits (signed in only) */
-  chat?: { mainLeft: number; mainPerDay: number; totalLeft: number; fast: boolean; ownKey: boolean } | null;
+  chat?: { left: number; perDay: number; ownKey: boolean } | null;
   ownKey: boolean;
 };
 

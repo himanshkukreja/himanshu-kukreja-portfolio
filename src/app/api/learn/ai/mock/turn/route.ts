@@ -37,8 +37,8 @@ export async function POST(request: Request) {
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     // the model is decided inside callClaude (admin setting, amber mode): it picks the prompt tuned for that model
-    // the tuned (compact) prompt for every model (TUNED_FOR_EVERY_MODEL): in the blind eval it lifted Sonnet
-    // from ~2 to 4.5 (one question a turn, only stated facts, no teaching); its private <plan> line is stripped below
+    // Haiku 5.5 (the model since 7 Nov 2026) gets its own tuned prompt (TUNED_FOR_HAIKU55), other models the compact one
+    // (TUNED_FOR_EVERY_MODEL: in the blind eval it lifted Sonnet from ~2 to 4.5); the private <plan> line is stripped below
     system: (model) => mockInterviewerSystem({ company: mock.company.name, interviewer: `${mock.interviewer.name}, ${mock.interviewer.title}`, problem: problemText(mock), phase: promptPhase(phase) }, promptOptsFor(model, "mock-interviewer")),
     messages: [...history, { role: "user", content: answer }],
     meta: { mock: mock.slug, phase: phase.id, turn: history.filter((m) => m.role === "user").length + 1 },

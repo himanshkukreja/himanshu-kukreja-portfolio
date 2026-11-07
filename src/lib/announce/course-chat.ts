@@ -7,7 +7,7 @@
  *
  * Links are plain (no UTM): the campaign engine adds utm_* and click tracking per send.
  * Screenshots: public/email/course-chat/. Captured from the real /chat UI on a scratch build of the
- * site with real model answers (Sonnet 5.5 through /api/learn/chat) for a demo learner (its progress, due
+ * site with real model answers (Haiku 5.5 since 7 Nov 2026, through /api/learn/chat) for a demo learner (its progress, due
  * reviews and memory are fixtures), dark theme, 2x, cropped to the conversation.
  *
  * Facts checked on 29 Oct 2026 (src/lib/ai/chat/*): it searches lessons, sections, lectures and their
@@ -21,8 +21,8 @@ import { firstName, unsubscribeUrl } from "./learn-revamp";
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
 import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
-/** full answers a day before fast mode: check /admin/chat before sending */
-export const CHAT_PER_DAY = 30;
+/** messages a day (one limit since 7 Nov 2026, every message on Haiku 5.5): check /admin/chat before sending */
+export const CHAT_PER_DAY = 500;
 
 export const COURSE_CHAT_KEY = "announce:course-chat-2026-10";
 export const COURSE_CHAT_SUBJECT = "Ask the course anything: it answers with sources, quizzes you and plans your prep";
@@ -183,7 +183,7 @@ const button = (href: string, label: string) =>
 const INTRO =
   "The course has a chat now. It isn't a general chatbot: it has read every lesson, lecture, side quest and war story here, it knows where you are in the course, and it can do things, not just talk. Here's what it does, each with a real answer it gave.";
 
-const ALLOWANCE = `Free for every signed-in learner, for a limited time. You get ${CHAT_PER_DAY} full answers a day; after that it keeps going in fast mode. Chat doesn't use your other AI credits.`;
+const ALLOWANCE = `Free for every signed-in learner, for a limited time. You get up to ${CHAT_PER_DAY} messages a day. Chat doesn't use your other AI credits.`;
 
 /** the "things to try" list: each line opens the chat and asks */
 const tryHtml = () =>

@@ -7,7 +7,7 @@
  */
 import { answerTokens, FEATURES } from "@/lib/ai/features";
 import { MODELS } from "@/lib/ai/prices";
-import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor } from "@/lib/ai/prompts";
+import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor, replyFrom, type PromptSystem } from "@/lib/ai/prompts";
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
 import { ChatState, closingLine, fallbackAnswer, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
@@ -130,6 +130,11 @@ export function buildMessages(req: ChatRequest, st: ChatState, context: string):
 }
 
 export const thinkingFor = (model: string): Record<string, unknown> | null => (/haiku/.test(model) ? { type: "disabled" } : /sonnet-5/.test(model) ? { type: "between_tools" } : null);
+
+/** A prompt as the API's system blocks: one string is cached whole; blocks keep their own cache marks (the fixed rules,
+ *  and the mock's material, which repeats on every turn of a phase). */
+const apiSystem = (p: PromptSystem): { type: "text"; text: string; cache_control?: { type: "ephemeral" } }[] =>
+  typeof p === "string" ? [{ type: "text", text: p, cache_control: { type: "ephemeral" } }] : p.map((b) => ({ type: "text", text: b.text, ...(b.cache ? { cache_control: { type: "ephemeral" } } : {}) }));
 
 export type CoreResult = {
   text: string;
@@ -280,8 +285,8 @@ export async function runMockCore(o: Parameters<typeof runChatCore>[0]): Promise
   const mock = await resolveMock(st, ms.key);
   st.flags.mock = ms.key;
   if (!mock) return { text: "That interview isn't available any more. Ask me to start another one.", offTopic: false, loop: emptyLoop(""), state: st, ask: latest.text, mode: "interviewer" };
-  const run = (system: string, messages: ApiMessage[], maxTokens: number, thinking: Record<string, unknown> | null) =>
-    runLoop({ apiKey: o.apiKey, model: o.model, system: [{ type: "text", text: system, cache_control: { type: "ephemeral" } }], tools: [], messages, maxTokens, thinking, maxToolRounds: 0, deadline: o.deadline, signal: o.signal, runTool: async () => "", onRound: (n) => o.emit({ type: "round", n }), onText: (d) => o.emit({ type: "delta", text: d }) });
+  const run = (system: PromptSystem, messages: ApiMessage[], maxTokens: number, thinking: Record<string, unknown> | null, effort?: "low" | "medium" | "high") =>
+    runLoop({ apiKey: o.apiKey, model: o.model, system: apiSystem(system), tools: [], messages, maxTokens, thinking, effort, maxToolRounds: 0, deadline: o.deadline, signal: o.signal, runTool: async () => "", onRound: (n) => o.emit({ type: "round", n }), onText: (d) => o.emit({ type: "delta", text: d }) });
 
   if (ms.action === "end") {
     const phases = mock.phases.map((p) => {
@@ -292,11 +297,14 @@ export async function runMockCore(o: Parameters<typeof runChatCore>[0]): Promise
       return { text: "There isn't enough to score yet: answer at least one phase in a few sentences, then end the interview again.", offTopic: false, loop: emptyLoop(""), state: st, ask: latest.text, mode: "scorecard" };
     o.emit({ type: "status", tool: "scorecard", label: TOOL_LABEL.scorecard });
     const system = mockFullScorecardSystem({ company: mock.company, problem: mock.problem, phases }, promptOptsFor(o.model, "mock-scorecard"));
-    // the scorecard thinks on Sonnet (as /api/learn/ai/mock/scorecard does): room for it on top of the answer
-    const haiku = /haiku/.test(o.model);
-    const loop = await run(system, [{ role: "user", content: "Grade my interview." }], answerTokens("mock-scorecard", o.model) + (haiku ? 0 : 3000), haiku ? { type: "disabled" } : null);
+    // the scorecard thinks (as /api/learn/ai/mock/scorecard does): Haiku 5.5 adaptively at the feature's effort, Sonnet and
+    // Opus by default, Haiku 4.5 never; thinking gets room on top of the answer
+    const h55 = /haiku-5-5/.test(o.model);
+    const thinks = h55 || !/haiku/.test(o.model);
+    const loop = await run(system, [{ role: "user", content: "Grade my interview." }], answerTokens("mock-scorecard", o.model) + (thinks ? 3000 : 0), h55 ? { type: "adaptive" } : thinks ? null : { type: "disabled" }, h55 ? FEATURES["mock-scorecard"].effort : undefined);
     const fresh: Record<string, ChatSource> = {};
-    const text = cleanAnswer(loop.text, () => false);
+    // the reply from its first phase on (a rare un-thought call may write its working first)
+    const text = cleanAnswer(replyFrom(loop.text, "### P1"), () => false);
     const path = text ? weakAreasPath(st, mock, text, fresh) : null;
     st.sourcesSent(fresh);
     if (path) {

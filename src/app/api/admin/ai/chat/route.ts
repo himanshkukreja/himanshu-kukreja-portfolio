@@ -13,9 +13,9 @@ const REFUSED = new Set(["over_quota", "rate_limited", "blocked", "disabled", "t
 
 /**
  * GET /api/admin/ai/chat?days=14 → the course chat at a glance, from ai_calls (feature "course-chat", one row per
- * message, plus "chat-memory" and "chat-title"): messages and learners per day, Sonnet vs fast-mode share, cost, tools per message,
+ * message, plus "chat-memory" and "chat-title"): messages and learners per day, Sonnet vs Haiku share, cost, tools per message,
  * latency, declined / off-topic / failed counts, top topics (the course's own titles, never learner text), saved
- * paths and quizzes. Plus the chat's settings (switch, Sonnet messages a day, ceiling).
+ * paths and quizzes. Plus the chat's settings (switch, messages a day).
  * GET ?view=conversations&days=14&sort=&user=&mode=&outcome=&page= → one page of the window's conversations, filtered
  * and sorted on the server (lib/admin/chatConversations.ts).
  * GET ?chat=<id> → that conversation's messages with their transcripts (kept 30 days, admins only).
@@ -205,7 +205,7 @@ export async function GET(request: Request) {
   const cfg = featureConfig(s, "course-chat");
   return NextResponse.json(
     {
-      settings: { masterOn: s.enabled, enabled: cfg.enabled, perDay: cfg.perDay, ceiling: cfg.ceiling || FEATURES["course-chat"].ceiling || 300, model: cfg.model, features: s.features },
+      settings: { masterOn: s.enabled, enabled: cfg.enabled, perDay: cfg.perDay || FEATURES["course-chat"].perDay, model: cfg.model, features: s.features },
       days,
       daily,
       totals: {

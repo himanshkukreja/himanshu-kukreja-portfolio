@@ -82,22 +82,20 @@ export type ChatRequest = {
   title?: "first" | "again";
 };
 
-/** The chat's quota today (GET /api/learn/ai/chat, and on every answer). */
+/** The chat's quota today (GET /api/learn/ai/chat, and on every answer): one daily message limit (Haiku 5.5 answers
+ *  every message since 7 Nov 2026; there is no Sonnet share and no "fast mode" any more). */
 export type ChatQuota = {
-  /** messages on the main model (Sonnet) left today */
-  mainLeft: number;
-  mainPerDay: number;
-  /** messages left today in all (the anti-abuse ceiling) */
-  totalLeft: number;
-  /** the next message goes to the fast model (Haiku 5.5) */
-  fast: boolean;
+  /** messages left today */
+  left: number;
+  /** messages a day */
+  perDay: number;
   /** answering with the learner's own key: no quota */
   ownKey: boolean;
 };
 
 /** Server-sent events of one answer, in order: status/sources/quiz/path/save/graded as tools run, delta while the text streams, then done or error. */
 export type ChatEvent =
-  | { type: "start"; fast: boolean; model: string }
+  | { type: "start"; model: string }
   /** a step the server is on (one per tool call, plus the model's own thinking/writing). `label` is the line to show;
    *  `noun` (optional) says what a read is ("lesson", "lecture", …) so the page can sum reads up ("read 3 lessons") */
   | { type: "status"; tool: string; label: string; noun?: string }
@@ -199,14 +197,22 @@ export const REF_RE = /\[\[\s*([a-z]\d{1,4}(?:\s*,\s*[a-z]\d{1,4})*)\s*\]\]/gi;
 export const OFF_TOPIC_MARK = /^\s*\[\[\s*off[_ -]?topic\s*\]\]\s*/i;
 
 /** Plain text from the model as the chat may show it: no links, no HTML, only known source refs. */
+/**
+ * A tuned prompt's private plan (<plan>...</plan>) out of a reply: the block wherever it is (Haiku 5.5 now and then
+ * writes it after the reply; deleting everything up to "</plan>" then deleted the reply too, eval 7 Nov 2026); a
+ * "</plan>" with no opening tag ends a plan that began the text; an opening "<plan>" line that never closed (a
+ * cut-off) is dropped. Shared by the routes (via prompts.ts) and the chat page.
+ */
+export function stripPrivatePlan(text: string): string {
+  const t = /<plan>/i.test(text) ? text.replace(/\s*<plan>[\s\S]*?<\/plan>\s*/gi, "\n").replace(/<plan>[^\n]*\n?/i, "") : text.replace(/^[\s\S]*?<\/plan>\s*/i, "");
+  return t.trim();
+}
+
 export function cleanAnswer(text: string, known: (ref: string) => boolean): string {
   return (
-    text
-      // the follow-ups line goes to its own cards, never into the text
-      .replace(/<<\s*follow-?ups\s*>>[\s\S]*$/i, "")
-      // a private plan line (tuned Haiku prompts) never reaches the learner
-      .replace(/^[\s\S]*?<\/plan>\s*/i, "")
-      .replace(/^\s*<plan>[^\n]*\n?/i, "")
+    // a private plan (tuned Haiku prompts) never reaches the learner, wherever it was written; the follow-ups line goes
+    // to its own cards, never into the text
+    stripPrivatePlan(text.replace(/<<\s*follow-?ups\s*>>[\s\S]*$/i, ""))
       .replace(OFF_TOPIC_MARK, "")
       // markdown links and images keep their words, lose their target
       .replace(/!?\[([^\]\n]*)\]\((?:[^)\s]*)(?:\s+"[^"]*")?\)/g, "$1")

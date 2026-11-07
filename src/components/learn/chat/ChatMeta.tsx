@@ -1,13 +1,11 @@
 "use client";
 
 /**
- * The chat's small print: today's messages (and, once the main model's share is used, a quiet "fast mode"
- * line), the free-for-now line, and what happens to what you send (kept 90 days, to stop abuse and improve the
+ * The chat's small print: today's messages, the free-for-now line, and what happens to what you send (kept 90 days, to stop abuse and improve the
  * tutor; the tutor's memory of your learning, which you can see and clear under You → Memory; and the chat history,
  * saved to the account for 90 days once chat_threads exists, else kept on the device, deletable from History).
  */
 import Link from "next/link";
-import { Zap } from "lucide-react";
 import { AI_FREE_LINE } from "@/components/learn/ai/AiFreeNote";
 import type { ChatQuota } from "@/lib/ai/chat/text";
 
@@ -16,16 +14,9 @@ export const CHAT_PRIVACY = "What you send goes to Anthropic's AI to answer it a
 export function QuotaLine({ quota }: { quota: ChatQuota | null }) {
   if (!quota) return null;
   if (quota.ownKey) return <span className="font-mono text-[11px] text-fg-4">answering with your own key</span>;
-  if (quota.fast)
-    return (
-      <span className="inline-flex items-center gap-1 font-mono text-[11px] text-fg-3" title="After today's first messages the chat answers with a faster model. Back to the full model after midnight UTC.">
-        <Zap className="h-3 w-3 text-signal-text" aria-hidden />
-        fast mode for the rest of today{quota.totalLeft <= 20 ? ` · ${quota.totalLeft} left` : ""}
-      </span>
-    );
   return (
     <span className="font-mono text-[11px] text-fg-4">
-      {quota.mainLeft} of {quota.mainPerDay} messages left today
+      {quota.left} of {quota.perDay} messages left today
     </span>
   );
 }

@@ -3,7 +3,7 @@ import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
-import { mockCoachSystem, promptOptsFor, stripPrivatePlan } from "@/lib/ai/prompts";
+import { mockCoachSystem, promptOptsFor, replyFrom } from "@/lib/ai/prompts";
 import { problemText, promptPhase } from "@/lib/ai/mock";
 
 export const runtime = "nodejs";
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
     meta: { mock: mock.slug, phase: phase.id },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  const text = stripPrivatePlan(r.text);
+  const text = replyFrom(r.text, "READ:");
   await saveTranscript(r.callId, me.id, "mock-coach", `[${mock.slug} · ${phase.id}]\n${candidate.slice(0, 4000)}`, text);
   return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }

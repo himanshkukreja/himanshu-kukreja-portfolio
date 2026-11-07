@@ -29,8 +29,6 @@ export type ChatMsg = {
   /** refs the answer cites, in order */
   cites?: string[];
   error?: string;
-  /** answered in fast mode (Haiku) */
-  fast?: boolean;
   offTopic?: boolean;
   /** the metered call behind this answer (feedback goes to it) */
   callId?: number | null;
@@ -315,7 +313,6 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       setLock(uid, reply.id);
       const t0 = performance.now();
       let gotDone = false;
-      let fast = false;
       try {
         const res = await aiFetch("/api/learn/ai/chat", { method: "POST", body: JSON.stringify(body), headers: devHeaders, signal: ctrl.signal });
         if (!res.ok || !res.body || !(res.headers.get("content-type") || "").includes("event-stream")) {
@@ -332,8 +329,6 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         const on = (e: ChatEvent) => {
           switch (e.type) {
             case "start":
-              fast = e.fast;
-              patchReply((m) => ({ ...m, fast: e.fast }));
               break;
             case "status":
               setStatus({ kind: "working", label: e.label || "Working…" });
@@ -400,7 +395,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
               }
               if (e.quota) setQuota(e.quota);
               setDraft("");
-              track("chat_message", { ok: true, tools: e.tools, ms: Math.round(performance.now() - t0), fast });
+              track("chat_message", { ok: true, tools: e.tools, ms: Math.round(performance.now() - t0) });
               break;
             case "error":
               patchReply((m) => keepStreamed(m, streamed.trim() ? `${e.message.replace(/ The search results.*$/, "")} The part above is what it wrote before stopping.` : e.message));
