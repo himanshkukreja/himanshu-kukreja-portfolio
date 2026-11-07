@@ -5,8 +5,8 @@ import { getLecture, lectureCard } from "@/lib/learn/lecture/load";
 import { lessonLectureId } from "@/lib/learn/lecture/types";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses).
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses).
+export const revalidate = 604800;
 
 export const metadata = {
   title: "War stories · System Design Mastery",

@@ -3,8 +3,8 @@ import { getWarStories } from "@/lib/learn/war/load";
 import { WarRoomGrid } from "@/components/learn/war/WarStoriesHub";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses).
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses).
+export const revalidate = 604800;
 
 export const metadata = {
   title: "War rooms · System Design Mastery",

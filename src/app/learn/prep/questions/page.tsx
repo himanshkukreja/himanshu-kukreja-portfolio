@@ -4,7 +4,7 @@ import QuestionBank from "@/components/learn/prep/QuestionBank";
 import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
-export const revalidate = 86400;
+export const revalidate = 604800;
 
 export const metadata = {
   title: "Question bank · Interview prep · System Design Mastery",

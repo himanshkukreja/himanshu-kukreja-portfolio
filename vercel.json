@@ -16,5 +16,10 @@
   "regions": [
     "bom1"
   ],
-  "crons": []
+  "crons": [
+    {
+      "path": "/api/cron/publish-due",
+      "schedule": "7 * * * *"
+    }
+  ]
 }

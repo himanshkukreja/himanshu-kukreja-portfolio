@@ -9,8 +9,8 @@ import { JsonLd, breadcrumbs } from "@/lib/seo/jsonld";
 import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache (on-demand ISR), refreshed daily and on every content push.
-export const revalidate = 86400;
+// Rendered once and served from the cache (on-demand ISR), refreshed weekly and on every content push.
+export const revalidate = 604800;
 export const dynamicParams = true;
 export function generateStaticParams() {
   return [];

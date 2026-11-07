@@ -7,7 +7,7 @@ import { JsonLd, videoObject } from "@/lib/seo/jsonld";
 import { isoDuration, mediaInfo } from "@/lib/seo/video";
 
 export const runtime = "nodejs";
-export const revalidate = 86400;
+export const revalidate = 604800;
 export const dynamicParams = true;
 export function generateStaticParams() {
   return [];

@@ -9,7 +9,6 @@ import SiteHeader from "@/components/site/SiteHeader";
 import { GameProvider } from "@/game/GameProvider";
 import XPToaster from "@/game/XPToaster";
 import Terminal from "@/game/Terminal";
-import { Analytics } from '@vercel/analytics/next';
 import AnalyticsTracker from "@/components/AnalyticsTracker";
 import AnalyticsProvider from "@/components/analytics/AnalyticsProvider";
 import GlobalAuthModal from "@/components/GlobalAuthModal";
@@ -156,7 +155,6 @@ export default function RootLayout({
           </AuthModalProvider>
         </AuthProvider>
         </SiteModeProvider>
-        <Analytics />
       </body>
     </html>
   );

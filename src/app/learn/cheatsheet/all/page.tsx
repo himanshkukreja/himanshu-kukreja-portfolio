@@ -6,8 +6,8 @@ import CheatSheetTools, { FitToPage } from "@/components/learn/cheatsheet/CheatS
 import "@/components/learn/cheatsheet/cheatsheet.css";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish).
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses / publish).
+export const revalidate = 604800;
 
 const title = "Every cheat sheet, one PDF · System Design Mastery";
 const description = "All twelve worlds' one-page cheat sheets in a single printable document: key ideas, numbers to remember, trade-offs and classic mistakes. Free.";

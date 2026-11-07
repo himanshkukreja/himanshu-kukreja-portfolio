@@ -93,9 +93,6 @@ export default function PrivacyPage() {
             <strong>Google Analytics 4</strong> {ga ? "(active)" : "(not enabled yet)"}: aggregate traffic reports. Advertising features, ad
             personalisation and ad storage are switched off (Consent Mode: ad_storage denied).
           </li>
-          <li>
-            <strong>Vercel Web Analytics</strong>: cookie-free page counts from the hosting provider.
-          </li>
         </ul>
       </Section>
 

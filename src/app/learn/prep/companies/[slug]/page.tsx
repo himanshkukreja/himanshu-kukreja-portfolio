@@ -9,8 +9,8 @@ import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
 import CompanyLogo, { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses).
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses).
+export const revalidate = 604800;
 export const dynamicParams = true;
 /** None at build: each path renders on its first visit, then is cached (on-demand ISR). */
 export function generateStaticParams() {

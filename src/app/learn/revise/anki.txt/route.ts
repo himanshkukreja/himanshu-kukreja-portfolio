@@ -1,8 +1,8 @@
 import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import type { RevCard } from "@/lib/learn/revision/parse";
 
-// Static, refreshed daily and on content pushes: every revision card as an Anki import file.
-export const revalidate = 86400;
+// Static, refreshed weekly and on content pushes: every revision card as an Anki import file.
+export const revalidate = 604800;
 
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 // a field may not contain tabs or newlines (they separate fields and notes)

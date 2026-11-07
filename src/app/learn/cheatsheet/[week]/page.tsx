@@ -8,8 +8,8 @@ import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import "@/components/learn/cheatsheet/cheatsheet.css";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
+export const revalidate = 604800;
 export const dynamicParams = true;
 /** None at build: each path renders on its first visit, then is cached (on-demand ISR). */
 export function generateStaticParams() {

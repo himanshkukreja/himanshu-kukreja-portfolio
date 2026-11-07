@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
-import { revalidatePath, revalidateTag } from "next/cache";
 import { requireAdmin } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
 import { dropInternal } from "@/lib/analytics/excludeServer";
 import { getAllLearningResources } from "@/lib/github";
-import { COURSE_ID, COURSE_MAP_TAG } from "@/lib/learn/course";
-import { CONTROLS_TAG, getControls, isLive, questKey, shortKey, type Control } from "@/lib/learn/controls";
+import { getControls, isLive, questKey, shortKey, type Control } from "@/lib/learn/controls";
+import { COURSE_ID } from "@/lib/learn/course";
+import { revalidateControlled } from "@/lib/learn/controlsRevalidate";
 import { listAllShorts } from "@/lib/learn/shorts/load";
 import { adminShortsStats } from "@/lib/learn/shorts/stats";
 import { SHORT_CATEGORIES } from "@/lib/learn/shorts/types";
@@ -152,21 +152,6 @@ export async function POST(request: Request) {
   const { error } = await supabase.from("content_controls").upsert(rows, { onConflict: "key" });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  // what the site caches: the controls, the course map (quests), the feed and the affected pages
-  revalidateTag(CONTROLS_TAG);
-  if (keys.some((k) => k.startsWith("quest:"))) revalidateTag(COURSE_MAP_TAG);
-  revalidatePath("/learn/shorts");
-  revalidatePath("/api/search/transcripts"); // ⌘K's "In lectures" leaves out hidden shorts and quests
-  revalidatePath("/api/search/index/[part]", "page"); // smart search leaves them out too (and re-checks the controls per query)
-  for (const k of keys) {
-    const [kind, id] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)];
-    if (kind === "short") revalidatePath(`/learn/shorts/${id}`);
-    else {
-      revalidatePath(`/learn/${COURSE_ID}/bonus-problems/${id}`);
-      revalidatePath(`/learn/lectures/${id}`);
-    }
-  }
-  revalidatePath(`/learn/${COURSE_ID}`);
-  revalidatePath("/sitemap.xml");
+  revalidateControlled(keys);
   return NextResponse.json({ ok: true, updated: rows.length });
 }

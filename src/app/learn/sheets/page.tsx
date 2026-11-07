@@ -7,7 +7,7 @@ import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 
 export const runtime = "nodejs";
-export const revalidate = 86400;
+export const revalidate = 604800;
 
 export const metadata = {
   title: "Design sheets · System Design Mastery",

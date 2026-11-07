@@ -18,7 +18,7 @@ import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 
 export const runtime = "nodejs";
-export const revalidate = 86400;
+export const revalidate = 604800;
 export const dynamicParams = true;
 /** None at build: each path renders on its first visit, then is cached (on-demand ISR). */
 export function generateStaticParams() {

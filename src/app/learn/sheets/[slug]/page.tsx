@@ -12,8 +12,8 @@ import "@/app/learn/course-blocks.css";
 import "@/components/learn/sheets/sheets.css";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish).
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses / publish).
+export const revalidate = 604800;
 export const dynamicParams = true;
 /** None at build: each path renders on its first visit, then is cached (on-demand ISR). */
 export function generateStaticParams() {

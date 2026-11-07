@@ -10,8 +10,8 @@ import PrepHub, { type PracticeData } from "@/components/learn/prep/PrepHub";
 import { lectureGroupAnchor, lectureGroupCode } from "@/lib/learn/lecture/types";
 
 export const runtime = "nodejs";
-// Rendered once and served from the cache, refreshed daily and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
-export const revalidate = 86400;
+// Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses / publish); per-visitor state (progress, notes, sign-in) loads on the client.
+export const revalidate = 604800;
 
 export const metadata: Metadata = {
   title: "Interview prep · System Design Mastery",
