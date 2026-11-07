@@ -37,7 +37,7 @@ jobs:
       APP_ENV: ${{ inputs.target == 'staging' && 'preview' || 'production' }}
       HOST_OVERRIDE: ${{ inputs.target == 'staging' && 'course' || '' }}
       WENV: ${{ inputs.target == 'staging' && '--env staging' || '' }}
-      CACHE_BUCKET: ${{ inputs.target == 'staging' && 'sdm-course-cache-staging' || 'sdm-course-cache' }}
+      CACHE_BUCKET: ${{ inputs.target == 'staging' && 'sdm-course-cache-staging-apac' || 'sdm-course-cache-apac' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -75,7 +75,7 @@ jobs:
           ' "$RUNNER_TEMP/cf-dist/worker.js"
 
       - name: ISR cache bucket
-        run: npx wrangler r2 bucket create "$CACHE_BUCKET" || echo "bucket exists"
+        run: npx wrangler r2 bucket create "$CACHE_BUCKET" --location apac || echo "bucket exists"
 
       - name: Deploy
         run: npx wrangler deploy $WENV | tee "$RUNNER_TEMP/deploy.log" | grep -vE "^\s*$" | tail -20

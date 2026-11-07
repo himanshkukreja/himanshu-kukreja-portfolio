@@ -20,7 +20,7 @@
   "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course" }],
   "r2_buckets": [
-    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "sdm-course-cache" },
+    { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "sdm-course-cache-apac" },
     { "binding": "SDM_CONTENT", "bucket_name": "sdm-content" }
   ],
   "durable_objects": {
@@ -45,7 +45,7 @@
       "vars": { "APP_ENV": "preview", "HOST_OVERRIDE": "course", "SDM_SNAPSHOT": "off" },
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" }],
       "r2_buckets": [
-        { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "sdm-course-cache-staging" },
+        { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "sdm-course-cache-staging-apac" },
         { "binding": "SDM_CONTENT", "bucket_name": "sdm-content" }
       ],
       "durable_objects": {

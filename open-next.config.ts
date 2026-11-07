@@ -9,7 +9,14 @@ const config = defineCloudflareConfig({
   // ISR pages in R2, with Cloudflare's regional cache in front; tags (revalidateTag/Path) in sharded Durable Objects
   incrementalCache: withRegionalCache(r2IncrementalCache, { mode: "long-lived" }),
   queue: doQueue,
-  tagCache: doShardedTagCache({ baseShardSize: 12 }),
+  // every page request checks its tags: shards replicated in every region (the nearest answers) and the answers cached
+  // in the colo for 60 s, so a content release can take up to a minute to show (it revalidates by tag/path)
+  tagCache: doShardedTagCache({
+    baseShardSize: 12,
+    regionalCache: true,
+    regionalCacheTtlSec: 60,
+    shardReplication: { numberOfSoftReplicas: 4, numberOfHardReplicas: 2, regionalReplication: { defaultRegion: "apac" } },
+  }),
   enableCacheInterception: true,
 });
 
