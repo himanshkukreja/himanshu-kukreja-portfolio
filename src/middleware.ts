@@ -94,8 +94,7 @@ function resolveSite(req: NextRequest): { site: Site; setCookie?: Site } {
     if (c === "course" || c === "portfolio") return { site: c };
   }
   const env = process.env.HOST_OVERRIDE;
-  // the hk_site cookie too, so the client agrees (the reading themes colour course pages by it: isThemedPage)
-  if ((env === "course" || env === "portfolio") && !isProductionDeploy()) return { site: env, ...(req.cookies.get("hk_site")?.value !== env ? { setCookie: env } : {}) };
+  if ((env === "course" || env === "portfolio") && !isProductionDeploy()) return { site: env };
   return { site: "portfolio" };
 }
 

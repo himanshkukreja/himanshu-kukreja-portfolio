@@ -32,10 +32,9 @@ jobs:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
       NEXT_TELEMETRY_DISABLED: "1"
-      # staging (workers.dev) acts as the course host: the middleware reads HOST_OVERRIDE at build time and
-      # honours it only outside production (APP_ENV=preview, which also reads the preview content branch)
+      # staging (workers.dev) is a course host (src/lib/site/hosts.ts, inlined at build); APP_ENV=preview there
       APP_ENV: ${{ inputs.target == 'staging' && 'preview' || 'production' }}
-      HOST_OVERRIDE: ${{ inputs.target == 'staging' && 'course' || '' }}
+      NEXT_PUBLIC_EXTRA_COURSE_HOSTS: ${{ inputs.target == 'staging' && 'sdm-course-staging.markdrop-in.workers.dev' || '' }}
       WENV: ${{ inputs.target == 'staging' && '--env staging' || '' }}
       CACHE_BUCKET: ${{ inputs.target == 'staging' && 'sdm-course-cache-staging-apac' || 'sdm-course-cache-apac' }}
     steps:

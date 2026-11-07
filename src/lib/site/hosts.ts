@@ -32,7 +32,11 @@ const hostOf = (origin: string) => {
   }
 };
 
-const COURSE_HOSTS = new Set([COURSE_HOST, `www.${COURSE_HOST}`, hostOf(COURSE_ORIGIN)]);
+// NEXT_PUBLIC_EXTRA_COURSE_HOSTS (comma list, inlined at build): test deploys that act as the course host, e.g.
+// the Cloudflare staging Worker on workers.dev (.github/workflows/cloudflare-deploy.yml). No cookie involved,
+// so their pages stay cacheable.
+const EXTRA_COURSE_HOSTS = (process.env.NEXT_PUBLIC_EXTRA_COURSE_HOSTS || "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+const COURSE_HOSTS = new Set([COURSE_HOST, `www.${COURSE_HOST}`, hostOf(COURSE_ORIGIN), ...EXTRA_COURSE_HOSTS]);
 const PORTFOLIO_HOSTS = new Set([PORTFOLIO_HOST, `www.${PORTFOLIO_HOST}`, hostOf(PORTFOLIO_ORIGIN)]);
 
 /** The course's hosts (apex, www, the configured origin's), for scripts that decide before React runs. */
