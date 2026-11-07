@@ -54,18 +54,19 @@ async function blockHtml(md: string): Promise<string> {
 
 const pad = (n: number) => String(n).padStart(2, "0");
 
-type Built = { summaries: LabSummary[]; labs: Record<string, Lab> };
-
 const FENCE: Record<LabLang, string> = { python: "python", javascript: "js", typescript: "ts" };
 const srcFence = (s: LabSrc | null, lang: LabLang) => (s ? (lang === "python" ? "python" : s.ts ? "ts" : "js") : "python");
 
-async function build(): Promise<Built> {
-  const [map, sources] = await Promise.all([getCourseMap(COURSE_ID), loadLabSources()]);
+type Prepared = { sources: LabSource[]; summaries: LabSummary[] };
+
+/** Every lab's source and summary (no rendered HTML): small enough to cache as one entry. */
+async function prepare(): Promise<Prepared> {
+  const [map, all] = await Promise.all([getCourseMap(COURSE_ID), loadLabSources()]);
   const ctx: MockCtx = { weeks: map?.weeks ?? [], sideQuests: map?.sideQuests ?? [] };
   const seen = new Set<string>();
+  const sources: LabSource[] = [];
   const summaries: LabSummary[] = [];
-  const labs: Record<string, Lab> = {};
-  for (const s of sources) {
+  for (const s of all) {
     if (seen.has(s.id)) continue;
     seen.add(s.id);
     const week = map?.weeks.find((w) => w.num === s.week) ?? null;
@@ -99,99 +100,130 @@ async function build(): Promise<Built> {
       // a runtime upgrade is a new version too, so saved copies refresh with it
       version: `${s.version}-${PYODIDE_VERSION}-${WORKER_REV}`,
     };
+    sources.push(s);
     summaries.push(summary);
-    const fence = (code: string, lang: string) => (code.trim() ? blockHtml("```" + lang + "\n" + code.replace(/\s+$/, "") + "\n```") : Promise.resolve(""));
-    const langs: Partial<Record<LabLang, LabLangView>> = {};
-    for (const lang of s.languages) {
-      const fam = familyOf(lang);
-      const fc = s.family[fam];
-      const lc = s.code[lang]!;
-      const [solutionHtml, givenHtml, visibleTestsHtml, reproHtml, stageHtml] = await Promise.all([
-        fence(lc.solution, FENCE[lang]),
-        fence(fc?.given?.code ?? "", srcFence(fc?.given ?? null, lang)),
-        fence(fc?.visible?.code ?? "", srcFence(fc?.visible ?? null, lang)),
-        fence(fc?.repro?.code ?? "", srcFence(fc?.repro ?? null, lang)),
-        Promise.all(s.stages.map((st) => fence(st.family[fam]?.visible?.code ?? "", srcFence(st.family[fam]?.visible ?? null, lang)))),
-      ]);
-      langs[lang] = {
-        lang,
-        starter: lc.starter,
-        solution: lc.solution,
-        solutionHtml,
-        given: fc?.given ?? null,
-        givenHtml,
-        visible: fc?.visible ?? null,
-        visibleTestsHtml,
-        hidden: fc?.hidden ?? null,
-        repro: fc?.repro ?? null,
-        reproHtml,
-        chaos: fc?.chaos ?? null,
-        scale: fc?.scale ?? null,
-        tests: { visible: countTests(fc?.visible, fam), hidden: countTests(fc?.hidden, fam), repro: countTests(fc?.repro, fam) },
-        stages: s.stages.map((st, i) => ({
-          delta: st.lang[lang]?.delta ?? "",
-          solution: st.lang[lang]?.solution ?? "",
-          visible: st.family[fam]?.visible ?? null,
-          hidden: st.family[fam]?.hidden ?? null,
-          visibleTestsHtml: stageHtml[i],
-          tests: { visible: countTests(st.family[fam]?.visible, fam), hidden: countTests(st.family[fam]?.hidden, fam) },
-        })),
-        followUps: s.followUps.map((f) => ({ tests: f.tests[fam] ?? null, count: countTests(f.tests[fam], fam) })),
-      };
-    }
-    const html = (md: string) => blockHtml(md);
-    const hintsHtml = (hs: { title: string; md: string }[]) => Promise.all(hs.map(async (h) => ({ title: h.title, html: await blockHtml(h.md) })));
-    const [briefHtml, solutionNotesHtml, hints, stages, followUps, incident] = await Promise.all([
-      html(s.brief),
-      html(s.solutionNotes),
-      hintsHtml(s.hints),
-      Promise.all(s.stages.map(async (st) => ({ title: st.title, briefHtml: await html(st.brief), hints: await hintsHtml(st.hints) }))),
-      Promise.all(s.followUps.map(async (f) => ({ title: f.title, promptHtml: await html(f.prompt), answerHtml: await html(f.answer) }))),
-      s.incident ? Promise.all([html(s.incident.report), html(s.incident.story)]).then(([reportHtml, storyHtml]) => ({ reportHtml, storyHtml })) : Promise.resolve(null),
-    ]);
-    labs[s.id] = {
-      ...summary,
-      briefHtml,
-      hints,
-      solutionNotesHtml,
-      timeoutSec: s.timeoutSec,
-      langs,
-      stages,
-      followUps,
-      incident,
-      viz: s.viz,
-      chaos: s.chaos,
-      scale: s.scale,
-    };
   }
-  return { summaries, labs };
+  return { sources, summaries };
 }
 
-const cached = unstable_cache(() => build(), ["code-labs-v2"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
+/** One lab, rendered (brief, hints, code in every language): a few hundred KB, cached per lab. */
+async function renderLab(s: LabSource, summary: LabSummary): Promise<Lab> {
+  const fence = (code: string, lang: string) => (code.trim() ? blockHtml("```" + lang + "\n" + code.replace(/\s+$/, "") + "\n```") : Promise.resolve(""));
+  const langs: Partial<Record<LabLang, LabLangView>> = {};
+  for (const lang of s.languages) {
+    const fam = familyOf(lang);
+    const fc = s.family[fam];
+    const lc = s.code[lang]!;
+    const [solutionHtml, givenHtml, visibleTestsHtml, reproHtml, stageHtml] = await Promise.all([
+      fence(lc.solution, FENCE[lang]),
+      fence(fc?.given?.code ?? "", srcFence(fc?.given ?? null, lang)),
+      fence(fc?.visible?.code ?? "", srcFence(fc?.visible ?? null, lang)),
+      fence(fc?.repro?.code ?? "", srcFence(fc?.repro ?? null, lang)),
+      Promise.all(s.stages.map((st) => fence(st.family[fam]?.visible?.code ?? "", srcFence(st.family[fam]?.visible ?? null, lang)))),
+    ]);
+    langs[lang] = {
+      lang,
+      starter: lc.starter,
+      solution: lc.solution,
+      solutionHtml,
+      given: fc?.given ?? null,
+      givenHtml,
+      visible: fc?.visible ?? null,
+      visibleTestsHtml,
+      hidden: fc?.hidden ?? null,
+      repro: fc?.repro ?? null,
+      reproHtml,
+      chaos: fc?.chaos ?? null,
+      scale: fc?.scale ?? null,
+      tests: { visible: countTests(fc?.visible, fam), hidden: countTests(fc?.hidden, fam), repro: countTests(fc?.repro, fam) },
+      stages: s.stages.map((st, i) => ({
+        delta: st.lang[lang]?.delta ?? "",
+        solution: st.lang[lang]?.solution ?? "",
+        visible: st.family[fam]?.visible ?? null,
+        hidden: st.family[fam]?.hidden ?? null,
+        visibleTestsHtml: stageHtml[i],
+        tests: { visible: countTests(st.family[fam]?.visible, fam), hidden: countTests(st.family[fam]?.hidden, fam) },
+      })),
+      followUps: s.followUps.map((f) => ({ tests: f.tests[fam] ?? null, count: countTests(f.tests[fam], fam) })),
+    };
+  }
+  const html = (md: string) => blockHtml(md);
+  const hintsHtml = (hs: { title: string; md: string }[]) => Promise.all(hs.map(async (h) => ({ title: h.title, html: await blockHtml(h.md) })));
+  const [briefHtml, solutionNotesHtml, hints, stages, followUps, incident] = await Promise.all([
+    html(s.brief),
+    html(s.solutionNotes),
+    hintsHtml(s.hints),
+    Promise.all(s.stages.map(async (st) => ({ title: st.title, briefHtml: await html(st.brief), hints: await hintsHtml(st.hints) }))),
+    Promise.all(s.followUps.map(async (f) => ({ title: f.title, promptHtml: await html(f.prompt), answerHtml: await html(f.answer) }))),
+    s.incident ? Promise.all([html(s.incident.report), html(s.incident.story)]).then(([reportHtml, storyHtml]) => ({ reportHtml, storyHtml })) : Promise.resolve(null),
+  ]);
+  return {
+    ...summary,
+    briefHtml,
+    hints,
+    solutionNotesHtml,
+    timeoutSec: s.timeoutSec,
+    langs,
+    stages,
+    followUps,
+    incident,
+    viz: s.viz,
+    chaos: s.chaos,
+    scale: s.scale,
+  };
+}
 
-async function data(): Promise<Built> {
+// Cached in pieces: the summaries (every lesson page's "Try it in code" card reads them) and one entry per
+// lab. All 30 labs rendered together were ~13 MB, over the 2 MB data cache item limit, so the whole set was
+// re-rendered on every uncached lab or lesson page (~24 s / ~12 s on Vercel, Nov 2026).
+const cachedPrepared = unstable_cache(async () => {
+  const p = await prepare();
+  return { summaries: p.summaries };
+}, ["code-labs-v2-summaries"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
+
+const cachedLab = unstable_cache(
+  async (id: string) => {
+    const p = await prepare();
+    const i = p.sources.findIndex((x) => x.id === id);
+    return i < 0 ? null : renderLab(p.sources[i], p.summaries[i]);
+  },
+  ["code-labs-v2-lab"],
+  { revalidate: 604800, tags: [COURSE_MAP_TAG] }
+);
+
+// local content (SDM_LOCAL_DIR) is read fresh in development so edits show up on reload
+const fresh = () => !!process.env.SDM_LOCAL_DIR && process.env.NODE_ENV !== "production";
+
+async function summariesData(): Promise<LabSummary[]> {
   try {
-    // local content (SDM_LOCAL_DIR) is read fresh in development so edits show up on reload
-    return process.env.SDM_LOCAL_DIR && process.env.NODE_ENV !== "production" ? await build() : await cached();
+    return fresh() ? (await prepare()).summaries : (await cachedPrepared()).summaries;
   } catch (e) {
     console.error("[labs] failed to load", e);
-    return { summaries: [], labs: {} };
+    return [];
   }
 }
 
 export async function getLabSummaries(): Promise<LabSummary[]> {
-  return (await data()).summaries;
+  return summariesData();
 }
 
 export async function getLab(id: string): Promise<Lab | null> {
   if (!/^[a-z0-9-]{1,80}$/.test(id)) return null;
-  return (await data()).labs[id] ?? null;
+  try {
+    if (!fresh()) return await cachedLab(id);
+    const p = await prepare();
+    const i = p.sources.findIndex((x) => x.id === id);
+    return i < 0 ? null : await renderLab(p.sources[i], p.summaries[i]);
+  } catch (e) {
+    console.error("[labs] failed to load", id, e);
+    return null;
+  }
 }
 
 /** Labs that practise a lesson (its "Try it in code" card), by the lesson's path. */
 export async function getLabsForLesson(course: string, week: string, slug: string): Promise<LessonLabLink[]> {
   const base = `/${week}/${slug}`;
-  return (await data()).summaries
+  return (await summariesData())
     .filter((s) => s.lessons.some((l) => l.href === base || l.href.startsWith(`${base}#`)))
     .map(({ id, title, topic, summary, href, difficulty, minutes, xp, tests, languages, type }) => ({ id, title, topic, summary, href, difficulty, minutes, xp, tests, languages, type }));
 }
