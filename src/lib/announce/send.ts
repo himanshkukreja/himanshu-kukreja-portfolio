@@ -7,6 +7,7 @@
  * and logs a one-line summary; nothing leaves the machine.
  */
 import nodemailer from "nodemailer";
+import { brevoConfigured, brevoTransport, type MailTransport } from "@/lib/email/transport";
 import { supabase } from "@/lib/supabase";
 import { EMAIL } from "@/lib/socials";
 import { ANNOUNCE_KEY, learnRevampEmail, unsubscribeUrl } from "./learn-revamp";
@@ -21,16 +22,17 @@ export function transportKind(): TransportKind {
 }
 
 export function smtpReady(): boolean {
-  return !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+  return brevoConfigured() || !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 }
 
 function fromAddress() {
   return process.env.SMTP_FROM || `Himanshu Kukreja <${process.env.SMTP_USER || "no-reply@himanshukukreja.in"}>`;
 }
 
-function makeTransport(kind: TransportKind) {
-  if (kind === "console") return nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" });
+function makeTransport(kind: TransportKind): MailTransport {
+  if (kind === "console") return nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" }) as unknown as MailTransport;
   if (!smtpReady()) throw new Error("SMTP credentials are not configured");
+  if (brevoConfigured()) return brevoTransport();
   const port = Number(process.env.SMTP_PORT || 587);
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -42,7 +44,7 @@ function makeTransport(kind: TransportKind) {
     connectionTimeout: 20_000,
     greetingTimeout: 15_000,
     socketTimeout: 20_000,
-  });
+  }) as unknown as MailTransport;
 }
 
 /** Gap between two messages in a batch. ~2.5 msgs/s keeps well under common SMTP provider limits. */

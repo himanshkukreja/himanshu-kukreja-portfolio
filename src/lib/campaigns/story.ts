@@ -2,7 +2,7 @@
  * "Case file update" template: one email per story, built from every published story (repo
  * content/stories + CMS case files, via listStorySources: frontmatter, H2 headings, debrief) and the
  * story's end-of-case activity (TSX in src/components/stories/activities, or the CMS activity data).
- * Server-only (reads files). Every field of the generated document stays editable in the composer.
+ * Server-only. Every field of the generated document stays editable in the composer.
  */
 import { getCaseFiles } from "@/components/stories/case-files";
 import { listStorySources } from "@/lib/stories";
@@ -11,40 +11,15 @@ import { ACTIVITY_SLUGS, ACTIVITY_XP } from "@/components/stories/activities/typ
 import { SITE } from "./links";
 import { storyContent, type StoryActivity } from "./story-doc";
 import type { StoryOption } from "./types";
+import { STORY_ACTIVITIES } from "@/generated/stories";
 
 const DEBRIEF_XP = 50; // DebriefCard.tsx
 
 type Activity = StoryActivity;
 
-const strLit = (src: string, key: string) => {
-  const m = new RegExp(`${key}:\\s*\\n?\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(src);
-  return m ? m[1].replace(/\\"/g, '"').replace(/\\n/g, " ") : null;
-};
-
-/** Title + blurb of each story's activity, read from the activity source (fail-soft: none). */
+/** Title + blurb of each story's activity (extracted from the activity sources at build time). */
 async function activities(): Promise<Map<string, Activity>> {
-  const out = new Map<string, Activity>();
-  try {
-    const fs = await import("fs/promises");
-    const path = await import("path");
-    const dir = path.join(process.cwd(), "src", "components", "stories", "activities");
-    const registry = await fs.readFile(path.join(dir, "registry.tsx"), "utf8");
-    for (const m of registry.matchAll(/"([a-z0-9-]+)":\s*dynamic\(\(\)\s*=>\s*import\("\.\/([A-Za-z0-9]+)"\)/g)) {
-      try {
-        const src = await fs.readFile(path.join(dir, `${m[2]}.tsx`), "utf8");
-        const def = src.slice(src.indexOf(": ActivityDef = {"));
-        const title = strLit(def, "title");
-        const blurb = strLit(def, "blurb");
-        const minutes = Number(/minutes:\s*(\d+)/.exec(def)?.[1] || 0);
-        if (title) out.set(m[1], { kind: strLit(def, "kind") || "activity", title, blurb: blurb || "", minutes });
-      } catch {
-        /* one unreadable activity doesn't matter */
-      }
-    }
-  } catch {
-    /* sources not deployed: generic teaser */
-  }
-  return out;
+  return new Map(Object.entries(STORY_ACTIVITIES));
 }
 
 const SKIP_HEADING = /understanding the problem|summary|conclusion|introduction|key takeaways|final thoughts|lessons for|the end|epilogue|references|further reading|appendix|contribut|what comes next|future|getting started|try it/i;

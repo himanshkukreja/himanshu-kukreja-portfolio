@@ -52,3 +52,6 @@ scripts/ai-batch/.state/
 
 # feature videos laid out for next dev (scripts/guide-videos/publish.mjs --local): symlinks into ~/Downloads
 /public/guide-videos-dev/
+
+# build-time bundles of runtime files (scripts/build/gen-runtime-files.mjs)
+/src/generated/

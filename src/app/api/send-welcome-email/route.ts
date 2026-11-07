@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { welcomeEmail } from "@/lib/email/welcome";
+import { brevoConfigured, brevoTransport } from "@/lib/email/transport";
 
 // Server-side Supabase client with service role
 const supabaseAdmin = createClient(
@@ -38,21 +39,24 @@ async function sendWelcomeEmail(email: string, name: string | null) {
     configured: !!(smtpHost && smtpPort && smtpUser && smtpPass)
   });
 
-  if (smtpHost && smtpPort && smtpUser && smtpPass) {
+  if (brevoConfigured() || (smtpHost && smtpPort && smtpUser && smtpPass)) {
     console.log("[WELCOME EMAIL] ✅ SMTP is configured, attempting to send...");
     // Use SMTP to send email
     try {
       const nodemailer = await import("nodemailer");
 
-      const transporter = nodemailer.default.createTransport({
-        host: smtpHost,
-        port: parseInt(smtpPort),
-        secure: parseInt(smtpPort) === 465, // true for 465, false for other ports
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
-        },
-      });
+      // Brevo's HTTPS API when BREVO_API_KEY is set (any host, incl. Cloudflare), else SMTP
+      const transporter = brevoConfigured()
+        ? brevoTransport()
+        : nodemailer.default.createTransport({
+            host: smtpHost,
+            port: parseInt(smtpPort || "587"),
+            secure: parseInt(smtpPort || "587") === 465, // true for 465, false for other ports
+            auth: {
+              user: smtpUser,
+              pass: smtpPass,
+            },
+          });
 
       await transporter.sendMail({
         from: smtpFrom || `Himanshu Kukreja <${smtpUser}>`,

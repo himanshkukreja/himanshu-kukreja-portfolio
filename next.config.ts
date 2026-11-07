@@ -89,7 +89,7 @@ const courseIconRewrites = ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-ic
 // installs a new worker) and saved pages record the build whose app files they need. Set once here
 // so the build's worker processes (which inherit process.env) all inline the same value.
 process.env.HK_BUILD_ID ||=
-  process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || `local-${Date.now().toString(36)}`;
+  process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || process.env.GITHUB_SHA?.slice(0, 12) || `local-${Date.now().toString(36)}`;
 
 const nextConfig: NextConfig = {
   env: {
@@ -109,14 +109,6 @@ const nextConfig: NextConfig = {
     return posthogRewrites.length
       ? [...moved, { source: `/:path((?!${PH.slice(1)}(?:/|$)).+)/`, destination: "/:path", permanent: true }]
       : moved;
-  },
-  outputFileTracingIncludes: {
-    "/*": ["./content/**/*"],
-    // Case-file update emails: story markdown + each story's activity title/blurb (read at runtime).
-    "/api/admin/newsletter/stories": ["./content/stories/**/*", "./src/components/stories/activities/*.tsx"],
-    // Share-card fonts (src/lib/og) for the per-lesson OG/Twitter images rendered on demand.
-    "/learn/**/opengraph-image": ["./src/lib/og/fonts/*.ttf"],
-    "/learn/**/twitter-image": ["./src/lib/og/fonts/*.ttf"],
   },
   serverExternalPackages: [
     "gray-matter",

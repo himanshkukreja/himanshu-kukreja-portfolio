@@ -2,6 +2,7 @@ import { revalidatePath, revalidateTag } from 'next/cache';
 import { COURSE_MAP_TAG } from '@/lib/learn/course';
 import { SDM_CONTENT_TAG } from '@/lib/github';
 import { invalidateContentSnapshot } from '@/lib/content-snapshot';
+import { invalidateR2Manifest } from '@/lib/content-r2';
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { getAdmin } from '@/lib/admin/auth';
@@ -39,6 +40,7 @@ export async function POST(request: NextRequest) {
 
     // Revalidate all course-related paths
     invalidateContentSnapshot();
+    invalidateR2Manifest();
     revalidateTag(COURSE_MAP_TAG);
     revalidateTag(SDM_CONTENT_TAG); // the raw GitHub fetches behind every cached course page
     revalidatePath('/learn', 'layout');

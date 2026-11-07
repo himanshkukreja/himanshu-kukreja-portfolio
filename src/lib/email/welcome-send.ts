@@ -4,18 +4,21 @@
  * production), so a dev server renders the full MIME message to the console and emails nobody.
  */
 import nodemailer from "nodemailer";
+import { brevoConfigured, brevoTransport, type MailTransport } from "@/lib/email/transport";
 import { smtpReady, transportKind, type TransportKind } from "@/lib/announce/send";
 import { welcomeEmail } from "./welcome";
 
 export async function sendWelcomeTest(to: { email: string; name?: string | null }): Promise<{ kind: TransportKind; messageId?: string; bytes?: number }> {
   const kind = transportKind();
-  let t;
+  let t: MailTransport;
   if (kind === "console") {
-    t = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" });
+    t = nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" }) as unknown as MailTransport;
   } else {
     if (!smtpReady()) throw new Error("SMTP credentials are not configured");
     const port = Number(process.env.SMTP_PORT || 587);
-    t = nodemailer.createTransport({ host: process.env.SMTP_HOST, port, secure: port === 465, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } });
+    t = brevoConfigured()
+      ? brevoTransport()
+      : (nodemailer.createTransport({ host: process.env.SMTP_HOST, port, secure: port === 465, auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS } }) as unknown as MailTransport);
   }
   const mail = welcomeEmail({ email: to.email, name: to.name });
   try {

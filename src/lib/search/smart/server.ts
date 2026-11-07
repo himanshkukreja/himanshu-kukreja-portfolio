@@ -15,6 +15,7 @@ import { SmartEngine, transcriptDocs } from "./engine";
 import { SMART_SEARCH_PUBLIC } from "./flag";
 import { rowToDoc, type DocIndex } from "./types";
 import { buildDocIndex, INDEX_PARTS, type IndexPart } from "./build";
+import { isProductionDeploy } from "@/lib/platform";
 
 const TTL = 15 * 60_000;
 type EngineState = { at: number; engine: Promise<SmartEngine>; refreshing: boolean } | null;
@@ -98,4 +99,4 @@ export async function previewAllowed(request: Request): Promise<boolean> {
 
 /** Where to fetch the cached index routes: production's own site URL, else this deployment's origin. */
 export const originOf = (request: Request) =>
-  (process.env.VERCEL_ENV === "production" && process.env.NEXT_PUBLIC_SITE_URL ? process.env.NEXT_PUBLIC_SITE_URL : new URL(request.url).origin).replace(/\/$/, "");
+  (isProductionDeploy() && process.env.NEXT_PUBLIC_SITE_URL ? process.env.NEXT_PUBLIC_SITE_URL : new URL(request.url).origin).replace(/\/$/, "");

@@ -5,6 +5,7 @@ import { COURSE_ORIGIN, PORTFOLIO_ORIGIN, isCourseWww, isPortfolioHost, siteOfHo
 import { LEARN_FILES, cleanPath, internalPath, legacyTarget } from "@/lib/learn/paths";
 import { MOVED_COOKIE } from "@/lib/site/carry";
 import { bridgeHtml } from "@/lib/site/bridge";
+import { isProductionDeploy } from "@/lib/platform";
 
 /**
  * Two sites, one app (src/lib/site/hosts.ts):
@@ -93,7 +94,7 @@ function resolveSite(req: NextRequest): { site: Site; setCookie?: Site } {
     if (c === "course" || c === "portfolio") return { site: c };
   }
   const env = process.env.HOST_OVERRIDE;
-  if ((env === "course" || env === "portfolio") && process.env.VERCEL_ENV !== "production") return { site: env };
+  if ((env === "course" || env === "portfolio") && !isProductionDeploy()) return { site: env };
   return { site: "portfolio" };
 }
 

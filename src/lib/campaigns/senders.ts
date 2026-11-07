@@ -10,6 +10,7 @@
  * transport builds the full MIME message and logs a one-line summary.
  */
 import nodemailer from "nodemailer";
+import { brevoConfigured, brevoTransport, type MailTransport } from "@/lib/email/transport";
 import { EMAIL } from "@/lib/socials";
 import type { Sender, SenderCheck, TransportId, TransportInfo, TransportMode } from "./types";
 
@@ -54,8 +55,10 @@ function provider(host: string | undefined): { name: string; note: string } {
 
 export function transportInfo(id: TransportId): TransportInfo {
   const env = envFor(id);
-  const configured = !!(env.host && env.user && env.pass);
-  const p = provider(env.host);
+  // the main transport goes over Brevo's HTTPS API when BREVO_API_KEY is set (src/lib/email/transport.ts)
+  const api = id === "smtp" && brevoConfigured();
+  const configured = api || !!(env.host && env.user && env.pass);
+  const p = api ? { name: "Brevo", note: provider("brevo").note } : provider(env.host);
   const listed = (env.verified || "").split(",").map((d) => d.trim().toLowerCase()).filter(Boolean);
   const fromDomain = domainOf(parseFrom(env.from)?.email || "");
   const verifiedDomains = listed.length ? listed : fromDomain ? [fromDomain] : [];
@@ -63,7 +66,7 @@ export function transportInfo(id: TransportId): TransportInfo {
     id,
     label: id === "smtp" ? "SMTP (SMTP_*)" : "Second SMTP (SMTP2_*)",
     configured,
-    host: env.host || null,
+    host: api ? "api.brevo.com" : env.host || null,
     provider: p.name,
     verifiedDomains,
     verifiedSource: listed.length ? "env" : fromDomain ? "assumed" : "none",
@@ -122,7 +125,8 @@ export const formatFrom = (name: string, email: string) => (name ? `"${name.repl
 
 /** A nodemailer transport for one batch. Console mode never opens a network connection. */
 export function makeTransport(id: TransportId) {
-  if (transportMode() === "console") return { mode: "console" as const, t: nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" }) };
+  if (transportMode() === "console") return { mode: "console" as const, t: nodemailer.createTransport({ streamTransport: true, buffer: true, newline: "unix" }) as unknown as MailTransport };
+  if (id === "smtp" && brevoConfigured()) return { mode: "live" as const, t: brevoTransport() };
   const env = envFor(id);
   if (!env.host || !env.user || !env.pass) throw Object.assign(new Error(`${id.toUpperCase()} credentials are not configured on this deployment`), { fatal: true });
   const port = Number(env.port || 587);
@@ -138,7 +142,7 @@ export function makeTransport(id: TransportId) {
       connectionTimeout: 20_000,
       greetingTimeout: 15_000,
       socketTimeout: 20_000,
-    }),
+    }) as unknown as MailTransport,
   };
 }
 

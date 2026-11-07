@@ -11,6 +11,7 @@
  */
 import { cache } from "react";
 import type { CaseActivityData } from "@/components/stories/activities/data";
+import { STORY_FILES } from "@/generated/stories";
 
 export type StoryFrontmatter = {
   slug: string;
@@ -56,39 +57,14 @@ async function parseFrontmatter(raw: string) {
   return matter(raw);
 }
 
-async function readFile(path: string): Promise<string> {
-  const fs = await import("fs/promises");
-  return fs.readFile(path, "utf8");
-}
-
-async function listStoryFiles(): Promise<string[]> {
-  const fs = await import("fs/promises");
-  const path = await import("path");
-  const dir = path.join(process.cwd(), "content", "stories");
-  const entries: string[] = [];
-  try {
-    const items = await fs.readdir(dir, { withFileTypes: true });
-    for (const it of items) {
-      if (it.isFile() && it.name.endsWith(".md")) {
-        entries.push(path.join(dir, it.name));
-      }
-    }
-  } catch {
-    // ignore if dir doesn't exist
-  }
-  return entries;
-}
-
 async function readFileStories(): Promise<StorySource[]> {
-  const pathMod = await import("path");
-  const files = await listStoryFiles();
+  // content/stories/*.md, bundled at build (scripts/build/gen-runtime-files.mjs): no filesystem at runtime
   const out: StorySource[] = [];
-  for (const file of files) {
-    const raw = await readFile(file);
+  for (const { name, raw } of STORY_FILES) {
     const { data, content } = await parseFrontmatter(raw);
     // Derive slug from filename if not present in frontmatter
     const fm = { ...(data as Record<string, unknown>) };
-    const slug = (fm.slug as string) || pathMod.basename(file, ".md");
+    const slug = (fm.slug as string) || name.replace(/\.md$/, "");
 
     // Derive title from first markdown heading if missing
     let title = (fm.title as string) || "";

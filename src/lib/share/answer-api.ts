@@ -8,11 +8,12 @@ import { NextResponse } from "next/server";
 import { ANSWER_PAGES_INDEXABLE, validateShare } from "./answer-model";
 import { answersEnabled, createShare, ShareLimitError } from "./answers";
 import { shareLearner } from "./store";
+import { isProductionDeploy } from "@/lib/platform";
 
 const noStore = { "Cache-Control": "private, no-store" };
 
 // shared answers live on the course host
-const siteOrigin = (request: Request) => (process.env.VERCEL_ENV === "production" ? COURSE_ORIGIN : new URL(request.url).origin).replace(/\/$/, "");
+const siteOrigin = (request: Request) => (isProductionDeploy() ? COURSE_ORIGIN : new URL(request.url).origin).replace(/\/$/, "");
 
 /** GET → { enabled }: no session needed, cached at the CDN for 5 minutes. */
 export async function shareAnswerStatus(): Promise<NextResponse> {

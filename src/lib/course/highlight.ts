@@ -5,24 +5,60 @@
  */
 import type { Element as HastElement, ElementContent } from "hast";
 
-type ShikiModule = typeof import("shiki");
-type Highlighter = Awaited<ReturnType<ShikiModule["createHighlighter"]>>;
+import type { HighlighterCore } from "shiki/core";
 
 const THEMES = { light: "github-light", dark: "github-dark" } as const;
-const PRELOAD = ["python", "sql", "bash", "yaml", "json", "markdown"];
-const ALIASES: Record<string, string> = { py: "python", sh: "bash", shell: "bash", zsh: "bash", yml: "yaml", md: "markdown", js: "javascript", ts: "typescript" };
-
-type HighlighterHandle = Promise<{ hl: Highlighter; mod: ShikiModule }>;
+const ALIASES: Record<string, string> = {
+  py: "python", sh: "bash", shell: "bash", shellscript: "bash", zsh: "bash", yml: "yaml", md: "markdown",
+  js: "javascript", jsx: "javascript", mjs: "javascript", cjs: "javascript", ts: "typescript", tsx: "typescript",
+  proto: "protobuf", dockerfile: "docker", golang: "go", rs: "rust", htm: "html", cfg: "ini", conf: "ini",
+};
+/**
+ * Only the grammars the course uses (plus a few likely ones), each loaded on first use: the full
+ * shiki bundle is ~7.5 MB of grammars on the server (too big for a Cloudflare Worker).
+ * A language missing here renders as plain text, never an error; add it here when content needs it.
+ */
+const LANGS: Record<string, () => Promise<{ default: unknown }>> = {
+  python: () => import("@shikijs/langs/python"),
+  javascript: () => import("@shikijs/langs/javascript"),
+  typescript: () => import("@shikijs/langs/typescript"),
+  sql: () => import("@shikijs/langs/sql"),
+  http: () => import("@shikijs/langs/http"),
+  json: () => import("@shikijs/langs/json"),
+  jsonc: () => import("@shikijs/langs/jsonc"),
+  yaml: () => import("@shikijs/langs/yaml"),
+  bash: () => import("@shikijs/langs/shellscript"),
+  markdown: () => import("@shikijs/langs/markdown"),
+  c: () => import("@shikijs/langs/c"),
+  lua: () => import("@shikijs/langs/lua"),
+  protobuf: () => import("@shikijs/langs/proto"),
+  nginx: () => import("@shikijs/langs/nginx"),
+  graphql: () => import("@shikijs/langs/graphql"),
+  go: () => import("@shikijs/langs/go"),
+  diff: () => import("@shikijs/langs/diff"),
+  java: () => import("@shikijs/langs/java"),
+  rust: () => import("@shikijs/langs/rust"),
+  html: () => import("@shikijs/langs/html"),
+  css: () => import("@shikijs/langs/css"),
+  docker: () => import("@shikijs/langs/docker"),
+  toml: () => import("@shikijs/langs/toml"),
+  ini: () => import("@shikijs/langs/ini"),
+  xml: () => import("@shikijs/langs/xml"),
+};
 
 // Cached on globalThis so dev-mode module re-evaluation (HMR / per-route compiles) reuses one highlighter.
-const cache = globalThis as typeof globalThis & { __sdShikiHighlighter?: HighlighterHandle | null };
+const cache = globalThis as typeof globalThis & { __sdShikiHighlighter?: Promise<HighlighterCore> | null };
 
-function getHighlighter(): HighlighterHandle {
+function getHighlighter(): Promise<HighlighterCore> {
   if (!cache.__sdShikiHighlighter) {
     cache.__sdShikiHighlighter = (async () => {
-      const mod = await import("shiki");
-      const hl = await mod.createHighlighter({ themes: [THEMES.light, THEMES.dark], langs: PRELOAD });
-      return { hl, mod };
+      const [{ createHighlighterCore }, { createJavaScriptRegexEngine }] = await Promise.all([import("shiki/core"), import("shiki/engine/javascript")]);
+      // JavaScript regex engine: no oniguruma WASM to ship or instantiate
+      return createHighlighterCore({
+        themes: [import("@shikijs/themes/github-light"), import("@shikijs/themes/github-dark")],
+        langs: [],
+        engine: createJavaScriptRegexEngine(),
+      });
     })().catch((err) => {
       cache.__sdShikiHighlighter = null;
       throw err;
@@ -31,21 +67,19 @@ function getHighlighter(): HighlighterHandle {
   return cache.__sdShikiHighlighter;
 }
 
-/** Normalise a fence language; returns null when shiki has no grammar for it. */
+/** Normalise a fence language; returns null when there's no grammar for it. */
 export async function resolveLang(lang: string | null | undefined): Promise<string | null> {
   if (!lang) return null;
-  const l = (ALIASES[lang.toLowerCase()] || lang.toLowerCase()).trim();
+  const l = (ALIASES[lang.toLowerCase().trim()] || lang.toLowerCase()).trim();
+  const load = LANGS[l];
+  if (!load) return null;
   try {
-    const { hl, mod } = await getHighlighter();
-    if (hl.getLoadedLanguages().includes(l)) return l;
-    if (l in mod.bundledLanguages || l in mod.bundledLanguagesAlias) {
-      await hl.loadLanguage(l as Parameters<Highlighter["loadLanguage"]>[0]);
-      return l;
-    }
+    const hl = await getHighlighter();
+    if (!hl.getLoadedLanguages().includes(l)) await hl.loadLanguage((await load()).default as Parameters<HighlighterCore["loadLanguage"]>[0]);
+    return hl.getLoadedLanguages().includes(l) ? l : null;
   } catch {
     return null;
   }
-  return null;
 }
 
 /**
@@ -56,7 +90,7 @@ export async function highlightLines(code: string, lang: string | null): Promise
   const resolved = await resolveLang(lang);
   if (resolved) {
     try {
-      const { hl } = await getHighlighter();
+      const hl = await getHighlighter();
       const root = hl.codeToHast(code, { lang: resolved, themes: THEMES, defaultColor: false });
       const pre = root.children.find((c): c is HastElement => c.type === "element" && c.tagName === "pre");
       const codeEl = pre?.children.find((c): c is HastElement => c.type === "element" && c.tagName === "code");

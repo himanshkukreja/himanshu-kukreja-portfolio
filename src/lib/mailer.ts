@@ -1,4 +1,5 @@
 import nodemailer from "nodemailer";
+import { brevoConfigured, brevoTransport, type MailTransport } from "@/lib/email/transport";
 import { EMAIL } from "@/lib/socials";
 
 // Retry function for handling SMTP timeouts in serverless environments
@@ -30,7 +31,8 @@ async function withRetry<T>(fn: () => Promise<T>, maxRetries = 2, delay = 1000):
   throw lastError || new Error('Max retries exceeded');
 }
 
-export function getTransport() {
+export function getTransport(): MailTransport {
+  if (brevoConfigured()) return brevoTransport();
   const host = process.env.SMTP_HOST as string;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER as string;
@@ -60,11 +62,12 @@ export function getTransport() {
     }
   };
 
-  return nodemailer.createTransport(transportConfig);
+  return nodemailer.createTransport(transportConfig) as unknown as MailTransport;
 }
 
 // Fast transport for welcome emails - more aggressive timeouts
-export function getFastTransport() {
+export function getFastTransport(): MailTransport {
+  if (brevoConfigured()) return brevoTransport();
   const host = process.env.SMTP_HOST as string;
   const port = Number(process.env.SMTP_PORT || 587);
   const user = process.env.SMTP_USER as string;
@@ -89,7 +92,7 @@ export function getFastTransport() {
     tls: { rejectUnauthorized: false }
   };
 
-  return nodemailer.createTransport(transportConfig);
+  return nodemailer.createTransport(transportConfig) as unknown as MailTransport;
 }
 
 function fromAddress() {

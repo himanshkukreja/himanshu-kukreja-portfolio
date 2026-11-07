@@ -4,7 +4,9 @@
  */
 
 import { contentSnapshot } from './content-snapshot';
+import { r2ContentConfigured, r2List, r2Read } from './content-r2';
 import { questDifficulty } from '@/lib/learn/quest-difficulty';
+import { DEPLOY_ENV } from './platform';
 
 const GITHUB_TOKEN = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
 /** Cache tag on every GitHub content fetch (see /api/revalidate-courses). */
@@ -15,7 +17,7 @@ const REPO_NAME = 'system-design-mastery';
 // Course content branch. Preview deploys read the branch with the Mermaid diagrams until it is
 // merged into the content repo's main (production keeps main). SDM_BRANCH always wins.
 const PREVIEW_CONTENT_BRANCH = 'mermaid-diagrams';
-const BRANCH = process.env.SDM_BRANCH || (process.env.VERCEL_ENV === 'preview' ? PREVIEW_CONTENT_BRANCH : 'main');
+const BRANCH = process.env.SDM_BRANCH || (DEPLOY_ENV === 'preview' ? PREVIEW_CONTENT_BRANCH : 'main');
 const BASE_PATH = 'resources';
 
 /**
@@ -91,6 +93,27 @@ export function isContentMissing(e: unknown): boolean {
 
 const inSnapshot = (path: string) => path === BASE_PATH || path.startsWith(`${BASE_PATH}/`);
 
+/** A directory listing from R2 (lib/content-r2); null = not served from it (fall back). */
+async function r2ListFiles(path: string): Promise<GitHubFile[] | null> {
+  if (!inSnapshot(path) || !r2ContentConfigured()) return null;
+  const r = await r2List(BRANCH, path);
+  if (!r) return null;
+  const clean = path.replace(/\/+$/, '');
+  if (r.kind === 'missing') throw new ContentFetchError(`Not found in R2 content: ${clean}`, 404);
+  const entry = (rel: string, isDir: boolean): GitHubFile => ({ name: rel.split('/').pop() as string, path: rel, sha: '', size: 0, type: isDir ? 'dir' : 'file', download_url: null });
+  if (r.kind === 'file') return [entry(clean, false)];
+  return r.entries.map((n) => (n.endsWith('/') ? entry(`${clean}/${n.slice(0, -1)}`, true) : entry(`${clean}/${n}`, false)));
+}
+
+/** A file's text from R2; null = not served from it (fall back). */
+async function r2ReadFile(path: string): Promise<string | null> {
+  if (!inSnapshot(path) || !r2ContentConfigured()) return null;
+  const t = await r2Read(BRANCH, path);
+  if (t === undefined) return null;
+  if (t === null) throw new ContentFetchError(`Not found in R2 content: ${path}`, 404);
+  return t;
+}
+
 /** A directory listing from the snapshot; null = not served from it (fall back to the API). */
 async function snapshotList(path: string): Promise<GitHubFile[] | null> {
   if (!inSnapshot(path)) return null;
@@ -122,6 +145,8 @@ async function snapshotRead(path: string): Promise<string | null> {
  */
 export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
   if (LOCAL_DIR) return readLocalContent(path);
+  const fromR2 = await r2ListFiles(path);
+  if (fromR2) return fromR2;
   const fromSnap = await snapshotList(path);
   if (fromSnap) return fromSnap;
   const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`;
@@ -129,6 +154,7 @@ export async function fetchGitHubContent(path: string): Promise<GitHubFile[]> {
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github.v3+json',
     'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'systemdesignmastery', // GitHub rejects requests without one (Workers' fetch sends none)
   };
 
   if (GITHUB_TOKEN) {
@@ -164,6 +190,8 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
     const nodePath = await import('path');
     return fs.readFile(nodePath.resolve(LOCAL_DIR, path), 'utf8');
   }
+  const fromR2 = await r2ReadFile(path);
+  if (fromR2 != null) return fromR2;
   const fromSnap = await snapshotRead(path);
   if (fromSnap != null) return fromSnap;
   const url = `https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${path}?ref=${BRANCH}`;
@@ -171,6 +199,7 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
   const headers: Record<string, string> = {
     'Accept': 'application/vnd.github.v3.raw',
     'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'systemdesignmastery', // GitHub rejects requests without one (Workers' fetch sends none)
   };
 
   if (GITHUB_TOKEN) {

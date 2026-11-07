@@ -1,12 +1,12 @@
 /**
  * Shared pieces for the Open Graph / Twitter cards (next/og ImageResponse, Node runtime).
  * Brand: true black, signal orange, Bricolage display, Geist body, Geist Mono labels, square corners.
- * Fonts are static TTF instances checked in next to this file (satori can't read woff2 or variable fonts).
+ * Fonts are static TTF instances checked in next to this file (satori can't read woff2 or variable fonts),
+ * bundled into src/generated/og-fonts.ts at build.
  */
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import type { ReactNode } from "react";
 import { COURSE_MARK as M } from "@/lib/site/courseMark";
+import { OG_FONTS } from "@/generated/og-fonts";
 
 export const OG_SIZE = { width: 1200, height: 630 };
 
@@ -28,30 +28,20 @@ export const C = {
 
 type Weight = 400 | 500 | 600 | 700 | 800;
 
-/**
- * One literal `join(process.cwd(), "src/lib/og/fonts/…")` per file so Next's file tracer (nft) can see
- * every path and ship the TTFs with the dynamic lesson route on Vercel (a computed path is not traced).
- */
-const fontFiles = (): { name: string; path: string; weight: Weight }[] => [
-  { name: "Bricolage", path: join(process.cwd(), "src/lib/og/fonts/Bricolage-800.ttf"), weight: 800 },
-  { name: "Bricolage", path: join(process.cwd(), "src/lib/og/fonts/Bricolage-700.ttf"), weight: 700 },
-  { name: "Geist", path: join(process.cwd(), "src/lib/og/fonts/Geist-400.ttf"), weight: 400 },
-  { name: "Geist", path: join(process.cwd(), "src/lib/og/fonts/Geist-500.ttf"), weight: 500 },
-  { name: "Geist Mono", path: join(process.cwd(), "src/lib/og/fonts/GeistMono-400.ttf"), weight: 400 },
-  { name: "Geist Mono", path: join(process.cwd(), "src/lib/og/fonts/GeistMono-600.ttf"), weight: 600 },
+const FONT_FILES: { name: string; file: string; weight: Weight }[] = [
+  { name: "Bricolage", file: "Bricolage-800", weight: 800 },
+  { name: "Bricolage", file: "Bricolage-700", weight: 700 },
+  { name: "Geist", file: "Geist-400", weight: 400 },
+  { name: "Geist", file: "Geist-500", weight: 500 },
+  { name: "Geist Mono", file: "GeistMono-400", weight: 400 },
+  { name: "Geist Mono", file: "GeistMono-600", weight: 600 },
 ];
 
-let fontCache: Promise<{ name: string; data: Buffer; weight: Weight; style: "normal" }[]> | null = null;
+let fontCache: { name: string; data: Buffer; weight: Weight; style: "normal" }[] | null = null;
 
-export function ogFonts() {
-  if (!fontCache) {
-    fontCache = Promise.all(
-      fontFiles().map(async (f) => ({ name: f.name, data: await readFile(f.path), weight: f.weight, style: "normal" as const }))
-    ).catch((e) => {
-      fontCache = null;
-      throw e;
-    });
-  }
+/** The TTFs are bundled at build (scripts/build/gen-runtime-files.mjs → src/generated/og-fonts.ts): no filesystem at runtime. */
+export async function ogFonts() {
+  fontCache ??= FONT_FILES.map((f) => ({ name: f.name, data: Buffer.from(OG_FONTS[f.file], "base64"), weight: f.weight, style: "normal" as const }));
   return fontCache;
 }
 
