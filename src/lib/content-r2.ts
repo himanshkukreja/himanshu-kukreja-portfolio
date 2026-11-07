@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash, createHmac } from "crypto";
+import { request as httpRequest } from "http";
 import { request } from "https";
 
 /**
@@ -15,6 +16,7 @@ import { request } from "https";
  *
  * Configured by SDM_R2_ACCOUNT_ID, SDM_R2_BUCKET, SDM_R2_ACCESS_KEY_ID, SDM_R2_SECRET_ACCESS_KEY
  * (a read-only R2 token is enough). Unset → callers fall back to the snapshot / GitHub API.
+ * SDM_R2_ENDPOINT (e.g. http://127.0.0.1:9100) overrides the R2 host, for local tests against a stand-in.
  */
 
 type Manifest = { sha: string; dirs: Map<string, string[]>; checkedAt: number; etag: string | null };
@@ -27,7 +29,8 @@ let failedAt = 0;
 const cfg = () => {
   const e = process.env;
   if (!e.SDM_R2_ACCOUNT_ID || !e.SDM_R2_BUCKET || !e.SDM_R2_ACCESS_KEY_ID || !e.SDM_R2_SECRET_ACCESS_KEY) return null;
-  return { host: `${e.SDM_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`, bucket: e.SDM_R2_BUCKET, key: e.SDM_R2_ACCESS_KEY_ID, secret: e.SDM_R2_SECRET_ACCESS_KEY };
+  const endpoint = new URL(e.SDM_R2_ENDPOINT || `https://${e.SDM_R2_ACCOUNT_ID}.r2.cloudflarestorage.com`);
+  return { host: endpoint.host, hostname: endpoint.hostname, port: endpoint.port, secure: endpoint.protocol === "https:", bucket: e.SDM_R2_BUCKET, key: e.SDM_R2_ACCESS_KEY_ID, secret: e.SDM_R2_SECRET_ACCESS_KEY };
 };
 
 export const r2ContentConfigured = () => cfg() !== null && process.env.SDM_R2 !== "off";
@@ -36,8 +39,31 @@ const sha256 = (s: string) => createHash("sha256").update(s).digest("hex");
 const hmac = (k: Buffer | string, s: string) => createHmac("sha256", k).update(s).digest();
 const enc = (p: string) => p.split("/").map((s) => encodeURIComponent(s).replace(/[!'()*]/g, (c) => "%" + c.charCodeAt(0).toString(16).toUpperCase())).join("/");
 
+/**
+ * At most 6 R2 requests in flight per instance: Workers allow 6 open connections per request and queue
+ * the rest, so a page that reads 200+ files at once (the lecture list) would otherwise time out while
+ * queued. The timeout below only covers a request that is actually running.
+ */
+const MAX_IN_FLIGHT = 6;
+let inFlight = 0;
+const waiting: (() => void)[] = [];
+async function limited<T>(fn: () => Promise<T>): Promise<T> {
+  if (inFlight >= MAX_IN_FLIGHT) await new Promise<void>((r) => waiting.push(r));
+  inFlight++;
+  try {
+    return await fn();
+  } finally {
+    inFlight--;
+    waiting.shift()?.();
+  }
+}
+
 /** A signed S3 GET (SigV4, region "auto"). 404 → null. */
 function get(key: string, extra: Record<string, string> = {}): Promise<{ status: number; etag: string | null; body: Buffer } | null> {
+  return limited(() => getNow(key, extra));
+}
+
+function getNow(key: string, extra: Record<string, string> = {}): Promise<{ status: number; etag: string | null; body: Buffer } | null> {
   const c = cfg()!;
   const path = `/${c.bucket}/${enc(key)}`;
   const now = new Date().toISOString().replace(/[:-]|\.\d{3}/g, "");
@@ -52,7 +78,7 @@ function get(key: string, extra: Record<string, string> = {}): Promise<{ status:
   const sig = createHmac("sha256", kSigning).update(toSign).digest("hex");
   const auth = `AWS4-HMAC-SHA256 Credential=${c.key}/${scope}, SignedHeaders=${names.join(";")}, Signature=${sig}`;
   return new Promise((resolve, reject) => {
-    const req = request({ host: c.host, path, method: "GET", headers: { ...headers, ...extra, authorization: auth }, timeout: 15_000 }, (res) => {
+    const req = (c.secure ? request : httpRequest)({ hostname: c.hostname, port: c.port || undefined, path, method: "GET", headers: { ...headers, ...extra, authorization: auth }, timeout: 15_000 }, (res) => {
       const chunks: Buffer[] = [];
       res.on("data", (d: Buffer) => chunks.push(d));
       res.on("end", () => {

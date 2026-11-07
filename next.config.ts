@@ -98,6 +98,22 @@ const nextConfig: NextConfig = {
   // PostHog API paths end in a slash (/e/, /flags/?v=2): don't 308 them away (only needed, and
   // only switched on, when the proxy is live).
   skipTrailingSlashRedirect: posthogRewrites.length > 0,
+  // Browser-only libraries that client components load lazily (dynamic(..., { ssr: false }) or import()
+  // inside effects) never run on the server, but webpack still compiles them into the server chunks:
+  // ~3 MB of Excalidraw (incl. its font-subsetting WASM) and ~0.5 MB of posthog-js. The server build gets
+  // an empty module instead, which keeps the server bundle small enough for a Cloudflare Worker.
+  // Only exact package entry points ($): posthog-js/rrweb (admin replay player) is untouched.
+  webpack(config, { isServer }) {
+    if (isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        "@excalidraw/excalidraw$": false,
+        "posthog-js$": false,
+        "posthog-js/dist/posthog-recorder$": false,
+      };
+    }
+    return config;
+  },
   async rewrites() {
     return { beforeFiles: courseIconRewrites, afterFiles: posthogRewrites, fallback: [] };
   },
