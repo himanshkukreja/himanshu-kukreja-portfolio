@@ -1,0 +1,38 @@
+# Workers usage from Cloudflare's GraphQL Analytics API: requests and CPU time per Worker per day and per hour,
+# for the billing breakdown (Workers Paid includes 10M requests and 30M CPU ms a month).
+name: cloudflare-usage
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Days back"
+        default: "4"
+
+permissions:
+  contents: read
+
+jobs:
+  usage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      DAYS: ${{ inputs.days }}
+    steps:
+      - name: Query
+        run: |
+          node --input-type=module -e '
+            const { CF_TOKEN, ACCOUNT, DAYS } = process.env;
+            const until = new Date(), since = new Date(Date.now() - Number(DAYS) * 86400e3);
+            const q = `query($a: String!, $s: Time!, $u: Time!) { viewer { accounts(filter: { accountTag: $a }) {
+              hours: workersInvocationsAdaptive(limit: 5000, filter: { datetime_geq: $s, datetime_leq: $u }, orderBy: [datetimeHour_ASC]) {
+                dimensions { scriptName datetimeHour } sum { requests subrequests errors } quantiles { cpuTimeP50 cpuTimeP99 } } } } }`;
+            const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { authorization: `Bearer ${CF_TOKEN}`, "content-type": "application/json" }, body: JSON.stringify({ query: q, variables: { a: ACCOUNT, s: since.toISOString(), u: until.toISOString() } }) });
+            const j = await r.json();
+            if (j.errors?.length) { console.log("errors:", JSON.stringify(j.errors).slice(0, 600)); }
+            const rows = j.data?.viewer?.accounts?.[0]?.hours ?? [];
+            console.log(`${rows.length} hourly rows`);
+            for (const x of rows) console.log([x.dimensions.datetimeHour, x.dimensions.scriptName, x.sum.requests, x.sum.subrequests, x.sum.errors, x.quantiles.cpuTimeP50, x.quantiles.cpuTimeP99].join("\t"));
+          '
