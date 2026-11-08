@@ -53,7 +53,7 @@ jobs:
           npx wrangler tail -c "${{ inputs.config }}" $WENV --format json > "$RUNNER_TEMP/tail.jsonl" 2> "$RUNNER_TEMP/tail.err" &
           TAIL=$!
           sleep 12
-          for p in $PATHS; do curl -s --max-time 240 -o /dev/null -X "${{ inputs.method }}" -H "content-type: application/json" -d "{}" -w "%{http_code} %{time_total}s $p\n" "$BASE$p"; sleep 2; done
+          for p in $PATHS; do curl -s --max-time 240 -o /dev/null -X "${{ inputs.method }}" -H "content-type: application/json" -d "{}" -w "%{http_code} %{time_total}s $p\n" "$BASE$p" || true; sleep 2; done
           sleep 15
           kill $TAIL || true
           node -e '
