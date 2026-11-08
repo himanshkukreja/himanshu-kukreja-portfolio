@@ -13,6 +13,7 @@ import { chrome, el, h, isNode, rawHast, stripEmoji, text, toText, type AnyNode,
 import { IdRegistry, slugify } from "../slug";
 import { renderCode } from "./code";
 import { animFigure, isAnim, renderBlock } from "./directives";
+import { DSA_LEAVES, dsaLeaf, type DsaRenderOpts } from "./dsa";
 import type { LeafDirective } from "mdast-util-directive";
 
 export type BlockCtx = {
@@ -30,6 +31,8 @@ export type BlockCtx = {
   lastEnd: Paragraph | null;
   /** resources entries that name a course page ("Week 1, Day 3 — …", "(Bonus Problem 1)") → link; absent = all static */
   courseRef?: CourseRefResolver;
+  /** DSA Mastery lessons and problems only (detect/dsa.ts); absent for every System Design Mastery page */
+  dsa?: DsaRenderOpts;
 };
 
 type Opts = { inPhrases?: boolean };
@@ -648,6 +651,11 @@ export async function processBlocks(nodes: AnyNode[], ctx: BlockCtx, opts: Opts 
     // `::anim[name]` animated explainer (unknown names were already turned back into text)
     if (isAnim(n)) {
       out.push(animFigure(n as unknown as LeafDirective, ctx));
+      continue;
+    }
+    // DSA Mastery widgets (`::trace[id]`, `::line[…]`…), only in DSA renders
+    if (ctx.dsa && n.type === "leafDirective" && DSA_LEAVES.has((n as unknown as LeafDirective).name)) {
+      out.push(await dsaLeaf(n as unknown as LeafDirective, ctx));
       continue;
     }
 

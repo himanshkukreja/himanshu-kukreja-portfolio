@@ -21,6 +21,7 @@ import { IdRegistry, intToRoman, romanToInt, slugify } from "./slug";
 import { cleanHr, count, isEndMarker, isTomorrow, processBlocks, renderNestedCode, type BlockCtx } from "./detect/blocks";
 import { practiceCard } from "./detect/quiz";
 import { missionFrom, neutralizeDirectives } from "./detect/directives";
+import { DSA_CONTAINERS, DSA_LEAVES, dsaStage, injectCheckpoint, unwrapBeats, type DsaRenderOpts } from "./detect/dsa";
 import type { ContainerDirective } from "mdast-util-directive";
 import { practiceFor, type PracticeGame } from "@/lib/learn/arena/games";
 import { markTerms, type TermsOpts } from "./terms";
@@ -82,7 +83,7 @@ function previewMajors(nodes: RootContent[]): Set<number> {
   return majors;
 }
 
-export function splitStages(nodes: RootContent[], kind: LessonKind): RawStage[] {
+export function splitStages(nodes: RootContent[], kind: LessonKind, stageOf?: (text: string) => StageHead | null): RawStage[] {
   const stages: RawStage[] = [];
   const leading: RootContent[] = [];
   const h1s = nodes.map((n, i) => (n.type === "heading" && n.depth === 1 ? i : -1)).filter((i) => i >= 0);
@@ -91,6 +92,7 @@ export function splitStages(nodes: RootContent[], kind: LessonKind): RawStage[] 
     const n = nodes[i] as Heading;
     const t = toText(n);
     if (pm) return pm.has(i) ? { id: slugify(t, 40), label: stripEmoji(t), title: stripEmoji(t), core: true } : null;
+    if (stageOf) return stageOf(stripEmoji(t));
     return majorStage(t, kind);
   };
   let anyMajor = h1s.some((i) => isMajor(i));
@@ -352,6 +354,8 @@ export type RenderOpts = {
   terms?: TermsOpts;
   /** end-of-article entries that name a course page become new-tab links (src/lib/learn/course-refs.ts); off when absent */
   courseRefs?: CourseRefResolver;
+  /** DSA Mastery lessons and problems (src/lib/course/detect/dsa.ts): its directives, beats as stages; absent for SDM */
+  dsa?: DsaRenderOpts;
 };
 
 export async function renderLessonDetailed(markdown: string, opts: RenderOpts): Promise<{ lesson: RenderedLesson; stats: RenderStats }> {
@@ -367,7 +371,12 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
   // ("ratio:high", "::x" lines, unknown containers) is turned straight back into its source text.
   const parser = opts.directives === false ? unified().use(remarkParse).use(remarkGfm) : unified().use(remarkParse).use(remarkGfm).use((await import("remark-directive")).default);
   const mdast = (await parser.run(parser.parse(markdown))) as Root;
-  if (opts.directives !== false) stats.strayDirectives = neutralizeDirectives(mdast, markdown);
+  if (opts.directives !== false) stats.strayDirectives = neutralizeDirectives(mdast, markdown, opts.dsa ? { containers: DSA_CONTAINERS, leaves: DSA_LEAVES } : undefined);
+  if (opts.dsa) {
+    // the checkpoint quiz joins the lesson before the quick checks are numbered; beats become h1 stage heads
+    if (opts.dsa.checkpointQuiz) stats.dsaCheckpoint = injectCheckpoint(mdast, (await parser.run(parser.parse(opts.dsa.checkpointQuiz))) as Root);
+    if (opts.dsa.beats) stats.dsaBeats = unwrapBeats(mdast);
+  }
   // A top-level :::mission is the side quest's brief: lifted out for the quest hero, not rendered in the body.
   let mission: QuestMission | undefined;
   {
@@ -470,12 +479,12 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
     if (isTomorrow(next)) dropParas.add(next);
   }
 
-  const raw = splitStages(body, kind);
+  const raw = splitStages(body, kind, opts.dsa?.beats ? dsaStage : undefined);
   if (lede) raw[0].nodes.unshift(lede as unknown as RootContent);
 
   const ids = new IdRegistry();
   const toc: TocItem[] = [];
-  const ctx: BlockCtx = { kind, ids, toc, stats, stageId: "", hstack: [], figure: 0, dropParas, lastEnd, courseRef: opts.courseRefs };
+  const ctx: BlockCtx = { kind, ids, toc, stats, stageId: "", hstack: [], figure: 0, dropParas, lastEnd, courseRef: opts.courseRefs, ...(opts.dsa ? { dsa: opts.dsa } : {}) };
   const stages: Stage[] = [];
   const sections: SdEl[] = [];
   const coreTotal = raw.filter((s) => s.head.core).length;

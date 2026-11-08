@@ -42,6 +42,8 @@ jobs:
       APP_ENV: ${{ inputs.target == 'staging' && 'preview' || 'production' }}
       # staging is also served at staging.systemdesignmastery.dev (a real zone: caches and sign-in behave as in production)
       NEXT_PUBLIC_EXTRA_COURSE_HOSTS: ${{ inputs.target == 'staging' && 'sdm-course-staging.markdrop-in.workers.dev,staging.systemdesignmastery.dev' || 'sdm-course.markdrop-in.workers.dev' }}
+      # DSA Mastery (src/lib/dsa/flags.ts): the full course on staging only; production keeps the coming-soon page until launch
+      NEXT_PUBLIC_DSA_MODE: ${{ inputs.target == 'staging' && 'full' || 'soon' }}
       WENV: ${{ inputs.target == 'staging' && '--env staging' || '' }}
       CACHE_BUCKET: ${{ inputs.target == 'staging' && 'sdm-course-cache-staging-apac' || 'sdm-course-cache-apac' }}
     steps:

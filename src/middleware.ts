@@ -7,6 +7,7 @@ import { MOVED_COOKIE } from "@/lib/site/carry";
 import { bridgeHtml } from "@/lib/site/bridge";
 import { isProductionDeploy } from "@/lib/platform";
 import { selfFetch } from "@/lib/platform";
+import { DSA_FULL, dsaPathAllowedSoon } from "@/lib/dsa/flags";
 
 /**
  * Two sites, one app (src/lib/site/hosts.ts):
@@ -135,6 +136,10 @@ async function courseHost(req: NextRequest): Promise<NextResponse> {
   const internal = internalPath(pathname);
   if (!internal) return NextResponse.next();
   if (PROD && devOnly(internal)) return new NextResponse("Not found", { status: 404, headers: { "x-robots-tag": "noindex" } });
+  // DSA Mastery before launch (NEXT_PUBLIC_DSA_MODE=soon, src/lib/dsa/flags.ts): only the coming-soon page at /dsa
+  if (!DSA_FULL && (pathname === "/dsa" || pathname.startsWith("/dsa/")) && !dsaPathAllowedSoon(pathname)) {
+    return NextResponse.redirect(new URL("/dsa", req.url), { status: 307, headers: { "x-robots-tag": "noindex", "cache-control": "no-store" } });
+  }
   const to = new URL(internal + search, req.url);
   const rewrite = () => NextResponse.rewrite(to);
   // on a real course host next.config.ts rewrites these (courseRewrites), which keeps on-demand ISR pages cacheable

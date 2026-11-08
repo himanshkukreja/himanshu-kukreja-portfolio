@@ -19,14 +19,32 @@ import { request } from "https";
  * SDM_R2_ENDPOINT (e.g. http://127.0.0.1:9100) overrides the R2 host, for local tests against a stand-in.
  * On Cloudflare the Worker's R2 binding SDM_CONTENT (wrangler.jsonc) is used instead: same bucket, no
  * signing, no public network hop.
+ *
+ * Source-aware (DSA Mastery plan §14.2): the same bucket also holds the dsa-mastery repo under a `dsa/` prefix,
+ *   <bucket>/dsa/<branch>/files/{resources,generated}/...   and   <bucket>/dsa/<branch>/manifest.json
+ * read with readContent("dsa", path) / listContent("dsa", path). The System Design Mastery keys are unchanged
+ * (r2Read / r2List with the bare branch), and each prefix keeps its own manifest cache.
  */
 
 type Manifest = { sha: string; dirs: Map<string, string[]>; checkedAt: number; etag: string | null };
+type ManifestSlot = { manifest: Manifest | null; loading: Promise<Manifest | null> | null; failedAt: number };
 
 const CHECK_MS = 60_000;
-let manifest: Manifest | null = null;
-let loading: Promise<Manifest | null> | null = null;
-let failedAt = 0;
+/** One slot per key prefix: "<branch>" for System Design Mastery, "dsa/<branch>" for DSA Mastery. */
+const slots = new Map<string, ManifestSlot>();
+const slotOf = (prefix: string): ManifestSlot => {
+  let s = slots.get(prefix);
+  if (!s) slots.set(prefix, (s = { manifest: null, loading: null, failedAt: 0 }));
+  return s;
+};
+
+/** Which repo a read is for: the course repo (system-design-mastery) or the DSA content repo (dsa-mastery). */
+export type ContentSource = "sdm" | "dsa";
+
+/** The object-key prefix of a source's branch: SDM keys start at the branch, DSA keys under dsa/. */
+export const contentPrefix = (source: ContentSource, branch: string) => (source === "dsa" ? `dsa/${branch}` : branch);
+
+const defaultBranch = (source: ContentSource) => (source === "dsa" ? process.env.DSA_BRANCH || "main" : process.env.SDM_BRANCH || "main");
 
 const cfg = () => {
   const e = process.env;
@@ -118,36 +136,46 @@ function getNow(key: string, extra: Record<string, string> = {}): Promise<{ stat
   });
 }
 
-/** The branch's manifest, re-checked at most every CHECK_MS (a 304 when unchanged); null = unavailable. */
-async function loadManifest(branch: string): Promise<Manifest | null> {
-  if (manifest && Date.now() - manifest.checkedAt < CHECK_MS) return manifest;
-  if (!manifest && Date.now() - failedAt < 60_000) return null;
-  if (loading) return loading;
-  loading = (async () => {
+/** The prefix's manifest, re-checked at most every CHECK_MS (a 304 when unchanged); null = unavailable. */
+async function loadManifest(prefix: string): Promise<Manifest | null> {
+  const slot = slotOf(prefix);
+  if (slot.manifest && Date.now() - slot.manifest.checkedAt < CHECK_MS) return slot.manifest;
+  if (!slot.manifest && Date.now() - slot.failedAt < 60_000) return null;
+  if (slot.loading) return slot.loading;
+  slot.loading = (async () => {
     try {
-      const res = await get(`${branch}/manifest.json`, manifest?.etag ? { "if-none-match": manifest.etag } : {});
+      const res = await get(`${prefix}/manifest.json`, slot.manifest?.etag ? { "if-none-match": slot.manifest.etag } : {});
       if (!res) throw new Error("no manifest");
-      if (res.status === 304 && manifest) {
-        manifest.checkedAt = Date.now();
-        return manifest;
+      if (res.status === 304 && slot.manifest) {
+        slot.manifest.checkedAt = Date.now();
+        return slot.manifest;
       }
       const j = JSON.parse(res.body.toString("utf8")) as { sha: string; dirs: Record<string, string[]> };
-      manifest = { sha: j.sha, dirs: new Map(Object.entries(j.dirs)), checkedAt: Date.now(), etag: res.etag };
-      return manifest;
+      slot.manifest = { sha: j.sha, dirs: new Map(Object.entries(j.dirs)), checkedAt: Date.now(), etag: res.etag };
+      return slot.manifest;
     } catch (e) {
-      failedAt = Date.now();
+      slot.failedAt = Date.now();
       console.warn("[content-r2] unavailable, falling back:", (e as Error).message);
-      return manifest; // a stale manifest beats none
+      return slot.manifest; // a stale manifest beats none
     } finally {
-      loading = null;
+      slot.loading = null;
     }
   })();
-  return loading;
+  return slot.loading;
 }
 
 /** Directory entries ("name" for files, "name/" for folders), or a file marker; null = not served from R2. */
 export async function r2List(branch: string, path: string): Promise<{ kind: "dir"; entries: string[] } | { kind: "file" } | { kind: "missing" } | null> {
-  const m = await loadManifest(branch);
+  return listAt(branch, path);
+}
+
+/** A file's text; undefined = not served from R2 (fall back), null = the file doesn't exist. */
+export async function r2Read(branch: string, path: string): Promise<string | null | undefined> {
+  return readAt(branch, path);
+}
+
+async function listAt(prefix: string, path: string): Promise<{ kind: "dir"; entries: string[] } | { kind: "file" } | { kind: "missing" } | null> {
+  const m = await loadManifest(prefix);
   if (!m) return null;
   const clean = path.replace(/^\/+|\/+$/g, "");
   const entries = m.dirs.get(clean);
@@ -157,11 +185,10 @@ export async function r2List(branch: string, path: string): Promise<{ kind: "dir
   return m.dirs.get(parent)?.includes(name) ? { kind: "file" } : { kind: "missing" };
 }
 
-/** A file's text; undefined = not served from R2 (fall back), null = the file doesn't exist. */
-export async function r2Read(branch: string, path: string): Promise<string | null | undefined> {
-  if (!(await loadManifest(branch))) return undefined;
+async function readAt(prefix: string, path: string): Promise<string | null | undefined> {
+  if (!(await loadManifest(prefix))) return undefined;
   try {
-    const res = await get(`${branch}/files/${path.replace(/^\/+/, "")}`);
+    const res = await get(`${prefix}/files/${path.replace(/^\/+/, "")}`);
     return res ? res.body.toString("utf8") : null;
   } catch (e) {
     console.warn("[content-r2] read failed, falling back:", (e as Error).message);
@@ -169,7 +196,22 @@ export async function r2Read(branch: string, path: string): Promise<string | nul
   }
 }
 
-/** POST /api/revalidate-courses: the next read re-checks the manifest at once. */
+/**
+ * A source's file from R2 (path relative to the repo root, e.g. "resources/worlds/academy.yml").
+ * undefined = R2 isn't configured or reachable (fall back), null = the file doesn't exist.
+ */
+export async function readContent(source: ContentSource, path: string, branch = defaultBranch(source)): Promise<string | null | undefined> {
+  if (!r2ContentConfigured()) return undefined;
+  return readAt(contentPrefix(source, branch), path);
+}
+
+/** A source's directory listing from R2 (see r2List); null = not served from R2. */
+export async function listContent(source: ContentSource, path: string, branch = defaultBranch(source)) {
+  if (!r2ContentConfigured()) return null;
+  return listAt(contentPrefix(source, branch), path);
+}
+
+/** POST /api/revalidate-courses: the next read re-checks the manifests at once. */
 export function invalidateR2Manifest() {
-  if (manifest) manifest.checkedAt = 0;
+  for (const slot of slots.values()) if (slot.manifest) slot.manifest.checkedAt = 0;
 }

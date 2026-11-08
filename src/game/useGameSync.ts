@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabaseClient } from "@/lib/supabase-client";
 import { isNetworkError, isOffline } from "@/lib/offline/connectivity";
 import { LEARN_XP } from "@/lib/learn/types";
+import { dsaXpOfKey } from "@/lib/dsa/types";
 import { QUEST_BY_ID } from "./catalog";
 import { CERT_XP } from "@/lib/certificates/core";
 import { mergeGameFlags } from "@/lib/learn/saved-paths";
@@ -31,6 +32,7 @@ function xpOfKey(key: string): number {
   if (p === "mock") return LEARN_XP.mock;
   if (p === "offer") return LEARN_XP.mockOffer;
   if (p === "cert") return key === "cert:course" ? CERT_XP.course : CERT_XP.world;
+  if (p === "dsa") return dsaXpOfKey(key);
   return 0;
 }
 

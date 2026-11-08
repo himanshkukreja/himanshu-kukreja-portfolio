@@ -114,6 +114,11 @@ type Props = {
   title: string;
   stages: Stage[];
   contentVersion: string;
+  /**
+   * XP keys for the stages and the lesson. Default: the course's `stage:<week>/<slug>/<id>` and `lesson:<week>/<slug>`.
+   * DSA Mastery passes its own (`dsa:s:<concept>/<beat>`, `dsa:c:<concept>`) so its lessons stay out of the SDM counts.
+   */
+  xpKeys?: { stage: (id: string) => string; lesson: string };
   children: React.ReactNode;
 };
 
@@ -147,7 +152,7 @@ function fromRow(row: RemoteLessonRow | null): Stored {
 
 const fmtLeft = (secs: number) => `~${Math.max(1, Math.ceil(secs / 60))} min`;
 
-export function LessonProgressProvider({ courseId, week, lessonSlug, title, stages, contentVersion, children }: Props) {
+export function LessonProgressProvider({ courseId, week, lessonSlug, title, stages, contentVersion, xpKeys, children }: Props) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const { done: gameDone, awardOnce, hydrated } = useGame();
@@ -184,8 +189,9 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
   // a stage or the lesson was cleared in this view (the queued write also marks the streak day)
   const clearedRef = useRef(false);
 
-  const stageKey = useCallback((id: string) => `stage:${week}/${lessonSlug}/${id}`, [week, lessonSlug]);
-  const lessonXpKey = `lesson:${week}/${lessonSlug}`;
+  const customStageKey = xpKeys?.stage;
+  const stageKey = useCallback((id: string) => (customStageKey ? customStageKey(id) : `stage:${week}/${lessonSlug}/${id}`), [week, lessonSlug, customStageKey]);
+  const lessonXpKey = xpKeys?.lesson ?? `lesson:${week}/${lessonSlug}`;
 
   // Effective state = stored ∪ what the game engine already knows (stage / lesson XP keys).
   const doneSet = useMemo(() => {

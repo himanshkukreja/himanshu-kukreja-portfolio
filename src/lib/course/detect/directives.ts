@@ -22,6 +22,7 @@ import { slugify } from "../slug";
 import type { BlockCtx } from "./blocks";
 import { renderCode } from "./code";
 import { ANIMS, COMMON_ANIM_OPTS } from "../anim/catalog";
+import { DSA_CONTAINERS, DSA_LEAVES, dsaBlock, dsaLeaf } from "./dsa";
 
 export const BLOCK_NAMES = new Set(["panel", "compare", "col", "steps", "tree", "callout", "stats", "calc", "timeline", "checkpoint", "answer", "mission"]);
 const TONES = new Set(["core", "info", "ok", "bad", "warn", "note"]);
@@ -64,8 +65,9 @@ function mergeText(kids: RootContent[] | PhrasingContent[]): void {
 /**
  * Turn every directive that is not a known `:::` block back into the text it was written as.
  * Mutates the tree. Returns how many stray directives were neutralised.
+ * `extra` (DSA Mastery renders only, detect/dsa.ts) names further containers and leaves to keep.
  */
-export function neutralizeDirectives(tree: Root, src: string): number {
+export function neutralizeDirectives(tree: Root, src: string, extra?: { containers: ReadonlySet<string>; leaves: ReadonlySet<string> }): number {
   let n = 0;
   const lines = src.split("\n");
   const walk = (parent: Parent) => {
@@ -74,6 +76,7 @@ export function neutralizeDirectives(tree: Root, src: string): number {
     for (let i = 0; i < kids.length; i++) {
       const c = kids[i] as RootContent | Directive;
       if (c.type === "leafDirective" && isAnim(c)) continue; // `::anim[name]` explainer (animFigure)
+      if (extra && c.type === "leafDirective" && extra.leaves.has(c.name)) continue; // a DSA widget (detect/dsa.ts)
       if (c.type === "textDirective" || c.type === "leafDirective") {
         n++;
         touched = true;
@@ -85,7 +88,7 @@ export function neutralizeDirectives(tree: Root, src: string): number {
       }
       if (c.type === "containerDirective") {
         walk(c);
-        if (BLOCK_NAMES.has(c.name)) continue;
+        if (BLOCK_NAMES.has(c.name) || extra?.containers.has(c.name)) continue;
         n++;
         touched = true;
         const startLine = (c.position as Pos)?.start.line;
@@ -257,6 +260,10 @@ async function inner(nodes: RootContent[], ctx: BlockCtx, opts: Opts): Promise<A
     }
     if (isAnim(n)) {
       out.push(animFigure(n as unknown as LeafDirective, ctx));
+      continue;
+    }
+    if (ctx.dsa && n.type === "leafDirective" && DSA_LEAVES.has(n.name)) {
+      out.push(await dsaLeaf(n, ctx));
       continue;
     }
     if (n.type === "heading") {
@@ -755,6 +762,13 @@ async function mission(node: ContainerDirective, ctx: BlockCtx, opts: Opts): Pro
   return stats(node, ctx, opts);
 }
 
+/* helpers for DSA Mastery's blocks (detect/dsa.ts) */
+export const blockLabel = label;
+export const blockBody = body;
+export const blockAttr = attr;
+export const blockCaption = caption;
+export const blockInner = (nodes: RootContent[], ctx: BlockCtx) => inner(nodes, ctx, {});
+
 /** structure didn't match the spec: still a themed card, never lost content */
 async function generic(name: string, node: ContainerDirective, ctx: BlockCtx, opts: Opts): Promise<SdEl> {
   return figure(name, { dataTone: "note", dataFallback: "true" }, [...caption(label(node)), el("div", { className: ["sdb-body"] }, await inner(body(node), ctx, opts))]);
@@ -787,6 +801,7 @@ export async function renderBlock(node: ContainerDirective, ctx: BlockCtx, opts:
     case "mission":
       return mission(node, ctx, opts);
     default:
+      if (ctx.dsa && DSA_CONTAINERS.has(node.name)) return dsaBlock(node, ctx);
       return generic(node.name, node, ctx, opts);
   }
 }
