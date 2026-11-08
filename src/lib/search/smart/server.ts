@@ -15,7 +15,7 @@ import { SmartEngine, transcriptDocs } from "./engine";
 import { SMART_SEARCH_PUBLIC } from "./flag";
 import { rowToDoc, type DocIndex } from "./types";
 import { buildDocIndex, INDEX_PARTS, type IndexPart } from "./build";
-import { isProductionDeploy } from "@/lib/platform";
+import { isProductionDeploy, selfFetch } from "@/lib/platform";
 
 const TTL = 15 * 60_000;
 type EngineState = { at: number; engine: Promise<SmartEngine>; refreshing: boolean } | null;
@@ -25,7 +25,8 @@ const g = globalThis as typeof globalThis & { __sdSmartEngine?: EngineState };
 
 async function fetchJson<T>(url: string): Promise<T | null> {
   try {
-    const r = await fetch(url, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
+    // this site's own routes: on Cloudflare through the Worker's self-reference (it can't fetch its own domain)
+    const r = await selfFetch(url, { cache: "no-store", signal: AbortSignal.timeout(20_000) });
     if (!r.ok) return null;
     return (await r.json()) as T;
   } catch {
