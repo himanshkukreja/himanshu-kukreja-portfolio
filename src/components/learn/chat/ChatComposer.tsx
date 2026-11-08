@@ -9,6 +9,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { ArrowUp, Square } from "lucide-react";
 import VoiceInput from "./VoiceInput";
+import { polishDictation } from "./polishDictation";
+import { tidySpeech } from "@/lib/learn/speech/tidy";
 
 export type ComposerHandle = { focus: () => void };
 
@@ -34,6 +36,11 @@ const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ v
   const ta = useRef<HTMLTextAreaElement>(null);
   // speech: the transcript of this listening session goes after whatever was typed before it started
   const before = useRef<string | null>(null);
+  // the box's latest text, for the polish that lands after the learner may have typed on
+  const latest = useRef(value);
+  useEffect(() => {
+    latest.current = value;
+  });
   useImperativeHandle(ref, () => ({ focus: () => ta.current?.focus() }), []);
   // grow with the text, up to about six lines
   useEffect(() => {
@@ -81,10 +88,18 @@ const ChatComposer = forwardRef<ComposerHandle, Props>(function ChatComposer({ v
           disabled={busy}
           onTranscript={(t, final) => {
             if (before.current === null) before.current = value ? `${value.trimEnd()} ` : "";
-            onChange(`${before.current}${t}`.slice(0, 2000));
+            // the instant clean-up as the words arrive; when the mic stops, a grammar pass replaces the dictated
+            // part, unless the learner has changed the box since
+            const base = before.current;
+            const shown = `${base}${tidySpeech(t, { endMark: final })}`.slice(0, 2000);
+            latest.current = shown;
+            onChange(shown);
             if (final) {
               before.current = null;
               ta.current?.focus();
+              void polishDictation(shown.slice(base.length), "chat").then((p) => {
+                if (p && latest.current === shown) onChange(`${base}${p}`.slice(0, 2000));
+              });
             }
           }}
         />

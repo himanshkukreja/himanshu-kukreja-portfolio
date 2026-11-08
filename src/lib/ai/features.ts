@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -133,6 +133,12 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // cropped to what is written and stacked (≤ 2000 px a side, PNG); the question, scheme and model answer as text.
   // maxTokens: the JSON (≤ 16 points with evidence + a 120-word reading) ran 300-700 tokens in the tests.
   "paper-grade": { label: "Written paper answer grading", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 60, maxTokens: 1500, maxInputChars: 16000, maxImages: 1, maxImageBytes: 1_500_000, maxImageSide: 2000, think: false, live: true },
+  // Dictation polish (8 Nov 2026, owner's ask): when a learner stops dictating (the chat, mock answers), Haiku 5.5 fixes
+  // the grammar, punctuation and misheard course terms of what was just said ("cash" → "cache"), keeping their words.
+  // Only where the browser has no on-device proofreader (lib/learn/speech/polish.ts); the instant browser clean-up
+  // (tidy.ts) shows first, so nobody waits. ~150 tokens in and out: about $0.0001 a call, on the learner's shared credits
+  // (a tenth of a credit). Not counted in the 10-calls-a-minute limit (client.ts, chat/quota.ts): it rides on dictation.
+  "dictation-polish": { label: "Dictation polish", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 400, maxInputChars: 1500, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

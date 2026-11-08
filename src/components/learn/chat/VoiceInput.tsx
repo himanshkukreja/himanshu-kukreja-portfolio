@@ -5,8 +5,9 @@
  * webkitSpeechRecognition), English (India) first, English (US) if the browser has no en-IN model.
  *
  * `onTranscript(text, final)` gets the whole transcript of this listening session so far: `final` false
- * while the browser is still guessing (interim words), true once what it heard is settled. The composer
- * can show `base + text` as it arrives and keep it when final.
+ * while the session is still going, true once when it ends (the mic stops). The composer shows `base + text`
+ * as it arrives and keeps it when final. (A continuous session settles phrases along the way; calling those
+ * final made the composer start a new base mid-session and repeat everything heard before it.)
  *
  * Hidden where the API doesn't exist (Firefox). This component never records or uploads audio itself: the
  * browser turns speech into text (Chrome does it on its own speech service) and hands back only words.
@@ -105,15 +106,11 @@ export default function VoiceInput({ onTranscript, disabled = false }: { onTrans
       rec.interimResults = true;
       rec.maxAlternatives = 1;
       let heard = "";
-      // the last result was final and already handed over: onend mustn't hand it over again (that doubled it)
-      let handed = false;
       let retryLang = false;
       rec.onstart = () => setStatus("listening");
       rec.onresult = (e) => {
         heard = joinResults(e.results);
-        const last = e.results[e.results.length - 1];
-        handed = !last || last.isFinal;
-        cb.current(heard, handed);
+        cb.current(heard, false);
       };
       rec.onerror = (e) => {
         switch (e.error) {
@@ -152,7 +149,7 @@ export default function VoiceInput({ onTranscript, disabled = false }: { onTrans
       };
       rec.onend = () => {
         recRef.current = null;
-        if (heard && !handed) cb.current(heard, true);
+        if (heard) cb.current(heard, true);
         setStatus((s) => (s === "listening" || s === "starting" ? "idle" : s));
         if (retryLang) window.setTimeout(() => run(Ctor), 0);
       };

@@ -106,7 +106,8 @@ async function userToday(userId: string, feature: FeatureId) {
     // the course chat has its own quota: what it spent doesn't come out of the shared daily credits
     chatSpendToday(userId),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("feature", feature).eq("status", "ok").gte("created_at", today),
-    supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).gte("created_at", new Date(Date.now() - 60_000).toISOString()),
+    // dictation polish rides on the learner's dictation: it never uses up the per-minute limit
+    supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).neq("feature", "dictation-polish").gte("created_at", new Date(Date.now() - 60_000).toISOString()),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", userId).eq("status", "off_topic").gte("created_at", today),
   ]);
   return {

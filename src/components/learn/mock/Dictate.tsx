@@ -8,6 +8,8 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, MicOff } from "lucide-react";
+import { tidySpeech } from "@/lib/learn/speech/tidy";
+import { polishDictation } from "@/components/learn/chat/polishDictation";
 
 type Rec = {
   lang: string;
@@ -113,7 +115,11 @@ export function appendSpoken(value: string, phrase: string): string {
   return value + (/[\s]$/.test(value) ? "" : /[.!?:]$/.test(value.trim()) ? " " : ". ") + p;
 }
 
-/** A mic toggle for an answer box: what you say is appended to `value`. */
+/**
+ * A mic toggle for an answer box: what you say is appended to `value`, each phrase cleaned up as it lands
+ * (tidySpeech); when the mic stops, a grammar pass (polishDictation) replaces what this session added, unless
+ * the box changed since.
+ */
 export function MicButton({ value, onChange, label = "Dictate" }: { value: string; onChange: (v: string) => void; label?: string }) {
   const [supported, setSupported] = useState(false);
   const latest = useRef(value);
@@ -124,11 +130,29 @@ export function MicButton({ value, onChange, label = "Dictate" }: { value: strin
     const t = window.setTimeout(() => setSupported(dictationSupported()), 0);
     return () => window.clearTimeout(t);
   }, []);
+  // the box's text when this listening session started
+  const sessionBase = useRef<string | null>(null);
   const d = useDictation({
     onFinal: (text) => {
-      const next = appendSpoken(latest.current, text);
+      if (sessionBase.current === null) sessionBase.current = latest.current;
+      const next = appendSpoken(latest.current, tidySpeech(text));
       latest.current = next;
       onChange(next);
+    },
+    onEnd: () => {
+      const base = sessionBase.current;
+      sessionBase.current = null;
+      const snapshot = latest.current;
+      if (base === null || !snapshot.startsWith(base)) return;
+      // appendSpoken's joint (". " or " ") stays; the rest is what was said
+      const [, joint, said] = snapshot.slice(base.length).match(/^([.\s]*)([\s\S]*)$/) ?? [];
+      if (!said) return;
+      void polishDictation(said, "answer").then((p) => {
+        if (p && latest.current === snapshot) {
+          latest.current = `${base}${joint}${p}`;
+          onChange(latest.current);
+        }
+      });
     },
   });
   if (!supported) return null;

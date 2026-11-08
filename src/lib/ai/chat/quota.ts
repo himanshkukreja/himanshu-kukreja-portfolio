@@ -84,8 +84,9 @@ export async function admitChat(a: { userId: string; admin: boolean; userKey: st
   const [blocked, t, lastMinute, offTopic] = await Promise.all([
     supabase.from("ai_blocks").select("user_id").eq("user_id", a.userId).maybeSingle(),
     chatToday(a.userId),
-    // a conversation's title call rides along with its first message: not a request of its own
-    supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).neq("feature", "chat-title").gte("created_at", new Date(Date.now() - 60_000).toISOString()),
+    // a conversation's title call rides along with its first message, dictation polish with the learner's typing:
+    // not requests of their own
+    supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).not("feature", "in", "(chat-title,dictation-polish)").gte("created_at", new Date(Date.now() - 60_000).toISOString()),
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).eq("status", "off_topic").gte("created_at", today),
   ]);
   const quota = quotaFor(perDay, t.total, byok);
