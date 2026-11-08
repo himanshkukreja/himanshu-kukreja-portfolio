@@ -15,10 +15,14 @@ const sitemap = [...new Set([...xml.matchAll(/<loc>https?:\/\/[^/<]+(\/[^<]*)?<\
 const lean = (p) => p === "/" || /^\/week-/.test(p) || p.split("/").filter(Boolean).length === 1;
 const extras = ["/api/search/index/a", "/api/search/index/b", "/api/search/index/c", "/api/search/index/d", "/api/search/index/e", "/api/search/transcripts", "/api/search",
   // slow to render cold (podcast apps time out on a 39 s feed), so never left for the first visitor
+  // builds the search Worker's engine (its Durable Object starts empty after a deploy) before Ask AI needs it
+  `/api/search/smart?q=warm-${Date.now()}`,
   "/podcast.xml", "/papers/index.json", "/revise/anki.txt", "/llms.txt", "/shorts", "/api/offline/catalog", "/api/learn/leaderboard", "/api/learn/daily"];
 const paths = [...extras, ...(mode === "all" ? sitemap : sitemap.filter(lean))];
 // lessons first: they're what the release expired and what most visitors open
-paths.sort((a, b) => Number(!/^\/(week-|api\/search)/.test(a)) - Number(!/^\/(week-|api\/search)/.test(b)));
+// the search index routes first (the search engine is built from them), then lessons
+const rank = (p) => (p.startsWith("/api/search/index") || p === "/api/search/transcripts" ? 0 : p.startsWith("/api/search/smart") ? 1 : /^\/week-/.test(p) ? 2 : 3);
+paths.sort((a, b) => rank(a) - rank(b));
 console.log(`warming ${paths.length} of ${sitemap.length} sitemap pages + search indexes from ${base} (${mode}, ${concurrency} at a time)`);
 
 const res = [];
