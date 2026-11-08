@@ -1,0 +1,38 @@
+# Creates (or lists) the Workers KV namespaces the site's Worker uses for its page copies (cloudflare/worker.ts).
+# Prints each namespace's id, which goes into wrangler.jsonc.
+name: cloudflare-kv
+
+on:
+  workflow_dispatch:
+    inputs:
+      create:
+        description: "Create the sdm-pages and sdm-pages-staging namespaces if missing"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  kv:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: package.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Namespaces
+        run: |
+          list() { npx --yes wrangler@4 kv namespace list 2>/dev/null; }
+          if [ "${{ inputs.create }}" = "true" ]; then
+            for n in sdm-pages sdm-pages-staging; do
+              if list | grep -q "\"title\": \"$n\""; then echo "$n exists"; else npx --yes wrangler@4 kv namespace create "$n" | tail -6; fi
+            done
+          fi
+          list | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const a=JSON.parse(s.slice(s.indexOf("[")));for(const n of a)if(/^sdm-pages/.test(n.title))console.log(`${n.title} = ${n.id}`)})'
