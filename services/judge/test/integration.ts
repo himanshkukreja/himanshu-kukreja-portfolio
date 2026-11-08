@@ -6,7 +6,11 @@
 
 import { callJudge } from "../client/judge-client.ts";
 
-const env = { JUDGE_URL: process.env.JUDGE_URL ?? "http://127.0.0.1:18080", JUDGE_HMAC_SECRET: process.env.JUDGE_HMAC_SECRET ?? "" };
+const env = {
+  JUDGE_URL: process.env.JUDGE_URL ?? "http://127.0.0.1:18080",
+  JUDGE_HMAC_SECRET: process.env.JUDGE_HMAC_SECRET ?? "",
+  JUDGE_KEY_ID: process.env.JUDGE_KEY_ID,
+};
 const ARCH = process.env.JUDGE_ARCH ?? "x86_64";
 
 const TWO_SUM = { fn: "two_sum", params: [{ name: "nums", type: "int[]" }, { name: "target", type: "int" }], returns: "int[]" };

@@ -132,8 +132,24 @@ export class IsolateSandbox implements Sandbox {
   async selfCheck(): Promise<void> {
     const v = await exec(["--version"], 10_000);
     if (v.code !== 0) throw new Error("isolate --version failed");
+    // Run a trivial program so a sandbox that can init but not run (missing
+    // cgroup delegation, no namespace support under emulation) fails at startup.
     const b = this.box(63);
     await b.init();
-    await b.cleanup();
+    try {
+      const meta = await b.run({
+        cmd: ["/bin/true"],
+        stdout: "__out.txt",
+        timeSec: 2,
+        wallSec: 5,
+        memoryKb: 64 * 1024,
+        processes: 4,
+        fileSizeKb: 1024,
+        env: { PATH: "/usr/bin:/bin" },
+      });
+      if (meta.status !== "OK") throw new Error(`sandbox self-check failed: ${meta.status} ${meta.message}`);
+    } finally {
+      await b.cleanup();
+    }
   }
 }
