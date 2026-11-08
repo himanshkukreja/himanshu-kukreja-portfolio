@@ -2,6 +2,9 @@
 #   attach: delete the two Vercel CNAMEs, then attach both hostnames to the Worker as Workers Custom Domains
 #           (Cloudflare creates the proxied records and the certificate).
 #   detach: remove the Worker custom domains, then recreate the Vercel CNAMEs (DNS only) = rollback.
+#   test:   the same attach then detach on a throwaway hostname (cf-switch-test, on the staging Worker), checking the
+#           records after each step, then removing it: run before a live switch (8 Nov 2026: a detach once crashed
+#           halfway and left the apex without a record).
 # Email routing, Brevo DKIM/SPF/DMARC, the wildcard and every other record are never touched.
 name: cloudflare-domain
 
@@ -9,9 +12,9 @@ on:
   workflow_dispatch:
     inputs:
       action:
-        description: "attach (to Cloudflare) or detach (back to Vercel)"
+        description: "attach (to Cloudflare), detach (back to Vercel) or test (both on a throwaway hostname)"
         type: choice
-        options: [attach, detach]
+        options: [attach, detach, test]
 
 permissions:
   contents: read
@@ -37,26 +40,49 @@ jobs:
               return j.result;
             };
             const { ACCOUNT, ZONE, ACTION } = process.env;
-            const VERCEL = { "systemdesignmastery.dev": "f0ca187af14f0b67.vercel-dns-017.com", "www.systemdesignmastery.dev": "cname.vercel-dns-016.com" };
-            for (const host of Object.keys(VERCEL)) {
-              const recs = await api(`/zones/${ZONE}/dns_records?name=${host}&per_page=50`);
-              const domains = await api(`/accounts/${ACCOUNT}/workers/domains?hostname=${host}`);
-              if (ACTION === "attach") {
-                for (const r of recs.filter((r) => ["CNAME", "A", "AAAA"].includes(r.type) && !domains.length)) {
+            const LIVE = { "systemdesignmastery.dev": "f0ca187af14f0b67.vercel-dns-017.com", "www.systemdesignmastery.dev": "cname.vercel-dns-016.com" };
+            const TEST = { "cf-switch-test.systemdesignmastery.dev": "cname.vercel-dns-016.com" };
+            const records = (host) => api(`/zones/${ZONE}/dns_records?name=${host}&per_page=50`);
+            async function attach(hosts, service) {
+              for (const host of Object.keys(hosts)) {
+                const domains = await api(`/accounts/${ACCOUNT}/workers/domains?hostname=${host}`);
+                for (const r of (await records(host)).filter((r) => ["CNAME", "A", "AAAA"].includes(r.type) && !domains.length)) {
                   await api(`/zones/${ZONE}/dns_records/${r.id}`, { method: "DELETE" });
                   console.log(`deleted ${r.type} ${host} -> ${r.content}`);
                 }
-                const d = await api(`/accounts/${ACCOUNT}/workers/domains`, { method: "PUT", body: JSON.stringify({ hostname: host, service: "sdm-course", environment: "production", zone_id: ZONE }) });
-                console.log(`attached ${host} -> sdm-course (${d.id})`);
-              } else {
-                for (const d of domains) {
+                const d = await api(`/accounts/${ACCOUNT}/workers/domains`, { method: "PUT", body: JSON.stringify({ hostname: host, service, environment: "production", zone_id: ZONE }) });
+                console.log(`attached ${host} -> ${service} (${d.id})`);
+              }
+            }
+            async function detach(hosts) {
+              for (const host of Object.keys(hosts)) {
+                for (const d of await api(`/accounts/${ACCOUNT}/workers/domains?hostname=${host}`)) {
                   await api(`/accounts/${ACCOUNT}/workers/domains/${d.id}`, { method: "DELETE" });
                   console.log(`detached ${host} from ${d.service}`);
                 }
-                const left = await api(`/zones/${ZONE}/dns_records?name=${host}&per_page=50`);
-                for (const r of left.filter((r) => ["CNAME", "A", "AAAA"].includes(r.type))) await api(`/zones/${ZONE}/dns_records/${r.id}`, { method: "DELETE" });
-                await api(`/zones/${ZONE}/dns_records`, { method: "POST", body: JSON.stringify({ type: "CNAME", name: host, content: VERCEL[host], proxied: false, ttl: 60 }) });
-                console.log(`restored CNAME ${host} -> ${VERCEL[host]} (DNS only)`);
+                for (const r of (await records(host)).filter((r) => ["CNAME", "A", "AAAA"].includes(r.type))) await api(`/zones/${ZONE}/dns_records/${r.id}`, { method: "DELETE" });
+                await api(`/zones/${ZONE}/dns_records`, { method: "POST", body: JSON.stringify({ type: "CNAME", name: host, content: hosts[host], proxied: false, ttl: 60 }) });
+                console.log(`restored CNAME ${host} -> ${hosts[host]} (DNS only)`);
               }
+            }
+            const expect = async (host, ok, what) => {
+              const recs = (await records(host)).filter((r) => ["CNAME", "A", "AAAA"].includes(r.type));
+              const domains = await api(`/accounts/${ACCOUNT}/workers/domains?hostname=${host}`);
+              const pass = ok(recs, domains);
+              console.log(`${pass ? "PASS" : "FAIL"} ${what}: records ${JSON.stringify(recs.map((r) => `${r.type} ${r.content} proxied=${r.proxied}`))}, worker domains ${domains.length}`);
+              if (!pass) throw new Error(`test failed: ${what}`);
+            };
+            if (ACTION === "attach") await attach(LIVE, "sdm-course");
+            else if (ACTION === "detach") await detach(LIVE);
+            else {
+              const host = Object.keys(TEST)[0];
+              await api(`/zones/${ZONE}/dns_records`, { method: "POST", body: JSON.stringify({ type: "CNAME", name: host, content: TEST[host], proxied: false, ttl: 60 }) }).catch((e) => console.log(`(start record: ${e.message})`));
+              await expect(host, (r) => r.length === 1 && r[0].content === TEST[host], "start: Vercel-style CNAME");
+              await attach(TEST, "sdm-course-staging");
+              await expect(host, (r, d) => d.length === 1, "after attach: on the Worker");
+              await detach(TEST);
+              await expect(host, (r, d) => !d.length && r.length === 1 && r[0].type === "CNAME" && r[0].content === TEST[host], "after detach: CNAME back, no Worker domain");
+              for (const r of await records(host)) await api(`/zones/${ZONE}/dns_records/${r.id}`, { method: "DELETE" });
+              console.log(`removed ${host}`);
             }
           '
