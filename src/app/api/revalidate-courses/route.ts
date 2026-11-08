@@ -3,6 +3,7 @@ import { COURSE_MAP_TAG } from '@/lib/learn/course';
 import { SDM_CONTENT_TAG } from '@/lib/github';
 import { invalidateContentSnapshot } from '@/lib/content-snapshot';
 import { invalidateR2Manifest } from '@/lib/content-r2';
+import { DSA_CONTENT_TAG } from '@/lib/dsa/content';
 import { NextRequest, NextResponse } from 'next/server';
 import { timingSafeEqual } from 'crypto';
 import { getAdmin } from '@/lib/admin/auth';
@@ -36,6 +37,14 @@ export async function POST(request: NextRequest) {
     // Admin session (Bearer Supabase JWT) or the server-only ANALYTICS_ADMIN_TOKEN (cron / scripts).
     if (!(await authorized(request))) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // ?source=dsa (the dsa-mastery repo's sync-r2 workflow): only DSA Mastery's content and pages
+    if (request.nextUrl.searchParams.get('source') === 'dsa') {
+      invalidateR2Manifest();
+      revalidateTag(DSA_CONTENT_TAG);
+      revalidatePath('/learn/dsa', 'layout');
+      return NextResponse.json({ revalidated: true, source: 'dsa', now: Date.now() });
     }
 
     // Revalidate all course-related paths
