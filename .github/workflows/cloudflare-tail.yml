@@ -15,6 +15,9 @@ on:
         type: choice
         options: [wrangler.jsonc, wrangler.search.jsonc]
         default: wrangler.jsonc
+      wait:
+        description: "Seconds to keep tailing after the last request (events arrive when a request ends)"
+        default: "20"
       method:
         description: "HTTP method for the requests"
         type: choice
@@ -54,7 +57,7 @@ jobs:
           TAIL=$!
           sleep 12
           for p in $PATHS; do curl -s --max-time 240 -o /dev/null -X "${{ inputs.method }}" -H "content-type: application/json" -d "{}" -w "%{http_code} %{time_total}s $p\n" "$BASE$p" || true; sleep 2; done
-          sleep 15
+          sleep "${{ inputs.wait || 20 }}"
           kill $TAIL || true
           node -e '
             const lines = require("fs").readFileSync(process.argv[1], "utf8").split(/\n(?=\{)/).filter(Boolean);
