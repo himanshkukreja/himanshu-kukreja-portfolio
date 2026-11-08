@@ -34,6 +34,8 @@ export const LEARN_FEATURES = [
   "concepts",
   "dashboard",
   "design-week",
+  // DSA Mastery (/dsa): the coming-soon page and waitlist until launch (src/app/learn/dsa)
+  "dsa",
   "guide",
   "labs",
   "lectures",

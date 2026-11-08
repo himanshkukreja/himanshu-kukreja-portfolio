@@ -38,6 +38,10 @@ module.exports = {
         "ok-text": tok("ok-text"),
         "on-ok": tok("on-ok"),
         link: tok("link"),
+        // DSA Mastery's teal accent (globals.css --c-dsa*); inside .dsa-theme the signal tokens map onto it too
+        dsa: tok("dsa"),
+        "on-dsa": tok("on-dsa"),
+        "dsa-text": tok("dsa-text"),
       },
       fontFamily: {
         display: ["var(--font-display)", "ui-sans-serif", "system-ui", "sans-serif"],
