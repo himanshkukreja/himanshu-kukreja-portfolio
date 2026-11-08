@@ -48,7 +48,7 @@ jobs:
               return j.result;
             };
             const { ACCOUNT, ACTION, SITE } = process.env;
-            // each host's Vercel record, restored on detach (the portfolio apex is an A record; the rest are CNAMEs)
+            // the Vercel record of each host, restored on detach (the portfolio apex is an A record; the rest are CNAMEs)
             const SITES = {
               course: {
                 zone: "systemdesignmastery.dev",
