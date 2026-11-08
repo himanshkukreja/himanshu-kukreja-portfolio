@@ -24,6 +24,8 @@
   // cold renders of the heaviest pages (/arena builds the question bank, ~19 s CPU) came close to the 30 s default
   "limits": { "cpu_ms": 120000 },
   "observability": { "enabled": true },
+  // next/image resizing and format conversion (OpenNext uses it; without it /_next/image served full-size originals)
+  "images": { "binding": "IMAGES" },
   "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
   // SEARCH: the smart-search engine's own Worker (wrangler.search.jsonc; too big for this one's memory)
   "services": [
@@ -56,6 +58,7 @@
       "placement": { "mode": "off" },
       "limits": { "cpu_ms": 120000 },
       "observability": { "enabled": true },
+      "images": { "binding": "IMAGES" },
       "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off" },
       "services": [
         { "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" },
