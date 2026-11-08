@@ -38,6 +38,9 @@ import { InstallButton } from "@/components/offline/Install";
 import { useOffline } from "@/components/offline/OfflineProvider";
 import ShortsTeaser, { type TeaserShort } from "@/components/learn/war/ShortsTeaser";
 
+/** DSA Mastery is fully open on this build (staging: NEXT_PUBLIC_DSA_MODE=full); otherwise /dsa is its coming-soon page. */
+const DSA_LIVE = ["full", "beta", "on"].includes((process.env.NEXT_PUBLIC_DSA_MODE || "").trim().toLowerCase());
+
 export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { items: TeaserShort[]; total: number } }) {
   const { ready, signedIn, lessons, done } = useLearnProgress(map.courseId);
   const { profile } = useAuth();
@@ -284,6 +287,16 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
               <span className="text-[14px] leading-snug text-fg-2">{c.body}</span>
             </Link>
           ))}
+          {/* the second course, in its own teal (.dsa-theme): the way in on phones, where the dock has no free slot */}
+          <Link href="/dsa" className="dsa-theme group flex flex-col gap-2 border border-signal/60 bg-surface p-5 hover:border-signal">
+            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">dsa · new course{DSA_LIVE ? "" : " · coming soon"}</span>
+            <span className="font-display text-[24px] font-bold leading-none tracking-[-0.02em] text-fg group-hover:text-signal-text">DSA Mastery →</span>
+            <span className="text-[14px] leading-snug text-fg-2">
+              {DSA_LIVE
+                ? "Data structures and algorithms taught the same way: worlds to clear, example-rich lessons, original problems in Python, Java, C++ and JavaScript."
+                : "Data structures and algorithms taught the same way: worlds to clear, example-rich lessons and original problems in four languages. Join the waitlist: founding members keep both courses free for life."}
+            </span>
+          </Link>
         </div>
         <p className="m-0 flex flex-wrap gap-x-5 gap-y-1 font-mono text-[13px]">
           <span className="text-fg-3">in the course too:</span>
