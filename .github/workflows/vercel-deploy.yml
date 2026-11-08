@@ -60,3 +60,18 @@ jobs:
           url=$(npx --yes vercel@latest deploy --prebuilt --prod --archive=tgz --token="$VERCEL_TOKEN" \
             --meta githubCommitSha="$GITHUB_SHA" --meta githubCommitRef="$GITHUB_REF_NAME" --meta source=actions)
           echo "Deployed: $url" >> "$GITHUB_STEP_SUMMARY"
+
+      # a new deploy starts cold: build the course chat's search engine before learners ask (the index routes, then a
+      # few searches so several instances have it). Without this, Ask AI answered "still loading" for a minute or two
+      # after each deploy (8 Nov 2026). Only while the course is served by Vercel; harmless otherwise.
+      - name: Warm the course search
+        continue-on-error: true
+        run: |
+          B=https://systemdesignmastery.dev
+          if curl -sI "$B/" | grep -qi "^x-vercel-id"; then
+            for p in a b c d e; do curl -s -o /dev/null -w "index/$p %{http_code} %{time_total}s\n" "$B/api/search/index/$p" & done
+            curl -s -o /dev/null -w "transcripts %{http_code} %{time_total}s\n" "$B/api/search/transcripts" & wait
+            for i in 1 2 3 4 5 6 7 8; do curl -s -o /dev/null -w "search %{http_code} %{time_total}s\n" "$B/api/search/smart?q=warm-$i-$GITHUB_RUN_ID" & done; wait
+          else
+            echo "systemdesignmastery.dev isn't on Vercel: nothing to warm"
+          fi
