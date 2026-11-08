@@ -15,6 +15,10 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      warm:
+        description: "Warm the pages after deploying (always on for production; staging only when measuring speed)"
+        type: boolean
+        default: false
 
 concurrency:
   group: cloudflare-${{ inputs.target || 'production' }}
@@ -94,6 +98,8 @@ jobs:
   # a deploy starts with an empty ISR cache (keys carry the build id): re-render every page before visitors do
   warm:
     needs: deploy
+    # staging warms only on request: its warm-ups were 45% of the account's CPU on 7-8 Nov 2026, all from testing
+    if: inputs.target != 'staging' || inputs.warm
     uses: ./.github/workflows/cloudflare-warm.yml
     with:
       target: ${{ inputs.target || 'production' }}

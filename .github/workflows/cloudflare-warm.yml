@@ -10,11 +10,19 @@ on:
         type: choice
         options: [staging, production]
         default: staging
+      mode:
+        description: "lean (lessons, hubs, search indexes) or all (whole sitemap)"
+        type: choice
+        options: [lean, all]
+        default: lean
   workflow_call:
     inputs:
       target:
         type: string
         required: true
+      mode:
+        type: string
+        default: lean
 
 permissions:
   contents: read
@@ -33,4 +41,4 @@ jobs:
       - name: Warm
         env:
           BASE: ${{ inputs.target == 'staging' && 'https://sdm-course-staging.markdrop-in.workers.dev' || 'https://sdm-course.markdrop-in.workers.dev' }}
-        run: node scripts/cf/warm.mjs "$BASE" 4 | tee "$RUNNER_TEMP/warm.txt"; { echo '```'; tail -30 "$RUNNER_TEMP/warm.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+        run: node scripts/cf/warm.mjs "$BASE" 4 "${{ inputs.mode || 'lean' }}" | tee "$RUNNER_TEMP/warm.txt"; { echo '```'; tail -30 "$RUNNER_TEMP/warm.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
