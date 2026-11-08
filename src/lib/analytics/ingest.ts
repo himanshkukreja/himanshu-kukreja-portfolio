@@ -6,7 +6,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { channelFor, cleanReferrer } from "./channels";
 import { isBotUA, parseUA } from "./ua";
-import { clientIp } from "@/lib/platform";
+import { clientIp as requestIp } from "@/lib/platform";
 
 /**
  * Server side of tracking contract v2 (POST /api/beat, alias /api/analytics/track).
@@ -146,7 +146,7 @@ function header(req: Request, name: string): string | undefined {
 }
 
 export function clientIp(req: Request): string {
-  return clientIp(req) || "unknown";
+  return requestIp(req) || "unknown";
 }
 
 /** Validate + normalise a raw payload. Returns null when it is not a usable beat. */
