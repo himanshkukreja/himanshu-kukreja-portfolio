@@ -18,7 +18,11 @@ export function withStaleOnRevalidate(base: IncrementalCache): IncrementalCache 
   return {
     name: `swr-${base.name}`,
     async get(key, cacheType) {
+      const t0 = Date.now();
       const entry = await base.get(key, cacheType);
+      // slow cache reads in the logs, bucketed so wrangler tail can count them (Nov 2026: misses at the colo took 1.3-1.9 s)
+      const ms = Date.now() - t0;
+      if (ms > 300) console.warn(`[cache-timing] ${cacheType ?? "cache"} get ${ms > 1000 ? ">1s" : "0.3-1s"}${entry ? "" : " (none)"}`);
       if ((cacheType && cacheType !== "cache") || !entry?.value || entry.shouldBypassTagCache) return entry;
       const value = entry.value as { meta?: { headers?: Record<string, string | undefined> } };
       // read, don't consume: OpenNext's getTagsFromValue deletes the header
@@ -26,7 +30,11 @@ export function withStaleOnRevalidate(base: IncrementalCache): IncrementalCache 
       const tagCache = (globalThis as unknown as { tagCache?: TagCache }).tagCache;
       if (!tags.length || !tagCache || tagCache.mode !== "nextMode") return entry;
       try {
-        if (await tagCache.hasBeenRevalidated(tags, entry.lastModified ?? Date.now())) return { ...entry, lastModified: 1, shouldBypassTagCache: true };
+        const t1 = Date.now();
+        const revalidated = await tagCache.hasBeenRevalidated(tags, entry.lastModified ?? Date.now());
+        const tagMs = Date.now() - t1;
+        if (tagMs > 300) console.warn(`[cache-timing] tag check ${tagMs > 1000 ? ">1s" : "0.3-1s"}`);
+        if (revalidated) return { ...entry, lastModified: 1, shouldBypassTagCache: true };
       } catch {
         // tag cache unreachable: OpenNext checks again itself
       }
