@@ -174,31 +174,50 @@ async function build(): Promise<Built> {
   };
 }
 
-const cached = unstable_cache(() => build(), ["written-papers-v1"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
+// Cached in pieces: the summaries (the papers index) and one entry per paper (its view and what the grader reads). All
+// papers together were 2.3 MB, over the 2 MB data cache item limit, so they were never cached and every uncached papers
+// page re-read and re-rendered the whole set (Nov 2026, the labs had the same problem).
+const cachedSummaries = unstable_cache(async () => (await build()).summaries, ["written-papers-summaries-v1"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
+const cachedPaper = unstable_cache(
+  async (key: string) => {
+    const d = await build();
+    return d.papers[key] ? { view: d.papers[key], parsed: d.parsed[key] } : null;
+  },
+  ["written-paper-v1"],
+  { revalidate: 604800, tags: [COURSE_MAP_TAG] }
+);
 
-async function data(): Promise<Built> {
+// local content (SDM_LOCAL_DIR) is read fresh in development so edits show up on reload
+const fresh = () => !!process.env.SDM_LOCAL_DIR && DEV;
+
+async function paperData(key: string): Promise<{ view: PaperView; parsed: ParsedPaper } | null> {
   try {
-    // local content (SDM_LOCAL_DIR) is read fresh in development so edits show up on reload
-    return process.env.SDM_LOCAL_DIR && DEV ? await build() : await cached();
+    if (!fresh()) return await cachedPaper(key);
+    const d = await build();
+    return d.papers[key] ? { view: d.papers[key], parsed: d.parsed[key] } : null;
   } catch (e) {
     console.error("[papers] failed to load", e);
-    return { summaries: [], papers: {}, parsed: {} };
+    return null;
   }
 }
 
 export async function getPaperSummaries(): Promise<PaperSummary[]> {
-  return (await data()).summaries;
+  try {
+    return fresh() ? (await build()).summaries : await cachedSummaries();
+  } catch (e) {
+    console.error("[papers] failed to load", e);
+    return [];
+  }
 }
 
 export async function getPaper(key: string): Promise<PaperView | null> {
   if (!PAPER_KEY_RE.test(key) || key.length > 120) return null;
-  return (await data()).papers[key] ?? null;
+  return (await paperData(key))?.view ?? null;
 }
 
 /** The paper as written (Markdown question and model answer, the scheme): what the grader reads. */
 export async function getParsedPaper(key: string): Promise<{ paper: ParsedPaper; title: string } | null> {
   if (!PAPER_KEY_RE.test(key) || key.length > 120) return null;
-  const d = await data();
-  const p = d.parsed[key];
-  return p ? { paper: p, title: d.papers[key]?.title ?? p.title } : null;
+  const d = await paperData(key);
+  return d ? { paper: d.parsed, title: d.view.title ?? d.parsed.title } : null;
 }
