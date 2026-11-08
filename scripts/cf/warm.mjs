@@ -41,9 +41,16 @@ async function hit(p) {
   if (status >= 500 || status < 0 || ms > 10_000) console.log(`${status} ${ms}ms ${p}`);
 }
 
-await hit(paths[0]);
+// 1. the search index routes (in parallel), 2. one search, which builds the search Worker's engine from them,
+// 3. everything else a few at a time (the first page alone, so the shared course data is rebuilt once)
+const first = paths.filter((p) => rank(p) === 0);
+const engine = paths.filter((p) => rank(p) === 1);
+const rest = paths.filter((p) => rank(p) > 1);
+await Promise.all(first.map(hit));
+for (const p of engine) await hit(p);
+if (rest.length) await hit(rest[0]);
 let next = 1;
-await Promise.all(Array.from({ length: concurrency }, async () => { while (next < paths.length) await hit(paths[next++]); }));
+await Promise.all(Array.from({ length: concurrency }, async () => { while (next < rest.length) await hit(rest[next++]); }));
 
 const ms = res.map((r) => r.ms).sort((a, b) => a - b);
 const q = (f) => ms[Math.min(ms.length - 1, Math.floor(ms.length * f))];
