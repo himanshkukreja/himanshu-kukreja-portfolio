@@ -1,0 +1,57 @@
+# Live outcomes for a few requests: `wrangler tail` on a Worker while the given paths are requested, then each
+# event's outcome (ok / exceededMemory / exceededCpu / exception), CPU time, and warn/error log lines.
+name: cloudflare-tail
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: "Worker (wrangler env)"
+        type: choice
+        options: [production, staging]
+        default: production
+      base:
+        description: "Base URL to request"
+        default: https://sdm-course.markdrop-in.workers.dev
+      paths:
+        description: "Space-separated paths"
+        default: "/api/search/smart?q=sharding /api/search/smart?q=cache+stampede /api/search/smart?q=rate+limiter"
+
+permissions:
+  contents: read
+
+jobs:
+  tail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Tail while requesting
+        env:
+          WENV: ${{ inputs.worker == 'staging' && '--env staging' || '' }}
+          BASE: ${{ inputs.base }}
+          PATHS: ${{ inputs.paths }}
+        run: |
+          npx wrangler tail $WENV --format json > "$RUNNER_TEMP/tail.jsonl" 2> "$RUNNER_TEMP/tail.err" &
+          TAIL=$!
+          sleep 12
+          for p in $PATHS; do curl -s -o /dev/null -w "%{http_code} %{time_total}s $p\n" "$BASE$p"; done
+          sleep 15
+          kill $TAIL || true
+          node -e '
+            const lines = require("fs").readFileSync(process.argv[1], "utf8").split(/\n(?=\{)/).filter(Boolean);
+            for (const l of lines) { let e; try { e = JSON.parse(l); } catch { continue; }
+              const url = (e.event?.request?.url || "").replace(/^https:\/\/[^/]+/, "");
+              const logs = (e.logs || []).filter((x) => x.level !== "log").map((x) => `${x.level}: ${JSON.stringify(x.message).slice(0, 200)}`);
+              const ex = (e.exceptions || []).map((x) => `exception: ${x.name}: ${String(x.message).slice(0, 200)}`);
+              console.log(`${e.outcome} cpu=${e.cpuTime ?? "?"}ms wall=${e.wallTime ?? "?"}ms ${url}`);
+              for (const m of [...ex, ...logs].slice(0, 8)) console.log("   " + m);
+            }' "$RUNNER_TEMP/tail.jsonl"
