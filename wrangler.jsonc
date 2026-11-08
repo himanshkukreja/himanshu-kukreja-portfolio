@@ -14,8 +14,10 @@
     // the course host answers these from public/course-brand (next.config.ts rewrites), so Next must see them
     "run_worker_first": ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-icon.png", "/icons/*"]
   },
-  // run near the database (Supabase, Singapore) when that is faster for the request mix
-  "placement": { "mode": "smart" },
+  // no Smart Placement: it moved the Worker to San Jose (cf-placement: remote-SJC, 8 Nov 2026), so every request from
+  // India crossed the Pacific, cached pages too (0.75-1.2 s vs 0.17 s at the visitor's colo). Learners are mostly in
+  // India; the ISR bucket and tag cache are in APAC, so the visitor's colo is the right place.
+  "placement": { "mode": "off" },
   "observability": { "enabled": true },
   "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course" }],
@@ -42,7 +44,7 @@
         "html_handling": "none",
         "run_worker_first": ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-icon.png", "/icons/*"]
       },
-      "placement": { "mode": "smart" },
+      "placement": { "mode": "off" },
       "observability": { "enabled": true },
       "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off" },
       "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" }],
