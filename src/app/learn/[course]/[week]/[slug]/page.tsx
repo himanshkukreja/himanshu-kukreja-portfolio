@@ -62,7 +62,7 @@ type Props = {
 
 export async function generateMetadata({ params }: Props) {
   const { week, slug } = await params;
-  const data = await getLearningResource(week, slug);
+  const data = await getLearningResource(week, slug, { strict: true });
   if (!data) return { title: "Not Found" };
   // the lesson's own opening line makes a better search snippet than a generic one
   const teaser = await teaserFor(data.resource);
@@ -105,7 +105,7 @@ function designFirstFor(markdown: string, week: string, stages: { id: string; ti
 
 export default async function LearningResourcePage({ params }: Props) {
   const { course, week, slug } = await params;
-  const data = await getLearningResource(week, slug);
+  const data = await getLearningResource(week, slug, { strict: true });
   if (!data) notFound();
 
   const { resource, content } = data;

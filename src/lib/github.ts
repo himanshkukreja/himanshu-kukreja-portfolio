@@ -631,9 +631,16 @@ function getWeekOrder(week: string): number {
 /**
  * Get a specific learning resource by week and slug
  */
-export async function getLearningResource(week: string, slug: string): Promise<{ resource: LearningResource; content: string } | null> {
+/**
+ * `strict` (the lesson page): a failed read throws instead of returning null, so ISR keeps serving the previous copy
+ * and retries; a null there became a "not found" page cached for a week on every lesson (8 Nov 2026, the GitHub API
+ * limit on Vercel). Other callers keep the null.
+ */
+export async function getLearningResource(week: string, slug: string, opts: { strict?: boolean } = {}): Promise<{ resource: LearningResource; content: string } | null> {
   try {
     const allResources = await getAllLearningResources();
+    // an empty list means the listing failed (rate limit, outage), not that the course has no lessons
+    if (!allResources.length) throw new ContentFetchError("course listing came back empty", 503);
     const resource = allResources.find(r => r.week === week && r.slug === slug);
 
     if (!resource) {
@@ -657,6 +664,7 @@ export async function getLearningResource(week: string, slug: string): Promise<{
     };
   } catch (error) {
     console.error(`Error fetching resource ${week}/${slug}:`, error);
+    if (opts.strict && !isContentMissing(error)) throw error;
     return null;
   }
 }
