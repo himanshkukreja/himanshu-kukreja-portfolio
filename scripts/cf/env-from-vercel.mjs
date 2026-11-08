@@ -12,7 +12,10 @@ const [file, out] = process.argv.slice(2);
 const env = parseEnv(readFileSync(file, "utf8"));
 for (const [k, v] of Object.entries(process.env)) if (k.startsWith("EXTRA_") && v) env[k.slice(6)] = v;
 
-const skip = (k) => /^(VERCEL|TURBO|NX_)/.test(k) || k === "NODE_ENV";
+// A value the workflow itself sets (its `env:` block, e.g. the staging-only NEXT_PUBLIC_DSA_MODE=full) wins: writing
+// Vercel's copy to $GITHUB_ENV would override it for every later step, and staging was built in "soon" mode.
+const fromWorkflow = new Set(Object.keys(process.env).filter((k) => !k.startsWith("EXTRA_")));
+const skip = (k) => /^(VERCEL|TURBO|NX_)/.test(k) || k === "NODE_ENV" || (k.startsWith("NEXT_PUBLIC_") && fromWorkflow.has(k));
 const ghEnv = process.env.GITHUB_ENV;
 const secrets = {};
 for (const [k, v] of Object.entries(env)) {
