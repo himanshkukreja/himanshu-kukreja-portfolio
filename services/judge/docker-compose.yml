@@ -1,0 +1,25 @@
+# Local development: same image and sandbox (isolate + cgroup v2) as production.
+#   cp deploy/judge.env.example .env   # then set JUDGE_HMAC_SECRET=$(openssl rand -hex 32)
+#   docker compose up --build
+#   JUDGE_URL=http://127.0.0.1:8080 JUDGE_HMAC_SECRET=... node client/cli.ts health
+services:
+  judge:
+    build: .
+    image: judge-lite:dev
+    # isolate needs to create namespaces and its own cgroup subtree.
+    privileged: true
+    cgroup: private
+    init: true
+    read_only: true
+    tmpfs:
+      - /run:rw,nosuid,nodev,mode=0755,size=64m
+      - /tmp:rw,nosuid,nodev,mode=1777,size=64m
+      - /var/local/lib/isolate:rw,exec,nosuid,nodev,mode=0755,size=512m
+    env_file: .env
+    environment:
+      JUDGE_WORKERS: "2"
+    ports:
+      - "127.0.0.1:${JUDGE_LOCAL_PORT:-8080}:8080"
+    mem_limit: 2g
+    cpus: 2
+    restart: unless-stopped

@@ -1,0 +1,21 @@
+# isolate configuration for judge-lite (installed at /usr/local/etc/isolate).
+
+# Sandboxes live here. This directory and its ancestors must be writable only
+# by root. In production it is a tmpfs (see deploy/judge.service).
+box_root = /var/local/lib/isolate
+
+lock_root = /run/isolate/locks
+
+# The entrypoint creates this cgroup v2 subtree and delegates the memory, pids
+# and cpu controllers to it (there is no systemd inside the container, so we do
+# not use isolate-cg-keeper).
+cg_root = /sys/fs/cgroup/isolate
+
+# Sandboxed programs run as uid/gid 60000 + box id, never as a real user.
+first_uid = 60000
+first_gid = 60000
+num_boxes = 64
+
+# All syscall restrictions on (keyrings, vsock, inode locks, io_uring, legacy
+# archs). See "SYSTEM CALL RESTRICTIONS" in isolate(1).
+syscall_flags = 31

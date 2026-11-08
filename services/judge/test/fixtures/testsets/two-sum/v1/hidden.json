@@ -1,0 +1,6 @@
+{
+  "tests": [
+    { "input": [[3, 2, 4], 6], "expected": [2, 1] },
+    { "inputText": "[3,3]\n6", "expectedText": "[0,1]" }
+  ]
+}
