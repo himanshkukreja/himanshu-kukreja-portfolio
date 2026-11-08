@@ -28,11 +28,11 @@ jobs:
             const until = new Date(), since = new Date(Date.now() - Number(DAYS) * 86400e3);
             const q = `query($a: String!, $s: Time!, $u: Time!) { viewer { accounts(filter: { accountTag: $a }) {
               hours: workersInvocationsAdaptive(limit: 5000, filter: { datetime_geq: $s, datetime_leq: $u }, orderBy: [datetimeHour_ASC]) {
-                dimensions { scriptName datetimeHour } sum { requests subrequests errors } quantiles { cpuTimeP50 cpuTimeP99 } } } } }`;
+                dimensions { scriptName datetimeHour } sum { requests subrequests errors cpuTimeUs } quantiles { cpuTimeP50 cpuTimeP99 } } } } }`;
             const r = await fetch("https://api.cloudflare.com/client/v4/graphql", { method: "POST", headers: { authorization: `Bearer ${CF_TOKEN}`, "content-type": "application/json" }, body: JSON.stringify({ query: q, variables: { a: ACCOUNT, s: since.toISOString(), u: until.toISOString() } }) });
             const j = await r.json();
             if (j.errors?.length) { console.log("errors:", JSON.stringify(j.errors).slice(0, 600)); }
             const rows = j.data?.viewer?.accounts?.[0]?.hours ?? [];
             console.log(`${rows.length} hourly rows`);
-            for (const x of rows) console.log([x.dimensions.datetimeHour, x.dimensions.scriptName, x.sum.requests, x.sum.subrequests, x.sum.errors, x.quantiles.cpuTimeP50, x.quantiles.cpuTimeP99].join("\t"));
+            for (const x of rows) console.log([x.dimensions.datetimeHour, x.dimensions.scriptName, x.sum.requests, x.sum.subrequests, x.sum.errors, x.sum.cpuTimeUs, x.quantiles.cpuTimeP50, x.quantiles.cpuTimeP99].join("\t"));
           '
