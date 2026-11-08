@@ -81,6 +81,9 @@ function store(cache: Cache, key: Request, request: Request, res: Response, ctx:
   if (res.status !== 200 || !/s-maxage/i.test(res.headers.get("cache-control") || "") || res.headers.has("set-cookie")) return out;
   const copy = new Response(out.clone().body, out);
   copy.headers.set("cache-control", `public, s-maxage=${EDGE_KEEP}`);
+  // Cloudflare's cache obeys CDN-Cache-Control over Cache-Control: OpenNext's (often s-maxage=1 for a page due a
+  // re-render) evicted the copy within a second, so these pages were never answered from here
+  copy.headers.delete("cdn-cache-control");
   copy.headers.set(STORED_AT, String(Date.now()));
   ctx.waitUntil(cache.put(key, copy));
   return out;
