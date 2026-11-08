@@ -7,13 +7,14 @@
  *
  * Flowcharts/state machines render once per scene; lit nodes, the dimming of the rest, packets along
  * `flow` edges and the camera (`focus`) are applied to that SVG. Sequences re-render per step and
- * draw their newest arrows in.
+ * draw their newest arrows in. DSA Mastery's scenes (quote, array, trace, race, code) are in DsaScenes.tsx.
  */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { mermaidConfig, prepareMermaidSource } from "@/lib/diagrams/mermaid-theme";
 import { loadMermaid } from "@/lib/offline/lazy";
 import { type FlatStep, type Lecture, type LectureScene, type LectureStep, type Tone } from "@/lib/learn/lecture/types";
 import { clamp, countUp, easeInOut, easeOut, lerp, prog, TONE } from "./anim";
+import { ArrayScene, CodeScene, QuoteScene, RaceScene, TraceScene } from "./DsaScenes";
 
 type MermaidApi = Awaited<ReturnType<typeof loadMermaid>>;
 let mermaidP: Promise<MermaidApi> | null = null;
@@ -49,6 +50,12 @@ export function diagramFor(s: LectureScene, st: LectureStep): string | null {
 }
 
 const W = "text-[#f3f2ee]";
+
+/**
+ * The stage's accent is a CSS variable (default SDM orange); DSA Mastery lectures turn it teal (globals.css --c-dsa).
+ * The player sets the same variables on its own stage overlay (the play button).
+ */
+export const DSA_ACCENT = { "--lec-accent": "#14b8a6", "--lec-accent-rgb": "20 184 166", "--lec-accent-bg": "#06201c", "--lec-ink": "#021a16" } as React.CSSProperties;
 
 export type QuizState = { picked: number | null };
 
@@ -92,13 +99,13 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
   const fit = cover > 0 ? Math.max(0.4, (1 - cover - 0.05) / 0.92) : 1;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] [container-type:size]">
+    <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] [container-type:size]" style={lecture.dsa ? DSA_ACCENT : undefined}>
       {/* backdrop: a faint grid and a warm glow, so the stage never looks like a blank slide */}
       <div aria-hidden className="absolute inset-0 opacity-[0.35] [background-image:linear-gradient(#1a1a1d_1px,transparent_1px),linear-gradient(90deg,#1a1a1d_1px,transparent_1px)] [background-size:4cqw_4cqw]" />
-      <div aria-hidden className="absolute -left-[20%] -top-[30%] h-[80%] w-[60%] rounded-full bg-[radial-gradient(closest-side,rgba(255,107,43,0.10),transparent)]" />
+      <div aria-hidden className="absolute -left-[20%] -top-[30%] h-[80%] w-[60%] rounded-full" style={{ background: "radial-gradient(closest-side, rgb(var(--lec-accent-rgb, 255 107 43) / 0.10), transparent)" }} />
 
-      <div data-stage-top className="absolute left-[3%] top-[4%] z-10 flex items-center gap-[1cqw] font-mono text-[1.15cqw] uppercase tracking-[0.12em] text-[#ff6b2b]">
-        <span className="inline-block h-[0.6cqw] w-[0.6cqw] bg-[#ff6b2b]" />
+      <div data-stage-top className="absolute left-[3%] top-[4%] z-10 flex items-center gap-[1cqw] font-mono text-[1.15cqw] uppercase tracking-[0.12em] text-[var(--lec-accent,#ff6b2b)]">
+        <span className="inline-block h-[0.6cqw] w-[0.6cqw] bg-[var(--lec-accent,#ff6b2b)]" />
         {String(cur.scene + 1).padStart(2, "0")} · {s.title}
       </div>
       {lecture.cast ? (
@@ -120,13 +127,18 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         }}
       >
         {s.kind === "title" && <TitleScene s={s} st={st} t={t} first={cur.step === 0} fallback={lecture.title} />}
-        {s.kind === "numbers" && <NumbersScene s={s} k={cur.step} t={t} />}
+        {s.kind === "numbers" && <NumbersScene s={s} k={cur.step} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "list" && <ListScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "compare" && <CompareScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "quiz" && <QuizScene s={s} k={cur.step} t={t} dur={dur} interactive={!!interactive} quiz={quiz} onPick={onPick} />}
         {s.kind === "chart" && <ChartScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "timeline" && <TimelineScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "phone" && <PhoneScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
+        {s.kind === "quote" && <QuoteScene s={s} t={t} first={cur.step === 0} />}
+        {s.kind === "array" && <ArrayScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
+        {s.kind === "trace" && <TraceScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
+        {s.kind === "race" && <RaceScene s={s} t={t} first={cur.step === 0} />}
+        {s.kind === "code" && <CodeScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {hasDiagram && <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} show={extraHighlight} />}
       </div>
 
@@ -136,7 +148,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         )}
         {st.caption && (
           <span
-            className="bg-[#ff6b2b] px-[1cqw] py-[0.4cqh] font-mono text-[1.15cqw] font-semibold uppercase tracking-[0.08em] text-[#120700]"
+            className="bg-[var(--lec-accent,#ff6b2b)] px-[1cqw] py-[0.4cqh] font-mono text-[1.15cqw] font-semibold uppercase tracking-[0.08em] text-[var(--lec-ink,#120700)]"
             style={{ opacity: prog(t, 0.1, 0.35), transform: `translateY(${(1 - prog(t, 0.1, 0.35)) * 0.8}cqh)` }}
           >
             {st.caption}
@@ -147,10 +159,10 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
 
       {/* watermark */}
       <div aria-hidden className="absolute bottom-[1.6%] right-[1.6%] font-mono text-[0.95cqw] tracking-[0.06em] text-[#f3f2ee] opacity-[0.28]">
-        <span className="text-[#ff6b2b]">~</span>/systemdesignmastery.dev
+        <span className="text-[var(--lec-accent,#ff6b2b)]">~</span>/systemdesignmastery.dev
       </div>
       <div className="absolute inset-x-0 bottom-0 h-[0.35cqh] bg-[#1d1d20]">
-        <div className="h-full bg-[#ff6b2b]" style={{ width: `${((i + Math.min(1, t / Math.max(dur, 0.1))) / total) * 100}%` }} />
+        <div className="h-full bg-[var(--lec-accent,#ff6b2b)]" style={{ width: `${((i + Math.min(1, t / Math.max(dur, 0.1))) / total) * 100}%` }} />
       </div>
     </div>
   );
@@ -212,15 +224,15 @@ function RefChip({ label, e, onClick }: { label: string; e: number; onClick?: ()
   const cls = "flex items-center gap-[0.6cqw] border border-[#3a3a40] bg-[#141416]/90 px-[0.9cqw] py-[0.35cqh] font-mono text-[1cqw] tracking-[0.04em] text-[#d6d5d0]";
   const body = (
     <>
-      <span className="text-[#ff6b2b]">↩ recall</span>
+      <span className="text-[var(--lec-accent,#ff6b2b)]">↩ recall</span>
       <span>·</span>
       <span>{label}</span>
-      {onClick && <span className="text-[#ff6b2b]">→</span>}
+      {onClick && <span className="text-[var(--lec-accent,#ff6b2b)]">→</span>}
     </>
   );
   const style = { opacity: e, transform: `translateY(${(1 - e) * 0.8}cqh)` };
   return onClick ? (
-    <button type="button" onClick={onClick} className={`${cls} cursor-pointer hover:border-[#ff6b2b]`} style={style} title="Open that lecture">
+    <button type="button" onClick={onClick} className={`${cls} cursor-pointer hover:border-[var(--lec-accent,#ff6b2b)]`} style={style} title="Open that lecture">
       {body}
     </button>
   ) : (
@@ -250,22 +262,25 @@ function TitleScene({ s, st, t, first, fallback }: { s: LectureScene; st: Lectur
           </span>
         );
       })}
-      <span className="text-[#ff6b2b]" style={{ opacity: first ? prog(t, 0.2 + words.length * 0.07, 0.3) : 1 }}>
+      <span className="text-[var(--lec-accent,#ff6b2b)]" style={{ opacity: first ? prog(t, 0.2 + words.length * 0.07, 0.3) : 1 }}>
         {end}
       </span>
     </h2>
   );
 }
 
-function NumbersScene({ s, k, t }: { s: LectureScene; k: number; t: number }) {
+function NumbersScene({ s, k, st, prevSt, t }: { s: LectureScene; k: number; st: LectureStep; prevSt: LectureStep | null; t: number }) {
   const nums = s.numbers || [];
+  // step k shows the first k + 1 numbers, or the first `reveal` when the step says (DSA lectures)
+  const shown = st.reveal ?? k + 1;
+  const before = Math.min(shown, prevSt ? (prevSt.reveal ?? k) : 0);
   return (
     <div className="flex w-full flex-col items-center gap-[4cqh]">
       {s.heading && <h2 className={`m-0 text-center font-display text-[3.4cqw] font-extrabold tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
       <div className="grid w-full gap-[1.6cqw]" style={{ gridTemplateColumns: `repeat(${Math.min(3, Math.max(2, nums.length))}, minmax(0, 1fr))` }}>
         {nums.map((n, j) => {
-          const on = j <= k;
-          const fresh = j === k;
+          const on = j < shown;
+          const fresh = j >= before && j < shown;
           const e = fresh ? prog(t, 0.05, 0.9) : 1;
           const pop = fresh ? 1 + 0.04 * Math.sin(Math.PI * clamp(t / 0.5)) : 1;
           return (
@@ -273,11 +288,11 @@ function NumbersScene({ s, k, t }: { s: LectureScene; k: number; t: number }) {
               key={j}
               className="flex flex-col gap-[0.8cqh] border p-[1.8cqw]"
               style={{
-                borderColor: on ? "#ff6b2b" : "#2a2a2e",
-                background: on ? "#1a0f08" : "transparent",
+                borderColor: on ? "var(--lec-accent,#ff6b2b)" : "#2a2a2e",
+                background: on ? "var(--lec-accent-bg,#1a0f08)" : "transparent",
                 opacity: on ? 1 : 0.32,
                 transform: `scale(${pop})`,
-                boxShadow: fresh ? `0 0 ${3 * (1 - clamp(t / 1.2))}cqw rgba(255,107,43,0.35)` : "none",
+                boxShadow: fresh ? `0 0 ${3 * (1 - clamp(t / 1.2))}cqw rgb(var(--lec-accent-rgb,255 107 43) / 0.35)` : "none",
               }}
             >
               <span className={`font-display text-[4cqw] font-extrabold leading-none tracking-[-0.03em] ${W} tabular-nums`}>{fresh ? countUp(n.value, e) : n.value}</span>
@@ -314,8 +329,8 @@ function ListScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pre
       <h2 className={`m-0 font-display text-[3.3cqw] font-extrabold tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       <div className="flex flex-col gap-[1.6cqh]">
         {points.slice(0, now).map((p, k) => (
-          <Item key={k} fresh={k >= before} t={t} k0={k - before} className="flex items-baseline gap-[1.4cqw] border-l-[0.3cqw] border-[#ff6b2b] bg-[#141416] px-[1.6cqw] py-[1.4cqh]">
-            <span className="font-mono text-[1.4cqw] text-[#ff6b2b]">{String(k + 1).padStart(2, "0")}</span>
+          <Item key={k} fresh={k >= before} t={t} k0={k - before} className="flex items-baseline gap-[1.4cqw] border-l-[0.3cqw] border-[var(--lec-accent,#ff6b2b)] bg-[#141416] px-[1.6cqw] py-[1.4cqh]">
+            <span className="font-mono text-[1.4cqw] text-[var(--lec-accent,#ff6b2b)]">{String(k + 1).padStart(2, "0")}</span>
             <span className={`text-[2cqw] leading-snug ${W}`}>{p}</span>
           </Item>
         ))}
@@ -352,7 +367,7 @@ function CompareScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; 
       <h2 className={`m-0 text-center font-display text-[3.1cqw] font-extrabold tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       <div className="flex items-stretch gap-[2cqw]">
         {col(L, 0, "bad")}
-        <div className="flex items-center font-display text-[2.4cqw] font-extrabold text-[#ff6b2b]">vs</div>
+        <div className="flex items-center font-display text-[2.4cqw] font-extrabold text-[var(--lec-accent,#ff6b2b)]">vs</div>
         {col(R, L.points.length, "good")}
       </div>
     </div>
@@ -435,7 +450,7 @@ function QuizScene({ s, k, t, dur, interactive, quiz, onPick }: { s: LectureScen
   }, [fit]);
   return (
     <div ref={cardRef} className="flex w-[80%] flex-col gap-[2.4cqh]">
-      <span className="font-mono text-[1.3cqw] uppercase tracking-[0.14em] text-[#ff6b2b]">checkpoint · your turn</span>
+      <span className="font-mono text-[1.3cqw] uppercase tracking-[0.14em] text-[var(--lec-accent,#ff6b2b)]">checkpoint · your turn</span>
       <h2 className={`m-0 font-display text-[3cqw] font-extrabold leading-[1.1] tracking-[-0.03em] ${W}`}>{s.question}</h2>
       <div className="grid grid-cols-2 gap-[1.4cqw]">
         {opts.map((o, j) => {
@@ -448,10 +463,10 @@ function QuizScene({ s, k, t, dur, interactive, quiz, onPick }: { s: LectureScen
             <Tag
               key={j}
               {...(Tag === "button" ? { type: "button" as const, onClick: () => onPick?.(j) } : {})}
-              className={`flex items-start gap-[1cqw] border p-[1.5cqw] text-left ${interactive && !reveal ? "cursor-pointer hover:border-[#ff6b2b]" : ""}`}
+              className={`flex items-start gap-[1cqw] border p-[1.5cqw] text-left ${interactive && !reveal ? "cursor-pointer hover:border-[var(--lec-accent,#ff6b2b)]" : ""}`}
               style={{ borderColor: tone.line, background: tone.bg, opacity: e * (dim ? 0.45 : 1), transform: `translateY(${(1 - e) * 1.5}cqh)` }}
             >
-              <span className="font-mono text-[1.5cqw] font-semibold" style={{ color: reveal && right ? TONE.good.fg : "#ff6b2b" }}>
+              <span className="font-mono text-[1.5cqw] font-semibold" style={{ color: reveal && right ? TONE.good.fg : "var(--lec-accent,#ff6b2b)" }}>
                 {reveal && right ? "✓" : reveal && picked === j ? "✕" : String.fromCharCode(65 + j)}
               </span>
               <span className={`text-[1.7cqw] leading-snug ${W}`}>{o}</span>
@@ -471,8 +486,8 @@ function QuizScene({ s, k, t, dur, interactive, quiz, onPick }: { s: LectureScen
             {s.explain}
           </p>
         ) : countdown ? (
-          <div className="flex items-center gap-[1cqw] font-mono text-[1.6cqw] text-[#ff6b2b]">
-            <span className="grid h-[4.4cqw] w-[4.4cqw] place-items-center rounded-full border-[0.3cqw] border-[#ff6b2b] font-display text-[2.4cqw] font-extrabold">{countdown}</span>
+          <div className="flex items-center gap-[1cqw] font-mono text-[1.6cqw] text-[var(--lec-accent,#ff6b2b)]">
+            <span className="grid h-[4.4cqw] w-[4.4cqw] place-items-center rounded-full border-[0.3cqw] border-[var(--lec-accent,#ff6b2b)] font-display text-[2.4cqw] font-extrabold">{countdown}</span>
             pause and pick one
           </div>
         ) : interactive ? (
@@ -567,7 +582,7 @@ function TimelineScene({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep;
                   className="block h-[4.4cqw] w-[4.4cqw] rounded-full border-[0.3cqw]"
                   style={{ borderColor: tone.line, background: latest ? tone.line : "#0b0b0c", transform: `scale(${fresh ? 0.6 + 0.4 * e : 1})`, boxShadow: latest ? `0 0 2cqw ${tone.line}88` : "none" }}
                 />
-                <span className="font-mono text-[1.35cqw] text-[#ff6b2b]">{x.at}</span>
+                <span className="font-mono text-[1.35cqw] text-[var(--lec-accent,#ff6b2b)]">{x.at}</span>
                 <span className={`text-[1.5cqw] leading-snug ${latest ? W : "text-[#a3a3a8]"}`}>{x.text}</span>
               </div>
             );

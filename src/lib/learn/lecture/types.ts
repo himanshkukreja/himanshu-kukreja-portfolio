@@ -18,8 +18,49 @@ export type LectureStep = {
   screen?: number;
   /** leans on an earlier lesson: "↩ Recall · label", and in the course player a link to its lecture */
   ref?: { lecture: string; label: string };
+  /** DSA array scenes: the window [left, right] (inclusive; right = left - 1 is an empty window) */
+  window?: [number, number];
+  /** DSA array scenes: cells picked out on their own (not a window) */
+  mark?: number[];
+  /** DSA array scenes: named pointers under cells, e.g. { left: 1, right: 3 } */
+  pointers?: Record<string, number>;
+  /** DSA trace scenes: which frame of the trace is on screen */
+  frame?: number;
+  /** DSA code scenes: the template's step markers ([1], [2], …) lit on this step */
+  markers?: number[];
 };
-export type SceneKind = "title" | "numbers" | "flowchart" | "sequence" | "state" | "list" | "compare" | "quiz" | "chart" | "timeline" | "phone";
+export type SceneKind =
+  | "title"
+  | "numbers"
+  | "flowchart"
+  | "sequence"
+  | "state"
+  | "list"
+  | "compare"
+  | "quiz"
+  | "chart"
+  | "timeline"
+  | "phone"
+  // DSA Mastery (src/lib/dsa/lecture.ts inlines their data, so the stage needs no fetches)
+  | "quote"
+  | "array"
+  | "trace"
+  | "race"
+  | "code";
+
+/** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
+export type LectureTraceFrame = {
+  marker: number;
+  note: string;
+  state: Record<string, unknown>;
+  view: { window?: [number, number] | null; pointers?: Record<string, number>; leaving?: number | null; joining?: number | null; map?: Record<string, number> | null; need?: Record<string, number> | null };
+  /** the frame's prediction prompt: which variable the learner is asked for */
+  ask?: string | null;
+};
+export type LectureTrace = { title: string; values: unknown[]; vars: string[]; frames: LectureTraceFrame[]; code?: LectureCode; lang?: string };
+export type LectureRace = { title: string; unit: string; sizes: number[]; series: { label: string; counts: number[]; tone: string }[]; note: string };
+/** A code template: its source and, per step marker n (1-based), the 0-based lines it covers. */
+export type LectureCode = { label: string; source: string; lines: number[][] };
 export type LectureScene = {
   id: string;
   title: string;
@@ -39,6 +80,20 @@ export type LectureScene = {
   events?: { at: string; text: string; tone?: Tone }[];
   app?: string;
   screens?: { title: string; rows: { text: string; meta?: string; tone?: Tone }[]; toast?: string }[];
+  /** DSA quote: a cast id, the line, and (resolved) who they are */
+  who?: string;
+  text?: string;
+  person?: { name: string; role: string };
+  /** DSA array */
+  values?: (number | string)[];
+  /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
+  trace?: string;
+  traceData?: LectureTrace;
+  race?: string;
+  raceData?: LectureRace;
+  template?: string;
+  lang?: string;
+  code?: LectureCode;
   steps: LectureStep[];
 };
 export type CastMember = { name: string; title?: string; voice: string };
@@ -65,6 +120,8 @@ export type Lecture = {
     /** background music mood (scripts/lecture/music_moods.py): tension, drive, lofi, playful, bright */
     music?: "tension" | "drive" | "lofi" | "playful" | "bright";
   };
+  /** a DSA Mastery concept lecture (resolved by src/lib/dsa/lecture.ts): the concept it teaches; the stage turns teal */
+  dsa?: { module: string; concept: string };
   title: string;
   summary: string;
   scenes: LectureScene[];

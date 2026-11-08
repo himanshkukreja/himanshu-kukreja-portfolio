@@ -1,11 +1,15 @@
 // usage: node scripts/lecture/check.mjs <lecture.json>  — structure, highlight ids, sequence cut points, narration length
+// DSA Mastery lectures are checked resolved (scripts/lecture/dsa-resolve.mjs): their quote, array, trace, race and code
+// scenes must carry the data the stage draws (person, values, traceData, raceData, code).
 import fs from "fs";
 import path from "path";
 const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code"];
+if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
   const out = new Set();
@@ -33,6 +37,12 @@ for (const s of L.scenes || []) {
   if (s.kind === "chart" && (!["bar", "line"].includes(s.type) || !(s.points || []).length || s.points.some((p) => typeof p.value !== "number"))) errs.push(`${s.id}: chart needs type bar|line and numeric points[]`);
   if (s.kind === "timeline" && !(s.events || []).length) errs.push(`${s.id}: timeline needs events[]`);
   if (s.kind === "phone" && !(s.app && (s.screens || []).length && s.screens.every((x) => x.title && Array.isArray(x.rows)))) errs.push(`${s.id}: phone needs app and screens[{title, rows[]}]`);
+  if (DSA_KINDS.includes(s.kind) && !L.dsa) errs.push(`${s.id}: ${s.kind} scenes are for DSA lectures (resolved, with dsa: { module, concept })`);
+  if (s.kind === "quote" && !(s.text && s.person?.name)) errs.push(`${s.id}: quote needs text and a resolved person (cast id "${s.who}" not found?)`);
+  if (s.kind === "array" && !(s.values || []).length) errs.push(`${s.id}: array needs values[]`);
+  if (s.kind === "trace" && !(s.traceData?.frames || []).length) errs.push(`${s.id}: trace ${s.trace} is not resolved (no traceData.frames)`);
+  if (s.kind === "race" && !(s.raceData?.sizes?.length && (s.raceData.series || []).length && s.raceData.series.every((x) => x.counts?.length === s.raceData.sizes.length))) errs.push(`${s.id}: race ${s.race} needs raceData with sizes and series counts of the same length`);
+  if (s.kind === "code" && !s.code?.source) errs.push(`${s.id}: code template ${s.template} (${s.lang}) is not resolved`);
   const edges = s.kind === "flowchart" ? edgesOf(s.diagram || "") : new Set();
   if (s.kind === "quiz") {
     quizzes++;
@@ -47,7 +57,7 @@ for (const s of L.scenes || []) {
     if (q > 240 || opt > 130 || e > 420 || total > 900) errs.push(`${s.id}: quiz text won't fit the card (question ${q}/200, longest option ${opt}/110, explain ${e}/330, total ${total}/800)`);
     else if (q > 200 || opt > 110 || e > 330 || total > 800) warns.push(`${s.id}: quiz text is long for the card (question ${q}/200, longest option ${opt}/110, explain ${e}/330, total ${total}/800)`);
   }
-  const revealMax = s.kind === "list" || s.kind === "chart" ? (s.points || []).length : s.kind === "timeline" ? (s.events || []).length : s.kind === "phone" ? Math.max(0, ...(s.screens || []).map((x) => x.rows.length)) : s.kind === "compare" ? (s.left?.points?.length || 0) + (s.right?.points?.length || 0) : 0;
+  const revealMax = s.kind === "numbers" ? (s.numbers || []).length : s.kind === "list" || s.kind === "chart" ? (s.points || []).length : s.kind === "timeline" ? (s.events || []).length : s.kind === "phone" ? Math.max(0, ...(s.screens || []).map((x) => x.rows.length)) : s.kind === "compare" ? (s.left?.points?.length || 0) + (s.right?.points?.length || 0) : 0;
   const src = s.diagram || "";
   const msgs = src.split("\n").filter((l) => /(-{1,2}>>|-{1,2}x|-{1,2}\)|-{1,2}>)/.test(l.trim()) || /^Note\s/i.test(l.trim())).length;
   const ids = new Set([...src.matchAll(/(?:^|[\s>|&-])([A-Za-z][A-Za-z0-9_]*)(?=\s*(?:\[|\(|\{|@\{|-->|==>|-\.->|:::|$|\s*&))/gm)].map((m) => m[1]));
@@ -63,13 +73,24 @@ for (const s of L.scenes || []) {
     if (/[→·~₹%$€&<>{}\[\]=*_#|\\]/.test(st.say || "")) warns.push(`${s.id}#${k}: symbol in narration: ${(st.say.match(/[→·~₹%$€&<>{}\[\]=*_#|\\]/g) || []).join(" ")}`);
     if (st.caption && st.caption.split(/\s+/).length > 9) warns.push(`${s.id}#${k}: caption over 9 words`);
     for (const h of st.highlight || []) if (!ids.has(h)) errs.push(`${s.id}#${k}: highlight "${h}" isn't a node id in the diagram`);
-    if (st.reveal != null && !["list", "compare", "chart", "timeline", "phone"].includes(s.kind)) warns.push(`${s.id}#${k}: reveal only applies to list/compare/chart/timeline/phone`);
+    if (st.reveal != null && !["list", "compare", "chart", "timeline", "phone", "numbers"].includes(s.kind)) warns.push(`${s.id}#${k}: reveal only applies to list/compare/chart/timeline/phone/numbers`);
     if (st.flow) {
       if (s.kind !== "flowchart") warns.push(`${s.id}#${k}: flow only applies to flowcharts`);
       else for (let j = 0; j + 1 < st.flow.length; j++) if (!edges.has(`${st.flow[j]}>${st.flow[j + 1]}`)) errs.push(`${s.id}#${k}: flow ${st.flow[j]} -> ${st.flow[j + 1]} isn't an edge in the diagram`);
     }
     for (const h of st.focus || []) if (!ids.has(h)) errs.push(`${s.id}#${k}: focus "${h}" isn't a node id`);
     if (s.kind === "phone" && st.screen != null && !(st.screen >= 0 && st.screen < (s.screens || []).length)) errs.push(`${s.id}#${k}: screen ${st.screen} out of range`);
+    if (s.kind === "array") {
+      const n = (s.values || []).length;
+      if (st.window && !(Array.isArray(st.window) && st.window[0] >= 0 && st.window[1] < n && st.window[0] <= st.window[1] + 1)) errs.push(`${s.id}#${k}: window [${st.window}] outside the array (0..${n - 1})`);
+      for (const m of st.mark || []) if (!(m >= 0 && m < n)) errs.push(`${s.id}#${k}: mark ${m} outside the array`);
+      for (const [p, v] of Object.entries(st.pointers || {})) if (!(v >= 0 && v < n)) errs.push(`${s.id}#${k}: pointer ${p}=${v} outside the array`);
+    }
+    if (s.kind === "trace" && s.traceData && !(Number.isInteger(st.frame) && st.frame >= 0 && st.frame < s.traceData.frames.length)) errs.push(`${s.id}#${k}: frame ${st.frame} outside trace ${s.trace} (0..${s.traceData.frames.length - 1})`);
+    if (s.kind === "trace" && s.traceData && /\bpredict\b/i.test(st.say || "") && !s.traceData.frames[st.frame]?.ask) warns.push(`${s.id}#${k}: says "predict" but frame ${st.frame} asks nothing, so no value is hidden`);
+    if (s.kind === "code" && s.code) for (const m of st.markers || []) if (!(m >= 1 && m <= s.code.lines.length && s.code.lines[m - 1].length)) errs.push(`${s.id}#${k}: marker ${m} not in template ${s.template} (1..${s.code.lines.length})`);
+    if ((st.window || st.mark || st.pointers) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
+    if (st.markers && s.kind !== "code") warns.push(`${s.id}#${k}: markers only apply to code scenes`);
     if (st.reveal != null && (st.reveal < 0 || st.reveal > revealMax)) errs.push(`${s.id}#${k}: reveal ${st.reveal} outside 0..${revealMax}`);
     if (st.pause != null && !(st.pause >= 0 && st.pause <= 3)) errs.push(`${s.id}#${k}: pause must be 0-3 s`);
     if (s.kind === "sequence" && st.upto) {
@@ -80,8 +101,8 @@ for (const s of L.scenes || []) {
   }
 }
 // course lessons have their own ranges (resources/lectures/README.md, "Course lessons")
-const RANGES = { quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10], short: [150, 270, 0, 0, 5, 9] };
-const kind = L.short ? "short" : L.lesson ? L.lesson.kind : "quest";
+const RANGES = { concept: [1200, 2400, 2, 4, 14, 28], quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10], short: [150, 270, 0, 0, 5, 9] };
+const kind = L.short ? "short" : L.dsa ? "concept" : L.lesson ? L.lesson.kind : "quest";
 // vertical shorts (resources/shorts/shorts--<long id>.json): portrait-friendly scenes only
 if (L.short) {
   // one lecture can give several shorts: shorts--<long id> or shorts--<long id>--<part slug>

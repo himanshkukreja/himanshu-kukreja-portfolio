@@ -166,7 +166,9 @@ await page.evaluateOnNewDocument(() => {
     localStorage.setItem("hk.learn.seen", "1");
   } catch {}
 });
-await page.goto(`${SITE}/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}?record=1`, { waitUntil: "networkidle2", timeout: 240000 });
+// a DSA Mastery lecture (resolved by dsa-resolve.mjs) records from its concept's lecture page
+const recordPath = lec.dsa ? `/learn/dsa/concepts/${lec.dsa.concept}/lecture` : `/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}`;
+await page.goto(`${SITE}${recordPath}?record=1`, { waitUntil: "networkidle2", timeout: 240000 });
 await page.addStyleTag({ content: "nextjs-portal{display:none!important} *{transition:none!important;animation:none!important;caret-color:transparent!important}" });
 await page.waitForFunction(() => window.__LECTURE_READY === true && typeof window.__LECTURE_SET === "function", { timeout: 180000 });
 if (WORDS) await page.evaluate((w) => (window.__SHORT_WORDS = w), WORDS);
