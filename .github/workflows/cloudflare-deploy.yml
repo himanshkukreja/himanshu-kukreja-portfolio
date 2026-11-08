@@ -40,7 +40,8 @@ jobs:
       NEXT_TELEMETRY_DISABLED: "1"
       # staging (workers.dev) is a course host (src/lib/site/hosts.ts, inlined at build); APP_ENV=preview there
       APP_ENV: ${{ inputs.target == 'staging' && 'preview' || 'production' }}
-      NEXT_PUBLIC_EXTRA_COURSE_HOSTS: ${{ inputs.target == 'staging' && 'sdm-course-staging.markdrop-in.workers.dev' || 'sdm-course.markdrop-in.workers.dev' }}
+      # staging is also served at staging.systemdesignmastery.dev (a real zone: caches and sign-in behave as in production)
+      NEXT_PUBLIC_EXTRA_COURSE_HOSTS: ${{ inputs.target == 'staging' && 'sdm-course-staging.markdrop-in.workers.dev,staging.systemdesignmastery.dev' || 'sdm-course.markdrop-in.workers.dev' }}
       WENV: ${{ inputs.target == 'staging' && '--env staging' || '' }}
       CACHE_BUCKET: ${{ inputs.target == 'staging' && 'sdm-course-cache-staging-apac' || 'sdm-course-cache-apac' }}
     steps:

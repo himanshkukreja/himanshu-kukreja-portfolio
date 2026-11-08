@@ -108,7 +108,8 @@ function store(cache: Cache, key: Request, request: Request, res: Response, ctx:
 function finish(request: Request, res: Response): Response {
   const cc = res.headers.get("cache-control") || "";
   // test deploys on workers.dev are never indexed
-  const testHost = new URL(request.url).hostname.endsWith(".workers.dev");
+  const host = new URL(request.url).hostname;
+  const testHost = host.endsWith(".workers.dev") || host.startsWith("staging.");
   if (!/s-maxage|stale-while-revalidate/i.test(cc) && !testHost) return res;
   const out = new Response(res.body, res);
   if (/s-maxage|stale-while-revalidate/i.test(cc)) {
