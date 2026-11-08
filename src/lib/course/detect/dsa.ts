@@ -42,7 +42,7 @@ export type DsaRenderOpts = {
 };
 
 /** Container names this file renders (directives.ts keeps them as blocks instead of turning them back into text). */
-export const DSA_CONTAINERS = new Set(["example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint"]);
+export const DSA_CONTAINERS = new Set(["beat", "example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint"]);
 /** Leaf names this file renders. */
 export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions"]);
 

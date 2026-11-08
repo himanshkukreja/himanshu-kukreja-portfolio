@@ -21,7 +21,7 @@ function parse(t: string) {
   return { got: get("GOT"), missing: get("MISSING"), fix: get("FIX") };
 }
 
-export default function ExplainBack({ conceptId, term }: { conceptId: string; term: string }) {
+export default function ExplainBack({ conceptId, term, course }: { conceptId: string; term: string; /** "dsa": a DSA Mastery concept */ course?: "dsa" }) {
   const status = useAiStatus();
   const { openAuthModal } = useAuthModal();
   const [text, setText] = useState("");
@@ -36,7 +36,7 @@ export default function ExplainBack({ conceptId, term }: { conceptId: string; te
     setError("");
     track("ai_ask", { feature: "explain-back", concept: conceptId });
     try {
-      const r = await aiFetch("/api/learn/ai/explain", { method: "POST", body: JSON.stringify({ conceptId, text }) });
+      const r = await aiFetch("/api/learn/ai/explain", { method: "POST", body: JSON.stringify(course ? { conceptId, text, course } : { conceptId, text }) });
       const body = (await r.json().catch(() => ({}))) as { verdict?: string | null; text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) setRes({ verdict: body.verdict ?? null, text: body.text || "" });

@@ -1,0 +1,214 @@
+/*
+ * DSA Mastery's lesson and problem blocks (src/lib/course/detect/dsa.ts), in the course renderer's family
+ * (course-blocks.css: square corners, 1px rules, mono labels). Colours are the theme tokens, so light, dark and
+ * the reading modes all apply; inside .dsa-theme the signal is DSA teal.
+ */
+
+.course-content .dsa-tag,
+.dsa-ui .dsa-tag {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  padding: 1px 6px;
+  border: 1px solid var(--c-signal);
+  font-family: var(--sd-mono, var(--font-geist-mono));
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-signal-text);
+}
+
+/* tones */
+.course-content .dsa-example,
+.course-content .dsa-poll,
+.course-content .dsa-tabs,
+.course-content .dsa-widget,
+.course-content .dsa-checkpoint {
+  --sdb-tone: var(--c-signal);
+}
+.course-content .dsa-example[data-kind="wrong-approach"] {
+  --sdb-tone: var(--c-bad);
+}
+.course-content .dsa-example[data-kind="wrong-approach"] .dsa-tag {
+  border-color: var(--c-bad);
+  color: var(--c-bad-text);
+}
+.course-content .dsa-example[data-kind="does-not-apply"] {
+  --sdb-tone: var(--c-line-strong);
+}
+.course-content .dsa-invariant {
+  --sdb-tone: var(--c-signal);
+  border-left: 3px solid var(--c-signal);
+}
+.course-content .dsa-invariant .sdb-body {
+  font-size: 1.08em;
+  font-weight: 600;
+  color: var(--c-fg);
+}
+.course-content .dsa-pattern {
+  border: 2px solid var(--c-fg);
+}
+.course-content .dsa-script {
+  border-left: 3px solid var(--c-line-strong);
+}
+
+/* dialogue lines */
+.course-content .dsa-line {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin: 14px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+}
+.course-content .dsa-line-avatar {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-bg);
+  font-family: var(--sd-mono, var(--font-geist-mono));
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--c-signal-text);
+}
+.course-content .dsa-line-main {
+  min-width: 0;
+}
+.course-content .dsa-line-who {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: center;
+  margin: 0 0 2px !important;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.course-content .dsa-line-name {
+  font-weight: 600;
+  color: var(--c-fg);
+}
+.course-content .dsa-line-role {
+  color: var(--c-fg-3);
+}
+.course-content .dsa-line-text {
+  margin: 0 !important;
+  font-style: italic;
+  color: var(--c-fg);
+}
+.course-content .dsa-line-text::before {
+  content: "“";
+}
+.course-content .dsa-line-text::after {
+  content: "”";
+}
+
+/* code tabs: every language is readable before hydration; then one shows at a time */
+.course-content .dsa-tabs .dsa-panes {
+  padding: 0 0 4px;
+}
+.course-content .dsa-tabs .dsa-pane > figure.sd-code {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--c-line);
+}
+.course-content .dsa-tabs[data-hydrated] .dsa-pane[hidden] {
+  display: none;
+}
+
+.course-content .dsa-stage:empty {
+  display: none;
+}
+.course-content .dsa-widget[data-hydrated] .dsa-fallback,
+.course-content .dsa-poll[data-hydrated] .dsa-poll-options {
+  display: none;
+}
+.course-content .dsa-fallback {
+  margin: 0 !important;
+  padding: 14px 16px;
+  font-size: 14px;
+  color: var(--c-fg-3);
+}
+
+/* real-systems box */
+.course-content .dsa-realsystems {
+  border: 1px solid var(--c-line-strong);
+  border-left: 3px solid var(--c-fg);
+}
+.course-content .dsa-rs-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 0 !important;
+  padding: 11px 16px 10px;
+  border-bottom: 1px solid var(--c-line);
+  font-family: var(--sd-mono, var(--font-geist-mono));
+  font-size: 12px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-fg);
+}
+.course-content .dsa-rs-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 !important;
+  padding: 0 16px 16px !important;
+  list-style: none;
+}
+.course-content .dsa-rs-links li {
+  margin: 0 !important;
+  padding: 0 !important;
+}
+.course-content .dsa-rs-links li::before {
+  display: none !important;
+}
+.course-content .dsa-rs-links a {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  min-height: 40px;
+  padding: 6px 10px;
+  border: 1px solid var(--c-line-strong);
+  font-size: 14px;
+  color: var(--c-fg);
+  text-decoration: none;
+}
+.course-content .dsa-rs-links a:hover {
+  border-color: var(--c-signal);
+}
+.course-content .dsa-rs-kind {
+  font-family: var(--sd-mono, var(--font-geist-mono));
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--c-signal-text);
+}
+
+/* toggle */
+.course-content .dsa-toggle {
+  margin: 18px 0;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+}
+.course-content .dsa-toggle-sum {
+  min-height: 44px;
+  padding: 11px 16px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--c-fg);
+}
+.course-content .dsa-toggle-body {
+  padding: 0 16px 6px;
+}
+
+.course-content .dsa-checkpoint > figure[data-sd="quiz"] {
+  margin: 0;
+  border-left: 0;
+  border-right: 0;
+}
