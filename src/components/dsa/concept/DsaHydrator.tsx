@@ -29,7 +29,7 @@ function scan(root: HTMLElement): Host[] {
     .filter((h): h is Host => !!h);
 }
 
-export default function DsaHydrator({ rootRef, concept }: { rootRef: React.RefObject<HTMLElement | null>; concept: ConceptPage }) {
+export default function DsaHydrator({ rootRef, concept, deps = "" }: { rootRef: React.RefObject<HTMLElement | null>; concept?: ConceptPage; /** re-scan when this changes (content swapped in) */ deps?: string }) {
   const [hosts, setHosts] = useState<Host[]>([]);
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function DsaHydrator({ rootRef, concept }: { rootRef: React.RefOb
       mo.disconnect();
       cancelAnimationFrame(raf);
     };
-  }, [rootRef]);
+  }, [rootRef, deps]);
 
   return (
     <>
@@ -71,11 +71,12 @@ function Hydrated({ fig, children }: { fig: HTMLElement; children: React.ReactNo
   return <>{children}</>;
 }
 
-function widgetFor(h: Host, c: ConceptPage): React.ReactNode {
+function widgetFor(h: Host, c?: ConceptPage): React.ReactNode {
   const id = h.fig.dataset.id || "";
+  if (h.kind === "tabs") return <CodeTabs fig={h.fig} />;
+  // everything else belongs to a concept page (a problem's editorial only has code tabs)
+  if (!c) return null;
   switch (h.kind) {
-    case "tabs":
-      return <CodeTabs fig={h.fig} />;
     case "poll":
       return <Poll fig={h.fig} conceptId={c.id} />;
     case "trace":

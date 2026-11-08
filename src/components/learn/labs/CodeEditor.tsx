@@ -23,6 +23,7 @@ import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighl
 import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
+import { cppLanguage, javaLanguage } from "./clike";
 import { tags as t } from "@lezer/highlight";
 import styles from "./labs.module.css";
 
@@ -34,8 +35,9 @@ export type CodeEditorHandle = {
   goToLine(line: number): void;
 };
 
-export type EditorLang = "python" | "javascript" | "typescript";
-const langExt = (l: EditorLang) => (l === "python" ? python() : javascript({ typescript: l === "typescript" }));
+/** java and cpp: DSA Mastery's problem room (a small highlighting-only stream mode, ./clike.ts) */
+export type EditorLang = "python" | "javascript" | "typescript" | "java" | "cpp";
+const langExt = (l: EditorLang) => (l === "python" ? python() : l === "java" ? javaLanguage() : l === "cpp" ? cppLanguage() : javascript({ typescript: l === "typescript" }));
 
 type Props = {
   /** the language to highlight (defaults to Python) */
@@ -118,7 +120,7 @@ export default function CodeEditor({ handle, initial, fontSize, label, onChange,
           dropCursor(),
           EditorState.allowMultipleSelections.of(true),
           indentOnInput(),
-          indentComp.current.of(indentUnit.of(language === "python" ? "    " : "  ")),
+          indentComp.current.of(indentUnit.of(language === "python" || language === "java" || language === "cpp" ? "    " : "  ")),
           EditorState.tabSize.of(4),
           bracketMatching(),
           closeBrackets(),
@@ -148,7 +150,7 @@ export default function CodeEditor({ handle, initial, fontSize, label, onChange,
   }, []);
 
   useEffect(() => {
-    view.current?.dispatch({ effects: [langComp.current.reconfigure(langExt(language)), indentComp.current.reconfigure(indentUnit.of(language === "python" ? "    " : "  "))] });
+    view.current?.dispatch({ effects: [langComp.current.reconfigure(langExt(language)), indentComp.current.reconfigure(indentUnit.of(language === "python" || language === "java" || language === "cpp" ? "    " : "  "))] });
   }, [language]);
 
   useEffect(() => {

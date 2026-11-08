@@ -127,7 +127,8 @@ export function useRecordSolve() {
   const userId = user?.id ?? null;
   return useCallback(
     async (p: { id: string; title: string; level: DsaLevel; lang: DsaLang; hintsUsed: number; editorialSeen: boolean }) => {
-      const xp = awardOnce(dsaKeys.problem(p.id), problemXp(p.level), `${p.title} · solved`);
+      // opening the editorial first forfeits the XP (plan §7.4); the solve itself still counts
+      const xp = p.editorialSeen ? 0 : awardOnce(dsaKeys.problem(p.id), problemXp(p.level), `${p.title} · solved`);
       track("dsa_submit", { problem: p.id, lang: p.lang, verdict: "AC", first: xp > 0, hints: p.hintsUsed });
       const prev = readGuestLesson(DSA_COURSE_ID, DSA_PROBLEMS_WEEK, p.id);
       const langs = Array.from(new Set([...(prev?.stages ?? []), p.lang]));

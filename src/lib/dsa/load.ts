@@ -472,6 +472,9 @@ function rungsOf(md: string): { title: string; md: string }[] {
     });
 }
 
+/** A problem section is one fragment, not a lesson: drop the renderer's single-stage header ("Lesson · 1 min"). */
+const fragment = (html: string) => html.replace(/<header class="sd-stage-head"[^>]*>[\s\S]*?<\/header>/g, "");
+
 const SECTION_ID: Record<string, string> = { scenario: "scenario", "your task": "task", examples: "examples", constraints: "constraints", "scenario to model": "model" };
 
 async function problemParts(id: string) {
@@ -495,7 +498,7 @@ const problemCached = cached(async (id: string): Promise<ProblemPage | null> => 
     sdmLinker(),
   ]);
   const dsa: DsaRenderOpts = { cast, sdmLink: linker.sdm, labLink: linker.lab };
-  const render = async (m: string) => (await renderLesson(m, { kind: "day-content", dsa })).html;
+  const render = async (m: string) => fragment((await renderLesson(m, { kind: "day-content", dsa })).html);
 
   const all = sectionsOf(body);
   const sections: ProblemPage["sections"] = [];
@@ -602,7 +605,7 @@ const editorialCached = cached(async (id: string): Promise<{ html: string } | nu
   if (!sec) return null;
   const [cast, linker, ...codes] = await Promise.all([castOf(), sdmLinker(), ...SOLUTION_FILES.map(([, file]) => readDsa(`resources/problems/${id}/solutions/${file}`))]);
   const solutions = SOLUTION_FILES.map(([lang], i) => ({ lang, code: codes[i] || "" })).filter((s) => s.code.trim());
-  const html = (await renderLesson(sec.md, { kind: "day-content", dsa: { cast, solutions, sdmLink: linker.sdm, labLink: linker.lab } })).html;
+  const html = fragment((await renderLesson(sec.md, { kind: "day-content", dsa: { cast, solutions, sdmLink: linker.sdm, labLink: linker.lab } })).html);
   return { html };
 }, "dsa-editorial-v1");
 
