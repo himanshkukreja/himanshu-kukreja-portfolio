@@ -10,6 +10,16 @@ on:
         type: choice
         options: [production, staging]
         default: production
+      config:
+        description: "wrangler config (wrangler.jsonc = the site, wrangler.search.jsonc = the search Worker)"
+        type: choice
+        options: [wrangler.jsonc, wrangler.search.jsonc]
+        default: wrangler.jsonc
+      method:
+        description: "HTTP method for the requests"
+        type: choice
+        options: [GET, POST]
+        default: GET
       base:
         description: "Base URL to request"
         default: https://sdm-course.markdrop-in.workers.dev
@@ -40,10 +50,10 @@ jobs:
           BASE: ${{ inputs.base }}
           PATHS: ${{ inputs.paths }}
         run: |
-          npx wrangler tail $WENV --format json > "$RUNNER_TEMP/tail.jsonl" 2> "$RUNNER_TEMP/tail.err" &
+          npx wrangler tail -c "${{ inputs.config }}" $WENV --format json > "$RUNNER_TEMP/tail.jsonl" 2> "$RUNNER_TEMP/tail.err" &
           TAIL=$!
           sleep 12
-          for p in $PATHS; do curl -s -o /dev/null -w "%{http_code} %{time_total}s $p\n" "$BASE$p"; done
+          for p in $PATHS; do curl -s -o /dev/null -X "${{ inputs.method }}" -H "content-type: application/json" -d "{}" -w "%{http_code} %{time_total}s $p\n" "$BASE$p"; sleep 2; done
           sleep 15
           kill $TAIL || true
           node -e '
