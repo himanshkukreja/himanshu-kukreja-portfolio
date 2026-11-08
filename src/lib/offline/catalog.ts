@@ -74,6 +74,15 @@ async function inBatches<T, R>(list: readonly T[], n: number, fn: (x: T, i: numb
 }
 
 async function build(course: string): Promise<Catalog> {
+  // section timings in the logs (Cloudflare: the build never finished, Nov 2026; find the section that stalls)
+  const t0 = Date.now();
+  let last = t0;
+  const lap = (what: string) => {
+    const now = Date.now();
+    console.warn(`[catalog] ${what}: +${now - last} ms (total ${now - t0} ms)`);
+    last = now;
+  };
+  lap("before course map");
   const map = await getCourseMap(course);
   if (!map) throw new Error("course not found");
   const resources = (await getAllLearningResources()).filter((r) => r.course === course);
@@ -119,6 +128,7 @@ async function build(course: string): Promise<Catalog> {
     { url: "/numbers", title: "Numbers playground", kind: "tool", tag: "NUMBERS", group: "course", version: REFERENCE_VERSION, bytes: 45_000 }
   );
   // code labs: the index here, each lab in its world (saving a lab also stores the Python runtime once)
+  lap("before labs");
   const labs = await getLabSummaries().catch(() => []);
   if (labs.length) courseItems.push({ url: "/labs", title: `Code labs · ${labs.length} labs`, kind: "lab", tag: "LABS", group: "course", version: hash(labs.map((l) => l.version).join()), bytes: 40_000 });
   // the practice hub: links to every tool, live state from this browser (counts ship in the page)
@@ -128,13 +138,16 @@ async function build(course: string): Promise<Catalog> {
   courseItems.push({ url: "/mock", title: "Mock interviews", kind: "tool", tag: "MOCKS", group: "course", version: courseItems[0].version, bytes: 20_000 });
   courseItems.push({ url: "/mastery", title: "Concept map", kind: "tool", tag: "CONCEPTS", group: "course", version: courseItems[0].version, bytes: 120_000 });
   // the reading trail index (measured ~140 KB gzip: every entry with its summary ships in the page)
+  lap("before reading trail");
   const trail = await getTrailIndex().catch(() => null);
   if (trail?.total) courseItems.push({ url: "/reading", title: `Reading trail · ${trail.total} reads`, kind: "tool", tag: "READING", group: "course", version: hash(JSON.stringify(trail.groups)), bytes: 140_000 });
   groups.push({ id: "course", title: "Course map", kind: "course", items: courseItems });
 
   // interview-night revision: one deck per world (its lesson decks ride along) + the cheat sheet
+  lap("before revision");
   const revision = new Map((await getRevisionWeeks(course).catch(() => [])).filter((r) => r.lessons.length).map((r) => [r.key, r]));
 
+  lap("before weeks (lesson markdown)");
   for (const w of map.weeks) {
     const rev = revision.get(w.key);
     const items = await Promise.all([
@@ -170,6 +183,7 @@ async function build(course: string): Promise<Catalog> {
     groups.push({ id: w.key, title: `World ${w.code} · ${w.title}`, kind: "world", items });
   }
 
+  lap("before side quests");
   groups.push({
     id: "side-quests",
     title: "Side quests",
@@ -186,6 +200,7 @@ async function build(course: string): Promise<Catalog> {
     groups.push({ id, title, kind: id, items: await inBatches(list, 6, async (l) => item(l.href, l.title, kind, l.tag || l.code, id, await md(l.week, l.slug))) });
   }
 
+  lap("before mocks");
   if (map.mocks?.length) {
     const sources = await loadMockSources().catch(() => []);
     const src = new Map(sources.map((s) => [s.slug, s.md]));
@@ -198,6 +213,7 @@ async function build(course: string): Promise<Catalog> {
   }
 
   try {
+    lap("before case files");
     const [cases, sources] = await Promise.all([getCaseFiles(), listStorySources()]);
     const body = new Map(sources.map((s) => [s.slug, s.body]));
     groups.push({
@@ -212,6 +228,7 @@ async function build(course: string): Promise<Catalog> {
 
   // war stories: the hub, each story (a two-minute read) and each war room (an incident simulation)
   try {
+    lap("before war stories");
     const { stories, rooms } = await getWarStories();
     if (stories.length || rooms.length) {
       // a story's rendered HTML and a room's simulation are only measured and hashed, a few at a time
@@ -239,6 +256,7 @@ async function build(course: string): Promise<Catalog> {
   // files, mocks). Saving the page also stores its recorded media (not the rendered video.mp4).
   try {
     const base = lectureMediaBase()?.replace(/\/$/, "") ?? null;
+    lap("before lectures");
     const lectures = await listLectures();
     // each lecture's version, size and word count come with the (cached) list: no script is read again here
     const facts = lectures.map((l) => ({ version: l.version, jsonLength: l.jsonLength, words: l.words }));
@@ -268,6 +286,7 @@ async function build(course: string): Promise<Catalog> {
     // lectures unavailable: the rest still saves
   }
 
+  lap("before done");
   return { course, build: "", generatedAt: Date.now(), appBytes: APP_BYTES, runtimeBytes: RUNTIME_BYTES, lectureSharedBytes: lectureMediaBase() ? LECTURE_SHARED_BYTES : 0, groups };
 }
 
