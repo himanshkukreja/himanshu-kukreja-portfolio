@@ -20,6 +20,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { cleanPath, isLessonPath, parseLessonPath } from "@/lib/learn/paths";
+import { isDsaReaderPath } from "@/lib/dsa/flags";
 
 export type InkContextKind = "lesson" | "war" | "case" | "lab" | "short" | "lecture" | "concept" | "sheet" | "cheatsheet" | "company" | "design" | "answer";
 
@@ -97,7 +98,7 @@ const RULES: [RegExp, InkContextKind | "lesson-revise"][] = [
 ];
 
 /** /<week>/<slug>: a lesson reader page (any content area: weeks, side quests, problem bank, LLD, the plan). */
-export const isReaderRoute = (p: string) => isLessonPath(p);
+export const isReaderRoute = (p: string) => isLessonPath(p) || isDsaReaderPath(p);
 
 const safe = (s: string) => decodeURIComponent(s).replace(/[^A-Za-z0-9-]/g, "-").slice(0, 120);
 

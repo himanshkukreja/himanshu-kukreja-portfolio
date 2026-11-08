@@ -26,11 +26,12 @@ import { INK_EVENTS } from "@/lib/learn/ink/types";
 import { COURSE_CHAT_EVENT, openCourseChat, TUTOR_OPEN_EVENT, type OpenChatDetail } from "./openChat";
 import { holdContext } from "./pageContext";
 import { isLessonPath } from "@/lib/learn/paths";
+import { isDsaReaderPath } from "@/lib/dsa/flags";
 
 const ChatPanel = dynamic(() => import("./ChatPanel"), { ssr: false });
 
 // clean course paths (useCoursePathname)
-const isLesson = (p: string) => isLessonPath(p);
+const isLesson = (p: string) => isLessonPath(p) || isDsaReaderPath(p);
 const NO_FAB = /^\/(?:search|shorts$|canvas\/|mock\/(?!peers)[^/]+|arena\/(?!leaderboard|daily)[^/]+)/;
 
 /**

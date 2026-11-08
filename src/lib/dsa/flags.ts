@@ -22,3 +22,7 @@ export const DSA_FULL = DSA_MODE === "full";
 export function dsaPathAllowedSoon(clean: string): boolean {
   return clean === "/dsa" || clean === "/dsa/" || /^\/dsa\/(?:opengraph-image|twitter-image)(?:[-.\w]*)?$/.test(clean);
 }
+
+/** A DSA concept page (/dsa/concepts/<id>): it has its own reading dock (Ask AI, Notebook, Listen, Snip), so the
+ *  site-wide floating Ask and Notebook buttons stand aside there, as on course lessons. */
+export const isDsaReaderPath = (p: string) => /^\/dsa\/concepts\/[^/]+\/?$/.test(p.split(/[?#]/)[0]);
