@@ -26,6 +26,7 @@ import { MODELS } from "@/lib/ai/prices";
 import { promptOptsFor } from "@/lib/ai/prompts";
 import { SmartEngine, transcriptDocs } from "@/lib/search/smart/engine";
 import { rowToDoc, type DocIndex } from "@/lib/search/smart/types";
+import { LocalSearch } from "@/lib/search/smart/api";
 import type { TranscriptIndex } from "@/lib/learn/lecture/transcript";
 import { getCourseMap } from "@/lib/learn/course";
 import { getLearningResource } from "@/lib/github";
@@ -122,7 +123,7 @@ async function runCase(c: ChatCase, model: string, e: SmartEngine, map: CourseMa
     page = { path: lesson.href, title: lesson.title, heading: sec?.title, headingId: sec ? sec.href.split("#")[1] : undefined, selection: c.ctx.page.selection };
   }
   const deps: ChatDeps = {
-    engine: e,
+    search: new LocalSearch(Promise.resolve(e)),
     live: () => true,
     courseMap: async () => map,
     lessonMarkdown: async (w, s) => (await getLearningResource(w, s).catch(() => null))?.content ?? null,

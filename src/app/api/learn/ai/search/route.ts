@@ -5,7 +5,7 @@ import { isAdminEmail } from "@/lib/ai/access";
 import { promptOptsFor, SMART_SEARCH_SCHEMA, smartSearchSystem, stripPrivatePlan } from "@/lib/ai/prompts";
 import { candidateLines, parseSmartAnswer, PER_FAMILY, smartSearchUser } from "@/lib/search/smart/ai";
 import { SMART_SEARCH_PUBLIC } from "@/lib/search/smart/flag";
-import { devPreview, getEngine, liveCheck, originOf } from "@/lib/search/smart/server";
+import { devPreview, getSearch, liveCheck, originOf } from "@/lib/search/smart/server";
 import { queryKey } from "@/lib/search/smart/text";
 import { logSearchQuery } from "@/lib/search/smart/querylog";
 import type { SmartAnswer } from "@/lib/search/smart/types";
@@ -48,18 +48,19 @@ export async function POST(request: Request) {
   const key = queryKey(q);
   if (key.length < 3) return NextResponse.json({ error: "Ask a little more" }, { status: 400 });
 
-  const [engine, live] = await Promise.all([getEngine(originOf(request)), liveCheck()]);
+  const search = getSearch(originOf(request));
+  const [built, live] = await Promise.all([search.built, liveCheck()]);
   // the content-gap radar's log (/admin/gaps): normalised text, scope, cited ids, day, hashed user; never off-topic
   const logAsk = (a: Pick<SmartAnswer, "scope" | "cites" | "path"> | null) =>
     after(() => logSearchQuery({ userId: me.id, q, scope: a ? a.scope : "none", top: a ? [...a.cites, ...a.path].map((h) => h.id) : [] }));
-  const ck = `${engine.built}|${key}`;
+  const ck = `${built}|${key}`;
   const hit = cache.get(ck);
   if (hit && Date.now() - hit.at < CACHE_MS) {
     logAsk(hit.a);
     return NextResponse.json({ ...hit.a, cached: true } satisfies SmartAnswer, { headers: { "Cache-Control": "private, no-store" } });
   }
 
-  const res = engine.search(q, { live });
+  const res = await search.search(q, { live });
   if (!res.candidates.length) {
     logAsk(null);
     const a: Cached = { intent: "", scope: "partial", note: "Nothing in the course matches this yet. Try other words, or a topic like caching, sharding or rate limiting.", answer: [], cites: [], path: [], quick: null };
@@ -71,7 +72,7 @@ export async function POST(request: Request) {
   let job = inflight.get(fk);
   if (!job) {
     job = (async () => {
-      const { text, ids, fam } = candidateLines(res.candidates, (d) => engine.family(d));
+      const { text, ids, fam } = candidateLines(res.candidates, (d) => (d as { fam?: string }).fam ?? d.id);
       const user = smartSearchUser(q, text);
       const r = await callClaude({
         feature: "smart-search",

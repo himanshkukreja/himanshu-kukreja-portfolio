@@ -15,8 +15,8 @@ import { sharedCache } from "@/lib/admin/sharedCache";
  * covered: otherwise
  */
 import { getCatalogue } from "@/lib/concepts/load";
-import type { SmartEngine } from "@/lib/search/smart/engine";
-import { getEngine, liveCheck } from "@/lib/search/smart/server";
+import type { SearchApi } from "@/lib/search/smart/api";
+import { getSearch, liveCheck } from "@/lib/search/smart/server";
 import { ASKS, GROUPS } from "@/lib/search/smart/synonyms";
 import type { Kind } from "@/lib/search/smart/types";
 import { buildVocab, clusterEvents, type Cluster } from "./cluster";
@@ -88,7 +88,7 @@ async function loadEvents(since: Date, sample: boolean): Promise<{ events: GapEv
 
 const material = (d: { id: string; kind: Kind; title: string; sub: string; href: string }): GapMaterial => ({ id: d.id, kind: d.kind, title: d.title, sub: d.sub, href: d.href });
 
-function judge(c: Cluster, engine: SmartEngine | null, live: (gate: string) => boolean): { closest: GapMaterial[]; verdict: GapLabel; why: string; gapShare: number | null } {
+async function judge(c: Cluster, engine: SearchApi | null, live: (gate: string) => boolean): Promise<{ closest: GapMaterial[]; verdict: GapLabel; why: string; gapShare: number | null }> {
   let known = 0;
   let missed = 0;
   for (const e of c.events) {
@@ -103,14 +103,14 @@ function judge(c: Cluster, engine: SmartEngine | null, live: (gate: string) => b
   let closest: GapMaterial[] = [];
   let index: "none" | "weak" | "minor" | "strong" | null = null;
   if (engine) {
-    const cited = [...c.top].sort((a, b) => b[1] - a[1]).map(([id]) => engine.doc(id)).filter((d): d is NonNullable<typeof d> => !!d && live(d.gate));
-    const { ranked } = engine.rank(best, { live, limit: 40 });
+    const [citedDocs, { ranked }] = await Promise.all([engine.docs({ ids: [...c.top].sort((a, b) => b[1] - a[1]).map(([id]) => id) }), engine.rank(best, { live, limit: 40 })]);
+    const cited = citedDocs.filter((d) => live(d.gate));
     const top = ranked[0]?.score ?? 0;
     const near = ranked.slice(0, 5).filter((r) => r.score >= top * 0.6);
     index = !ranked.length ? "none" : top < WEAK ? "weak" : near.some((r) => CORE.has(r.doc.kind)) ? "strong" : "minor";
     const seen = new Set<string>();
     for (const d of [...cited, ...ranked.slice(0, 8).map((r) => r.doc)]) {
-      const fam = engine.family(d);
+      const fam = d.fam;
       if (seen.has(fam)) continue;
       seen.add(fam);
       closest.push(material(d));
@@ -134,31 +134,32 @@ async function build(days: number, origin: string, sample: boolean): Promise<Gap
   const [{ events, sources }, catalogue, engineR, live] = await Promise.all([
     loadEvents(since, sample),
     getCatalogue().then((r) => r.catalogue.concepts.map((c) => ({ id: c.id, term: c.term, aliases: c.aliases }))),
-    withTimeout(getEngine(origin), 45_000, "search index").then(
-      (e) => ({ engine: e, error: undefined as string | undefined }),
-      (e: unknown) => ({ engine: null, error: e instanceof Error ? e.message : String(e) }),
+    withTimeout(getSearch(origin).built, 45_000, "search index").then(
+      () => ({ engine: getSearch(origin) as SearchApi | null, error: undefined as string | undefined }),
+      (e: unknown) => ({ engine: null as SearchApi | null, error: e instanceof Error ? e.message : String(e) }),
     ),
-    liveCheck().catch(() => () => true),
+    liveCheck().catch(() => Object.assign(() => true, { blocked: [] as string[] })),
   ]);
   const engine = engineR.engine;
   const vocab = buildVocab(GROUPS, ASKS, catalogue);
 
-  const fresh = new Map<string, boolean>();
-  const isNew = engine
-    ? (w: string) => {
-        let v = fresh.get(w);
-        if (v === undefined) {
-          v = fresh.size < 3000 ? engine.rank(w, { live, limit: 1 }).ranked.length === 0 : false;
-          fresh.set(w, v);
-        }
-        return v;
-      }
-    : undefined;
+  // words the course may never use: the clustering asks about words one at a time (synchronously), so a first pass
+  // records which, one batch query answers them all (at most 3000), and the second pass uses the answers
+  let isNew: ((w: string) => boolean) | undefined;
+  if (engine) {
+    const asked = new Set<string>();
+    clusterEvents(events, vocab, (w) => (asked.size < 3000 && asked.add(w), false));
+    const words = [...asked];
+    const counts = await engine.counts(words, { live, limit: 1 }).catch(() => words.map(() => 1));
+    const fresh = new Map(words.map((w, i) => [w, counts[i] === 0]));
+    isNew = (w) => fresh.get(w) ?? false;
+  }
   const { clusters, offTopic } = clusterEvents(events, vocab, isNew);
 
   const ranked = clusters.sort((a, b) => b.users.size - a.users.size || b.events.length - a.events.length).slice(0, MAX_TOPICS);
-  const topics: GapTopic[] = ranked.map((c) => {
-    const j = judge(c, engine, live);
+  const judged = await Promise.all(ranked.map((c) => judge(c, engine, live)));
+  const topics: GapTopic[] = ranked.map((c, i) => {
+    const j = judged[i];
     const bySource: GapTopic["bySource"] = {};
     let first = c.events[0].day;
     let last = c.events[0].day;

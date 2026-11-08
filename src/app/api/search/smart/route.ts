@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getEngine, liveCheck, originOf, previewAllowed } from "@/lib/search/smart/server";
+import { getSearch, liveCheck, originOf, previewAllowed } from "@/lib/search/smart/server";
 import { SMART_SEARCH_PUBLIC } from "@/lib/search/smart/flag";
 import { queryKey } from "@/lib/search/smart/text";
 
@@ -16,8 +16,8 @@ export async function GET(request: Request) {
   if (!(await previewAllowed(request))) return NextResponse.json({ error: "Not available yet" }, { status: 403, headers: { "Cache-Control": "no-store" } });
   const q = (new URL(request.url).searchParams.get("q") || "").trim().slice(0, 300);
   if (!queryKey(q)) return NextResponse.json({ error: "Type something to search for" }, { status: 400 });
-  const [engine, live] = await Promise.all([getEngine(originOf(request)), liveCheck()]);
-  const { candidates: _c, ...res } = engine.search(q, { live });
+  const live = await liveCheck();
+  const { candidates: _c, ...res } = await getSearch(originOf(request)).search(q, { live });
   void _c;
   return NextResponse.json(res, {
     headers: {

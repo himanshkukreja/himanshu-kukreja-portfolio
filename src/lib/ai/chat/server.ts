@@ -11,7 +11,7 @@ import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import { getQuestDrills } from "@/lib/learn/drills/load";
 import { getWeekQuestions } from "@/lib/learn/arena/bank";
 import { listSavedPaths, type SavedPath } from "@/lib/learn/saved-paths";
-import { getEngine, liveCheck } from "@/lib/search/smart/server";
+import { getSearch, liveCheck } from "@/lib/search/smart/server";
 import type { CourseMap } from "@/lib/learn/types";
 import type { BankItem, ChatDeps, DesignCtx } from "./tools";
 import { getMockInterview } from "@/lib/learn/mock/page-data";
@@ -95,15 +95,18 @@ export function within<T>(p: Promise<T>, ms: number, fallback: T | (() => T), wh
 
 export async function makeDeps(a: { origin: string; userId: string | null; page: PageContext | null; devName?: string | null }): Promise<{ deps: ChatDeps; map: CourseMap | null }> {
   const warming = Symbol("warming");
-  const [engine, live, map] = await Promise.all([
-    within<Awaited<ReturnType<typeof getEngine>> | typeof warming>(getEngine(a.origin), ENGINE_WAIT_MS, warming, "course search"),
+  const search = getSearch(a.origin);
+  const allLive = () => Object.assign(() => true, { blocked: [] as string[] });
+  const [ready, live, map] = await Promise.all([
+    // the engine is ready once it answers (a cold server or search Worker builds it on first use)
+    within<string | typeof warming>(search.built, ENGINE_WAIT_MS, warming, "course search"),
     // a read failure must never hide content (lib/learn/controls.ts): late controls = everything live, as on an error
-    within(liveCheck(), CONTROLS_WAIT_MS, () => () => true, "publishing controls"),
+    within(liveCheck(), CONTROLS_WAIT_MS, allLive, "publishing controls"),
     within(getCourseMap().catch(() => null), MAP_WAIT_MS, null, "course map"),
   ]);
-  if (engine === warming) throw new ChatWarmingError();
+  if (ready === warming) throw new ChatWarmingError();
   const deps: ChatDeps = {
-    engine,
+    search,
     live,
     courseMap: async () => map,
     lessonMarkdown: async (week, slug) => (await getLearningResource(week, slug).catch(() => null))?.content ?? null,

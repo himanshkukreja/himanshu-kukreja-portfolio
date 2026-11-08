@@ -198,7 +198,7 @@ export async function runChatCore(o: {
 }): Promise<CoreResult> {
   const t0 = Date.now();
   const st = new ChatState(o.deps, o.emit);
-  st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
+  await st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
   const latestText = o.req.messages[o.req.messages.length - 1].text;
   const first = o.req.messages.filter((m) => m.role === "user").length === 1;
   // the page shows each step as it happens (the first message of a chat also works out what's due for review)
@@ -289,12 +289,12 @@ export async function runChatCore(o: {
 /** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */
 async function resolveMock(st: ChatState, key: string): Promise<ChatMock | null> {
   if (key.startsWith("mock:")) {
-    if (!st.liveDoc(`MK:${key.slice(5)}`)) return null;
+    if (!(await st.liveDocA(`MK:${key.slice(5)}`))) return null;
     const m = await st.d.mock(key.slice(5)).catch(() => null);
     return m ? fromCourseMock(m) : null;
   }
   const slug = key.slice(6);
-  const quest = st.engine.docs.find((d) => d.kind === "quest" && d.id.endsWith(`/${slug}`));
+  const quest = (await st.docsWhere({ kind: "quest" })).find((d) => d.id.endsWith(`/${slug}`));
   if (!quest || !st.liveDoc(quest.id)) return null;
   const lm = /^L:([^/#]+)\/([^/#]+)$/.exec(quest.id);
   const [md, dr] = await Promise.all([lm ? st.d.lessonMarkdown(lm[1], lm[2]).catch(() => null) : null, st.d.drills(slug).catch(() => null)]);
@@ -310,7 +310,7 @@ const emptyLoop = (text: string): LoopResult => ({ text, stop: "end_turn", round
  */
 export async function runMockCore(o: Parameters<typeof runChatCore>[0]): Promise<CoreResult> {
   const st = new ChatState(o.deps, o.emit);
-  st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
+  await st.restore(o.req.sources ?? {}, o.req.quizzes ?? {}, o.req.paths ?? {});
   const ms = o.req.mock!;
   const latest = o.req.messages[o.req.messages.length - 1];
   const mock = await resolveMock(st, ms.key);
@@ -336,7 +336,7 @@ export async function runMockCore(o: Parameters<typeof runChatCore>[0]): Promise
     const fresh: Record<string, ChatSource> = {};
     // the reply from its first phase on (a rare un-thought call may write its working first)
     const text = cleanAnswer(replyFrom(loop.text, "### P1"), () => false);
-    const path = text ? weakAreasPath(st, mock, text, fresh) : null;
+    const path = text ? await weakAreasPath(st, mock, text, fresh) : null;
     st.sourcesSent(fresh);
     if (path) {
       st.flags.path = true;

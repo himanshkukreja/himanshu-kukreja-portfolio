@@ -1,0 +1,32 @@
+// The course's smart-search engine as its own Worker (cloudflare/search/worker.ts): a Durable Object holds the engine,
+// which is too big for the site's Worker. The site's Worker calls it over the SEARCH service binding (wrangler.jsonc)
+// and it reads the index from the site's Worker over COURSE. Deploy this one first. Vercel ignores it.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "sdm-search",
+  "main": "cloudflare/search/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "keep_names": false,
+  // the engine imports app modules through the @/ path alias
+  "alias": { "@": "./src" },
+  // reachable only through the site Worker's SEARCH binding (no public workers.dev URL)
+  "workers_dev": false,
+  "placement": { "mode": "off" },
+  "observability": { "enabled": true },
+  "services": [{ "binding": "COURSE", "service": "sdm-course" }],
+  "durable_objects": { "bindings": [{ "name": "SEARCH_ENGINE", "class_name": "SearchEngine" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SearchEngine"] }],
+  "env": {
+    "staging": {
+      "name": "sdm-search-staging",
+      // staging keeps its workers.dev URL so `next dev` can try it (SDM_SEARCH_URL); it serves public course content only
+      "workers_dev": true,
+      "placement": { "mode": "off" },
+      "observability": { "enabled": true },
+      "services": [{ "binding": "COURSE", "service": "sdm-course-staging" }],
+      "durable_objects": { "bindings": [{ "name": "SEARCH_ENGINE", "class_name": "SearchEngine" }] },
+      "migrations": [{ "tag": "v1", "new_sqlite_classes": ["SearchEngine"] }]
+    }
+  }
+}

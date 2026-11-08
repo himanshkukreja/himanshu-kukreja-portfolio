@@ -23,7 +23,11 @@
   "placement": { "mode": "off" },
   "observability": { "enabled": true },
   "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
-  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course" }],
+  // SEARCH: the smart-search engine's own Worker (wrangler.search.jsonc; too big for this one's memory)
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course" },
+    { "binding": "SEARCH", "service": "sdm-search" }
+  ],
   // the deployment's id: the Worker's own page cache is kept per deployment (cloudflare/worker.ts)
   "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "r2_buckets": [
@@ -50,7 +54,10 @@
       "placement": { "mode": "off" },
       "observability": { "enabled": true },
       "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off" },
-      "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" }],
+      "services": [
+        { "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" },
+        { "binding": "SEARCH", "service": "sdm-search-staging" }
+      ],
       "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "r2_buckets": [
         { "binding": "NEXT_INC_CACHE_R2_BUCKET", "bucket_name": "sdm-course-cache-staging-apac" },

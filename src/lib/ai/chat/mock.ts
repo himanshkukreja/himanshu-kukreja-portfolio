@@ -133,9 +133,10 @@ const words = (s: string) => new Set(s.toLowerCase().split(/[^a-z0-9]+/).filter(
  * The weak areas the scorecard names, as a path: for each phase, the rubric signals that share the most words
  * with its MISSED line, and their study links resolved against the index (so every step is a real page).
  */
-export function weakAreasPath(st: ChatState, m: ChatMock, scorecard: string, fresh: Record<string, ChatSource>): PathCard | null {
+export async function weakAreasPath(st: ChatState, m: ChatMock, scorecard: string, fresh: Record<string, ChatSource>): Promise<PathCard | null> {
   const byHref = new Map<string, Doc>();
-  for (const d of st.engine.docs) if (!byHref.has(d.href)) byHref.set(d.href, d);
+  const hrefs = m.phases.flatMap((p) => p.signals.flatMap((s) => s.study.flatMap((h) => [h, h.split("#")[0]])));
+  for (const d of await st.docsWhere({ hrefs })) if (!byHref.has(d.href)) byHref.set(d.href, d);
   const steps: { ref: string; why: string }[] = [];
   const seen = new Set<string>();
   m.phases.forEach((p, i) => {

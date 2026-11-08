@@ -16,6 +16,7 @@ import { SMART_SEARCH_PUBLIC } from "./flag";
 import { rowToDoc, type DocIndex } from "./types";
 import { buildDocIndex, INDEX_PARTS, type IndexPart } from "./build";
 import { isProductionDeploy, selfFetch } from "@/lib/platform";
+import { LocalSearch, RemoteSearch, type SearchApi } from "./api";
 
 const TTL = 15 * 60_000;
 type EngineState = { at: number; engine: Promise<SmartEngine>; refreshing: boolean } | null;
@@ -71,11 +72,29 @@ export async function getEngine(origin: string): Promise<SmartEngine> {
   return engine;
 }
 
-/** The publishing-control check every query runs (hidden or not-yet-due content never comes back). */
-export async function liveCheck(): Promise<(gate: string) => boolean> {
+/**
+ * The engine for this request's queries: on Cloudflare the search Worker (the SEARCH binding: the engine doesn't fit in
+ * the site's Worker), elsewhere the engine in this process.
+ */
+export function getSearch(origin: string): SearchApi {
+  const ctx = (globalThis as unknown as Record<symbol, { env?: { SEARCH?: ConstructorParameters<typeof RemoteSearch>[0] } } | undefined>)[Symbol.for("__cloudflare-context__")];
+  const svc = ctx?.env?.SEARCH;
+  if (svc) return new RemoteSearch(svc);
+  // next dev only: SDM_SEARCH_URL=<a deployed search Worker's workers.dev URL> tries the remote engine locally
+  const url = process.env.NODE_ENV === "development" ? process.env.SDM_SEARCH_URL : undefined;
+  if (url) return new RemoteSearch({ fetch: (u, init) => fetch(u.replace("https://search.internal", url.replace(/\/$/, "")), init) });
+  return new LocalSearch(getEngine(origin));
+}
+
+/**
+ * The publishing-control check every query runs (hidden or not-yet-due content never comes back). The function also
+ * carries `blocked`, the gates that aren't live now, for the search Worker (a function can't be sent there).
+ */
+export async function liveCheck(): Promise<((gate: string) => boolean) & { blocked: string[] }> {
   const controls = await controlMap();
   const now = Date.now();
-  return (gate: string) => isLive(controls.get(gate), now);
+  const live = (gate: string) => isLive(controls.get(gate), now);
+  return Object.assign(live, { blocked: [...controls.keys()].filter((g) => !live(g)) });
 }
 
 /**

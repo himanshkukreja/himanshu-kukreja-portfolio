@@ -82,6 +82,10 @@ jobs:
       - name: ISR cache bucket
         run: npx wrangler r2 bucket create "$CACHE_BUCKET" --location apac || echo "bucket exists"
 
+      # the search engine's own Worker first: the site Worker's SEARCH binding points at it
+      - name: Deploy search Worker
+        run: npx wrangler deploy -c wrangler.search.jsonc $WENV | grep -vE "^\s*$" | tail -8
+
       - name: Deploy
         run: npx wrangler deploy $WENV | tee "$RUNNER_TEMP/deploy.log" | grep -vE "^\s*$" | tail -20
 
