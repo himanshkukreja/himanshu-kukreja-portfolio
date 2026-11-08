@@ -12,11 +12,15 @@ const config = defineCloudflareConfig({
   incrementalCache: withStaleOnRevalidate(withRegionalCache(r2IncrementalCache, { mode: "long-lived" })),
   queue: doQueue,
   // every page request checks its tags: shards replicated in every region (the nearest answers) and the answers cached
-  // in the colo for 60 s, so a content release can take up to a minute to show (it revalidates by tag/path)
+  // in the colo for 60 s, including "never revalidated" (most tags): without that, nearly every check went to a
+  // Durable Object (often >1 s, Nov 2026). Because a colo may answer "never revalidated" for up to 60 s after a
+  // release, a release revalidates TWICE, ~75 s apart (cloudflare-warm's `revalidate` step; scripts do the same), so
+  // anything re-rendered inside that window is re-rendered again with the new content
   tagCache: doShardedTagCache({
     baseShardSize: 12,
     regionalCache: true,
     regionalCacheTtlSec: 60,
+    regionalCacheDangerouslyPersistMissingTags: true,
     shardReplication: { numberOfSoftReplicas: 4, numberOfHardReplicas: 2, regionalReplication: { defaultRegion: "apac" } },
   }),
   enableCacheInterception: true,
