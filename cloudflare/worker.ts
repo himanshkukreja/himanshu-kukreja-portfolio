@@ -24,17 +24,29 @@ type Ctx = { waitUntil(p: Promise<unknown>): void };
 const EDGE_TTL = 120;
 const EDGE_KEEP = 7 * 24 * 3600;
 const STORED_AT = "x-edge-stored-at";
+/** the browser's own cache header, kept with a copy (an immutable OG image stays immutable for browsers) */
+const BROWSER_CC = "x-edge-browser-cc";
 const edgeCache = () => (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
 /** pages this isolate is refreshing in the background (one refresh per page at a time) */
 const refreshing = new Set<string>();
 // Plain page requests (no RSC/prefetch headers), and API GETs (leaderboard, daily, search…: Vercel's CDN cached the ones
 // that send s-maxage; nothing did here until Nov 2026, so each call recomputed, the leaderboard ~24 s). Never with a
 // sign-in header; only responses that send s-maxage and no cookie are kept (store()).
-const cacheablePageRequest = (r: Request) => {
-  if (r.method !== "GET" || r.headers.has("authorization") || r.headers.has("rsc") || r.headers.has("next-router-prefetch")) return false;
-  const path = new URL(r.url).pathname;
-  return path.startsWith("/api/") || path === "/_next/image" || (r.headers.get("accept") || "").includes("text/html");
-};
+// Any GET without a sign-in header or a client navigation's RSC/prefetch header; whether its response is kept is
+// decided by the response (keepable()).
+const cacheablePageRequest = (r: Request) =>
+  r.method === "GET" && !r.headers.has("authorization") && !r.headers.has("rsc") && !r.headers.has("next-router-prefetch");
+/**
+ * A response the same for every visitor: from OpenNext's ISR cache (pages, sitemap, feeds), or marked for shared caches
+ * (s-maxage, or public + immutable like OG images), or a resized image. Vercel's CDN kept all of these; here the sitemap
+ * and OG images were rendered on every request (1.5-2 s) until Nov 2026.
+ */
+function keepable(request: Request, res: Response): boolean {
+  if (res.status !== 200 || res.headers.has("set-cookie")) return false;
+  const cc = res.headers.get("cache-control") || "";
+  if (/private|no-store/i.test(cc)) return false;
+  return isImage(request, res) || /s-maxage/i.test(cc) || /HIT|STALE/.test(res.headers.get("x-opennext-cache") || "") || (/public/i.test(cc) && /immutable/i.test(cc));
+}
 /** resized images (/_next/image) are kept like Vercel's CDN keeps them, whatever cache header OpenNext sends */
 const isImage = (request: Request, res: Response) => new URL(request.url).pathname === "/_next/image" && (res.headers.get("content-type") || "").startsWith("image/");
 
@@ -88,7 +100,8 @@ export default {
         }
         const out = new Response(hit.body, hit);
         out.headers.delete(STORED_AT);
-        out.headers.set("cache-control", "public, max-age=0, must-revalidate");
+        out.headers.set("cache-control", hit.headers.get(BROWSER_CC) || "public, max-age=0, must-revalidate");
+        out.headers.delete(BROWSER_CC);
         out.headers.set("x-edge-cache", age > EDGE_TTL ? `${layer === "KV" ? "KV-" : ""}STALE` : layer);
         return out;
       }
@@ -120,16 +133,19 @@ async function fromKv(kv: Kv, kvKey: string): Promise<Response | null> {
     const bytes = new Uint8Array(buf);
     const nl = bytes.indexOf(NL);
     if (nl < 0) return null;
-    const meta = JSON.parse(new TextDecoder().decode(bytes.subarray(0, nl))) as { s: number; h: [string, string][] };
-    return new Response(bytes.subarray(nl + 1), { status: meta.s, headers: meta.h });
+    const meta = JSON.parse(new TextDecoder().decode(bytes.subarray(0, nl))) as { s: number; h: [string, string][]; z?: 1 };
+    const raw = bytes.subarray(nl + 1);
+    // stored gzip (a lesson's 1.2 MB of HTML is ~140 KB): KV reads of the uncompressed copy took 0.3-0.5 s
+    const body = meta.z ? new Response(raw).body!.pipeThrough(new DecompressionStream("gzip")) : raw;
+    return new Response(body, { status: meta.s, headers: meta.h });
   } catch {
     return null;
   }
 }
 
 async function toKv(kv: Kv, kvKey: string, copy: Response): Promise<void> {
-  const head = new TextEncoder().encode(`${JSON.stringify({ s: copy.status, h: [...copy.headers].filter(([k]) => !SKIP_HEADERS.has(k)) })}\n`);
-  const body = new Uint8Array(await copy.arrayBuffer());
+  const head = new TextEncoder().encode(`${JSON.stringify({ s: copy.status, h: [...copy.headers].filter(([k]) => !SKIP_HEADERS.has(k)), z: 1 })}\n`);
+  const body = new Uint8Array(await new Response(copy.body!.pipeThrough(new CompressionStream("gzip"))).arrayBuffer());
   // KV values stay under its 25 MB limit (the search index, ~6 MB, is the largest)
   if (body.byteLength > 20_000_000) return;
   const value = new Uint8Array(head.byteLength + body.byteLength);
@@ -142,8 +158,9 @@ async function toKv(kv: Kv, kvKey: string, copy: Response): Promise<void> {
 /** The browser's response; an ISR page (s-maxage, no cookies) is also kept in the colo's cache and KV with its time. */
 function store(l: Layers, request: Request, res: Response, ctx: Ctx): Response {
   const out = finish(request, res);
-  if (res.status !== 200 || res.headers.has("set-cookie") || !(isImage(request, res) || /s-maxage/i.test(res.headers.get("cache-control") || ""))) return out;
+  if (!keepable(request, res)) return out;
   const copy = new Response(out.clone().body, out);
+  copy.headers.set(BROWSER_CC, out.headers.get("cache-control") || "public, max-age=0, must-revalidate");
   copy.headers.set("cache-control", `public, s-maxage=${EDGE_KEEP}`);
   // Cloudflare's cache obeys CDN-Cache-Control over Cache-Control: OpenNext's (often s-maxage=1 for a page due a
   // re-render) evicted the copy within a second, so these pages were never answered from here
