@@ -322,14 +322,17 @@ async function build(): Promise<Board> {
  * The scoring pass, shared by every server instance through the data cache for a minute (Players as entries: a Map
  * doesn't survive the cache). On Cloudflare many short-lived isolates each paid the ~24 s pass themselves.
  */
+// The cache stores JSON: a Player's dailyDays (a Set) travels as an array and is rebuilt on the way out (sent as a Set,
+// it came back as {} and every leaderboard call failed with a 500, 8 Nov 2026).
+type WirePlayer = Omit<Player, "dailyDays"> & { dailyDays: string[] };
 const sharedBuild = unstable_cache(async () => {
   const b = await build();
-  return { ...b, players: [...b.players.entries()] };
-}, ["arena-board-v1"], { revalidate: 60 });
+  return { ...b, players: [...b.players.values()].map((p): WirePlayer => ({ ...p, dailyDays: [...p.dailyDays] })) };
+}, ["arena-board-v2"], { revalidate: 60 });
 async function buildShared(): Promise<Board> {
   try {
     const b = await sharedBuild();
-    return { ...b, players: new Map(b.players) };
+    return { ...b, players: new Map(b.players.map((p) => [p.id, { ...p, dailyDays: new Set(p.dailyDays) }])) };
   } catch {
     return build();
   }
