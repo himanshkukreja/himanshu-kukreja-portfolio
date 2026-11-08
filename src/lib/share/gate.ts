@@ -5,6 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { isValidHandle } from "./handle";
+import { selfFetch } from "@/lib/platform";
 
 export async function shareGate(req: NextRequest): Promise<NextResponse> {
   const seg = req.nextUrl.pathname.split("/")[2] || "";
@@ -25,7 +26,7 @@ export async function shareGate(req: NextRequest): Promise<NextResponse> {
   let ok = false;
   if (isValidHandle(h)) {
     try {
-      const r = await fetch(new URL(`/api/share/exists?h=${encodeURIComponent(h)}`, req.nextUrl.origin), { headers: { "x-share-gate": "1" }, cache: "no-store" });
+      const r = await selfFetch(new URL(`/api/share/exists?h=${encodeURIComponent(h)}`, req.nextUrl.origin).toString(), { headers: { "x-share-gate": "1" }, cache: "no-store" });
       ok = r.ok && ((await r.json()) as { ok?: boolean }).ok === true;
     } catch {
       ok = true; // the gate failing open still leaves the page's own notFound() in charge

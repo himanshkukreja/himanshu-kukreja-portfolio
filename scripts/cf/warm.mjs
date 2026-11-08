@@ -13,7 +13,9 @@ const xml = await (await fetch(`${base}/sitemap.xml`)).text();
 const sitemap = [...new Set([...xml.matchAll(/<loc>https?:\/\/[^/<]+(\/[^<]*)?<\/loc>/g)].map((m) => m[1] || "/"))];
 // lessons (/week-…), the home page and one-segment hubs (/labs, /papers, /prep…)
 const lean = (p) => p === "/" || /^\/week-/.test(p) || p.split("/").filter(Boolean).length === 1;
-const extras = ["/api/search/index/a", "/api/search/index/b", "/api/search/index/c", "/api/search/index/d", "/api/search/index/e", "/api/search/transcripts", "/api/search"];
+const extras = ["/api/search/index/a", "/api/search/index/b", "/api/search/index/c", "/api/search/index/d", "/api/search/index/e", "/api/search/transcripts", "/api/search",
+  // slow to render cold (podcast apps time out on a 39 s feed), so never left for the first visitor
+  "/podcast.xml", "/papers/index.json", "/revise/anki.txt", "/llms.txt", "/shorts", "/api/offline/catalog", "/api/learn/leaderboard", "/api/learn/daily"];
 const paths = [...extras, ...(mode === "all" ? sitemap : sitemap.filter(lean))];
 // lessons first: they're what the release expired and what most visitors open
 paths.sort((a, b) => Number(!/^\/(week-|api\/search)/.test(a)) - Number(!/^\/(week-|api\/search)/.test(b)));

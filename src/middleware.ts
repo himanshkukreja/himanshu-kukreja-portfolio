@@ -6,6 +6,7 @@ import { LEARN_FILES, cleanPath, internalPath, legacyTarget } from "@/lib/learn/
 import { MOVED_COOKIE } from "@/lib/site/carry";
 import { bridgeHtml } from "@/lib/site/bridge";
 import { isProductionDeploy } from "@/lib/platform";
+import { selfFetch } from "@/lib/platform";
 
 /**
  * Two sites, one app (src/lib/site/hosts.ts):
@@ -39,7 +40,7 @@ const selfOrigin = (req: NextRequest) => process.env.HK_SELF_ORIGIN || req.nextU
 async function loadSlugs(origin: string): Promise<Set<string> | null> {
   inflight ??= (async () => {
     try {
-      const res = await fetch(`${origin}/api/stories`, { headers: { "x-hk-slug-gate": "1" }, cache: "no-store" });
+      const res = await selfFetch(`${origin}/api/stories`, { headers: { "x-hk-slug-gate": "1" }, cache: "no-store" });
       if (!res.ok) return null;
       const body = (await res.json()) as { stories?: { slug?: string }[] };
       const slugs = new Set((body.stories || []).map((s) => s.slug).filter((s): s is string => !!s));

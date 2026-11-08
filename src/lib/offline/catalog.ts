@@ -223,13 +223,24 @@ async function build(course: string): Promise<Catalog> {
   try {
     const base = lectureMediaBase()?.replace(/\/$/, "") ?? null;
     const lectures = await listLectures();
-    const scripts = await Promise.all(lectures.map((l) => getLecture(l.slug).catch(() => null)));
+    // four lectures at a time, keeping only what the catalog needs: all 216 scripts (~9 MB) parsed at once took a
+    // Cloudflare isolate past its 128 MB ("Worker exceeded resource limits", Nov 2026)
+    const facts: ({ version: string; jsonLength: number; words: number } | null)[] = new Array(lectures.length).fill(null);
+    for (let at = 0; at < lectures.length; at += 4) {
+      await Promise.all(
+        lectures.slice(at, at + 4).map(async (l, k) => {
+          const lec = await getLecture(l.slug).catch(() => null);
+          if (!lec) return;
+          const words = lec.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
+          facts[at + k] = { version: lectureHash(lec), jsonLength: JSON.stringify(lec).length, words };
+        }),
+      );
+    }
     const bySection = new Map<string, CatalogGroup>();
     lectures.forEach((l, i) => {
-      const lec = scripts[i];
-      if (!lec) return;
-      const json = JSON.stringify(lec);
-      const words = lec.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
+      const f = facts[i];
+      if (!f) return;
+      const { words } = f;
       const id = `lectures-${lectureGroupAnchor(l.group)}`;
       const g = bySection.get(id) ?? { id, title: l.group, kind: "lectures" as const, items: [] };
       g.items.push({
@@ -238,8 +249,8 @@ async function build(course: string): Promise<Catalog> {
         kind: "lecture",
         tag: l.code,
         group: id,
-        version: lectureHash(lec),
-        bytes: Math.round(40_000 + json.length * 0.4 + (base ? words * LECTURE_BYTES_PER_WORD + LECTURE_FILES_BYTES : 0)),
+        version: f.version,
+        bytes: Math.round(40_000 + f.jsonLength * 0.4 + (base ? words * LECTURE_BYTES_PER_WORD + LECTURE_FILES_BYTES : 0)),
         ...(base ? { mediaBase: `${base}/${l.slug}/` } : {}),
         subject: l.questHref,
         minutes: l.minutes,

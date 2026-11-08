@@ -27,8 +27,13 @@ const STORED_AT = "x-edge-stored-at";
 const edgeCache = () => (globalThis as unknown as { caches?: { default?: Cache } }).caches?.default;
 /** pages this isolate is refreshing in the background (one refresh per page at a time) */
 const refreshing = new Set<string>();
-const cacheablePageRequest = (r: Request) =>
-  r.method === "GET" && !r.headers.has("rsc") && !r.headers.has("next-router-prefetch") && !r.headers.has("authorization") && (r.headers.get("accept") || "").includes("text/html");
+// Plain page requests (no RSC/prefetch headers), and API GETs (leaderboard, daily, search…: Vercel's CDN cached the ones
+// that send s-maxage; nothing did here until Nov 2026, so each call recomputed, the leaderboard ~24 s). Never with a
+// sign-in header; only responses that send s-maxage and no cookie are kept (store()).
+const cacheablePageRequest = (r: Request) => {
+  if (r.method !== "GET" || r.headers.has("authorization") || r.headers.has("rsc") || r.headers.has("next-router-prefetch")) return false;
+  return new URL(r.url).pathname.startsWith("/api/") || (r.headers.get("accept") || "").includes("text/html");
+};
 
 // On the course host the favicon and app icons come from public/course-brand (next.config.ts rewrites them on Vercel;
 // OpenNext doesn't serve a static file reached through a rewrite, so they are answered here). The portfolio host

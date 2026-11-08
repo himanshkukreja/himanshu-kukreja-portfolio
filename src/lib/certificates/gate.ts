@@ -5,6 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 import { normalizeCode } from "./core";
+import { selfFetch } from "@/lib/platform";
 
 export async function certGate(req: NextRequest): Promise<NextResponse> {
   const seg = req.nextUrl.pathname.split("/")[2] || "";
@@ -20,7 +21,7 @@ export async function certGate(req: NextRequest): Promise<NextResponse> {
   if (code) {
     try {
       // path-based so the answer is CDN-cached per code (revalidated on every status change)
-      const r = await fetch(new URL(`/api/cert/exists/${code}`, req.nextUrl.origin), { headers: { "x-cert-gate": "1" } });
+      const r = await selfFetch(new URL(`/api/cert/exists/${code}`, req.nextUrl.origin).toString(), { headers: { "x-cert-gate": "1" } });
       // a server error (database down) fails open: the page shows "couldn't check right now"
       ok = r.status >= 500 || (r.ok && ((await r.json()) as { ok?: boolean }).ok === true);
     } catch {

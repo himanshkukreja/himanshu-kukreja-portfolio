@@ -1,3 +1,4 @@
+import { unstable_cache } from "next/cache";
 import "server-only";
 /**
  * Arena leaderboard (server only), scored from data that already exists — no new tables:
@@ -316,10 +317,27 @@ async function build(): Promise<Board> {
  * Memoized for TTL; after that the last good board is served while a fresh one builds in the
  * background (stale-while-revalidate), so only the very first request waits for a full scoring pass.
  */
+/**
+ * The scoring pass, shared by every server instance through the data cache for a minute (Players as entries: a Map
+ * doesn't survive the cache). On Cloudflare many short-lived isolates each paid the ~24 s pass themselves.
+ */
+const sharedBuild = unstable_cache(async () => {
+  const b = await build();
+  return { ...b, players: [...b.players.entries()] };
+}, ["arena-board-v1"], { revalidate: 60 });
+async function buildShared(): Promise<Board> {
+  try {
+    const b = await sharedBuild();
+    return { ...b, players: new Map(b.players) };
+  } catch {
+    return build();
+  }
+}
+
 export async function getBoard(): Promise<Board> {
   const hit = g.__sdArenaBoard;
   const fresh = () => {
-    const p = build();
+    const p = buildShared();
     const entry = { at: Date.now(), p, ok: undefined as Board | undefined };
     p.then((b) => {
       entry.ok = b;
