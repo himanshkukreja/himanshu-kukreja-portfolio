@@ -1,6 +1,7 @@
 import "server-only";
 import { adminEmails } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
+import { allEvents, invalidateEventStore } from "@/lib/admin/eventStore";
 import { isLikelyBot } from "@/lib/admin/traffic/model";
 import type { Features } from "./types";
 
@@ -163,9 +164,6 @@ async function listAuthUsers(): Promise<AuthUser[]> {
   return out;
 }
 
-const EVENT_COLS =
-  "id,event_type,page_path,page_title,visitor_id,session_id,referrer,referrer_domain,utm_source,utm_medium,utm_campaign,user_agent,device_type,browser,os,screen_width,screen_height,country,city,created_at,duration,metadata,user_id";
-
 async function load(): Promise<Dataset> {
   const admins = new Set(await adminEmails());
   const [users, profiles, progress, streaks, assessments, answers, notes, bookmarks, comments, events, trials] = await Promise.all([
@@ -178,7 +176,8 @@ async function load(): Promise<Dataset> {
     readAll<Dataset["notes"][number]>("content_notes", "id,user_id,course_id,week,lesson_slug,created_at"),
     readAll<Dataset["bookmarks"][number]>("bookmarks", "id,user_id,course_id,week,lesson_slug,created_at"),
     readAll<Dataset["comments"][number]>("lesson_comments", "id,user_id,course_id,week,lesson_slug,created_at"),
-    readAll<EventRow>("analytics_events", EVENT_COLS, (q) => q.or("user_id.not.is.null,page_path.like./learn/*")),
+    // signed-in rows and course pages, from the shared copy (eventStore.ts) instead of a full table read each time
+    allEvents().then((rows) => rows.filter((e) => e.user_id || String(e.page_path ?? "").startsWith("/learn/")) as unknown as EventRow[]),
     readAll<Dataset["trials"][number]>("trial_attempts", "id,user_id,week,part,score,total,passed,finished_at,started_at", (q) => q, true),
   ]);
 
@@ -245,4 +244,5 @@ export async function getDataset(opts: { fresh?: boolean } = {}): Promise<Datase
 /** Drop the cache (after a reset). */
 export function invalidateDataset() {
   cache = null;
+  invalidateEventStore();
 }

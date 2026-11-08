@@ -1,50 +1,31 @@
 /**
  * Row loading for the traffic report (service role, read-only).
- * Pages through analytics_events with range() (1000 rows / request, 6 in flight, capped at
- * 200k most recent rows per window) selecting only the report's columns, and caches the
- * normalised dataset for 60 s so every card of one page load shares a single scan.
+ * Reads a window of analytics_events from the shared copy (eventStore.ts, capped at the 200k most
+ * recent rows per window) and caches the normalised dataset for 60 s so every card of one page load
+ * shares a single scan.
  */
 import { supabase } from "@/lib/supabase";
 import { dropInternal } from "@/lib/analytics/excludeServer";
-import { COLUMNS, normalise, type Ev, type RawRow } from "./model";
+import { allEvents } from "@/lib/admin/eventStore";
+import { normalise, type Ev, type RawRow } from "./model";
 import { prepare, type Dataset } from "./report";
 
 const PAGE = 1000;
 export const CAP = 200_000;
-const PARALLEL = 6;
 const TTL = 60_000;
 
 export type Loaded = { rows: Ev[]; total: number; capped: boolean };
 
 async function loadRaw(from: number, to: number): Promise<Loaded> {
+  // the window's rows from the shared copy of the table (eventStore.ts) instead of paging through Supabase each time
   const fromIso = new Date(from).toISOString();
   const toIso = new Date(to).toISOString();
-  const head = await supabase.from("analytics_events").select("event_type", { count: "exact", head: true }).gte("created_at", fromIso).lt("created_at", toIso);
-  if (head.error) throw new Error(head.error.message);
-  const total = head.count ?? 0;
+  const all = (await allEvents()).filter((r) => r.created_at >= fromIso && r.created_at < toIso);
+  const total = all.length;
   const skip = Math.max(0, total - CAP); // keep the most recent CAP rows
-  const offsets: number[] = [];
-  for (let o = skip; o < total; o += PAGE) offsets.push(o);
-  const pages: RawRow[][] = new Array(offsets.length);
-  for (let i = 0; i < offsets.length; i += PARALLEL) {
-    await Promise.all(
-      offsets.slice(i, i + PARALLEL).map(async (o, j) => {
-        const { data, error } = await supabase
-          .from("analytics_events")
-          .select(COLUMNS)
-          .gte("created_at", fromIso)
-          .lt("created_at", toIso)
-          .order("created_at", { ascending: true })
-          .order("id", { ascending: true })
-          .range(o, o + PAGE - 1);
-        if (error) throw new Error(error.message);
-        pages[i + j] = (data ?? []) as unknown as RawRow[];
-      })
-    );
-  }
   // the owner's test accounts, their browsers and dev/localhost rows aren't traffic
   const rows: Ev[] = [];
-  for (const p of pages) for (const r of await dropInternal(p as (RawRow & { metadata?: Record<string, unknown> | null })[])) rows.push(normalise(r));
+  for (const r of await dropInternal(all.slice(skip) as unknown as (RawRow & { metadata?: Record<string, unknown> | null })[])) rows.push(normalise(r));
   return { rows, total, capped: skip > 0 };
 }
 
