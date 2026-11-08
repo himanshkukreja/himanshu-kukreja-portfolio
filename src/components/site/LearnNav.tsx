@@ -105,6 +105,18 @@ export function LearnTabs({ pathname }: { pathname: string }) {
           <TabPending />
         </Link>
       ))}
+      {/* the second course (coming soon in production, the full hub on staging); from xl only, where the row has room.
+          Phones and narrower desktops reach it from the course hub's "Beyond the course" card. */}
+      <Link
+        href="/dsa"
+        aria-current={pathname === "/dsa" || pathname.startsWith("/dsa/") ? "page" : undefined}
+        title="DSA Mastery: the data structures and algorithms course"
+        className={`dsa-theme relative hidden items-center gap-1.5 whitespace-nowrap px-2 py-2.5 xl:inline-flex ${pathname === "/dsa" || pathname.startsWith("/dsa/") ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`}
+      >
+        dsa
+        <span aria-label="new" className="h-1.5 w-1.5 bg-signal" />
+        <TabPending />
+      </Link>
       <Link
         href="/guide"
         aria-current={pathname.startsWith("/guide") ? "page" : undefined}
