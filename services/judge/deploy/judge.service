@@ -1,0 +1,41 @@
+# /etc/systemd/system/judge.service (installed by deploy/install-judge.sh)
+#
+# Runs the judge-lite container. --privileged and --cgroupns=private are what
+# isolate needs to build its sandboxes (namespaces + a delegated cgroup v2
+# subtree); untrusted code never runs with these privileges, it runs inside
+# isolate as uid 60000+N with no network. The port is bound to 127.0.0.1 only:
+# the sole way in is the Cloudflare Tunnel (cloudflared -> http://localhost:8080).
+
+[Unit]
+Description=judge-lite code judge (isolate sandbox)
+Documentation=file:///opt/judge-lite/services/judge/README.md
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+StartLimitIntervalSec=0
+TimeoutStartSec=120
+TimeoutStopSec=45
+ExecStartPre=-/usr/bin/docker rm -f judge-lite
+ExecStart=/usr/bin/docker run --rm --name judge-lite \
+  --privileged --cgroupns=private --init \
+  --read-only \
+  --tmpfs /run:rw,nosuid,nodev,mode=0755,size=64m \
+  --tmpfs /tmp:rw,nosuid,nodev,mode=1777,size=64m \
+  --tmpfs /var/local/lib/isolate:rw,exec,nosuid,nodev,mode=0755,size=512m \
+  --memory ${JUDGE_CONTAINER_MEMORY} --memory-swap ${JUDGE_CONTAINER_MEMORY} \
+  --pids-limit 4096 \
+  --env-file /etc/judge/judge.env \
+  --log-driver json-file --log-opt max-size=10m --log-opt max-file=5 \
+  -p 127.0.0.1:8080:8080 \
+  judge-lite:current
+ExecStop=/usr/bin/docker stop -t 30 judge-lite
+# Container memory cap: ~85% of the VM. Override in /etc/systemd/system/judge.service.d/override.conf.
+Environment=JUDGE_CONTAINER_MEMORY=1700m
+
+[Install]
+WantedBy=multi-user.target
