@@ -24,5 +24,12 @@ for (const [k, v] of Object.entries(env)) {
   }
   if (!k.startsWith("NEXT_PUBLIC_")) secrets[k] = v; // NEXT_PUBLIC_* are inlined at build time
 }
+// `vercel pull` writes "[SENSITIVE]" for variables it can't hand out: deploying that placeholder as a secret broke
+// every AI feature and the admin's PostHog views on 8 Nov 2026 (no GitHub secret had been set). Stop the deploy instead.
+const placeholders = Object.entries(env).filter(([k, v]) => !skip(k) && v === "[SENSITIVE]").map(([k]) => k);
+if (placeholders.length) {
+  console.error(`::error::Only Vercel's "[SENSITIVE]" placeholder for ${placeholders.join(", ")}: add each as a GitHub Actions secret of the same name (the deploy passes it in as EXTRA_<name>)`);
+  process.exit(1);
+}
 writeFileSync(out, JSON.stringify(secrets));
 console.log(`env-from-vercel: ${Object.keys(env).length} variables for the build, ${Object.keys(secrets).length} Worker secrets: ${Object.keys(secrets).sort().join(", ")}`);
