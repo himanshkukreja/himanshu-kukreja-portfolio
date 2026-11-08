@@ -4,10 +4,12 @@ import r2IncrementalCache from "@opennextjs/cloudflare/overrides/incremental-cac
 import { withRegionalCache } from "@opennextjs/cloudflare/overrides/incremental-cache/regional-cache";
 import doQueue from "@opennextjs/cloudflare/overrides/queue/do-queue";
 import doShardedTagCache from "@opennextjs/cloudflare/overrides/tag-cache/do-sharded-tag-cache";
+import { withStaleOnRevalidate } from "./cloudflare/swr-incremental-cache";
 
 const config = defineCloudflareConfig({
   // ISR pages in R2, with Cloudflare's regional cache in front; tags (revalidateTag/Path) in sharded Durable Objects
-  incrementalCache: withRegionalCache(r2IncrementalCache, { mode: "long-lived" }),
+  // after a content release pages are served stale while they re-render in the background (cloudflare/swr-incremental-cache.ts)
+  incrementalCache: withStaleOnRevalidate(withRegionalCache(r2IncrementalCache, { mode: "long-lived" })),
   queue: doQueue,
   // every page request checks its tags: shards replicated in every region (the nearest answers) and the answers cached
   // in the colo for 60 s, so a content release can take up to a minute to show (it revalidates by tag/path)

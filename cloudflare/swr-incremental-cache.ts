@@ -1,0 +1,38 @@
+// Stale-while-revalidate for revalidatePath / revalidateTag on Next 15 (OpenNext serves stale on a revalidated tag only
+// from Next 16). Vercel serves the old page while it re-renders after an on-demand revalidation; OpenNext on Next 15
+// treats the page as missing and renders it while the visitor waits: after a content release (POST
+// /api/revalidate-courses expires every course page) first visits took 13-45 s on staging, Nov 2026.
+//
+// This wraps the incremental cache: a page or route entry (cacheType "cache") whose tags were revalidated after it
+// was written is handed back as time-expired (lastModified 1) and marked to skip OpenNext's own tag check. Every page
+// has a numeric `revalidate`, so OpenNext's cache interception (and Next itself) serves it as STALE and queues a
+// background re-render (DO queue, deduplicated per page). Fetch / unstable_cache entries (cacheType "fetch") keep the
+// strict check, so that re-render reads fresh data. Vercel ignores this file.
+import type { IncrementalCache } from "@opennextjs/aws/types/overrides";
+
+const CACHE_TAGS_HEADER = "x-next-cache-tags";
+
+type TagCache = { mode?: string; hasBeenRevalidated(tags: string[], lastModified?: number): Promise<boolean> };
+
+export function withStaleOnRevalidate(base: IncrementalCache): IncrementalCache {
+  return {
+    name: `swr-${base.name}`,
+    async get(key, cacheType) {
+      const entry = await base.get(key, cacheType);
+      if ((cacheType && cacheType !== "cache") || !entry?.value || entry.shouldBypassTagCache) return entry;
+      const value = entry.value as { meta?: { headers?: Record<string, string | undefined> } };
+      // read, don't consume: OpenNext's getTagsFromValue deletes the header
+      const tags = value.meta?.headers?.[CACHE_TAGS_HEADER]?.split(",").filter(Boolean) ?? [];
+      const tagCache = (globalThis as unknown as { tagCache?: TagCache }).tagCache;
+      if (!tags.length || !tagCache || tagCache.mode !== "nextMode") return entry;
+      try {
+        if (await tagCache.hasBeenRevalidated(tags, entry.lastModified ?? Date.now())) return { ...entry, lastModified: 1, shouldBypassTagCache: true };
+      } catch {
+        // tag cache unreachable: OpenNext checks again itself
+      }
+      return entry;
+    },
+    set: (key, value, isFetch) => base.set(key, value, isFetch),
+    delete: (key) => base.delete(key),
+  };
+}
