@@ -116,14 +116,35 @@ async function build(): Promise<Built> {
 
 const cached = unstable_cache(() => build(), ["war-stories-v2"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
 
+/**
+ * The whole set (every story's and room's HTML: a few MB) is one data-cache entry. On Cloudflare that cache lives in R2
+ * with no in-memory layer, so each getStory() fetched and parsed all of it again (the offline catalog's ~150 calls
+ * spent ~90 s of CPU, Nov 2026): this instance keeps the parsed set for a minute.
+ */
+const MEMO_MS = 60_000;
+const gw = globalThis as typeof globalThis & { __sdWarData?: { at: number; p: Promise<Built> } };
+
 async function data(): Promise<Built> {
-  try {
-    // local content (SDM_LOCAL_DIR) is read fresh in development so edits show up on reload
-    return process.env.SDM_LOCAL_DIR && process.env.NODE_ENV !== "production" ? await build() : await cached();
-  } catch (e) {
-    console.error("[war-stories] failed to load", e);
-    return { stories: [], storyBySlug: {}, rooms: [], roomBySlug: {} };
-  }
+  // local content (SDM_LOCAL_DIR) is read fresh in development so edits show up on reload
+  if (process.env.SDM_LOCAL_DIR && process.env.NODE_ENV !== "production") return build().catch(fail);
+  const hit = gw.__sdWarData;
+  if (hit && Date.now() - hit.at < MEMO_MS) return hit.p;
+  const p = cached().catch(fail);
+  gw.__sdWarData = { at: Date.now(), p };
+  return p;
+}
+
+function fail(e: unknown): Built {
+  console.error("[war-stories] failed to load", e);
+  // never remembered: the next call tries again
+  gw.__sdWarData = undefined;
+  return { stories: [], storyBySlug: {}, rooms: [], roomBySlug: {} };
+}
+
+/** Every story and room in full, in one read (the offline catalog measures them all). */
+export async function getAllWar(): Promise<{ storyBySlug: Record<string, Story>; roomBySlug: Record<string, WarRoom> }> {
+  const d = await data();
+  return { storyBySlug: d.storyBySlug, roomBySlug: d.roomBySlug };
 }
 
 export async function getWarStories(): Promise<{ stories: StorySummary[]; rooms: WarRoomSummary[] }> {

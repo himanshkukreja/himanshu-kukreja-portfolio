@@ -11,7 +11,7 @@ import { RUNTIME_BYTES } from "@/lib/learn/labs/runtime";
 import { getRevisionWeeks } from "@/lib/learn/revision/load";
 import { REFERENCE_VERSION } from "@/lib/learn/numbers/reference";
 import { getTrailIndex } from "@/lib/learn/trail/load";
-import { getStory, getWarRoom, getWarStories } from "@/lib/learn/war/load";
+import { getAllWar, getWarStories } from "@/lib/learn/war/load";
 import { THEME_LABEL } from "@/lib/learn/war/types";
 import { lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
 import { lectureGroupAnchor } from "@/lib/learn/lecture/types";
@@ -232,12 +232,13 @@ async function build(course: string): Promise<Catalog> {
     const { stories, rooms } = await getWarStories();
     if (stories.length || rooms.length) {
       // a story's rendered HTML and a room's simulation are only measured and hashed, a few at a time
-      const storyFacts = await inBatches(stories, 4, async (s) => {
-        const html = (await getStory(s.slug).catch(() => null))?.html || "";
+      const all = await getAllWar();
+      const storyFacts = stories.map((s) => {
+        const html = all.storyBySlug[s.slug]?.html || "";
         return { version: hash(html || s.href), bytes: Math.round(14_000 + html.length * 0.45) };
       });
-      const roomFacts = await inBatches(rooms, 4, async (r) => {
-        const sim = await getWarRoom(r.slug).catch(() => null);
+      const roomFacts = rooms.map((r) => {
+        const sim = all.roomBySlug[r.slug];
         const json = sim ? JSON.stringify(sim) : "";
         return { version: hash(json || r.href), bytes: Math.round(20_000 + json.length * 0.5) };
       });
