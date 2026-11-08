@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { normalizeCode } from "@/lib/certificates/core";
 import { bumpView } from "@/lib/certificates/service";
+import { clientIp } from "@/lib/platform";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -18,7 +19,7 @@ export async function POST(req: Request, { params }: Ctx) {
   if (!code) return new NextResponse(null, { status: 204 });
   const ua = req.headers.get("user-agent") || "";
   if (!ua || BOT.test(ua)) return new NextResponse(null, { status: 204 });
-  const who = `${req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "?"}|${ua.slice(0, 80)}|${code}`;
+  const who = `${clientIp(req) || "?"}|${ua.slice(0, 80)}|${code}`;
   const now = Date.now();
   if ((seen.get(who) || 0) > now - WINDOW) return new NextResponse(null, { status: 204 });
   seen.set(who, now);

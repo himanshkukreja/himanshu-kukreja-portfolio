@@ -33,6 +33,7 @@ import {
   weekStartOf,
   type Breakdown,
 } from "./shared";
+import { background } from "@/lib/platform";
 
 type Kind = keyof Breakdown;
 type Item = { at: number; day: string; kind: Kind; key: string; pts: number };
@@ -353,7 +354,7 @@ export async function getBoard(): Promise<Board> {
   if (stale) {
     if (!g.__sdArenaBoardBuilding) {
       g.__sdArenaBoardBuilding = true;
-      fresh().p.finally(() => (g.__sdArenaBoardBuilding = false)).catch(() => {});
+      background(fresh().p.finally(() => (g.__sdArenaBoardBuilding = false)));
     }
     return stale;
   }

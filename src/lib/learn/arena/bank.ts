@@ -14,6 +14,7 @@ import { fetchMarkdownContent, getAllLearningResources, type LearningResource } 
 import { isMCQDocument, parseMCQMarkdown } from "@/lib/mcq-parser";
 import { COURSE_ID } from "@/lib/learn/course";
 import { parseQuiz } from "@/lib/course/detect/quiz-parse";
+import { background } from "@/lib/platform";
 
 export type BankQuestion = {
   id: string;
@@ -169,13 +170,15 @@ export async function getQuestionBank(): Promise<Bank> {
     // keep serving the last good bank; refresh once in the background
     if (!g.__sdArenaBankBuilding) {
       g.__sdArenaBankBuilding = true;
-      build()
-        .then((b) => {
-          g.__sdArenaBankOk = b;
-          g.__sdArenaBank = { at: Date.now(), p: Promise.resolve(b) };
-        })
-        .catch(() => {})
-        .finally(() => (g.__sdArenaBankBuilding = false));
+      background(
+        build()
+          .then((b) => {
+            g.__sdArenaBankOk = b;
+            g.__sdArenaBank = { at: Date.now(), p: Promise.resolve(b) };
+          })
+          .catch(() => {})
+          .finally(() => (g.__sdArenaBankBuilding = false)),
+      );
     }
     return stale;
   }

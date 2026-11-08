@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import { getAllStories } from "@/lib/stories";
 import { buildWelcomeEmailHtml } from "@/lib/emailTemplate";
 import { sendWelcomeEmail } from "@/lib/mailer";
+import { clientIp } from "@/lib/platform";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,8 +27,7 @@ async function fetchGeo(ip: string | null) {
 }
 
 function getIp(req: NextRequest): string | null {
-  const xf = req.headers.get("x-forwarded-for");
-  return (xf || "").split(",")[0].trim() || null;
+  return clientIp(req);
 }
 
 export async function POST(req: NextRequest) {

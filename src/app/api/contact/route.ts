@@ -3,6 +3,7 @@ import { z } from "zod";
 import { supabase } from "@/lib/supabase";
 import { sendRawEmail } from "@/lib/mailer";
 import { buildContactNotificationHtml, buildContactReplyHtml } from "@/lib/emailTemplate";
+import { clientIp } from "@/lib/platform";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,8 +16,7 @@ const schema = z.object({
 });
 
 function getIp(req: NextRequest): string | null {
-  const xf = req.headers.get("x-forwarded-for");
-  return (xf || "").split(",")[0].trim() || null;
+  return clientIp(req);
 }
 
 export async function POST(req: NextRequest) {
