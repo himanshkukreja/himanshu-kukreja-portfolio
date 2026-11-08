@@ -1,7 +1,8 @@
 import "server-only";
 import crypto from "crypto";
 import { fetchMarkdownContent, isContentMissing } from "@/lib/github";
-import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
+import { unstable_cache } from "next/cache";
+import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import { getCaseFiles } from "@/components/stories/case-files";
 import { getStory, getWarStories } from "@/lib/learn/war/load";
 import { lessonLectureId, type Lecture } from "./types";
@@ -67,6 +68,10 @@ export type LectureSummary = {
   track: "course" | "quests" | "problems" | "lld" | "cases" | "mocks" | "stories";
   /** difficulty (lib/learn/level.ts) */
   level?: Level;
+  /** for the offline catalog: the script's content version, its JSON length and its narration word count */
+  version: string;
+  jsonLength: number;
+  words: number;
 };
 
 /**
@@ -75,6 +80,18 @@ export type LectureSummary = {
  * "up next" follows.
  */
 export async function listLectures(): Promise<LectureSummary[]> {
+  if (process.env.SDM_LOCAL_DIR && process.env.NODE_ENV !== "production") return buildLectureList();
+  return cachedLectureList().catch(() => buildLectureList());
+}
+
+/**
+ * The list is read on many pages (sitemap, prep, dashboard, every lecture page, the podcast feed, the transcripts
+ * index, the offline catalog) and building it reads ~300 lecture scripts: shared through the data cache (it is
+ * small: summaries only), refreshed with the course (tag course-map).
+ */
+const cachedLectureList = unstable_cache(() => buildLectureList(), ["lecture-list-v2"], { revalidate: 86400, tags: [COURSE_MAP_TAG] });
+
+async function buildLectureList(): Promise<LectureSummary[]> {
   const [map, cases, war] = await Promise.all([getCourseMap(COURSE_ID).catch(() => null), getCaseFiles().catch(() => []), getWarStories().catch(() => ({ stories: [] }))]);
   if (!map) return [];
   const course = map.weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])].map((l) => ({ id: lessonLectureId(l.week, l.slug), l, group: `W${w.code} · ${w.title}`, track: "course" as const })));
@@ -84,13 +101,22 @@ export async function listLectures(): Promise<LectureSummary[]> {
   const mocks = (map.mocks ?? []).map((m) => ({ id: lessonLectureId("mock-interviews", m.slug), l: { tag: `M${String(m.n).padStart(2, "0")}`, code: `M${String(m.n).padStart(2, "0")}`, title: `${m.company} · ${m.title}`, href: m.href, level: mockLevel(m.level) }, group: "Mock interviews", track: "mocks" as const }));
   const files = [...cases].reverse().map((c) => ({ id: lessonLectureId("case-files", c.slug), l: { tag: c.caseId, code: c.caseId, title: c.title, href: `/case-files/${c.slug}`, level: "Intermediate" as Level }, group: "Case files", track: "cases" as const }));
   const stories = war.stories.map((w, k) => ({ id: lessonLectureId("war-stories", w.slug), l: { tag: `WS${String(k + 1).padStart(2, "0")}`, code: `WS${String(k + 1).padStart(2, "0")}`, title: w.title, href: w.href, level: "Beginner" as Level }, group: "War stories", track: "stories" as const }));
-  const all = await Promise.all(
-    [...course, ...mocks, ...quests, ...problems, ...lld, ...files, ...stories].map(async ({ id, l, group, track }) => {
-      const lec = await getLecture(id).catch(() => null);
-      const card = lectureCard(lec);
-      return lec && card ? { slug: id, code: l.tag || l.code, title: lec.title, quest: l.title, summary: lec.summary, href: card.href, questHref: l.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters, group, track, ...(l.level ? { level: l.level } : {}) } : null;
-    }),
-  );
+  // eight scripts at a time: all ~300 parsed at once took a Cloudflare isolate past its 128 MB (Nov 2026)
+  const entries = [...course, ...mocks, ...quests, ...problems, ...lld, ...files, ...stories];
+  const all: (LectureSummary | null)[] = [];
+  for (let at = 0; at < entries.length; at += 8) {
+    all.push(
+      ...(await Promise.all(
+        entries.slice(at, at + 8).map(async ({ id, l, group, track }) => {
+          const lec = await getLecture(id).catch(() => null);
+          const card = lectureCard(lec);
+          if (!lec || !card) return null;
+          const words = lec.scenes.reduce((a, sc) => a + sc.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
+          return { slug: id, code: l.tag || l.code, title: lec.title, quest: l.title, summary: lec.summary, href: card.href, questHref: l.href, minutes: card.minutes, checkpoints: card.checkpoints, chapters: card.chapters, group, track, ...(l.level ? { level: l.level } : {}), version: lectureHash(lec), jsonLength: JSON.stringify(lec).length, words };
+        }),
+      )),
+    );
+  }
   return all.filter((x): x is LectureSummary => !!x);
 }
 

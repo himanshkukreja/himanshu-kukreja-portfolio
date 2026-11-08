@@ -13,7 +13,7 @@ import { REFERENCE_VERSION } from "@/lib/learn/numbers/reference";
 import { getTrailIndex } from "@/lib/learn/trail/load";
 import { getStory, getWarRoom, getWarStories } from "@/lib/learn/war/load";
 import { THEME_LABEL } from "@/lib/learn/war/types";
-import { getLecture, lectureHash, lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
+import { lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
 import { lectureGroupAnchor } from "@/lib/learn/lecture/types";
 import type { Catalog, CatalogGroup, CatalogItem, OfflineKind } from "./types";
 
@@ -240,19 +240,8 @@ async function build(course: string): Promise<Catalog> {
   try {
     const base = lectureMediaBase()?.replace(/\/$/, "") ?? null;
     const lectures = await listLectures();
-    // four lectures at a time, keeping only what the catalog needs: all 216 scripts (~9 MB) parsed at once took a
-    // Cloudflare isolate past its 128 MB ("Worker exceeded resource limits", Nov 2026)
-    const facts: ({ version: string; jsonLength: number; words: number } | null)[] = new Array(lectures.length).fill(null);
-    for (let at = 0; at < lectures.length; at += 4) {
-      await Promise.all(
-        lectures.slice(at, at + 4).map(async (l, k) => {
-          const lec = await getLecture(l.slug).catch(() => null);
-          if (!lec) return;
-          const words = lec.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
-          facts[at + k] = { version: lectureHash(lec), jsonLength: JSON.stringify(lec).length, words };
-        }),
-      );
-    }
+    // each lecture's version, size and word count come with the (cached) list: no script is read again here
+    const facts = lectures.map((l) => ({ version: l.version, jsonLength: l.jsonLength, words: l.words }));
     const bySection = new Map<string, CatalogGroup>();
     lectures.forEach((l, i) => {
       const f = facts[i];
