@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { getConcept } from "@/lib/dsa/load";
+import { conceptLectureHref, getConcept, getConceptLecture } from "@/lib/dsa/load";
+import { lectureCard } from "@/lib/learn/lecture/load";
 import DsaNav from "@/components/dsa/DsaNav";
 import DsaConceptReader from "@/components/dsa/concept/DsaConceptReader";
 
@@ -28,13 +29,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ConceptPage({ params }: Props) {
   if (!DSA_FULL) notFound();
   const { concept } = await params;
-  const c = await getConcept(concept);
+  const [c, lecture] = await Promise.all([getConcept(concept), getConceptLecture(concept).catch(() => null)]);
   if (!c) notFound();
+  // "watch it first": the concept's animated lecture, on its own page (like an SDM lesson's)
+  const card = lectureCard(lecture);
   return (
     <div className="dsa-theme">
       <DsaNav current="concept" crumbs={[{ href: "/dsa", label: c.regionTitle || c.moduleTitle }, { label: c.title }]} />
       <main className="pb-16">
-        <DsaConceptReader concept={c} />
+        <DsaConceptReader concept={c} lecture={card ? { ...card, href: conceptLectureHref(c.id) } : null} />
       </main>
     </div>
   );

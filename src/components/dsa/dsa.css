@@ -212,3 +212,8 @@
   border-left: 0;
   border-right: 0;
 }
+
+/* the "watch it first" lecture card's play button glows teal, not SDM orange */
+.dsa-theme .lecture-entry-play {
+  box-shadow: 0 0 28px rgba(20, 184, 166, 0.45);
+}

@@ -10,7 +10,7 @@ export default function LectureEntry({ lecture, quest = true, what, className = 
       href={lecture.href}
       className={`group ${className} flex items-center gap-4 border border-line-strong bg-[var(--c-plate)] p-4 transition-colors hover:border-signal sm:gap-5 sm:p-5`}
     >
-      <span className="grid h-14 w-14 shrink-0 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_28px_rgba(255,107,43,0.45)] transition-transform group-hover:scale-105">
+      <span className="lecture-entry-play grid h-14 w-14 shrink-0 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_28px_rgba(255,107,43,0.45)] transition-transform group-hover:scale-105">
         <svg viewBox="0 0 24 24" className="h-6 w-6 translate-x-[2px]" fill="currentColor" aria-hidden>
           <path d="M7 4l13 8-13 8z" />
         </svg>

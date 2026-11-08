@@ -25,7 +25,7 @@ import { estimateStep as estimate, estimatedStarts, flatten, type Lecture, type 
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
-import Stage, { diagramFor, renderSvg, type QuizState } from "./Stage";
+import Stage, { DSA_ACCENT, diagramFor, renderSvg, type QuizState } from "./Stage";
 import ShortStage from "./ShortStage";
 import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
 import LectureShare from "./LectureShare";
@@ -109,6 +109,7 @@ const speakerPrefix = (lecture: Lecture, who?: "interviewer" | "candidate") => (
 
 /** What the written source is called, for "Read the …" links. */
 function readLabel(lecture: Lecture): string {
+  if (lecture.dsa) return "Read the concept";
   const k = lecture.lesson?.kind;
   return k === "case"
     ? "Read the case file"
@@ -200,6 +201,8 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
 
 function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & { flat: Flat }) {
   const slug = lecture.quest;
+  // the lecture's own page: DSA concept lectures live under their concept
+  const pagePath = lecture.dsa ? `/dsa/concepts/${lecture.dsa.concept}/lecture` : `/lectures/${slug}`;
   const { awardOnce, flags, setFlag, hydrated } = useGame();
   const ai = useAiStatus();
   const { user, loading: authLoading } = useAuth();
@@ -714,6 +717,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   const stage = (
     <div
       className="relative aspect-video w-full select-none [&>div:first-child>div:last-child]:hidden"
+      style={lecture.dsa ? DSA_ACCENT : undefined}
       onDoubleClick={fullscreen}
       // the moment on screen, for a snip of this frame (its link back and "Explain this": ink/capture/regionText.ts)
       data-hk-lecture={slug}
@@ -803,7 +807,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         </div>
       ) : !playing && !waitingQuiz && (
         <button type="button" onClick={toggle} aria-label={time > 0 ? "Resume" : "Play the lecture"} data-hk-snip-hide="" className="absolute inset-0 grid place-items-center bg-black/30">
-          <span className="grid h-16 w-16 place-items-center rounded-full bg-[#ff6b2b] text-[#120700] shadow-[0_0_40px_rgba(255,107,43,0.5)]">
+          <span className="grid h-16 w-16 place-items-center rounded-full bg-[var(--lec-accent,#ff6b2b)] text-[var(--lec-ink,#120700)]" style={{ boxShadow: "0 0 40px rgb(var(--lec-accent-rgb, 255 107 43) / 0.5)" }}>
             <svg viewBox="0 0 24 24" className="h-7 w-7 translate-x-[2px]" fill="currentColor" aria-hidden>
               <path d="M7 4l13 8-13 8z" />
             </svg>
@@ -850,7 +854,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
             <Scissors className="h-4 w-4 text-signal-text" aria-hidden />
             Snip
           </button>
-          <SaveOfflineButton title={lecture.title} kind="lecture" url={`/lectures/${slug}`} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
+          <SaveOfflineButton title={lecture.title} kind="lecture" url={pagePath} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
           <LectureVote id={slug} />
         </div>
         {gated && (
@@ -1000,6 +1004,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
             </select>
             <LectureShare
               slug={slug}
+              path={pagePath}
               title={lecture.title}
               time={time}
               chapter={cur.s.title}

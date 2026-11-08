@@ -23,6 +23,9 @@ import { stagePosition, fmtMin } from "@/components/learn/lesson/stageText";
 import { DSA_COURSE_ID, dsaKeys, type ConceptPage } from "@/lib/dsa/types";
 import DsaHydrator from "./DsaHydrator";
 import SolvedMark from "../problem/SolvedMark";
+import LectureEntry from "@/components/learn/sidequest/LectureEntry";
+
+type LectureCardInfo = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 
 function Hero({ c }: { c: ConceptPage }) {
   const p = useLessonProgress();
@@ -126,7 +129,7 @@ function End({ c }: { c: ConceptPage }) {
   );
 }
 
-function Body({ c }: { c: ConceptPage }) {
+function Body({ c, lecture }: { c: ConceptPage; lecture: LectureCardInfo }) {
   const contentRef = useRef<HTMLDivElement>(null);
   const [focus, setFocus] = useState(false);
   const [sheet, setSheet] = useState(false);
@@ -140,6 +143,7 @@ function Body({ c }: { c: ConceptPage }) {
       <StageRail onOpenContents={() => setSheet(true)} />
       <div className="mx-auto max-w-[1320px] px-4 pb-16 pt-8 sm:px-6 lg:pt-10">
         <FocusMode focus={focus} onFocusChange={setFocus} leftOnMobile={false} sidebarLeft={<Rail c={c} />} sidebarRight={<TableOfContents toc={c.toc} stages={c.stages} />}>
+          {lecture && <LectureEntry lecture={lecture} what="The whole concept" />}
           <LessonContentWrapper ref={contentRef} htmlContent={c.html} courseId={DSA_COURSE_ID} week={c.module} lessonSlug={c.id} lessonTitle={c.title} />
           <DsaHydrator rootRef={contentRef} concept={c} />
           <End c={c} />
@@ -154,11 +158,11 @@ function Body({ c }: { c: ConceptPage }) {
   );
 }
 
-export default function DsaConceptReader({ concept: c }: { concept: ConceptPage }) {
+export default function DsaConceptReader({ concept: c, lecture = null }: { concept: ConceptPage; lecture?: LectureCardInfo }) {
   const xpKeys = useMemo(() => ({ stage: (id: string) => dsaKeys.stage(c.id, id), lesson: dsaKeys.concept(c.id) }), [c.id]);
   return (
     <LessonProgressProvider courseId={DSA_COURSE_ID} week={c.module} lessonSlug={c.id} title={c.title} stages={c.stages} contentVersion={c.contentVersion} xpKeys={xpKeys}>
-      <Body c={c} />
+      <Body c={c} lecture={lecture} />
     </LessonProgressProvider>
   );
 }

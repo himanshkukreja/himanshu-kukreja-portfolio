@@ -5,6 +5,8 @@ import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
+import { lectureRefs, parseTemplates, resolveDsaLecture, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
+import type { Lecture } from "@/lib/learn/lecture/types";
 import {
   dsaKeys,
   type ConceptPage,
@@ -177,6 +179,8 @@ const OPEN_WORLDS = new Set(["academy"]);
 
 export const conceptHref = (id: string) => `/dsa/concepts/${id}`;
 export const problemHref = (id: string) => `/dsa/problems/${id}`;
+/** A concept's animated lecture (the course lecture player on its resolved lecture.json). */
+export const conceptLectureHref = (id: string) => `/dsa/concepts/${id}/lecture`;
 
 function buildWorld(raw: RawWorld, concepts: Map<string, ConceptSummary>, problems: Map<string, ProblemSummary>): WorldSpec {
   const node = (n: RawNode): WorldNode => {
@@ -344,18 +348,7 @@ type LessonFront = {
 
 /** `:::tabs[...]{id="x"}` blocks: their fences per language (the reorder widget's source). */
 function templatesOf(md: string): Record<string, Partial<Record<DsaLang, string>>> {
-  const out: Record<string, Partial<Record<DsaLang, string>>> = {};
-  const re = /^:{3,}tabs\[[^\]\n]*\]\{[^}\n]*id="([^"]+)"[^}\n]*\}\s*\n([\s\S]*?)^:{3,}\s*$/gm;
-  for (const m of md.matchAll(re)) {
-    const langs: Partial<Record<DsaLang, string>> = {};
-    for (const f of m[2].matchAll(/^```(\w+)\s*\n([\s\S]*?)^```\s*$/gm)) {
-      const lang = f[1].toLowerCase();
-      const key = (lang === "js" ? "javascript" : lang === "py" ? "python" : lang === "c++" ? "cpp" : lang) as DsaLang;
-      langs[key] = f[2].replace(/\s+$/, "");
-    }
-    out[m[1]] = langs;
-  }
-  return out;
+  return Object.fromEntries(Object.entries(parseTemplates(md)).map(([id, t]) => [id, t.code as Partial<Record<DsaLang, string>>]));
 }
 
 const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => {
@@ -438,6 +431,37 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
 export async function getConcept(id: string): Promise<ConceptPage | null> {
   if (!ID.test(id)) return null;
   return conceptCached(id);
+}
+
+/* ------------------------------------------------------------------ concept lectures */
+
+/**
+ * A built concept's lecture (resources/modules/<module>/<concept>/lecture.json), resolved into one self-contained
+ * Lecture (src/lib/dsa/lecture.ts: traces, races, templates and the quote cast inlined), or null when it has none.
+ * Its recorded media lives with the SDM lectures' (NEXT_PUBLIC_LECTURE_MEDIA) under lectures/<quest>/, quest being
+ * "dsa--<module>--<concept>".
+ */
+const lectureCached = cached(async (id: string): Promise<Lecture | null> => {
+  const c = (await getConceptIndex()).find((x) => x.id === id);
+  if (!c || c.status !== "built") return null;
+  const dir = `resources/modules/${c.module}/${id}`;
+  const raw = await readDsaJson<RawDsaLecture>(`${dir}/lecture.json`);
+  if (!raw || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
+  const refs = lectureRefs(raw);
+  const [lessonMd, cast, traceList, raceList] = await Promise.all([
+    readDsa(`${dir}/lesson.md`),
+    castOf(),
+    Promise.all(refs.traces.map((t) => readDsaJson<RawTrace>(`generated/traces/${t}.json`))),
+    Promise.all(refs.races.map((r) => readDsaJson<RawRace>(`generated/races/${r}.json`))),
+  ]);
+  const traces = Object.fromEntries(refs.traces.map((t, i) => [t, traceList[i]]));
+  const races = Object.fromEntries(refs.races.map((r, i) => [r, raceList[i]]));
+  return resolveDsaLecture(raw, { lessonMd, traces, races, cast });
+}, "dsa-lecture-v1");
+
+export async function getConceptLecture(id: string): Promise<Lecture | null> {
+  if (!ID.test(id)) return null;
+  return lectureCached(id);
 }
 
 /* ------------------------------------------------------------------ problems */

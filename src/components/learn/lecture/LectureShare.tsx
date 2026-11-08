@@ -13,7 +13,7 @@ import { COURSE_ORIGIN } from "@/lib/site/hosts";
 
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
 
-export default function LectureShare({ slug, title, time, chapter, getToken, className = "" }: { slug: string; title: string; time: number; chapter: string; getToken?: () => Promise<string | null>; className?: string }) {
+export default function LectureShare({ slug, path, title, time, chapter, getToken, className = "" }: { slug: string; /** the lecture page (default /lectures/<slug>) */ path?: string; title: string; time: number; chapter: string; getToken?: () => Promise<string | null>; className?: string }) {
   const [open, setOpen] = useState(false);
   // the moment is taken when the panel opens, so the link doesn't drift while it's being shared
   const [at, setAt] = useState(0);
@@ -38,7 +38,7 @@ export default function LectureShare({ slug, title, time, chapter, getToken, cla
 
   const start = fromHere && at >= 5 ? Math.floor(at) : 0;
   const qs = [token ? `s=${token}` : "", start ? `t=${start}` : ""].filter(Boolean).join("&");
-  const url = `${typeof window === "undefined" ? COURSE_ORIGIN : window.location.origin}/lectures/${slug}${qs ? `?${qs}` : ""}`;
+  const url = `${typeof window === "undefined" ? COURSE_ORIGIN : window.location.origin}${path ?? `/lectures/${slug}`}${qs ? `?${qs}` : ""}`;
   const text = start ? `${title}: watch from ${fmt(start)} (${chapter})` : title;
   const sent = (channel: string) => track("lecture_share", { quest: slug, at: start, channel });
 
