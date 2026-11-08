@@ -46,6 +46,19 @@ const LANGS: Record<string, () => Promise<{ default: unknown }>> = {
   xml: () => import("@shikijs/langs/xml"),
 };
 
+const onCloudflare = () => typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
+
+/**
+ * The oniguruma WASM. Cloudflare Workers refuse to compile WASM from bytes at runtime (what "shiki/wasm" does), so
+ * there it is a precompiled module: next.config.ts defines its path, webpack leaves the import alone
+ * (webpackIgnore) and OpenNext/wrangler bundle the `?module` file. Elsewhere (Vercel, next dev) shiki/wasm as before.
+ */
+function onigWasm(): Promise<unknown> {
+  // the path must stay a literal inside import(): DefinePlugin inlines it, so the Worker's bundler can find the file
+  if (onCloudflare() && process.env.SHIKI_ONIG_WASM_MODULE) return import(/* webpackIgnore: true */ process.env.SHIKI_ONIG_WASM_MODULE);
+  return import("shiki/wasm");
+}
+
 // Cached on globalThis so dev-mode module re-evaluation (HMR / per-route compiles) reuses one highlighter.
 const cache = globalThis as typeof globalThis & { __sdShikiHighlighter?: Promise<HighlighterCore> | null };
 
@@ -58,7 +71,7 @@ function getHighlighter(): Promise<HighlighterCore> {
       return createHighlighterCore({
         themes: [import("@shikijs/themes/github-light"), import("@shikijs/themes/github-dark")],
         langs: [],
-        engine: createOnigurumaEngine(import("shiki/wasm")),
+        engine: createOnigurumaEngine(onigWasm() as Parameters<typeof createOnigurumaEngine>[0]),
       });
     })().catch((err) => {
       cache.__sdShikiHighlighter = null;

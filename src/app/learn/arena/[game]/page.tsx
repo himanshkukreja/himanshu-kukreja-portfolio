@@ -3,7 +3,8 @@ import LatencyLadder from "@/components/learn/arena/games/LatencyLadder";
 import Sorter from "@/components/learn/arena/games/Sorter";
 import { ARENA_GAMES } from "@/lib/learn/arena/games";
 
-export const dynamicParams = false;
+// No dynamicParams = false: on Cloudflare (OpenNext) the prerendered games, reached through the course host's
+// rewrite, answered 404 with it (8 Nov 2026). Unknown games still end in notFound() below.
 
 export function generateStaticParams() {
   return ARENA_GAMES.map((g) => ({ game: g.key }));

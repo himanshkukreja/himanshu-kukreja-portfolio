@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 import { POSTHOG_ASSETS_HOST, POSTHOG_INGEST_HOST, POSTHOG_KEY, POSTHOG_PROXY_PATH } from "./src/lib/analytics/config";
 import { COURSE_ROOT, LEARN_FEATURES, LEARN_FILES } from "./src/lib/learn/paths";
 
@@ -119,7 +120,7 @@ const nextConfig: NextConfig = {
   // ~3 MB of Excalidraw (incl. its font-subsetting WASM) and ~0.5 MB of posthog-js. The server build gets
   // an empty module instead, which keeps the server bundle small enough for a Cloudflare Worker.
   // Only exact package entry points ($): posthog-js/rrweb (admin replay player) is untouched.
-  webpack(config, { isServer }) {
+  webpack(config, { isServer, webpack }) {
     if (isServer) {
       config.resolve.alias = {
         ...config.resolve.alias,
@@ -127,6 +128,12 @@ const nextConfig: NextConfig = {
         "posthog-js$": false,
         "posthog-js/dist/posthog-recorder$": false,
       };
+      // shiki's oniguruma WASM as a file path for src/lib/course/highlight.ts: on Cloudflare it is imported as a
+      // precompiled module (`<path>?module`, bundled by wrangler); Workers refuse to compile WASM from bytes at
+      // runtime, so every code block rendered there was plain text (8 Nov 2026)
+      config.plugins.push(
+        new webpack.DefinePlugin({ "process.env.SHIKI_ONIG_WASM_MODULE": JSON.stringify(`${path.join(process.cwd(), "node_modules/shiki/dist/onig.wasm")}?module`) }),
+      );
     }
     return config;
   },
