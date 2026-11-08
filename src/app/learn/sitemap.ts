@@ -39,6 +39,8 @@ const STATIC: { path: string; priority: number; freq: Entry["changeFrequency"] }
   { path: "/design-week", priority: 0.6, freq: "weekly" },
   { path: "/plan", priority: 0.4, freq: "monthly" },
   { path: "/arena", priority: 0.5, freq: "weekly" },
+  // DSA Mastery: only its coming-soon page until launch (plan §14.6), everything else after
+  { path: "/dsa", priority: 0.7, freq: "weekly" },
   { path: "/privacy", priority: 0.1, freq: "yearly" },
 ];
 

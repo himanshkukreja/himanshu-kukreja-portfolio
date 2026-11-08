@@ -396,6 +396,10 @@ function toGa(name: string, p: ProductProps) {
     case "share_link":
       gtag("event", "share", { method: p.channel, content_type: p.kind });
       break;
+    case "dsa_waitlist":
+      // GA4's recommended lead event: a DSA Mastery waitlist signup (the coming-soon page)
+      gtag("event", "generate_lead", { lead_source: p.source, status: p.status, founding: p.founding });
+      break;
     case "quiz_answer":
       quiz.answered++;
       if (p.correct === true) quiz.correct++;
