@@ -47,7 +47,7 @@ const courseHost = (h: string) => h === "systemdesignmastery.dev" || h.endsWith(
 const PORTFOLIO_APEX = "himanshukukreja.in";
 
 export default {
-  async fetch(request: Request, env: { ASSETS?: { fetch(r: Request): Promise<Response> }; CF_VERSION_METADATA?: { id: string } }, ctx: Ctx) {
+  async fetch(request: Request, env: { ASSETS?: { fetch(r: Request): Promise<Response> }; CF_VERSION_METADATA?: { id: string }; PAGES?: Kv }, ctx: Ctx) {
     const url = new URL(request.url);
     if (url.hostname === PORTFOLIO_APEX) return Response.redirect(`https://www.${PORTFOLIO_APEX}${url.pathname}${url.search}`, 308);
     // these paths run the Worker first (wrangler.jsonc run_worker_first). The portfolio's favicon / icon / apple-icon
@@ -60,7 +60,16 @@ export default {
     // per deployment: an older copy would reference /_next/static files the new deploy no longer serves
     const key = cache ? new Request(`${url.toString()}${url.search ? "&" : "?"}__edge=${env.CF_VERSION_METADATA?.id ?? ""}`, { method: "GET" }) : null;
     if (cache && key) {
-      const hit = await cache.match(key);
+      const layers: Layers = { cache, key, kv: env.PAGES, kvKey: key.url };
+      // 1. this colo's cache (fastest, but not consistent across a colo's machines), 2. KV (consistent, ~10-50 ms when
+      // hot), 3. OpenNext (its own R2-backed cache, ~1-2 s from India when the colo has no copy, Nov 2026)
+      let hit = await cache.match(key);
+      let layer = "HIT";
+      if (!hit && layers.kv) {
+        hit = await fromKv(layers.kv, layers.kvKey);
+        layer = "KV";
+        if (hit) ctx.waitUntil(cache.put(key, hit.clone()));
+      }
       if (hit) {
         const age = (Date.now() - Number(hit.headers.get(STORED_AT) || 0)) / 1000;
         if (age > EDGE_TTL && !refreshing.has(key.url)) {
@@ -70,8 +79,8 @@ export default {
               .fetch(request.clone(), env, ctx)
               .then((res: Response) => {
                 // a page that is gone stops being served from here
-                if (res.status === 404 || res.status === 410) ctx.waitUntil(cache.delete(key));
-                return store(cache, key, request, res, ctx).body?.cancel();
+                if (res.status === 404 || res.status === 410) ctx.waitUntil(Promise.all([cache.delete(key), layers.kv?.delete(layers.kvKey)]));
+                return store(layers, request, res, ctx).body?.cancel();
               })
               .catch(() => {})
               .finally(() => refreshing.delete(key.url))
@@ -80,12 +89,12 @@ export default {
         const out = new Response(hit.body, hit);
         out.headers.delete(STORED_AT);
         out.headers.set("cache-control", "public, max-age=0, must-revalidate");
-        out.headers.set("x-edge-cache", age > EDGE_TTL ? "STALE" : "HIT");
+        out.headers.set("x-edge-cache", age > EDGE_TTL ? `${layer === "KV" ? "KV-" : ""}STALE` : layer);
         return out;
       }
     }
     const res: Response = await handler.fetch(request, env, ctx);
-    if (cache && key) return store(cache, key, request, res, ctx);
+    if (cache && key) return store({ cache, key, kv: env.PAGES, kvKey: key.url }, request, res, ctx);
     return finish(request, res);
   },
   async scheduled(_event: unknown, env: unknown, ctx: Ctx) {
@@ -93,8 +102,45 @@ export default {
   },
 };
 
-/** The browser's response; an ISR page (s-maxage, no cookies) is also kept in the colo's cache with its time. */
-function store(cache: Cache, key: Request, request: Request, res: Response, ctx: Ctx): Response {
+type Kv = {
+  get(key: string, opts: { type: "arrayBuffer"; cacheTtl?: number }): Promise<ArrayBuffer | null>;
+  put(key: string, value: ArrayBuffer | Uint8Array, opts?: { expirationTtl?: number }): Promise<void>;
+  delete(key: string): Promise<void>;
+};
+type Layers = { cache: Cache; key: Request; kv?: Kv; kvKey: string };
+
+// A KV copy is one value: a JSON line (status and headers) then the body bytes.
+const NL = 10;
+const SKIP_HEADERS = new Set(["set-cookie", "content-length", "content-encoding", "transfer-encoding", "date", "connection"]);
+
+async function fromKv(kv: Kv, kvKey: string): Promise<Response | null> {
+  try {
+    const buf = await kv.get(kvKey, { type: "arrayBuffer", cacheTtl: 60 });
+    if (!buf) return null;
+    const bytes = new Uint8Array(buf);
+    const nl = bytes.indexOf(NL);
+    if (nl < 0) return null;
+    const meta = JSON.parse(new TextDecoder().decode(bytes.subarray(0, nl))) as { s: number; h: [string, string][] };
+    return new Response(bytes.subarray(nl + 1), { status: meta.s, headers: meta.h });
+  } catch {
+    return null;
+  }
+}
+
+async function toKv(kv: Kv, kvKey: string, copy: Response): Promise<void> {
+  const head = new TextEncoder().encode(`${JSON.stringify({ s: copy.status, h: [...copy.headers].filter(([k]) => !SKIP_HEADERS.has(k)) })}\n`);
+  const body = new Uint8Array(await copy.arrayBuffer());
+  // KV values stay under its 25 MB limit (the search index, ~6 MB, is the largest)
+  if (body.byteLength > 20_000_000) return;
+  const value = new Uint8Array(head.byteLength + body.byteLength);
+  value.set(head, 0);
+  value.set(body, head.byteLength);
+  // one write per key per second at most: a refresh racing another colo's refresh may be refused (harmless)
+  await kv.put(kvKey, value, { expirationTtl: EDGE_KEEP }).catch(() => {});
+}
+
+/** The browser's response; an ISR page (s-maxage, no cookies) is also kept in the colo's cache and KV with its time. */
+function store(l: Layers, request: Request, res: Response, ctx: Ctx): Response {
   const out = finish(request, res);
   if (res.status !== 200 || res.headers.has("set-cookie") || !(isImage(request, res) || /s-maxage/i.test(res.headers.get("cache-control") || ""))) return out;
   const copy = new Response(out.clone().body, out);
@@ -103,7 +149,9 @@ function store(cache: Cache, key: Request, request: Request, res: Response, ctx:
   // re-render) evicted the copy within a second, so these pages were never answered from here
   copy.headers.delete("cdn-cache-control");
   copy.headers.set(STORED_AT, String(Date.now()));
-  ctx.waitUntil(cache.put(key, copy));
+  const kvCopy = l.kv ? copy.clone() : null;
+  ctx.waitUntil(l.cache.put(l.key, copy));
+  if (l.kv && kvCopy) ctx.waitUntil(toKv(l.kv, l.kvKey, kvCopy));
   return out;
 }
 

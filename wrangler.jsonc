@@ -26,6 +26,8 @@
   "observability": { "enabled": true },
   // next/image resizing and format conversion (OpenNext uses it; without it /_next/image served full-size originals)
   "images": { "binding": "IMAGES" },
+  // page copies shared by every machine and colo (cloudflare/worker.ts): the colo cache alone missed often
+  "kv_namespaces": [{ "binding": "PAGES", "id": "d95b112bef4a4dc697ecc1638de83b04" }],
   "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
   // SEARCH: the smart-search engine's own Worker (wrangler.search.jsonc; too big for this one's memory)
   "services": [
@@ -59,6 +61,7 @@
       "limits": { "cpu_ms": 120000 },
       "observability": { "enabled": true },
       "images": { "binding": "IMAGES" },
+      "kv_namespaces": [{ "binding": "PAGES", "id": "19aa6193f7784663b57cb99385a3f8d9" }],
       "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off" },
       "services": [
         { "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" },
