@@ -137,7 +137,8 @@ function Editor({ initial }: { initial: CaseFileDetail }) {
   const dirty = !sameFields(f, saved);
   const validation = preview && sameFields(preview.fields, f) ? preview.r.validation : (preview?.r.validation ?? serverValidation);
   const problems = validation?.problems ?? [];
-  const errors = validation?.errors ?? 0;
+  // diagrams that fail to draw in the preview (Mermaid runs only in the browser) block publishing like server errors
+  const errors = (validation?.errors ?? 0) + (diagrams?.failed ?? 0);
   const liveChanges = row.status === "published" && !!row.live && !sameFields(row.live, f);
 
   const set = useCallback((patch: Partial<CaseFileFields>) => setF((cur) => ({ ...cur, ...patch })), []);
