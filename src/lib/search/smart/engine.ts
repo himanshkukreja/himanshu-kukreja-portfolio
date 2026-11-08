@@ -221,51 +221,72 @@ export class SmartEngine {
     return i === undefined ? null : this.docs[i];
   }
 
+  /**
+   * BM25F postings in two passes over the docs, so building needs little more memory than the finished index (on
+   * Cloudflare the engine has 128 MB; a per-doc term table for all ~29k docs at once peaked past 200 MB, Nov 2026):
+   * the first pass counts field lengths and document frequencies, the second re-tokenises each doc and writes its
+   * weights straight into postings pre-sized from those frequencies. Same terms, same order, same weights as before.
+   */
   private index() {
     const N = this.docs.length;
+    const F = FIELDS.length;
     const lens = FIELDS.map(() => 0);
     const counts = FIELDS.map(() => 0);
-    const perDoc: { tf: Map<string, number[]>; len: number[] }[] = new Array(N);
-    for (let i = 0; i < N; i++) {
-      const d = this.docs[i];
-      const tf = new Map<string, number[]>();
-      const len = FIELDS.map((f, k) => {
-        const words = normalize(f.get(d)).split(" ").filter(Boolean);
-        const ts = words.map((w) => {
+    const docLens = new Int32Array(N * F);
+    const fieldTerms = (d: Doc, k: number, learn: boolean) =>
+      normalize(FIELDS[k].get(d))
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => {
           const st = stem(w);
-          const seen = this.surface.get(st);
-          if (!seen || w.length < seen.length) this.surface.set(st, w);
+          if (learn) {
+            const seen = this.surface.get(st);
+            if (!seen || w.length < seen.length) this.surface.set(st, w);
+          }
           return st;
         });
-        for (const t of ts) {
-          let a = tf.get(t);
-          if (!a) tf.set(t, (a = [0, 0, 0, 0]));
-          a[k]++;
-        }
+    // pass 1: field lengths, averages and document frequencies (nothing kept per doc but its lengths)
+    for (let i = 0; i < N; i++) {
+      const d = this.docs[i];
+      const seenHere = new Set<string>();
+      for (let k = 0; k < F; k++) {
+        const ts = fieldTerms(d, k, true);
+        for (const t of ts) seenHere.add(t);
+        docLens[i * F + k] = ts.length;
         if (ts.length) {
           lens[k] += ts.length;
           counts[k]++;
         }
-        return ts.length;
-      });
-      perDoc[i] = { tf, len };
-      for (const t of tf.keys()) this.df.set(t, (this.df.get(t) ?? 0) + 1);
+      }
+      for (const t of seenHere) this.df.set(t, (this.df.get(t) ?? 0) + 1);
     }
     const avg = lens.map((l, k) => (counts[k] ? l / counts[k] : 1));
-    const build = new Map<string, { d: number[]; w: number[] }>();
+    // pass 2: each doc's term weights, appended in doc order into postings sized by document frequency
+    const fill = new Map<string, number>();
+    for (const [t, n] of this.df) {
+      this.post.set(t, { d: new Int32Array(n), w: new Float32Array(n) });
+      fill.set(t, 0);
+    }
     for (let i = 0; i < N; i++) {
-      const { tf, len } = perDoc[i];
+      const d = this.docs[i];
+      const tf = new Map<string, number[]>();
+      for (let k = 0; k < F; k++)
+        for (const t of fieldTerms(d, k, false)) {
+          let a = tf.get(t);
+          if (!a) tf.set(t, (a = [0, 0, 0, 0]));
+          a[k]++;
+        }
       for (const [t, a] of tf) {
         let x = 0;
-        for (let k = 0; k < FIELDS.length; k++) if (a[k]) x += (FIELDS[k].w * a[k]) / (1 - FIELDS[k].b + (FIELDS[k].b * len[k]) / avg[k]);
+        for (let k = 0; k < F; k++) if (a[k]) x += (FIELDS[k].w * a[k]) / (1 - FIELDS[k].b + (FIELDS[k].b * docLens[i * F + k]) / avg[k]);
         const sat = (x * (K1 + 1)) / (x + K1);
-        let p = build.get(t);
-        if (!p) build.set(t, (p = { d: [], w: [] }));
-        p.d.push(i);
-        p.w.push(sat);
+        const p = this.post.get(t)!;
+        const j = fill.get(t)!;
+        p.d[j] = i;
+        p.w[j] = sat;
+        fill.set(t, j + 1);
       }
     }
-    for (const [t, p] of build) this.post.set(t, { d: Int32Array.from(p.d), w: Float32Array.from(p.w) });
     this.vocab = [...this.df.keys()].filter((t) => t.length >= 3 && !/^\d+$/.test(t));
   }
 

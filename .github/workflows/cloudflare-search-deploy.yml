@@ -1,0 +1,32 @@
+# Deploys only the search engine's Worker (wrangler.search.jsonc), in about a minute: for changes to
+# cloudflare/search/worker.ts or the engine. cloudflare-deploy deploys it too, with the site.
+name: cloudflare-search-deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "staging or production"
+        type: choice
+        options: [staging, production]
+        default: staging
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Deploy
+        run: npx wrangler deploy -c wrangler.search.jsonc ${{ inputs.target == 'staging' && '--env staging' || '' }} | grep -vE "^\s*$" | tail -8

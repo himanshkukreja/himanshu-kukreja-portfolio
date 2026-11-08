@@ -5,7 +5,7 @@
 // while the old one keeps answering. Deployed by .github/workflows/cloudflare-deploy.yml (wrangler.search.jsonc).
 import { DurableObject } from "cloudflare:workers";
 import { SmartEngine, transcriptDocs } from "../../src/lib/search/smart/engine";
-import { INDEX_PARTS, rowToDoc, type DocIndex } from "../../src/lib/search/smart/types";
+import { INDEX_PARTS, rowToDoc, type Doc, type DocIndex } from "../../src/lib/search/smart/types";
 import type { TranscriptIndex } from "../../src/lib/learn/lecture/transcript";
 import { engineCounts, engineDocs, engineRank, engineSearch } from "../../src/lib/search/smart/api";
 
@@ -26,10 +26,19 @@ export class SearchEngine extends DurableObject<Env> {
       if (!r.ok) throw new Error(`${path}: ${r.status}`);
       return (await r.json()) as T;
     };
-    const [parts, moments] = await Promise.all([Promise.all(INDEX_PARTS.map((p) => get<DocIndex>(`/api/search/index/${p}`))), get<TranscriptIndex>("/api/search/transcripts")]);
-    const docs = parts.flatMap((p) => p.d.map(rowToDoc));
-    const built = parts.map((p) => p.built).sort().pop() ?? "";
-    return new SmartEngine([...docs, ...transcriptDocs(moments)], `${built}|${moments.built}`, parts.flatMap((p) => p.syn ?? []));
+    // one part at a time: each part's raw JSON is dropped before the next arrives (the 128 MB limit)
+    const docs: Doc[] = [];
+    const syn: string[][] = [];
+    let built = "";
+    for (const p of INDEX_PARTS) {
+      const part = await get<DocIndex>(`/api/search/index/${p}`);
+      for (const r of part.d) docs.push(rowToDoc(r));
+      syn.push(...(part.syn ?? []));
+      if (part.built > built) built = part.built;
+    }
+    const moments = await get<TranscriptIndex>("/api/search/transcripts");
+    for (const d of transcriptDocs(moments)) docs.push(d);
+    return new SmartEngine(docs, `${built}|${moments.built}`, syn);
   }
 
   private get(): Promise<SmartEngine> {
