@@ -7,6 +7,9 @@
   "main": "cloudflare/worker.ts",
   "compatibility_date": "2026-11-01",
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // esbuild's keepNames wraps functions in __name(): next-themes stringifies its theme script into the HTML, where
+  // __name doesn't exist, so the saved theme (dark, reading modes) wasn't applied before paint
+  "keep_names": false,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
