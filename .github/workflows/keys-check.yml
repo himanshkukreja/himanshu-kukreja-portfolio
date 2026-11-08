@@ -24,10 +24,8 @@ jobs:
       - name: PostHog
         if: always()
         run: |
-          ok=0
-          for region in us eu; do
-            code=$(curl -s -o /dev/null -w "%{http_code}" "https://$region.posthog.com/api/users/@me/" -H "Authorization: Bearer $POSTHOG_PERSONAL_API_KEY")
-            echo "PostHog $region /api/users/@me/: HTTP $code" | tee -a "$GITHUB_STEP_SUMMARY"
-            [ "$code" = 200 ] && ok=1
-          done
-          [ "$ok" = 1 ]
+          # what the admin's PostHog views run: a HogQL query on the project (scope query:read)
+          code=$(curl -s -o /tmp/ph.json -w "%{http_code}" "https://us.posthog.com/api/projects/667879/query/" -H "Authorization: Bearer $POSTHOG_PERSONAL_API_KEY" -H "content-type: application/json" -d '{"query":{"kind":"HogQLQuery","query":"select count() from events where timestamp > now() - interval 1 hour"}}')
+          echo "PostHog project 667879 HogQL query: HTTP $code (200 = key works)" | tee -a "$GITHUB_STEP_SUMMARY"
+          [ "$code" = 200 ] || head -c 300 /tmp/ph.json
+          [ "$code" = 200 ]
