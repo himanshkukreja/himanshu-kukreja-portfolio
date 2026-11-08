@@ -1,11 +1,13 @@
-# Course site on Cloudflare Workers (OpenNext). Manual for now: "staging" deploys sdm-course-staging on
-# workers.dev (no live traffic), "production" deploys sdm-course (the live domains once DNS moves).
+# Course site on Cloudflare Workers (OpenNext). Every push to main deploys production (sdm-course: systemdesignmastery.dev
+# since 8 Nov 2026); by hand, "staging" deploys sdm-course-staging on workers.dev (no live traffic).
 # Needs: secret CLOUDFLARE_API_TOKEN + variable CLOUDFLARE_ACCOUNT_ID, and the Vercel ones (VERCEL_TOKEN,
 # VERCEL_ORG_ID, VERCEL_PROJECT_ID) to pull the production env. Vercel's "sensitive" variables can't be pulled:
 # ANTHROPIC_API_KEY, POSTHOG_PERSONAL_API_KEY (and BREVO_API_KEY) come from GitHub secrets of the same name.
 name: cloudflare-deploy
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
     inputs:
       target:
@@ -15,7 +17,7 @@ on:
         default: staging
 
 concurrency:
-  group: cloudflare-${{ inputs.target }}
+  group: cloudflare-${{ inputs.target || 'production' }}
   cancel-in-progress: false
 
 permissions:
@@ -94,4 +96,4 @@ jobs:
     needs: deploy
     uses: ./.github/workflows/cloudflare-warm.yml
     with:
-      target: ${{ inputs.target }}
+      target: ${{ inputs.target || 'production' }}
