@@ -11,7 +11,6 @@ import { ACTIVITY_SLUGS } from "@/components/stories/activities/types";
 import { readMinutes } from "@/components/stories/case-types";
 import { storyWords } from "@/components/stories/case-files";
 import { lintBlocks } from "./blocks-lint";
-import { checkMermaid } from "./mermaid-check";
 import { RESERVED_SLUGS, SLUG_RE, type CaseFileFields, type Problem, type ProblemArea, type Validation } from "./types";
 import palette from "@/lib/diagrams/palette.json";
 import { unknownDiagramIcons } from "@/lib/diagrams/icon-check";
@@ -306,11 +305,9 @@ export async function validateCaseFile(f: CaseFileFields, ctx: ValidateCtx): Pro
         const nodes = new Set([...d.src.matchAll(/^\s*([A-Za-z][\w]*)\s*(?:[[({]|@\{)/gm)].map((m) => m[1]));
         if (nodes.size > 5) warn("body", "mermaid-direction", `flowchart LR with ${nodes.size} nodes: use TD so it fits a phone.`, { line: d.line });
       }
-      const res = await checkMermaid(d.src);
-      if (!res.ok) {
-        if (res.unverified) warn("body", "mermaid-unverified", res.message, { line: d.line });
-        else error("body", "mermaid-parse", `Mermaid: ${res.message}`, { line: res.line ? d.line + res.line : d.line });
-      }
+      // Syntax is checked where Mermaid already runs: the editor's preview draws every diagram in the browser and a
+      // diagram that fails to draw counts as an error there (Editor.tsx), blocking publish. Parsing on the server put
+      // mermaid (~4 MiB with its parsers and layout libraries) into the Worker bundle for this one check.
     }
 
     // images

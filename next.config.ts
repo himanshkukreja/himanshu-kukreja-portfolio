@@ -127,6 +127,8 @@ const nextConfig: NextConfig = {
         "@excalidraw/excalidraw$": false,
         "posthog-js$": false,
         "posthog-js/dist/posthog-recorder$": false,
+        // mermaid (+ its parsers, cytoscape, dagre: ~4 MiB) draws diagrams in the browser only (MermaidHydrator, lazy.ts)
+        mermaid$: false,
       };
       // shiki's oniguruma WASM as a file path for src/lib/course/highlight.ts: on Cloudflare it is imported as a
       // precompiled module (`<path>?module`, bundled by wrangler); Workers refuse to compile WASM from bytes at
@@ -157,10 +159,6 @@ const nextConfig: NextConfig = {
     "remark-rehype",
     "rehype-stringify",
     "nodemailer",
-    // case files validator: mermaid.parse() in Node (src/lib/case-files/mermaid-check.ts) must share
-    // one DOMPurify instance with mermaid, so neither is bundled into the server build
-    "mermaid",
-    "dompurify",
   ],
   images: {
     remotePatterns,
