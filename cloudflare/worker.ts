@@ -30,14 +30,24 @@ const refreshing = new Set<string>();
 const cacheablePageRequest = (r: Request) =>
   r.method === "GET" && !r.headers.has("rsc") && !r.headers.has("next-router-prefetch") && !r.headers.has("authorization") && (r.headers.get("accept") || "").includes("text/html");
 
-// This Worker serves the course host only: its favicon and app icons come from public/course-brand (next.config.ts
-// rewrites them on Vercel; OpenNext doesn't serve a static file reached through a rewrite, so they are answered here).
+// On the course host the favicon and app icons come from public/course-brand (next.config.ts rewrites them on Vercel;
+// OpenNext doesn't serve a static file reached through a rewrite, so they are answered here). The portfolio host
+// (himanshukukreja.in) keeps its own (src/app metadata routes and public/icons).
 const COURSE_ICON = /^\/(?:favicon\.ico|icon\.svg|icon\.png|apple-icon\.png|icons\/icon-[\w-]+\.png)$/;
+const courseHost = (h: string) => h === "systemdesignmastery.dev" || h.endsWith(".systemdesignmastery.dev") || h.endsWith(".workers.dev");
+// the portfolio's apex redirects to www (a Vercel domain setting until 8 Nov 2026)
+const PORTFOLIO_APEX = "himanshukukreja.in";
 
 export default {
   async fetch(request: Request, env: { ASSETS?: { fetch(r: Request): Promise<Response> }; CF_VERSION_METADATA?: { id: string } }, ctx: Ctx) {
     const url = new URL(request.url);
-    if (COURSE_ICON.test(url.pathname) && env.ASSETS) return env.ASSETS.fetch(new Request(new URL(`/course-brand${url.pathname}`, url), request));
+    if (url.hostname === PORTFOLIO_APEX) return Response.redirect(`https://www.${PORTFOLIO_APEX}${url.pathname}${url.search}`, 308);
+    // these paths run the Worker first (wrangler.jsonc run_worker_first). The portfolio's favicon / icon / apple-icon
+    // are Next metadata routes (src/app), so only its /icons/* PWA files come from the static files here
+    if (COURSE_ICON.test(url.pathname) && env.ASSETS) {
+      if (courseHost(url.hostname)) return env.ASSETS.fetch(new Request(new URL(`/course-brand${url.pathname}`, url), request));
+      if (url.pathname.startsWith("/icons/")) return env.ASSETS.fetch(request);
+    }
     const cache = cacheablePageRequest(request) ? edgeCache() : undefined;
     // per deployment: an older copy would reference /_next/static files the new deploy no longer serves
     const key = cache ? new Request(`${url.toString()}${url.search ? "&" : "?"}__edge=${env.CF_VERSION_METADATA?.id ?? ""}`, { method: "GET" }) : null;
