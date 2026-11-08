@@ -1,0 +1,56 @@
+# Recent Worker log events (Workers Logs / observability) for a path, to see why requests failed without
+# reproducing them. Prints the newest events with their logs and exceptions.
+name: cloudflare-logs
+
+on:
+  workflow_dispatch:
+    inputs:
+      worker:
+        description: "Worker script"
+        type: choice
+        options: [sdm-course, sdm-course-staging]
+        default: sdm-course
+      path:
+        description: "URL path contains (e.g. /api/learn/ai)"
+        default: /api/learn/ai
+      minutes:
+        description: "How far back"
+        default: "90"
+
+permissions:
+  contents: read
+
+jobs:
+  logs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CF_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      ACCOUNT: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+      WORKER: ${{ inputs.worker }}
+      PATH_PART: ${{ inputs.path }}
+      MINUTES: ${{ inputs.minutes }}
+    steps:
+      - name: Query
+        run: |
+          node --input-type=module -e '
+            const { CF_TOKEN, ACCOUNT, WORKER, PATH_PART, MINUTES } = process.env;
+            const to = Date.now(), from = to - Number(MINUTES) * 60000;
+            const body = {
+              queryId: "recent-events", view: "events", limit: 60, timeframe: { from, to },
+              parameters: { datasets: ["cloudflare-workers"], filters: [
+                { key: "$metadata.service", operation: "eq", type: "string", value: WORKER },
+                { key: "$workers.event.request.url", operation: "includes", type: "string", value: PATH_PART },
+              ] },
+            };
+            const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/workers/observability/telemetry/query`, { method: "POST", headers: { authorization: `Bearer ${CF_TOKEN}`, "content-type": "application/json" }, body: JSON.stringify(body) });
+            const j = await r.json();
+            if (!j.success) { console.log(r.status, JSON.stringify(j.errors).slice(0, 800)); process.exit(1); }
+            const ev = j.result?.events?.events ?? [];
+            console.log(`${ev.length} events`);
+            for (const e of ev) {
+              const m = e.$metadata || {}, w = e.$workers || {};
+              const line = [new Date(e.timestamp).toISOString(), m.level, w.event?.request?.method, (w.event?.request?.url || "").replace(/^https:\/\/[^/]+/, ""), w.event?.response?.status, w.outcome, m.message, m.error].filter(Boolean).join(" | ");
+              console.log(line.slice(0, 600));
+            }
+          '
