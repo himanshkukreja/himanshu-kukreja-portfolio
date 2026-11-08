@@ -5,6 +5,8 @@ import { notConfigured, phErrorResponse } from "@/lib/analytics/posthogServer";
 import { getSnapshotChunk, getSnapshotSources } from "@/lib/analytics/replayServer";
 
 export const dynamic = "force-dynamic";
+
+const onWorkers = () => typeof navigator !== "undefined" && navigator.userAgent === "Cloudflare-Workers";
 export const maxDuration = 60;
 
 /**
@@ -24,10 +26,13 @@ export async function GET(request: NextRequest) {
     if (!sp.has("from")) return NextResponse.json(await getSnapshotSources(id));
     const body = await getSnapshotChunk(id, Number(sp.get("from")), Number(sp.get("to") ?? sp.get("from")));
     const headers: Record<string, string> = { "Content-Type": "application/x-ndjson; charset=utf-8", "Cache-Control": "private, max-age=86400, immutable" }; // a blob range never changes once written
-    // Inflated DOM JSON compresses ~8×; gzip it ourselves so big chunks stay small on the wire.
+    // Inflated DOM JSON compresses ~8×; gzip it so big chunks stay small on the wire.
     if (/\bgzip\b/.test(request.headers.get("accept-encoding") || "") && body.length > 2048) {
       headers["Content-Encoding"] = "gzip";
       headers.Vary = "Accept-Encoding";
+      // Workers compress the body themselves when this header is set: a body gzipped here went out gzipped twice, the
+      // browser undid one layer and the player found no events ("No recording for this session").
+      if (onWorkers()) return new Response(body, { headers });
       return new Response(new Uint8Array(gzipSync(body, { level: 6 })), { headers });
     }
     return new Response(body, { headers });
