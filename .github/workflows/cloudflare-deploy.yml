@@ -88,3 +88,10 @@ jobs:
       - name: Summary
         run: |
           grep -Eo "https://[a-z0-9.-]+workers.dev" "$RUNNER_TEMP/deploy.log" | head -1 | sed 's/^/Deployed: /' >> "$GITHUB_STEP_SUMMARY" || true
+
+  # a deploy starts with an empty ISR cache (keys carry the build id): re-render every page before visitors do
+  warm:
+    needs: deploy
+    uses: ./.github/workflows/cloudflare-warm.yml
+    with:
+      target: ${{ inputs.target }}

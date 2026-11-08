@@ -1,0 +1,36 @@
+# Re-renders every page of the course Worker into its ISR cache (scripts/cf/warm.mjs). Runs after each
+# cloudflare-deploy; run it by hand right after a content release (POST /api/revalidate-courses).
+name: cloudflare-warm
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "staging (workers.dev) or production"
+        type: choice
+        options: [staging, production]
+        default: staging
+  workflow_call:
+    inputs:
+      target:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  warm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/cf
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Warm
+        env:
+          BASE: ${{ inputs.target == 'staging' && 'https://sdm-course-staging.markdrop-in.workers.dev' || 'https://sdm-course.markdrop-in.workers.dev' }}
+        run: node scripts/cf/warm.mjs "$BASE" 4 | tee "$RUNNER_TEMP/warm.txt"; { echo '```'; tail -30 "$RUNNER_TEMP/warm.txt"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
