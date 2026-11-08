@@ -375,6 +375,75 @@
   }
 }
 
+/* ---------------------------------------------------------------------------------------------
+   DSA Mastery (/dsa): the same design system as the course with its own teal accent in place of the orange.
+   --c-dsa is the fill (buttons, chips, the mark's node), --c-on-dsa the ink on it, --c-dsa-text the accent as
+   text. Every pair passes WCAG AA on bg, surface and surface-2 of each theme (text 5.2:1 or more, ink on the
+   fill 5.3:1 or more); teal, kept clear of the ok green, and no purple. Inside .dsa-theme the course's signal
+   tokens point at these, so every component built on signal / signal-text / link turns teal there.
+   --------------------------------------------------------------------------------------------- */
+:root {
+  --c-dsa: #14B8A6;
+  --c-on-dsa: #021A16;
+  --c-dsa-text: #0B6E64;
+  --c-dsa-hl: rgba(20, 184, 166, 0.22);
+}
+.dark {
+  --c-dsa: #2DD4BF;
+  --c-on-dsa: #021A16;
+  --c-dsa-text: #2DD4BF;
+  --c-dsa-hl: rgba(45, 212, 191, 0.24);
+}
+@media screen {
+  html[data-read-mode="sepia"] {
+    --c-dsa: #2A9D8A;
+    --c-on-dsa: #03140F;
+    --c-dsa-text: #1D6359;
+    --c-dsa-hl: rgba(42, 157, 138, 0.2);
+  }
+  html[data-read-mode="paper"] {
+    --c-dsa: #1BA592;
+    --c-on-dsa: #021A16;
+    --c-dsa-text: #0F675D;
+    --c-dsa-hl: rgba(27, 165, 146, 0.2);
+  }
+  html[data-read-mode="mint"] {
+    --c-dsa: #1F9C8C;
+    --c-on-dsa: #021A16;
+    --c-dsa-text: #0E5F58;
+    --c-dsa-hl: rgba(31, 156, 140, 0.2);
+  }
+  html[data-read-mode="dusk"] {
+    --c-dsa: #4BBFAC;
+    --c-on-dsa: #04120F;
+    --c-dsa-text: #6CCFBE;
+    --c-dsa-hl: rgba(75, 191, 172, 0.24);
+  }
+  html[data-read-mode="calm"] {
+    --c-dsa: #5CC2AF;
+    --c-on-dsa: #04120F;
+    --c-dsa-text: #86D3C3;
+    --c-dsa-hl: rgba(92, 194, 175, 0.26);
+  }
+  html[data-read-mode="quiet"] {
+    --c-dsa: #2DD4BF;
+    --c-on-dsa: #021A16;
+    --c-dsa-text: #6FD8C7;
+    --c-dsa-hl: rgba(45, 212, 191, 0.24);
+  }
+}
+.dsa-theme {
+  --c-signal: var(--c-dsa);
+  --c-on-signal: var(--c-on-dsa);
+  --c-signal-text: var(--c-dsa-text);
+  --c-link: var(--c-dsa-text);
+  --c-hl: var(--c-dsa-hl);
+  --c-plate-accent: var(--c-dsa);
+}
+.dsa-theme ::selection {
+  background: var(--c-dsa-hl);
+}
+
 /* field placeholders on the course's themed pages: the theme's faint ink instead of Tailwind's cool grey (#9CA3AF,
    2.4:1 and off-palette on the tinted themes). Zero specificity, so a field's own placeholder: class still wins */
 :where(html[data-read-mode]) :is(input, textarea)::placeholder {
