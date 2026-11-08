@@ -10,6 +10,9 @@
   // esbuild's keepNames wraps functions in __name(): next-themes stringifies its theme script into the HTML, where
   // __name doesn't exist, so the saved theme (dark, reading modes) wasn't applied before paint
   "keep_names": false,
+  // no source maps upload: they're capped at 60 MiB per upload and the whole site's server code passed that on
+  // 8 Nov 2026 (61.5 MiB, staging rejected). Visitors never load them; debug from a local build instead.
+  "upload_source_maps": false,
   "assets": {
     "directory": ".open-next/assets",
     "binding": "ASSETS",
@@ -51,6 +54,7 @@
   "env": {
     "staging": {
       "name": "sdm-course-staging",
+      "upload_source_maps": false,
       "assets": {
         "directory": ".open-next/assets",
         "binding": "ASSETS",

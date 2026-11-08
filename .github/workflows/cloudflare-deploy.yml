@@ -73,7 +73,12 @@ jobs:
 
       - name: Size and encoding check
         run: |
-          npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/cf-dist" $WENV | grep -E "Total Upload" | tee -a "$GITHUB_STEP_SUMMARY"
+          npx wrangler deploy --dry-run --outdir "$RUNNER_TEMP/cf-dist" --metafile "$RUNNER_TEMP/cf-meta.json" $WENV | grep -E "Total Upload" | tee -a "$GITHUB_STEP_SUMMARY"
+          # what the bundle is made of (Workers Paid: 10 MiB compressed per Worker): wrangler's view, OpenNext's own
+          # server bundle metafile when it writes one, and the biggest files it ships
+          node scripts/cf/bundle-report.mjs "$RUNNER_TEMP/cf-meta.json" 25 >> "$GITHUB_STEP_SUMMARY" || true
+          for m in $(find .open-next -name "*.meta.json" -size +100k 2>/dev/null | head -3); do node scripts/cf/bundle-report.mjs "$m" 40 >> "$GITHUB_STEP_SUMMARY" || true; done
+          { echo; echo "### Largest files in the Worker's server function"; echo '```'; find .open-next/server-functions .open-next/middleware -type f -size +300k -exec ls -l {} + 2>/dev/null | awk '{printf "%8.2f MiB  %s\n", $5/1048576, $9}' | sort -rn | head -30; echo '```'; echo "### Largest route bundles (.next/server/app)"; echo '```'; find .next/server/app -name "*.js" -size +300k -exec ls -l {} + 2>/dev/null | awk '{printf "%8.2f MiB  %s\n", $5/1048576, $9}' | sort -rn | head -25; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
           node -e '
             const s = require("fs").readFileSync(process.argv[1], "utf8");
             const mib = Buffer.byteLength(s) / 1048576;
@@ -90,7 +95,10 @@ jobs:
         run: npx wrangler deploy -c wrangler.search.jsonc $WENV | grep -vE "^\s*$" | tail -8
 
       - name: Deploy
-        run: npx wrangler deploy $WENV | tee "$RUNNER_TEMP/deploy.log" | grep -vE "^\s*$" | tail -20
+        # pipefail: a rejected upload (e.g. over a size limit) must fail the run, not hide behind the filters (8 Nov 2026)
+        run: |
+          set -o pipefail
+          npx wrangler deploy $WENV | tee "$RUNNER_TEMP/deploy.log" | grep -vE "^\s*$" | tail -20
 
       - name: Worker secrets
         run: npx wrangler secret bulk "$RUNNER_TEMP/worker-secrets.json" $WENV
