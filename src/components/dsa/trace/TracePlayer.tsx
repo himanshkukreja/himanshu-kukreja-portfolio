@@ -43,10 +43,10 @@ function ArrayView({ trace, frame, hideWindow }: { trace: Trace; frame: TraceFra
           const leaving = frame.view.leaving === i;
           const joining = frame.view.joining === i;
           return (
-            <li key={i} className="flex w-12 shrink-0 flex-col items-center gap-1">
+            <li key={i} className="flex w-10 shrink-0 flex-col items-center gap-1 sm:w-12">
               <span className="font-mono text-[10px] text-fg-4">{i}</span>
               <span
-                className={`grid h-12 w-12 place-items-center border-2 font-mono text-[16px] font-semibold ${
+                className={`grid h-10 w-10 place-items-center border-2 font-mono text-[15px] font-semibold sm:h-12 sm:w-12 sm:text-[16px] ${
                   leaving ? "border-bad text-bad-text line-through" : joining ? "border-signal bg-signal text-on-signal" : inWin ? "border-signal bg-[var(--c-dsa-hl)] text-fg" : "border-line-strong text-fg-2"
                 }`}
               >
