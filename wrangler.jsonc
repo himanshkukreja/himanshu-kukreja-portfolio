@@ -21,6 +21,8 @@
   // India crossed the Pacific, cached pages too (0.75-1.2 s vs 0.17 s at the visitor's colo). Learners are mostly in
   // India; the ISR bucket and tag cache are in APAC, so the visitor's colo is the right place.
   "placement": { "mode": "off" },
+  // cold renders of the heaviest pages (/arena builds the question bank, ~19 s CPU) came close to the 30 s default
+  "limits": { "cpu_ms": 120000 },
   "observability": { "enabled": true },
   "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
   // SEARCH: the smart-search engine's own Worker (wrangler.search.jsonc; too big for this one's memory)
@@ -52,6 +54,7 @@
         "run_worker_first": ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-icon.png", "/icons/*"]
       },
       "placement": { "mode": "off" },
+      "limits": { "cpu_ms": 120000 },
       "observability": { "enabled": true },
       "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off" },
       "services": [

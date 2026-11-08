@@ -59,6 +59,20 @@ const APP_BYTES = 3_400_000;
 /** A saved code lab page (gzip HTML incl. the RSC payload: measured ~17.5 KB). */
 const LAB_PAGE_BYTES = 20_000;
 
+/**
+ * `fn` over `list`, `n` at a time, in order. The catalog reads every article, story and lecture of the course: all at
+ * once, a Cloudflare isolate ran past its 128 MB ("Worker exceeded memory limit", Nov 2026); in batches only the
+ * results (hashes and sizes) stay.
+ */
+async function inBatches<T, R>(list: readonly T[], n: number, fn: (x: T, i: number) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(list.length);
+  for (let at = 0; at < list.length; at += n) {
+    const part = await Promise.all(list.slice(at, at + n).map((x, k) => fn(x, at + k)));
+    part.forEach((r, k) => (out[at + k] = r));
+  }
+  return out;
+}
+
 async function build(course: string): Promise<Catalog> {
   const map = await getCourseMap(course);
   if (!map) throw new Error("course not found");
@@ -160,7 +174,7 @@ async function build(course: string): Promise<Catalog> {
     id: "side-quests",
     title: "Side quests",
     kind: "side-quests",
-    items: await Promise.all(map.sideQuests.map(async (q) => item(q.href, q.title, "sidequest", q.tag, "side-quests", await md(q.week, q.slug)))),
+    items: await inBatches(map.sideQuests, 6, async (q) => item(q.href, q.title, "sidequest", q.tag, "side-quests", await md(q.week, q.slug))),
   });
 
   // interview problems and low-level design: course articles outside the worlds
@@ -169,7 +183,7 @@ async function build(course: string): Promise<Catalog> {
     ["lld", "Low-level design", "lld", map.lld ?? []],
   ] as const) {
     if (!list.length) continue;
-    groups.push({ id, title, kind: id, items: await Promise.all(list.map(async (l) => item(l.href, l.title, kind, l.tag || l.code, id, await md(l.week, l.slug)))) });
+    groups.push({ id, title, kind: id, items: await inBatches(list, 6, async (l) => item(l.href, l.title, kind, l.tag || l.code, id, await md(l.week, l.slug))) });
   }
 
   if (map.mocks?.length) {
@@ -200,17 +214,20 @@ async function build(course: string): Promise<Catalog> {
   try {
     const { stories, rooms } = await getWarStories();
     if (stories.length || rooms.length) {
-      const [full, sims] = await Promise.all([Promise.all(stories.map((s) => getStory(s.slug))), Promise.all(rooms.map((r) => getWarRoom(r.slug)))]);
+      // a story's rendered HTML and a room's simulation are only measured and hashed, a few at a time
+      const storyFacts = await inBatches(stories, 4, async (s) => {
+        const html = (await getStory(s.slug).catch(() => null))?.html || "";
+        return { version: hash(html || s.href), bytes: Math.round(14_000 + html.length * 0.45) };
+      });
+      const roomFacts = await inBatches(rooms, 4, async (r) => {
+        const sim = await getWarRoom(r.slug).catch(() => null);
+        const json = sim ? JSON.stringify(sim) : "";
+        return { version: hash(json || r.href), bytes: Math.round(20_000 + json.length * 0.5) };
+      });
       const items: CatalogItem[] = [
         { url: "/war-stories", title: `War stories · ${stories.length} stories, ${rooms.length} war rooms`, kind: "warstory", tag: "HUB", group: "war-stories", version: hash(JSON.stringify({ stories, rooms })), bytes: 30_000 },
-        ...stories.map((s, i) => {
-          const html = full[i]?.html || "";
-          return { url: s.href, title: s.title, kind: "warstory" as const, tag: (THEME_LABEL[s.theme] || "Story").toUpperCase(), group: "war-stories", version: hash(html || s.href), bytes: Math.round(14_000 + html.length * 0.45) };
-        }),
-        ...rooms.map((r, i) => {
-          const json = sims[i] ? JSON.stringify(sims[i]) : "";
-          return { url: r.href, title: `War room · ${r.title}`, kind: "warstory" as const, tag: `${r.sev} · WAR ROOM`.toUpperCase(), group: "war-stories", version: hash(json || r.href), bytes: Math.round(20_000 + json.length * 0.5) };
-        }),
+        ...stories.map((s, i) => ({ url: s.href, title: s.title, kind: "warstory" as const, tag: (THEME_LABEL[s.theme] || "Story").toUpperCase(), group: "war-stories", ...storyFacts[i] })),
+        ...rooms.map((r, i) => ({ url: r.href, title: `War room · ${r.title}`, kind: "warstory" as const, tag: `${r.sev} · WAR ROOM`.toUpperCase(), group: "war-stories", ...roomFacts[i] })),
       ];
       groups.push({ id: "war-stories", title: "War stories", kind: "war-stories", items });
     }
