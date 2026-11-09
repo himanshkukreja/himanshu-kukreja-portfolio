@@ -38,6 +38,7 @@ const PITCH = 58;
 const NW = 74; // list node
 const NH = 50;
 const NPITCH = 98;
+const PW = 32; // the pointer part of a list node
 
 const fsOf = (s: string, base: number) => (s.length > 4 ? base * 0.62 : s.length > 3 ? base * 0.74 : s.length > 2 ? base * 0.88 : base);
 
@@ -54,13 +55,13 @@ export function describeQueue(s: QueueState): string {
   return `Queue (${how}), ${vals.length ? `front to back: ${vals.join(", ")}.` : "empty."}${ring}${lifted}${s.out ? ` ${s.out}.` : ""}`;
 }
 
-function Pill({ x, y, label, hot, pal, up }: { x: number; y: number; label: string; hot?: boolean; pal: QueuePalette; up?: boolean }) {
+function Pill({ x, y, label, hot, pal }: { x: number; y: number; label: string; hot?: boolean; pal: QueuePalette }) {
   const w = label.length * 9.5 + 14;
   const bg = hot ? pal.sig : pal.pillBg;
   const ink = hot ? pal.onSig : pal.pillInk;
   return (
     <g>
-      <line x1={x} x2={x} y1={up ? y + 22 : y} y2={up ? y + 36 : y - 14} stroke={hot ? pal.sig : pal.ink} strokeWidth={2.5} markerEnd="url(#qd-ah)" />
+      <line x1={x} x2={x} y1={y} y2={y - 14} stroke={hot ? pal.sig : pal.ink} strokeWidth={2.5} markerEnd="url(#qd-ah)" />
       <rect x={x - w / 2} y={y} width={w} height={22} rx={3} fill={bg} />
       <text x={x} y={y + 16} textAnchor="middle" fontSize={14} fontWeight={700} fontFamily={MONO} fill={ink}>
         {label}
@@ -302,8 +303,8 @@ export default function QueueDraw({
         <text x={width / 2} y={loopY - 7} textAnchor="middle" fontSize={12} fontFamily={MONO} fill={lit ? pal.sig : pal.sub} fontWeight={lit ? 700 : 400}>
           {lit ? `${state.wrapped} wraps round` : "after the last cell comes cell 0"}
         </text>
-        <Pill x={hx} y={rowHead} label="head" pal={pal} up />
-        <Pill x={tx} y={same ? rowHead + 36 : rowHead} label="tail" pal={pal} up hot={false} />
+        <Pill x={hx} y={rowHead} label="head" pal={pal} />
+        <Pill x={tx} y={same ? rowHead + 36 : rowHead} label="tail" pal={pal} />
         {chip(1)}
       </svg>
     );
@@ -360,14 +361,14 @@ export default function QueueDraw({
         const b = posX(it.id, i);
         return (
           <g key={`ar${it.id}`}>
-            <line x1={a - 14} x2={b - 3} y1={dbl ? midY - 7 : midY} y2={dbl ? midY - 7 : midY} stroke={pal.sub} strokeWidth={2} markerEnd="url(#qd-ah)" />
+            <line x1={a - PW / 2} x2={b - 3} y1={dbl ? midY - 7 : midY} y2={dbl ? midY - 7 : midY} stroke={pal.sub} strokeWidth={2} markerEnd="url(#qd-ah)" />
             {dbl && <line x1={b + 8} x2={a + 3} y1={midY + 7} y2={midY + 7} stroke={pal.sub} strokeWidth={2} markerEnd="url(#qd-ah)" />}
           </g>
         );
       })}
       {lifted && state.changed.includes(lifted.id) && items.length > 0 && (
         <line
-          x1={state.liftAt === "back" ? nx(items.length - 1) + NW - 14 : liftX + NW / 2}
+          x1={state.liftAt === "back" ? nx(items.length - 1) + NW - PW / 2 : liftX + NW / 2}
           y1={state.liftAt === "back" ? midY : nodeY - 56 + NH}
           x2={state.liftAt === "back" ? liftX + 3 : nx(0) + NW / 2}
           y2={state.liftAt === "back" ? nodeY - 56 + NH / 2 : nodeY - 3}
@@ -385,19 +386,19 @@ export default function QueueDraw({
         return (
           <g key={it.id} opacity={op}>
             <rect x={x} y={nodeY} width={NW} height={NH} fill={lit ? pal.sig : chg ? pal.hl : pal.surface} stroke={lit || chg ? pal.sig : pal.stroke} strokeWidth={lit || chg ? 3 : 2} />
-            <line x1={x + NW - 28} x2={x + NW - 28} y1={nodeY} y2={nodeY + NH} stroke={lit ? pal.onSig : pal.sub} strokeWidth={1.5} />
-            <text x={x + (NW - 28) / 2} y={nodeY + NH / 2 + 8} textAnchor="middle" fontSize={fsOf(it.value, 22) * fs} fontWeight={700} fontFamily={MONO} fill={lit ? pal.onSig : pal.ink}>
+            <line x1={x + NW - PW} x2={x + NW - PW} y1={nodeY} y2={nodeY + NH} stroke={lit ? pal.onSig : pal.sub} strokeWidth={1.5} />
+            <text x={x + (NW - PW) / 2} y={nodeY + NH / 2 + 8} textAnchor="middle" fontSize={fsOf(it.value, 22) * fs} fontWeight={700} fontFamily={MONO} fill={lit ? pal.onSig : pal.ink}>
               {it.value}
             </text>
             {last ? (
-              <text x={x + NW - 14} y={nodeY + NH / 2 + 4} textAnchor="middle" fontSize={11} fontFamily={MONO} fill={lit ? pal.onSig : pal.sub}>
+              <text x={x + NW - PW / 2} y={nodeY + NH / 2 + 4} textAnchor="middle" fontSize={10} fontFamily={MONO} fill={lit ? pal.onSig : pal.sub}>
                 null
               </text>
             ) : (
-              <circle cx={x + NW - 14} cy={nodeY + NH / 2} r={4.5} fill={lit ? pal.onSig : pal.stroke} />
+              <circle cx={x + NW - PW / 2} cy={nodeY + NH / 2} r={4.5} fill={lit ? pal.onSig : pal.stroke} />
             )}
             {state.addrs[it.id] !== undefined && (
-              <text x={x + (NW - 28) / 2} y={nodeY + NH + 15} textAnchor="middle" fontSize={11} fontFamily={MONO} fill={pal.sub}>
+              <text x={x + (NW - PW) / 2} y={nodeY + NH + 15} textAnchor="middle" fontSize={11} fontFamily={MONO} fill={pal.sub}>
                 {`@${state.addrs[it.id]}`}
               </text>
             )}
@@ -407,7 +408,7 @@ export default function QueueDraw({
       {lifted && (
         <g>
           <rect x={liftX + (state.liftAt === "front" ? 0 : 8)} y={nodeY - 56} width={NW} height={NH} fill={pal.hl} stroke={pal.sig} strokeWidth={3} strokeDasharray="6 4" />
-          <text x={liftX + (state.liftAt === "front" ? 0 : 8) + (NW - 28) / 2} y={nodeY - 56 + NH / 2 + 8} textAnchor="middle" fontSize={fsOf(lifted.value, 22) * fs} fontWeight={700} fontFamily={MONO} fill={pal.ink}>
+          <text x={liftX + (state.liftAt === "front" ? 0 : 8) + (NW - PW) / 2} y={nodeY - 56 + NH / 2 + 8} textAnchor="middle" fontSize={fsOf(lifted.value, 22) * fs} fontWeight={700} fontFamily={MONO} fill={pal.ink}>
             {lifted.value}
           </text>
         </g>
@@ -426,8 +427,8 @@ export default function QueueDraw({
           <line x1={0} x2={0} y1={22} y2={36} stroke={pal.sig} strokeWidth={2.5} markerEnd="url(#qd-ah-hot)" />
         </g>
       )}
-      {hX !== null && <Pill x={hX} y={rowHead} label="head" pal={pal} up />}
-      {tX !== null && <Pill x={tX} y={sameNode ? rowHead + 36 : rowHead} label="tail" pal={pal} up />}
+      {hX !== null && <Pill x={hX} y={rowHead} label="head" pal={pal} />}
+      {tX !== null && <Pill x={tX} y={sameNode ? rowHead + 36 : rowHead} label="tail" pal={pal} />}
       {chip(1)}
     </svg>
   );

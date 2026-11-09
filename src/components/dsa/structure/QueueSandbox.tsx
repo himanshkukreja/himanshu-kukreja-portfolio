@@ -40,7 +40,7 @@ const LABEL: Record<QueueOpName, string> = {
   pop_back: "Pop back",
   window_max: "Slide a window",
 };
-const NEEDS_VALUE = new Set<QueueOpName>(["enqueue", "push_front", "push_back", "window_max"]);
+const NEEDS_VALUE = new Set<QueueOpName>(["enqueue", "push_front", "push_back"]);
 
 type LogRow = { label: string; steps: number; after: string };
 
@@ -54,6 +54,7 @@ export default function QueueSandbox({ spec }: { spec: SandboxSpec }) {
   const [model, setModel] = useState<QueueModel>(() => mk(spec.start));
   const [script, setScript] = useState<Script>(() => still(mk(spec.start), "Your queue. Enqueue, dequeue or peek below and watch it run, step by step."));
   const [value, setValue] = useState("5");
+  const [winK, setWinK] = useState("3");
   const [build, setBuild] = useState(spec.start.join(", "));
   const [msg, setMsg] = useState<string | null>(null);
   const [log, setLog] = useState<LogRow[]>([]);
@@ -88,8 +89,10 @@ export default function QueueSandbox({ spec }: { spec: SandboxSpec }) {
       setMsg(`Type a whole number from ${lo} to ${hi} in the value box first.`);
       return;
     }
+    let k = 0;
     if (name === "window_max") {
-      if ((v as number) < 1 || (v as number) > model.ids.length) {
+      const kn = Number(winK.trim());
+      if (!Number.isInteger(kn) || kn < 1 || kn > model.ids.length) {
         setMsg(model.ids.length ? `Pick a window size from 1 to ${model.ids.length} (the number of values in your queue).` : "Your queue is empty. Build or enqueue some values first.");
         return;
       }
@@ -97,12 +100,13 @@ export default function QueueSandbox({ spec }: { spec: SandboxSpec }) {
         setMsg(`The window demo draws up to ${WINDOW_MAX_LEN} values.`);
         return;
       }
+      k = kn;
     }
     if ((name === "enqueue" || name === "push_back" || name === "push_front") && model.ids.length >= maxItems) {
       setMsg(`The sandbox holds up to ${maxItems} items. Remove one, or start a new queue.`);
       return;
     }
-    const op: QueueOp = NEEDS_VALUE.has(name) ? ({ op: name, value: v as number } as QueueOp) : ({ op: name } as QueueOp);
+    const op: QueueOp = name === "window_max" ? { op: "window_max", value: k } : NEEDS_VALUE.has(name) ? ({ op: name, value: v as number } as QueueOp) : ({ op: name } as QueueOp);
     const r = runQueueOp(model, op, { predict });
     setScript(r.script);
     setModel(r.queue);
@@ -171,9 +175,18 @@ export default function QueueSandbox({ spec }: { spec: SandboxSpec }) {
         {has("window_max") && (
           <div className="flex flex-col gap-2">
             <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">The monotonic deque (a sliding window over your values)</span>
-            <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap" role="group" aria-label="Sliding window demo">
+            <div className="flex flex-wrap items-end gap-3" role="group" aria-label="Sliding window demo">
+              <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
+                Window size
+                <input
+                  value={winK}
+                  onChange={(e) => setWinK(e.target.value)}
+                  inputMode="numeric"
+                  className="min-h-11 w-24 border border-line-strong bg-surface px-3 font-mono text-[16px] font-normal text-fg focus:border-signal focus:outline-none"
+                />
+              </label>
               <button type="button" onClick={() => run("window_max")} className={btn}>
-                Maximum of every window of {num(value) ?? "?"}
+                Maximum of every window of {Number.isInteger(Number(winK)) && winK.trim() !== "" ? winK.trim() : "?"}
               </button>
             </div>
           </div>
