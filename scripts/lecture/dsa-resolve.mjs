@@ -13,7 +13,7 @@
 import fs from "fs";
 import path from "path";
 import matter from "gray-matter";
-import { lectureRefs, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution } from "../../src/lib/dsa/lecture.ts";
+import { clipRefs, lectureRefs, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution } from "../../src/lib/dsa/lecture.ts";
 
 const [repo, id, out] = process.argv.slice(2);
 if (!repo || !id || !out || !/^(?:clips\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+|solution\/[a-z0-9-]+|[a-z0-9-]+\/[a-z0-9-]+(?:\/[a-z0-9-]+)?)$/.test(id)) {
@@ -80,12 +80,14 @@ if (id.startsWith("clips/")) {
   const lsrc = lraw ? sourcesOf(lraw) : { traces: {}, races: {}, missing: [] };
   const lec = lraw ? resolveDsaLecture(lraw, { lessonMd: lmd, traces: lsrc.traces, races: lsrc.races, cast: cast0 }) : null;
   const title = (lmd && matter(lmd, {}).data.title) || lesson;
-  const c = resolveDsaClip(clip, lec, { module: cmod, concept: lesson, title });
+  // an inline scene's traces/races come from the clip file (all of the lesson's clips, like the site's loader)
+  const cs = sourcesOf({ scenes: [...clipRefs(clips).traces.map((t) => ({ kind: "trace", trace: t })), ...clipRefs(clips).races.map((r) => ({ kind: "race", race: r }))] });
+  const c = resolveDsaClip(clip, lec, { module: cmod, concept: lesson, title }, { lessonMd: lmd, traces: cs.traces, races: cs.races, cast: cast0 });
   if (!c) {
     console.error(`clip ${clipId}: scene ${clip.scene} is not in the lesson's lecture`);
     process.exit(1);
   }
-  write(c, lsrc.missing);
+  write(c, [...lsrc.missing, ...cs.missing]);
   process.exit(0);
 }
 const [mod, concept, short] = id.split("/");

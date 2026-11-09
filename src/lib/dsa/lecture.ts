@@ -168,6 +168,12 @@ export function resolveDsaShort(
 
 /* ------------------------------------------------------------------ in-article clips and solution videos */
 
+/** The trace and race ids a lesson's inline clip scenes point at (what to read before resolving them). */
+export function clipRefs(raw: RawClips): { traces: string[]; races: string[] } {
+  const scenes = (raw.clips || []).flatMap((c) => (typeof c.scene === "string" ? [] : [c.scene]));
+  return lectureRefs({ scenes } as unknown as RawDsaLecture);
+}
+
 /** A clip's media id: lectures/dsa--clips--<lesson>--<clip>/ on the media host. */
 export const clipQuest = (lesson: string, id: string) => `dsa--clips--${lesson}--${id}`;
 /** A problem's solution video's media id: lectures/dsa--solution--<problem>/. */
@@ -211,14 +217,23 @@ export type RawClips = { clips?: RawClip[] };
  * `lecture` is the lesson's lecture, already resolved, so a borrowed trace or code scene carries its data. Returns null
  * when the borrowed scene is missing. Shared with scripts/lecture/dsa-resolve.mjs: the media hash depends on it.
  */
-export function resolveDsaClip(clip: RawClip, lecture: Lecture | null, lesson: { module: string; concept: string; title: string }): Lecture | null {
+export function resolveDsaClip(
+  clip: RawClip,
+  lecture: Lecture | null,
+  lesson: { module: string; concept: string; title: string },
+  /** what an inline scene points at (its lesson's templates, traces, races, the cast), as for a lecture */
+  src?: { lessonMd: string | null; traces: Record<string, RawTrace | null>; races: Record<string, RawRace | null>; cast: Record<string, { name: string; role: string }> },
+): Lecture | null {
   let base: LectureScene;
   if (typeof clip.scene === "string") {
     const found = lecture?.scenes.find((s) => s.id === clip.scene);
     if (!found) return null;
     base = found;
   } else {
-    base = { id: clip.scene.id || clip.id, steps: [], ...clip.scene } as LectureScene;
+    const inline = { id: clip.scene.id || clip.id, steps: [], ...clip.scene } as LectureScene;
+    // an inline scene gets its trace, race, code and person data inlined like a lecture's scene, and the heading as its title
+    const [resolved] = src ? resolveDsaLecture({ v: 2, quest: "", title: "", summary: "", scenes: [inline] } as unknown as RawDsaLecture, src).scenes : [inline];
+    base = { ...resolved, title: resolved.title || (resolved as { heading?: string }).heading || clip.caption } as LectureScene;
   }
   const { beat: _beat, steps: srcSteps, ...rest } = base as LectureScene & { beat?: string };
   void _beat;
