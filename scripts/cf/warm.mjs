@@ -17,7 +17,9 @@ const extras = ["/api/search/index/a", "/api/search/index/b", "/api/search/index
   // slow to render cold (podcast apps time out on a 39 s feed), so never left for the first visitor
   // builds the search Worker's engine (its Durable Object starts empty after a deploy) before Ask AI needs it
   `/api/search/smart?q=warm-${Date.now()}`,
-  "/podcast.xml", "/papers/index.json", "/revise/anki.txt", "/llms.txt", "/shorts", "/api/offline/catalog", "/api/learn/leaderboard", "/api/learn/daily"];
+  "/podcast.xml", "/papers/index.json", "/revise/anki.txt", "/llms.txt", "/shorts", "/api/offline/catalog", "/api/learn/leaderboard", "/api/learn/daily",
+  // DSA Mastery's hub pages (staging: the full course; production before launch: redirects to the coming-soon page)
+  "/dsa/problems", "/dsa/lectures", "/dsa/cheatsheets", "/dsa/shorts", "/dsa/ask"];
 const paths = [...extras, ...(mode === "all" ? sitemap : sitemap.filter(lean))];
 // lessons first: they're what the release expired and what most visitors open
 // the search index routes first (the search engine is built from them), then lessons
