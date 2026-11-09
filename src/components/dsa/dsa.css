@@ -260,8 +260,9 @@
   body:has(.dsa-cheat) * {
     visibility: hidden !important;
   }
-  .dsa-cheat,
-  .dsa-cheat * {
+  /* (more specific than the rule above, which is !important too) */
+  body:has(.dsa-cheat) .dsa-cheat,
+  body:has(.dsa-cheat) .dsa-cheat * {
     visibility: visible !important;
   }
   .dsa-cheat {
@@ -312,6 +313,16 @@
   .dsa-cheat pre {
     background: #fafaf7 !important;
     white-space: pre-wrap !important;
+    overflow: visible !important;
+  }
+  /* long comment lines wrap on paper instead of running off the page */
+  .dsa-cheat .course-content .sd-code-pre code {
+    min-width: 0 !important;
+  }
+  .dsa-cheat .course-content .sd-code-pre .line {
+    max-width: 100%;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
   }
   .dsa-cheat .dsa-cheat-grid {
     grid-template-columns: minmax(0, 1fr) !important;
