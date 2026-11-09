@@ -16,8 +16,8 @@
  * read-aloud buttons ([data-lift="case"], globals.css), and anything marked [data-dock-avoid] under it (the course
  * chat's message box on /chat) lifts it clear: useClearOf.
  *
- * On DSA Mastery pages (/dsa/…) the button and the panel are DSA Mastery's tutor (ChatPanel course="dsa"): not on
- * /dsa/ask (the chat is the page) or in a problem room (its own Tutor tab).
+ * On DSA Mastery pages (/dsa/…, once NEXT_PUBLIC_DSA_MODE is full) the button and the panel are DSA Mastery's tutor
+ * (ChatPanel course="dsa"): not on /dsa/ask (the chat is the page) or in a problem room (its own Tutor tab).
  */
 import dynamic from "next/dynamic";
 import { useCoursePathname } from "@/components/site/SiteMode";
@@ -29,7 +29,7 @@ import { INK_EVENTS } from "@/lib/learn/ink/types";
 import { COURSE_CHAT_EVENT, openCourseChat, TUTOR_OPEN_EVENT, type OpenChatDetail } from "./openChat";
 import { holdContext } from "./pageContext";
 import { isLessonPath } from "@/lib/learn/paths";
-import { isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
+import { DSA_FULL, isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
 
 const ChatPanel = dynamic(() => import("./ChatPanel"), { ssr: false });
 
@@ -125,7 +125,8 @@ export default function ChatDock({ companion }: { companion?: React.ReactNode })
     if (open && typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) setOpen(false);
   }
 
-  const dsa = isDsaPath(pathname);
+  // DSA Mastery's own tutor once DSA is on (staging); before launch the coming-soon page keeps the course tutor
+  const dsa = DSA_FULL && isDsaPath(pathname);
   const onSearch = pathname.startsWith("/chat") || /^\/dsa\/ask(?:\/|$)/.test(pathname);
   // signed in: only when the chat is available to them; guests see it (the panel asks them to sign in)
   const available = !user || !!ai?.features[dsa ? "dsa-chat" : "course-chat"];
