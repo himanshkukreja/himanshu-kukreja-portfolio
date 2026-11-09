@@ -63,9 +63,14 @@ test("C++ type mapping and driver for (int[], int) -> int[]", () => {
 });
 
 test("C++ drivers for the other required signatures", () => {
-  const sum = generateDriver("cpp", parseSignature(SIGS.sumArray), "").files["main.cpp"];
+  // LeetCode style: a class Solution is called through an instance
+  const sum = generateDriver("cpp", parseSignature(SIGS.sumArray), "class Solution { public: int arraySum(vector<int>& a) { return 0; } };").files["main.cpp"];
   assert.match(sum, /int res_ = sol_\.arraySum\(a0\);/);
-  const pal = generateDriver("cpp", parseSignature(SIGS.palindrome), "").files["main.cpp"];
+  // the course's style: a plain function is called directly (a Solution-only driver failed every such submission)
+  const plain = generateDriver("cpp", parseSignature(SIGS.sumArray), "int arraySum(const vector<int>& a) { return 0; }").files["main.cpp"];
+  assert.match(plain, /int res_ = arraySum\(a0\);/);
+  assert.doesNotMatch(plain, /Solution sol_/);
+  const pal = generateDriver("cpp", parseSignature(SIGS.palindrome), "struct Solution { bool isPalindrome(string s) { return true; } };").files["main.cpp"];
   assert.match(pal, /string a0 = judge_rt::Read<string>::go\(r_\);/);
   assert.match(pal, /bool res_ = sol_\.isPalindrome\(a0\);/);
   const isl = generateDriver("cpp", parseSignature(SIGS.islands), "").files["main.cpp"];

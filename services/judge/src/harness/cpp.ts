@@ -1,6 +1,7 @@
 // C++ driver generator. The learner writes LeetCode-style code:
 //
 //   class Solution { public: long long busiestStretch(vector<int>& plays, int k) { ... } };
+//   or a plain function: long long busiestStretch(const vector<int>& plays, int k) { ... }
 //
 // We emit ONE translation unit: prelude (includes, node structs, JSON reader and
 // writer) + `#line 1 "solution.cpp"` + learner code + driver main. The #line
@@ -244,6 +245,10 @@ export function generateCpp(sig: ParsedSignature, learnerCode: string): Generate
   const args = sig.params.map((_, i) => `a${i}`).join(", ");
   const method = camelCase(sig.fn);
   const ret = cppType(sig.returns);
+  // both styles: LeetCode's `class Solution { public: … }` and a plain function (the course's starters and reference
+  // solutions are plain functions; a Solution-only driver failed every C++ submission with "'Solution' was not declared")
+  const usesClass = /\b(?:class|struct)\s+Solution\b/.test(learnerCode);
+  const call = usesClass ? `    Solution sol_;\n    ${ret} res_ = sol_.${method}(${args});\n` : `    ${ret} res_ = ${method}(${args});\n`;
 
   const source =
     `#include <bits/stdc++.h>\n` +
@@ -260,8 +265,7 @@ export function generateCpp(sig: ParsedSignature, learnerCode: string): Generate
     `    r_.expect('[');\n` +
     reads +
     `    r_.expect(']');\n` +
-    `    Solution sol_;\n` +
-    `    ${ret} res_ = sol_.${method}(${args});\n` +
+    call +
     `    std::cout.flush();\n` +
     `    std::string out_;\n` +
     `    judge_rt::w(out_, res_);\n` +
