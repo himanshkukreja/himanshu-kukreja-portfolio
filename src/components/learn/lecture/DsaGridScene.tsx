@@ -3,7 +3,7 @@
 /**
  * DSA Mastery's `grid` scene: BFS or DFS on a grid, on the lecture stage (16:9, GridScene) and the vertical short
  * (9:16, PGrid). The scene names the grid (rows of `.#SG`) and the algorithm; each step shows the search after `upto`
- * cells were visited ("end" for the finished run, with its path; 0 or no algorithm for the bare grid). The frames come
+ * cells were visited ("end" for the finished run, with its path; 0 for the start; no algorithm, or no `visited`, for the bare grid). The frames come
  * from the site's own step engine (src/lib/dsa/viz/grid.ts), so the lecture and the lesson's player always agree.
  * Same rules as DsaScenes.tsx: motion is a function of `t` (seconds into the step), sizes in container units, the
  * accent is --lec-accent.
@@ -17,7 +17,7 @@ import { ACC, accA, INK } from "./DsaScenes";
 const W = "#f3f2ee";
 const MUTED = "#8a8a90";
 const BOX = "#141416";
-const WALL = "#3a3a42";
+const WALL = "#5c5c66";
 
 function useGridFrame(s: LectureScene, st: LectureStep): { state: GridState | null; cost: number; unit: string; note: string } {
   const script = useMemo(() => {
@@ -26,7 +26,7 @@ function useGridFrame(s: LectureScene, st: LectureStep): { state: GridState | nu
     return s.algorithm ? gridSearch(s.algorithm, g, { useGoal: s.grid?.some((r) => r.includes("G")) }) : null;
   }, [s.grid, s.algorithm]);
   const bare = useMemo(() => parseGrid(s.grid || []).grid, [s.grid]);
-  if (!script || st.visited === 0 || st.visited === undefined) return { state: bare ? { ...bare, search: null } : null, cost: 0, unit: "cells visited", note: "" };
+  if (!script || st.visited === undefined) return { state: bare ? { ...bare, search: null } : null, cost: 0, unit: "cells visited", note: "" };
   const f = script.frames[frameAtVisited(script, st.visited)];
   return { state: f.state, cost: f.cost, unit: script.costUnit, note: f.note };
 }

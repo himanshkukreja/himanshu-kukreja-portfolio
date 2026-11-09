@@ -35,7 +35,7 @@ export type LectureStep = {
   prev?: (number | null)[];
   labels?: Record<string, number | null>;
   cost?: number;
-  /** DSA grid scenes (BFS/DFS): the search after this many cells were visited ("end": the finished run; 0: the bare grid) */
+  /** DSA grid scenes (BFS/DFS): the search after this many cells were visited ("end": the finished run; 0: the start; unset: the bare grid) */
   visited?: number | "end";
 };
 export type SceneKind =

@@ -49,7 +49,7 @@ function ChainSvg({ s, st, prevSt, t, first, maxW, big = false }: { s: LectureSc
   const NW = VAL + SLOT + (doubly ? SLOT : 0);
   const NH = big ? 76 : 56;
   const GAP = big ? 36 : 52;
-  const PAD = big ? 44 : 70;
+  const PAD = big ? 86 : 70;
   const FS = big ? 40 : 28;
   const LFS = big ? 21 : 15;
   const LH = big ? 32 : 25;
@@ -109,7 +109,7 @@ function ChainSvg({ s, st, prevSt, t, first, maxW, big = false }: { s: LectureSc
   };
   const labelPos = (c: Chain, k: string, x: (id: number) => number) => {
     const id = c.labels[k];
-    if (id === null || id === undefined || !c.order.includes(id)) return k === "prev" ? PAD - 46 : PAD + c.order.length * (NW + GAP) - GAP * 0.4;
+    if (id === null || id === undefined || !c.order.includes(id)) return k === "prev" ? PAD - (big ? 44 : 46) : PAD + c.order.length * (NW + GAP) - GAP * 0.4;
     return x(id) + NW / 2;
   };
   const labels = ORDER.filter((k) => k in now.labels);
