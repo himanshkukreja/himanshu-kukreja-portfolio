@@ -41,6 +41,8 @@ export type LectureStep = {
   lift?: number | null;
   ret?: Record<string, string>;
   out?: string;
+  /** DSA stack scenes: the array's cells from this step on (it grew), overriding the scene's capacity */
+  capacity?: number;
 };
 export type SceneKind =
   | "title"

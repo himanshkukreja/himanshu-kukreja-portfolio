@@ -112,8 +112,8 @@ for (const s of L.scenes || []) {
     if (s.kind === "trace" && s.traceData && !(Number.isInteger(st.frame) && st.frame >= 0 && st.frame < s.traceData.frames.length)) errs.push(`${s.id}#${k}: frame ${st.frame} outside trace ${s.trace} (0..${s.traceData.frames.length - 1})`);
     if (s.kind === "trace" && s.traceData && /\bpredict\b/i.test(st.say || "") && !s.traceData.frames[st.frame]?.ask) warns.push(`${s.id}#${k}: says "predict" but frame ${st.frame} asks nothing, so no value is hidden`);
     if (s.kind === "code" && s.code) for (const m of st.markers || []) if (!(m >= 1 && m <= s.code.lines.length && s.code.lines[m - 1].length)) errs.push(`${s.id}#${k}: marker ${m} not in template ${s.template} (1..${s.code.lines.length})`);
-    if ((st.window || st.pointers || (st.mark && s.kind !== "chain")) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
-    if ((st.order || st.next || st.labels) && s.kind !== "chain") warns.push(`${s.id}#${k}: order/next/labels only apply to chain scenes`);
+    if ((st.window || st.pointers || (st.mark && s.kind !== "chain" && s.kind !== "stack")) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
+    if ((st.order || st.next || st.labels) && s.kind !== "chain" && s.kind !== "stack") warns.push(`${s.id}#${k}: order/next/labels only apply to chain scenes`);
     if (st.markers && s.kind !== "code") warns.push(`${s.id}#${k}: markers only apply to code scenes`);
     if (st.reveal != null && (st.reveal < 0 || st.reveal > revealMax)) errs.push(`${s.id}#${k}: reveal ${st.reveal} outside 0..${revealMax}`);
     if (st.pause != null && !(st.pause >= 0 && st.pause <= 3)) errs.push(`${s.id}#${k}: pause must be 0-3 s`);

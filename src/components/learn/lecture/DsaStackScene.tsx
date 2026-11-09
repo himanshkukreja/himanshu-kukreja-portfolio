@@ -11,8 +11,8 @@
  *
  * The data model (dsa-mastery README, "Lectures and shorts"): scene `values` are the items by id, `mode`, `capacity`,
  * `addresses`, `costUnit`; every step sets `order` (the ids in the stack, bottom to top) and may set `lift` (an id above
- * the top), `ret` (calls: an id's returned value), `labels` ({ curr: id }), `mark` (lit ids), `out` (a result chip) and
- * `cost` (the running count).
+ * the top), `ret` (calls: an id's returned value), `labels` ({ curr: id }), `mark` (lit ids), `out` (a result chip),
+ * `capacity` (the array's cells from this step on, when it grows) and `cost` (the running count).
  */
 import type { LectureScene, LectureStep } from "@/lib/learn/lecture/types";
 import { clamp, easeInOut, lerp, prog } from "./anim";
@@ -30,7 +30,7 @@ const orderOf = (st: LectureStep | null): number[] => st?.order ?? [];
 /** The most rows any step of the scene needs, so the drawing never changes size between steps. */
 export function stackRows(s: LectureScene): number {
   let r = s.capacity ?? 0;
-  for (const st of s.steps) r = Math.max(r, orderOf(st).length + (st.lift !== undefined && st.lift !== null ? 1 : 0));
+  for (const st of s.steps) r = Math.max(r, st.capacity ?? 0, orderOf(st).length + (st.lift !== undefined && st.lift !== null ? 1 : 0));
   return Math.max(3, r);
 }
 
@@ -76,7 +76,7 @@ function StackSvg({ s, st, prevSt, t, first, big, style }: { s: LectureScene; st
   const shown = [...now, ...(liftNow !== null ? [liftNow] : [])];
   const mark = st.mark ?? [];
   const FS = (mode === "calls" ? 21 : 25) * k;
-  const cap = s.capacity ?? 0;
+  const cap = st.capacity ?? s.capacity ?? 0;
   const free: number[] = [];
   for (let n = now.length; n < cap; n++) free.push(n);
   const enter = (n: number) => (first ? prog(t, 0.05 + n * 0.07, 0.35) : 1);
