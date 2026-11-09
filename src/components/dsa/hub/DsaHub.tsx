@@ -3,10 +3,11 @@ import type { ConceptSummary, ProblemSummary, WorldSpec, WorldSummary } from "@/
 import DsaWorlds from "../map/DsaWorlds";
 import type { LectureRef } from "../map/Campus";
 import SolvedMark from "../problem/SolvedMark";
+import HubToday from "./HubToday";
 
 /**
- * The /dsa hub in full mode (staging): the world atlas row and the selected world's campus (Academy by default),
- * then what is built so far. Server-rendered from the content repo; progress paints in on the client (Campus,
+ * The /dsa hub in full mode (staging): the world atlas row and the selected world's campus (Academy by default), the
+ * "today" row (daily problem and streak, Revise, the certificate), then what is built so far. Server-rendered from the content repo; progress paints in on the client (Campus,
  * SolvedMark).
  */
 export default function DsaHub({
@@ -33,6 +34,8 @@ export default function DsaHub({
         ) : (
           <p className="m-0 border border-line bg-surface p-5 text-fg-2">The world map couldn&apos;t load just now. Please refresh in a minute.</p>
         )}
+
+        <HubToday academy={specs.academy ?? null} />
 
         <section aria-labelledby="built-h" className="grid gap-6 lg:grid-cols-2">
           <div className="flex flex-col gap-3">

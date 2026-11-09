@@ -26,6 +26,8 @@ export type Visibility = {
   scores: boolean;
   badges: boolean;
   milestones: boolean;
+  /** DSA Mastery: problems solved, languages, concepts, world, daily streak, certificate (shown once DSA is live) */
+  dsa: boolean;
 };
 
 export const DEFAULT_VISIBILITY: Visibility = {
@@ -37,9 +39,10 @@ export const DEFAULT_VISIBILITY: Visibility = {
   scores: true,
   badges: true,
   milestones: true,
+  dsa: true,
 };
 
-export const VISIBILITY_KEYS = ["progress", "tree", "streak", "scores", "badges", "milestones"] as const;
+export const VISIBILITY_KEYS = ["progress", "tree", "streak", "scores", "badges", "milestones", "dsa"] as const;
 export type VisibilityKey = (typeof VISIBILITY_KEYS)[number];
 
 export function cleanVisibility(v: unknown): Visibility {
@@ -122,9 +125,24 @@ export type PublicProfile = {
   } | null;
   badges: { id: string; name: string; how: string }[] | null;
   milestones: Milestone[] | null;
+  /** DSA Mastery's section (null: hidden, DSA not live, or no DSA activity yet) */
+  dsa?: DsaProfile | null;
   /** achievement ids that have a share page (/u/<handle>/a/<id>) */
   achievements: string[];
   updatedAt: number;
+};
+
+/** The DSA Mastery section of a public profile: recorded data only (src/lib/dsa/profile.ts). */
+export type DsaProfile = {
+  solved: { easy: number; medium: number; hard: number; total: number };
+  /** the released bank, per level (the rings' "of") */
+  bank: { easy: number; medium: number; hard: number };
+  /** language labels with at least one Accepted solve, most used first */
+  languages: string[];
+  concepts: { done: number; total: number };
+  world: { title: string; building: string | null; pct: number; done: number; total: number };
+  daily: { current: number; best: number; days: number };
+  certificate: { code: string; issuedAt: string } | null;
 };
 
 /* ------------------------------------------------------------------ achievements */

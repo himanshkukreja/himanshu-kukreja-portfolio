@@ -570,7 +570,7 @@ export function fixtureStore(): DowStore {
       userIds.forEach((id) => {
         const p = PERSONAS.find((x) => x.id === id);
         out[id] = {
-          share: p?.handle ? { enabled: true, handle: p.handle, visibility: { name: p.nameMode, avatar: false, progress: true, tree: true, streak: true, scores: true, badges: true, milestones: true }, updatedAt: null } : null,
+          share: p?.handle ? { enabled: true, handle: p.handle, visibility: { name: p.nameMode, avatar: false, progress: true, tree: true, streak: true, scores: true, badges: true, milestones: true, dsa: true }, updatedAt: null } : null,
           fullName: p?.name ?? null,
           avatarUrl: null,
         };

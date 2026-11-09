@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Code2, Map as MapIcon, Sparkles, User, type LucideIcon } from "lucide-react";
+import { Check, ChevronsUpDown, Code2, Layers, Map as MapIcon, Sparkles, User, type LucideIcon } from "lucide-react";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
@@ -29,7 +29,7 @@ type Tab = {
   icon: LucideIcon | "sdm";
   primary?: boolean;
   /** where it shows: desktop tab row, phone dock, or both */
-  where: "both" | "dock";
+  where: "both" | "dock" | "desk";
 };
 
 /**
@@ -45,6 +45,8 @@ function tabs(p: string): Tab[] {
   return [
     { id: "map", href: DSA_HOME, label: "world map", short: "map", on: p === DSA_HOME || p === `${DSA_HOME}/` || p.startsWith(`${DSA_HOME}/concepts/`), icon: MapIcon, where: "both" },
     { id: "problems", href: `${DSA_HOME}/problems`, label: "problems", short: "problems", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
+    // desktop only (the phone dock keeps five tabs; the hub's Revise card links it there)
+    { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk" },
     ask,
     you,
     sdm,
@@ -143,7 +145,7 @@ export function DsaTabs({ pathname }: { pathname: string }) {
   return (
     <nav aria-label="DSA Mastery" className="hidden items-center font-mono text-[13px] lg:flex">
       {tabs(pathname)
-        .filter((t) => t.where === "both")
+        .filter((t) => t.where !== "dock")
         .map((t) =>
           t.href ? (
             <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={tabClass(t.on)}>
@@ -169,7 +171,7 @@ export function DsaTabs({ pathname }: { pathname: string }) {
  * 10 px below it; "problems" is the longest and fits a fifth of 320 px.
  */
 export function DsaDock({ pathname, className }: { pathname: string; className: string }) {
-  const list = tabs(pathname);
+  const list = tabs(pathname).filter((t) => t.where !== "desk");
   const cols = list.length === 5 ? "grid-cols-5" : "grid-cols-4";
   const item = (on: boolean) =>
     `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap font-mono text-[10.5px] leading-none max-[359px]:text-[10px] max-[359px]:tracking-[-0.03em] ${on ? "text-fg" : "text-fg-3"}`;

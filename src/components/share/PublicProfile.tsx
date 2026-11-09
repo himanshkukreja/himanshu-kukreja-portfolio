@@ -12,6 +12,7 @@ import { COURSE_NAME, withRef, type PublicProfile as Profile } from "@/lib/share
 import PublicTree from "./PublicTree";
 import OwnerBar from "./OwnerBar";
 import RefCapture from "./RefCapture";
+import PublicDsa from "./PublicDsa";
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 
@@ -87,7 +88,8 @@ export function StartCta({ handle, who, compact = false }: { handle: string; who
   );
 }
 
-export default function PublicProfile({ p, map }: { p: Profile; map: CourseMap }) {
+/** `preview`: the owner's own preview of an unpublished page (/dashboard/preview): no referral capture, no owner bar. */
+export default function PublicProfile({ p, map, preview = false }: { p: Profile; map: CourseMap; preview?: boolean }) {
   const who = p.name ? p.name.split(" ")[0] : `@${p.handle}`;
   const lv = p.level;
   const c = p.course;
@@ -97,8 +99,22 @@ export default function PublicProfile({ p, map }: { p: Profile; map: CourseMap }
 
   return (
     <main className="mx-auto flex max-w-[1180px] flex-col gap-12 px-4 pb-28 pt-8 sm:px-6 sm:pt-12 lg:gap-16">
-      <RefCapture handle={p.handle} />
-      <OwnerBar handle={p.handle} />
+      {preview ? (
+        <div role="note" className="flex flex-wrap items-center justify-between gap-3 border border-dashed border-signal bg-surface px-4 py-3">
+          <span className="text-[14px] text-fg-2">
+            <span className="mr-2 font-mono text-[11px] uppercase tracking-label text-signal-text">preview · not public</span>
+            What visitors would see at /u/{p.handle} with your current settings.
+          </span>
+          <Link href="/dashboard#share" className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-[12px] text-fg hover:bg-surface-2">
+            Back to sharing settings
+          </Link>
+        </div>
+      ) : (
+        <>
+          <RefCapture handle={p.handle} />
+          <OwnerBar handle={p.handle} />
+        </>
+      )}
 
       {/* hero */}
       <section aria-labelledby="who-h" className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_400px] lg:gap-8">
@@ -233,6 +249,8 @@ export default function PublicProfile({ p, map }: { p: Profile; map: CourseMap }
           </Link>
         </section>
       )}
+
+      {p.dsa && <PublicDsa d={p.dsa} handle={p.handle} who={who} n={num()} />}
 
       {(p.badges || p.milestones) && (
         <div className="grid gap-10 lg:grid-cols-2 lg:gap-6">

@@ -15,6 +15,7 @@ import { DEFAULT_VISIBILITY, profilePath, type NameMode, type Visibility, type V
 import { checkHandle, saveShare, useShare } from "@/components/share/useShare";
 import ShareButton from "@/components/share/ShareButton";
 import { Bar, Label, SectionHead } from "./ui";
+import { DSA_FULL } from "@/lib/dsa/flags";
 
 const TOGGLES: { key: VisibilityKey; label: string; hint: string }[] = [
   { key: "progress", label: "Level & course progress", hint: "level, XP, course %, lessons, world map" },
@@ -23,6 +24,8 @@ const TOGGLES: { key: VisibilityKey; label: string; hint: string }[] = [
   { key: "scores", label: "Arena scores", hint: "league, rank, weekly points, best daily, daily streak" },
   { key: "badges", label: "Badges", hint: "badges you've earned" },
   { key: "milestones", label: "Milestones", hint: "worlds cleared, bosses beaten, recent wins" },
+  // DSA Mastery's section shows once DSA is live (staging until launch)
+  ...(DSA_FULL ? [{ key: "dsa" as const, label: "DSA Mastery", hint: "problems solved, languages, concepts, world, daily streak, certificate" }] : []),
 ];
 
 const NAME_MODES: { v: NameMode; label: string }[] = [
@@ -294,7 +297,17 @@ export default function ShareProgress() {
               </Link>
             </div>
           ) : (
-            <span className="text-[13px] text-fg-3">Publish to get a link you can send on WhatsApp, LinkedIn or X — with a preview card of your run.</span>
+            <span className="text-[13px] text-fg-3">
+              Publish to get a link you can send on WhatsApp, LinkedIn or X — with a preview card of your run.
+              {DSA_FULL && settings ? (
+                <>
+                  {" "}
+                  <Link href="/dashboard/preview" className="text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">
+                    See the full page as visitors would
+                  </Link>
+                </>
+              ) : null}
+            </span>
           )}
         </div>
       </div>

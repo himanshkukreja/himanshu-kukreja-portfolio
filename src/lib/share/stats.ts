@@ -27,6 +27,8 @@ import { fixtureRaw } from "./fixtures";
 import { designWeekDone } from "@/lib/design-week/wins";
 import type { Milestone, ProfileWeek, PublicProfile, ShareSummary, TreeLesson, Visibility } from "./model";
 import { DEFAULT_VISIBILITY } from "./model";
+import { DSA_FULL } from "@/lib/dsa/flags";
+import { dsaProfileFor } from "@/lib/dsa/profile";
 
 /* ------------------------------------------------------------------ raw data */
 
@@ -426,13 +428,23 @@ export function summaryOf(d: Derived, raw: Raw): ShareSummary {
 
 export const shareTag = (handle: string) => `share:${handle}`;
 
+/** DSA Mastery's section, once DSA is live (staging until launch) and when the learner shows it; never fails the page. */
+async function withDsa(p: PublicProfile, userId: string, raw: Raw, v: Visibility): Promise<PublicProfile> {
+  if (!DSA_FULL || !v.dsa || shareFixtures()) return p;
+  const dsa = await dsaProfileFor(userId, raw.profile?.game_done ?? null).catch((e) => {
+    console.warn("[share] dsa section:", e instanceof Error ? e.message : e);
+    return null;
+  });
+  return { ...p, dsa };
+}
+
 async function buildPublic(handle: string): Promise<PublicProfile | null> {
   const owner = await settingsForHandle(handle);
   if (!owner || !owner.settings.enabled) return null;
   const map = await getCourseMap(COURSE_ID);
   if (!map) return null;
   const raw = await loadRaw(owner.userId, map);
-  return toPublic(handle, raw, derive(raw, map), map, owner.settings.visibility);
+  return withDsa(toPublic(handle, raw, derive(raw, map), map, owner.settings.visibility), owner.userId, raw, owner.settings.visibility);
 }
 
 /**
@@ -457,6 +469,6 @@ export async function previewProfile(userId: string, handle: string, v: Visibili
   const map = await getCourseMap(COURSE_ID);
   if (!map) return null;
   const raw = await loadRaw(userId, map);
-  return toPublic(handle, raw, derive(raw, map), map, v);
+  return withDsa(toPublic(handle, raw, derive(raw, map), map, v), userId, raw, v);
 }
 
