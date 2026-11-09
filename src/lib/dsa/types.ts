@@ -182,7 +182,7 @@ export type ProblemPage = {
 
 /* ------------------------------------------------------------------ XP (plan §4.5) */
 
-export const DSA_XP = { concept: 60, stage: 10, easy: 20, medium: 40, hard: 80, checkpointQuiz: 10, trace: 5, gate: 50, boss: 200, world: 500 } as const;
+export const DSA_XP = { concept: 60, stage: 10, easy: 20, medium: 40, hard: 80, checkpointQuiz: 10, trace: 5, gate: 50, boss: 200, world: 500, daily: 15 } as const;
 
 export const problemXp = (level: DsaLevel) => DSA_XP[level] ?? DSA_XP.medium;
 
@@ -208,6 +208,7 @@ export function dsaXpOfKey(key: string): number {
   if (key.startsWith("dsa:gate:")) return DSA_XP.gate;
   if (key.startsWith("dsa:boss:")) return DSA_XP.boss;
   if (key.startsWith("dsa:world:")) return DSA_XP.world;
+  if (key.startsWith("dsa:daily:")) return DSA_XP.daily;
   return 0;
 }
 

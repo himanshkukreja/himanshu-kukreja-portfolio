@@ -33,6 +33,7 @@ import DsaHydrator from "../concept/DsaHydrator";
 import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
 import ProblemTutor, { type TutorRequest } from "./ProblemTutor";
+import { useDailySolve, useIsDaily } from "../daily/useDsaDaily";
 import { NotebookPen, Sparkles } from "lucide-react";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 
@@ -152,6 +153,8 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
   const [lang, setLang] = useLang();
   const progress = useDsaProgress();
   const recordSolve = useRecordSolve();
+  const dailySolve = useDailySolve();
+  const isDaily = useIsDaily(p.id);
   const solved = progress.solved.has(p.id);
   const editor = useRef<CodeEditorHandle | null>(null);
   const codeKey = (l: DsaLang) => `dsa.code.${p.id}.${l}`;
@@ -280,7 +283,10 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
       // the editorial opened before solving: the solve still counts on the map, without XP
       const xp = seenEarly ? 0 : problemXp(p.level);
       await recordSolve({ id: p.id, title: p.title, level: p.level, lang, hintsUsed: hints, editorialSeen: seenEarly });
-      setNotice(seenEarly ? "Accepted. The solve is recorded; no XP because the editorial was opened first." : `Accepted. +${xp} XP, and the editorial is open.`);
+      // today's daily problem: the day counts toward the DSA daily streak (any Accepted submit that day)
+      const daily = await dailySolve(p.id);
+      const dailyNote = daily ? ` Daily problem #${daily} done: your daily streak is safe today.` : "";
+      setNotice((seenEarly ? "Accepted. The solve is recorded; no XP because the editorial was opened first." : `Accepted. +${xp} XP, and the editorial is open.`) + dailyNote);
     } else {
       const n = fails + 1;
       setFails(n);
@@ -336,6 +342,11 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
           <h1 className="m-0 flex flex-wrap items-center gap-3 font-display text-[30px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[38px]">
             {p.title}
             {solved && <span className="border-2 border-ok px-2 py-0.5 font-mono text-[12px] font-semibold uppercase tracking-label text-ok-text">✓ Solved</span>}
+            {isDaily.daily && (
+              <Link href="/dsa/daily" className="border-2 border-signal px-2 py-0.5 font-mono text-[12px] font-semibold uppercase tracking-label text-signal-text hover:bg-surface-2">
+                Daily #{isDaily.number}
+              </Link>
+            )}
           </h1>
           <p className="m-0 flex flex-wrap gap-x-4 gap-y-1 text-[14px] text-fg-2">
             <Link href={`/dsa/concepts/${p.concept}`} className="text-signal-text underline decoration-line-strong underline-offset-4">
