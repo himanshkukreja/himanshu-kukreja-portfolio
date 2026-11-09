@@ -30,6 +30,8 @@ type Tab = {
   primary?: boolean;
   /** where it shows: desktop tab row, phone dock, or both */
   where: "both" | "dock" | "desk";
+  /** desktop tabs that only fit from xl (1280 px) up; between lg and xl the hub links them */
+  wide?: boolean;
 };
 
 /**
@@ -46,8 +48,8 @@ function tabs(p: string): Tab[] {
     { id: "problems", href: `${DSA_HOME}/problems`, label: "problems", short: "problems", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
     // desktop only: the phone dock has no free slot (the hub and the concept pages link them there)
     { id: "lectures", href: `${DSA_HOME}/lectures`, label: "lectures", short: "lectures", on: p.startsWith(`${DSA_HOME}/lectures`) || /^\/dsa\/concepts\/[^/]+\/lecture/.test(p), icon: Play, where: "desk" },
-    { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk" },
-    { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk" },
+    { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", wide: true },
+    { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", wide: true },
     ask,
     you,
     sdm,
@@ -149,7 +151,7 @@ export function DsaTabs({ pathname }: { pathname: string }) {
         .filter((t) => t.where === "both" || t.where === "desk")
         .map((t) =>
           t.href ? (
-            <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={tabClass(t.on)}>
+            <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={`${tabClass(t.on)}${t.wide ? " max-xl:!hidden" : ""}`}>
               {t.label}
               <TabPending />
             </Link>
