@@ -6,6 +6,7 @@ import { listDsaLectures } from "@/lib/dsa/media";
 import { lectureMediaBase } from "@/lib/learn/lecture/load";
 import LectureGrid from "@/components/learn/lecture/LectureGrid";
 import DsaCrumbs from "@/components/dsa/DsaCrumbs";
+import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
 
 // /dsa/lectures: every DSA concept lecture in course order (module by module), on SD Mastery's playlist grid: watched
 // state from the same lec:<quest> flags the player writes, posters and lengths from the published media. Staging only.
@@ -45,6 +46,7 @@ export default async function DsaLecturesPage() {
               the templates on one page →
             </Link>
           </div>
+          <SaveGroupButton group="dsa-lectures" label="Save every lecture offline" className="self-start" />
         </header>
         {lectures.length ? <LectureGrid lectures={lectures} mediaBase={lectureMediaBase()} /> : <p className="m-0 text-fg-3">The first lectures are on their way.</p>}
       </main>

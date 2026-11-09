@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getProblem } from "@/lib/dsa/load";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import ProblemRoom from "@/components/dsa/problem/ProblemRoom";
 
 // A DSA Mastery problem (/dsa/problems/<id>): the statement and hints from the content repo, cached (ISR, refreshed on
@@ -32,6 +33,10 @@ export default async function ProblemPage({ params }: Props) {
   return (
     <div className="dsa-theme">
       <main>
+        {/* save for offline: the statement, visible tests and hints, with the Python runtime so Run works offline */}
+        <div className="mx-auto flex max-w-[1440px] justify-end px-4 pt-4 sm:px-6">
+          <SaveOfflineButton title={p.title} kind="dsa-problem" />
+        </div>
         <ProblemRoom p={p} />
       </main>
     </div>

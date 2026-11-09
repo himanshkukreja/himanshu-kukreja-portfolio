@@ -1,6 +1,6 @@
 "use client";
 
-import { loadAnimPlayer, loadBossMode, loadCourseEnhancer, loadDiagramIcons, loadExplainer, loadMermaid } from "./lazy";
+import { loadAnimPlayer, loadBossMode, loadCourseEnhancer, loadDiagramIcons, loadExplainer, loadMermaid, loadRaceChart, loadTracePlayer } from "./lazy";
 
 /**
  * Fetches the reader's on-demand chunks before a page is saved, so they are in the browser's
@@ -58,6 +58,12 @@ function warmAnims(names: string[]): Promise<unknown> {
 /** `docs`: the HTML of the documents being saved (their `::anim` explainers get fetched too). */
 export function warmReader(docs: string[] = []): Promise<void> {
   warming ??= Promise.allSettled([loadCourseEnhancer(), loadBossMode(), loadDiagramIcons(), warmMermaid()]).then(() => undefined);
-  const anims = animNames(docs.join("\n"));
-  return anims.length ? Promise.all([warming, warmAnims(anims)]).then(() => undefined) : warming;
+  const all = docs.join("\n");
+  const anims = animNames(all);
+  // DSA Mastery concept pages: the trace player and race chart chunks their widgets load
+  const dsa = /\bdata-dsa="(?:trace|handsolve)"/.test(all) || /\bdata-dsa="race"/.test(all) ? Promise.allSettled([loadTracePlayer(), loadRaceChart()]) : null;
+  const jobs: Promise<unknown>[] = [warming];
+  if (anims.length) jobs.push(warmAnims(anims));
+  if (dsa) jobs.push(dsa);
+  return jobs.length > 1 ? Promise.all(jobs).then(() => undefined) : warming;
 }

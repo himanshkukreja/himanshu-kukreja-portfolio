@@ -6,7 +6,7 @@
  */
 import type { Catalog, OfflineKind } from "./types";
 
-export type SectionId = "course" | "lectures" | "sidequests" | "problems" | "lld" | "mocks" | "cases" | "war" | "revision" | "labs" | "tools";
+export type SectionId = "course" | "lectures" | "sidequests" | "problems" | "lld" | "mocks" | "cases" | "war" | "revision" | "labs" | "tools" | "dsa";
 
 export type Section = {
   id: SectionId;
@@ -29,7 +29,14 @@ export const SECTIONS: Section[] = [
   { id: "revision", title: "Revision & cheat sheets", blurb: "Interview-night decks and one-page cheat sheets, per world.", unit: ["deck", "decks"] },
   { id: "labs", title: "Code labs", blurb: "Runnable Python labs. The first one also stores the Python runtime (~13.5 MB, once).", unit: ["lab", "labs"] },
   { id: "tools", title: "Tools", blurb: "Planner, numbers playground, concept map, reading trail and the prep hubs.", unit: ["tool", "tools"] },
+  { id: "dsa", title: "DSA Mastery", blurb: "Concept lessons, problems (Python and JavaScript run offline), cheat sheets and lectures.", unit: ["page", "pages"] },
 ];
+
+/** A DSA Mastery page (/dsa/…): its own section, whatever its kind. */
+const isDsaUrl = (url: string) => {
+  const s = segs(url);
+  return s[0] === "dsa" || (s[0] === "learn" && s[1] === "dsa");
+};
 
 export const SECTION_BY_ID = new Map(SECTIONS.map((s) => [s.id, s]));
 
@@ -68,6 +75,7 @@ export function kindFromUrl(url: string): OfflineKind | null {
 
 /** Which library section a page belongs to. */
 export function sectionOf(x: { kind: OfflineKind | string; url: string }): SectionId {
+  if (isDsaUrl(x.url) || x.kind === "dsa-concept" || x.kind === "dsa-problem") return "dsa";
   const k = kindFromUrl(x.url) ?? x.kind;
   switch (k) {
     case "lecture":
@@ -136,6 +144,8 @@ export function defaultGroupOf(kind: OfflineKind | string, url: string): { group
       return { group: "war-stories", groupTitle: "War stories" };
     case "lectures":
       return { group: "lectures", groupTitle: "Video lectures" };
+    case "dsa":
+      return kind === "dsa-problem" ? { group: "dsa-problems", groupTitle: "DSA problems" } : kind === "lecture" ? { group: "dsa-lectures", groupTitle: "DSA lectures" } : kind === "cheatsheet" ? { group: "dsa-cheatsheets", groupTitle: "DSA cheat sheets" } : { group: "dsa-concepts", groupTitle: "DSA concepts" };
     default:
       return { group: "course", groupTitle: "Course map" };
   }
@@ -176,6 +186,10 @@ export function kindLabel(kind: OfflineKind | string): string {
       return "Code lab";
     case "tool":
       return "Tool";
+    case "dsa-concept":
+      return "Concept";
+    case "dsa-problem":
+      return "Problem";
     default:
       return "Lesson";
   }

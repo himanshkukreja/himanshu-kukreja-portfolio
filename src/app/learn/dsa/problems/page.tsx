@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConceptIndex, getProblemIndex } from "@/lib/dsa/load";
 import SolvedMark from "@/components/dsa/problem/SolvedMark";
+import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
 
 // /dsa/problems: every built problem, grouped by concept in ladder order, with the learner's solved ticks. Staging only.
 
@@ -27,6 +28,7 @@ export default async function ProblemsPage() {
           <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
             Original problems set at Kestrel, each tied to the concept it practises. Python and JavaScript run in your browser; Java and C++ run on the judge.
           </p>
+          <SaveGroupButton group="dsa-problems" label="Save every problem offline" className="self-start" />
         </header>
         {[...byConcept.entries()].map(([cid, list]) => {
           const c = concepts.find((x) => x.id === cid);

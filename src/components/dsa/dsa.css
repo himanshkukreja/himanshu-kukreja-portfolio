@@ -217,3 +217,109 @@
 .dsa-theme .lecture-entry-play {
   box-shadow: 0 0 28px rgba(20, 184, 166, 0.45);
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Pattern cheat sheets (/dsa/cheatsheets/<concept>, CheatsheetSheet.tsx): the templates show the chosen language
+   only (main[data-lang], the learner's dsa.lang), the lesson blocks sit tighter than in the reader, and printing
+   gives one light page of just the sheet.
+   --------------------------------------------------------------------------------------------- */
+.dsa-cheat[data-lang="python"] .dsa-pane:not([data-lang="python"]),
+.dsa-cheat[data-lang="java"] .dsa-pane:not([data-lang="java"]),
+.dsa-cheat[data-lang="cpp"] .dsa-pane:not([data-lang="cpp"]),
+.dsa-cheat[data-lang="javascript"] .dsa-pane:not([data-lang="javascript"]) {
+  display: none;
+}
+.dsa-cheat .dsa-cheat-html {
+  --reader-size: 15.5px;
+}
+.dsa-cheat .dsa-cheat-html > :first-child,
+.dsa-cheat .dsa-cheat-html .sdb:first-child {
+  margin-top: 0;
+}
+.dsa-cheat .dsa-cheat-html > :last-child,
+.dsa-cheat .dsa-cheat-html .sdb:last-child {
+  margin-bottom: 0;
+}
+.dsa-cheat .dsa-cheat-small {
+  --reader-size: 14px;
+}
+.dsa-cheat .dsa-print-only {
+  display: none;
+}
+
+@media print {
+  :root:has(.dsa-cheat) {
+    color-scheme: light !important;
+  }
+  html:has(.dsa-cheat),
+  body:has(.dsa-cheat) {
+    background: #fff !important;
+    background-image: none !important;
+  }
+  /* only the sheet: everything else (header, dock, floating buttons) keeps its space hidden, the sheet goes to the top */
+  body:has(.dsa-cheat) * {
+    visibility: hidden !important;
+  }
+  .dsa-cheat,
+  .dsa-cheat * {
+    visibility: visible !important;
+  }
+  .dsa-cheat {
+    position: absolute !important;
+    inset: 0 auto auto 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    padding: 0 !important;
+    gap: 14px !important;
+    /* the light theme's tokens, whatever the screen theme */
+    --c-bg: #fff;
+    --c-surface: #fff;
+    --c-surface-2: #f2f1ec;
+    --c-line: #d6d4cc;
+    --c-line-strong: #bdbbb2;
+    --c-fg: #0b0b0b;
+    --c-fg-2: #26262b;
+    --c-fg-3: #4d4d53;
+    --c-signal: #14b8a6;
+    --c-on-signal: #021a16;
+    --c-signal-text: #0b6e64;
+    --c-dsa-text: #0b6e64;
+    --c-code-bg: #fff;
+    color: #0b0b0b;
+    background: #fff;
+  }
+  .dsa-cheat .dsa-noprint,
+  .dsa-cheat [data-sd-chrome] {
+    display: none !important;
+  }
+  .dsa-cheat .dsa-print-only {
+    display: block;
+  }
+  .dsa-cheat h1 {
+    font-size: 26px !important;
+  }
+  .dsa-cheat .dsa-cheat-html {
+    --reader-size: 12px;
+  }
+  .dsa-cheat .dsa-cheat-small {
+    --reader-size: 11px;
+  }
+  /* shiki: the light colours */
+  .dsa-cheat .shiki span {
+    color: var(--shiki-light) !important;
+  }
+  .dsa-cheat .shiki,
+  .dsa-cheat pre {
+    background: #fafaf7 !important;
+    white-space: pre-wrap !important;
+  }
+  .dsa-cheat .dsa-cheat-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+    gap: 12px !important;
+  }
+  .dsa-cheat .dsa-cheat-sec,
+  .dsa-cheat figure,
+  .dsa-cheat li {
+    break-inside: avoid;
+  }
+}
