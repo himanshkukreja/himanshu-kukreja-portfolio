@@ -129,7 +129,7 @@ function tileBody(b: Building, campusStarted: boolean) {
         line: `${b.stretches.length} ${b.stretches.length === 1 ? "section" : "sections"} · ${problems} practice problems`,
       };
     case "planned":
-      return { left: code, right: "Soon", rightSr: "", seg: null, line: b.concepts.length ? `${b.concepts.length} lessons · being written` : "Being written" };
+      return { left: code, right: "Soon", rightSr: "", seg: null, line: b.concepts.length ? `${b.concepts.length} ${b.concepts.length === 1 ? "lesson" : "lessons"} · being written` : "Being written" };
     default:
       return { left: code, right: "Later", rightSr: "", seg: null, line: "Opens later" };
   }

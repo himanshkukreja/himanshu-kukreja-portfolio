@@ -5,7 +5,7 @@
  * learner draws. Pick a preset or draw walls and move S and G (tap or keyboard), pick BFS or DFS, then step through the
  * run forward and back on the StepPlayer (auto-play stops at the predict questions). A live cost (cells visited, the
  * frontier's size and its peak) runs with every step, and a small table compares the last BFS and DFS runs on the same
- * grid, so "BFS finds the shortest path, DFS finds a path" is something the learner sees on their own input.
+ * grid once each run reaches its end, so "BFS finds the shortest path, DFS finds a path" is something the learner sees on their own input.
  *
  * Keyboard: the grid editor is one tab stop; arrow keys move between cells, Enter or Space applies the tool.
  */
@@ -35,6 +35,8 @@ export default function GridVisualizer({ spec }: { spec: VisualizerSpec }) {
   const [auto, setAuto] = useState(false);
   const [useGoal, setUseGoal] = useState(true);
   const [script, setScript] = useState<Script | null>(null);
+  // the run's summary joins the comparison table only when the learner reaches its last step (no spoilers)
+  const [pending, setPending] = useState<{ algo: Algo; r: SearchResult & { goal: boolean } } | null>(null);
   const [focus, setFocus] = useState(0);
   const [results, setResults] = useState<Partial<Record<Algo, SearchResult & { goal: boolean }>>>({});
   const cells = useRef<(HTMLButtonElement | null)[]>([]);
@@ -45,6 +47,7 @@ export default function GridVisualizer({ spec }: { spec: VisualizerSpec }) {
     setGrid(g);
     setScript(null);
     setResults({});
+    setPending(null);
     if (custom) setPreset("custom");
   };
 
@@ -93,7 +96,7 @@ export default function GridVisualizer({ spec }: { spec: VisualizerSpec }) {
     setAlgo(a);
     const s = gridSearch(a, grid, { predict, useGoal: useGoal && grid.goal !== null });
     setScript(s);
-    setResults((r) => ({ ...r, [a]: { ...s.summary, goal: useGoal && grid.goal !== null } }));
+    setPending({ algo: a, r: { ...s.summary, goal: useGoal && grid.goal !== null } });
     track("dsa_visualizer_run", { visualizer: spec.id, algo: a, predict, preset });
   };
 
@@ -214,7 +217,15 @@ export default function GridVisualizer({ spec }: { spec: VisualizerSpec }) {
           </p>
         </div>
       ) : (
-        <StepPlayer script={script} autoPlay={auto} label={`${ALGO_LABEL[algo]} on your grid`} stepMs={900} />
+        <StepPlayer
+          script={script}
+          autoPlay={auto}
+          label={`${ALGO_LABEL[algo]} on your grid`}
+          stepMs={900}
+          onDone={() => {
+            if (pending) setResults((r) => ({ ...r, [pending.algo]: pending.r }));
+          }}
+        />
       )}
 
       {/* run */}
