@@ -56,15 +56,32 @@ jobs:
 
       - run: npm ci --no-audit --no-fund
 
-      - name: Production env from Vercel (build env + Worker secrets)
+      # the site's settings: the PRODUCTION_ENV secret (a `vercel env pull` of production, 9 Nov 2026, so the course no
+      # longer needs its Vercel project); `vercel pull` only while that secret is missing
+      - name: Production env (build env + Worker secrets)
         env:
+          PRODUCTION_ENV: ${{ secrets.PRODUCTION_ENV }}
           EXTRA_ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           EXTRA_POSTHOG_PERSONAL_API_KEY: ${{ secrets.POSTHOG_PERSONAL_API_KEY }}
           EXTRA_BREVO_API_KEY: ${{ secrets.BREVO_API_KEY }}
           # DSA Mastery's code judge (judge-lite VM behind a Cloudflare Tunnel): staging's HMAC key; production's once DSA launches
           EXTRA_JUDGE_HMAC_SECRET: ${{ inputs.target == 'staging' && secrets.JUDGE_HMAC_SECRET_STAGING || secrets.JUDGE_HMAC_SECRET_PROD }}
         run: |
-          npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          mkdir -p .vercel
+          if [ -n "$PRODUCTION_ENV" ]; then
+            printf '%s\n' "$PRODUCTION_ENV" > .vercel/.env.production.local
+            echo "settings from the PRODUCTION_ENV secret"
+            # one-off check while Vercel still exists: the setting NAMES (never values) in the secret vs Vercel's copy
+            if [ -n "$VERCEL_TOKEN" ] && npx --yes vercel@latest env pull "$RUNNER_TEMP/vercel.env" --environment=production --yes --token="$VERCEL_TOKEN" >/dev/null 2>&1; then
+              names() { grep -oE '^[A-Z0-9_]+=' "$1" | tr -d '=' | sort -u; }
+              echo "only in PRODUCTION_ENV: $(comm -23 <(names .vercel/.env.production.local) <(names "$RUNNER_TEMP/vercel.env") | tr '\n' ' ')"
+              echo "only in Vercel: $(comm -13 <(names .vercel/.env.production.local) <(names "$RUNNER_TEMP/vercel.env") | tr '\n' ' ')"
+              rm -f "$RUNNER_TEMP/vercel.env"
+            fi
+          else
+            npx --yes vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+            echo "settings from Vercel (PRODUCTION_ENV not set)"
+          fi
           node scripts/cf/env-from-vercel.mjs .vercel/.env.production.local "$RUNNER_TEMP/worker-secrets.json"
           rm -f .vercel/.env.production.local
 
