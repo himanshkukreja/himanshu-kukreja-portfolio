@@ -86,7 +86,7 @@ export default function DsaCertificate({ spec }: { spec: WorldSpec }) {
 
   const local = useMemo(() => {
     const g = signalsFromGame(done);
-    return foundationsEligibility(spec, { solved: progress.solved, concepts: progress.concepts, checkpoints: progress.checkpoints, milestones: g.milestones });
+    return foundationsEligibility(spec, { solved: progress.solved, concepts: progress.concepts, checkpoints: progress.checkpoints, labs: progress.labs, milestones: g.milestones });
   }, [spec, done, progress.solved, progress.concepts, progress.checkpoints]);
   const e = server?.eligibility || local;
   const cert = issued || server?.certificate || null;

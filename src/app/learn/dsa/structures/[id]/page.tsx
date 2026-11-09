@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { conceptLectureHref, getConceptLecture } from "@/lib/dsa/load";
 import { getStructure } from "@/lib/dsa/structures";
@@ -23,7 +23,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!DSA_FULL) return { title: "Not found" };
   const { id } = await params;
   const s = await getStructure(id).catch(() => null);
-  if (!s) return { title: "Not found" };
+  if (!s || s.kind !== "structure") return { title: "Not found" };
   return { title: `${s.title} · DSA Mastery`, description: s.summary, alternates: { canonical: `/dsa/structures/${s.id}` }, robots: { index: false, follow: false } };
 }
 
@@ -32,6 +32,7 @@ export default async function StructurePage({ params }: Props) {
   const { id } = await params;
   const [s, lecture] = await Promise.all([getStructure(id), getConceptLecture(id).catch(() => null)]);
   if (!s) notFound();
+  if (s.kind === "algorithm") permanentRedirect(`/dsa/algorithms/${s.id}`);
   const card = lectureCard(lecture);
   return (
     <div className="dsa-theme">

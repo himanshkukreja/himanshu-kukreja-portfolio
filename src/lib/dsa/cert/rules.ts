@@ -97,7 +97,7 @@ export function foundationsEligibility(spec: WorldSpec, s: DsaCertSignals): DsaE
   const requirements = [
     req("lessons", "Every lesson", "Read each lesson to the end (its Recap).", concepts),
     req("practice", "Every practice problem", "An Accepted submit on each required practice problem on the Academy map.", practice),
-    req("checkpoints", "Every checkpoint", "Pass the checkpoint quiz (80%) and solve both of its problems.", checkpoints),
+    req("checkpoints", "Every checkpoint", "Pass each checkpoint quiz (80%), plus its two problems or its build-it lab.", checkpoints),
     req("reviews", "Every module review", "The timed review at the end of each module.", reviews),
     req("final", "The Launch week final", "The Academy's final: a timed mixed set in Launch Hall.", final),
   ];
@@ -111,14 +111,16 @@ export function signalsFromGame(done: Record<string, number> | null | undefined)
   const solved = new Set<string>();
   const concepts = new Set<string>();
   const checkpoints = new Set<string>();
+  const labs = new Set<string>();
   const milestones = new Set<string>();
   for (const k of Object.keys(done || {})) {
     if (k.startsWith("dsa:p:")) solved.add(k.slice(6));
     else if (k.startsWith("dsa:c:")) concepts.add(k.slice(6));
     else if (k.startsWith("dsa:cpq:")) checkpoints.add(k.slice(8));
+    else if (k.startsWith("dsa:lab:")) labs.add(k.slice(8));
     else if (k.startsWith("dsa:boss:") || k.startsWith("dsa:world:")) milestones.add(k);
   }
-  return { solved, concepts, checkpoints, milestones };
+  return { solved, concepts, checkpoints, labs, milestones };
 }
 
 /** What a certificate's evidence keeps (frozen at issue time) and its public page shows. */

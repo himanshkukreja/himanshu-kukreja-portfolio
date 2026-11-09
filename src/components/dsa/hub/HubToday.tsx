@@ -46,7 +46,7 @@ function ReviseCard() {
 function CertCard({ spec }: { spec: WorldSpec }) {
   const { done, hydrated } = useGame();
   const p = useDsaProgress();
-  const e = useMemo(() => foundationsEligibility(spec, { solved: p.solved, concepts: p.concepts, checkpoints: p.checkpoints, milestones: signalsFromGame(done).milestones }), [spec, done, p.solved, p.concepts, p.checkpoints]);
+  const e = useMemo(() => foundationsEligibility(spec, { solved: p.solved, concepts: p.concepts, checkpoints: p.checkpoints, labs: p.labs, milestones: signalsFromGame(done).milestones }), [spec, done, p.solved, p.concepts, p.checkpoints, p.labs]);
   const ready = hydrated && p.ready;
   return (
     <section aria-labelledby="hub-cert-h" className={CARD}>

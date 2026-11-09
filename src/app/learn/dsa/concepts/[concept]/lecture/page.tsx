@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, structureHref } from "@/lib/dsa/load";
+import { conceptLectureHref, getConceptIndex, getConceptLecture, lessonHref } from "@/lib/dsa/load";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
 
@@ -47,7 +47,7 @@ export default async function DsaLecturePage({ params }: Props) {
   const code = c.module.split("-")[0].toUpperCase();
   return (
     <div className="dsa-theme">
-      <LecturePlayer lecture={l} quest={{ title: c.title, href: c.kind === "structure" ? structureHref(c.id) : conceptHref(c.id), code }} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={next} />
+      <LecturePlayer lecture={l} quest={{ title: c.title, href: lessonHref(c), code }} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={next} />
     </div>
   );
 }

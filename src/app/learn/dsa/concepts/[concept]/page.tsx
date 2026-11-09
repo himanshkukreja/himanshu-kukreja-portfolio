@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { conceptLectureHref, getConcept, getConceptIndex, getConceptLecture, structureHref } from "@/lib/dsa/load";
+import { conceptLectureHref, getConcept, getConceptIndex, getConceptLecture, isVisualLesson, lessonHref } from "@/lib/dsa/load";
 import { lectureCard } from "@/lib/learn/lecture/load";
 import DsaConceptReader from "@/components/dsa/concept/DsaConceptReader";
 
@@ -31,7 +31,8 @@ export default async function ConceptPage({ params }: Props) {
   const [c, lecture] = await Promise.all([getConcept(concept), getConceptLecture(concept).catch(() => null)]);
   if (!c) {
     // a structure lesson (Academy Part 2) has its own page; old /dsa/concepts/<id> links land there
-    if ((await getConceptIndex()).some((x) => x.id === concept && x.kind === "structure")) permanentRedirect(structureHref(concept));
+    const visual = (await getConceptIndex()).find((x) => x.id === concept && isVisualLesson(x));
+    if (visual) permanentRedirect(lessonHref(visual));
     notFound();
   }
   // "watch it first": the concept's animated lecture, on its own page (like an SDM lesson's)

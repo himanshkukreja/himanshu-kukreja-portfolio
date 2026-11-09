@@ -9,6 +9,8 @@
  * a paving stone a Practice problem, the front desk the Checkpoint quiz, a door the Next section. The theme names
  * ("Window Tower") stay as small subtitles; the spec's own words never reach the screen.
  *
+ * - The buildings are grouped by the world's parts (Academy: Part 1 Toolkit, Part 2 Data structures, Part 3
+ *   Algorithms, Part 4 Patterns), each part a plain heading and its own footpath. Nothing is locked.
  * - Desktop (lg, 1024 px and up): three buildings a row, row 2 right to left; the footpath is an SVG (aria-hidden)
  *   drawn through the measured tile centres, teal where walked. The panel is a sticky aside.
  * - Phone and tablet: the same tiles in one column on a vertical path; the panel opens inline under the tapped
@@ -17,7 +19,7 @@
  *   words and icons, never colour alone. ?node=<id> opens that stop's building and stretch (the concept page links it).
  */
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeWorld, type NodeState } from "@/lib/dsa/map/progress";
 import { campusOf, clock, type Building, type Campus as CampusModel, type StretchView } from "@/lib/dsa/map/campus";
 import type { WorldNode, WorldRegion, WorldSpec } from "@/lib/dsa/types";
@@ -256,7 +258,7 @@ function StretchRow({
     meta = state === "soon" ? "soon" : `${n.required ? "" : "bonus · "}${n.level || ""}`;
   } else if (n.type === "checkpoint") {
     const k = (n.problems || []).length;
-    label = `${STOP.checkpoint}${k ? ` + ${k} problems` : ""}`;
+    label = `${STOP.checkpoint}${k ? ` + ${k} problems` : ""}${n.lab ? " + lab" : ""}`;
     meta = state === "soon" ? "soon" : `${Math.round((n.pass ?? 0.8) * 100)}% to pass`;
   } else {
     label = after ? `${STOP.gate}: ${after.index + 1} · ${after.title}` : `End of ${regionTitle}`;
@@ -304,7 +306,7 @@ function primaryOf(st: StretchView, states: Record<string, NodeState>): { href: 
   if (n?.href) {
     if (n.type === "practice") return { href: n.href, text: "Solve the next problem" };
     if (n.type === "concept") return { href: n.href, text: "Read the lesson" };
-    if (n.type === "checkpoint") return { href: n.href, text: "Take the checkpoint quiz" };
+    if (n.type === "checkpoint") return { href: n.href, text: n.lab ? "Checkpoint: the quiz and the lab" : "Take the checkpoint quiz" };
   }
   const extra = st.nodes.find((x) => x.type === "practice" && x.href && (states[x.id] === "open" || states[x.id] === "current"));
   if (extra?.href) return { href: extra.href, text: "Solve the next problem" };
@@ -331,6 +333,35 @@ function LectureButton({ lec, base }: { lec: LectureRef; base: string | null }) 
   );
 }
 
+/** A structure or algorithm checkpoint's build-it lab: it counts towards the checkpoint with the quiz. */
+function LabRow({ lab, done }: { lab: NonNullable<WorldNode["lab"]>; done: boolean }) {
+  const base = "grid h-[22px] w-[22px] shrink-0 place-items-center font-mono text-[11px]";
+  return (
+    <li>
+      <Link href={lab.href} className="flex min-h-11 items-center gap-3 border-t border-line px-3.5 py-3 pl-9 text-fg outline-none hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal">
+        {done ? (
+          <span className={`${base} bg-signal text-on-signal`}>
+            <Check />
+          </span>
+        ) : (
+          <span className={`${base} border border-line-strong text-fg-3`} aria-hidden>
+            {"</>"}
+          </span>
+        )}
+        <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+          <span className="min-w-0 grow basis-[9rem] break-words text-[14px] leading-snug">
+            Lab · {lab.title}
+            <span className="sr-only">, {done ? "passed" : "not passed yet"}, part of the checkpoint</span>
+          </span>
+          <span aria-hidden className="shrink-0 font-mono text-[11px] text-fg-3">
+            {done ? "passed" : "counts for the checkpoint"}
+          </span>
+        </span>
+      </Link>
+    </li>
+  );
+}
+
 function BuildingPanel({
   spec,
   b,
@@ -341,6 +372,7 @@ function BuildingPanel({
   mediaBase,
   headingId,
   compact = false,
+  labs,
 }: {
   spec: WorldSpec;
   b: Building;
@@ -352,6 +384,8 @@ function BuildingPanel({
   headingId: string;
   /** inline under its tile (phone): the tile already shows the code and name, so they are for screen readers only */
   compact?: boolean;
+  /** build-it labs passed (a lab checkpoint shows its lab as its own row) */
+  labs: ReadonlySet<string>;
 }) {
   const r = b.region;
   // the theme name and the product line as the small subtitle: "M5 · Window Tower · Kestrel Stream"
@@ -391,14 +425,16 @@ function BuildingPanel({
               {st.nodes.map((n) => {
                 const after = n.type === "gate" ? b.stretches[st.index + 1] : null;
                 return (
-                  <StretchRow
-                    key={n.id}
-                    n={n}
-                    state={states[n.id] || "locked"}
-                    isNext={st.next?.id === n.id}
-                    after={after ? { index: after.index, title: after.title } : null}
-                    regionTitle={plainName(r)}
-                  />
+                  <Fragment key={n.id}>
+                    <StretchRow
+                      n={n}
+                      state={states[n.id] || "locked"}
+                      isNext={st.next?.id === n.id}
+                      after={after ? { index: after.index, title: after.title } : null}
+                      regionTitle={plainName(r)}
+                    />
+                    {n.type === "checkpoint" && n.lab && states[n.id] !== "soon" ? <LabRow lab={n.lab} done={labs.has(n.lab.id)} /> : null}
+                  </Fragment>
                 );
               })}
             </ol>
@@ -538,6 +574,19 @@ function Footpath({ list, walked, deps }: { list: React.RefObject<HTMLOListEleme
   );
 }
 
+/** One part's buildings: an ordered list on its own footpath (desktop: three a row, snaking). */
+function PartPath({ walked, deps, children }: { walked: boolean[]; deps: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLOListElement>(null);
+  return (
+    <div className="relative">
+      <Footpath list={ref} walked={walked} deps={deps} />
+      <ol ref={ref} className="relative m-0 flex list-none flex-col p-0 lg:grid lg:grid-cols-3 lg:gap-x-4 lg:gap-y-16 xl:gap-x-6">
+        {children}
+      </ol>
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ the world */
 
 type Sel = number | "final";
@@ -649,7 +698,7 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
   const model = useMemo(() => campusOf(spec, world), [spec, world]);
   const desktop = useDesktop();
   const full = useDsaFull();
-  const listRef = useRef<HTMLOListElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [sel, setSel] = useState<Sel | null>(null);
   const [stretchSel, setStretchSel] = useState<number | null>(null);
   const [folded, setFolded] = useState(false);
@@ -699,7 +748,7 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
     target.focus({ preventScroll: true });
   }, [desktop, sel, stretchSel]);
 
-  const onKey = (e: React.KeyboardEvent<HTMLOListElement>) => {
+  const onKey = (e: React.KeyboardEvent<HTMLDivElement>) => {
     const keys = ["ArrowRight", "ArrowDown", "ArrowLeft", "ArrowUp", "Home", "End"];
     if (!keys.includes(e.key)) return;
     const items = Array.from(listRef.current?.querySelectorAll<HTMLElement>("[data-campus-tile]") || []);
@@ -709,6 +758,22 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
     const next = e.key === "Home" ? 0 : e.key === "End" ? items.length - 1 : e.key === "ArrowRight" || e.key === "ArrowDown" ? Math.min(items.length - 1, at + 1) : Math.max(0, at - 1);
     items[next]?.focus();
   };
+
+  // buildings grouped by the world's parts (in the parts' order); regions in no part follow in their own group
+  const groups = useMemo(() => {
+    const at = new Map(model.buildings.map((b, i) => [b.region.id, i]));
+    const used = new Set<number>();
+    const out = spec.parts
+      .map((p) => {
+        const idx = p.regions.map((id) => at.get(id)).filter((i): i is number => i !== undefined && !used.has(i));
+        idx.forEach((i) => used.add(i));
+        return { id: p.id, title: p.title, label: p.label, summary: p.summary, idx, built: idx.filter((i) => model.buildings[i].state !== "planned" && model.buildings[i].state !== "later").length };
+      })
+      .filter((g) => g.idx.length);
+    const rest = model.buildings.map((_, i) => i).filter((i) => !used.has(i));
+    if (rest.length || !out.length) out.push({ id: "rest", title: out.length ? "More" : "", label: "", summary: "", idx: rest, built: 0 });
+    return out;
+  }, [spec.parts, model.buildings]);
 
   const headingId = `campus-panel-${spec.id}`;
   const panel =
@@ -725,6 +790,7 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
         mediaBase={mediaBase}
         headingId={headingId}
         compact={desktop === false}
+        labs={progress.labs}
       />
     ) : null;
 
@@ -739,9 +805,9 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
   const walkedOut = (i: number) => model.walked[i] ?? false;
   const inline = desktop === false && !folded;
 
-  const rail = (i: number, last: boolean) => (
+  const rail = (i: number, last: boolean, incoming = i > 0) => (
     <span aria-hidden className="lg:hidden">
-      {i > 0 && <span className="absolute left-[9px] top-0 h-[30px] w-[6px]" style={{ background: walkedIn(i) ? "var(--c-signal)" : "var(--c-line-strong)" }} />}
+      {incoming && <span className="absolute left-[9px] top-0 h-[30px] w-[6px]" style={{ background: walkedIn(i) ? "var(--c-signal)" : "var(--c-line-strong)" }} />}
       {!last && <span className="absolute bottom-0 left-[9px] top-[30px] w-[6px]" style={{ background: walkedOut(i) ? "var(--c-signal)" : "var(--c-line-strong)" }} />}
       <span className="absolute left-[6px] top-[24px] h-3 w-3 border-2 border-line-strong bg-bg" />
     </span>
@@ -764,41 +830,59 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
             className="relative min-w-0 px-4 py-6 sm:px-6 lg:px-6 lg:py-12 xl:px-12"
             style={{ backgroundColor: "var(--c-bg)", backgroundImage: "radial-gradient(var(--c-line-strong) 1px, transparent 1px)", backgroundSize: "24px 24px" }}
           >
-            <div className="relative">
-              <Footpath list={listRef} walked={model.walked} deps={`${spec.id}:${n}`} />
-              <ol
-                ref={listRef}
-                onKeyDown={onKey}
-                aria-label={`${spec.title}: modules in order`}
-                className="relative m-0 flex list-none flex-col p-0 lg:grid lg:grid-cols-3 lg:gap-x-4 lg:gap-y-16 xl:gap-x-6"
-              >
-                {model.buildings.map((b, i) => {
-                  const selected = shown === i;
-                  const last = i === n - 1 && !spec.final;
-                  return (
-                    <li key={b.region.id} style={place(i)} className="relative pb-4 pl-9 lg:flex lg:items-center lg:justify-center lg:p-0">
-                      {rail(i, last)}
-                      <Tile b={b} campusStarted={model.started} selected={selected} desktop={desktop} onSelect={() => select(i)} />
-                      {inline && selected ? (
-                        <div role="region" aria-labelledby={headingId} className="mt-3 border border-line bg-surface p-3 sm:p-5">
-                          {panel}
-                        </div>
-                      ) : null}
-                    </li>
-                  );
-                })}
-                {spec.final ? (
-                  <li style={place(n)} className="relative pl-9 lg:flex lg:items-center lg:justify-center lg:p-0">
-                    {rail(n, true)}
-                    <FinalTile node={spec.final} selected={shown === "final"} desktop={desktop} onSelect={() => select("final")} />
-                    {inline && shown === "final" ? (
-                      <div role="region" aria-labelledby={headingId} className="mt-3 border border-line bg-surface p-3 sm:p-5">
-                        {panel}
-                      </div>
+            {/* one footpath per part (owner, 9 Nov 2026: the Academy reads Part 1 Toolkit, Part 2 Data structures,
+                Part 3 Algorithms, Part 4 Patterns); nothing is locked, the parts are a recommended order */}
+            <div ref={listRef} onKeyDown={onKey} className="flex flex-col gap-10 lg:gap-14">
+              {groups.map((g, gi) => {
+                const lastGroup = gi === groups.length - 1;
+                const headId = `campus-part-${spec.id}-${g.id}`;
+                return (
+                  <section key={g.id} aria-labelledby={g.title ? headId : undefined} className="flex flex-col gap-4 lg:gap-6">
+                    {g.title ? (
+                      <header className="flex flex-col gap-1 border-l-4 border-signal bg-surface px-3.5 py-2.5 lg:max-w-[720px]">
+                        <h3 id={headId} className="m-0 flex flex-wrap items-baseline gap-x-2 font-display text-[20px] font-extrabold leading-tight tracking-[-0.02em] text-fg sm:text-[22px]">
+                          <span className="font-mono text-[12px] font-semibold uppercase tracking-label text-signal-text">{g.label}</span>
+                          {g.title}
+                        </h3>
+                        {g.summary ? <p className="m-0 text-[14px] leading-snug text-fg-2">{g.summary}</p> : null}
+                        <p className="m-0 font-mono text-[11px] text-fg-3">
+                          {g.idx.length} {g.idx.length === 1 ? "module" : "modules"}
+                          {g.built ? ` · ${g.built} ready now` : " · being written"}
+                        </p>
+                      </header>
                     ) : null}
-                  </li>
-                ) : null}
-              </ol>
+                    <PartPath walked={g.idx.map((i) => model.walked[i] ?? false)} deps={`${spec.id}:${g.id}:${g.idx.length}`}>
+                      {g.idx.map((i, k) => {
+                        const b = model.buildings[i];
+                        const selected = shown === i;
+                        const lastHere = k === g.idx.length - 1;
+                        return (
+                          <li key={b.region.id} style={place(k)} className="relative pb-4 pl-9 lg:flex lg:items-center lg:justify-center lg:p-0">
+                            {rail(i, lastHere && !(lastGroup && spec.final), k > 0)}
+                            <Tile b={b} campusStarted={model.started} selected={selected} desktop={desktop} onSelect={() => select(i)} />
+                            {inline && selected ? (
+                              <div role="region" aria-labelledby={headingId} className="mt-3 border border-line bg-surface p-3 sm:p-5">
+                                {panel}
+                              </div>
+                            ) : null}
+                          </li>
+                        );
+                      })}
+                      {lastGroup && spec.final ? (
+                        <li style={place(g.idx.length)} className="relative pl-9 lg:flex lg:items-center lg:justify-center lg:p-0">
+                          {rail(n, true, g.idx.length > 0)}
+                          <FinalTile node={spec.final} selected={shown === "final"} desktop={desktop} onSelect={() => select("final")} />
+                          {inline && shown === "final" ? (
+                            <div role="region" aria-labelledby={headingId} className="mt-3 border border-line bg-surface p-3 sm:p-5">
+                              {panel}
+                            </div>
+                          ) : null}
+                        </li>
+                      ) : null}
+                    </PartPath>
+                  </section>
+                );
+              })}
             </div>
 
             <div className="mt-8 inline-flex flex-wrap gap-x-5 gap-y-2 border border-line bg-surface px-3.5 py-2.5 font-mono text-[11px] text-fg-3 lg:mt-12">

@@ -6,8 +6,9 @@
  * - Every world and every region is open; the map recommends an order, it never blocks.
  * - A concept is always readable; it is "done" once its lesson is complete.
  * - A practice step is always open, and done on an accepted solve.
- * - A checkpoint is always open; it is done when its quiz is passed and every built checkpoint problem is solved. The
- *   stretch's gate is just its end marker: "done" with the checkpoint, never a barrier.
+ * - A checkpoint is always open; it is done when its quiz is passed and every built checkpoint problem is solved. A
+ *   structure or algorithm lesson's checkpoint is its quiz plus its build-it lab (`lab`): done when both are passed.
+ *   The stretch's gate is just its end marker: "done" with the checkpoint, never a barrier.
  * - Bosses and the world final are open once written ("soon" before that).
  * - Nodes whose content isn't written yet are "soon"; the frontier (where "Continue" goes) is the first required,
  *   built, open node that isn't done.
@@ -23,6 +24,8 @@ export type ProgressSignals = {
   solved: ReadonlySet<string>;
   /** checkpoint node ids whose quiz is passed */
   checkpoints: ReadonlySet<string>;
+  /** build-it lab ids passed in full (game key dsa:lab:<lab id>) */
+  labs: ReadonlySet<string>;
 };
 
 export type RegionProgress = { id: string; done: number; total: number; pct: number; gatesOpen: number; gates: number; bossOpen: boolean };
@@ -39,7 +42,7 @@ export type WorldProgress = {
 function nodeDone(n: WorldNode, s: ProgressSignals): boolean {
   if (n.type === "concept") return !!n.ref && s.concepts.has(n.ref);
   if (n.type === "practice") return !!n.ref && s.solved.has(n.ref);
-  if (n.type === "checkpoint") return s.checkpoints.has(n.id) && (n.problems || []).every((p) => !p.built || s.solved.has(p.id));
+  if (n.type === "checkpoint") return s.checkpoints.has(n.id) && (n.problems || []).every((p) => !p.built || s.solved.has(p.id)) && (!n.lab || s.labs.has(n.lab.id));
   return false;
 }
 

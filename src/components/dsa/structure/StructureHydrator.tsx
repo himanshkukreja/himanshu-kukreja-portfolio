@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Mounts a structure lesson's interactive pieces into its server-rendered figures (src/lib/course/detect/dsa.ts):
- * `::viz` demos and the `::sandbox` on the step engine, the `::lab`, and the widgets shared with concept pages (code
+ * Mounts a visual lesson's interactive pieces into its server-rendered figures (src/lib/course/detect/dsa.ts):
+ * `::viz` demos, the `::sandbox` (structures) and the `::visualizer` (algorithms) on the step engine, the `::lab`
+ * (design or function mode), and the widgets shared with concept pages (code
  * tabs, polls, explain-back, the checkpoint gate, review cards). Same contract as DsaHydrator: each figure holds an
  * empty `[data-dsa-stage]` that gets a portal; a MutationObserver re-targets when the lesson HTML is re-injected.
  * The sandbox and the lab are their own chunks (next/dynamic, ssr:false).
@@ -13,11 +14,13 @@ import { createPortal } from "react-dom";
 import ExplainBack from "@/components/learn/ai/ExplainBack";
 import type { StructurePage } from "@/lib/dsa/structures";
 import { CheckpointGate, CodeTabs, Poll, ReviewCards } from "../concept/widgets";
-import { loadStructureLab, loadStructureSandbox, loadVizDemo } from "./lazy";
+import { loadFunctionLab, loadGridVisualizer, loadStructureLab, loadStructureSandbox, loadVizDemo } from "./lazy";
 
 const Sandbox = dynamic(loadStructureSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
 const StructureLab = dynamic(loadStructureLab, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the lab…</p> });
 const VizDemo = dynamic(loadVizDemo, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the player…</p> });
+const GridVisualizer = dynamic(loadGridVisualizer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the visualizer…</p> });
+const FunctionLab = dynamic(loadFunctionLab, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the lab…</p> });
 
 type Host = { fig: HTMLElement; stage: HTMLElement; kind: string; key: string };
 
@@ -70,7 +73,13 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         else if (h.kind === "poll") el = <Poll fig={h.fig} conceptId={page.id} />;
         else if (h.kind === "viz" && page.demos[id]) el = <Hydrated fig={h.fig}><VizDemo demo={page.demos[id]} /></Hydrated>;
         else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}><Sandbox spec={page.sandbox} /></Hydrated>;
-        else if (h.kind === "lab" && page.lab && page.lab.spec.id === id) el = <Hydrated fig={h.fig}><StructureLab lab={page.lab} lessonId={page.id} /></Hydrated>;
+        else if (h.kind === "visualizer" && page.visualizer && page.visualizer.id === id) el = <Hydrated fig={h.fig}><GridVisualizer spec={page.visualizer} /></Hydrated>;
+        else if (h.kind === "lab" && page.lab && page.lab.spec.id === id)
+          el = (
+            <Hydrated fig={h.fig}>
+              {page.lab.mode === "function" ? <FunctionLab lab={page.lab} lessonId={page.id} /> : <StructureLab lab={page.lab} lessonId={page.id} />}
+            </Hydrated>
+          );
         else if (h.kind === "explainback")
           el = (
             <div className="dsa-ui px-4 pb-4">

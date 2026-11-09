@@ -46,7 +46,7 @@ export type DsaRenderOpts = {
 /** Container names this file renders (directives.ts keeps them as blocks instead of turning them back into text). */
 export const DSA_CONTAINERS = new Set(["beat", "example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint", "costs"]);
 /** Leaf names this file renders. */
-export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab"]);
+export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab", "visualizer"]);
 
 export const DSA_LANGS = ["python", "javascript", "java", "cpp"] as const;
 export const DSA_LANG_LABEL: Record<string, string> = { python: "Python", javascript: "JavaScript", java: "Java", cpp: "C++" };
@@ -110,10 +110,20 @@ export function unwrapBeats(tree: Root): number {
 }
 
 /**
- * Structure lessons (Academy Part 2, resources/structures/): their six beats, by heading label → stage id.
+ * Visual lessons (structures, Academy Part 2; algorithms, Part 3): their six beats, by heading label → stage id.
  * "## 1. Meet it: a train of carriages" → stage "meet", labelled "Meet it" (already plain words: no 6S subtitle).
  */
-const STRUCTURE_BEATS: Record<string, string> = { "meet it": "meet", operations: "operations", "try it": "sandbox", "build it": "build", "use it well": "choose", recap: "recap" };
+const STRUCTURE_BEATS: Record<string, string> = {
+  "meet it": "meet",
+  operations: "operations",
+  "try it": "sandbox",
+  "build it": "build",
+  "use it well": "choose",
+  recap: "recap",
+  // algorithm lessons (Academy Part 3, resources/algorithms/): Meet it, See it move, Why it works, Build it, Use it well, Recap
+  "see it move": "see",
+  "why it works": "why",
+};
 
 /**
  * A beat heading ("1. Scenario: the busiest three hours") → its stage: id "scenario", the plain label "The problem"
@@ -314,7 +324,9 @@ export async function dsaLeaf(node: LeafDirective, ctx: BlockCtx): Promise<AnyNo
     case "sandbox":
       return widget("sandbox", { dataId: label }, "The sandbox: build a list and run its operations step by step. It loads in your browser.");
     case "lab":
-      return widget("lab", { dataId: label }, "Build it yourself: write the class in Python, JavaScript, Java or C++ and run the tests. It loads in your browser.");
+      return widget("lab", { dataId: label }, "Build it yourself: write the code in Python, JavaScript, Java or C++ and run the tests. It loads in your browser.");
+    case "visualizer":
+      return widget("visualizer", { dataId: label }, "The visualizer: draw a grid, then step through BFS and DFS on it. It loads in your browser.");
     case "solutions": {
       const sols = ctx.dsa?.solutions || [];
       if (!sols.length) return widget("solutions", {}, "Reference solutions in four languages.");

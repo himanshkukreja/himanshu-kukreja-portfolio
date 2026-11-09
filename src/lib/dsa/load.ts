@@ -78,14 +78,19 @@ export const getConceptIndex = cached(async (): Promise<ConceptSummary[]> => {
     title: c.title,
     status: c.status === "built" ? "built" : "planned",
     summary: c.summary || "",
-    ...(c.kind === "structure" ? { kind: "structure" as const } : {}),
+    ...(c.kind === "structure" || c.kind === "algorithm" ? { kind: c.kind } : {}),
   }));
-}, "dsa-concepts-v2");
+}, "dsa-concepts-v3");
 
-/* Structure lessons (Academy Part 2, dsa-structures): their own folder and page. */
-/** A concept's content folder: resources/modules/<module>/<id>, or resources/structures/<module>/<id> for a structure lesson. */
-export const lessonDir = (c: Pick<ConceptSummary, "id" | "module" | "kind">) => `resources/${c.kind === "structure" ? "structures" : "modules"}/${c.module}/${c.id}`;
+/* Visual lessons: structure lessons (Academy Part 2) and algorithm lessons (Part 3) have their own folder and page. */
+/** A concept's content folder: resources/modules/, resources/structures/ (structure lesson) or resources/algorithms/ (algorithm lesson). */
+export const lessonDir = (c: Pick<ConceptSummary, "id" | "module" | "kind">) => `resources/${c.kind === "structure" ? "structures" : c.kind === "algorithm" ? "algorithms" : "modules"}/${c.module}/${c.id}`;
 export const structureHref = (id: string) => `/dsa/structures/${id}`;
+export const algorithmHref = (id: string) => `/dsa/algorithms/${id}`;
+/** Structure and algorithm lessons: one visual lesson per module, with a lab checkpoint (quiz + lab). */
+export const isVisualLesson = (c: Pick<ConceptSummary, "kind"> | null | undefined) => c?.kind === "structure" || c?.kind === "algorithm";
+/** Where a lesson lives on the site, whatever its kind. */
+export const lessonHref = (c: Pick<ConceptSummary, "id" | "kind">) => (c.kind === "structure" ? structureHref(c.id) : c.kind === "algorithm" ? algorithmHref(c.id) : `/dsa/concepts/${c.id}`);
 
 type ModulesFile = { modules?: { id: string; code: string; title: string; building?: string; lines?: string[]; objective?: string }[] };
 
@@ -191,6 +196,7 @@ type RawWorld = {
   division?: string;
   theme?: { map?: string; road?: string; stops?: Record<string, string> };
   regions?: RawRegion[];
+  parts?: { id: string; title: string; subtitle?: string; summary?: string; regions?: string[] }[];
   final?: RawNode;
 };
 
@@ -212,13 +218,15 @@ function buildWorld(
   problems: Map<string, ProblemSummary>,
   modules: ModuleInfo = {},
   lines: Record<string, string> = {},
+  /** lab checkpoints: "<module>/<lesson>" → the lab's id and title (lab.yml) */
+  labs: Map<string, { id: string; title: string }> = new Map(),
 ): WorldSpec {
   const node = (n: RawNode): WorldNode => {
     const required = n.required !== false && n.type !== "side" && n.type !== "service";
     if (n.type === "concept") {
       const c = concepts.get(String(n.concept));
       const built = c?.status === "built";
-      const href = c?.kind === "structure" ? structureHref(String(n.concept)) : conceptHref(String(n.concept));
+      const href = c ? lessonHref(c) : conceptHref(String(n.concept));
       return { id: n.id, type: "concept", title: c?.title || humanize(String(n.concept)), required, href: built ? href : null, ref: String(n.concept), built };
     }
     if (n.type === "practice") {
@@ -243,9 +251,12 @@ function buildWorld(
         type: "checkpoint",
         title: "Checkpoint",
         required: true,
-        href: quizConcept?.status === "built" ? (quizConcept.kind === "structure" ? `${structureHref(quizConcept.id)}#recap` : `${conceptHref(quizConcept.id)}#say`) : null,
+        href: quizConcept?.status === "built" ? (isVisualLesson(quizConcept) ? `${lessonHref(quizConcept)}#recap` : `${conceptHref(quizConcept.id)}#say`) : null,
         built: quizConcept?.status === "built",
         quiz,
+        ...(n.lab && labs.get(String(n.lab)) && quizConcept
+          ? { lab: { ...labs.get(String(n.lab))!, href: `${lessonHref(quizConcept)}#build` } }
+          : {}),
         problems: ((n.problems as string[]) || []).map((id) => ({ id, title: problems.get(id)?.title || titles[id] || humanize(id), built: problems.has(id) })),
         pass: Number(n.pass) || 0.8,
         opensAt: Number(n.opens_at) || 0.7,
@@ -290,6 +301,8 @@ function buildWorld(
     division: raw.division ? raw.division.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "",
     theme: { map: raw.theme?.map || "", road: raw.theme?.road || "road", stops: raw.theme?.stops || {} },
     regions,
+    // regions sit under their part, in the parts' order; a region in no part keeps its place at the end
+    parts: (raw.parts || []).map((p, i) => ({ id: p.id, title: p.title, label: p.subtitle || `Part ${i + 1}`, summary: p.summary || "", regions: (p.regions || []).filter((id) => regions.some((r) => r.id === id)) })),
     final: raw.final
       ? {
           id: raw.final.id,
@@ -309,8 +322,22 @@ const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
   const src = await readDsa(`resources/worlds/${id}.yml`);
   if (!src) return null;
   const [concepts, problems, modules, lines] = await Promise.all([getConceptIndex(), getProblemIndex(), getModules(), getLineNames()]);
-  return buildWorld(yaml<RawWorld>(src), new Map(concepts.map((c) => [c.id, c])), new Map(problems.map((p) => [p.id, p])), modules, lines);
-}, "dsa-world-v3");
+  const raw = yaml<RawWorld>(src);
+  // a structure or algorithm checkpoint names its lesson's lab (lab: <module>/<lesson>); read the lab's id and title
+  const labRefs = [...new Set((raw.regions || []).flatMap((r) => (r.stretches || []).flatMap((st) => st.nodes.filter((n) => n.type === "checkpoint" && n.lab).map((n) => String(n.lab)))))];
+  const byId = new Map(concepts.map((c) => [c.id, c]));
+  const labs = new Map<string, { id: string; title: string }>();
+  await Promise.all(
+    labRefs.map(async (ref) => {
+      const c = byId.get(ref.split("/")[1] || "");
+      if (!c || c.status !== "built") return;
+      const lab = await readDsa(`${lessonDir(c)}/lab/lab.yml`);
+      const id = lab?.match(/^id:\s*([\w-]+)/m)?.[1];
+      if (id) labs.set(ref, { id, title: lab?.match(/^title:\s*(.+)$/m)?.[1]?.trim() || "Build it yourself" });
+    }),
+  );
+  return buildWorld(raw, byId, new Map(problems.map((p) => [p.id, p])), modules, lines, labs);
+}, "dsa-world-v4");
 
 export async function getWorld(id: string): Promise<WorldSpec | null> {
   if (!ID.test(id)) return null;
@@ -401,7 +428,7 @@ function templatesOf(md: string): Record<string, Partial<Record<DsaLang, string>
 const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => {
   const concepts = await getConceptIndex();
   const c = concepts.find((x) => x.id === id);
-  if (!c || c.status !== "built" || c.kind === "structure") return null;
+  if (!c || c.status !== "built" || isVisualLesson(c)) return null;
   const dir = `resources/modules/${c.module}/${id}`;
   const [lessonMd, quizMd, cast, modules, problems, academy, linker] = await Promise.all([
     readDsa(`${dir}/lesson.md`),

@@ -43,7 +43,7 @@ export default function DsaWorlds({
   const summary = worlds.find((w) => w.id === id);
   const spec: WorldSpec | null =
     specs[id] ||
-    (summary ? { ...summary, division: "", theme: { map: summary.subtitle, road: "road", stops: {} }, regions: [], final: null } : null);
+    (summary ? { ...summary, division: "", theme: { map: summary.subtitle, road: "road", stops: {} }, regions: [], parts: [], final: null } : null);
 
   return (
     <div className="flex flex-col gap-8">
