@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Code2, FileText, Layers, Map as MapIcon, Play, Sparkles, User, type LucideIcon } from "lucide-react";
+import { CalendarDays, Check, ChevronDown, ChevronsUpDown, Code2, FileText, Layers, Map as MapIcon, Play, Sparkles, User, type LucideIcon } from "lucide-react";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
@@ -30,8 +30,8 @@ type Tab = {
   primary?: boolean;
   /** where it shows: desktop tab row, phone dock, or both */
   where: "both" | "dock" | "desk";
-  /** desktop tabs that only fit from xl (1280 px) up; between lg and xl the hub links them */
-  wide?: boolean;
+  /** desktop: listed under "more" instead of in the tab row (the row keeps the main four, so it never overflows) */
+  more?: boolean;
 };
 
 /**
@@ -49,9 +49,11 @@ function tabs(p: string): Tab[] {
     { id: "problems", href: `${DSA_HOME}/problems`, label: "problems", short: "problems", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
     // desktop only: the phone dock has no free slot (the hub and the concept pages link them there)
     { id: "lectures", href: `${DSA_HOME}/lectures`, label: "lectures", short: "lectures", on: p.startsWith(`${DSA_HOME}/lectures`) || /^\/dsa\/concepts\/[^/]+\/lecture/.test(p), icon: Play, where: "desk" },
-    { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", wide: true },
-    { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", wide: true },
-    { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", wide: true },
+    // under "more" on desktop: seven tabs pushed the header's account button 21 px off a 1440 px screen (9 Nov 2026)
+    { id: "daily", href: `${DSA_HOME}/daily`, label: "daily problem", short: "daily", on: p.startsWith(`${DSA_HOME}/daily`), icon: CalendarDays, where: "desk", more: true },
+    { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", more: true },
+    { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", more: true },
+    { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", more: true },
     ask,
     you,
     sdm,
@@ -147,26 +149,81 @@ const tabClass = (on: boolean) => `relative inline-flex items-center gap-2 white
 
 /** Desktop DSA tabs, inline in the header row. */
 export function DsaTabs({ pathname }: { pathname: string }) {
+  const desk = tabs(pathname).filter((t) => t.where !== "dock");
+  const main = desk.filter((t) => !t.more);
+  const more = desk.filter((t) => t.more);
   return (
     <nav aria-label="DSA Mastery" className="hidden items-center font-mono text-[13px] lg:flex">
-      {tabs(pathname)
-        .filter((t) => t.where !== "dock")
-        .map((t) =>
-          t.href ? (
-            <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={`${tabClass(t.on)}${t.wide ? " max-xl:!hidden" : ""}`}>
-              {t.primary && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
-              {t.label}
-              <TabPending />
-            </Link>
-          ) : (
-            <button key={t.id} type="button" onClick={() => openCourseChat()} aria-label="Ask the course tutor" title="Ask the course tutor" className={tabClass(false)}>
-              <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />
-              {t.label}
-            </button>
-          ),
-        )}
+      {main.map((t) =>
+        t.href ? (
+          <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={tabClass(t.on)}>
+            {t.primary && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
+            {t.label}
+            <TabPending />
+          </Link>
+        ) : (
+          <button key={t.id} type="button" onClick={() => openCourseChat()} aria-label="Ask the course tutor" title="Ask the course tutor" className={tabClass(false)}>
+            <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />
+            {t.label}
+          </button>
+        ),
+      )}
+      {more.length > 0 && <MoreTabs pathname={pathname} items={more} />}
       <AdminLink variant="tab" />
     </nav>
+  );
+}
+
+/** "more ▾": the secondary DSA pages in a small menu (closes on a pick, Escape, a click outside or a route change). */
+function MoreTabs({ pathname, items }: { pathname: string; items: Tab[] }) {
+  const [open, setOpen] = useState(false);
+  const [seen, setSeen] = useState(pathname);
+  if (seen !== pathname) {
+    setSeen(pathname);
+    setOpen(false);
+  }
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
+    window.addEventListener("mousedown", onDown);
+    window.addEventListener("keydown", onKey);
+    return () => {
+      window.removeEventListener("mousedown", onDown);
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+  const on = items.some((t) => t.on);
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className={`${tabClass(on)} gap-1`}>
+        more
+        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
+      </button>
+      {open && (
+        <div role="menu" aria-label="More of DSA Mastery" className="absolute left-0 top-[calc(100%+8px)] z-50 flex w-56 animate-hk-in flex-col border border-line-strong bg-surface p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
+          {items.map((t) => {
+            const I = t.icon === "sdm" ? null : t.icon;
+            return (
+              <Link
+                key={t.id}
+                href={t.href ?? "#"}
+                role="menuitem"
+                aria-current={t.on ? "page" : undefined}
+                onClick={() => setOpen(false)}
+                className={`flex min-h-11 items-center gap-2.5 px-2.5 font-mono text-[13px] ${t.on ? "bg-surface-2 text-fg" : "text-fg-2 hover:bg-surface-2 hover:text-fg"}`}
+              >
+                {I && <I className="h-4 w-4 text-signal-text" aria-hidden />}
+                {t.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
 
