@@ -259,7 +259,8 @@ export function resolveDsaSolution(
   const { problem, solutions, ...rest } = src;
   const lec = resolveDsaLecture(
     { ...raw, quest: solutionQuest(problem.id), lesson: { course: "dsa", module: problem.module, concept: problem.concept, kind: "solution" } },
-    { ...rest, lessonMd: null, templates: { solution: { label: "Solution", code: solutions } } },
+    // trailing blank lines trimmed, like a lesson's :::tabs code (parseTemplates)
+    { ...rest, lessonMd: null, templates: { solution: { label: "Solution", code: Object.fromEntries(Object.entries(solutions).map(([l, c]) => [l, c.replace(/\s+$/, "")])) } } },
   );
   return { ...lec, solution: { problem: problem.id } };
 }
