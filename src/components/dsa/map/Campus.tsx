@@ -732,7 +732,6 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
     if (ri < 0) return;
     pendingRow.current = id;
     // the URL is only readable after hydration (the page is prerendered)
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSel(ri);
     setStretchSel(spec.regions[ri].stretches.findIndex((s) => s.nodes.some((n) => n.id === id)));
   }, [spec]);

@@ -176,10 +176,10 @@ export default function StepPlayer({
       aria-roledescription="step player"
       tabIndex={0}
       onKeyDown={onKey}
-      className="dsa-ui flex flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-signal"
+      className="dsa-ui flex min-w-0 flex-col gap-3 outline-none focus-visible:ring-2 focus-visible:ring-signal"
     >
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-        <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">
+        <span className="font-mono text-[12px] uppercase tracking-label text-fg-3">
           {script.title} · step {i + 1} of {frames.length}
           {asks > 0 ? ` · ${right}/${asks} predicted` : ""}
         </span>
@@ -194,7 +194,7 @@ export default function StepPlayer({
       </div>
 
       {frame.vars && Object.keys(frame.vars).length > 0 && (
-        <table className="w-full max-w-[520px] border-collapse font-mono text-[13px]">
+        <table className="w-full max-w-[520px] table-fixed border-collapse font-mono text-[13px]">
           <tbody>
             <tr>
               {Object.entries(frame.vars).map(([k, v]) => (

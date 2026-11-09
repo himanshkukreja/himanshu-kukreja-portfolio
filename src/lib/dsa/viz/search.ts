@@ -65,7 +65,11 @@ function askAt(n: number, k: number): Set<number> {
 function choicesOf(right: string, wrong: { label: string; why: string }[]): VizAsk["choices"] {
   const seen = new Set<string>([right]);
   const out: VizAsk["choices"] = [{ label: right, correct: true }];
-  for (const w of wrong) if (!seen.has(w.label)) (seen.add(w.label), out.push({ label: w.label, correct: false, why: w.why }));
+  for (const w of wrong) {
+    if (seen.has(w.label)) continue;
+    seen.add(w.label);
+    out.push({ label: w.label, correct: false, why: w.why });
+  }
   // a stable shuffle, so the right answer is not always first
   const k = right.length % out.length;
   return [...out.slice(k), ...out.slice(0, k)];
@@ -109,7 +113,11 @@ export function bfsFrames(g: SearchGraph, start: number, goal: number | null, op
     const q = [start];
     for (let h = 0; h < q.length; h++) {
       if (q[h] === goal) return h + 1;
-      for (const m of g.neighbours(q[h])) if (!s.has(m)) (s.add(m), q.push(m));
+      for (const m of g.neighbours(q[h])) {
+        if (s.has(m)) continue;
+        s.add(m);
+        q.push(m);
+      }
     }
     return q.length;
   })();
@@ -183,7 +191,7 @@ export function bfsFrames(g: SearchGraph, start: number, goal: number | null, op
     k++;
   }
   const reachable = Object.keys(status).length;
-  let path: number[] = [];
+  const path: number[] = [];
   if (goal !== null && found) {
     for (let x: number | undefined = goal; x !== undefined; x = parent[x]) path.unshift(x);
     const steps = path.length - 1;

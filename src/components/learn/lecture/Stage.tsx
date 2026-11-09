@@ -16,6 +16,7 @@ import { type FlatStep, type Lecture, type LectureScene, type LectureStep, type 
 import { clamp, countUp, easeInOut, easeOut, lerp, prog, TONE } from "./anim";
 import { ArrayScene, CodeScene, QuoteScene, RaceScene, TraceScene } from "./DsaScenes";
 import { ChainScene } from "./DsaChainScene";
+import { GridScene } from "./DsaGridScene";
 
 type MermaidApi = Awaited<ReturnType<typeof loadMermaid>>;
 let mermaidP: Promise<MermaidApi> | null = null;
@@ -141,6 +142,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         {s.kind === "race" && <RaceScene s={s} t={t} first={cur.step === 0} />}
         {s.kind === "code" && <CodeScene s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "chain" && <ChainScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
+        {s.kind === "grid" && <GridScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
         {hasDiagram && <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} show={extraHighlight} />}
       </div>
 
