@@ -66,7 +66,7 @@
       "observability": { "enabled": true },
       "images": { "binding": "IMAGES" },
       "kv_namespaces": [{ "binding": "PAGES", "id": "19aa6193f7784663b57cb99385a3f8d9" }],
-      "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off" },
+      "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off", "JUDGE_URL": "https://judge-lite.systemdesignmastery.dev", "JUDGE_KEY_ID": "staging" },
       "services": [
         { "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" },
         { "binding": "SEARCH", "service": "sdm-search-staging" }
