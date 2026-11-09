@@ -153,7 +153,9 @@ function End({ s }: { s: StructurePage }) {
                     ? "Short problems that use the heap you just built: pressing the two heaviest parcels, the kth best score of a stream, the cheapest few offers, the busiest endpoints and the nearest drivers. Most keep only the best k items in a small heap. The first ones are easy; the last two are a step up."
                     : s.structure === "graph"
                       ? "Short problems on the graphs you just stored: building an adjacency list from edges, counting connections, a mutual follower check, the town judge and an isolated station. Each gives the edges as a list of pairs. The first ones are easy; the last one is a step up."
-                      : "Short problems on the operations you just built."}
+                      : s.structure === "trie"
+                        ? "Short problems on the tries you just built: words that share a start, a prefix check and a search box that suggests words. Each gives its words as a list. The first ones are easy; the last one is a step up."
+                        : "Short problems on the operations you just built."}
       </p>
       <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
         {s.practice.map((p, i) => (

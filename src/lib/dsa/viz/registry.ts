@@ -11,6 +11,7 @@ import { makeTree, runTreeOp, treeMemoryPicture, TREE_OPS, type TreeOp, type Tre
 import { heapMemoryPicture, HEAP_OPS, makeHeap, rawHeap, runHeapOp, type HeapOp, type HeapOpName } from "./heap";
 import { GRAPH_OPS, graphMemoryPicture, makeGraph, runGraphOp, verticesFor, type GraphOp, type GraphOpName } from "./graph";
 import type { Frame, Script } from "./types";
+import { makeTrie, runTrieOp, trieMemoryPicture, TRIE_OPS, type TrieOp, type TrieOpName } from "./trie";
 import { gridSearch, parseGrid } from "./grid";
 
 export type SandboxDemo = {
@@ -19,7 +20,9 @@ export type SandboxDemo = {
   view?: "list" | "memory";
   start: number[];
   /** a linked-list demo's operations, or (stack sandboxes) a stack's */
-  ops?: ({ op: ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName | GraphOpName; value?: number; index?: number; weight?: number })[];
+  ops?: ({ op: ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName | GraphOpName | TrieOpName; value?: number; index?: number; weight?: number; word?: string })[];
+  /** trie demos: the words stored at the start (`start` is []) */
+  words?: string[];
   /** graph demos: `start` is a flat list of edge ends (u, v, u, v, ...; u, v, weight when weighted), the vertex count (default: the highest end + 1), and whether the edges are directed */
   vertices?: number;
   directed?: boolean;
@@ -38,11 +41,13 @@ export type SandboxDemo = {
 
 export type SandboxSpec = {
   id: string;
-  structure: "linked-list" | "stack" | "queue" | "tree" | "heap" | "graph";
+  structure: "linked-list" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie";
+  /** trie sandboxes: the words stored at the start (`start` is []) */
+  words?: string[];
   title: string;
   start: number[];
-  operations: (ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName | GraphOpName)[];
-  variants: ("singly" | "doubly" | "array" | "linked" | "ring" | "bst" | "min" | "max" | "undirected" | "directed")[];
+  operations: (ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName | GraphOpName | TrieOpName)[];
+  variants: ("singly" | "doubly" | "array" | "linked" | "ring" | "bst" | "min" | "max" | "undirected" | "directed" | "words")[];
   /** stack sandboxes: the array's starting cells */
   capacity?: number;
   limits: { nodes: number; value: [number, number] };
@@ -56,6 +61,7 @@ export const SANDBOX_STRUCTURES = {
   queue: { ops: QUEUE_OPS, variants: ["ring", "linked", "doubly"] as const, demoViews: ["queue", "memory"] as const },
   tree: { ops: TREE_OPS, variants: ["bst"] as const, demoViews: ["tree", "memory"] as const },
   heap: { ops: HEAP_OPS, variants: ["min", "max"] as const, demoViews: ["heap", "memory"] as const },
+  trie: { ops: TRIE_OPS, variants: ["words"] as const, demoViews: ["trie", "memory"] as const },
   graph: { ops: GRAPH_OPS, variants: ["undirected", "directed"] as const, demoViews: ["graph", "memory"] as const },
 };
 
@@ -135,6 +141,7 @@ export function demoScript(d: SandboxDemo, structure: SandboxSpec["structure"] =
   if (structure === "tree") return treeDemoScript(d);
   if (structure === "heap") return heapDemoScript(d);
   if (structure === "graph") return graphDemoScript(d);
+  if (structure === "trie") return trieDemoScript(d);
   if (d.view === "memory") return memoryPicture(d.start) as Script;
   let list = makeList(d.start, { doubly: d.doubly, tail: d.tail });
   const frames: Frame<unknown>[] = [];
@@ -242,6 +249,24 @@ function heapDemoScript(d: SandboxDemo): Script {
     heap = r.heap;
   }
   return { view: "heap", title: d.title, costUnit: "steps", frames, result: results.join("; ") || undefined };
+}
+
+/** A trie demo as one script: its words make the trie, then its ops run in order (an op's `word` is the word or prefix). */
+function trieDemoScript(d: SandboxDemo): Script {
+  let trie = makeTrie(d.words ?? []);
+  if (d.view === "memory") return trieMemoryPicture(trie) as Script;
+  const frames: Frame<unknown>[] = [];
+  let base = 0;
+  const results: string[] = [];
+  for (const raw of d.ops || []) {
+    if (!raw.word || !(TRIE_OPS as string[]).includes(raw.op)) continue;
+    const r = runTrieOp(trie, { op: raw.op, word: raw.word } as TrieOp, { predict: d.predict });
+    for (const f of r.script.frames) frames.push({ ...f, cost: base + f.cost });
+    base += r.script.frames[r.script.frames.length - 1]?.cost ?? 0;
+    if (r.script.result) results.push(r.script.result);
+    trie = r.trie;
+  }
+  return { view: "trie", title: d.title, costUnit: "letters", frames, result: results.join("; ") || undefined };
 }
 
 /**

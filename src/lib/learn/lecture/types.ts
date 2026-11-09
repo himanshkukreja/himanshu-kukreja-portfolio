@@ -69,6 +69,13 @@ export type LectureStep = {
   edges?: number[][];
   edge?: number[];
   show?: "graph" | "list" | "matrix" | "both" | "all";
+  /** DSA trie scenes: the words after this step, a half-inserted word, the prefix walked (the node in focus), new and lit nodes (prefixes), the end marker in focus */
+  words?: string[];
+  grow?: string;
+  walk?: string;
+  fresh?: string[];
+  lit?: string[];
+  endAt?: string;
 };
 export type SceneKind =
   | "title"
@@ -94,7 +101,8 @@ export type SceneKind =
   | "queue"
   | "tree"
   | "heap"
-  | "graph";
+  | "graph"
+  | "trie";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -159,6 +167,8 @@ export type LectureScene = {
   vertices?: number;
   edges?: number[][];
   directed?: boolean;
+  /** DSA trie: the words stored at the start (lowercase letters) */
+  words?: string[];
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

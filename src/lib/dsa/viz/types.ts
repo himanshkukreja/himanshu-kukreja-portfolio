@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -268,4 +268,30 @@ export type GraphState = {
   out: string | null;
   /** what to draw: the graph alone, the list alone, the matrix alone, the graph and its list (default), or all three */
   show: "graph" | "list" | "matrix" | "both" | "all";
+};
+
+/* ------------------------------------------------------------------ the trie state ("trie" view) */
+
+/**
+ * A trie as drawn: the words it stores as a tree of letters. A node is named by its prefix ("" is the root); an edge is the
+ * letter that leads to it; a node that ends a word carries an end marker. A step lights the path walked so far (root down), the
+ * node being looked at, the nodes just created, the end marker in focus, and (for a prefix question) the nodes below the prefix.
+ */
+export type TrieState = {
+  /** the stored words (each one is an end-of-word node) */
+  words: string[];
+  /** a word being inserted: its prefixes are drawn as nodes, but without an end marker until it is finished */
+  grow: string;
+  /** the prefix walked so far: that path is drawn in the accent */
+  walk: string;
+  /** the node being looked at (a prefix) */
+  current: string | null;
+  /** nodes created this insert (prefixes): heavy outline */
+  fresh: string[];
+  /** nodes lit this step (prefixes) */
+  lit: string[];
+  /** the end marker in focus (a prefix of a stored word) */
+  endAt: string | null;
+  /** a short result chip ("yes") */
+  out: string | null;
 };

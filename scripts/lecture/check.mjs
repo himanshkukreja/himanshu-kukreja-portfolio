@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -109,6 +109,17 @@ for (const s of L.scenes || []) {
       if (st.show !== undefined && !["graph", "list", "matrix", "both", "all"].includes(st.show)) errs.push(`${s.id}#${k}: show is graph, list, matrix, both or all`);
       for (const key of ["mark", "path"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every((v) => Number.isInteger(v) && v >= 0 && v < nV))) errs.push(`${s.id}#${k}: ${key} lists vertices 0..${nV - 1}`);
       if (st.current !== undefined && st.current !== null && !(Number.isInteger(st.current) && st.current >= 0 && st.current < nV)) errs.push(`${s.id}#${k}: current is not a vertex`);
+    }
+  }
+  if (s.kind === "trie") {
+    const word = (w) => typeof w === "string" && /^[a-z]{1,8}$/.test(w);
+    const cap = L.short ? 5 : 7;
+    const okWords = (w) => Array.isArray(w) && w.length <= cap && w.every(word);
+    if (!okWords(s.words ?? [])) errs.push(`${s.id}: trie words are lowercase words of 1 to 8 letters, at most ${cap}`);
+    for (const [k, st] of (s.steps || []).entries()) {
+      if (st.words !== undefined && !okWords(st.words)) errs.push(`${s.id}#${k}: words are lowercase words of 1 to 8 letters, at most ${cap}`);
+      for (const key of ["walk", "grow", "endAt"]) if (st[key] !== undefined && !(typeof st[key] === "string" && /^[a-z]{0,8}$/.test(st[key]))) errs.push(`${s.id}#${k}: ${key} is a prefix of lowercase letters`);
+      for (const key of ["fresh", "lit"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every((x) => typeof x === "string" && /^[a-z]{1,8}$/.test(x)))) errs.push(`${s.id}#${k}: ${key} lists prefixes`);
     }
   }
   if (s.kind === "chain" && (s.values || []).length > (L.short ? 5 : 8)) errs.push(`${s.id}: at most ${L.short ? 5 : 8} nodes fit the ${L.short ? "phone" : "stage"}`);
