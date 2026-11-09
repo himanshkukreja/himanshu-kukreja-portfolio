@@ -7,7 +7,7 @@ import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
 import { plainBeatHeading } from "./words";
-import { clipQuestParts, dsaShortParts, lectureRefs, parseTemplates, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution, type RawClips, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
+import { clipQuestParts, clipRefs, dsaShortParts, lectureRefs, parseTemplates, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution, type RawClips, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import {
   dsaKeys,
@@ -809,10 +809,12 @@ const clipsCached = cached(async (id: string): Promise<Lecture[]> => {
   const dir = lessonDir(c);
   const raw = await readDsaJson<RawClips>(`${dir}/clips.json`);
   if (!raw?.clips?.length) return [];
-  const [lecture, lessonMd] = await Promise.all([getConceptLecture(id), readDsa(`${dir}/lesson.md`)]);
-  const title = (lessonMd ? (matter(lessonMd, {}).data as { title?: string }).title : "") || c.title;
-  return raw.clips.map((clip) => resolveDsaClip(clip, lecture, { module: c.module, concept: id, title })).filter((l): l is Lecture => !!l);
-}, "dsa-clips-v1");
+  const refs = clipRefs(raw);
+  const scenes = [...refs.traces.map((t) => ({ kind: "trace", trace: t })), ...refs.races.map((r) => ({ kind: "race", race: r }))];
+  const [lecture, src] = await Promise.all([getConceptLecture(id), lectureSources(dir, { scenes } as unknown as RawDsaLecture)]);
+  const title = (src.lessonMd ? (matter(src.lessonMd, {}).data as { title?: string }).title : "") || c.title;
+  return raw.clips.map((clip) => resolveDsaClip(clip, lecture, { module: c.module, concept: id, title }, src)).filter((l): l is Lecture => !!l);
+}, "dsa-clips-v2");
 
 export async function getLessonClips(id: string): Promise<Lecture[]> {
   if (!ID.test(id)) return [];
