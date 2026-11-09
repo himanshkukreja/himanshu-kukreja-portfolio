@@ -5,6 +5,7 @@
  */
 import { LIST_OPS, makeList, runListOp, type ListOp, type ListOpName } from "./list";
 import { memoryPicture } from "./memory";
+import { makeQueue, queueMemoryPicture, runQueueOp, QUEUE_OPS, type QueueOp, type QueueOpName } from "./queue";
 import { makeStack, runStackOp, stackMemoryPicture, STACK_OPS, type StackOp, type StackOpName } from "./stack";
 import type { Frame, Script } from "./types";
 import { gridSearch, parseGrid } from "./grid";
@@ -15,11 +16,13 @@ export type SandboxDemo = {
   view?: "list" | "memory";
   start: number[];
   /** a linked-list demo's operations, or (stack sandboxes) a stack's */
-  ops?: ({ op: ListOpName | StackOpName; value?: number; index?: number })[];
+  ops?: ({ op: ListOpName | StackOpName | QueueOpName; value?: number; index?: number })[];
   doubly?: boolean;
   /** stack demos: how the stack is stored (default array) and the cells the array starts with */
-  backing?: "array" | "linked";
+  backing?: "array" | "linked" | "ring" | "list" | "doubly";
   capacity?: number;
+  /** queue demos: the ring's head cell at the start (so the demo can wrap round) */
+  head?: number;
   /** keep a tail pointer (default true) */
   tail?: boolean;
   /** ask predict-then-reveal questions at the key steps */
@@ -28,11 +31,11 @@ export type SandboxDemo = {
 
 export type SandboxSpec = {
   id: string;
-  structure: "linked-list" | "stack";
+  structure: "linked-list" | "stack" | "queue";
   title: string;
   start: number[];
-  operations: (ListOpName | StackOpName)[];
-  variants: ("singly" | "doubly" | "array" | "linked")[];
+  operations: (ListOpName | StackOpName | QueueOpName)[];
+  variants: ("singly" | "doubly" | "array" | "linked" | "ring")[];
   /** stack sandboxes: the array's starting cells */
   capacity?: number;
   limits: { nodes: number; value: [number, number] };
@@ -43,6 +46,25 @@ export type SandboxSpec = {
 export const SANDBOX_STRUCTURES = {
   "linked-list": { ops: LIST_OPS, variants: ["singly", "doubly"] as const, demoViews: ["list", "memory"] as const },
   stack: { ops: STACK_OPS, variants: ["array", "linked"] as const, demoViews: ["stack", "memory"] as const },
+  queue: { ops: QUEUE_OPS, variants: ["ring", "linked", "doubly"] as const, demoViews: ["queue", "memory"] as const },
+};
+
+const toQueueOp = (o: NonNullable<SandboxDemo["ops"]>[number]): QueueOp | null => {
+  const value = Number(o.value ?? 0);
+  switch (o.op) {
+    case "enqueue":
+    case "push_back":
+    case "push_front":
+    case "window_max":
+      return { op: o.op, value };
+    case "dequeue":
+    case "pop_front":
+    case "pop_back":
+    case "peek":
+      return { op: o.op };
+    default:
+      return null;
+  }
 };
 
 const toStackOp = (o: NonNullable<SandboxDemo["ops"]>[number]): StackOp | null => {
@@ -82,6 +104,7 @@ const toOp = (o: NonNullable<SandboxDemo["ops"]>[number]): ListOp | null => {
 /** A demo as one script: its ops run in order, frames joined, the cost running on across them. */
 export function demoScript(d: SandboxDemo, structure: SandboxSpec["structure"] = "linked-list"): Script {
   if (structure === "stack") return stackDemoScript(d);
+  if (structure === "queue") return queueDemoScript(d);
   if (d.view === "memory") return memoryPicture(d.start) as Script;
   let list = makeList(d.start, { doubly: d.doubly, tail: d.tail });
   const frames: Frame<unknown>[] = [];
@@ -122,6 +145,31 @@ function stackDemoScript(d: SandboxDemo): Script {
     stack = r.stack;
   }
   return { view: "stack", title: d.title, costUnit, frames, result: results.join("; ") || undefined };
+}
+
+/** A queue demo as one script: its ops run in order on one queue, frames joined, the cost running on across them. */
+function queueDemoScript(d: SandboxDemo): Script {
+  if (d.view === "memory") return queueMemoryPicture(d.start) as Script;
+  const backing = d.backing === "linked" || d.backing === "list" ? "list" : d.backing === "doubly" || d.doubly ? "doubly" : "ring";
+  let queue = makeQueue(d.start, { backing, capacity: d.capacity, head: d.head });
+  const frames: Frame<unknown>[] = [];
+  let base = 0;
+  let costUnit = "steps";
+  let view = "queue" as "queue" | "stack";
+  const results: string[] = [];
+  for (const raw of d.ops || []) {
+    const op = toQueueOp(raw);
+    if (!op) continue;
+    const r = runQueueOp(queue, op, { predict: d.predict });
+    costUnit = r.script.costUnit;
+    view = r.script.view as "queue";
+    const reset = op.op === "window_max";
+    for (const f of r.script.frames) frames.push({ ...f, cost: reset ? f.cost : base + f.cost });
+    if (!reset) base += r.script.frames[r.script.frames.length - 1]?.cost ?? 0;
+    if (r.script.result) results.push(r.script.result);
+    queue = r.queue;
+  }
+  return { view, title: d.title, costUnit, frames, result: results.join("; ") || undefined };
 }
 
 /* ------------------------------------------------------------------ algorithm visualizers (Academy Part 3) */
