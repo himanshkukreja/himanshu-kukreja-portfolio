@@ -30,7 +30,16 @@ export type ProblemSummary = {
   classic: string[];
 };
 
-export type ConceptSummary = { id: string; module: string; order: number; title: string; status: "built" | "planned"; summary: string };
+export type ConceptSummary = {
+  id: string;
+  module: string;
+  order: number;
+  title: string;
+  status: "built" | "planned";
+  summary: string;
+  /** "structure": an Academy Part 2 structure lesson (resources/structures/, /dsa/structures/<id>); else a 6S concept */
+  kind?: "concept" | "structure";
+};
 
 /* ------------------------------------------------------------------ worlds (resources/worlds/<id>.yml) */
 
@@ -72,6 +81,8 @@ export type WorldRegion = {
   detail: "full" | "outline";
   status: string;
   intro: string | null;
+  /** the Academy part the region belongs to ("part-2": core data structures), when the world has parts */
+  part?: string;
   /** the region's home product line ("Kestrel Stream"), from its own lines or its module's (course.yml) */
   line: string | null;
   /** the module's one-sentence objective (course.yml), for regions without an intro yet */
@@ -213,6 +224,7 @@ export function dsaXpOfKey(key: string): number {
   if (key.startsWith("dsa:boss:")) return DSA_XP.boss;
   if (key.startsWith("dsa:world:")) return DSA_XP.world;
   if (key.startsWith("dsa:daily:")) return DSA_XP.daily;
+  if (key.startsWith("dsa:lab:")) return DSA_XP.easy * 2; // a structure lesson's build-it lab
   return 0;
 }
 

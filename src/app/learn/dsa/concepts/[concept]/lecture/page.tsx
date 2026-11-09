@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { conceptHref, conceptLectureHref, getConcept, getConceptIndex, getConceptLecture } from "@/lib/dsa/load";
+import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, structureHref } from "@/lib/dsa/load";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
 
@@ -29,7 +29,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function DsaLecturePage({ params }: Props) {
   if (!DSA_FULL) notFound();
   const { concept } = await params;
-  const [l, c, index] = await Promise.all([getConceptLecture(concept), getConcept(concept), getConceptIndex()]);
+  const [l, index] = await Promise.all([getConceptLecture(concept), getConceptIndex()]);
+  // a concept or a structure lesson (Academy Part 2): the lecture plays the same way, its "back" link differs
+  const c = index.find((x) => x.id === concept && x.status === "built");
   if (!l || !c) notFound();
   // up next: the next built concept in the course that has a lecture
   const order = index.filter((x) => x.status === "built");
@@ -45,7 +47,7 @@ export default async function DsaLecturePage({ params }: Props) {
   const code = c.module.split("-")[0].toUpperCase();
   return (
     <div className="dsa-theme">
-      <LecturePlayer lecture={l} quest={{ title: c.title, href: conceptHref(c.id), code }} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={next} />
+      <LecturePlayer lecture={l} quest={{ title: c.title, href: c.kind === "structure" ? structureHref(c.id) : conceptHref(c.id), code }} source={lectureHash(l)} mediaBase={lectureMediaBase()} next={next} />
     </div>
   );
 }

@@ -65,7 +65,7 @@ const castOf = cached(async (): Promise<Record<string, { name: string; role: str
   return Object.fromEntries((data.cast || []).map((c) => [c.id, { name: c.name, role: c.role }]));
 }, "dsa-cast-v1");
 
-type ConceptsFile = { concepts?: { id: string; module: string; order?: number; title: string; status?: string; summary?: string }[] };
+type ConceptsFile = { concepts?: { id: string; module: string; order?: number; title: string; status?: string; summary?: string; kind?: string }[] };
 
 export const getConceptIndex = cached(async (): Promise<ConceptSummary[]> => {
   const src = await readDsa("resources/concepts.yml");
@@ -78,8 +78,14 @@ export const getConceptIndex = cached(async (): Promise<ConceptSummary[]> => {
     title: c.title,
     status: c.status === "built" ? "built" : "planned",
     summary: c.summary || "",
+    ...(c.kind === "structure" ? { kind: "structure" as const } : {}),
   }));
-}, "dsa-concepts-v1");
+}, "dsa-concepts-v2");
+
+/* Structure lessons (Academy Part 2, dsa-structures): their own folder and page. */
+/** A concept's content folder: resources/modules/<module>/<id>, or resources/structures/<module>/<id> for a structure lesson. */
+export const lessonDir = (c: Pick<ConceptSummary, "id" | "module" | "kind">) => `resources/${c.kind === "structure" ? "structures" : "modules"}/${c.module}/${c.id}`;
+export const structureHref = (id: string) => `/dsa/structures/${id}`;
 
 type ModulesFile = { modules?: { id: string; code: string; title: string; building?: string; lines?: string[]; objective?: string }[] };
 
@@ -162,6 +168,7 @@ type RawNode = Record<string, unknown> & { id: string; type: string };
 type RawRegion = {
   id: string;
   code: string;
+  part?: number | string;
   title: string;
   module: string;
   detail?: string;
@@ -211,7 +218,8 @@ function buildWorld(
     if (n.type === "concept") {
       const c = concepts.get(String(n.concept));
       const built = c?.status === "built";
-      return { id: n.id, type: "concept", title: c?.title || humanize(String(n.concept)), required, href: built ? conceptHref(String(n.concept)) : null, ref: String(n.concept), built };
+      const href = c?.kind === "structure" ? structureHref(String(n.concept)) : conceptHref(String(n.concept));
+      return { id: n.id, type: "concept", title: c?.title || humanize(String(n.concept)), required, href: built ? href : null, ref: String(n.concept), built };
     }
     if (n.type === "practice") {
       const p = problems.get(String(n.problem));
@@ -235,7 +243,7 @@ function buildWorld(
         type: "checkpoint",
         title: "Checkpoint",
         required: true,
-        href: quizConcept?.status === "built" ? `${conceptHref(quizConcept.id)}#say` : null,
+        href: quizConcept?.status === "built" ? (quizConcept.kind === "structure" ? `${structureHref(quizConcept.id)}#recap` : `${conceptHref(quizConcept.id)}#say`) : null,
         built: quizConcept?.status === "built",
         quiz,
         problems: ((n.problems as string[]) || []).map((id) => ({ id, title: problems.get(id)?.title || titles[id] || humanize(id), built: problems.has(id) })),
@@ -259,6 +267,7 @@ function buildWorld(
       code: r.code,
       title: r.title,
       module: r.module || "",
+      ...(r.part !== undefined ? { part: String(r.part) } : {}),
       detail: r.detail === "full" ? "full" : "outline",
       status: r.status || "planned",
       intro: r.intro || null,
@@ -324,7 +333,7 @@ export const getWorlds = cached(async (): Promise<WorldSummary[]> => {
 
 /* ------------------------------------------------------------------ links to System Design Mastery */
 
-async function sdmLinker(): Promise<{ sdm: (path: string) => DsaLink; lab: (id: string) => DsaLink }> {
+export async function sdmLinker(): Promise<{ sdm: (path: string) => DsaLink; lab: (id: string) => DsaLink }> {
   const titles = new Map<string, string>();
   const labs = new Map<string, string>();
   try {
@@ -392,7 +401,7 @@ function templatesOf(md: string): Record<string, Partial<Record<DsaLang, string>
 const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => {
   const concepts = await getConceptIndex();
   const c = concepts.find((x) => x.id === id);
-  if (!c || c.status !== "built") return null;
+  if (!c || c.status !== "built" || c.kind === "structure") return null;
   const dir = `resources/modules/${c.module}/${id}`;
   const [lessonMd, quizMd, cast, modules, problems, academy, linker] = await Promise.all([
     readDsa(`${dir}/lesson.md`),
@@ -512,11 +521,11 @@ async function lectureSources(dir: string, raw: RawDsaLecture) {
 const lectureCached = cached(async (id: string): Promise<Lecture | null> => {
   const c = (await getConceptIndex()).find((x) => x.id === id);
   if (!c || c.status !== "built") return null;
-  const dir = `resources/modules/${c.module}/${id}`;
+  const dir = lessonDir(c);
   const raw = await readDsaJson<RawDsaLecture>(`${dir}/lecture.json`);
   if (!raw || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
   return resolveDsaLecture(raw, await lectureSources(dir, raw));
-}, "dsa-lecture-v1");
+}, "dsa-lecture-v2");
 
 export async function getConceptLecture(id: string): Promise<Lecture | null> {
   if (!ID.test(id)) return null;
@@ -529,12 +538,12 @@ export async function getConceptLecture(id: string): Promise<Lecture | null> {
 const conceptShortIdsCached = cached(async (id: string): Promise<string[]> => {
   const c = (await getConceptIndex()).find((x) => x.id === id);
   if (!c || c.status !== "built") return [];
-  const files = (await listDsa(`resources/modules/${c.module}/${id}/shorts`)) || [];
+  const files = (await listDsa(`${lessonDir(c)}/shorts`)) || [];
   return files
     .filter((f) => /^[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(f))
     .sort()
     .map((f) => `shorts--dsa--${c.module}--${id}--${f.replace(/\.json$/, "")}`);
-}, "dsa-short-ids-v1");
+}, "dsa-short-ids-v2");
 
 export async function getConceptShortIds(id: string): Promise<string[]> {
   if (!ID.test(id)) return [];
@@ -547,11 +556,11 @@ const shortCached = cached(async (id: string): Promise<Lecture | null> => {
   if (!parts) return null;
   const c = (await getConceptIndex()).find((x) => x.id === parts.concept);
   if (!c || c.status !== "built" || c.module !== parts.module) return null;
-  const dir = `resources/modules/${c.module}/${c.id}`;
+  const dir = lessonDir(c);
   const raw = await readDsaJson<RawDsaLecture>(`${dir}/shorts/${parts.slug}.json`);
   if (!raw || raw.quest !== id || !raw.short || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
   return resolveDsaShort(raw, await lectureSources(dir, raw));
-}, "dsa-short-v1");
+}, "dsa-short-v2");
 
 export async function getDsaShort(id: string): Promise<Lecture | null> {
   if (!dsaShortParts(id)) return null;
