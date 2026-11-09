@@ -181,13 +181,17 @@ function VerdictPanel({
                 Object.entries(tc.input).map(([k, v]) => (
                   <div key={k} className="contents">
                     <dt className="text-fg-3">{k}</dt>
-                    <dd className="m-0 break-all text-fg">{fmtVal(v)}</dd>
+                    <dd className="m-0 min-w-0 break-all text-fg">
+                      <CaseValue v={v} />
+                    </dd>
                   </div>
                 ))}
               <dt className="text-fg-3">expected</dt>
-              <dd className="m-0 break-all text-fg">{tc ? fmtVal(tc.output) : "–"}</dd>
+              <dd className="m-0 min-w-0 break-all text-fg">{tc ? <CaseValue v={tc.output} /> : "–"}</dd>
               <dt className="text-fg-3">output</dt>
-              <dd className={`m-0 break-all ${cur.ok ? "text-ok-text" : "text-bad-text"}`}>{cur.got ?? (cur.ok ? (tc ? fmtVal(tc.output) : "–") : "–")}</dd>
+              <dd className={`m-0 min-w-0 break-all ${cur.ok ? "text-ok-text" : "text-bad-text"}`}>
+                {cur.got !== undefined ? <CaseValue v={parseGot(cur.got)} /> : cur.ok ? tc ? <CaseValue v={tc.output} /> : "–" : "–"}
+              </dd>
               {cur.message && (
                 <>
                   <dt className="text-fg-3">note</dt>
@@ -707,4 +711,29 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
       />
     </div>
   );
+}
+
+/** A grid (rows of text, or rows of numbers, two or more rows) drawn as rows; anything else as one line of JSON. */
+function asGrid(v: unknown): string[] | null {
+  if (!Array.isArray(v) || v.length < 2) return null;
+  if (v.every((r) => typeof r === "string")) return v as string[];
+  if (v.every((r) => Array.isArray(r) && r.every((x) => typeof x === "number"))) {
+    const w = Math.max(1, ...(v as number[][]).flat().map((x) => String(x).length));
+    return (v as number[][]).map((r) => r.map((x) => String(x).padStart(w)).join(" "));
+  }
+  return null;
+}
+
+function parseGot(got: string): unknown {
+  try {
+    return JSON.parse(got);
+  } catch {
+    return got;
+  }
+}
+
+function CaseValue({ v }: { v: unknown }) {
+  const rows = asGrid(v);
+  if (!rows) return <>{fmtVal(v)}</>;
+  return <pre className="m-0 max-h-64 overflow-auto whitespace-pre leading-[1.35]">{rows.join("\n")}</pre>;
 }

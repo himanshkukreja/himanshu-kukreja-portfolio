@@ -258,7 +258,7 @@ function StretchRow({
     meta = state === "soon" ? "soon" : `${n.required ? "" : "bonus · "}${n.level || ""}`;
   } else if (n.type === "checkpoint") {
     const k = (n.problems || []).length;
-    label = `${STOP.checkpoint}${k ? ` + ${k} problems` : ""}${n.lab ? " + lab" : ""}`;
+    label = `${STOP.checkpoint}${k ? ` + ${k} problems` : ""}${n.lab ? ` + ${STOP.lab.toLowerCase()}` : ""}`;
     meta = state === "soon" ? "soon" : `${Math.round((n.pass ?? 0.8) * 100)}% to pass`;
   } else {
     label = after ? `${STOP.gate}: ${after.index + 1} · ${after.title}` : `End of ${regionTitle}`;
@@ -350,7 +350,7 @@ function LabRow({ lab, done }: { lab: NonNullable<WorldNode["lab"]>; done: boole
         )}
         <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
           <span className="min-w-0 grow basis-[9rem] break-words text-[14px] leading-snug">
-            Lab · {lab.title}
+            {STOP.lab} · {lab.title}
             <span className="sr-only">, {done ? "passed" : "not passed yet"}, part of the checkpoint</span>
           </span>
           <span aria-hidden className="shrink-0 font-mono text-[11px] text-fg-3">

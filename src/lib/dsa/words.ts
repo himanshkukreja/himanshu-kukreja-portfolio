@@ -9,10 +9,15 @@ export const STOP = {
   concept: "Lesson",
   practice: "Practice problem",
   checkpoint: "Checkpoint quiz",
+  /** a structure or algorithm lesson's build-it-yourself lab: it counts towards the checkpoint with the quiz */
+  lab: "Lab",
   gate: "Next section",
   boss: "Module review",
   final: "Final",
 } as const;
+
+/** The Academy's parts (owner, 9 Nov 2026): the map's plain headings. */
+export const PART = "Part";
 
 /** A world's region (the spec's "building") is a module; a region's stretch is a section. */
 export const MODULE = "Module";
