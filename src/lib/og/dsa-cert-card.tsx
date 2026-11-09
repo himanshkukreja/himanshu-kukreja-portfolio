@@ -49,7 +49,7 @@ export async function dsaCertCard(v: DsaCertView | null) {
             {name || DSA_CERT_NAME}
           </div>
           <div style={{ display: "flex", marginTop: 22, fontSize: 30, color: C.fg2, maxWidth: 1000, lineHeight: 1.3 }}>
-            {name ? `completed ${DSA_CERT_NAME}: the Kestrel Academy world, every concept, problem, checkpoint and the Launch week final.` : "Finish the Kestrel Academy world of DSA Mastery and earn a verifiable certificate."}
+            {name ? `completed ${DSA_CERT_NAME}: the Foundations world, every concept, problem, checkpoint and the Launch week final.` : "Finish the Foundations world of DSA Mastery and earn a verifiable certificate."}
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 18, marginTop: "auto", marginBottom: 40 }}>
             <Label>{v ? `ID ${v.code}` : "DSA-XXXX-XXXX"}</Label>

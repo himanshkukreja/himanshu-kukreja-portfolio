@@ -26,7 +26,7 @@ export default async function ProblemsPage() {
             Problems<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
-            Original problems set at Kestrel, each tied to the concept it practises. Python and JavaScript run in your browser; Java and C++ run on the judge.
+            Original problems set in everyday apps, each tied to the concept it practises. Python and JavaScript run in your browser; Java and C++ run on the judge.
           </p>
           <SaveGroupButton group="dsa-problems" label="Save every problem offline" className="self-start" />
         </header>

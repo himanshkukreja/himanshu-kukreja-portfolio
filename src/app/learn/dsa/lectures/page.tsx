@@ -36,7 +36,7 @@ export default async function DsaLecturesPage() {
             Watch the pattern move<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
-            One animated lecture per lesson: the Kestrel task, the first attempt that is too slow, the idea traced step by step, and the template you will write in the interview. Each one stops for quick checkpoints and opens its lesson when you want to read it.
+            One animated lecture per lesson: the everyday task, the first attempt that is too slow, the idea traced step by step, and the template you will write in the interview. Each one stops for quick checkpoints and opens its lesson when you want to read it.
           </p>
           <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[13px]">
             <Link href="/dsa/shorts" className="text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">

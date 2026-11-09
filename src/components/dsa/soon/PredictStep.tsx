@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * A taste of the "predict the next step" dry runs (plan §3.5, the sliding-window lesson): Kestrel Stream's
+ * A taste of the "predict the next step" dry runs (plan §3.5, the sliding-window lesson): a music streaming app's
  * hourly play starts, a three-hour window, and the learner predicts each new sum before it is shown.
  * Self-contained and client-only; nothing is saved.
  */
@@ -47,7 +47,7 @@ export default function PredictStep() {
         </span>
       </div>
 
-      <p className="m-0 text-[14px] leading-relaxed text-fg-2">Hourly play starts on Kestrel Stream, in thousands. Find the busiest three-hour stretch.</p>
+      <p className="m-0 text-[14px] leading-relaxed text-fg-2">Hourly play starts on a music streaming app, in thousands. Find the busiest three-hour stretch.</p>
 
       <ol aria-label="Hourly play starts" className="m-0 grid list-none grid-cols-6 gap-1.5 p-0">
         {PLAYS.map((v, i) => {

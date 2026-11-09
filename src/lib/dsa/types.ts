@@ -86,7 +86,7 @@ export type WorldRegion = {
   intro: string | null;
   /** the Academy part the region belongs to ("part-2": core data structures), when the world has parts */
   part?: string;
-  /** the region's home product line ("Kestrel Stream"), from its own lines or its module's (course.yml) */
+  /** the region's home product line ("Music streaming app"), from its own lines or its module's (course.yml) */
   line: string | null;
   /** the module's one-sentence objective (course.yml), for regions without an intro yet */
   objective: string | null;
@@ -100,7 +100,7 @@ export type WorldRegion = {
 export type WorldSummary = { id: string; title: string; subtitle: string; order: number; audience: string; atLaunch: string; open: boolean };
 
 export type WorldSpec = WorldSummary & {
-  /** the Kestrel division the world is themed as ("Kestrel Academy"), "" when the spec has none */
+  /** the division id the world is themed as (internal, never shown), "" when the spec has none */
   division: string;
   /** what each stop is called on this world's map (Academy: concept "room", practice "paving stone", ...) */
   theme: { map: string; road: string; stops: Partial<Record<WorldNodeType, string>> };
@@ -155,6 +155,8 @@ export type ConceptPage = {
   level: string;
   minutes: number;
   line: string;
+  /** the line's plain label ("Music streaming app"), "" when it has none */
+  lineLabel: string;
   invariant: string;
   keyPoints: string[];
   /** "In one picture": the lesson's pattern card (its title and rendered body), null when the lesson has none */
@@ -180,6 +182,7 @@ export type ProblemPage = {
   title: string;
   level: DsaLevel;
   line: string;
+  lineLabel: string;
   module: string;
   concept: string;
   conceptTitle: string;

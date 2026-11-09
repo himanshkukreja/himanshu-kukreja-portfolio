@@ -390,7 +390,7 @@ function BuildingPanel({
   labs: ReadonlySet<string>;
 }) {
   const r = b.region;
-  // the theme name and the product line as the small subtitle: "M5 · Window Tower · Kestrel Stream"
+  // the theme name and the product line as the small subtitle: "M5 · Window Tower · Music streaming app"
   const eyebrow = [r.code.toUpperCase(), themeName(r), r.line].filter(Boolean).join(" · ");
   const intro = r.intro || r.objective;
   const st = b.stretches[stretchIdx] || b.stretches[0];

@@ -96,7 +96,7 @@ export default async function DsaCertPage({ params }: Props) {
               </p>
             ) : null}
             <p className="m-0 text-[14px] leading-relaxed text-fg-2">
-              Foundations is the Kestrel Academy world: {facts.length ? facts.join(", ") : "every lesson, practice problem and checkpoint quiz"}, and the timed Launch week final, all recorded on the learner&apos;s account and checked when the certificate was issued.
+              Foundations is the first world of DSA Mastery: {facts.length ? facts.join(", ") : "every lesson, practice problem and checkpoint quiz"}, and the timed Launch week final, all recorded on the learner&apos;s account and checked when the certificate was issued.
             </p>
             <Link href="/dsa" className="inline-flex min-h-11 items-center self-start border border-line-strong px-4 font-mono text-[13px] text-fg hover:border-signal">
               Start DSA Mastery →

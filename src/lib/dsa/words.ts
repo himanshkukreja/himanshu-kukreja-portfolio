@@ -1,7 +1,7 @@
 /**
  * DSA Mastery's plain words (owner, 9 Nov 2026: the beginner pass). The content repo's world spec keeps its theme
  * ("room", "paving stone", "front desk", "door", "stretch", "building"); the UI always says what a thing is. Theme
- * names ("Window Tower", "Kestrel Stream") only appear as small subtitles. Import-free: server and client share it.
+ * names ("Window Tower") only appear as small subtitles. Import-free: server and client share it.
  */
 
 /** What each stop on the map is, for everyone. */

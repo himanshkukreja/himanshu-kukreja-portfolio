@@ -4,7 +4,7 @@ import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
-import { getConceptIndex, getLessonClips, getProblemIndex, getWorld, lessonDir, sdmLinker } from "./load";
+import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getWorld, lessonDir, sdmLinker } from "./load";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import { dsaKeys, type ConceptCheckpoint, type DsaLang, type DsaStage, type ProblemSummary } from "./types";
 import type { GridDemo, SandboxDemo, SandboxSpec, VisualizerSpec } from "./viz/registry";
@@ -53,6 +53,7 @@ export type StructurePage = {
   level: string;
   minutes: number;
   line: string;
+  lineLabel: string;
   structure: string;
   keyPoints: string[];
   html: string;
@@ -190,6 +191,7 @@ async function build(id: string): Promise<StructurePage | null> {
     level: f.level || "beginner",
     minutes: f.minutes || rendered.readingMinutes,
     line: f.line || "",
+    lineLabel: await getLineLabel(f.line || ""),
     structure: f.structure || "",
     keyPoints: f.keyPoints || [],
     html: rendered.html,

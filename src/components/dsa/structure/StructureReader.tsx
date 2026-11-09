@@ -48,7 +48,7 @@ function Hero({ s }: { s: StructurePage }) {
       <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-fg-3">
         <span className="border border-line-strong px-2 py-1">{fmtMin(s.minutes)}</span>
         <span className="border border-line-strong px-2 py-1">{s.level}</span>
-        {s.line && <span className="border border-line-strong px-2 py-1">Kestrel {s.line.charAt(0).toUpperCase() + s.line.slice(1)}</span>}
+        {s.lineLabel && <span className="border border-line-strong px-2 py-1">{s.lineLabel}</span>}
         <span className="border border-signal px-2 py-1 text-signal-text">{chip}</span>
         {/* saved, the lesson keeps its clips, demos and lab for offline reading */}
         <SaveOfflineButton title={s.title} kind="dsa-concept" />
