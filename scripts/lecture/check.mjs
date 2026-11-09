@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -64,6 +64,22 @@ for (const s of L.scenes || []) {
       if (!Array.isArray(st.order) || !st.order.every(id) || new Set(st.order).size !== st.order.length) errs.push(`${s.id}#${k}: queue steps need order: distinct ids, front to back (in a window scene, the deque's indexes)`);
       if (st.lift !== undefined && st.lift !== null && (!id(st.lift) || (st.order || []).includes(st.lift))) errs.push(`${s.id}#${k}: lift is an item id that is not in order`);
       if (s.mode === "window" && st.window && !(Array.isArray(st.window) && st.window[0] >= 0 && st.window[1] < n && st.window[0] <= st.window[1])) errs.push(`${s.id}#${k}: window [${st.window}] outside the stream`);
+    }
+  }
+  if (s.kind === "tree") {
+    const n = (s.values || []).length;
+    const id = (v) => Number.isInteger(v) && v >= 0 && v < n;
+    const kids = (a) => Array.isArray(a) && a.length === n && a.every((v) => v === null || id(v));
+    const ids = (a) => Array.isArray(a) && a.every(id) && new Set(a).size === a.length;
+    if (!n) errs.push(`${s.id}: tree needs values[] (the nodes)`);
+    if (n > (L.short ? 7 : 9)) errs.push(`${s.id}: at most ${L.short ? 7 : 9} nodes`);
+    if (!kids(s.leftOf) || !kids(s.rightOf)) errs.push(`${s.id}: tree needs leftOf[] and rightOf[]: each node's child id or null`);
+    for (const [k, st] of (s.steps || []).entries()) {
+      for (const key of ["leftOf", "rightOf"]) if (st[key] !== undefined && !kids(st[key])) errs.push(`${s.id}#${k}: ${key} gives each of the ${n} nodes an id or null`);
+      for (const key of ["nodes", "path", "mark"]) if (st[key] !== undefined && !ids(st[key])) errs.push(`${s.id}#${k}: ${key} lists distinct node ids`);
+      if (st.seq !== undefined && !(Array.isArray(st.seq) && st.seq.every(id))) errs.push(`${s.id}#${k}: seq lists node ids`);
+      for (const key of ["current", "found", "lift"]) if (st[key] !== undefined && st[key] !== null && !id(st[key])) errs.push(`${s.id}#${k}: ${key} is not a node id`);
+      if (st.lift !== undefined && st.lift !== null && (st.nodes || []).includes(st.lift)) errs.push(`${s.id}#${k}: lift is a node that is not in nodes`);
     }
   }
   if (s.kind === "chain" && (s.values || []).length > (L.short ? 5 : 8)) errs.push(`${s.id}: at most ${L.short ? 5 : 8} nodes fit the ${L.short ? "phone" : "stage"}`);
@@ -124,8 +140,8 @@ for (const s of L.scenes || []) {
     if (s.kind === "trace" && s.traceData && !(Number.isInteger(st.frame) && st.frame >= 0 && st.frame < s.traceData.frames.length)) errs.push(`${s.id}#${k}: frame ${st.frame} outside trace ${s.trace} (0..${s.traceData.frames.length - 1})`);
     if (s.kind === "trace" && s.traceData && /\bpredict\b/i.test(st.say || "") && !s.traceData.frames[st.frame]?.ask) warns.push(`${s.id}#${k}: says "predict" but frame ${st.frame} asks nothing, so no value is hidden`);
     if (s.kind === "code" && s.code) for (const m of st.markers || []) if (!(m >= 1 && m <= s.code.lines.length && s.code.lines[m - 1].length)) errs.push(`${s.id}#${k}: marker ${m} not in template ${s.template} (1..${s.code.lines.length})`);
-    if (((st.window && !(s.kind === "queue" && s.mode === "window")) || st.pointers || (st.mark && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue")) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
-    if ((st.order || st.next || st.labels) && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue") warns.push(`${s.id}#${k}: order/next/labels only apply to chain scenes`);
+    if (((st.window && !(s.kind === "queue" && s.mode === "window")) || st.pointers || (st.mark && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree")) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
+    if ((st.order || st.next || st.labels) && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree") warns.push(`${s.id}#${k}: order/next/labels only apply to chain scenes`);
     if (st.markers && s.kind !== "code") warns.push(`${s.id}#${k}: markers only apply to code scenes`);
     if (st.reveal != null && (st.reveal < 0 || st.reveal > revealMax)) errs.push(`${s.id}#${k}: reveal ${st.reveal} outside 0..${revealMax}`);
     if (st.pause != null && !(st.pause >= 0 && st.pause <= 3)) errs.push(`${s.id}#${k}: pause must be 0-3 s`);

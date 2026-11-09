@@ -19,6 +19,7 @@ import { ChainScene } from "./DsaChainScene";
 import { GridScene } from "./DsaGridScene";
 import { StackScene } from "./DsaStackScene";
 import { QueueScene } from "./DsaQueueScene";
+import { TreeScene } from "./DsaTreeScene";
 
 type MermaidApi = Awaited<ReturnType<typeof loadMermaid>>;
 let mermaidP: Promise<MermaidApi> | null = null;
@@ -148,6 +149,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         {s.kind === "grid" && <GridScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
         {s.kind === "stack" && <StackScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
         {s.kind === "queue" && <QueueScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
+        {s.kind === "tree" && <TreeScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
         {hasDiagram && <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} show={extraHighlight} />}
       </div>
 

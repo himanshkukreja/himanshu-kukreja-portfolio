@@ -52,6 +52,15 @@ export type LectureStep = {
   cur?: number;
   results?: number[];
   drop?: number;
+  /** DSA tree scenes (a binary search tree): the node ids in the tree this step (default: all), links changed this step (each id's left / right child id or null), the ids walked so far, the node looked at, a node found or just linked in, a walk's output so far (node ids in the order visited) and its label */
+  nodes?: number[];
+  leftOf?: (number | null)[];
+  rightOf?: (number | null)[];
+  path?: number[];
+  current?: number;
+  found?: number;
+  seq?: number[];
+  seqTitle?: string;
 };
 export type SceneKind =
   | "title"
@@ -74,7 +83,8 @@ export type SceneKind =
   | "chain"
   | "grid"
   | "stack"
-  | "queue";
+  | "queue"
+  | "tree";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -126,6 +136,11 @@ export type LectureScene = {
   /** DSA stack: how it is drawn (array cells, list nodes, call-stack frames) and the cells the array has; DSA queue: "ring" (cells, head and tail), "list" (nodes; `doubly` draws both arrows) or "window" (the sliding-window maximum, `values` is the stream, `k` the window width) */
   mode?: "array" | "list" | "calls" | "ring" | "window";
   capacity?: number;
+  /** DSA tree: each node left and right child id (null = none), the root id (default 0), and numbered levels down the left */
+  leftOf?: (number | null)[];
+  rightOf?: (number | null)[];
+  root?: number;
+  levels?: boolean;
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

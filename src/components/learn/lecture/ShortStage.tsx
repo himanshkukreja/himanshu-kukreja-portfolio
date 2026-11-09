@@ -19,6 +19,7 @@ import { PChain } from "./DsaChainScene";
 import { PGrid } from "./DsaGridScene";
 import { PStack } from "./DsaStackScene";
 import { PQueue } from "./DsaQueueScene";
+import { PTree } from "./DsaTreeScene";
 
 const W = "text-[#f3f2ee]";
 /** the accent (SD Mastery orange; DSA_ACCENT turns it teal on a DSA short), its rgb triplet, its dark tint and ink */
@@ -180,6 +181,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
         {s.kind === "grid" && <PGrid s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "stack" && <PStack s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "queue" && <PQueue s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
+        {s.kind === "tree" && <PTree s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {hasDiagram && (
           <div className="flex h-full w-full flex-col gap-[2cqh]">
             {s.heading && <h2 className={`m-0 text-center font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}

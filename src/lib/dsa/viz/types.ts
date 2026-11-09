@@ -5,7 +5,7 @@
  *   a Frame    = the structure's state at that step + a one-line narration + the running cost (+ optional
  *                predict-then-reveal question, code marker and variable table)
  *   a View     = a component that draws one kind of state (views.tsx): "list" (linked lists), "array",
- *                "memory" (array vs list in memory), "grid", "stack", "queue" (ring buffer, linked queue, deque, sliding-window maximum); later "tree", "heap", "graph"
+ *                "memory" (array vs list in memory), "grid", "stack", "queue" (ring buffer, linked queue, deque, sliding-window maximum), "tree" (binary search tree: nodes, links, a highlighted path, the four walks); later "heap", "graph"
  *   a Generator = a pure function (state, args) → frames: the sandbox's operations (list.ts) and the algorithm
  *                step-throughs (algorithms.ts: binary search, insertion sort, and any generated trace via fromTrace)
  *
@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -171,4 +171,41 @@ export type QueueState = {
   addrs: Record<NodeId, number>;
   /** window mode */
   win: WindowState | null;
+};
+
+/* ------------------------------------------------------------------ the tree state ("tree" view) */
+
+export type TreeNodeState = { id: NodeId; value: string; left: NodeId | null; right: NodeId | null };
+
+/**
+ * A binary tree (a search tree) as drawn: nodes joined by links, laid out by in-order position across and depth down. A
+ * step lights the path walked so far, the node being looked at, a node found or just linked in, and a walk's output so
+ * far. A value in flight (about to be inserted) hovers above the root.
+ */
+export type TreeState = {
+  /** the nodes in the tree this step, with their links */
+  nodes: TreeNodeState[];
+  root: NodeId | null;
+  /** the ids walked so far (root down): the path is drawn in the accent */
+  path: NodeId[];
+  /** the node being looked at */
+  current: NodeId | null;
+  /** a node that was found, or has just been linked in */
+  found: NodeId | null;
+  /** nodes lit this step */
+  mark: NodeId[];
+  /** nodes whose links changed this step: drawn with a heavy accent outline */
+  changed: NodeId[];
+  /** a value in flight above the root: about to be inserted */
+  lifted: { id: NodeId; value: string } | null;
+  /** named pills beside nodes (root, parent, child, subtree, ...) */
+  labels: Record<string, NodeId | null>;
+  /** a walk's output so far: a title and the values in the order visited; null = no output row */
+  seq: { title: string; values: string[] } | null;
+  /** a short result chip ("found 50") */
+  out: string | null;
+  /** number the levels down the left side (the lecture's vocabulary scene) */
+  levels: boolean;
+  /** an address under each node (the memory picture), with a null stub under each missing child */
+  addrs: Record<NodeId, number>;
 };

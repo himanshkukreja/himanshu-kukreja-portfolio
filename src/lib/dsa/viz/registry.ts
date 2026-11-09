@@ -7,6 +7,7 @@ import { LIST_OPS, makeList, runListOp, type ListOp, type ListOpName } from "./l
 import { memoryPicture } from "./memory";
 import { makeQueue, queueMemoryPicture, runQueueOp, QUEUE_OPS, type QueueOp, type QueueOpName } from "./queue";
 import { makeStack, runStackOp, stackMemoryPicture, STACK_OPS, type StackOp, type StackOpName } from "./stack";
+import { makeTree, runTreeOp, treeMemoryPicture, TREE_OPS, type TreeOp, type TreeOpName } from "./tree";
 import type { Frame, Script } from "./types";
 import { gridSearch, parseGrid } from "./grid";
 
@@ -16,7 +17,7 @@ export type SandboxDemo = {
   view?: "list" | "memory";
   start: number[];
   /** a linked-list demo's operations, or (stack sandboxes) a stack's */
-  ops?: ({ op: ListOpName | StackOpName | QueueOpName; value?: number; index?: number })[];
+  ops?: ({ op: ListOpName | StackOpName | QueueOpName | TreeOpName; value?: number; index?: number })[];
   doubly?: boolean;
   /** stack demos: how the stack is stored (default array) and the cells the array starts with */
   backing?: "array" | "linked" | "ring" | "list" | "doubly";
@@ -31,11 +32,11 @@ export type SandboxDemo = {
 
 export type SandboxSpec = {
   id: string;
-  structure: "linked-list" | "stack" | "queue";
+  structure: "linked-list" | "stack" | "queue" | "tree";
   title: string;
   start: number[];
-  operations: (ListOpName | StackOpName | QueueOpName)[];
-  variants: ("singly" | "doubly" | "array" | "linked" | "ring")[];
+  operations: (ListOpName | StackOpName | QueueOpName | TreeOpName)[];
+  variants: ("singly" | "doubly" | "array" | "linked" | "ring" | "bst")[];
   /** stack sandboxes: the array's starting cells */
   capacity?: number;
   limits: { nodes: number; value: [number, number] };
@@ -47,6 +48,24 @@ export const SANDBOX_STRUCTURES = {
   "linked-list": { ops: LIST_OPS, variants: ["singly", "doubly"] as const, demoViews: ["list", "memory"] as const },
   stack: { ops: STACK_OPS, variants: ["array", "linked"] as const, demoViews: ["stack", "memory"] as const },
   queue: { ops: QUEUE_OPS, variants: ["ring", "linked", "doubly"] as const, demoViews: ["queue", "memory"] as const },
+  tree: { ops: TREE_OPS, variants: ["bst"] as const, demoViews: ["tree", "memory"] as const },
+};
+
+const toTreeOp = (o: NonNullable<SandboxDemo["ops"]>[number]): TreeOp | null => {
+  const value = Number(o.value ?? 0);
+  switch (o.op) {
+    case "insert":
+    case "search":
+    case "delete":
+      return { op: o.op, value };
+    case "preorder":
+    case "inorder":
+    case "postorder":
+    case "levelorder":
+      return { op: o.op };
+    default:
+      return null;
+  }
 };
 
 const toQueueOp = (o: NonNullable<SandboxDemo["ops"]>[number]): QueueOp | null => {
@@ -105,6 +124,7 @@ const toOp = (o: NonNullable<SandboxDemo["ops"]>[number]): ListOp | null => {
 export function demoScript(d: SandboxDemo, structure: SandboxSpec["structure"] = "linked-list"): Script {
   if (structure === "stack") return stackDemoScript(d);
   if (structure === "queue") return queueDemoScript(d);
+  if (structure === "tree") return treeDemoScript(d);
   if (d.view === "memory") return memoryPicture(d.start) as Script;
   let list = makeList(d.start, { doubly: d.doubly, tail: d.tail });
   const frames: Frame<unknown>[] = [];
@@ -170,6 +190,25 @@ function queueDemoScript(d: SandboxDemo): Script {
     queue = r.queue;
   }
   return { view, title: d.title, costUnit, frames, result: results.join("; ") || undefined };
+}
+
+/** A tree demo as one script: its start values are inserted in order into an empty search tree, then its ops run in order, the cost running on across them. */
+function treeDemoScript(d: SandboxDemo): Script {
+  if (d.view === "memory") return treeMemoryPicture(d.start) as Script;
+  let tree = makeTree(d.start);
+  const frames: Frame<unknown>[] = [];
+  let base = 0;
+  const results: string[] = [];
+  for (const raw of d.ops || []) {
+    const op = toTreeOp(raw);
+    if (!op) continue;
+    const r = runTreeOp(tree, op, { predict: d.predict });
+    for (const f of r.script.frames) frames.push({ ...f, cost: base + f.cost });
+    base += r.script.frames[r.script.frames.length - 1]?.cost ?? 0;
+    if (r.script.result) results.push(r.script.result);
+    tree = r.tree;
+  }
+  return { view: "tree", title: d.title, costUnit: "steps", frames, result: results.join("; ") || undefined };
 }
 
 /* ------------------------------------------------------------------ algorithm visualizers (Academy Part 3) */

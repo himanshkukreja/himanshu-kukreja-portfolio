@@ -7,7 +7,7 @@
  * (search.ts); a graph view will draw the same SearchState with nodes and edges, reusing FrontierPanel and nodeTone.
  */
 import type { ComponentType } from "react";
-import type { ArrayState, ListState, MemoryState, QueueState, StackState, ViewId } from "@/lib/dsa/viz/types";
+import type { ArrayState, ListState, MemoryState, QueueState, StackState, TreeState, ViewId } from "@/lib/dsa/viz/types";
 import type { GridState } from "@/lib/dsa/viz/grid";
 import ListView, { describeList } from "./ListView";
 import ArrayView, { describeArray } from "./ArrayView";
@@ -15,14 +15,16 @@ import MemoryView, { describeMemory } from "./MemoryView";
 import GridView, { describeGrid } from "./GridView";
 import StackView, { describeStack } from "./StackView";
 import QueueView, { describeQueueState } from "./QueueView";
+import TreeView, { describeTreeState } from "./TreeView";
 
 type ViewDef<S> = { Component: ComponentType<{ state: S; prev: S | null; t: number }>; describe: (s: S) => string };
 
-export const VIEWS: { [K in ViewId]: ViewDef<K extends "list" ? ListState : K extends "array" ? ArrayState : K extends "grid" ? GridState : K extends "stack" ? StackState : K extends "queue" ? QueueState : MemoryState> } = {
+export const VIEWS: { [K in ViewId]: ViewDef<K extends "list" ? ListState : K extends "array" ? ArrayState : K extends "grid" ? GridState : K extends "stack" ? StackState : K extends "queue" ? QueueState : K extends "tree" ? TreeState : MemoryState> } = {
   list: { Component: ListView, describe: describeList },
   array: { Component: ArrayView, describe: describeArray },
   memory: { Component: MemoryView, describe: describeMemory },
   grid: { Component: GridView, describe: describeGrid },
   stack: { Component: StackView, describe: describeStack },
   queue: { Component: QueueView, describe: describeQueueState },
+  tree: { Component: TreeView, describe: describeTreeState },
 };
