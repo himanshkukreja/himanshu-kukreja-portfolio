@@ -6,6 +6,7 @@
 import { LIST_OPS, makeList, runListOp, type ListOp, type ListOpName } from "./list";
 import { memoryPicture } from "./memory";
 import type { Frame, Script } from "./types";
+import { gridSearch, parseGrid } from "./grid";
 
 export type SandboxDemo = {
   id: string;
@@ -74,4 +75,45 @@ export function demoScript(d: SandboxDemo): Script {
     list = r.list;
   }
   return { view: "list", title: d.title, costUnit, frames, result: results.join("; ") || undefined };
+}
+
+/* ------------------------------------------------------------------ algorithm visualizers (Academy Part 3) */
+
+/**
+ * An algorithm lesson's visualizer (dsa-mastery visualizer.yml, `::visualizer[id]`) and its scripted demos
+ * (`::viz[id]`). Mirrors the content checker's VISUALIZER_VIEWS (tools/lib/check/algorithm.mjs). Grids are rows of
+ * `.#SG` (src/lib/dsa/viz/grid.ts).
+ */
+export type GridPreset = { id: string; title: string; grid: string[]; note?: string };
+export type GridDemo = {
+  id: string;
+  title: string;
+  algorithm: "bfs" | "dfs";
+  /** a preset id from the visualizer, or the grid itself */
+  preset?: string;
+  grid?: string[];
+  predict?: boolean;
+  /** stop at G (default true when the grid has one); false explores every reachable cell (flood fill) */
+  goal?: boolean;
+};
+export type VisualizerSpec = {
+  id: string;
+  view: "grid";
+  title: string;
+  algorithms: ("bfs" | "dfs")[];
+  cost: string;
+  limits: { rows: [number, number]; cols: [number, number] };
+  presets: GridPreset[];
+  demos: GridDemo[];
+};
+
+export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const } };
+
+export const isGridDemo = (d: SandboxDemo | GridDemo): d is GridDemo => "algorithm" in d;
+
+export function gridDemoScript(d: GridDemo, presets: GridPreset[] = []): Script {
+  const rows = d.grid || presets.find((p) => p.id === d.preset)?.grid || [];
+  const { grid, error } = parseGrid(rows);
+  if (!grid) return { view: "array", title: d.title, costUnit: "steps", frames: [{ state: { values: [], pointers: {}, mark: [], moved: [], dim: [] }, note: error || "No grid.", cost: 0 }] };
+  return gridSearch(d.algorithm, grid, { predict: d.predict, title: d.title, useGoal: d.goal !== false }) as Script;
 }
