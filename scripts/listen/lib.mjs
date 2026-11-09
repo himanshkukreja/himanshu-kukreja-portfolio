@@ -1,5 +1,5 @@
 // Shared by build.mjs (some articles) and batch.mjs (all of them): find an article (lesson reader, case
-// file, war story, mock interview), extract what Listen reads (src/lib/listen/extract.ts, the same code
+// file, war story, mock interview, DSA Mastery concept lesson), extract what Listen reads (src/lib/listen/extract.ts, the same code
 // the player runs), voice it with Kokoro af_heart, make narration.mp3 + listen.json, publish to R2.
 // Setup and usage: README.md next to this file.
 import crypto from "crypto";
@@ -34,6 +34,24 @@ function contentDir() {
   return path.resolve(ROOT, "../system-design-mastery");
 }
 
+/**
+ * DSA Mastery's content checkout (the dsa-mastery repo): DSA_LOCAL_DIR (env or .env.local), else ../dsa-mastery next
+ * to this repo; null when there is none (DSA concepts are then left out).
+ */
+function dsaDir() {
+  let dir = process.env.DSA_LOCAL_DIR;
+  if (!dir) {
+    try {
+      const m = fs.readFileSync(path.join(ROOT, ".env.local"), "utf8").match(/^DSA_LOCAL_DIR=(.+)$/m);
+      if (m) dir = path.resolve(ROOT, m[1].trim());
+    } catch {
+      // no .env.local
+    }
+  }
+  dir ||= path.resolve(ROOT, "../dsa-mastery");
+  return fs.existsSync(path.join(dir, "resources/concepts.yml")) ? dir : null;
+}
+
 /** .env (Supabase, for the case files' CMS rows) under .env.local, as Next loads them: never overriding what's set */
 function loadDotEnv() {
   try {
@@ -55,7 +73,7 @@ export async function siteModules() {
   // lib/stories.ts reads content/stories from the working directory, as on Vercel
   process.chdir(ROOT);
   const jiti = createJiti(import.meta.url, {
-    alias: { "@": path.join(ROOT, "src"), "server-only": path.join(ROOT, "node_modules/next/dist/compiled/server-only/empty.js") },
+    alias: { "@": path.join(ROOT, "src"), "server-only": path.join(ROOT, "node_modules/next/dist/compiled/server-only/empty.js"), "next/cache": path.join(HERE, "next-cache-shim.mjs") },
   });
   const load = (p) => jiti.import(path.join(ROOT, p));
   const [github, render, extract, html, manifest, mcq, block, story, war, mock, stories] = await Promise.all([
@@ -71,7 +89,12 @@ export async function siteModules() {
     load("src/lib/learn/mock/parse.ts"),
     load("src/lib/stories.ts"),
   ]);
-  site = { github, render, extract, html, manifest, mcq, block, story, war, mock, stories, content: process.env.SDM_LOCAL_DIR };
+  // DSA Mastery: its loader renders a concept exactly as the concept page does (development reads straight from the
+  // checkout, never through Next's cache)
+  const dsa = dsaDir();
+  if (dsa) process.env.DSA_LOCAL_DIR = dsa;
+  const dsaLoad = dsa ? await load("src/lib/dsa/load.ts") : null;
+  site = { github, render, extract, html, manifest, mcq, block, story, war, mock, stories, content: process.env.SDM_LOCAL_DIR, dsa, dsaLoad };
   return site;
 }
 
@@ -79,9 +102,9 @@ export async function siteModules() {
  * Batch order: side quests, course lessons, interview problems, LLD, case files, war stories, mock
  * interviews (each group in its own order: course order, file name).
  */
-export const GROUPS = ["quest", "lesson", "problem", "lld", "case", "war", "mock"];
-export const GROUP_LABEL = { quest: "side quests", lesson: "course lessons", problem: "interview problems", lld: "low-level design", case: "case files", war: "war stories", mock: "mock interviews" };
-const groupOf = (kind) => (kind === "bonus" ? "quest" : kind === "problem" || kind === "lld" || kind === "case" || kind === "war" || kind === "mock" ? kind : "lesson");
+export const GROUPS = ["quest", "lesson", "problem", "lld", "case", "war", "mock", "dsa"];
+export const GROUP_LABEL = { quest: "side quests", lesson: "course lessons", problem: "interview problems", lld: "low-level design", case: "case files", war: "war stories", mock: "mock interviews", dsa: "DSA concepts" };
+const groupOf = (kind) => (kind === "bonus" ? "quest" : kind === "problem" || kind === "lld" || kind === "case" || kind === "war" || kind === "mock" || kind === "dsa" ? kind : "lesson");
 
 const mdFiles = (dir, re = /^[a-z0-9]+(?:-[a-z0-9]+)*\.md$/) => (fs.existsSync(dir) ? fs.readdirSync(dir).filter((f) => re.test(f) && !/^readme/i.test(f)).sort() : []);
 
@@ -122,6 +145,13 @@ export async function listArticles() {
     const slug = f.replace(/\.md$/, "");
     out.push({ key: manifest.listenKey("mock", "", slug), kind: "mock", week: "mock-interviews", slug, repo: "content", path: `resources/mock-interviews/${f}`, href: `/mock/${slug}` });
   }
+  // DSA Mastery: every built concept's lesson (resources/concepts.yml order), voiced as its concept page shows it
+  if (site.dsaLoad) {
+    for (const c of (await site.dsaLoad.getConceptIndex()).filter((x) => x.status === "built")) {
+      const dir = `resources/modules/${c.module}/${c.id}`;
+      out.push({ key: manifest.listenKey("dsa", c.module, c.id), kind: "dsa", week: c.module, slug: c.id, repo: "dsa", path: `${dir}/lesson.md`, also: [`${dir}/quiz.md`], href: `/dsa/concepts/${c.id}` });
+    }
+  }
   // stable: course order (or file name) within each group
   return out.map((a, i) => ({ a, i, g: GROUPS.indexOf(groupOf(a.kind)) })).sort((x, y) => x.g - y.g || x.i - y.i).map((x) => ({ ...x.a, group: GROUPS[x.g] }));
 }
@@ -138,6 +168,7 @@ export async function findArticles(ids) {
 
 /** the repo an article's file lives in: the content checkout, or this one */
 export async function repoDir(a) {
+  if (a.repo === "dsa") return (await siteModules()).dsa;
   return a.repo === "site" ? ROOT : (await siteModules()).content;
 }
 
@@ -146,7 +177,10 @@ export async function repoDir(a) {
  * file: its live (published) snapshot is what production shows, by definition.
  */
 export async function isPublished(a) {
-  return a.repo === "db" || onMain(await repoDir(a), a.path);
+  if (a.repo === "db") return true;
+  const dir = await repoDir(a);
+  // a DSA concept page also shows its quiz.md (the checkpoint): both must be what production reads
+  return [a.path, ...(a.also || [])].every((p) => onMain(dir, p));
 }
 
 /** is the file as it is on its repo's origin/main (what production reads)? */
@@ -175,7 +209,11 @@ function mockListenHtml(phases) {
 
 /** The HTML the page gives the player's root (null: nothing to voice), and whether its first element is the root. */
 export async function articleHtml(a) {
-  const { github, render, mcq, block, story, war, mock } = await siteModules();
+  const { github, render, mcq, block, story, war, mock, dsaLoad } = await siteModules();
+  if (a.kind === "dsa") {
+    const c = dsaLoad ? await dsaLoad.getConcept(a.slug) : null;
+    return c ? { md: fs.readFileSync(path.join(await repoDir(a), a.path), "utf8"), html: c.html, scoped: false } : null;
+  }
   if (a.kind === "case") {
     // the page wraps the body in one more <div> (StoryContentWrapper): no text of its own
     return { md: a.body, html: (await story.renderStoryBody(a.body)).htmlContent, scoped: false };

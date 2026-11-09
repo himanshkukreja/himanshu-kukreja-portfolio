@@ -14,6 +14,7 @@ import LessonContentWrapper from "@/components/LessonContentWrapper";
 import FocusMode from "@/components/FocusMode";
 import TableOfContents from "@/components/TableOfContents";
 import { useReadAloud } from "@/components/ReadAloud";
+import { listenKey } from "@/lib/listen/manifest";
 import StageRail from "@/components/learn/lesson/StageRail";
 import ContentsSheet from "@/components/learn/lesson/ContentsSheet";
 import { FocusControls, MobileReadingBar, ReadingDock } from "@/components/learn/lesson/ReadingTools";
@@ -25,6 +26,7 @@ import DsaHydrator from "./DsaHydrator";
 import SolvedMark from "../problem/SolvedMark";
 import DsaCrumbs from "../DsaCrumbs";
 import LectureEntry from "@/components/learn/sidequest/LectureEntry";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 
 type LectureCardInfo = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 
@@ -43,6 +45,12 @@ function Hero({ c }: { c: ConceptPage }) {
         <span className="border border-line-strong px-2 py-1">{c.level}</span>
         <span className="border border-line-strong px-2 py-1">Kestrel {c.line.charAt(0).toUpperCase() + c.line.slice(1)}</span>
         <span className="border border-signal px-2 py-1 text-signal-text">{chip}</span>
+        <Link href={`/dsa/cheatsheets/${c.id}`} className="border border-line-strong px-2 py-1 text-fg-2 underline-offset-4 hover:border-signal hover:text-fg">
+          cheat sheet →
+        </Link>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <SaveOfflineButton title={c.title} kind="dsa-concept" />
       </div>
     </section>
   );
@@ -124,6 +132,12 @@ function End({ c }: { c: ConceptPage }) {
         <Link href={`/dsa?node=${encodeURIComponent(c.checkpoint?.nodeId || "")}`} className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">
           Back to the map
         </Link>
+        <Link href={`/dsa/cheatsheets/${c.id}`} className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">
+          The cheat sheet
+        </Link>
+        <Link href={`/dsa/shorts?of=${encodeURIComponent(`dsa--${c.module}--${c.id}`)}`} className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">
+          Its shorts
+        </Link>
       </div>
     </section>
   );
@@ -134,7 +148,9 @@ function Body({ c, lecture }: { c: ConceptPage; lecture: LectureCardInfo }) {
   const [focus, setFocus] = useState(false);
   const [sheet, setSheet] = useState(false);
   const { size } = useReadingSettings();
-  const readAloud = useReadAloud(contentRef);
+  // Listen: the lesson's recorded narration (Kokoro, scripts/listen, listen/dsa/<module>/<concept>/) when its text
+  // still matches, else the browser's voice
+  const readAloud = useReadAloud(contentRef, { listenKey: listenKey("dsa", c.module, c.id) });
   const toggleFocus = useCallback(() => setFocus((f) => !f), []);
   const tools = { readAloud, focus, onFocus: toggleFocus, size, onContents: () => setSheet(true) };
   return (
