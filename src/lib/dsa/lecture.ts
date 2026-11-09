@@ -9,7 +9,7 @@
  *   rendering    scripts/lecture/dsa-resolve.mjs (Node strips the types), whose output export.mjs records
  * Both must build the same object: the recorded media is keyed by a hash of the resolved JSON (lectureHash).
  */
-import type { Lecture, LectureCode, LectureRace, LectureScene, LectureTrace, LectureTraceFrame } from "../learn/lecture/types";
+import type { Lecture, LectureCode, LectureRace, LectureScene, LectureStep, LectureTrace, LectureTraceFrame } from "../learn/lecture/types";
 
 export type RawTrace = {
   title?: string;
@@ -116,9 +116,16 @@ const raceOf = (r: RawRace): LectureRace => ({ title: r.title || "", unit: r.uni
  */
 export function resolveDsaLecture(
   raw: RawDsaLecture,
-  src: { lessonMd: string | null; traces: Record<string, RawTrace | null>; races: Record<string, RawRace | null>; cast: Record<string, { name: string; role: string }> },
+  src: {
+    lessonMd: string | null;
+    traces: Record<string, RawTrace | null>;
+    races: Record<string, RawRace | null>;
+    cast: Record<string, { name: string; role: string }>;
+    /** extra code templates by id (a problem's solution video: "solution", the reference solutions by language) */
+    templates?: Record<string, DsaTemplate>;
+  },
 ): Lecture {
-  const templates = src.lessonMd ? parseTemplates(src.lessonMd) : {};
+  const templates = { ...(src.lessonMd ? parseTemplates(src.lessonMd) : {}), ...(src.templates || {}) };
   const scenes: LectureScene[] = (raw.scenes || []).map((s) => {
     if (s.kind === "quote" && s.who && src.cast[s.who]) return { ...s, person: { name: src.cast[s.who].name, role: src.cast[s.who].role } };
     if (s.kind === "trace" && s.trace && src.traces[s.trace]) return { ...s, traceData: traceOf(src.traces[s.trace]!, templates) };
@@ -158,3 +165,101 @@ export function resolveDsaShort(
   return resolveDsaLecture({ ...raw, lesson: { course: "dsa", module: of?.module || "", concept: of?.concept || "", kind: "short" } }, src);
 }
 
+
+/* ------------------------------------------------------------------ in-article clips and solution videos */
+
+/** A clip's media id: lectures/dsa--clips--<lesson>--<clip>/ on the media host. */
+export const clipQuest = (lesson: string, id: string) => `dsa--clips--${lesson}--${id}`;
+/** A problem's solution video's media id: lectures/dsa--solution--<problem>/. */
+export const solutionQuest = (problem: string) => `dsa--solution--${problem}`;
+
+const SLUG = "[a-z0-9]+(?:-[a-z0-9]+)*";
+/** "dsa--clips--<lesson>--<clip>" → its lesson and clip id. */
+export function clipQuestParts(quest: string): { lesson: string; id: string } | null {
+  const m = quest.match(new RegExp(`^dsa--clips--(${SLUG})--(${SLUG})$`));
+  return m ? { lesson: m[1], id: m[2] } : null;
+}
+/** "dsa--solution--<problem>" → the problem id. */
+export function solutionQuestParts(quest: string): { problem: string } | null {
+  const m = quest.match(new RegExp(`^dsa--solution--(${SLUG})$`));
+  return m ? { problem: m[1] } : null;
+}
+
+/** One step of a clip: `from` copies that step of the borrowed lecture scene, and any other field overrides it. */
+export type RawClipStep = Partial<LectureStep> & { from?: number };
+/**
+ * A lesson's in-article clip (dsa-mastery <lesson dir>/clips.json, placed in lesson.md with `::clip[id]`): one scene,
+ * either borrowed from the lesson's lecture (`scene: "<scene id>"`, with `set` overriding scene fields) or written
+ * inline (`scene: { kind, heading, values, grid, … }`), and its steps (default: the borrowed scene's own). The
+ * caption sits under the clip; the steps' `say` is the narration a learner hears on tap.
+ */
+export type RawClip = {
+  id: string;
+  caption: string;
+  /** where the clip sits in the lesson (one of its beats): for the checker and for review */
+  beat?: string;
+  /** what the clip shows: the analogy, an operation, a mistake */
+  role?: "analogy" | "operation" | "step" | "mistake";
+  scene: string | (Omit<LectureScene, "id" | "steps"> & { id?: string });
+  set?: Partial<Omit<LectureScene, "id" | "steps">>;
+  steps?: RawClipStep[];
+};
+export type RawClips = { clips?: RawClip[] };
+
+/**
+ * A clip as a self-contained one-scene Lecture (the stage draws it, export.mjs records it at 1280x720 with no music).
+ * `lecture` is the lesson's lecture, already resolved, so a borrowed trace or code scene carries its data. Returns null
+ * when the borrowed scene is missing. Shared with scripts/lecture/dsa-resolve.mjs: the media hash depends on it.
+ */
+export function resolveDsaClip(clip: RawClip, lecture: Lecture | null, lesson: { module: string; concept: string; title: string }): Lecture | null {
+  let base: LectureScene;
+  if (typeof clip.scene === "string") {
+    const found = lecture?.scenes.find((s) => s.id === clip.scene);
+    if (!found) return null;
+    base = found;
+  } else {
+    base = { id: clip.scene.id || clip.id, steps: [], ...clip.scene } as LectureScene;
+  }
+  const { beat: _beat, steps: srcSteps, ...rest } = base as LectureScene & { beat?: string };
+  void _beat;
+  const picks: RawClipStep[] = clip.steps && clip.steps.length ? clip.steps : srcSteps.map((_, k) => ({ from: k }));
+  const steps: LectureStep[] = picks.map((st) => {
+    const { from, ...over } = st;
+    const src = from !== undefined ? srcSteps[from] : undefined;
+    return { ...(src || {}), ...over, say: over.say ?? src?.say ?? "" } as LectureStep;
+  });
+  const scene: LectureScene = { ...rest, ...(clip.set || {}), id: clip.id, steps } as LectureScene;
+  return {
+    v: 2,
+    quest: clipQuest(lesson.concept, clip.id),
+    title: clip.caption,
+    summary: `${lesson.title}: ${clip.caption}`,
+    dsa: { module: lesson.module, concept: lesson.concept },
+    clip: { lesson: lesson.concept, id: clip.id, caption: clip.caption },
+    scenes: [scene],
+  };
+}
+
+/**
+ * A problem's solution video (dsa-mastery resources/problems/<id>/solution.json, lecture format v2): the problem in one
+ * picture, the first attempt, the key insight, a dry run, the code line by line (code scenes with `template:
+ * "solution"` show the reference solution in `lang`, lit by its [n] step markers), complexity, edge cases and the
+ * classic twin. Resolved like a concept lecture; `solution.problem` names the problem.
+ */
+export function resolveDsaSolution(
+  raw: RawDsaLecture,
+  src: {
+    problem: { id: string; module: string; concept: string };
+    solutions: Record<string, string>;
+    traces: Record<string, RawTrace | null>;
+    races: Record<string, RawRace | null>;
+    cast: Record<string, { name: string; role: string }>;
+  },
+): Lecture {
+  const { problem, solutions, ...rest } = src;
+  const lec = resolveDsaLecture(
+    { ...raw, quest: solutionQuest(problem.id), lesson: { course: "dsa", module: problem.module, concept: problem.concept, kind: "solution" } },
+    { ...rest, lessonMd: null, templates: { solution: { label: "Solution", code: solutions } } },
+  );
+  return { ...lec, solution: { problem: problem.id } };
+}

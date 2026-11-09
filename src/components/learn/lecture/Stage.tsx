@@ -108,7 +108,8 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
 
       <div data-stage-top className="absolute left-[3%] top-[4%] z-10 flex items-center gap-[1cqw] font-mono text-[1.15cqw] uppercase tracking-[0.12em] text-[var(--lec-accent,#ff6b2b)]">
         <span className="inline-block h-[0.6cqw] w-[0.6cqw] bg-[var(--lec-accent,#ff6b2b)]" />
-        {String(cur.scene + 1).padStart(2, "0")} · {s.title}
+        {/* an in-article clip is one scene: no chapter number */}
+        {lecture.clip ? s.title : `${String(cur.scene + 1).padStart(2, "0")} · ${s.title}`}
       </div>
       {lecture.cast ? (
         <CallBar cast={lecture.cast} who={st.who} t={t} />

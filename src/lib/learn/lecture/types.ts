@@ -140,6 +140,10 @@ export type Lecture = {
   };
   /** a DSA Mastery concept lecture (resolved by src/lib/dsa/lecture.ts): the concept it teaches; the stage turns teal */
   dsa?: { module: string; concept: string };
+  /** a DSA lesson's in-article clip (10-20 s, 16:9 720p, no music): its lesson, its id in clips.json, the caption under it */
+  clip?: { lesson: string; id: string; caption: string };
+  /** a DSA problem's solution video (the editorial tab): which problem it solves */
+  solution?: { problem: string };
   title: string;
   summary: string;
   scenes: LectureScene[];
