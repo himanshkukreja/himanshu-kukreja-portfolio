@@ -31,6 +31,7 @@ import { newPageFor, resolvePage } from "./global/pages";
 import NotebookIntro from "./global/NotebookIntro";
 import RecentPagesList, { NotebookPenIcon } from "./global/RecentPages";
 import { MAX_SHARE, MIN_SHARE, nearestSnap, SNAPS, storedShare, storeShare, usePanelMode } from "./global/panelMode";
+import { rememberInkOrigin } from "@/lib/learn/ink/origin";
 
 const W_KEY = "hk.ink.panelW";
 const INTRO_KEY = "hk.ink.introSeen";
@@ -319,7 +320,7 @@ export default function NotebookPanel({ ctx, target, onClose }: { ctx: InkContex
         </div>
       )}
       {pageId && (
-        <Link href={`/notebook/page/${pageId}`} aria-label="Open this page full screen" title="Full screen" className="grid h-10 w-10 place-items-center text-fg hover:bg-surface-2">
+        <Link href={`/notebook/page/${pageId}`} onClick={() => rememberInkOrigin(window.location.pathname + window.location.search)} aria-label="Open this page full screen" title="Full screen" className="grid h-10 w-10 place-items-center text-fg hover:bg-surface-2">
           <Maximize2 className="h-[18px] w-[18px]" aria-hidden />
         </Link>
       )}

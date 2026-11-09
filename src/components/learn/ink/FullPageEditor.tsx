@@ -10,6 +10,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { getPage } from "@/lib/learn/ink/client";
 import { useInkUser } from "@/lib/learn/ink/usePageAutosave";
+import { X } from "lucide-react";
+import { isDsaPath } from "@/lib/dsa/flags";
+import { readInkOrigin } from "@/lib/learn/ink/origin";
 import PageEditor from "./PageEditor";
 
 export default function FullPageEditor({ pageId }: { pageId: string }) {
@@ -18,6 +21,23 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
   const { openAuthModal } = useAuthModal();
   const [id, setId] = useState(pageId);
   const [notebookId, setNotebookId] = useState<string | null>(null);
+  // the page it was opened from (the Notebook panel's full-screen button): close goes back there, in that course's look
+  const [from, setFrom] = useState<string | null>(null);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- reads sessionStorage after mount (no SSR mismatch)
+    setFrom(readInkOrigin());
+  }, []);
+  const dsa = !!from && isDsaPath(from);
+  useEffect(() => {
+    if (!dsa) return;
+    const html = document.documentElement;
+    // after the header's own sync for this path, which clears it off /dsa
+    const t = window.setTimeout(() => html.setAttribute("data-course", "dsa"), 0);
+    return () => {
+      window.clearTimeout(t);
+      html.removeAttribute("data-course");
+    };
+  }, [dsa]);
 
   // the browser's back/forward between pages opened here
   useEffect(() => {
@@ -56,7 +76,7 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
   const back = `/notebook?tab=pages${notebookId ? `&nb=${notebookId}` : ""}`;
 
   return (
-    <div className="fixed inset-0 z-[70] flex flex-col bg-bg pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]">
+    <div className={`fixed inset-0 z-[70] flex flex-col bg-bg pt-[env(safe-area-inset-top,0px)] pb-[env(safe-area-inset-bottom,0px)]${dsa ? " dsa-theme" : ""}`}>
       {loading ? (
         <div className="grid flex-1 place-items-center font-mono text-[12px] text-fg-3">opening your notebook…</div>
       ) : !userId ? (
@@ -77,7 +97,21 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
           </Link>
         </div>
       ) : (
-        <PageEditor key={id} pageId={id} variant="full" onOpenPage={open} backHref={back} />
+        <PageEditor
+          key={id}
+          pageId={id}
+          variant="full"
+          onOpenPage={open}
+          backHref={from ?? back}
+          backLabel={from ? "Back to the page you were on" : undefined}
+          headerExtra={
+            from ? (
+              <Link href={from} aria-label="Close the notebook" title="Close" className="grid h-10 w-10 shrink-0 place-items-center text-fg hover:bg-surface-2">
+                <X className="h-5 w-5" aria-hidden />
+              </Link>
+            ) : undefined
+          }
+        />
       )}
     </div>
   );
