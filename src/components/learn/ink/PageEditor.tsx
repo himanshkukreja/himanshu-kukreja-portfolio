@@ -52,9 +52,11 @@ export type PageEditorProps = {
   backHref?: string;
   /** extra controls in the header (the panel's full-screen and close buttons) */
   headerExtra?: React.ReactNode;
+  /** the back arrow's label (default: back to the notebook) */
+  backLabel?: string;
 };
 
-export default function PageEditor({ pageId, variant, onOpenPage, backHref, headerExtra }: PageEditorProps) {
+export default function PageEditor({ pageId, variant, onOpenPage, backHref, headerExtra, backLabel }: PageEditorProps) {
   // the page's tone: a reading mode (Sepia, Dusk…) can differ from the site theme
   const theme: InkTheme = usePageTone().dark ? "dark" : "light";
   const [page, setPage] = useState<NotebookPage | null>(null);
@@ -392,7 +394,7 @@ export default function PageEditor({ pageId, variant, onOpenPage, backHref, head
           way (it truncates); the paper picker sits in the tools row below lg */}
       <header className={`flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 border-b border-line sm:flex-nowrap sm:gap-x-1.5 md:gap-x-2 ${panel ? "px-2 py-1.5" : "px-3 py-2 sm:px-4"}`}>
         {backHref && (
-          <Link href={backHref} onClick={() => void flush()} aria-label="Back to the notebook" className="grid h-10 w-10 shrink-0 place-items-center text-fg hover:bg-surface-2">
+          <Link href={backHref} onClick={() => void flush()} aria-label={backLabel ?? "Back to the notebook"} className="grid h-10 w-10 shrink-0 place-items-center text-fg hover:bg-surface-2">
             <ArrowLeft className="h-5 w-5" aria-hidden />
           </Link>
         )}
