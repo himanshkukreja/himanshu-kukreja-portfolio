@@ -11,7 +11,6 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { getPage } from "@/lib/learn/ink/client";
 import { useInkUser } from "@/lib/learn/ink/usePageAutosave";
 import { X } from "lucide-react";
-import { isDsaPath } from "@/lib/dsa/flags";
 import { readInkOrigin } from "@/lib/learn/ink/origin";
 import PageEditor from "./PageEditor";
 
@@ -27,7 +26,8 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- reads sessionStorage after mount (no SSR mismatch)
     setFrom(readInkOrigin());
   }, []);
-  const dsa = !!from && isDsaPath(from);
+  // opened from a DSA Mastery page (/dsa/…): keep its teal look
+  const dsa = !!from && /^\/dsa(?:\/|$)/.test(from);
   useEffect(() => {
     if (!dsa) return;
     const html = document.documentElement;
