@@ -40,7 +40,7 @@ import { ShowEverything, useDsaFull } from "../simple/view";
 
 type LectureCardInfo = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 
-const lineName = (c: ConceptPage) => (c.line ? `Kestrel ${c.line.charAt(0).toUpperCase() + c.line.slice(1)}` : "");
+const lineName = (c: ConceptPage) => c.lineLabel;
 
 function Hero({ c }: { c: ConceptPage }) {
   const p = useLessonProgress();
@@ -83,7 +83,7 @@ function Hero({ c }: { c: ConceptPage }) {
           <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-fg-3">
             <span className="border border-line-strong px-2 py-1">{fmtMin(c.minutes)}</span>
             <span className="border border-line-strong px-2 py-1">{c.level}</span>
-            <span className="border border-line-strong px-2 py-1">{lineName(c)}</span>
+            {lineName(c) ? <span className="border border-line-strong px-2 py-1">{lineName(c)}</span> : null}
             <span className="border border-signal px-2 py-1 text-signal-text">{chip}</span>
             <Link href={`/dsa/cheatsheets/${c.id}`} className="border border-line-strong px-2 py-1 text-fg-2 underline-offset-4 hover:border-signal hover:text-fg">
               cheat sheet →

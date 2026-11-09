@@ -406,7 +406,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
     { id: "editorial", label: unlocked || !full ? "Editorial" : "Editorial · locked" },
     { id: "submissions", label: "Submissions" },
   ];
-  const line = `Kestrel ${p.line.charAt(0).toUpperCase() + p.line.slice(1)}`;
+  const line = p.lineLabel;
   const showLangs = full || langsOpen ? DSA_LANGS : [lang];
 
   return (
@@ -416,7 +416,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
         <header className="flex flex-col gap-2">
           <DsaCrumbs items={[{ href: "/dsa/problems", label: "Practice" }, { href: `/dsa/concepts/${p.concept}`, label: p.conceptTitle }]} />
           <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">
-            {full ? `${p.level} · ${line} · practice problem ${p.order} of the lesson` : `Practice problem · ${p.level}`}
+            {full ? `${[p.level, line].filter(Boolean).join(" · ")} · practice problem ${p.order} of the lesson` : `Practice problem · ${p.level}`}
           </p>
           <h1 className="m-0 flex flex-wrap items-center gap-3 font-display text-[30px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[38px]">
             {p.title}
@@ -447,7 +447,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
                   more<span className="sr-only"> about this problem</span>
                 </summary>
                 <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                  <span>{line}</span>
+                  {line && <span>{line}</span>}
                   <span>practice problem {p.order} of the lesson</span>
                   <span>{problemXp(p.level)} XP</span>
                   <span>

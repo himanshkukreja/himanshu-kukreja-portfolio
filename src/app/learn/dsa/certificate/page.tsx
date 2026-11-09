@@ -12,7 +12,7 @@ export const revalidate = 604800;
 
 export const metadata: Metadata = {
   title: `Certificate · ${DSA_CERT_NAME}`,
-  description: "Finish the Kestrel Academy world of DSA Mastery and earn a verifiable certificate.",
+  description: "Finish the Foundations world of DSA Mastery and earn a verifiable certificate.",
   robots: { index: false, follow: false },
 };
 

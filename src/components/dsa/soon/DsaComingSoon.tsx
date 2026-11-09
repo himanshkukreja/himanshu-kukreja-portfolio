@@ -1,7 +1,7 @@
 /**
  * DSA Mastery's coming-soon page (/dsa until launch): the course's design system (fonts, square cards, mono
  * labels, the reading themes) with DSA Mastery's teal in place of the orange (.dsa-theme, globals.css).
- * Sections: hero + waitlist, the 6S Loop, a Kestrel scenario with a predict-the-step demo, the six worlds,
+ * Sections: hero + waitlist, the 6S Loop, an everyday-app scenario with a predict-the-step demo, the six worlds,
  * the platform, the bridge to System Design Mastery, and the FAQ. Server-rendered; the waitlist card, the
  * demo and the code tabs are client islands.
  */
@@ -10,7 +10,7 @@ import { DsaMark } from "@/components/dsa/DsaMark";
 import WaitlistCard from "./WaitlistCard";
 import PredictStep from "./PredictStep";
 import CodeTabs from "./CodeTabs";
-import { BRIDGES, CAST, FAQ, FEATURES, LOOP, WORLDS } from "./content";
+import { BRIDGES, FAQ, FEATURES, LOOP, WALKTHROUGH, WORLDS } from "./content";
 
 function SectionHead({ id, label, title, children }: { id: string; label: string; title: string; children?: React.ReactNode }) {
   return (
@@ -72,7 +72,7 @@ export default function DsaComingSoon() {
               Data structures and algorithms, learned through real product engineering.
             </p>
             <p className="m-0 max-w-[640px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
-              Every concept starts as a task at Kestrel, a fictional global tech company, and ends with you explaining the pattern in your own words. Built for placements and
+              Every concept starts as a task in an everyday app, such as a food delivery app or a music streaming app, and ends with you explaining the pattern in your own words. Built for placements and
               interviews, fundamentals from zero, and competitive programming.
             </p>
             <div className="grid grid-cols-2 gap-px self-stretch border border-line bg-line sm:flex sm:flex-wrap sm:self-start">
@@ -111,29 +111,24 @@ export default function DsaComingSoon() {
           </ol>
         </section>
 
-        {/* Kestrel scenario + demo */}
-        <section aria-labelledby="kestrel-h" className="flex flex-col gap-8">
-          <SectionHead id="kestrel-h" label="Kestrel" title="Real product problems, a professional team">
-            Problems are set across Kestrel&apos;s product lines: Shop, Rides, Stream, Pay, Freight, Search, Chat, Maps and more. A small team carries each lesson, with short
-            workplace dialogue that serves the explanation.
+        {/* everyday-app scenario + demo */}
+        <section aria-labelledby="scenario-h" className="flex flex-col gap-8">
+          <SectionHead id="scenario-h" label="Scenarios" title="Real product problems, in apps you use">
+            Problems are set in everyday apps: food delivery, music streaming, payments, ride-hailing, online stores, search, chat, maps and more. You are the engineer, and a
+            lesson walks from the task to the idea in plain steps.
           </SectionHead>
           <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
             <div className="flex min-w-0 flex-col gap-3">
-              <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Module 5 · sliding window · Kestrel Stream</span>
+              <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">What a lesson looks like · sliding window · music streaming app</span>
               <ul className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
-                {CAST.map((c) => (
-                  <li key={c.name} className="flex gap-3.5 bg-surface p-4 sm:p-5">
+                {WALKTHROUGH.map((w) => (
+                  <li key={w.step} className="flex gap-3.5 bg-surface p-4 sm:p-5">
                     <span aria-hidden className="grid h-10 w-10 shrink-0 place-items-center border border-line-strong bg-bg font-mono text-[13px] font-semibold text-signal-text">
-                      {c.name
-                        .split(" ")
-                        .map((p) => p[0])
-                        .join("")}
+                      {w.step}
                     </span>
                     <span className="flex min-w-0 flex-col gap-1">
-                      <span className="text-[14px] font-semibold text-fg">
-                        {c.name} <span className="font-normal text-fg-3">· {c.role}</span>
-                      </span>
-                      <span className="text-[15px] leading-relaxed text-fg-2">{c.line}</span>
+                      <span className="text-[14px] font-semibold text-fg">{w.label}</span>
+                      <span className="text-[15px] leading-relaxed text-fg-2">{w.text}</span>
                     </span>
                   </li>
                 ))}
@@ -147,7 +142,7 @@ export default function DsaComingSoon() {
         {/* Worlds */}
         <section aria-labelledby="worlds-h" className="flex flex-col gap-8">
           <SectionHead id="worlds-h" label="The map" title="Six worlds, one problem bank">
-            Each world is a Kestrel division with its own map of roads, concept stops, checkpoints, gates and bosses. A problem solved anywhere counts in every world that
+            Each world has its own map of roads, concept stops, checkpoints, gates and bosses. A problem solved anywhere counts in every world that
             contains it, and switching worlds is free.
           </SectionHead>
           <WorldTrack />
@@ -194,7 +189,7 @@ export default function DsaComingSoon() {
         <section aria-labelledby="bridge-h" className="grid items-start gap-8 border border-line bg-raised p-5 sm:p-8 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div className="flex flex-col gap-4">
             <SectionHead id="bridge-h" label="Two courses, one account" title="Connected to System Design Mastery">
-              Kestrel&apos;s product lines are the systems System Design Mastery teaches. Each data structure links to the real system that depends on it, and both courses share
+              The everyday apps behind the problems are the systems System Design Mastery teaches. Each data structure links to the real system that depends on it, and both courses share
               your sign-in, profile, streak and XP.
             </SectionHead>
             <Link href="/" className="inline-flex min-h-12 items-center self-start border border-fg bg-fg px-5 text-[15px] font-semibold text-bg hover:opacity-90">

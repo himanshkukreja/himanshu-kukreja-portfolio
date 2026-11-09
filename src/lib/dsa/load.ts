@@ -106,12 +106,17 @@ const getModules = cached(async (): Promise<Record<string, { code: string; title
 
 type LinesFile = { lines?: { id: string; name: string }[] };
 
-/** Product line names by id ("stream" → "Kestrel Stream"), from resources/company/product-lines.yml. */
+/** Product line labels by id ("stream" → "Music streaming app"), from resources/company/product-lines.yml (plain labels, no company). */
 const getLineNames = cached(async (): Promise<Record<string, string>> => {
   const src = await readDsa("resources/company/product-lines.yml");
   if (!src) return {};
   return Object.fromEntries((yaml<LinesFile>(src).lines || []).map((l) => [l.id, l.name]));
 }, "dsa-lines-v1");
+
+/** The plain label of a product line id ("" when unknown), for the small subtitle on lesson and problem pages. */
+export async function getLineLabel(id: string): Promise<string> {
+  return id ? (await getLineNames())[id] || "" : "";
+}
 
 type ProblemFront = {
   id?: string;
@@ -514,6 +519,7 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
     level: f.level || "beginner",
     minutes: f.minutes || rendered.readingMinutes,
     line: f.line || "",
+    lineLabel: await getLineLabel(f.line || ""),
     invariant: f.invariant || "",
     keyPoints: f.keyPoints || [],
     html: rendered.html,
@@ -704,6 +710,7 @@ const problemCached = cached(async (id: string): Promise<ProblemPage | null> => 
     title: f.title || humanize(id),
     level: levelOf(f.level),
     line: f.line || "",
+    lineLabel: await getLineLabel(f.line || ""),
     module: f.module || "",
     concept: f.concept || "",
     conceptTitle: concept?.title || humanize(f.concept || ""),

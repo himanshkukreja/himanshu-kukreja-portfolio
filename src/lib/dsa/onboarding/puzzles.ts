@@ -49,5 +49,5 @@ export const PUZZLES: Puzzle[] = [
 export const PUZZLE_BY_ID: Record<string, Puzzle> = Object.fromEntries(PUZZLES.map((p) => [p.id, p]));
 
 /** Right and wrong lead-ins, one line each, varied by position so a run does not repeat itself. */
-export const RIGHT_LINES = ["Nailed it.", "Clean.", "Sharp eyes.", "Right on the index.", "Kestrel approved."];
+export const RIGHT_LINES = ["Nailed it.", "Clean.", "Sharp eyes.", "Right on the index.", "Ship it."];
 export const WRONG_LINES = ["Close call.", "Good to know before day one.", "Easy one to trip on.", "That is what the lessons are for.", "Not yet, and that is fine."];

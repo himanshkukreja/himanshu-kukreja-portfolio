@@ -31,7 +31,7 @@ export default function DsaCertFace({ name, code, issuedAt, preview = false, lin
           <span className="font-mono text-[10.5px] uppercase tracking-label text-fg-3 sm:text-[12px]">This certifies that</span>
           <span className={`font-display text-[26px] font-extrabold leading-[1.02] tracking-[-0.035em] sm:text-[40px] ${name ? "text-fg" : "text-fg-4"}`}>{name || "Your name"}</span>
           <span className="max-w-[560px] text-[13px] leading-snug text-fg-2 sm:text-[15px]">
-            completed <strong className="font-semibold text-fg">Foundations</strong>, the Kestrel Academy world of DSA Mastery: every lesson, practice problem, checkpoint quiz and module review, and the Launch week final.
+            completed <strong className="font-semibold text-fg">Foundations</strong>, the first world of DSA Mastery: every lesson, practice problem, checkpoint quiz and module review, and the Launch week final.
           </span>
           {lines?.length ? <span className="font-mono text-[11px] text-fg-3 sm:text-[12px]">{lines.join(" · ")}</span> : null}
         </div>

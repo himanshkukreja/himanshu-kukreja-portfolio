@@ -104,7 +104,7 @@ export default function DsaCertificate({ spec }: { spec: WorldSpec }) {
             Finish the Academy, earn the certificate<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
-            {DSA_CERT_NAME} is awarded for the whole Kestrel Academy world: every lesson, practice problem and checkpoint quiz, each module&apos;s review, and the Launch week final. It&apos;s checked on the server from your recorded progress and comes with a public verification page.
+            {DSA_CERT_NAME} is awarded for the whole Foundations world: every lesson, practice problem and checkpoint quiz, each module&apos;s review, and the Launch week final. It&apos;s checked on the server from your recorded progress and comes with a public verification page.
           </p>
         </header>
 
