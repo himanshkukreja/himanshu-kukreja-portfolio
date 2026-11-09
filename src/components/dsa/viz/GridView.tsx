@@ -101,9 +101,6 @@ export default function GridView({ state, t }: { state: GridState; prev: GridSta
           const fill =
             tone === "wall" ? "url(#grid-wall)" : tone === "current" ? "var(--c-signal)" : tone === "path" ? "var(--c-signal)" : tone === "frontier" || tone === "done" || tone === "left" ? "var(--c-dsa-hl)" : "var(--c-surface)";
           const stroke = tone === "current" || tone === "path" || tone === "frontier" || fresh ? "var(--c-signal)" : seen ? "var(--c-amber)" : "var(--c-line-strong)";
-          const label = se && !wall && se.label[n] !== undefined ? String(se.label[n]) : "";
-          const onSolid = tone === "current" || tone === "path";
-          const letter = n === start ? "S" : n === goal ? "G" : "";
           return (
             <g key={n} opacity={tone === "left" ? 0.7 : 1}>
               <rect
@@ -118,20 +115,33 @@ export default function GridView({ state, t }: { state: GridState; prev: GridSta
                 strokeDasharray={tone === "frontier" && !fresh ? "5 3" : undefined}
                 opacity={fresh ? 0.4 + 0.6 * t : 1}
               />
+            </g>
+          );
+        })}
+        {pathD && <path d={pathD} fill="none" stroke="var(--c-on-signal)" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1" pathLength={1} strokeDashoffset={1 - t} opacity={0.55} />}
+        {walls.map((wall, n) => {
+          if (wall) return null;
+          const r = Math.floor(n / cols);
+          const c = n % cols;
+          const tone = nodeTone(se, n);
+          const onSolid = tone === "current" || tone === "path";
+          const label = se && se.label[n] !== undefined ? String(se.label[n]) : "";
+          const letter = n === start ? "S" : n === goal ? "G" : "";
+          return (
+            <g key={`t${n}`}>
               {letter && (
-                <text x={x(c) + 5} y={y(r) + 14} fontSize={12} fontWeight={800} className="font-mono" fill={onSolid ? "var(--c-on-signal)" : "var(--c-signal-text)"}>
+                <text x={x(c) + 4} y={y(r) + 12} fontSize={11} fontWeight={800} className="font-mono" fill={onSolid ? "var(--c-on-signal)" : "var(--c-signal-text)"}>
                   {letter}
                 </text>
               )}
               {label && (
-                <text x={x(c) + CELL / 2} y={y(r) + CELL / 2 + 7 + (letter ? 3 : 0)} textAnchor="middle" fontSize={label.length > 2 ? 15 : 19} fontWeight={700} className="font-mono" fill={onSolid ? "var(--c-on-signal)" : "var(--c-fg)"}>
+                <text x={x(c) + CELL / 2} y={y(r) + CELL / 2 + 7 + (letter ? 4 : 0)} textAnchor="middle" fontSize={label.length > 2 ? 15 : 19} fontWeight={700} className="font-mono" fill={onSolid ? "var(--c-on-signal)" : "var(--c-fg)"}>
                   {label}
                 </text>
               )}
             </g>
           );
         })}
-        {pathD && <path d={pathD} fill="none" stroke="var(--c-on-signal)" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" strokeDasharray="1" pathLength={1} strokeDashoffset={1 - t} opacity={0.9} />}
       </svg>
       {se && (
         <div className="flex min-w-0 flex-col gap-2 md:w-[38%] md:max-w-[340px]">

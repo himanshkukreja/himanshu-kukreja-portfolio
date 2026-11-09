@@ -62,7 +62,7 @@ function askAt(n: number, k: number): Set<number> {
   return out;
 }
 
-function choicesOf(right: string, wrong: { label: string; why: string }[]): VizAsk["choices"] {
+function choicesOf(right: string, wrong: { label: string; why: string }[], salt = ""): VizAsk["choices"] {
   const seen = new Set<string>([right]);
   const out: VizAsk["choices"] = [{ label: right, correct: true }];
   for (const w of wrong) {
@@ -70,8 +70,10 @@ function choicesOf(right: string, wrong: { label: string; why: string }[]): VizA
     seen.add(w.label);
     out.push({ label: w.label, correct: false, why: w.why });
   }
-  // a stable shuffle, so the right answer is not always first
-  const k = right.length % out.length;
+  // a stable shuffle (the same run always asks the same way), so the right answer is not always in one place
+  let h = 7;
+  for (const ch of salt + right + wrong.map((w) => w.label).join("|")) h = (h * 131 + ch.charCodeAt(0)) >>> 0;
+  const k = h % out.length;
   return [...out.slice(k), ...out.slice(0, k)];
 }
 

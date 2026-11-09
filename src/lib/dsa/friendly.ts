@@ -65,7 +65,7 @@ function sentence(x: FriendlyInput): string | null {
 
   // recursion
   if (/RecursionError|maximum recursion depth|maximum call stack size exceeded/i.test(msg))
-    return `${at}your function kept calling itself and never stopped. Check the base case: the smallest input must return an answer without calling the function again.`;
+    return `${at}your function called itself too many times in a row${py ? " (Python stops at about 1,000 nested calls)" : ""}. Either it never reaches a base case that returns without calling again, or the input is too deep for recursion, such as a long path through a big grid: then use a loop with an explicit stack.`;
 
   // syntax and indentation
   if (/IndentationError|TabError/.test(msg)) {
