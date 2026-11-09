@@ -13,6 +13,8 @@ import { DSA_FULL } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
 import { ShowEverything, useDsaFull } from "@/components/dsa/simple/view";
+import { openOnboarding } from "@/components/dsa/onboarding/useOnboarding";
+import { useAuth } from "@/contexts/AuthContext";
 import CourseMark from "./CourseMark";
 import AdminLink from "./AdminLink";
 import { DockDot, TabPending } from "./LinkPending";
@@ -196,6 +198,7 @@ export function DsaTabs({ pathname }: { pathname: string }) {
 
 /** "more ▾": the secondary DSA pages in a small menu (closes on a pick, Escape, a click outside or a route change). */
 function MoreTabs({ pathname, items, switcher }: { pathname: string; items: Tab[]; switcher: boolean }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(pathname);
   if (seen !== pathname) {
@@ -241,9 +244,22 @@ function MoreTabs({ pathname, items, switcher }: { pathname: string; items: Tab[
               </Link>
             );
           })}
-          {switcher && (
-            <div className="mt-1 border-t border-line px-2.5 pt-1">
-              <ShowEverything />
+          {(switcher || user) && (
+            <div className="mt-1 flex flex-col border-t border-line px-2.5 pt-1">
+              {user && (
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    openOnboarding();
+                  }}
+                  className="inline-flex min-h-9 items-center font-mono text-[12px] text-fg-3 hover:text-fg"
+                >
+                  Redo the welcome tour
+                </button>
+              )}
+              {switcher && <ShowEverything />}
             </div>
           )}
         </div>

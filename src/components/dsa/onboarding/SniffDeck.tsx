@@ -38,7 +38,8 @@ export default function SniffDeck({ puzzles, onAnswer, onFinish, reduced }: { pu
 
   const swipeable = p.kind === "tf" && !done;
   const onDown = (e: React.PointerEvent) => {
-    if (!swipeable) return;
+    // a press on a button or the code is not a swipe (capturing it would swallow the click)
+    if (!swipeable || (e.target as HTMLElement).closest("button, pre")) return;
     drag.current = { x: e.clientX, id: e.pointerId };
     setDragging(true);
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);

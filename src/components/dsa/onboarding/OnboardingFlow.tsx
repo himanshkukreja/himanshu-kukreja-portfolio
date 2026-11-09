@@ -67,7 +67,7 @@ const GOALS: { id: Goal; label: string; line: string }[] = [
 ];
 const LANGS: { id: DsaLang; line?: string }[] = [{ id: "python", line: "Recommended: easiest to read" }, { id: "java" }, { id: "cpp" }, { id: "javascript" }];
 
-function Pick({ label, line, on, onPick }: { label: string; line?: string; on: boolean; onPick: () => void }) {
+function Pick({ label, line, on, onPick, compact = false }: { label: string; line?: string; on: boolean; onPick: () => void; compact?: boolean }) {
   return (
     <button
       type="button"
@@ -81,7 +81,7 @@ function Pick({ label, line, on, onPick }: { label: string; line?: string; on: b
         {label}
         {on ? <Check className="h-4 w-4 text-signal-text" aria-hidden /> : null}
       </span>
-      {line ? <span className="text-[13.5px] text-fg-3">{line}</span> : null}
+      {line ? <span className={`text-[13.5px] text-fg-3 ${compact ? "hidden sm:block" : ""}`}>{line}</span> : null}
     </button>
   );
 }
@@ -111,7 +111,7 @@ function TopicCard({ id, know, onFlip }: { id: TopicId; know: Know; onFlip: () =
           <span className="text-[12.5px] leading-snug text-fg-3">{t.line}</span>
         </span>
       </span>
-      <span className="mt-auto flex items-center gap-2 font-mono text-[11px] font-semibold uppercase tracking-label text-fg-2">
+      <span className="mt-auto flex flex-col gap-1 font-mono text-[11.5px] font-semibold text-fg-2">
         <span aria-hidden className="flex gap-0.5">
           {[0, 1].map((i) => (
             <span key={i} className={`h-2 w-3 ${i < know ? "bg-signal" : "border border-line-strong"}`} />
@@ -349,9 +349,9 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
           </button>
         </header>
 
-        <div data-ob-scroll className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-8 sm:py-7">
+        <div data-ob-scroll className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-5 sm:px-8 sm:py-7">
           <div key={step} className="ob-card-in mx-auto flex w-full max-w-[860px] flex-col gap-5">
-            <h2 id="ob-h" ref={heading} tabIndex={-1} className="m-0 font-display text-[28px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg outline-none sm:text-[38px]">
+            <h2 id="ob-h" ref={heading} tabIndex={-1} style={{ outline: "none" }} className="m-0 font-display text-[28px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[38px]">
               {stepTitle}
             </h2>
 
@@ -402,9 +402,9 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
               <>
                 <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
                   <legend className="mb-2 font-mono text-[12px] uppercase tracking-label text-fg-3">Time a day</legend>
-                  <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="grid grid-cols-3 gap-2">
                     {MINUTES.map((m) => (
-                      <Pick key={m.id} label={m.label} line={m.line} on={minutes === m.id} onPick={() => setMinutes(m.id)} />
+                      <Pick key={m.id} label={m.label} line={m.line} compact on={minutes === m.id} onPick={() => setMinutes(m.id)} />
                     ))}
                   </div>
                 </fieldset>
@@ -418,9 +418,9 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
                 </fieldset>
                 <fieldset className="m-0 flex flex-col gap-2 border-0 p-0">
                   <legend className="mb-2 font-mono text-[12px] uppercase tracking-label text-fg-3">Language</legend>
-                  <div className="grid gap-2 sm:grid-cols-4">
+                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                     {LANGS.map((l) => (
-                      <Pick key={l.id} label={DSA_LANG_LABEL[l.id]} line={l.line} on={effLang === l.id} onPick={() => setPickedLang(l.id)} />
+                      <Pick key={l.id} label={DSA_LANG_LABEL[l.id]} line={l.line} compact on={effLang === l.id} onPick={() => setPickedLang(l.id)} />
                     ))}
                   </div>
                 </fieldset>
@@ -438,10 +438,10 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
                 <div className="flex flex-col gap-4">
                   <div className="relative">
                     <IdCard f={card} />
-                    <span className="ob-stamp pointer-events-none absolute -right-2 top-14 border-2 border-[var(--c-signal)] bg-[var(--c-plate)] px-2.5 py-1 font-mono text-[11px] font-semibold uppercase tracking-label text-[var(--c-plate-accent)] sm:-right-4">
-                      Welcome bonus unlocked
-                    </span>
                   </div>
+                  <span className="ob-stamp inline-flex items-center gap-2 self-start border-2 border-signal px-3 py-1.5 font-mono text-[12px] font-semibold uppercase tracking-label text-signal-text">
+                    <Check className="h-4 w-4" aria-hidden /> Welcome bonus unlocked
+                  </span>
                   <p className="m-0 font-mono text-[12px] text-fg-3">Your answers stay on your account. Redo this any time from the menu.</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <button type="button" onClick={share} className="inline-flex min-h-11 items-center gap-2 border border-line-strong bg-surface px-4 text-[14px] font-semibold text-fg hover:border-fg">
