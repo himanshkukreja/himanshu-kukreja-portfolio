@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -139,6 +139,19 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // (tidy.ts) shows first, so nobody waits. ~150 tokens in and out: about $0.0001 a call, on the learner's shared credits
   // (a tenth of a credit). Not counted in the 10-calls-a-minute limit (client.ts, chat/quota.ts): it rides on dictation.
   "dictation-polish": { label: "Dictation polish", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 400, maxInputChars: 1500, think: false, live: true },
+  // DSA Mastery's AI tutor (9 Nov 2026, plan §11), on staging until launch (the routes answer 404 in "soon" mode). Both are
+  // chat features like "course-chat": their own message quota (`perDay`), outside the shared daily credits (chat/quota.ts
+  // CHAT_FEATURES), under the same switches, budget, governor, block list, per-minute rate and off-topic pause. Haiku 5.5
+  // like every learner feature (owner, 7 Nov 2026), amber too; an admin's model override in ai_settings applies.
+  // dsa-chat: /dsa/ask and the Ask panel on DSA pages: one streamed answer per message, grounded in DSA content found by
+  // lib/dsa/ai/search.ts (lessons, lectures, problem statements, and editorials only for problems the learner unlocked).
+  // No thinking: answers stream in seconds. maxInputChars: one message (the history is trimmed server side).
+  "dsa-chat": { label: "DSA Mastery chat message", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 1400, maxInputChars: 2000, think: false, live: true },
+  // dsa-tutor: the tutor tab in the problem room (hint, debug, complexity, review, dry run, free questions) with the
+  // learner's code, language and last Run/Submit result. Debug, complexity, dry run and review think first (low effort):
+  // a wrong bug report costs the learner more than two seconds; hints and questions don't. maxInputChars: the code
+  // (≤ 12,000) + the run result (≤ 3,000) + the question (≤ 2,000), checked by the route.
+  "dsa-tutor": { label: "DSA problem tutor message", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 200, maxTokens: 1400, maxInputChars: 18000, think: true, effort: "low", live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

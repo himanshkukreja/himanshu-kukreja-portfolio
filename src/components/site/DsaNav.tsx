@@ -20,7 +20,7 @@ export const DSA_HOME = "/dsa";
 
 type Tab = {
   id: string;
-  /** a link, or (ask) a button that opens the course tutor's panel in place */
+  /** a link, or (ask, before launch) a button that opens the course tutor's panel in place */
   href?: string;
   label: string;
   /** the phone dock's label */
@@ -37,7 +37,8 @@ type Tab = {
  * "you" and the way back to SD Mastery. Production until launch (soon): the coming-soon page, ask, you, SD Mastery.
  */
 function tabs(p: string): Tab[] {
-  const ask: Tab = { id: "ask", label: "ask", short: "ask", on: false, icon: Sparkles, primary: true, where: "both" };
+  // DSA Mastery's tutor page (staging); before launch "ask" opens the course tutor's panel (no /dsa/ask in "soon" mode)
+  const ask: Tab = { id: "ask", ...(DSA_FULL ? { href: `${DSA_HOME}/ask` } : {}), label: "ask", short: "ask", on: p.startsWith(`${DSA_HOME}/ask`), icon: Sparkles, primary: true, where: "both" };
   const you: Tab = { id: "you", href: "/dashboard", label: "you", short: "you", on: false, icon: User, where: "dock" };
   const sdm: Tab = { id: "sdm", href: "/", label: "SD Mastery", short: "sdm", on: false, icon: "sdm", where: "dock" };
   if (!DSA_FULL) return [{ id: "soon", href: DSA_HOME, label: "coming soon", short: "dsa", on: p === DSA_HOME || p === `${DSA_HOME}/`, icon: MapIcon, where: "both" }, ask, you, sdm];
@@ -146,6 +147,7 @@ export function DsaTabs({ pathname }: { pathname: string }) {
         .map((t) =>
           t.href ? (
             <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={tabClass(t.on)}>
+              {t.primary && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
               {t.label}
               <TabPending />
             </Link>

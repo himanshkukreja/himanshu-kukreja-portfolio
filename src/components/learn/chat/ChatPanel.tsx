@@ -8,6 +8,10 @@
  *
  * On a lesson it takes over from "Ask this lesson": the lesson's free saved answers ("questions learners
  * ask") come first, then the quick asks, and the lesson stays the tutor's grounding through its tools.
+ *
+ * On DSA Mastery pages (`course="dsa"`) it is DSA Mastery's tutor instead: its own conversation and history (the
+ * "dsa:<uid>" scope, ./history.ts), its API (/api/learn/ai/dsa/ask, grounded in DSA content), its quick asks, and the
+ * full page at /dsa/ask.
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -24,7 +28,7 @@ import ChatHistory, { useChatHistory } from "./ChatHistory";
 import { useKeyboardInset } from "./ui";
 import ChatThread from "./ChatThread";
 import { NewMessagePill, useFollow } from "./ChatLive";
-import { ChatFinePrint, QuotaLine } from "./ChatMeta";
+import { ChatFinePrint, DSA_PRIVACY, QuotaLine } from "./ChatMeta";
 import { clearHeldSelection, heldPassage, readPageContext } from "./pageContext";
 import { useCourseChat } from "./useCourseChat";
 import { parseLessonPath } from "@/lib/learn/paths";
@@ -39,7 +43,24 @@ const QUICK = [
   { label: "in Hinglish", ask: "Explain the section I'm reading in Hinglish." },
 ];
 
-export default function ChatPanel({ open, onClose, initial, pathname }: { open: boolean; onClose: () => void; initial: { q?: string; send?: boolean; key: number } | null; pathname: string }) {
+/** On a page that isn't a concept, lecture or problem (the hub, the problem list): where to start. */
+const DSA_QUICK_ANY = [
+  { label: "where do I start?", ask: "I'm new to DSA Mastery. Which concept should I start with, and why?" },
+  { label: "sliding window simply", ask: "Explain the sliding window idea simply, with a small example." },
+  { label: "approach a new problem", ask: "How should I approach a problem I haven't seen before?" },
+  { label: "in Hinglish", ask: "Explain two pointers in Hinglish with a small example." },
+];
+
+const DSA_QUICK = [
+  { label: "explain this simply", ask: "Explain the part I'm reading simply, with a small example." },
+  { label: "when do I use it?", ask: "Which words in a problem tell me to use this idea?" },
+  { label: "common mistakes", ask: "What are the common mistakes with this idea, and how do I avoid them?" },
+  { label: "say it in an interview", ask: "How would I explain this idea in a coding interview, in 3-4 sentences?" },
+  { label: "in Hinglish", ask: "Explain the part I'm reading in Hinglish." },
+];
+
+export default function ChatPanel({ open, onClose, initial, pathname, course = "sdm" }: { open: boolean; onClose: () => void; initial: { q?: string; send?: boolean; key: number } | null; pathname: string; course?: "sdm" | "dsa" }) {
+  const dsa = course === "dsa";
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const ai = useAiStatus();
@@ -51,10 +72,11 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
       return false;
     }
   });
-  const uid = dev ? "dev" : user?.id ?? null;
+  const base = dev ? "dev" : user?.id ?? null;
+  const uid = base && dsa ? `dsa:${base}` : base;
   const devHeaders = useMemo(() => (dev ? { "x-smart-preview": "1" } : undefined), [dev]);
-  const chat = useCourseChat(uid, { page: readPageContext, devHeaders });
-  const canChat = dev || (!!user && !!ai?.features["course-chat"]);
+  const chat = useCourseChat(uid, { page: readPageContext, devHeaders, ...(dsa ? { api: "/api/learn/ai/dsa/ask" } : {}) });
+  const canChat = (dev && !dsa) || (!!user && !!ai?.features[dsa ? "dsa-chat" : "course-chat"]);
   const [text, setText] = useState("");
   // a passage attached by "Ask the tutor" on a selection: shown above the box, sent with the next message
   const [attached, setAttached] = useState("");
@@ -149,12 +171,12 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
         <header className="flex items-start justify-between gap-2 border-b border-line py-2 pl-4 pr-2">
           <div className="flex min-w-0 flex-col gap-1">
             <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-label text-signal-text">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden /> ask the course
+              <Sparkles className="h-3.5 w-3.5" aria-hidden /> {dsa ? "ask dsa mastery" : "ask the course"}
               {ai?.preview && <span className="border border-line-strong px-1.5 text-fg-3">admin preview</span>}
             </span>
             <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
               {canChat && <QuotaLine quota={chat.quota} />}
-              <Link href="/chat" onClick={onClose} className="inline-flex items-center gap-1 font-mono text-[11px] text-fg-3 hover:text-fg">
+              <Link href={dsa ? "/dsa/ask" : "/chat"} onClick={onClose} className="inline-flex items-center gap-1 font-mono text-[11px] text-fg-3 hover:text-fg">
                 full page <ExternalLink className="h-3 w-3" aria-hidden />
               </Link>
             </span>
@@ -206,12 +228,14 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
         <div ref={contentRef} className="flex flex-col gap-4 px-4 py-4">
           {empty && (
             <p className="m-0 text-[14px] leading-relaxed text-fg-2">
-              Ask about this page or anything in the course. The tutor knows where you are, answers with sources, finds lecture moments, quizzes you and builds paths you can save.
+              {dsa
+                ? "Ask about this page or anything in DSA Mastery. The tutor knows where you are and answers from the lessons, lectures and problems, with sources. It coaches you on problems without giving solutions away."
+                : "Ask about this page or anything in the course. The tutor knows where you are, answers with sources, finds lecture moments, quizzes you and builds paths you can save."}
             </p>
           )}
           {empty && canChat && (
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quick asks">
-              {QUICK.map((x) => (
+              {(dsa ? (/^\/dsa\/(?:concepts|problems)\/[^/]+/.test(pathname) ? DSA_QUICK : DSA_QUICK_ANY) : QUICK).map((x) => (
                 <button key={x.label} type="button" onClick={() => send(x.ask)} className="min-h-10 border border-line-strong px-2.5 font-mono text-[11.5px] text-fg-2 hover:border-signal hover:text-fg [@media(pointer:coarse)]:min-h-11">
                   {x.label}
                 </button>
@@ -237,7 +261,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
                 onAsk={canChat ? (t) => (track("chat_followup", { from: "panel" }), send(t)) : undefined}
                 onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
                 onSave={chat.savePath}
-                actions={{ feedback: chat.feedback, share: true, onRate: chat.rate }}
+                actions={dsa ? { feedback: false, share: false } : { feedback: chat.feedback, share: true, onRate: chat.rate }}
                 mock={{ onNext: chat.nextPhase, onEnd: () => void chat.send("End the interview and score me.", { mockEnd: true }), onLeave: chat.leaveMock }}
               />}
         </div>
@@ -254,7 +278,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
             <p className="m-0 text-[14px] text-fg-3">{ai ? "The tutor is resting right now. Search the course from the box at the top." : "Checking the tutor…"}</p>
           ) : (
             <>
-              <ChatComposer ref={composer} id="chat-panel-input" value={text} onChange={setText} onAsk={() => send(text)} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder={isLesson ? "Ask about this lesson, or anything…" : "Ask the course…"} tools={<AnswerStylePicker from="panel" />} />
+              <ChatComposer ref={composer} id="chat-panel-input" value={text} onChange={setText} onAsk={() => send(text)} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder={dsa ? "Ask about DSA, or this page…" : isLesson ? "Ask about this lesson, or anything…" : "Ask the course…"} tools={<AnswerStylePicker from="panel" />} />
               {attached && (
                 <p className="m-0 flex items-start gap-2 border-l-2 border-signal pl-2 text-[13px] text-fg-3">
                   <span className="min-w-0 flex-1">
@@ -288,7 +312,7 @@ export default function ChatPanel({ open, onClose, initial, pathname }: { open: 
               )}
             </>
           )}
-          <ChatFinePrint memory={chat.memory} history={uid ? history.remote : undefined} className={kb ? "hidden" : empty ? "" : "max-md:hidden"} />
+          <ChatFinePrint memory={chat.memory} history={uid ? history.remote : undefined} privacy={dsa ? DSA_PRIVACY : undefined} className={kb ? "hidden" : empty ? "" : "max-md:hidden"} />
         </footer>
         </>
         )}

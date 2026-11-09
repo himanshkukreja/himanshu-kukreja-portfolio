@@ -11,6 +11,9 @@ import type { ChatQuota } from "@/lib/ai/chat/text";
 
 export const CHAT_PRIVACY = "What you send goes to Anthropic's AI to answer it and isn't used to train models. Conversations are kept 90 days to stop abuse and to improve the tutor, then deleted; usage counts and your ratings are kept without the text.";
 
+/** DSA Mastery's tutors keep what learners send 30 days (the AI transcripts' retention); the chat history 90, like the course chat's. */
+export const DSA_PRIVACY = "What you send goes to Anthropic's AI to answer it and isn't used to train models. Messages are kept 30 days to stop abuse, then deleted; usage counts are kept without the text.";
+
 export function QuotaLine({ quota }: { quota: ChatQuota | null }) {
   if (!quota) return null;
   if (quota.ownKey) return <span className="font-mono text-[11px] text-fg-4">answering with your own key</span>;
@@ -31,7 +34,7 @@ export const historyLine = (where: "on" | "off" | "unknown") =>
  * One quiet line ("free for now · not used to train AI · privacy & memory"); the full small print opens
  * under it on a tap (the owner found the whole paragraph under every chat distracting, 29 Oct 2026).
  */
-export function ChatFinePrint({ memory, history, className = "" }: { memory: { available: boolean; paused: boolean } | null; history?: "on" | "off" | "unknown"; className?: string }) {
+export function ChatFinePrint({ memory, history, className = "", privacy = CHAT_PRIVACY }: { memory: { available: boolean; paused: boolean } | null; history?: "on" | "off" | "unknown"; className?: string; /** another tutor's retention (DSA Mastery: 30 days) */ privacy?: string }) {
   return (
     <details className={`group text-[11.5px] leading-snug text-fg-4 ${className}`}>
       <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 font-mono text-[11px] hover:text-fg-3 [&::-webkit-details-marker]:hidden">
@@ -39,7 +42,7 @@ export function ChatFinePrint({ memory, history, className = "" }: { memory: { a
         <span className="underline decoration-line-strong underline-offset-2 group-open:text-fg-3">privacy &amp; memory</span>
       </summary>
       <p className="m-0 mt-1.5 max-w-[640px]">
-        {AI_FREE_LINE} {CHAT_PRIVACY} {history ? `${historyLine(history)} ` : ""}
+        {AI_FREE_LINE} {privacy} {history ? `${historyLine(history)} ` : ""}
         {memory?.available && (
           <>
             {memory.paused ? "Memory is off." : "The tutor remembers your learning between chats."}{" "}

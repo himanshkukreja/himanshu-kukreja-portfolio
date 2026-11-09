@@ -11,6 +11,8 @@
  * - An accepted Submit records the solve (XP once, learning_progress course 'dsa', the streak) and unlocks the editorial;
  *   so do three failed submits or "show the editorial" (which forfeits the solve XP).
  * - The hint ladder opens one rung at a time. Code is kept per language on this device.
+ * - The Tutor tab (ProblemTutor) is DSA Mastery's AI tutor for this problem: hint, debug, complexity, dry run and review,
+ *   reading the code in the editor and the last result. A failed run offers "Ask the tutor why" under the verdict.
  */
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
@@ -30,11 +32,13 @@ import { useLang } from "../concept/widgets";
 import DsaHydrator from "../concept/DsaHydrator";
 import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
+import ProblemTutor, { type TutorRequest } from "./ProblemTutor";
+import { Sparkles } from "lucide-react";
 
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
 const CourseEnhancer = dynamic(loadCourseEnhancer, { ssr: false });
 
-type Tab = "description" | "hints" | "editorial" | "submissions";
+type Tab = "description" | "hints" | "tutor" | "editorial" | "submissions";
 type HistoryRow = { at: number; lang: DsaLang; verdict: string; passed: number; total: number };
 
 const store = {
@@ -62,7 +66,7 @@ function Html({ html, className = "" }: { html: string; className?: string }) {
 
 /* ------------------------------------------------------------------ verdict panel */
 
-function VerdictPanel({ outcome, mode, visible }: { outcome: JudgeOutcome; mode: "run" | "submit"; visible: DsaTestCase[] }) {
+function VerdictPanel({ outcome, mode, visible, onTutor }: { outcome: JudgeOutcome; mode: "run" | "submit"; visible: DsaTestCase[]; onTutor?: (mode: "debug" | "review") => void }) {
   const ok = outcome.verdict === "AC";
   const [sel, setSel] = useState(0);
   const shown = outcome.cases.filter((c) => !c.hidden);
@@ -78,6 +82,16 @@ function VerdictPanel({ outcome, mode, visible }: { outcome: JudgeOutcome; mode:
         <span className="font-mono text-[12px] text-fg-3">
           {outcome.passed}/{outcome.total} tests {mode === "submit" ? "(visible + hidden)" : "(visible)"} · {Math.round(outcome.ms)} ms · {outcome.judgedBy === "server" ? "judge server" : "in your browser"}
         </span>
+        {onTutor && (!ok || mode === "submit") && (
+          <button
+            type="button"
+            onClick={() => onTutor(ok ? "review" : "debug")}
+            className="ml-auto inline-flex min-h-9 items-center gap-1.5 border border-signal px-2.5 font-mono text-[12px] text-signal-text hover:bg-[var(--c-dsa-hl)] [@media(pointer:coarse)]:min-h-11"
+          >
+            <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            {ok ? "Get a review" : "Ask the tutor why"}
+          </button>
+        )}
       </div>
       {outcome.message && <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap border border-line bg-surface p-3 font-mono text-[12px] text-bad-text">{outcome.message}</pre>}
       {firstHiddenFail && (
@@ -155,6 +169,8 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
   const [stdout, setStdout] = useState("");
   const [loadMsg, setLoadMsg] = useState("");
   const statementRef = useRef<HTMLDivElement>(null);
+  const tabsRef = useRef<HTMLDivElement>(null);
+  const [tutorReq, setTutorReq] = useState<TutorRequest | null>(null);
   const editorialRef = useRef<HTMLDivElement>(null);
 
   // device state: hints opened, editorial seen, failed submits, history
@@ -276,22 +292,33 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
     store.set(codeKey(lang), starter[lang]);
   };
 
-  const openHint = () => {
-    const n = Math.min(p.hints.length, hints + 1);
+  const openHint = (to?: number, from: "ladder" | "tutor" = "ladder") => {
+    const n = Math.min(p.hints.length, to ?? hints + 1);
+    if (n <= hints) return;
     setHints(n);
     store.set(`dsa.hints.${p.id}`, String(n));
-    track("dsa_hint", { problem: p.id, rung: n });
+    track("dsa_hint", { problem: p.id, rung: n, from });
+  };
+
+  // "Ask the tutor why" / "Get a review" under a verdict: the Tutor tab, asked at once (on phones the tabs scroll into view)
+  const askTutor = (mode: "debug" | "review") => {
+    setTab("tutor");
+    setTutorReq({ mode, key: Date.now() });
+    if (window.matchMedia("(max-width: 1023px)").matches) requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
   const revealEditorial = () => {
     if (!window.confirm("Show the editorial now? Solving afterwards still marks the problem solved, but earns no XP.")) return;
     store.set(`dsa.editorial.${p.id}`, "early");
     setSeenEarly(true);
+    // signed in: recorded on the account, so the AI tutor may use the editorial too (a guest's reveal stays here)
+    void userFetch(`/api/dsa/editorial/${p.id}`, { method: "POST" }).catch(() => {});
   };
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "description", label: "Description" },
     { id: "hints", label: `Hints ${hints}/${p.hints.length}` },
+    { id: "tutor", label: "Tutor" },
     { id: "editorial", label: unlocked ? "Editorial" : "Editorial · locked" },
     { id: "submissions", label: "Submissions" },
   ];
@@ -317,7 +344,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
             <span>{problemXp(p.level)} XP</span>
           </p>
         </header>
-        <div role="tablist" aria-label="Problem tabs" className="flex flex-wrap border-b border-line">
+        <div ref={tabsRef} role="tablist" aria-label="Problem tabs" className="flex scroll-mt-[calc(var(--hk-header-h,61px)+8px)] flex-wrap border-b border-line">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -325,8 +352,9 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`min-h-11 border-b-2 px-3 font-mono text-[12px] uppercase tracking-label ${tab === t.id ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
+              className={`inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 font-mono text-[12px] uppercase tracking-label ${tab === t.id ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
             >
+              {t.id === "tutor" && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
               {t.label}
             </button>
           ))}
@@ -359,13 +387,26 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
               </article>
             ))}
             {hints < p.hints.length ? (
-              <button type="button" onClick={openHint} className="min-h-11 self-start border-2 border-signal px-4 text-[15px] font-semibold text-signal-text hover:bg-[var(--c-dsa-hl)]">
+              <button type="button" onClick={() => openHint()} className="min-h-11 self-start border-2 border-signal px-4 text-[15px] font-semibold text-signal-text hover:bg-[var(--c-dsa-hl)]">
                 Open rung {hints + 1}: {p.hints[hints]?.title.replace(/^Rung \d+:\s*/, "")}
               </button>
             ) : (
               <p className="m-0 font-mono text-[12px] text-fg-3">All five rungs are open. The editorial unlocks after a solve or three failed submits.</p>
             )}
           </div>
+        )}
+
+        {tab === "tutor" && (
+          <ProblemTutor
+            p={p}
+            lang={lang}
+            code={() => editor.current?.getValue() ?? initialFor(lang)}
+            last={outcome}
+            hintsOpen={hints}
+            onHint={(n) => openHint(n, "tutor")}
+            solved={solved}
+            request={tutorReq}
+          />
         )}
 
         {tab === "editorial" && (
@@ -506,7 +547,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
                 {notice}
               </p>
             )}
-            {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} />}
+            {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} onTutor={askTutor} />}
             {stdout && (
               <details className="border border-line bg-surface">
                 <summary className="min-h-10 cursor-pointer px-3 py-2 font-mono text-[12px] text-fg-3">Your printed output</summary>
