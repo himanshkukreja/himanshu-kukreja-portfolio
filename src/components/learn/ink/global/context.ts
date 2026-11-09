@@ -20,7 +20,7 @@
  */
 import { useSyncExternalStore } from "react";
 import { cleanPath, isLessonPath, parseLessonPath } from "@/lib/learn/paths";
-import { isDsaReaderPath } from "@/lib/dsa/flags";
+import { isDsaProblemRoom, isDsaReaderPath } from "@/lib/dsa/flags";
 
 export type InkContextKind = "lesson" | "war" | "case" | "lab" | "short" | "lecture" | "concept" | "sheet" | "cheatsheet" | "company" | "design" | "answer";
 
@@ -185,7 +185,7 @@ export const NO_NOTEBOOK = /^\/(?:notebook(?:\/|$)|shorts$|canvas\/|papers\/[^/]
 export const notebookAllowed = (p: string) => !NO_NOTEBOOK.test(cleanPath(p));
 
 /** The floating pen: everywhere the panel is, except where the page brings its own Notebook button (the lesson reader's tools). */
-export const showPenButton = (p: string) => notebookAllowed(p) && !isReaderRoute(cleanPath(p));
+export const showPenButton = (p: string) => notebookAllowed(p) && !isReaderRoute(cleanPath(p)) && !isDsaProblemRoom(cleanPath(p));
 
 // ------------------------------------------------------------------ small shared memory (this device)
 

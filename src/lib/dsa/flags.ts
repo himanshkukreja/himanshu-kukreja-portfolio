@@ -30,3 +30,7 @@ export const isDsaReaderPath = (p: string) => /^\/dsa\/concepts\/[^/]+\/?$/.test
 /** Any DSA Mastery page (/dsa and everything under it, clean course paths): the header, dock and every shared
  *  component there wear DSA Mastery's brand and teal (SiteHeader sets data-course="dsa" on <html>, globals.css). */
 export const isDsaPath = (p: string) => /^\/dsa(?:\/|$)/.test(p.split(/[?#]/)[0]);
+
+/** A DSA problem room (/dsa/problems/<id>): its editor fills the screen height, so the floating Notebook pen would sit
+ *  over Run / Submit; the room has its own Notebook button in the editor toolbar instead. */
+export const isDsaProblemRoom = (p: string) => /^\/dsa\/problems\/[^/]+\/?$/.test(p.split(/[?#]/)[0]);

@@ -33,7 +33,8 @@ import DsaHydrator from "../concept/DsaHydrator";
 import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
 import ProblemTutor, { type TutorRequest } from "./ProblemTutor";
-import { Sparkles } from "lucide-react";
+import { NotebookPen, Sparkles } from "lucide-react";
+import { INK_EVENTS } from "@/lib/learn/ink/types";
 
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
 const CourseEnhancer = dynamic(loadCourseEnhancer, { ssr: false });
@@ -525,6 +526,15 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
           </span>
           <button type="button" onClick={reset} className="ml-auto min-h-10 px-2 font-mono text-[12px] text-fg-3 underline">
             reset code
+          </button>
+          {/* the Notebook lives here in the problem room: a floating pen would sit over Run / Submit (the editor fills the height) */}
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent(INK_EVENTS.open, { detail: {} }))}
+            className="inline-flex min-h-10 items-center gap-1.5 border border-line-strong px-2.5 font-mono text-[12px] text-fg-2 hover:bg-surface-2 hover:text-fg"
+          >
+            <NotebookPen className="h-3.5 w-3.5" aria-hidden />
+            notebook
           </button>
         </div>
         <div className="h-[380px] border border-line-strong sm:h-[440px] lg:h-auto lg:min-h-[260px] lg:flex-1">
