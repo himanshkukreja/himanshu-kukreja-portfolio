@@ -65,7 +65,7 @@ export type LectureSummary = {
   /** playlist section: "W04 · Caching", "Side quests", "Interview problems", "Low-level design", "Case files" */
   group: string;
   /** "up next" stays inside a track */
-  track: "course" | "quests" | "problems" | "lld" | "cases" | "mocks" | "stories";
+  track: "course" | "quests" | "problems" | "lld" | "cases" | "mocks" | "stories" | "dsa";
   /** difficulty (lib/learn/level.ts) */
   level?: Level;
   /** for the offline catalog: the script's content version, its JSON length and its narration word count */

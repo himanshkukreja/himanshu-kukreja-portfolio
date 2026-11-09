@@ -23,3 +23,6 @@ export const loadExplainer = (name: string) => {
 };
 /** The code-lab editor (CodeMirror 6 + Python), loaded by the lab page and warmed when a lab is saved. */
 export const loadCodeEditor = () => import("@/components/learn/labs/CodeEditor");
+/** DSA Mastery's concept widgets: the trace player and the race chart (src/components/dsa/trace/*). */
+export const loadTracePlayer = () => import("@/components/dsa/trace/TracePlayer");
+export const loadRaceChart = () => import("@/components/dsa/trace/RaceChart");

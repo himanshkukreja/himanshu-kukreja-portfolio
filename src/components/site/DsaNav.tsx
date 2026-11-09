@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Check, ChevronsUpDown, Code2, Layers, Map as MapIcon, Sparkles, User, type LucideIcon } from "lucide-react";
+import { Check, ChevronsUpDown, Code2, FileText, Layers, Map as MapIcon, Play, Sparkles, User, type LucideIcon } from "lucide-react";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
@@ -30,10 +30,12 @@ type Tab = {
   primary?: boolean;
   /** where it shows: desktop tab row, phone dock, or both */
   where: "both" | "dock" | "desk";
+  /** desktop tabs that only fit from xl (1280 px) up; between lg and xl the hub links them */
+  wide?: boolean;
 };
 
 /**
- * Staging (full): world map (the hub, and the concept rooms and lectures on it) · problems · ask, plus on phones
+ * Staging (full): world map (the hub and the concept rooms) · problems · lectures · shorts · cheat sheets (desktop) · ask, plus on phones
  * "you" and the way back to SD Mastery. Production until launch (soon): the coming-soon page, ask, you, SD Mastery.
  */
 function tabs(p: string): Tab[] {
@@ -43,10 +45,13 @@ function tabs(p: string): Tab[] {
   const sdm: Tab = { id: "sdm", href: "/", label: "SD Mastery", short: "sdm", on: false, icon: "sdm", where: "dock" };
   if (!DSA_FULL) return [{ id: "soon", href: DSA_HOME, label: "coming soon", short: "dsa", on: p === DSA_HOME || p === `${DSA_HOME}/`, icon: MapIcon, where: "both" }, ask, you, sdm];
   return [
-    { id: "map", href: DSA_HOME, label: "world map", short: "map", on: p === DSA_HOME || p === `${DSA_HOME}/` || p.startsWith(`${DSA_HOME}/concepts/`), icon: MapIcon, where: "both" },
+    { id: "map", href: DSA_HOME, label: "world map", short: "map", on: p === DSA_HOME || p === `${DSA_HOME}/` || (p.startsWith(`${DSA_HOME}/concepts/`) && !/\/lecture\/?$/.test(p)), icon: MapIcon, where: "both" },
     { id: "problems", href: `${DSA_HOME}/problems`, label: "problems", short: "problems", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
-    // desktop only (the phone dock keeps five tabs; the hub's Revise card links it there)
-    { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk" },
+    // desktop only: the phone dock has no free slot (the hub and the concept pages link them there)
+    { id: "lectures", href: `${DSA_HOME}/lectures`, label: "lectures", short: "lectures", on: p.startsWith(`${DSA_HOME}/lectures`) || /^\/dsa\/concepts\/[^/]+\/lecture/.test(p), icon: Play, where: "desk" },
+    { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", wide: true },
+    { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", wide: true },
+    { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", wide: true },
     ask,
     you,
     sdm,
@@ -148,7 +153,7 @@ export function DsaTabs({ pathname }: { pathname: string }) {
         .filter((t) => t.where !== "dock")
         .map((t) =>
           t.href ? (
-            <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={tabClass(t.on)}>
+            <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={`${tabClass(t.on)}${t.wide ? " max-xl:!hidden" : ""}`}>
               {t.primary && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
               {t.label}
               <TabPending />

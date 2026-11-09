@@ -71,6 +71,12 @@ function subgroup(section: SectionId, url: string, g: (CatalogGroup & { index: n
       const cg = catalog?.groups.findIndex((x) => x.id === id) ?? -1;
       return { id, title, order: cg >= 0 ? cg : playlistOrder(title) };
     }
+    case "dsa": {
+      if (g) return { id: g.id, title: g.title, order };
+      const id = meta?.group || "dsa-concepts";
+      const cg = catalog?.groups.findIndex((x) => x.id === id) ?? -1;
+      return { id, title: meta?.groupTitle || "DSA Mastery", order: cg >= 0 ? cg : 999 };
+    }
     case "war":
       return /\/war-room\//.test(url) ? { id: "war-rooms", title: "War rooms", order: 1 } : { id: "stories", title: "Stories", order: 0 };
     default:

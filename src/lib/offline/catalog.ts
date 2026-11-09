@@ -15,6 +15,8 @@ import { getAllWar, getWarStories } from "@/lib/learn/war/load";
 import { THEME_LABEL } from "@/lib/learn/war/types";
 import { lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
 import { lectureGroupAnchor } from "@/lib/learn/lecture/types";
+import { DSA_FULL } from "@/lib/dsa/flags";
+import { dsaCatalogGroups } from "./dsa-catalog";
 import type { Catalog, CatalogGroup, CatalogItem, OfflineKind } from "./types";
 
 /**
@@ -285,6 +287,16 @@ async function build(course: string): Promise<Catalog> {
     groups.push(...bySection.values());
   } catch {
     // lectures unavailable: the rest still saves
+  }
+
+  // DSA Mastery (staging until launch): its concepts, problems, cheat sheets and lectures, one section of the library
+  if (DSA_FULL) {
+    try {
+      lap("before dsa");
+      groups.push(...(await dsaCatalogGroups(lectureMediaBase()?.replace(/\/$/, "") ?? null)));
+    } catch {
+      // DSA content unavailable: the course still saves
+    }
   }
 
   lap("before done");

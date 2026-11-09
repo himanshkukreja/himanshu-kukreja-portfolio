@@ -83,7 +83,13 @@ export function findItem(catalog: Catalog | null, url: string): (CatalogItem & {
 
 /** Saving any course page also saves the course map, so the installed app opens on it offline. */
 export function withHub(catalog: Catalog | null, saved: Map<string, SavedMeta>, items: SaveInput[]): SaveInput[] {
-  const hub = catalog?.groups.find((g) => g.id === "course")?.items.find((i) => i.kind === "hub");
+  // DSA Mastery pages bring DSA's own hub (/dsa, the world map) instead of the course map
+  const dsa = items.length > 0 && items.every((i) => /^\/dsa(?:\/|$)/.test(i.url));
+  const hub = dsa ? catalog?.groups.find((g) => g.id === "dsa-concepts")?.items.find((i) => i.kind === "hub") : catalog?.groups.find((g) => g.id === "course")?.items.find((i) => i.kind === "hub");
+  if (dsa && hub) {
+    if (saved.has(pathOf(hub.url)) || items.some((i) => pathOf(i.url) === pathOf(hub.url))) return items;
+    return [{ ...hub, groupTitle: groupTitleOf(catalog, "dsa-concepts") }, ...items];
+  }
   if (!hub || saved.has(pathOf(hub.url)) || items.some((i) => pathOf(i.url) === pathOf(hub.url))) return items;
   if (!items.some((i) => i.kind !== "story")) return items;
   return [{ ...hub, groupTitle: groupTitleOf(catalog, "course") }, ...items];

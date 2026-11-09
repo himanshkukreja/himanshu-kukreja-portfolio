@@ -5,7 +5,7 @@ import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
-import { lectureRefs, parseTemplates, resolveDsaLecture, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
+import { dsaShortParts, lectureRefs, parseTemplates, resolveDsaLecture, resolveDsaShort, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import {
   dsaKeys,
@@ -476,12 +476,8 @@ export async function getConcept(id: string): Promise<ConceptPage | null> {
  * Its recorded media lives with the SDM lectures' (NEXT_PUBLIC_LECTURE_MEDIA) under lectures/<quest>/, quest being
  * "dsa--<module>--<concept>".
  */
-const lectureCached = cached(async (id: string): Promise<Lecture | null> => {
-  const c = (await getConceptIndex()).find((x) => x.id === id);
-  if (!c || c.status !== "built") return null;
-  const dir = `resources/modules/${c.module}/${id}`;
-  const raw = await readDsaJson<RawDsaLecture>(`${dir}/lecture.json`);
-  if (!raw || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
+/** What a lecture or short points at (its lesson's templates, traces, races, the cast), read for resolving. */
+async function lectureSources(dir: string, raw: RawDsaLecture) {
   const refs = lectureRefs(raw);
   const [lessonMd, cast, traceList, raceList] = await Promise.all([
     readDsa(`${dir}/lesson.md`),
@@ -491,12 +487,56 @@ const lectureCached = cached(async (id: string): Promise<Lecture | null> => {
   ]);
   const traces = Object.fromEntries(refs.traces.map((t, i) => [t, traceList[i]]));
   const races = Object.fromEntries(refs.races.map((r, i) => [r, raceList[i]]));
-  return resolveDsaLecture(raw, { lessonMd, traces, races, cast });
+  return { lessonMd, traces, races, cast };
+}
+
+const lectureCached = cached(async (id: string): Promise<Lecture | null> => {
+  const c = (await getConceptIndex()).find((x) => x.id === id);
+  if (!c || c.status !== "built") return null;
+  const dir = `resources/modules/${c.module}/${id}`;
+  const raw = await readDsaJson<RawDsaLecture>(`${dir}/lecture.json`);
+  if (!raw || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
+  return resolveDsaLecture(raw, await lectureSources(dir, raw));
 }, "dsa-lecture-v1");
 
 export async function getConceptLecture(id: string): Promise<Lecture | null> {
   if (!ID.test(id)) return null;
   return lectureCached(id);
+}
+
+/* ------------------------------------------------------------------ shorts */
+
+/** A built concept's short ids (shorts--dsa--<module>--<concept>--<slug>), from its shorts/ folder, in file order. */
+const conceptShortIdsCached = cached(async (id: string): Promise<string[]> => {
+  const c = (await getConceptIndex()).find((x) => x.id === id);
+  if (!c || c.status !== "built") return [];
+  const files = (await listDsa(`resources/modules/${c.module}/${id}/shorts`)) || [];
+  return files
+    .filter((f) => /^[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(f))
+    .sort()
+    .map((f) => `shorts--dsa--${c.module}--${id}--${f.replace(/\.json$/, "")}`);
+}, "dsa-short-ids-v1");
+
+export async function getConceptShortIds(id: string): Promise<string[]> {
+  if (!ID.test(id)) return [];
+  return conceptShortIdsCached(id);
+}
+
+/** One DSA short, resolved like its lecture (src/lib/dsa/lecture.ts resolveDsaShort), or null. */
+const shortCached = cached(async (id: string): Promise<Lecture | null> => {
+  const parts = dsaShortParts(id);
+  if (!parts) return null;
+  const c = (await getConceptIndex()).find((x) => x.id === parts.concept);
+  if (!c || c.status !== "built" || c.module !== parts.module) return null;
+  const dir = `resources/modules/${c.module}/${c.id}`;
+  const raw = await readDsaJson<RawDsaLecture>(`${dir}/shorts/${parts.slug}.json`);
+  if (!raw || raw.quest !== id || !raw.short || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
+  return resolveDsaShort(raw, await lectureSources(dir, raw));
+}, "dsa-short-v1");
+
+export async function getDsaShort(id: string): Promise<Lecture | null> {
+  if (!dsaShortParts(id)) return null;
+  return shortCached(id);
 }
 
 /* ------------------------------------------------------------------ problems */

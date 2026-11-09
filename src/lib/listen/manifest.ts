@@ -33,9 +33,11 @@ export type ListenManifest = {
 
 /**
  * The article's narration folder. Course lessons, interview problems and LLD by folder, side quests by
- * slug; case files, war stories and mock interviews have room for theirs (case/, war/, mock/).
+ * slug; case files, war stories and mock interviews have room for theirs (case/, war/, mock/); DSA Mastery's
+ * concept lessons are dsa/<module>/<concept>.
  */
-export function listenKey(kind: LessonKind | "case" | "war" | "mock", folder: string, slug: string): string {
+export function listenKey(kind: LessonKind | "case" | "war" | "mock" | "dsa", folder: string, slug: string): string {
+  if (kind === "dsa") return `dsa/${folder}/${slug}`;
   if (kind === "bonus") return `quest/${slug}`;
   if (kind === "case" || kind === "war" || kind === "mock") return `${kind}/${slug}`;
   return `lesson/${folder}/${slug}`;

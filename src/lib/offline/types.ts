@@ -21,7 +21,9 @@ export type OfflineKind =
   | "revision"
   | "cheatsheet"
   | "lab"
-  | "tool";
+  | "tool"
+  | "dsa-concept"
+  | "dsa-problem";
 
 export type CatalogItem = {
   /** path, e.g. /week-02-…/day-03-circuit-breakers */
@@ -49,7 +51,7 @@ export type CatalogItem = {
 export type CatalogGroup = {
   id: string;
   title: string;
-  kind: "course" | "world" | "side-quests" | "problems" | "lld" | "mocks" | "case-files" | "war-stories" | "lectures";
+  kind: "course" | "world" | "side-quests" | "problems" | "lld" | "mocks" | "case-files" | "war-stories" | "lectures" | "dsa";
   items: CatalogItem[];
 };
 
@@ -108,7 +110,7 @@ export const OFFLINE_CACHES = {
  * leaves out only the course map: it is answered by its own HUB rule there).
  */
 export const SAVEABLE_PATH =
-  /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$|^\/$/;
+  /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$|^\/$|^\/dsa(?:\/(?:concepts\/[^/]+(?:\/lecture)?|problems(?:\/[^/]+)?|lectures|cheatsheets(?:\/[^/]+)?))?\/?$/;
 
 /** A lecture's recorded media file (any origin): the service worker answers saved ones from hk-media. */
 export const LECTURE_FILE = /\/[A-Za-z0-9-]+\/(?:media\.json|narration\.mp3|music\.mp3|captions\.vtt|poster\.jpg|chapters\.json)$/;

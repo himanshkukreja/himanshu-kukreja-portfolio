@@ -68,8 +68,29 @@ type FsDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFu
 type FsEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
 const fsElement = () => document.fullscreenElement ?? (document as FsDoc).webkitFullscreenElement ?? null;
 
-/** `top`: ids ranked by engagement (upvotes, saves, discussion, finished views), refreshed hourly on the server. */
-export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: PlayableShort[]; top?: string[]; pinned?: string[] }) {
+/** one empty list for the defaults: a fresh `[]` per render would re-deal the feed on every render (an effect depends on it) */
+const NONE: string[] = [];
+
+/**
+ * `top`: ids ranked by engagement (upvotes, saves, discussion, finished views), refreshed hourly on the server.
+ * `home` (where Back goes without history), `shareBase` (the feed's own path in share links) and `guide` (the "how it
+ * works" video) let DSA Mastery's feed (/dsa/shorts) reuse this one.
+ */
+export default function ShortsFeed({
+  shorts,
+  top = NONE,
+  pinned = NONE,
+  home = "/",
+  shareBase = "/shorts",
+  guide = true,
+}: {
+  shorts: PlayableShort[];
+  top?: string[];
+  pinned?: string[];
+  home?: string;
+  shareBase?: string;
+  guide?: boolean;
+}) {
   const router = useRouter();
   // sound: off by default on phones and tablets, on for laptops (the player falls back to muted when the
   // browser blocks sound before a click); the viewer's own choice is remembered for the session
@@ -150,7 +171,11 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
     }
   };
 
-  const cats = useMemo(() => SHORT_CATEGORIES.filter((c) => shorts.some((s) => s.category === c.id)), [shorts]);
+  // a single category is no filter: its chip would only repeat "all"
+  const cats = useMemo(() => {
+    const present = SHORT_CATEGORIES.filter((c) => shorts.some((s) => s.category === c.id));
+    return present.length > 1 ? present : [];
+  }, [shorts]);
   const topics = useMemo(() => {
     const n = new Map<string, number>();
     if (cat !== "top") for (const s of shorts) if (cat === "all" || s.category === cat) for (const t of s.topics) n.set(t, (n.get(t) || 0) + 1);
@@ -302,7 +327,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
   }, [list, dealt]);
 
   const share = async (s: PlayableShort) => {
-    const url = `${window.location.origin}/shorts?v=${encodeURIComponent(s.id)}`;
+    const url = `${window.location.origin}${shareBase}?v=${encodeURIComponent(s.id)}`;
     try {
       if (navigator.share && window.matchMedia("(pointer: coarse)").matches) await navigator.share({ title: s.title, url });
       else {
@@ -315,7 +340,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
       // dismissed
     }
   };
-  const back = () => (window.history.length > 1 ? router.back() : router.push("/"));
+  const back = () => (window.history.length > 1 ? router.back() : router.push(home));
 
   const chip = (on: boolean) => `min-h-8 shrink-0 whitespace-nowrap border px-2.5 font-mono text-[11px] ${on ? "border-signal bg-signal text-on-signal" : "border-line-strong text-fg-2 hover:text-fg"}`;
   // over the video on phones: translucent, readable on any frame
@@ -347,7 +372,7 @@ export default function ShortsFeed({ shorts, top = [], pinned = [] }: { shorts: 
               {c.label.toLowerCase()}
             </button>
           ))}
-          <WatchHowItWorks id="shorts" compact className="ml-auto pl-3" />
+          {guide && <WatchHowItWorks id="shorts" compact className="ml-auto pl-3" />}
         </div>
         {topics.length > 1 && (
           <div className="flex gap-1.5 overflow-x-auto [scrollbar-width:none]" role="group" aria-label="Topic">

@@ -67,7 +67,7 @@ const NAV_TIMEOUT_MS = 4000;
 const RECENT_MAX = 10;
 const BYPASS = /^\/(?:api|admin|auth|hkr|_vercel|monitoring)(?:\/|$)|^\/sw\.js$|\/(?:opengraph|twitter)-image(?:[/-]|$)/;
 // keep in sync with SAVEABLE_PATH in src/lib/offline/types.ts (minus the course map, the HUB rule)
-const ARTICLE = /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$/;
+const ARTICLE = /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$|^\/dsa(?:\/(?:concepts\/[^/]+(?:\/lecture)?|problems(?:\/[^/]+)?|lectures|cheatsheets(?:\/[^/]+)?))?\/?$/;
 // a lecture's recorded media, on R2 or /lecture-media (keep in sync with LECTURE_FILE in types.ts)
 const LECTURE_FILE = /\/[A-Za-z0-9-]+\/(?:media\.json|narration\.mp3|music\.mp3|captions\.vtt|poster\.jpg|chapters\.json)$/;
 const MEDIA_JSON_TIMEOUT_MS = 4000;

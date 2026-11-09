@@ -5,6 +5,12 @@ import type { LectureRef } from "../map/Campus";
 import SolvedMark from "../problem/SolvedMark";
 import HubToday from "./HubToday";
 
+const WATCH = [
+  { href: "/dsa/lectures", kicker: "Lectures", title: "Watch each concept animated" },
+  { href: "/dsa/shorts", kicker: "Shorts", title: "One idea in two minutes" },
+  { href: "/dsa/cheatsheets", kicker: "Cheat sheets", title: "Every pattern on one page" },
+];
+
 /**
  * The /dsa hub in full mode (staging): the world atlas row and the selected world's campus (Academy by default), the
  * "today" row (daily problem and streak, Revise, the certificate), then what is built so far. Server-rendered from the content repo; progress paints in on the client (Campus,
@@ -36,6 +42,16 @@ export default function DsaHub({
         )}
 
         <HubToday academy={specs.academy ?? null} />
+
+        {/* watch and revise: the lecture library, the shorts feed and the pattern sheets (on phones the dock has no room for them) */}
+        <nav aria-label="Watch and revise" className="grid grid-cols-1 gap-px border border-line bg-line sm:grid-cols-3">
+          {WATCH.map((w) => (
+            <Link key={w.href} href={w.href} className="group flex min-h-16 flex-col gap-1 bg-surface px-4 py-3 hover:bg-surface-2">
+              <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">{w.kicker}</span>
+              <span className="text-[15px] font-semibold text-fg group-hover:text-signal-text">{w.title} →</span>
+            </Link>
+          ))}
+        </nav>
 
         <section aria-labelledby="built-h" className="grid gap-6 lg:grid-cols-2">
           <div className="flex flex-col gap-3">

@@ -13,6 +13,8 @@ https://media.himanshukukreja.in/listen/<key>/narration.mp3   mono MP3, 48 kbps 
         case/<slug>                  case files (/stories/<slug>; the admin CMS, else content/stories/)
         war/<slug>                   war stories (/learn/war-stories/<slug>; resources/war-stories/stories/)
         mock/<slug>                  mock interviews: the debrief's model answers (resources/mock-interviews/)
+        dsa/<module>/<concept>       DSA Mastery concept lessons (/dsa/concepts/<concept>; the dsa-mastery checkout:
+                                     DSA_LOCAL_DIR, else ../dsa-mastery; lesson.md and quiz.md must equal its origin/main)
 ```
 
 What each player reads:

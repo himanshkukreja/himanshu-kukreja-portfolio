@@ -13,10 +13,12 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ConceptPage } from "@/lib/dsa/types";
 import ExplainBack from "@/components/learn/ai/ExplainBack";
+// one import() per module (lib/offline/lazy), so "save offline" caches the very chunks this asks for
+import { loadRaceChart, loadTracePlayer } from "@/lib/offline/lazy";
 import { CheckpointGate, CodeTabs, Poll, Reorder, ReviewCards } from "./widgets";
 
-const TracePlayer = dynamic(() => import("../trace/TracePlayer"), { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the player…</p> });
-const RaceChart = dynamic(() => import("../trace/RaceChart"), { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the race…</p> });
+const TracePlayer = dynamic(loadTracePlayer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the player…</p> });
+const RaceChart = dynamic(loadRaceChart, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the race…</p> });
 
 type Host = { fig: HTMLElement; stage: HTMLElement; kind: string; key: string };
 

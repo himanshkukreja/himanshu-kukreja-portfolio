@@ -318,7 +318,8 @@ export async function saveArticle(item: SaveInput, opts: SaveOptions = {}): Prom
   if (build !== APP_BUILD) throw new OfflineSaveError("stale-build", "The site was just updated. Reload this page, then save again.");
   await warmReader(docs.map((d) => d.html));
   // code labs: the editor chunk + the Python runtime (shared by every lab, stored once)
-  const runtime = item.kind === "lab" && /^\/learn\/labs\/[^/]+/.test(pathOf(item.url)) ? await cacheLabRuntime() : null;
+  // DSA problems run Python and JavaScript in the browser on the same runtime (the problem room's Run works offline)
+  const runtime = (item.kind === "lab" && /^\/learn\/labs\/[^/]+/.test(pathOf(item.url))) || item.kind === "dsa-problem" ? await cacheLabRuntime() : null;
 
   const assets = new Set<string>(loadedStatics());
   const media = new Set<string>();

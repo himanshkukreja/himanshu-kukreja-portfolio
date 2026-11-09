@@ -31,6 +31,7 @@ import {
   Trash2,
   WifiOff,
   Wrench,
+  Binary,
   X,
 } from "lucide-react";
 import type { Catalog } from "@/lib/offline/types";
@@ -61,13 +62,14 @@ const ICON: Record<SectionId | "all", IconT> = {
   revision: Layers,
   labs: FlaskConical,
   tools: Wrench,
+  dsa: Binary,
 };
 
 /** Saves above this ask first (a whole playlist of lectures is gigabytes). */
 const CONFIRM_BYTES = 300 * 1024 * 1024;
 
-/** The course for "Save the entire course": not the lectures (GBs), case files or war stories. */
-const COURSE_GROUPS = (c: Catalog) => c.groups.filter((g) => g.kind !== "case-files" && g.kind !== "lectures" && g.kind !== "war-stories");
+/** The course for "Save the entire course": not the lectures (GBs), case files, war stories or DSA Mastery. */
+const COURSE_GROUPS = (c: Catalog) => c.groups.filter((g) => g.kind !== "case-files" && g.kind !== "lectures" && g.kind !== "war-stories" && g.kind !== "dsa");
 
 /** Bytes a save of these items stores, with the once-per-device extras (app files, Python runtime, lecture music). */
 function useEstimate() {
