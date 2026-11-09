@@ -51,25 +51,37 @@ function GridSvg({ state, t, big }: { state: GridState; t: number; big: boolean 
         const done = se?.status[n] === "done";
         const fresh = !!se?.fresh.includes(n);
         const fill = wall ? WALL : cur || onPath ? ACC : front || done ? accA(done ? 0.28 : 0.16) : BOX;
-        const label = se && !wall && se.label[n] !== undefined ? String(se.label[n]) : "";
-        const letter = n === start ? "S" : n === goal ? "G" : "";
         return (
           <g key={n} opacity={fresh ? 0.35 + 0.65 * appear : 1}>
             <rect x={x + 2} y={y + 2} width={CELL - 4} height={CELL - 4} fill={fill} stroke={front || fresh ? ACC : wall ? WALL : "#4a4a52"} strokeWidth={front || fresh ? 3 : 1.5} strokeDasharray={front && !fresh ? "6 4" : undefined} />
-            {letter && (
-              <text x={x + 8} y={y + 20} fontSize={16} fontWeight={800} fontFamily="ui-monospace, monospace" fill={cur || onPath ? INK : ACC}>
-                {letter}
-              </text>
-            )}
-            {label && (
-              <text x={x + CELL / 2} y={y + CELL / 2 + 10} textAnchor="middle" fontSize={label.length > 2 ? 22 : 28} fontWeight={800} fontFamily="ui-monospace, monospace" fill={cur || onPath ? INK : W}>
-                {label}
-              </text>
-            )}
           </g>
         );
       })}
-      {path && <path d={path} fill="none" stroke={INK} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={1 - clamp(t / 1.2)} opacity={0.85} />}
+      {path && <path d={path} fill="none" stroke={INK} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" pathLength={1} strokeDasharray="1" strokeDashoffset={1 - clamp(t / 1.2)} opacity={0.5} />}
+      {walls.map((wall, n) => {
+        if (wall) return null;
+        const x = (n % cols) * CELL;
+        const y = Math.floor(n / cols) * CELL;
+        const cur = se?.current === n;
+        const onPath = !!se?.path.includes(n);
+        const fresh = !!se?.fresh.includes(n);
+        const label = se && se.label[n] !== undefined ? String(se.label[n]) : "";
+        const letter = n === start ? "S" : n === goal ? "G" : "";
+        return (
+          <g key={`t${n}`} opacity={fresh ? 0.35 + 0.65 * appear : 1}>
+            {letter && (
+            <text x={x + 8} y={y + 20} fontSize={16} fontWeight={800} fontFamily="ui-monospace, monospace" fill={cur || onPath ? INK : ACC}>
+              {letter}
+            </text>
+          )}
+          {label && (
+            <text x={x + CELL / 2} y={y + CELL / 2 + 10} textAnchor="middle" fontSize={label.length > 2 ? 22 : 28} fontWeight={800} fontFamily="ui-monospace, monospace" fill={cur || onPath ? INK : W}>
+              {label}
+            </text>
+          )}
+          </g>
+        );
+      })}
     </svg>
   );
 }
