@@ -13,7 +13,7 @@ const ON_TEAL = "#021A16";
 
 const WORLDS = ["Academy", "Product Districts", "Career Studio", "Challenge League", "Release Train", "Infrastructure"];
 
-function Mark({ size = 45 }: { size?: number }) {
+export function Mark({ size = 45 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" shapeRendering="crispEdges">
       <rect width="100" height="100" fill={K.tile} />

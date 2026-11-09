@@ -370,7 +370,7 @@ export async function adminList(q = ""): Promise<AdminCerts> {
       id: r.id,
       code: r.code,
       kind: r.kind,
-      label: r.kind === "course" ? "Course" : `World ${r.code.slice(1, 3)}${ev.world?.title ? ` · ${ev.world.title}` : ""}`,
+      label: r.kind === "course" ? "Course" : String(r.kind) === "dsa" ? "DSA Mastery · Foundations" : `World ${r.code.slice(1, 3)}${ev.world?.title ? ` · ${ev.world.title}` : ""}`,
       name: r.display_name,
       email: mail[r.user_id] ?? null,
       userId: r.user_id,

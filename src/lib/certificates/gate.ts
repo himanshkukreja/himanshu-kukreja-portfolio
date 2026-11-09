@@ -11,6 +11,12 @@ export async function certGate(req: NextRequest): Promise<NextResponse> {
   const seg = req.nextUrl.pathname.split("/")[2] || "";
   // OG / Twitter images answer for any code (a plain card when it isn't public)
   if (/\/(opengraph|twitter)-image/.test(req.nextUrl.pathname)) return NextResponse.next();
+  // DSA Mastery certificates (DSA-XXXX-XXXX) verify on their own course's page, /dsa/cert/<code>
+  if (/^DSA-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/i.test(seg)) {
+    const url = req.nextUrl.clone();
+    url.pathname = `/dsa/cert/${seg.toUpperCase()}`;
+    return NextResponse.redirect(url, 308);
+  }
   const code = normalizeCode(seg);
   if (code && seg !== code) {
     const url = req.nextUrl.clone();
