@@ -67,9 +67,11 @@ const NAV_TIMEOUT_MS = 4000;
 const RECENT_MAX = 10;
 const BYPASS = /^\/(?:api|admin|auth|hkr|_vercel|monitoring)(?:\/|$)|^\/sw\.js$|\/(?:opengraph|twitter)-image(?:[/-]|$)/;
 // keep in sync with SAVEABLE_PATH in src/lib/offline/types.ts (minus the course map, the HUB rule)
-const ARTICLE = /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$|^\/dsa(?:\/(?:concepts\/[^/]+(?:\/lecture)?|problems(?:\/[^/]+)?|lectures|cheatsheets(?:\/[^/]+)?))?\/?$/;
+const ARTICLE = /^\/(?:week-\d+(?:-[a-z0-9]+)*|overview|bonus-problems|problem-bank|low-level-design)\/[^/]+\/?$|^\/mock\/[^/]+\/?$|^\/(?:revise|cheatsheet)\/[^/]+\/?$|^\/labs(?:\/[^/]+)?\/?$|^\/(?:numbers|plan|practice|reading|revise|mock|mastery|prep)\/?$|^\/lectures\/[^/]+\/?$|^\/war-stories(?:\/[^/]+)?\/?$|^\/case-files\/[^/]+\/?$|^\/dsa(?:\/(?:concepts\/[^/]+(?:\/lecture)?|(?:structures|algorithms)\/[^/]+|problems(?:\/[^/]+)?|lectures|cheatsheets(?:\/[^/]+)?))?\/?$/;
 // a lecture's recorded media, on R2 or /lecture-media (keep in sync with LECTURE_FILE in types.ts)
 const LECTURE_FILE = /\/[A-Za-z0-9-]+\/(?:media\.json|narration\.mp3|music\.mp3|captions\.vtt|poster\.jpg|chapters\.json)$/;
+// a DSA lesson's in-article clip video (its poster and media.json are LECTURE_FILEs): saved with the lesson
+const CLIP_VIDEO = /\/lectures\/dsa--clips--[A-Za-z0-9-]+\/video\.mp4$/;
 const MEDIA_JSON_TIMEOUT_MS = 4000;
 // never kept as a "recent" copy: design of the week is live (phases, votes, drafts) and needs a connection
 const NO_RECENT = /^\/design-week(?:\/|$)/;
@@ -298,7 +300,7 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (LECTURE_FILE.test(url.pathname) && (url.origin !== self.location.origin || url.pathname.startsWith("/lecture-media/"))) {
+  if ((LECTURE_FILE.test(url.pathname) || CLIP_VIDEO.test(url.pathname)) && (url.origin !== self.location.origin || url.pathname.startsWith("/lecture-media/"))) {
     event.respondWith(lectureFile(req, url));
     return;
   }

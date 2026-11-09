@@ -4,7 +4,8 @@ import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
-import { getConceptIndex, getProblemIndex, getWorld, lessonDir, sdmLinker } from "./load";
+import { getConceptIndex, getLessonClips, getProblemIndex, getWorld, lessonDir, sdmLinker } from "./load";
+import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import { dsaKeys, type ConceptCheckpoint, type DsaLang, type DsaStage, type ProblemSummary } from "./types";
 import type { GridDemo, SandboxDemo, SandboxSpec, VisualizerSpec } from "./viz/registry";
 import type { LabCase, LabSpec } from "./design-harness";
@@ -33,6 +34,13 @@ export type LabBundle =
   | { mode: "design"; spec: LabSpec; visible: LabCase[]; hidden: LabCase[]; starters: Partial<Record<DsaLang, string>> }
   | { mode: "function"; spec: FunctionLabSpec; visible: FunctionLabCase[]; hidden: FunctionLabCase[]; starters: Partial<Record<DsaLang, string>> };
 
+/**
+ * An in-article clip as the lesson page plays it (src/components/dsa/clip/LessonClip.tsx): its recorded folder on the
+ * media host (null: no media host), the script hash its media must carry (media.json `source`), the caption, and each
+ * step's narration (the captions while it plays narrated, timed by media.json `starts`).
+ */
+export type LessonClipData = { id: string; caption: string; base: string | null; v: string; say: string[] };
+
 export type StructurePage = {
   id: string;
   /** structure (Part 2) or algorithm (Part 3) */
@@ -54,6 +62,8 @@ export type StructurePage = {
   sandbox: SandboxSpec | null;
   visualizer: VisualizerSpec | null;
   demos: Record<string, SandboxDemo | GridDemo>;
+  /** in-article clips by id (clips.json, placed with ::clip[id]) */
+  clips: Record<string, LessonClipData>;
   lab: LabBundle | null;
   reviewCards: { front: string; back: string }[];
   practice: ProblemSummary[];
@@ -104,6 +114,14 @@ async function build(id: string): Promise<StructurePage | null> {
     sdmLinker(),
     ...STARTERS.map(([, f]) => readDsa(`${dir}/lab/starter/${f}`)),
   ]);
+  const media = lectureMediaBase();
+  const clips: Record<string, LessonClipData> = Object.fromEntries(
+    (await getLessonClips(id)).map((l) => {
+      const v = lectureHash(l);
+      const base = media ? `${media.replace(/\/$/, "")}/${l.quest}/` : null;
+      return [l.clip!.id, { id: l.clip!.id, caption: l.clip!.caption, base, v, say: l.scenes.flatMap((s) => s.steps.map((st) => st.say)) }];
+    }),
+  );
   if (!lessonMd) return null;
   const { data, content } = matter(lessonMd, {});
   const f = data as Front;
@@ -118,7 +136,11 @@ async function build(id: string): Promise<StructurePage | null> {
     ...(visualizer?.demos || []).map((d) => [d.id, { ...d, grid: d.grid || visualizer!.presets.find((p) => p.id === d.preset)?.grid }] as const),
   ]);
   const titles = Object.fromEntries(Object.values(demos).map((d) => [d.id, d.title]));
-  const dsa: DsaRenderOpts = { cast, beats: true, checkpointQuiz: quizMd ? matter(quizMd, {}).content : "", titles, sdmLink: linker.sdm, labLink: linker.lab };
+  // a saved copy keeps each clip's files (the video carries the narration; media.json times the captions)
+  const clipFiles = Object.fromEntries(
+    Object.values(clips).map((c) => [c.id, { caption: c.caption, files: c.base ? [`${c.base}video.mp4?v=${c.v}`, `${c.base}poster.jpg?v=${c.v}`, `${c.base}media.json`] : [] }]),
+  );
+  const dsa: DsaRenderOpts = { cast, beats: true, checkpointQuiz: quizMd ? matter(quizMd, {}).content : "", titles, sdmLink: linker.sdm, labLink: linker.lab, clips: clipFiles };
   const rendered = await renderLesson(content, { kind: "day-content", dsa });
 
   const byId = new Map(problems.map((p) => [p.id, p]));
@@ -177,6 +199,7 @@ async function build(id: string): Promise<StructurePage | null> {
     sandbox,
     visualizer,
     demos,
+    clips,
     lab,
     reviewCards: f.reviewCards || [],
     practice,
@@ -184,7 +207,7 @@ async function build(id: string): Promise<StructurePage | null> {
   };
 }
 
-const cachedBuild = unstable_cache(build, ["dsa-structure-v2"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cachedBuild = unstable_cache(build, ["dsa-structure-v3"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 export async function getStructure(id: string): Promise<StructurePage | null> {
   if (!ID.test(id)) return null;

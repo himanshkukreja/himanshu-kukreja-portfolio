@@ -27,6 +27,7 @@ import LectureEntry from "@/components/learn/sidequest/LectureEntry";
 import { DSA_COURSE_ID, dsaKeys } from "@/lib/dsa/types";
 import type { StructurePage } from "@/lib/dsa/structures";
 import SolvedMark from "../problem/SolvedMark";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import DsaCrumbs from "../DsaCrumbs";
 import StructureHydrator from "./StructureHydrator";
 
@@ -49,6 +50,8 @@ function Hero({ s }: { s: StructurePage }) {
         <span className="border border-line-strong px-2 py-1">{s.level}</span>
         {s.line && <span className="border border-line-strong px-2 py-1">Kestrel {s.line.charAt(0).toUpperCase() + s.line.slice(1)}</span>}
         <span className="border border-signal px-2 py-1 text-signal-text">{chip}</span>
+        {/* saved, the lesson keeps its clips, demos and lab for offline reading */}
+        <SaveOfflineButton title={s.title} kind="dsa-concept" />
       </div>
       <nav aria-label="Jump to" className="flex flex-wrap gap-2">
         {(s.kind === "algorithm"

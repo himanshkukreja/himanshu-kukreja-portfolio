@@ -7,7 +7,7 @@
  *               :::script  :::toggle[Label]   (+ the course's own :::callout, :::panel… as usual)
  *   leaves      ::line[Text]{who opens}  ::trace[id]{predict}  ::handsolve[id]  ::race[id]  ::reorder[tabs-id]
  *               ::game[id]  ::explainback  ::checkpoint[quiz]  ::cards  ::solutions
- *   structures  :::costs[Title]  ::viz[demo]  ::sandbox[id]  ::lab[id]  and six beats meet … recap (Academy Part 2)
+ *   structures  :::costs[Title]  ::viz[demo]  ::sandbox[id]  ::lab[id]  ::clip[id]  and six beats meet … recap (Academy Part 2)
  *   beats       ::::beat[scenario] … ::::  → the lesson's six stages (render.ts unwrapBeats)
  *
  * Rendering contract: interactive pieces are `<figure data-dsa="<widget>" …>` with readable, static fallback content
@@ -41,12 +41,14 @@ export type DsaRenderOpts = {
   /** System Design Mastery targets of :::realsystems{sdm lab} */
   sdmLink?: (path: string) => DsaLink;
   labLink?: (id: string) => DsaLink;
+  /** a visual lesson's in-article clips (clips.json) by id: the caption, and the recorded files a saved copy keeps */
+  clips?: Record<string, { caption: string; files: string[] }>;
 };
 
 /** Container names this file renders (directives.ts keeps them as blocks instead of turning them back into text). */
 export const DSA_CONTAINERS = new Set(["beat", "example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint", "costs"]);
 /** Leaf names this file renders. */
-export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab", "visualizer"]);
+export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab", "visualizer", "clip"]);
 
 export const DSA_LANGS = ["python", "javascript", "java", "cpp"] as const;
 export const DSA_LANG_LABEL: Record<string, string> = { python: "Python", javascript: "JavaScript", java: "Java", cpp: "C++" };
@@ -325,6 +327,13 @@ export async function dsaLeaf(node: LeafDirective, ctx: BlockCtx): Promise<AnyNo
       return widget("sandbox", { dataId: label }, "The sandbox: build a list and run its operations step by step. It loads in your browser.");
     case "lab":
       return widget("lab", { dataId: label }, "Build it yourself: write the code in Python, JavaScript, Java or C++ and run the tests. It loads in your browser.");
+    case "clip": {
+      // an in-article clip (src/components/dsa/clip/LessonClip.tsx): the caption is the fallback; the recorded files
+      // ride along in data-offline-media, so saving the lesson keeps them (src/lib/offline/store.ts)
+      const c = ctx.dsa?.clips?.[label];
+      if (!c) return el("p", {}, []);
+      return widget("clip", { dataId: label, dataOfflineMedia: c.files.join(" ") || undefined }, c.caption);
+    }
     case "visualizer":
       return widget("visualizer", { dataId: label }, "The visualizer: draw a grid, then step through BFS and DFS on it. It loads in your browser.");
     case "solutions": {
