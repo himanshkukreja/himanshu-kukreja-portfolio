@@ -46,6 +46,8 @@ import { friendlyError, friendlyWrong } from "@/lib/dsa/friendly";
 import Jargon from "../glossary/Jargon";
 import { ShowEverything, useDsaFull } from "../simple/view";
 import FirstProblemGuide from "./FirstProblemGuide";
+import SolutionVideo from "./SolutionVideo";
+import type { SolutionVideoData } from "@/lib/dsa/media";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
@@ -224,7 +226,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
 
   const [tab, setTab] = useState<Tab>("description");
   const [hints, setHints] = useState(0);
-  const [editorial, setEditorial] = useState<{ state: "locked" | "loading" | "ready" | "error"; html: string }>({ state: "locked", html: "" });
+  const [editorial, setEditorial] = useState<{ state: "locked" | "loading" | "ready" | "error"; html: string; video?: SolutionVideoData | null }>({ state: "locked", html: "" });
   const [seenEarly, setSeenEarly] = useState(false);
   const [fails, setFails] = useState(0);
   const [history, setHistory] = useState<HistoryRow[]>([]);
@@ -264,8 +266,8 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
     try {
       const r = await fetch(`/api/dsa/editorial/${p.id}`);
       if (!r.ok) throw new Error(String(r.status));
-      const j = (await r.json()) as { html: string };
-      setEditorial({ state: "ready", html: j.html });
+      const j = (await r.json()) as { html: string; video?: SolutionVideoData | null };
+      setEditorial({ state: "ready", html: j.html, video: j.video ?? null });
     } catch {
       setEditorial({ state: "error", html: "" });
     }
@@ -545,7 +547,8 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
                 </button>
               </div>
             ) : editorial.state === "ready" ? (
-              <div ref={editorialRef}>
+              <div ref={editorialRef} className="flex flex-col gap-4">
+                {editorial.video && <SolutionVideo video={editorial.video} lang={lang} />}
                 <Html html={editorial.html} />
                 <DsaHydrator rootRef={editorialRef} deps={editorial.html.length.toString()} />
               </div>

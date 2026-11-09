@@ -6,7 +6,7 @@ import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
 import { plainBeatHeading } from "./words";
-import { dsaShortParts, lectureRefs, parseTemplates, resolveDsaLecture, resolveDsaShort, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
+import { clipQuestParts, dsaShortParts, lectureRefs, parseTemplates, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution, type RawClips, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import {
   dsaKeys,
@@ -766,4 +766,63 @@ const editorialCached = cached(async (id: string): Promise<{ html: string } | nu
 export async function getEditorial(id: string) {
   if (!ID.test(id)) return null;
   return editorialCached(id);
+}
+
+/* ------------------------------------------------------------------ in-article clips and solution videos */
+
+/**
+ * A visual lesson's in-article clips (<lesson dir>/clips.json, placed with `::clip[id]`), each resolved into a one-scene
+ * Lecture (src/lib/dsa/lecture.ts resolveDsaClip), in file order. Their media sits at lectures/dsa--clips--<lesson>--<clip>/.
+ */
+const clipsCached = cached(async (id: string): Promise<Lecture[]> => {
+  const c = (await getConceptIndex()).find((x) => x.id === id);
+  if (!c || c.status !== "built") return [];
+  const dir = lessonDir(c);
+  const raw = await readDsaJson<RawClips>(`${dir}/clips.json`);
+  if (!raw?.clips?.length) return [];
+  const [lecture, lessonMd] = await Promise.all([getConceptLecture(id), readDsa(`${dir}/lesson.md`)]);
+  const title = (lessonMd ? (matter(lessonMd, {}).data as { title?: string }).title : "") || c.title;
+  return raw.clips.map((clip) => resolveDsaClip(clip, lecture, { module: c.module, concept: id, title })).filter((l): l is Lecture => !!l);
+}, "dsa-clips-v1");
+
+export async function getLessonClips(id: string): Promise<Lecture[]> {
+  if (!ID.test(id)) return [];
+  return clipsCached(id);
+}
+
+/** One clip by its media id ("dsa--clips--<lesson>--<clip>"), or null. */
+export async function getDsaClip(quest: string): Promise<Lecture | null> {
+  const parts = clipQuestParts(quest);
+  if (!parts) return null;
+  return (await getLessonClips(parts.lesson)).find((l) => l.clip?.id === parts.id) || null;
+}
+
+/**
+ * A problem's solution video (resources/problems/<id>/solution.json), resolved with its reference solutions as the
+ * "solution" code template, or null when it has none. Media at lectures/dsa--solution--<id>/.
+ */
+const solutionCached = cached(async (id: string): Promise<Lecture | null> => {
+  const [parts, raw] = await Promise.all([problemParts(id), readDsaJson<RawDsaLecture>(`resources/problems/${id}/solution.json`)]);
+  if (!parts || !raw || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
+  const refs = lectureRefs(raw);
+  const [cast, codes, traceList, raceList] = await Promise.all([
+    castOf(),
+    Promise.all(SOLUTION_FILES.map(([, file]) => readDsa(`resources/problems/${id}/solutions/${file}`))),
+    Promise.all(refs.traces.map((t) => readDsaJson<RawTrace>(`generated/traces/${t}.json`))),
+    Promise.all(refs.races.map((r) => readDsaJson<RawRace>(`generated/races/${r}.json`))),
+  ]);
+  const solutions = Object.fromEntries(SOLUTION_FILES.map(([lang], i) => [lang, codes[i]]).filter(([, c]) => c)) as Record<string, string>;
+  const f = parts.front;
+  return resolveDsaSolution(raw, {
+    problem: { id, module: f.module || "", concept: f.concept || "" },
+    solutions,
+    traces: Object.fromEntries(refs.traces.map((t, i) => [t, traceList[i]])),
+    races: Object.fromEntries(refs.races.map((r, i) => [r, raceList[i]])),
+    cast,
+  });
+}, "dsa-solution-v1");
+
+export async function getSolutionVideo(id: string): Promise<Lecture | null> {
+  if (!ID.test(id)) return null;
+  return solutionCached(id);
 }

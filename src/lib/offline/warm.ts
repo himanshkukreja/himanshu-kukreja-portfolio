@@ -62,7 +62,12 @@ export function warmReader(docs: string[] = []): Promise<void> {
   const anims = animNames(all);
   // DSA Mastery concept pages: the trace player and race chart chunks their widgets load
   const dsa = /\bdata-dsa="(?:trace|handsolve)"/.test(all) || /\bdata-dsa="race"/.test(all) ? Promise.allSettled([loadTracePlayer(), loadRaceChart()]) : null;
+  // DSA visual lessons (/dsa/structures, /dsa/algorithms): the demo player, sandbox, visualizer and lab chunks
+  const visual = /\bdata-dsa="(?:viz|sandbox|visualizer|lab)"/.test(all)
+    ? import("@/components/dsa/structure/lazy").then((m) => Promise.allSettled([m.loadVizDemo(), m.loadStructureSandbox(), m.loadGridVisualizer(), m.loadStructureLab(), m.loadFunctionLab()]))
+    : null;
   const jobs: Promise<unknown>[] = [warming];
+  if (visual) jobs.push(visual);
   if (anims.length) jobs.push(warmAnims(anims));
   if (dsa) jobs.push(dsa);
   return jobs.length > 1 ? Promise.all(jobs).then(() => undefined) : warming;

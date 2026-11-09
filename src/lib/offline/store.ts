@@ -219,7 +219,7 @@ function loadedStatics(): string[] {
 const IMG_HOST = /(?:^|\.)imagekit\.io$|(?:^|\.)githubusercontent\.com$|\.supabase\.co$/;
 const unescapeHtml = (s: string) => s.replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#x27;|&#39;/g, "'");
 
-/** Images an article shows: <img>/<source> src and the largest sensible srcset candidate. */
+/** Images an article shows: <img>/<source> src and the largest sensible srcset candidate, plus data-offline-media files. */
 function mediaUrls(html: string): string[] {
   const out = new Set<string>();
   const add = (raw: string) => {
@@ -233,6 +233,18 @@ function mediaUrls(html: string): string[] {
       // not a URL
     }
   };
+  // files a widget names for offline use (a DSA lesson's clips: video, poster, media.json), on any https host
+  for (const m of html.matchAll(/\sdata-offline-media="([^"]+)"/g)) {
+    for (const raw of unescapeHtml(m[1]).split(/\s+/)) {
+      try {
+        const u = new URL(raw, window.location.origin);
+        if (u.origin === window.location.origin) out.add(u.pathname + u.search);
+        else if (u.protocol === "https:") out.add(u.href);
+      } catch {
+        // not a URL
+      }
+    }
+  }
   for (const m of html.matchAll(/<(?:img|source)\b[^>]*>/g)) {
     const tag = m[0];
     const src = /\ssrc="([^"]+)"/.exec(tag)?.[1];
@@ -319,7 +331,8 @@ export async function saveArticle(item: SaveInput, opts: SaveOptions = {}): Prom
   await warmReader(docs.map((d) => d.html));
   // code labs: the editor chunk + the Python runtime (shared by every lab, stored once)
   // DSA problems run Python and JavaScript in the browser on the same runtime (the problem room's Run works offline)
-  const runtime = (item.kind === "lab" && /^\/learn\/labs\/[^/]+/.test(pathOf(item.url))) || item.kind === "dsa-problem" ? await cacheLabRuntime() : null;
+  // so do a DSA visual lesson's build-it lab (/dsa/structures/<id>, /dsa/algorithms/<id>)
+  const runtime = (item.kind === "lab" && /^\/learn\/labs\/[^/]+/.test(pathOf(item.url))) || item.kind === "dsa-problem" || (item.kind === "dsa-concept" && /^\/dsa\/(?:structures|algorithms)\//.test(pathOf(item.url))) ? await cacheLabRuntime() : null;
 
   const assets = new Set<string>(loadedStatics());
   const media = new Set<string>();

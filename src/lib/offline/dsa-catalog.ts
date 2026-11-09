@@ -1,7 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import { readDsa } from "@/lib/dsa/content";
-import { conceptHref, getConceptIndex, getProblemIndex, problemHref } from "@/lib/dsa/load";
+import { getConceptIndex, getProblemIndex, lessonDir, lessonHref, problemHref } from "@/lib/dsa/load";
 import { listDsaLectures } from "@/lib/dsa/media";
 import type { CatalogGroup, CatalogItem } from "./types";
 
@@ -33,10 +33,12 @@ export async function dsaCatalogGroups(mediaBase: string | null): Promise<Catalo
 
   // concepts: a rendered lesson is ~1.3x its markdown gzip (code in four languages, traces in the page)
   const lessons = await inBatches(built, 6, async (c) => {
-    const dir = `resources/modules/${c.module}/${c.id}`;
-    const [lesson, quiz] = await Promise.all([readDsa(`${dir}/lesson.md`).catch(() => null), readDsa(`${dir}/quiz.md`).catch(() => null)]);
-    const src = (lesson || "") + (quiz || "");
-    return { c, version: hash(src || c.id), bytes: Math.round(30_000 + src.length * 1.3) };
+    // a concept, or a visual lesson (structures, algorithms) with its in-article clips (~0.6 MB each, saved with it)
+    const dir = lessonDir(c);
+    const [lesson, quiz, clips] = await Promise.all([readDsa(`${dir}/lesson.md`).catch(() => null), readDsa(`${dir}/quiz.md`).catch(() => null), readDsa(`${dir}/clips.json`).catch(() => null)]);
+    const src = (lesson || "") + (quiz || "") + (clips || "");
+    const nClips = (lesson?.match(/^::clip\[/gm) || []).length;
+    return { c, version: hash(src || c.id), bytes: Math.round(30_000 + src.length * 1.3 + nClips * 650_000) };
   });
   const code = (m: string) => m.split("-")[0].toUpperCase();
   groups.push({
@@ -45,7 +47,7 @@ export async function dsaCatalogGroups(mediaBase: string | null): Promise<Catalo
     kind: "dsa",
     items: [
       { url: "/dsa", title: "DSA Mastery · home", kind: "hub", tag: "MAP", group: "dsa-concepts", version: hash(JSON.stringify(built.map((c) => c.id)) + problems.length), bytes: 60_000 },
-      ...lessons.map(({ c, version, bytes }): CatalogItem => ({ url: conceptHref(c.id), title: c.title, kind: "dsa-concept", tag: `${code(c.module)} · ${c.order}`, group: "dsa-concepts", version, bytes })),
+      ...lessons.map(({ c, version, bytes }): CatalogItem => ({ url: lessonHref(c), title: c.title, kind: "dsa-concept", tag: `${code(c.module)} · ${c.order}`, group: "dsa-concepts", version, bytes })),
     ],
   });
 

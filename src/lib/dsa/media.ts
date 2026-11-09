@@ -3,7 +3,7 @@ import crypto from "crypto";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import type { LectureSummary } from "@/lib/learn/lecture/load";
 import type { PlayableShort } from "@/lib/learn/shorts/types";
-import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort } from "./load";
+import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort, getSolutionVideo } from "./load";
 
 /**
  * DSA Mastery's videos: the concept lectures (/dsa/lectures) and the vertical shorts (/dsa/shorts). Their recorded
@@ -120,4 +120,46 @@ export async function listDsaShorts(opts: { includeUnpublished?: boolean } = {})
     return row;
   });
   return rows.filter((x): x is PlayableShort & { recorded: boolean } => !!x);
+}
+
+/** A problem's solution video as the Editorial tab plays it (src/components/dsa/problem/SolutionVideo.tsx). */
+export type SolutionVideoData = {
+  src: string;
+  poster: string;
+  /** WebVTT text (the tab makes a same-origin track of it, so captions need no CORS) */
+  captions: string;
+  chapters: { title: string; at: number }[];
+  duration: number;
+};
+
+/**
+ * The published solution video for a problem (lectures/dsa--solution--<id>/), or null: no solution.json, no media host,
+ * or media recorded from another script. media.json and the captions are read through the fetch cache (an hour).
+ */
+export async function solutionVideoFor(id: string): Promise<SolutionVideoData | null> {
+  const base = MEDIA();
+  if (!/^https?:\/\//.test(base)) return null;
+  const l = await getSolutionVideo(id).catch(() => null);
+  if (!l) return null;
+  const v = hashOf(l);
+  try {
+    const res = await fetch(`${base}/${l.quest}/media.json`, { next: { revalidate: 3600 } });
+    if (!res.ok) return null;
+    const m = (await res.json()) as { source?: string; duration?: number; starts?: number[]; video?: string };
+    if (m.source !== v || !m.video) return null;
+    const vtt = await fetch(`${base}/${l.quest}/captions.vtt?v=${v}`, { next: { revalidate: 3600 } })
+      .then((r) => (r.ok ? r.text() : ""))
+      .catch(() => "");
+    // a chapter per scene, at its first step
+    const starts = m.starts || [];
+    let n = 0;
+    const chapters = l.scenes.map((s) => {
+      const at = starts[n] ?? 0;
+      n += s.steps.length;
+      return { title: s.title, at: Number(at.toFixed(2)) };
+    });
+    return { src: `${base}/${l.quest}/video.mp4?v=${v}`, poster: `${base}/${l.quest}/poster.jpg?v=${v}`, captions: vtt, chapters, duration: Number(m.duration) || 0 };
+  } catch {
+    return null;
+  }
 }

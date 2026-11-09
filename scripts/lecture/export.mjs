@@ -36,6 +36,7 @@ const KOKORO = (process.env.KOKORO_DIR || path.join(process.env.HOME, ".cache/ko
 const PYTHON = process.env.KOKORO_PYTHON || path.join(KOKORO, "venv/bin/python");
 const HERE = path.dirname(new URL(import.meta.url).pathname);
 let MUSIC = opt("music", "");
+// a DSA lesson's in-article clip (lec.clip): 1280x720, no music (it loops silently in the article; tap plays the voice)
 // shorts pick a track by mood from --music-dir (scripts/lecture/music_moods.py): <dir>/<mood>.mp3
 const MUSIC_DIR = opt("music-dir", "");
 
@@ -46,6 +47,8 @@ const SOURCE = crypto.createHash("sha1").update(JSON.stringify(lec)).digest("hex
 // a vertical short: tight cuts (a short beat between lines), an unhurried voice (the owner asked for a calmer pace,
 // 28 Oct 2026: 1.07 → 0.97, beat 0.12 → 0.3 s), its mood's music
 const SHORT = !!lec.short;
+const CLIP = !!lec.clip;
+if (CLIP) MUSIC = "";
 if (!SPEED) SPEED = SHORT ? "0.97" : "1.0";
 if (SHORT && MUSIC_DIR && lec.short.music && fs.existsSync(path.join(MUSIC_DIR, `${lec.short.music}.mp3`))) MUSIC = path.join(MUSIC_DIR, `${lec.short.music}.mp3`);
 const steps = lec.scenes.flatMap((s) => s.steps.map((st, k) => ({ id: `${s.id}-${k}`, say: st.say, who: st.who, pause: st.pause || 0, quizAsk: s.kind === "quiz" && k === 0 })));
@@ -158,7 +161,7 @@ const page = await browser.newPage();
 page.on("pageerror", (e) => console.log("PAGEERROR:", e.message.slice(0, 200)));
 // a vertical short (lec.short) renders at 1080x1920 from its own record page
 const PORTRAIT = !!lec.short;
-await page.setViewport(PORTRAIT ? { width: 1080, height: 1920, deviceScaleFactor: 1 } : { width: 1920, height: 1080, deviceScaleFactor: 1 });
+await page.setViewport(PORTRAIT ? { width: 1080, height: 1920, deviceScaleFactor: 1 } : CLIP ? { width: 1280, height: 720, deviceScaleFactor: 1 } : { width: 1920, height: 1080, deviceScaleFactor: 1 });
 await page.evaluateOnNewDocument(() => {
   try {
     localStorage.setItem("theme", "dark");
@@ -167,7 +170,8 @@ await page.evaluateOnNewDocument(() => {
   } catch {}
 });
 // a DSA Mastery lecture (resolved by dsa-resolve.mjs) records from its concept's lecture page, a DSA short from its own page
-const recordPath = lec.dsa ? (PORTRAIT ? `/learn/dsa/shorts/${lec.quest}` : `/learn/dsa/concepts/${lec.dsa.concept}/lecture`) : `/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}`;
+// in-article clips and solution videos record from /dsa/video/<quest>
+const recordPath = lec.clip || lec.solution ? `/learn/dsa/video/${lec.quest}` : lec.dsa ? (PORTRAIT ? `/learn/dsa/shorts/${lec.quest}` : `/learn/dsa/concepts/${lec.dsa.concept}/lecture`) : `/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}`;
 await page.goto(`${SITE}${recordPath}?record=1`, { waitUntil: "networkidle2", timeout: 240000 });
 await page.addStyleTag({ content: "nextjs-portal{display:none!important} *{transition:none!important;animation:none!important;caret-color:transparent!important}" });
 await page.waitForFunction(() => window.__LECTURE_READY === true && typeof window.__LECTURE_SET === "function", { timeout: 180000 });
@@ -215,3 +219,5 @@ const audioArgs = hasMusic
 ff("-f", "concat", "-safe", "0", "-i", path.join(OUT, "frames.txt"), "-i", narration, ...audioArgs, "-vf", `fps=${FPS},format=yuv420p`, "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-c:a", "aac", "-b:a", "160k", "-t", total.toFixed(3), "-movflags", "+faststart", mp4);
 writeMedia("video.mp4");
 console.log(`mp4: ${mp4} · ${(fs.statSync(mp4).size / 1048576).toFixed(1)} MB · ${dur(mp4).toFixed(1)} s`);
+// done: a lingering browser handle once kept a finished export from exiting (9 Nov 2026, a solution video)
+process.exit(0);

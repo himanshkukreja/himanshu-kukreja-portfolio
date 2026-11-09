@@ -2,7 +2,7 @@
 
 /**
  * Mounts a visual lesson's interactive pieces into its server-rendered figures (src/lib/course/detect/dsa.ts):
- * `::viz` demos, the `::sandbox` (structures) and the `::visualizer` (algorithms) on the step engine, the `::lab`
+ * `::clip` in-article videos, `::viz` demos, the `::sandbox` (structures) and the `::visualizer` (algorithms) on the step engine, the `::lab`
  * (design or function mode), and the widgets shared with concept pages (code
  * tabs, polls, explain-back, the checkpoint gate, review cards). Same contract as DsaHydrator: each figure holds an
  * empty `[data-dsa-stage]` that gets a portal; a MutationObserver re-targets when the lesson HTML is re-injected.
@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import ExplainBack from "@/components/learn/ai/ExplainBack";
 import type { StructurePage } from "@/lib/dsa/structures";
 import { CheckpointGate, CodeTabs, Poll, ReviewCards } from "../concept/widgets";
+import LessonClip from "../clip/LessonClip";
 import { loadFunctionLab, loadGridVisualizer, loadStructureLab, loadStructureSandbox, loadVizDemo } from "./lazy";
 
 const Sandbox = dynamic(loadStructureSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
@@ -71,6 +72,7 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         let el: React.ReactNode = null;
         if (h.kind === "tabs") el = <CodeTabs fig={h.fig} />;
         else if (h.kind === "poll") el = <Poll fig={h.fig} conceptId={page.id} />;
+        else if (h.kind === "clip" && page.clips?.[id]) el = <Hydrated fig={h.fig}><LessonClip clip={page.clips[id]} fig={h.fig} /></Hydrated>;
         else if (h.kind === "viz" && page.demos[id]) el = <Hydrated fig={h.fig}><VizDemo demo={page.demos[id]} /></Hydrated>;
         else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}><Sandbox spec={page.sandbox} /></Hydrated>;
         else if (h.kind === "visualizer" && page.visualizer && page.visualizer.id === id) el = <Hydrated fig={h.fig}><GridVisualizer spec={page.visualizer} /></Hydrated>;
