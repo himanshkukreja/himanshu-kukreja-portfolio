@@ -186,7 +186,7 @@ export default function SiteHeader() {
           )}
           <div className="flex-1" />
           {/* min-w-0: in learn mode the search box gives up width before the row overflows */}
-          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
+          <div className="flex min-w-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
             {learn && <SearchBar variant="nav" hotkey />}
             {/* the guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here */}
             {learn && (
