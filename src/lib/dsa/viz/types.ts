@@ -5,7 +5,7 @@
  *   a Frame    = the structure's state at that step + a one-line narration + the running cost (+ optional
  *                predict-then-reveal question, code marker and variable table)
  *   a View     = a component that draws one kind of state (views.tsx): "list" (linked lists), "array",
- *                "memory" (array vs list in memory), "grid", "stack", "queue" (ring buffer, linked queue, deque, sliding-window maximum), "tree" (binary search tree: nodes, links, a highlighted path, the four walks); "heap" (a binary heap in an array, drawn as a tree and as the array); later "graph"
+ *                "memory" (array vs list in memory), "grid", "stack", "queue" (ring buffer, linked queue, deque, sliding-window maximum), "tree" (binary search tree: nodes, links, a highlighted path, the four walks); "heap" (a binary heap in an array, drawn as a tree and as the array); "graph" (a graph drawn as vertices and edges, with its adjacency list and matrix)
  *   a Generator = a pure function (state, args) → frames: the sandbox's operations (list.ts) and the algorithm
  *                step-throughs (algorithms.ts: binary search, insertion sort, and any generated trace via fromTrace)
  *
@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -239,4 +239,33 @@ export type HeapState = {
   show: "both" | "tree" | "array";
   /** a min-heap (default) or a max-heap: names the picture */
   kind: "min" | "max";
+};
+
+/* ------------------------------------------------------------------ the graph state ("graph" view) */
+
+/**
+ * A graph as drawn: n vertices numbered 0 to n - 1 on a ring, the edges between them, and (by `show`) the adjacency list and
+ * the adjacency matrix built from the same edges. A step lights the vertex being worked on (its list row and matrix row),
+ * the edge being added, removed or checked (one entry in a list row, one matrix cell, or two when the graph is undirected),
+ * and the vertices walked so far.
+ */
+export type GraphState = {
+  n: number;
+  /** each edge once, as it was added: a to b (both ways when the graph is undirected), with a weight or null */
+  edges: { a: number; b: number; w: number | null }[];
+  directed: boolean;
+  /** the vertex being worked on */
+  current: number | null;
+  /** vertices lit this step */
+  mark: number[];
+  /** vertices walked so far, in order */
+  path: number[];
+  /** the edge added, removed, read or checked this step: [from, to] */
+  edge: [number, number] | null;
+  /** named pills beside vertices */
+  labels: Record<string, number | null>;
+  /** a short result chip ("degree 3") */
+  out: string | null;
+  /** what to draw: the graph alone, the list alone, the matrix alone, the graph and its list (default), or all three */
+  show: "graph" | "list" | "matrix" | "both" | "all";
 };

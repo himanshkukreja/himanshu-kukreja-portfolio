@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -97,6 +97,20 @@ for (const s of L.scenes || []) {
       if (st.current !== undefined && st.current !== null && !id(st.current)) errs.push(`${s.id}#${k}: current is not an index of the array`);
     }
   }
+  if (s.kind === "graph") {
+    const nV = s.vertices;
+    const cap = L.short ? 6 : 8;
+    if (!(Number.isInteger(nV) && nV >= 2 && nV <= cap)) errs.push(`${s.id}: graph needs vertices, a whole number from 2 to ${cap}`);
+    const okEdges = (e) => Array.isArray(e) && e.every((x) => Array.isArray(x) && (x.length === 2 || x.length === 3) && x.every(Number.isInteger) && x[0] >= 0 && x[0] < nV && x[1] >= 0 && x[1] < nV && x[0] !== x[1]);
+    if (s.edges !== undefined && !okEdges(s.edges)) errs.push(`${s.id}: edges are pairs [from, to] (or [from, to, weight]) of vertices 0..${nV - 1}, no loops`);
+    for (const [k, st] of (s.steps || []).entries()) {
+      if (st.edges !== undefined && !okEdges(st.edges)) errs.push(`${s.id}#${k}: edges are pairs [from, to] (or [from, to, weight]) of vertices 0..${nV - 1}, no loops`);
+      if (st.edge !== undefined && !(Array.isArray(st.edge) && st.edge.length === 2 && st.edge.every((v) => Number.isInteger(v) && v >= 0 && v < nV))) errs.push(`${s.id}#${k}: edge is two vertices 0..${nV - 1}`);
+      if (st.show !== undefined && !["graph", "list", "matrix", "both", "all"].includes(st.show)) errs.push(`${s.id}#${k}: show is graph, list, matrix, both or all`);
+      for (const key of ["mark", "path"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every((v) => Number.isInteger(v) && v >= 0 && v < nV))) errs.push(`${s.id}#${k}: ${key} lists vertices 0..${nV - 1}`);
+      if (st.current !== undefined && st.current !== null && !(Number.isInteger(st.current) && st.current >= 0 && st.current < nV)) errs.push(`${s.id}#${k}: current is not a vertex`);
+    }
+  }
   if (s.kind === "chain" && (s.values || []).length > (L.short ? 5 : 8)) errs.push(`${s.id}: at most ${L.short ? 5 : 8} nodes fit the ${L.short ? "phone" : "stage"}`);
   if (s.kind === "trace" && !(s.traceData?.frames || []).length) errs.push(`${s.id}: trace ${s.trace} is not resolved (no traceData.frames)`);
   if (s.kind === "race" && !(s.raceData?.sizes?.length && (s.raceData.series || []).length && s.raceData.series.every((x) => x.counts?.length === s.raceData.sizes.length))) errs.push(`${s.id}: race ${s.race} needs raceData with sizes and series counts of the same length`);
@@ -155,8 +169,8 @@ for (const s of L.scenes || []) {
     if (s.kind === "trace" && s.traceData && !(Number.isInteger(st.frame) && st.frame >= 0 && st.frame < s.traceData.frames.length)) errs.push(`${s.id}#${k}: frame ${st.frame} outside trace ${s.trace} (0..${s.traceData.frames.length - 1})`);
     if (s.kind === "trace" && s.traceData && /\bpredict\b/i.test(st.say || "") && !s.traceData.frames[st.frame]?.ask) warns.push(`${s.id}#${k}: says "predict" but frame ${st.frame} asks nothing, so no value is hidden`);
     if (s.kind === "code" && s.code) for (const m of st.markers || []) if (!(m >= 1 && m <= s.code.lines.length && s.code.lines[m - 1].length)) errs.push(`${s.id}#${k}: marker ${m} not in template ${s.template} (1..${s.code.lines.length})`);
-    if (((st.window && !(s.kind === "queue" && s.mode === "window")) || st.pointers || (st.mark && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree" && s.kind !== "heap")) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
-    if ((st.order || st.next || st.labels) && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree" && s.kind !== "heap") warns.push(`${s.id}#${k}: order/next/labels only apply to chain scenes`);
+    if (((st.window && !(s.kind === "queue" && s.mode === "window")) || st.pointers || (st.mark && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree" && s.kind !== "heap" && s.kind !== "graph")) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
+    if ((st.order || st.next || st.labels) && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree" && s.kind !== "heap" && s.kind !== "graph") warns.push(`${s.id}#${k}: order/next/labels only apply to chain scenes`);
     if (st.markers && s.kind !== "code") warns.push(`${s.id}#${k}: markers only apply to code scenes`);
     if (st.reveal != null && (st.reveal < 0 || st.reveal > revealMax)) errs.push(`${s.id}#${k}: reveal ${st.reveal} outside 0..${revealMax}`);
     if (st.pause != null && !(st.pause >= 0 && st.pause <= 3)) errs.push(`${s.id}#${k}: pause must be 0-3 s`);

@@ -57,7 +57,7 @@ export function heapStateOf(s: LectureScene, st: LectureStep): HeapState {
     labels: st.labels ?? {},
     out: st.out ?? null,
     indexes: !!s.indexes,
-    show: s.view ?? "both",
+    show: s.view === "tree" || s.view === "array" ? s.view : "both",
     kind: s.kindOfHeap ?? "min",
   };
 }

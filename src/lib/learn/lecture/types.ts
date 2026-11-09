@@ -65,6 +65,10 @@ export type LectureStep = {
   values?: number[];
   swap?: number[];
   compare?: number[];
+  /** DSA graph scenes: the edges after this step (each [from, to] or [from, to, weight]; a step without it keeps the last edges), the edge in focus this step, and what to draw from this step on */
+  edges?: number[][];
+  edge?: number[];
+  show?: "graph" | "list" | "matrix" | "both" | "all";
 };
 export type SceneKind =
   | "title"
@@ -89,7 +93,8 @@ export type SceneKind =
   | "stack"
   | "queue"
   | "tree"
-  | "heap";
+  | "heap"
+  | "graph";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -148,8 +153,12 @@ export type LectureScene = {
   levels?: boolean;
   /** DSA heap: `values` is the heap's array; write each cell's index, what to draw (the tree and the array, only the tree, or only the array) and min-heap or max-heap */
   indexes?: boolean;
-  view?: "both" | "tree" | "array";
+  view?: "both" | "tree" | "array" | "graph" | "list" | "matrix" | "all";
   kindOfHeap?: "min" | "max";
+  /** DSA graph: the number of vertices (0 to n - 1), the edges at the start (each [from, to] or [from, to, weight]) and whether they are directed; `view` also takes "graph", "list", "matrix" and "all" for a graph scene */
+  vertices?: number;
+  edges?: number[][];
+  directed?: boolean;
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

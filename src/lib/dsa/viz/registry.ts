@@ -9,6 +9,7 @@ import { makeQueue, queueMemoryPicture, runQueueOp, QUEUE_OPS, type QueueOp, typ
 import { makeStack, runStackOp, stackMemoryPicture, STACK_OPS, type StackOp, type StackOpName } from "./stack";
 import { makeTree, runTreeOp, treeMemoryPicture, TREE_OPS, type TreeOp, type TreeOpName } from "./tree";
 import { heapMemoryPicture, HEAP_OPS, makeHeap, rawHeap, runHeapOp, type HeapOp, type HeapOpName } from "./heap";
+import { GRAPH_OPS, graphMemoryPicture, makeGraph, runGraphOp, verticesFor, type GraphOp, type GraphOpName } from "./graph";
 import type { Frame, Script } from "./types";
 import { gridSearch, parseGrid } from "./grid";
 
@@ -18,7 +19,11 @@ export type SandboxDemo = {
   view?: "list" | "memory";
   start: number[];
   /** a linked-list demo's operations, or (stack sandboxes) a stack's */
-  ops?: ({ op: ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName; value?: number; index?: number })[];
+  ops?: ({ op: ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName | GraphOpName; value?: number; index?: number; weight?: number })[];
+  /** graph demos: `start` is a flat list of edge ends (u, v, u, v, ...; u, v, weight when weighted), the vertex count (default: the highest end + 1), and whether the edges are directed */
+  vertices?: number;
+  directed?: boolean;
+  weighted?: boolean;
   doubly?: boolean;
   /** stack demos: how the stack is stored (default array) and the cells the array starts with */
   backing?: "array" | "linked" | "ring" | "list" | "doubly";
@@ -33,11 +38,11 @@ export type SandboxDemo = {
 
 export type SandboxSpec = {
   id: string;
-  structure: "linked-list" | "stack" | "queue" | "tree" | "heap";
+  structure: "linked-list" | "stack" | "queue" | "tree" | "heap" | "graph";
   title: string;
   start: number[];
-  operations: (ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName)[];
-  variants: ("singly" | "doubly" | "array" | "linked" | "ring" | "bst" | "min" | "max")[];
+  operations: (ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName | GraphOpName)[];
+  variants: ("singly" | "doubly" | "array" | "linked" | "ring" | "bst" | "min" | "max" | "undirected" | "directed")[];
   /** stack sandboxes: the array's starting cells */
   capacity?: number;
   limits: { nodes: number; value: [number, number] };
@@ -51,6 +56,7 @@ export const SANDBOX_STRUCTURES = {
   queue: { ops: QUEUE_OPS, variants: ["ring", "linked", "doubly"] as const, demoViews: ["queue", "memory"] as const },
   tree: { ops: TREE_OPS, variants: ["bst"] as const, demoViews: ["tree", "memory"] as const },
   heap: { ops: HEAP_OPS, variants: ["min", "max"] as const, demoViews: ["heap", "memory"] as const },
+  graph: { ops: GRAPH_OPS, variants: ["undirected", "directed"] as const, demoViews: ["graph", "memory"] as const },
 };
 
 const toTreeOp = (o: NonNullable<SandboxDemo["ops"]>[number]): TreeOp | null => {
@@ -128,6 +134,7 @@ export function demoScript(d: SandboxDemo, structure: SandboxSpec["structure"] =
   if (structure === "queue") return queueDemoScript(d);
   if (structure === "tree") return treeDemoScript(d);
   if (structure === "heap") return heapDemoScript(d);
+  if (structure === "graph") return graphDemoScript(d);
   if (d.view === "memory") return memoryPicture(d.start) as Script;
   let list = makeList(d.start, { doubly: d.doubly, tail: d.tail });
   const frames: Frame<unknown>[] = [];
@@ -235,6 +242,30 @@ function heapDemoScript(d: SandboxDemo): Script {
     heap = r.heap;
   }
   return { view: "heap", title: d.title, costUnit: "steps", frames, result: results.join("; ") || undefined };
+}
+
+/**
+ * A graph demo as one script: its start edges make the graph, then its ops run in order, the cost running on across them. The
+ * op's `value` is the first vertex, `index` the second (and `weight` the weight of an added edge).
+ */
+function graphDemoScript(d: SandboxDemo): Script {
+  let graph = makeGraph(d.vertices ?? verticesFor(d.start, d.weighted), d.start, { directed: d.directed, weighted: d.weighted });
+  if (d.view === "memory") return graphMemoryPicture(graph) as Script;
+  const frames: Frame<unknown>[] = [];
+  let base = 0;
+  const results: string[] = [];
+  for (const raw of d.ops || []) {
+    const u = Number(raw.value ?? 0);
+    const v = Number(raw.index ?? 0);
+    const op: GraphOp | null = raw.op === "add_edge" ? { op: "add_edge", u, v, w: raw.weight } : raw.op === "remove_edge" || raw.op === "has_edge" ? { op: raw.op, u, v } : raw.op === "neighbors" || raw.op === "degree" ? { op: raw.op, u } : null;
+    if (!op) continue;
+    const r = runGraphOp(graph, op, { predict: d.predict });
+    for (const f of r.script.frames) frames.push({ ...f, cost: base + f.cost });
+    base += r.script.frames[r.script.frames.length - 1]?.cost ?? 0;
+    if (r.script.result) results.push(r.script.result);
+    graph = r.graph;
+  }
+  return { view: "graph", title: d.title, costUnit: "reads", frames, result: results.join("; ") || undefined };
 }
 
 /* ------------------------------------------------------------------ algorithm visualizers (Academy Part 3) */
