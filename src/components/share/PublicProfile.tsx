@@ -13,6 +13,7 @@ import PublicTree from "./PublicTree";
 import OwnerBar from "./OwnerBar";
 import RefCapture from "./RefCapture";
 import PublicDsa from "./PublicDsa";
+import { BeltSwatch } from "@/components/dsa/rewards/BeltSwatch";
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 
@@ -166,6 +167,31 @@ export default function PublicProfile({ p, map, preview = false }: { p: Profile;
               <span className="sr-only">
                 Level {lv.code} {lv.name}, {lv.pct}% of the way to the next level
               </span>
+            </div>
+          )}
+
+          {/* both courses side by side: SD Mastery's XP level and DSA Mastery's belt (separate currencies, one profile) */}
+          {p.dsa?.rewards && (
+            <div aria-label="Both courses" className={`grid grid-cols-1 gap-px border border-line bg-line ${lv ? "sm:grid-cols-2" : ""}`}>
+              {lv && (
+                <div className="flex min-w-0 flex-col gap-1 bg-bg p-4">
+                  <span className={LABEL}>system design mastery</span>
+                  <span className="font-display text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-fg">
+                    {lv.code} · {lv.name}
+                  </span>
+                  <span className="font-mono text-[12px] text-fg-3">{lv.xp.toLocaleString("en-US")} XP</span>
+                </div>
+              )}
+              <div className="dsa-theme flex min-w-0 flex-col gap-1 bg-bg p-4">
+                <span className={LABEL}>dsa mastery</span>
+                <span className="flex items-center gap-2 font-display text-[22px] font-extrabold leading-tight tracking-[-0.03em] text-fg">
+                  <BeltSwatch belt={p.dsa.rewards.belt} size={30} />
+                  {p.dsa.rewards.belt.name} belt
+                </span>
+                <span className="font-mono text-[12px] text-signal-text">
+                  {p.dsa.rewards.bits.toLocaleString("en-US")} Bits · {p.dsa.rewards.badges.length} badge{p.dsa.rewards.badges.length === 1 ? "" : "s"}
+                </span>
+              </div>
             </div>
           )}
 

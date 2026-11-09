@@ -12,7 +12,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import type { ConceptPage } from "@/lib/dsa/types";
-import ExplainBack from "@/components/learn/ai/ExplainBack";
+import DsaExplainBack from "@/components/dsa/rewards/DsaExplainBack";
 // one import() per module (lib/offline/lazy), so "save offline" caches the very chunks this asks for
 import { loadRaceChart, loadTracePlayer } from "@/lib/offline/lazy";
 import { CheckpointGate, CodeTabs, Poll, Reorder, ReviewCards } from "./widgets";
@@ -120,7 +120,7 @@ function widgetFor(h: Host, c?: ConceptPage): React.ReactNode {
       // the fallback line stays: it explains the box, and ExplainBack renders nothing when AI is off
       return (
         <div className="dsa-ui px-4 pb-4">
-          <ExplainBack conceptId={c.id} term={c.title} course="dsa" />
+          <DsaExplainBack conceptId={c.id} term={c.title} />
         </div>
       );
     case "checkpoint":

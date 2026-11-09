@@ -10,6 +10,8 @@ import { BADGES, MAIN_QUESTS, levelProgress } from "@/game/catalog";
 import SearchBar from "@/components/SearchBar";
 import { LearnBrand, LearnDock, LearnTabs } from "./LearnNav";
 import { DsaBrand, DsaDock, DsaTabs } from "./DsaNav";
+import { BitsBar, BitsChip } from "@/components/dsa/rewards/BitsChip";
+import BitsToaster from "@/components/dsa/rewards/BitsToaster";
 import { isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
 import { useCoursePathname, useSite } from "./SiteMode";
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
@@ -227,25 +229,32 @@ export default function SiteHeader() {
                 phones in the course (no room in the row) and very narrow screens get it in the account menu, with a
                 shield on the account button */}
             <AdminLink variant="header" display={learn ? "hidden sm:inline-flex lg:hidden" : "hidden min-[360px]:inline-flex"} />
-            <button
-              type="button"
-              data-quest-toggle
-              onClick={() => setQuestsOpen((o) => !o)}
-              aria-expanded={questsOpen}
-              aria-label={`Level ${p.level.code} ${p.level.name}. Open quest log`}
-              className="min-h-10 whitespace-nowrap border border-signal px-2 font-mono text-xs tracking-label text-signal-text"
-            >
-              {p.level.code}
-              <span data-wco-compact className="hidden sm:inline"> · {p.level.name}</span>
-            </button>
-            <div data-wco-hide className={`${learn ? "hidden min-[1360px]:flex" : "hidden sm:flex"} w-max min-w-[150px] shrink-0 flex-col gap-1.5`}>
-              <div className="h-1.5 bg-surface-2">
-                <div className="h-1.5 bg-signal transition-[width] duration-500" style={{ width: `${p.pct}%` }} />
-              </div>
-              <span className="whitespace-nowrap font-mono text-[11px] text-fg-3">
-                {p.next ? `${hydrated ? xp : 0} / ${p.next.min} xp → ${p.next.name.toLowerCase()}` : `${xp} xp · max level`}
-              </span>
-            </div>
+            {/* DSA Mastery pages: DSA's own belt and Bits (never SD Mastery's XP level); everywhere else the level chip */}
+            {dsa ? (
+              <BitsChip on={pathname.startsWith("/dsa/progress")} />
+            ) : (
+              <>
+                <button
+                  type="button"
+                  data-quest-toggle
+                  onClick={() => setQuestsOpen((o) => !o)}
+                  aria-expanded={questsOpen}
+                  aria-label={`Level ${p.level.code} ${p.level.name}. Open quest log`}
+                  className="min-h-10 whitespace-nowrap border border-signal px-2 font-mono text-xs tracking-label text-signal-text"
+                >
+                  {p.level.code}
+                  <span data-wco-compact className="hidden sm:inline"> · {p.level.name}</span>
+                </button>
+                <div data-wco-hide className={`${learn ? "hidden min-[1360px]:flex" : "hidden sm:flex"} w-max min-w-[150px] shrink-0 flex-col gap-1.5`}>
+                  <div className="h-1.5 bg-surface-2">
+                    <div className="h-1.5 bg-signal transition-[width] duration-500" style={{ width: `${p.pct}%` }} />
+                  </div>
+                  <span className="whitespace-nowrap font-mono text-[11px] text-fg-3">
+                    {p.next ? `${hydrated ? xp : 0} / ${p.next.min} xp → ${p.next.name.toLowerCase()}` : `${xp} xp · max level`}
+                  </span>
+                </div>
+              </>
+            )}
             {!learn && (
               <>
                 <button
@@ -271,11 +280,16 @@ export default function SiteHeader() {
           </div>
           {questsOpen && <QuestLog onClose={() => setQuestsOpen(false)} />}
         </div>
-        <div className="h-[3px] bg-surface-2 sm:hidden">
-          <div className="h-[3px] bg-signal" style={{ width: `${p.pct}%` }} />
-        </div>
+        {dsa ? (
+          <BitsBar />
+        ) : (
+          <div className="h-[3px] bg-surface-2 sm:hidden">
+            <div className="h-[3px] bg-signal" style={{ width: `${p.pct}%` }} />
+          </div>
+        )}
       </header>
       <OfflineStrip />
+      {dsa && <BitsToaster />}
 
       {dsa ? (
         <DsaDock pathname={pathname} className={`${dockClass} dsa-theme`} />

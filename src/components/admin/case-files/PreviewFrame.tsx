@@ -56,6 +56,14 @@ function GameSandbox({ children }: { children: ReactNode }) {
         return xp;
       },
       setFlag: (key, v) => commit({ ...ref.current, flags: { ...ref.current.flags, [key]: v } }),
+      markDone: (keys) => {
+        const added = keys.filter((k) => k && !ref.current.done[k]);
+        if (!added.length) return { added, done: ref.current.done };
+        const done = { ...ref.current.done, ...Object.fromEntries(added.map((k) => [k, Date.now()])) };
+        commit({ ...ref.current, done });
+        return { added, done };
+      },
+      peekDone: () => ref.current.done,
       reset: () => commit({ xp: 0, done: {}, flags: {} }),
       toasts: [],
       terminalOpen: false,

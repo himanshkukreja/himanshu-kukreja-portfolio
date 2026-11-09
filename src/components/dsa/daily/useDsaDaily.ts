@@ -10,7 +10,8 @@ import { useGame } from "@/game/GameProvider";
 import { useToday } from "@/components/learn/arena/store";
 import { istDate } from "@/lib/learn/arena/shared";
 import { track } from "@/lib/track";
-import { DSA_DAILY_XP, dailyDaysOf, dailyStreakOf, dsaDailyKey, type DsaDailyResponse } from "@/lib/dsa/daily";
+import { dailyDaysOf, dailyStreakOf, dsaDailyKey, type DsaDailyResponse } from "@/lib/dsa/daily";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
 
 let cache: { day: string; p: Promise<DsaDailyResponse | null> } | null = null;
 
@@ -54,21 +55,21 @@ export function useDsaStreak(): { current: number; best: number; today: boolean;
 }
 
 /**
- * After an Accepted submit: if this problem is today's daily problem, award the day's key (XP once a day) and return
- * the daily's number; null otherwise. Never throws.
+ * After an Accepted submit: if this problem is today's daily problem, award the day's key (DSA_DAILY_BITS once a day,
+ * DSA Mastery Bits, never SD Mastery XP) and return the daily's number; null otherwise. Never throws.
  */
 export function useDailySolve() {
-  const { awardOnce } = useGame();
+  const { award } = useDsaAward();
   return useCallback(
     async (problemId: string): Promise<number | null> => {
       const d = await fetchDsaDaily();
       const daily = d?.daily;
       if (!daily || daily.problem.id !== problemId || daily.date !== istDate()) return null;
-      const xp = awardOnce(dsaDailyKey(daily.date), DSA_DAILY_XP, `Daily problem #${daily.number} · solved`);
-      if (xp > 0) track("dsa_daily_solve", { problem: problemId, number: daily.number });
+      const bits = award([dsaDailyKey(daily.date)], `Daily problem #${daily.number} · solved`);
+      if (bits > 0) track("dsa_daily_solve", { problem: problemId, number: daily.number });
       return daily.number;
     },
-    [awardOnce],
+    [award],
   );
 }
 

@@ -22,7 +22,8 @@ import { getRunner, retainRunner } from "@/lib/learn/labs/runner";
 import { userFetch } from "@/components/learn/progress/userFetch";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
-import { BROWSER_LANGS, DSA_LANG_LABEL, DSA_LANGS, DSA_XP, type DsaLang, type DsaSignature } from "@/lib/dsa/types";
+import { BROWSER_LANGS, DSA_LANG_LABEL, DSA_LANGS, type DsaLang, type DsaSignature } from "@/lib/dsa/types";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
 import { GIVEN_JS, GIVEN_PY, VERDICT_LABEL, fnNameFor, javascriptTests, outcomeFrom, pythonTests, type CaseResult, type Verdict, type WireCase } from "@/lib/dsa/harness";
 import { friendlyError } from "@/lib/dsa/friendly";
 import type { FunctionLabCase, FunctionLabSpec } from "@/lib/dsa/structures";
@@ -73,7 +74,9 @@ function Value({ v }: { v: unknown }) {
 export default function FunctionLab({ lab, lessonId }: { lab: FunctionLabData; lessonId: string }) {
   const [lang, setLang] = useLang();
   const editor = useRef<CodeEditorHandle | null>(null);
-  const { done, awardOnce } = useGame();
+  const { done } = useGame();
+  // the build-it lab: DSA Mastery Bits once (dsa:lab:<id>), never SD Mastery XP
+  const { award } = useDsaAward();
   const key = (l: DsaLang) => `dsa.lab.${lab.spec.id}.${l}`;
   const initialFor = (l: DsaLang) => (typeof window === "undefined" ? lab.starters[l] || "" : store.get(key(l)) ?? lab.starters[l] ?? "");
   const [busy, setBusy] = useState<null | "run" | "all">(null);
@@ -141,7 +144,7 @@ export default function FunctionLab({ lab, lessonId }: { lab: FunctionLabData; l
       const verdict: Verdict = !firstBad ? "AC" : firstBad.r ? firstBad.r.verdict : setupVerdict || "ERR";
       setOutcome({ verdict, passed: passedN, total: rows.length, rows, message: setup, ms, mode, lang, code });
       if (mode === "all" && verdict === "AC") {
-        if (!passed) awardOnce(xpKey, DSA_XP.easy * 2, `Lab: ${lab.spec.title}`);
+        if (!passed) award([xpKey], `Lab: ${lab.spec.title}`);
         track("dsa_lab_pass", { lab: lab.spec.id, lang });
       }
     } catch (e) {

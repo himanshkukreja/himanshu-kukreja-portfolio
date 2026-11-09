@@ -9,8 +9,10 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useGame } from "@/game/GameProvider";
-import { addReviewCard, gradeReviewCard, intervalForBox, nextBox, REVIEW_XP_PER_CARD, type ReviewCard, type ReviewGrade } from "@/lib/learn/review";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
+import { dsaProgressKeys } from "@/lib/dsa/rewards";
+import { istDate } from "@/lib/learn/arena/shared";
+import { addReviewCard, gradeReviewCard, intervalForBox, nextBox, type ReviewCard, type ReviewGrade } from "@/lib/learn/review";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { track } from "@/lib/track";
 import { DSA_COURSE_ID, type DsaLevel } from "@/lib/dsa/types";
@@ -120,12 +122,13 @@ function Face({ card, side }: { card: { kind?: DsaRevCard["kind"]; front: string
 
 function DueCards({ decks }: { decks: DsaDeck[] }) {
   const { cards, due, ready } = useReviewCards("dsa");
-  const { grant } = useGame();
+  // a reviewed card: DSA Mastery Bits once per card per day (dsa:rv:<day>:<card>), never SD Mastery XP
+  const { award } = useDsaAward();
   const [queue, setQueue] = useState<ReviewCard[] | null>(null);
   const [i, setI] = useState(0);
   const [shown, setShown] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [log, setLog] = useState<{ g: ReviewGrade; days: number }[]>([]);
+  const [log, setLog] = useState<{ g: ReviewGrade; days: number; bits: number }[]>([]);
   const list = queue || due;
   const card = queue && i < queue.length ? queue[i] : null;
   const deckOf = useMemo(() => new Map(decks.map((d) => [d.concept, d])), [decks]);
@@ -140,8 +143,8 @@ function DueCards({ decks }: { decks: DsaDeck[] }) {
     const to = nextBox(g, card.box);
     const days = intervalForBox(to);
     await gradeReviewCard(card, g);
-    grant(REVIEW_XP_PER_CARD, `Card reviewed · back in ${days} day${days === 1 ? "" : "s"}`);
-    setLog((l) => [...l, { g, days }]);
+    const bits = award([dsaProgressKeys.revise(istDate(), card.id)], `Card reviewed · back in ${days} day${days === 1 ? "" : "s"}`);
+    setLog((l) => [...l, { g, days, bits }]);
     setShown(false);
     setI((n) => n + 1);
     setBusy(false);
@@ -195,7 +198,7 @@ function DueCards({ decks }: { decks: DsaDeck[] }) {
         <div className="flex flex-col gap-2 border border-ok bg-surface p-5">
           <span className="font-display text-[20px] font-bold text-fg">Done: {log.length} card{log.length === 1 ? "" : "s"} reviewed.</span>
           <span className="text-[14px] text-fg-2">
-            {log.filter((l) => l.g === "again").length} back tomorrow, the rest later. +{log.length * REVIEW_XP_PER_CARD} XP.
+            {log.filter((l) => l.g === "again").length} back tomorrow, the rest later.{log.some((l) => l.bits > 0) ? ` +${log.reduce((a, l) => a + l.bits, 0)} Bits.` : ""}
           </span>
         </div>
       ) : list.length ? (

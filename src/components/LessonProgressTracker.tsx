@@ -119,6 +119,11 @@ type Props = {
    * DSA Mastery passes its own (`dsa:s:<concept>/<beat>`, `dsa:c:<concept>`) so its lessons stay out of the SDM counts.
    */
   xpKeys?: { stage: (id: string) => string; lesson: string };
+  /**
+   * The one-time award for a stage or lesson key (default: the game's awardOnce, SD Mastery XP). DSA Mastery passes
+   * its own (Bits, src/lib/dsa/rewards.ts), so its lessons never add SD Mastery XP.
+   */
+  award?: (key: string, xp: number, label: string) => number;
   children: React.ReactNode;
 };
 
@@ -152,10 +157,11 @@ function fromRow(row: RemoteLessonRow | null): Stored {
 
 const fmtLeft = (secs: number) => `~${Math.max(1, Math.ceil(secs / 60))} min`;
 
-export function LessonProgressProvider({ courseId, week, lessonSlug, title, stages, contentVersion, xpKeys, children }: Props) {
+export function LessonProgressProvider({ courseId, week, lessonSlug, title, stages, contentVersion, xpKeys, award, children }: Props) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
-  const { done: gameDone, awardOnce, hydrated } = useGame();
+  const { done: gameDone, awardOnce: gameAwardOnce, hydrated } = useGame();
+  const awardOnce = award ?? gameAwardOnce;
 
   const required = useMemo(() => {
     const r = stages.filter((s) => !isOptionalStage(s));

@@ -1,12 +1,14 @@
 /**
  * The DSA Mastery section of a public profile (/u/<handle>), in DSA's teal: problems solved by level (rings against the
  * released bank), languages, concept lessons, the Academy campus and the building the learner is in, the DSA daily
- * streak and the certificate. Only recorded data (src/lib/dsa/profile.ts); hidden when the learner turns it off.
+ * streak, the certificate, and DSA's own belt, Bits and mastery badges (never SD Mastery XP). Only recorded data
+ * (src/lib/dsa/profile.ts); hidden when the learner turns it off.
  */
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { withRef, type DsaProfile } from "@/lib/share/model";
 import { DsaMark } from "@/components/dsa/DsaMark";
+import { BeltSwatch } from "@/components/dsa/rewards/BeltSwatch";
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 
@@ -41,6 +43,47 @@ function Cell({ label, children, sub }: { label: string; children: ReactNode; su
   );
 }
 
+function BeltAndBadges({ r }: { r: NonNullable<DsaProfile["rewards"]> }) {
+  return (
+    <div className="grid gap-px border border-line bg-line lg:grid-cols-[minmax(0,1fr)_minmax(0,1.25fr)]">
+      <div className="flex min-w-0 flex-col gap-3 bg-bg p-4 sm:p-5">
+        <span className={LABEL}>belt</span>
+        <div className="flex items-center gap-3">
+          <BeltSwatch belt={r.belt} size={44} />
+          <span className="flex min-w-0 flex-col gap-1">
+            <span className="font-display text-[26px] font-extrabold leading-none tracking-[-0.03em] text-fg">{r.belt.name} belt</span>
+            <span className="font-mono text-[12px] text-signal-text">
+              {r.bits.toLocaleString("en-US")} Bits{r.next ? ` · ${r.next.toGo.toLocaleString("en-US")} to ${r.next.name}` : " · top belt"}
+            </span>
+          </span>
+        </div>
+        <div aria-hidden className="h-1.5 bg-surface-2">
+          <div className="h-1.5 bg-signal" style={{ width: `${r.pct}%` }} />
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-col gap-3 bg-bg p-4 sm:p-5">
+        <span className={LABEL}>
+          mastery badges · {r.badges.length}
+          {r.badgesTotal ? ` of ${r.badgesTotal}` : ""}
+        </span>
+        {r.badges.length ? (
+          <ul aria-label="Mastery badges" className="m-0 flex list-none flex-wrap gap-1.5 p-0">
+            {r.badges.map((b) => (
+              <li key={b.id} className={`border px-2 py-0.5 font-mono text-[12px] ${b.kind === "world" ? "border-signal bg-signal text-on-signal" : "border-signal text-signal-text"}`}>
+                {b.code ? `${b.code} · ` : ""}
+                {b.name}
+                {b.kind === "world" ? " · world" : ""}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <span className="text-[14px] text-fg-3">The first badge comes with a finished module.</span>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function PublicDsa({ d, handle, who, n }: { d: DsaProfile; handle: string; who: string; n: string }) {
   return (
     <section aria-labelledby="dsa-h" className="dsa-theme flex flex-col gap-4">
@@ -58,6 +101,8 @@ export default function PublicDsa({ d, handle, who, n }: { d: DsaProfile; handle
           {d.solved.total} solved{d.languages.length ? ` · ${d.languages.join(", ")}` : ""}
         </span>
       </div>
+
+      {d.rewards && <BeltAndBadges r={d.rewards} />}
 
       <div className="grid gap-px border border-line bg-line lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)]">
         <div className="flex flex-col gap-4 bg-bg p-4 sm:p-5">

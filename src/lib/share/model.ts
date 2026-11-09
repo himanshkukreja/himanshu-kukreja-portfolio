@@ -143,6 +143,17 @@ export type DsaProfile = {
   world: { title: string; building: string | null; pct: number; done: number; total: number };
   daily: { current: number; best: number; days: number };
   certificate: { code: string; issuedAt: string } | null;
+  /** DSA Mastery's own rewards (Bits and belts, src/lib/dsa/rewards.ts), separate from SD Mastery's XP and level */
+  rewards?: {
+    bits: number;
+    belt: { id: string; name: string; color: string; index: number };
+    next: { name: string; toGo: number } | null;
+    pct: number;
+    /** mastery badges earned, modules first */
+    badges: { id: string; name: string; kind: "module" | "world"; code: string | null }[];
+    /** badges on offer that are released (the "of" for the count) */
+    badgesTotal: number;
+  };
 };
 
 /* ------------------------------------------------------------------ achievements */

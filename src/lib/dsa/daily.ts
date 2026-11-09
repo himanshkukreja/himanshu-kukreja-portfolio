@@ -10,12 +10,13 @@
  * own streak; every solve also counts toward the overall learning streak (record_learning_activity), as before.
  */
 import { addDays, dayDiff, hash32 } from "@/lib/learn/arena/shared";
-import { DSA_XP, type DsaLevel } from "./types";
+import type { DsaLevel } from "./types";
+import { BITS_TABLE } from "./rewards";
 
 /** Day 1 of the DSA daily problem. */
 export const DSA_DAILY_EPOCH = "2026-11-09";
-/** XP for the day's solve (on top of the problem's own XP, which is awarded once per problem). */
-export const DSA_DAILY_XP = DSA_XP.daily;
+/** Bits for the day's solve (on top of the problem's own Bits, which are awarded once per problem). */
+export const DSA_DAILY_BITS = BITS_TABLE.daily;
 /** The draw runs in blocks of this many days: no problem repeats inside a block, and neighbouring blocks draw from
  *  the two halves of the bank, so a problem comes back after two weeks at the earliest. */
 export const DSA_DAILY_BLOCK = 14;

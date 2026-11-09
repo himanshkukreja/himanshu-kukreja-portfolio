@@ -24,6 +24,8 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { estimateStep as estimate, estimatedStarts, flatten, type Lecture, type LectureMedia } from "@/lib/learn/lecture/types";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { useGame } from "@/game/GameProvider";
+import { BITS_TABLE, dsaProgressKeys } from "@/lib/dsa/rewards";
+import { dsaAward } from "@/components/dsa/rewards/award";
 import { track } from "@/lib/track";
 import Stage, { DSA_ACCENT, diagramFor, renderSvg, type QuizState } from "./Stage";
 import ShortStage from "./ShortStage";
@@ -203,7 +205,11 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   const slug = lecture.quest;
   // the lecture's own page: DSA concept lectures live under their concept
   const pagePath = lecture.dsa ? `/dsa/concepts/${lecture.dsa.concept}/lecture` : `/lectures/${slug}`;
-  const { awardOnce, flags, setFlag, hydrated } = useGame();
+  const { awardOnce, flags, setFlag, hydrated, markDone, peekDone } = useGame();
+  // DSA Mastery videos (concept lectures, lesson clips, solution videos) earn DSA Bits, never SD Mastery XP
+  const dsaVideo = !!(lecture.dsa || lecture.clip || lecture.solution);
+  const dsaConcept = !!lecture.dsa;
+  const dsaTitle = quest?.title ?? lecture.title;
   const ai = useAiStatus();
   const { user, loading: authLoading } = useAuth();
   const { openAuthModal } = useAuthModal();
@@ -373,8 +379,10 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
       setFlag(progressKey(slug), next);
       if (sec >= 3) track("lecture_watch", { quest: slug, sec, at: Math.round(at), dur: Math.round(durRef.current), pct: Math.round((Math.min(at, durRef.current) / Math.max(1, durRef.current)) * 100) });
       if (next.w && !prev?.w) track("lecture_complete", { quest: slug, dur: Math.round(durRef.current), watched: next.s ?? 0 });
+      // a DSA concept lecture watched to the end: its Bits once (dsa:lec:<lecture>)
+      if (next.w && dsaConcept) dsaAward({ markDone, peekDone }, [dsaProgressKeys.lecture(slug)], `Lecture watched · ${dsaTitle}`);
     },
-    [slug, setFlag]
+    [slug, setFlag, dsaConcept, dsaTitle, markDone, peekDone]
   );
   useEffect(() => {
     if (!playing) return;
@@ -576,7 +584,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
     if (q.kind !== "quiz" || answers[q.id] != null) return;
     setAnswers((a) => ({ ...a, [q.id]: k }));
     const right = k === q.answer;
-    if (right) awardOnce(`lecture-quiz:${slug}:${q.id}`, QUIZ_XP, `Lecture checkpoint · ${quest?.title ?? lecture.title}`);
+    if (right && dsaVideo) dsaAward({ markDone, peekDone }, [dsaProgressKeys.lectureQuestion(slug, q.id)], `Lecture checkpoint · ${quest?.title ?? lecture.title}`);
+    else if (right) awardOnce(`lecture-quiz:${slug}:${q.id}`, QUIZ_XP, `Lecture checkpoint · ${quest?.title ?? lecture.title}`);
     track("lecture_quiz", { quest: slug, scene: q.id, right });
     // answered with the Ask panel open: stay on the reveal, carry on when the panel closes
     if (ask) return setAsk({ ...ask, resume: true });
@@ -764,7 +773,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           <div className="flex max-w-[520px] flex-col items-center gap-2 sm:gap-3">
             <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">free · just sign in</span>
             <span className="font-display text-[clamp(18px,3vw,32px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">Sign in to keep watching</span>
-            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">Every lecture is free with an account. You also keep your place, earn XP on the checkpoints and can ask the AI about any moment.</span>
+            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">Every lecture is free with an account. You also keep your place, earn {dsaVideo ? "Bits" : "XP"} on the checkpoints and can ask the AI about any moment.</span>
             <div className="flex flex-wrap justify-center gap-2">
               <button type="button" onClick={openAuthModal} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
                 sign in free
@@ -1064,7 +1073,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           </ol>
           {quizzes.length > 0 && (
             <p className="m-0 font-mono text-[11px] text-fg-3">
-              checkpoints {right}/{quizzes.length} right · +{QUIZ_XP} XP each
+              checkpoints {right}/{quizzes.length} right · {dsaVideo ? `+${BITS_TABLE.lectureQuestion} ${BITS_TABLE.lectureQuestion === 1 ? "Bit" : "Bits"}` : `+${QUIZ_XP} XP`} each
             </p>
           )}
           <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-4">space play · ←/→ step · J/L 10 s · C captions · M music · F full screen · &lt; &gt; speed · S snip{ai?.features["lesson-qa"] ? " · A ask" : ""}</p>

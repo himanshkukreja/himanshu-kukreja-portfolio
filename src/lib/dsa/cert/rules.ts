@@ -19,8 +19,6 @@ export const DSA_CERT_WORLD = "academy";
 export const DSA_CERT_TRACK = "foundations";
 export const DSA_CERT_KIND = "dsa";
 export const DSA_CERT_NAME = "DSA Mastery · Foundations";
-export const DSA_CERT_XP = 500;
-export const dsaCertXpKey = () => `cert:dsa:${DSA_CERT_TRACK}`;
 
 const SYM = "[2-9A-HJ-NP-Z]";
 export const DSA_CODE_RE = new RegExp(`^DSA-${SYM}{4}-${SYM}{4}$`);

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { supabaseClient } from "@/lib/supabase-client";
 import { isNetworkError, isOffline } from "@/lib/offline/connectivity";
 import { LEARN_XP } from "@/lib/learn/types";
-import { dsaXpOfKey } from "@/lib/dsa/types";
 import { QUEST_BY_ID } from "./catalog";
 import { CERT_XP } from "@/lib/certificates/core";
 import { mergeGameFlags } from "@/lib/learn/saved-paths";
@@ -18,7 +17,10 @@ export const RESET_AT_FLAG = "sync:resetAt";
 
 const resetAtOf = (s: Pick<Snapshot, "flags">) => Number(s.flags?.[RESET_AT_FLAG]) || 0;
 
-/** XP a done key is worth (learn keys + catalog quests); repeatable grants aren't keyed, so 0. */
+/**
+ * XP a done key is worth (learn keys + catalog quests); repeatable grants aren't keyed, so 0. DSA Mastery keys (dsa:*)
+ * are worth no XP: DSA has its own Bits (src/lib/dsa/rewards.ts), counted from the same keys, never SD Mastery XP.
+ */
 function xpOfKey(key: string): number {
   const q = QUEST_BY_ID[key];
   if (q) return q.xp;
@@ -32,7 +34,7 @@ function xpOfKey(key: string): number {
   if (p === "mock") return LEARN_XP.mock;
   if (p === "offer") return LEARN_XP.mockOffer;
   if (p === "cert") return key === "cert:course" ? CERT_XP.course : CERT_XP.world;
-  if (p === "dsa") return dsaXpOfKey(key);
+  if (p === "dsa") return 0;
   return 0;
 }
 

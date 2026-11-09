@@ -2,21 +2,29 @@ import "server-only";
 import { istDate } from "@/lib/learn/arena/shared";
 import { certStore, CertUnavailableError } from "@/lib/certificates/store";
 import type { DsaProfile } from "@/lib/share/model";
-import { getConceptIndex, getProblemIndex, getWorld } from "./load";
+import { getBadgeDefs, getConceptIndex, getProblemIndex, getWorld } from "./load";
 import { dsaLearnerData } from "./learner-data";
 import { computeWorld } from "./map/progress";
 import { dailyDaysOf, dailyStreakOf } from "./daily";
 import { DSA_CERT_KIND, DSA_CERT_TRACK } from "./cert/rules";
 import { DSA_LANG_LABEL, type DsaLang } from "./types";
+import { awardsOf, beltFor, computeBits, earnedBadges } from "./rewards";
 
 /**
  * The DSA Mastery section of a public profile (/u/<handle>), from recorded data only (src/lib/dsa/learner-data.ts):
  * problems solved by level against the released bank, languages with an Accepted solve, concept lessons completed,
  * the Academy campus progress and the building the learner is in (computeWorld's frontier), the DSA daily streak
- * (game keys dsa:daily:<day>) and a public DSA certificate. Null when the learner hasn't done anything in DSA yet.
+ * (game keys dsa:daily:<day>), a public DSA certificate, and DSA's own rewards: Bits, the belt and the mastery badges
+ * (src/lib/dsa/rewards.ts; never SD Mastery XP). Null when the learner hasn't done anything in DSA yet.
  */
 export async function dsaProfileFor(userId: string, gameDone: Record<string, number> | null | undefined): Promise<DsaProfile | null> {
-  const [data, bank, concepts, academy] = await Promise.all([dsaLearnerData(userId, gameDone ?? null), getProblemIndex(), getConceptIndex(), getWorld("academy").catch(() => null)]);
+  const [data, bank, concepts, academy, badgeDefs] = await Promise.all([
+    dsaLearnerData(userId, gameDone ?? null),
+    getProblemIndex(),
+    getConceptIndex(),
+    getWorld("academy").catch(() => null),
+    getBadgeDefs().catch(() => []),
+  ]);
   const level = new Map(bank.map((p) => [p.id, p.level]));
   const solved = { easy: 0, medium: 0, hard: 0, total: 0 };
   for (const id of data.signals.solved) {
@@ -51,7 +59,19 @@ export async function dsaProfileFor(userId: string, gameDone: Record<string, num
     if (!(e instanceof CertUnavailableError)) console.warn("[dsa-profile] certificates:", e instanceof Error ? e.message : e);
   }
 
-  const active = solved.total > 0 || conceptsDone > 0 || data.conceptsStarted.size > 0 || days.size > 0 || data.signals.checkpoints.size > 0;
+  const bits = computeBits(awardsOf(data.done)).total;
+  const bp = beltFor(bits);
+  const earned = earnedBadges(badgeDefs, data.signals);
+  const rewards: NonNullable<DsaProfile["rewards"]> = {
+    bits,
+    belt: { id: bp.belt.id, name: bp.belt.name, color: bp.belt.color, index: bp.index },
+    next: bp.next ? { name: bp.next.name, toGo: bp.toNext } : null,
+    pct: bp.pct,
+    badges: badgeDefs.filter((d) => earned.has(d.id)).map((d) => ({ id: d.id, name: d.name, kind: d.kind, code: d.code })),
+    badgesTotal: badgeDefs.filter((d) => d.ready).length,
+  };
+
+  const active = bits > 0 || solved.total > 0 || conceptsDone > 0 || data.conceptsStarted.size > 0 || days.size > 0 || data.signals.checkpoints.size > 0;
   if (!active) return null;
-  return { solved, bank: bankBy, languages, concepts: { done: conceptsDone, total: built.size }, world, daily: { current: streak.current, best: streak.best, days: days.size }, certificate };
+  return { solved, bank: bankBy, languages, concepts: { done: conceptsDone, total: built.size }, world, daily: { current: streak.current, best: streak.best, days: days.size }, certificate, rewards };
 }

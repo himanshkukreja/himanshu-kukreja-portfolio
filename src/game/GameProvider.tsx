@@ -29,6 +29,13 @@ type GameContextValue = {
   /** One-time XP for things outside the quest catalog (e.g. "lesson:week-02/day-03"). Returns XP gained. */
   awardOnce: (key: string, xp: number, label: string) => number;
   setFlag: (key: string, value: unknown) => void;
+  /**
+   * Record done keys without any XP or toast (DSA Mastery's progress and Bits: src/lib/dsa/rewards.ts, which are
+   * not SD Mastery XP). Returns the keys that were new and the done map after the write.
+   */
+  markDone: (keys: string[]) => { added: string[]; done: Record<string, number> };
+  /** The current done map, synchronously (state can lag a render behind back-to-back writes). */
+  peekDone: () => Record<string, number>;
   reset: () => void;
   toasts: Toast[];
   terminalOpen: boolean;
@@ -183,6 +190,22 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     [commit]
   );
 
+  const markDone = useCallback(
+    (keys: string[]) => {
+      const cur = stateRef.current;
+      const added = [...new Set(keys)].filter((k) => k && !cur.done[k]);
+      if (!added.length) return { added, done: cur.done };
+      const at = Date.now();
+      const done = { ...cur.done };
+      for (const k of added) done[k] = at;
+      commit({ ...cur, done });
+      return { added, done };
+    },
+    [commit]
+  );
+
+  const peekDone = useCallback(() => stateRef.current.done, []);
+
   const reset = useCallback(() => {
     commit(EMPTY);
     setToasts([]);
@@ -202,12 +225,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       grant,
       awardOnce,
       setFlag,
+      markDone,
+      peekDone,
       reset,
       toasts,
       terminalOpen,
       setTerminalOpen,
     }),
-    [hydrated, state, award, grant, awardOnce, setFlag, reset, toasts, terminalOpen]
+    [hydrated, state, award, grant, awardOnce, setFlag, markDone, peekDone, reset, toasts, terminalOpen]
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;

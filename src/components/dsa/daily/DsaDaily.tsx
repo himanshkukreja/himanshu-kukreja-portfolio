@@ -10,6 +10,7 @@ import DsaCrumbs from "../DsaCrumbs";
 import { StreakDots, shortDate } from "./DailyCard";
 import { useDsaDaily, useDsaStreak } from "./useDsaDaily";
 import { useDsaProgress } from "../progress/useDsaProgress";
+import { DSA_DAILY_BITS } from "@/lib/dsa/daily";
 
 const LEVEL: Record<string, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 
@@ -132,7 +133,7 @@ export default function DsaDaily() {
         <details className="text-[13px] text-fg-3">
           <summary className="cursor-pointer font-mono text-[12px]">How the daily streak works</summary>
           <p className="m-0 mt-2 max-w-[680px] leading-relaxed">
-            An Accepted submit on the day&apos;s problem, before midnight India time, counts that day ({"+"}15 XP once a day). Solving an old day&apos;s problem is practice and earns that problem&apos;s own XP. The daily streak is separate from your learning streak, which every lesson and solve keeps alive.
+            An Accepted submit on the day&apos;s problem, before midnight India time, counts that day ({"+"}{DSA_DAILY_BITS} Bits once a day, on top of the problem&apos;s own Bits). Solving an old day&apos;s problem is practice and earns that problem&apos;s own Bits. Streaks of 3, 7, 14, 30, 60 and 100 days earn bonus Bits. The daily streak is separate from your learning streak, which every lesson and solve keeps alive.
           </p>
         </details>
       </main>

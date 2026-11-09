@@ -12,9 +12,9 @@
  * Client-only (loaded with next/dynamic, ssr:false). Keyboard: every control is a button; the note is announced.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
-import { DSA_XP, type Trace, type TraceFrame } from "@/lib/dsa/types";
+import { dsaKeys, type Trace, type TraceFrame } from "@/lib/dsa/types";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
 
 type Mode = "predict" | "watch" | "hand";
 
@@ -73,7 +73,8 @@ export default function TracePlayer({ trace, mode = "predict", conceptId }: { tr
   const [firstTry, setFirstTry] = useState<Record<number, boolean>>({});
   const [wrong, setWrong] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
-  const { awardOnce } = useGame();
+  // a dry run with every step right: DSA Mastery Bits once (dsa:tr:<trace>)
+  const { award } = useDsaAward();
   const hv = handVar(trace);
 
   const asks = useMemo(() => frames.map((f, k) => (mode === "predict" ? !!f.ask : mode === "hand" ? k === 0 || f.state[hv] !== frames[k - 1].state[hv] : false)), [frames, mode, hv]);
@@ -87,9 +88,9 @@ export default function TracePlayer({ trace, mode = "predict", conceptId }: { tr
   const finish = useCallback(
     (score: number) => {
       track("dsa_predict", { trace: trace.id, concept: conceptId, mode, score, of: totalAsks });
-      if (mode !== "watch" && totalAsks > 0 && score === totalAsks) awardOnce(`dsa:tr:${trace.id}`, DSA_XP.trace, "Dry run · every step predicted");
+      if (mode !== "watch" && totalAsks > 0 && score === totalAsks) award([dsaKeys.trace(trace.id)], "Dry run · every step predicted");
     },
-    [trace.id, conceptId, mode, totalAsks, awardOnce],
+    [trace.id, conceptId, mode, totalAsks, award],
   );
 
   const reported = useRef(false);

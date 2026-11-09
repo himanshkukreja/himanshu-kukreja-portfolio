@@ -21,7 +21,19 @@ function parse(t: string) {
   return { got: get("GOT"), missing: get("MISSING"), fix: get("FIX") };
 }
 
-export default function ExplainBack({ conceptId, term, course }: { conceptId: string; term: string; /** "dsa": a DSA Mastery concept */ course?: "dsa" }) {
+export default function ExplainBack({
+  conceptId,
+  term,
+  course,
+  onVerdict,
+}: {
+  conceptId: string;
+  term: string;
+  /** "dsa": a DSA Mastery concept */
+  course?: "dsa";
+  /** after a graded answer: the verdict (solid / partial / misconception), e.g. for DSA Mastery's Bits */
+  onVerdict?: (verdict: string | null) => void;
+}) {
   const status = useAiStatus();
   const { openAuthModal } = useAuthModal();
   const [text, setText] = useState("");
@@ -39,7 +51,10 @@ export default function ExplainBack({ conceptId, term, course }: { conceptId: st
       const r = await aiFetch("/api/learn/ai/explain", { method: "POST", body: JSON.stringify(course ? { conceptId, text, course } : { conceptId, text }) });
       const body = (await r.json().catch(() => ({}))) as { verdict?: string | null; text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
-      if (r.ok) setRes({ verdict: body.verdict ?? null, text: body.text || "" });
+      if (r.ok) {
+        setRes({ verdict: body.verdict ?? null, text: body.text || "" });
+        onVerdict?.(body.verdict ?? null);
+      }
       else setError(body.error || "Something went wrong.");
     } catch {
       setError("You seem to be offline.");

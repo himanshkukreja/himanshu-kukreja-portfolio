@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "crypto";
 import matter from "gray-matter";
+import { badgeDefsFor, type BadgeDef } from "./rewards";
 import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
@@ -363,6 +364,13 @@ export const getWorlds = cached(async (): Promise<WorldSummary[]> => {
   );
   return out.filter((w): w is WorldSummary => !!w).sort((a, b) => a.order - b.order);
 }, "dsa-worlds-v1");
+
+/** Every mastery badge (src/lib/dsa/rewards.ts badgeDefsFor): one per module of each world, then the world itself. */
+export const getBadgeDefs = cached(async (): Promise<BadgeDef[]> => {
+  const worlds = await getWorlds();
+  const specs = await Promise.all(worlds.map((w) => getWorld(w.id).catch(() => null)));
+  return specs.flatMap((s) => (s ? badgeDefsFor(s) : []));
+}, "dsa-badges-v1");
 
 /* ------------------------------------------------------------------ links to System Design Mastery */
 

@@ -12,11 +12,16 @@
  * Rewards: +5 XP for a first-try correct answer (awardOnce `quiz:<course>/<week>/<lesson>:<block>:<q>`),
  * the "First blood" quest for the first aced block, and a "stage aced" bonus when every quick check in a
  * stage is aced. Every answer is tracked as `quiz_answer` (the leaderboard re-checks `pick` server-side).
+ * On DSA Mastery pages (/dsa/...) a first-try correct answer earns DSA Bits instead (dsa:qc:<page>:<block>:<q>,
+ * src/lib/dsa/rewards.ts) and no SD Mastery XP, quest or stage bonus; its answers are tracked with course "dsa".
  */
 import "./quiz.css";
 import { useEffect, useRef } from "react";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
+import { isDsaPath } from "@/lib/dsa/flags";
+import { BITS_TABLE, dsaProgressKeys } from "@/lib/dsa/rewards";
+import { dsaAward } from "@/components/dsa/rewards/award";
 
 type QState = { p?: number; f?: 0 | 1 };
 type BlockState = { s: string; a: Record<string, QState> };
@@ -38,6 +43,8 @@ function scopeFor(lessonKey?: string): Scope {
   }
   const course = seg[0] === "learn" && seg.length >= 4 ? seg[1] : "system-design-mastery";
   const [week, lesson] = lessonKey && lessonKey.includes("/") ? lessonKey.split("/") : [seg[2] || "", seg[3] || ""];
+  // DSA Mastery: its own course (Bits, not XP); the id stays as it was so answers saved on this device still show
+  if (isDsaPath(path) || course === "dsa") return { course: "dsa", week, lesson, id: `${course}/${week}/${lesson}` };
   return { course, week, lesson, id: `${course}/${week}/${lesson}` };
 }
 
@@ -70,18 +77,20 @@ function setText(el: Element | null, value: string) {
   if (el && el.textContent !== value) el.textContent = value;
 }
 
-const xpKey = (scope: Scope, block: string, q: string) => `quiz:${scope.id}:${block}:${q}`;
+const xpKey = (scope: Scope, block: string, q: string) => (scope.course === "dsa" ? dsaProgressKeys.quickCheck(`${scope.week}/${scope.lesson}`, block, q) : `quiz:${scope.id}:${block}:${q}`);
+/** "+5 XP" in SD Mastery, "+1 Bit" in DSA Mastery (n answers). */
+const reward = (scope: Scope, n = 1) => (scope.course === "dsa" ? `+${n * BITS_TABLE.quickCheck} ${n * BITS_TABLE.quickCheck === 1 ? "Bit" : "Bits"}` : `+${n * QUIZ_XP} XP`);
 
 export default function QuizHydrator({ lessonKey }: { lessonKey?: string }) {
   const markerRef = useRef<HTMLSpanElement>(null);
-  const { done, awardOnce, award } = useGame();
-  const gameRef = useRef({ done, awardOnce, award });
+  const { done, awardOnce, award, markDone, peekDone } = useGame();
+  const gameRef = useRef({ done, awardOnce, award, markDone, peekDone });
   const applyRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    gameRef.current = { done, awardOnce, award };
+    gameRef.current = { done, awardOnce, award, markDone, peekDone };
     applyRef.current?.();
-  }, [done, awardOnce, award]);
+  }, [done, awardOnce, award, markDone, peekDone]);
 
   useEffect(() => {
     const root = (markerRef.current?.closest(".course-content") as HTMLElement | null) || null;
@@ -129,19 +138,19 @@ export default function QuizHydrator({ lessonKey }: { lessonKey?: string }) {
         const first = firstOk(fig, q, st);
         setText(
           li.querySelector(".sd-quiz-status"),
-          !isAnswered ? "" : right ? (first ? `Correct · +${QUIZ_XP} XP` : "Correct") : `Not quite · the answer is ${KEYS[answer] || answer + 1}`,
+          !isAnswered ? "" : right ? (first ? `Correct · ${reward(scope)}` : "Correct") : `Not quite · the answer is ${KEYS[answer] || answer + 1}`,
         );
       });
       const tried = qs.some((li) => st.a[li.dataset.quizQ || ""]?.f !== undefined);
       setText(
         fig.querySelector(".sd-quiz-score"),
         complete
-          ? `${ok}/${n} first try · +${ok * QUIZ_XP} XP`
+          ? `${ok}/${n} first try · ${reward(scope, ok)}`
           : answered
             ? `${answered}/${n} answered`
             : tried
               ? `retry · first try ${ok}/${n}`
-              : `${n} ${n === 1 ? "question" : "questions"} · +${QUIZ_XP} XP each`,
+              : `${n} ${n === 1 ? "question" : "questions"} · ${reward(scope)} each`,
       );
       setText(fig.querySelector(".sd-quiz-result"), complete ? (aced ? "Aced it. Every answer right on the first try." : `${ok}/${n} on the first try. Retry to lock it in.`) : "");
       setAttr(fig, "data-started", answered ? "" : null);
@@ -156,6 +165,7 @@ export default function QuizHydrator({ lessonKey }: { lessonKey?: string }) {
     apply();
 
     const stageAced = (fig: HTMLElement) => {
+      if (scope.course === "dsa") return; // DSA Mastery: Bits per answer only, no SD Mastery stage bonus
       const section = fig.closest<HTMLElement>('section[data-sd="stage"]');
       if (!section) return;
       const figs = Array.from(section.querySelectorAll<HTMLElement>('figure[data-sd="quiz"]'));
@@ -200,7 +210,10 @@ export default function QuizHydrator({ lessonKey }: { lessonKey?: string }) {
       store = { ...store, [block]: st };
       write(storeKey, store);
 
-      if (correct && first) gameRef.current.awardOnce(key, QUIZ_XP, "Quick check · first try");
+      if (correct && first) {
+        if (scope.course === "dsa") dsaAward(gameRef.current, [key], "Quick check · first try");
+        else gameRef.current.awardOnce(key, QUIZ_XP, "Quick check · first try");
+      }
       track("quiz_answer", { course: scope.course, week: scope.week, lesson: scope.lesson, block: Number(block), q: Number(q), correct, first, pick });
 
       applyFig(fig);
@@ -212,7 +225,7 @@ export default function QuizHydrator({ lessonKey }: { lessonKey?: string }) {
       details?.querySelector<HTMLElement>("summary")?.focus({ preventScroll: true });
 
       const after = summarize(fig);
-      if (after.complete && !before.complete && after.aced) {
+      if (after.complete && !before.complete && after.aced && scope.course !== "dsa") {
         gameRef.current.award("quiz:ace", "First blood · a quick check aced");
         stageAced(fig);
       }

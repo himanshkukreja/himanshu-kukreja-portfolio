@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { CalendarDays, Check, ChevronDown, ChevronsUpDown, Code2, FileText, Layers, Map as MapIcon, Play, Sparkles, User, type LucideIcon } from "lucide-react";
+import { Award, CalendarDays, Check, ChevronDown, ChevronsUpDown, Code2, FileText, Layers, Map as MapIcon, Play, Sparkles, User, type LucideIcon } from "lucide-react";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
@@ -62,6 +62,7 @@ function tabs(p: string, full = false): Tab[] {
       { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", more: true },
       { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", more: true },
       { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", more: true },
+      { id: "belt", href: `${DSA_HOME}/progress`, label: "belt & badges", short: "belt", on: p.startsWith(`${DSA_HOME}/progress`), icon: Award, where: "desk", more: true },
       you,
       sdm,
     ];
@@ -75,6 +76,7 @@ function tabs(p: string, full = false): Tab[] {
     { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", more: true },
     { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", more: true },
     { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", more: true },
+    { id: "belt", href: `${DSA_HOME}/progress`, label: "belt & badges", short: "belt", on: p.startsWith(`${DSA_HOME}/progress`), icon: Award, where: "desk", more: true },
     ask,
     you,
     sdm,

@@ -8,8 +8,9 @@
  *   the judge's conventions (src/lib/dsa/harness.ts). Run = the visible tests; Submit = visible + hidden
  *   (/api/dsa/tests/<id>).
  * - Java and C++ go to /api/dsa/judge (judge-lite; "coming soon" until it is configured).
- * - An accepted Submit records the solve (XP once, learning_progress course 'dsa', the streak) and unlocks the editorial;
- *   so do three failed submits or "show the editorial" (which forfeits the solve XP).
+ * - An accepted Submit records the solve (DSA Mastery Bits once: the level's base, +first try, +no hints; never SD
+ *   Mastery XP; learning_progress course 'dsa', the streak) and unlocks the editorial; so do three failed submits or
+ *   "show the editorial" (solving after that keeps a quarter of the base, src/lib/dsa/rewards.ts).
  * - The hint ladder opens one rung at a time. Code is kept per language on this device.
  * - The Tutor tab (ProblemTutor) is DSA Mastery's AI tutor for this problem: hint, debug, complexity, dry run and review,
  *   reading the code in the editor and the last result. A failed run offers "Ask the tutor why" under the verdict.
@@ -18,7 +19,7 @@
  * (FirstProblemGuide), "Explain this problem simply" (the tutor's plain-language mode, no spoilers), errors as one plain
  * sentence with the raw message folded under it (lib/dsa/friendly), jargon tooltips on the statement, and "Save
  * offline" beside the title. The simple view also shows only the chosen language (a "switch language" link opens the
- * others) and folds the XP, ladder step, line and hint counters into one quiet line; the full view keeps them all.
+ * others) and folds the Bits, ladder step, line and hint counters into one quiet line; the full view keeps them all.
  */
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
@@ -32,7 +33,8 @@ import { getRunner, retainRunner } from "@/lib/learn/labs/runner";
 import { userFetch } from "@/components/learn/progress/userFetch";
 import styles from "@/components/learn/lesson/reader.module.css";
 import { track } from "@/lib/track";
-import { BROWSER_LANGS, DSA_LANG_LABEL, DSA_LANGS, problemXp, type DsaLang, type DsaTestCase, type ProblemPage } from "@/lib/dsa/types";
+import { BROWSER_LANGS, DSA_LANG_LABEL, DSA_LANGS, type DsaLang, type DsaTestCase, type ProblemPage } from "@/lib/dsa/types";
+import { maxSolveBits, solveBits } from "@/lib/dsa/rewards";
 import { GIVEN_JS, GIVEN_PY, VERDICT_LABEL, fnNameFor, javascriptTests, outcomeFrom, pythonTests, starterCode, wireCases, type JudgeOutcome, type WireCase } from "@/lib/dsa/harness";
 import { useLang } from "../concept/widgets";
 import DsaHydrator from "../concept/DsaHydrator";
@@ -349,13 +351,17 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
     pushHistory({ at: Date.now(), lang, verdict: o.verdict, passed: o.passed, total: o.total });
     void userFetch("/api/dsa/submit", { method: "POST", body: JSON.stringify({ problemId: p.id, language: lang, verdict: o.verdict, passed: o.passed, total: o.total, judgedBy: o.judgedBy, ms: o.ms, code }) }).catch(() => {});
     if (o.verdict === "AC") {
-      // the editorial opened before solving: the solve still counts on the map, without XP
-      const xp = seenEarly ? 0 : problemXp(p.level);
-      await recordSolve({ id: p.id, title: p.title, level: p.level, lang, hintsUsed: hints, editorialSeen: seenEarly });
+      // first try: no failed submit on this problem before (this device); the editorial opened first keeps a quarter
+      const res = await recordSolve({ id: p.id, title: p.title, level: p.level, lang, hintsUsed: hints, editorialSeen: seenEarly, firstTry: fails === 0 && !solved });
       // today's daily problem: the day counts toward the DSA daily streak (any Accepted submit that day)
       const daily = await dailySolve(p.id);
       const dailyNote = daily ? ` Daily problem #${daily} done: your daily streak is safe today.` : "";
-      setNotice((seenEarly ? "Accepted. The solve is recorded; no XP because the editorial was opened first." : `Accepted. +${xp} XP, and the editorial is open.`) + dailyNote);
+      const how = res.parts.map((x) => `${x.label} ${x.bits}`).join(" + ");
+      setNotice(
+        (res.bits > 0
+          ? `Accepted. +${res.bits} Bits (${how})${seenEarly ? ", fewer because the editorial was opened first" : ""}, and the editorial is open.`
+          : "Accepted. You've solved this one before, so no new Bits; the editorial is open.") + dailyNote,
+      );
     } else {
       const n = fails + 1;
       setFails(n);
@@ -384,7 +390,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
   };
 
   const revealEditorial = () => {
-    if (!window.confirm("Show the editorial now? Solving afterwards still marks the problem solved, but earns no XP.")) return;
+    if (!window.confirm(`Show the editorial now? Solving afterwards still marks the problem solved, but earns only ${solveBits({ level: p.level, firstTry: false, noHints: false, editorialFirst: true }).bits} Bits instead of up to ${maxSolveBits(p.level)}.`)) return;
     store.set(`dsa.editorial.${p.id}`, "early");
     setSeenEarly(true);
     // signed in: recorded on the account, so the AI tutor may use the editorial too (a guest's reveal stays here)
@@ -433,7 +439,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
                 Lesson: {p.conceptTitle}
               </Link>
               {p.minutes ? <span>~{p.minutes} min</span> : null}
-              <span>{problemXp(p.level)} XP</span>
+              <span title="Bits for a first-try solve with no hints">up to {maxSolveBits(p.level)} Bits</span>
             </p>
           ) : (
             // the simple view: the small print in one quiet line that opens on tap
@@ -449,7 +455,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
                 <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
                   {line && <span>{line}</span>}
                   <span>practice problem {p.order} of the lesson</span>
-                  <span>{problemXp(p.level)} XP</span>
+                  <span title="Bits for a first-try solve with no hints">up to {maxSolveBits(p.level)} Bits</span>
                   <span>
                     {hints}/{p.hints.length} hints open
                   </span>

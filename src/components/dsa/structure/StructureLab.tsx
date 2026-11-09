@@ -19,7 +19,8 @@ import { getRunner, retainRunner } from "@/lib/learn/labs/runner";
 import { userFetch } from "@/components/learn/progress/userFetch";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
-import { BROWSER_LANGS, DSA_LANG_LABEL, DSA_LANGS, DSA_XP, type DsaLang } from "@/lib/dsa/types";
+import { BROWSER_LANGS, DSA_LANG_LABEL, DSA_LANGS, type DsaLang } from "@/lib/dsa/types";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
 import { VERDICT_LABEL } from "@/lib/dsa/harness";
 import { labFailureText, labJavascriptTests, labMethodName, labOutcome, labPythonTests, opText, type LabCase, type LabOutcome, type LabSpec } from "@/lib/dsa/design-harness";
 import { useLang } from "../concept/widgets";
@@ -55,7 +56,9 @@ const TYPE_LABEL: Record<string, Record<DsaLang, string>> = {
 export default function StructureLab({ lab, lessonId }: { lab: LabData; lessonId: string }) {
   const [lang, setLang] = useLang();
   const editor = useRef<CodeEditorHandle | null>(null);
-  const { done, awardOnce } = useGame();
+  const { done } = useGame();
+  // the build-it lab: DSA Mastery Bits once (dsa:lab:<id>), never SD Mastery XP
+  const { award } = useDsaAward();
   const key = (l: DsaLang) => `dsa.lab.${lab.spec.id}.${l}`;
   const initialFor = (l: DsaLang) => (typeof window === "undefined" ? lab.starters[l] || "" : store.get(key(l)) ?? lab.starters[l] ?? "");
   const [busy, setBusy] = useState<null | "run" | "all">(null);
@@ -107,7 +110,7 @@ export default function StructureLab({ lab, lessonId }: { lab: LabData; lessonId
       const o = labOutcome(res, cases, Math.round((lab.spec.limits.timeMs || 2000) * (py ? 3 : 1.5)));
       setOutcome({ o, mode, lang, cases });
       if (mode === "all" && o.verdict === "AC") {
-        if (!passed) awardOnce(xpKey, DSA_XP.easy * 2, `Lab: ${lab.spec.title}`);
+        if (!passed) award([xpKey], `Lab: ${lab.spec.title}`);
         track("dsa_lab_pass", { lab: lab.spec.id, lang });
       }
     } catch (e) {

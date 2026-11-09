@@ -8,7 +8,8 @@
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
-import { DSA_LANG_LABEL, DSA_XP, dsaKeys, type ConceptCheckpoint, type DsaLang } from "@/lib/dsa/types";
+import { DSA_LANG_LABEL, dsaKeys, type ConceptCheckpoint, type DsaLang } from "@/lib/dsa/types";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
 
 /* ------------------------------------------------------------------ language preference (shared by every tab set) */
 
@@ -250,7 +251,8 @@ function scoreOf(fig: HTMLElement) {
  * answered with `pass` (80%) right, records the checkpoint quiz (`dsa:cpq:<node>`), which the map reads.
  */
 export function CheckpointGate({ fig, checkpoint }: { fig: HTMLElement; checkpoint: ConceptCheckpoint | null }) {
-  const { done, awardOnce } = useGame();
+  const { done } = useGame();
+  const { award } = useDsaAward();
   const [score, setScore] = useState(() => scoreOf(fig));
   useEffect(() => {
     const mo = new MutationObserver(() => setScore(scoreOf(fig)));
@@ -265,10 +267,10 @@ export function CheckpointGate({ fig, checkpoint }: { fig: HTMLElement; checkpoi
   const ok = complete && score.right / score.total >= pass;
   useEffect(() => {
     if (ok && key && !passed) {
-      awardOnce(key, DSA_XP.checkpointQuiz, "Checkpoint quiz passed");
+      award([key], "Checkpoint quiz passed");
       track("dsa_gate", { node: checkpoint?.nodeId, right: score.right, of: score.total });
     }
-  }, [ok, key, passed, awardOnce, checkpoint?.nodeId, score.right, score.total]);
+  }, [ok, key, passed, award, checkpoint?.nodeId, score.right, score.total]);
 
   const need = Math.ceil(pass * score.total);
   return (

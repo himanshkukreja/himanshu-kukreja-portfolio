@@ -15,6 +15,7 @@ import "../dsa.css";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { LessonProgressProvider, useLessonProgress } from "@/components/LessonProgressTracker";
+import { useDsaLessonAward } from "@/components/dsa/rewards/useDsaBits";
 import LessonContentWrapper from "@/components/LessonContentWrapper";
 import FocusMode from "@/components/FocusMode";
 import TableOfContents from "@/components/TableOfContents";
@@ -261,8 +262,10 @@ function Body({ c, lecture }: { c: ConceptPage; lecture: LectureCardInfo }) {
 
 export default function DsaConceptReader({ concept: c, lecture = null }: { concept: ConceptPage; lecture?: LectureCardInfo }) {
   const xpKeys = useMemo(() => ({ stage: (id: string) => dsaKeys.stage(c.id, id), lesson: dsaKeys.concept(c.id) }), [c.id]);
+  // beats and the finished lesson earn DSA Mastery Bits, never SD Mastery XP
+  const award = useDsaLessonAward();
   return (
-    <LessonProgressProvider courseId={DSA_COURSE_ID} week={c.module} lessonSlug={c.id} title={c.title} stages={c.stages} contentVersion={c.contentVersion} xpKeys={xpKeys}>
+    <LessonProgressProvider courseId={DSA_COURSE_ID} week={c.module} lessonSlug={c.id} title={c.title} stages={c.stages} contentVersion={c.contentVersion} xpKeys={xpKeys} award={award}>
       <Body c={c} lecture={lecture} />
     </LessonProgressProvider>
   );

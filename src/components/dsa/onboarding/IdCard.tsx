@@ -11,7 +11,8 @@ export type IdFields = {
   start: string | null;
   pace: string | null;
   goal: string | null;
-  level: string | null;
+  /** the DSA belt and Bits ("White belt · 50 Bits"), DSA Mastery's own ranks */
+  belt: string | null;
 };
 
 /**
@@ -24,7 +25,7 @@ export default function IdCard({ f, compact = false }: { f: IdFields; compact?: 
     ["Starting point", f.start],
     ["Pace", f.pace],
     ["Goal", f.goal],
-    ["Level", f.level],
+    ["Belt", f.belt],
   ];
   return (
     <figure

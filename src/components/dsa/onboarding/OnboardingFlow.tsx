@@ -17,7 +17,9 @@ import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import { holdAttention } from "@/lib/learn/guide/attention";
 import { DSA_LANG_LABEL, type DsaLang } from "@/lib/dsa/types";
-import { awardDsaWelcome, DSA_START_LEVEL } from "@/lib/dsa/rewards";
+import { awardKeys, DSA_START_BELT, DSA_WELCOME_BONUS } from "@/lib/dsa/rewards";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
+import { BeltSwatch } from "@/components/dsa/rewards/BeltSwatch";
 import type { TopicId } from "@/lib/dsa/onboarding/puzzles";
 import { FRONT_REGION, KNOW_LABEL, TOPICS, type Know } from "@/lib/dsa/onboarding/topics";
 import {
@@ -126,6 +128,7 @@ function TopicCard({ id, know, onFlip }: { id: TopicId; know: Know; onFlip: () =
 export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onClose: () => void }) {
   const { user, profile } = useAuth();
   const { flags, setFlag } = useGame();
+  const { grant: grantBits } = useDsaAward();
   const reduced = useReducedMotion();
   const guestWelcome = useWelcome();
   const [lang, setLang] = useLang();
@@ -223,7 +226,8 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
     if (exp === "experienced") setDsaFull(true);
     else if (exp === "new") setDsaFull(false);
     saveWelcome({ exp, goal, skipped: false });
-    const bonus = awardDsaWelcome(flags, setFlag);
+    // the welcome bonus: DSA Mastery Bits once per account (never SD Mastery XP)
+    const bonus = grantBits(awardKeys.welcome(), DSA_WELCOME_BONUS.amount, "Welcome to DSA Mastery") > 0;
     track("dsa_onboarding_done", {
       start: rec.region,
       exp,
@@ -237,7 +241,7 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
       bonus,
       rerun,
     });
-  }, [saved, sniff, knows, effMinutes, goal, effLang, exp, rec.region, prior, setFlag, setLang, flags, claimed, codeCount, rerun]);
+  }, [saved, sniff, knows, effMinutes, goal, effLang, exp, rec.region, prior, setFlag, setLang, grantBits, claimed, codeCount, rerun]);
 
   const go = (n: number) => {
     if (n === 2) {
@@ -284,7 +288,7 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
     start: step >= 4 ? regionTitle : null,
     pace: step >= 4 ? `${MINUTES.find((m) => m.id === effMinutes)?.label} a day · ${DSA_LANG_LABEL[effLang]}` : null,
     goal: step >= 4 && goal ? GOAL_LABEL[goal] : null,
-    level: step >= 4 ? `Level ${DSA_START_LEVEL.level} · ${DSA_START_LEVEL.name}` : null,
+    belt: step >= 4 ? `${DSA_START_BELT.name} belt · ${DSA_WELCOME_BONUS.amount} ${DSA_WELCOME_BONUS.unit}` : null,
   };
   const cardUrl = `/api/dsa/id-card?${new URLSearchParams({ n: fullName || "New learner", s: regionTitle, k: String(codeCount), g: goal ? GOAL_LABEL[goal] : "", m: `${effMinutes} min`, no }).toString()}`;
   const [shareMsg, setShareMsg] = useState("");
@@ -440,8 +444,14 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
                     <IdCard f={card} />
                   </div>
                   <span className="ob-stamp inline-flex items-center gap-2 self-start border-2 border-signal px-3 py-1.5 font-mono text-[12px] font-semibold uppercase tracking-label text-signal-text">
-                    <Check className="h-4 w-4" aria-hidden /> Welcome bonus unlocked
+                    <Check className="h-4 w-4" aria-hidden /> +{DSA_WELCOME_BONUS.amount} {DSA_WELCOME_BONUS.unit} welcome bonus
                   </span>
+                  <p className="m-0 flex items-center gap-2 text-[14px] leading-snug text-fg-2">
+                    <BeltSwatch belt={DSA_START_BELT} />
+                    <span>
+                      You start on the <strong className="text-fg">{DSA_START_BELT.name} belt</strong>. Lessons, problems and daily streaks earn Bits, and Bits earn belts. Belts only show progress: nothing is ever locked.
+                    </span>
+                  </p>
                   <p className="m-0 font-mono text-[12px] text-fg-3">Your answers stay on your account. Redo this any time from the menu.</p>
                   <div className="flex flex-wrap items-center gap-2">
                     <button type="button" onClick={share} className="inline-flex min-h-11 items-center gap-2 border border-line-strong bg-surface px-4 text-[14px] font-semibold text-fg hover:border-fg">

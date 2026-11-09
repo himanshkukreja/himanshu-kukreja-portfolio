@@ -19,7 +19,9 @@ import { useGame } from "@/game/GameProvider";
 import { supabaseClient } from "@/lib/supabase-client";
 import { readGuestLesson, readGuestProgress, recordLearningActivity, saveRemoteLesson, writeGuestLesson } from "@/components/learn/lesson/progress";
 import { track } from "@/lib/track";
-import { DSA_COURSE_ID, DSA_PROBLEMS_WEEK, dsaKeys, problemXp, type DsaLang, type DsaLevel } from "@/lib/dsa/types";
+import { DSA_COURSE_ID, DSA_PROBLEMS_WEEK, dsaKeys, type DsaLang, type DsaLevel } from "@/lib/dsa/types";
+import { awardKeys, solveBits } from "@/lib/dsa/rewards";
+import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
 import type { ProgressSignals } from "@/lib/dsa/map/progress";
 
 type Row = { week: string; lesson_slug: string; status: string | null };
@@ -123,21 +125,28 @@ export function useDsaProgress(): DsaProgress {
   }, [done, rows, hydrated, loaded, userId]);
 }
 
-/** Record an accepted solve: XP once, the progress row (or guest record), the streak and the event. */
+export type SolveResult = { bits: number; parts: { label: string; bits: number }[]; first: boolean };
+
+/**
+ * Record an accepted (judge or harness verified) solve: the problem's Bits once (src/lib/dsa/rewards.ts solveBits: the
+ * level's base, +first try, +no hints; a quarter of the base when the editorial was opened first), the map's solved
+ * key, the progress row (or guest record), the streak and the event. Never SD Mastery XP.
+ */
 export function useRecordSolve() {
   const { user } = useAuth();
-  const { awardOnce } = useGame();
+  const { grant } = useDsaAward();
   const userId = user?.id ?? null;
   return useCallback(
-    async (p: { id: string; title: string; level: DsaLevel; lang: DsaLang; hintsUsed: number; editorialSeen: boolean }) => {
-      // opening the editorial first forfeits the XP (plan §7.4); the solve itself still counts
-      const xp = p.editorialSeen ? 0 : awardOnce(dsaKeys.problem(p.id), problemXp(p.level), `${p.title} · solved`);
-      track("dsa_submit", { problem: p.id, lang: p.lang, verdict: "AC", first: xp > 0, hints: p.hintsUsed });
+    async (p: { id: string; title: string; level: DsaLevel; lang: DsaLang; hintsUsed: number; editorialSeen: boolean; firstTry: boolean }): Promise<SolveResult> => {
+      const s = solveBits({ level: p.level, firstTry: p.firstTry, noHints: p.hintsUsed === 0, editorialFirst: p.editorialSeen });
+      const gained = grant(awardKeys.solve(p.id), s.bits, `${p.title} · solved`, { also: [dsaKeys.problem(p.id)] });
+      const res: SolveResult = { bits: gained, parts: s.parts, first: gained > 0 };
+      track("dsa_submit", { problem: p.id, lang: p.lang, verdict: "AC", first: gained > 0, hints: p.hintsUsed, bits: gained });
       const prev = readGuestLesson(DSA_COURSE_ID, DSA_PROBLEMS_WEEK, p.id);
       const langs = Array.from(new Set([...(prev?.stages ?? []), p.lang]));
       const now = Date.now();
       writeGuestLesson(DSA_COURSE_ID, DSA_PROBLEMS_WEEK, p.id, { stages: langs, last: p.lang, completed: true, completedAt: prev?.completedAt ?? now, max: 100, updatedAt: now });
-      if (!userId) return xp;
+      if (!userId) return res;
       const iso = new Date().toISOString();
       await saveRemoteLesson({
         userId,
@@ -154,8 +163,8 @@ export function useRecordSolve() {
         contentVersion: "",
       });
       await recordLearningActivity(userId);
-      return xp;
+      return res;
     },
-    [awardOnce, userId],
+    [grant, userId],
   );
 }

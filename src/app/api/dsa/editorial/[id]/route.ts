@@ -9,7 +9,7 @@ import { forgetUnlocks } from "@/lib/dsa/ai/unlock";
 /**
  * GET /api/dsa/editorial/<id> → { html, video }: a problem's editorial with its four reference solutions, and its solution
  * video when one is published (lib/dsa/media.ts solutionVideoFor; null otherwise). Fetched by the problem
- * room only after an accepted solve, three failed submits, or "show the editorial" (which forfeits the solve XP), so the
+ * room only after an accepted solve, three failed submits, or "show the editorial" (solving after that earns a quarter of the Bits), so the
  * page itself never carries it. 404 in "soon" mode.
  */
 export const runtime = "nodejs";

@@ -11,7 +11,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import ExplainBack from "@/components/learn/ai/ExplainBack";
+import DsaExplainBack from "@/components/dsa/rewards/DsaExplainBack";
 import type { StructurePage } from "@/lib/dsa/structures";
 import { CheckpointGate, CodeTabs, Poll, ReviewCards } from "../concept/widgets";
 import LessonClip from "../clip/LessonClip";
@@ -87,7 +87,7 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         else if (h.kind === "explainback")
           el = (
             <div className="dsa-ui px-4 pb-4">
-              <ExplainBack conceptId={page.id} term={page.title} course="dsa" />
+              <DsaExplainBack conceptId={page.id} term={page.title} />
             </div>
           );
         else if (h.kind === "checkpoint") el = <CheckpointGate fig={h.fig} checkpoint={page.checkpoint} />;

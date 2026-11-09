@@ -206,38 +206,21 @@ export type ProblemPage = {
   next: ProblemSummary | null;
 };
 
-/* ------------------------------------------------------------------ XP (plan §4.5) */
+/* ------------------------------------------------------------------ progress keys */
 
-export const DSA_XP = { concept: 60, stage: 10, easy: 20, medium: 40, hard: 80, checkpointQuiz: 10, trace: 5, gate: 50, boss: 200, world: 500, daily: 15 } as const;
-
-export const problemXp = (level: DsaLevel) => DSA_XP[level] ?? DSA_XP.medium;
-
-/** game_done keys (synced like every other quest; src/game/useGameSync.ts xpOfKey knows their XP) */
+/**
+ * game_done keys (synced like every other quest). They are DSA progress, worth DSA Mastery's own Bits
+ * (src/lib/dsa/rewards.ts) and never SD Mastery XP (src/game/useGameSync.ts xpOfKey gives dsa:* keys 0).
+ */
 export const dsaKeys = {
   problem: (id: string) => `dsa:p:${id}`,
   concept: (id: string) => `dsa:c:${id}`,
   stage: (concept: string, stage: string) => `dsa:s:${concept}/${stage}`,
   checkpointQuiz: (nodeId: string) => `dsa:cpq:${nodeId}`,
+  trace: (id: string) => `dsa:tr:${id}`,
+  lab: (id: string) => `dsa:lab:${id}`,
   gate: (world: string, region: string, n: string | number) => `dsa:gate:${world}:${region}:${n}`,
 };
-
-/**
- * XP a DSA game_done key is worth, for merging a device's keys into the account (useGameSync mergeGame). A problem's
- * level isn't in its key, so a merge counts it as Medium; the solve itself awards the exact amount.
- */
-export function dsaXpOfKey(key: string): number {
-  if (key.startsWith("dsa:c:")) return DSA_XP.concept;
-  if (key.startsWith("dsa:s:")) return DSA_XP.stage;
-  if (key.startsWith("dsa:p:")) return DSA_XP.medium;
-  if (key.startsWith("dsa:cpq:")) return DSA_XP.checkpointQuiz;
-  if (key.startsWith("dsa:tr:")) return DSA_XP.trace;
-  if (key.startsWith("dsa:gate:")) return DSA_XP.gate;
-  if (key.startsWith("dsa:boss:")) return DSA_XP.boss;
-  if (key.startsWith("dsa:world:")) return DSA_XP.world;
-  if (key.startsWith("dsa:daily:")) return DSA_XP.daily;
-  if (key.startsWith("dsa:lab:")) return DSA_XP.easy * 2; // a structure lesson's build-it lab
-  return 0;
-}
 
 /** learning_progress rows for DSA (course_id 'dsa'): lessons are week=<module>, lesson_slug=<concept>; problems week='problems'. */
 export const DSA_COURSE_ID = "dsa";
