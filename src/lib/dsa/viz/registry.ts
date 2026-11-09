@@ -8,6 +8,7 @@ import { memoryPicture } from "./memory";
 import { makeQueue, queueMemoryPicture, runQueueOp, QUEUE_OPS, type QueueOp, type QueueOpName } from "./queue";
 import { makeStack, runStackOp, stackMemoryPicture, STACK_OPS, type StackOp, type StackOpName } from "./stack";
 import { makeTree, runTreeOp, treeMemoryPicture, TREE_OPS, type TreeOp, type TreeOpName } from "./tree";
+import { heapMemoryPicture, HEAP_OPS, makeHeap, rawHeap, runHeapOp, type HeapOp, type HeapOpName } from "./heap";
 import type { Frame, Script } from "./types";
 import { gridSearch, parseGrid } from "./grid";
 
@@ -17,7 +18,7 @@ export type SandboxDemo = {
   view?: "list" | "memory";
   start: number[];
   /** a linked-list demo's operations, or (stack sandboxes) a stack's */
-  ops?: ({ op: ListOpName | StackOpName | QueueOpName | TreeOpName; value?: number; index?: number })[];
+  ops?: ({ op: ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName; value?: number; index?: number })[];
   doubly?: boolean;
   /** stack demos: how the stack is stored (default array) and the cells the array starts with */
   backing?: "array" | "linked" | "ring" | "list" | "doubly";
@@ -32,11 +33,11 @@ export type SandboxDemo = {
 
 export type SandboxSpec = {
   id: string;
-  structure: "linked-list" | "stack" | "queue" | "tree";
+  structure: "linked-list" | "stack" | "queue" | "tree" | "heap";
   title: string;
   start: number[];
-  operations: (ListOpName | StackOpName | QueueOpName | TreeOpName)[];
-  variants: ("singly" | "doubly" | "array" | "linked" | "ring" | "bst")[];
+  operations: (ListOpName | StackOpName | QueueOpName | TreeOpName | HeapOpName)[];
+  variants: ("singly" | "doubly" | "array" | "linked" | "ring" | "bst" | "min" | "max")[];
   /** stack sandboxes: the array's starting cells */
   capacity?: number;
   limits: { nodes: number; value: [number, number] };
@@ -49,6 +50,7 @@ export const SANDBOX_STRUCTURES = {
   stack: { ops: STACK_OPS, variants: ["array", "linked"] as const, demoViews: ["stack", "memory"] as const },
   queue: { ops: QUEUE_OPS, variants: ["ring", "linked", "doubly"] as const, demoViews: ["queue", "memory"] as const },
   tree: { ops: TREE_OPS, variants: ["bst"] as const, demoViews: ["tree", "memory"] as const },
+  heap: { ops: HEAP_OPS, variants: ["min", "max"] as const, demoViews: ["heap", "memory"] as const },
 };
 
 const toTreeOp = (o: NonNullable<SandboxDemo["ops"]>[number]): TreeOp | null => {
@@ -125,6 +127,7 @@ export function demoScript(d: SandboxDemo, structure: SandboxSpec["structure"] =
   if (structure === "stack") return stackDemoScript(d);
   if (structure === "queue") return queueDemoScript(d);
   if (structure === "tree") return treeDemoScript(d);
+  if (structure === "heap") return heapDemoScript(d);
   if (d.view === "memory") return memoryPicture(d.start) as Script;
   let list = makeList(d.start, { doubly: d.doubly, tail: d.tail });
   const frames: Frame<unknown>[] = [];
@@ -209,6 +212,29 @@ function treeDemoScript(d: SandboxDemo): Script {
     tree = r.tree;
   }
   return { view: "tree", title: d.title, costUnit: "steps", frames, result: results.join("; ") || undefined };
+}
+
+/**
+ * A heap demo as one script: its start values are pushed in order into an empty min-heap, then its ops run in order, the cost
+ * running on across them. With a `heapify` op the start values are laid out as given instead, and with `topk` they are the stream.
+ */
+function heapDemoScript(d: SandboxDemo): Script {
+  if (d.view === "memory") return heapMemoryPicture(d.start) as Script;
+  const first = (d.ops || [])[0]?.op;
+  let heap = first === "heapify" || first === "topk" ? rawHeap(d.start) : makeHeap(d.start);
+  const frames: Frame<unknown>[] = [];
+  let base = 0;
+  const results: string[] = [];
+  for (const raw of d.ops || []) {
+    const op: HeapOp | null = raw.op === "push" ? { op: "push", value: Number(raw.value ?? 0) } : raw.op === "topk" ? { op: "topk", value: Number(raw.value ?? 3) } : raw.op === "pop" || raw.op === "peek" || raw.op === "heapify" ? { op: raw.op } : null;
+    if (!op) continue;
+    const r = runHeapOp(heap, op, { predict: d.predict });
+    for (const f of r.script.frames) frames.push({ ...f, cost: base + f.cost });
+    base += r.script.frames[r.script.frames.length - 1]?.cost ?? 0;
+    if (r.script.result) results.push(r.script.result);
+    heap = r.heap;
+  }
+  return { view: "heap", title: d.title, costUnit: "steps", frames, result: results.join("; ") || undefined };
 }
 
 /* ------------------------------------------------------------------ algorithm visualizers (Academy Part 3) */

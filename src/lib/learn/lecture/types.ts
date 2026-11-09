@@ -61,6 +61,10 @@ export type LectureStep = {
   found?: number;
   seq?: number[];
   seqTitle?: string;
+  /** DSA heap scenes: the heap's array after this step (a step without it keeps the last array), and two indexes swapped or compared this step */
+  values?: number[];
+  swap?: number[];
+  compare?: number[];
 };
 export type SceneKind =
   | "title"
@@ -84,7 +88,8 @@ export type SceneKind =
   | "grid"
   | "stack"
   | "queue"
-  | "tree";
+  | "tree"
+  | "heap";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -141,6 +146,10 @@ export type LectureScene = {
   rightOf?: (number | null)[];
   root?: number;
   levels?: boolean;
+  /** DSA heap: `values` is the heap's array; write each cell's index, what to draw (the tree and the array, only the tree, or only the array) and min-heap or max-heap */
+  indexes?: boolean;
+  view?: "both" | "tree" | "array";
+  kindOfHeap?: "min" | "max";
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

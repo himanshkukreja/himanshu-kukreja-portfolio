@@ -149,7 +149,9 @@ function End({ s }: { s: StructurePage }) {
                 ? "Short problems that use the queue you just built: counting recent requests, a moving average, a simulation that sends items to the back, a stack made from queues and a ring of log lines. The first ones are easy; the last one is a step up, and each says so."
                 : s.structure === "tree"
                   ? "Short problems that walk the trees you just met: the total size of a folder, the levels of an org chart, a mirrored menu, a price tree that must follow the search rule, and a thread listed row by row. Each takes a tree as arrays of left and right children. The first ones are easy; the last two are a step up."
-                  : "Short problems on the operations you just built."}
+                  : s.structure === "heap"
+                    ? "Short problems that use the heap you just built: pressing the two heaviest parcels, the kth best score of a stream, the cheapest few offers, the busiest endpoints and the nearest drivers. Most keep only the best k items in a small heap. The first ones are easy; the last two are a step up."
+                    : "Short problems on the operations you just built."}
       </p>
       <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
         {s.practice.map((p, i) => (

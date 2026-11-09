@@ -7,3 +7,4 @@ export const loadGridVisualizer = () => import("../algorithm/GridVisualizer");
 export const loadFunctionLab = () => import("../algorithm/FunctionLab");
 export const loadQueueSandbox = () => import("./QueueSandbox");
 export const loadTreeSandbox = () => import("./TreeSandbox");
+export const loadHeapSandbox = () => import("./HeapSandbox");

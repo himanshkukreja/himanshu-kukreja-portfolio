@@ -15,9 +15,10 @@ import DsaExplainBack from "@/components/dsa/rewards/DsaExplainBack";
 import type { StructurePage } from "@/lib/dsa/structures";
 import { CheckpointGate, CodeTabs, Poll, ReviewCards } from "../concept/widgets";
 import LessonClip from "../clip/LessonClip";
-import { loadFunctionLab, loadGridVisualizer, loadQueueSandbox, loadStackSandbox, loadStructureLab, loadStructureSandbox, loadTreeSandbox, loadVizDemo } from "./lazy";
+import { loadFunctionLab, loadGridVisualizer, loadHeapSandbox, loadQueueSandbox, loadStackSandbox, loadStructureLab, loadStructureSandbox, loadTreeSandbox, loadVizDemo } from "./lazy";
 
 const Sandbox = dynamic(loadStructureSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
+const HeapSandbox = dynamic(loadHeapSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
 const TreeSandbox = dynamic(loadTreeSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
 const QueueSandbox = dynamic(loadQueueSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
 const StackSandbox = dynamic(loadStackSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
@@ -77,7 +78,7 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         else if (h.kind === "poll") el = <Poll fig={h.fig} conceptId={page.id} />;
         else if (h.kind === "clip" && page.clips?.[id]) el = <Hydrated fig={h.fig}><LessonClip clip={page.clips[id]} fig={h.fig} /></Hydrated>;
         else if (h.kind === "viz" && page.demos[id]) el = <Hydrated fig={h.fig}><VizDemo demo={page.demos[id]} structure={page.sandbox?.structure} /></Hydrated>;
-        else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}>{page.sandbox.structure === "stack" ? <StackSandbox spec={page.sandbox} /> : page.sandbox.structure === "queue" ? <QueueSandbox spec={page.sandbox} /> : page.sandbox.structure === "tree" ? <TreeSandbox spec={page.sandbox} /> : <Sandbox spec={page.sandbox} />}</Hydrated>;
+        else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}>{page.sandbox.structure === "stack" ? <StackSandbox spec={page.sandbox} /> : page.sandbox.structure === "queue" ? <QueueSandbox spec={page.sandbox} /> : page.sandbox.structure === "tree" ? <TreeSandbox spec={page.sandbox} /> : page.sandbox.structure === "heap" ? <HeapSandbox spec={page.sandbox} /> : <Sandbox spec={page.sandbox} />}</Hydrated>;
         else if (h.kind === "visualizer" && page.visualizer && page.visualizer.id === id) el = <Hydrated fig={h.fig}><GridVisualizer spec={page.visualizer} /></Hydrated>;
         else if (h.kind === "lab" && page.lab && page.lab.spec.id === id)
           el = (

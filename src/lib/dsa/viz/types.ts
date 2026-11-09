@@ -5,7 +5,7 @@
  *   a Frame    = the structure's state at that step + a one-line narration + the running cost (+ optional
  *                predict-then-reveal question, code marker and variable table)
  *   a View     = a component that draws one kind of state (views.tsx): "list" (linked lists), "array",
- *                "memory" (array vs list in memory), "grid", "stack", "queue" (ring buffer, linked queue, deque, sliding-window maximum), "tree" (binary search tree: nodes, links, a highlighted path, the four walks); later "heap", "graph"
+ *                "memory" (array vs list in memory), "grid", "stack", "queue" (ring buffer, linked queue, deque, sliding-window maximum), "tree" (binary search tree: nodes, links, a highlighted path, the four walks); "heap" (a binary heap in an array, drawn as a tree and as the array); later "graph"
  *   a Generator = a pure function (state, args) → frames: the sandbox's operations (list.ts) and the algorithm
  *                step-throughs (algorithms.ts: binary search, insertion sort, and any generated trace via fromTrace)
  *
@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -208,4 +208,35 @@ export type TreeState = {
   levels: boolean;
   /** an address under each node (the memory picture), with a null stub under each missing child */
   addrs: Record<NodeId, number>;
+};
+
+/* ------------------------------------------------------------------ the heap state ("heap" view) */
+
+/**
+ * A binary heap as drawn: its array (index 0 first), shown as a complete tree and as a row of cells under it. A step lights
+ * the two cells being compared, the two just swapped, the cell being worked on, and the path an item has climbed or sunk.
+ */
+export type HeapState = {
+  /** the heap's array, cell by cell */
+  values: string[];
+  /** the two indexes being compared this step */
+  compare: [number, number] | null;
+  /** the two indexes just swapped this step */
+  swap: [number, number] | null;
+  /** the cell being worked on */
+  current: number | null;
+  /** cells lit this step */
+  mark: number[];
+  /** indexes along the path walked (parent to child, ascending) */
+  path: number[];
+  /** named pills beside cells (parent, left, right, ...) */
+  labels: Record<string, number | null>;
+  /** a short result chip ("5 on top") */
+  out: string | null;
+  /** write each cell's index under it */
+  indexes: boolean;
+  /** what to draw: the tree and the array (default), only the tree, or only the array */
+  show: "both" | "tree" | "array";
+  /** a min-heap (default) or a max-heap: names the picture */
+  kind: "min" | "max";
 };
