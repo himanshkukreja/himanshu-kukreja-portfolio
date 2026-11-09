@@ -114,7 +114,7 @@ for (const s of L.scenes || []) {
   }
 }
 // course lessons have their own ranges (resources/lectures/README.md, "Course lessons")
-const RANGES = { clip: [24, 52, 0, 0, 1, 1], solution: [550, 1100, 0, 1, 8, 18], concept: [1200, 2400, 2, 4, 14, 28], quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10], short: [150, 270, 0, 0, 5, 9] };
+const RANGES = { clip: [55, 85, 0, 0, 1, 1], solution: [550, 1100, 0, 1, 8, 18], concept: [1200, 2400, 2, 4, 14, 28], quest: [1700, 2300, 3, 4, 16, 24], preview: [900, 1600, 1, 2, 8, 14], lesson: [2100, 3400, 3, 5, 20, 34], capstone: [2700, 3900, 3, 5, 24, 38], problem: [1900, 2900, 3, 4, 18, 30], lld: [1900, 2900, 3, 4, 18, 30], case: [1500, 2600, 2, 4, 14, 26], interview: [5000, 7800, 0, 3, 28, 80], story: [330, 560, 0, 1, 6, 10], short: [150, 270, 0, 0, 5, 9] };
 const kind = L.short ? "short" : L.clip ? "clip" : L.solution ? "solution" : L.dsa ? "concept" : L.lesson ? L.lesson.kind : "quest";
 // a DSA lesson's in-article clip: one scene, 20-30 s (about 55-80 words at the voice's 3 words a second plus the
 // 0.45 s beat between steps), no quiz; it records at 1280x720 with no music (export.mjs)
