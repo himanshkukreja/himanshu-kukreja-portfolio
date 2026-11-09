@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { REVIEW_CHANGED_EVENT, loadReviewCards, localDate, type ReviewCard } from "./review";
 
@@ -19,7 +19,11 @@ function load(key: string): Promise<ReviewCard[]> {
   return p;
 }
 
-export function useReviewCards() {
+/**
+ * `scope` "sdm" (the default: every consumer in System Design Mastery) leaves out DSA Mastery's cards (course_id 'dsa',
+ * its own Revise page), so SD Mastery's standup, badges and counts are what they were; "dsa" returns only those.
+ */
+export function useReviewCards(scope: "sdm" | "dsa" = "sdm") {
   const { user, loading } = useAuth();
   const [cards, setCards] = useState<ReviewCard[] | null>(null);
   const uid = user?.id || "guest";
@@ -45,6 +49,7 @@ export function useReviewCards() {
   }, [uid, loading]);
 
   const today = localDate();
-  const due = cards ? cards.filter((c) => c.dueAt <= today) : [];
-  return { ready: cards !== null, cards: cards || [], due, dueCount: due.length };
+  const mine = useMemo(() => (cards ? cards.filter((c) => (scope === "dsa" ? c.courseId === "dsa" : c.courseId !== "dsa")) : null), [cards, scope]);
+  const due = mine ? mine.filter((c) => c.dueAt <= today) : [];
+  return { ready: mine !== null, cards: mine || [], due, dueCount: due.length };
 }
