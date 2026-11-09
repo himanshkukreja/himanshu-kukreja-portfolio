@@ -101,9 +101,9 @@ export const FEATURES: Feature[] = [
   },
   {
     tag: "Progress",
-    title: "Lectures, shorts, points and leagues",
+    title: "Lectures, shorts, Bits and belts",
     body: "A narrated lecture and short clips for every concept, and progress you can see on the world map.",
-    points: ["Points from verified solves only", "Weekly leagues, friends and cohorts", "One profile and XP total with System Design Mastery", "Verified certificates"],
+    points: ["Bits for verified solves, lessons and daily streaks", "Belts from White to Black, and a weekly leaderboard", "One profile with System Design Mastery, each course with its own rewards", "Verified certificates"],
   },
 ];
 
@@ -139,7 +139,7 @@ export const FAQ: { q: string; a: string }[] = [
   },
   {
     q: "Do I need System Design Mastery first?",
-    a: "No. DSA Mastery starts from zero. Both courses share one account, one profile and one XP total, and lessons link to each other where a data structure powers a real system.",
+    a: "No. DSA Mastery starts from zero. Both courses share one account and one profile (each keeps its own rewards: XP in System Design Mastery, Bits and belts here), and lessons link to each other where a data structure powers a real system.",
   },
   {
     q: "What are the problems set in?",

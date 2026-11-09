@@ -190,7 +190,7 @@ export default function DsaComingSoon() {
           <div className="flex flex-col gap-4">
             <SectionHead id="bridge-h" label="Two courses, one account" title="Connected to System Design Mastery">
               The everyday apps behind the problems are the systems System Design Mastery teaches. Each data structure links to the real system that depends on it, and both courses share
-              your sign-in, profile, streak and XP.
+              your sign-in, profile and streak. DSA Mastery has its own Bits and belts, shown beside your XP on one profile.
             </SectionHead>
             <Link href="/" className="inline-flex min-h-12 items-center self-start border border-fg bg-fg px-5 text-[15px] font-semibold text-bg hover:opacity-90">
               Explore System Design Mastery →

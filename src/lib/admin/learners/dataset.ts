@@ -3,6 +3,7 @@ import { adminEmails } from "@/lib/admin/auth";
 import { supabase } from "@/lib/supabase";
 import { allEvents, invalidateEventStore } from "@/lib/admin/eventStore";
 import { isLikelyBot } from "@/lib/admin/traffic/model";
+import { isCourseVisit } from "@/lib/learn/paths";
 import type { Features } from "./types";
 
 /**
@@ -177,7 +178,7 @@ async function load(): Promise<Dataset> {
     readAll<Dataset["bookmarks"][number]>("bookmarks", "id,user_id,course_id,week,lesson_slug,created_at"),
     readAll<Dataset["comments"][number]>("lesson_comments", "id,user_id,course_id,week,lesson_slug,created_at"),
     // signed-in rows and course pages, from the shared copy (eventStore.ts) instead of a full table read each time
-    allEvents().then((rows) => rows.filter((e) => e.user_id || String(e.page_path ?? "").startsWith("/learn/")) as unknown as EventRow[]),
+    allEvents().then((rows) => rows.filter((e) => e.user_id || isCourseVisit(e.page_path as string | null)) as unknown as EventRow[]),
     readAll<Dataset["trials"][number]>("trial_attempts", "id,user_id,week,part,score,total,passed,finished_at,started_at", (q) => q, true),
   ]);
 
