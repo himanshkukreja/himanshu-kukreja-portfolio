@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * An in-article clip (`::clip[id]` in a visual lesson; dsa-mastery clips.json): a 10-20 s video of one lecture scene,
+ * An in-article clip (`::clip[id]` in a visual lesson; dsa-mastery clips.json): a 20-30 s video of one lecture scene,
  * recorded by scripts/lecture/export.mjs at 1280x720 with the narration as its audio track and no music.
  *
  * - Scrolled into view, it plays muted on a loop; scrolled away, it pauses. Nothing downloads until it is near.
