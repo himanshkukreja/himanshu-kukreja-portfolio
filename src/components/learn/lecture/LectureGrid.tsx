@@ -56,6 +56,7 @@ const TRACK_LABEL: Record<LectureSummary["track"], string> = {
   lld: "Low-level design",
   cases: "Case files",
   stories: "War stories",
+  dsa: "DSA Mastery",
 };
 
 /** "W04 · Caching" → "Week 4 · Caching"; other sections keep their names. */
@@ -276,7 +277,7 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
                       <span className="relative aspect-video w-[112px] shrink-0 overflow-hidden bg-[#0b0b0c] sm:w-[156px]">
                         <Poster l={l} mediaBase={mediaBase} eager />
                         <span className="absolute inset-0 grid place-items-center">
-                          <span className="grid h-9 w-9 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_18px_rgba(255,107,43,0.5)]">
+                          <span className="grid h-9 w-9 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_18px_color-mix(in_srgb,var(--c-signal)_50%,transparent)]">
                             <svg viewBox="0 0 24 24" className="h-4 w-4 translate-x-[1px]" fill="currentColor" aria-hidden>
                               <path d="M7 4l13 8-13 8z" />
                             </svg>
@@ -290,7 +291,7 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
                       </span>
                       <span className="flex min-w-0 flex-col gap-1">
                         <span className="truncate font-mono text-[10px] uppercase tracking-label text-fg-3">
-                          {l.code} · {l.group.replace(/^W\d+\s*·\s*/, "")}
+                          {l.code} · {l.group.replace(/^W\d+\s*·\s*/, "").replace(`${l.code} · `, "")}
                         </span>
                         <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-fg group-hover:text-signal-text">{l.title}</span>
                         <span className="font-mono text-[11px] text-fg-3">{resume ? `resume at ${fmt(resume)} · ${watchedPct(p)}% watched` : `${l.minutes} min`}</span>
@@ -339,7 +340,7 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
                         <span className="absolute bottom-2 right-2 bg-black/75 px-1.5 py-0.5 font-mono text-[11px] text-[#f3f2ee]">{l.minutes} min</span>
                         {done && <span className="absolute bottom-2 left-2 bg-signal px-1.5 py-0.5 font-mono text-[11px] font-semibold text-on-signal">✓ watched</span>}
                         <span className="absolute inset-0 grid place-items-center opacity-0 transition-opacity group-hover:opacity-100">
-                          <span className="grid h-12 w-12 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_24px_rgba(255,107,43,0.5)]">
+                          <span className="grid h-12 w-12 place-items-center rounded-full bg-signal text-on-signal shadow-[0_0_24px_color-mix(in_srgb,var(--c-signal)_50%,transparent)]">
                             <svg viewBox="0 0 24 24" className="h-5 w-5 translate-x-[1px]" fill="currentColor" aria-hidden>
                               <path d="M7 4l13 8-13 8z" />
                             </svg>

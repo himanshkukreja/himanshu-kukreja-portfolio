@@ -8,12 +8,18 @@
  * Layout (container units of the 9:16 box): a slim header with where it comes from, the scene in the
  * middle (stacked layouts: numbers in a column, compare top/bottom, a vertical timeline, horizontal bars,
  * diagrams drawn top-down), big burned-in captions, and a footer with progress and the full lecture.
+ * DSA Mastery shorts (lecture.dsa) add its scene kinds (quote, array, trace, race, code: DsaShortScenes.tsx) and turn
+ * the accent teal: every accent here is --lec-accent, which falls back to SD Mastery's orange.
  */
 import { type FlatStep, type Lecture, type LectureScene, type LectureStep, type Tone } from "@/lib/learn/lecture/types";
 import { clamp, countUp, lerp, prog, TONE } from "./anim";
-import { DiagramScene, Item, revealed } from "./Stage";
+import { DiagramScene, DSA_ACCENT, Item, revealed } from "./Stage";
+import { PArray, PCode, PQuote, PRace, PTrace } from "./DsaShortScenes";
 
 const W = "text-[#f3f2ee]";
+/** the accent (SD Mastery orange; DSA_ACCENT turns it teal on a DSA short), its rgb triplet, its dark tint and ink */
+const ACC = "var(--lec-accent,#ff6b2b)";
+const accA = (a: number) => `rgb(var(--lec-accent-rgb, 255 107 43) / ${a})`;
 
 type Props = { lecture: Lecture; flat: FlatStep[]; i: number; t: number; dur: number; onReady?: (i: number) => void };
 
@@ -121,16 +127,17 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
   const dup = s.kind === "title" && sayWords.length > 0 && sayWords.filter((w) => headingWords.has(w)).length / sayWords.length > 0.6;
 
   const sticker = st.caption ? back((t - 0.06) / 0.3) : 0;
+  const dsa = !!lecture.dsa;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] [container-type:size]">
+    <div className="relative h-full w-full overflow-hidden bg-[#0b0b0c] [container-type:size]" style={dsa ? DSA_ACCENT : undefined}>
       {/* backdrop: the blueprint grid, drifting, and a warm glow */}
       <div
         aria-hidden
         className="absolute -inset-[4%] opacity-[0.35] [background-image:linear-gradient(#1a1a1d_1px,transparent_1px),linear-gradient(90deg,#1a1a1d_1px,transparent_1px)] [background-size:6cqw_6cqw]"
         style={{ transform: `translateY(${(-((i + clamp(t / Math.max(dur, 0.5))) * 0.6) % 6)}cqw)` }}
       />
-      <div aria-hidden className="absolute -right-[30%] -top-[10%] h-[50%] w-[100%] rounded-full bg-[radial-gradient(closest-side,rgba(255,107,43,0.16),transparent)]" />
+      <div aria-hidden className="absolute -right-[30%] -top-[10%] h-[50%] w-[100%] rounded-full" style={{ background: `radial-gradient(closest-side, ${accA(0.16)}, transparent)` }} />
 
       {/* stories-style progress: one segment per scene */}
       <div className="absolute inset-x-[4%] top-[1.6%] flex gap-[1cqw]">
@@ -143,8 +150,8 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
           );
         })}
       </div>
-      <div className="absolute inset-x-[4%] top-[3.2%] flex items-center gap-[1.6cqw] font-mono text-[2.6cqw] uppercase tracking-[0.12em] text-[#ff6b2b]">
-        <span className="inline-block h-[1.4cqw] w-[1.4cqw] shrink-0 bg-[#ff6b2b]" />
+      <div className="absolute inset-x-[4%] top-[3.2%] flex items-center gap-[1.6cqw] font-mono text-[2.6cqw] uppercase tracking-[0.12em]" style={{ color: ACC }}>
+        <span className="inline-block h-[1.4cqw] w-[1.4cqw] shrink-0" style={{ background: ACC }} />
         <span className="truncate">{label}</span>
       </div>
 
@@ -160,6 +167,11 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
         {s.kind === "chart" && <PChart s={s} st={st} prevSt={prev?.st ?? null} t={t} locale={locale} />}
         {s.kind === "timeline" && <PTimeline s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {s.kind === "phone" && <PPhone s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
+        {s.kind === "quote" && <PQuote s={s} t={t} first={firstOfScene} />}
+        {s.kind === "array" && <PArray s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
+        {s.kind === "trace" && <PTrace s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
+        {s.kind === "race" && <PRace s={s} t={t} first={firstOfScene} />}
+        {s.kind === "code" && <PCode s={s} st={st} prevSt={prev?.st ?? null} t={t} />}
         {hasDiagram && (
           <div className="flex h-full w-full flex-col gap-[2cqh]">
             {s.heading && <h2 className={`m-0 text-center font-display text-[6.4cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>}
@@ -175,7 +187,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
       {/* the beat's sticker: pops onto the visual, tilted */}
       {st.caption && (
         <div className="absolute right-[5%] top-[6.6%] z-10 origin-top-right" style={{ transform: `rotate(-4deg) scale(${sticker})`, opacity: clamp(sticker * 2) }}>
-          <span className="block bg-[#ff6b2b] px-[2.6cqw] py-[0.9cqh] font-mono text-[3.6cqw] font-bold uppercase tracking-[0.04em] text-[#120700] shadow-[0_1.4cqw_3cqw_rgba(0,0,0,0.55)]">
+          <span className="block bg-[var(--lec-accent,#ff6b2b)] px-[2.6cqw] py-[0.9cqh] font-mono text-[3.6cqw] font-bold uppercase tracking-[0.04em] text-[var(--lec-ink,#120700)] shadow-[0_1.4cqw_3cqw_rgba(0,0,0,0.55)]">
             {st.caption}
           </span>
         </div>
@@ -202,7 +214,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
               const word = x.w.replace(/[.,;:]+$/, "");
               // words sit in a flex row with a fixed gap, so the lit word's pop can't close the space beside it
               return (
-                <span key={k} className="inline-block" style={{ color: on ? "#ff6b2b" : "#f3f2ee", transform: `scale(${on ? 1.06 : 1})` }}>
+                <span key={k} className="inline-block" style={{ color: on ? ACC : "#f3f2ee", transform: `scale(${on ? 1.06 : 1})` }}>
                   {word}
                 </span>
               );
@@ -212,18 +224,18 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
       )}
 
       {/* a cut: a quick flash as a new scene lands */}
-      {flash > 0 && <div aria-hidden className="absolute inset-0 bg-[#ff6b2b]" style={{ opacity: flash }} />}
+      {flash > 0 && <div aria-hidden className="absolute inset-0" style={{ opacity: flash, background: ACC }} />}
 
       {/* the end card: the last beat holds ~2 s (export.mjs) on where to go next */}
       {i === flat.length - 1 && (
         <div className="absolute inset-x-[6%] top-[86%] flex flex-col items-center gap-[1.2cqh]" style={{ opacity: clamp((t - 0.3) / 0.4), transform: `translateY(${(1 - clamp((t - 0.3) / 0.4)) * 2}cqh)` }}>
-          <span className="bg-[#ff6b2b] px-[4cqw] py-[1.2cqh] font-mono text-[3.6cqw] font-bold uppercase tracking-[0.06em] text-[#120700]">▶ full lecture + article</span>
+          <span className="bg-[var(--lec-accent,#ff6b2b)] px-[4cqw] py-[1.2cqh] font-mono text-[3.6cqw] font-bold uppercase tracking-[0.06em] text-[var(--lec-ink,#120700)]">▶ full lecture + {dsa ? "lesson" : "article"}</span>
         </div>
       )}
 
       {/* the site, small */}
       <div className="absolute inset-x-0 bottom-[3.2%] text-center font-mono text-[2.6cqw] tracking-[0.06em] text-[#8a8a90]">
-        <span className="text-[#ff6b2b]">~</span>/systemdesignmastery.dev
+        <span style={{ color: ACC }}>~</span>/systemdesignmastery.dev{dsa ? "/dsa" : ""}
       </div>
     </div>
   );
@@ -246,7 +258,7 @@ function PTitle({ s, t, first, fallback }: { s: LectureScene; t: number; first: 
               {w}
               {/* the full stop rides inside the last word, so it can never wrap onto a line of its own */}
               {k === words.length - 1 && (
-                <span className="text-[#ff6b2b]" style={{ opacity: first ? prog(t, 0.2 + words.length * 0.06, 0.3) : 1 }}>
+                <span style={{ color: ACC, opacity: first ? prog(t, 0.2 + words.length * 0.06, 0.3) : 1 }}>
                   {end}
                 </span>
               )}
@@ -274,7 +286,7 @@ function PNumbers({ s, k, t }: { s: LectureScene; k: number; t: number }) {
           <div
             key={j}
             className={`flex flex-col gap-[0.4cqh] border px-[4cqw] ${tight ? "py-[1.3cqh]" : "py-[2.2cqh]"}`}
-            style={{ borderColor: on ? "#ff6b2b" : "#2a2a2e", background: on ? "#1a0f08" : "transparent", opacity: on ? 1 : 0.28, boxShadow: fresh ? `0 0 ${5 * (1 - clamp(t / 1.2))}cqw rgba(255,107,43,0.35)` : "none" }}
+            style={{ borderColor: on ? ACC : "#2a2a2e", background: on ? "var(--lec-accent-bg,#1a0f08)" : "transparent", opacity: on ? 1 : 0.28, boxShadow: fresh ? `0 0 ${5 * (1 - clamp(t / 1.2))}cqw ${accA(0.35)}` : "none" }}
           >
             <span className={`font-display ${tight ? "text-[9.44cqw]" : "text-[11.8cqw]"} font-extrabold leading-none tracking-[-0.03em] ${W} tabular-nums`}>{fresh ? countUp(n.value, e) : n.value}</span>
             <span className={`${tight ? "text-[3.78cqw]" : "text-[4.25cqw]"} leading-snug text-[#a3a3a8]`}>{n.label}</span>
@@ -292,8 +304,10 @@ function PList({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prevSt:
     <div className="flex w-full flex-col gap-[2.4cqh]">
       <h2 className={`m-0 font-display text-[8.02cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       {points.slice(0, now).map((p, k) => (
-        <Item key={k} fresh={k >= before} t={t} k0={k - before} className="flex items-baseline gap-[3cqw] border-l-[0.8cqw] border-[#ff6b2b] bg-[#141416] px-[4cqw] py-[2cqh]">
-          <span className="font-mono text-[4.01cqw] text-[#ff6b2b]">{String(k + 1).padStart(2, "0")}</span>
+        <Item key={k} fresh={k >= before} t={t} k0={k - before} className="flex items-baseline gap-[3cqw] border-l-[0.8cqw] border-[var(--lec-accent,#ff6b2b)] bg-[#141416] px-[4cqw] py-[2cqh]">
+          <span className="font-mono text-[4.01cqw]" style={{ color: ACC }}>
+            {String(k + 1).padStart(2, "0")}
+          </span>
           <span className={`text-[5.43cqw] leading-snug ${W}`}>{p}</span>
         </Item>
       ))}
@@ -328,7 +342,9 @@ function PCompare({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; prev
     <div className="flex w-full flex-col gap-[2cqh]">
       <h2 className={`m-0 font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] ${W}`}>{s.heading}</h2>
       {box(L, 0, "bad")}
-      <div className="text-center font-display text-[5.9cqw] font-extrabold leading-none text-[#ff6b2b]">vs</div>
+      <div className="text-center font-display text-[5.9cqw] font-extrabold leading-none" style={{ color: ACC }}>
+        vs
+      </div>
       {box(R, L.points.length, "good")}
     </div>
   );
@@ -391,7 +407,9 @@ function PTimeline({ s, st, prevSt, t }: { s: LectureScene; st: LectureStep; pre
                 className="absolute -left-[8.4cqw] top-[0.4cqh] block h-[5cqw] w-[5cqw] rounded-full border-[0.7cqw]"
                 style={{ borderColor: tone.line, background: latest ? tone.line : "#0b0b0c", transform: `scale(${fresh ? 0.6 + 0.4 * e : 1})`, boxShadow: latest ? `0 0 3cqw ${tone.line}88` : "none" }}
               />
-              <span className="font-mono text-[4.01cqw] text-[#ff6b2b]">{x.at}</span>
+              <span className="font-mono text-[4.01cqw]" style={{ color: ACC }}>
+                {x.at}
+              </span>
               <span className={`text-[5.19cqw] leading-snug ${latest ? W : "text-[#a3a3a8]"}`}>{x.text}</span>
             </div>
           );

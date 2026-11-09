@@ -132,3 +132,29 @@ export function resolveDsaLecture(
   const { lesson, ...rest } = raw;
   return { ...rest, dsa: { module: lesson?.module || "", concept: lesson?.concept || "" }, scenes };
 }
+
+/** "dsa--<module>--<concept>" (a concept lecture's quest, and its shorts' `short.of`) → its module and concept. */
+export function dsaQuestParts(quest: string): { module: string; concept: string } | null {
+  const m = quest.match(/^dsa--([a-z0-9]+(?:-[a-z0-9]+)*)--([a-z0-9]+(?:-[a-z0-9]+)*)$/);
+  return m ? { module: m[1], concept: m[2] } : null;
+}
+
+/** "shorts--dsa--<module>--<concept>--<slug>" (a DSA short's quest) → where its script lives. */
+export function dsaShortParts(id: string): { module: string; concept: string; slug: string } | null {
+  const m = id.match(/^shorts--dsa--([a-z0-9]+(?:-[a-z0-9]+)*)--([a-z0-9]+(?:-[a-z0-9]+)*)--([a-z0-9]+(?:-[a-z0-9]+)*)$/);
+  return m ? { module: m[1], concept: m[2], slug: m[3] } : null;
+}
+
+/**
+ * A DSA short (resources/modules/<module>/<concept>/shorts/<slug>.json, 9:16): resolved exactly like its concept's
+ * lecture (quote, race, trace and code data inlined), with `dsa` naming the concept from `short.of`, so the short's
+ * stage turns teal and the renderer records it from /dsa/shorts/<quest>. Shared with scripts/lecture/dsa-resolve.mjs.
+ */
+export function resolveDsaShort(
+  raw: RawDsaLecture,
+  src: { lessonMd: string | null; traces: Record<string, RawTrace | null>; races: Record<string, RawRace | null>; cast: Record<string, { name: string; role: string }> },
+): Lecture {
+  const of = dsaQuestParts(raw.short?.of || "");
+  return resolveDsaLecture({ ...raw, lesson: { course: "dsa", module: of?.module || "", concept: of?.concept || "", kind: "short" } }, src);
+}
+
