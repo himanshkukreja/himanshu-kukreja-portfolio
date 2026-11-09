@@ -43,6 +43,15 @@ export type LectureStep = {
   out?: string;
   /** DSA stack scenes: the array's cells from this step on (it grew), overriding the scene's capacity */
   capacity?: number;
+  /** DSA queue scenes: the ring's cell holding the front item (default 0), the end an item in flight is at, the cell it hovers over (default: the tail, or just before the head), and a pointer that wrapped round this step */
+  head?: number;
+  liftAt?: "front" | "back";
+  liftCell?: number;
+  wrap?: "head" | "tail";
+  /** DSA queue "window" scenes (sliding-window maximum): the index that has just arrived, the answers so far, and the index leaving the deque (`order` is the deque's indexes, `window` the window) */
+  cur?: number;
+  results?: number[];
+  drop?: number;
 };
 export type SceneKind =
   | "title"
@@ -64,7 +73,8 @@ export type SceneKind =
   | "code"
   | "chain"
   | "grid"
-  | "stack";
+  | "stack"
+  | "queue";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -107,12 +117,14 @@ export type LectureScene = {
   /** DSA chain: a doubly linked list (prev arrows too); each node's memory address (the memory picture); the counter's unit */
   doubly?: boolean;
   addresses?: number[];
+  /** DSA queue "window": the window width */
+  k?: number;
   costUnit?: string;
   /** DSA grid: rows of `.#SG` (open, wall, start, goal) and the search the steps play */
   grid?: string[];
   algorithm?: "bfs" | "dfs";
-  /** DSA stack: how it is drawn (array cells, list nodes, call-stack frames) and the cells the array has */
-  mode?: "array" | "list" | "calls";
+  /** DSA stack: how it is drawn (array cells, list nodes, call-stack frames) and the cells the array has; DSA queue: "ring" (cells, head and tail), "list" (nodes; `doubly` draws both arrows) or "window" (the sliding-window maximum, `values` is the stream, `k` the window width) */
+  mode?: "array" | "list" | "calls" | "ring" | "window";
   capacity?: number;
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;

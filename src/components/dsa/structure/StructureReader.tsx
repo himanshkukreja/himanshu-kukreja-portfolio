@@ -144,7 +144,9 @@ function End({ s }: { s: StructurePage }) {
             ? "Short, easy problems on the moves you just built: walking, turning arrows, two pointers. Each takes a linked list as input (ListNode in every language)."
             : s.structure === "stack"
               ? "Short problems that use the stack you just built: matching brackets, undoing, evaluating an expression, and finding the next bigger value. The first ones are easy; the last ones are a step up, and each says so."
-              : "Short problems on the operations you just built."}
+              : s.structure === "queue"
+                ? "Short problems that use the queue you just built: counting recent requests, a moving average, a simulation that sends items to the back, a stack made from queues and a ring of log lines. The first ones are easy; the last one is a step up, and each says so."
+                : "Short problems on the operations you just built."}
       </p>
       <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
         {s.practice.map((p, i) => (

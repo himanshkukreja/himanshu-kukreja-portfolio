@@ -5,7 +5,7 @@
  *   a Frame    = the structure's state at that step + a one-line narration + the running cost (+ optional
  *                predict-then-reveal question, code marker and variable table)
  *   a View     = a component that draws one kind of state (views.tsx): "list" (linked lists), "array",
- *                "memory" (array vs list in memory); later "stack", "queue", "tree", "heap", "graph"
+ *                "memory" (array vs list in memory), "grid", "stack", "queue" (ring buffer, linked queue, deque, sliding-window maximum); later "tree", "heap", "graph"
  *   a Generator = a pure function (state, args) → frames: the sandbox's operations (list.ts) and the algorithm
  *                step-throughs (algorithms.ts: binary search, insertion sort, and any generated trace via fromTrace)
  *
@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -116,4 +116,59 @@ export type StackState = {
   addrs: Record<NodeId, number>;
   /** a short result chip ("popped 7") */
   out: string | null;
+};
+
+/* ------------------------------------------------------------------ the queue state ("queue" view) */
+
+export type QueueItem = { id: NodeId; value: string };
+
+/** The sliding-window maximum with a monotonic deque: the stream, the window over it, the deque of indexes and the answers so far. */
+export type WindowState = {
+  stream: number[];
+  /** the window's first and last index (it grows until it is k wide); null before the first value */
+  window: [number, number] | null;
+  /** the index of the value that has just arrived */
+  cur: number | null;
+  /** the deque's indexes, front to back (their values never go up from the front to the back) */
+  deque: number[];
+  /** the answers so far, one for each full window */
+  results: number[];
+  /** an index leaving the deque this step (from the back, or from the front because it slid out) */
+  dropping: number | null;
+  /** the window width k */
+  k: number;
+};
+
+export type QueueState = {
+  /** how it is drawn: a ring buffer (cells in a circle, head and tail), a linked list (nodes, front on the left) or the sliding-window maximum */
+  mode: "ring" | "list" | "window";
+  /** list mode: each node also keeps a prev link (a deque) */
+  doubly: boolean;
+  /** the items from the front to the back, as drawn */
+  items: QueueItem[];
+  /** ring mode: the item in each cell (null = a free cell); null for the other modes */
+  cells: (QueueItem | null)[] | null;
+  /** ring mode: the cell holding the front item, and the next free cell where the next item goes (the tail) */
+  head: number;
+  tail: number;
+  /** an item in flight at one end: about to join, or just removed */
+  lifted: QueueItem | null;
+  /** the end it is at (list mode), and the cell it hovers over (ring mode) */
+  liftAt: "front" | "back";
+  liftCell: number | null;
+  /** items lit this step */
+  mark: NodeId[];
+  /** items written or re-pointed this step: drawn in the accent */
+  changed: NodeId[];
+  /** a pointer that wrapped past the end of the ring this step ("head", "tail"): the return arrow is lit */
+  wrapped: "head" | "tail" | null;
+  /** named pointers on items: curr (a walk) */
+  labels: Record<string, NodeId | null>;
+  /** a short result chip ("dequeued 7") */
+  out: string | null;
+  /** ring mode: the block's start address (each cell shows base + 4 × its index); list mode: an address under each node */
+  base: number | null;
+  addrs: Record<NodeId, number>;
+  /** window mode */
+  win: WindowState | null;
 };

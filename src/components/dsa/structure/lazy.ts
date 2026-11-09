@@ -5,3 +5,4 @@ export const loadStructureLab = () => import("./StructureLab");
 export const loadVizDemo = () => import("./VizDemo");
 export const loadGridVisualizer = () => import("../algorithm/GridVisualizer");
 export const loadFunctionLab = () => import("../algorithm/FunctionLab");
+export const loadQueueSandbox = () => import("./QueueSandbox");
