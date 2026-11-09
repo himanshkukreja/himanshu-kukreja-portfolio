@@ -3,10 +3,11 @@
  * skeleton shaped like the page that is coming, so nothing jumps when it streams in.
  * Server component (the only client piece is ProgressHold, which keeps the top bar running).
  */
+import type { ReactNode } from "react";
 import ProgressHold from "@/components/site/ProgressHold";
 import { BootLoader, Skeleton, SkeletonText } from "./index";
 
-export type RouteShape = "page" | "course" | "lesson" | "dashboard" | "grid" | "story" | "admin";
+export type RouteShape = "page" | "course" | "lesson" | "dashboard" | "grid" | "story" | "admin" | "split";
 
 const wrap = "mx-auto w-full max-w-[1320px] px-4 sm:px-6";
 
@@ -94,6 +95,30 @@ function Shape({ shape }: { shape: RouteShape }) {
           <SkeletonText lines={6} />
         </div>
       );
+    case "split":
+      // a two-pane room: the statement on the left, the editor on the right (DSA Mastery's problem room)
+      return (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-8">
+          <div className="flex flex-col gap-4">
+            <Skeleton className="h-3 w-40" />
+            <Skeleton className="h-10 w-[80%] sm:h-12" />
+            <div className="flex gap-2">
+              <Skeleton className="h-8 w-24" />
+              <Skeleton className="h-8 w-20" />
+              <Skeleton className="h-8 w-24" />
+            </div>
+            <SkeletonText lines={6} className="mt-2" />
+          </div>
+          <div className="flex flex-col gap-3">
+            <Skeleton className="h-10 w-[70%]" />
+            <Skeleton className="h-[320px] border border-line sm:h-[420px]" />
+            <div className="flex gap-2">
+              <Skeleton className="h-11 w-20" />
+              <Skeleton className="h-11 w-24" />
+            </div>
+          </div>
+        </div>
+      );
     case "admin":
       return (
         <div className="flex flex-col gap-4">
@@ -121,9 +146,12 @@ export default function RouteLoading({
   label = "Loading page",
   shape = "page",
   prompt,
+  mark,
   bare = false,
 }: {
   cmd: string;
+  /** The boot log's title-bar badge (BootLoader). */
+  mark?: ReactNode;
   /** Terminal home (BootLoader): course routes pass "~/sdm". */
   prompt?: string;
   steps: string[];
@@ -136,7 +164,7 @@ export default function RouteLoading({
   return (
     <Tag data-route-loading aria-busy="true" className={bare ? "flex flex-col gap-6" : `${wrap} flex flex-col gap-8 pb-24 pt-8 sm:pt-12`}>
       <ProgressHold />
-      <BootLoader cmd={cmd} steps={steps} label={label} prompt={prompt} />
+      <BootLoader cmd={cmd} steps={steps} label={label} prompt={prompt} mark={mark} />
       <Shape shape={shape} />
     </Tag>
   );

@@ -23,6 +23,7 @@ import { stagePosition, fmtMin } from "@/components/learn/lesson/stageText";
 import { DSA_COURSE_ID, dsaKeys, type ConceptPage } from "@/lib/dsa/types";
 import DsaHydrator from "./DsaHydrator";
 import SolvedMark from "../problem/SolvedMark";
+import DsaCrumbs from "../DsaCrumbs";
 import LectureEntry from "@/components/learn/sidequest/LectureEntry";
 
 type LectureCardInfo = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
@@ -33,9 +34,8 @@ function Hero({ c }: { c: ConceptPage }) {
   const chip = p.completed ? `Completed · ${total}/${total} beats` : n ? `Beat ${n} of ${total} · ~${p.minutesLeft} min left` : `~${p.minutesLeft} min left`;
   return (
     <section className="mx-auto flex max-w-[1320px] flex-col gap-4 px-4 pb-6 pt-6 sm:px-6 lg:pt-8">
-      <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">
-        {c.moduleTitle} · {c.regionTitle} · Concept
-      </p>
+      <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { label: c.regionTitle || c.moduleTitle }]} />
+      <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">{c.regionTitle ? `${c.moduleTitle} · Concept` : "Concept"}</p>
       <h1 className="m-0 max-w-[900px] font-display text-[34px] font-extrabold leading-[1] tracking-[-0.03em] text-fg sm:text-[48px]">{c.title}</h1>
       <p className="m-0 max-w-[760px] text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">{c.summary}</p>
       <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-fg-3">

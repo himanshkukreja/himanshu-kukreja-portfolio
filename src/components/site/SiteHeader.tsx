@@ -9,6 +9,8 @@ import { useGame } from "@/game/GameProvider";
 import { BADGES, MAIN_QUESTS, levelProgress } from "@/game/catalog";
 import SearchBar from "@/components/SearchBar";
 import { LearnBrand, LearnDock, LearnTabs } from "./LearnNav";
+import { DsaBrand, DsaDock, DsaTabs } from "./DsaNav";
+import { isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
 import { useCoursePathname, useSite } from "./SiteMode";
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
 import { isLessonPath } from "@/lib/learn/paths";
@@ -128,6 +130,19 @@ function useHeaderHeightVar() {
   return ref;
 }
 
+/**
+ * DSA Mastery's pages carry its brand everywhere: data-course="dsa" on <html> turns the signal tokens teal for every
+ * component on the page, portals and overlays too (globals.css). READING_JS sets it before first paint on a direct
+ * load; this keeps it right across client navigation.
+ */
+function useCourseAttr(dsa: boolean) {
+  useEffect(() => {
+    const r = document.documentElement;
+    if (dsa) r.setAttribute("data-course", "dsa");
+    else r.removeAttribute("data-course");
+  }, [dsa]);
+}
+
 export default function SiteHeader() {
   // clean course path on the course host (the same on the server render and in the browser)
   const pathname = useCoursePathname();
@@ -139,7 +154,10 @@ export default function SiteHeader() {
   const p = levelProgress(hydrated ? xp : 0);
   const doneCount = MAIN_QUESTS.filter((q) => done[q.id]).length;
   const learn = site === "course";
-  const lesson = learn && isLessonPath(pathname);
+  // DSA Mastery (/dsa/…): its own brand, tabs and dock in the same header; its concept pages read like lessons
+  const dsa = learn && isDsaPath(pathname);
+  useCourseAttr(dsa);
+  const lesson = learn && (isLessonPath(pathname) || isDsaReaderPath(pathname));
   // lesson pages: the header slides away while reading down, back on scroll up
   useAutoHideChrome(lesson && !questsOpen);
   const hidden = useChromeHidden() && lesson;
@@ -149,18 +167,23 @@ export default function SiteHeader() {
   return (
     <>
       {/* the installed app's title-bar area / iPhone status bar while the header is slid away (globals.css) */}
-      <div aria-hidden data-top-inset className="hk-top-fill" data-on={hidden || undefined} />
+      <div aria-hidden data-top-inset className={`hk-top-fill${dsa ? " dsa-theme" : ""}`} data-on={hidden || undefined} />
       <header
         ref={headerRef}
         data-focus-hide
         data-hidden={hidden || undefined}
         aria-hidden={hidden || undefined}
         inert={hidden || undefined}
-        className={`hk-header hk-titlebar sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
+        className={`hk-header hk-titlebar${dsa ? " dsa-theme" : ""} sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
       >
         <div className="hk-titlebar-row relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6 lg:gap-x-3 xl:gap-x-5">
           <AppBack />
-          {learn ? (
+          {dsa ? (
+            <>
+              <DsaBrand pathname={pathname} />
+              <DsaTabs pathname={pathname} />
+            </>
+          ) : learn ? (
             <>
               <LearnBrand />
               <LearnTabs pathname={pathname} />
@@ -188,8 +211,8 @@ export default function SiteHeader() {
           {/* min-w-0: in learn mode the search box gives up width before the row overflows */}
           <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
             {learn && <SearchBar variant="nav" hotkey />}
-            {/* the guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here */}
-            {learn && (
+            {/* SD Mastery's guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here (not on DSA pages) */}
+            {learn && !dsa && (
               <Link
                 href="/guide"
                 aria-current={pathname.startsWith("/guide") ? "page" : undefined}
@@ -254,7 +277,9 @@ export default function SiteHeader() {
       </header>
       <OfflineStrip />
 
-      {learn ? (
+      {dsa ? (
+        <DsaDock pathname={pathname} className={`${dockClass} dsa-theme`} />
+      ) : learn ? (
         <LearnDock pathname={pathname} className={dockClass} />
       ) : (
         <nav aria-label="Sections" className={`${dockClass} grid-cols-5`}>

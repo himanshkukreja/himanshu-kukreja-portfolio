@@ -1,18 +1,36 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabaseClient } from "@/lib/supabase-client";
 import { FullScreenLoader } from "@/components/ui/loader";
 import { courseUrlFor } from "@/lib/site/hosts";
 import { useSite } from "@/components/site/SiteMode";
+import { isDsaPath } from "@/lib/dsa/flags";
+import { DsaMark } from "@/components/dsa/DsaMark";
 
 type Status = "processing" | "success" | "error";
 
-/** The terminal's home and ssh target: the course's (~/sdm) on systemdesignmastery.dev, the portfolio's elsewhere. */
+/** Where the sign-in started, read once on the client (the flow below removes it from storage). */
+let startedAt: string | null | undefined;
+const readStart = () => {
+  if (startedAt === undefined) {
+    try {
+      startedAt = localStorage.getItem("auth_redirect_path");
+    } catch {
+      startedAt = null;
+    }
+  }
+  return startedAt;
+};
+
+/** The terminal's home and ssh target: the course's (~/sdm) on systemdesignmastery.dev (DSA Mastery's ~/dsa, in teal,
+ *  when the sign-in started on a DSA page), the portfolio's elsewhere. */
 function useBoot() {
   const course = useSite() === "course";
+  const start = useSyncExternalStore(() => () => {}, readStart, () => null);
+  if (course && start && isDsaPath(start)) return { prompt: "~/dsa", cmd: "ssh you@dsa", mark: <DsaMark className="h-3.5 w-3.5" />, className: "dsa-theme" };
   return course ? { prompt: "~/sdm", cmd: "ssh you@sdm" } : { prompt: "~/himanshu", cmd: "ssh you@himanshu" };
 }
 const BOOT_STEPS = ["provider said yes", "exchange code for a session", "load your progress"];
@@ -25,7 +43,7 @@ function safePath(p: string | null | undefined): string {
 
 function Fallback() {
   const boot = useBoot();
-  return <FullScreenLoader title="Signing you in." label="Signing you in" prompt={boot.prompt} cmd={boot.cmd} steps={BOOT_STEPS} />;
+  return <FullScreenLoader title="Signing you in." label="Signing you in" prompt={boot.prompt} cmd={boot.cmd} mark={boot.mark} className={boot.className} steps={BOOT_STEPS} />;
 }
 
 /**
@@ -131,6 +149,8 @@ function AuthCallbackContent() {
       label={status === "success" ? "Signed in, redirecting" : "Signing you in"}
       prompt={boot.prompt}
       cmd={boot.cmd}
+      mark={boot.mark}
+      className={boot.className}
       steps={status === "success" ? [...BOOT_STEPS.slice(0, 2), `cd ${target}`] : BOOT_STEPS}
     />
   );

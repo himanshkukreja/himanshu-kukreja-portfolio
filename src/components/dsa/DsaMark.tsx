@@ -1,13 +1,14 @@
 import { DSA_MARK as M, DSA_MARK_COLORS as K } from "@/lib/site/dsaMark";
 
-/** DSA Mastery's mark: a tiny binary tree on a black tile (white root and left child, teal right child). */
+/** DSA Mastery's mark, "the index": three array cells on a black tile, a pointer under the middle one, which is teal. */
 export function DsaMark({ className = "h-7 w-7", size }: { className?: string; size?: number }) {
   return (
     <svg viewBox="0 0 100 100" shapeRendering="crispEdges" aria-hidden className={`shrink-0 ${className}`} style={size ? { width: size, height: size } : undefined}>
       <rect width="100" height="100" fill={K.tile} />
-      {[...M.wire, ...M.nodes].map((r, i) => (
+      {[...M.cells, M.pointer.stem].map((r, i) => (
         <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} fill={K.ink} />
       ))}
+      <polygon points={M.pointer.head} fill={K.ink} shapeRendering="geometricPrecision" />
       <rect x={M.accent.x} y={M.accent.y} width={M.accent.w} height={M.accent.h} fill={K.accent} />
     </svg>
   );

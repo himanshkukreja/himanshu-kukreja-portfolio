@@ -17,9 +17,10 @@ function Mark({ size = 45 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 100 100" shapeRendering="crispEdges">
       <rect width="100" height="100" fill={K.tile} />
-      {[...M.wire, ...M.nodes].map((r, i) => (
+      {[...M.cells, M.pointer.stem].map((r, i) => (
         <rect key={i} x={r.x} y={r.y} width={r.w} height={r.h} fill={K.ink} />
       ))}
+      <polygon points={M.pointer.head} fill={K.ink} shapeRendering="geometricPrecision" />
       <rect x={M.accent.x} y={M.accent.y} width={M.accent.w} height={M.accent.h} fill={TEAL} />
     </svg>
   );

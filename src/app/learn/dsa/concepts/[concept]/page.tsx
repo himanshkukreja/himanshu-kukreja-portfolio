@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { conceptLectureHref, getConcept, getConceptLecture } from "@/lib/dsa/load";
 import { lectureCard } from "@/lib/learn/lecture/load";
-import DsaNav from "@/components/dsa/DsaNav";
 import DsaConceptReader from "@/components/dsa/concept/DsaConceptReader";
 
 // A DSA Mastery concept (/dsa/concepts/<concept>): the 6S lesson from the content repo, its six beats as the reader's
@@ -35,7 +34,6 @@ export default async function ConceptPage({ params }: Props) {
   const card = lectureCard(lecture);
   return (
     <div className="dsa-theme">
-      <DsaNav current="concept" crumbs={[{ href: "/dsa", label: c.regionTitle || c.moduleTitle }, { label: c.title }]} />
       <main className="pb-16">
         <DsaConceptReader concept={c} lecture={card ? { ...card, href: conceptLectureHref(c.id) } : null} />
       </main>

@@ -26,3 +26,7 @@ export function dsaPathAllowedSoon(clean: string): boolean {
 /** A DSA concept page (/dsa/concepts/<id>): it has its own reading dock (Ask AI, Notebook, Listen, Snip), so the
  *  site-wide floating Ask and Notebook buttons stand aside there, as on course lessons. */
 export const isDsaReaderPath = (p: string) => /^\/dsa\/concepts\/[^/]+\/?$/.test(p.split(/[?#]/)[0]);
+
+/** Any DSA Mastery page (/dsa and everything under it, clean course paths): the header, dock and every shared
+ *  component there wear DSA Mastery's brand and teal (SiteHeader sets data-course="dsa" on <html>, globals.css). */
+export const isDsaPath = (p: string) => /^\/dsa(?:\/|$)/.test(p.split(/[?#]/)[0]);

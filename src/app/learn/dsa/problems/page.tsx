@@ -3,7 +3,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConceptIndex, getProblemIndex } from "@/lib/dsa/load";
-import DsaNav from "@/components/dsa/DsaNav";
 import SolvedMark from "@/components/dsa/problem/SolvedMark";
 
 // /dsa/problems: every built problem, grouped by concept in ladder order, with the learner's solved ticks. Staging only.
@@ -19,7 +18,6 @@ export default async function ProblemsPage() {
   for (const p of problems) byConcept.set(p.concept, [...(byConcept.get(p.concept) || []), p]);
   return (
     <div className="dsa-theme">
-      <DsaNav current="problems" />
       <main className="mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
         <header className="flex flex-col gap-2">
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">The problem bank</span>

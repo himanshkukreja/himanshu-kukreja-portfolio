@@ -394,7 +394,7 @@ export default function WorldMap({ spec }: { spec: WorldSpec }) {
         })}
       </div>
 
-      <aside aria-label="Selected stop" className="lg:sticky lg:top-[calc(var(--hk-header,64px)+16px)] lg:self-start">
+      <aside aria-label="Selected stop" className="lg:sticky lg:top-[calc(var(--hk-header-h,61px)+16px)] lg:self-start">
         <div className="flex flex-col gap-4 border border-line bg-surface p-5">
           <p className="m-0 font-mono text-[11px] uppercase tracking-label text-signal-text">{sel ? "Selected stop" : "Your next step"}</p>
           {shown ? <NodeDetail sel={shown} state={world.states[shown.node.id] || "locked"} /> : <p className="m-0 text-[14px] text-fg-2">Every open stop is done. New stops open with each wave.</p>}

@@ -432,6 +432,10 @@
     --c-dsa-hl: rgba(45, 212, 191, 0.24);
   }
 }
+/* on every DSA Mastery page <html> carries data-course="dsa" (READING_JS before first paint, then SiteHeader), so
+   everything on the page turns teal, portals and overlays included (the chat panel, the Notebook, toasts, the route
+   bar, the selection menu). :root + the attribute outranks the reading modes' html[data-read-mode] token rules. */
+:root[data-course="dsa"],
 .dsa-theme {
   --c-signal: var(--c-dsa);
   --c-on-signal: var(--c-on-dsa);
@@ -440,6 +444,7 @@
   --c-hl: var(--c-dsa-hl);
   --c-plate-accent: var(--c-dsa);
 }
+:root[data-course="dsa"] ::selection,
 .dsa-theme ::selection {
   background: var(--c-dsa-hl);
 }

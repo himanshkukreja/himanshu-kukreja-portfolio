@@ -286,6 +286,7 @@ else if(!h||ph.indexOf(h)>=0||ph.indexOf(hb)>=0)themed=false;
 else{var f=/(?:^|;\\s*)hk_site=(course|portfolio)/.exec(document.cookie);themed=f?f[1]==="course":${COURSE_ROUTE.toString()}.test(raw)}
 var p=raw.replace(/^\\/learn\\/${COURSE_ID}(?=\\/|$)/,"").replace(/^\\/learn(?=\\/|$)/,"").replace(/^\\/stories(?=\\/|$)/,"/case-files")||"/";
 var read=themed&&${READING_ROUTE.toString()}.test(p);
+if(themed&&/^\\/dsa(?:\\/|$)/.test(p))r.setAttribute("data-course","dsa");
 var modes=${JSON.stringify(Object.fromEntries(READ_MODES.map((m) => [m.id, [m.dark ? 1 : 0, m.bg]])))};
 var m=themed?(Object.prototype.hasOwnProperty.call(modes,s.mode)?s.mode:dark?"night":"light"):null;
 if(m)dark=!!modes[m][0];

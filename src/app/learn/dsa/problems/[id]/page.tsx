@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getProblem } from "@/lib/dsa/load";
-import DsaNav from "@/components/dsa/DsaNav";
 import ProblemRoom from "@/components/dsa/problem/ProblemRoom";
 
 // A DSA Mastery problem (/dsa/problems/<id>): the statement and hints from the content repo, cached (ISR, refreshed on
@@ -32,7 +31,6 @@ export default async function ProblemPage({ params }: Props) {
   if (!p) notFound();
   return (
     <div className="dsa-theme">
-      <DsaNav current="problems" crumbs={[{ href: `/dsa/concepts/${p.concept}`, label: p.conceptTitle }, { label: p.title }]} />
       <main>
         <ProblemRoom p={p} />
       </main>

@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { ConceptSummary, ProblemSummary, WorldSpec, WorldSummary } from "@/lib/dsa/types";
-import DsaNav from "../DsaNav";
 import WorldMap from "../map/WorldMap";
 import SolvedMark from "../problem/SolvedMark";
 
@@ -12,7 +11,6 @@ export default function DsaHub({ worlds, world, concepts, problems }: { worlds: 
   const built = concepts.filter((c) => c.status === "built");
   return (
     <div className="dsa-theme">
-      <DsaNav current="map" />
       <main className="mx-auto flex max-w-[1320px] flex-col gap-10 px-4 pb-28 pt-8 sm:px-6 sm:pt-10">
         <header className="flex flex-col gap-3">
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">The world atlas</span>

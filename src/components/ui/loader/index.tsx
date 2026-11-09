@@ -67,12 +67,15 @@ export function BootLoader({
   steps = ["resolve route", "fetch data", "render"],
   label = "Loading",
   prompt = "~/himanshu",
+  mark,
   className,
   children,
 }: {
   cmd?: string;
   /** The terminal's home: "~/himanshu" on the portfolio, "~/sdm" on the course. */
   prompt?: string;
+  /** The title bar's badge in place of the signal square (DSA Mastery's loaders show its mark). */
+  mark?: ReactNode;
   steps?: string[];
   /** Screen-reader text. */
   label?: string;
@@ -84,7 +87,7 @@ export function BootLoader({
     <div role="status" aria-live="polite" className={cx("w-full max-w-[460px] border border-line-strong bg-surface font-mono text-[13px] leading-6 text-fg-2", className)}>
       <span className="sr-only">{label}…</span>
       <div aria-hidden className="flex items-center gap-2 border-b border-line px-3.5 py-2 text-[11px] uppercase tracking-label text-fg-3">
-        <span className="h-2 w-2 bg-signal" />
+        {mark ?? <span className="h-2 w-2 bg-signal" />}
         <span className="flex-1 truncate">{prompt}</span>
         <span className="text-fg-4">tty1</span>
       </div>

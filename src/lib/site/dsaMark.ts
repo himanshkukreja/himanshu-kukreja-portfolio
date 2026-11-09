@@ -1,24 +1,19 @@
 /**
- * DSA Mastery's mark: the course mark's language (square blocks wired together on a black tile, see
- * courseMark.ts) drawn as a tiny binary tree: a white root wired to two children, the right one teal.
- * viewBox 0 0 100 100; the page wordmark (components/dsa/DsaMark) and the share card (lib/og/dsa-card)
- * both draw these shapes, so they never drift.
+ * DSA Mastery's mark, "the index": an array of three cells with an index pointer under the middle one, the cell it
+ * points at lit teal (arr[i]). The course mark's language (square white blocks on a black tile, one accent block,
+ * see courseMark.ts), drawn as the first thing every DSA lesson draws. viewBox 0 0 100 100; the header and page
+ * marks (components/dsa/DsaMark) and the share card (lib/og/dsa-card) all draw these shapes, so they never drift.
  */
 export const DSA_MARK = {
-  /** the wires: the root's stem, the crossbar, and a leg down to each child */
-  wire: [
-    { x: 47, y: 36, w: 6, h: 16 },
-    { x: 22, y: 50, w: 56, h: 6 },
-    { x: 22, y: 50, w: 6, h: 14 },
-    { x: 72, y: 50, w: 6, h: 14 },
+  /** the white cells either side */
+  cells: [
+    { x: 8, y: 14, w: 26, h: 28 },
+    { x: 66, y: 14, w: 26, h: 28 },
   ],
-  /** white blocks: the root and the left child */
-  nodes: [
-    { x: 37, y: 12, w: 26, h: 26 },
-    { x: 12, y: 62, w: 26, h: 26 },
-  ],
-  /** the teal block: the right child */
-  accent: { x: 62, y: 62, w: 26, h: 26 },
+  /** the teal cell: the one the pointer is on */
+  accent: { x: 37, y: 14, w: 26, h: 28 },
+  /** the pointer: an arrow head (polygon points) and its stem */
+  pointer: { head: "50,50 68,70 32,70", stem: { x: 44, y: 68, w: 12, h: 20 } },
 } as const;
 
 /** The mark's fixed colours (it sits on its own black tile in every theme, like the course mark). */

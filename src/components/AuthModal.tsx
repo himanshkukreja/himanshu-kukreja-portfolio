@@ -9,7 +9,9 @@ import { signInWithEmail, verifyOtp, signInWithGoogle } from "@/lib/supabase-cli
 import GoogleIdButton from "@/components/auth/GoogleIdButton";
 import { GIS_ENABLED } from "@/lib/auth/googleIdentity";
 import { BootLoader, Spinner } from "@/components/ui/loader";
-import { useSite } from "@/components/site/SiteMode";
+import { useCoursePathname, useSite } from "@/components/site/SiteMode";
+import { isDsaPath } from "@/lib/dsa/flags";
+import { DsaMark } from "@/components/dsa/DsaMark";
 
 type AuthModalProps = {
   isOpen: boolean;
@@ -23,6 +25,10 @@ const noopSubscribe = () => () => {};
 
 export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
   const course = useSite() === "course";
+  // on DSA Mastery's pages the boot log signs into DSA's terminal home (the modal's teal comes from data-course on <html>)
+  const pathname = useCoursePathname();
+  const dsa = course && isDsaPath(pathname || "");
+  const home = dsa ? "dsa" : course ? "sdm" : "himanshu";
   const { offline } = useConnectivity();
   const [step, setStep] = useState<AuthStep>("email");
   const [email, setEmail] = useState("");
@@ -368,8 +374,9 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </h3>
                 <BootLoader
                   label="Signing you in"
-                  prompt={course ? "~/sdm" : undefined}
-                  cmd={`ssh ${email.split("@")[0] || "you"}@${course ? "sdm" : "himanshu"}`}
+                  prompt={course ? `~/${home}` : undefined}
+                  mark={dsa ? <DsaMark className="h-3.5 w-3.5" /> : undefined}
+                  cmd={`ssh ${email.split("@")[0] || "you"}@${home}`}
                   steps={["code verified", "session saved", "syncing your progress"]}
                   className="max-w-none"
                 />

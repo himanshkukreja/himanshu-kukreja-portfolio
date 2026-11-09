@@ -28,6 +28,7 @@ import { BROWSER_LANGS, DSA_LANG_LABEL, DSA_LANGS, problemXp, type DsaLang, type
 import { GIVEN_JS, GIVEN_PY, VERDICT_LABEL, fnNameFor, javascriptTests, outcomeFrom, pythonTests, starterCode, wireCases, type JudgeOutcome, type WireCase } from "@/lib/dsa/harness";
 import { useLang } from "../concept/widgets";
 import DsaHydrator from "../concept/DsaHydrator";
+import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
 
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
@@ -300,6 +301,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
       {/* statement */}
       <section aria-label="Problem" className="flex min-w-0 flex-col gap-4">
         <header className="flex flex-col gap-2">
+          <DsaCrumbs items={[{ href: "/dsa/problems", label: "Problems" }, { href: `/dsa/concepts/${p.concept}`, label: p.conceptTitle }]} />
           <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">
             {p.level} · Kestrel {p.line.charAt(0).toUpperCase() + p.line.slice(1)} · step {p.order} of the ladder
           </p>
@@ -454,9 +456,14 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
         )}
       </section>
 
-      {/* editor */}
-      <section aria-label="Your solution" className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-[calc(var(--hk-header,64px)+12px)] lg:self-start">
-        <div className="flex flex-wrap items-center gap-2">
+      {/* editor. Desktop: the panel is the viewport's height under the header, sticky while the statement scrolls; the
+          editor takes whatever the toolbar, the Run / Submit row and the results leave (no dead band under it), and the
+          results scroll inside their own area. Phones: a fixed-height editor in the page flow. */}
+      <section
+        aria-label="Your solution"
+        className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-[calc(var(--hk-header-h,61px)+16px)] lg:h-[calc(100dvh-var(--hk-header-h,61px)-32px)] lg:min-h-[520px] lg:self-start"
+      >
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <div role="tablist" aria-label="Language" className="flex border border-line-strong">
             {DSA_LANGS.map((l) => (
               <button
@@ -479,10 +486,10 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
             reset code
           </button>
         </div>
-        <div className="h-[380px] border border-line-strong sm:h-[440px]">
+        <div className="h-[380px] border border-line-strong sm:h-[440px] lg:h-auto lg:min-h-[260px] lg:flex-1">
           <CodeEditor key={`${p.id}`} handle={editor} initial={initialFor(lang)} fontSize={14} label={`${DSA_LANG_LABEL[lang]} solution`} language={lang} onRun={() => void go("run")} onFocus={() => BROWSER_LANGS.has(lang) && void getRunner(lang === "python" ? "py" : "js").warm()} />
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex shrink-0 flex-wrap items-center gap-2">
           <button type="button" onClick={() => void go("run")} disabled={!!busy} className="min-h-11 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text disabled:opacity-50">
             {busy === "run" ? "Running…" : "Run"}
           </button>
@@ -491,20 +498,24 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
           </button>
           <span className="font-mono text-[11px] text-fg-3">Run: {p.visible.length} visible tests · Submit: + {p.hiddenCount} hidden · ⌘/Ctrl + Enter runs</span>
         </div>
-        {loadMsg && <p className="m-0 text-[13px] text-fg-3">{loadMsg}</p>}
-        {notice && (
-          <p className={`m-0 border px-3 py-2 text-[14px] ${outcome?.o.verdict === "AC" ? "border-ok text-ok-text" : "border-line-strong text-fg"}`} role="status">
-            {notice}
-          </p>
+        {(loadMsg || notice || outcome || stdout) && (
+          <div className="flex flex-col gap-3 lg:max-h-[45%] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain">
+            {loadMsg && <p className="m-0 text-[13px] text-fg-3">{loadMsg}</p>}
+            {notice && (
+              <p className={`m-0 border px-3 py-2 text-[14px] ${outcome?.o.verdict === "AC" ? "border-ok text-ok-text" : "border-line-strong text-fg"}`} role="status">
+                {notice}
+              </p>
+            )}
+            {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} />}
+            {stdout && (
+              <details className="border border-line bg-surface">
+                <summary className="min-h-10 cursor-pointer px-3 py-2 font-mono text-[12px] text-fg-3">Your printed output</summary>
+                <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap px-3 pb-3 font-mono text-[12px] text-fg-2">{stdout}</pre>
+              </details>
+            )}
+          </div>
         )}
-        {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} />}
-        {stdout && (
-          <details className="border border-line bg-surface">
-            <summary className="min-h-10 cursor-pointer px-3 py-2 font-mono text-[12px] text-fg-3">Your printed output</summary>
-            <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap px-3 pb-3 font-mono text-[12px] text-fg-2">{stdout}</pre>
-          </details>
-        )}
-        <p className="m-0 text-[12px] text-fg-4">Coding is easiest on a laptop. On a phone, read, trace and try small edits.</p>
+        <p className="m-0 text-[12px] text-fg-4 lg:hidden">Coding is easiest on a laptop. On a phone, read, trace and try small edits.</p>
       </section>
     </div>
   );
