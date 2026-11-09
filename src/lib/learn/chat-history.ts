@@ -18,6 +18,10 @@ const AI_TITLE_MAX = 60;
 export const THREAD_ID_RE = /^[a-z0-9]{6,40}$/;
 
 export type ThreadMeta = { id: string; title: string; createdAt: number; updatedAt: number };
+/** Which course's tutor a conversation belongs to (stored as state.course; untagged rows are the course chat's). */
+export type ChatCourse = "sdm" | "dsa";
+/** ?course= on the threads API: "dsa", else the course chat. */
+export const courseParam = (url: string): ChatCourse => (new URL(url, "http://x").searchParams.get("course") === "dsa" ? "dsa" : "sdm");
 export type ThreadState = {
   sources?: Record<string, unknown>;
   quizzes?: Record<string, unknown>;

@@ -150,7 +150,14 @@ export type LiveStep = { tool: string; label: string; noun?: string; at: number 
  */
 export type LiveAnswer = { id: string; since: number; steps: LiveStep[]; refs: string[] };
 
-export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<string, string>; page?: () => PageContext | null } = {}) {
+export type CourseChatOpts = {
+  devHeaders?: Record<string, string>;
+  page?: () => PageContext | null;
+  /** the chat's API (GET: quota line; POST: one message): the course chat's by default; DSA Mastery's tutors pass theirs */
+  api?: string;
+};
+
+export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
   const [conv, setConv] = useState<Conversation>(fresh);
   const [status, setStatus] = useState<ChatStatus>({ kind: "idle" });
   const [draft, setDraft] = useState("");
@@ -172,6 +179,9 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
   const saver = useChatPathSaver();
   const devHeaders = opts.devHeaders;
   const pageOf = opts.page;
+  const api = opts.api ?? "/api/learn/ai/chat";
+  // the course chat's page keeps its instant search results when the tutor can't answer; the DSA tutors have none
+  const still = opts.api ? "" : " The search results still work.";
 
   // load this learner's conversation, and follow changes made in another view (panel ↔ page, another tab)
   useEffect(() => {
@@ -225,7 +235,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
   useEffect(() => {
     if (!uid) return;
     let off = false;
-    aiFetch("/api/learn/ai/chat", { headers: devHeaders })
+    aiFetch(api, { headers: devHeaders })
       .then((r) => (r.ok ? r.json() : null))
       .then((b) => {
         if (off || !b) return;
@@ -239,7 +249,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
     };
     // devHeaders is stable per page
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uid]);
+  }, [uid, api]);
 
   const savePath = useCallback(
     (pref: string) => {
@@ -255,7 +265,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
   );
 
   const send = useCallback(
-    async (text: string, extra: { answerTo?: string; mockEnd?: boolean } = {}) => {
+    async (text: string, extra: { answerTo?: string; mockEnd?: boolean; /** fields added to this message's body (the problem room's mode, code, language and last result) */ body?: Record<string, unknown> } = {}) => {
       const t = text.trim();
       if (!t || abort.current || !uid) return false;
       // another tab of this learner is answering: wait for it to land (both would write the same conversation),
@@ -307,6 +317,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         mock: ms && phaseId ? { key: ms.key, phase: phaseId, history: ms.turns[phaseId] ?? [], action: extra.mockEnd ? "end" : "turn", ...(extra.mockEnd ? { phases: ms.turns } : {}) } : null,
         ...(titlePass && !ms ? { title: titlePass } : {}),
         ...(style !== "tutor" ? { style } : {}),
+        ...(extra.body ?? {}),
       };
       let started: MockCard | null = null;
       const ctrl = new AbortController();
@@ -323,11 +334,11 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
       const t0 = performance.now();
       let gotDone = false;
       try {
-        const res = await aiFetch("/api/learn/ai/chat", { method: "POST", body: JSON.stringify(body), headers: devHeaders, signal: ctrl.signal });
+        const res = await aiFetch(api, { method: "POST", body: JSON.stringify(body), headers: devHeaders, signal: ctrl.signal });
         if (!res.ok || !res.body || !(res.headers.get("content-type") || "").includes("event-stream")) {
           const b = (await res.json().catch(() => ({}))) as { error?: string; quota?: ChatQuota | null };
           if (b.quota) setQuota(b.quota);
-          patchReply((m) => ({ ...m, error: b.error || "The tutor didn't answer. The search results still work." }));
+          patchReply((m) => ({ ...m, error: b.error || `The tutor didn't answer.${still}` }));
           setFallback(true);
           track("chat_message", { ok: false, status: res.status });
           return false;
@@ -436,7 +447,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         if (leaving) patchReply((m) => keepStreamed(m, INTERRUPTED));
         else if ((e as Error).name === "AbortError") patchReply((m) => keepStreamed(m, streamed.trim() ? "You stopped this answer." : "You stopped this answer before it started."));
         else {
-          patchReply((m) => keepStreamed(m, streamed.trim() ? "The connection dropped, so the answer stops here. Try asking again." : "You seem to be offline, or the tutor didn't answer. The search results still work."));
+          patchReply((m) => keepStreamed(m, streamed.trim() ? "The connection dropped, so the answer stops here. Try asking again." : `You seem to be offline, or the tutor didn't answer.${still}`));
           setFallback(true);
         }
         return false;
@@ -451,7 +462,7 @@ export function useCourseChat(uid: string | null, opts: { devHeaders?: Record<st
         window.dispatchEvent(new Event(SYNC_EVENT));
       }
     },
-    [commit, devHeaders, pageOf, replace, savePath, uid],
+    [api, commit, devHeaders, pageOf, replace, savePath, still, uid],
   );
 
   /** Start over. The finished chat goes to the tutor's memory first (when there is something new in it). */

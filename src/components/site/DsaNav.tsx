@@ -20,7 +20,7 @@ export const DSA_HOME = "/dsa";
 
 type Tab = {
   id: string;
-  /** a link, or (ask) a button that opens the course tutor's panel in place */
+  /** a link, or (ask, before launch) a button that opens the course tutor's panel in place */
   href?: string;
   label: string;
   /** the phone dock's label */
@@ -39,7 +39,8 @@ type Tab = {
  * "you" and the way back to SD Mastery. Production until launch (soon): the coming-soon page, ask, you, SD Mastery.
  */
 function tabs(p: string): Tab[] {
-  const ask: Tab = { id: "ask", label: "ask", short: "ask", on: false, icon: Sparkles, primary: true, where: "both" };
+  // DSA Mastery's tutor page (staging); before launch "ask" opens the course tutor's panel (no /dsa/ask in "soon" mode)
+  const ask: Tab = { id: "ask", ...(DSA_FULL ? { href: `${DSA_HOME}/ask` } : {}), label: "ask", short: "ask", on: p.startsWith(`${DSA_HOME}/ask`), icon: Sparkles, primary: true, where: "both" };
   const you: Tab = { id: "you", href: "/dashboard", label: "you", short: "you", on: false, icon: User, where: "dock" };
   const sdm: Tab = { id: "sdm", href: "/", label: "SD Mastery", short: "sdm", on: false, icon: "sdm", where: "dock" };
   if (!DSA_FULL) return [{ id: "soon", href: DSA_HOME, label: "coming soon", short: "dsa", on: p === DSA_HOME || p === `${DSA_HOME}/`, icon: MapIcon, where: "both" }, ask, you, sdm];
@@ -128,7 +129,7 @@ function CourseSwitch({ pathname }: { pathname: string }) {
 /** The DSA brand: the index mark + "DSA Mastery." (the mark alone under 380 px, like SD Mastery's), the tag, the switcher. */
 export function DsaBrand({ pathname }: { pathname: string }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+    <div className="flex shrink-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
       <Link href={DSA_HOME} aria-label="DSA Mastery, course home" className="inline-flex min-h-10 shrink-0 items-center gap-2 py-1 font-display text-lg font-extrabold tracking-[-0.03em] text-fg sm:text-xl">
         <DsaMark className="h-7 w-7" />
         <span aria-hidden className="whitespace-nowrap max-[379px]:hidden">
@@ -152,6 +153,7 @@ export function DsaTabs({ pathname }: { pathname: string }) {
         .map((t) =>
           t.href ? (
             <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={`${tabClass(t.on)}${t.wide ? " max-xl:!hidden" : ""}`}>
+              {t.primary && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
               {t.label}
               <TabPending />
             </Link>

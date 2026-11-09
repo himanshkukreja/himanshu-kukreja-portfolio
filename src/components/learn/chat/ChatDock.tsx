@@ -15,6 +15,9 @@
  * docked panels' shift: [data-ask-shift]). On a case file the column sits above the reader's own Ask AI and
  * read-aloud buttons ([data-lift="case"], globals.css), and anything marked [data-dock-avoid] under it (the course
  * chat's message box on /chat) lifts it clear: useClearOf.
+ *
+ * On DSA Mastery pages (/dsa/…, once NEXT_PUBLIC_DSA_MODE is full) the button and the panel are DSA Mastery's tutor
+ * (ChatPanel course="dsa"): not on /dsa/ask (the chat is the page) or in a problem room (its own Tutor tab).
  */
 import dynamic from "next/dynamic";
 import { useCoursePathname } from "@/components/site/SiteMode";
@@ -26,7 +29,7 @@ import { INK_EVENTS } from "@/lib/learn/ink/types";
 import { COURSE_CHAT_EVENT, openCourseChat, TUTOR_OPEN_EVENT, type OpenChatDetail } from "./openChat";
 import { holdContext } from "./pageContext";
 import { isLessonPath } from "@/lib/learn/paths";
-import { isDsaReaderPath } from "@/lib/dsa/flags";
+import { DSA_FULL, isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
 
 const ChatPanel = dynamic(() => import("./ChatPanel"), { ssr: false });
 
@@ -122,11 +125,15 @@ export default function ChatDock({ companion }: { companion?: React.ReactNode })
     if (open && typeof window !== "undefined" && window.matchMedia("(max-width: 1023px)").matches) setOpen(false);
   }
 
-  const onSearch = pathname.startsWith("/chat");
+  // DSA Mastery's own tutor once DSA is on (staging); before launch the coming-soon page keeps the course tutor
+  const dsa = DSA_FULL && isDsaPath(pathname);
+  const onSearch = pathname.startsWith("/chat") || /^\/dsa\/ask(?:\/|$)/.test(pathname);
   // signed in: only when the chat is available to them; guests see it (the panel asks them to sign in)
-  const available = !user || !!ai?.features["course-chat"];
+  const available = !user || !!ai?.features[dsa ? "dsa-chat" : "course-chat"];
+  // a DSA problem room has its own tutor tab beside the editor
+  const room = /^\/dsa\/problems\/[^/]+/.test(pathname);
   // case files (/case-files/…) have their own Ask button; the panel still opens there (tutor:open from Explain / Ask the tutor)
-  const fab = !open && available && !onSearch && !isLesson(pathname) && !NO_FAB.test(pathname) && !pathname.startsWith("/case-files");
+  const fab = !open && available && !onSearch && !room && !isLesson(pathname) && !NO_FAB.test(pathname) && !pathname.startsWith("/case-files");
 
   return (
     <>
@@ -143,8 +150,8 @@ export default function ChatDock({ companion }: { companion?: React.ReactNode })
             type="button"
             data-ask-fab
             onClick={() => openCourseChat()}
-            aria-label="Ask the course tutor"
-            title="Ask the course tutor"
+            aria-label={dsa ? "Ask the DSA Mastery tutor" : "Ask the course tutor"}
+            title={dsa ? "Ask the DSA Mastery tutor" : "Ask the course tutor"}
             className="flex h-12 items-center gap-2 bg-signal px-4 font-mono text-[13px] font-semibold text-on-signal shadow-[0_6px_24px_rgba(0,0,0,0.35)] hover:brightness-110"
           >
             <Sparkles className="h-4 w-4" aria-hidden />
@@ -152,7 +159,7 @@ export default function ChatDock({ companion }: { companion?: React.ReactNode })
           </button>
         )}
       </div>
-      {mounted && !onSearch && <ChatPanel open={open} onClose={() => setOpen(false)} initial={initial} pathname={pathname} />}
+      {mounted && !onSearch && <ChatPanel open={open} onClose={() => setOpen(false)} initial={initial} pathname={pathname} course={dsa ? "dsa" : "sdm"} />}
     </>
   );
 }

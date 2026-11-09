@@ -9,14 +9,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Cloud, HardDrive, MessageSquarePlus, Pencil, Search, Trash2, X } from "lucide-react";
 import { groupByDay, whenLabel } from "@/lib/learn/chat-history";
 import { track } from "@/lib/track";
-import { deleteAllThreads, deleteThread, HISTORY_EVENT, isHistoryKey, openThread, readHistory, renameThread, syncHistory, syncState, type LocalThread, type SyncState } from "./history";
+import { deleteAllThreads, deleteThread, HISTORY_EVENT, isHistoryKey, localOnly, openThread, readHistory, renameThread, syncHistory, syncState, type LocalThread, type SyncState } from "./history";
 
 /** The history for one learner, kept in step with every chat view; syncs with the account when `sync`. */
 export function useChatHistory(uid: string | null, sync: boolean) {
   const [state, setState] = useState<{ threads: LocalThread[]; active: string | null; remote: SyncState }>({ threads: [], active: null, remote: "unknown" });
   useEffect(() => {
     if (!uid) return;
-    const load = () => setState({ ...readHistory(uid), remote: uid === "dev" ? "off" : syncState(uid) });
+    const load = () => setState({ ...readHistory(uid), remote: localOnly(uid) ? "off" : syncState(uid) });
     load();
     const on = (e: Event) => {
       if (e instanceof StorageEvent && !isHistoryKey(uid, e.key)) return;

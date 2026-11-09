@@ -13,6 +13,12 @@
  * learner across devices; deletes and renames go to the account too. Until then history stays on the device.
  * Kept 90 days after the last update (here and on the server), at most 100 conversations; only the newest 40 keep
  * their messages on the device once they are safely in the account (older ones load when opened).
+ *
+ * Scopes ride on the uid string, so every key, lock and sync state stays apart:
+ *   <uid>              the course chat (/chat and the Ask panel on SD Mastery pages)
+ *   dsa:<uid>          DSA Mastery's tutor (/dsa/ask and the Ask panel on DSA pages): synced under ?course=dsa
+ *   local:<…>          on this device only, never uploaded (the problem room's tutor, one conversation per problem)
+ *   "dev", "dsa:dev"   `next dev` previews: on this device only
  */
 import { userFetch } from "@/components/learn/progress/userFetch";
 import { cleanTitle, THREAD_RETENTION_DAYS, THREADS_MAX, titleFrom, type ThreadMeta } from "@/lib/learn/chat-history";
@@ -22,6 +28,11 @@ import type { Conversation } from "./useCourseChat";
 export const HISTORY_EVENT = "hk:course-chat-sync";
 const API = "/api/learn/ai/chat/threads";
 const LOCAL_BODIES = 40;
+
+/** The history never leaves this device for this uid (a dev preview, or a local-only scope). */
+export const localOnly = (uid: string) => uid === "dev" || uid.endsWith(":dev") || uid.startsWith("local:");
+/** The threads API for this uid's scope (one conversation with `id`). */
+const apiFor = (uid: string, id?: string) => `${API}${id ? `/${encodeURIComponent(id)}` : ""}${uid.startsWith("dsa:") ? "?course=dsa" : ""}`;
 const PUSH_DELAY = 2500;
 
 const idxKey = (uid: string) => `hk.chats.v1:${uid}`;
@@ -175,7 +186,7 @@ const timers = new Map<string, number>();
 const lastSync = new Map<string, number>();
 
 function schedulePush(uid: string, id: string) {
-  if (uid === "dev" || syncState(uid) === "off") return;
+  if (localOnly(uid) || syncState(uid) === "off") return;
   const k = `${uid}:${id}`;
   window.clearTimeout(timers.get(k));
   timers.set(k, window.setTimeout(() => void push(uid, id), PUSH_DELAY));
@@ -227,7 +238,7 @@ async function push(uid: string, id: string): Promise<void> {
   const c = get<Conversation>(bodyKey(uid, id));
   if (!t || !isConv(c) || !hasAsk(c)) return;
   const rev = t.rev;
-  const res = await userFetch(`${API}/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(toServer(t, c)), headers: { "Content-Type": "application/json" } }).catch(() => null);
+  const res = await userFetch(apiFor(uid, id), { method: "PUT", body: JSON.stringify(toServer(t, c)), headers: { "Content-Type": "application/json" } }).catch(() => null);
   if (!res) return;
   if (res.status === 410) {
     dropLocal(uid, id);
@@ -252,10 +263,10 @@ async function push(uid: string, id: string): Promise<void> {
  * when opened), ones deleted elsewhere (or past 90 days) go, and local changes are uploaded. At most once a minute.
  */
 export async function syncHistory(uid: string, force = false): Promise<SyncState> {
-  if (uid === "dev") return "off";
+  if (localOnly(uid)) return "off";
   if (!force && Date.now() - (lastSync.get(uid) ?? 0) < 60_000) return syncState(uid);
   lastSync.set(uid, Date.now());
-  const res = await userFetch(API).catch(() => null);
+  const res = await userFetch(apiFor(uid)).catch(() => null);
   if (!res) return syncState(uid);
   const b = (await res.json().catch(() => ({}))) as { available?: boolean; threads?: ThreadMeta[] };
   if (res.status === 401 || b.available === false) {
@@ -308,8 +319,8 @@ export async function syncHistory(uid: string, force = false): Promise<SyncState
 async function loadThread(uid: string, id: string, fromAccount = false): Promise<Conversation | null> {
   const local = get<Conversation>(bodyKey(uid, id));
   if (!fromAccount && isConv(local)) return { ...freshConversation(), ...local };
-  if (uid === "dev" || syncState(uid) === "off") return isConv(local) ? local : null;
-  const res = await userFetch(`${API}/${encodeURIComponent(id)}`).catch(() => null);
+  if (localOnly(uid) || syncState(uid) === "off") return isConv(local) ? local : null;
+  const res = await userFetch(apiFor(uid, id)).catch(() => null);
   if (!res) return isConv(local) ? local : null;
   if (res.status === 410 || res.status === 404) {
     dropLocal(uid, id);
@@ -354,17 +365,17 @@ export async function renameThread(uid: string, id: string, title: string): Prom
   Object.assign(t, { title: name, named: true });
   writeIndex(uid, idx);
   broadcast();
-  if (uid === "dev" || syncState(uid) === "off") return;
+  if (localOnly(uid) || syncState(uid) === "off") return;
   if (!t.synced || t.dirty) return schedulePush(uid, id);
-  await userFetch(`${API}/${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ title: name }), headers: { "Content-Type": "application/json" } }).catch(() => null);
+  await userFetch(apiFor(uid, id), { method: "PATCH", body: JSON.stringify({ title: name }), headers: { "Content-Type": "application/json" } }).catch(() => null);
 }
 
 export async function deleteThread(uid: string, id: string): Promise<void> {
   window.clearTimeout(timers.get(`${uid}:${id}`));
   dropLocal(uid, id);
   broadcast();
-  if (uid === "dev" || syncState(uid) === "off") return;
-  await userFetch(`${API}/${encodeURIComponent(id)}`, { method: "DELETE" }).catch(() => null);
+  if (localOnly(uid) || syncState(uid) === "off") return;
+  await userFetch(apiFor(uid, id), { method: "DELETE" }).catch(() => null);
 }
 
 export async function deleteAllThreads(uid: string): Promise<void> {
@@ -376,8 +387,8 @@ export async function deleteAllThreads(uid: string): Promise<void> {
   if (idx.active) del(bodyKey(uid, idx.active));
   writeIndex(uid, { v: 1, active: null, threads: [] });
   broadcast();
-  if (uid === "dev" || syncState(uid) === "off") return;
-  await userFetch(API, { method: "DELETE" }).catch(() => null);
+  if (localOnly(uid) || syncState(uid) === "off") return;
+  await userFetch(apiFor(uid), { method: "DELETE" }).catch(() => null);
 }
 
 /** The learner named this conversation (an AI title never replaces that). */

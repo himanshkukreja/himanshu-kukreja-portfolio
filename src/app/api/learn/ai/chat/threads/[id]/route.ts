@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
-import { cleanTitle, sanitizeThread, THREAD_ID_RE, THREAD_MAX_BYTES, titleFrom } from "@/lib/learn/chat-history";
+import { cleanTitle, courseParam, sanitizeThread, THREAD_ID_RE, THREAD_MAX_BYTES, titleFrom } from "@/lib/learn/chat-history";
 import { deleteThreads, getThread, putThread, rateLimited, renameThread } from "@/lib/learn/chat-history-server";
 
 export const runtime = "nodejs";
@@ -55,7 +55,7 @@ export async function PUT(request: Request, ctx: Ctx) {
   const body = sanitizeThread(raw);
   if (!body || !body.messages.length) return json({ error: "Bad conversation" }, 400);
   const title = cleanTitle(raw?.title) || titleFrom(body.messages as { role: string; text?: unknown; answerTo?: unknown }[]) || "Conversation";
-  const r = await putThread(g.me.id, g.id, { title, createdAt: Number(raw?.createdAt), body });
+  const r = await putThread(g.me.id, g.id, { title, createdAt: Number(raw?.createdAt), body, course: courseParam(request.url) });
   if (!r.available) return missing();
   if (!r.ok) return json({ error: "Didn't save" }, 500);
   if (r.value === "deleted") return json({ deleted: true }, 410);

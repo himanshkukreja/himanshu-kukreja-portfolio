@@ -21,14 +21,22 @@ import { featureConfig, getAiSettings } from "@/lib/ai/settings";
 import { getBudget, startOfToday, type Mode } from "@/lib/ai/governor";
 import type { ChatQuota } from "./text";
 
-export const CHAT_FEATURES = ["course-chat", "chat-memory", "chat-title"] as const;
+export const CHAT_FEATURES = ["course-chat", "chat-memory", "chat-title", "dsa-chat", "dsa-tutor"] as const;
+/** The chat features whose rows are messages with a daily quota of their own (DSA Mastery's two since 9 Nov 2026). */
+export type MessageFeature = "course-chat" | "dsa-chat" | "dsa-tutor";
+/** What a refusal calls the chat, and what still works without it. */
+const WORDS: Record<MessageFeature, { name: string; noun: string; still: string }> = {
+  "course-chat": { name: "The course chat", noun: "chat", still: " The search results still work." },
+  "dsa-chat": { name: "The DSA tutor", noun: "DSA tutor", still: "" },
+  "dsa-tutor": { name: "The problem tutor", noun: "problem tutor", still: " Run, Submit and the hint ladder still work." },
+};
 const RATE_PER_MIN = 10;
 const OFF_TOPIC_PER_DAY = 5;
 
 type Row = { feature: string; model: string; status: string; cost_usd: number | null; byok: boolean | null };
 
-/** Today's chat rows for one learner: the messages counted against the quota, and what chat spent. */
-export async function chatToday(userId: string): Promise<{ total: number; spend: number }> {
+/** Today's chat rows for one learner: the messages of `feature` counted against its quota, and what every chat feature spent. */
+export async function chatToday(userId: string, feature: MessageFeature = "course-chat"): Promise<{ total: number; spend: number }> {
   const { data, error } = await supabase
     .from("ai_calls")
     .select("feature, model, status, cost_usd, byok")
@@ -43,7 +51,7 @@ export async function chatToday(userId: string): Promise<{ total: number; spend:
     const counted = r.status === "ok" || r.status === "off_topic";
     if (!counted || r.byok) continue;
     spend += Number(r.cost_usd) || 0;
-    if (r.feature !== "course-chat") continue;
+    if (r.feature !== feature) continue;
     total++;
   }
   return { total, spend };
@@ -58,32 +66,36 @@ export type Admit =
   | { ok: true; model: string; quota: ChatQuota; mode: Mode; byok: boolean; apiKey: string }
   | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "off_topic"; message: string; quota: ChatQuota | null; mode: Mode };
 
-export async function chatLimits() {
+export async function chatLimits(feature: MessageFeature = "course-chat") {
   const s = await getAiSettings();
-  const cfg = featureConfig(s, "course-chat");
-  return { s, cfg, perDay: cfg.perDay || FEATURES["course-chat"].perDay };
+  const cfg = featureConfig(s, feature);
+  return { s, cfg, perDay: cfg.perDay || FEATURES[feature].perDay };
 }
 
 /** The quota line for a learner who has sent `sent` counted messages today (their own key: no quota). */
 export const quotaFor = (perDay: number, sent: number, ownKey: boolean): ChatQuota => ({ left: ownKey ? perDay : Math.max(0, perDay - sent), perDay, ownKey });
 
 /** May this learner send a chat message now, and on which model? */
-export async function admitChat(a: { userId: string; admin: boolean; userKey: string | null }): Promise<Admit> {
-  const { s, cfg, perDay } = await chatLimits();
+export async function admitChat(a: { userId: string; admin: boolean; userKey: string | null; feature?: MessageFeature }): Promise<Admit> {
+  const feature = a.feature ?? "course-chat";
+  const w = WORDS[feature];
+  // the course chat keeps its own words exactly
+  const sdm = feature === "course-chat";
+  const { s, cfg, perDay } = await chatLimits(feature);
   const budget = await getBudget(s);
   const byok = !!a.userKey;
   const apiKey = a.userKey || process.env.ANTHROPIC_API_KEY || "";
   const refuse = (status: Extract<Admit, { ok: false }>["status"], message: string, quota: ChatQuota | null = null): Admit => ({ ok: false, status, message, quota, mode: budget.mode });
   if (!apiKey) return refuse("disabled", "AI is not configured");
   const switchedOn = (s.enabled && cfg.enabled) || a.admin || byok;
-  if (!switchedOn) return refuse("disabled", "The course chat is switched off right now. The search results still work.");
-  if (!byok && budget.mode === "off" && !(budget.reason === "switched off" && a.admin)) return refuse("disabled", "AI is resting: this month's budget is used. The search results still work.");
-  if (!byok && budget.mode === "red") return refuse("over_quota", "The chat is resting for today: today's AI budget is used. The search results still work, and the chat is back after midnight UTC.");
+  if (!switchedOn) return refuse("disabled", sdm ? "The course chat is switched off right now. The search results still work." : `${w.name} is switched off right now.${w.still}`);
+  if (!byok && budget.mode === "off" && !(budget.reason === "switched off" && a.admin)) return refuse("disabled", sdm ? "AI is resting: this month's budget is used. The search results still work." : `AI is resting: this month's budget is used.${w.still}`);
+  if (!byok && budget.mode === "red") return refuse("over_quota", sdm ? "The chat is resting for today: today's AI budget is used. The search results still work, and the chat is back after midnight UTC." : `${w.name} is resting for today: today's AI budget is used.${w.still} It is back after midnight UTC.`);
 
   const today = startOfToday().toISOString();
   const [blocked, t, lastMinute, offTopic] = await Promise.all([
     supabase.from("ai_blocks").select("user_id").eq("user_id", a.userId).maybeSingle(),
-    chatToday(a.userId),
+    chatToday(a.userId, feature),
     // a conversation's title call rides along with its first message, dictation polish with the learner's typing:
     // not requests of their own
     supabase.from("ai_calls").select("id", { count: "exact", head: true }).eq("user_id", a.userId).not("feature", "in", "(chat-title,dictation-polish)").gte("created_at", new Date(Date.now() - 60_000).toISOString()),
@@ -93,9 +105,9 @@ export async function admitChat(a: { userId: string; admin: boolean; userKey: st
   if (blocked.data) return refuse("blocked", "AI features are turned off for this account.", quota);
   if ((lastMinute.count ?? 0) >= RATE_PER_MIN) return refuse("rate_limited", "Slow down a little: try again in a minute.", quota);
   if ((offTopic.count ?? 0) >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.", quota);
-  if (!byok && t.total >= perDay) return refuse("over_quota", `You've sent today's ${perDay} chat messages. The chat is back after midnight UTC; the search results still work.`, quota);
+  if (!byok && t.total >= perDay) return refuse("over_quota", sdm ? `You've sent today's ${perDay} chat messages. The chat is back after midnight UTC; the search results still work.` : `You've sent today's ${perDay} ${w.noun} messages. They refill after midnight UTC.${w.still}`, quota);
   // amber mode: the amber model (Haiku 5.5, the chat's model too); an admin's model override applies otherwise
-  const model = !byok && budget.mode === "amber" ? FEATURES["course-chat"].amberModel || MODELS.haiku55 : cfg.model;
+  const model = !byok && budget.mode === "amber" ? FEATURES[feature].amberModel || MODELS.haiku55 : cfg.model;
   return { ok: true, model, quota, mode: budget.mode, byok, apiKey };
 }
 

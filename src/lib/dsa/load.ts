@@ -80,14 +80,25 @@ export const getConceptIndex = cached(async (): Promise<ConceptSummary[]> => {
   }));
 }, "dsa-concepts-v1");
 
-type ModulesFile = { modules?: { id: string; code: string; title: string; building?: string }[] };
+type ModulesFile = { modules?: { id: string; code: string; title: string; building?: string; lines?: string[]; objective?: string }[] };
 
-const getModules = cached(async (): Promise<Record<string, { code: string; title: string; building: string }>> => {
+const getModules = cached(async (): Promise<Record<string, { code: string; title: string; building: string; line: string; objective: string }>> => {
   const src = await readDsa("resources/course.yml");
   if (!src) return {};
   const data = yaml<ModulesFile>(src);
-  return Object.fromEntries((data.modules || []).map((m) => [m.id, { code: m.code, title: m.title, building: m.building || m.title }]));
-}, "dsa-modules-v1");
+  return Object.fromEntries(
+    (data.modules || []).map((m) => [m.id, { code: m.code, title: m.title, building: m.building || m.title, line: m.lines?.[0] || "", objective: m.objective || "" }]),
+  );
+}, "dsa-modules-v2");
+
+type LinesFile = { lines?: { id: string; name: string }[] };
+
+/** Product line names by id ("stream" → "Kestrel Stream"), from resources/company/product-lines.yml. */
+const getLineNames = cached(async (): Promise<Record<string, string>> => {
+  const src = await readDsa("resources/company/product-lines.yml");
+  if (!src) return {};
+  return Object.fromEntries((yaml<LinesFile>(src).lines || []).map((l) => [l.id, l.name]));
+}, "dsa-lines-v1");
 
 type ProblemFront = {
   id?: string;
@@ -156,6 +167,7 @@ type RawRegion = {
   status?: string;
   intro?: string;
   concepts?: string[];
+  lines?: string[];
   stretches?: { id: string; title: string; nodes: RawNode[] }[];
   side?: RawNode[];
   service?: RawNode;
@@ -168,7 +180,8 @@ type RawWorld = {
   order?: number;
   audience?: string;
   at_launch?: string;
-  theme?: { map?: string; road?: string };
+  division?: string;
+  theme?: { map?: string; road?: string; stops?: Record<string, string> };
   regions?: RawRegion[];
   final?: RawNode;
 };
@@ -182,7 +195,15 @@ export const problemHref = (id: string) => `/dsa/problems/${id}`;
 /** A concept's animated lecture (the course lecture player on its resolved lecture.json). */
 export const conceptLectureHref = (id: string) => `/dsa/concepts/${id}/lecture`;
 
-function buildWorld(raw: RawWorld, concepts: Map<string, ConceptSummary>, problems: Map<string, ProblemSummary>): WorldSpec {
+type ModuleInfo = Awaited<ReturnType<typeof getModules>>;
+
+function buildWorld(
+  raw: RawWorld,
+  concepts: Map<string, ConceptSummary>,
+  problems: Map<string, ProblemSummary>,
+  modules: ModuleInfo = {},
+  lines: Record<string, string> = {},
+): WorldSpec {
   const node = (n: RawNode): WorldNode => {
     const required = n.required !== false && n.type !== "side" && n.type !== "service";
     if (n.type === "concept") {
@@ -235,10 +256,12 @@ function buildWorld(raw: RawWorld, concepts: Map<string, ConceptSummary>, proble
       id: r.id,
       code: r.code,
       title: r.title,
-      module: r.module,
+      module: r.module || "",
       detail: r.detail === "full" ? "full" : "outline",
       status: r.status || "planned",
       intro: r.intro || null,
+      line: lines[r.lines?.[0] || modules[r.module]?.line || ""] || null,
+      objective: modules[r.module]?.objective || null,
       stretches,
       side: (r.side || []).map((n) => node(n)),
       boss: r.boss ? node(r.boss) : null,
@@ -252,18 +275,30 @@ function buildWorld(raw: RawWorld, concepts: Map<string, ConceptSummary>, proble
     audience: raw.audience || "",
     atLaunch: raw.at_launch || "",
     open: OPEN_WORLDS.has(raw.id),
-    theme: { map: raw.theme?.map || "", road: raw.theme?.road || "road" },
+    division: raw.division ? raw.division.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "",
+    theme: { map: raw.theme?.map || "", road: raw.theme?.road || "road", stops: raw.theme?.stops || {} },
     regions,
-    final: raw.final ? { id: raw.final.id, type: "boss", title: String(raw.final.title || "Final"), required: true, href: null, built: false, badge: String(raw.final.certificate || "") } : null,
+    final: raw.final
+      ? {
+          id: raw.final.id,
+          type: "boss",
+          title: String(raw.final.title || "Final"),
+          required: true,
+          href: null,
+          built: false,
+          badge: String(raw.final.certificate || ""),
+          building: raw.final.building ? String(raw.final.building) : undefined,
+        }
+      : null,
   };
 }
 
 const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
   const src = await readDsa(`resources/worlds/${id}.yml`);
   if (!src) return null;
-  const [concepts, problems] = await Promise.all([getConceptIndex(), getProblemIndex()]);
-  return buildWorld(yaml<RawWorld>(src), new Map(concepts.map((c) => [c.id, c])), new Map(problems.map((p) => [p.id, p])));
-}, "dsa-world-v1");
+  const [concepts, problems, modules, lines] = await Promise.all([getConceptIndex(), getProblemIndex(), getModules(), getLineNames()]);
+  return buildWorld(yaml<RawWorld>(src), new Map(concepts.map((c) => [c.id, c])), new Map(problems.map((p) => [p.id, p])), modules, lines);
+}, "dsa-world-v2");
 
 export async function getWorld(id: string): Promise<WorldSpec | null> {
   if (!ID.test(id)) return null;
