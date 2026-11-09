@@ -68,6 +68,9 @@ type FsDoc = Document & { webkitFullscreenElement?: Element | null; webkitExitFu
 type FsEl = HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
 const fsElement = () => document.fullscreenElement ?? (document as FsDoc).webkitFullscreenElement ?? null;
 
+/** one empty list for the defaults: a fresh `[]` per render would re-deal the feed on every render (an effect depends on it) */
+const NONE: string[] = [];
+
 /**
  * `top`: ids ranked by engagement (upvotes, saves, discussion, finished views), refreshed hourly on the server.
  * `home` (where Back goes without history), `shareBase` (the feed's own path in share links) and `guide` (the "how it
@@ -75,8 +78,8 @@ const fsElement = () => document.fullscreenElement ?? (document as FsDoc).webkit
  */
 export default function ShortsFeed({
   shorts,
-  top = [],
-  pinned = [],
+  top = NONE,
+  pinned = NONE,
   home = "/",
   shareBase = "/shorts",
   guide = true,
