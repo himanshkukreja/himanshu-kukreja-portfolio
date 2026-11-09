@@ -64,7 +64,7 @@ function Value({ v }: { v: unknown }) {
   const rows = Array.isArray(v) && v.length > 0 && v.every((x) => typeof x === "string" || Array.isArray(x)) ? (v as (string | unknown[])[]) : null;
   if (!rows) return <code className="break-all font-mono text-[13px]">{JSON.stringify(v)}</code>;
   return (
-    <pre className="m-0 inline-block max-w-full overflow-x-auto border border-line bg-bg px-2 py-1 font-mono text-[13px] leading-[1.35] text-fg">
+    <pre className="m-0 inline-block max-h-56 max-w-full overflow-auto border border-line bg-bg px-2 py-1 font-mono text-[13px] leading-[1.35] text-fg">
       {rows.map((r) => (typeof r === "string" ? r : r.join(" "))).join("\n")}
     </pre>
   );
