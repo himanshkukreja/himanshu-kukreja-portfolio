@@ -16,6 +16,7 @@ import ExplainBack from "@/components/learn/ai/ExplainBack";
 // one import() per module (lib/offline/lazy), so "save offline" caches the very chunks this asks for
 import { loadRaceChart, loadTracePlayer } from "@/lib/offline/lazy";
 import { CheckpointGate, CodeTabs, Poll, Reorder, ReviewCards } from "./widgets";
+import LessonClip from "../clip/LessonClip";
 
 const TracePlayer = dynamic(loadTracePlayer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the player…</p> });
 const RaceChart = dynamic(loadRaceChart, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the race…</p> });
@@ -79,6 +80,14 @@ function widgetFor(h: Host, c?: ConceptPage): React.ReactNode {
   // everything else belongs to a concept page (a problem's editorial only has code tabs)
   if (!c) return null;
   switch (h.kind) {
+    case "clip": {
+      const cl = c.clips?.[id];
+      return cl ? (
+        <Hydrated fig={h.fig}>
+          <LessonClip clip={cl} fig={h.fig} />
+        </Hydrated>
+      ) : null;
+    }
     case "poll":
       return <Poll fig={h.fig} conceptId={c.id} />;
     case "trace":

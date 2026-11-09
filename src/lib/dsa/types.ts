@@ -144,6 +144,8 @@ export type DsaStage = { id: string; label: string; title: string; minutes: numb
 export type ConceptCheckpoint = { nodeId: string; key: string; pass: number; problems: { id: string; title: string; built: boolean }[] };
 
 export type ConceptPage = {
+  /** in-article clips (clips.json) by id, for the lesson's ::clip figures */
+  clips?: Record<string, { id: string; caption: string; base: string | null; v: string; say: string[] }>;
   id: string;
   module: string;
   moduleTitle: string;

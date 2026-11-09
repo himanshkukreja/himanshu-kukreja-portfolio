@@ -26,6 +26,7 @@ import {
   type WorldSpec,
   type WorldSummary,
 } from "./types";
+import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 
 /**
  * DSA Mastery content loaders (server only). Each piece is its own small data-cache item (plan §14.5): the
@@ -459,7 +460,19 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
   for (const t of Object.values(traces)) titles[t.id] = t.title;
   for (const r of Object.values(races)) titles[r.id] = r.title;
 
-  const dsa: DsaRenderOpts = { cast, beats: true, checkpointQuiz: quizBody, titles, sdmLink: linker.sdm, labLink: linker.lab };
+  // in-article clips (clips.json): the same data the structure and algorithm lessons use (src/lib/dsa/structures.ts)
+  const media = lectureMediaBase();
+  const clips: NonNullable<ConceptPage["clips"]> = Object.fromEntries(
+    (await getLessonClips(id).catch(() => [] as Lecture[])).map((l) => {
+      const v = lectureHash(l);
+      const base = media ? `${media.replace(/\/$/, "")}/${l.quest}/` : null;
+      return [l.clip!.id, { id: l.clip!.id, caption: l.clip!.caption, base, v, say: l.scenes.flatMap((sc) => sc.steps.map((st) => st.say)) }];
+    }),
+  );
+  const clipFiles = Object.fromEntries(
+    Object.values(clips).map((cl) => [cl.id, { caption: cl.caption, files: cl.base ? [`${cl.base}video.mp4?v=${cl.v}`, `${cl.base}poster.jpg?v=${cl.v}`, `${cl.base}media.json`] : [] }]),
+  );
+  const dsa: DsaRenderOpts = { cast, beats: true, checkpointQuiz: quizBody, titles, sdmLink: linker.sdm, labLink: linker.lab, clips: clipFiles };
   const rendered = await renderLesson(content, { kind: "day-content", dsa });
   // "In one picture" (the beginner pass): the lesson's own pattern card, shown at the top of the page; never new text
   const card = content.match(/^:::pattern\[([^\]\n]*)\][^\n]*\n([\s\S]*?)\n:::[ \t]*$/m);
@@ -491,6 +504,7 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
   }
   const mod = modules[c.module];
   return {
+    clips,
     id,
     module: c.module,
     moduleTitle: mod ? `${mod.code} ${mod.title}` : c.module,
