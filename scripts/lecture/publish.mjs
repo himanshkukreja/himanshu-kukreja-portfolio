@@ -44,7 +44,14 @@ for (const dir of process.argv.slice(2)) {
   let bytes = 0;
   // a vertical short is only ever played as its MP4: skip the separate narration and music
   // an in-article clip plays its MP4 (the voice is its audio track): no separate narration or chapters
-  const files = slug.startsWith("shorts--") ? ["video.mp4", "poster.jpg", "media.json"] : slug.startsWith("dsa--clips--") ? ["video.mp4", "poster.jpg", "captions.vtt", "media.json"] : FILES;
+  // a solution video plays its MP4 in the Editorial tab: no separate narration or music either
+  const files = slug.startsWith("shorts--")
+    ? ["video.mp4", "poster.jpg", "media.json"]
+    : slug.startsWith("dsa--clips--")
+      ? ["video.mp4", "poster.jpg", "captions.vtt", "media.json"]
+      : slug.startsWith("dsa--solution--")
+        ? ["video.mp4", "poster.jpg", "captions.vtt", "chapters.json", "media.json"]
+        : FILES;
   for (const f of files) {
     const p = path.join(dir, f);
     if (!fs.existsSync(p)) continue;

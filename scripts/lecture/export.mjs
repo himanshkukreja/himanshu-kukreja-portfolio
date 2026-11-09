@@ -219,3 +219,5 @@ const audioArgs = hasMusic
 ff("-f", "concat", "-safe", "0", "-i", path.join(OUT, "frames.txt"), "-i", narration, ...audioArgs, "-vf", `fps=${FPS},format=yuv420p`, "-c:v", "libx264", "-preset", "medium", "-crf", "21", "-c:a", "aac", "-b:a", "160k", "-t", total.toFixed(3), "-movflags", "+faststart", mp4);
 writeMedia("video.mp4");
 console.log(`mp4: ${mp4} · ${(fs.statSync(mp4).size / 1048576).toFixed(1)} MB · ${dur(mp4).toFixed(1)} s`);
+// done: a lingering browser handle once kept a finished export from exiting (9 Nov 2026, a solution video)
+process.exit(0);
