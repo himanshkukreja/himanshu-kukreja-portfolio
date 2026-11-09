@@ -11,7 +11,7 @@
  * Nothing is locked anywhere: the button only recommends.
  */
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { computeWorld } from "@/lib/dsa/map/progress";
 import type { DsaLang, WorldNode, WorldSpec } from "@/lib/dsa/types";
@@ -24,6 +24,7 @@ import { useResolves } from "../revise/useResolves";
 import { useLang } from "../concept/widgets";
 import HubToday from "./HubToday";
 import { ShowEverything, saveWelcome, setDsaFull, useDsaFull, useWelcome, type Experience, type Goal } from "../simple/view";
+import { holdAttention } from "@/lib/learn/guide/attention";
 
 /* ------------------------------------------------------------------ the welcome */
 
@@ -62,6 +63,8 @@ function Choice({ label, line, on, onPick }: { label: string; line?: string; on:
 
 function Welcome() {
   const [, setLang] = useLang();
+  // the welcome has the floor: other first-visit tips (the Notebook coach) wait until it's answered or skipped
+  useEffect(() => holdAttention(), []);
   const [step, setStep] = useState(0);
   const [exp, setExp] = useState<Experience | null>(null);
   const [lang, pickLang] = useState<DsaLang | null>(null);
