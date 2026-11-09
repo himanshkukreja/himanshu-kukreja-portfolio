@@ -68,12 +68,14 @@ const SAY_AS = { NPCI: "N P C I", UPI: "U P I", PSP: "P S P", RBI: "R B I", SBI:
 const SPELL_OUT = new Set(["ONDC", "SSE", "TPOT", "ITPM", "OTPM", "IVF", "NETC", "IHMCL", "NHAI"]);
 const wordy = (w) => SAY_AS[w] !== undefined && (SAY_AS[w].replace(/\s/g, "") !== w || SPELL_OUT.has(w));
 // lower-case technical words the voice gets wrong
-const SAY_LOWER = { epoll: "E poll", kqueue: "K queue", mmap: "M map", io_uring: "I O uring", stdin: "standard in", stdout: "standard out", nginx: "engine X", sqlite: "S Q lite", kubectl: "kube control", syncer: "sync-er", syncers: "sync-ers", "in-app": "inn app", dedup: "dee-dupe", deduped: "dee-duped", dedupe: "dee-dupe", prefill: "pre-fill", debounce: "dee-bounce", debounced: "dee-bounced", debouncing: "dee-bouncing", kale: "kaa-lay", joote: "joo-tay", kalonji: "ka-lonji" };
+const SAY_LOWER = { epoll: "E poll", kqueue: "K queue", mmap: "M map", io_uring: "I O uring", stdin: "standard in", stdout: "standard out", nginx: "engine X", sqlite: "S Q lite", kubectl: "kube control", syncer: "sync-er", syncers: "sync-ers", "in-app": "inn app", dedup: "dee-dupe", deduped: "dee-duped", dedupe: "dee-dupe", prefill: "pre-fill", debounce: "dee-bounce", debounced: "dee-bounced", debouncing: "dee-bouncing", curr: "current", prev: "previous", kale: "kaa-lay", joote: "joo-tay", kalonji: "ka-lonji" };
 const speakable = (t) =>
   t
     // "HTTP/2", "I/O", "TCP/IP": the slash isn't spoken
     .replace(/([A-Za-z])\/([A-Za-z0-9])/g, "$1 $2")
-    .replace(/\b(epoll|kqueue|mmap|io_uring|stdin|stdout|nginx|sqlite|kubectl|syncers?|in-app|dedup(?:ed|e)?|prefill|debounc(?:e|ed|ing)|kale|joote|kalonji)\b/gi, (w) => SAY_LOWER[w.toLowerCase()] ?? w)
+    // "k-th" and "n-th" (the k-th smallest): said "kay-th", "en-th"
+    .replace(/\b([kn])-th\b/gi, (_, c) => (c.toLowerCase() === "k" ? "kay-th" : "en-th"))
+    .replace(/\b(epoll|kqueue|mmap|io_uring|stdin|stdout|nginx|sqlite|kubectl|syncers?|in-app|dedup(?:ed|e)?|prefill|debounc(?:e|ed|ing)|curr|prev|kale|joote|kalonji)\b/gi, (w) => SAY_LOWER[w.toLowerCase()] ?? w)
     .replace(/\b[A-Za-z]*[A-Z][A-Za-z0-9]*\b/g, (w) => (wordy(w) ? SAY_AS[w] : w))
     .replace(/@/g, " at ")
     .replace(/[·]/g, ",")
