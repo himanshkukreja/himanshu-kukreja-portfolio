@@ -23,6 +23,8 @@ import { useDsaDaily, useDsaStreak } from "../daily/useDsaDaily";
 import { useResolves } from "../revise/useResolves";
 import { useLang } from "../concept/widgets";
 import HubToday from "./HubToday";
+import { openOnboarding, useRecommendedStart } from "../onboarding/useOnboarding";
+import { useAuth } from "@/contexts/AuthContext";
 import { ShowEverything, saveWelcome, setDsaFull, useDsaFull, useWelcome, type Experience, type Goal } from "../simple/view";
 import { holdAttention } from "@/lib/learn/guide/attention";
 
@@ -157,7 +159,8 @@ function TodayLine() {
 function ContinueCard({ academy }: { academy: WorldSpec }) {
   const progress = useDsaProgress();
   const full = useDsaFull();
-  const world = useMemo(() => computeWorld(academy, progress), [academy, progress]);
+  const recommended = useRecommendedStart(academy);
+  const world = useMemo(() => computeWorld(academy, progress, { startRegion: recommended }), [academy, progress, recommended]);
   const at = useMemo(() => {
     if (!world.frontier) return null;
     const region = academy.regions.find((r) => r.id === world.frontier!.regionId) || null;
@@ -166,6 +169,7 @@ function ContinueCard({ academy }: { academy: WorldSpec }) {
   }, [world.frontier, academy]);
   const started = world.done > 0 || progress.solved.size > 0 || progress.concepts.size > 0;
   const first = !started && at?.node.type === "concept";
+  const { user } = useAuth();
   const verb = first ? `Start ${STOP.concept.toLowerCase()} 1` : "Continue";
   return (
     <section aria-labelledby="dsa-next-h" className="flex flex-col gap-4 border border-line bg-surface p-5 sm:p-8">
@@ -197,6 +201,11 @@ function ContinueCard({ academy }: { academy: WorldSpec }) {
         </h1>
       )}
       {full ? null : <TodayLine />}
+      {user ? (
+        <button type="button" onClick={openOnboarding} className="min-h-10 self-start font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          Redo the welcome tour
+        </button>
+      ) : null}
     </section>
   );
 }
@@ -205,9 +214,11 @@ function ContinueCard({ academy }: { academy: WorldSpec }) {
 export default function HubStart({ academy }: { academy: WorldSpec | null }) {
   const welcome = useWelcome();
   const full = useDsaFull();
-  // the server and the first paint don't know this browser yet: hold the space so nothing jumps
-  if (welcome === undefined) return <div aria-hidden className="min-h-[260px] border border-line bg-surface" />;
-  if (welcome === null) return <Welcome />;
+  const { user, loading } = useAuth();
+  // the server and the first paint don't know this browser yet: hold the space so nothing jumps. Signed in, the
+  // onboarding (OnboardingHost) is the welcome: the three-tap card is for guests only.
+  if (welcome === undefined || (welcome === null && loading)) return <div aria-hidden className="min-h-[260px] border border-line bg-surface" />;
+  if (welcome === null && !user) return <Welcome />;
   return (
     <div className="flex flex-col gap-3">
       {academy ? <ContinueCard academy={academy} /> : null}

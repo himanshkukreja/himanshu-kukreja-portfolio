@@ -39,6 +39,8 @@ export type Building = {
   stretches: StretchView[];
   /** the stretch to show first: the frontier's, else the first one not complete */
   focus: number;
+  /** the onboarding recommends starting here (a quiet highlight: nothing is locked) */
+  recommended: boolean;
   /** concepts the spec names for the region (outline regions list them; full regions have their concept stops) */
   concepts: WorldNode[];
 };
@@ -78,7 +80,7 @@ function stretchView(st: WorldRegion["stretches"][number], index: number, w: Wor
   };
 }
 
-export function campusOf(spec: WorldSpec, w: WorldProgress): Campus {
+export function campusOf(spec: WorldSpec, w: WorldProgress, recommendedRegion?: string | null): Campus {
   const buildings = spec.regions.map((region): Building => {
     const stretches = region.stretches.map((st, i) => stretchView(st, i, w));
     const nodes = region.stretches.flatMap((s) => s.nodes);
@@ -98,6 +100,7 @@ export function campusOf(spec: WorldSpec, w: WorldProgress): Campus {
       region,
       state,
       started,
+      recommended: !!recommendedRegion && region.id === recommendedRegion,
       stretches,
       focus: atFrontier >= 0 ? atFrontier : firstOpen >= 0 ? firstOpen : 0,
       concepts: nodes.filter((n) => n.type === "concept"),

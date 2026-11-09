@@ -26,6 +26,7 @@ import type { WorldNode, WorldRegion, WorldSpec } from "@/lib/dsa/types";
 import { STOP } from "@/lib/dsa/words";
 import { useDsaProgress } from "../progress/useDsaProgress";
 import { useDsaFull } from "../simple/view";
+import { useRecommendedStart } from "../onboarding/useOnboarding";
 
 /** A concept's lecture: its page, the media folder's slug and the script hash its recording must match. */
 export type LectureRef = { href: string; slug: string; source: string };
@@ -109,10 +110,11 @@ function tileBody(b: Building, campusStarted: boolean) {
   const st = b.stretches[b.focus];
   const stretchesDone = b.stretches.filter((s) => s.complete).length;
   const problems = b.stretches.reduce((a, s) => a + s.practice, 0);
+  const rec = b.recommended && b.state !== "cleared" ? " · Recommended start" : "";
   switch (b.state) {
     case "current":
       return {
-        left: `${code} · ${campusStarted ? "You are here" : "Start here"}`,
+        left: `${code} · ${b.recommended && !b.started ? "Recommended start" : campusStarted ? "You are here" : "Start here"}`,
         right: st && st.practice ? `${st.practiceDone} / ${st.practice}` : "",
         rightSr: st && st.practice ? `${st.practiceDone} of ${st.practice} problems in this stretch solved` : "",
         seg: st ? { fill: st.stepsDone, total: st.steps } : null,
@@ -122,7 +124,7 @@ function tileBody(b: Building, campusStarted: boolean) {
       return { left: code, right: "✓ Done", rightSr: "", seg: { fill: b.stretches.length, total: b.stretches.length }, line: "" };
     case "open":
       return {
-        left: code,
+        left: `${code}${rec}`,
         right: b.started ? "In progress" : "Open",
         rightSr: "",
         seg: { fill: stretchesDone, total: b.stretches.length },
@@ -694,8 +696,9 @@ function WorldHeader({
 
 export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec; lectures: Record<string, LectureRef>; mediaBase: string | null }) {
   const progress = useDsaProgress();
-  const world = useMemo(() => computeWorld(spec, progress), [spec, progress]);
-  const model = useMemo(() => campusOf(spec, world), [spec, world]);
+  const recommended = useRecommendedStart(spec);
+  const world = useMemo(() => computeWorld(spec, progress, { startRegion: recommended }), [spec, progress, recommended]);
+  const model = useMemo(() => campusOf(spec, world, recommended), [spec, world, recommended]);
   const desktop = useDesktop();
   const full = useDsaFull();
   const listRef = useRef<HTMLDivElement>(null);

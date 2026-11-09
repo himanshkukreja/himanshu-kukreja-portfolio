@@ -3,6 +3,7 @@ import ChatDock from "@/components/learn/chat/ChatDock";
 import NotebookPanelHost from "@/components/learn/ink/NotebookPanelHost";
 import NotebookFab from "@/components/learn/ink/global/NotebookFab";
 import NotebookCoach from "@/components/learn/ink/global/NotebookCoach";
+import OnboardingHost from "@/components/dsa/onboarding/OnboardingHost";
 import GuideVideoHost from "@/components/learn/guide/videos/GuideVideoHost";
 import { GUIDE_VIDEOS_ON } from "@/lib/learn/guide/videos";
 import { COURSE_LAYOUT_METADATA } from "@/lib/site/course-metadata";
@@ -16,6 +17,7 @@ export const metadata = COURSE_LAYOUT_METADATA;
 //   and the course chat panel (client-only, loaded when opened).
 // NotebookPanelHost: the one Notebook panel of the course (opens from the pen, a lesson's reading tools, N), and
 //   NotebookCoach, the one-time pointer to it.
+// OnboardingHost: DSA Mastery's signed-in welcome flow (once per account, only on /dsa pages; nothing elsewhere).
 // GuideVideoHost: the feature-video player (openGuideVideo / #watch-<id>), only with NEXT_PUBLIC_GUIDE_VIDEOS=1.
 export default function LearnLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -25,6 +27,7 @@ export default function LearnLayout({ children }: { children: React.ReactNode })
       <ChatDock companion={<NotebookFab />} />
       <NotebookPanelHost />
       <NotebookCoach />
+      <OnboardingHost />
       {GUIDE_VIDEOS_ON && <GuideVideoHost />}
     </>
   );

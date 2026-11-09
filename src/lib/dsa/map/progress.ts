@@ -88,7 +88,20 @@ function regionStates(region: WorldRegion, s: ProgressSignals, states: Record<st
   return { id: region.id, done, total, pct: total ? Math.round((done / total) * 100) : 0, gatesOpen, gates, bossOpen };
 }
 
-export function computeWorld(spec: WorldSpec, s: ProgressSignals): WorldProgress {
+/**
+ * The region the onboarding recommends starting at, resolved against what is written: the wanted region, or the first
+ * one after it (campus order) with a required, built, open stop. Null when none. Only a recommendation: nothing before it
+ * is locked, and the frontier skips back to earlier stops once everything from here on is done.
+ */
+export function resolveStartRegion(spec: WorldSpec, wanted: string | null | undefined): string | null {
+  if (!wanted) return null;
+  const at = spec.regions.findIndex((r) => r.id === wanted);
+  if (at < 0) return null;
+  const has = (r: WorldRegion) => r.stretches.some((st) => st.nodes.some((n) => n.required && n.built && n.type !== "gate"));
+  return spec.regions.slice(at).find(has)?.id ?? null;
+}
+
+export function computeWorld(spec: WorldSpec, s: ProgressSignals, opts?: { startRegion?: string | null }): WorldProgress {
   const states: Record<string, NodeState> = {};
   const regions: Record<string, RegionProgress> = {};
   let done = 0;
@@ -100,16 +113,21 @@ export function computeWorld(spec: WorldSpec, s: ProgressSignals): WorldProgress
     total += p.total;
   }
   let frontier: WorldProgress["frontier"] = null;
-  outer: for (const r of spec.regions) {
-    for (const st of r.stretches) {
-      for (const n of st.nodes) {
-        if (!n.required || !n.built || n.type === "gate") continue;
-        if (states[n.id] === "open") {
-          frontier = { nodeId: n.id, regionId: r.id };
-          break outer;
+  // the onboarding's recommended start: look from that region on first, then from the top (nothing is locked)
+  const from = opts?.startRegion ? Math.max(0, spec.regions.findIndex((r) => r.id === opts.startRegion)) : 0;
+  for (const range of from > 0 ? [spec.regions.slice(from), spec.regions] : [spec.regions]) {
+    outer: for (const r of range) {
+      for (const st of r.stretches) {
+        for (const n of st.nodes) {
+          if (!n.required || !n.built || n.type === "gate") continue;
+          if (states[n.id] === "open") {
+            frontier = { nodeId: n.id, regionId: r.id };
+            break outer;
+          }
         }
       }
     }
+    if (frontier) break;
   }
   if (frontier) states[frontier.nodeId] = "current";
   if (spec.final) states[spec.final.id] = spec.final.built ? "open" : "soon";
