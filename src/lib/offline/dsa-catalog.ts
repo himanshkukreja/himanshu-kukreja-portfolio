@@ -44,7 +44,7 @@ export async function dsaCatalogGroups(mediaBase: string | null): Promise<Catalo
     title: "DSA concepts",
     kind: "dsa",
     items: [
-      { url: "/dsa", title: "DSA Mastery · world map", kind: "hub", tag: "MAP", group: "dsa-concepts", version: hash(JSON.stringify(built.map((c) => c.id)) + problems.length), bytes: 60_000 },
+      { url: "/dsa", title: "DSA Mastery · home", kind: "hub", tag: "MAP", group: "dsa-concepts", version: hash(JSON.stringify(built.map((c) => c.id)) + problems.length), bytes: 60_000 },
       ...lessons.map(({ c, version, bytes }): CatalogItem => ({ url: conceptHref(c.id), title: c.title, kind: "dsa-concept", tag: `${code(c.module)} · ${c.order}`, group: "dsa-concepts", version, bytes })),
     ],
   });

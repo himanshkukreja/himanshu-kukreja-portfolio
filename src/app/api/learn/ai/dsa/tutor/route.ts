@@ -120,7 +120,7 @@ export async function POST(request: Request) {
     userKey: ownKey(request),
     feature: "dsa-tutor",
     req,
-    lookup: { tool: "get_item", label: mode === "hint" ? "Reading your code and the hint ladder…" : "Reading your code and the problem…", noun: "problem" },
+    lookup: { tool: "get_item", label: mode === "hint" ? "Reading your code and the hint ladder…" : mode === "explain" ? "Reading the problem…" : "Reading your code and the problem…", noun: "problem" },
     prepare: async () => {
       // a fresh read after an accepted submit (the solve was recorded a moment ago)
       if (result?.verdict === "AC" && result.mode === "submit") forgetUnlocks(me.id);

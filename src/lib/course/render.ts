@@ -16,7 +16,7 @@ import { createHash } from "crypto";
 import type { Code, Heading, Paragraph, Root, RootContent } from "mdast";
 import type { Element as HastElement, ElementContent, Root as HastRoot, RootContent as HastRootContent } from "hast";
 import type { CourseRefResolver, LessonKind, QuestMission, RenderedLesson, Stage, TocItem } from "./types";
-import { chrome, el, h, hastText, rawHast, startsWithEmoji, stripEmoji, text, toText, wordCount, type AnyNode, type SdEl, type SdHast } from "./md";
+import { chrome, el, h, hastText, rawHast, startsWithEmoji, stripEmoji, text, toText, wordCount, type AnyNode, type HChild, type SdEl, type SdHast } from "./md";
 import { IdRegistry, intToRoman, romanToInt, slugify } from "./slug";
 import { cleanHr, count, isEndMarker, isTomorrow, processBlocks, renderNestedCode, type BlockCtx } from "./detect/blocks";
 import { practiceCard } from "./detect/quiz";
@@ -33,7 +33,7 @@ const SERIES_RE = /^System Design Mastery Series$/i;
 
 /* ------------------------------------------------------------------ stages */
 
-export type StageHead = { id: string; label: string; title: string; budget?: number; core: boolean; numeral?: string };
+export type StageHead = { id: string; label: string; title: string; budget?: number; core: boolean; numeral?: string; /** DSA beats: the 6S word, shown small after the plain label; the heading's "1. Scenario:" prefix is for screen readers */ sub?: string };
 
 export function majorStage(textRaw: string, kind: LessonKind): StageHead | null {
   const t = stripEmoji(textRaw).trim();
@@ -519,12 +519,16 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
       .join(" · ");
     const headKids: AnyNode[] = [];
     if (head.numeral) headKids.push(rawHast(chrome("span", { className: ["sd-stage-num"], ariaHidden: "true" }, [head.numeral])));
-    const titleKids: AnyNode[] = [rawHast(chrome("p", { className: ["sd-stage-meta"] }, [meta]))];
+    // DSA beats: "The problem" with "Scenario" small after it (the 6S word as a subtitle); other courses unchanged
+    const metaKids: HChild[] = head.sub
+      ? [h("span", { className: ["dsa-beat-plain"] }, [head.label]), " ", h("span", { className: ["dsa-beat-6s"] }, [head.sub]), meta.slice(head.label.length)]
+      : [meta];
+    const titleKids: AnyNode[] = [rawHast(chrome("p", { className: ["sd-stage-meta"] }, metaKids))];
     if (s.heading) {
       const hd = s.heading;
       const inline = hd.children.map((c) => (c.type === "text" ? { ...c, value: stripEmoji(c.value) } : c));
       const full = stripEmoji(toText(hd));
-      const prefixMatch = full.match(/^((?:Part\s+[IVXLC\d]+|Phase\s+\d+|Chapter\s+\d+|WEEK\s+\d+|PHASE\s+\d+|Appendix)\s*[:.–—-])\s*/i);
+      const prefixMatch = full.match(head.sub ? /^(\d+\.\s*[A-Za-z]+\s*[:.–—-])\s*/ : /^((?:Part\s+[IVXLC\d]+|Phase\s+\d+|Chapter\s+\d+|WEEK\s+\d+|PHASE\s+\d+|Appendix)\s*[:.–—-])\s*/i);
       let headingChildren: AnyNode[] = inline as AnyNode[];
       if (prefixMatch && inline[0]?.type === "text" && (inline[0] as { value: string }).value.startsWith(prefixMatch[1])) {
         const first = inline[0] as { type: "text"; value: string };

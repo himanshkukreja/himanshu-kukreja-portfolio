@@ -76,6 +76,8 @@ export type WorldRegion = {
   line: string | null;
   /** the module's one-sentence objective (course.yml), for regions without an intro yet */
   objective: string | null;
+  /** the module's plain title ("Sliding Window", course.yml): what the map shows; the region title is its theme name */
+  moduleTitle: string | null;
   stretches: WorldStretch[];
   side: WorldNode[];
   boss: WorldNode | null;
@@ -136,6 +138,8 @@ export type ConceptPage = {
   line: string;
   invariant: string;
   keyPoints: string[];
+  /** "In one picture": the lesson's pattern card (its title and rendered body), null when the lesson has none */
+  picture: { title: string; html: string; more: string } | null;
   html: string;
   stages: DsaStage[];
   toc: { id: string; text: string; level: 1 | 2 | 3 | 4; kind: "part" | "chapter" | "section" | "question" | "other"; stageId: string }[];

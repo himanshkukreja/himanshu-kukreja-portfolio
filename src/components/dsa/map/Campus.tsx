@@ -2,8 +2,12 @@
 
 /**
  * A world's roadmap as a campus (design "A · Campus map"): the world header (progress, "Continue"), one building per
- * region on a snaking footpath, and the selected building's panel (its current stretch: rooms, paving stones, the
- * front desk and the door), progress from useDsaProgress() through computeWorld() and campusOf().
+ * region on a snaking footpath, and the selected building's panel (its current stretch: lessons, practice problems,
+ * the checkpoint quiz and the way on), progress from useDsaProgress() through computeWorld() and campusOf().
+ *
+ * Plain words (owner, 9 Nov 2026, src/lib/dsa/words.ts): a building is a Module, a stretch a Section, a room a Lesson,
+ * a paving stone a Practice problem, the front desk the Checkpoint quiz, a door the Next section. The theme names
+ * ("Window Tower") stay as small subtitles; the spec's own words never reach the screen.
  *
  * - Desktop (lg, 1024 px and up): three buildings a row, row 2 right to left; the footpath is an SVG (aria-hidden)
  *   drawn through the measured tile centres, teal where walked. The panel is a sticky aside.
@@ -16,8 +20,10 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { computeWorld, type NodeState } from "@/lib/dsa/map/progress";
 import { campusOf, clock, type Building, type Campus as CampusModel, type StretchView } from "@/lib/dsa/map/campus";
-import type { WorldNode, WorldSpec } from "@/lib/dsa/types";
+import type { WorldNode, WorldRegion, WorldSpec } from "@/lib/dsa/types";
+import { STOP } from "@/lib/dsa/words";
 import { useDsaProgress } from "../progress/useDsaProgress";
+import { useDsaFull } from "../simple/view";
 
 /** A concept's lecture: its page, the media folder's slug and the script hash its recording must match. */
 export type LectureRef = { href: string; slug: string; source: string };
@@ -25,10 +31,9 @@ export type LectureRef = { href: string; slug: string; source: string };
 const COLS = 3;
 const DESKTOP = "(min-width: 1024px)";
 
-/** What the Academy calls its map; other worlds use their title. */
-const PLACE: Record<string, string> = { academy: "The campus" };
-
-const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+/** A region's plain name ("Sliding Window") and its theme name ("Window Tower") for the small subtitle. */
+const plainName = (r: WorldRegion) => r.moduleTitle || r.title;
+const themeName = (r: WorldRegion) => (r.moduleTitle && r.moduleTitle !== r.title ? r.title : "");
 
 function useDesktop(): boolean | null {
   const [desk, setDesk] = useState<boolean | null>(null);
@@ -72,12 +77,6 @@ const Check = ({ size = 12 }: { size?: number }) => (
     <path d="M4 12.5l5 5L20 6.5" />
   </svg>
 );
-const Lock = ({ size = 11 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.4} aria-hidden>
-    <rect x="5" y="11" width="14" height="9" />
-    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
-  </svg>
-);
 const Hall = () => (
   <svg width={28} height={28} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} aria-hidden className="shrink-0">
     <path d="M4 20h16M6 20V9l6-5 6 5v11M10 20v-5h4v5" />
@@ -115,20 +114,20 @@ function tileBody(b: Building, campusStarted: boolean) {
         right: st && st.practice ? `${st.practiceDone} / ${st.practice}` : "",
         rightSr: st && st.practice ? `${st.practiceDone} of ${st.practice} problems in this stretch solved` : "",
         seg: st ? { fill: st.stepsDone, total: st.steps } : null,
-        line: st ? `Stretch ${st.index + 1} · ${st.title}` : "",
+        line: st ? `Section ${st.index + 1} · ${st.title}` : "",
       };
     case "cleared":
-      return { left: code, right: "✓ Cleared", rightSr: "", seg: { fill: b.stretches.length, total: b.stretches.length }, line: "" };
+      return { left: code, right: "✓ Done", rightSr: "", seg: { fill: b.stretches.length, total: b.stretches.length }, line: "" };
     case "open":
       return {
         left: code,
         right: b.started ? "In progress" : "Open",
         rightSr: "",
         seg: { fill: stretchesDone, total: b.stretches.length },
-        line: `${b.stretches.length} ${b.stretches.length === 1 ? "stretch" : "stretches"} · ${problems} problems`,
+        line: `${b.stretches.length} ${b.stretches.length === 1 ? "section" : "sections"} · ${problems} practice problems`,
       };
     case "planned":
-      return { left: code, right: "Soon", rightSr: "", seg: null, line: b.concepts.length ? `${b.concepts.length} concepts · being written` : "Being written" };
+      return { left: code, right: "Soon", rightSr: "", seg: null, line: b.concepts.length ? `${b.concepts.length} lessons · being written` : "Being written" };
     default:
       return { left: code, right: "Later", rightSr: "", seg: null, line: "Opens later" };
   }
@@ -174,16 +173,18 @@ function Tile({
       <span className={`flex items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-label ${headTone}`}>
         <span>{t.left}</span>
         <span className="inline-flex items-center gap-1 whitespace-nowrap">
-          {b.state === "planned" || b.state === "later" ? <Lock /> : null}
           <span aria-hidden={t.rightSr ? true : undefined}>{t.right}</span>
           {t.rightSr ? <span className="sr-only">{t.rightSr}</span> : null}
         </span>
       </span>
-      <span className={`font-display font-extrabold leading-[1.05] tracking-[-0.02em] ${cur ? "text-[24px]" : "text-[20px]"} ${dim ? "text-fg-2" : ""}`}>{b.region.title}</span>
+      <span className="flex flex-col gap-0.5">
+        <span className={`font-display font-extrabold leading-[1.05] tracking-[-0.02em] ${cur ? "text-[24px]" : "text-[20px]"} ${dim ? "text-fg-2" : ""}`}>{plainName(b.region)}</span>
+        {themeName(b.region) ? <span className={`font-mono text-[11px] ${cur ? "text-[var(--c-plate-fg-2)]" : "text-fg-3"}`}>{themeName(b.region)}</span> : null}
+      </span>
       {t.seg ? (
         <>
           <Segments fill={t.seg.fill} total={t.seg.total} tone={cur ? "plate" : "light"} />
-          {!cur && <span className="sr-only">{`${stretchesDone} of ${b.stretches.length} stretches done.`}</span>}
+          {!cur && <span className="sr-only">{`${stretchesDone} of ${b.stretches.length} sections done.`}</span>}
         </>
       ) : null}
       {t.line ? <span className={`text-[13px] leading-snug ${cur ? "text-[var(--c-plate-fg-2)]" : dim ? "text-[12px]" : "text-fg-3"}`}>{t.line}</span> : null}
@@ -220,74 +221,61 @@ function FinalTile({ node, selected, desktop, onSelect }: { node: WorldNode; sel
 
 /* ------------------------------------------------------------------ the selected building */
 
-type Stops = WorldSpec["theme"]["stops"];
-
 function RowBox({ n, state, isNext }: { n: WorldNode; state: NodeState; isNext: boolean }) {
   const base = "grid h-[22px] w-[22px] shrink-0 place-items-center font-mono text-[11px]";
   if (state === "done") return <span className={`${base} bg-signal text-on-signal`}><Check /></span>;
   if (isNext) return <span className={`${base} border-2 border-signal text-signal-text`} aria-hidden>▶</span>;
-  if (state === "locked") return <span className={`${base} border border-line-strong text-fg-4`}><Lock /></span>;
   if (state === "soon") return <span className={`${base} border border-dotted border-line-strong`} aria-hidden />;
   if (n.type === "checkpoint") return <span className={`${base} border border-line-strong text-fg-3`} aria-hidden>?</span>;
-  if (n.type === "gate") return <span className={`${base} border border-line-strong text-[12px] text-fg-3`} aria-hidden>⌂</span>;
+  if (n.type === "gate") return <span className={`${base} border border-line-strong text-[12px] text-fg-3`} aria-hidden>→</span>;
   return <span className={`${base} border border-line-strong`} aria-hidden />;
 }
 
-const SR_STATE: Record<NodeState, string> = { done: "done", current: "next", open: "open", locked: "locked", soon: "coming soon" };
+const SR_STATE: Record<NodeState, string> = { done: "done", current: "next", open: "open", locked: "open", soon: "coming soon" };
 
 function StretchRow({
   n,
   state,
   isNext,
-  stops,
   after,
   regionTitle,
 }: {
   n: WorldNode;
   state: NodeState;
   isNext: boolean;
-  stops: Stops;
   after: { index: number; title: string } | null;
   regionTitle: string;
 }) {
   let label: string;
   let meta = "";
   if (n.type === "concept") {
-    label = `${cap(stops.concept || "lesson")} · ${n.title}`;
-    meta = state === "soon" ? "soon" : "lesson";
+    label = `${STOP.concept} · ${n.title}`;
+    meta = state === "soon" ? "soon" : "";
   } else if (n.type === "practice") {
     label = n.title;
     meta = state === "soon" ? "soon" : `${n.required ? "" : "bonus · "}${n.level || ""}`;
   } else if (n.type === "checkpoint") {
     const k = (n.problems || []).length;
-    label = `${cap(stops.checkpoint || "checkpoint")} · checkpoint (quiz${k ? ` + ${k} problems` : ""})`;
+    label = `${STOP.checkpoint}${k ? ` + ${k} problems` : ""}`;
     meta = state === "soon" ? "soon" : `${Math.round((n.pass ?? 0.8) * 100)}% to pass`;
   } else {
-    const door = cap(stops.gate || "gate");
-    label = after ? `${door} to stretch ${after.index + 1} · ${after.title}` : `${door} out of ${regionTitle}`;
-    meta = state === "done" ? "open" : "";
+    label = after ? `${STOP.gate}: ${after.index + 1} · ${after.title}` : `End of ${regionTitle}`;
+    meta = "";
   }
-  const link = !!n.href && state !== "locked" && state !== "soon" && n.type !== "gate";
-  const why =
-    state === "locked"
-      ? n.type === "checkpoint"
-        ? `: appears once ${Math.round((n.opensAt ?? 0.7) * 100)}% of this stretch's practice is solved`
-        : n.type === "gate"
-          ? ": opens when you pass the checkpoint"
-          : ": opens when the door before it opens"
-      : "";
-  const cls = `flex min-h-11 items-center gap-3 border-t border-line px-3.5 py-3 ${isNext ? "bg-signal/10" : ""} ${state === "locked" || state === "soon" ? "text-fg-3" : "text-fg"}`;
+  const link = !!n.href && state !== "soon" && n.type !== "gate";
+  const kind = n.type === "practice" ? `${STOP.practice}: ` : "";
+  const cls = `flex min-h-11 items-center gap-3 border-t border-line px-3.5 py-3 ${isNext ? "bg-signal/10" : ""} ${state === "soon" ? "text-fg-3" : "text-fg"}`;
   const body = (
     <>
       <RowBox n={n} state={state} isNext={isNext} />
       {/* label and meta wrap onto two lines when the row is narrow (the inline panel on a 320 px phone) */}
       <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
         <span className={`min-w-0 grow basis-[9rem] break-words text-[14px] leading-snug ${isNext ? "font-semibold" : ""}`}>
+          {kind ? <span className="sr-only">{kind}</span> : null}
           {label}
           <span className="sr-only">
             {", "}
             {isNext ? "next" : SR_STATE[state]}
-            {why}
           </span>
         </span>
         {meta || isNext ? (
@@ -316,7 +304,7 @@ function primaryOf(st: StretchView, states: Record<string, NodeState>): { href: 
   if (n?.href) {
     if (n.type === "practice") return { href: n.href, text: "Solve the next problem" };
     if (n.type === "concept") return { href: n.href, text: "Read the lesson" };
-    if (n.type === "checkpoint") return { href: n.href, text: "Take the checkpoint" };
+    if (n.type === "checkpoint") return { href: n.href, text: "Take the checkpoint quiz" };
   }
   const extra = st.nodes.find((x) => x.type === "practice" && x.href && (states[x.id] === "open" || states[x.id] === "current"));
   if (extra?.href) return { href: extra.href, text: "Solve the next problem" };
@@ -366,9 +354,8 @@ function BuildingPanel({
   compact?: boolean;
 }) {
   const r = b.region;
-  const stops = spec.theme.stops;
-  const topic = r.line || (r.module || "").replace(/^m\d+-/, "").replace(/-/g, " ");
-  const eyebrow = topic ? `${r.code.toUpperCase()} · ${topic}` : r.code.toUpperCase();
+  // the theme name and the product line as the small subtitle: "M5 · Window Tower · Kestrel Stream"
+  const eyebrow = [r.code.toUpperCase(), themeName(r), r.line].filter(Boolean).join(" · ");
   const intro = r.intro || r.objective;
   const st = b.stretches[stretchIdx] || b.stretches[0];
   const full = b.state !== "planned" && b.state !== "later" && !!st;
@@ -379,7 +366,7 @@ function BuildingPanel({
       <div className="flex flex-col gap-2">
         <span className="font-mono text-[11px] uppercase tracking-[0.12em] text-signal-text">{eyebrow}</span>
         <h2 id={headingId} className={compact ? "sr-only" : "m-0 font-display text-[28px] font-extrabold leading-none tracking-[-0.03em] text-fg xl:text-[34px]"}>
-          {r.title}
+          {plainName(r)}
         </h2>
         {intro ? <p className="m-0 text-[14px] leading-relaxed text-fg-2">{intro}</p> : null}
       </div>
@@ -389,14 +376,14 @@ function BuildingPanel({
           <div className="flex flex-col border border-line bg-surface">
             <div className="flex items-baseline justify-between gap-3 bg-surface-2 px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-label text-fg-2">
               <span>
-                Stretch {st.index + 1} · {st.title}
+                Section {st.index + 1} · {st.title}
               </span>
               <span className="shrink-0">
                 <span aria-hidden>
                   {st.stepsDone} / {st.steps}
                 </span>
                 <span className="sr-only">
-                  {st.stepsDone} of {st.steps} stops done
+                  {st.stepsDone} of {st.steps} steps done
                 </span>
               </span>
             </div>
@@ -409,9 +396,8 @@ function BuildingPanel({
                     n={n}
                     state={states[n.id] || "locked"}
                     isNext={st.next?.id === n.id}
-                    stops={stops}
                     after={after ? { index: after.index, title: after.title } : null}
-                    regionTitle={r.title}
+                    regionTitle={plainName(r)}
                   />
                 );
               })}
@@ -443,7 +429,7 @@ function BuildingPanel({
                       className="flex min-h-9 w-full items-center justify-between gap-3 text-left hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
                     >
                       <span>
-                        Stretch {s.index + 1} · {s.title}
+                        Section {s.index + 1} · {s.title}
                         <span className="sr-only">: show it</span>
                       </span>
                       <span className="shrink-0">{s.complete ? "✓" : `${s.stepsDone}/${s.steps}`}</span>
@@ -453,11 +439,10 @@ function BuildingPanel({
               )}
               {r.boss ? (
                 <li className="flex min-h-9 flex-wrap items-center justify-between gap-x-3 gap-y-0.5 py-1">
-                  <span>Building review · {r.boss.title}</span>
-                  <span className="inline-flex shrink-0 items-center gap-1">
-                    <Lock />
-                    after every {stops.checkpoint || "checkpoint"}
+                  <span>
+                    {STOP.boss} · {r.boss.title}
                   </span>
+                  <span className="shrink-0">{r.boss.built ? "open" : "being written"}</span>
                 </li>
               ) : null}
             </ul>
@@ -476,7 +461,7 @@ function BuildingPanel({
                 <li key={n.id} className="flex min-h-11 items-center gap-3 border-t border-line px-3.5 py-2.5 text-fg-2">
                   <span aria-hidden className="h-[22px] w-[22px] shrink-0 border border-dotted border-line-strong" />
                   <span className="min-w-0 flex-1 text-[14px]">
-                    {cap(stops.concept || "lesson")} · {n.title}
+                    {STOP.concept} · {n.title}
                   </span>
                   <span className="shrink-0 font-mono text-[11px] text-fg-3">soon</span>
                 </li>
@@ -486,7 +471,9 @@ function BuildingPanel({
             <p className="m-0 border-t border-line px-3.5 py-3 text-[14px] text-fg-2">Its lessons and problems are being written.</p>
           )}
           {r.boss && b.state === "planned" ? (
-            <p className="m-0 border-t border-line px-3.5 py-2.5 font-mono text-[12px] text-fg-3">Building review · {r.boss.title}</p>
+            <p className="m-0 border-t border-line px-3.5 py-2.5 font-mono text-[12px] text-fg-3">
+              {STOP.boss} · {r.boss.title}
+            </p>
           ) : null}
         </div>
       )}
@@ -502,12 +489,10 @@ function FinalPanel({ spec, node, headingId }: { spec: WorldSpec; node: WorldNod
         {node.title}
       </h2>
       <p className="m-0 text-[14px] leading-relaxed text-fg-2">
-        Opens when every building review in {spec.title} is cleared.
+        The last review of {spec.title}, across every module.
         {node.badge ? ` Pass it for the ${node.badge} certificate.` : ""}
       </p>
-      <p className="m-0 inline-flex items-center gap-1.5 font-mono text-[12px] text-fg-3">
-        <Lock /> Locked
-      </p>
+      <p className="m-0 font-mono text-[12px] text-fg-3">{node.built ? "Open" : "Being written"}</p>
     </div>
   );
 }
@@ -557,12 +542,19 @@ function Footpath({ list, walked, deps }: { list: React.RefObject<HTMLOListEleme
 
 type Sel = number | "final";
 
-function WorldHeader({ spec, model, progress, frontier }: { spec: WorldSpec; model: CampusModel | null; progress: ReturnType<typeof useDsaProgress>; frontier: WorldNode | null }) {
-  const stops = spec.theme.stops;
-  const stopLine =
-    stops.concept && stops.practice && stops.checkpoint && stops.gate
-      ? ` ${cap(stops.concept)}s teach, ${stops.practice}s are problems, the ${stops.checkpoint} checks you. Everything is open: go in any order.`
-      : "";
+function WorldHeader({
+  spec,
+  model,
+  progress,
+  frontier,
+  showContinue,
+}: {
+  spec: WorldSpec;
+  model: CampusModel | null;
+  progress: ReturnType<typeof useDsaProgress>;
+  frontier: WorldNode | null;
+  showContinue: boolean;
+}) {
   const ids = useMemo(() => {
     const practice = new Set<string>();
     const concepts = new Set<string>();
@@ -587,13 +579,14 @@ function WorldHeader({ spec, model, progress, frontier }: { spec: WorldSpec; mod
           {spec.division ? ` · ${spec.division}` : ""}
           {spec.subtitle ? ` · ${spec.subtitle}` : ""}
         </span>
-        <h1 className="m-0 font-display text-[44px] font-extrabold leading-none tracking-[-0.04em] text-fg sm:text-[56px]">
-          {PLACE[spec.id] || spec.title}
+        <h2 className="m-0 font-display text-[40px] font-extrabold leading-none tracking-[-0.04em] text-fg sm:text-[52px]">
+          {spec.title}
           <span className="text-signal">.</span>
-        </h1>
+        </h2>
         <p className="m-0 max-w-[620px] text-[16px] leading-normal text-fg-2">
-          {spec.theme.map}
-          {stopLine}
+          {spec.regions.length
+            ? "One module after another. Each module has short sections: lessons teach, practice problems build the skill, and a checkpoint quiz ends the section. Everything is open: go in any order."
+            : spec.audience}
         </p>
       </div>
       {spec.open && n > 0 ? (
@@ -602,12 +595,12 @@ function WorldHeader({ spec, model, progress, frontier }: { spec: WorldSpec; mod
             <div className="flex justify-between gap-3 font-mono text-[12px] text-fg-3">
               <span>{spec.title} progress</span>
               <span className="text-fg">
-                {cleared} of {n} buildings
+                {cleared} of {n} modules done
               </span>
             </div>
             <div
               role="progressbar"
-              aria-label={`${spec.title} buildings cleared`}
+              aria-label={`${spec.title} modules done`}
               aria-valuemin={0}
               aria-valuemax={n}
               aria-valuenow={cleared}
@@ -626,7 +619,7 @@ function WorldHeader({ spec, model, progress, frontier }: { spec: WorldSpec; mod
               )}
             </div>
           </div>
-          {frontier?.href ? (
+          {showContinue && frontier?.href ? (
             <Link
               href={frontier.href}
               aria-busy={!progress.ready}
@@ -641,7 +634,7 @@ function WorldHeader({ spec, model, progress, frontier }: { spec: WorldSpec; mod
       ) : !spec.open ? (
         <div className="flex max-w-[420px] flex-col gap-2">
           <span className="inline-flex items-center gap-1.5 self-start border border-line-strong px-2 py-1 font-mono text-[11px] uppercase tracking-label text-fg-3">
-            <Lock /> Opens later
+            Opens later
           </span>
           {spec.atLaunch ? <p className="m-0 text-[14px] leading-relaxed text-fg-2">{spec.atLaunch}</p> : null}
         </div>
@@ -655,6 +648,7 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
   const world = useMemo(() => computeWorld(spec, progress), [spec, progress]);
   const model = useMemo(() => campusOf(spec, world), [spec, world]);
   const desktop = useDesktop();
+  const full = useDsaFull();
   const listRef = useRef<HTMLOListElement>(null);
   const [sel, setSel] = useState<Sel | null>(null);
   const [stretchSel, setStretchSel] = useState<number | null>(null);
@@ -755,7 +749,8 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
 
   return (
     <section aria-label={`${spec.title} map`} className="flex flex-col gap-6">
-      <WorldHeader spec={spec} model={model} progress={progress} frontier={frontier} />
+      {/* the hub's own "Continue" leads the simple view; the full view keeps this one too */}
+      <WorldHeader spec={spec} model={model} progress={progress} frontier={frontier} showContinue={full || spec.id !== "academy"} />
 
       {n === 0 ? (
         <div className="flex flex-col gap-2 border border-dashed border-line-strong bg-surface-2 p-6">
@@ -774,7 +769,7 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
               <ol
                 ref={listRef}
                 onKeyDown={onKey}
-                aria-label={`${spec.title}: buildings in order`}
+                aria-label={`${spec.title}: modules in order`}
                 className="relative m-0 flex list-none flex-col p-0 lg:grid lg:grid-cols-3 lg:gap-x-4 lg:gap-y-16 xl:gap-x-6"
               >
                 {model.buildings.map((b, i) => {
@@ -809,7 +804,7 @@ export default function Campus({ spec, lectures, mediaBase }: { spec: WorldSpec;
             <div className="mt-8 inline-flex flex-wrap gap-x-5 gap-y-2 border border-line bg-surface px-3.5 py-2.5 font-mono text-[11px] text-fg-3 lg:mt-12">
               <span className="inline-flex items-center gap-1.5">
                 <span aria-hidden className="h-1 w-3.5 bg-signal" />
-                walked
+                done
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <span aria-hidden className="h-1 w-3.5 bg-line-strong" />

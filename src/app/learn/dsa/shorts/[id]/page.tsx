@@ -50,7 +50,7 @@ export default async function DsaShortPage({ params }: Props) {
             )}
           </div>
           <article className="flex min-w-0 flex-1 flex-col gap-5">
-            <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { href: "/dsa/shorts", label: "Shorts" }, { label: l.short?.label || "Short" }]} />
+            <DsaCrumbs items={[{ href: "/dsa", label: "Learn" }, { href: "/dsa/shorts", label: "Shorts" }, { label: l.short?.label || "Short" }]} />
             <h1 className="m-0 font-display text-[34px] font-extrabold leading-[1.02] tracking-[-0.03em] text-fg sm:text-[44px]">{l.title}</h1>
             <div className="flex flex-wrap gap-2">
               <Link href={`/dsa/shorts?v=${encodeURIComponent(l.quest)}`} className="inline-flex min-h-11 items-center bg-signal px-4 font-mono text-[13px] font-semibold text-on-signal hover:brightness-110">

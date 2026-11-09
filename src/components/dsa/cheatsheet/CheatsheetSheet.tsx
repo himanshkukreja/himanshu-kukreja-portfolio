@@ -64,7 +64,7 @@ export default function CheatsheetSheet({ s, lectureHref }: { s: Cheatsheet; lec
     <main className="dsa-cheat mx-auto flex w-full max-w-[1240px] flex-col gap-7 px-4 pb-28 pt-8 sm:px-6 sm:pt-10" data-lang={lang}>
       <header className="flex flex-col gap-3">
         <div className="dsa-noprint">
-          <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { href: "/dsa/cheatsheets", label: "Cheat sheets" }, { label: s.title }]} />
+          <DsaCrumbs items={[{ href: "/dsa", label: "Learn" }, { href: "/dsa/cheatsheets", label: "Cheat sheets" }, { label: s.title }]} />
         </div>
         <span className="font-mono text-[12px] uppercase tracking-label text-signal-text">
           {s.code} · {s.moduleTitle} · cheat sheet

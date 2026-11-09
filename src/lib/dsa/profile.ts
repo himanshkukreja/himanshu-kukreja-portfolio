@@ -39,7 +39,7 @@ export async function dsaProfileFor(userId: string, gameDone: Record<string, num
   if (academy) {
     const prog = computeWorld(academy, data.signals);
     const region = prog.frontier ? academy.regions.find((r) => r.id === prog.frontier!.regionId) : null;
-    world = { title: academy.title, building: region?.title || null, pct: prog.total ? Math.round((prog.done / prog.total) * 100) : 0, done: prog.done, total: prog.total };
+    world = { title: academy.title, building: region?.moduleTitle || region?.title || null, pct: prog.total ? Math.round((prog.done / prog.total) * 100) : 0, done: prog.done, total: prog.total };
   }
 
   let certificate: DsaProfile["certificate"] = null;

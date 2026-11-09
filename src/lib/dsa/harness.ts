@@ -339,7 +339,19 @@ export const VERDICT_LABEL: Record<Verdict, string> = {
   ERR: "Could not run",
 };
 
-export type CaseResult = { name: string; hidden: boolean; ok: boolean; ms: number; verdict: Verdict; got?: string; message?: string; line?: number | null };
+export type CaseResult = {
+  name: string;
+  hidden: boolean;
+  ok: boolean;
+  ms: number;
+  verdict: Verdict;
+  got?: string;
+  message?: string;
+  line?: number | null;
+  /** where it failed in the learner's own code (the deepest solution.* frame), for the friendly error line */
+  userLine?: number | null;
+  userCode?: string | null;
+};
 
 export type JudgeOutcome = {
   verdict: Verdict;
@@ -352,7 +364,8 @@ export type JudgeOutcome = {
   judgedBy: "browser" | "server";
 };
 
-type HTest = { group: string; name: string; title: string; ok: boolean; ms: number; error?: { kind: string; message: string; line?: number | null; code?: string | null } };
+type HFrame = { file?: string; line?: number | null; code?: string | null };
+type HTest = { group: string; name: string; title: string; ok: boolean; ms: number; error?: { kind: string; message: string; line?: number | null; code?: string | null; frames?: HFrame[] } };
 type HResult = { setup: { kind: string; message: string; line?: number | null } | null; tests: HTest[]; ms: number; viz?: Record<string, { type: string; data: Record<string, unknown> }[]> };
 
 /** The labs harness's result (or a timeout / crash) → a judge-style verdict. `limitMs` is the per-test budget. */
@@ -393,7 +406,19 @@ export function outcomeFrom(
         verdict = "TLE";
         message = `took ${Math.round(t.ms)} ms (limit ${limitMs} ms in the browser)`;
       }
-      return { name: c?.name || t.title, hidden: !!c?.hidden, ok: verdict === "AC", ms: t.ms, verdict, got: c?.hidden ? undefined : got, message: c?.hidden && verdict === "WA" ? undefined : message, line: t.error?.line ?? null };
+      const mine = (t.error?.frames || []).filter((f) => /^solution\./.test(f.file || "")).pop();
+      return {
+        name: c?.name || t.title,
+        hidden: !!c?.hidden,
+        ok: verdict === "AC",
+        ms: t.ms,
+        verdict,
+        got: c?.hidden ? undefined : got,
+        message: c?.hidden && verdict === "WA" ? undefined : message,
+        line: t.error?.line ?? null,
+        userLine: mine?.line ?? null,
+        userCode: mine?.code ?? null,
+      };
     });
   const firstBad = out.find((c) => !c.ok);
   return { verdict: firstBad ? firstBad.verdict : out.length === total ? "AC" : "ERR", passed: out.filter((c) => c.ok).length, total, cases: out, message: firstBad?.verdict === "CE" ? firstBad.message : undefined, ms: r.ms, judgedBy: "browser" };

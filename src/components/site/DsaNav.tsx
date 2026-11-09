@@ -12,6 +12,7 @@ import { CalendarDays, Check, ChevronDown, ChevronsUpDown, Code2, FileText, Laye
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
+import { ShowEverything, useDsaFull } from "@/components/dsa/simple/view";
 import CourseMark from "./CourseMark";
 import AdminLink from "./AdminLink";
 import { DockDot, TabPending } from "./LinkPending";
@@ -35,15 +36,33 @@ type Tab = {
 };
 
 /**
- * Staging (full): world map (the hub and the concept rooms) · problems · lectures · shorts · cheat sheets (desktop) · ask, plus on phones
- * "you" and the way back to SD Mastery. Production until launch (soon): the coming-soon page, ask, you, SD Mastery.
+ * Staging (full mode build):
+ * - the simple view (everyone by default, owner 9 Nov 2026): learn (the hub and the lessons) · practice · ask, with
+ *   lectures, daily, revise, shorts and cheat sheets under "more";
+ * - the full view ("Show everything"): world map · problems · lectures · ask, the rest under "more".
+ * Phones: the same first two, ask, "you" and the way back to SD Mastery (five slots either way).
+ * Production until launch (soon): the coming-soon page, ask, you, SD Mastery.
  */
-function tabs(p: string): Tab[] {
+function tabs(p: string, full = false): Tab[] {
   // DSA Mastery's tutor page (staging); before launch "ask" opens the course tutor's panel (no /dsa/ask in "soon" mode)
   const ask: Tab = { id: "ask", ...(DSA_FULL ? { href: `${DSA_HOME}/ask` } : {}), label: "ask", short: "ask", on: p.startsWith(`${DSA_HOME}/ask`), icon: Sparkles, primary: true, where: "both" };
   const you: Tab = { id: "you", href: "/dashboard", label: "you", short: "you", on: false, icon: User, where: "dock" };
   const sdm: Tab = { id: "sdm", href: "/", label: "SD Mastery", short: "sdm", on: false, icon: "sdm", where: "dock" };
   if (!DSA_FULL) return [{ id: "soon", href: DSA_HOME, label: "coming soon", short: "dsa", on: p === DSA_HOME || p === `${DSA_HOME}/`, icon: MapIcon, where: "both" }, ask, you, sdm];
+  const learnOn = p === DSA_HOME || p === `${DSA_HOME}/` || (p.startsWith(`${DSA_HOME}/concepts/`) && !/\/lecture\/?$/.test(p));
+  if (!full)
+    return [
+      { id: "map", href: DSA_HOME, label: "learn", short: "learn", on: learnOn, icon: MapIcon, where: "both" },
+      { id: "problems", href: `${DSA_HOME}/problems`, label: "practice", short: "practice", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
+      ask,
+      { id: "lectures", href: `${DSA_HOME}/lectures`, label: "lectures", short: "lectures", on: p.startsWith(`${DSA_HOME}/lectures`) || /^\/dsa\/concepts\/[^/]+\/lecture/.test(p), icon: Play, where: "desk", more: true },
+      { id: "daily", href: `${DSA_HOME}/daily`, label: "daily problem", short: "daily", on: p.startsWith(`${DSA_HOME}/daily`), icon: CalendarDays, where: "desk", more: true },
+      { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", more: true },
+      { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", more: true },
+      { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", more: true },
+      you,
+      sdm,
+    ];
   return [
     { id: "map", href: DSA_HOME, label: "world map", short: "map", on: p === DSA_HOME || p === `${DSA_HOME}/` || (p.startsWith(`${DSA_HOME}/concepts/`) && !/\/lecture\/?$/.test(p)), icon: MapIcon, where: "both" },
     { id: "problems", href: `${DSA_HOME}/problems`, label: "problems", short: "problems", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
@@ -149,7 +168,8 @@ const tabClass = (on: boolean) => `relative inline-flex items-center gap-2 white
 
 /** Desktop DSA tabs, inline in the header row. */
 export function DsaTabs({ pathname }: { pathname: string }) {
-  const desk = tabs(pathname).filter((t) => t.where !== "dock");
+  const full = useDsaFull();
+  const desk = tabs(pathname, full).filter((t) => t.where !== "dock");
   const main = desk.filter((t) => !t.more);
   const more = desk.filter((t) => t.more);
   return (
@@ -168,14 +188,14 @@ export function DsaTabs({ pathname }: { pathname: string }) {
           </button>
         ),
       )}
-      {more.length > 0 && <MoreTabs pathname={pathname} items={more} />}
+      {more.length > 0 && <MoreTabs pathname={pathname} items={more} switcher={DSA_FULL} />}
       <AdminLink variant="tab" />
     </nav>
   );
 }
 
 /** "more ▾": the secondary DSA pages in a small menu (closes on a pick, Escape, a click outside or a route change). */
-function MoreTabs({ pathname, items }: { pathname: string; items: Tab[] }) {
+function MoreTabs({ pathname, items, switcher }: { pathname: string; items: Tab[]; switcher: boolean }) {
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(pathname);
   if (seen !== pathname) {
@@ -221,6 +241,11 @@ function MoreTabs({ pathname, items }: { pathname: string; items: Tab[] }) {
               </Link>
             );
           })}
+          {switcher && (
+            <div className="mt-1 border-t border-line px-2.5 pt-1">
+              <ShowEverything />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -233,7 +258,8 @@ function MoreTabs({ pathname, items }: { pathname: string; items: Tab[] }) {
  * 10 px below it; "problems" is the longest and fits a fifth of 320 px.
  */
 export function DsaDock({ pathname, className }: { pathname: string; className: string }) {
-  const list = tabs(pathname).filter((t) => t.where !== "desk");
+  const full = useDsaFull();
+  const list = tabs(pathname, full).filter((t) => t.where !== "desk");
   const cols = list.length === 5 ? "grid-cols-5" : "grid-cols-4";
   const item = (on: boolean) =>
     `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap font-mono text-[10.5px] leading-none max-[359px]:text-[10px] max-[359px]:tracking-[-0.03em] ${on ? "text-fg" : "text-fg-3"}`;

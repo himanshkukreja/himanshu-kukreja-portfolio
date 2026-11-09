@@ -21,6 +21,7 @@ import { chrome, el, h, rawHast, text, toText, type AnyNode, type SdEl, type SdH
 import { renderCode } from "./code";
 import type { BlockCtx } from "./blocks";
 import { blockAttr, blockBody, blockCaption, blockInner, blockLabel } from "./directives";
+import { BEAT_6S, BEAT_PLAIN } from "@/lib/dsa/words";
 
 export type DsaCastMember = { name: string; role: string };
 export type DsaLink = { href: string; title: string; kind: "lesson" | "lab" | "problem" };
@@ -103,15 +104,16 @@ export function unwrapBeats(tree: Root): number {
   return n;
 }
 
-const BEATS: Record<string, string> = { scenario: "Scenario", struggle: "Struggle", see: "See", shape: "Shape", stretch: "Stretch", say: "Say" };
-
-/** A beat heading ("1. Scenario: the busiest three hours") → its stage: id "scenario", label "Scenario". */
-export function dsaStage(t: string): { id: string; label: string; title: string; core: boolean; numeral: string } | null {
+/**
+ * A beat heading ("1. Scenario: the busiest three hours") → its stage: id "scenario", the plain label "The problem"
+ * and the 6S word "Scenario" as its subtitle (owner, 9 Nov 2026: plain names first, src/lib/dsa/words.ts).
+ */
+export function dsaStage(t: string): { id: string; label: string; title: string; core: boolean; numeral: string; sub: string } | null {
   const m = t.trim().match(/^(\d+)\.\s*([A-Za-z]+)\s*[:.–—-]\s*(.+)$/);
   if (!m) return null;
   const id = m[2].toLowerCase();
-  if (!BEATS[id]) return null;
-  return { id, label: BEATS[id], title: m[3].trim(), core: true, numeral: m[1] };
+  if (!BEAT_PLAIN[id]) return null;
+  return { id, label: BEAT_PLAIN[id], title: m[3].trim(), core: true, numeral: m[1], sub: BEAT_6S[id] };
 }
 
 /** `::checkpoint[quiz]` → a dsa-checkpoint container holding quiz.md's ```quiz fences (so they are numbered with the lesson's). */

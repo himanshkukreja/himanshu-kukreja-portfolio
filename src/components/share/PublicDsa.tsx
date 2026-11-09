@@ -78,7 +78,7 @@ export default function PublicDsa({ d, handle, who, n }: { d: DsaProfile; handle
           ) : null}
         </div>
         <div className="grid grid-cols-2 gap-px bg-line">
-          <Cell label="concepts" sub="concept lessons completed">
+          <Cell label="concepts" sub="lessons completed">
             {d.concepts.done}
             <span className="ml-0.5 font-mono text-[13px] font-normal tracking-normal text-fg-3">/{d.concepts.total}</span>
           </Cell>
@@ -93,7 +93,7 @@ export default function PublicDsa({ d, handle, who, n }: { d: DsaProfile; handle
               <div className="h-2 bg-signal" style={{ width: `${d.world.pct}%` }} />
             </div>
             <span className="font-mono text-[11px] text-fg-3">
-              {d.world.done} of {d.world.total} campus stops · {d.world.pct}%
+              {d.world.done} of {d.world.total} Academy steps · {d.world.pct}%
             </span>
           </div>
         </div>

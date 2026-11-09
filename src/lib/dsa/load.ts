@@ -5,6 +5,7 @@ import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
+import { plainBeatHeading } from "./words";
 import { dsaShortParts, lectureRefs, parseTemplates, resolveDsaLecture, resolveDsaShort, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import {
@@ -263,6 +264,7 @@ function buildWorld(
       intro: r.intro || null,
       line: lines[r.lines?.[0] || modules[r.module]?.line || ""] || null,
       objective: modules[r.module]?.objective || null,
+      moduleTitle: modules[r.module]?.title || null,
       stretches,
       side: (r.side || []).map((n) => node(n)),
       boss: r.boss ? node(r.boss) : null,
@@ -299,7 +301,7 @@ const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
   if (!src) return null;
   const [concepts, problems, modules, lines] = await Promise.all([getConceptIndex(), getProblemIndex(), getModules(), getLineNames()]);
   return buildWorld(yaml<RawWorld>(src), new Map(concepts.map((c) => [c.id, c])), new Map(problems.map((p) => [p.id, p])), modules, lines);
-}, "dsa-world-v2");
+}, "dsa-world-v3");
 
 export async function getWorld(id: string): Promise<WorldSpec | null> {
   if (!ID.test(id)) return null;
@@ -423,6 +425,20 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
 
   const dsa: DsaRenderOpts = { cast, beats: true, checkpointQuiz: quizBody, titles, sdmLink: linker.sdm, labLink: linker.lab };
   const rendered = await renderLesson(content, { kind: "day-content", dsa });
+  // "In one picture" (the beginner pass): the lesson's own pattern card, shown at the top of the page; never new text
+  const card = content.match(/^:::pattern\[([^\]\n]*)\][^\n]*\n([\s\S]*?)\n:::[ \t]*$/m);
+  let picture: ConceptPage["picture"] = null;
+  if (card) {
+    // the card's body without the renderer's one-stage wrapper (it is not a stage of this page)
+    const html = fragment((await renderLesson(card[2], { kind: "day-content", dsa: { cast, sdmLink: linker.sdm, labLink: linker.lab } })).html)
+      .trim()
+      .replace(/^<section\b[^>]*>/, "")
+      .replace(/<\/section>$/, "");
+    // its first paragraph ("Use it when…") up front, the rest of the card one tap away
+    const end = html.indexOf("</p>");
+    const lead = end > 0 && /<p[\s>]/.test(html.slice(0, end)) ? html.slice(0, end + 4) : html;
+    picture = { title: card[1].trim(), html: lead, more: lead === html ? "" : html.slice(lead.length) };
+  }
 
   const byId = new Map(problems.map((p) => [p.id, p]));
   const practice = (f.practice || []).map((p) => byId.get(p)).filter((p): p is ProblemSummary => !!p);
@@ -452,7 +468,9 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
     keyPoints: f.keyPoints || [],
     html: rendered.html,
     stages: rendered.stages.map((s) => ({ id: s.id, label: s.label, title: s.title, minutes: s.minutes })),
-    toc: rendered.toc,
+    // the beat headings in plain words ("The problem: the busiest three hours"); the lesson text itself is unchanged
+    toc: rendered.toc.map((t) => (t.kind === "part" ? { ...t, text: plainBeatHeading(t.text) } : t)),
+    picture,
     readingMinutes: rendered.readingMinutes,
     contentVersion: rendered.contentVersion,
     traces,
@@ -462,7 +480,7 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
     practice,
     checkpoint,
   };
-}, "dsa-concept-v1");
+}, "dsa-concept-v2");
 
 export async function getConcept(id: string): Promise<ConceptPage | null> {
   if (!ID.test(id)) return null;

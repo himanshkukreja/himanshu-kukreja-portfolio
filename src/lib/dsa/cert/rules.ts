@@ -95,10 +95,10 @@ export function foundationsEligibility(spec: WorldSpec, s: DsaCertSignals): DsaE
   }
   const final = spec.final ? [{ node: spec.final, done: !!spec.final.built && s.milestones.has(worldKey(spec.id)), label: spec.final.title }] : [];
   const requirements = [
-    req("lessons", "Every concept lesson", "Read each concept to the end (its Say beat).", concepts),
-    req("practice", "Every practice problem", "An Accepted submit on each required problem on the campus paths.", practice),
+    req("lessons", "Every lesson", "Read each lesson to the end (its Recap).", concepts),
+    req("practice", "Every practice problem", "An Accepted submit on each required practice problem on the Academy map.", practice),
     req("checkpoints", "Every checkpoint", "Pass the checkpoint quiz (80%) and solve both of its problems.", checkpoints),
-    req("reviews", "Every building review", "The timed review at the end of each building.", reviews),
+    req("reviews", "Every module review", "The timed review at the end of each module.", reviews),
     req("final", "The Launch week final", "The Academy's final: a timed mixed set in Launch Hall.", final),
   ];
   const done = requirements.reduce((a, r) => a + r.done, 0);

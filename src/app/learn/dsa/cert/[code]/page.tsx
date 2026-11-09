@@ -50,10 +50,10 @@ export default async function DsaCertPage({ params }: Props) {
   const ev = c.evidence;
   const ok = c.status === "valid" && c.signature !== "bad";
   const facts = [
-    ev.lessons ? `${ev.lessons} concept lessons` : null,
+    ev.lessons ? `${ev.lessons} lessons` : null,
     ev.problems ? `${ev.problems} practice problems` : null,
     ev.checkpoints ? `${ev.checkpoints} checkpoints` : null,
-    ev.reviews ? `${ev.reviews} building reviews` : null,
+    ev.reviews ? `${ev.reviews} module reviews` : null,
   ].filter((x): x is string => !!x);
   const langs = (ev.languages || []).map((l) => DSA_LANG_LABEL[l as DsaLang] || l);
   return (
@@ -79,10 +79,10 @@ export default async function DsaCertPage({ params }: Props) {
           <section aria-label="What was completed" className="flex flex-col gap-4">
             <dl className="m-0 grid grid-cols-2 gap-px border border-line bg-line">
               {[
-                ["Concept lessons", ev.lessons],
+                ["Lessons", ev.lessons],
                 ["Practice problems", ev.problems],
                 ["Checkpoints", ev.checkpoints],
-                ["Building reviews", ev.reviews],
+                ["Module reviews", ev.reviews],
               ].map(([k, v]) => (
                 <div key={String(k)} className="flex flex-col gap-1 bg-surface p-4">
                   <dt className="font-mono text-[11px] uppercase tracking-label text-fg-3">{k}</dt>
@@ -96,7 +96,7 @@ export default async function DsaCertPage({ params }: Props) {
               </p>
             ) : null}
             <p className="m-0 text-[14px] leading-relaxed text-fg-2">
-              Foundations is the Kestrel Academy world: {facts.length ? facts.join(", ") : "every concept, problem and checkpoint"}, and the timed Launch week final, all recorded on the learner&apos;s account and checked when the certificate was issued.
+              Foundations is the Kestrel Academy world: {facts.length ? facts.join(", ") : "every lesson, practice problem and checkpoint quiz"}, and the timed Launch week final, all recorded on the learner&apos;s account and checked when the certificate was issued.
             </p>
             <Link href="/dsa" className="inline-flex min-h-11 items-center self-start border border-line-strong px-4 font-mono text-[13px] text-fg hover:border-signal">
               Start DSA Mastery →

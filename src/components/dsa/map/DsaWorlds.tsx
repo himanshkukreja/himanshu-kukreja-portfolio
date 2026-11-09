@@ -47,8 +47,8 @@ export default function DsaWorlds({
 
   return (
     <div className="flex flex-col gap-8">
-      <nav aria-label="World atlas" className="flex flex-col gap-2">
-        <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">The world atlas</span>
+      <nav aria-label="Worlds" className="flex flex-col gap-2">
+        <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Six worlds · start with Academy</span>
         <ul className="m-0 grid list-none grid-cols-3 gap-px border border-line bg-line p-0 xl:grid-cols-6">
           {worlds.map((w) => {
             const active = w.id === id;

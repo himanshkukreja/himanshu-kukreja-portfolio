@@ -92,7 +92,9 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
 
   const send = async (mode: TutorMode, words: string) => {
     if (!canChat || chat.busy) return;
-    const body = { dsa: { problemId: p.id, mode, code: code().slice(0, 12_000), lang, result: wireResult(last, p), hintsOpen } };
+    // "Explain this problem simply" is about the problem, not their code: neither the code nor the last run goes with it
+    const plain = mode === "explain";
+    const body = { dsa: { problemId: p.id, mode, code: plain ? "" : code().slice(0, 12_000), lang, result: plain ? null : wireResult(last, p), hintsOpen } };
     track("dsa_tutor", { problem: p.id, mode, lang, verdict: last?.o.verdict ?? null });
     const ok = await chat.send(words, { body });
     // the hint came from the next rung: the room's ladder opens it too, so the two never drift apart

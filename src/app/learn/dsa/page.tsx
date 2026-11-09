@@ -24,8 +24,8 @@ const DESCRIPTION =
 
 export const metadata: Metadata = DSA_FULL
   ? {
-      title: "DSA Mastery · World map",
-      description: "The DSA Mastery world atlas and the Academy map: concepts, practice problems, checkpoints and gates.",
+      title: "DSA Mastery · Learn",
+      description: "Your next DSA Mastery step, the six worlds and the Academy map: lessons, practice problems and checkpoint quizzes.",
       alternates: { canonical: "/dsa" },
       robots: { index: false, follow: false },
     }

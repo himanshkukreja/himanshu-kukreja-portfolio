@@ -28,7 +28,7 @@ export default async function DsaLecturesPage() {
     <div className="dsa-theme">
       <main className="mx-auto flex max-w-[1240px] flex-col gap-8 px-4 pb-28 pt-8 sm:px-6 sm:pt-12">
         <header className="flex flex-col gap-3">
-          <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { label: "Lectures" }]} />
+          <DsaCrumbs items={[{ href: "/dsa", label: "Learn" }, { label: "Lectures" }]} />
           <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
             lectures · {lectures.length} · {minutes >= 60 ? `${Math.floor(minutes / 60)} h ${minutes % 60} min` : `${minutes} min`}
           </span>
@@ -36,7 +36,7 @@ export default async function DsaLecturesPage() {
             Watch the pattern move<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
-            One animated lecture per concept: the Kestrel task, the first attempt that is too slow, the idea traced step by step, and the template you will write in the interview. Each one stops for quick checkpoints and opens its lesson when you want to read it.
+            One animated lecture per lesson: the Kestrel task, the first attempt that is too slow, the idea traced step by step, and the template you will write in the interview. Each one stops for quick checkpoints and opens its lesson when you want to read it.
           </p>
           <div className="flex flex-wrap gap-x-5 gap-y-2 font-mono text-[13px]">
             <Link href="/dsa/shorts" className="text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg">

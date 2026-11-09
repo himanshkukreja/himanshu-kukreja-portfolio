@@ -13,6 +13,12 @@
  * - The hint ladder opens one rung at a time. Code is kept per language on this device.
  * - The Tutor tab (ProblemTutor) is DSA Mastery's AI tutor for this problem: hint, debug, complexity, dry run and review,
  *   reading the code in the editor and the last result. A failed run offers "Ask the tutor why" under the verdict.
+ *
+ * Beginner pass (owner, 9 Nov 2026), for everyone: a three-step walkthrough on the first problem ever opened
+ * (FirstProblemGuide), "Explain this problem simply" (the tutor's plain-language mode, no spoilers), errors as one plain
+ * sentence with the raw message folded under it (lib/dsa/friendly), jargon tooltips on the statement, and "Save
+ * offline" beside the title. The simple view also shows only the chosen language (a "switch language" link opens the
+ * others) and folds the XP, ladder step, line and hint counters into one quiet line; the full view keeps them all.
  */
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
@@ -34,7 +40,12 @@ import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
 import ProblemTutor, { type TutorRequest } from "./ProblemTutor";
 import { useDailySolve, useIsDaily } from "../daily/useDsaDaily";
-import { NotebookPen, Sparkles } from "lucide-react";
+import { MessageCircleQuestion, NotebookPen, Sparkles } from "lucide-react";
+import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
+import { friendlyError, friendlyWrong } from "@/lib/dsa/friendly";
+import Jargon from "../glossary/Jargon";
+import { ShowEverything, useDsaFull } from "../simple/view";
+import FirstProblemGuide from "./FirstProblemGuide";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
@@ -68,13 +79,47 @@ function Html({ html, className = "" }: { html: string; className?: string }) {
 
 /* ------------------------------------------------------------------ verdict panel */
 
-function VerdictPanel({ outcome, mode, visible, onTutor }: { outcome: JudgeOutcome; mode: "run" | "submit"; visible: DsaTestCase[]; onTutor?: (mode: "debug" | "review") => void }) {
+/** The first error as a plain sentence (friendly.ts), the raw message folded under it. */
+function useFriendly(outcome: JudgeOutcome, code: string, lang: DsaLang, fn: string): { text: string; raw: string } | null {
+  return useMemo(() => {
+    if (outcome.verdict === "AC") return null;
+    const bad = outcome.cases.find((c) => !c.ok && c.message) || null;
+    const raw = outcome.message || bad?.message || "";
+    if (raw) {
+      // a setup error (syntax) carries its line in the message; a test's error, in its deepest frame in solution.*
+      const text = friendlyError({ verdict: bad?.verdict || outcome.verdict, message: raw, line: outcome.message ? null : (bad?.userLine ?? null), code, lang, fn });
+      return text ? { text, raw } : null;
+    }
+    const wrong = outcome.cases.find((c) => !c.ok && !c.hidden);
+    const text = wrong ? friendlyWrong(wrong.got, lang) : null;
+    return text ? { text, raw: "" } : null;
+  }, [outcome, code, lang, fn]);
+}
+
+function VerdictPanel({
+  outcome,
+  mode,
+  visible,
+  onTutor,
+  code,
+  lang,
+  fn,
+}: {
+  outcome: JudgeOutcome;
+  mode: "run" | "submit";
+  visible: DsaTestCase[];
+  onTutor?: (mode: "debug" | "review") => void;
+  code: string;
+  lang: DsaLang;
+  fn: string;
+}) {
   const ok = outcome.verdict === "AC";
   const [sel, setSel] = useState(0);
   const shown = outcome.cases.filter((c) => !c.hidden);
   const firstHiddenFail = outcome.cases.find((c) => c.hidden && !c.ok);
   const cur = shown[Math.min(sel, Math.max(0, shown.length - 1))];
   const tc = visible.find((v) => v.name === cur?.name);
+  const friendly = useFriendly(outcome, code, lang, fn);
   return (
     <div className="flex flex-col gap-3" aria-live="polite">
       <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-4 px-3 py-2 ${ok ? "border-ok bg-surface" : "border-bad bg-surface"}`}>
@@ -95,7 +140,19 @@ function VerdictPanel({ outcome, mode, visible, onTutor }: { outcome: JudgeOutco
           </button>
         )}
       </div>
-      {outcome.message && <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap border border-line bg-surface p-3 font-mono text-[12px] text-bad-text">{outcome.message}</pre>}
+      {friendly ? (
+        <div className="flex flex-col gap-1.5 border border-bad/40 bg-surface px-3 py-2.5" data-friendly-error>
+          <p className="m-0 text-[15px] leading-snug text-fg">{friendly.text}</p>
+          {friendly.raw ? (
+            <details>
+              <summary className="min-h-8 cursor-pointer font-mono text-[12px] text-fg-3 hover:text-fg">Show the full error</summary>
+              <pre className="m-0 mt-1 max-h-48 overflow-auto whitespace-pre-wrap font-mono text-[12px] text-bad-text">{friendly.raw}</pre>
+            </details>
+          ) : null}
+        </div>
+      ) : (
+        outcome.message && <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap border border-line bg-surface p-3 font-mono text-[12px] text-bad-text">{outcome.message}</pre>
+      )}
       {firstHiddenFail && (
         <p className="m-0 text-[14px] text-fg-2">
           A hidden test failed: <span className="font-mono">{firstHiddenFail.name.replace(/^hidden · /, "")}</span>
@@ -168,7 +225,12 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
   const [fails, setFails] = useState(0);
   const [history, setHistory] = useState<HistoryRow[]>([]);
   const [busy, setBusy] = useState<null | "run" | "submit">(null);
-  const [outcome, setOutcome] = useState<{ o: JudgeOutcome; mode: "run" | "submit" } | null>(null);
+  const [outcome, setOutcome] = useState<{ o: JudgeOutcome; mode: "run" | "submit"; code: string; lang: DsaLang } | null>(null);
+  const full = useDsaFull();
+  // the simple view shows the chosen language only; "switch language" opens the other three
+  const [langsOpen, setLangsOpen] = useState(false);
+  const editorBox = useRef<HTMLDivElement>(null);
+  const runRow = useRef<HTMLDivElement>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [stdout, setStdout] = useState("");
   const [loadMsg, setLoadMsg] = useState("");
@@ -209,6 +271,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
   }, [tab, unlocked, editorial.state, loadEditorial]);
 
   const switchLang = (l: DsaLang) => {
+    setLangsOpen(false);
     const cur = editor.current?.getValue();
     if (cur !== undefined) store.set(codeKey(lang), cur);
     setLang(l);
@@ -275,7 +338,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
     }
     setBusy(null);
     if (!o) return;
-    setOutcome({ o, mode });
+    setOutcome({ o, mode, code, lang });
     if (mode !== "submit") return;
     pushHistory({ at: Date.now(), lang, verdict: o.verdict, passed: o.passed, total: o.total });
     void userFetch("/api/dsa/submit", { method: "POST", body: JSON.stringify({ problemId: p.id, language: lang, verdict: o.verdict, passed: o.passed, total: o.total, judgedBy: o.judgedBy, ms: o.ms, code }) }).catch(() => {});
@@ -322,22 +385,32 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
     void userFetch(`/api/dsa/editorial/${p.id}`, { method: "POST" }).catch(() => {});
   };
 
+  // "Explain this problem simply": the tutor in its plain-language mode (what goes in, what comes out, the first example; no approach)
+  const explain = () => {
+    setTab("tutor");
+    setTutorReq({ mode: "explain", key: Date.now() });
+    track("dsa_explain_simply", { problem: p.id });
+    if (window.matchMedia("(max-width: 1023px)").matches) requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+  };
+
   const tabs: { id: Tab; label: string }[] = [
     { id: "description", label: "Description" },
-    { id: "hints", label: `Hints ${hints}/${p.hints.length}` },
+    { id: "hints", label: full ? `Hints ${hints}/${p.hints.length}` : "Hints" },
     { id: "tutor", label: "Tutor" },
-    { id: "editorial", label: unlocked ? "Editorial" : "Editorial · locked" },
+    { id: "editorial", label: unlocked || !full ? "Editorial" : "Editorial · locked" },
     { id: "submissions", label: "Submissions" },
   ];
+  const line = `Kestrel ${p.line.charAt(0).toUpperCase() + p.line.slice(1)}`;
+  const showLangs = full || langsOpen ? DSA_LANGS : [lang];
 
   return (
     <div className="mx-auto grid w-full max-w-[1440px] gap-6 px-4 pb-16 pt-6 sm:px-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-8 lg:pb-4 lg:pt-2">
       {/* statement */}
       <section aria-label="Problem" className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-8 lg:pr-3">
         <header className="flex flex-col gap-2">
-          <DsaCrumbs items={[{ href: "/dsa/problems", label: "Problems" }, { href: `/dsa/concepts/${p.concept}`, label: p.conceptTitle }]} />
+          <DsaCrumbs items={[{ href: "/dsa/problems", label: "Practice" }, { href: `/dsa/concepts/${p.concept}`, label: p.conceptTitle }]} />
           <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">
-            {p.level} · Kestrel {p.line.charAt(0).toUpperCase() + p.line.slice(1)} · step {p.order} of the ladder
+            {full ? `${p.level} · ${line} · practice problem ${p.order} of the lesson` : `Practice problem · ${p.level}`}
           </p>
           <h1 className="m-0 flex flex-wrap items-center gap-3 font-display text-[30px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[38px]">
             {p.title}
@@ -348,13 +421,49 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
               </Link>
             )}
           </h1>
-          <p className="m-0 flex flex-wrap gap-x-4 gap-y-1 text-[14px] text-fg-2">
-            <Link href={`/dsa/concepts/${p.concept}`} className="text-signal-text underline decoration-line-strong underline-offset-4">
-              Concept: {p.conceptTitle}
-            </Link>
-            {p.minutes ? <span>~{p.minutes} min</span> : null}
-            <span>{problemXp(p.level)} XP</span>
-          </p>
+          {full ? (
+            <p className="m-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] text-fg-2">
+              <Link href={`/dsa/concepts/${p.concept}`} className="text-signal-text underline decoration-line-strong underline-offset-4">
+                Lesson: {p.conceptTitle}
+              </Link>
+              {p.minutes ? <span>~{p.minutes} min</span> : null}
+              <span>{problemXp(p.level)} XP</span>
+            </p>
+          ) : (
+            // the simple view: the small print in one quiet line that opens on tap
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 font-mono text-[12px] text-fg-3">
+              <Link href={`/dsa/concepts/${p.concept}`} className="text-signal-text underline decoration-line-strong underline-offset-4">
+                Lesson: {p.conceptTitle}
+              </Link>
+              {p.minutes ? <span>~{p.minutes} min</span> : null}
+              <details>
+                <summary className="inline-flex min-h-9 cursor-pointer list-none items-center underline decoration-line-strong underline-offset-4 hover:text-fg [&::-webkit-details-marker]:hidden">
+                  more<span className="sr-only"> about this problem</span>
+                </summary>
+                <span className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
+                  <span>{line}</span>
+                  <span>practice problem {p.order} of the lesson</span>
+                  <span>{problemXp(p.level)} XP</span>
+                  <span>
+                    {hints}/{p.hints.length} hints open
+                  </span>
+                </span>
+              </details>
+            </div>
+          )}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <button
+              type="button"
+              onClick={explain}
+              className="inline-flex min-h-10 items-center gap-1.5 border border-signal px-3 text-[14px] font-medium text-signal-text hover:bg-[var(--c-dsa-hl)]"
+            >
+              <MessageCircleQuestion className="h-4 w-4" aria-hidden />
+              Explain this problem simply
+            </button>
+            {/* save for offline: the statement, visible tests and hints, with the Python runtime so Run works offline */}
+            <SaveOfflineButton title={p.title} kind="dsa-problem" />
+            <ShowEverything />
+          </div>
         </header>
         <div ref={tabsRef} role="tablist" aria-label="Problem tabs" className="flex scroll-mt-[calc(var(--hk-header-h,61px)+8px)] flex-wrap border-b border-line">
           {tabs.map((t) => (
@@ -373,7 +482,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
         </div>
 
         {tab === "description" && (
-          <div ref={statementRef} className={`course-content ${styles.content} flex flex-col gap-2`}>
+          <div ref={statementRef} className={`course-content ${styles.content} flex flex-col gap-2`} data-problem-statement>
             {/* "Scenario to model" is hint rung 1, so it isn't repeated here */}
             {p.sections
               .filter((s) => s.id !== "model")
@@ -386,12 +495,13 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
                 </section>
               ))}
             <CourseEnhancer lessonKey={`dsa/${p.id}`} />
+            <Jargon rootRef={statementRef} deps={tab} />
           </div>
         )}
 
         {tab === "hints" && (
           <div className="flex flex-col gap-3">
-            <p className="m-0 text-[14px] text-fg-2">Five rungs, from restating the task to a skeleton with blanks. Open one at a time and try again after each.</p>
+            <p className="m-0 text-[14px] text-fg-2">Five hints, from restating the task to a skeleton with blanks. Open one at a time and try again after each.</p>
             {p.hints.slice(0, hints).map((h, i) => (
               <article key={i} className="border border-line bg-surface px-4 py-2">
                 <h3 className="m-0 mt-2 font-mono text-[12px] uppercase tracking-label text-signal-text">{h.title}</h3>
@@ -400,10 +510,10 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
             ))}
             {hints < p.hints.length ? (
               <button type="button" onClick={() => openHint()} className="min-h-11 self-start border-2 border-signal px-4 text-[15px] font-semibold text-signal-text hover:bg-[var(--c-dsa-hl)]">
-                Open rung {hints + 1}: {p.hints[hints]?.title.replace(/^Rung \d+:\s*/, "")}
+                Open hint {hints + 1}: {p.hints[hints]?.title.replace(/^Rung \d+:\s*/, "")}
               </button>
             ) : (
-              <p className="m-0 font-mono text-[12px] text-fg-3">All five rungs are open. The editorial unlocks after a solve or three failed submits.</p>
+              <p className="m-0 font-mono text-[12px] text-fg-3">All five hints are open. The editorial opens after a solve or three failed submits.</p>
             )}
           </div>
         )}
@@ -516,9 +626,10 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
         aria-label="Your solution"
         className="flex min-w-0 flex-col gap-3 lg:h-full lg:min-h-0"
       >
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <div role="tablist" aria-label="Language" className="flex border border-line-strong">
-            {DSA_LANGS.map((l) => (
+        {/* one row from 1024 px (the notebook button used to wrap onto its own row): the note truncates, the labels shorten */}
+        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:flex-nowrap">
+          <div role="tablist" aria-label="Language" className="flex shrink-0 border border-line-strong">
+            {showLangs.map((l) => (
               <button
                 key={l}
                 type="button"
@@ -531,34 +642,43 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
               </button>
             ))}
           </div>
-          <span className="font-mono text-[11px] text-fg-3">
+          {!full && !langsOpen ? (
+            <button type="button" onClick={() => setLangsOpen(true)} className="min-h-10 shrink-0 px-1 font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+              switch language
+            </button>
+          ) : null}
+          <span className="min-w-0 truncate font-mono text-[11px] text-fg-3">
             write <code className="text-fg-2">{fnNameFor(lang, p.signature.fn)}</code>
             {lang === "java" ? " in class Solution" : ""} · {BROWSER_LANGS.has(lang) ? "runs in your browser" : "judged on the server"}
           </span>
-          <button type="button" onClick={reset} className="ml-auto min-h-10 px-2 font-mono text-[12px] text-fg-3 underline">
+          <button type="button" onClick={reset} className="ml-auto min-h-10 shrink-0 whitespace-nowrap px-2 font-mono text-[12px] text-fg-3 underline">
             reset code
           </button>
           {/* the Notebook lives here in the problem room: a floating pen would sit over Run / Submit (the editor fills the height) */}
           <button
             type="button"
             onClick={() => window.dispatchEvent(new CustomEvent(INK_EVENTS.open, { detail: {} }))}
-            className="inline-flex min-h-10 items-center gap-1.5 border border-line-strong px-2.5 font-mono text-[12px] text-fg-2 hover:bg-surface-2 hover:text-fg"
+            aria-label="Open the notebook"
+            title="Notebook"
+            className="inline-flex min-h-10 shrink-0 items-center gap-1.5 whitespace-nowrap border border-line-strong px-2.5 font-mono text-[12px] text-fg-2 hover:bg-surface-2 hover:text-fg"
           >
             <NotebookPen className="h-3.5 w-3.5" aria-hidden />
-            notebook
+            <span className="lg:hidden xl:inline">notebook</span>
           </button>
         </div>
-        <div className="h-[380px] border border-line-strong sm:h-[440px] lg:h-auto lg:min-h-[260px] lg:flex-1">
+        <div ref={editorBox} className="h-[380px] border border-line-strong sm:h-[440px] lg:h-auto lg:min-h-[260px] lg:flex-1">
           <CodeEditor key={`${p.id}`} handle={editor} initial={initialFor(lang)} fontSize={14} label={`${DSA_LANG_LABEL[lang]} solution`} language={lang} onRun={() => void go("run")} onFocus={() => BROWSER_LANGS.has(lang) && void getRunner(lang === "python" ? "py" : "js").warm()} />
         </div>
-        <div className="flex shrink-0 flex-wrap items-center gap-2">
+        <div ref={runRow} className="flex shrink-0 flex-wrap items-center gap-2">
           <button type="button" onClick={() => void go("run")} disabled={!!busy} className="min-h-11 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text disabled:opacity-50">
             {busy === "run" ? "Running…" : "Run"}
           </button>
           <button type="button" onClick={() => void go("submit")} disabled={!!busy} className="min-h-11 bg-signal px-5 text-[15px] font-semibold text-on-signal disabled:opacity-50">
             {busy === "submit" ? "Submitting…" : "Submit"}
           </button>
-          <span className="font-mono text-[11px] text-fg-3">Run: {p.visible.length} visible tests · Submit: + {p.hiddenCount} hidden · ⌘/Ctrl + Enter runs</span>
+          <span className="font-mono text-[11px] text-fg-3">
+            {full ? `Run: ${p.visible.length} visible tests · Submit: + ${p.hiddenCount} hidden · ⌘/Ctrl + Enter runs` : "Run tries the examples · Submit checks every test"}
+          </span>
         </div>
         {(loadMsg || notice || outcome || stdout) && (
           <div className="flex flex-col gap-3 lg:max-h-[45%] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain">
@@ -568,7 +688,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
                 {notice}
               </p>
             )}
-            {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} onTutor={askTutor} />}
+            {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} onTutor={askTutor} code={outcome.code} lang={outcome.lang} fn={fnNameFor(outcome.lang, p.signature.fn)} />}
             {stdout && (
               <details className="border border-line bg-surface">
                 <summary className="min-h-10 cursor-pointer px-3 py-2 font-mono text-[12px] text-fg-3">Your printed output</summary>
@@ -579,6 +699,12 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
         )}
         <p className="m-0 text-[12px] text-fg-4 lg:hidden">Coding is easiest on a laptop. On a phone, read, trace and try small edits.</p>
       </section>
+      <FirstProblemGuide
+        fn={fnNameFor(lang, p.signature.fn)}
+        editor={() => editorBox.current}
+        examples={() => statementRef.current?.querySelector<HTMLElement>('[aria-labelledby="ps-examples"]') || tabsRef.current}
+        run={() => runRow.current}
+      />
     </div>
   );
 }

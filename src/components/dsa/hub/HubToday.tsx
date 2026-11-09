@@ -33,7 +33,7 @@ function ReviseCard() {
       <span className="text-[13.5px] leading-snug text-fg-2">
         {loaded
           ? [r.due.length ? `${r.due.length} re-solve${r.due.length === 1 ? "" : "s"}` : null, due.length ? `${due.length} card${due.length === 1 ? "" : "s"}` : null, r.upcoming.length ? `${r.upcoming.length} coming back later` : null].filter(Boolean).join(" · ") ||
-            "Problems you struggle with come back after 1, 3 and 7 days. Every concept has a deck."
+            "Problems you struggle with come back after 1, 3 and 7 days. Every lesson has a deck."
           : " "}
       </span>
       <Link href="/dsa/revise" className={`mt-auto inline-flex min-h-10 items-center self-start px-3.5 font-mono text-[13px] font-semibold ${n ? "bg-signal text-on-signal" : "border border-line-strong text-fg hover:border-signal"}`}>

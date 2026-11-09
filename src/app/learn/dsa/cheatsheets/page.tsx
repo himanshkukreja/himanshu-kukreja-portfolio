@@ -31,7 +31,7 @@ export default async function DsaCheatsheetsPage() {
     <div className="dsa-theme">
       <main className="mx-auto flex max-w-[1240px] flex-col gap-9 px-4 pb-28 pt-8 sm:px-6 sm:pt-12">
         <header className="flex flex-col gap-3">
-          <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { label: "Cheat sheets" }]} />
+          <DsaCrumbs items={[{ href: "/dsa", label: "Learn" }, { label: "Cheat sheets" }]} />
           <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">cheat sheets · {sheets.length}</span>
           <h1 className="m-0 font-display text-[clamp(34px,6vw,64px)] font-extrabold leading-[0.95] tracking-[-0.04em] text-fg">
             Every pattern on one page<span className="text-signal-text">.</span>

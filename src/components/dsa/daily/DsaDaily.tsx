@@ -40,7 +40,7 @@ export default function DsaDaily() {
             One problem a day<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
-            The same problem for everyone, new at midnight India time. Get it Accepted in the problem room the same day to keep your daily streak going.
+            The same problem for everyone, new at midnight India time. Get it Accepted the same day to keep your daily streak going.
           </p>
         </header>
 
@@ -77,7 +77,7 @@ export default function DsaDaily() {
                     <span className="inline-flex min-h-11 items-center border-2 border-ok px-3.5 font-mono text-[13px] font-semibold uppercase tracking-label text-ok-text">✓ Solved today</span>
                   ) : (
                     <Link href={`/dsa/problems/${d.problem.id}`} className="inline-flex min-h-11 items-center bg-signal px-4 font-mono text-[14px] font-semibold text-on-signal hover:opacity-90">
-                      Open the problem room →
+                      Open the problem →
                     </Link>
                   )}
                   {progress.solved.has(d.problem.id) && !streak?.today ? (

@@ -104,7 +104,7 @@ export default function DsaCertificate({ spec }: { spec: WorldSpec }) {
             Finish the Academy, earn the certificate<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[720px] text-[16px] leading-relaxed text-fg-2">
-            {DSA_CERT_NAME} is awarded for the whole Kestrel Academy world: every concept, practice problem and checkpoint on the campus, each building&apos;s review, and the Launch week final. It&apos;s checked on the server from your recorded progress and comes with a public verification page.
+            {DSA_CERT_NAME} is awarded for the whole Kestrel Academy world: every lesson, practice problem and checkpoint quiz, each module&apos;s review, and the Launch week final. It&apos;s checked on the server from your recorded progress and comes with a public verification page.
           </p>
         </header>
 
@@ -175,7 +175,7 @@ export default function DsaCertificate({ spec }: { spec: WorldSpec }) {
             ) : (
               <p className="m-0 border-l-2 border-signal pl-3 text-[14px] leading-relaxed text-fg-2">
                 {soon.length
-                  ? `Not claimable yet: ${unreleased} parts of the Academy, the building reviews and the Launch week final among them, are still being written. Your progress counts as you go, and the claim opens once the whole world is out and done.`
+                  ? `Not claimable yet: ${unreleased} parts of the Academy, the module reviews and the Launch week final among them, are still being written. Your progress counts as you go, and the claim opens once the whole world is out and done.`
                   : "Finish every item above and the claim opens here."}
                 {!loading && !user ? " Sign in to keep your progress on your account: certificates are issued to signed-in learners." : ""}
               </p>

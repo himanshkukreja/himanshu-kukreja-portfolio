@@ -334,3 +334,44 @@
     break-inside: avoid;
   }
 }
+
+/* ---------------------------------------------------------------- the beginner pass (owner, 9 Nov 2026) */
+
+/* a beat's stage line: the plain name first ("The problem"), the 6S word small after it ("Scenario") */
+.course-content .sd-stage-meta .dsa-beat-plain {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--c-signal-text);
+}
+.course-content .sd-stage-meta .dsa-beat-6s {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--c-fg-3);
+}
+
+/* jargon: the first use of a glossary term in a section is a button that shows its definition */
+.dsa-term {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-align: inherit;
+  cursor: help;
+  text-decoration: underline dotted;
+  text-decoration-color: var(--c-signal);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.dsa-term:hover,
+.dsa-term[aria-expanded="true"] {
+  background: var(--c-dsa-hl, transparent);
+}
+.dsa-term:focus-visible {
+  outline: 2px solid var(--c-signal);
+  outline-offset: 2px;
+}

@@ -39,7 +39,7 @@ export default async function ProblemsPage() {
                   {c?.title || cid}
                 </h2>
                 <Link href={`/dsa/concepts/${cid}`} className="font-mono text-[12px] text-signal-text underline decoration-line-strong underline-offset-4">
-                  learn the concept →
+                  the lesson →
                 </Link>
               </div>
               <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
