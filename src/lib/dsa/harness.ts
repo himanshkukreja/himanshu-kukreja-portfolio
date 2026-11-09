@@ -74,7 +74,20 @@ function jsType(t: string): string {
 
 /* ------------------------------------------------------------------ starter code */
 
+/** A comment naming the predefined ListNode, when the signature uses it (structure lessons' warm-ups and beyond). */
+function listNote(lang: DsaLang, sig: DsaSignature): string {
+  if (![...sig.params.map((p) => p.type), sig.returns].some((t) => t.replace(/\s+/g, "").replace(/\[\]$/, "") === "ListNode")) return "";
+  if (lang === "python") return "# ListNode is predefined: node.val is its value, node.next the next node (None at the end).\n";
+  if (lang === "javascript") return "// ListNode is predefined: node.val is its value, node.next the next node (null at the end).\n";
+  if (lang === "java") return "// ListNode is predefined: node.val is its value, node.next the next node (null at the end).\n";
+  return "// ListNode is predefined: node->val is its value, node->next the next node (nullptr at the end).\n";
+}
+
 export function starterCode(lang: DsaLang, sig: DsaSignature): string {
+  return listNote(lang, sig) + starterBody(lang, sig);
+}
+
+function starterBody(lang: DsaLang, sig: DsaSignature): string {
   const params = sig.params;
   if (lang === "python") {
     const name = snakeCase(sig.fn);

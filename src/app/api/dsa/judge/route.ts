@@ -70,6 +70,9 @@ export async function POST(req: Request) {
   } catch {
     return fail(400, "Send JSON.");
   }
+  // A structure lesson's build-it lab (design mode: a class and a sequence of operations). The judge service runs
+  // function and stdio modes only; design mode is the next step there (dsa-mastery README, "Design mode").
+  if (typeof body.lab === "string") return fail(503, "Java and C++ labs need the judge's design mode, which is coming soon. Python and JavaScript labs run in your browser today.", { comingSoon: true });
   const problemId = String(body.problemId || "");
   const language = body.language === "java" || body.language === "cpp" ? body.language : null;
   const code = typeof body.code === "string" ? body.code : "";

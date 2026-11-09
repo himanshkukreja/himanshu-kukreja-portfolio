@@ -28,6 +28,13 @@ export type LectureStep = {
   frame?: number;
   /** DSA code scenes: the template's step markers ([1], [2], …) lit on this step */
   markers?: number[];
+  /** DSA chain scenes (linked lists): node ids left to right; each id's next / prev id (null = null); named labels on
+   * ids (head, curr, prev, slow, fast; null = pointing at null); the running pointer-hop count */
+  order?: number[];
+  next?: (number | null)[];
+  prev?: (number | null)[];
+  labels?: Record<string, number | null>;
+  cost?: number;
 };
 export type SceneKind =
   | "title"
@@ -46,7 +53,8 @@ export type SceneKind =
   | "array"
   | "trace"
   | "race"
-  | "code";
+  | "code"
+  | "chain";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -84,8 +92,12 @@ export type LectureScene = {
   who?: string;
   text?: string;
   person?: { name: string; role: string };
-  /** DSA array */
+  /** DSA array; DSA chain: the nodes' values by id */
   values?: (number | string)[];
+  /** DSA chain: a doubly linked list (prev arrows too); each node's memory address (the memory picture); the counter's unit */
+  doubly?: boolean;
+  addresses?: number[];
+  costUnit?: string;
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

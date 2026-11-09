@@ -7,6 +7,7 @@
  *               :::script  :::toggle[Label]   (+ the course's own :::callout, :::panel… as usual)
  *   leaves      ::line[Text]{who opens}  ::trace[id]{predict}  ::handsolve[id]  ::race[id]  ::reorder[tabs-id]
  *               ::game[id]  ::explainback  ::checkpoint[quiz]  ::cards  ::solutions
+ *   structures  :::costs[Title]  ::viz[demo]  ::sandbox[id]  ::lab[id]  and six beats meet … recap (Academy Part 2)
  *   beats       ::::beat[scenario] … ::::  → the lesson's six stages (render.ts unwrapBeats)
  *
  * Rendering contract: interactive pieces are `<figure data-dsa="<widget>" …>` with readable, static fallback content
@@ -42,9 +43,9 @@ export type DsaRenderOpts = {
 };
 
 /** Container names this file renders (directives.ts keeps them as blocks instead of turning them back into text). */
-export const DSA_CONTAINERS = new Set(["beat", "example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint"]);
+export const DSA_CONTAINERS = new Set(["beat", "example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint", "costs"]);
 /** Leaf names this file renders. */
-export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions"]);
+export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab"]);
 
 export const DSA_LANGS = ["python", "javascript", "java", "cpp"] as const;
 export const DSA_LANG_LABEL: Record<string, string> = { python: "Python", javascript: "JavaScript", java: "Java", cpp: "C++" };
@@ -58,6 +59,10 @@ const EXAMPLE_KIND: Record<string, string> = {
   "wrong-approach": "Mistake museum",
   "does-not-apply": "Does not apply",
   "interview-variation": "Interview variation",
+  // structure lessons (Academy Part 2)
+  mistake: "Common mistake",
+  "when-to-use": "When to use it",
+  "when-not": "When not to use it",
 };
 
 const OPENS: Record<string, string> = { "first-attempt": "The first attempt", "scale-check": "The scale check", better: "Can we do better?" };
@@ -105,8 +110,17 @@ export function unwrapBeats(tree: Root): number {
 
 const BEATS: Record<string, string> = { scenario: "Scenario", struggle: "Struggle", see: "See", shape: "Shape", stretch: "Stretch", say: "Say" };
 
+/**
+ * Structure lessons (Academy Part 2, resources/structures/): their six beats, by heading label → stage id.
+ * "## 1. Meet it: a train of carriages" → stage "meet", labelled "Meet it".
+ */
+const STRUCTURE_BEATS: Record<string, string> = { "meet it": "meet", operations: "operations", "try it": "sandbox", "build it": "build", "use it well": "choose", recap: "recap" };
+
 /** A beat heading ("1. Scenario: the busiest three hours") → its stage: id "scenario", label "Scenario". */
 export function dsaStage(t: string): { id: string; label: string; title: string; core: boolean; numeral: string } | null {
+  const st = t.trim().match(/^(\d+)\.\s*([A-Za-z][A-Za-z ]*?)\s*:\s*(.+)$/);
+  const sid = st ? STRUCTURE_BEATS[st[2].toLowerCase()] : undefined;
+  if (st && sid) return { id: sid, label: st[2], title: st[3].trim(), core: true, numeral: st[1] };
   const m = t.trim().match(/^(\d+)\.\s*([A-Za-z]+)\s*[:.–—-]\s*(.+)$/);
   if (!m) return null;
   const id = m[2].toLowerCase();
@@ -221,6 +235,9 @@ export async function dsaBlock(node: ContainerDirective, ctx: BlockCtx): Promise
         { component: "dsa-realsystems" },
       );
     }
+    case "costs":
+      // a structure lesson's operation-cost table
+      return figure("costs", {}, [...blockCaption(title, [tag("What each operation costs")]), el("div", { className: ["sdb-body"] }, await blockInner(blockBody(node), ctx))]);
     case "dsa-checkpoint":
       return figure("checkpoint", { dataDsa: "checkpoint" }, [
         rawHast(chrome("figcaption", { className: ["sdb-head"] }, [h("span", { className: ["dsa-tag"] }, ["Checkpoint quiz"]), h("span", { className: ["sdb-title"] }, ["Pass with 80% to open the gate"])])),
@@ -290,6 +307,12 @@ export async function dsaLeaf(node: LeafDirective, ctx: BlockCtx): Promise<AnyNo
       return widget("checkpoint", {}, "Checkpoint quiz: ten questions on this lesson.");
     case "cards":
       return widget("cards", {}, "Review cards from this lesson.");
+    case "viz":
+      return widget("viz", { dataId: label }, `Step by step: ${titles[label] || label.replace(/-/g, " ")}. The animated player loads in your browser.`);
+    case "sandbox":
+      return widget("sandbox", { dataId: label }, "The sandbox: build a list and run its operations step by step. It loads in your browser.");
+    case "lab":
+      return widget("lab", { dataId: label }, "Build it yourself: write the class in Python, JavaScript, Java or C++ and run the tests. It loads in your browser.");
     case "solutions": {
       const sols = ctx.dsa?.solutions || [];
       if (!sols.length) return widget("solutions", {}, "Reference solutions in four languages.");
