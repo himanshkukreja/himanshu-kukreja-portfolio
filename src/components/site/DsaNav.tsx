@@ -123,7 +123,7 @@ function CourseSwitch({ pathname }: { pathname: string }) {
 /** The DSA brand: the index mark + "DSA Mastery." (the mark alone under 380 px, like SD Mastery's), the tag, the switcher. */
 export function DsaBrand({ pathname }: { pathname: string }) {
   return (
-    <div className="flex shrink-0 items-center gap-2 sm:gap-2.5">
+    <div className="flex shrink-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
       <Link href={DSA_HOME} aria-label="DSA Mastery, course home" className="inline-flex min-h-10 shrink-0 items-center gap-2 py-1 font-display text-lg font-extrabold tracking-[-0.03em] text-fg sm:text-xl">
         <DsaMark className="h-7 w-7" />
         <span aria-hidden className="whitespace-nowrap max-[379px]:hidden">
