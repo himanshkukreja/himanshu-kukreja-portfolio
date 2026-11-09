@@ -987,7 +987,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
               CC
             </button>
             {media?.music && (
-              <button type="button" onClick={() => setMusic((x) => !x)} aria-pressed={music} className={`${btn} ${music ? "!text-signal-text" : ""}`} title="Music (M)" aria-label="Music">
+              <button type="button" onClick={() => setMusic((x) => !x)} aria-pressed={music} className={`${btn} !hidden min-[400px]:!grid ${music ? "!text-signal-text" : ""}`} title="Music (M)" aria-label="Music">
                 ♪
               </button>
             )}
