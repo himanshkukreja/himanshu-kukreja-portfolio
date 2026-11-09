@@ -58,6 +58,8 @@ export type WorldNode = {
   /** side path: game | bridge | playbook | challenge */
   kind?: string;
   badge?: string;
+  /** the world's final stop: the building it stands in (Academy: Launch Hall) */
+  building?: string;
 };
 
 export type WorldStretch = { id: string; title: string; nodes: WorldNode[] };
@@ -70,6 +72,10 @@ export type WorldRegion = {
   detail: "full" | "outline";
   status: string;
   intro: string | null;
+  /** the region's home product line ("Kestrel Stream"), from its own lines or its module's (course.yml) */
+  line: string | null;
+  /** the module's one-sentence objective (course.yml), for regions without an intro yet */
+  objective: string | null;
   stretches: WorldStretch[];
   side: WorldNode[];
   boss: WorldNode | null;
@@ -78,7 +84,10 @@ export type WorldRegion = {
 export type WorldSummary = { id: string; title: string; subtitle: string; order: number; audience: string; atLaunch: string; open: boolean };
 
 export type WorldSpec = WorldSummary & {
-  theme: { map: string; road: string };
+  /** the Kestrel division the world is themed as ("Kestrel Academy"), "" when the spec has none */
+  division: string;
+  /** what each stop is called on this world's map (Academy: concept "room", practice "paving stone", ...) */
+  theme: { map: string; road: string; stops: Partial<Record<WorldNodeType, string>> };
   regions: WorldRegion[];
   final: WorldNode | null;
 };
