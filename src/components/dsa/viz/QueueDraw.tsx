@@ -119,9 +119,9 @@ export default function QueueDraw({
     const BW = 44;
     const width = X0 + Math.max(n, 6) * P + 10;
     const yA = 56;
-    const yB = 140;
-    const yC = 224;
-    const height = 292;
+    const yB = 176;
+    const yC = 262;
+    const height = 330;
     const cx = (j: number) => X0 + j * P;
     const inWin = (i: number) => !!w.window && i >= w.window[0] && i <= w.window[1];
     const arrived = (i: number) => w.cur !== null && i <= w.cur;
@@ -160,11 +160,8 @@ export default function QueueDraw({
             </g>
           );
         })}
-        <text x={X0 - 2} y={yB - 8} fontSize={12} fontFamily={MONO} fill={pal.sub}>
-          front
-        </text>
-        <text x={cx(Math.max(w.deque.length, 1)) - 4} y={yB - 8} fontSize={12} fontFamily={MONO} fill={pal.sub} textAnchor="end">
-          {w.deque.length > 1 ? "back" : ""}
+        <text x={6} y={yB + BW + 22} fontSize={11} fontFamily={MONO} fill={pal.sub}>
+          front → back
         </text>
         <line x1={X0 - 6} x2={X0 + Math.max(n, 6) * P - 8} y1={yB + BW + 6} y2={yB + BW + 6} stroke={pal.faint} strokeWidth={2} />
         {w.deque.map((idx, j) => {
@@ -184,11 +181,11 @@ export default function QueueDraw({
         })}
         {w.dropping !== null && (
           <g opacity={1 - 0.0 * t}>
-            <rect x={cx(dropIsBack ? w.deque.length : 0) + 6} y={yB - 38} width={BW} height={BW} fill={pal.hl} stroke={pal.sig} strokeWidth={3} strokeDasharray="6 4" />
-            <text x={cx(dropIsBack ? w.deque.length : 0) + 6 + BW / 2} y={yB - 38 + BW / 2 + 7} textAnchor="middle" fontSize={fsOf(String(w.stream[w.dropping]), 20) * fs} fontWeight={700} fontFamily={MONO} fill={pal.ink}>
+            <rect x={cx(dropIsBack ? w.deque.length : 0) + 6} y={yB - 46} width={BW} height={BW} fill={pal.hl} stroke={pal.sig} strokeWidth={3} strokeDasharray="6 4" />
+            <text x={cx(dropIsBack ? w.deque.length : 0) + 6 + BW / 2} y={yB - 46 + BW / 2 + 7} textAnchor="middle" fontSize={fsOf(String(w.stream[w.dropping]), 20) * fs} fontWeight={700} fontFamily={MONO} fill={pal.ink}>
               {w.stream[w.dropping]}
             </text>
-            <text x={cx(dropIsBack ? w.deque.length : 0) + 6 + BW + 6} y={yB - 38 + 14} fontSize={12} fontFamily={MONO} fill={pal.sig}>
+            <text x={cx(dropIsBack ? w.deque.length : 0) + 6 + BW + 6} y={yB - 46 + BW / 2 + 5} fontSize={12} fontFamily={MONO} fill={pal.sig}>
               {dropIsBack ? "out the back" : "out the front"}
             </text>
           </g>
