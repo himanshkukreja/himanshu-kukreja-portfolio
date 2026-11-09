@@ -6,18 +6,37 @@ import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
 import { getConceptIndex, getProblemIndex, getWorld, lessonDir, sdmLinker } from "./load";
 import { dsaKeys, type ConceptCheckpoint, type DsaLang, type DsaStage, type ProblemSummary } from "./types";
-import type { SandboxDemo, SandboxSpec } from "./viz/registry";
+import type { GridDemo, SandboxDemo, SandboxSpec, VisualizerSpec } from "./viz/registry";
 import type { LabCase, LabSpec } from "./design-harness";
+import type { DsaSignature } from "./types";
 
 /**
- * Structure lessons (Academy Part 2, "Core data structures"): dsa-mastery resources/structures/<module>/<lesson>/
- * (README "Structure lessons"). One cached item per lesson: the rendered explainer (six beats as the reader's stages),
- * the sandbox spec and its demos, the build-it lab (spec, visible and hidden cases, starters), the warm-up problems
- * and the checkpoint. The lab's reference solutions never leave the server.
+ * Visual lessons, one per module: structure lessons (Academy Part 2, dsa-mastery resources/structures/<module>/<lesson>/)
+ * and algorithm lessons (Part 3, resources/algorithms/<module>/<lesson>/). One cached item per lesson: the rendered
+ * explainer (six beats as the reader's stages), the sandbox (structures) or the visualizer (algorithms) and the demos
+ * the lesson plays, the build-it lab (a class in design mode, or functions in function mode: spec, visible and hidden
+ * cases, starters), the warm-up problems and the checkpoint. The lab's reference solutions never leave the server.
  */
+
+/** A function-mode lab (algorithm lessons): one or more functions, each tested like a small problem. */
+export type FunctionLabSpec = {
+  id: string;
+  title: string;
+  mode: "function";
+  summary: string;
+  legend?: string;
+  functions: (DsaSignature & { title: string; does: string; cost?: string })[];
+  limits: { timeMs: number };
+};
+export type FunctionLabCase = { name: string; fn: string; input: Record<string, unknown>; output: unknown; note?: string };
+export type LabBundle =
+  | { mode: "design"; spec: LabSpec; visible: LabCase[]; hidden: LabCase[]; starters: Partial<Record<DsaLang, string>> }
+  | { mode: "function"; spec: FunctionLabSpec; visible: FunctionLabCase[]; hidden: FunctionLabCase[]; starters: Partial<Record<DsaLang, string>> };
 
 export type StructurePage = {
   id: string;
+  /** structure (Part 2) or algorithm (Part 3) */
+  kind: "structure" | "algorithm";
   module: string;
   moduleTitle: string;
   regionTitle: string;
@@ -33,8 +52,9 @@ export type StructurePage = {
   toc: { id: string; text: string; level: 1 | 2 | 3 | 4; kind: "part" | "chapter" | "section" | "question" | "other"; stageId: string }[];
   contentVersion: string;
   sandbox: SandboxSpec | null;
-  demos: Record<string, SandboxDemo>;
-  lab: { spec: LabSpec; visible: LabCase[]; hidden: LabCase[]; starters: Partial<Record<DsaLang, string>> } | null;
+  visualizer: VisualizerSpec | null;
+  demos: Record<string, SandboxDemo | GridDemo>;
+  lab: LabBundle | null;
   reviewCards: { front: string; back: string }[];
   practice: ProblemSummary[];
   checkpoint: ConceptCheckpoint | null;
@@ -52,6 +72,7 @@ type Front = {
   keyPoints?: string[];
   practice?: string[];
   sandbox?: string;
+  visualizer?: string;
   lab?: string;
   reviewCards?: { front: string; back: string }[];
 };
@@ -66,15 +87,16 @@ const STARTERS: [DsaLang, string][] = [
 async function build(id: string): Promise<StructurePage | null> {
   const concepts = await getConceptIndex();
   const c = concepts.find((x) => x.id === id);
-  if (!c || c.kind !== "structure" || c.status !== "built") return null;
+  if (!c || (c.kind !== "structure" && c.kind !== "algorithm") || c.status !== "built") return null;
+  const algorithm = c.kind === "algorithm";
   const dir = lessonDir(c);
   const [lessonMd, quizMd, sandboxYml, labYml, visible, hidden, castMd, courseYml, problems, academy, linker, ...starters] = await Promise.all([
     readDsa(`${dir}/lesson.md`),
     readDsa(`${dir}/quiz.md`),
-    readDsa(`${dir}/sandbox.yml`),
+    readDsa(`${dir}/${algorithm ? "visualizer" : "sandbox"}.yml`),
     readDsa(`${dir}/lab/lab.yml`),
-    readDsaJson<{ cases?: LabCase[] }>(`${dir}/lab/tests/visible.json`),
-    readDsaJson<{ cases?: LabCase[] }>(`${dir}/lab/tests/hidden.json`),
+    readDsaJson<{ cases?: (LabCase & FunctionLabCase)[] }>(`${dir}/lab/tests/visible.json`),
+    readDsaJson<{ cases?: (LabCase & FunctionLabCase)[] }>(`${dir}/lab/tests/hidden.json`),
     readDsa("resources/company/cast.md"),
     readDsa("resources/course.yml"),
     getProblemIndex(),
@@ -88,8 +110,13 @@ async function build(id: string): Promise<StructurePage | null> {
   const cast = Object.fromEntries((((castMd ? matter(castMd, {}).data : {}) as { cast?: { id: string; name: string; role: string }[] }).cast || []).map((x) => [x.id, { name: x.name, role: x.role }]));
   const mod = ((courseYml ? yaml<{ modules?: { id: string; code: string; title: string; building?: string }[] }>(courseYml).modules : []) || []).find((m) => m.id === c.module);
 
-  const sandbox = sandboxYml ? yaml<SandboxSpec>(sandboxYml) : null;
-  const demos: Record<string, SandboxDemo> = Object.fromEntries((sandbox?.demos || []).map((d) => [d.id, d]));
+  const sandbox = sandboxYml && !algorithm ? yaml<SandboxSpec>(sandboxYml) : null;
+  const visualizer = sandboxYml && algorithm ? yaml<VisualizerSpec>(sandboxYml) : null;
+  // a grid demo that names a preset carries the preset's grid, so the client needs nothing else
+  const demos: Record<string, SandboxDemo | GridDemo> = Object.fromEntries([
+    ...(sandbox?.demos || []).map((d) => [d.id, d] as const),
+    ...(visualizer?.demos || []).map((d) => [d.id, { ...d, grid: d.grid || visualizer!.presets.find((p) => p.id === d.preset)?.grid }] as const),
+  ]);
   const titles = Object.fromEntries(Object.values(demos).map((d) => [d.id, d.title]));
   const dsa: DsaRenderOpts = { cast, beats: true, checkpointQuiz: quizMd ? matter(quizMd, {}).content : "", titles, sdmLink: linker.sdm, labLink: linker.lab };
   const rendered = await renderLesson(content, { kind: "day-content", dsa });
@@ -107,18 +134,32 @@ async function build(id: string): Promise<StructurePage | null> {
     }
   }
 
-  const spec = labYml ? yaml<LabSpec>(labYml) : null;
-  const lab = spec
-    ? {
-        spec: { id: spec.id, title: spec.title, class: spec.class, summary: spec.summary, methods: spec.methods, limits: spec.limits || { timeMs: 2000 } },
-        visible: visible?.cases || [],
-        hidden: hidden?.cases || [],
-        starters: Object.fromEntries(STARTERS.map(([l], i) => [l, (starters[i] as string | null) || ""]).filter(([, s]) => s)) as Partial<Record<DsaLang, string>>,
-      }
-    : null;
+  const raw = labYml ? yaml<(LabSpec & { mode?: string }) | FunctionLabSpec>(labYml) : null;
+  const starterMap = Object.fromEntries(STARTERS.map(([l], i) => [l, (starters[i] as string | null) || ""]).filter(([, s]) => s)) as Partial<Record<DsaLang, string>>;
+  let lab: LabBundle | null = null;
+  if (raw && raw.mode === "function") {
+    const f = raw as FunctionLabSpec;
+    lab = {
+      mode: "function",
+      spec: { id: f.id, title: f.title, mode: "function", summary: f.summary, legend: f.legend, functions: f.functions, limits: f.limits || { timeMs: 2000 } },
+      visible: visible?.cases || [],
+      hidden: hidden?.cases || [],
+      starters: starterMap,
+    };
+  } else if (raw) {
+    const d = raw as LabSpec;
+    lab = {
+      mode: "design",
+      spec: { id: d.id, title: d.title, class: d.class, summary: d.summary, methods: d.methods, limits: d.limits || { timeMs: 2000 } },
+      visible: visible?.cases || [],
+      hidden: hidden?.cases || [],
+      starters: starterMap,
+    };
+  }
 
   return {
     id,
+    kind: algorithm ? "algorithm" : "structure",
     module: c.module,
     moduleTitle: mod ? `${mod.code} ${mod.title}` : c.module,
     regionTitle: region?.title || mod?.building || "",
@@ -134,6 +175,7 @@ async function build(id: string): Promise<StructurePage | null> {
     toc: rendered.toc,
     contentVersion: rendered.contentVersion,
     sandbox,
+    visualizer,
     demos,
     lab,
     reviewCards: f.reviewCards || [],
@@ -142,7 +184,7 @@ async function build(id: string): Promise<StructurePage | null> {
   };
 }
 
-const cachedBuild = unstable_cache(build, ["dsa-structure-v1"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cachedBuild = unstable_cache(build, ["dsa-structure-v2"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 export async function getStructure(id: string): Promise<StructurePage | null> {
   if (!ID.test(id)) return null;

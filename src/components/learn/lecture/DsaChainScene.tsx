@@ -38,21 +38,25 @@ function chainOf(s: LectureScene, st: LectureStep | null): Chain {
 }
 
 /** The chain as SVG (viewBox units); `scale` sizes text for the 9:16 short. */
-function ChainSvg({ s, st, prevSt, t, first, maxW }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; first: boolean; maxW: number }) {
+function ChainSvg({ s, st, prevSt, t, first, maxW, big = false }: { s: LectureScene; st: LectureStep; prevSt: LectureStep | null; t: number; first: boolean; maxW: number; big?: boolean }) {
   const values = s.values || [];
   const now = chainOf(s, st);
   const was = prevSt ? chainOf(s, prevSt) : now;
   const doubly = !!s.doubly;
-  const VAL = 62;
-  const SLOT = 36;
+  // the 9:16 short draws bigger nodes with tighter gaps: on a phone the values must read at a glance
+  const VAL = big ? 84 : 62;
+  const SLOT = big ? 42 : 36;
   const NW = VAL + SLOT + (doubly ? SLOT : 0);
-  const NH = 56;
-  const GAP = 52;
-  const PAD = 70;
-  const TOPY = s.addresses ? 96 : 66;
+  const NH = big ? 76 : 56;
+  const GAP = big ? 36 : 52;
+  const PAD = big ? 86 : 70;
+  const FS = big ? 40 : 28;
+  const LFS = big ? 21 : 15;
+  const LH = big ? 32 : 25;
+  const TOPY = (s.addresses ? 96 : 66) + (big ? 14 : 0);
   const count = Math.max(now.order.length, was.order.length, 1);
   const width = PAD * 2 + count * NW + (count - 1) * GAP;
-  const height = TOPY + NH + 112;
+  const height = TOPY + NH + (big ? 130 : 112);
   const move = easeInOut(clamp(t / 0.7));
   const xOf = (c: Chain, id: number) => {
     const i = c.order.indexOf(id);
@@ -105,7 +109,7 @@ function ChainSvg({ s, st, prevSt, t, first, maxW }: { s: LectureScene; st: Lect
   };
   const labelPos = (c: Chain, k: string, x: (id: number) => number) => {
     const id = c.labels[k];
-    if (id === null || id === undefined || !c.order.includes(id)) return k === "prev" ? PAD - 46 : PAD + c.order.length * (NW + GAP) - GAP * 0.4;
+    if (id === null || id === undefined || !c.order.includes(id)) return k === "prev" ? PAD - (big ? 44 : 46) : PAD + c.order.length * (NW + GAP) - GAP * 0.4;
     return x(id) + NW / 2;
   };
   const labels = ORDER.filter((k) => k in now.labels);
@@ -132,18 +136,18 @@ function ChainSvg({ s, st, prevSt, t, first, maxW }: { s: LectureScene; st: Lect
         return (
           <g key={id} opacity={op} transform={`translate(0 ${(1 - e) * 14})`}>
             {s.addresses && (
-              <text x={x + NW / 2} y={TOPY - 12} textAnchor="middle" fontSize={17} fontFamily="ui-monospace, monospace" fill={MUTED}>
+              <text x={x + NW / 2} y={TOPY - 12} textAnchor="middle" fontSize={big ? 22 : 17} fontFamily="ui-monospace, monospace" fill={MUTED}>
                 @{s.addresses[id]}
               </text>
             )}
             <rect x={x} y={TOPY} width={NW} height={NH} fill={lit ? ACC : BOX} stroke={lit ? ACC : "#6a6a72"} strokeWidth={3} />
             {doubly && <line x1={x + SLOT} x2={x + SLOT} y1={TOPY} y2={TOPY + NH} stroke={lit ? INK : "#4a4a52"} strokeWidth={2} />}
             <line x1={vx + VAL} x2={vx + VAL} y1={TOPY} y2={TOPY + NH} stroke={lit ? INK : "#4a4a52"} strokeWidth={2} />
-            <text x={vx + VAL / 2} y={TOPY + NH / 2 + 10} textAnchor="middle" fontSize={28} fontWeight={800} fontFamily="ui-monospace, monospace" fill={lit ? INK : W}>
+            <text x={vx + VAL / 2} y={TOPY + NH / 2 + FS * 0.36} textAnchor="middle" fontSize={FS} fontWeight={800} fontFamily="ui-monospace, monospace" fill={lit ? INK : W}>
               {String(values[id])}
             </text>
             {nextNull ? (
-              <text x={vx + VAL + SLOT / 2} y={TOPY + NH / 2 + 5} textAnchor="middle" fontSize={13} fontFamily="ui-monospace, monospace" fill={lit ? INK : MUTED}>
+              <text x={vx + VAL + SLOT / 2} y={TOPY + NH / 2 + 5} textAnchor="middle" fontSize={big ? 17 : 13} fontFamily="ui-monospace, monospace" fill={lit ? INK : MUTED}>
                 null
               </text>
             ) : (
@@ -159,13 +163,13 @@ function ChainSvg({ s, st, prevSt, t, first, maxW }: { s: LectureScene; st: Lect
         const x = lerp(from, to, move);
         const peers = labels.filter((q) => ABOVE.has(q) === above && now.labels[q] === now.labels[k]);
         const stack = peers.indexOf(k);
-        const y = above ? TOPY - (s.addresses ? 62 : 36) - stack * 28 : TOPY + NH + 14 + stack * 28;
-        const tw = k.length * 11 + 18;
+        const y = above ? TOPY - (s.addresses ? 62 : 36) - (big ? 10 : 0) - stack * (LH + 3) : TOPY + NH + 14 + stack * (LH + 3);
+        const tw = k.length * (big ? 15 : 11) + 18;
         const hot = !above;
         return (
           <g key={k} transform={`translate(${x - tw / 2} ${y})`} opacity={prevSt && !(k in was.labels) ? prog(t, 0.1, 0.35) : first ? prog(t, 0.35, 0.4) : 1}>
-            <rect width={tw} height={25} rx={3} fill={hot ? ACC : W} />
-            <text x={tw / 2} y={17.5} textAnchor="middle" fontSize={15} fontWeight={700} fontFamily="ui-monospace, monospace" fill={INK}>
+            <rect width={tw} height={LH} rx={3} fill={hot ? ACC : W} />
+            <text x={tw / 2} y={LH * 0.7} textAnchor="middle" fontSize={LFS} fontWeight={700} fontFamily="ui-monospace, monospace" fill={INK}>
               {k}
             </text>
           </g>
@@ -208,7 +212,7 @@ export function PChain({ s, st, prevSt, t, first }: { s: LectureScene; st: Lectu
   return (
     <div className="flex w-full flex-col items-center gap-[5cqh]">
       {s.heading && <h2 className="m-0 w-full font-display text-[7.55cqw] font-extrabold leading-[1.05] tracking-[-0.03em] text-[#f3f2ee]">{s.heading}</h2>}
-      <ChainSvg s={s} st={st} prevSt={prevSt} t={t} first={first} maxW={92} />
+      <ChainSvg s={s} st={st} prevSt={prevSt} t={t} first={first} maxW={96} big />
       <Counter s={s} st={st} k={2.6} />
     </div>
   );

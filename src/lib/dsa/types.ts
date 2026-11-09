@@ -37,8 +37,9 @@ export type ConceptSummary = {
   title: string;
   status: "built" | "planned";
   summary: string;
-  /** "structure": an Academy Part 2 structure lesson (resources/structures/, /dsa/structures/<id>); else a 6S concept */
-  kind?: "concept" | "structure";
+  /** "structure": an Academy Part 2 structure lesson (resources/structures/, /dsa/structures/<id>); "algorithm": a Part 3
+   * algorithm lesson (resources/algorithms/, /dsa/algorithms/<id>); else a 6S concept */
+  kind?: "concept" | "structure" | "algorithm";
 };
 
 /* ------------------------------------------------------------------ worlds (resources/worlds/<id>.yml) */
@@ -60,6 +61,8 @@ export type WorldNode = {
   /** checkpoint: the quiz (<module>/<concept>), its two mixed problems, pass mark, when it appears */
   quiz?: string;
   problems?: { id: string; title: string; built: boolean }[];
+  /** checkpoint of a structure or algorithm lesson: its build-it lab (the lab.yml id, game key dsa:lab:<id>) */
+  lab?: { id: string; title: string; href: string };
   pass?: number;
   opensAt?: number;
   /** gate: the checkpoint that opens it */
@@ -102,6 +105,9 @@ export type WorldSpec = WorldSummary & {
   /** what each stop is called on this world's map (Academy: concept "room", practice "paving stone", ...) */
   theme: { map: string; road: string; stops: Partial<Record<WorldNodeType, string>> };
   regions: WorldRegion[];
+  /** the world's parts in order (Academy: 1 Toolkit, 2 Data structures, 3 Algorithms, 4 Patterns); the map groups
+   * its buildings under them. Empty when the world has no parts. */
+  parts: { id: string; title: string; label: string; summary: string; regions: string[] }[];
   final: WorldNode | null;
 };
 

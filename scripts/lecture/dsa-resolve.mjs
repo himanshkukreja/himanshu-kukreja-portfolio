@@ -32,8 +32,9 @@ const json = (p) => {
   }
 };
 const [mod, concept, short] = id.split("/");
-// a 6S concept (resources/modules/) or a structure lesson (Academy Part 2, resources/structures/)
-const dir = fs.existsSync(path.join(repo, `resources/structures/${mod}/${concept}`)) ? `resources/structures/${mod}/${concept}` : `resources/modules/${mod}/${concept}`;
+// a 6S concept (resources/modules/), a structure lesson (Academy Part 2, resources/structures/) or an algorithm
+// lesson (Part 3, resources/algorithms/)
+const dir = ["structures", "algorithms"].map((r) => `resources/${r}/${mod}/${concept}`).find((d) => fs.existsSync(path.join(repo, d))) || `resources/modules/${mod}/${concept}`;
 const file = short ? `${dir}/shorts/${short}.json` : `${dir}/lecture.json`;
 const raw = json(file);
 if (!raw) {

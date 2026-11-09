@@ -91,31 +91,31 @@ export default function Sandbox({ spec }: { spec: SandboxSpec }) {
   const positions = useMemo(() => model.ids.map((id, i) => ({ i, v: model.values[id] })), [model]);
 
   return (
-    <div className="dsa-ui flex flex-col gap-4 p-3 sm:p-5">
+    <div className="dsa-ui flex min-w-0 flex-col gap-4 p-3 sm:p-5">
       {/* the list and the player */}
       <StepPlayer script={script} autoPlay={auto && script.frames.length > 1} label="Linked list sandbox" stepMs={1250} />
 
       {/* operations */}
       <div className="flex flex-col gap-3 border-t border-line pt-4">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 font-mono text-[11px] uppercase tracking-label text-fg-3">
+          <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
             Value
             <input
               value={value}
               onChange={(e) => setValue(e.target.value)}
               inputMode="numeric"
               aria-describedby="sb-range"
-              className="min-h-11 w-24 border border-line-strong bg-surface px-3 font-mono text-[16px] normal-case tracking-normal text-fg focus:border-signal focus:outline-none"
+              className="min-h-11 w-24 border border-line-strong bg-surface px-3 font-mono text-[16px] font-normal text-fg focus:border-signal focus:outline-none"
             />
           </label>
           {ops.includes("insert_after") && (
-            <label className="flex flex-col gap-1 font-mono text-[11px] uppercase tracking-label text-fg-3">
+            <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
               After position
               <select
                 value={pos}
                 onChange={(e) => setPos(Number(e.target.value))}
                 disabled={!positions.length}
-                className="min-h-11 min-w-[9rem] border border-line-strong bg-surface px-2 font-mono text-[14px] normal-case tracking-normal text-fg focus:border-signal focus:outline-none"
+                className="min-h-11 min-w-[9rem] border border-line-strong bg-surface px-2 font-mono text-[14px] font-normal text-fg focus:border-signal focus:outline-none"
               >
                 {positions.map((p) => (
                   <option key={p.i} value={p.i}>
@@ -125,7 +125,7 @@ export default function Sandbox({ spec }: { spec: SandboxSpec }) {
               </select>
             </label>
           )}
-          <span id="sb-range" className="pb-3 font-mono text-[11px] text-fg-4">
+          <span id="sb-range" className="pb-3 font-mono text-[12px] text-fg-3">
             {lo} to {hi}, up to {maxNodes} nodes
           </span>
         </div>
@@ -148,11 +148,11 @@ export default function Sandbox({ spec }: { spec: SandboxSpec }) {
       {lastRow && (
         <div className="grid gap-2 border border-line bg-surface p-3 text-[14px] sm:grid-cols-2" aria-live="polite">
           <p className="m-0 text-fg">
-            <span className="block font-mono text-[11px] uppercase tracking-label text-signal-text">Linked list</span>
+            <span className="block font-mono text-[12px] uppercase tracking-label text-signal-text">Linked list</span>
             {lastRow.label}: <strong>{lastRow.hops}</strong> pointer hop{lastRow.hops === 1 ? "" : "s"}
           </p>
           <p className="m-0 text-fg-2">
-            <span className="block font-mono text-[11px] uppercase tracking-label text-fg-3">The same on an array</span>
+            <span className="block font-mono text-[12px] uppercase tracking-label text-fg-3">The same on an array</span>
             {lastRow.array}
           </p>
         </div>
@@ -205,13 +205,13 @@ export default function Sandbox({ spec }: { spec: SandboxSpec }) {
           onBuild();
         }}
       >
-        <label className="flex min-w-0 flex-1 flex-col gap-1 font-mono text-[11px] uppercase tracking-label text-fg-3">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-[13px] font-semibold text-fg-2">
           Start from these values
           <input
             value={build}
             onChange={(e) => setBuild(e.target.value)}
             placeholder="12, 7, 30, 4"
-            className="min-h-11 w-full min-w-0 border border-line-strong bg-surface px-3 font-mono text-[15px] normal-case tracking-normal text-fg focus:border-signal focus:outline-none"
+            className="min-h-11 w-full min-w-0 border border-line-strong bg-surface px-3 font-mono text-[15px] font-normal text-fg focus:border-signal focus:outline-none"
           />
         </label>
         <button type="submit" className="min-h-11 bg-signal px-4 text-[14px] font-semibold text-on-signal">

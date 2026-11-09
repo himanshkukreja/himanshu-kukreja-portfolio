@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * A structure lesson (Academy Part 2, /dsa/structures/<id>) on the course reader, like a concept page: the progress
+ * A visual lesson on the course reader: a structure lesson (Academy Part 2, /dsa/structures/<id>) or an algorithm
+ * lesson (Part 3, /dsa/algorithms/<id>; beats Meet it, See it move, Why it works, Build it, Use it well, Recap), like a
+ * concept page: the progress
  * engine (course_id 'dsa', each beat a stage earned by reading, XP keys dsa:s:/dsa:c:), the stage rail, contents,
  * reading tools, and the lesson body. Its six beats are Meet it, Operations, Try it (the sandbox), Build it (the lab),
  * Use it well and Recap; the warm-up problems close the page.
@@ -37,7 +39,9 @@ function Hero({ s }: { s: StructurePage }) {
   return (
     <section className="mx-auto flex max-w-[1320px] flex-col gap-4 px-4 pb-6 pt-6 sm:px-6 lg:pt-8">
       <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { label: s.regionTitle || s.moduleTitle }]} />
-      <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">Core data structures · {s.moduleTitle} · Lesson</p>
+      <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">
+        {s.kind === "algorithm" ? "Part 3 · Algorithms" : "Part 2 · Data structures"} · {s.moduleTitle} · Lesson
+      </p>
       <h1 className="m-0 max-w-[900px] font-display text-[34px] font-extrabold leading-[1] tracking-[-0.03em] text-fg sm:text-[48px]">{s.title}</h1>
       <p className="m-0 max-w-[760px] text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">{s.summary}</p>
       <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-fg-3">
@@ -47,11 +51,18 @@ function Hero({ s }: { s: StructurePage }) {
         <span className="border border-signal px-2 py-1 text-signal-text">{chip}</span>
       </div>
       <nav aria-label="Jump to" className="flex flex-wrap gap-2">
-        {[
-          ["sandbox", "Try the sandbox"],
-          ["build", "Build it yourself"],
-          ["warmups-h", "Warm-up problems"],
-        ].map(([id, label]) => (
+        {(s.kind === "algorithm"
+          ? [
+              ["see", "Watch it run"],
+              ["build", "Build it yourself"],
+              ["warmups-h", "Warm-up problems"],
+            ]
+          : [
+              ["sandbox", "Try the sandbox"],
+              ["build", "Build it yourself"],
+              ["warmups-h", "Warm-up problems"],
+            ]
+        ).map(([id, label]) => (
           <a
             key={id}
             href={`#${id}`}
@@ -123,7 +134,13 @@ function End({ s }: { s: StructurePage }) {
       <h2 id="warmups-h" className="m-0 scroll-mt-24 font-display text-[28px] font-bold leading-tight tracking-[-0.02em] text-fg">
         Warm-up problems
       </h2>
-      <p className="m-0 max-w-[680px] text-[15px] text-fg-2">Short, easy problems on the moves you just built: walking, turning arrows, two pointers. Each takes a linked list as input (ListNode in every language).</p>
+      <p className="m-0 max-w-[680px] text-[15px] text-fg-2">
+        {s.kind === "algorithm"
+          ? "Short problems that use what you just built: a fill, a count of regions, the fewest moves, a spread from many starts. Each takes a grid as input, as rows of text or rows of numbers."
+          : s.structure === "linked-list"
+            ? "Short, easy problems on the moves you just built: walking, turning arrows, two pointers. Each takes a linked list as input (ListNode in every language)."
+            : "Short, easy problems on the operations you just built."}
+      </p>
       <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
         {s.practice.map((p, i) => (
           <li key={p.id} className="bg-surface">
