@@ -331,9 +331,9 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
   ];
 
   return (
-    <div className="mx-auto grid max-w-[1440px] gap-6 px-4 pb-16 pt-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:gap-8">
+    <div className="mx-auto grid w-full max-w-[1440px] gap-6 px-4 pb-16 pt-6 sm:px-6 lg:min-h-0 lg:flex-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)] lg:grid-rows-[minmax(0,1fr)] lg:gap-8 lg:pb-4 lg:pt-2">
       {/* statement */}
-      <section aria-label="Problem" className="flex min-w-0 flex-col gap-4">
+      <section aria-label="Problem" className="flex min-w-0 flex-col gap-4 lg:min-h-0 lg:overflow-y-auto lg:overscroll-contain lg:pb-8 lg:pr-3">
         <header className="flex flex-col gap-2">
           <DsaCrumbs items={[{ href: "/dsa/problems", label: "Problems" }, { href: `/dsa/concepts/${p.concept}`, label: p.conceptTitle }]} />
           <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">
@@ -509,12 +509,12 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
         )}
       </section>
 
-      {/* editor. Desktop: the panel is the viewport's height under the header, sticky while the statement scrolls; the
+      {/* editor. Desktop: the right half of the split screen (the full height; it never moves while the statement scrolls); the
           editor takes whatever the toolbar, the Run / Submit row and the results leave (no dead band under it), and the
           results scroll inside their own area. Phones: a fixed-height editor in the page flow. */}
       <section
         aria-label="Your solution"
-        className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-[calc(var(--hk-header-h,61px)+16px)] lg:h-[calc(100dvh-var(--hk-header-h,61px)-32px)] lg:min-h-[520px] lg:self-start"
+        className="flex min-w-0 flex-col gap-3 lg:h-full lg:min-h-0"
       >
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <div role="tablist" aria-label="Language" className="flex border border-line-strong">

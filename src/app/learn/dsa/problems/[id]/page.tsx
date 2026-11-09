@@ -32,9 +32,11 @@ export default async function ProblemPage({ params }: Props) {
   if (!p) notFound();
   return (
     <div className="dsa-theme">
-      <main>
+      {/* desktop: a split screen exactly the window's height under the header. The page doesn't scroll; the statement
+          scrolls in its own column and the editor stays put (a sticky editor still slid at the top and bottom) */}
+      <main className="lg:flex lg:h-[calc(100dvh-var(--hk-header-h,61px))] lg:flex-col lg:overflow-hidden">
         {/* save for offline: the statement, visible tests and hints, with the Python runtime so Run works offline */}
-        <div className="mx-auto flex max-w-[1440px] justify-end px-4 pt-4 sm:px-6">
+        <div className="mx-auto flex w-full max-w-[1440px] shrink-0 justify-end px-4 pt-4 sm:px-6 lg:pt-2">
           <SaveOfflineButton title={p.title} kind="dsa-problem" />
         </div>
         <ProblemRoom p={p} />
