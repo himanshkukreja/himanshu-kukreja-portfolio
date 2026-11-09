@@ -111,7 +111,9 @@ export default function LessonClip({ clip, fig }: { clip: LessonClipData; fig: H
     if (mode === "loop") {
       v.muted = true;
       v.loop = true;
-      if (inView && !calm) void v.play().catch(() => setMode("idle"));
+      // autoplay refused (iOS Low Power Mode, a browser setting): the poster and play button; an AbortError only means
+      // a pause or a new load cut this play short
+      if (inView && !calm) void v.play().catch((e: unknown) => (e as Error)?.name === "NotAllowedError" && setMode("idle"));
       else v.pause();
     } else if (mode === "narrated" && !inView && !v.paused) {
       v.pause();
@@ -140,7 +142,8 @@ export default function LessonClip({ clip, fig }: { clip: LessonClipData; fig: H
     v.muted = false;
     v.currentTime = 0;
     setMode("narrated");
-    void v.play().catch(() => {
+    void v.play().catch((e: unknown) => {
+      if ((e as Error)?.name !== "NotAllowedError") return;
       // sound refused (no user activation): fall back to the silent loop
       v.muted = true;
       setMode(calm ? "idle" : "loop");
@@ -214,10 +217,7 @@ export default function LessonClip({ clip, fig }: { clip: LessonClipData; fig: H
           </button>
         )}
         {narrated && (
-          <div className="absolute inset-x-0 bottom-0 flex flex-col gap-1.5 bg-gradient-to-t from-black/85 via-black/55 to-transparent px-3 pb-2 pt-8">
-            <p aria-live="polite" className="m-0 min-h-[2.6em] text-center text-[13px] leading-snug text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.9)] sm:text-[15px]">
-              {line}
-            </p>
+          <div className="absolute inset-x-0 bottom-0 bg-black/75 px-2">
             <div className="flex items-center gap-2">
               <button type="button" onClick={narrate} aria-label={paused ? "Resume" : "Pause"} className="flex h-9 w-9 items-center justify-center text-white hover:text-[var(--c-signal)]">
                 {paused ? <Play size={17} aria-hidden fill="currentColor" /> : <Pause size={17} aria-hidden fill="currentColor" />}
@@ -235,6 +235,12 @@ export default function LessonClip({ clip, fig }: { clip: LessonClipData; fig: H
           </div>
         )}
       </div>
+      {/* the narration's captions, under the picture so they never cover the stage's own labels */}
+      {narrated && (
+        <p aria-live="polite" className="m-0 flex min-h-[3.4em] items-center justify-center bg-[#0b0b0c] px-3 py-1.5 text-center text-[14px] leading-snug text-white sm:text-[15px]">
+          {line}
+        </p>
+      )}
       <p className="m-0 flex items-baseline gap-2 border-t border-line px-3 py-2.5 text-[14px] leading-snug text-fg-2 sm:px-4">
         <span className="shrink-0 font-mono text-[11px] uppercase tracking-label text-signal-text">Clip{dur ? ` · ${fmt(dur)}` : ""}</span>
         <span>{clip.caption}</span>

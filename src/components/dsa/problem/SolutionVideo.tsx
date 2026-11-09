@@ -7,7 +7,7 @@
  * run, the code marker by marker, complexity, edge cases and the classic twin. Captions come with the editorial
  * (same-origin track, no CORS), chapters jump the video.
  */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SolutionVideoData } from "@/lib/dsa/media";
 import { DSA_LANG_LABEL, type DsaLang } from "@/lib/dsa/types";
 
@@ -16,14 +16,15 @@ const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.flo
 export default function SolutionVideo({ video, lang }: { video: SolutionVideoData; lang: DsaLang }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [t, setT] = useState(0);
-  // the captions as a same-origin track (this tab only renders in the browser, after the editorial loads)
-  const track = useMemo(() => (video.captions && typeof window !== "undefined" ? URL.createObjectURL(new Blob([video.captions], { type: "text/vtt" })) : null), [video.captions]);
-  useEffect(
-    () => () => {
-      if (track) URL.revokeObjectURL(track);
-    },
-    [track],
-  );
+  const trackRef = useRef<HTMLTrackElement>(null);
+  // the captions as a same-origin blob track (set on the element: a fresh URL each time the effect runs)
+  useEffect(() => {
+    const el = trackRef.current;
+    if (!el || !video.captions) return;
+    const url = URL.createObjectURL(new Blob([video.captions], { type: "text/vtt" }));
+    el.src = url;
+    return () => URL.revokeObjectURL(url);
+  }, [video.captions]);
 
   const cur = video.chapters.reduce((k, c, i) => (t >= c.at ? i : k), 0);
   const jump = (at: number) => {
@@ -51,7 +52,7 @@ export default function SolutionVideo({ video, lang }: { video: SolutionVideoDat
         className="aspect-video w-full bg-[#0b0b0c]"
         onTimeUpdate={(e) => setT(e.currentTarget.currentTime)}
       >
-        {track && <track kind="captions" src={track} srcLang="en" label="English" default />}
+        {video.captions && <track ref={trackRef} kind="captions" srcLang="en" label="English" default />}
       </video>
       <ol className="m-0 flex list-none flex-wrap gap-1.5 p-3" aria-label="Chapters">
         {video.chapters.map((c, i) => (
