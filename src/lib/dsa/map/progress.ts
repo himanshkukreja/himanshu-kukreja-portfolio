@@ -2,17 +2,15 @@
  * World progress (plan §4.4): one pure function, `computeWorld(spec, signals)`, used by the map in the browser
  * (and later the profile and the coach). Isomorphic and import-free apart from types.
  *
- * Rules (§4.2, adapted to a partly built world):
- * - Every region is open: the Academy's entry is open and a per-region placement check lets learners skip ahead,
- *   so regions are recommended in order, not locked.
- * - Inside a region, the first stretch is open; each later stretch opens when the previous gate opens.
+ * Rules (owner, 9 Nov 2026: nothing is locked; worlds, stretches, checkpoints and bosses are all open from day one):
+ * - Every world and every region is open; the map recommends an order, it never blocks.
  * - A concept is always readable; it is "done" once its lesson is complete.
- * - A practice step is open when its stretch is open, and done on an accepted solve.
- * - A checkpoint appears once `opensAt` (70%) of its stretch's required, built practice is done; it is done when its
- *   quiz is passed and every built checkpoint problem is solved. Its gate opens with it.
- * - The boss unlocks when every checkpoint of the region is passed.
- * - Nodes whose content isn't written yet are "soon" and never block progress; the frontier is the first
- *   required, built, open node that isn't done.
+ * - A practice step is always open, and done on an accepted solve.
+ * - A checkpoint is always open; it is done when its quiz is passed and every built checkpoint problem is solved. The
+ *   stretch's gate is just its end marker: "done" with the checkpoint, never a barrier.
+ * - Bosses and the world final are open once written ("soon" before that).
+ * - Nodes whose content isn't written yet are "soon"; the frontier (where "Continue" goes) is the first required,
+ *   built, open node that isn't done.
  */
 import type { WorldNode, WorldRegion, WorldSpec } from "../types";
 
@@ -46,7 +44,6 @@ function nodeDone(n: WorldNode, s: ProgressSignals): boolean {
 }
 
 function regionStates(region: WorldRegion, s: ProgressSignals, states: Record<string, NodeState>): RegionProgress {
-  let open = true;
   let done = 0;
   let total = 0;
   let gates = 0;
@@ -54,9 +51,6 @@ function regionStates(region: WorldRegion, s: ProgressSignals, states: Record<st
   let checkpointsPassed = 0;
   let checkpoints = 0;
   for (const st of region.stretches) {
-    const practice = st.nodes.filter((n) => n.type === "practice" && n.required && n.built);
-    const practiceDone = practice.filter((n) => nodeDone(n, s)).length;
-    const ratio = practice.length ? practiceDone / practice.length : 1;
     let gateOpen = false;
     for (const n of st.nodes) {
       if (n.type === "gate") {
@@ -64,7 +58,8 @@ function regionStates(region: WorldRegion, s: ProgressSignals, states: Record<st
         gateOpen = !!cp && nodeDone(cp, s);
         gates++;
         if (gateOpen) gatesOpen++;
-        states[n.id] = gateOpen ? "done" : "locked";
+        // nothing is locked (owner, 9 Nov 2026): a gate marks the end of a stretch, done once its checkpoint is passed
+        states[n.id] = gateOpen ? "done" : "open";
         continue;
       }
       if (n.required) total++;
@@ -75,20 +70,18 @@ function regionStates(region: WorldRegion, s: ProgressSignals, states: Record<st
         if (isDone) checkpointsPassed++;
         if (isDone) states[n.id] = "done";
         else if (!n.built) states[n.id] = "soon";
-        else states[n.id] = open && ratio >= (n.opensAt ?? 0.7) ? "open" : "locked";
+        else states[n.id] = "open"; // always open: no "solve 70% first"
         continue;
       }
       if (isDone) states[n.id] = "done";
       else if (!n.built) states[n.id] = "soon";
       else if (n.type === "concept") states[n.id] = "open"; // learning stays free: always readable
-      else states[n.id] = open ? "open" : "locked";
+      else states[n.id] = "open";
     }
-    // the next stretch opens with this one's gate (a stretch without a gate never blocks)
-    if (st.nodes.some((n) => n.type === "gate")) open = open && gateOpen;
   }
   for (const n of region.side) states[n.id] = n.built ? "open" : "soon";
   const bossOpen = checkpoints > 0 && checkpointsPassed === checkpoints;
-  if (region.boss) states[region.boss.id] = !region.boss.built ? (bossOpen ? "soon" : "locked") : bossOpen ? "open" : "locked";
+  if (region.boss) states[region.boss.id] = region.boss.built ? "open" : "soon";
   return { id: region.id, done, total, pct: total ? Math.round((done / total) * 100) : 0, gatesOpen, gates, bossOpen };
 }
 
@@ -116,7 +109,7 @@ export function computeWorld(spec: WorldSpec, s: ProgressSignals): WorldProgress
     }
   }
   if (frontier) states[frontier.nodeId] = "current";
-  if (spec.final) states[spec.final.id] = "locked";
+  if (spec.final) states[spec.final.id] = spec.final.built ? "open" : "soon";
   return { states, regions, frontier, done, total };
 }
 

@@ -188,7 +188,8 @@ type RawWorld = {
 
 const WORLD_IDS = ["academy", "product-districts", "career-studio", "challenge-league", "release-train", "infrastructure"] as const;
 /** Worlds with a playable map in this build; the others show on the atlas as opening later. */
-const OPEN_WORLDS = new Set(["academy"]);
+// every world is open (owner, 9 Nov 2026: nothing locked); a world without written content shows its map as "coming soon"
+const worldOpen = (): boolean => true;
 
 export const conceptHref = (id: string) => `/dsa/concepts/${id}`;
 export const problemHref = (id: string) => `/dsa/problems/${id}`;
@@ -274,7 +275,7 @@ function buildWorld(
     order: raw.order ?? 0,
     audience: raw.audience || "",
     atLaunch: raw.at_launch || "",
-    open: OPEN_WORLDS.has(raw.id),
+    open: worldOpen(),
     division: raw.division ? raw.division.split("-").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "",
     theme: { map: raw.theme?.map || "", road: raw.theme?.road || "road", stops: raw.theme?.stops || {} },
     regions,
@@ -313,7 +314,7 @@ export const getWorlds = cached(async (): Promise<WorldSummary[]> => {
       // the header lines only: a world file's regions can be long
       const head = src.split(/\n(?=regions:)/)[0];
       const w = yaml<RawWorld>(head);
-      return { id: w.id || id, title: w.title || humanize(id), subtitle: w.subtitle || "", order: w.order ?? 0, audience: w.audience || "", atLaunch: w.at_launch || "", open: OPEN_WORLDS.has(id) } satisfies WorldSummary;
+      return { id: w.id || id, title: w.title || humanize(id), subtitle: w.subtitle || "", order: w.order ?? 0, audience: w.audience || "", atLaunch: w.at_launch || "", open: worldOpen() } satisfies WorldSummary;
     }),
   );
   return out.filter((w): w is WorldSummary => !!w).sort((a, b) => a.order - b.order);

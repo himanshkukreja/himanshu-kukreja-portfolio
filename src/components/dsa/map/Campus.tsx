@@ -207,7 +207,7 @@ function FinalTile({ node, selected, desktop, onSelect }: { node: WorldNode; sel
       <span className="flex min-w-0 flex-col gap-0.5">
         <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">
           Final{node.building ? ` · ${node.building}` : ""}
-          <span className="sr-only">, locked until every building review is cleared</span>
+          {!node.built && <span className="sr-only">, coming soon</span>}
         </span>
         <span className="font-display text-[18px] font-extrabold leading-tight">
           {node.title}
@@ -561,7 +561,7 @@ function WorldHeader({ spec, model, progress, frontier }: { spec: WorldSpec; mod
   const stops = spec.theme.stops;
   const stopLine =
     stops.concept && stops.practice && stops.checkpoint && stops.gate
-      ? ` ${cap(stops.concept)}s teach, ${stops.practice}s are problems, the ${stops.checkpoint} checks you, the ${stops.gate} opens the next stretch.`
+      ? ` ${cap(stops.concept)}s teach, ${stops.practice}s are problems, the ${stops.checkpoint} checks you. Everything is open: go in any order.`
       : "";
   const ids = useMemo(() => {
     const practice = new Set<string>();
