@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -43,6 +43,17 @@ for (const s of L.scenes || []) {
   if (s.kind === "chain" && !(s.values || []).length) errs.push(`${s.id}: chain needs values[] (the nodes)`);
   if (s.kind === "grid" && (!Array.isArray(s.grid) || !s.grid.length || s.grid.some((r) => typeof r !== "string" || r.length !== s.grid[0].length || !/^[.#SG]+$/.test(r)))) errs.push(`${s.id}: grid needs rows of . # S G, all the same length`);
   if (s.kind === "grid" && s.algorithm && !["bfs", "dfs"].includes(s.algorithm)) errs.push(`${s.id}: algorithm is bfs or dfs`);
+  if (s.kind === "stack") {
+    const n = (s.values || []).length;
+    const id = (v) => Number.isInteger(v) && v >= 0 && v < n;
+    if (!n) errs.push(`${s.id}: stack needs values[] (the items)`);
+    if (n > (L.short ? 5 : 8) + 1) errs.push(`${s.id}: at most ${L.short ? 6 : 9} items`);
+    if (s.mode !== undefined && !["array", "list", "calls"].includes(s.mode)) errs.push(`${s.id}: mode is array, list or calls`);
+    for (const [k, st] of (s.steps || []).entries()) {
+      if (!Array.isArray(st.order) || !st.order.every(id) || new Set(st.order).size !== st.order.length) errs.push(`${s.id}#${k}: stack steps need order: distinct item ids, bottom to top`);
+      if (st.lift !== undefined && st.lift !== null && (!id(st.lift) || (st.order || []).includes(st.lift))) errs.push(`${s.id}#${k}: lift is an item id that is not in order`);
+    }
+  }
   if (s.kind === "chain" && (s.values || []).length > (L.short ? 5 : 8)) errs.push(`${s.id}: at most ${L.short ? 5 : 8} nodes fit the ${L.short ? "phone" : "stage"}`);
   if (s.kind === "trace" && !(s.traceData?.frames || []).length) errs.push(`${s.id}: trace ${s.trace} is not resolved (no traceData.frames)`);
   if (s.kind === "race" && !(s.raceData?.sizes?.length && (s.raceData.series || []).length && s.raceData.series.every((x) => x.counts?.length === s.raceData.sizes.length))) errs.push(`${s.id}: race ${s.race} needs raceData with sizes and series counts of the same length`);

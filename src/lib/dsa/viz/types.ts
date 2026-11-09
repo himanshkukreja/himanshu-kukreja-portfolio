@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -89,4 +89,31 @@ export type MemoryState = {
   array: { base: number; values: number[]; show: boolean; lit: number | null };
   /** the list: nodes anywhere in memory, each holding its value and the next node's address */
   list: { nodes: { value: number; addr: number }[]; show: boolean; lit: number | null; showLinks: boolean; head: boolean };
+};
+
+/* ------------------------------------------------------------------ the stack state ("stack" view) */
+
+export type StackItem = { id: NodeId; value: string };
+
+export type StackState = {
+  /** how the stack is stored: an array (cells, indexes), a linked list (nodes, next arrows) or the call stack (frames) */
+  mode: "array" | "list" | "calls";
+  /** the items from the bottom to the top, as drawn */
+  items: StackItem[];
+  /** an item in flight above the top: about to be pushed, or just popped */
+  lifted: StackItem | null;
+  /** array mode: cells drawn (the empty ones dashed above the items); null for the other modes */
+  capacity: number | null;
+  /** items lit this step */
+  mark: NodeId[];
+  /** items written or re-pointed this step: drawn in the accent */
+  changed: NodeId[];
+  /** named pointers on items: top (set by the view, not the generator), curr (a search cursor) */
+  labels: Record<string, NodeId | null>;
+  /** calls mode: the value a frame returns, shown on its right */
+  ret: Record<NodeId, string>;
+  /** memory addresses shown under items (the memory picture) */
+  addrs: Record<NodeId, number>;
+  /** a short result chip ("popped 7") */
+  out: string | null;
 };

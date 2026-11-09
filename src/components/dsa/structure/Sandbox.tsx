@@ -35,7 +35,7 @@ export default function Sandbox({ spec }: { spec: SandboxSpec }) {
   const [build, setBuild] = useState(spec.start.join(", "));
   const [msg, setMsg] = useState<string | null>(null);
   const [log, setLog] = useState<LogRow[]>([]);
-  const ops = spec.operations;
+  const ops = spec.operations as ListOpName[];
   const total = log.reduce((a, r) => a + r.hops, 0);
 
   const num = (s: string): number | null => {

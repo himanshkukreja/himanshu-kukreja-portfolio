@@ -201,7 +201,7 @@ export default function StructureLab({ lab, lessonId }: { lab: LabData; lessonId
           {notice}
         </p>
       )}
-      {outcome && <LabResults outcome={outcome} />}
+      {outcome && <LabResults outcome={outcome} spec={lab.spec} />}
       {stdout && (
         <details className="border border-line bg-surface">
           <summary className="min-h-10 cursor-pointer px-3 py-2 font-mono text-[12px] text-fg-3">Your printed output</summary>
@@ -212,21 +212,21 @@ export default function StructureLab({ lab, lessonId }: { lab: LabData; lessonId
   );
 }
 
-function LabResults({ outcome }: { outcome: { o: LabOutcome; mode: "run" | "all"; lang: DsaLang; cases: (LabCase & { hidden: boolean })[] } }) {
+function LabResults({ outcome, spec }: { outcome: { o: LabOutcome; mode: "run" | "all"; lang: DsaLang; cases: (LabCase & { hidden: boolean })[] }; spec: LabSpec }) {
   const { o, mode, lang, cases } = outcome;
   const ok = o.verdict === "AC";
   return (
     <div className="flex flex-col gap-3" aria-live="polite">
       <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-4 bg-surface px-3 py-2 ${ok ? "border-ok" : "border-bad"}`}>
         <span className={`font-display text-[20px] font-bold ${ok ? "text-ok-text" : "text-bad-text"}`}>
-          {ok ? "✓" : "✗"} {ok ? (mode === "all" ? "Your linked list works" : "Accepted") : VERDICT_LABEL[o.verdict]}
+          {ok ? "✓" : "✗"} {ok ? (mode === "all" ? `Your ${spec.thing || "linked list"} works` : "Accepted") : VERDICT_LABEL[o.verdict]}
         </span>
         <span className="font-mono text-[12px] text-fg-3">
           {o.passed}/{o.total} cases {mode === "all" ? "(including the edge cases)" : "(visible)"} · {Math.round(o.ms)} ms in your browser
         </span>
       </div>
-      {ok && mode === "run" && <p className="m-0 text-[14px] text-fg-2">The visible cases pass. Now press “Check everything” for the edge cases: an empty list, one node, reversing twice.</p>}
-      {ok && mode === "all" && <p className="m-0 text-[14px] text-fg-2">Every case passes, edge cases included. The warm-up problems below use the same pointer moves.</p>}
+      {ok && mode === "run" && <p className="m-0 text-[14px] text-fg-2">The visible cases pass. Now press “Check everything” for the edge cases: {spec.edges || "an empty list, one node, reversing twice"}.</p>}
+      {ok && mode === "all" && <p className="m-0 text-[14px] text-fg-2">Every case passes, edge cases included. {spec.after || "The warm-up problems below use the same pointer moves."}</p>}
       {o.message && <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap border border-line bg-surface p-3 font-mono text-[12px] text-bad-text">{o.message}</pre>}
       {o.cases.some((r) => r.ok) && (
         <div className="flex flex-wrap gap-1.5" aria-label="Cases that pass">

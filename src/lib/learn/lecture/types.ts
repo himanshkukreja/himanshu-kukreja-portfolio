@@ -37,6 +37,10 @@ export type LectureStep = {
   cost?: number;
   /** DSA grid scenes (BFS/DFS): the search after this many cells were visited ("end": the finished run; 0: the start; unset: the bare grid) */
   visited?: number | "end";
+  /** DSA stack scenes: an item in flight above the top (about to be pushed, or just popped), the value a frame returns by id (the call stack), and a result chip */
+  lift?: number | null;
+  ret?: Record<string, string>;
+  out?: string;
 };
 export type SceneKind =
   | "title"
@@ -57,7 +61,8 @@ export type SceneKind =
   | "race"
   | "code"
   | "chain"
-  | "grid";
+  | "grid"
+  | "stack";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -104,6 +109,9 @@ export type LectureScene = {
   /** DSA grid: rows of `.#SG` (open, wall, start, goal) and the search the steps play */
   grid?: string[];
   algorithm?: "bfs" | "dfs";
+  /** DSA stack: how it is drawn (array cells, list nodes, call-stack frames) and the cells the array has */
+  mode?: "array" | "list" | "calls";
+  capacity?: number;
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

@@ -1,5 +1,6 @@
 /** A visual lesson's on-demand chunks (one import() per module, so saving offline can fetch the same chunks). */
 export const loadStructureSandbox = () => import("./Sandbox");
+export const loadStackSandbox = () => import("./StackSandbox");
 export const loadStructureLab = () => import("./StructureLab");
 export const loadVizDemo = () => import("./VizDemo");
 export const loadGridVisualizer = () => import("../algorithm/GridVisualizer");

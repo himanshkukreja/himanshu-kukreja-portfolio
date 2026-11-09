@@ -142,7 +142,9 @@ function End({ s }: { s: StructurePage }) {
           ? "Short problems that use what you just built: a fill, a count of regions, the fewest moves, a spread from many starts. Each takes a grid as input, as rows of text or rows of numbers."
           : s.structure === "linked-list"
             ? "Short, easy problems on the moves you just built: walking, turning arrows, two pointers. Each takes a linked list as input (ListNode in every language)."
-            : "Short, easy problems on the operations you just built."}
+            : s.structure === "stack"
+              ? "Short problems that use the stack you just built: matching brackets, undoing, evaluating an expression, and finding the next bigger value. The first ones are easy; the last ones are a step up, and each says so."
+              : "Short problems on the operations you just built."}
       </p>
       <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
         {s.practice.map((p, i) => (

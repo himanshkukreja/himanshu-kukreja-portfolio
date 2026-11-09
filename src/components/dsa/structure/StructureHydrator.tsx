@@ -15,9 +15,10 @@ import ExplainBack from "@/components/learn/ai/ExplainBack";
 import type { StructurePage } from "@/lib/dsa/structures";
 import { CheckpointGate, CodeTabs, Poll, ReviewCards } from "../concept/widgets";
 import LessonClip from "../clip/LessonClip";
-import { loadFunctionLab, loadGridVisualizer, loadStructureLab, loadStructureSandbox, loadVizDemo } from "./lazy";
+import { loadFunctionLab, loadGridVisualizer, loadStackSandbox, loadStructureLab, loadStructureSandbox, loadVizDemo } from "./lazy";
 
 const Sandbox = dynamic(loadStructureSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
+const StackSandbox = dynamic(loadStackSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
 const StructureLab = dynamic(loadStructureLab, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the lab…</p> });
 const VizDemo = dynamic(loadVizDemo, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the player…</p> });
 const GridVisualizer = dynamic(loadGridVisualizer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the visualizer…</p> });
@@ -73,8 +74,8 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         if (h.kind === "tabs") el = <CodeTabs fig={h.fig} />;
         else if (h.kind === "poll") el = <Poll fig={h.fig} conceptId={page.id} />;
         else if (h.kind === "clip" && page.clips?.[id]) el = <Hydrated fig={h.fig}><LessonClip clip={page.clips[id]} fig={h.fig} /></Hydrated>;
-        else if (h.kind === "viz" && page.demos[id]) el = <Hydrated fig={h.fig}><VizDemo demo={page.demos[id]} /></Hydrated>;
-        else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}><Sandbox spec={page.sandbox} /></Hydrated>;
+        else if (h.kind === "viz" && page.demos[id]) el = <Hydrated fig={h.fig}><VizDemo demo={page.demos[id]} structure={page.sandbox?.structure} /></Hydrated>;
+        else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}>{page.sandbox.structure === "stack" ? <StackSandbox spec={page.sandbox} /> : <Sandbox spec={page.sandbox} />}</Hydrated>;
         else if (h.kind === "visualizer" && page.visualizer && page.visualizer.id === id) el = <Hydrated fig={h.fig}><GridVisualizer spec={page.visualizer} /></Hydrated>;
         else if (h.kind === "lab" && page.lab && page.lab.spec.id === id)
           el = (

@@ -16,7 +16,18 @@
 import { camelCase, type Verdict } from "./harness";
 
 export type LabMethod = { name: string; params: { name: string; type: string }[]; returns: string; does: string; cost?: string };
-export type LabSpec = { id: string; title: string; class: string; summary: string; methods: LabMethod[]; limits: { timeMs: number } };
+export type LabSpec = {
+  id: string;
+  title: string;
+  class: string;
+  summary: string;
+  methods: LabMethod[];
+  limits: { timeMs: number };
+  /** wording for the results panel (lab.yml): what the learner built ("stack"), the edge cases to check, what comes next */
+  thing?: string;
+  edges?: string;
+  after?: string;
+};
 export type LabCase = { name: string; ops: string[]; args: unknown[][]; output: unknown[]; note?: string };
 
 export type LabCaseResult = {
@@ -113,7 +124,7 @@ export function labOutcome(
   limitMs: number,
 ): LabOutcome {
   const total = cases.length;
-  if (run.kind === "timeout") return { verdict: "TLE", passed: 0, total, cases: [], message: `The run took longer than ${Math.round(run.limitMs / 1000)} seconds. Is a loop never reaching null? (A cycle in your list makes a walk go on for ever.)`, ms: run.limitMs };
+  if (run.kind === "timeout") return { verdict: "TLE", passed: 0, total, cases: [], message: `The run took longer than ${Math.round(run.limitMs / 1000)} seconds. Is a loop that never ends? (In a linked list, a cycle makes a walk go on for ever; in a stack, a loop that never pops does.)`, ms: run.limitMs };
   if (run.kind === "crash") return { verdict: "ERR", passed: 0, total, cases: [], message: run.message, ms: 0 };
   const r = run.result as HResult;
   if (r.setup) {

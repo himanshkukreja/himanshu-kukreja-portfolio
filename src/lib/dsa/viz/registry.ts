@@ -5,6 +5,7 @@
  */
 import { LIST_OPS, makeList, runListOp, type ListOp, type ListOpName } from "./list";
 import { memoryPicture } from "./memory";
+import { makeStack, runStackOp, stackMemoryPicture, STACK_OPS, type StackBacking, type StackOp, type StackOpName } from "./stack";
 import type { Frame, Script } from "./types";
 import { gridSearch, parseGrid } from "./grid";
 
@@ -13,8 +14,12 @@ export type SandboxDemo = {
   title: string;
   view?: "list" | "memory";
   start: number[];
-  ops?: ({ op: ListOpName; value?: number; index?: number })[];
+  /** a linked-list demo's operations, or (stack sandboxes) a stack's */
+  ops?: ({ op: ListOpName | StackOpName; value?: number; index?: number })[];
   doubly?: boolean;
+  /** stack demos: how the stack is stored (default array) and the cells the array starts with */
+  backing?: "array" | "linked";
+  capacity?: number;
   /** keep a tail pointer (default true) */
   tail?: boolean;
   /** ask predict-then-reveal questions at the key steps */
@@ -23,11 +28,13 @@ export type SandboxDemo = {
 
 export type SandboxSpec = {
   id: string;
-  structure: "linked-list";
+  structure: "linked-list" | "stack";
   title: string;
   start: number[];
-  operations: ListOpName[];
-  variants: ("singly" | "doubly")[];
+  operations: (ListOpName | StackOpName)[];
+  variants: ("singly" | "doubly" | "array" | "linked")[];
+  /** stack sandboxes: the array's starting cells */
+  capacity?: number;
   limits: { nodes: number; value: [number, number] };
   cost: string;
   demos: SandboxDemo[];
@@ -35,6 +42,23 @@ export type SandboxSpec = {
 
 export const SANDBOX_STRUCTURES = {
   "linked-list": { ops: LIST_OPS, variants: ["singly", "doubly"] as const, demoViews: ["list", "memory"] as const },
+  stack: { ops: STACK_OPS, variants: ["array", "linked"] as const, demoViews: ["stack", "memory"] as const },
+};
+
+const toStackOp = (o: NonNullable<SandboxDemo["ops"]>[number]): StackOp | null => {
+  const value = Number(o.value ?? 0);
+  switch (o.op) {
+    case "push":
+    case "search":
+    case "calls":
+      return { op: o.op, value };
+    case "pop":
+    case "peek":
+    case "overflow":
+      return { op: o.op };
+    default:
+      return null;
+  }
 };
 
 const toOp = (o: NonNullable<SandboxDemo["ops"]>[number]): ListOp | null => {
@@ -56,7 +80,8 @@ const toOp = (o: NonNullable<SandboxDemo["ops"]>[number]): ListOp | null => {
 };
 
 /** A demo as one script: its ops run in order, frames joined, the cost running on across them. */
-export function demoScript(d: SandboxDemo): Script {
+export function demoScript(d: SandboxDemo, structure: SandboxSpec["structure"] = "linked-list"): Script {
+  if (structure === "stack") return stackDemoScript(d);
   if (d.view === "memory") return memoryPicture(d.start) as Script;
   let list = makeList(d.start, { doubly: d.doubly, tail: d.tail });
   const frames: Frame<unknown>[] = [];
@@ -75,6 +100,28 @@ export function demoScript(d: SandboxDemo): Script {
     list = r.list;
   }
   return { view: "list", title: d.title, costUnit, frames, result: results.join("; ") || undefined };
+}
+
+/** A stack demo as one script: its ops run in order on one stack, frames joined, the cost running on across them. */
+function stackDemoScript(d: SandboxDemo): Script {
+  if (d.view === "memory") return stackMemoryPicture(d.start) as Script;
+  let stack = makeStack(d.start, { backing: d.backing === "linked" ? "list" : "array", capacity: d.capacity });
+  const frames: Frame<unknown>[] = [];
+  let base = 0;
+  let costUnit = "steps";
+  const results: string[] = [];
+  for (const raw of d.ops || []) {
+    const op = toStackOp(raw);
+    if (!op) continue;
+    const r = runStackOp(stack, op, { predict: d.predict });
+    costUnit = r.script.costUnit;
+    const reset = op.op === "calls" || op.op === "overflow";
+    for (const f of r.script.frames) frames.push({ ...f, cost: reset ? f.cost : base + f.cost });
+    if (!reset) base += r.script.frames[r.script.frames.length - 1]?.cost ?? 0;
+    if (r.script.result) results.push(r.script.result);
+    stack = r.stack;
+  }
+  return { view: "stack", title: d.title, costUnit, frames, result: results.join("; ") || undefined };
 }
 
 /* ------------------------------------------------------------------ algorithm visualizers (Academy Part 3) */
