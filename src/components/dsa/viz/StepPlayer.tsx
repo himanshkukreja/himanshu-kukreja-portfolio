@@ -166,8 +166,9 @@ export default function StepPlayer({
   };
 
   const view = VIEWS[script.view] as { Component: React.ComponentType<{ state: unknown; prev: unknown; t: number }>; describe: (s: unknown) => string };
-  const costChanged = prevFrame ? prevFrame.cost !== frame.cost : false;
+  // a new script is adopted while rendering: for that one pass `i` can still be past its end, so check the frame first
   if (!frame) return null;
+  const costChanged = prevFrame ? prevFrame.cost !== frame.cost : false;
 
   return (
     <div

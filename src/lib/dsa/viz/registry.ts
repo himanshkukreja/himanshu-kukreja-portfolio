@@ -5,7 +5,7 @@
  */
 import { LIST_OPS, makeList, runListOp, type ListOp, type ListOpName } from "./list";
 import { memoryPicture } from "./memory";
-import { makeStack, runStackOp, stackMemoryPicture, STACK_OPS, type StackBacking, type StackOp, type StackOpName } from "./stack";
+import { makeStack, runStackOp, stackMemoryPicture, STACK_OPS, type StackOp, type StackOpName } from "./stack";
 import type { Frame, Script } from "./types";
 import { gridSearch, parseGrid } from "./grid";
 

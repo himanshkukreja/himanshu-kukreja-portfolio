@@ -172,7 +172,7 @@ async function build(id: string): Promise<StructurePage | null> {
     const d = raw as LabSpec;
     lab = {
       mode: "design",
-      spec: { id: d.id, title: d.title, class: d.class, summary: d.summary, methods: d.methods, limits: d.limits || { timeMs: 2000 } },
+      spec: { id: d.id, title: d.title, class: d.class, summary: d.summary, methods: d.methods, limits: d.limits || { timeMs: 2000 }, thing: d.thing, edges: d.edges, after: d.after },
       visible: visible?.cases || [],
       hidden: hidden?.cases || [],
       starters: starterMap,

@@ -62,7 +62,6 @@ export default function StackView({ state, prev, t }: { state: StackState; prev:
   };
   const fresh = (id: NodeId) => !!prev && !was.has(id);
   const all: StackItem[] = [...state.items, ...(state.lifted ? [state.lifted] : [])];
-  const itemOf = new Map(all.map((i) => [i.id, i]));
 
   const cap = state.capacity ?? 0;
   const free: number[] = [];
