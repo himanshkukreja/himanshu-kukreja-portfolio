@@ -771,7 +771,7 @@ export default function SearchBar({ variant = "bar", hotkey = false }: SearchBar
             <span className="min-w-0 flex-1 truncate">Search lessons, topics…</span>
             <kbd className="shrink-0 border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-fg-3">⌘K</kbd>
           </button>
-          <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" data-wco-search="icon" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg md:hidden lg:grid xl:hidden">
+          <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" data-wco-search="icon" className="grid h-10 w-10 shrink-0 place-items-center border border-line-strong text-fg min-[400px]:h-11 min-[400px]:w-11 md:hidden lg:grid xl:hidden">
             <Search className="h-4 w-4" aria-hidden />
           </button>
         </>
