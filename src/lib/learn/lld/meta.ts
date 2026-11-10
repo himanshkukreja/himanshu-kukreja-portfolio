@@ -15,7 +15,7 @@
  *   - progress: the learner's own, read in the browser
  *
  * To add a case study: add its row to CASES (the slug is the lesson's file name without .md).
- * Pattern slugs must exist in PATTERNS (scripts/tests/lld.test.mjs checks both ways).
+ * Pattern slugs must exist in PATTERNS (the plan's 28 lessons, docs/design-patterns/design-patterns-plan.md section 2) (scripts/tests/lld.test.mjs checks both ways).
  */
 
 export type Difficulty = "Medium" | "Hard" | "Expert";
@@ -53,28 +53,28 @@ const c = (n: number, slug: string, name: string, difficulty: Difficulty, roundM
 });
 
 export const CASES: CaseMeta[] = [
-  c(1, "parking-lot", "Parking Lot", "Medium", 90, "Floors, spots, tickets and fees, with two gates that can never give one spot to two cars.", ["strategy", "dependency-injection", "factory"]),
-  c(2, "lru-cache", "LRU Cache", "Medium", 60, "A bounded cache with O(1) get and put and an eviction rule you can swap.", ["strategy", "composition-over-inheritance", "observer"], ["lru-cache", "lfu-cache"]),
-  c(3, "rate-limiter", "Rate Limiter", "Hard", 75, "Three limiting algorithms behind one interface, built from rules and kept per key.", ["strategy", "factory", "dependency-injection"], ["token-bucket", "sliding-window-counter"]),
+  c(1, "parking-lot", "Parking Lot", "Medium", 90, "Floors, spots, tickets and fees, with two gates that can never give one spot to two cars.", ["strategy", "solid-isp-dip-and-di", "factory-method-and-abstract-factory", "singleton", "observer", "decorator"]),
+  c(2, "lru-cache", "LRU Cache", "Medium", 60, "A bounded cache with O(1) get and put and an eviction rule you can swap.", ["strategy", "oop-and-composition", "observer"], ["lru-cache", "lfu-cache"]),
+  c(3, "rate-limiter", "Rate Limiter", "Hard", 75, "Three limiting algorithms behind one interface, built from rules and kept per key.", ["strategy", "factory-method-and-abstract-factory", "solid-isp-dip-and-di"], ["token-bucket", "sliding-window-counter"]),
   c(4, "elevator-system", "Elevator System", "Hard", 90, "Several cars, hall calls and car calls, with a schedule per car and a dispatcher.", ["strategy", "state", "observer", "command"]),
-  c(5, "movie-ticket-booking", "Movie Ticket Booking", "Hard", 90, "Seat holds, confirmation and expiry, with two buyers racing for the same seats.", ["strategy", "adapter", "state", "facade", "idempotency-key"]),
-  c(6, "splitwise", "Splitwise", "Hard", 90, "Expenses split three ways, net balances, and the fewest payments to settle up.", ["strategy", "facade", "value-object"]),
-  c(7, "vending-machine", "Vending Machine", "Medium", 60, "A coin-operated machine as four states, each answering every button.", ["state", "template-method", "strategy"]),
-  c(8, "pub-sub-logger", "Logging Framework", "Hard", 90, "Formatters, sinks and filters wired as a chain, a pub-sub bus and strategies.", ["chain-of-responsibility", "observer", "strategy", "decorator"]),
-  c(9, "snake-and-ladder", "Snake and Ladder", "Medium", 60, "A board game with pluggable dice and end-of-board rules, and a turn that survives a double tap.", ["strategy", "observer", "dependency-injection", "value-object"]),
-  c(10, "chess", "Chess", "Hard", 90, "Pieces that know geometry and a game that decides what is legal, with undo.", ["command"]),
-  c(11, "atm", "ATM", "Medium", 75, "A card, a PIN and a cash dispenser as states, with every failure after the debit reversed.", ["state", "adapter", "idempotency-key"]),
+  c(5, "movie-ticket-booking", "Movie Ticket Booking", "Hard", 90, "Seat holds, confirmation and expiry, with two buyers racing for the same seats.", ["strategy", "adapter", "state", "facade", "concurrency-patterns"]),
+  c(6, "splitwise", "Splitwise", "Hard", 90, "Expenses split three ways, net balances, and the fewest payments to settle up.", ["strategy", "facade", "oop-and-composition"]),
+  c(7, "vending-machine", "Vending Machine", "Medium", 60, "A coin-operated machine as four states, each answering every button.", ["state", "strategy", "observer"]),
+  c(8, "pub-sub-logger", "Logging Framework", "Hard", 90, "Formatters, sinks and filters wired as a chain, a pub-sub bus and strategies.", ["chain-of-responsibility", "observer", "strategy", "decorator", "singleton", "concurrency-patterns"]),
+  c(9, "snake-and-ladder", "Snake and Ladder", "Medium", 60, "A board game with pluggable dice and end-of-board rules, and a turn that survives a double tap.", ["strategy", "observer", "solid-isp-dip-and-di", "oop-and-composition"]),
+  c(10, "chess", "Chess", "Hard", 90, "Pieces that know geometry and a game that decides what is legal, with undo.", ["oop-and-composition", "command", "iterator", "concurrency-patterns"]),
+  c(11, "atm", "ATM", "Medium", 75, "A card, a PIN and a cash dispenser as states, with every failure after the debit reversed.", ["state", "adapter", "solid-isp-dip-and-di", "observer"]),
   c(12, "library-management", "Library Management", "Medium", 75, "Titles and copies, loans, reservations, fines and reminders over a month.", ["strategy", "observer", "state", "facade"]),
-  c(13, "hotel-reservation", "Hotel Reservation", "Hard", 90, "Room inventory over date ranges, holds, stacked pricing and cancellation.", ["strategy", "state", "value-object", "idempotency-key"]),
-  c(14, "ride-sharing", "Ride Sharing", "Hard", 90, "Riders, drivers on a grid, matching and fares, and a trip with a life cycle.", ["strategy", "decorator", "state", "facade"]),
-  c(15, "food-delivery", "Food Delivery", "Hard", 90, "Carts, orders with a state machine, payments, partners and refunds.", ["state", "strategy", "adapter", "facade", "idempotency-key"]),
-  c(16, "meeting-room-scheduler", "Meeting Room Scheduler", "Hard", 75, "Room calendars with conflict detection, recurring meetings and invites.", ["strategy", "observer", "value-object"]),
-  c(17, "in-memory-file-system", "In-Memory File System", "Hard", 75, "Files and directories as one tree, path resolution, and a thread-safe log.", ["composite", "facade"]),
-  c(18, "text-editor-undo-redo", "Text Editor with Undo and Redo", "Hard", 75, "A document, a cursor and an undo history, compared with snapshots.", ["command", "composite", "memento"]),
-  c(19, "online-auction", "Online Auction", "Hard", 90, "Timed auctions with validated bids, a soft close and bidders who hear about it.", ["state", "observer", "strategy", "idempotency-key"]),
-  c(20, "stock-exchange-order-book", "Stock Exchange Order Book", "Expert", 90, "A limit order book and its matching engine, fed from eight threads.", ["command", "single-writer", "value-object"]),
-  c(21, "task-scheduler-dependencies", "Task Scheduler with Dependencies", "Expert", 90, "A dependency-aware scheduler with a worker pool, retries and cycle checks.", ["strategy", "producer-consumer"]),
-  c(22, "key-value-store-ttl-transactions", "Key-Value Store with TTL and Transactions", "Expert", 90, "An in-memory store with expiry, nested transactions and pluggable eviction.", ["strategy"]),
+  c(13, "hotel-reservation", "Hotel Reservation", "Hard", 90, "Room inventory over date ranges, holds, stacked pricing and cancellation.", ["strategy", "state", "oop-and-composition"]),
+  c(14, "ride-sharing", "Ride Sharing", "Hard", 90, "Riders, drivers on a grid, matching and fares, and a trip with a life cycle.", ["strategy", "decorator", "state", "facade", "concurrency-patterns"]),
+  c(15, "food-delivery", "Food Delivery", "Hard", 90, "Carts, orders with a state machine, payments, partners and refunds.", ["state", "strategy", "adapter", "facade"]),
+  c(16, "meeting-room-scheduler", "Meeting Room Scheduler", "Hard", 75, "Room calendars with conflict detection, recurring meetings and invites.", ["strategy", "observer", "oop-and-composition"]),
+  c(17, "in-memory-file-system", "In-Memory File System", "Hard", 75, "Files and directories as one tree, path resolution, and a thread-safe log.", ["composite", "facade", "iterator", "visitor"]),
+  c(18, "text-editor-undo-redo", "Text Editor with Undo and Redo", "Hard", 75, "A document, a cursor and an undo history, compared with snapshots.", ["command", "composite", "mediator-and-memento", "concurrency-patterns"]),
+  c(19, "online-auction", "Online Auction", "Hard", 90, "Timed auctions with validated bids, a soft close and bidders who hear about it.", ["state", "observer", "strategy"]),
+  c(20, "stock-exchange-order-book", "Stock Exchange Order Book", "Expert", 90, "A limit order book and its matching engine, fed from eight threads.", ["command", "concurrency-patterns", "oop-and-composition"]),
+  c(21, "task-scheduler-dependencies", "Task Scheduler with Dependencies", "Expert", 90, "A dependency-aware scheduler with a worker pool, retries and cycle checks.", ["concurrency-patterns", "strategy"]),
+  c(22, "key-value-store-ttl-transactions", "Key-Value Store with TTL and Transactions", "Expert", 90, "An in-memory store with expiry, nested transactions and pluggable eviction.", ["strategy", "proxy", "concurrency-patterns"]),
 ];
 
 export const caseBySlug = (slug: string): CaseMeta | undefined => CASES.find((x) => x.slug === slug);
@@ -91,6 +91,9 @@ export const PATTERN_GROUPS = [
 export type PatternGroup = (typeof PATTERN_GROUPS)[number]["id"];
 
 export type PatternMeta = {
+  /** the plan's lesson number (DP-NN) */
+  n: number;
+  /** the route slug: the lesson id without its dp-NN- prefix */
   slug: string;
   name: string;
   group: PatternGroup;
@@ -98,48 +101,73 @@ export type PatternMeta = {
   problem: string;
 };
 
-const p = (group: PatternGroup, slug: string, name: string, problem: string): PatternMeta => ({ slug, name, group, problem });
+const p = (n: number, group: PatternGroup, slug: string, name: string, problem: string): PatternMeta => ({ n, slug, name, group, problem });
+
+/** "DP-16" */
+export const patternCode = (m: PatternMeta) => `DP-${String(m.n).padStart(2, "0")}`;
+/** the lesson id in the content repo (resources/low-level-design/<id>.md): "dp-16-strategy" */
+export const patternLessonId = (m: PatternMeta) => `dp-${String(m.n).padStart(2, "0")}-${m.slug}`;
 
 export const PATTERNS: PatternMeta[] = [
-  p("foundations", "solid", "SOLID in plain words", "Classes that do five jobs break whenever any one job changes."),
-  p("foundations", "composition-over-inheritance", "Composition over inheritance", "A deep class tree locks behaviour in; holding other objects lets you swap it."),
-  p("foundations", "dependency-injection", "Dependency injection", "A class that builds or looks up its own parts cannot be tested or changed."),
-  p("foundations", "reading-uml", "Reading UML class diagrams", "You cannot discuss a design in an interview if you cannot draw it quickly."),
-  p("creational", "singleton", "Singleton", "You need exactly one of something, and need to know why that is usually a trap."),
-  p("creational", "factory", "Factory", "Callers hard-code which class to build, so adding a type means editing every caller."),
-  p("creational", "abstract-factory", "Abstract factory", "Related objects must be made together and must match, whatever the variant."),
-  p("creational", "builder", "Builder", "A constructor with ten optional arguments is unreadable and easy to get wrong."),
-  p("creational", "prototype", "Prototype", "Building an object from scratch is costly, but copying a ready one is cheap."),
-  p("structural", "adapter", "Adapter", "A class you must use speaks a different interface than the one your code expects."),
-  p("structural", "bridge", "Bridge", "Two things vary independently, and subclassing both explodes into a class per pair."),
-  p("structural", "composite", "Composite", "A single item and a group of items should be used the same way, such as a file and a folder."),
-  p("structural", "decorator", "Decorator", "You want to add behaviour to one object without a subclass for every combination."),
-  p("structural", "facade", "Facade", "Callers must know five classes and their order just to do one common thing."),
-  p("structural", "flyweight", "Flyweight", "Millions of similar objects use too much memory when each keeps its own copy of shared data."),
-  p("structural", "proxy", "Proxy", "You need to control access to an object: lazily, remotely, with a cache or a check."),
-  p("behavioural", "strategy", "Strategy", "A rule keeps changing (pricing, matching, eviction) and an if-chain grows around it."),
-  p("behavioural", "observer", "Observer", "Many parts need to hear about a change without the source knowing who they are."),
-  p("behavioural", "state", "State", "An object acts differently by mode and its methods fill with checks of what mode it is in."),
-  p("behavioural", "command", "Command", "You need to queue, log or undo an action, so the action itself must be an object."),
-  p("behavioural", "chain-of-responsibility", "Chain of responsibility", "A request may be handled by one of several steps, and the sender should not know which."),
-  p("behavioural", "template-method", "Template method", "Several flows share the same skeleton and differ in a few steps."),
-  p("behavioural", "iterator", "Iterator", "You want to walk a collection without exposing how it is stored."),
-  p("behavioural", "memento", "Memento", "You must save and restore an object's state without breaking its encapsulation."),
-  p("behavioural", "mediator", "Mediator", "Objects that talk to each other directly end up tangled; route them through one place."),
-  p("behavioural", "visitor", "Visitor", "A new operation over a family of classes should not mean editing every class."),
-  p("practice", "value-object", "Value objects", "Money, time ranges and ids passed as raw numbers get mixed up and compared wrongly."),
-  p("practice", "idempotency-key", "Idempotency keys", "A retry or a double tap must not charge, book or ship twice."),
-  p("practice", "producer-consumer", "Producer and consumer", "Work arrives faster than it is handled, so the two sides need a queue between them."),
-  p("practice", "single-writer", "Single writer", "Locks everywhere are slow and hard to reason about; one thread owning the state needs none."),
-  p("practice", "choosing-a-pattern", "Choosing a pattern, or none", "Patterns used for show add classes and no value; the skill is knowing when to stop."),
+  p(1, "foundations", "oop-and-composition", "OOP Pillars and Composition over Inheritance", "Behaviour that varies is easier to swap when a class holds a part than when it inherits one."),
+  p(2, "foundations", "uml-class-diagrams", "UML Class Diagrams for Interviews", "You cannot discuss a design in an interview if you cannot draw it quickly."),
+  p(3, "foundations", "solid-srp-ocp-lsp", "SOLID, Part 1: Single Responsibility, Open/Closed, Liskov", "Classes that do five jobs break whenever any one job changes."),
+  p(4, "foundations", "solid-isp-dip-and-di", "SOLID, Part 2: Interface Segregation, Dependency Inversion and Injection", "A class that builds or looks up its own parts cannot be tested or changed."),
+  p(5, "foundations", "coupling-cohesion-dry-kiss-yagni", "Coupling, Cohesion, DRY, KISS and YAGNI", "The forces behind every pattern, and the case for not adding one."),
+  p(6, "creational", "singleton", "Singleton", "You need exactly one of something, and need to know why that is usually a trap."),
+  p(7, "creational", "factory-method-and-abstract-factory", "Factory Method and Abstract Factory", "Callers hard-code which class to build, so adding a type means editing every caller."),
+  p(8, "creational", "builder", "Builder", "A constructor with ten optional arguments is unreadable and easy to get wrong."),
+  p(9, "creational", "prototype", "Prototype: Copying Objects Safely", "Building an object from scratch is costly, and a careless copy shares state it should not."),
+  p(10, "structural", "adapter", "Adapter", "A class you must use speaks a different interface than the one your code expects."),
+  p(11, "structural", "decorator", "Decorator", "You want to add behaviour to one object without a subclass for every combination."),
+  p(12, "structural", "facade", "Facade", "Callers must know five classes and their order just to do one common thing."),
+  p(13, "structural", "composite", "Composite", "A single item and a group of items should be used the same way, such as a file and a folder."),
+  p(14, "structural", "proxy", "Proxy", "You need to control access to an object: lazily, remotely, with a cache or a check."),
+  p(15, "structural", "bridge-and-flyweight", "Bridge and Flyweight", "Two things vary independently, or thousands of objects repeat the same shared data."),
+  p(16, "behavioural", "strategy", "Strategy", "A rule keeps changing (pricing, matching, eviction) and an if-chain grows around it."),
+  p(17, "behavioural", "observer", "Observer", "Many parts need to hear about a change without the source knowing who they are."),
+  p(18, "behavioural", "command", "Command", "You need to queue, log, retry or undo an action, so the action itself must be an object."),
+  p(19, "behavioural", "state", "State", "An object acts differently by mode and its methods fill with checks of what mode it is in."),
+  p(20, "behavioural", "template-method", "Template Method", "Several flows share the same skeleton and differ in a few steps."),
+  p(21, "behavioural", "chain-of-responsibility", "Chain of Responsibility", "A request may be handled by one of several steps, and the sender should not know which."),
+  p(22, "behavioural", "iterator", "Iterator", "You want to walk a collection without exposing how it is stored."),
+  p(23, "behavioural", "mediator-and-memento", "Mediator and Memento", "Objects tangle when they talk directly, and saving state must not break encapsulation."),
+  p(24, "behavioural", "visitor", "Visitor", "A new operation over a family of classes should not mean editing every class."),
+  p(25, "practice", "concurrency-patterns", "Concurrency Patterns: Producer-Consumer, Thread Pool, Read-Write Lock", "Work arrives faster than it is handled, and shared state needs a plan, not locks everywhere."),
+  p(26, "practice", "anti-patterns-and-refactoring", "Anti-Patterns and Refactoring to Patterns", "Patterns used for show add classes and no value; the skill is refactoring in small steps."),
+  p(27, "practice", "choosing-patterns-in-an-lld-interview", "Choosing Patterns in an LLD Interview", "From the requirements to the right pattern, and saying the trade-off out loud."),
+  p(28, "practice", "pattern-map-of-the-case-studies", "The Pattern Map: 22 Case Studies, One Table", "Which pattern shows up in which round, and the order to read the rounds in."),
 ];
 
 export const patternBySlug = (slug: string): PatternMeta | undefined => PATTERNS.find((x) => x.slug === slug);
 
-/** The pattern catalogue's plan file in the content repo. When it lands, the pattern loader reads it; until then the catalogue above stands. */
-export const PATTERN_PLAN_PATH = "resources/plan/design-patterns-plan.md";
-/** Where pattern lessons live once written: one markdown file per pattern slug (see PatternPage's expected shape in src/lib/learn/lld/pattern.ts). */
-export const PATTERN_DIR = "resources/design-patterns";
+/** The plan the catalogue above follows (the content repo's design-patterns-plan branch). */
+export const PATTERN_PLAN_PATH = "docs/design-patterns/design-patterns-plan.md";
+/** Where published pattern lessons live: the same folder as the case studies, named dp-NN-<slug>.md (see patternLessonId). */
+export const PATTERN_DIR = "resources/low-level-design";
 
 /** The "core" patterns the suggested path teaches before the case studies: the ones most case studies lean on. */
-export const CORE_PATTERNS = ["strategy", "observer", "state", "command", "factory", "decorator"];
+export const CORE_PATTERNS = ["strategy", "observer", "state", "command", "factory-method-and-abstract-factory", "decorator"];
+
+export const patternByLessonId = (id: string): PatternMeta | undefined => PATTERNS.find((x) => patternLessonId(x) === id);
+
+/** One lesson's place: its file name (dp-16-strategy.md), checked against the catalogue so a stray file never becomes a page. */
+export function patternSlugOfFile(name: string): string | null {
+  const m = /^(dp-\d{2}-[a-z0-9]+(?:-[a-z0-9]+)*)\.md$/.exec(name);
+  return m ? (patternByLessonId(m[1])?.slug ?? null) : null;
+}
+
+/** Slugs of the catalogue's lessons that have a file in `names` (the file names found in PATTERN_DIR). The rest show as "coming soon". */
+export function publishedPatternSlugs(names: string[]): Set<string> {
+  return new Set(names.map(patternSlugOfFile).filter((s): s is string => !!s));
+}
+
+/** The short name a chip shows (the lesson titles are long: "SOLID, Part 2: Interface Segregation, ..."). */
+const CHIP_NAMES: Record<string, string> = {
+  "oop-and-composition": "Composition",
+  "solid-isp-dip-and-di": "Dependency injection",
+  "factory-method-and-abstract-factory": "Factory",
+  "mediator-and-memento": "Memento",
+  "concurrency-patterns": "Concurrency",
+};
+export const patternChipName = (m: PatternMeta) => CHIP_NAMES[m.slug] ?? m.name;

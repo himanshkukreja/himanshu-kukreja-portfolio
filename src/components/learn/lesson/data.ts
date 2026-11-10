@@ -37,7 +37,7 @@ const pad = (n: string | number) => String(n).padStart(2, "0");
 const partNumber = (slug: string) => slug.match(/part-(\d+)/)?.[1] ?? null;
 const dayNumber = (r: LearningResource) => r.day?.match(/day-(\d+)/)?.[1] ?? r.slug.match(/^day-(\d+)/)?.[1] ?? null;
 const bonusNumber = (slug: string) => slug.match(/^bonus-(\d+)/)?.[1] ?? null;
-const extraNumber = (slug: string) => slug.match(/^(?:problem|lld)-(\d+)/)?.[1] ?? null;
+const extraNumber = (slug: string) => slug.match(/^(?:problem|lld|dp)-(\d+)/)?.[1] ?? null;
 
 /** Kind badge in the hero, e.g. "DAY LESSON · 03". */
 export function kindBadge(r: LearningResource): string {
@@ -64,7 +64,7 @@ export function kindBadge(r: LearningResource): string {
     }
     case "lld": {
       const n = extraNumber(r.slug);
-      return n ? `LOW-LEVEL DESIGN · ${pad(n)}` : "LOW-LEVEL DESIGN";
+      return n ? (r.slug.startsWith("dp-") ? `DESIGN PATTERNS · ${pad(n)}` : `LOW-LEVEL DESIGN · ${pad(n)}`) : "LOW-LEVEL DESIGN";
     }
     case "overview":
       return "COURSE PLAN";
@@ -98,7 +98,7 @@ export function shortLabel(r: LearningResource): string {
     }
     case "lld": {
       const n = extraNumber(r.slug);
-      return n ? `LLD ${pad(n)}` : "LLD";
+      return n ? `${r.slug.startsWith("dp-") ? "Pattern" : "LLD"} ${pad(n)}` : "LLD";
     }
     case "overview":
       return "Plan";

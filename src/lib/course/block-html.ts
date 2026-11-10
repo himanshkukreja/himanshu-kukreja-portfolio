@@ -5,10 +5,12 @@
  * has to read exactly what the page shows).
  */
 import { renderLesson } from "./render";
+import type { DsaRenderOpts } from "./detect/dsa";
 
-export async function renderBlockHtml(md: string): Promise<string> {
+/** `dsa`: render options for a block that uses code tabs or clips (src/lib/course/sdm-extras.ts). */
+export async function renderBlockHtml(md: string, dsa?: DsaRenderOpts): Promise<string> {
   if (!md.trim()) return "";
-  const r = await renderLesson(md, { kind: "day-content" });
+  const r = await renderLesson(md, { kind: "day-content", ...(dsa ? { dsa } : {}) });
   return r.html
     .replace(/<header class="sd-stage-head"[\s\S]*?<\/header>/g, "")
     .replace(/<section data-sd="stage"[^>]*>/g, "")

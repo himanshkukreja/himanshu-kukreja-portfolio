@@ -10,18 +10,20 @@
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 import "./lld.css";
-import { useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { loadCourseEnhancer } from "@/lib/offline/lazy";
 import LectureEntry from "@/components/learn/sidequest/LectureEntry";
 import ArticleShorts from "@/components/learn/lesson/ArticleShorts";
-import { LLD_LANGS, type LldLang } from "@/lib/learn/lld/steps";
-import { PATTERN_GROUPS, type PatternMeta } from "@/lib/learn/lld/meta";
+import LessonFaq from "@/components/learn/ai/LessonFaq";
+import { PATTERN_GROUPS, patternCode, type PatternMeta } from "@/lib/learn/lld/meta";
 import type { CaseRow } from "@/lib/learn/lld/filters";
 import type { PatternPageData } from "@/lib/learn/lld/pattern";
 
 const CourseEnhancer = dynamic(loadCourseEnhancer, { ssr: false });
+// code tabs and clips (the DSA widgets) load with the page's first figure of that kind
+const SdmWidgets = dynamic(() => import("@/components/learn/lesson/SdmWidgets"), { ssr: false });
 const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 
 export type PatternPageProps = {
@@ -46,12 +48,16 @@ function Slot({ title, children, id }: { title: string; children: ReactNode; id?
 
 const Soon = ({ what }: { what: string }) => <p className="lld-note" style={{ margin: 0 }}>{what} is not written yet. It will appear here when it is.</p>;
 
+const Html = ({ html }: { html: string }) => <div className="sd-body" dangerouslySetInnerHTML={{ __html: html }} />;
+const LINK = { color: "var(--c-signal-text)", fontWeight: 600 } as const;
+
 export default function PatternPage({ pattern, data, written, cases, prev, next }: PatternPageProps) {
   const group = PATTERN_GROUPS.find((g) => g.id === pattern.group);
-  const [side, setSide] = useState<"before" | "after">("before");
-  const have = LLD_LANGS.filter((l) => data.code[l.id]);
-  const [lang, setLang] = useState<LldLang>(have[0]?.id ?? "python");
-  const hasBA = !!(data.before || data.after);
+  const [side, setSide] = useState<"before" | "after">(data.before ? "before" : "after");
+  const body = useRef<HTMLDivElement>(null);
+  const hasBA = !!(data.before && data.after);
+  const hasUml = !!(data.before || data.after);
+  const code = patternCode(pattern);
 
   return (
     <main className="pb-16">
@@ -66,7 +72,7 @@ export default function PatternPage({ pattern, data, written, cases, prev, next 
           <span aria-current="page" className="text-fg">{pattern.name}</span>
         </nav>
         <div className="mt-3 flex flex-wrap gap-2 font-mono text-xs tracking-[0.06em]">
-          <span className="bg-signal px-2.5 py-1.5 font-semibold uppercase text-on-signal">{group?.label ?? "Pattern"}</span>
+          <span className="bg-signal px-2.5 py-1.5 font-semibold uppercase text-on-signal">{code} · {group?.label ?? "Pattern"}</span>
           {!written && <span className="border border-line-strong px-2.5 py-1.5 text-fg-2">COMING SOON</span>}
           {cases.length > 0 && <span className="border border-line-strong px-2.5 py-1.5 text-fg-2">USED IN {cases.length} CASE {cases.length === 1 ? "STUDY" : "STUDIES"}</span>}
         </div>
@@ -79,54 +85,53 @@ export default function PatternPage({ pattern, data, written, cases, prev, next 
 
       <div className="mx-auto max-w-[1100px] px-4 sm:px-6">
         {data.lecture && <LectureEntry lecture={data.lecture} what="This pattern" quest={false} className="mb-6" />}
-        <div className="course-content" style={{ ["--reader-size" as string]: "16px" }}>
-          <Slot title="The problem it solves">
+        <div ref={body} className="course-content" style={{ ["--reader-size" as string]: "16px" }}>
+          {data.intro && <Html html={data.intro} />}
+
+          <Slot title="The problem it solves" id="problem">
             <p style={{ margin: "0 0 8px", fontSize: 16, lineHeight: 1.55 }}>{pattern.problem}</p>
-            {data.problem ? <div className="sd-body" dangerouslySetInnerHTML={{ __html: data.problem }} /> : !written && <Soon what="The full explanation" />}
+            {data.problem ? <Html html={data.problem} /> : !written && <Soon what="The full explanation" />}
           </Slot>
 
-          <Slot title="Before and after" id="before-after">
-            {hasBA ? (
+          <Slot title={hasBA ? "Before and after" : "The pattern"} id="pattern">
+            {data.pattern && <Html html={data.pattern} />}
+            {hasUml ? (
               <>
-                <div className="lld-seg" role="group" aria-label="UML view">
-                  {(["before", "after"] as const).map((k) => (
-                    <button key={k} type="button" aria-pressed={side === k} disabled={!data[k]} onClick={() => setSide(k)}>
-                      {k === "before" ? "Before the pattern" : "With the pattern"}
-                      {!data[k] && <small>soon</small>}
-                    </button>
-                  ))}
-                </div>
-                <div style={{ marginTop: 12 }} role="region" aria-live="polite" aria-label={side === "before" ? "UML before the pattern" : "UML with the pattern"}>
-                  <div hidden={side !== "before"} className="sd-body" dangerouslySetInnerHTML={{ __html: data.before }} />
-                  <div hidden={side !== "after"} className="sd-body" dangerouslySetInnerHTML={{ __html: data.after }} />
+                {hasBA && (
+                  <div className="lld-seg" role="group" aria-label="UML view">
+                    {(["before", "after"] as const).map((k) => (
+                      <button key={k} type="button" aria-pressed={side === k} onClick={() => setSide(k)}>
+                        {k === "before" ? "Before the pattern" : "With the pattern"}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <div style={{ marginTop: 12 }} role="region" aria-live="polite" aria-label={hasBA ? (side === "before" ? "UML before the pattern" : "UML with the pattern") : "Class diagram"}>
+                  {data.before && <div hidden={hasBA && side !== "before"}><Html html={data.before} /></div>}
+                  {data.after && <div hidden={hasBA && side !== "after"}><Html html={data.after} /></div>}
                 </div>
               </>
             ) : (
-              <Soon what="The before and after UML" />
+              !data.pattern && <Soon what="The class diagram" />
             )}
           </Slot>
 
-          <Slot title="In code">
-            <div className="lld-seg" role="group" aria-label="Code language">
-              {LLD_LANGS.map((l) => (
-                <button key={l.id} type="button" aria-pressed={!!data.code[l.id] && lang === l.id} disabled={!data.code[l.id]} onClick={() => setLang(l.id)}>
-                  {l.label}
-                  {!data.code[l.id] && <small>soon</small>}
-                </button>
-              ))}
-            </div>
-            {have.length ? (
-              <div style={{ marginTop: 12 }} className="sd-body" dangerouslySetInnerHTML={{ __html: data.code[lang] ?? data.code[have[0].id] ?? "" }} />
-            ) : (
-              <p className="lld-note">Python, Java, C++ and JavaScript versions are not written yet.</p>
-            )}
+          <Slot title="In code" id="code">
+            {data.code ? <Html html={data.code} /> : <p className="lld-note" style={{ margin: 0 }}>Python, Java, C++ and JavaScript versions are not written yet.</p>}
           </Slot>
 
-          <Slot title="When not to use it">
-            {data.notUse ? <div className="sd-body" dangerouslySetInnerHTML={{ __html: data.notUse }} /> : <Soon what="This section" />}
+          {data.deep.map((x) => (
+            <Slot key={x.title} title={x.title}>
+              <Html html={x.html} />
+            </Slot>
+          ))}
+
+          <Slot title="When not to use it" id="when-not">
+            {data.notUse ? <Html html={data.notUse} /> : <Soon what="This section" />}
           </Slot>
 
           <Slot title="Case studies that use it" id="used-in">
+            {data.cases && <Html html={data.cases} />}
             {cases.length ? (
               <ul className="lld-chips" style={{ display: "grid", gap: 8 }}>
                 {cases.map((c) => (
@@ -139,34 +144,41 @@ export default function PatternPage({ pattern, data, written, cases, prev, next 
                 ))}
               </ul>
             ) : (
-              <p className="lld-note" style={{ margin: 0 }}>No case study uses this pattern yet.</p>
+              <p className="lld-note" style={{ margin: 0 }}>{data.cases ? "The table above says where it would fit." : "No case study uses this pattern yet."}</p>
             )}
           </Slot>
 
+          {data.closing.map((x) => (
+            <Slot key={x.title} title={x.title}>
+              <Html html={x.html} />
+            </Slot>
+          ))}
+
           <div className="lld-groups" style={{ marginTop: 20 }}>
-            <Slot title="Lab">
+            <Slot title="Lab" id="lab">
               {data.lab ? (
                 <p style={{ margin: 0 }}>
-                  <Link href={data.lab.href} style={{ color: "var(--c-signal-text)", fontWeight: 600 }}>{data.lab.title}</Link>
+                  <Link href={data.lab.href} style={LINK}>{data.lab.title}</Link>
                   <span className="lld-note"> · {data.lab.minutes} min · {data.lab.languages.join(", ")}</span>
                 </p>
               ) : (
                 <Soon what="The lab" />
               )}
             </Slot>
-            <Slot title="Lecture">{data.lecture ? <Link href={data.lecture.href} style={{ color: "var(--c-signal-text)", fontWeight: 600 }}>Watch the {data.lecture.minutes}-minute lecture</Link> : <Soon what="The lecture" />}</Slot>
-            <Slot title="Clips">{data.shorts ? <p style={{ margin: 0 }}>{data.shorts.items.length} short clip{data.shorts.items.length === 1 ? "" : "s"} below.</p> : <Soon what="The clips" />}</Slot>
+            <Slot title="Lecture" id="lecture">{data.lecture ? <Link href={data.lecture.href} style={LINK}>Watch the {data.lecture.minutes}-minute lecture</Link> : <Soon what="The lecture" />}</Slot>
+            <Slot title="Clips" id="clips">{data.shorts ? <p style={{ margin: 0 }}>{data.shorts.items.length} short clip{data.shorts.items.length === 1 ? "" : "s"} below.</p> : <Soon what="The clips" />}</Slot>
           </div>
 
           {data.shorts && <ArticleShorts of={data.shorts.of} shorts={data.shorts.items} />}
 
-          <Slot title="Quick check">{data.quiz ? <div className="sd-body" dangerouslySetInnerHTML={{ __html: data.quiz }} /> : <Soon what="The quiz" />}</Slot>
+          <Slot title="Quick check" id="quiz">{data.quiz ? <Html html={data.quiz} /> : <Soon what="The quiz" />}</Slot>
 
-          {data.extra.map((x) => (
-            <Slot key={x.title} title={x.title}>
-              <div className="sd-body" dangerouslySetInnerHTML={{ __html: x.html }} />
-            </Slot>
-          ))}
+          {written && (
+            <div style={{ marginTop: 20 }}>
+              <LessonFaq week="low-level-design" slug={data.lessonId} />
+            </div>
+          )}
+          <SdmWidgets contentRef={body} clips={data.clips} />
           <CourseEnhancer lessonKey={`patterns/${pattern.slug}`} />
         </div>
 

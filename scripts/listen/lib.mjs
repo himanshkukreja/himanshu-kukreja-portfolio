@@ -254,7 +254,9 @@ export async function articleHtml(a) {
     return { md, html: mockListenHtml(phases), scoped: true, run };
   }
   if (mcq.isMCQDocument(md)) return null;
-  return { md, html: (await render.renderLesson(md, { kind: a.kind })).html, scoped: false };
+  // a lesson with code tabs or clips renders them as the page does (src/lib/course/sdm-extras.ts): the code is chrome, never read aloud
+  const dsa = /^:{3,}tabs\b/m.test(md) || /^::clip\[/m.test(md) ? { cast: {}, only: ["tabs", "clip"], clips: {} } : undefined;
+  return { md, html: (await render.renderLesson(md, { kind: a.kind, ...(dsa ? { dsa } : {}) })).html, scoped: false };
 }
 
 /** The article's readable blocks as the reader page will extract them, plus their fingerprint. */

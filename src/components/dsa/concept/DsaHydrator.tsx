@@ -32,7 +32,19 @@ function scan(root: HTMLElement): Host[] {
     .filter((h): h is Host => !!h);
 }
 
-export default function DsaHydrator({ rootRef, concept, deps = "" }: { rootRef: React.RefObject<HTMLElement | null>; concept?: ConceptPage; /** re-scan when this changes (content swapped in) */ deps?: string }) {
+export default function DsaHydrator({
+  rootRef,
+  concept,
+  clips,
+  deps = "",
+}: {
+  rootRef: React.RefObject<HTMLElement | null>;
+  concept?: ConceptPage;
+  /** a System Design Mastery lesson's clips (it has code tabs and clips, nothing else of a concept page) */
+  clips?: ConceptPage["clips"];
+  /** re-scan when this changes (content swapped in) */
+  deps?: string;
+}) {
   const [hosts, setHosts] = useState<Host[]>([]);
 
   useEffect(() => {
@@ -59,7 +71,7 @@ export default function DsaHydrator({ rootRef, concept, deps = "" }: { rootRef: 
   return (
     <>
       {hosts.map((h) => {
-        const el = widgetFor(h, concept);
+        const el = widgetFor(h, concept, clips);
         return el ? createPortal(el, h.stage, h.key) : null;
       })}
     </>
@@ -74,9 +86,18 @@ function Hydrated({ fig, children }: { fig: HTMLElement; children: React.ReactNo
   return <>{children}</>;
 }
 
-function widgetFor(h: Host, c?: ConceptPage): React.ReactNode {
+function widgetFor(h: Host, c?: ConceptPage, sdmClips?: ConceptPage["clips"]): React.ReactNode {
   const id = h.fig.dataset.id || "";
   if (h.kind === "tabs") return <CodeTabs fig={h.fig} />;
+  // a System Design Mastery lesson has clips only (no concept page)
+  if (!c && h.kind === "clip") {
+    const cl = sdmClips?.[id];
+    return cl ? (
+      <Hydrated fig={h.fig}>
+        <LessonClip clip={cl} fig={h.fig} />
+      </Hydrated>
+    ) : null;
+  }
   // everything else belongs to a concept page (a problem's editorial only has code tabs)
   if (!c) return null;
   switch (h.kind) {

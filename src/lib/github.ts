@@ -7,7 +7,8 @@ import { contentSnapshot } from './content-snapshot';
 import { r2ContentConfigured, r2List, r2Read } from './content-r2';
 import { questDifficulty } from '@/lib/learn/quest-difficulty';
 import { DEPLOY_ENV } from './platform';
-import { caseBySlug } from '@/lib/learn/lld/meta';
+import { stagedPathFor, stagedPreviewOn } from './content-staged';
+import { caseBySlug, patternByLessonId } from '@/lib/learn/lld/meta';
 
 const GITHUB_TOKEN = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
 /** Cache tag on every GitHub content fetch (see /api/revalidate-courses). */
@@ -28,18 +29,31 @@ const BASE_PATH = 'resources';
  */
 const LOCAL_DIR = process.env.SDM_LOCAL_DIR;
 
+/** Local preview of staged content (src/lib/content-staged.ts): never on in production. */
+const STAGED_PREVIEW = stagedPreviewOn(process.env);
+
 async function readLocalContent(path: string): Promise<GitHubFile[]> {
   const fs = await import('fs/promises');
   const nodePath = await import('path');
-  const full = nodePath.resolve(LOCAL_DIR as string, path);
-  const stat = await fs.stat(full);
-  const toFile = async (rel: string): Promise<GitHubFile> => {
-    const st = await fs.stat(nodePath.resolve(LOCAL_DIR as string, rel));
+  const stagedRel = STAGED_PREVIEW ? stagedPathFor(path) : null;
+  // a file's metadata, read from where it really is (the staged tree keeps the resources/ path it will have once released)
+  const toFile = async (rel: string, from = rel): Promise<GitHubFile> => {
+    const st = await fs.stat(nodePath.resolve(LOCAL_DIR as string, from));
     return { name: nodePath.basename(rel), path: rel, sha: '', size: st.size, type: st.isDirectory() ? 'dir' : 'file', download_url: null };
   };
-  if (!stat.isDirectory()) return [await toFile(path)];
-  const names = (await fs.readdir(full)).filter((n) => !n.startsWith('.'));
-  return Promise.all(names.map((n) => toFile(`${path}/${n}`)));
+  const full = nodePath.resolve(LOCAL_DIR as string, path);
+  const stat = await fs.stat(full).catch((e) => {
+    if (!stagedRel) throw e;
+    return null;
+  });
+  const visible = (n: string) => !n.startsWith('.');
+  const mainNames = stat?.isDirectory() ? (await fs.readdir(full)).filter(visible) : [];
+  // staged files and folders are added to the listing (the real ones win)
+  const stagedNames = stagedRel ? await fs.readdir(nodePath.resolve(LOCAL_DIR as string, stagedRel)).then((x) => x.filter(visible), () => [] as string[]) : [];
+  if (stat && !stat.isDirectory()) return [await toFile(path)];
+  if (!stat && !stagedNames.length) throw Object.assign(new Error(`ENOENT: ${path}`), { code: 'ENOENT' });
+  const extra = stagedNames.filter((n) => !mainNames.includes(n));
+  return Promise.all([...mainNames.map((n) => toFile(`${path}/${n}`)), ...extra.map((n) => toFile(`${path}/${n}`, `${stagedRel}/${n}`))]);
 }
 
 export type GitHubFile = {
@@ -189,7 +203,15 @@ export async function fetchMarkdownContent(path: string): Promise<string> {
   if (LOCAL_DIR) {
     const fs = await import('fs/promises');
     const nodePath = await import('path');
-    return fs.readFile(nodePath.resolve(LOCAL_DIR, path), 'utf8');
+    try {
+      return await fs.readFile(nodePath.resolve(LOCAL_DIR, path), 'utf8');
+    } catch (e) {
+      const staged = STAGED_PREVIEW ? stagedPathFor(path) : null;
+      if (!staged) throw e;
+      return fs.readFile(nodePath.resolve(LOCAL_DIR, staged), 'utf8').catch(() => {
+        throw e;
+      });
+    }
   }
   const fromR2 = await r2ReadFile(path);
   if (fromR2 != null) return fromR2;
@@ -565,7 +587,9 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
     type = week === 'problem-bank' ? 'problem' : 'lld';
     title = extractTitle(fileName);
     const n = fileName.match(/^[a-z]+-(\d+)/)?.[1];
-    order = (week === 'problem-bank' ? 20000 : 30000) + parseInt(n || '1', 10);
+    // the design-pattern lessons (dp-NN-*) come first in the LLD list, ahead of the case studies
+    const base = week === 'problem-bank' ? 20000 : fileName.startsWith('dp-') ? 29000 : 30000;
+    order = base + parseInt(n || '1', 10);
   } else if (week === 'bonus-problems') {
     type = 'bonus';
     title = extractTitle(fileName);
@@ -619,8 +643,10 @@ function extractTitle(fileName: string): string {
   // low-level design: the problem's own name ("LRU Cache", not the slug's "Lru Cache")
   const lld = caseBySlug(fileName);
   if (lld) return lld.name;
+  const dp = patternByLessonId(fileName);
+  if (dp) return dp.name;
   // Remove day-XX- / week-XX- / capstone-interview-week-N- / foundations- / bonus-XX- prefixes
-  const rest = fileName.replace(/^(day-\d+-|week-\d+-|capstone-(?:interview-)?(?:week-\d+-)?|foundations-|bonus-\d+-|problem-\d+-|lld-\d+-)/, '');
+  const rest = fileName.replace(/^(day-\d+-|week-\d+-|capstone-(?:interview-)?(?:week-\d+-)?|foundations-|bonus-\d+-|problem-\d+-|lld-\d+-|dp-\d+-)/, '');
   return humanizeSlug(rest);
 }
 

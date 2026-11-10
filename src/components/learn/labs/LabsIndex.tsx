@@ -197,7 +197,7 @@ export default function LabsIndex({ labs }: { labs: LabSummary[] }) {
           <section key={week} aria-labelledby={`labs-w${week}`} className="flex flex-col gap-4">
             <div className="flex flex-wrap items-end justify-between gap-3 border-b border-line pb-3">
               <h2 id={`labs-w${week}`} className="m-0 flex min-w-0 flex-col gap-1">
-                <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">World {list[0].weekCode}</span>
+                <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">{list[0].weekCode === "DP" ? "Section" : "World"} {list[0].weekCode}</span>
                 <span className="font-display text-[28px] font-bold leading-none tracking-[-0.02em] text-fg">{list[0].worldTitle}</span>
               </h2>
               {list[0].weekKey && <SaveGroupButton group={list[0].weekKey} label="Save world offline" />}

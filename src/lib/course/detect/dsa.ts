@@ -43,12 +43,21 @@ export type DsaRenderOpts = {
   labLink?: (id: string) => DsaLink;
   /** a visual lesson's in-article clips (clips.json) by id: the caption, and the recorded files a saved copy keeps */
   clips?: Record<string, { caption: string; files: string[] }>;
+  /**
+   * System Design Mastery lessons use only these DSA directives (`tabs` and `clip`), so a `:::example` or
+   * `:::pattern` in an SDM lesson keeps its own meaning. Unset: every DSA directive (the DSA course).
+   */
+  only?: readonly string[];
 };
 
 /** Container names this file renders (directives.ts keeps them as blocks instead of turning them back into text). */
 export const DSA_CONTAINERS = new Set(["beat", "example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint", "costs"]);
 /** Leaf names this file renders. */
 export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab", "visualizer", "clip"]);
+
+/** The DSA directives a render honours: all of them, or the `only` subset (an SDM lesson with code tabs and clips). */
+export const dsaContainersFor = (o?: DsaRenderOpts): ReadonlySet<string> => (o?.only ? new Set([...DSA_CONTAINERS].filter((n) => o.only!.includes(n))) : DSA_CONTAINERS);
+export const dsaLeavesFor = (o?: DsaRenderOpts): ReadonlySet<string> => (o?.only ? new Set([...DSA_LEAVES].filter((n) => o.only!.includes(n))) : DSA_LEAVES);
 
 export const DSA_LANGS = ["python", "javascript", "java", "cpp"] as const;
 export const DSA_LANG_LABEL: Record<string, string> = { python: "Python", javascript: "JavaScript", java: "Java", cpp: "C++" };

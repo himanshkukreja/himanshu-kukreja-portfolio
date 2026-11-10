@@ -17,6 +17,7 @@ import { listenKey } from "@/lib/listen/manifest";
 import LessonHero from "./LessonHero";
 import LldHero from "@/components/learn/lld/LldHero";
 import LldSideTracker from "@/components/learn/lld/LldSideTracker";
+import dynamic from "next/dynamic";
 import LldHydrator from "@/components/learn/lld/LldHydrator";
 import { LldPrefsProvider, LldScope } from "@/components/learn/lld/LldPrefs";
 import QuestHero from "@/components/learn/sidequest/QuestHero";
@@ -89,6 +90,9 @@ function useChromeVars(root: React.RefObject<HTMLDivElement | null>) {
     };
   }, [root]);
 }
+
+// code tabs and clips (DSA widgets) load only for a lesson that has them
+const SdmWidgets = dynamic(() => import("./SdmWidgets"), { ssr: false });
 
 export default function LessonReader({ meta, html, stages, toc, rail, prev, next, trial }: Props) {
   const rootRef = useRef<HTMLDivElement>(null);
@@ -202,6 +206,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             </AnnotateHost>
             </Scope>
             <DeepLinkResolver rootRef={contentRef} />
+            {html.includes('data-dsa="') && <SdmWidgets contentRef={contentRef} clips={meta.clips} />}
             {isLld && meta.lld && <LldHydrator lld={meta.lld} contentRef={contentRef} />}
             {meta.kind === "capstone" && meta.designFirst && <DesignFirst meta={meta.designFirst} week={meta.week} title={meta.title} contentRef={contentRef} />}
 

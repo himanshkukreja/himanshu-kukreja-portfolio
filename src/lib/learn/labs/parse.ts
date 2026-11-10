@@ -25,6 +25,11 @@
  *   ## Follow-ups       ### one per interviewer follow-up: prompt, optional test fences, #### Strong answer
  *   ## Stage 1 · Title  projects: ### Brief, ### Starter (appended on unlock), ### Tests, ### Hidden tests, ### Hints, ### Solution
  */
+/** Sections of labs that sit outside the 12 course weeks: a front matter `section:` replaces `week:`. */
+export const LAB_SECTIONS: Record<string, { world: number; code: string; title: string }> = {
+  "design-patterns": { world: 100, code: "DP", title: "LLD · Design patterns" },
+};
+
 import { createHash } from "crypto";
 import matter from "gray-matter";
 import type {
@@ -148,8 +153,11 @@ export function parseLab(md: string, file: string): LabSource {
   if (!title) problems.push("title is required");
   const difficulty = (str("difficulty") || "medium") as LabDifficulty;
   if (!(difficulty in DEFAULT_XP)) problems.push(`difficulty must be easy, medium or hard (got "${difficulty}")`);
-  const week = num("week", -1);
-  if (week < 0) problems.push("week (a course week number) is required");
+  // a lab either belongs to a course week, or to a section outside the weeks (design-patterns): the section replaces the week
+  const section = str("section");
+  if (section && !(section in LAB_SECTIONS)) problems.push(`section must be one of ${Object.keys(LAB_SECTIONS).join(", ")} (got "${section}")`);
+  const week = section in LAB_SECTIONS ? LAB_SECTIONS[section].world : num("week", -1);
+  if (week < 0) problems.push("week (a course week number) is required, or a section");
 
   const lessons: LabLessonRef[] = [];
   if (Array.isArray(fm.lessons)) {
@@ -356,6 +364,7 @@ export function parseLab(md: string, file: string): LabSource {
     topic: str("topic") || title,
     type,
     week,
+    ...(section in LAB_SECTIONS ? { section } : {}),
     order: num("order", 100),
     difficulty,
     minutes,

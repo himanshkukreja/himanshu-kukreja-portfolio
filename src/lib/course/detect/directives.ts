@@ -22,7 +22,7 @@ import { slugify } from "../slug";
 import type { BlockCtx } from "./blocks";
 import { renderCode } from "./code";
 import { ANIMS, COMMON_ANIM_OPTS } from "../anim/catalog";
-import { DSA_CONTAINERS, DSA_LEAVES, dsaBlock, dsaLeaf } from "./dsa";
+import { dsaBlock, dsaContainersFor, dsaLeaf, dsaLeavesFor } from "./dsa";
 
 export const BLOCK_NAMES = new Set(["panel", "compare", "col", "steps", "tree", "callout", "stats", "calc", "timeline", "checkpoint", "answer", "mission"]);
 const TONES = new Set(["core", "info", "ok", "bad", "warn", "note"]);
@@ -262,7 +262,7 @@ async function inner(nodes: RootContent[], ctx: BlockCtx, opts: Opts): Promise<A
       out.push(animFigure(n as unknown as LeafDirective, ctx));
       continue;
     }
-    if (ctx.dsa && n.type === "leafDirective" && DSA_LEAVES.has(n.name)) {
+    if (ctx.dsa && n.type === "leafDirective" && dsaLeavesFor(ctx.dsa).has(n.name)) {
       out.push(await dsaLeaf(n, ctx));
       continue;
     }
@@ -801,7 +801,7 @@ export async function renderBlock(node: ContainerDirective, ctx: BlockCtx, opts:
     case "mission":
       return mission(node, ctx, opts);
     default:
-      if (ctx.dsa && DSA_CONTAINERS.has(node.name)) return dsaBlock(node, ctx);
+      if (ctx.dsa && dsaContainersFor(ctx.dsa).has(node.name)) return dsaBlock(node, ctx);
       return generic(node.name, node, ctx, opts);
   }
 }

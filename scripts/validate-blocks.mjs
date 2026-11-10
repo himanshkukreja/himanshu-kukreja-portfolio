@@ -33,7 +33,12 @@ const SPEC = {
   checkpoint: { attrs: [], title: true, child: "answer" },
   answer: { attrs: [], parent: "checkpoint" },
   mission: { attrs: ["level"], title: true, list: "bullet", boldFirst: true },
+  // design-pattern lessons: code in four languages (DSA's tabs, src/lib/course/detect/dsa.ts); one fenced program per language
+  tabs: { attrs: ["id"], title: true, codeTabs: true },
 };
+// the DSA code languages a :::tabs block may hold, in tab order (a language twice, or an unknown one, is a mistake)
+const TAB_LANGS = ["python", "java", "cpp", "javascript"];
+const TAB_ALIAS = { py: "python", "c++": "cpp", js: "javascript" };
 const VALUES = {
   tone: ["core", "info", "ok", "bad", "warn", "note"],
   type: ["tip", "key", "warn", "bad", "ok", "info"],
@@ -74,6 +79,14 @@ for (const file of files) {
       if (parent?.type !== "root" && parent?.type !== "containerDirective") errs.push(`${at(node)} ::anim[${name}]: put explainers on their own line at the top level (or inside a ::: block), not in a list or quote`);
       return;
     }
+    if (node.type === "leafDirective" && node.name === "clip") {
+      // an in-article clip (src/components/dsa/clip/LessonClip.tsx): ::clip[id], the id of a clips file's clip, on its own line
+      const id = node.children.map((c) => c.value || "").join("").trim();
+      if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) errs.push(`${at(node)} ::clip[${id}]: the id must be kebab-case (a clip id from the lesson's clips file)`);
+      if (Object.keys(node.attributes || {}).length) errs.push(`${at(node)} ::clip[${id}]: takes no attributes`);
+      if (parent?.type !== "root") errs.push(`${at(node)} ::clip[${id}]: put clips on their own line at the top level`);
+      return;
+    }
     if (node.type === "textDirective" || node.type === "leafDirective") {
       // prose like "ratio:high" parses as a text directive; the site turns these back into text
       if (node.type === "leafDirective" || SPEC[node.name]) errs.push(`${at(node)} stray ${node.type} "${node.name}" — only ::: containers are allowed`);
@@ -89,6 +102,16 @@ for (const file of files) {
     }
     const kids = node.children.filter((c) => !(c.data && c.data.directiveLabel));
     const label = node.children.find((c) => c.data && c.data.directiveLabel);
+    if (spec.codeTabs) {
+      const fences = kids.filter((c) => c.type === "code");
+      const langs = fences.map((c) => TAB_ALIAS[(c.lang || "").toLowerCase()] || (c.lang || "").toLowerCase());
+      if (!fences.length) errs.push(`${at(node)} tabs: needs one fenced code block per language (${TAB_LANGS.join(", ")})`);
+      for (const l of langs) if (!TAB_LANGS.includes(l)) errs.push(`${at(node)} tabs: unknown language "${l}" (use ${TAB_LANGS.join(", ")})`);
+      if (new Set(langs).size !== langs.length) errs.push(`${at(node)} tabs: a language appears twice`);
+      if (kids.length !== fences.length) errs.push(`${at(node)} tabs: only fenced code blocks allowed inside`);
+      const id = node.attributes?.id;
+      if (id && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(id)) errs.push(`${at(node)} tabs: id="${id}" must be kebab-case`);
+    }
     if (spec.parent && parent?.name !== spec.parent) errs.push(`${at(node)} :::${node.name} must be inside ::::${spec.parent}`);
     if (spec.title && !label) errs.push(`${at(node)} :::${node.name} needs a [title]`);
     if (spec.children) {
@@ -120,7 +143,7 @@ for (const file of files) {
     visit(node, "code", (c) => { if (c.lang === "quiz" || c.lang === "mermaid") errs.push(`${at(node)} ${node.name}: contains a \`\`\`${c.lang} block (line ${c.position?.start.line}) — unclosed block?`); });
     if (node.position && node.position.end.offset >= src.trimEnd().length - 1 && !/^:{3,}\s*$/m.test(src.trimEnd().split("\n").pop())) errs.push(`${at(node)} ${node.name}: runs to the end of the file — unclosed block?`);
     const span = (node.position?.end.line ?? 0) - (node.position?.start.line ?? 0);
-    if (span > 220) errs.push(`${at(node)} ${node.name}: spans ${span} lines — check the closing fence`);
+    if (span > 220 && !spec.codeTabs) errs.push(`${at(node)} ${node.name}: spans ${span} lines — check the closing fence`);
     if (/[\u{1F300}-\u{1FAFF}✅❌]/u.test(src.slice(node.position.start.offset, node.position.end.offset))) errs.push(`${at(node)} ${node.name}: emoji`);
   });
   // unclosed / mismatched fences show up as literal ':::' paragraphs

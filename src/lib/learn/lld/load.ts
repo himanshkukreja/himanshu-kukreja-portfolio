@@ -9,7 +9,7 @@ import { getCourseMap, COURSE_ID } from "@/lib/learn/course";
 import { getQuestionBank } from "@/lib/learn/prep/load";
 import { getLabSummaries } from "@/lib/learn/labs/load";
 import { highlightLines } from "@/lib/course/highlight";
-import { CASES, PATTERNS, caseBySlug, patternBySlug, type CaseMeta } from "./meta";
+import { CASES, PATTERNS, caseBySlug, patternBySlug, patternChipName, type CaseMeta } from "./meta";
 import type { CaseRow } from "./filters";
 import type { LldMeta } from "./types";
 import { explorerClasses } from "./classes";
@@ -83,7 +83,7 @@ export async function prepareLld(slug: string, markdown: string): Promise<{ mark
       roundMinutes: cm.roundMinutes,
       patterns: cm.patterns.flatMap((p) => {
         const pm = patternBySlug(p);
-        return pm ? [{ slug: p, name: pm.name, href: patternHref(p) }] : [];
+        return pm ? [{ slug: p, name: patternChipName(pm), href: patternHref(p) }] : [];
       }),
       companies: row?.companies ?? [],
       langs: analysis.langs,

@@ -13,7 +13,7 @@ import { chrome, el, h, isNode, rawHast, stripEmoji, text, toText, type AnyNode,
 import { IdRegistry, slugify } from "../slug";
 import { renderCode } from "./code";
 import { animFigure, isAnim, renderBlock } from "./directives";
-import { DSA_LEAVES, dsaLeaf, type DsaRenderOpts } from "./dsa";
+import { dsaLeaf, dsaLeavesFor, type DsaRenderOpts } from "./dsa";
 import type { LeafDirective } from "mdast-util-directive";
 
 export type BlockCtx = {
@@ -654,7 +654,7 @@ export async function processBlocks(nodes: AnyNode[], ctx: BlockCtx, opts: Opts 
       continue;
     }
     // DSA Mastery widgets (`::trace[id]`, `::line[…]`…), only in DSA renders
-    if (ctx.dsa && n.type === "leafDirective" && DSA_LEAVES.has((n as unknown as LeafDirective).name)) {
+    if (ctx.dsa && n.type === "leafDirective" && dsaLeavesFor(ctx.dsa).has((n as unknown as LeafDirective).name)) {
       out.push(await dsaLeaf(n as unknown as LeafDirective, ctx));
       continue;
     }

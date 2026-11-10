@@ -4,6 +4,7 @@ import type { TrailEntry } from "@/lib/learn/trail/types";
 import type { QuestDrills } from "@/lib/learn/drills/parse";
 import type { DesignFirstMeta } from "@/lib/learn/designFirst";
 import type { LldMeta } from "@/lib/learn/lld/types";
+import type { ConceptPage } from "@/lib/dsa/types";
 
 export type RailEntry = {
   week: string;
@@ -85,6 +86,8 @@ export type ReaderMeta = {
   designFirst?: DesignFirstMeta | null;
   /** low-level design case studies: the interview walkthrough's extras (difficulty, patterns, class explorer, labs, what is missing) */
   lld?: LldMeta | null;
+  /** in-article clips (::clip) by id, when the lesson has any */
+  clips?: NonNullable<ConceptPage["clips"]>;
 };
 
 export type QuestMeta = {

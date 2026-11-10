@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { controlMap, isLive, questKey } from "@/lib/learn/controls";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import {
   fetchMarkdownContent,
   getAllLearningResources,
@@ -15,7 +15,8 @@ import { getCourseMap } from "@/lib/learn/course";
 import { courseRefResolver } from "@/lib/learn/course-refs";
 import { getLabsForLesson, getLabSummaries } from "@/lib/learn/labs/load";
 import { fillMounts, prepareLld } from "@/lib/learn/lld/load";
-import { caseBySlug } from "@/lib/learn/lld/meta";
+import { sdmRenderExtras } from "@/lib/course/sdm-extras";
+import { caseBySlug, patternByLessonId } from "@/lib/learn/lld/meta";
 import { getTrailForLesson } from "@/lib/learn/trail/load";
 import { getSheet } from "@/lib/learn/sheets/load";
 import { getQuestDrills } from "@/lib/learn/drills/load";
@@ -109,6 +110,9 @@ export default async function LearningResourcePage({ params }: Props) {
   const { course, week, slug } = await params;
   const data = await getLearningResource(week, slug, { strict: true });
   if (!data) notFound();
+  // a design-pattern lesson (dp-NN-*) is read on its pattern page, whatever link led here
+  const pattern = week === "low-level-design" ? patternByLessonId(slug) : undefined;
+  if (pattern) redirect(`/low-level-design/patterns/${pattern.slug}`);
 
   const { resource, content } = data;
   // a side quest hidden or scheduled in /admin/publishing isn't a page yet
@@ -188,8 +192,11 @@ export default async function LearningResourcePage({ params }: Props) {
       .catch(() => undefined),
   ]);
   // low-level design case studies are re-cut into the interview walkthrough's seven steps (src/lib/learn/lld/steps.ts)
-  const lld = resource.type === "lld" ? await prepareLld(slug, content).catch(() => null) : null;
-  const rendered = await renderLesson(lld?.markdown ?? content, { kind: resource.type, terms, courseRefs });
+  // (the design-pattern lessons, dp-NN-*, are articles of their own: not re-cut)
+  const lld = resource.type === "lld" && caseBySlug(slug) ? await prepareLld(slug, content).catch(() => null) : null;
+  // code tabs and clips (the DSA directives an SDM lesson may use) need render options and the clips' data
+  const extras = await sdmRenderExtras(week, slug, content);
+  const rendered = await renderLesson(lld?.markdown ?? content, { kind: resource.type, terms, courseRefs, ...(extras ? { dsa: extras.dsa } : {}) });
   const lessonHtml = lld ? fillMounts(rendered.html) : rendered.html;
   const lldLabs = lld?.meta?.labs.length
     ? await getLabSummaries()
@@ -230,6 +237,7 @@ export default async function LearningResourcePage({ params }: Props) {
           }
         : null,
     lld: lld?.meta ?? null,
+    ...(extras && Object.keys(extras.clips).length ? { clips: extras.clips } : {}),
     labs: lldLabs ?? (await getLabsForLesson(course, week, slug).catch(() => [])),
     trail: await getTrailForLesson(week, slug).catch(() => []),
     drills: resource.type === "bonus" ? await getQuestDrills(slug, rendered.toc).catch(() => null) : null,

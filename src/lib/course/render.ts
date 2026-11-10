@@ -21,7 +21,7 @@ import { IdRegistry, intToRoman, romanToInt, slugify } from "./slug";
 import { cleanHr, count, isEndMarker, isTomorrow, processBlocks, renderNestedCode, type BlockCtx } from "./detect/blocks";
 import { practiceCard } from "./detect/quiz";
 import { missionFrom, neutralizeDirectives } from "./detect/directives";
-import { DSA_CONTAINERS, DSA_LEAVES, dsaStage, injectCheckpoint, unwrapBeats, type DsaRenderOpts } from "./detect/dsa";
+import { dsaContainersFor, dsaLeavesFor, dsaStage, injectCheckpoint, unwrapBeats, type DsaRenderOpts } from "./detect/dsa";
 import type { ContainerDirective } from "mdast-util-directive";
 import { practiceFor, type PracticeGame } from "@/lib/learn/arena/games";
 import { markTerms, type TermsOpts } from "./terms";
@@ -376,7 +376,7 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
   // ("ratio:high", "::x" lines, unknown containers) is turned straight back into its source text.
   const parser = opts.directives === false ? unified().use(remarkParse).use(remarkGfm) : unified().use(remarkParse).use(remarkGfm).use((await import("remark-directive")).default);
   const mdast = (await parser.run(parser.parse(markdown))) as Root;
-  if (opts.directives !== false) stats.strayDirectives = neutralizeDirectives(mdast, markdown, opts.dsa ? { containers: DSA_CONTAINERS, leaves: DSA_LEAVES } : undefined);
+  if (opts.directives !== false) stats.strayDirectives = neutralizeDirectives(mdast, markdown, opts.dsa ? { containers: dsaContainersFor(opts.dsa), leaves: dsaLeavesFor(opts.dsa) } : undefined);
   if (opts.dsa) {
     // the checkpoint quiz joins the lesson before the quick checks are numbered; beats become h1 stage heads
     if (opts.dsa.checkpointQuiz) stats.dsaCheckpoint = injectCheckpoint(mdast, (await parser.run(parser.parse(opts.dsa.checkpointQuiz))) as Root);

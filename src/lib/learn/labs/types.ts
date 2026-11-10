@@ -102,8 +102,10 @@ export type LabSource = {
   title: string;
   topic: string;
   type: LabType;
-  /** course week number the lab belongs to (its world) */
+  /** course week number the lab belongs to (its world); a section's labs use LAB_SECTIONS[section].world */
   week: number;
+  /** a section outside the weeks (LAB_SECTIONS), when the lab belongs to one */
+  section?: string;
   order: number;
   difficulty: LabDifficulty;
   minutes: number;
@@ -225,6 +227,7 @@ export const DIFFICULTY_LABEL: Record<LabDifficulty, string> = { easy: "Easy", m
 
 /** Learning paths: a lab joins one with `paths: [<id>]` in its front matter. Unknown ids show humanised. */
 export const PATHS: { id: string; title: string; blurb: string }[] = [
+  { id: "design-patterns", title: "Design patterns", blurb: "Refactor messy code into the pattern." },
   { id: "rate-limiting", title: "Rate limiting", blurb: "From one bucket to fair multi-tenant admission." },
   { id: "reliability", title: "Reliability under failure", blurb: "Retries, breakers, idempotency and exactly-once effects." },
   { id: "caching", title: "Caching", blurb: "Eviction, scope and invalidation." },

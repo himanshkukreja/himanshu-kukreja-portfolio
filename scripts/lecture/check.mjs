@@ -317,7 +317,9 @@ const kind = L.short ? "short" : L.clip ? "clip" : L.solution ? "solution" : L.d
 // a DSA lesson's in-article clip: one scene, 20-30 s (about 55-80 words at the voice's 3 words a second plus the
 // 0.45 s beat between steps), no quiz; it records at 1280x720 with no music (export.mjs)
 if (L.clip) {
-  if (!/^dsa--clips--[a-z0-9-]+--[a-z0-9-]+$/.test(L.quest || "") || L.quest !== `dsa--clips--${L.clip.lesson}--${L.clip.id}`) errs.push(`clip quest must be dsa--clips--${L.clip.lesson}--${L.clip.id}`);
+  // DSA lessons: dsa--clips--<lesson>--<clip>; System Design Mastery lessons (design patterns): clips--low-level-design--<lesson>--<clip> (src/lib/course/sdm-extras.ts sdmClipQuest)
+  const clipQuests = [`dsa--clips--${L.clip.lesson}--${L.clip.id}`, `clips--low-level-design--${L.clip.lesson}--${L.clip.id}`];
+  if (!clipQuests.includes(L.quest || "")) errs.push(`clip quest must be ${clipQuests.join(" or ")}`);
   if (!L.clip.caption) errs.push("clip needs a caption");
   if ((L.scenes || []).length !== 1) errs.push("a clip is one scene");
   if ((L.scenes || []).some((s) => s.kind === "quiz")) errs.push("no quizzes in a clip");

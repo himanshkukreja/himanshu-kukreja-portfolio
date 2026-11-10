@@ -59,8 +59,9 @@ function toLesson(r: LearningResource, courseId: string, minutes: number): Cours
     return { week: r.week, slug: r.slug, title: r.title, kind: "capstone", minutes, code: "B", label: `Boss · ${r.title}`, tag: `${W} · BOSS`, href };
   }
   if (r.type === "problem" || r.type === "lld") {
-    const k = parseInt(r.slug.match(/^(?:problem|lld)-(\d+)/)?.[1] || "0", 10);
-    const code = r.type === "problem" ? `IP-${pad(k)}` : `LLD-${pad(k)}`;
+    const k = parseInt(r.slug.match(/^(?:problem|lld|dp)-(\d+)/)?.[1] || "0", 10);
+    // the design-pattern lessons share the LLD folder and are listed ahead of the case studies, as DP-NN
+    const code = r.type === "problem" ? `IP-${pad(k)}` : r.slug.startsWith("dp-") ? `DP-${pad(k)}` : `LLD-${pad(k)}`;
     return { week: r.week, slug: r.slug, title: r.title, kind: r.type, minutes, code, label: r.title, tag: code, href };
   }
   if (r.type === "bonus") {

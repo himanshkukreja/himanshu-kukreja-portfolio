@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { COURSE_ID } from "@/lib/learn/paths";
 import { lessonKey } from "@/lib/learn/types";
 import { useLearnProgress, type LessonProgress } from "@/lib/learn/progress";
-import { CORE_PATTERNS, PATTERN_GROUPS, PATTERNS, caseBySlug, patternBySlug, type Difficulty } from "@/lib/learn/lld/meta";
+import { CORE_PATTERNS, PATTERN_GROUPS, PATTERNS, caseBySlug, patternBySlug, patternChipName, type Difficulty } from "@/lib/learn/lld/meta";
 import { NO_FILTERS, casePct, facets, filterCases, filtersToQuery, hasFilters, nextOnPath, parseFilters, patternMap, suggestedPath, type CaseRow, type Filters } from "@/lib/learn/lld/filters";
 import { STEPS } from "@/lib/learn/lld/steps";
 
@@ -151,7 +151,7 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
         </Section>
 
         {/* ------------------------------------------------------------ patterns */}
-        <Section id="patterns" kicker="half one" title="Design patterns" aside="The vocabulary of the round. Each pattern gets the problem, before and after UML, code in four languages and when not to use it.">
+        <Section id="patterns" kicker="half one" title="Design patterns" aside="The vocabulary of the round, in the order to learn it. Each lesson gives the problem, the class diagram, code in four languages, when not to use it, a lab and a lecture.">
           <div className="flex flex-col gap-8">
             {PATTERN_GROUPS.map((g) => {
               const items = PATTERNS.filter((p) => p.group === g.id);
@@ -341,7 +341,10 @@ function Select({ label, value, onChange, options, hint }: { label: string; valu
 
 function CaseCard({ c, progress }: { c: CaseRow; progress: ReturnType<typeof progressOf> | null }) {
   const meta = caseBySlug(c.slug);
-  const names = c.patterns.map((s) => patternBySlug(s)?.name).filter(Boolean) as string[];
+  const chips = c.patterns.flatMap((s) => {
+    const p = patternBySlug(s);
+    return p ? [{ slug: s, name: patternChipName(p) }] : [];
+  });
   const label = !progress || progress.state === "new" ? "Not started" : progress.state === "done" ? "Done" : `${progress.steps}/${STEPS.length} steps`;
   return (
     <li className="relative flex min-w-0 flex-col gap-2.5 border border-line bg-surface p-4 hover:border-line-strong">
@@ -362,7 +365,17 @@ function CaseCard({ c, progress }: { c: CaseRow; progress: ReturnType<typeof pro
         </div>
         <div className="flex gap-2">
           <dt className="w-16 shrink-0 text-fg-3">Patterns</dt>
-          <dd className="m-0 min-w-0 text-fg-2">{names.join(", ")}</dd>
+          <dd className="m-0 min-w-0 text-fg-2">
+            {/* above the card's full-size link (z-10), so each chip opens its own pattern page */}
+            {chips.map((x, i) => (
+              <span key={x.slug}>
+                {i > 0 && ", "}
+                <Link href={patternHref(x.slug)} className={`relative z-10 inline-block py-0.5 underline decoration-line-strong underline-offset-2 hover:text-fg ${FOCUS}`}>
+                  {x.name}
+                </Link>
+              </span>
+            ))}
+          </dd>
         </div>
         {c.companies.length > 0 && (
           <div className="flex gap-2">

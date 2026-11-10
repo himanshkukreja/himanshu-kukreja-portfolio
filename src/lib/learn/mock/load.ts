@@ -10,6 +10,7 @@ import type { CourseLesson, CourseWeek } from "@/lib/learn/types";
 import { parseMock, type RawMock } from "./parse";
 import { mockHref, type MockInterview, type MockMessage, type MockPhase, type StudyRef } from "./types";
 import { cleanHtmlLinks } from "@/lib/learn/paths";
+import { caseBySlug, patternByLessonId, patternCode } from "@/lib/learn/lld/meta";
 
 export const MOCK_DIR = "resources/mock-interviews";
 const FILE_RE = /^mock-(\d+)-[\w-]+\.md$/;
@@ -69,6 +70,14 @@ export function resolveStudy(code: string, ctx: MockCtx): StudyRef | null {
     if (part === "T") return w.trial ? { code: `W${w.code} · Trial`, title: w.trial.title, href: w.trial.href } : null;
     const l = w.lessons.find((x) => x.code === part);
     return l ? { code: `W${w.code} · ${part === "PRE" ? "Preview" : part}`, title: l.title, href: l.href } : null;
+  }
+  // a low-level design lesson: a case study ("low-level-design/lld-01-parking-lot") or a design pattern ("low-level-design/dp-16-strategy")
+  const lld = c.match(/^low-level-design\/([\w-]+)$/);
+  if (lld) {
+    const pat = patternByLessonId(lld[1]);
+    if (pat) return { code: patternCode(pat), title: pat.name, href: `/low-level-design/patterns/${pat.slug}` };
+    const cs = caseBySlug(lld[1]);
+    return cs ? { code: `LLD-${String(cs.n).padStart(2, "0")}`, title: cs.name, href: `/low-level-design/${cs.slug}` } : null;
   }
   const p = c.match(/^(week-[\w-]+)\/([\w-]+)$/);
   if (p) {

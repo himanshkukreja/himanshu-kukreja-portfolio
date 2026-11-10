@@ -11,7 +11,7 @@ import { fetchGitHubContent, fetchMarkdownContent, isContentMissing, ContentFetc
 import { renderLesson } from "@/lib/course/render";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import { resolveStudy, type MockCtx } from "@/lib/learn/mock/load";
-import { countTests, labTestCounts, parseLab } from "./parse";
+import { LAB_SECTIONS, countTests, labTestCounts, parseLab } from "./parse";
 import { PYODIDE_VERSION, WORKER_REV } from "./runtime";
 import { familyOf, labHref, type Lab, type LabLang, type LabLangView, type LabLesson, type LabSource, type LabSrc, type LabSummary, type LessonLabLink } from "./types";
 
@@ -69,7 +69,8 @@ async function prepare(): Promise<Prepared> {
   for (const s of all) {
     if (seen.has(s.id)) continue;
     seen.add(s.id);
-    const week = map?.weeks.find((w) => w.num === s.week) ?? null;
+    const sec = s.section ? LAB_SECTIONS[s.section] : undefined;
+    const week = sec ? null : map?.weeks.find((w) => w.num === s.week) ?? null;
     const lessons: LabLesson[] = s.lessons
       .map((l) => {
         const r = resolveStudy(l.ref, ctx);
@@ -82,9 +83,9 @@ async function prepare(): Promise<Prepared> {
       topic: s.topic,
       type: s.type,
       week: s.week,
-      weekCode: pad(s.week),
+      weekCode: sec?.code ?? pad(s.week),
       weekKey: week?.key ?? null,
-      worldTitle: week?.title ?? `Week ${s.week}`,
+      worldTitle: sec?.title ?? week?.title ?? `Week ${s.week}`,
       order: s.order,
       difficulty: s.difficulty,
       minutes: s.minutes,

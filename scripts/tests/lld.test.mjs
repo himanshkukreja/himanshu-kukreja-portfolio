@@ -227,7 +227,7 @@ test("filters combine, and an empty filter shows everything", () => {
 test("facet counts respect the other filters", () => {
   const f = facets(rows, { pattern: null, difficulty: "Expert", company: null }, PATTERNS);
   assert.equal(f.difficulties.find((d) => d.value === "Expert").count, 3, "the selected facet counts under the other filters only");
-  assert.equal(f.patterns.find((p) => p.value.slug === "single-writer").count, 1);
+  assert.equal(f.patterns.find((p) => p.value.slug === "proxy").count, 1);
   assert.equal(f.patterns.find((p) => p.value.slug === "state").count, 0);
   assert.ok(!f.patterns.some((p) => p.value.slug === "prototype"), "a pattern no case uses is not offered as a filter");
   assert.deepEqual(f.companies.map((c) => c.value.slug), ["flipkart", "swiggy"].sort((a, b) => (a === "flipkart" ? -1 : 1)));
@@ -236,7 +236,7 @@ test("facet counts respect the other filters", () => {
 test("the pattern map lists each pattern's case studies in lesson order", () => {
   const map = patternMap(rows);
   assert.deepEqual(map.state.map((r) => r.n), [4, 5, 7, 11, 12, 13, 14, 15, 19]);
-  assert.deepEqual(map.memento.map((r) => r.n), [18]);
+  assert.deepEqual(map["mediator-and-memento"].map((r) => r.n), [18]);
   assert.equal(map.prototype, undefined);
   // every card appears under each of its patterns, and nowhere else
   for (const r of rows) for (const [slug, list] of Object.entries(map)) assert.equal(list.some((x) => x.slug === r.slug), r.patterns.includes(slug));
@@ -245,7 +245,7 @@ test("the pattern map lists each pattern's case studies in lesson order", () => 
 test("the suggested path runs foundations, core patterns, easy then hard, each case once", () => {
   const path_ = suggestedPath(rows, PATTERNS, CORE_PATTERNS);
   assert.deepEqual(path_.map((s) => s.id), ["foundations", "core", "easy", "hard"]);
-  assert.ok(path_[0].patterns.includes("dependency-injection"));
+  assert.ok(path_[0].patterns.includes("solid-isp-dip-and-di"));
   assert.deepEqual(path_[1].patterns, CORE_PATTERNS);
   assert.ok(path_[2].cases.every((s) => caseBySlug(s).difficulty === "Medium"));
   assert.ok(path_[3].cases.every((s) => caseBySlug(s).difficulty !== "Medium"));
