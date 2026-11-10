@@ -7,14 +7,17 @@
 // usage: nice -n 10 node --env-file=.env.local scripts/listen/batch.mjs [--publish] [--only <key prefix>] [--limit N]
 //          [--out out/listen] [--force] [--allow-dirty]
 //        node scripts/listen/batch.mjs --estimate     (words, audio minutes, MB and Kokoro hours; voices nothing)
-//   --only quest/        just the side quests (or lesson/week-04-caching/, lesson/problem-bank/, case/, war/, mock/, …)
+//   --only quest/        just the side quests (or lesson/week-04-caching/, lesson/problem-bank/, case/, war/, mock/, dsa/, …)
+//        --only dsa/     every DSA Mastery lesson: pattern concepts, structure lessons and algorithm lessons
+//                        (dsa/<module>/<lesson>); the dsa-mastery checkout is DSA_LOCAL_DIR
+//   --check              list what a run would do (new, stale, unchanged, dirty and why) without voicing anything
 //   --limit 10           stop after voicing 10 articles (unchanged ones don't count)
 // Each voiced article appends a line to <out>/batch.jsonl (words, audio seconds, Kokoro seconds, bytes);
 // the estimate uses those lines for its speed once there are some. Ctrl-C stops after the current article.
 import fs from "fs";
 import os from "os";
 import path from "path";
-import { articleText, buildArticle, fmtTime, GROUP_LABEL, GROUPS, isPublished, listArticles, publishArticle, ROOT, BITRATE } from "./lib.mjs";
+import { articleText, buildArticle, fmtTime, GROUP_LABEL, GROUPS, isPublished, listArticles, listenStatus, publishArticle, ROOT, BITRATE } from "./lib.mjs";
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -70,6 +73,18 @@ if (flag("estimate")) {
   }
   const sec = T.words * secPerWord;
   console.log(`${"total".padEnd(24)} ${String(T.n).padStart(8)} ${String(T.words).padStart(8)} ${(sec / 3600).toFixed(1).padStart(9)} ${((sec * bytesPerSec) / 1048576).toFixed(0).padStart(6)} ${((sec * computePerSec) / 3600).toFixed(1).padStart(10)}`);
+  process.exit(0);
+}
+
+if (flag("check")) {
+  const only = opt("only", "");
+  const tally = {};
+  for (const a of (await listArticles()).filter((x) => x.key.startsWith(only))) {
+    const r = await listenStatus(a, { out, allowDirty: flag("allow-dirty") }).catch((e) => ({ key: a.key, status: "failed", note: e.message }));
+    tally[r.status] = (tally[r.status] || 0) + 1;
+    console.log(`${r.status.padEnd(9)} ${a.key}${r.note ? ` · ${r.note}` : ""}`);
+  }
+  console.log(Object.entries(tally).map(([k, v]) => `${v} ${k}`).join(", "));
   process.exit(0);
 }
 

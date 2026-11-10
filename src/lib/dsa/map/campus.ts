@@ -4,7 +4,8 @@
  *
  * A building is
  * - "current"  the region holding the frontier (the first required, built, open stop not done): "you are here";
- * - "cleared"  every required, built stop in it is done (lessons, practice, checkpoints);
+ * - "cleared"  every required stop in it is built and done (lessons, practice, checkpoints); a module whose later
+ *              lessons are still planned stays "open" ("more soon") until they ship and are done;
  * - "open"     it has built stops but is neither (started out of order, or not reached yet: regions never lock);
  * - "planned"  nothing in it is built yet (outline regions): no counts but its concepts, if the spec names them;
  * - "later"    the world itself opens later.
@@ -26,6 +27,10 @@ export type StretchView = {
   /** required, built practice and how many are solved */
   practice: number;
   practiceDone: number;
+  /** required lessons, problems and checkpoints in it that are not written yet ("coming soon" stops) */
+  soon: number;
+  /** problems planned for this street but not written yet (Interview practice) */
+  planned: number;
   complete: boolean;
   /** the stop to do next in this stretch: the frontier when it is here, else the first open required stop */
   next: WorldNode | null;
@@ -41,6 +46,8 @@ export type Building = {
   focus: number;
   /** the onboarding recommends starting here (a quiet highlight: nothing is locked) */
   recommended: boolean;
+  /** required stops in the whole building not written yet: a module of 5 lessons with 2 written is not "cleared" */
+  soon: number;
   /** concepts the spec names for the region (outline regions list them; full regions have their concept stops) */
   concepts: WorldNode[];
 };
@@ -56,6 +63,7 @@ export type Campus = {
   started: boolean;
 };
 
+const isStop = (n: WorldNode) => n.required && (n.type === "concept" || n.type === "practice" || n.type === "checkpoint");
 const isStep = (n: WorldNode) => n.required && n.built && (n.type === "concept" || n.type === "practice" || n.type === "checkpoint");
 const isDone = (states: Record<string, NodeState>, n: WorldNode) => states[n.id] === "done";
 const isOpen = (states: Record<string, NodeState>, n: WorldNode) => states[n.id] === "open" || states[n.id] === "current";
@@ -75,6 +83,8 @@ function stretchView(st: WorldRegion["stretches"][number], index: number, w: Wor
     stepsDone,
     practice: practice.length,
     practiceDone: practice.filter((n) => isDone(w.states, n)).length,
+    soon: st.nodes.filter((n) => isStop(n) && !n.built).length,
+    planned: st.planned || 0,
     complete: steps.length > 0 && stepsDone === steps.length,
     next,
   };
@@ -87,12 +97,13 @@ export function campusOf(spec: WorldSpec, w: WorldProgress, recommendedRegion?: 
     const built = nodes.some((n) => n.built && n.type !== "gate");
     const steps = stretches.reduce((a, s) => a + s.steps, 0);
     const done = stretches.reduce((a, s) => a + s.stepsDone, 0);
+    const soon = stretches.reduce((a, s) => a + s.soon, 0) + (region.planned || 0);
     const started = nodes.some((n) => isDone(w.states, n) && n.type !== "gate");
     let state: BuildingState;
     if (!spec.open) state = "later";
     else if (!built) state = "planned";
     else if (w.frontier?.regionId === region.id) state = "current";
-    else if (steps > 0 && done === steps) state = "cleared";
+    else if (steps > 0 && done === steps && soon === 0) state = "cleared";
     else state = "open";
     const atFrontier = w.frontier ? stretches.findIndex((s) => s.nodes.some((n) => n.id === w.frontier!.nodeId)) : -1;
     const firstOpen = stretches.findIndex((s) => !s.complete && s.steps > 0);
@@ -102,6 +113,7 @@ export function campusOf(spec: WorldSpec, w: WorldProgress, recommendedRegion?: 
       started,
       recommended: !!recommendedRegion && region.id === recommendedRegion,
       stretches,
+      soon,
       focus: atFrontier >= 0 ? atFrontier : firstOpen >= 0 ? firstOpen : 0,
       concepts: nodes.filter((n) => n.type === "concept"),
     };

@@ -280,15 +280,19 @@ export function CheckpointGate({ fig, checkpoint }: { fig: HTMLElement; checkpoi
       </p>
       {passed || ok ? (
         <p className="m-0 text-[15px] font-semibold text-ok-text">
-          ✓ Checkpoint quiz passed.
-          {checkpoint && checkpoint.problems.some((p) => !p.built)
+          ✓ {checkpoint && checkpoint.own === false ? "Quiz passed." : "Checkpoint quiz passed."}
+          {checkpoint && checkpoint.own === false
+            ? " It is saved with this lesson. The section's checkpoint comes at the end of the section."
+            : checkpoint && checkpoint.problems.some((p) => !p.built)
             ? " The section is marked done on the map once the checkpoint's two mixed problems are solved too; they arrive with the next wave."
             : " This section is now marked done on the map."}
         </p>
       ) : complete ? (
         <p className="m-0 text-[15px] text-bad-text">Not yet: {score.right} of {score.total}. Use “Retry” on a block to answer again.</p>
       ) : (
-        <p className="m-0 text-[14px] text-fg-2">Answer every question. {Math.round(pass * 100)}% or more passes, and marks this section done on the Academy map.</p>
+        <p className="m-0 text-[14px] text-fg-2">
+          Answer every question. {Math.round(pass * 100)}% or more passes{checkpoint?.own === false ? " and is saved with this lesson." : ", and marks this section done on the Academy map."}
+        </p>
       )}
     </div>
   );

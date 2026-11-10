@@ -47,6 +47,28 @@ export function stepOf(labels: StepLabels, module: string): StepLabel {
   return labels[module] || { step: "", title: plain(module), building: "", label: plain(module) };
 }
 
+/** A lesson's place inside its module: lesson 2 of 5. */
+export type LessonSlot = { n: number; of: number };
+
+/**
+ * Where a lesson sits among its module's lessons (written or planned, in concept order), or null when the module has
+ * just one lesson. A module such as "2.3 Linked lists" holds several lessons and several stops on the map; the step
+ * number stays the module's, so the lesson's place is added to it, never a second number.
+ */
+export function lessonSlot(concepts: { id: string; module: string; order?: number }[], id: string): LessonSlot | null {
+  const me = concepts.find((c) => c.id === id);
+  if (!me) return null;
+  const mates = concepts.filter((c) => c.module === me.module).sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  if (mates.length < 2) return null;
+  return { n: mates.findIndex((c) => c.id === id) + 1, of: mates.length };
+}
+
+/** "2.3 Linked lists · lesson 2 of 5" for a lesson in a multi-lesson module, "2.3 Linked lists" otherwise. */
+export function lessonLabel(labels: StepLabels, module: string, slot: LessonSlot | null): string {
+  const base = stepOf(labels, module).label;
+  return slot ? `${base} · lesson ${slot.n} of ${slot.of}` : base;
+}
+
 /** A sortable number for a module in learner order (part, then step); unknown modules sort last. */
 export function stepRank(labels: StepLabels, module: string): number {
   const m = labels[module]?.step.match(/^(\d+)\.(\d+)$/);

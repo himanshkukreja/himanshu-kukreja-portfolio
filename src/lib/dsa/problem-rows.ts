@@ -6,6 +6,7 @@ import { classicLabel } from "./classics";
 import type { FilterRow, Kind } from "./problem-filters";
 import { facetsOf, FACETS } from "./taxonomy";
 import { stepOf, stepRank, type StepLabels } from "./steps";
+import { writtenLessonPaths } from "./lesson-stops";
 import type { ProblemSummary } from "./types";
 
 // the company-type tags drifted while the problems were written; one name for each family
@@ -45,13 +46,15 @@ export type ProblemData = {
   companies: Option[];
   /** concept id to its lesson title */
   concepts: Record<string, string>;
+  /** concept id to its page, for lessons that are written; a planned lesson has no entry (no link, never a 404) */
+  lessons: Record<string, string>;
   /** pattern tags the taxonomy does not know (reported in the build log, never an error) */
   unknown: string[];
 };
 
 export function buildProblemData(
   problems: ProblemSummary[],
-  opts: { labels: StepLabels; concepts: { id: string; title: string; order: number }[]; videos: Iterable<string> },
+  opts: { labels: StepLabels; concepts: { id: string; title: string; order: number; kind?: string; status?: string }[]; videos: Iterable<string> },
 ): ProblemData {
   const videos = new Set(opts.videos);
   const conceptOrder = new Map(opts.concepts.map((c) => [c.id, c.order]));
@@ -110,6 +113,7 @@ export function buildProblemData(
     steps,
     companies: [...companies].sort().map((id) => ({ id, label: companyLabel(id) })),
     concepts: Object.fromEntries(opts.concepts.map((c) => [c.id, c.title])),
+    lessons: writtenLessonPaths(opts.concepts),
     unknown: [...unknown].sort(),
   };
 }

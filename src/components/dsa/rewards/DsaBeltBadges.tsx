@@ -110,7 +110,8 @@ function BadgeTile({ d, earned, prog }: { d: BadgeDef; earned: boolean; prog: { 
             <div className="h-1.5 bg-signal" style={{ width: `${pct}%` }} />
           </div>
           <span className="font-mono text-[11.5px] text-fg-3">
-            {prog.done} of {prog.total} · +{d.bits} Bits
+            {prog.done} of {prog.total}
+            {d.pending ? ` · ${d.pending} more coming` : ""} · +{d.bits} Bits
           </span>
         </>
       ) : (

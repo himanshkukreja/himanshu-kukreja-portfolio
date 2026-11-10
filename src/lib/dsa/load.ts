@@ -7,7 +7,9 @@ import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
 import { plainBeatHeading } from "./words";
-import { buildStepLabels, stepOf, type StepLabels } from "./steps";
+import { buildStepLabels, lessonLabel, lessonSlot, stepOf, type StepLabels } from "./steps";
+import { checkpointFor } from "./lesson-stops";
+import { districtName, groupDistricts, waveLabel, type PlanDistrict, type PlanProblem } from "./districts";
 import { clipQuestParts, clipRefs, dsaShortParts, lectureRefs, parseTemplates, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution, type RawClips, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import {
@@ -207,6 +209,10 @@ type RawRegion = {
   intro?: string;
   concepts?: string[];
   lines?: string[];
+  /** Interview practice districts: the building, when it opens (launch, w1 …) and the Academy modules it practises */
+  landmark?: string;
+  opens?: string;
+  links?: string[];
   stretches?: { id: string; title: string; nodes: RawNode[] }[];
   side?: RawNode[];
   service?: RawNode;
@@ -225,6 +231,10 @@ type RawWorld = {
   parts?: { id: string; title: string; subtitle?: string; summary?: string; regions?: string[] }[];
   final?: RawNode;
 };
+
+/** What a world is called in the UI when it differs from its file: World 2 is "Interview practice" (owner, 10 Nov 2026), with the file's name as its small subtitle. */
+const WORLD_LABELS: Record<string, { title: string; subtitle: string }> = { "product-districts": { title: "Interview practice", subtitle: "Product Districts" } };
+const labelOf = (id: string, title: string, subtitle: string) => WORLD_LABELS[id] || { title, subtitle };
 
 const WORLD_IDS = ["academy", "product-districts", "career-studio", "challenge-league", "release-train", "infrastructure"] as const;
 /** Worlds with a playable map in this build; the others show on the atlas as opening later. */
@@ -318,8 +328,7 @@ function buildWorld(
   });
   return {
     id: raw.id,
-    title: raw.title,
-    subtitle: raw.subtitle || "",
+    ...labelOf(raw.id, raw.title, raw.subtitle || ""),
     order: raw.order ?? 0,
     audience: raw.audience || "",
     atLaunch: raw.at_launch || "",
@@ -344,6 +353,64 @@ function buildWorld(
   };
 }
 
+/** The districts' streets and problem sets, from the plan (resources/plan/curriculum.yml): small, so it is its own cache item. */
+type PlanFile = {
+  parts?: { world?: string; modules?: { id: string; wave?: string; links?: string[]; lessons?: { id: string; title: string }[] }[] }[];
+  problems?: { id: string; home?: string; title?: string; status?: string; lesson?: string }[];
+};
+const getDistrictPlan = cached(async (): Promise<{ districts: PlanDistrict[]; rows: PlanProblem[] } | null> => {
+  const src = await readDsa("resources/plan/curriculum.yml");
+  if (!src) return null;
+  const plan = yaml<PlanFile>(src);
+  const mods = (plan.parts || []).find((p) => p.world === "product-districts")?.modules || [];
+  return {
+    districts: mods.map((m) => ({ id: m.id, wave: m.wave, links: m.links || [], streets: (m.lessons || []).map((l) => ({ id: l.id, title: l.title })) })),
+    rows: (plan.problems || []).filter((p) => /^d\d+-/.test(p.home || "")).map((p) => ({ id: p.id, home: p.home || "", title: p.title, status: p.status, lesson: p.lesson })),
+  };
+}, "dsa-districts-plan-v1");
+
+/**
+ * Interview practice: each district's streets (stretches of built problems, linked to their rooms), a count of the
+ * planned ones, the Academy lessons it practises, its opening wave, and the district review as the boss. A district
+ * with no built problem stays an outline ("being written", with its opening wave). src/lib/dsa/districts.ts.
+ */
+async function wireDistricts(world: WorldSpec, raw: RawWorld, concepts: Map<string, ConceptSummary>, problems: ProblemSummary[]): Promise<WorldSpec> {
+  const plan = await getDistrictPlan().catch(() => null);
+  if (!plan) return world;
+  const labels = await getStepLabels();
+  const byModule = new Map<string, ConceptSummary>();
+  for (const c of [...concepts.values()].sort((a, b) => a.order - b.order)) if (c.status === "built" && !byModule.has(c.module)) byModule.set(c.module, c);
+  const code = (id: string) => world.regions.find((r) => r.id === id)?.code || id;
+  const shapes = groupDistricts(plan.districts, plan.rows, new Map(problems.map((p) => [p.id, { id: p.id, title: p.title, level: p.level }])), code);
+  const rawOf = new Map((raw.regions || []).map((r) => [r.id, r]));
+  const regions = world.regions.map((r, i): WorldRegion => {
+    const shape = shapes[r.id];
+    const rr = rawOf.get(r.id);
+    if (!shape || !rr) return r;
+    const links = (rr.links || plan.districts.find((d) => d.id === r.id)?.links || []).map((m) => {
+      const c = byModule.get(m);
+      return { module: m, label: stepOf(labels, m).label, href: c ? lessonHref(c) : null };
+    });
+    const hasBuilt = shape.built > 0;
+    return {
+      ...r,
+      // the building is the theme name (Pay Exchange), the pattern the plain title (Arrays & Hashing)
+      title: rr.landmark || r.title,
+      moduleTitle: districtName(r.title),
+      step: `District ${i + 1}`,
+      detail: hasBuilt ? "full" : "outline",
+      status: hasBuilt ? "in-progress" : "planned",
+      opens: waveLabel(plan.districts.find((d) => d.id === r.id)?.wave || rr.opens),
+      links,
+      planned: shape.planned,
+      intro: `Medium and Hard interview problems, ${shape.stretches.length} ${shape.stretches.length === 1 ? "street" : "streets"} of them: each street is a set of problems on one skill.`,
+      stretches: shape.stretches.length ? shape.stretches : r.stretches,
+      boss: { id: `${r.code}.review`, type: "boss", title: "District review", required: true, href: null, built: false, badge: `${districtName(r.title)} cleared` },
+    };
+  });
+  return { ...world, regions };
+}
+
 const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
   const src = await readDsa(`resources/worlds/${id}.yml`);
   if (!src) return null;
@@ -362,11 +429,12 @@ const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
       if (id) labs.set(ref, { id, title: lab?.match(/^title:\s*(.+)$/m)?.[1]?.trim() || "Build it yourself" });
     }),
   );
-  const world = buildWorld(raw, byId, new Map(problems.map((p) => [p.id, p])), modules, lines, labs);
+  const built = buildWorld(raw, byId, new Map(problems.map((p) => [p.id, p])), modules, lines, labs);
+  const world = raw.id === "product-districts" ? await wireDistricts(built, raw, byId, problems) : built;
   // each region carries its step number ("2.3"), computed once from the world's order (src/lib/dsa/steps.ts)
   const steps = buildStepLabels(world, modules);
-  return { ...world, regions: world.regions.map((r) => ({ ...r, step: steps[r.module]?.step || "" })) };
-}, "dsa-world-v5");
+  return { ...world, regions: world.regions.map((r) => ({ ...r, step: r.step || steps[r.module]?.step || "" })) };
+}, "dsa-world-v6");
 
 /** Every module's learner label ("2.3 Linked lists" plus its building), from the Academy's parts and order. */
 export const getStepLabels = cached(async (): Promise<StepLabels> => {
@@ -387,11 +455,11 @@ export const getWorlds = cached(async (): Promise<WorldSummary[]> => {
       // the header lines only: a world file's regions can be long
       const head = src.split(/\n(?=regions:)/)[0];
       const w = yaml<RawWorld>(head);
-      return { id: w.id || id, title: w.title || humanize(id), subtitle: w.subtitle || "", order: w.order ?? 0, audience: w.audience || "", atLaunch: w.at_launch || "", open: worldOpen() } satisfies WorldSummary;
+      return { id: w.id || id, ...labelOf(w.id || id, w.title || humanize(id), w.subtitle || ""), order: w.order ?? 0, audience: w.audience || "", atLaunch: w.at_launch || "", open: worldOpen() } satisfies WorldSummary;
     }),
   );
   return out.filter((w): w is WorldSummary => !!w).sort((a, b) => a.order - b.order);
-}, "dsa-worlds-v1");
+}, "dsa-worlds-v2");
 
 /** Every mastery badge (src/lib/dsa/rewards.ts badgeDefsFor): one per module of each world, then the world itself. */
 export const getBadgeDefs = cached(async (): Promise<BadgeDef[]> => {
@@ -533,22 +601,14 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
   const byId = new Map(problems.map((p) => [p.id, p]));
   const practice = (f.practice || []).map((p) => byId.get(p)).filter((p): p is ProblemSummary => !!p);
 
-  // the checkpoint node whose quiz is this concept's (Academy map): its gate key
-  let checkpoint: ConceptPage["checkpoint"] = null;
-  const region = academy?.regions.find((r) => r.module === c.module);
-  for (const s of region?.stretches || []) {
-    const n = s.nodes.find((x) => x.type === "checkpoint" && x.quiz === `${c.module}/${id}`);
-    if (n && region) {
-      const num = n.id.match(/checkpoint-(\d+)$/)?.[1] || "1";
-      checkpoint = { nodeId: n.id, key: dsaKeys.gate("academy", region.id, num), pass: n.pass ?? 0.8, problems: n.problems || [] };
-    }
-  }
+  // the checkpoint node whose quiz is this concept's (Academy map), else its own lesson stop (lesson-stops.ts)
+  const checkpoint = checkpointFor("academy", academy?.regions.find((r) => r.module === c.module), c.module, id);
   const stepLabels = await getStepLabels();
   return {
     clips,
     id,
     module: c.module,
-    moduleTitle: stepOf(stepLabels, c.module).label,
+    moduleTitle: lessonLabel(stepLabels, c.module, lessonSlot(await getConceptIndex(), id)),
     regionTitle: stepOf(stepLabels, c.module).building,
     title: f.title || c.title,
     summary: c.summary,
@@ -572,7 +632,7 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
     practice,
     checkpoint,
   };
-}, "dsa-concept-v2");
+}, "dsa-concept-v3");
 
 export async function getConcept(id: string): Promise<ConceptPage | null> {
   if (!ID.test(id)) return null;

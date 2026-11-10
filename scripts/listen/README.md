@@ -13,8 +13,13 @@ https://media.himanshukukreja.in/listen/<key>/narration.mp3   mono MP3, 48 kbps 
         case/<slug>                  case files (/stories/<slug>; the admin CMS, else content/stories/)
         war/<slug>                   war stories (/learn/war-stories/<slug>; resources/war-stories/stories/)
         mock/<slug>                  mock interviews: the debrief's model answers (resources/mock-interviews/)
-        dsa/<module>/<concept>       DSA Mastery concept lessons (/dsa/concepts/<concept>; the dsa-mastery checkout:
-                                     DSA_LOCAL_DIR, else ../dsa-mastery; lesson.md and quiz.md must equal its origin/main)
+        dsa/<module>/<lesson>        DSA Mastery lessons of every kind: pattern concepts (resources/modules/, /dsa/concepts/<id>),
+                                     structure lessons (resources/structures/, /dsa/structures/<id>) and algorithm lessons
+                                     (resources/algorithms/, /dsa/algorithms/<id>); several lessons share a module, the lesson id
+                                     tells them apart. The dsa-mastery checkout: DSA_LOCAL_DIR, else ../dsa-mastery; lesson.md and
+                                     quiz.md must equal its origin/main (the batch fetches origin first)
+
+        node scripts/listen/batch.mjs --check --only dsa/     what a run would do (new / stale / unchanged / dirty and why), voicing nothing
 ```
 
 What each player reads:

@@ -105,8 +105,13 @@ function Segments({ fill, total, tone }: { fill: number; total: number; tone: "l
   );
 }
 
+/** Interview practice districts carry their opening wave; their stretches are streets, not sections. */
+const isDistrict = (r: WorldRegion) => r.opens !== undefined;
+const sectionWord = (r: WorldRegion) => (isDistrict(r) ? "Street" : "Section");
+
 function tileBody(b: Building, campusStarted: boolean) {
   const code = b.region.step || "";
+  const word = sectionWord(b.region).toLowerCase();
   const st = b.stretches[b.focus];
   const stretchesDone = b.stretches.filter((s) => s.complete).length;
   const problems = b.stretches.reduce((a, s) => a + s.practice, 0);
@@ -118,19 +123,21 @@ function tileBody(b: Building, campusStarted: boolean) {
         right: st && st.practice ? `${st.practiceDone} / ${st.practice}` : "",
         rightSr: st && st.practice ? `${st.practiceDone} of ${st.practice} problems in this stretch solved` : "",
         seg: st ? { fill: st.stepsDone, total: st.steps } : null,
-        line: st ? `Section ${st.index + 1} · ${st.title}` : "",
+        line: st ? `${sectionWord(b.region)} ${st.index + 1} · ${st.title}` : "",
       };
     case "cleared":
       return { left: code, right: "✓ Done", rightSr: "", seg: { fill: b.stretches.length, total: b.stretches.length }, line: "" };
     case "open":
       return {
+        // everything written so far is done but more is on the way: say so, not "In progress"
         left: `${code}${rec}`,
-        right: b.started ? "In progress" : "Open",
+        right: b.started ? (b.stretches.some((s) => !s.complete && s.steps > 0) ? "In progress" : "More soon") : "Open",
         rightSr: "",
         seg: { fill: stretchesDone, total: b.stretches.length },
-        line: `${b.stretches.length} ${b.stretches.length === 1 ? "section" : "sections"} · ${problems} practice problems`,
+        line: `${b.stretches.length} ${b.stretches.length === 1 ? word : `${word}s`} · ${problems} ${isDistrict(b.region) ? "problems" : "practice problems"}${b.soon ? " · more soon" : ""}`,
       };
     case "planned":
+      if (isDistrict(b.region)) return { left: code, right: "Soon", rightSr: "", seg: null, line: `${b.region.opens}${b.stretches.length ? ` · ${b.stretches.length} ${word}s` : ""}` };
       return { left: code, right: "Soon", rightSr: "", seg: null, line: b.concepts.length ? `${b.concepts.length} ${b.concepts.length === 1 ? "lesson" : "lessons"} · being written` : "Being written" };
     default:
       return { left: code, right: "Later", rightSr: "", seg: null, line: "Opens later" };
@@ -405,6 +412,20 @@ function BuildingPanel({
           {plainName(r)}
         </h2>
         {intro ? <p className="m-0 text-[14px] leading-relaxed text-fg-2">{intro}</p> : null}
+        {r.links?.length ? (
+          <p className="m-0 flex flex-wrap items-baseline gap-x-2.5 gap-y-1 font-mono text-[12px] text-fg-3">
+            <span>Practises:</span>
+            {r.links.map((l) =>
+              l.href ? (
+                <Link key={l.module} href={l.href} className="inline-flex min-h-8 items-center text-signal-text underline decoration-line-strong underline-offset-4">
+                  {l.label}
+                </Link>
+              ) : (
+                <span key={l.module}>{l.label}</span>
+              ),
+            )}
+          </p>
+        ) : null}
       </div>
 
       {full ? (
@@ -412,15 +433,22 @@ function BuildingPanel({
           <div className="flex flex-col border border-line bg-surface">
             <div className="flex items-baseline justify-between gap-3 bg-surface-2 px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-label text-fg-2">
               <span>
-                Section {st.index + 1} · {st.title}
+                {sectionWord(r)} {st.index + 1} · {st.title}
               </span>
               <span className="shrink-0">
-                <span aria-hidden>
-                  {st.stepsDone} / {st.steps}
-                </span>
-                <span className="sr-only">
-                  {st.stepsDone} of {st.steps} steps done
-                </span>
+                {st.steps ? (
+                  <>
+                    <span aria-hidden>
+                      {st.stepsDone} / {st.steps}
+                      {st.soon ? " · more soon" : ""}
+                    </span>
+                    <span className="sr-only">
+                      {st.stepsDone} of {st.steps} steps done{st.soon ? `, ${st.soon} more coming soon` : ""}
+                    </span>
+                  </>
+                ) : (
+                  "coming soon"
+                )}
               </span>
             </div>
             <ol className="m-0 list-none p-0">
@@ -440,6 +468,7 @@ function BuildingPanel({
                 );
               })}
             </ol>
+            {st.planned ? <p className="m-0 border-t border-line px-3.5 py-2.5 font-mono text-[12px] text-fg-3">{st.planned} more {st.planned === 1 ? "problem" : "problems"} being written for this street.</p> : null}
           </div>
 
           {primary || lec ? (
@@ -467,10 +496,10 @@ function BuildingPanel({
                       className="flex min-h-9 w-full items-center justify-between gap-3 text-left hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal"
                     >
                       <span>
-                        Section {s.index + 1} · {s.title}
+                        {sectionWord(r)} {s.index + 1} · {s.title}
                         <span className="sr-only">: show it</span>
                       </span>
-                      <span className="shrink-0">{s.complete ? "✓" : `${s.stepsDone}/${s.steps}`}</span>
+                      <span className="shrink-0">{s.complete ? "✓" : s.steps ? `${s.stepsDone}/${s.steps}` : "soon"}</span>
                     </button>
                   </li>
                 ),
@@ -489,10 +518,22 @@ function BuildingPanel({
       ) : (
         <div className="flex flex-col border border-dashed border-line-strong bg-surface-2">
           <div className="px-3.5 py-2.5 font-mono text-[11px] uppercase tracking-label text-fg-2">
-            {b.state === "later" ? `Opens with ${spec.title}` : "Being written"}
+            {b.state === "later" ? `Opens with ${spec.title}` : isDistrict(r) && r.opens ? `${r.opens} · being written` : "Being written"}
           </div>
           {b.state === "later" ? (
             <p className="m-0 border-t border-line px-3.5 py-3 text-[14px] leading-relaxed text-fg-2">{spec.atLaunch || "This world opens later."}</p>
+          ) : isDistrict(r) && b.stretches.length ? (
+            <ol className="m-0 list-none p-0">
+              {b.stretches.map((s) => (
+                <li key={s.id} className="flex min-h-11 items-center gap-3 border-t border-line px-3.5 py-2.5 text-fg-2">
+                  <span aria-hidden className="h-[22px] w-[22px] shrink-0 border border-dotted border-line-strong" />
+                  <span className="min-w-0 flex-1 text-[14px]">
+                    Street {s.index + 1} · {s.title}
+                  </span>
+                  <span className="shrink-0 font-mono text-[11px] text-fg-3">{s.planned ? `${s.planned} planned` : "soon"}</span>
+                </li>
+              ))}
+            </ol>
           ) : b.concepts.length ? (
             <ol className="m-0 list-none p-0">
               {b.concepts.map((n) => (
@@ -635,7 +676,9 @@ function WorldHeader({
           <span className="text-signal">.</span>
         </h2>
         <p className="m-0 max-w-[620px] text-[16px] leading-normal text-fg-2">
-          {spec.regions.length
+          {spec.id === "product-districts"
+            ? "Medium and Hard interview problems, by pattern. Each district has streets, which are problem sets on one skill, and ends with a district review. Everything is open: go in any order."
+            : spec.regions.length
             ? "One module after another. Each module has short sections: lessons teach, practice problems build the skill, and a checkpoint quiz ends the section. Everything is open: go in any order."
             : spec.audience}
         </p>
@@ -646,12 +689,12 @@ function WorldHeader({
             <div className="flex justify-between gap-3 font-mono text-[12px] text-fg-3">
               <span>{spec.title} progress</span>
               <span className="text-fg">
-                {cleared} of {n} modules done
+                {cleared} of {n} {spec.id === "product-districts" ? "districts" : "modules"} done
               </span>
             </div>
             <div
               role="progressbar"
-              aria-label={`${spec.title} modules done`}
+              aria-label={`${spec.title} ${spec.id === "product-districts" ? "districts" : "modules"} done`}
               aria-valuemin={0}
               aria-valuemax={n}
               aria-valuenow={cleared}

@@ -28,6 +28,7 @@ import { useReadingSettings } from "@/components/learn/reading/useReading";
 import { scrollToId } from "@/components/learn/lesson/layout";
 import { stagePosition, fmtMin } from "@/components/learn/lesson/stageText";
 import { DSA_COURSE_ID, dsaKeys, type ConceptPage } from "@/lib/dsa/types";
+import { mapHref } from "@/lib/dsa/lesson-stops";
 import DsaHydrator from "./DsaHydrator";
 import SolvedMark from "../problem/SolvedMark";
 import DsaCrumbs from "../DsaCrumbs";
@@ -210,7 +211,7 @@ function End({ c }: { c: ConceptPage }) {
             Start practice problem 1 →
           </Link>
         )}
-        <Link href={`/dsa?node=${encodeURIComponent(c.checkpoint?.nodeId || "")}`} className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">
+        <Link href={mapHref(c.checkpoint)} className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">
           Back to Learn
         </Link>
         <Link href={`/dsa/cheatsheets/${c.id}`} className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">

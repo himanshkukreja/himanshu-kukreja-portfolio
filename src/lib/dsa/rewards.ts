@@ -340,9 +340,14 @@ export const streakMilestones = (best: number) => STREAK_BITS.filter((m) => best
  * A mastery badge: a module (a world region) or a whole world. `need` lists the signals that must all be present:
  *   c:<concept> lesson finished   p:<problem> solved   q:<checkpoint node> quiz passed   l:<lab> lab passed
  *   b:<badge id> another badge (a world badge needs every module badge)
- * `ready` is false while any required stop isn't written yet: nobody earns a badge for an unfinished module.
+ * A module badge counts only the stops that are shipped (built): a module of 5 lessons where 2 are written can be
+ * earned for those 2, so it is never stuck unearnable while its later lessons are planned (a long module ships over
+ * several waves). `ready` means "at least one stop is shipped"; `pending` is how many required stops are still being
+ * written, shown as "N more on the way" and the reason the badge's list of needs grows when a lesson ships. An award
+ * is recorded once (DsaRewardsHost), so a learner who has earned a module badge keeps it when more lessons arrive.
+ * A world badge waits for everything: every module badge and no pending stop anywhere in the world.
  */
-export type BadgeDef = { id: string; kind: "module" | "world"; world: string; name: string; detail: string; code: string | null; need: string[]; ready: boolean; bits: number };
+export type BadgeDef = { id: string; kind: "module" | "world"; world: string; name: string; detail: string; code: string | null; need: string[]; ready: boolean; bits: number; /** required stops not written yet */ pending?: number };
 
 function nodeNeeds(n: WorldNode): string[] | null {
   if (n.type === "concept") return n.ref ? [`c:${n.ref}`] : null;
@@ -356,21 +361,34 @@ export function badgeDefsFor(spec: WorldSpec): BadgeDef[] {
   const mods: BadgeDef[] = [];
   for (const r of spec.regions) {
     const need: string[] = [];
-    let ready = true;
-    let any = false;
+    // a district (Interview practice) also counts the problems planned for it but not written yet
+    let pending = r.planned || 0;
+    let any = pending > 0;
     for (const st of r.stretches) {
       for (const n of st.nodes) {
         if (!n.required || n.type === "gate") continue;
         const k = nodeNeeds(n);
         if (!k) continue;
         any = true;
-        if (!n.built) ready = false;
-        need.push(...k);
+        if (!n.built) pending++;
+        else need.push(...k);
       }
     }
     if (!any) continue;
     const title = r.moduleTitle || r.title;
-    mods.push({ id: `module:${spec.id}:${r.id}`, kind: "module", world: spec.id, name: title, detail: `Every lesson, problem and checkpoint in ${title}.`, code: r.step || null, need: [...new Set(need)], ready, bits: BITS_TABLE.moduleBadge });
+    const ready = need.length > 0;
+    mods.push({
+      id: `module:${spec.id}:${r.id}`,
+      kind: "module",
+      world: spec.id,
+      name: title,
+      detail: pending ? `Every lesson, problem and checkpoint in ${title} that is out so far (${pending} more on the way).` : `Every lesson, problem and checkpoint in ${title}.`,
+      code: r.step || null,
+      need: [...new Set(need)],
+      ready,
+      bits: BITS_TABLE.moduleBadge,
+      pending,
+    });
   }
   if (!mods.length) return [];
   const world: BadgeDef = {
@@ -381,7 +399,7 @@ export function badgeDefsFor(spec: WorldSpec): BadgeDef[] {
     detail: `Every module badge in ${spec.title}.`,
     code: null,
     need: mods.map((m) => `b:${m.id}`),
-    ready: mods.every((m) => m.ready),
+    ready: mods.length === spec.regions.length && mods.every((m) => m.ready && !m.pending),
     bits: BITS_TABLE.worldBadge,
   };
   return [...mods, world];

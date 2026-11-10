@@ -84,7 +84,8 @@ export type WorldNode = {
   building?: string;
 };
 
-export type WorldStretch = { id: string; title: string; nodes: WorldNode[] };
+/** A stretch (Academy: a section; Interview practice: a street, one problem set). `planned` counts the street's problems not written yet. */
+export type WorldStretch = { id: string; title: string; nodes: WorldNode[]; planned?: number };
 
 export type WorldRegion = {
   id: string;
@@ -107,6 +108,12 @@ export type WorldRegion = {
   stretches: WorldStretch[];
   side: WorldNode[];
   boss: WorldNode | null;
+  /** Interview practice: when the district opens ("Opens at launch", "Opens with wave 3"), from its `opens` */
+  opens?: string;
+  /** Interview practice: the Academy lessons it practises (the region's `links`), by module; href is the first written lesson */
+  links?: { module: string; label: string; href: string | null }[];
+  /** Interview practice: problems planned for the district but not written yet (the built ones are its stops) */
+  planned?: number;
 };
 
 export type WorldSummary = { id: string; title: string; subtitle: string; order: number; audience: string; atLaunch: string; open: boolean };
@@ -153,7 +160,8 @@ export type Race = { id: string; title: string; unit: string; sizes: number[]; s
 
 export type DsaStage = { id: string; label: string; title: string; minutes: number };
 
-export type ConceptCheckpoint = { nodeId: string; key: string; pass: number; problems: { id: string; title: string; built: boolean }[] };
+/** `own` is false for a lesson with no checkpoint of its own: nodeId is then its lesson stop on the map (lesson-stops.ts). */
+export type ConceptCheckpoint = { nodeId: string; key: string; pass: number; problems: { id: string; title: string; built: boolean }[]; own?: boolean };
 
 export type ConceptPage = {
   /** in-article clips (clips.json) by id, for the lesson's ::clip figures */

@@ -92,9 +92,19 @@ export async function siteModules() {
   // DSA Mastery: its loader renders a concept exactly as the concept page does (development reads straight from the
   // checkout, never through Next's cache)
   const dsa = dsaDir();
-  if (dsa) process.env.DSA_LOCAL_DIR = dsa;
+  if (dsa) {
+    process.env.DSA_LOCAL_DIR = dsa;
+    // origin/main is what production serves: refresh it (best effort; offline keeps the last fetch)
+    try {
+      execFileSync("git", ["-C", dsa, "fetch", "-q", "origin", "main"], { stdio: "ignore", timeout: 30000 });
+    } catch {
+      // offline or not a checkout
+    }
+  }
   const dsaLoad = dsa ? await load("src/lib/dsa/load.ts") : null;
-  site = { github, render, extract, html, manifest, mcq, block, story, war, mock, stories, content: process.env.SDM_LOCAL_DIR, dsa, dsaLoad };
+  // structure and algorithm lessons (resources/structures/, resources/algorithms/) render through their own loader
+  const dsaStructures = dsa ? await load("src/lib/dsa/structures.ts") : null;
+  site = { github, render, extract, html, manifest, mcq, block, story, war, mock, stories, content: process.env.SDM_LOCAL_DIR, dsa, dsaLoad, dsaStructures };
   return site;
 }
 
@@ -145,11 +155,23 @@ export async function listArticles() {
     const slug = f.replace(/\.md$/, "");
     out.push({ key: manifest.listenKey("mock", "", slug), kind: "mock", week: "mock-interviews", slug, repo: "content", path: `resources/mock-interviews/${f}`, href: `/mock/${slug}` });
   }
-  // DSA Mastery: every built concept's lesson (resources/concepts.yml order), voiced as its concept page shows it
+  // DSA Mastery: every built lesson (resources/concepts.yml order), voiced as its page shows it: pattern concepts
+  // (resources/modules/), structure lessons (resources/structures/) and algorithm lessons (resources/algorithms/),
+  // keyed dsa/<module>/<lesson> whatever the kind. Several lessons share a module: the lesson id tells them apart.
   if (site.dsaLoad) {
     for (const c of (await site.dsaLoad.getConceptIndex()).filter((x) => x.status === "built")) {
-      const dir = `resources/modules/${c.module}/${c.id}`;
-      out.push({ key: manifest.listenKey("dsa", c.module, c.id), kind: "dsa", week: c.module, slug: c.id, repo: "dsa", path: `${dir}/lesson.md`, also: [`${dir}/quiz.md`], href: `/dsa/concepts/${c.id}` });
+      const dir = site.dsaLoad.lessonDir(c);
+      out.push({
+        key: manifest.listenKey("dsa", c.module, c.id),
+        kind: "dsa",
+        dsaKind: c.kind || "pattern",
+        week: c.module,
+        slug: c.id,
+        repo: "dsa",
+        path: `${dir}/lesson.md`,
+        also: [`${dir}/quiz.md`],
+        href: site.dsaLoad.lessonHref(c),
+      });
     }
   }
   // stable: course order (or file name) within each group
@@ -209,9 +231,9 @@ function mockListenHtml(phases) {
 
 /** The HTML the page gives the player's root (null: nothing to voice), and whether its first element is the root. */
 export async function articleHtml(a) {
-  const { github, render, mcq, block, story, war, mock, dsaLoad } = await siteModules();
+  const { github, render, mcq, block, story, war, mock, dsaLoad, dsaStructures } = await siteModules();
   if (a.kind === "dsa") {
-    const c = dsaLoad ? await dsaLoad.getConcept(a.slug) : null;
+    const c = a.dsaKind === "structure" || a.dsaKind === "algorithm" ? await dsaStructures?.getStructure(a.slug) : dsaLoad ? await dsaLoad.getConcept(a.slug) : null;
     return c ? { md: fs.readFileSync(path.join(await repoDir(a), a.path), "utf8"), html: c.html, scoped: false } : null;
   }
   if (a.kind === "case") {
@@ -309,6 +331,30 @@ function runTts(itemsFile, onProgress) {
   });
 }
 
+/**
+ * What a batch run would do with one article, without voicing it: "dirty" (its files differ from origin/main, or are
+ * missing there), "skipped", "new" (no recording yet), "stale" (the text changed since it was voiced) or "unchanged".
+ */
+export async function listenStatus(a, { out, allowDirty = false } = {}) {
+  if (!allowDirty && !(await isPublished(a))) return { key: a.key, status: "dirty", note: dirtyNote(a, await repoDir(a)) };
+  const t = await articleText(a);
+  if (!t) return { key: a.key, status: "skipped", note: "nothing to voice" };
+  if (!t.blocks.length) return { key: a.key, status: "skipped", note: "nothing to read" };
+  const manFile = path.join(out, a.key, "listen.json");
+  if (!fs.existsSync(manFile) || !fs.existsSync(path.join(out, a.key, "narration.mp3"))) return { key: a.key, status: "new", words: t.words };
+  const old = JSON.parse(fs.readFileSync(manFile, "utf8"));
+  return { key: a.key, status: old.source === t.source && old.voice === VOICE && old.speed === SPEED ? "unchanged" : "stale", words: t.words };
+}
+
+/** why an article is "dirty": the file itself (missing on origin/main, or edited) and what to do about it */
+function dirtyNote(a, repo) {
+  const files = [a.path, ...(a.also || [])];
+  const bad = files.filter((p) => !onMain(repo, p));
+  const missing = bad.filter((p) => !fs.existsSync(path.join(repo, p)));
+  if (missing.length) return `${missing.join(", ")} is missing from ${repo}`;
+  return `${bad.join(", ")} differs from origin/main in ${repo} (production would not match; update the checkout to origin/main, or --allow-dirty to voice it anyway)`;
+}
+
 const fmtTime = (s) => `${Math.floor(s / 60)}m${String(Math.round(s % 60)).padStart(2, "0")}s`;
 
 /**
@@ -316,7 +362,7 @@ const fmtTime = (s) => `${Math.floor(s / 60)}m${String(Math.round(s % 60)).padSt
  * from the same text (unless force). Returns what happened, with timings for the speed log.
  */
 export async function buildArticle(a, { out, force = false, allowDirty = false, keepWav = false, log = console.log } = {}) {
-  if (!allowDirty && !(await isPublished(a))) return { key: a.key, status: "dirty", note: `${a.path} differs from origin/main in ${await repoDir(a)} (production would not match; --allow-dirty to voice it anyway)` };
+  if (!allowDirty && !(await isPublished(a))) return { key: a.key, status: "dirty", note: dirtyNote(a, await repoDir(a)) };
   const t = await articleText(a);
   if (!t) return { key: a.key, status: "skipped", note: a.kind === "mock" ? "no phases" : a.kind === "war" ? "not a valid war story" : "MCQ document" };
   if (!t.blocks.length) return { key: a.key, status: "skipped", note: "nothing to read" };

@@ -140,8 +140,8 @@ function List({ rows, sort, d }: { rows: FilterRow[]; sort: SortId; d: ProblemDa
   }
   // each section: its course step ("2.2 Hashing") above the lesson's title; problems numbered 1, 2, 3… within it
   const stepOf = (m: string) => d.steps.find((s) => s.id === m)?.label || "";
-  const lessonHref = (g: { concept: string; module: string }) =>
-    /^s\d/.test(g.module) ? `/dsa/structures/${g.concept}` : /^a\d/.test(g.module) ? `/dsa/algorithms/${g.concept}` : d.concepts[g.concept] ? `/dsa/concepts/${g.concept}` : null;
+  // only written lessons link; a planned one shows its step label above and "lesson coming soon" (never a 404)
+  const lessonHref = (g: { concept: string }) => d.lessons[g.concept] || null;
   return (
     <div className="flex flex-col gap-8">
       {groups.map((g) => (
@@ -153,11 +153,13 @@ function List({ rows, sort, d }: { rows: FilterRow[]; sort: SortId; d: ProblemDa
                 {d.concepts[g.concept] || (stepOf(g.module) ? `${stepOf(g.module).replace(/^[\d.]+\s*/, "")}: more practice` : "More practice")}
               </h2>
             </div>
-            {lessonHref(g) && (
+            {lessonHref(g) ? (
               <Link href={lessonHref(g)!} className="inline-flex min-h-10 items-center font-mono text-[12px] text-signal-text underline decoration-line-strong underline-offset-4">
                 the lesson →
               </Link>
-            )}
+            ) : d.concepts[g.concept] ? (
+              <span className="font-mono text-[12px] text-fg-3">lesson coming soon</span>
+            ) : null}
           </div>
           <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
             {g.rows.map((p, i) => (

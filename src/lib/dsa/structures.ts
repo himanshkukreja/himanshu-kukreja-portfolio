@@ -5,7 +5,8 @@ import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
 import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getStepLabels, getWorld, lessonDir, sdmLinker } from "./load";
-import { stepOf } from "./steps";
+import { lessonLabel, lessonSlot, stepOf } from "./steps";
+import { checkpointFor, warmupsIntro } from "./lesson-stops";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import { dsaKeys, type ConceptCheckpoint, type DsaLang, type DsaStage, type ProblemSummary } from "./types";
 import type { GridDemo, DpDemo, DpVisualizerSpec, StringsDemo, StringsVisualizerSpec, BitsDemo, BitsVisualizerSpec, GridVisualizerSpec, IntervalsDemo, IntervalsVisualizerSpec, PathDemo, SandboxDemo, SandboxSpec, VisualizerSpec } from "./viz/registry";
@@ -69,6 +70,8 @@ export type StructurePage = {
   lab: LabBundle | null;
   reviewCards: { front: string; back: string }[];
   practice: ProblemSummary[];
+  /** the text above the warm-ups, per lesson */
+  warmupsIntro: string;
   checkpoint: ConceptCheckpoint | null;
 };
 
@@ -87,6 +90,8 @@ type Front = {
   visualizer?: string;
   lab?: string;
   reviewCards?: { front: string; back: string }[];
+  /** the text above the warm-up problems (optional: a plain line is made from the title) */
+  warmups?: string;
 };
 
 const STARTERS: [DsaLang, string][] = [
@@ -163,15 +168,7 @@ async function build(id: string): Promise<StructurePage | null> {
   const byId = new Map(problems.map((p) => [p.id, p]));
   const practice = (f.practice || []).map((p) => byId.get(p)).filter((p): p is ProblemSummary => !!p);
 
-  let checkpoint: ConceptCheckpoint | null = null;
-  const region = academy?.regions.find((r) => r.module === c.module);
-  for (const s of region?.stretches || []) {
-    const n = s.nodes.find((x) => x.type === "checkpoint" && x.quiz === `${c.module}/${id}`);
-    if (n && region) {
-      const num = n.id.match(/checkpoint-(\d+)$/)?.[1] || "1";
-      checkpoint = { nodeId: n.id, key: dsaKeys.gate("academy", region.id, num), pass: n.pass ?? 0.8, problems: n.problems || [] };
-    }
-  }
+  const checkpoint: ConceptCheckpoint | null = checkpointFor("academy", academy?.regions.find((r) => r.module === c.module), c.module, id);
 
   const raw = labYml ? yaml<(LabSpec & { mode?: string }) | FunctionLabSpec>(labYml) : null;
   const starterMap = Object.fromEntries(STARTERS.map(([l], i) => [l, (starters[i] as string | null) || ""]).filter(([, s]) => s)) as Partial<Record<DsaLang, string>>;
@@ -200,7 +197,7 @@ async function build(id: string): Promise<StructurePage | null> {
     id,
     kind: algorithm ? "algorithm" : "structure",
     module: c.module,
-    moduleTitle: stepOf(await getStepLabels(), c.module).label,
+    moduleTitle: lessonLabel(await getStepLabels(), c.module, lessonSlot(concepts, id)),
     regionTitle: stepOf(await getStepLabels(), c.module).building,
     title: f.title || c.title,
     summary: c.summary,
@@ -221,11 +218,12 @@ async function build(id: string): Promise<StructurePage | null> {
     lab,
     reviewCards: f.reviewCards || [],
     practice,
+    warmupsIntro: warmupsIntro({ id, title: f.title || c.title, warmups: f.warmups }),
     checkpoint,
   };
 }
 
-const cachedBuild = unstable_cache(build, ["dsa-structure-v3"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cachedBuild = unstable_cache(build, ["dsa-structure-v4"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 export async function getStructure(id: string): Promise<StructurePage | null> {
   if (!ID.test(id)) return null;
