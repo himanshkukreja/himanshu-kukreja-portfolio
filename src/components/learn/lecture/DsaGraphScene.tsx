@@ -56,7 +56,7 @@ function showAt(s: LectureScene, st: LectureStep): Show {
 }
 
 /** A shortest-path field (`dist`, `done` or `heap`): the latest one set by this or an earlier step of the scene. */
-function stickyOf<K extends "dist" | "done" | "heap" | "indeg" | "ready" | "topo" | "stuck">(s: LectureScene, st: LectureStep, key: K): LectureStep[K] | undefined {
+function stickyOf<K extends "dist" | "done" | "heap" | "indeg" | "ready" | "topo" | "stuck" | "parent" | "size">(s: LectureScene, st: LectureStep, key: K): LectureStep[K] | undefined {
   const at = s.steps.indexOf(st);
   for (let i = at; i >= 0; i--) if (s.steps[i][key] !== undefined) return s.steps[i][key];
   return undefined;
@@ -72,9 +72,12 @@ export function graphStateOf(s: LectureScene, st: LectureStep): GraphState {
   const ready = stickyOf(s, st, "ready");
   const topo = stickyOf(s, st, "topo");
   const stuck = stickyOf(s, st, "stuck");
+  const parent = stickyOf(s, st, "parent");
+  const size = stickyOf(s, st, "size");
   return {
     n: s.vertices ?? 5,
-    edges: edgesAt(s, st).map((x) => ({ a: x[0], b: x[1], w: x.length > 2 ? x[2] : null })),
+    // union-find: the arrows are the parent pointers, from each child to its parent
+    edges: parent ? parent.flatMap((p, i) => (p === i ? [] : [{ a: i, b: p, w: null }])) : edgesAt(s, st).map((x) => ({ a: x[0], b: x[1], w: x.length > 2 ? x[2] : null })),
     directed: !!s.directed,
     current: st.current ?? null,
     mark: st.mark ?? [],
@@ -85,6 +88,7 @@ export function graphStateOf(s: LectureScene, st: LectureStep): GraphState {
     show: showAt(s, st),
     ...(dist ? { dist, done: done ?? [] } : {}),
     ...(indeg ? { indeg, ready: ready ?? [], topo: topo ?? [], ...(stuck ? { stuck } : {}) } : {}),
+    ...(parent ? { parent, size: size ?? parent.map(() => 1) } : {}),
     ...(heap ? { heap: heap.map((h) => (h.length > 2 ? ([h[0], h[1], h[2]] as [number, number, number]) : ([h[0], h[1]] as [number, number]))) } : {}),
   };
 }
