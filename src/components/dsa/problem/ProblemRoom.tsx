@@ -599,9 +599,11 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
               </div>
             ) : editorial.state === "ready" ? (
               <div ref={editorialRef} className="flex flex-col gap-4">
-                {editorial.video && <SolutionVideo video={editorial.video} lang={lang} />}
+                {editorial.video && <SolutionVideo video={editorial.video} lang={lang} title={p.title} />}
                 <Html html={editorial.html} />
                 <DsaHydrator rootRef={editorialRef} deps={editorial.html.length.toString()} />
+                {/* the code blocks' Copy (and other chrome) buttons: outside any .course-content, so it binds the editorial's */}
+                <CourseEnhancer lessonKey={`dsa/${p.id}/editorial`} />
               </div>
             ) : editorial.state === "error" ? (
               <p className="m-0 text-[14px] text-bad-text">The editorial couldn&apos;t load. Please try again.</p>

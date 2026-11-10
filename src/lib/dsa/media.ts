@@ -120,6 +120,8 @@ export async function listDsaShorts(opts: { includeUnpublished?: boolean } = {})
 
 /** A problem's solution video as the Editorial tab plays it (src/components/dsa/problem/SolutionVideo.tsx). */
 export type SolutionVideoData = {
+  /** what the course's lecture player needs (captions, music, speed, chapters, like SD Mastery's videos) */
+  player: { lecture: Lecture; quest: string; source: string; mediaBase: string };
   src: string;
   poster: string;
   /** WebVTT text (the tab makes a same-origin track of it, so captions need no CORS) */
@@ -154,7 +156,7 @@ export async function solutionVideoFor(id: string): Promise<SolutionVideoData | 
       n += s.steps.length;
       return { title: s.title, at: Number(at.toFixed(2)) };
     });
-    return { src: `${base}/${l.quest}/video.mp4?v=${v}`, poster: `${base}/${l.quest}/poster.jpg?v=${v}`, captions: vtt, chapters, duration: Number(m.duration) || 0 };
+    return { player: { lecture: l, quest: l.quest, source: v, mediaBase: base }, src: `${base}/${l.quest}/video.mp4?v=${v}`, poster: `${base}/${l.quest}/poster.jpg?v=${v}`, captions: vtt, chapters, duration: Number(m.duration) || 0 };
   } catch {
     return null;
   }
