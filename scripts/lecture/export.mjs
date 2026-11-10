@@ -66,7 +66,7 @@ const SAY_AS = { NPCI: "N P C I", UPI: "U P I", PSP: "P S P", RBI: "R B I", SBI:
 // "database", units, mixed-case names).
 // ...except the few it reads as a word ("ONDC" came out as "onk", "SSE" as "SSC")
 const SPELL_OUT = new Set(["ONDC", "SSE", "TPOT", "ITPM", "OTPM", "IVF", "NETC", "IHMCL", "NHAI"]);
-const wordy = (w) => SAY_AS[w] !== undefined && (SAY_AS[w].replace(/\s/g, "") !== w || SPELL_OUT.has(w));
+const wordy = (w) => Object.hasOwn(SAY_AS, w) && (SAY_AS[w].replace(/\s/g, "") !== w || SPELL_OUT.has(w));
 // lower-case technical words the voice gets wrong
 const SAY_LOWER = { epoll: "E poll", kqueue: "K queue", mmap: "M map", io_uring: "I O uring", stdin: "standard in", stdout: "standard out", nginx: "engine X", sqlite: "S Q lite", kubectl: "kube control", syncer: "sync-er", syncers: "sync-ers", "in-app": "inn app", dedup: "dee-dupe", deduped: "dee-duped", dedupe: "dee-dupe", prefill: "pre-fill", debounce: "dee-bounce", debounced: "dee-bounced", debouncing: "dee-bouncing", curr: "current", prev: "previous", kale: "kaa-lay", joote: "joo-tay", kalonji: "ka-lonji" };
 const speakable = (t) =>
