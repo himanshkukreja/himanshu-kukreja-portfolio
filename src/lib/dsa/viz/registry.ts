@@ -13,6 +13,7 @@ import { GRAPH_OPS, graphMemoryPicture, makeGraph, runGraphOp, verticesFor, type
 import type { Frame, Script } from "./types";
 import { makeTrie, runTrieOp, trieMemoryPicture, TRIE_OPS, type TrieOp, type TrieOpName } from "./trie";
 import { gridSearch, parseGrid } from "./grid";
+import { pathScript, type PathAlgo, type PathEdge } from "./shortest";
 
 export type SandboxDemo = {
   id: string;
@@ -312,7 +313,7 @@ export type GridDemo = {
   /** stop at G (default true when the grid has one); false explores every reachable cell (flood fill) */
   goal?: boolean;
 };
-export type VisualizerSpec = {
+export type GridVisualizerSpec = {
   id: string;
   view: "grid";
   title: string;
@@ -323,9 +324,42 @@ export type VisualizerSpec = {
   demos: GridDemo[];
 };
 
-export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const } };
+/** A weighted directed map for the shortest-path visualizer (A2): `n` vertices on a ring and [from, to, cost] edges. */
+export type PathPreset = { id: string; title: string; note?: string; n: number; edges: PathEdge[]; source: number; target?: number };
+export type PathDemo = {
+  id: string;
+  title: string;
+  algorithm: PathAlgo;
+  /** a preset id from the visualizer, or the map itself */
+  preset?: string;
+  n?: number;
+  edges?: PathEdge[];
+  source?: number;
+  target?: number;
+  predict?: boolean;
+};
+export type PathVisualizerSpec = {
+  id: string;
+  view: "graph";
+  title: string;
+  algorithms: PathAlgo[];
+  cost: string;
+  limits: { vertices: [number, number]; weights: [number, number] };
+  presets: PathPreset[];
+  demos: PathDemo[];
+};
+export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec;
 
-export const isGridDemo = (d: SandboxDemo | GridDemo): d is GridDemo => "algorithm" in d;
+export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford"] as const } };
+
+export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford");
+export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
+
+export function pathDemoScript(d: PathDemo): Script {
+  const n = d.n ?? 0;
+  if (!d.edges || n < 2) return { view: "array", title: d.title, costUnit: "steps", frames: [{ state: { values: [], pointers: {}, mark: [], moved: [], dim: [] }, note: "No map.", cost: 0 }] };
+  return pathScript(d.algorithm, { n, edges: d.edges }, d.source ?? 0, d.target ?? null, { predict: d.predict, title: d.title }) as Script;
+}
 
 export function gridDemoScript(d: GridDemo, presets: GridPreset[] = []): Script {
   const rows = d.grid || presets.find((p) => p.id === d.preset)?.grid || [];

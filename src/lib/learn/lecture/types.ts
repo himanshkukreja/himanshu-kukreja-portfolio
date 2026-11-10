@@ -69,6 +69,10 @@ export type LectureStep = {
   edges?: number[][];
   edge?: number[];
   show?: "graph" | "list" | "matrix" | "both" | "all";
+  /** DSA graph scenes, shortest paths (A2): each vertex's distance (null: not reached), the vertices whose distance is final and Dijkstra's waiting heap as [distance, vertex] entries (a third item of 1 marks a stale one); each stays until a later step sets it again */
+  dist?: (number | null)[];
+  done?: number[];
+  heap?: number[][];
   /** DSA trie scenes: the words after this step, a half-inserted word, the prefix walked (the node in focus), new and lit nodes (prefixes), the end marker in focus */
   words?: string[];
   grow?: string;

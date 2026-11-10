@@ -268,6 +268,12 @@ export type GraphState = {
   out: string | null;
   /** what to draw: the graph alone, the list alone, the matrix alone, the graph and its list (default), or all three */
   show: "graph" | "list" | "matrix" | "both" | "all";
+  /** shortest-path runs (Academy Part 3, A2): each vertex's best known distance (null: not reached yet), drawn as a distance table beside the graph */
+  dist?: (number | null)[];
+  /** the vertices whose distance is final */
+  done?: number[];
+  /** Dijkstra's waiting heap, smallest first: (distance, vertex), with a third item of 1 when the entry is stale */
+  heap?: [number, number, number?][];
 };
 
 /* ------------------------------------------------------------------ the trie state ("trie" view) */

@@ -109,6 +109,9 @@ for (const s of L.scenes || []) {
       if (st.show !== undefined && !["graph", "list", "matrix", "both", "all"].includes(st.show)) errs.push(`${s.id}#${k}: show is graph, list, matrix, both or all`);
       for (const key of ["mark", "path"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every((v) => Number.isInteger(v) && v >= 0 && v < nV))) errs.push(`${s.id}#${k}: ${key} lists vertices 0..${nV - 1}`);
       if (st.current !== undefined && st.current !== null && !(Number.isInteger(st.current) && st.current >= 0 && st.current < nV)) errs.push(`${s.id}#${k}: current is not a vertex`);
+      if (st.dist !== undefined && !(Array.isArray(st.dist) && st.dist.length === nV && st.dist.every((d) => d === null || Number.isInteger(d)))) errs.push(`${s.id}#${k}: dist has one distance (a whole number, or null for not reached) for each of the ${nV} vertices`);
+      if (st.done !== undefined && !(Array.isArray(st.done) && st.done.every((v) => Number.isInteger(v) && v >= 0 && v < nV) && new Set(st.done).size === st.done.length)) errs.push(`${s.id}#${k}: done lists distinct vertices 0..${nV - 1}`);
+      if (st.heap !== undefined && !(Array.isArray(st.heap) && st.heap.length <= 8 && st.heap.every((h) => Array.isArray(h) && (h.length === 2 || h.length === 3) && h.every(Number.isInteger) && h[1] >= 0 && h[1] < nV))) errs.push(`${s.id}#${k}: heap is up to 8 entries [distance, vertex] (a third item of 1 marks a stale entry)`);
     }
   }
   if (s.kind === "trie") {

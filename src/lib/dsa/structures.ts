@@ -7,7 +7,7 @@ import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
 import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getWorld, lessonDir, sdmLinker } from "./load";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import { dsaKeys, type ConceptCheckpoint, type DsaLang, type DsaStage, type ProblemSummary } from "./types";
-import type { GridDemo, SandboxDemo, SandboxSpec, VisualizerSpec } from "./viz/registry";
+import type { GridDemo, GridVisualizerSpec, PathDemo, SandboxDemo, SandboxSpec, VisualizerSpec } from "./viz/registry";
 import type { LabCase, LabSpec } from "./design-harness";
 import type { DsaSignature } from "./types";
 
@@ -62,7 +62,7 @@ export type StructurePage = {
   contentVersion: string;
   sandbox: SandboxSpec | null;
   visualizer: VisualizerSpec | null;
-  demos: Record<string, SandboxDemo | GridDemo>;
+  demos: Record<string, SandboxDemo | GridDemo | PathDemo>;
   /** in-article clips by id (clips.json, placed with ::clip[id]) */
   clips: Record<string, LessonClipData>;
   lab: LabBundle | null;
@@ -132,9 +132,15 @@ async function build(id: string): Promise<StructurePage | null> {
   const sandbox = sandboxYml && !algorithm ? yaml<SandboxSpec>(sandboxYml) : null;
   const visualizer = sandboxYml && algorithm ? yaml<VisualizerSpec>(sandboxYml) : null;
   // a grid demo that names a preset carries the preset's grid, so the client needs nothing else
-  const demos: Record<string, SandboxDemo | GridDemo> = Object.fromEntries([
+  // (a weighted-map demo likewise carries its preset's vertices, edges, source and target)
+  const demos: Record<string, SandboxDemo | GridDemo | PathDemo> = Object.fromEntries([
     ...(sandbox?.demos || []).map((d) => [d.id, d] as const),
-    ...(visualizer?.demos || []).map((d) => [d.id, { ...d, grid: d.grid || visualizer!.presets.find((p) => p.id === d.preset)?.grid }] as const),
+    ...(visualizer?.view === "graph"
+      ? visualizer.demos.map((d) => {
+          const p = visualizer.presets.find((x) => x.id === d.preset);
+          return [d.id, { ...d, n: d.n ?? p?.n, edges: d.edges ?? p?.edges, source: d.source ?? p?.source, target: d.target ?? p?.target }] as const;
+        })
+      : (visualizer?.demos || []).map((d) => [d.id, { ...d, grid: d.grid || (visualizer as GridVisualizerSpec).presets.find((p) => p.id === d.preset)?.grid }] as const)),
   ]);
   const titles = Object.fromEntries(Object.values(demos).map((d) => [d.id, d.title]));
   // a saved copy keeps each clip's files (the video carries the narration; media.json times the captions)

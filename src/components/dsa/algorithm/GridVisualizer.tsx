@@ -12,7 +12,7 @@
 import { useMemo, useRef, useState } from "react";
 import { gridRows, gridSearch, parseGrid, stillGrid, type GridModel } from "@/lib/dsa/viz/grid";
 import type { SearchResult } from "@/lib/dsa/viz/search";
-import type { VisualizerSpec } from "@/lib/dsa/viz/registry";
+import type { GridVisualizerSpec as VisualizerSpec } from "@/lib/dsa/viz/registry";
 import type { Script } from "@/lib/dsa/viz/types";
 import { track } from "@/lib/track";
 import StepPlayer from "../viz/StepPlayer";

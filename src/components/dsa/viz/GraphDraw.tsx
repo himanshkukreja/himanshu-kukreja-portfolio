@@ -21,7 +21,9 @@ export function describeGraph(s: GraphState): string {
   const list = s.edges.map((x) => `${x.a}${s.directed ? " to " : " and "}${x.b}${x.w !== null ? ` (weight ${x.w})` : ""}`).join(", ");
   const cur = s.current !== null ? ` Working on vertex ${s.current}.` : "";
   const ed = s.edge ? ` Edge ${s.edge[0]} ${s.directed ? "to" : "and"} ${s.edge[1]} in focus.` : "";
-  return `${s.directed ? "Directed" : "Undirected"} graph of ${s.n} vertices and ${e} edge${e === 1 ? "" : "s"}${e ? `: ${list}` : ""}.${cur}${ed}${s.out ? ` ${s.out}.` : ""}`;
+  const dist = s.dist ? ` Distances: ${s.dist.map((d, i) => `${i} ${d === null ? "not reached" : d}${s.done?.includes(i) ? " (final)" : ""}`).join(", ")}.` : "";
+  const heap = s.heap ? ` Heap: ${s.heap.length ? s.heap.map((h) => `${h[0]} for ${h[1]}${h[2] ? " (stale)" : ""}`).join(", ") : "empty"}.` : "";
+  return `${s.directed ? "Directed" : "Undirected"} graph of ${s.n} vertices and ${e} edge${e === 1 ? "" : "s"}${e ? `: ${list}` : ""}.${cur}${ed}${dist}${heap}${s.out ? ` ${s.out}.` : ""}`;
 }
 
 const isEdge = (s: GraphState, a: number, b: number) => !!s.edge && ((s.edge[0] === a && s.edge[1] === b) || (!s.directed && s.edge[0] === b && s.edge[1] === a));
@@ -38,6 +40,7 @@ function GraphSvg({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number 
   };
   const mark = new Set(s.mark);
   const path = new Set(s.path);
+  const done = new Set(s.done ?? []);
   const labelsAt = new Map<number, string[]>();
   for (const [name, id] of Object.entries(s.labels)) if (id !== null && id < s.n) labelsAt.set(id, [...(labelsAt.get(id) ?? []), name]);
   return (
@@ -76,7 +79,7 @@ function GraphSvg({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number 
       {Array.from({ length: s.n }, (_, i) => {
         const { x, y } = pos(i);
         const cur = s.current === i;
-        const lit = mark.has(i) || path.has(i);
+        const lit = mark.has(i) || path.has(i) || done.has(i);
         return (
           <g key={i}>
             <circle cx={x} cy={y} r={R} fill={cur ? pal.sig : lit ? pal.hl : pal.surface} stroke={cur || lit ? pal.sig : pal.stroke} strokeWidth={cur ? 3.2 : lit ? 2.4 : 1.6} />
@@ -177,6 +180,54 @@ function MatrixSvg({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number
   );
 }
 
+/** The distance table (one row for each vertex) and Dijkstra's waiting heap, beside the graph. */
+function DistPanel({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number }) {
+  const dist = s.dist ?? [];
+  const done = new Set(s.done ?? []);
+  const lit = new Set(s.mark);
+  const cell: React.CSSProperties = { padding: "2px 8px", fontFamily: MONO, fontWeight: 700, fontSize: `${12.5 * fs}px`, textAlign: "center", borderBottom: `1px solid ${pal.faint}` };
+  const head: React.CSSProperties = { ...cell, fontWeight: 500, fontSize: `${11 * fs}px`, color: pal.sub };
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", color: pal.ink }}>
+        <thead>
+          <tr>
+            <th style={head}>vertex</th>
+            <th style={head}>distance</th>
+            {s.done && <th style={head}>final</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {dist.map((d, i) => {
+            const cur = s.current === i;
+            return (
+              <tr key={i} style={{ background: cur ? pal.sig : lit.has(i) ? pal.hl : "transparent", color: cur ? pal.onSig : pal.ink }}>
+                <td style={cell}>{i}</td>
+                <td style={{ ...cell, color: d === null && !cur ? pal.sub : undefined }}>{d === null ? "∞" : d}</td>
+                {s.done && <td style={cell}>{done.has(i) ? "✓" : ""}</td>}
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {s.heap && (
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5 }}>
+          <span style={{ fontFamily: MONO, fontSize: `${11 * fs}px`, color: pal.sub, marginRight: 2 }}>heap</span>
+          {s.heap.length === 0 && <span style={{ fontFamily: MONO, fontSize: `${12 * fs}px`, color: pal.sub }}>empty</span>}
+          {s.heap.map((h, k) => {
+            const top = k === 0 && !h[2];
+            return (
+              <span key={k} style={{ fontFamily: MONO, fontWeight: 700, fontSize: `${12 * fs}px`, padding: "2px 6px", border: `1.4px solid ${top ? pal.sig : pal.stroke}`, background: top ? pal.hl : pal.surface, color: h[2] ? pal.sub : pal.ink, textDecoration: h[2] ? "line-through" : "none" }}>
+                ({h[0]}, {h[1]})
+              </span>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function GraphDraw({
   state,
   pal,
@@ -199,14 +250,21 @@ export default function GraphDraw({
   const g = state.show === "graph" || state.show === "both" || state.show === "all";
   const list = state.show === "list" || state.show === "both" || state.show === "all";
   const matrix = state.show === "matrix" || state.show === "all";
-  const panels = [g, list, matrix].filter(Boolean).length;
+  const table = !!state.dist;
+  const panels = [g, list, matrix, table].filter(Boolean).length;
   const side = !stack && panels > 1;
+  const bad = ["no", "no such edge", "wrong answer", "too late", "negative cycle"].includes(state.out ?? "");
   return (
     <div className={className} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, ...style }} role="img" aria-label={describeGraph(state)}>
       <div style={{ display: "flex", flexDirection: side ? "row" : "column", alignItems: side ? "center" : "stretch", justifyContent: "center", gap: 14, width: "100%" }}>
         {g && (
           <div style={{ flex: side ? "1 1 0" : undefined, minWidth: 0, width: side ? undefined : "min(100%, 340px)", margin: side ? undefined : "0 auto" }}>
             <GraphSvg s={state} pal={pal} fs={fs} />
+          </div>
+        )}
+        {table && (
+          <div style={{ flex: side ? "1 1 0" : undefined, minWidth: 0, width: side ? undefined : "min(100%, 340px)", margin: side ? undefined : "0 auto" }}>
+            <DistPanel s={state} pal={pal} fs={fs} />
           </div>
         )}
         {(list || matrix) && (
@@ -217,7 +275,7 @@ export default function GraphDraw({
         )}
       </div>
       {state.out && (
-        <span style={{ background: state.out === "no" || state.out === "no such edge" ? pal.bad : pal.pillBg, color: state.out === "no" || state.out === "no such edge" ? pal.badInk : pal.pillInk, fontFamily: MONO, fontWeight: 700, fontSize: `${13 * fs}px`, padding: "3px 10px" }}>{state.out}</span>
+        <span style={{ background: bad ? pal.bad : pal.pillBg, color: bad ? pal.badInk : pal.pillInk, fontFamily: MONO, fontWeight: 700, fontSize: `${13 * fs}px`, padding: "3px 10px" }}>{state.out}</span>
       )}
     </div>
   );

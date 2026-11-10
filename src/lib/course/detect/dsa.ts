@@ -335,7 +335,7 @@ export async function dsaLeaf(node: LeafDirective, ctx: BlockCtx): Promise<AnyNo
       return widget("clip", { dataId: label, dataOfflineMedia: c.files.join(" ") || undefined }, c.caption);
     }
     case "visualizer":
-      return widget("visualizer", { dataId: label }, "The visualizer: draw a grid, then step through BFS and DFS on it. It loads in your browser.");
+      return widget("visualizer", { dataId: label }, "The visualizer: pick a grid or a map, then step through the algorithm on it. It loads in your browser.");
     case "solutions": {
       const sols = ctx.dsa?.solutions || [];
       if (!sols.length) return widget("solutions", {}, "Reference solutions in four languages.");
