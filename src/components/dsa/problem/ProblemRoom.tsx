@@ -12,6 +12,7 @@
  *   Mastery XP; learning_progress course 'dsa', the streak) and unlocks the editorial; so do three failed submits or
  *   "show the editorial" (solving after that keeps a quarter of the base, src/lib/dsa/rewards.ts).
  * - The hint ladder opens one rung at a time. Code is kept per language on this device.
+ * - The Interview tab (ProblemInterview): an AI interviewer; "Explain your approach" while solving, follow-ups once solved.
  * - The Tutor tab (ProblemTutor) is DSA Mastery's AI tutor for this problem: hint, debug, complexity, dry run and review,
  *   reading the code in the editor and the last result. A failed run offers "Ask the tutor why" under the verdict.
  *
@@ -40,9 +41,10 @@ import { useLang } from "../concept/widgets";
 import DsaHydrator from "../concept/DsaHydrator";
 import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
+import ProblemInterview from "./ProblemInterview";
 import ProblemTutor, { type TutorRequest } from "./ProblemTutor";
 import { useDailySolve, useIsDaily } from "../daily/useDsaDaily";
-import { Lock, MessageCircleQuestion, NotebookPen, PlayCircle, Sparkles } from "lucide-react";
+import { Lock, MessageCircleQuestion, MessageSquareQuote, NotebookPen, PlayCircle, Sparkles } from "lucide-react";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { friendlyError, friendlyWrong } from "@/lib/dsa/friendly";
 import Jargon from "../glossary/Jargon";
@@ -56,7 +58,7 @@ import { INK_EVENTS } from "@/lib/learn/ink/types";
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
 const CourseEnhancer = dynamic(loadCourseEnhancer, { ssr: false });
 
-type Tab = "description" | "hints" | "tutor" | "editorial" | "submissions";
+type Tab = "description" | "hints" | "tutor" | "interview" | "editorial" | "submissions";
 type HistoryRow = { at: number; lang: DsaLang; verdict: string; passed: number; total: number };
 
 const store = {
@@ -430,6 +432,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
     { id: "description", label: "Description" },
     { id: "hints", label: full ? `Hints ${hints}/${p.hints.length}` : "Hints" },
     { id: "tutor", label: "Tutor" },
+    { id: "interview", label: "Interview" },
     { id: "editorial", label: `Editorial${videoTeaser ? " + video" : ""}${unlocked || !full ? "" : " · locked"}` },
     { id: "submissions", label: "Submissions" },
   ];
@@ -522,6 +525,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
               onClick={() => setTab(t.id)}
               className={`inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 font-mono text-[12px] uppercase tracking-label ${tab === t.id ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
             >
+              {t.id === "interview" && <MessageSquareQuote className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
               {t.id === "tutor" && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
               {t.label}
             </button>
@@ -576,6 +580,17 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
             solved={solved}
             request={tutorReq}
             onRequestHandled={() => setTutorReq(null)}
+          />
+        )}
+
+        {tab === "interview" && (
+          <ProblemInterview
+            p={p}
+            lang={lang}
+            code={() => editor.current?.getValue() ?? initialFor(lang)}
+            accepted={solved || outcome?.o.verdict === "AC"}
+            unlocked={unlocked}
+            justSolved={outcome?.o.verdict === "AC" && outcome.mode === "submit"}
           />
         )}
 

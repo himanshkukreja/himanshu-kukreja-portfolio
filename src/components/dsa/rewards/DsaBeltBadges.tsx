@@ -8,6 +8,8 @@
 import Link from "next/link";
 import { Award, Lock } from "lucide-react";
 import { useMemo } from "react";
+import { useGame } from "@/game/GameProvider";
+import { READY_ROUNDS, READY_SCORE, topicName, topicStats } from "@/lib/dsa/interview";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import {
@@ -172,7 +174,40 @@ function Badges({ defs }: { defs: BadgeDef[] | null }) {
   );
 }
 
-const KIND_ORDER: AwardKind[] = ["solve", "daily", "streak", "beat", "lesson", "check", "quiz", "trace", "lab", "lecture", "explain", "revise", "review", "badge", "welcome"];
+/** "Interview-ready" per topic: three or more interview rounds scoring 4 or better (rounds are saved with the account). */
+function InterviewReady() {
+  const { flags, hydrated } = useGame();
+  const stats = useMemo(() => topicStats(hydrated ? flags : {}), [flags, hydrated]);
+  return (
+    <section aria-labelledby="iv-h" className="flex min-w-0 flex-col gap-3">
+      <h2 id="iv-h" className={LABEL}>
+        Interview-ready
+      </h2>
+      {!stats.length ? (
+        <p className="m-0 border border-dashed border-line-strong px-4 py-4 text-[14px] text-fg-2">
+          Finish interview rounds in a problem&apos;s Interview tab. A topic becomes Interview-ready after {READY_ROUNDS} rounds scoring {READY_SCORE} or more.
+        </p>
+      ) : (
+        <ul className="m-0 grid list-none grid-cols-1 gap-2 p-0 min-[420px]:grid-cols-2 lg:grid-cols-4">
+          {stats.map((s) => (
+            <li key={s.topic} className={`flex min-w-0 flex-col gap-1.5 border p-3 ${s.ready ? "border-signal bg-surface" : "border-line bg-surface"}`}>
+              <span className="break-words text-[14.5px] font-semibold text-fg">{topicName(s.topic)}</span>
+              <span className={`inline-flex items-center gap-1.5 self-start font-mono text-[11px] ${s.ready ? "border border-signal bg-signal px-1.5 py-0.5 text-on-signal" : "text-fg-3"}`}>
+                {s.ready ? <Award className="h-3 w-3" aria-hidden /> : null}
+                {s.ready ? "Interview-ready" : `${Math.min(s.strong, READY_ROUNDS)} of ${READY_ROUNDS} strong rounds`}
+              </span>
+              <span className="font-mono text-[11.5px] text-fg-3">
+                {s.rounds} round{s.rounds === 1 ? "" : "s"} played
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+const KIND_ORDER: AwardKind[] = ["solve", "daily", "streak", "beat", "lesson", "check", "quiz", "trace", "lab", "lecture", "explain", "interview", "revise", "review", "badge", "welcome"];
 
 function Breakdown() {
   const { ready, bits, byKind } = useDsaBits();
@@ -223,6 +258,7 @@ function HowToEarn() {
     ["Watch a lecture to the end", `${BITS_TABLE.lecture}`],
     ["Quick check right first time · dry run", `${BITS_TABLE.quickCheck} · ${BITS_TABLE.dryRun}`],
     ["Explain it back (partly · solid)", `${BITS_TABLE.explainPartial} · ${BITS_TABLE.explainSolid}`],
+    ["Finish an interview round (scored 4+)", `${BITS_TABLE.interviewRound} (${BITS_TABLE.interviewRound + BITS_TABLE.interviewStrong})`],
     ["Today's daily problem", `+${BITS_TABLE.daily}`],
     ["Daily streak of " + STREAK_BITS.map((s) => s.days).join(", ") + " days", STREAK_BITS.map((s) => s.bits).join(", ")],
     ["Module badge · world badge", `${BITS_TABLE.moduleBadge} · ${BITS_TABLE.worldBadge}`],
@@ -277,6 +313,7 @@ export default function DsaBeltBadges({ defs: initial }: { defs: BadgeDef[] | nu
         </header>
         <BeltHero />
         <Badges defs={defs} />
+        <InterviewReady />
         <div className="grid gap-6 lg:grid-cols-2">
           <Breakdown />
           <HowToEarn />

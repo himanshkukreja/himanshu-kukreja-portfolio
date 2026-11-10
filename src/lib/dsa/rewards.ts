@@ -16,6 +16,9 @@
  *     dsa:boss:<world>:<mod>   module review              dsa:world:<world>     the world's final
  *   events (variable Bits, written as `dsa:b:<award key>=<bits>`)
  *     solve:<problem>   welcome   explain:<concept>   streak:<days>   badge:<badge id>
+ *     interview:<stage>:<problem>   an interview round finished (stage explain | followup): 15 Bits, or 25 when the
+ *                       round scored 4 or more. One key per problem and stage, so a later, better round only adds the
+ *                       10 that were missing (the higher amount is the one counted), never a second 15.
  *
  * An event key carries its amount, so two devices that both award the same thing before they sync can each write one:
  * the union keeps both and awardsOf() counts the higher, once. `dsa:p:<problem>` (the map's solved key) is written
@@ -70,6 +73,8 @@ export const BITS_TABLE = {
   lecture: 10,
   explainSolid: 10,
   explainPartial: 5,
+  interviewRound: 15,
+  interviewStrong: 10,
   daily: 5,
   revise: 1,
   moduleReview: 40,
@@ -133,6 +138,7 @@ export type AwardKind =
   | "lab"
   | "lecture"
   | "explain"
+  | "interview"
   | "daily"
   | "streak"
   | "revise"
@@ -153,6 +159,7 @@ export const KIND_LABEL: Record<AwardKind, string> = {
   lab: "Build-it labs",
   lecture: "Lectures",
   explain: "Explain it back",
+  interview: "Interview rounds",
   daily: "Daily problems",
   streak: "Streak milestones",
   revise: "Revision cards",
@@ -181,6 +188,7 @@ export const awardKeys = {
   solve: (problem: string) => `solve:${problem}`,
   welcome: () => "welcome",
   explain: (concept: string) => `explain:${concept}`,
+  interview: (stage: string, problem: string) => `interview:${stage}:${problem}`,
   streak: (days: number) => `streak:${days}`,
   badge: (id: string) => `badge:${id}`,
 };
@@ -209,7 +217,7 @@ const FIXED: { prefix: string; kind: AwardKind; bits: number; name: string }[] =
   { prefix: "dsa:world:", kind: "review", bits: BITS_TABLE.worldFinal, name: "final" },
 ];
 
-const EVENT_KIND: Record<string, AwardKind> = { solve: "solve", welcome: "welcome", explain: "explain", streak: "streak", badge: "badge" };
+const EVENT_KIND: Record<string, AwardKind> = { solve: "solve", welcome: "welcome", explain: "explain", interview: "interview", streak: "streak", badge: "badge" };
 
 /** The Bits a single game key is worth on its own (0 for keys that aren't DSA awards, and for `dsa:p:`). */
 export function bitsOfKey(k: string): number {
@@ -311,6 +319,9 @@ export function solveBits(f: SolveFacts): { bits: number; parts: { label: string
   if (f.noHints) parts.push({ label: "no hints", bits: t.noHints });
   return { bits: parts.reduce((a, p) => a + p.bits, 0), parts };
 }
+
+/** An interview round's Bits: 15 for finishing, 25 when the overall score is 4 or more. */
+export const interviewBits = (overall: number) => BITS_TABLE.interviewRound + (overall >= 4 ? BITS_TABLE.interviewStrong : 0);
 
 /** The most a problem of this level can earn (the problem header's "up to"). */
 export const maxSolveBits = (level: DsaLevel) => {
