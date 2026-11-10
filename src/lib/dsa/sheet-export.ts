@@ -43,7 +43,7 @@ export const GROUP_BYS: { id: GroupBy; label: string }[] = [
 
 export const STATUS_LABEL: Record<Status, string> = { todo: "Not started", tried: "Tried", solved: "Solved" };
 const LEVEL_LABEL = { easy: "Easy", medium: "Medium", hard: "Hard" } as const;
-const KIND_LABEL = { "warm-up": "Warm-up", practice: "Practice", checkpoint: "Checkpoint" } as const;
+const KIND_LABEL = { "warm-up": "Warm-up", practice: "Practice", checkpoint: "Checkpoint", district: "Extra practice" } as const;
 
 export type Cell = { text: string; link?: string; level?: FilterRow["level"] };
 export type Section = { title: string | null; rows: Cell[][] };

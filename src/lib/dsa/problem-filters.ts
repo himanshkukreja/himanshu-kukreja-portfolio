@@ -9,7 +9,7 @@
  */
 
 export type DsaLevelId = "easy" | "medium" | "hard";
-export type Kind = "warm-up" | "practice" | "checkpoint";
+export type Kind = "warm-up" | "practice" | "checkpoint" | "district";
 export type Status = "todo" | "tried" | "solved";
 export type TimeBucket = "quick" | "mid" | "long";
 export type SortId = "course" | "easiest" | "hardest" | "quickest";
@@ -188,3 +188,48 @@ export function toggle(s: FilterState, g: GroupId, v: string): FilterState {
 }
 
 export const clearAll = (s: FilterState): FilterState => ({ ...emptyState(), sort: s.sort });
+
+/* ------------------------------------------------------------------ the Solved / Unsolved view and the progress bar */
+
+/** The segmented control above the list. It is only a shortcut onto the Status facet (st=), so the two never disagree. */
+export type StatusView = "all" | "unsolved" | "solved";
+
+/** The view a state is in: Solved = exactly st=solved, Unsolved = exactly st=todo,tried (either order); any other mix reads as All. */
+export function statusViewOf(s: FilterState): StatusView {
+  const st = s.sel.status;
+  if (st.length === 1 && st[0] === "solved") return "solved";
+  if (st.length === 2 && st.includes("todo") && st.includes("tried")) return "unsolved";
+  return "all";
+}
+
+/** Set the Status facet from a view. All clears it. */
+export function withStatusView(s: FilterState, v: StatusView): FilterState {
+  const status = v === "solved" ? ["solved"] : v === "unsolved" ? ["todo", "tried"] : [];
+  return { ...s, sel: { ...s.sel, status } };
+}
+
+/** Counts for the three views from an evaluation's status counts (rows passing every OTHER filter). */
+export function statusViewCounts(statusCounts: Map<string, number>): Record<StatusView, number> {
+  const todo = statusCounts.get("todo") || 0;
+  const tried = statusCounts.get("tried") || 0;
+  const solved = statusCounts.get("solved") || 0;
+  return { all: todo + tried + solved, unsolved: todo + tried, solved };
+}
+
+export type SolvedSummary = { solved: number; total: number; byLevel: Record<DsaLevelId, { solved: number; total: number }> };
+
+/** "37 of 412 solved" and the Easy / Medium / Hard split over the whole bank (never over the filtered list). */
+export function solvedSummary(rows: Pick<FilterRow, "id" | "level">[], isSolved: (id: string) => boolean): SolvedSummary {
+  const byLevel: SolvedSummary["byLevel"] = { easy: { solved: 0, total: 0 }, medium: { solved: 0, total: 0 }, hard: { solved: 0, total: 0 } };
+  let solved = 0;
+  for (const r of rows) {
+    const b = byLevel[r.level];
+    if (!b) continue;
+    b.total++;
+    if (isSolved(r.id)) {
+      b.solved++;
+      solved++;
+    }
+  }
+  return { solved, total: rows.length, byLevel };
+}

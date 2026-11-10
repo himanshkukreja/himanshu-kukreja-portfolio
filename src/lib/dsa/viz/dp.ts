@@ -151,7 +151,7 @@ function tableFrames(p: DpProblem, opts: { predict?: boolean }): { frames: Frame
   let rows: string[] | null = null;
   let cells: (string | null)[][] = [];
   let base: Cell[] = [];
-  let blocked: Cell[] = [];
+  const blocked: Cell[] = [];
   let filled = 0;
   const snap = (now: Cell | null, reads: Cell[], out: string | null = null): DpState => {
     const table: DpTable = { cols, rows, cells: cells.map((r) => [...r]), base, blocked, now, reads };

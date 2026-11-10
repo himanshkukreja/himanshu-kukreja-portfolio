@@ -49,6 +49,8 @@ import Jargon from "../glossary/Jargon";
 import { ShowEverything, useDsaFull } from "../simple/view";
 import FirstProblemGuide from "./FirstProblemGuide";
 import SolutionVideo from "./SolutionVideo";
+import ResetProblem from "./ResetProblem";
+import { celebrate } from "@/lib/dsa/celebrate";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { SolutionVideoData } from "@/lib/dsa/media";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
@@ -381,11 +383,27 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
           ? `Accepted. +${res.bits} Bits (${how})${seenEarly ? ", fewer because the editorial was opened first" : ""}, and the editorial is open.`
           : "Accepted. You've solved this one before, so no new Bits; the editorial is open.") + dailyNote,
       );
+      // confetti from the verdict: a first solve is the big one, a re-solve a small one (a belt-up adds its own in the toaster)
+      requestAnimationFrame(() => void celebrate(res.first ? "first" : "again", document.querySelector("[data-dsa-verdict]")));
     } else {
       const n = fails + 1;
       setFails(n);
       store.set(`dsa.fails.${p.id}`, String(n));
     }
+  };
+
+  // after "Reset problem" (ResetProblem.tsx cleared the stored keys): the room is a fresh problem again
+  const freshStart = () => {
+    setHints(0);
+    setFails(0);
+    setSeenEarly(false);
+    setHistory([]);
+    setEditorial({ state: "locked", html: "" });
+    setOutcome(null);
+    setNotice(null);
+    setStdout("");
+    setTab("description");
+    editor.current?.setValue(starter[lang]);
   };
 
   const reset = () => {
@@ -510,6 +528,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
             {/* save for offline: the statement, visible tests and hints, with the Python runtime so Run works offline */}
             <SaveOfflineButton title={p.title} kind="dsa-problem" />
             <ShowEverything />
+            {(solved || hints > 0 || fails > 0 || history.length > 0 || seenEarly) && <ResetProblem id={p.id} title={p.title} onDone={freshStart} />}
           </div>
         </header>
         <div ref={tabsRef} role="tablist" aria-label="Problem tabs" className="flex scroll-mt-[calc(var(--hk-header-h,61px)+8px)] flex-wrap border-b border-line">
@@ -758,7 +777,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
           <div className="flex flex-col gap-3 lg:max-h-[45%] lg:shrink-0 lg:overflow-y-auto lg:overscroll-contain">
             {loadMsg && <p className="m-0 text-[13px] text-fg-3">{loadMsg}</p>}
             {notice && (
-              <p className={`m-0 border px-3 py-2 text-[14px] ${outcome?.o.verdict === "AC" ? "border-ok text-ok-text" : "border-line-strong text-fg"}`} role="status">
+              <p data-dsa-verdict className={`m-0 border px-3 py-2 text-[14px] ${outcome?.o.verdict === "AC" ? "border-ok text-ok-text" : "border-line-strong text-fg"}`} role="status">
                 {notice}
               </p>
             )}

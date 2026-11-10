@@ -17,6 +17,7 @@ export const KINDS: Option[] = [
   { id: "warm-up", label: "Warm-up" },
   { id: "practice", label: "Practice" },
   { id: "checkpoint", label: "Checkpoint" },
+  { id: "district", label: "Extra practice" },
 ];
 export const TIMES: Option[] = [
   { id: "quick", label: "15 min or less" },

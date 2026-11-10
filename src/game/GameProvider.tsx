@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useGameSync } from "./useGameSync";
 import { track } from "@/lib/track";
 import { mergeSavedPathFlags } from "@/lib/learn/saved-paths";
+import { doneAfterReset } from "@/lib/dsa/reset";
 
 const STORAGE_KEY = "hk.game.v1";
 
@@ -36,6 +37,8 @@ type GameContextValue = {
   markDone: (keys: string[]) => { added: string[]; done: Record<string, number> };
   /** The current done map, synchronously (state can lag a render behind back-to-back writes). */
   peekDone: () => Record<string, number>;
+  /** DSA "Reset problem": drop the solved mark and leave a tombstone so the sync can't bring it back; the Bits stay (src/lib/dsa/reset.ts). */
+  resetDsaProblem: (id: string) => void;
   reset: () => void;
   toasts: Toast[];
   terminalOpen: boolean;
@@ -206,6 +209,14 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
 
   const peekDone = useCallback(() => stateRef.current.done, []);
 
+  const resetDsaProblem = useCallback(
+    (id: string) => {
+      const cur = stateRef.current;
+      commit({ ...cur, done: doneAfterReset(cur.done, id, Date.now()) });
+    },
+    [commit]
+  );
+
   const reset = useCallback(() => {
     commit(EMPTY);
     setToasts([]);
@@ -227,12 +238,13 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setFlag,
       markDone,
       peekDone,
+      resetDsaProblem,
       reset,
       toasts,
       terminalOpen,
       setTerminalOpen,
     }),
-    [hydrated, state, award, grant, awardOnce, setFlag, markDone, peekDone, reset, toasts, terminalOpen]
+    [hydrated, state, award, grant, awardOnce, setFlag, markDone, peekDone, resetDsaProblem, reset, toasts, terminalOpen]
   );
 
   return <GameContext.Provider value={value}>{children}</GameContext.Provider>;
