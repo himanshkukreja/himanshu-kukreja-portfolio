@@ -177,6 +177,9 @@ export type ProblemShard = {
   complexity: { time: string; space: string } | null;
   /** scenario, task, examples, constraints (plain markdown) */
   statement: string;
+  /** pattern tags and the classic problems it twins (lc-1…), for grounding interview follow-ups */
+  patterns: string[];
+  classic: string[];
   /** the five authored rungs of the Hints tab, in ladder order */
   rungs: { title: string; text: string }[];
   /** "Scenario to model": the scenario as a model table (the room's hint material, given with the first rung) */
@@ -236,6 +239,8 @@ const problemShardCached = cached(async (id: string): Promise<ProblemShard | nul
     level: f.level || "medium",
     concept: f.concept || "",
     conceptTitle,
+    patterns: f.tags?.patterns ?? [],
+    classic: f.tags?.classic ?? [],
     signature: f.signature ?? null,
     complexity: f.complexity?.time ? { time: f.complexity.time, space: f.complexity.space || "" } : null,
     statement,
@@ -245,7 +250,7 @@ const problemShardCached = cached(async (id: string): Promise<ProblemShard | nul
     solutions,
     chunks,
   };
-}, "dsa-ai-problem-v1");
+}, "dsa-ai-problem-v2");
 
 export async function getProblemShard(id: string): Promise<ProblemShard | null> {
   return ID.test(id) ? problemShardCached(id) : null;

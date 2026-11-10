@@ -237,10 +237,10 @@ export function mergeSavedPathFlags(base: Record<string, unknown>, other: Record
 export function mergeGameFlags(remote: Record<string, unknown>, local: Record<string, unknown>, localStale: boolean): Record<string, unknown> {
   const out = mergeSavedPathFlags({ ...remote, ...(localStale ? {} : local) }, remote);
   // written-paper records (paper:<key>, src/lib/learn/papers/types.ts) and preferences (pref:<name>, e.g. the
-  // reading settings, src/lib/learn/readingModes.ts) carry updatedAt like saved paths: the newer copy wins, so an
+  // reading settings, src/lib/learn/readingModes.ts) and DSA interview rounds (dsa:iv:<problem>) carry updatedAt like saved paths: the newer copy wins, so an
   // attempt finished on the iPad isn't undone by a laptop holding an older record
   for (const k of Object.keys(remote)) {
-    if (!(k.startsWith("paper:") || k.startsWith("pref:")) || localStale) continue;
+    if (!(k.startsWith("paper:") || k.startsWith("pref:") || k.startsWith("dsa:iv:")) || localStale) continue;
     const ra = Number((remote[k] as { updatedAt?: unknown } | null)?.updatedAt) || 0;
     const la = Number((local[k] as { updatedAt?: unknown } | null)?.updatedAt) || 0;
     if (ra > la) out[k] = remote[k];
