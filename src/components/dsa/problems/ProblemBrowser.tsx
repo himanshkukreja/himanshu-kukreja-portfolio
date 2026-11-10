@@ -8,6 +8,7 @@ import SolvedMark from "../problem/SolvedMark";
 import { activeCount, clearAll, emptyState, evaluate, GROUPS, isFiltered, parseState, serializeState, SORTS, toggle, type FilterRow, type FilterState, type GroupId, type SortId, type Status } from "@/lib/dsa/problem-filters";
 import type { Option, ProblemData } from "@/lib/dsa/problem-rows";
 import { ALGORITHMS, facetLabel, PATTERNS, STRUCTURES } from "@/lib/dsa/taxonomy";
+import { holdAttention } from "@/lib/learn/guide/attention";
 
 /**
  * /dsa/problems: search, facet filters (OR inside a group, AND across groups, live counts), removable chips, sort, and
@@ -222,6 +223,8 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
   const [state, setState] = useState<FilterState>(emptyState);
   const [text, setText] = useState("");
   const [sheet, setSheet] = useState(false);
+  // no first-visit tips (the notebook's) over the open filter sheet
+  useEffect(() => (sheet ? holdAttention() : undefined), [sheet]);
   const progress = useDsaProgress();
   const tried = useTried();
   const defs = useMemo(() => groupDefs(data), [data]);
