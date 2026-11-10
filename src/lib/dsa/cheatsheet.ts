@@ -4,7 +4,8 @@ import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa } from "./content";
-import { conceptHref, getConceptIndex, getProblemIndex } from "./load";
+import { conceptHref, getConceptIndex, getProblemIndex, getStepLabels } from "./load";
+import { stepOf, stepRank } from "./steps";
 import type { DsaLevel } from "./types";
 
 /**
@@ -97,8 +98,6 @@ async function build(id: string): Promise<Cheatsheet | null> {
   const { data, content } = matter(lessonMd, {});
   const f = data as Front;
   const cast = Object.fromEntries((((castMd ? matter(castMd, {}).data : {}) as { cast?: { id: string; name: string; role: string }[] }).cast || []).map((x) => [x.id, { name: x.name, role: x.role }]));
-  const mods = ((courseYml ? matter(`---\n${courseYml}\n---\n`, {}).data : {}) as { modules?: { id: string; code: string; title: string }[] }).modules || [];
-  const mod = mods.find((m) => m.id === c.module);
   const opts: DsaRenderOpts = { cast };
   const render = async (md: string) => (md.trim() ? stripStage((await renderLesson(md, { kind: "day-content", dsa: opts })).html) : "");
 
@@ -113,8 +112,8 @@ async function build(id: string): Promise<Cheatsheet | null> {
   return {
     id,
     module: c.module,
-    code: (mod?.code || c.module.split("-")[0]).toUpperCase(),
-    moduleTitle: mod?.title || c.module,
+    code: stepOf(await getStepLabels(), c.module).step,
+    moduleTitle: stepOf(await getStepLabels(), c.module).title,
     title: f.title || c.title,
     summary: c.summary,
     level: f.level || "",
@@ -134,7 +133,7 @@ async function build(id: string): Promise<Cheatsheet | null> {
   };
 }
 
-const cachedSheet = unstable_cache(build, ["dsa-cheatsheet-v1"], CACHE);
+const cachedSheet = unstable_cache(build, ["dsa-cheatsheet-v2"], CACHE);
 
 export async function getCheatsheet(id: string): Promise<Cheatsheet | null> {
   if (!ID.test(id)) return null;
@@ -143,7 +142,8 @@ export async function getCheatsheet(id: string): Promise<Cheatsheet | null> {
 
 /** Every built concept's sheet in course order, as cards (the summaries only). */
 export async function listCheatsheets(): Promise<CheatsheetSummary[]> {
-  const modNum = (m: string) => Number(m.match(/^m(\d+)/)?.[1] ?? 99);
+  const labels = await getStepLabels();
+  const modNum = (m: string) => stepRank(labels, m);
   const built = (await getConceptIndex()).filter((c) => c.status === "built").sort((a, b) => modNum(a.module) - modNum(b.module) || a.order - b.order);
   const out: CheatsheetSummary[] = [];
   for (let i = 0; i < built.length; i += 4) {

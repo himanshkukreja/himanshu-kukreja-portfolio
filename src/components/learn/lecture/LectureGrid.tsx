@@ -291,7 +291,7 @@ export default function LectureGrid({ lectures, mediaBase }: { lectures: Lecture
                       </span>
                       <span className="flex min-w-0 flex-col gap-1">
                         <span className="truncate font-mono text-[10px] uppercase tracking-label text-fg-3">
-                          {l.code} · {l.group.replace(/^W\d+\s*·\s*/, "").replace(`${l.code} · `, "")}
+                          {l.track === "dsa" ? l.group : `${l.code} · ${l.group.replace(/^W\d+\s*·\s*/, "").replace(`${l.code} · `, "")}`}
                         </span>
                         <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-fg group-hover:text-signal-text">{l.title}</span>
                         <span className="font-mono text-[11px] text-fg-3">{resume ? `resume at ${fmt(resume)} · ${watchedPct(p)}% watched` : `${l.minutes} min`}</span>

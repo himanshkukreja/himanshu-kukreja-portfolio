@@ -40,7 +40,7 @@ function Hero({ s }: { s: StructurePage }) {
   const chip = p.completed ? `Completed · ${total}/${total} parts` : n ? `Part ${n} of ${total} · ~${p.minutesLeft} min left` : `~${p.minutesLeft} min left`;
   return (
     <section className="mx-auto flex max-w-[1320px] flex-col gap-4 px-4 pb-6 pt-6 sm:px-6 lg:pt-8">
-      <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { label: s.regionTitle || s.moduleTitle }]} />
+      <DsaCrumbs items={[{ href: "/dsa", label: "World map" }, { label: s.moduleTitle }]} />
       <p className="m-0 font-mono text-[12px] uppercase tracking-label text-signal-text">
         {s.kind === "algorithm" ? "Part 3 · Algorithms" : "Part 2 · Data structures"} · {s.moduleTitle} · Lesson
       </p>

@@ -47,7 +47,7 @@ export default async function DsaCheatsheetsPage() {
         {groups.map((g) => (
           <section key={g.code} aria-labelledby={`cs-${g.code}`} className="flex flex-col gap-4">
             <h2 id={`cs-${g.code}`} className="m-0 font-mono text-[12px] uppercase tracking-label text-fg-3">
-              <span className="text-signal-text">{g.code}</span> · {g.title} · {g.items.length} sheet{g.items.length === 1 ? "" : "s"}
+              <span className="text-signal-text">{g.code}</span> {g.title} · {g.items.length} sheet{g.items.length === 1 ? "" : "s"}
             </h2>
             <ol className="m-0 grid list-none gap-4 p-0 sm:grid-cols-2 xl:grid-cols-3">
               {g.items.map((s) => (

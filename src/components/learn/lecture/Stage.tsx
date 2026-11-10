@@ -122,7 +122,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
       ) : (
         quest && (
           <div data-stage-top className="absolute right-[3%] top-[4%] z-10 font-mono text-[1cqw] uppercase tracking-[0.12em] text-[#8a8a90]">
-            {quest.code} · {quest.title}
+            {/^\d+\.\d+$/.test(quest.code) ? `${quest.code} ${quest.title}` : `${quest.code} · ${quest.title}`}
           </div>
         )
       )}

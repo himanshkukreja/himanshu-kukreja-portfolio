@@ -4,7 +4,8 @@ import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
-import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getWorld, lessonDir, sdmLinker } from "./load";
+import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getStepLabels, getWorld, lessonDir, sdmLinker } from "./load";
+import { stepOf } from "./steps";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import { dsaKeys, type ConceptCheckpoint, type DsaLang, type DsaStage, type ProblemSummary } from "./types";
 import type { GridDemo, GridVisualizerSpec, PathDemo, SandboxDemo, SandboxSpec, VisualizerSpec } from "./viz/registry";
@@ -190,8 +191,8 @@ async function build(id: string): Promise<StructurePage | null> {
     id,
     kind: algorithm ? "algorithm" : "structure",
     module: c.module,
-    moduleTitle: mod ? `${mod.code} ${mod.title}` : c.module,
-    regionTitle: region?.title || mod?.building || "",
+    moduleTitle: stepOf(await getStepLabels(), c.module).label,
+    regionTitle: stepOf(await getStepLabels(), c.module).building,
     title: f.title || c.title,
     summary: c.summary,
     level: f.level || "beginner",

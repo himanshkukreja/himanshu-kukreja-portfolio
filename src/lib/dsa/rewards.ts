@@ -359,7 +359,7 @@ export function badgeDefsFor(spec: WorldSpec): BadgeDef[] {
     }
     if (!any) continue;
     const title = r.moduleTitle || r.title;
-    mods.push({ id: `module:${spec.id}:${r.id}`, kind: "module", world: spec.id, name: title, detail: `Every lesson, problem and checkpoint in ${title}.`, code: r.code ? r.code.toUpperCase() : null, need: [...new Set(need)], ready, bits: BITS_TABLE.moduleBadge });
+    mods.push({ id: `module:${spec.id}:${r.id}`, kind: "module", world: spec.id, name: title, detail: `Every lesson, problem and checkpoint in ${title}.`, code: r.step || null, need: [...new Set(need)], ready, bits: BITS_TABLE.moduleBadge });
   }
   if (!mods.length) return [];
   const world: BadgeDef = {

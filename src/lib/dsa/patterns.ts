@@ -2,7 +2,8 @@ import "server-only";
 import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa } from "./content";
-import { getProblemIndex } from "./load";
+import { getProblemIndex, getStepLabels } from "./load";
+import { stepOf } from "./steps";
 import { listCheatsheets } from "./cheatsheet";
 import type { DsaLevel } from "./types";
 
@@ -117,13 +118,14 @@ function twinTitles(md: string): Map<number, string> {
 }
 
 async function build(): Promise<PatternEntry[]> {
-  const [librarySrc, conceptsSrc, courseSrc, districtsSrc, problems, sheets] = await Promise.all([
+  const [librarySrc, conceptsSrc, courseSrc, districtsSrc, problems, sheets, labels] = await Promise.all([
     readDsa("resources/scenarios/library.yml"),
     readDsa("resources/concepts.yml"),
     readDsa("resources/course.yml"),
     readDsa("resources/worlds/product-districts.yml"),
     getProblemIndex().catch(() => []),
     listCheatsheets().catch(() => []),
+    getStepLabels(),
   ]);
   const patterns = (librarySrc ? yaml<{ patterns?: { id: string; name: string }[] }>(librarySrc).patterns : null) || [];
   const cfile = conceptsSrc ? yaml<{ concepts?: Concept[]; terms?: Term[] }>(conceptsSrc) : {};
@@ -140,12 +142,12 @@ async function build(): Promise<PatternEntry[]> {
     const c = conceptById.get(id);
     if (!c) return null;
     const m = modules.get(c.module);
-    return { kind: "concept", id: c.id, title: c.title, module: c.module, code: m?.code || "", moduleTitle: m?.title || "", built: c.status === "built" };
+    return { kind: "concept", id: c.id, title: c.title, module: c.module, code: stepOf(labels, c.module).step, moduleTitle: m ? stepOf(labels, c.module).title : "", built: c.status === "built" };
   };
   const moduleHome = (id: string): PatternHome | null => {
     const m = modules.get(id);
     if (!m) return null;
-    return { kind: "module", module: id, code: m.code, moduleTitle: m.title, built: false };
+    return { kind: "module", module: id, code: stepOf(labels, id).step, moduleTitle: stepOf(labels, id).title, built: false };
   };
   const districtHome = (code: string): PatternHome | null => {
     const d = districts.get(code.toLowerCase());
@@ -260,7 +262,7 @@ async function build(): Promise<PatternEntry[]> {
   return out.sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base", numeric: true }));
 }
 
-const cached = unstable_cache(build, ["dsa-patterns-az-v1"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cached = unstable_cache(build, ["dsa-patterns-az-v2"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 export async function getPatternsAZ(): Promise<PatternEntry[]> {
   return dsaFresh() ? build() : cached();

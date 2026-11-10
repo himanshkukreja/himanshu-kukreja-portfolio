@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { clipQuestParts, solutionQuestParts } from "@/lib/dsa/lecture";
-import { getConceptIndex, getDsaClip, getProblem, getSolutionVideo, lessonHref, problemHref } from "@/lib/dsa/load";
+import { getConceptIndex, getDsaClip, getProblem, getSolutionVideo, getStepLabels, lessonHref, problemHref } from "@/lib/dsa/load";
+import { stepOf } from "@/lib/dsa/steps";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
 
@@ -24,7 +25,7 @@ async function load(quest: string) {
     const l = await getDsaClip(quest);
     if (!l) return null;
     const c = (await getConceptIndex()).find((x) => x.id === l.clip?.lesson);
-    return c ? { l, quest: { title: c.title, href: lessonHref(c), code: c.module.split("-")[0].toUpperCase() } } : null;
+    return c ? { l, quest: { title: c.title, href: lessonHref(c), code: stepOf(await getStepLabels(), c.module).step } } : null;
   }
   const s = solutionQuestParts(quest);
   if (s) {

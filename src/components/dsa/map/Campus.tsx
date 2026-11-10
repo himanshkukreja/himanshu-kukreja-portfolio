@@ -106,7 +106,7 @@ function Segments({ fill, total, tone }: { fill: number; total: number; tone: "l
 }
 
 function tileBody(b: Building, campusStarted: boolean) {
-  const code = b.region.code.toUpperCase();
+  const code = b.region.step || "";
   const st = b.stretches[b.focus];
   const stretchesDone = b.stretches.filter((s) => s.complete).length;
   const problems = b.stretches.reduce((a, s) => a + s.practice, 0);
@@ -390,8 +390,8 @@ function BuildingPanel({
   labs: ReadonlySet<string>;
 }) {
   const r = b.region;
-  // the theme name and the product line as the small subtitle: "M5 · Window Tower · Music streaming app"
-  const eyebrow = [r.code.toUpperCase(), themeName(r), r.line].filter(Boolean).join(" · ");
+  // the theme name and the product line as the small subtitle: "2.3 · Carriage House · Music streaming app"
+  const eyebrow = [r.step, themeName(r), r.line].filter(Boolean).join(" · ");
   const intro = r.intro || r.objective;
   const st = b.stretches[stretchIdx] || b.stretches[0];
   const full = b.state !== "planned" && b.state !== "later" && !!st;

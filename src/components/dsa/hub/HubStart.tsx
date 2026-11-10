@@ -181,7 +181,7 @@ function ContinueCard({ academy }: { academy: WorldSpec }) {
         <>
           <h1 id="dsa-next-h" className="m-0 flex flex-col gap-1">
             <span className="font-mono text-[12px] font-normal text-fg-3">
-              {nodeKind(at.node)} · {at.region.code.toUpperCase()} {at.region.moduleTitle || at.region.title}
+              {nodeKind(at.node)} · {at.region.step ? `${at.region.step} ` : ""}{at.region.moduleTitle || at.region.title}
             </span>
             <span className="font-display text-[30px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[40px]">{at.node.title}</span>
           </h1>

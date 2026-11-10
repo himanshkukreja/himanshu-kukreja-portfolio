@@ -3,7 +3,8 @@ import crypto from "crypto";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import type { LectureSummary } from "@/lib/learn/lecture/load";
 import type { PlayableShort } from "@/lib/learn/shorts/types";
-import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort, getSolutionVideo } from "./load";
+import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort, getSolutionVideo, getStepLabels } from "./load";
+import { stepOf, stepRank } from "./steps";
 
 /**
  * DSA Mastery's videos: the concept lectures (/dsa/lectures) and the vertical shorts (/dsa/shorts). Their recorded
@@ -38,23 +39,18 @@ async function inBatches<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>):
   return out;
 }
 
-/** built concepts in course order: module number (m4 before m10), then the concept's place in it */
-const modNum = (m: string) => Number(m.match(/^m(\d+)/)?.[1] ?? 99);
+/** built concepts in learner order: the module's step (part, then place in the part), then the concept's place in it */
 async function builtInOrder() {
-  return (await getConceptIndex()).filter((c) => c.status === "built").sort((a, b) => modNum(a.module) - modNum(b.module) || a.order - b.order);
+  const labels = await getStepLabels();
+  return (await getConceptIndex()).filter((c) => c.status === "built").sort((a, b) => stepRank(labels, a.module) - stepRank(labels, b.module) || a.order - b.order);
 }
-
-const moduleCode = (m: string) => m.split("-")[0].toUpperCase();
-const moduleName = (m: string) => {
-  const t = m.replace(/^m\d+-/, "").replace(/-/g, " ");
-  return t.charAt(0).toUpperCase() + t.slice(1);
-};
 
 export type DsaLectureSummary = LectureSummary & { recorded: boolean; concept: string };
 
-/** Every built concept's lecture in course order, grouped by module ("M5 · Sliding window"). */
+/** Every built concept's lecture in course order, grouped by step ("4.2 Sliding window"). */
 export async function listDsaLectures(): Promise<DsaLectureSummary[]> {
   const built = await builtInOrder();
+  const labels = await getStepLabels();
   const rows = await inBatches(built, 4, async (c) => {
     const l = await getConceptLecture(c.id).catch(() => null);
     if (!l) return null;
@@ -65,7 +61,7 @@ export async function listDsaLectures(): Promise<DsaLectureSummary[]> {
     const minutes = recorded && media.duration ? Math.max(1, Math.round(media.duration / 60)) : Math.max(1, Math.round((words / 150) * 1.08));
     const row: DsaLectureSummary = {
       slug: l.quest,
-      code: moduleCode(c.module),
+      code: stepOf(labels, c.module).step,
       title: l.title,
       quest: c.title,
       summary: l.summary,
@@ -74,7 +70,7 @@ export async function listDsaLectures(): Promise<DsaLectureSummary[]> {
       minutes,
       checkpoints: l.scenes.filter((s) => s.kind === "quiz").length,
       chapters: l.scenes.length,
-      group: `${moduleCode(c.module)} · ${moduleName(c.module)}`,
+      group: stepOf(labels, c.module).label,
       track: "dsa",
       version,
       jsonLength: JSON.stringify(l).length,

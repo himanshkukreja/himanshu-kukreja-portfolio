@@ -67,7 +67,7 @@ export default function CheatsheetSheet({ s, lectureHref }: { s: Cheatsheet; lec
           <DsaCrumbs items={[{ href: "/dsa", label: "Learn" }, { href: "/dsa/cheatsheets", label: "Cheat sheets" }, { label: s.title }]} />
         </div>
         <span className="font-mono text-[12px] uppercase tracking-label text-signal-text">
-          {s.code} · {s.moduleTitle} · cheat sheet
+          {s.code} {s.moduleTitle} · cheat sheet
         </span>
         <h1 className="m-0 font-display text-[34px] font-extrabold leading-[1] tracking-[-0.03em] text-fg sm:text-[46px]">
           {s.title}

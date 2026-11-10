@@ -92,6 +92,8 @@ export type WorldRegion = {
   objective: string | null;
   /** the module's plain title ("Sliding Window", course.yml): what the map shows; the region title is its theme name */
   moduleTitle: string | null;
+  /** the learner step number ("2.3": part, then place in the part), from the world order (steps.ts) */
+  step?: string;
   stretches: WorldStretch[];
   side: WorldNode[];
   boss: WorldNode | null;

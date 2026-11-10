@@ -7,6 +7,7 @@ import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
 import { plainBeatHeading } from "./words";
+import { buildStepLabels, stepOf, type StepLabels } from "./steps";
 import { clipQuestParts, clipRefs, dsaShortParts, lectureRefs, parseTemplates, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution, type RawClips, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import {
@@ -343,8 +344,17 @@ const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
       if (id) labs.set(ref, { id, title: lab?.match(/^title:\s*(.+)$/m)?.[1]?.trim() || "Build it yourself" });
     }),
   );
-  return buildWorld(raw, byId, new Map(problems.map((p) => [p.id, p])), modules, lines, labs);
-}, "dsa-world-v4");
+  const world = buildWorld(raw, byId, new Map(problems.map((p) => [p.id, p])), modules, lines, labs);
+  // each region carries its step number ("2.3"), computed once from the world's order (src/lib/dsa/steps.ts)
+  const steps = buildStepLabels(world, modules);
+  return { ...world, regions: world.regions.map((r) => ({ ...r, step: steps[r.module]?.step || "" })) };
+}, "dsa-world-v5");
+
+/** Every module's learner label ("2.3 Linked lists" plus its building), from the Academy's parts and order. */
+export const getStepLabels = cached(async (): Promise<StepLabels> => {
+  const [world, modules] = await Promise.all([worldCached("academy"), getModules()]);
+  return buildStepLabels(world, modules);
+}, "dsa-steps-v1");
 
 export async function getWorld(id: string): Promise<WorldSpec | null> {
   if (!ID.test(id)) return null;
@@ -515,13 +525,13 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
       checkpoint = { nodeId: n.id, key: dsaKeys.gate("academy", region.id, num), pass: n.pass ?? 0.8, problems: n.problems || [] };
     }
   }
-  const mod = modules[c.module];
+  const stepLabels = await getStepLabels();
   return {
     clips,
     id,
     module: c.module,
-    moduleTitle: mod ? `${mod.code} ${mod.title}` : c.module,
-    regionTitle: region?.title || mod?.building || "",
+    moduleTitle: stepOf(stepLabels, c.module).label,
+    regionTitle: stepOf(stepLabels, c.module).building,
     title: f.title || c.title,
     summary: c.summary,
     level: f.level || "beginner",
@@ -614,8 +624,10 @@ const shortCached = cached(async (id: string): Promise<Lecture | null> => {
   const dir = lessonDir(c);
   const raw = await readDsaJson<RawDsaLecture>(`${dir}/shorts/${parts.slug}.json`);
   if (!raw || raw.quest !== id || !raw.short || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
-  return resolveDsaShort(raw, await lectureSources(dir, raw));
-}, "dsa-short-v2");
+  const resolved = resolveDsaShort(raw, await lectureSources(dir, raw));
+  // the label on top of a short is the module's step label ("2.3 Linked lists"), never a code
+  return resolved.short ? { ...resolved, short: { ...resolved.short, label: stepOf(await getStepLabels(), c.module).label } } : resolved;
+}, "dsa-short-v3");
 
 export async function getDsaShort(id: string): Promise<Lecture | null> {
   if (!dsaShortParts(id)) return null;

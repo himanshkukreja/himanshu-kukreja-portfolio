@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ConceptSummary, ProblemSummary, WorldSpec, WorldSummary } from "@/lib/dsa/types";
+import { buildStepLabels, stepOf } from "@/lib/dsa/steps";
 import DsaWorlds from "../map/DsaWorlds";
 import type { LectureRef } from "../map/Campus";
 import SolvedMark from "../problem/SolvedMark";
@@ -34,6 +35,7 @@ export default function DsaHub({
   problems: ProblemSummary[];
 }) {
   const built = concepts.filter((c) => c.status === "built");
+  const steps = buildStepLabels(specs.academy ?? null, {});
   return (
     <div className="dsa-theme">
       <main className="mx-auto flex max-w-[1320px] flex-col gap-10 px-4 pb-28 pt-6 sm:px-6 sm:pt-8">
@@ -65,7 +67,7 @@ export default function DsaHub({
                 {built.map((c) => (
                   <li key={c.id} className="bg-surface">
                     <Link href={`/dsa/concepts/${c.id}`} className="flex flex-col gap-1 p-4 hover:bg-surface-2">
-                      <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">{c.module.replace(/^m(\d+)-/, "M$1 · ").replace(/-/g, " ")}</span>
+                      <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">{stepOf(steps, c.module).label}</span>
                       <span className="text-[16px] font-semibold text-fg">{c.title}</span>
                       <span className="text-[14px] text-fg-2">{c.summary}</span>
                     </Link>

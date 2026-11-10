@@ -2,7 +2,8 @@ import "server-only";
 import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa } from "./content";
-import { conceptHref, getConceptIndex, getWorld } from "./load";
+import { conceptHref, getConceptIndex, getStepLabels } from "./load";
+import { stepOf, stepRank } from "./steps";
 import type { DsaDeck, DsaRevCard } from "./revise";
 
 /**
@@ -64,9 +65,8 @@ function deckCards(title: string, f: LessonFront, md: string): DsaRevCard[] {
 }
 
 async function load(): Promise<DsaDeck[]> {
-  const [concepts, academy] = await Promise.all([getConceptIndex(), getWorld("academy").catch(() => null)]);
-  const regionTitle = new Map((academy?.regions || []).map((r) => [r.module, r.title]));
-  const built = concepts.filter((c) => c.status === "built").sort((a, b) => a.module.localeCompare(b.module, "en", { numeric: true }) || a.order - b.order);
+  const [concepts, labels] = await Promise.all([getConceptIndex(), getStepLabels().catch(() => ({}))]);
+  const built = concepts.filter((c) => c.status === "built").sort((a, b) => stepRank(labels, a.module) - stepRank(labels, b.module) || a.order - b.order);
   const decks = await Promise.all(
     built.map(async (c): Promise<DsaDeck | null> => {
       const md = await readDsa(`resources/modules/${c.module}/${c.id}/lesson.md`);
@@ -76,14 +76,13 @@ async function load(): Promise<DsaDeck[]> {
       const title = f.title || c.title;
       const cards = deckCards(title, f, content);
       if (!cards.length) return null;
-      const code = (c.module.match(/^m(\d+)/)?.[1] ?? "").replace(/^/, "M");
-      return { concept: c.id, module: c.module, moduleCode: `${code}${regionTitle.get(c.module) ? ` · ${regionTitle.get(c.module)}` : ""}`, title, href: conceptHref(c.id), cards };
+      return { concept: c.id, module: c.module, moduleCode: stepOf(labels, c.module).label, title, href: conceptHref(c.id), cards };
     }),
   );
   return decks.filter((d): d is DsaDeck => !!d);
 }
 
-const cachedLoad = unstable_cache(load, ["dsa-revise-decks-v1"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cachedLoad = unstable_cache(load, ["dsa-revise-decks-v2"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 export function getDsaDecks(): Promise<DsaDeck[]> {
   return dsaFresh() ? load() : cachedLoad();

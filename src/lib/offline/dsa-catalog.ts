@@ -1,7 +1,8 @@
 import "server-only";
 import { createHash } from "crypto";
 import { readDsa } from "@/lib/dsa/content";
-import { getConceptIndex, getProblemIndex, lessonDir, lessonHref, problemHref } from "@/lib/dsa/load";
+import { getConceptIndex, getProblemIndex, getStepLabels, lessonDir, lessonHref, problemHref } from "@/lib/dsa/load";
+import { stepOf, stepRank } from "@/lib/dsa/steps";
 import { listDsaLectures } from "@/lib/dsa/media";
 import type { CatalogGroup, CatalogItem } from "./types";
 
@@ -14,7 +15,6 @@ import type { CatalogGroup, CatalogItem } from "./types";
  */
 
 const hash = (s: string) => createHash("sha1").update(s).digest("hex").slice(0, 12);
-const modNum = (m: string) => Number(m.match(/^m(\d+)/)?.[1] ?? 99);
 
 async function inBatches<T, R>(list: readonly T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = [];
@@ -27,7 +27,8 @@ const LECTURE_BYTES_PER_WORD = 5_100;
 const LECTURE_FILES_BYTES = 120_000;
 
 export async function dsaCatalogGroups(mediaBase: string | null): Promise<CatalogGroup[]> {
-  const [concepts, problems] = await Promise.all([getConceptIndex(), getProblemIndex()]);
+  const [concepts, problems, labels] = await Promise.all([getConceptIndex(), getProblemIndex(), getStepLabels()]);
+  const modNum = (m: string) => stepRank(labels, m);
   const built = concepts.filter((c) => c.status === "built").sort((a, b) => modNum(a.module) - modNum(b.module) || a.order - b.order);
   const groups: CatalogGroup[] = [];
 
@@ -40,7 +41,7 @@ export async function dsaCatalogGroups(mediaBase: string | null): Promise<Catalo
     const nClips = (lesson?.match(/^::clip\[/gm) || []).length;
     return { c, version: hash(src || c.id), bytes: Math.round(30_000 + src.length * 1.3 + nClips * 650_000) };
   });
-  const code = (m: string) => m.split("-")[0].toUpperCase();
+  const code = (m: string) => stepOf(labels, m).step;
   groups.push({
     id: "dsa-concepts",
     title: "DSA concepts",
