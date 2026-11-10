@@ -129,16 +129,16 @@ function Group({ def, state, counts, base, onToggle }: { def: GroupDef; state: F
 
 /* ------------------------------------------------------------------ the list */
 
-function Row({ p, d, grouped }: { p: FilterRow; d: ProblemData; grouped: boolean }) {
+function Row({ p, d, num }: { p: FilterRow; d: ProblemData; num?: number }) {
   const meta = [p.minutes ? `${p.minutes} min` : "", p.kind === "checkpoint" ? "Checkpoint" : p.kind === "warm-up" ? "Warm-up" : ""].filter(Boolean).join(" · ");
   return (
     <li className="bg-surface [contain-intrinsic-size:auto_56px] [content-visibility:auto]">
       <Link href={`/dsa/problems/${p.id}`} className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3 hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal">
-        {grouped ? <span className="w-6 font-mono text-[12px] text-fg-3">{p.order}</span> : null}
+        {num ? <span className="w-6 font-mono text-[12px] tabular-nums text-fg-3">{num}</span> : null}
         <SolvedMark id={p.id} />
         <span className="min-w-0 flex-1 basis-40 text-[15px] text-fg">
           {p.title}
-          {!grouped ? <span className="block font-mono text-[11px] text-fg-3">{d.concepts[p.concept] || p.concept}</span> : null}
+          {!num ? <span className="block font-mono text-[11px] text-fg-3">{[d.steps.find((s) => s.id === p.module)?.label, d.concepts[p.concept]].filter(Boolean).join(" · ")}</span> : null}
         </span>
         {p.video ? (
           <span className="inline-flex items-center gap-1 font-mono text-[11px] text-signal-text">
@@ -160,32 +160,41 @@ function List({ rows, sort, d }: { rows: FilterRow[]; sort: SortId; d: ProblemDa
     return (
       <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
         {rows.map((p) => (
-          <Row key={p.id} p={p} d={d} grouped={false} />
+          <Row key={p.id} p={p} d={d} />
         ))}
       </ol>
     );
   }
-  const groups: { concept: string; rows: FilterRow[] }[] = [];
+  const groups: { concept: string; module: string; rows: FilterRow[] }[] = [];
   for (const r of rows) {
     const last = groups[groups.length - 1];
     if (last && last.concept === r.concept) last.rows.push(r);
-    else groups.push({ concept: r.concept, rows: [r] });
+    else groups.push({ concept: r.concept, module: r.module, rows: [r] });
   }
+  // each section: its course step ("2.2 Hashing") above the lesson's title; problems numbered 1, 2, 3… within it
+  const stepOf = (m: string) => d.steps.find((s) => s.id === m)?.label || "";
+  const lessonHref = (g: { concept: string; module: string }) =>
+    /^s\d/.test(g.module) ? `/dsa/structures/${g.concept}` : /^a\d/.test(g.module) ? `/dsa/algorithms/${g.concept}` : d.concepts[g.concept] ? `/dsa/concepts/${g.concept}` : null;
   return (
     <div className="flex flex-col gap-8">
       {groups.map((g) => (
         <section key={g.concept} aria-labelledby={`pc-${g.concept}`} className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h2 id={`pc-${g.concept}`} className="m-0 font-display text-[22px] font-bold tracking-[-0.02em] text-fg">
-              {d.concepts[g.concept] || g.concept}
-            </h2>
-            <Link href={`/dsa/concepts/${g.concept}`} className="inline-flex min-h-10 items-center font-mono text-[12px] text-signal-text underline decoration-line-strong underline-offset-4">
-              the lesson →
-            </Link>
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div className="flex min-w-0 flex-col gap-1">
+              {stepOf(g.module) && <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">{stepOf(g.module)}</span>}
+              <h2 id={`pc-${g.concept}`} className="m-0 font-display text-[22px] font-bold tracking-[-0.02em] text-fg">
+                {d.concepts[g.concept] || (stepOf(g.module) ? `${stepOf(g.module).replace(/^[\d.]+\s*/, "")}: more practice` : "More practice")}
+              </h2>
+            </div>
+            {lessonHref(g) && (
+              <Link href={lessonHref(g)!} className="inline-flex min-h-10 items-center font-mono text-[12px] text-signal-text underline decoration-line-strong underline-offset-4">
+                the lesson →
+              </Link>
+            )}
           </div>
           <ol className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
-            {g.rows.map((p) => (
-              <Row key={p.id} p={p} d={d} grouped />
+            {g.rows.map((p, i) => (
+              <Row key={p.id} p={p} d={d} num={i + 1} />
             ))}
           </ol>
         </section>

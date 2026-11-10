@@ -42,7 +42,7 @@ import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
 import ProblemTutor, { type TutorRequest } from "./ProblemTutor";
 import { useDailySolve, useIsDaily } from "../daily/useDsaDaily";
-import { MessageCircleQuestion, NotebookPen, Sparkles } from "lucide-react";
+import { Lock, MessageCircleQuestion, NotebookPen, PlayCircle, Sparkles } from "lucide-react";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { friendlyError, friendlyWrong } from "@/lib/dsa/friendly";
 import Jargon from "../glossary/Jargon";
@@ -214,7 +214,11 @@ function VerdictPanel({
 
 /* ------------------------------------------------------------------ the room */
 
-export default function ProblemRoom({ p }: { p: ProblemPage }) {
+/** The published solution video's length and poster, known before the editorial unlocks (the video itself stays behind it). */
+export type VideoTeaser = { duration: number; poster: string };
+const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage; videoTeaser?: VideoTeaser | null }) {
   const [lang, setLang] = useLang();
   const progress = useDsaProgress();
   const recordSolve = useRecordSolve();
@@ -409,7 +413,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
     { id: "description", label: "Description" },
     { id: "hints", label: full ? `Hints ${hints}/${p.hints.length}` : "Hints" },
     { id: "tutor", label: "Tutor" },
-    { id: "editorial", label: unlocked || !full ? "Editorial" : "Editorial · locked" },
+    { id: "editorial", label: `Editorial${videoTeaser ? " + video" : ""}${unlocked || !full ? "" : " · locked"}` },
     { id: "submissions", label: "Submissions" },
   ];
   const line = p.lineLabel;
@@ -472,6 +476,20 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
               <MessageCircleQuestion className="h-4 w-4" aria-hidden />
               Explain this problem simply
             </button>
+            {videoTeaser && (
+              <button
+                type="button"
+                onClick={() => {
+                  setTab("editorial");
+                  if (window.matchMedia("(max-width: 1023px)").matches) requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+                }}
+                className="inline-flex min-h-10 items-center gap-1.5 border border-line-strong px-3 text-[14px] text-fg-2 hover:border-signal hover:text-fg"
+              >
+                <PlayCircle className="h-4 w-4 text-signal-text" aria-hidden />
+                Solution video · {mmss(videoTeaser.duration)}
+                {!unlocked && <Lock className="h-3.5 w-3.5 text-fg-3" aria-label="opens with the editorial" />}
+              </button>
+            )}
             {/* save for offline: the statement, visible tests and hints, with the Python runtime so Run works offline */}
             <SaveOfflineButton title={p.title} kind="dsa-problem" />
             <ShowEverything />
@@ -548,7 +566,20 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
           <div className="flex flex-col gap-3">
             {!unlocked ? (
               <div className="flex flex-col gap-3 border border-line bg-surface p-5">
-                <p className="m-0 text-[15px] text-fg">The editorial opens when you solve the problem, or after three failed submits ({fails}/3 so far).</p>
+                <p className="m-0 text-[15px] text-fg">
+                  The editorial{videoTeaser ? " and the solution video open" : " opens"} when you solve the problem, or after three failed submits ({fails}/3 so far).
+                </p>
+                {videoTeaser && (
+                  <div className="relative aspect-video w-full max-w-[560px] overflow-hidden border border-line bg-black">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={videoTeaser.poster} alt="" className="h-full w-full object-cover opacity-40 blur-[6px]" loading="lazy" />
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-center text-white">
+                      <Lock className="h-6 w-6" aria-hidden />
+                      <span className="font-mono text-[12px] uppercase tracking-label">Solution video · {mmss(videoTeaser.duration)}</span>
+                      <span className="px-6 text-[13px] text-white/80">The full walkthrough, step by step, in all four languages. It opens with the editorial.</span>
+                    </div>
+                  </div>
+                )}
                 <button type="button" onClick={revealEditorial} className="min-h-11 self-start border border-line-strong px-4 text-[14px] text-fg-2 hover:text-fg">
                   Give up and show the editorial
                 </button>
