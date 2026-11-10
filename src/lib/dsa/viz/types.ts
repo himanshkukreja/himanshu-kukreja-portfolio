@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals" | "dp";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals" | "dp" | "strings";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -361,5 +361,25 @@ export type DpTree = {
 export type DpState = {
   table: DpTable | null;
   tree: DpTree | null;
+  out: string | null;
+};
+
+/* ------------------------------------------------------------------ the strings state ("strings" view) */
+
+/**
+ * Strings (A7): a text as a strip of letters. `pattern` is drawn under the text, its first letter under text index `shift`. `ok` are text
+ * indexes matched so far, `bad` are indexes that differ (warning colour), `found` is [start, length] of a finished match, and `marks` are
+ * named pointers under the strip (several names on one index share a pill). `counts` is a fixed array of letter slots (26 for a to z) with
+ * the slot in focus.
+ */
+export type StringsState = {
+  text: string[];
+  pattern: string[] | null;
+  shift: number;
+  ok: number[];
+  bad: number[];
+  found: [number, number] | null;
+  marks: Record<string, number>;
+  counts: { letters: string[]; values: number[]; hot: number | null } | null;
   out: string | null;
 };

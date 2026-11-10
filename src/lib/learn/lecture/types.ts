@@ -93,6 +93,11 @@ export type LectureStep = {
   shown?: number;
   repeat?: number[];
   hit?: number[];
+  /** DSA chars scenes (A7): the text index under the pattern's first letter, text indexes that differ (warning colour), letter counts so far (each stays), and the count slot in focus; `mark` holds the matched indexes, `window` a finished match and `pointers` the named pointers */
+  shift?: number;
+  bad?: number[];
+  tally?: Record<string, number>;
+  slot?: string;
   /** DSA trie scenes: the words after this step, a half-inserted word, the prefix walked (the node in focus), new and lit nodes (prefixes), the end marker in focus */
   words?: string[];
   grow?: string;
@@ -128,7 +133,8 @@ export type SceneKind =
   | "graph"
   | "trie"
   | "intervals"
-  | "dp";
+  | "dp"
+  | "chars";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -199,6 +205,8 @@ export type LectureScene = {
   spans?: number[][];
   /** DSA dp (A6): a table (`cols`, optional `rows` for a 2-D table, `base` cells drawn dashed, `blocked` closed cells) or a recursion tree (`calls`: each call as [label, parent call or -1], in the order the calls are made) */
   dp?: { cols?: string[]; rows?: string[]; base?: [number, number][]; blocked?: [number, number][]; calls?: [string, number][] };
+  /** DSA chars (A7 string basics): a string as a strip of letters (`text`, 1 to 24 characters), an optional `pattern` drawn under it, and `counts: true` for a 26-slot letter array */
+  chars?: { text: string; pattern?: string; counts?: boolean };
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

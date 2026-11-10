@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp", "chars"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp", "chars"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -136,6 +136,25 @@ for (const s of L.scenes || []) {
       if (st.cost !== undefined && !(Number.isInteger(st.cost) && st.cost >= 0)) errs.push(`${s.id}#${k}: cost is a whole number`);
     }
   }
+  if (s.kind === "chars") {
+    // strings (A7): a text strip with an optional pattern under it and an optional 26-slot count array
+    const c = s.chars || {};
+    const nT = typeof c.text === "string" ? [...c.text].length : 0;
+    const nP = typeof c.pattern === "string" ? [...c.pattern].length : 0;
+    if (!(nT >= 1 && nT <= 24)) errs.push(`${s.id}: chars.text is a string of 1 to 24 characters`);
+    if (c.pattern !== undefined && !(nP >= 1 && nP <= 10 && nP <= nT)) errs.push(`${s.id}: chars.pattern is 1 to 10 characters and no longer than the text`);
+    const idx = (v) => Number.isInteger(v) && v >= 0 && v < nT;
+    for (const [k, st] of (s.steps || []).entries()) {
+      if (st.shift !== undefined && !(Number.isInteger(st.shift) && st.shift >= 0 && st.shift + nP <= nT)) errs.push(`${s.id}#${k}: shift puts the pattern outside the text`);
+      for (const key of ["mark", "bad"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every(idx))) errs.push(`${s.id}#${k}: ${key} lists text indexes 0..${nT - 1}`);
+      if (st.window !== undefined && !(Array.isArray(st.window) && idx(st.window[0]) && idx(st.window[1]) && st.window[0] <= st.window[1])) errs.push(`${s.id}#${k}: window is [first, last] text indexes`);
+      for (const [name, v] of Object.entries(st.pointers || {})) if (!idx(v)) errs.push(`${s.id}#${k}: pointer ${name}=${v} outside the text`);
+      if (st.tally !== undefined && !(c.counts && st.tally && typeof st.tally === "object" && Object.entries(st.tally).every(([l, n]) => /^[a-z]$/.test(l) && Number.isInteger(n) && n >= 0))) errs.push(`${s.id}#${k}: tally maps letters a-z to counts and needs chars.counts`);
+      if (st.slot !== undefined && !(c.counts && /^[a-z]$/.test(st.slot))) errs.push(`${s.id}#${k}: slot is a letter a-z and needs chars.counts`);
+      if (st.out !== undefined && (typeof st.out !== "string" || !st.out.length || st.out.length > 18)) errs.push(`${s.id}#${k}: out is a chip of 18 characters or fewer`);
+      if (st.cost !== undefined && !(Number.isInteger(st.cost) && st.cost >= 0)) errs.push(`${s.id}#${k}: cost is a whole number`);
+    }
+  }
   if (s.kind === "dp") {
     // dynamic programming (A6): a table (cols, rows, base, blocked) or a recursion tree (calls)
     const d = s.dp || {};
@@ -237,7 +256,7 @@ for (const s of L.scenes || []) {
     if (s.kind === "trace" && s.traceData && !(Number.isInteger(st.frame) && st.frame >= 0 && st.frame < s.traceData.frames.length)) errs.push(`${s.id}#${k}: frame ${st.frame} outside trace ${s.trace} (0..${s.traceData.frames.length - 1})`);
     if (s.kind === "trace" && s.traceData && /\bpredict\b/i.test(st.say || "") && !s.traceData.frames[st.frame]?.ask) warns.push(`${s.id}#${k}: says "predict" but frame ${st.frame} asks nothing, so no value is hidden`);
     if (s.kind === "code" && s.code) for (const m of st.markers || []) if (!(m >= 1 && m <= s.code.lines.length && s.code.lines[m - 1].length)) errs.push(`${s.id}#${k}: marker ${m} not in template ${s.template} (1..${s.code.lines.length})`);
-    if (((st.window && !(s.kind === "queue" && s.mode === "window")) || st.pointers || (st.mark && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree" && s.kind !== "heap" && s.kind !== "graph")) && s.kind !== "array") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array scenes`);
+    if (((st.window && !(s.kind === "queue" && s.mode === "window")) || st.pointers || (st.mark && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree" && s.kind !== "heap" && s.kind !== "graph")) && s.kind !== "array" && s.kind !== "chars") warns.push(`${s.id}#${k}: window/mark/pointers only apply to array and chars scenes`);
     if ((st.order || st.next || st.labels) && s.kind !== "chain" && s.kind !== "stack" && s.kind !== "queue" && s.kind !== "tree" && s.kind !== "heap" && s.kind !== "graph") warns.push(`${s.id}#${k}: order/next/labels only apply to chain scenes`);
     if (st.markers && s.kind !== "code") warns.push(`${s.id}#${k}: markers only apply to code scenes`);
     if (st.reveal != null && (st.reveal < 0 || st.reveal > revealMax)) errs.push(`${s.id}#${k}: reveal ${st.reveal} outside 0..${revealMax}`);

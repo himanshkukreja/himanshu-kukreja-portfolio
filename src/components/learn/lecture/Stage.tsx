@@ -25,6 +25,7 @@ import { GraphScene } from "./DsaGraphScene";
 import { TrieScene } from "./DsaTrieScene";
 import { IntervalsScene } from "./DsaIntervalsScene";
 import { DpScene } from "./DsaDpScene";
+import { CharsScene } from "./DsaCharsScene";
 
 type MermaidApi = Awaited<ReturnType<typeof loadMermaid>>;
 let mermaidP: Promise<MermaidApi> | null = null;
@@ -160,6 +161,7 @@ export default function Stage({ lecture, flat, i, t, dur, quest, interactive, qu
         {s.kind === "graph" && <GraphScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
         {s.kind === "intervals" && <IntervalsScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
         {s.kind === "dp" && <DpScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
+        {s.kind === "chars" && <CharsScene s={s} st={st} prevSt={prev?.st ?? null} t={t} first={cur.step === 0} />}
         {hasDiagram && <DiagramScene key={s.id} s={s} st={st} prevSt={prev?.st ?? null} t={t} i={i} onReady={onReady} show={extraHighlight} />}
       </div>
 

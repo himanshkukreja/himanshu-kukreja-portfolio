@@ -7,7 +7,7 @@
  * (search.ts); a graph view will draw the same SearchState with nodes and edges, reusing FrontierPanel and nodeTone.
  */
 import type { ComponentType } from "react";
-import type { ArrayState, GraphState, HeapState, DpState, IntervalsState, ListState, MemoryState, QueueState, StackState, TreeState, TrieState, ViewId } from "@/lib/dsa/viz/types";
+import type { ArrayState, GraphState, HeapState, DpState, StringsState, IntervalsState, ListState, MemoryState, QueueState, StackState, TreeState, TrieState, ViewId } from "@/lib/dsa/viz/types";
 import type { GridState } from "@/lib/dsa/viz/grid";
 import ListView, { describeList } from "./ListView";
 import ArrayView, { describeArray } from "./ArrayView";
@@ -21,10 +21,11 @@ import GraphView, { describeGraphState } from "./GraphView";
 import TrieView, { describeTrieState } from "./TrieView";
 import IntervalsView, { describeIntervalsState } from "./IntervalsView";
 import DpView, { describeDpState } from "./DpView";
+import StringsView, { describeStringsState } from "./StringsView";
 
 type ViewDef<S> = { Component: ComponentType<{ state: S; prev: S | null; t: number }>; describe: (s: S) => string };
 
-export const VIEWS: { [K in ViewId]: ViewDef<K extends "list" ? ListState : K extends "array" ? ArrayState : K extends "grid" ? GridState : K extends "stack" ? StackState : K extends "queue" ? QueueState : K extends "tree" ? TreeState : K extends "heap" ? HeapState : K extends "graph" ? GraphState : K extends "trie" ? TrieState : K extends "intervals" ? IntervalsState : K extends "dp" ? DpState : MemoryState> } = {
+export const VIEWS: { [K in ViewId]: ViewDef<K extends "list" ? ListState : K extends "array" ? ArrayState : K extends "grid" ? GridState : K extends "stack" ? StackState : K extends "queue" ? QueueState : K extends "tree" ? TreeState : K extends "heap" ? HeapState : K extends "graph" ? GraphState : K extends "trie" ? TrieState : K extends "intervals" ? IntervalsState : K extends "dp" ? DpState : K extends "strings" ? StringsState : MemoryState> } = {
   list: { Component: ListView, describe: describeList },
   array: { Component: ArrayView, describe: describeArray },
   memory: { Component: MemoryView, describe: describeMemory },
@@ -37,4 +38,5 @@ export const VIEWS: { [K in ViewId]: ViewDef<K extends "list" ? ListState : K ex
   trie: { Component: TrieView, describe: describeTrieState },
   intervals: { Component: IntervalsView, describe: describeIntervalsState },
   dp: { Component: DpView, describe: describeDpState },
+  strings: { Component: StringsView, describe: describeStringsState },
 };
