@@ -24,6 +24,7 @@ import { PHeap } from "./DsaHeapScene";
 import { PGraph } from "./DsaGraphScene";
 import { PTrie } from "./DsaTrieScene";
 import { PIntervals } from "./DsaIntervalsScene";
+import { PDp } from "./DsaDpScene";
 
 const W = "text-[#f3f2ee]";
 /** the accent (SD Mastery orange; DSA_ACCENT turns it teal on a DSA short), its rgb triplet, its dark tint and ink */
@@ -189,6 +190,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
         {s.kind === "heap" && <PHeap s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "trie" && <PTrie s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "intervals" && <PIntervals s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
+        {s.kind === "dp" && <PDp s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "graph" && <PGraph s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {hasDiagram && (
           <div className="flex h-full w-full flex-col gap-[2cqh]">

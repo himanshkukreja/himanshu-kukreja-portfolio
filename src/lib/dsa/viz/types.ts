@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals" | "dp";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -328,5 +328,38 @@ export type IntervalsState = {
   lit: number[];
   current: number | null;
   lastEnd: number | null;
+  out: string | null;
+};
+
+/* ------------------------------------------------------------------ the dynamic-programming state ("dp" view) */
+
+/**
+ * Dynamic programming (A6): a table filled cell by cell, or a recursion tree. In a table, `cells` hold the text of each filled cell (null:
+ * not filled yet), `base` are the base-case cells, `blocked` are closed cells (always 0), `now` is the cell being filled and `reads` are the
+ * cells it reads from (drawn with a line to it). A 1-D table has `rows: null`, so its cells are [0, column]. In a tree, `calls` are the
+ * calls in the order they are made (each with its parent call, -1 for the first), the first `shown` are drawn, `vals` is the value a
+ * call has returned, `hot` are calls in focus, `repeat` are calls that repeat an earlier call (warning colour) and `hit` are calls
+ * answered from the memo.
+ */
+export type DpTable = {
+  cols: string[];
+  rows: string[] | null;
+  cells: (string | null)[][];
+  base: [number, number][];
+  blocked: [number, number][];
+  now: [number, number] | null;
+  reads: [number, number][];
+};
+export type DpTree = {
+  calls: { label: string; parent: number }[];
+  shown: number;
+  vals: Record<number, string>;
+  hot: number[];
+  repeat: number[];
+  hit: number[];
+};
+export type DpState = {
+  table: DpTable | null;
+  tree: DpTree | null;
   out: string | null;
 };

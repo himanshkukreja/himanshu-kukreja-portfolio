@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -132,6 +132,38 @@ for (const s of L.scenes || []) {
       if (Array.isArray(st.picked) && Array.isArray(st.skipped) && st.picked.some((x) => st.skipped.includes(x))) errs.push(`${s.id}#${k}: a talk cannot be both picked and skipped`);
       if (st.current !== undefined && st.current !== null && !isTalk(st.current)) errs.push(`${s.id}#${k}: current is a talk 0..${nT - 1}`);
       if (st.lastEnd !== undefined && !(Number.isInteger(st.lastEnd) && st.lastEnd >= 0 && st.lastEnd <= 24)) errs.push(`${s.id}#${k}: lastEnd is an hour 0 to 24`);
+      if (st.out !== undefined && (typeof st.out !== "string" || !st.out.length || st.out.length > 18)) errs.push(`${s.id}#${k}: out is a chip of 18 characters or fewer`);
+      if (st.cost !== undefined && !(Number.isInteger(st.cost) && st.cost >= 0)) errs.push(`${s.id}#${k}: cost is a whole number`);
+    }
+  }
+  if (s.kind === "dp") {
+    // dynamic programming (A6): a table (cols, rows, base, blocked) or a recursion tree (calls)
+    const d = s.dp || {};
+    const isTree = Array.isArray(d.calls);
+    const cell = (v, R, C) => Array.isArray(v) && v.length >= 2 && Number.isInteger(v[0]) && Number.isInteger(v[1]) && v[0] >= 0 && v[0] < R && v[1] >= 0 && v[1] < C;
+    if (isTree) {
+      const nC = d.calls.length;
+      if (!(nC >= 1 && nC <= 31 && d.calls.every((c, i) => Array.isArray(c) && typeof c[0] === "string" && c[0].length >= 1 && c[0].length <= 6 && Number.isInteger(c[1]) && c[1] >= -1 && c[1] < i && (i === 0 ? c[1] === -1 : c[1] >= 0)))) errs.push(`${s.id}: dp calls are 1 to 31 entries [label of 1 to 6 characters, earlier parent call or -1 for the first call]`);
+      const isCall = (v) => Number.isInteger(v) && v >= 0 && v < nC;
+      for (const [k, st] of (s.steps || []).entries()) {
+        if (st.shown !== undefined && !(Number.isInteger(st.shown) && st.shown >= 0 && st.shown <= nC)) errs.push(`${s.id}#${k}: shown is a number of calls 0..${nC}`);
+        for (const key of ["hot", "repeat", "hit"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every(isCall) && new Set(st[key]).size === st[key].length)) errs.push(`${s.id}#${k}: ${key} lists distinct calls 0..${nC - 1}`);
+        if (st.ret !== undefined && !(st.ret && typeof st.ret === "object" && Object.entries(st.ret).every(([a, b]) => isCall(Number(a)) && typeof b === "string" && b.length <= 8))) errs.push(`${s.id}#${k}: ret maps call numbers to short text`);
+        for (const bad of ["put", "now", "reads"]) if (st[bad] !== undefined) errs.push(`${s.id}#${k}: a recursion tree does not use ${bad}`);
+      }
+    } else {
+      const C = (d.cols || []).length;
+      const R = d.rows ? d.rows.length : 1;
+      if (!(Array.isArray(d.cols) && C >= 2 && C <= 13 && d.cols.every((x) => typeof x === "string" && x.length <= 3) && (d.rows === undefined || (Array.isArray(d.rows) && R >= 2 && R <= 8 && d.rows.every((x) => typeof x === "string" && x.length <= 3))))) errs.push(`${s.id}: a dp table needs cols (2 to 13 short labels) and, for a 2-D table, rows (2 to 8 short labels)`);
+      for (const key of ["base", "blocked"]) if (d[key] !== undefined && !(Array.isArray(d[key]) && d[key].every((v) => cell(v, R, C)))) errs.push(`${s.id}: ${key} lists cells [row, column] inside the table`);
+      for (const [k, st] of (s.steps || []).entries()) {
+        if (st.put !== undefined && !(Array.isArray(st.put) && st.put.every((v) => cell(v, R, C) && v.length === 3 && typeof v[2] === "string" && v[2].length >= 1 && v[2].length <= 7))) errs.push(`${s.id}#${k}: put lists cells [row, column, text of 1 to 7 characters] inside the table`);
+        if (st.now !== undefined && !cell(st.now, R, C)) errs.push(`${s.id}#${k}: now is a cell [row, column] inside the table`);
+        if (st.reads !== undefined && !(Array.isArray(st.reads) && st.reads.every((v) => cell(v, R, C)))) errs.push(`${s.id}#${k}: reads lists cells [row, column] inside the table`);
+        for (const bad of ["shown", "hit", "repeat", "ret", "hot"]) if (st[bad] !== undefined) errs.push(`${s.id}#${k}: a dp table does not use ${bad}`);
+      }
+    }
+    for (const [k, st] of (s.steps || []).entries()) {
       if (st.out !== undefined && (typeof st.out !== "string" || !st.out.length || st.out.length > 18)) errs.push(`${s.id}#${k}: out is a chip of 18 characters or fewer`);
       if (st.cost !== undefined && !(Number.isInteger(st.cost) && st.cost >= 0)) errs.push(`${s.id}#${k}: cost is a whole number`);
     }

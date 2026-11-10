@@ -15,6 +15,7 @@ import { makeTrie, runTrieOp, trieMemoryPicture, TRIE_OPS, type TrieOp, type Tri
 import { gridSearch, parseGrid } from "./grid";
 import { pathScript, type PathAlgo, type PathEdge } from "./shortest";
 import { intervalsScript, type IntervalRule, type Talk } from "./intervals";
+import { dpScript, type DpMethod, type DpProblem } from "./dp";
 
 export type SandboxDemo = {
   id: string;
@@ -370,18 +371,45 @@ export type IntervalsVisualizerSpec = {
   presets: IntervalsPreset[];
   demos: IntervalsDemo[];
 };
-export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec | IntervalsVisualizerSpec;
+/** A small dynamic-programming problem for the A6 visualizer: stairs (n), coins (coin values and an amount), grid (rows of . and #) or lcs (two words). */
+export type DpPreset = { id: string; title: string; note?: string; problem: DpProblem };
+export type DpDemo = {
+  id: string;
+  title: string;
+  algorithm: DpMethod;
+  /** a preset id from the visualizer, or the problem itself */
+  preset?: string;
+  problem?: DpProblem;
+  predict?: boolean;
+};
+export type DpVisualizerSpec = {
+  id: string;
+  view: "dp";
+  title: string;
+  algorithms: DpMethod[];
+  cost: string;
+  limits: { stairs: [number, number]; treeStairs: [number, number]; coins: number; coinValue: [number, number]; amount: [number, number]; grid: [number, number]; word: [number, number] };
+  presets: DpPreset[];
+  demos: DpDemo[];
+};
+export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec | IntervalsVisualizerSpec | DpVisualizerSpec;
 
-export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn", "dsu"] as const }, intervals: { algorithms: ["earliest-finish", "earliest-start", "shortest-first"] as const } };
+export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn", "dsu"] as const }, intervals: { algorithms: ["earliest-finish", "earliest-start", "shortest-first"] as const }, dp: { algorithms: ["plain-recursion", "memoise", "tabulate"] as const } };
 
-export const isIntervalsDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo): d is IntervalsDemo => "algorithm" in d && (d.algorithm === "earliest-finish" || d.algorithm === "earliest-start" || d.algorithm === "shortest-first");
-export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn" || d.algorithm === "dsu");
-export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
+export const isDpDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo): d is DpDemo => "algorithm" in d && (d.algorithm === "plain-recursion" || d.algorithm === "memoise" || d.algorithm === "tabulate");
+export const isIntervalsDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo): d is IntervalsDemo => "algorithm" in d && (d.algorithm === "earliest-finish" || d.algorithm === "earliest-start" || d.algorithm === "shortest-first");
+export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn" || d.algorithm === "dsu");
+export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
 
 export function pathDemoScript(d: PathDemo): Script {
   const n = d.n ?? 0;
   if (!d.edges || n < 2) return { view: "array", title: d.title, costUnit: "steps", frames: [{ state: { values: [], pointers: {}, mark: [], moved: [], dim: [] }, note: "No map.", cost: 0 }] };
   return pathScript(d.algorithm, { n, edges: d.edges }, d.source ?? 0, d.target ?? null, { predict: d.predict, title: d.title }) as Script;
+}
+
+export function dpDemoScript(d: DpDemo): Script {
+  const p = d.problem ?? { kind: "stairs" as const, n: 5 };
+  return dpScript(p, d.algorithm, { predict: d.predict, title: d.title }) as Script;
 }
 
 export function intervalsDemoScript(d: IntervalsDemo): Script {

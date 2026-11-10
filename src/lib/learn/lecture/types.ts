@@ -86,6 +86,13 @@ export type LectureStep = {
   skipped?: number[];
   hot?: number[];
   lastEnd?: number;
+  /** DSA dp scenes (A6): table cells filled from this step on as [row, column, text] (each stays; a 1-D table uses row 0), the cell being filled and the cells it reads from (this step only), and for a recursion tree the calls shown so far (`shown`, each stays), the calls that repeat an earlier call and the calls the memo answers (each stays until a later step sets it again), with `hot` calls in focus and `ret` the value each call (by number) has returned */
+  put?: [number, number, string][];
+  now?: [number, number];
+  reads?: [number, number][];
+  shown?: number;
+  repeat?: number[];
+  hit?: number[];
   /** DSA trie scenes: the words after this step, a half-inserted word, the prefix walked (the node in focus), new and lit nodes (prefixes), the end marker in focus */
   words?: string[];
   grow?: string;
@@ -120,7 +127,8 @@ export type SceneKind =
   | "heap"
   | "graph"
   | "trie"
-  | "intervals";
+  | "intervals"
+  | "dp";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -189,6 +197,8 @@ export type LectureScene = {
   words?: string[];
   /** DSA intervals (greedy choices, A5): the talks as [start, end] in whole hours (2 to 8; talk 0 is A, talk 1 is B, ...), drawn as bars on an hour axis */
   spans?: number[][];
+  /** DSA dp (A6): a table (`cols`, optional `rows` for a 2-D table, `base` cells drawn dashed, `blocked` closed cells) or a recursion tree (`calls`: each call as [label, parent call or -1], in the order the calls are made) */
+  dp?: { cols?: string[]; rows?: string[]; base?: [number, number][]; blocked?: [number, number][]; calls?: [string, number][] };
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;
