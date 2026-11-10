@@ -11,7 +11,7 @@
  *   time, lessons/steps/quizzes/labs/dry runs, lectures watched, first-try and no-hint solves (read back out of each
  *   solve's Bits: a level's base plus the first-try and no-hint bonuses are distinct sums), submissions and acceptance
  *   rate and languages (this device's history only: the server keeps no per-learner read for the browser).
- * Not tracked yet: solution videos watched, clips watched, Interview rounds ("coming soon" until the Interview tab stores
+ * Not tracked yet: solution videos watched, clips watched (interview rounds come from the Interview tab's dsa:iv: flags; it stores
  *   scorecards under keys documented in rewards.ts).
  */
 export type StatRow = { id: string; level: "easy" | "medium" | "hard"; module: string; structures: string[]; algorithms: string[] };

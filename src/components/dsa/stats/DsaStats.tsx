@@ -10,6 +10,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useGame } from "@/game/GameProvider";
+import { readRecord, STAGE_TITLE, VERDICT_LABEL, type Round } from "@/lib/dsa/interview";
 import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress } from "../progress/useDsaProgress";
 import { BeltSwatch } from "../rewards/BeltSwatch";
@@ -183,7 +184,13 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString
 export default function DsaStats({ rows, steps }: { rows: StatRow[]; steps: { id: string; label: string }[] }) {
   const { user, loading } = useAuth();
   const { openAuthModal } = useAuthModal();
-  const { done, hydrated } = useGame();
+  const { done, hydrated, flags } = useGame();
+  // interview rounds (the problem room's Interview tab saves them as flags dsa:iv:<problem>)
+  const rounds = Object.entries(flags)
+    .filter(([k]) => k.startsWith("dsa:iv:"))
+    .flatMap(([k, v]) => (readRecord(v)?.rounds ?? []).map((r) => ({ ...r, problem: k.slice(7) })))
+    .sort((a, b) => b.at - a.at) as (Round & { problem: string })[];
+  const avgRound = rounds.length ? rounds.reduce((t, r) => t + r.overall, 0) / rounds.length : 0;
   const progress = useDsaProgress();
   const bits = useDsaBits();
   const histories = useHistories();
@@ -344,7 +351,27 @@ export default function DsaStats({ rows, steps }: { rows: StatRow[]; steps: { id
                 )}
               </Card>
               <Card title="Interview rounds">
-                <p className="m-0 text-[14px] text-fg-3">Coming soon. Your mock interview scores will show up here.</p>
+                {rounds.length ? (
+                  <div className="flex flex-col gap-2">
+                    <p className="m-0 text-[14px] text-fg-2">
+                      {rounds.length} round{rounds.length === 1 ? "" : "s"} · average {avgRound.toFixed(1)} / 5
+                    </p>
+                    <ul className="m-0 flex list-none flex-col gap-1 p-0">
+                      {rounds.slice(0, 5).map((r) => (
+                        <li key={`${r.problem}-${r.at}`} className="flex flex-wrap items-baseline justify-between gap-x-3 text-[13px]">
+                          <a href={`/dsa/problems/${r.problem}`} className="min-w-0 truncate text-fg underline decoration-line-strong underline-offset-4">
+                            {r.problem.replace(/-/g, " ")}
+                          </a>
+                          <span className="font-mono text-[12px] text-fg-3">
+                            {STAGE_TITLE[r.stage]} · {r.overall.toFixed(1)} · {VERDICT_LABEL[r.verdict]}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="m-0 text-[14px] text-fg-3">No interview rounds yet. Open a problem&apos;s Interview tab to practise explaining it.</p>
+                )}
               </Card>
             </div>
           </>
