@@ -33,7 +33,7 @@ export default function PrepDetails() {
         </p>
         <p>
           The <strong>problem bank</strong> (the classic questions: URL shortener, rate limiter, chat, news feed…) and <strong>low-level design</strong> (machine coding: parking lot, LRU cache, Splitwise…) are listed on the
-          Prep page too. Each opens with a <strong>mission</strong>: the brief and the numbers you design for.
+          Prep page too, and low-level design has its own home at <A href="/low-level-design">/low-level-design</A>: the design patterns, the case studies with filters, a suggested path and a pattern map. Each case study opens with a <strong>mission</strong>: the brief and the numbers you design for.
         </p>
       </div>
 

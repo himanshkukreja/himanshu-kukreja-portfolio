@@ -3,6 +3,7 @@ import type { LessonLabLink } from "@/lib/learn/labs/types";
 import type { TrailEntry } from "@/lib/learn/trail/types";
 import type { QuestDrills } from "@/lib/learn/drills/parse";
 import type { DesignFirstMeta } from "@/lib/learn/designFirst";
+import type { LldMeta } from "@/lib/learn/lld/types";
 
 export type RailEntry = {
   week: string;
@@ -82,6 +83,8 @@ export type ReaderMeta = {
   shorts?: { of: string; items: { id: string; title: string; poster: string; seconds: number }[] } | null;
   /** capstones: the "Design it first" brief and the solution stages it folds away (src/lib/learn/designFirst.ts) */
   designFirst?: DesignFirstMeta | null;
+  /** low-level design case studies: the interview walkthrough's extras (difficulty, patterns, class explorer, labs, what is missing) */
+  lld?: LldMeta | null;
 };
 
 export type QuestMeta = {

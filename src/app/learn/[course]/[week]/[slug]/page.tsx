@@ -13,7 +13,9 @@ import { renderLesson } from "@/lib/course/render";
 import { termsFor } from "@/lib/concepts/load";
 import { getCourseMap } from "@/lib/learn/course";
 import { courseRefResolver } from "@/lib/learn/course-refs";
-import { getLabsForLesson } from "@/lib/learn/labs/load";
+import { getLabsForLesson, getLabSummaries } from "@/lib/learn/labs/load";
+import { fillMounts, prepareLld } from "@/lib/learn/lld/load";
+import { caseBySlug } from "@/lib/learn/lld/meta";
 import { getTrailForLesson } from "@/lib/learn/trail/load";
 import { getSheet } from "@/lib/learn/sheets/load";
 import { getQuestDrills } from "@/lib/learn/drills/load";
@@ -66,7 +68,7 @@ export async function generateMetadata({ params }: Props) {
   if (!data) return { title: "Not Found" };
   // the lesson's own opening line makes a better search snippet than a generic one
   const teaser = await teaserFor(data.resource);
-  const where = `${weekLabel(week)} · ${weekTopic(week)} · free System Design Mastery course.`;
+  const where = data.resource.type === "lld" ? "Low-level design case study · free System Design Mastery course." : `${weekLabel(week)} · ${weekTopic(week)} · free System Design Mastery course.`;
   const path = `/${week}/${slug}`;
   return {
     title: `${data.resource.title} | System Design Mastery`,
@@ -185,7 +187,15 @@ export default async function LearningResourcePage({ params }: Props) {
       .then((m) => (m ? courseRefResolver(m) : undefined))
       .catch(() => undefined),
   ]);
-  const rendered = await renderLesson(content, { kind: resource.type, terms, courseRefs });
+  // low-level design case studies are re-cut into the interview walkthrough's seven steps (src/lib/learn/lld/steps.ts)
+  const lld = resource.type === "lld" ? await prepareLld(slug, content).catch(() => null) : null;
+  const rendered = await renderLesson(lld?.markdown ?? content, { kind: resource.type, terms, courseRefs });
+  const lessonHtml = lld ? fillMounts(rendered.html) : rendered.html;
+  const lldLabs = lld?.meta?.labs.length
+    ? await getLabSummaries()
+        .then((all) => all.filter((l) => lld.meta!.labs.some((x) => x.id === l.id)))
+        .catch(() => [])
+    : null;
   const title = cleanTitle(rendered, resource.title);
   const requiredStages = rendered.stages.filter((s) => !isOptionalStage(s));
   const numbered = requiredStages.filter((s) => s.id !== "preface" && s.id !== "intro").length || requiredStages.length;
@@ -219,7 +229,8 @@ export default async function LearningResourcePage({ params }: Props) {
             budgetMinutes: rendered.stages.reduce((a, s) => a + (s.budgetMinutes || 0), 0),
           }
         : null,
-    labs: await getLabsForLesson(course, week, slug).catch(() => []),
+    lld: lld?.meta ?? null,
+    labs: lldLabs ?? (await getLabsForLesson(course, week, slug).catch(() => [])),
     trail: await getTrailForLesson(week, slug).catch(() => []),
     drills: resource.type === "bonus" ? await getQuestDrills(slug, rendered.toc).catch(() => null) : null,
     sheet: resource.type === "bonus" ? await getSheet(slug).then((x) => (x ? { href: x.href, diagrams: x.diagrams } : null)).catch(() => null) : null,
@@ -232,12 +243,13 @@ export default async function LearningResourcePage({ params }: Props) {
 
   const path = `/${week}/${slug}`;
   const ld = [
-    lessonArticle({ title, description: meta.subtitle ?? null, path, coursePath: `/`, section: `${weekLabel(week)} · ${weekTopic(week)}` }),
+    lessonArticle({ title, description: meta.subtitle ?? null, path, coursePath: `/`, section: resource.type === "lld" ? "Low-level design" : `${weekLabel(week)} · ${weekTopic(week)}` }),
     breadcrumbs([
       { name: "Learn", path: "/" },
       { name: "System Design Mastery", path: `/` },
-      { name: resource.type === "bonus" ? "Side quests" : `${weekLabel(week)} · ${weekTopic(week)}`, path: `/` },
-      { name: title, path },
+      ...(resource.type === "lld"
+        ? [{ name: "Low-level design", path: "/low-level-design" }, { name: caseBySlug(slug)?.name ?? title, path }]
+        : [{ name: resource.type === "bonus" ? "Side quests" : `${weekLabel(week)} · ${weekTopic(week)}`, path: `/` }, { name: title, path }]),
     ]),
   ];
 
@@ -246,7 +258,7 @@ export default async function LearningResourcePage({ params }: Props) {
       <JsonLd data={ld} />
       <LessonReader
         meta={meta}
-        html={rendered.html}
+        html={lessonHtml}
         stages={rendered.stages}
         toc={rendered.toc}
         rail={rail}

@@ -7,6 +7,7 @@ import { contentSnapshot } from './content-snapshot';
 import { r2ContentConfigured, r2List, r2Read } from './content-r2';
 import { questDifficulty } from '@/lib/learn/quest-difficulty';
 import { DEPLOY_ENV } from './platform';
+import { caseBySlug } from '@/lib/learn/lld/meta';
 
 const GITHUB_TOKEN = process.env.GITHUB_PERSONAL_ACCESS_TOKEN;
 /** Cache tag on every GitHub content fetch (see /api/revalidate-courses). */
@@ -615,6 +616,9 @@ function parseFileToResource(file: GitHubFile, week: string): LearningResource |
  */
 function extractTitle(fileName: string): string {
   if (LESSON_TITLES[fileName]) return LESSON_TITLES[fileName];
+  // low-level design: the problem's own name ("LRU Cache", not the slug's "Lru Cache")
+  const lld = caseBySlug(fileName);
+  if (lld) return lld.name;
   // Remove day-XX- / week-XX- / capstone-interview-week-N- / foundations- / bonus-XX- prefixes
   const rest = fileName.replace(/^(day-\d+-|week-\d+-|capstone-(?:interview-)?(?:week-\d+-)?|foundations-|bonus-\d+-|problem-\d+-|lld-\d+-)/, '');
   return humanizeSlug(rest);

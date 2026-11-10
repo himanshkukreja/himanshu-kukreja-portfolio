@@ -1,0 +1,260 @@
+/*
+ * Low-level design case studies: the pieces mounted inside the article (entity list, class explorer,
+ * "try it first" gates, code language switch, lab card) and the rules that gate them.
+ * Components: src/components/learn/lld/LldHydrator.tsx. Tokens are the course's (--c-*), so the
+ * light, dark and reading modes all apply. Square corners, 1px rules, mono labels, like the other blocks.
+ */
+
+/* ------------------------------------------------------------ try it first
+   data-lld-try="on" + data-lld-diagram|code="hidden" sit on the reader's wrapper (LldPrefs).
+   Everything in the step but its header and its gate goes; the gate says why and has the button. */
+[data-lld-try="on"][data-lld-diagram="hidden"] .course-content #step-3 > :not(.sd-stage-head):not([data-lld-mount="gate-diagram"]),
+[data-lld-try="on"][data-lld-diagram="hidden"] .course-content [data-lld-mount="entities"],
+[data-lld-try="on"][data-lld-code="hidden"] .course-content #step-5 > :not(.sd-stage-head):not([data-lld-mount="gate-code"]) {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------ code language
+   Only the four tab languages are switched; text/output blocks always show. */
+[data-lld-lang="python"] .course-content #step-5 figure[data-sd="code"]:is([data-lang="java"], [data-lang="cpp"], [data-lang="javascript"]),
+[data-lld-lang="java"] .course-content #step-5 figure[data-sd="code"]:is([data-lang="python"], [data-lang="cpp"], [data-lang="javascript"]),
+[data-lld-lang="cpp"] .course-content #step-5 figure[data-sd="code"]:is([data-lang="python"], [data-lang="java"], [data-lang="javascript"]),
+[data-lld-lang="javascript"] .course-content #step-5 figure[data-sd="code"]:is([data-lang="python"], [data-lang="java"], [data-lang="cpp"]) {
+  display: none;
+}
+
+/* ------------------------------------------------------------ shared */
+.course-content .lld-box {
+  margin: 20px 0;
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  padding: 14px 16px;
+  min-width: 0;
+}
+.course-content .lld-label {
+  margin: 0 0 8px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-fg-3);
+}
+.course-content .lld-note {
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--c-fg-3);
+}
+.course-content .lld-btn {
+  min-height: 44px;
+  padding: 0 16px;
+  border: 1px solid var(--c-fg);
+  background: var(--c-fg);
+  color: var(--c-bg);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.course-content .lld-btn:hover {
+  opacity: 0.9;
+}
+.course-content .lld-btn[data-quiet] {
+  background: transparent;
+  color: var(--c-fg-2);
+  border-color: var(--c-line-strong);
+  font-weight: 500;
+}
+.course-content .lld-btn:focus-visible,
+.course-content .lld-chip:focus-visible,
+.course-content .lld-seg button:focus-visible {
+  outline: 2px solid var(--c-signal);
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------ gate */
+.course-content .lld-gate {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin: 16px 0;
+  border: 1px dashed var(--c-signal);
+  padding: 14px 16px;
+}
+.course-content .lld-gate p {
+  margin: 0;
+  flex: 1 1 260px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ------------------------------------------------------------ entities */
+.course-content .lld-groups {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+}
+.course-content .lld-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.course-content .lld-chips li {
+  margin: 0;
+  padding: 0;
+}
+.course-content .lld-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  max-width: 100%;
+  padding: 0 10px;
+  border: 1px solid var(--c-line-strong);
+  background: var(--c-bg);
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  color: var(--c-fg);
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------ explorer */
+.course-content .lld-explorer {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@container (min-width: 720px) {
+  .course-content .lld-explorer {
+    grid-template-columns: minmax(180px, 240px) minmax(0, 1fr);
+  }
+}
+.course-content .lld-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  align-content: flex-start;
+}
+@container (min-width: 720px) {
+  .course-content .lld-list {
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+  .course-content .lld-list .lld-chip {
+    width: 100%;
+  }
+}
+.course-content .lld-list li {
+  margin: 0;
+  padding: 0;
+}
+button.lld-chip {
+  cursor: pointer;
+  text-align: left;
+}
+button.lld-chip[aria-pressed="true"] {
+  background: var(--c-fg);
+  color: var(--c-bg);
+  border-color: var(--c-fg);
+}
+.course-content .lld-chip small {
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+.course-content .lld-detail {
+  min-width: 0;
+}
+.course-content .lld-detail h4 {
+  margin: 0 0 6px;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 17px;
+  overflow-wrap: anywhere;
+}
+.course-content .lld-members,
+.course-content .lld-links {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-mono, ui-monospace, monospace);
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--c-fg-2);
+  overflow-wrap: anywhere;
+}
+.course-content .lld-links button {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: var(--c-signal-text);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.course-content .lld-detail .sd-code {
+  margin: 8px 0 0;
+}
+
+/* ------------------------------------------------------------ language switch */
+.course-content .lld-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+  border: 1px solid var(--c-line-strong);
+}
+.course-content .lld-seg button {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-right: 1px solid var(--c-line-strong);
+  background: var(--c-bg);
+  font: inherit;
+  font-size: 13px;
+  color: var(--c-fg);
+  cursor: pointer;
+}
+.course-content .lld-seg button:last-child {
+  border-right: 0;
+}
+.course-content .lld-seg button[aria-pressed="true"] {
+  background: var(--c-fg);
+  color: var(--c-bg);
+}
+.course-content .lld-seg button:disabled {
+  cursor: default;
+  color: var(--c-fg-4, var(--c-fg-3));
+  background: transparent;
+}
+.course-content .lld-seg small {
+  margin-left: 6px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ------------------------------------------------------------ lab card */
+.course-content .lld-lab {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+.course-content .lld-lab a {
+  color: var(--c-signal-text);
+  font-weight: 600;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .course-content .lld-gate {
+    transition: border-color 0.15s;
+  }
+}

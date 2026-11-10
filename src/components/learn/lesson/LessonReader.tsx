@@ -1,7 +1,7 @@
 "use client";
 
 import CanvasEntry from "@/components/learn/canvas/CanvasEntry";
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { Stage, TocItem } from "@/lib/course/types";
 import { LessonProgressProvider } from "@/components/LessonProgressTracker";
 import LessonContentWrapper from "@/components/LessonContentWrapper";
@@ -15,6 +15,10 @@ import DeepLinkResolver from "@/components/DeepLinkResolver";
 import { useReadAloud } from "@/components/ReadAloud";
 import { listenKey } from "@/lib/listen/manifest";
 import LessonHero from "./LessonHero";
+import LldHero from "@/components/learn/lld/LldHero";
+import LldSideTracker from "@/components/learn/lld/LldSideTracker";
+import LldHydrator from "@/components/learn/lld/LldHydrator";
+import { LldPrefsProvider, LldScope } from "@/components/learn/lld/LldPrefs";
 import QuestHero from "@/components/learn/sidequest/QuestHero";
 import { questBrand } from "@/components/learn/sidequest/brands";
 import QuestRunEntry from "@/components/learn/sidequest/QuestRunEntry";
@@ -148,9 +152,14 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
   const openSheet = useCallback(() => setSheet(true), []);
 
   const tools = { readAloud, focus, onFocus: toggleFocus, size, onContents: openSheet };
+  // low-level design case studies: the interview walkthrough (steps, class explorer, code tabs, "try it first")
+  const isLld = meta.kind === "lld";
+  const Prefs = isLld ? LldPrefsProvider : Fragment;
+  const Scope = isLld ? LldScope : Fragment;
 
   return (
     <LessonProgressProvider courseId={meta.course} week={meta.week} lessonSlug={meta.slug} title={meta.title} stages={stages} contentVersion={meta.contentVersion}>
+      <Prefs>
       <div
         ref={rootRef}
         className="min-h-screen"
@@ -159,7 +168,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
         <Suspense fallback={null}>
           <SearchHighlight />
         </Suspense>
-        {meta.kind === "bonus" ? <QuestHero meta={meta} /> : <LessonHero meta={meta} />}
+        {meta.kind === "bonus" ? <QuestHero meta={meta} /> : isLld ? <LldHero meta={meta} /> : <LessonHero meta={meta} />}
         <LandingContext meta={meta} />
         <StageRail onOpenContents={openSheet} />
 
@@ -169,7 +178,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
             onFocusChange={changeFocus}
             leftOnMobile={false}
             sidebarLeft={<CollapsibleWeekNav course={meta.course} rail={rail} />}
-            sidebarRight={<TableOfContents toc={toc} stages={stages} />}
+            sidebarRight={isLld ? <LldSideTracker stages={stages} lld={meta.lld ?? null} /> : <TableOfContents toc={toc} stages={stages} />}
           >
             {meta.kind === "capstone" && <BossEntry week={meta.week} slug={meta.slug} stages={stages} title={meta.title} weekCode={meta.weekCode} />}
             {meta.lecture && <LectureEntry lecture={meta.lecture} quest={meta.kind === "bonus" || meta.kind === "problem" || meta.kind === "lld"} />}
@@ -180,6 +189,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
 
             <AskPrompt />
             {/* the learner's ink on the lesson (annotate mode: the reading tools' Annotate button) */}
+            <Scope>
             <AnnotateHost contentRef={contentRef} lessonKey={`${meta.week}/${meta.slug}`} title={meta.title}>
               <LessonContentWrapper
                 ref={contentRef}
@@ -190,7 +200,9 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
                 lessonTitle={meta.title}
               />
             </AnnotateHost>
+            </Scope>
             <DeepLinkResolver rootRef={contentRef} />
+            {isLld && meta.lld && <LldHydrator lld={meta.lld} contentRef={contentRef} />}
             {meta.kind === "capstone" && meta.designFirst && <DesignFirst meta={meta.designFirst} week={meta.week} title={meta.title} contentRef={contentRef} />}
 
             {meta.shorts && <ArticleShorts of={meta.shorts.of} shorts={meta.shorts.items} />}
@@ -212,6 +224,7 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
         <LessonNotebookContext lesson={{ week: meta.week, slug: meta.slug, title: meta.title, weekLabel: meta.weekLabel, weekTopic: meta.weekTopic }} />
         <ContentsSheet open={sheet} onClose={closeSheet} toc={toc} stages={stages} kicker={meta.shortLabel.toUpperCase()} title={meta.title} />
       </div>
+      </Prefs>
     </LessonProgressProvider>
   );
 }

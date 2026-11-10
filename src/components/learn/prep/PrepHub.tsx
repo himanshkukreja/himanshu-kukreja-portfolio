@@ -250,7 +250,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
       {(data.problems.length > 0 || data.lld.length > 0) && (
         <Group id="problems" kicker="classic problems" title="The questions everyone asks" aside="Short walkthroughs that link into the full lessons.">
           {data.problems.length > 0 && <ProblemList title="Problem bank" sub="High-level design, 15–30 min each" items={data.problems} reach={reach} />}
-          {data.lld.length > 0 && <ProblemList title="Low-level design" sub="Machine coding: classes, interfaces, patterns" items={data.lld} reach={reach} />}
+          {data.lld.length > 0 && <ProblemList title="Low-level design" sub="Machine coding: classes, interfaces, patterns" items={data.lld} reach={reach} all={{ href: "/low-level-design", label: "Patterns, filters and the suggested path" }} />}
         </Group>
       )}
 
@@ -391,7 +391,7 @@ export default function PracticeHub({ data }: { data: PracticeData }) {
 
 /* ------------------------------------------------------------------ pieces */
 
-function ProblemList({ title, sub, items, reach }: { title: string; sub: string; items: { code: string; title: string; href: string }[]; reach: (href: string) => Reach }) {
+function ProblemList({ title, sub, items, reach, all }: { title: string; sub: string; items: { code: string; title: string; href: string }[]; reach: (href: string) => Reach; all?: { href: string; label: string } }) {
   return (
     <section className="flex flex-col gap-3 border border-line bg-surface p-4 sm:p-[18px]">
       <div className="flex items-baseline justify-between gap-2">
@@ -409,6 +409,11 @@ function ProblemList({ title, sub, items, reach }: { title: string; sub: string;
           </li>
         ))}
       </ul>
+      {all && (
+        <Link href={all.href} className={`mt-auto inline-flex min-h-11 items-center font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal ${reach(all.href) === "away" ? "text-fg-4" : ""}`}>
+          {all.label} →
+        </Link>
+      )}
     </section>
   );
 }

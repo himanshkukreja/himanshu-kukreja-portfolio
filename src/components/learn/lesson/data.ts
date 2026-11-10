@@ -29,7 +29,8 @@ export const weekLabel = (week: string) => {
   return "Overview";
 };
 
-export const weekTopic = (week: string) => formatWeekTopic(week);
+/** "Low-level design · Low-Level Design" said the same thing twice: the track's topic is what it holds. */
+export const weekTopic = (week: string) => (week === "low-level-design" ? "Case studies" : formatWeekTopic(week));
 
 const pad = (n: string | number) => String(n).padStart(2, "0");
 

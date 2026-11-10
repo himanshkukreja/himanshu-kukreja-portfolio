@@ -23,6 +23,7 @@ const STATIC: { path: string; priority: number; freq: Entry["changeFrequency"] }
   { path: "/case-files", priority: 0.8, freq: "weekly" },
   { path: "/guide", priority: 0.6, freq: "monthly" },
   { path: "/prep", priority: 0.8, freq: "weekly" },
+  { path: "/low-level-design", priority: 0.8, freq: "weekly" },
   { path: "/prep/companies", priority: 0.8, freq: "weekly" },
   { path: "/prep/questions", priority: 0.7, freq: "weekly" },
   { path: "/prep/lectures", priority: 0.7, freq: "weekly" },

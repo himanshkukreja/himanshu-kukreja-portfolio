@@ -30,8 +30,8 @@ export const COURSE_HREF = "/";
  */
 export const PREP_ROUTES = ["prep", "practice", "revise", "cheatsheet", "sheets", "labs", "mock", "numbers", "plan", "tracks", "canvas", "podcast"] as const;
 const PREP_RE = new RegExp(`^/(?:${PREP_ROUTES.join("|")})(?:/|$)`);
-/** the problem bank and the low-level design track are lessons, but they belong to interview prep */
-const PREP_LESSON_RE = /^\/(?:problem-bank|low-level-design)\//;
+/** the problem bank and the low-level design track (its home, patterns and case studies) belong to interview prep */
+const PREP_LESSON_RE = /^\/(?:problem-bank\/|low-level-design(?:\/|$))/;
 export const isPrep = (p: string) => PREP_RE.test(p) || PREP_LESSON_RE.test(p);
 
 const isArena = (p: string) => /^\/(arena|review|design-week)(\/|$)/.test(p);

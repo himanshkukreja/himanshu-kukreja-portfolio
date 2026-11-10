@@ -54,6 +54,11 @@ export function majorStage(textRaw: string, kind: LessonKind): StageHead | null 
     }
     return null;
   }
+  // low-level design case studies: the interview walkthrough's seven steps (src/lib/learn/lld/steps.ts writes the "# Step N: …" headings)
+  if (kind === "lld") {
+    m = t.match(/^Step\s+(\d+)\s*[:.–—-]\s*(.+)$/i);
+    if (m) return { id: `step-${m[1]}`, label: `Step ${m[1]}`, title: m[2].trim(), core: true, numeral: m[1] };
+  }
   if (/^Preface\b/i.test(t)) return { id: "preface", label: "Preface", title: t, core: false };
   m = t.match(/^Part\s+([IVXLC]+|\d+)\s*[:.–—-]\s*(.+)$/i);
   if (m) {
@@ -528,7 +533,7 @@ export async function renderLessonDetailed(markdown: string, opts: RenderOpts): 
       const hd = s.heading;
       const inline = hd.children.map((c) => (c.type === "text" ? { ...c, value: stripEmoji(c.value) } : c));
       const full = stripEmoji(toText(hd));
-      const prefixMatch = full.match(head.sub ? /^(\d+\.\s*[A-Za-z]+\s*[:.–—-])\s*/ : /^((?:Part\s+[IVXLC\d]+|Phase\s+\d+|Chapter\s+\d+|WEEK\s+\d+|PHASE\s+\d+|Appendix)\s*[:.–—-])\s*/i);
+      const prefixMatch = full.match(head.sub ? /^(\d+\.\s*[A-Za-z]+\s*[:.–—-])\s*/ : /^((?:Part\s+[IVXLC\d]+|Phase\s+\d+|Step\s+\d+|Chapter\s+\d+|WEEK\s+\d+|PHASE\s+\d+|Appendix)\s*[:.–—-])\s*/i);
       let headingChildren: AnyNode[] = inline as AnyNode[];
       if (prefixMatch && inline[0]?.type === "text" && (inline[0] as { value: string }).value.startsWith(prefixMatch[1])) {
         const first = inline[0] as { type: "text"; value: string };
