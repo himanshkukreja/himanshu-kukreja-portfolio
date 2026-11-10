@@ -451,7 +451,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
     { id: "hints", label: full ? `Hints ${hints}/${p.hints.length}` : "Hints" },
     { id: "tutor", label: "Tutor" },
     { id: "interview", label: "Interview" },
-    { id: "editorial", label: `Editorial${videoTeaser ? " + video" : ""}${unlocked || !full ? "" : " · locked"}` },
+    { id: "editorial", label: `Editorial${unlocked || !full ? "" : " · locked"}` },
     { id: "submissions", label: "Submissions" },
   ];
   const line = p.lineLabel;
@@ -534,7 +534,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
             {(solved || hints > 0 || fails > 0 || history.length > 0 || seenEarly) && <ResetProblem id={p.id} title={p.title} onDone={freshStart} />}
           </div>
         </header>
-        <div ref={tabsRef} role="tablist" aria-label="Problem tabs" className="flex scroll-mt-[calc(var(--hk-header-h,61px)+8px)] flex-wrap border-b border-line">
+        <div ref={tabsRef} role="tablist" aria-label="Problem tabs" className="flex scroll-mt-[calc(var(--hk-header-h,61px)+8px)] overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {tabs.map((t) => (
             <button
               key={t.id}
@@ -542,10 +542,11 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
               role="tab"
               aria-selected={tab === t.id}
               onClick={() => setTab(t.id)}
-              className={`inline-flex min-h-11 items-center gap-1.5 border-b-2 px-3 font-mono text-[12px] uppercase tracking-label ${tab === t.id ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
+              className={`inline-flex min-h-11 shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-2.5 font-mono text-[12px] uppercase tracking-label ${tab === t.id ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
             >
               {t.id === "interview" && <MessageSquareQuote className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
               {t.id === "tutor" && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
+              {t.id === "editorial" && videoTeaser && <PlayCircle className="h-3.5 w-3.5 text-signal-text" aria-label="with a solution video" />}
               {t.label}
             </button>
           ))}

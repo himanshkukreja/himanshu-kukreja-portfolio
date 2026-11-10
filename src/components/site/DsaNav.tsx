@@ -113,7 +113,8 @@ function CourseSwitch({ pathname }: { pathname: string }) {
     };
   }, [open]);
   return (
-    <div ref={ref} className="relative shrink-0">
+    // below 400 px the phone's bottom bar has the "sdm" switch, so this frees the header for the signed-in avatar
+    <div ref={ref} className="relative hidden shrink-0 min-[400px]:block">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
