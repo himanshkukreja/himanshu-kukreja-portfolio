@@ -301,6 +301,9 @@ export default function DsaBeltBadges({ defs: initial }: { defs: BadgeDef[] | nu
           <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
             Every lesson, problem and daily solve earns Bits. Bits move you up the belts, from White to Black. Belts show how far you have come; they never lock anything.
           </p>
+          <Link href="/dsa/stats" className="inline-flex min-h-10 items-center self-start text-[14px] text-signal-text underline decoration-line-strong underline-offset-4">
+            My stats →
+          </Link>
           {!loading && !user && (
             <p className="m-0 text-[14px] text-fg-3">
               Your Bits are saved in this browser.{" "}

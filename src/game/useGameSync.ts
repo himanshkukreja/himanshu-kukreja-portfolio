@@ -7,6 +7,7 @@ import { LEARN_XP } from "@/lib/learn/types";
 import { QUEST_BY_ID } from "./catalog";
 import { CERT_XP } from "@/lib/certificates/core";
 import { mergeGameFlags } from "@/lib/learn/saved-paths";
+import { applyResets } from "@/lib/dsa/reset";
 
 type Snapshot = { xp: number; done: Record<string, number>; flags: Record<string, unknown> };
 
@@ -60,7 +61,8 @@ export function mergeGame(remote: Snapshot, local: Snapshot): Snapshot {
   const xp = localStale ? remote.xp + extra : Math.max(remote.xp, local.xp);
   const flags = mergeGameFlags(remote.flags, local.flags, localStale);
   if (resetAt) flags[RESET_AT_FLAG] = resetAt;
-  return { xp, done, flags };
+  // a DSA problem reset on any device stays reset: its older solved mark does not come back through the union
+  return { xp, done: applyResets(done), flags };
 }
 
 const EMPTY: Snapshot = { xp: 0, done: {}, flags: {} };

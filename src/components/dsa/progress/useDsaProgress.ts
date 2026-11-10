@@ -21,10 +21,11 @@ import { readGuestLesson, readGuestProgress, recordLearningActivity, saveRemoteL
 import { track } from "@/lib/track";
 import { DSA_COURSE_ID, DSA_PROBLEMS_WEEK, dsaKeys, type DsaLang, type DsaLevel } from "@/lib/dsa/types";
 import { awardKeys, solveBits } from "@/lib/dsa/rewards";
+import { applyResets, resetTimes } from "@/lib/dsa/reset";
 import { useDsaAward } from "@/components/dsa/rewards/useDsaBits";
 import type { ProgressSignals } from "@/lib/dsa/map/progress";
 
-type Row = { week: string; lesson_slug: string; status: string | null };
+type Row = { week: string; lesson_slug: string; status: string | null; completed_at?: string | number | null };
 
 function fromGame(done: Record<string, number>) {
   const solved = new Set<string>();
@@ -40,11 +41,15 @@ function fromGame(done: Record<string, number>) {
   return { solved, concepts, checkpoints, labs };
 }
 
-function fromRows(rows: Row[], into: { solved: Set<string>; concepts: Set<string> }) {
+function fromRows(rows: Row[], into: { solved: Set<string>; concepts: Set<string> }, resets: Map<string, number>) {
   for (const r of rows) {
     if (r.status !== "completed") continue;
-    if (r.week === DSA_PROBLEMS_WEEK) into.solved.add(r.lesson_slug);
-    else into.concepts.add(r.lesson_slug);
+    // a problem reset after this row was completed is not solved (the account row is deleted by the reset; this guards a failed delete)
+    if (r.week === DSA_PROBLEMS_WEEK) {
+      const at = r.completed_at ? new Date(r.completed_at).getTime() || 0 : 0;
+      if (at <= (resets.get(r.lesson_slug) ?? -1)) continue;
+      into.solved.add(r.lesson_slug);
+    } else into.concepts.add(r.lesson_slug);
   }
 }
 
@@ -53,7 +58,7 @@ function guestRows(): Row[] {
   for (const [key, rec] of Object.entries(readGuestProgress())) {
     if (!key.startsWith(`${DSA_COURSE_ID}/`)) continue;
     const [, week, slug] = key.split("/");
-    if (week && slug) out.push({ week, lesson_slug: slug, status: rec.completed ? "completed" : "in_progress" });
+    if (week && slug) out.push({ week, lesson_slug: slug, status: rec.completed ? "completed" : "in_progress", completed_at: rec.completedAt ?? null });
   }
   return out;
 }
@@ -68,7 +73,7 @@ function remoteRows(userId: string): Promise<Row[]> {
   shared.rows = null;
   shared.inflight = (async () => {
     try {
-      const { data, error } = await supabaseClient.from("learning_progress").select("week, lesson_slug, status").eq("user_id", userId).eq("course_id", DSA_COURSE_ID);
+      const { data, error } = await supabaseClient.from("learning_progress").select("week, lesson_slug, status, completed_at").eq("user_id", userId).eq("course_id", DSA_COURSE_ID);
       const rows = !error && data ? (data as Row[]) : [];
       if (shared.key === userId) shared.rows = rows;
       return rows;
@@ -119,8 +124,8 @@ export function useDsaProgress(): DsaProgress {
   }, [userId]);
 
   return useMemo(() => {
-    const g = fromGame(done);
-    fromRows(rows, g);
+    const g = fromGame(applyResets(done));
+    fromRows(rows, g, resetTimes(done));
     return { solved: g.solved, concepts: g.concepts, checkpoints: g.checkpoints, labs: g.labs, ready: hydrated && loaded, signedIn: !!userId };
   }, [done, rows, hydrated, loaded, userId]);
 }

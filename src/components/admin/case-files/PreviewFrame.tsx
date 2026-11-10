@@ -64,6 +64,7 @@ function GameSandbox({ children }: { children: ReactNode }) {
         return { added, done };
       },
       peekDone: () => ref.current.done,
+      resetDsaProblem: () => {},
       reset: () => commit({ xp: 0, done: {}, flags: {} }),
       toasts: [],
       terminalOpen: false,

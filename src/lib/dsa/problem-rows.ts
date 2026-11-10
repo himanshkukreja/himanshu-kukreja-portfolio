@@ -64,7 +64,7 @@ export function buildProblemData(
     const co = [...new Set((p.companyTypes || []).map(companyId))];
     co.forEach((c) => companies.add(c));
     modules.add(p.module);
-    const kind: Kind = p.role === "checkpoint" || p.role === "warm-up" ? p.role : "practice";
+    const kind: Kind = p.role === "checkpoint" || p.role === "warm-up" || p.role === "district" ? p.role : "practice";
     const label = (k: keyof typeof FACETS) => f[k].map((id) => FACETS[k].find((x) => x.id === id)?.label || id);
     const text = [
       p.title,

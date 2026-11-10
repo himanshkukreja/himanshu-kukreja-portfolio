@@ -7,7 +7,7 @@ import { ChevronDown, Download, Filter, Play, Search, X } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useDsaProgress } from "../progress/useDsaProgress";
 import SolvedMark from "../problem/SolvedMark";
-import { activeCount, clearAll, emptyState, evaluate, GROUPS, isFiltered, parseState, serializeState, SORTS, toggle, type FilterRow, type FilterState, type GroupId, type SortId, type Status } from "@/lib/dsa/problem-filters";
+import { activeCount, clearAll, emptyState, evaluate, GROUPS, isFiltered, parseState, serializeState, solvedSummary, SORTS, statusViewCounts, statusViewOf, toggle, withStatusView, type FilterRow, type FilterState, type GroupId, type SortId, type Status, type StatusView } from "@/lib/dsa/problem-filters";
 import type { ProblemData } from "@/lib/dsa/problem-rows";
 import { facetLabel } from "@/lib/dsa/taxonomy";
 import { groupDefs, type GroupDef } from "./problem-options";
@@ -170,6 +170,57 @@ function List({ rows, sort, d }: { rows: FilterRow[]; sort: SortId; d: ProblemDa
   );
 }
 
+/* ------------------------------------------------------------------ progress and the Solved view */
+
+const VIEWS: { id: StatusView; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "unsolved", label: "Unsolved" },
+  { id: "solved", label: "Solved" },
+];
+
+/** "37 of 412 solved", a bar, and the Easy / Medium / Hard split (the whole bank, whatever the filters say). */
+function ProgressBar({ sum, ready }: { sum: ReturnType<typeof solvedSummary>; ready: boolean }) {
+  const pct = sum.total ? Math.round((sum.solved / sum.total) * 100) : 0;
+  const split = (["easy", "medium", "hard"] as const).map((l) => `${LEVEL_LABEL[l]} ${sum.byLevel[l].solved}/${sum.byLevel[l].total}`);
+  return (
+    <section aria-label="Your progress" className="flex flex-col gap-2 border border-line bg-surface px-4 py-3">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <p className="m-0 font-display text-[20px] font-bold tracking-[-0.02em] text-fg">
+          <span className="tabular-nums">{ready ? sum.solved : "–"}</span> of <span className="tabular-nums">{sum.total}</span> solved
+        </p>
+        <p className="m-0 font-mono text-[12px] tabular-nums text-fg-3">{split.join(" · ")}</p>
+      </div>
+      <div role="progressbar" aria-label="Problems solved" aria-valuemin={0} aria-valuemax={sum.total} aria-valuenow={ready ? sum.solved : 0} className="h-2 w-full overflow-hidden bg-surface-2">
+        <div className="h-full bg-signal transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${ready ? pct : 0}%` }} />
+      </div>
+    </section>
+  );
+}
+
+/** All / Unsolved / Solved with counts: a shortcut onto the Status facet and the ?st= param. */
+function StatusTabs({ value, counts, onPick }: { value: StatusView; counts: Record<StatusView, number>; onPick: (v: StatusView) => void }) {
+  return (
+    <div role="radiogroup" aria-label="Show problems" className="flex w-full border border-line-strong bg-surface sm:w-auto sm:self-start">
+      {VIEWS.map((v) => {
+        const on = value === v.id;
+        return (
+          <button
+            key={v.id}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onPick(v.id)}
+            className={`inline-flex min-h-11 flex-1 items-center justify-center gap-2 px-4 font-mono text-[13px] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal sm:flex-none ${on ? "bg-signal font-semibold text-on-signal" : "text-fg hover:bg-surface-2"}`}
+          >
+            {v.label}
+            <span className={`tabular-nums ${on ? "text-on-signal" : "text-fg-3"}`}>{counts[v.id]}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /* ------------------------------------------------------------------ the page */
 
 /** "Tried" on this device: a problem with a submission history or failed runs saved by the problem room, and not solved. */
@@ -245,6 +296,9 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
   // what each option holds in the whole bank, to leave out options nothing carries
   const base = useMemo(() => evaluate(data.rows, emptyState(), () => "todo").counts, [data.rows]);
 
+  const summary = useMemo(() => solvedSummary(data.rows, (id) => progress.solved.has(id)), [data.rows, progress.solved]);
+  const viewCounts = useMemo(() => statusViewCounts(counts.status), [counts]);
+
   const onToggle = (g: GroupId, v: string) => commit(toggle(state, g, v));
   const clear = () => {
     setText("");
@@ -311,6 +365,8 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
       </aside>
 
       <div className="flex min-w-0 flex-col gap-4">
+        <ProgressBar sum={summary} ready={progress.ready} />
+        <StatusTabs value={statusViewOf(state)} counts={viewCounts} onPick={(v) => commit(withStatusView(state, v))} />
         <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
           <div role="search" className="relative min-w-0 flex-1 basis-full sm:basis-0">
             <label htmlFor="pb-search" className="sr-only">
@@ -400,7 +456,7 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
           <List rows={results} sort={state.sort} d={data} />
         ) : (
           <div className="flex flex-col items-start gap-3 border border-dashed border-line-strong px-5 py-10">
-            <p className="m-0 font-display text-[20px] font-bold text-fg">No problems match these filters</p>
+            <p className="m-0 font-display text-[20px] font-bold text-fg">{statusViewOf(state) === "solved" && !chips.some((c) => c.g !== "status") && !state.q.trim() ? "You haven't solved a problem yet" : "No problems match these filters"}</p>
             <p className="m-0 max-w-[52ch] text-[15px] leading-relaxed text-fg-2">Try removing one filter, or searching a shorter word. Choosing several options inside one group widens the list; every group you use narrows it.</p>
             <button type="button" onClick={clear} className="inline-flex h-11 items-center bg-signal px-5 font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
               Clear filters

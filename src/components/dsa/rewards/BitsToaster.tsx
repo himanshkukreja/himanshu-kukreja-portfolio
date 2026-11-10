@@ -8,6 +8,7 @@
 import { useEffect, useState } from "react";
 import { onBits, type BitsToast } from "./award";
 import { BeltSwatch } from "./BeltSwatch";
+import { celebrate } from "@/lib/dsa/celebrate";
 
 export default function BitsToaster() {
   const [toasts, setToasts] = useState<BitsToast[]>([]);
@@ -15,6 +16,8 @@ export default function BitsToaster() {
     () =>
       onBits((t) => {
         setToasts((list) => [...list.slice(-2), t]);
+        // a new belt: its card, plus a bigger confetti burst (reduced motion: nothing moves)
+        if (t.belt) void celebrate("belt", null);
         window.setTimeout(() => setToasts((list) => list.filter((x) => x.id !== t.id)), t.belt ? 5000 : 2600);
       }),
     [],
