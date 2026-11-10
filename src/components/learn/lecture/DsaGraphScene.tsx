@@ -56,7 +56,7 @@ function showAt(s: LectureScene, st: LectureStep): Show {
 }
 
 /** A shortest-path field (`dist`, `done` or `heap`): the latest one set by this or an earlier step of the scene. */
-function stickyOf<K extends "dist" | "done" | "heap">(s: LectureScene, st: LectureStep, key: K): LectureStep[K] | undefined {
+function stickyOf<K extends "dist" | "done" | "heap" | "indeg" | "ready" | "topo" | "stuck">(s: LectureScene, st: LectureStep, key: K): LectureStep[K] | undefined {
   const at = s.steps.indexOf(st);
   for (let i = at; i >= 0; i--) if (s.steps[i][key] !== undefined) return s.steps[i][key];
   return undefined;
@@ -68,6 +68,10 @@ export function graphStateOf(s: LectureScene, st: LectureStep): GraphState {
   const dist = stickyOf(s, st, "dist");
   const done = stickyOf(s, st, "done");
   const heap = stickyOf(s, st, "heap");
+  const indeg = stickyOf(s, st, "indeg");
+  const ready = stickyOf(s, st, "ready");
+  const topo = stickyOf(s, st, "topo");
+  const stuck = stickyOf(s, st, "stuck");
   return {
     n: s.vertices ?? 5,
     edges: edgesAt(s, st).map((x) => ({ a: x[0], b: x[1], w: x.length > 2 ? x[2] : null })),
@@ -80,6 +84,7 @@ export function graphStateOf(s: LectureScene, st: LectureStep): GraphState {
     out: st.out ?? null,
     show: showAt(s, st),
     ...(dist ? { dist, done: done ?? [] } : {}),
+    ...(indeg ? { indeg, ready: ready ?? [], topo: topo ?? [], ...(stuck ? { stuck } : {}) } : {}),
     ...(heap ? { heap: heap.map((h) => (h.length > 2 ? ([h[0], h[1], h[2]] as [number, number, number]) : ([h[0], h[1]] as [number, number]))) } : {}),
   };
 }

@@ -22,8 +22,9 @@ export function describeGraph(s: GraphState): string {
   const cur = s.current !== null ? ` Working on vertex ${s.current}.` : "";
   const ed = s.edge ? ` Edge ${s.edge[0]} ${s.directed ? "to" : "and"} ${s.edge[1]} in focus.` : "";
   const dist = s.dist ? ` Distances: ${s.dist.map((d, i) => `${i} ${d === null ? "not reached" : d}${s.done?.includes(i) ? " (final)" : ""}`).join(", ")}.` : "";
+  const topo = s.indeg ? ` In-degrees: ${s.indeg.map((d, i) => `${i} is ${d}`).join(", ")}. Ready queue: ${s.ready?.length ? s.ready.join(", ") : "empty"}. Order so far: ${s.topo?.length ? s.topo.join(", ") : "none yet"}.${s.stuck?.length ? ` Stuck in a cycle: ${s.stuck.join(", ")}.` : ""}` : "";
   const heap = s.heap ? ` Heap: ${s.heap.length ? s.heap.map((h) => `${h[0]} for ${h[1]}${h[2] ? " (stale)" : ""}`).join(", ") : "empty"}.` : "";
-  return `${s.directed ? "Directed" : "Undirected"} graph of ${s.n} vertices and ${e} edge${e === 1 ? "" : "s"}${e ? `: ${list}` : ""}.${cur}${ed}${dist}${heap}${s.out ? ` ${s.out}.` : ""}`;
+  return `${s.directed ? "Directed" : "Undirected"} graph of ${s.n} vertices and ${e} edge${e === 1 ? "" : "s"}${e ? `: ${list}` : ""}.${cur}${ed}${dist}${heap}${topo}${s.out ? ` ${s.out}.` : ""}`;
 }
 
 const isEdge = (s: GraphState, a: number, b: number) => !!s.edge && ((s.edge[0] === a && s.edge[1] === b) || (!s.directed && s.edge[0] === b && s.edge[1] === a));
@@ -41,6 +42,7 @@ function GraphSvg({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number 
   const mark = new Set(s.mark);
   const path = new Set(s.path);
   const done = new Set(s.done ?? []);
+  const stuck = new Set(s.stuck ?? []);
   const labelsAt = new Map<number, string[]>();
   for (const [name, id] of Object.entries(s.labels)) if (id !== null && id < s.n) labelsAt.set(id, [...(labelsAt.get(id) ?? []), name]);
   return (
@@ -80,10 +82,11 @@ function GraphSvg({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number 
         const { x, y } = pos(i);
         const cur = s.current === i;
         const lit = mark.has(i) || path.has(i) || done.has(i);
+        const warn = stuck.has(i);
         return (
           <g key={i}>
-            <circle cx={x} cy={y} r={R} fill={cur ? pal.sig : lit ? pal.hl : pal.surface} stroke={cur || lit ? pal.sig : pal.stroke} strokeWidth={cur ? 3.2 : lit ? 2.4 : 1.6} />
-            <text x={x} y={y + 5 * fs} textAnchor="middle" fontSize={15 * fs} fontWeight={700} fill={cur ? pal.onSig : pal.ink} fontFamily={MONO}>
+            <circle cx={x} cy={y} r={R} fill={warn ? pal.bad : cur ? pal.sig : lit ? pal.hl : pal.surface} stroke={warn ? pal.bad : cur || lit ? pal.sig : pal.stroke} strokeWidth={cur || warn ? 3.2 : lit ? 2.4 : 1.6} />
+            <text x={x} y={y + 5 * fs} textAnchor="middle" fontSize={15 * fs} fontWeight={700} fill={warn ? pal.badInk : cur ? pal.onSig : pal.ink} fontFamily={MONO}>
               {i}
             </text>
             {labelsAt.has(i) && (
@@ -228,6 +231,53 @@ function DistPanel({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number
   );
 }
 
+/** Topological sort: the in-degree table (one row for each vertex), Kahn's ready queue and the order built so far. */
+function TopoPanel({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number }) {
+  const indeg = s.indeg ?? [];
+  const lit = new Set(s.mark);
+  const stuck = new Set(s.stuck ?? []);
+  const cell: React.CSSProperties = { padding: "2px 8px", fontFamily: MONO, fontWeight: 700, fontSize: `${12.5 * fs}px`, textAlign: "center", borderBottom: `1px solid ${pal.faint}` };
+  const head: React.CSSProperties = { ...cell, fontWeight: 500, fontSize: `${11 * fs}px`, color: pal.sub };
+  const chip = (v: number, k: number, hot: boolean) => (
+    <span key={k} style={{ fontFamily: MONO, fontWeight: 700, fontSize: `${12 * fs}px`, padding: "2px 7px", border: `1.4px solid ${hot ? pal.sig : pal.stroke}`, background: hot ? pal.hl : pal.surface, color: pal.ink }}>
+      {v}
+    </span>
+  );
+  const row = (label: string, items: number[], empty: string, first: boolean) => (
+    <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 5 }}>
+      <span style={{ fontFamily: MONO, fontSize: `${11 * fs}px`, color: pal.sub, minWidth: "4.2em" }}>{label}</span>
+      {items.length === 0 && <span style={{ fontFamily: MONO, fontSize: `${12 * fs}px`, color: pal.sub }}>{empty}</span>}
+      {items.map((v, k) => chip(v, k, first && k === 0))}
+    </div>
+  );
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 8, width: "100%" }}>
+      <table style={{ borderCollapse: "collapse", width: "100%", color: pal.ink }}>
+        <thead>
+          <tr>
+            <th style={head}>vertex</th>
+            <th style={head}>in-degree</th>
+          </tr>
+        </thead>
+        <tbody>
+          {indeg.map((d, i) => {
+            const cur = s.current === i;
+            const warn = stuck.has(i);
+            return (
+              <tr key={i} style={{ background: warn ? pal.bad : cur ? pal.sig : lit.has(i) ? pal.hl : "transparent", color: warn ? pal.badInk : cur ? pal.onSig : pal.ink }}>
+                <td style={cell}>{i}</td>
+                <td style={cell}>{d}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {s.ready && row("queue", s.ready, "empty", true)}
+      {s.topo && row("order", s.topo, "none yet", false)}
+    </div>
+  );
+}
+
 export default function GraphDraw({
   state,
   pal,
@@ -250,10 +300,10 @@ export default function GraphDraw({
   const g = state.show === "graph" || state.show === "both" || state.show === "all";
   const list = state.show === "list" || state.show === "both" || state.show === "all";
   const matrix = state.show === "matrix" || state.show === "all";
-  const table = !!state.dist;
+  const table = !!state.dist || !!state.indeg;
   const panels = [g, list, matrix, table].filter(Boolean).length;
   const side = !stack && panels > 1;
-  const bad = ["no", "no such edge", "wrong answer", "too late", "negative cycle"].includes(state.out ?? "");
+  const bad = ["no", "no such edge", "wrong answer", "too late", "negative cycle", "cycle"].includes(state.out ?? "");
   return (
     <div className={className} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10, ...style }} role="img" aria-label={describeGraph(state)}>
       <div style={{ display: "flex", flexDirection: side ? "row" : "column", alignItems: side ? "center" : "stretch", justifyContent: "center", gap: 14, width: "100%" }}>
@@ -264,7 +314,7 @@ export default function GraphDraw({
         )}
         {table && (
           <div style={{ flex: side ? "1 1 0" : undefined, minWidth: 0, width: side ? undefined : "min(100%, 340px)", margin: side ? undefined : "0 auto" }}>
-            <DistPanel s={state} pal={pal} fs={fs} />
+            {state.indeg ? <TopoPanel s={state} pal={pal} fs={fs} /> : <DistPanel s={state} pal={pal} fs={fs} />}
           </div>
         )}
         {(list || matrix) && (

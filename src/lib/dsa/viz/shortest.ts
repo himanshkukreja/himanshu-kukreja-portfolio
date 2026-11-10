@@ -14,8 +14,9 @@
  * predict-then-reveal asks at a few spaced steps. Pure and dependency-free, like every generator here.
  */
 import type { Frame, GraphState, Script, VizAsk } from "./types";
+import { topoScript } from "./topo";
 
-export type PathAlgo = "dijkstra" | "bellman-ford";
+export type PathAlgo = "dijkstra" | "bellman-ford" | "kahn";
 export type PathEdge = [number, number, number];
 export type PathGraph = { n: number; edges: PathEdge[] };
 export type PathResult = {
@@ -285,6 +286,7 @@ export function bellmanFordFrames(g: PathGraph, source: number, target: number |
 
 /** Dijkstra or Bellman-Ford as a script on the graph view. */
 export function pathScript(algo: PathAlgo, g: PathGraph, source: number, target: number | null, opts: { predict?: boolean; asks?: number; title?: string } = {}): Script<GraphState> & { summary: PathResult } {
+  if (algo === "kahn") return topoScript(g, opts) as unknown as Script<GraphState> & { summary: PathResult };
   const r = algo === "dijkstra" ? dijkstraFrames(g, source, target, opts) : bellmanFordFrames(g, source, target, opts);
   const s = r.result;
   const result = s.negativeCycle

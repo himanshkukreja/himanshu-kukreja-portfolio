@@ -274,6 +274,14 @@ export type GraphState = {
   done?: number[];
   /** Dijkstra's waiting heap, smallest first: (distance, vertex), with a third item of 1 when the entry is stale */
   heap?: [number, number, number?][];
+  /** topological sort runs (A3): each vertex's in-degree (edges still pointing at it), drawn as a table beside the graph */
+  indeg?: number[];
+  /** Kahn's ready queue, front first */
+  ready?: number[];
+  /** the order built so far */
+  topo?: number[];
+  /** vertices stuck in a cycle: drawn in the warning colour */
+  stuck?: number[];
 };
 
 /* ------------------------------------------------------------------ the trie state ("trie" view) */

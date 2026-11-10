@@ -14,7 +14,8 @@ import type { Script } from "@/lib/dsa/viz/types";
 import { track } from "@/lib/track";
 import StepPlayer from "../viz/StepPlayer";
 
-const ALGO_LABEL: Record<PathAlgo, string> = { dijkstra: "Dijkstra (heap)", "bellman-ford": "Bellman-Ford (rounds)" };
+const ALGO_LABEL: Record<PathAlgo, string> = { dijkstra: "Dijkstra (heap)", "bellman-ford": "Bellman-Ford (rounds)", kahn: "Kahn (in-degrees and a queue)" };
+const ALGO_SHORT: Record<PathAlgo, string> = { dijkstra: "Dijkstra", "bellman-ford": "Bellman-Ford", kahn: "Kahn" };
 
 export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) {
   const presets = spec.presets;
@@ -91,7 +92,7 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
       {editing ? (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
+            {algo !== "kahn" && <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
               Start
               <select value={source} onChange={(e) => (setSource(Number(e.target.value)), setScript(null))} className={sel}>
                 {verts.map((v) => (
@@ -100,8 +101,8 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
                   </option>
                 ))}
               </select>
-            </label>
-            <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
+            </label>}
+            {algo !== "kahn" && <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
               Target (optional)
               <select value={target ?? ""} onChange={(e) => (setTarget(e.target.value === "" ? null : Number(e.target.value)), setScript(null))} className={sel}>
                 <option value="">None: find every distance</option>
@@ -111,8 +112,11 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
                   </option>
                 ))}
               </select>
-            </label>
+            </label>}
           </div>
+          {algo === "kahn" ? (
+            <p className="m-0 text-[14px] text-fg-2">Each arrow means: the first one must come before the second. Pick a map, then run it.</p>
+          ) : (
           <fieldset className="m-0 border-0 p-0">
             <legend className="mb-1 text-[13px] font-semibold text-fg-2">Road costs (one way). Try a negative cost.</legend>
             <ul className="m-0 grid list-none grid-cols-2 gap-x-4 gap-y-1 p-0 sm:grid-cols-3">
@@ -135,6 +139,7 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
               ))}
             </ul>
           </fieldset>
+          )}
         </div>
       ) : (
         <StepPlayer script={script} autoPlay={auto} label={`${ALGO_LABEL[algo]} on your map`} stepMs={1000} />
@@ -144,7 +149,7 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
         <div className="flex flex-wrap items-center gap-2">
           {editing ? (
             <button type="button" onClick={() => run()} className="min-h-11 bg-signal px-5 text-[15px] font-semibold text-on-signal">
-              Run {algo === "dijkstra" ? "Dijkstra" : "Bellman-Ford"} step by step →
+              Run {ALGO_SHORT[algo]} step by step →
             </button>
           ) : (
             <>
@@ -155,7 +160,7 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
                 .filter((a) => a !== algo)
                 .map((a) => (
                   <button key={a} type="button" onClick={() => run(a)} className="min-h-11 bg-signal px-4 text-[14px] font-semibold text-on-signal">
-                    Now try {a === "dijkstra" ? "Dijkstra" : "Bellman-Ford"} on the same map
+                    Now try {ALGO_SHORT[a]} on the same map
                   </button>
                 ))}
             </>

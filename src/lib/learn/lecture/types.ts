@@ -73,6 +73,11 @@ export type LectureStep = {
   dist?: (number | null)[];
   done?: number[];
   heap?: number[][];
+  /** DSA graph scenes, topological sort (A3): each vertex's in-degree, Kahn's ready queue, the order built so far and the vertices stuck in a cycle (warning colour); each stays until a later step sets it again */
+  indeg?: number[];
+  ready?: number[];
+  topo?: number[];
+  stuck?: number[];
   /** DSA trie scenes: the words after this step, a half-inserted word, the prefix walked (the node in focus), new and lit nodes (prefixes), the end marker in focus */
   words?: string[];
   grow?: string;

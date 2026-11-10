@@ -112,6 +112,8 @@ for (const s of L.scenes || []) {
       if (st.dist !== undefined && !(Array.isArray(st.dist) && st.dist.length === nV && st.dist.every((d) => d === null || Number.isInteger(d)))) errs.push(`${s.id}#${k}: dist has one distance (a whole number, or null for not reached) for each of the ${nV} vertices`);
       if (st.done !== undefined && !(Array.isArray(st.done) && st.done.every((v) => Number.isInteger(v) && v >= 0 && v < nV) && new Set(st.done).size === st.done.length)) errs.push(`${s.id}#${k}: done lists distinct vertices 0..${nV - 1}`);
       if (st.heap !== undefined && !(Array.isArray(st.heap) && st.heap.length <= 8 && st.heap.every((h) => Array.isArray(h) && (h.length === 2 || h.length === 3) && h.every(Number.isInteger) && h[1] >= 0 && h[1] < nV))) errs.push(`${s.id}#${k}: heap is up to 8 entries [distance, vertex] (a third item of 1 marks a stale entry)`);
+      if (st.indeg !== undefined && !(Array.isArray(st.indeg) && st.indeg.length === nV && st.indeg.every((d) => Number.isInteger(d) && d >= 0))) errs.push(`${s.id}#${k}: indeg has one in-degree (a whole number, 0 or more) for each of the ${nV} vertices`);
+      for (const key of ["ready", "topo", "stuck"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every((v) => Number.isInteger(v) && v >= 0 && v < nV) && new Set(st[key]).size === st[key].length)) errs.push(`${s.id}#${k}: ${key} lists distinct vertices 0..${nV - 1}`);
     }
   }
   if (s.kind === "trie") {
