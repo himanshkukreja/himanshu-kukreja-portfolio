@@ -11,12 +11,13 @@
  * in answers until then (lib/dsa/ai). The conversation is kept on this device, one per problem ("local:" scope).
  */
 import { useEffect, useRef, useState } from "react";
-import { Bug, Footprints, Gauge, Lightbulb, LogIn, MessageSquarePlus, ScanSearch, Sparkles, type LucideIcon } from "lucide-react";
+import { Bug, Footprints, Gauge, History, Lightbulb, LogIn, Maximize2, MessageSquarePlus, Minimize2, ScanSearch, Sparkles, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import ChatComposer, { type ComposerHandle } from "@/components/learn/chat/ChatComposer";
 import ChatThread from "@/components/learn/chat/ChatThread";
+import ChatHistory, { useChatHistory } from "@/components/learn/chat/ChatHistory";
 import { NewMessagePill, useFollow } from "@/components/learn/chat/ChatLive";
 import { ChatFinePrint, DSA_PRIVACY, QuotaLine } from "@/components/learn/chat/ChatMeta";
 import { useCourseChat } from "@/components/learn/chat/useCourseChat";
@@ -39,6 +40,8 @@ type Props = {
   solved: boolean;
   /** a quick action asked for from elsewhere in the room (the verdict panel's "Ask the tutor why") */
   request: TutorRequest | null;
+  /** Called once a request has been sent, so the room clears it. */
+  onRequestHandled?: () => void;
 };
 
 const ACTIONS: { mode: Exclude<TutorMode, "ask">; label: string; icon: LucideIcon; title: string }[] = [
@@ -65,7 +68,7 @@ function wireResult(last: Props["last"], p: ProblemPage) {
   };
 }
 
-export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, solved, request }: Props) {
+export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, solved, request, onRequestHandled }: Props) {
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const ai = useAiStatus();
@@ -73,6 +76,18 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
   const chat = useCourseChat(uid, { api: "/api/learn/ai/dsa/tutor" });
   const canChat = !!user && !!ai?.features["dsa-tutor"];
   const [text, setText] = useState("");
+  // the answers are long: "expand" opens the tutor as a large reading panel over the room (Esc or the button closes it)
+  const [wide, setWide] = useState(false);
+  // earlier chats on this problem: "new chat" keeps the old one in the list, and "chats" opens it
+  const history = useChatHistory(uid, false);
+  const [showHistory, setShowHistory] = useState(false);
+  const pastChats = history.threads.length;
+  useEffect(() => {
+    if (!wide) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setWide(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [wide]);
   const composer = useRef<ComposerHandle>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const content = useRef<HTMLDivElement>(null);
@@ -106,6 +121,8 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
   useEffect(() => {
     if (!request || handled.current === request.key || !canChat) return;
     handled.current = request.key;
+    // consumed once: the room forgets it, so reopening the Tutor tab never sends it again
+    onRequestHandled?.();
     void send(request.mode, TUTOR_ASK[request.mode]);
     // send reads the latest code and result itself
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -136,15 +153,46 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
     );
 
   return (
-    <div className="flex h-[min(72dvh,640px)] min-h-[420px] flex-col border border-line-strong bg-surface lg:h-[calc(100dvh-var(--hk-header-h,61px)-250px)]" data-dsa-tutor>
+    <>
+    {wide && <div aria-hidden className="fixed inset-0 z-[60] bg-black/40" onClick={() => setWide(false)} />}
+    <div
+      className={
+        wide
+          ? "fixed inset-x-0 bottom-0 top-[var(--hk-header-h,61px)] z-[61] flex flex-col border border-line-strong bg-surface shadow-2xl sm:inset-x-[max(16px,calc(50vw-500px))] sm:bottom-4 sm:top-[calc(var(--hk-header-h,61px)+16px)]"
+          : "flex h-[min(80dvh,760px)] min-h-[480px] flex-col border border-line-strong bg-surface lg:h-[calc(100dvh-var(--hk-header-h,61px)-150px)] lg:min-h-[560px]"
+      }
+      role={wide ? "dialog" : undefined}
+      aria-modal={wide || undefined}
+      aria-label={wide ? "Problem tutor" : undefined}
+      data-dsa-tutor
+    >
       <div className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-1 border-b border-line px-3 py-2">
         <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-label text-signal-text">
           <Sparkles className="h-3.5 w-3.5" aria-hidden /> problem tutor
           {ai?.preview && <span className="border border-line-strong px-1 text-fg-3">admin preview</span>}
         </span>
         {canChat && <QuotaLine quota={chat.quota} />}
+        {canChat && pastChats > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowHistory((v) => !v)}
+            aria-pressed={showHistory}
+            className="ml-auto inline-flex min-h-9 items-center gap-1.5 px-1.5 font-mono text-[11.5px] text-fg-3 hover:text-fg [@media(pointer:coarse)]:min-h-11"
+          >
+            <History className="h-3.5 w-3.5" aria-hidden /> chats ({pastChats})
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={() => setWide((w) => !w)}
+          aria-pressed={wide}
+          className={`${canChat && pastChats > 0 ? "" : "ml-auto "}inline-flex min-h-9 items-center gap-1.5 px-1.5 font-mono text-[11.5px] text-fg-3 hover:text-fg [@media(pointer:coarse)]:min-h-11`}
+        >
+          {wide ? <Minimize2 className="h-3.5 w-3.5" aria-hidden /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+          {wide ? "close" : "expand"}
+        </button>
         {!empty && (
-          <button type="button" onClick={chat.reset} disabled={chat.busy} className="ml-auto inline-flex min-h-9 items-center gap-1.5 px-1.5 font-mono text-[11.5px] text-fg-3 hover:text-fg disabled:opacity-50 [@media(pointer:coarse)]:min-h-11">
+          <button type="button" onClick={chat.reset} disabled={chat.busy} className="inline-flex min-h-9 items-center gap-1.5 px-1.5 font-mono text-[11.5px] text-fg-3 hover:text-fg disabled:opacity-50 [@media(pointer:coarse)]:min-h-11">
             <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden /> new chat
           </button>
         )}
@@ -171,7 +219,20 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
       <div className="relative flex min-h-0 flex-1 flex-col">
         <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           <div ref={content} className="flex flex-col gap-4 px-3 py-4 sm:px-4">
-            {empty ? (
+            {showHistory && uid ? (
+              <ChatHistory
+                uid={uid}
+                sync={false}
+                variant="panel"
+                busy={chat.busy}
+                beforeSwitch={chat.stop}
+                onNew={() => {
+                  chat.reset();
+                  setShowHistory(false);
+                }}
+                onOpened={() => setShowHistory(false)}
+              />
+            ) : empty ? (
               <div className="flex flex-col gap-2 text-[14px] leading-relaxed text-fg-2">
                 <p className="m-0">
                   {failing
@@ -200,5 +261,6 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
         <ChatFinePrint memory={null} privacy={DSA_PRIVACY} />
       </div>
     </div>
+    </>
   );
 }

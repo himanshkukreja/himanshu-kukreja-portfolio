@@ -540,6 +540,7 @@ export default function ProblemRoom({ p }: { p: ProblemPage }) {
             onHint={(n) => openHint(n, "tutor")}
             solved={solved}
             request={tutorReq}
+            onRequestHandled={() => setTutorReq(null)}
           />
         )}
 
