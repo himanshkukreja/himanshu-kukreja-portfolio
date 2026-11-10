@@ -19,7 +19,7 @@ import Link from "next/link";
 import LabTutor from "@/components/learn/ai/LabTutor";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Check, ChevronDown, Eye, Lightbulb, Loader2, Lock, Minus, Play, Plus, RotateCcw, Timer, X } from "lucide-react";
+import { Check, ChevronDown, Eye, Lightbulb, Loader2, Lock, Minus, Play, Sparkles, Plus, RotateCcw, Timer, X } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
 import { loadCodeEditor } from "@/lib/offline/lazy";
@@ -32,6 +32,8 @@ import {
   FONT_SIZES,
   loadCode,
   loadFont,
+  loadSuggest,
+  saveSuggest,
   loadLang,
   saveCode,
   saveFont,
@@ -122,6 +124,7 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
   const [initial, setInitial] = useState<string | null>(null);
   const [stale, setStale] = useState(false);
   const [font, setFont] = useState(14);
+  const [suggest, setSuggest] = useState(true);
   const [tab, setTab] = useState<Tab>("brief");
   const [stageView, setStageView] = useState<number | null>(null);
   const [resultTab, setResultTab] = useState<ResultTab>("tests");
@@ -193,6 +196,7 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
       setInitial(c.code);
       setStale(c.stale);
       setFont(loadFont());
+      setSuggest(loadSuggest());
     }, 0);
     return () => window.clearTimeout(t);
   }, [codeFor, lab.langs, lab.languages, slot]);
@@ -823,6 +827,21 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
                 <button type="button" onClick={() => bumpFont(1)} aria-label="Larger code font" title="Larger font" className="grid h-10 w-10 place-items-center text-fg-3 hover:text-fg">
                   <Plus className="h-4 w-4" aria-hidden />
                 </button>
+                {!live && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSuggest(!suggest);
+                      saveSuggest(!suggest);
+                    }}
+                    aria-pressed={suggest}
+                    aria-label="Code suggestions"
+                    title={suggest ? "Suggestions on (turn off)" : "Suggestions off (turn on)"}
+                    className={`grid h-10 w-10 place-items-center ${suggest ? "text-signal-text" : "text-fg-3 hover:text-fg"}`}
+                  >
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                  </button>
+                )}
                 <button type="button" onClick={() => setConfirm("reset")} title="Reset to the starter code" className="inline-flex min-h-10 items-center gap-1.5 px-2 font-mono text-xs text-fg-3 hover:text-fg">
                   <RotateCcw className="h-3.5 w-3.5" aria-hidden />
                   <span className="hidden sm:inline">reset</span>
@@ -839,7 +858,7 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
             )}
             <div className={`${editorOpen ? "" : "max-lg:hidden"} h-[min(58vh,520px)] min-h-[300px] lg:h-[calc(100vh-var(--hk-header-h,61px)-330px)] lg:min-h-[360px]`}>
               {mounted && initial != null ? (
-                <Editor handle={editor} initial={initial} fontSize={font} language={lang} label={`${lab.title}: your ${LANG_LABEL[lang]} code`} onChange={onChange} onRun={() => void runTests()} onFocus={() => void getRunner(fam).warm()} />
+                <Editor handle={editor} initial={initial} fontSize={font} language={lang} suggestions={suggest && !live} label={`${lab.title}: your ${LANG_LABEL[lang]} code`} onChange={onChange} onRun={() => void runTests()} onFocus={() => void getRunner(fam).warm()} />
               ) : (
                 <EditorPlaceholder text="Loading the editor…" />
               )}
