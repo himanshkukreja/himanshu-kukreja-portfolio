@@ -26,6 +26,7 @@ import { PTrie } from "./DsaTrieScene";
 import { PIntervals } from "./DsaIntervalsScene";
 import { PDp } from "./DsaDpScene";
 import { PChars } from "./DsaCharsScene";
+import { PBits } from "./DsaBitsScene";
 
 const W = "text-[#f3f2ee]";
 /** the accent (SD Mastery orange; DSA_ACCENT turns it teal on a DSA short), its rgb triplet, its dark tint and ink */
@@ -193,6 +194,7 @@ export default function ShortStage({ lecture, flat, i, t, dur, onReady }: Props)
         {s.kind === "intervals" && <PIntervals s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "dp" && <PDp s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "chars" && <PChars s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
+        {s.kind === "bits" && <PBits s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {s.kind === "graph" && <PGraph s={s} st={st} prevSt={prev?.st ?? null} t={t} first={firstOfScene} />}
         {hasDiagram && (
           <div className="flex h-full w-full flex-col gap-[2cqh]">

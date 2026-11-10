@@ -15,7 +15,7 @@ import DsaExplainBack from "@/components/dsa/rewards/DsaExplainBack";
 import type { StructurePage } from "@/lib/dsa/structures";
 import { CheckpointGate, CodeTabs, Poll, ReviewCards } from "../concept/widgets";
 import LessonClip from "../clip/LessonClip";
-import { loadFunctionLab, loadGraphSandbox, loadGraphVisualizer, loadGridVisualizer, loadIntervalsVisualizer, loadDpVisualizer, loadStringsVisualizer, loadHeapSandbox, loadQueueSandbox, loadStackSandbox, loadStructureLab, loadStructureSandbox, loadTreeSandbox, loadTrieSandbox, loadVizDemo } from "./lazy";
+import { loadFunctionLab, loadGraphSandbox, loadGraphVisualizer, loadGridVisualizer, loadIntervalsVisualizer, loadDpVisualizer, loadStringsVisualizer, loadBitsVisualizer, loadHeapSandbox, loadQueueSandbox, loadStackSandbox, loadStructureLab, loadStructureSandbox, loadTreeSandbox, loadTrieSandbox, loadVizDemo } from "./lazy";
 
 const Sandbox = dynamic(loadStructureSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
 const TrieSandbox = dynamic(loadTrieSandbox, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the sandbox…</p> });
@@ -31,6 +31,7 @@ const GraphVisualizer = dynamic(loadGraphVisualizer, { ssr: false, loading: () =
 const IntervalsVisualizer = dynamic(loadIntervalsVisualizer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the visualizer…</p> });
 const DpVisualizer = dynamic(loadDpVisualizer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the visualizer…</p> });
 const StringsVisualizer = dynamic(loadStringsVisualizer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the visualizer…</p> });
+const BitsVisualizer = dynamic(loadBitsVisualizer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the visualizer…</p> });
 const FunctionLab = dynamic(loadFunctionLab, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the lab…</p> });
 
 type Host = { fig: HTMLElement; stage: HTMLElement; kind: string; key: string };
@@ -85,7 +86,7 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         else if (h.kind === "clip" && page.clips?.[id]) el = <Hydrated fig={h.fig}><LessonClip clip={page.clips[id]} fig={h.fig} /></Hydrated>;
         else if (h.kind === "viz" && page.demos[id]) el = <Hydrated fig={h.fig}><VizDemo demo={page.demos[id]} structure={page.sandbox?.structure} /></Hydrated>;
         else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}>{page.sandbox.structure === "stack" ? <StackSandbox spec={page.sandbox} /> : page.sandbox.structure === "queue" ? <QueueSandbox spec={page.sandbox} /> : page.sandbox.structure === "tree" ? <TreeSandbox spec={page.sandbox} /> : page.sandbox.structure === "heap" ? <HeapSandbox spec={page.sandbox} /> : page.sandbox.structure === "graph" ? <GraphSandbox spec={page.sandbox} /> : page.sandbox.structure === "trie" ? <TrieSandbox spec={page.sandbox} /> : <Sandbox spec={page.sandbox} />}</Hydrated>;
-        else if (h.kind === "visualizer" && page.visualizer && page.visualizer.id === id) el = <Hydrated fig={h.fig}>{page.visualizer.view === "graph" ? <GraphVisualizer spec={page.visualizer} /> : page.visualizer.view === "intervals" ? <IntervalsVisualizer spec={page.visualizer} /> : page.visualizer.view === "dp" ? <DpVisualizer spec={page.visualizer} /> : page.visualizer.view === "strings" ? <StringsVisualizer spec={page.visualizer} /> : <GridVisualizer spec={page.visualizer} />}</Hydrated>;
+        else if (h.kind === "visualizer" && page.visualizer && page.visualizer.id === id) el = <Hydrated fig={h.fig}>{page.visualizer.view === "graph" ? <GraphVisualizer spec={page.visualizer} /> : page.visualizer.view === "intervals" ? <IntervalsVisualizer spec={page.visualizer} /> : page.visualizer.view === "dp" ? <DpVisualizer spec={page.visualizer} /> : page.visualizer.view === "strings" ? <StringsVisualizer spec={page.visualizer} /> : page.visualizer.view === "bits" ? <BitsVisualizer spec={page.visualizer} /> : <GridVisualizer spec={page.visualizer} />}</Hydrated>;
         else if (h.kind === "lab" && page.lab && page.lab.spec.id === id)
           el = (
             <Hydrated fig={h.fig}>

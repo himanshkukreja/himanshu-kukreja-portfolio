@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals" | "dp" | "strings";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals" | "dp" | "strings" | "bits";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -381,5 +381,25 @@ export type StringsState = {
   found: [number, number] | null;
   marks: Record<string, number>;
   counts: { letters: string[]; values: number[]; hot: number | null } | null;
+  out: string | null;
+};
+
+/* ------------------------------------------------------------------ the bits state ("bits" view) */
+
+/**
+ * Bits (A8 Bits and maths): whole numbers as rows of bit cells, one row for each number and one for the result. A row shows `value` in
+ * `width` bits (two's complement when `signed`), with its decimal value at the right. `from` limits a row to the bits at that position
+ * and above (the others are drawn blank), so a result can be filled in column by column. `kind` is "in" for an input, "out" for the
+ * result row (drawn under a rule with the operator) and "plain" for a single number. `hot` are bit positions (0 at the right) outlined
+ * in every row, and `names` label the bits (bit 0 first), such as permissions.
+ */
+export type BitsRow = { label: string; value: number; kind: "in" | "out" | "plain"; from?: number };
+export type BitsState = {
+  width: number;
+  signed: boolean;
+  rows: BitsRow[];
+  hot: number[];
+  op: string | null;
+  names: string[] | null;
   out: string | null;
 };

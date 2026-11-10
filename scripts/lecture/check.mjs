@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp", "chars"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp", "chars"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp", "chars", "bits"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals", "dp", "chars", "bits"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -153,6 +153,49 @@ for (const s of L.scenes || []) {
       if (st.slot !== undefined && !(c.counts && /^[a-z]$/.test(st.slot))) errs.push(`${s.id}#${k}: slot is a letter a-z and needs chars.counts`);
       if (st.out !== undefined && (typeof st.out !== "string" || !st.out.length || st.out.length > 18)) errs.push(`${s.id}#${k}: out is a chip of 18 characters or fewer`);
       if (st.cost !== undefined && !(Number.isInteger(st.cost) && st.cost >= 0)) errs.push(`${s.id}#${k}: cost is a whole number`);
+    }
+  }
+  if (s.kind === "bits") {
+    // bits (A8): numbers as rows of bit cells; an operator makes the last row from the rows before it, and the checker works it out
+    const b = s.bits || {};
+    const w = b.width;
+    if (!(Number.isInteger(w) && w >= 4 && w <= 16)) errs.push(`${s.id}: bits.width is a whole number from 4 to 16`);
+    else {
+      const signed = b.signed === true;
+      if (b.signed !== undefined && typeof b.signed !== "boolean") errs.push(`${s.id}: bits.signed is true or false`);
+      if (b.names !== undefined && !(Array.isArray(b.names) && b.names.length === w && b.names.every((x) => typeof x === "string" && x.length >= 1 && x.length <= 7))) errs.push(`${s.id}: bits.names gives ${w} labels of 1 to 7 characters`);
+      const mask = (1 << w) - 1;
+      const lo = signed ? -(1 << (w - 1)) : 0;
+      const hi = signed ? (1 << (w - 1)) - 1 : mask;
+      const toSigned = (u) => (u >= 1 << (w - 1) ? u - (1 << w) : u);
+      let rows = null;
+      for (const [k, st] of (s.steps || []).entries()) {
+        if (st.rows !== undefined) {
+          if (!(Array.isArray(st.rows) && st.rows.length >= 1 && st.rows.length <= 4 && st.rows.every((r) => Array.isArray(r) && r.length === 2 && typeof r[0] === "string" && r[0].length >= 1 && r[0].length <= 14 && Number.isInteger(r[1])))) errs.push(`${s.id}#${k}: rows is 1 to 4 pairs of [label of 14 characters or fewer, whole number]`);
+          else if (st.rows.some((r) => r[1] < lo || r[1] > hi)) errs.push(`${s.id}#${k}: row values run from ${lo} to ${hi} in ${w} bits${signed ? " (signed)" : ""}`);
+          else rows = st.rows;
+        }
+        if (rows === null) { errs.push(`${s.id}#${k}: the first step must set rows`); continue; }
+        if (st.hot !== undefined && !(Array.isArray(st.hot) && st.hot.every((h) => Number.isInteger(h) && h >= 0 && h < w))) errs.push(`${s.id}#${k}: hot lists bit positions 0..${w - 1}`);
+        if (st.out !== undefined && (typeof st.out !== "string" || !st.out.length || st.out.length > 18)) errs.push(`${s.id}#${k}: out is a chip of 18 characters or fewer`);
+        if (st.op !== undefined) {
+          if (typeof st.op !== "string" || !/^(&|\||\^|~|<<[1-9]\d?|>>[1-9]\d?|>>>[1-9]\d?)$/.test(st.op)) { errs.push(`${s.id}#${k}: op is one of & | ^ ~ <<n >>n >>>n`); continue; }
+          const two = ["&", "|", "^"].includes(st.op);
+          if (rows.length !== (two ? 3 : 2)) { errs.push(`${s.id}#${k}: op ${st.op} needs ${two ? "3 rows: two inputs and the result" : "2 rows: the input and the result"}`); continue; }
+          const u = rows.map((r) => r[1] & mask);
+          const sh = Number((st.op.match(/\d+/) || [0])[0]);
+          let want;
+          if (st.op === "&") want = u[0] & u[1];
+          else if (st.op === "|") want = u[0] | u[1];
+          else if (st.op === "^") want = u[0] ^ u[1];
+          else if (st.op === "~") want = ~u[0] & mask;
+          else if (st.op.startsWith("<<")) want = (u[0] << sh) & mask;
+          else if (st.op.startsWith(">>>")) want = u[0] >>> sh;
+          else want = signed ? (toSigned(u[0]) >> sh) & mask : u[0] >>> sh;
+          if (sh >= w) errs.push(`${s.id}#${k}: a shift of ${sh} is not below the width ${w}`);
+          else if (u[u.length - 1] !== want) errs.push(`${s.id}#${k}: op ${st.op} on ${rows.slice(0, -1).map((r) => r[1]).join(" and ")} is ${signed ? toSigned(want) : want}, not ${rows[rows.length - 1][1]}`);
+        }
+      }
     }
   }
   if (s.kind === "dp") {

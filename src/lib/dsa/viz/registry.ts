@@ -17,6 +17,7 @@ import { pathScript, type PathAlgo, type PathEdge } from "./shortest";
 import { intervalsScript, type IntervalRule, type Talk } from "./intervals";
 import { dpScript, type DpMethod, type DpProblem } from "./dp";
 import { stringsScript, type StringsMethod, type StringsProblem } from "./strings";
+import { bitsScript, type BitsMethod, type BitsProblem } from "./bits";
 
 export type SandboxDemo = {
   id: string;
@@ -414,15 +415,37 @@ export type StringsVisualizerSpec = {
   presets: StringsPreset[];
   demos: StringsDemo[];
 };
-export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec | IntervalsVisualizerSpec | DpVisualizerSpec | StringsVisualizerSpec;
+/** A small bit problem for the A8 visualizer: AND, OR or XOR of two numbers, clearing the lowest bit again and again, or a mask of 8 named permissions. */
+export type BitsPreset = { id: string; title: string; note?: string; problem: BitsProblem };
+export type BitsDemo = {
+  id: string;
+  title: string;
+  algorithm: BitsMethod;
+  /** a preset id from the visualizer, or the problem itself */
+  preset?: string;
+  problem?: BitsProblem;
+  predict?: boolean;
+};
+export type BitsVisualizerSpec = {
+  id: string;
+  view: "bits";
+  title: string;
+  algorithms: BitsMethod[];
+  cost: string;
+  limits: { value: [number, number]; steps: [number, number] };
+  presets: BitsPreset[];
+  demos: BitsDemo[];
+};
+export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec | IntervalsVisualizerSpec | DpVisualizerSpec | StringsVisualizerSpec | BitsVisualizerSpec;
 
-export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn", "dsu"] as const }, intervals: { algorithms: ["earliest-finish", "earliest-start", "shortest-first"] as const }, dp: { algorithms: ["plain-recursion", "memoise", "tabulate"] as const }, strings: { algorithms: ["slide-compare", "count-letters", "two-ends"] as const } };
+export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn", "dsu"] as const }, intervals: { algorithms: ["earliest-finish", "earliest-start", "shortest-first"] as const }, dp: { algorithms: ["plain-recursion", "memoise", "tabulate"] as const }, strings: { algorithms: ["slide-compare", "count-letters", "two-ends"] as const }, bits: { algorithms: ["bitwise", "clear-lowest", "flags"] as const } };
 
-export const isStringsDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo): d is StringsDemo => "algorithm" in d && (d.algorithm === "slide-compare" || d.algorithm === "count-letters" || d.algorithm === "two-ends");
-export const isDpDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo): d is DpDemo => "algorithm" in d && (d.algorithm === "plain-recursion" || d.algorithm === "memoise" || d.algorithm === "tabulate");
-export const isIntervalsDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo): d is IntervalsDemo => "algorithm" in d && (d.algorithm === "earliest-finish" || d.algorithm === "earliest-start" || d.algorithm === "shortest-first");
-export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn" || d.algorithm === "dsu");
-export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
+export const isBitsDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo | BitsDemo): d is BitsDemo => "algorithm" in d && (d.algorithm === "bitwise" || d.algorithm === "clear-lowest" || d.algorithm === "flags");
+export const isStringsDemo =(d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo | BitsDemo): d is StringsDemo => "algorithm" in d && (d.algorithm === "slide-compare" || d.algorithm === "count-letters" || d.algorithm === "two-ends");
+export const isDpDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo | BitsDemo): d is DpDemo => "algorithm" in d && (d.algorithm === "plain-recursion" || d.algorithm === "memoise" || d.algorithm === "tabulate");
+export const isIntervalsDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo | BitsDemo): d is IntervalsDemo => "algorithm" in d && (d.algorithm === "earliest-finish" || d.algorithm === "earliest-start" || d.algorithm === "shortest-first");
+export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo | BitsDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn" || d.algorithm === "dsu");
+export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo | DpDemo | StringsDemo | BitsDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
 
 export function pathDemoScript(d: PathDemo): Script {
   const n = d.n ?? 0;
@@ -433,6 +456,11 @@ export function pathDemoScript(d: PathDemo): Script {
 export function stringsDemoScript(d: StringsDemo): Script {
   const p = d.problem ?? { kind: "search" as const, text: "abcabd", pattern: "abd" };
   return stringsScript(p, { predict: d.predict, title: d.title }) as Script;
+}
+
+export function bitsDemoScript(d: BitsDemo): Script {
+  const p = d.problem ?? { kind: "op" as const, op: "and" as const, a: 12, b: 10 };
+  return bitsScript(p, { predict: d.predict, title: d.title }) as Script;
 }
 
 export function dpDemoScript(d: DpDemo): Script {
