@@ -114,6 +114,11 @@ for (const s of L.scenes || []) {
       if (st.heap !== undefined && !(Array.isArray(st.heap) && st.heap.length <= 8 && st.heap.every((h) => Array.isArray(h) && (h.length === 2 || h.length === 3) && h.every(Number.isInteger) && h[1] >= 0 && h[1] < nV))) errs.push(`${s.id}#${k}: heap is up to 8 entries [distance, vertex] (a third item of 1 marks a stale entry)`);
       if (st.indeg !== undefined && !(Array.isArray(st.indeg) && st.indeg.length === nV && st.indeg.every((d) => Number.isInteger(d) && d >= 0))) errs.push(`${s.id}#${k}: indeg has one in-degree (a whole number, 0 or more) for each of the ${nV} vertices`);
       for (const key of ["ready", "topo", "stuck"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every((v) => Number.isInteger(v) && v >= 0 && v < nV) && new Set(st[key]).size === st[key].length)) errs.push(`${s.id}#${k}: ${key} lists distinct vertices 0..${nV - 1}`);
+      if (st.parent !== undefined) {
+        if (!(Array.isArray(st.parent) && st.parent.length === nV && st.parent.every((v) => Number.isInteger(v) && v >= 0 && v < nV))) errs.push(`${s.id}#${k}: parent has one parent (a vertex 0..${nV - 1}) for each of the ${nV} vertices; a root is its own parent`);
+        else for (let i = 0; i < nV; i++) { let x = i, hops = 0; while (st.parent[x] !== x && hops <= nV) { x = st.parent[x]; hops++; } if (hops > nV) { errs.push(`${s.id}#${k}: parent: vertex ${i} never reaches a root (a loop of parents)`); break; } }
+      }
+      if (st.size !== undefined && !(Array.isArray(st.size) && st.size.length === nV && st.size.every((d) => Number.isInteger(d) && d >= 1))) errs.push(`${s.id}#${k}: size has one group size (a whole number, 1 or more) for each of the ${nV} vertices`);
     }
   }
   if (s.kind === "trie") {

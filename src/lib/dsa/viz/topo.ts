@@ -18,7 +18,7 @@ export type TopoResult = { order: number[]; cycle: boolean; stuck: number[]; rem
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
-function choicesOf(right: string, wrong: { label: string; why: string }[]): VizAsk["choices"] {
+export function choicesOf(right: string, wrong: { label: string; why: string }[]): VizAsk["choices"] {
   const seen = new Set<string>([right]);
   const out: VizAsk["choices"] = [{ label: right, correct: true }];
   for (const w of wrong) {

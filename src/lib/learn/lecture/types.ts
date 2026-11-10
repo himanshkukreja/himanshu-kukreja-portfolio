@@ -78,6 +78,9 @@ export type LectureStep = {
   ready?: number[];
   topo?: number[];
   stuck?: number[];
+  /** DSA graph scenes, union-find (A4): each vertex's parent (a root is its own parent) and each root's group size; the scene draws the forest of trees, and each stays until a later step sets it again */
+  parent?: number[];
+  size?: number[];
   /** DSA trie scenes: the words after this step, a half-inserted word, the prefix walked (the node in focus), new and lit nodes (prefixes), the end marker in focus */
   words?: string[];
   grow?: string;

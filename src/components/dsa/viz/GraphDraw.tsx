@@ -14,7 +14,8 @@ import { adjacency } from "@/lib/dsa/viz/graph";
 import type { TreePalette } from "./TreeDraw";
 
 const MONO = "ui-monospace, monospace";
-const R = 17;
+const RING_R = 17;
+const R = RING_R;
 
 export function describeGraph(s: GraphState): string {
   const e = s.edges.length;
@@ -23,22 +24,61 @@ export function describeGraph(s: GraphState): string {
   const ed = s.edge ? ` Edge ${s.edge[0]} ${s.directed ? "to" : "and"} ${s.edge[1]} in focus.` : "";
   const dist = s.dist ? ` Distances: ${s.dist.map((d, i) => `${i} ${d === null ? "not reached" : d}${s.done?.includes(i) ? " (final)" : ""}`).join(", ")}.` : "";
   const topo = s.indeg ? ` In-degrees: ${s.indeg.map((d, i) => `${i} is ${d}`).join(", ")}. Ready queue: ${s.ready?.length ? s.ready.join(", ") : "empty"}. Order so far: ${s.topo?.length ? s.topo.join(", ") : "none yet"}.${s.stuck?.length ? ` Stuck in a cycle: ${s.stuck.join(", ")}.` : ""}` : "";
+  const dsu = s.parent ? ` Parents: ${s.parent.map((p, i) => (p === i ? `${i} is a root${s.size ? ` of a group of ${s.size[i]}` : ""}` : `${i} points to ${p}`)).join(", ")}.` : "";
   const heap = s.heap ? ` Heap: ${s.heap.length ? s.heap.map((h) => `${h[0]} for ${h[1]}${h[2] ? " (stale)" : ""}`).join(", ") : "empty"}.` : "";
-  return `${s.directed ? "Directed" : "Undirected"} graph of ${s.n} vertices and ${e} edge${e === 1 ? "" : "s"}${e ? `: ${list}` : ""}.${cur}${ed}${dist}${heap}${topo}${s.out ? ` ${s.out}.` : ""}`;
+  return `${s.directed ? "Directed" : "Undirected"} graph of ${s.n} vertices and ${e} edge${e === 1 ? "" : "s"}${e ? `: ${list}` : ""}.${cur}${ed}${dist}${heap}${topo}${dsu}${s.out ? ` ${s.out}.` : ""}`;
 }
 
 const isEdge = (s: GraphState, a: number, b: number) => !!s.edge && ((s.edge[0] === a && s.edge[1] === b) || (!s.directed && s.edge[0] === b && s.edge[1] === a));
 
+/**
+ * Union-find: where each vertex sits when the parent pointers are drawn as trees. Roots are on top and children below them; the
+ * leaves are spread from left to right, and a parent sits over the middle of its children. A tall forest gets a taller picture
+ * and smaller circles, so a long chain stays readable.
+ */
+export function forestLayout(parent: number[], W: number): { pos: { x: number; y: number }[]; H: number; r: number } {
+  const n = parent.length;
+  const kids: number[][] = Array.from({ length: n }, () => []);
+  const roots: number[] = [];
+  parent.forEach((p, i) => (p === i ? roots.push(i) : kids[p].push(i)));
+  const depth: number[] = Array(n).fill(0);
+  const col: number[] = Array(n).fill(0);
+  let leaves = 0;
+  let deepest = 0;
+  const place = (v: number, d: number, guard: number): void => {
+    depth[v] = d;
+    deepest = Math.max(deepest, d);
+    if (!kids[v].length || guard > n) {
+      col[v] = leaves++;
+      return;
+    }
+    for (const c of kids[v]) place(c, d + 1, guard + 1);
+    col[v] = (col[kids[v][0]] + col[kids[v][kids[v].length - 1]]) / 2;
+  };
+  for (const r of roots) place(r, 0, 0);
+  const r = deepest > 4 ? 13 : R;
+  const step = leaves > 1 ? Math.min(60, (W - 2 * 22) / (leaves - 1)) : 0;
+  const x0 = W / 2 - (step * (leaves - 1)) / 2;
+  const ystep = deepest > 0 ? Math.max(Math.min(64, (250 - 68) / deepest), 2 * r + 10) : 0;
+  const H = Math.max(250, 68 + ystep * deepest);
+  const top = Math.max(34, (H - ystep * deepest) / 2);
+  return { pos: depth.map((d, i) => ({ x: x0 + col[i] * step, y: top + d * ystep })), H, r };
+}
+
 function GraphSvg({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number }) {
   const W = 300;
-  const H = 250;
+  const forest = s.parent && s.parent.length === s.n ? forestLayout(s.parent, W) : null;
+  const H = forest ? forest.H : 250;
+  const R = forest ? forest.r : RING_R;
   const cx = W / 2;
   const cy = H / 2;
   const rad = s.n <= 2 ? 60 : 92;
   const pos = (i: number) => {
+    if (forest) return forest.pos[i];
     const a = -Math.PI / 2 + (2 * Math.PI * i) / s.n;
     return { x: cx + rad * Math.cos(a), y: cy + rad * Math.sin(a) };
   };
+  const isRoot = (i: number) => !!s.parent && s.parent[i] === i;
   const mark = new Set(s.mark);
   const path = new Set(s.path);
   const done = new Set(s.done ?? []);
@@ -85,8 +125,8 @@ function GraphSvg({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number 
         const warn = stuck.has(i);
         return (
           <g key={i}>
-            <circle cx={x} cy={y} r={R} fill={warn ? pal.bad : cur ? pal.sig : lit ? pal.hl : pal.surface} stroke={warn ? pal.bad : cur || lit ? pal.sig : pal.stroke} strokeWidth={cur || warn ? 3.2 : lit ? 2.4 : 1.6} />
-            <text x={x} y={y + 5 * fs} textAnchor="middle" fontSize={15 * fs} fontWeight={700} fill={warn ? pal.badInk : cur ? pal.onSig : pal.ink} fontFamily={MONO}>
+            <circle cx={x} cy={y} r={R} fill={warn ? pal.bad : cur ? pal.sig : lit ? pal.hl : pal.surface} stroke={warn ? pal.bad : cur || lit ? pal.sig : isRoot(i) ? pal.ink : pal.stroke} strokeWidth={cur || warn ? 3.2 : lit ? 2.4 : isRoot(i) ? 2.6 : 1.6} />
+            <text x={x} y={y + 5 * fs} textAnchor="middle" fontSize={(R < RING_R ? 13 : 15) * fs} fontWeight={700} fill={warn ? pal.badInk : cur ? pal.onSig : pal.ink} fontFamily={MONO}>
               {i}
             </text>
             {labelsAt.has(i) && (
@@ -278,6 +318,38 @@ function TopoPanel({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number
   );
 }
 
+/** Union-find: the parent of every vertex and, at each root, the size of its group. A root is its own parent. */
+function ParentPanel({ s, pal, fs }: { s: GraphState; pal: TreePalette; fs: number }) {
+  const parent = s.parent ?? [];
+  const lit = new Set([...s.mark, ...s.path]);
+  const cell: React.CSSProperties = { padding: "2px 8px", fontFamily: MONO, fontWeight: 700, fontSize: `${12.5 * fs}px`, textAlign: "center", borderBottom: `1px solid ${pal.faint}` };
+  const head: React.CSSProperties = { ...cell, fontWeight: 500, fontSize: `${11 * fs}px`, color: pal.sub };
+  return (
+    <table style={{ borderCollapse: "collapse", width: "100%", color: pal.ink }}>
+      <thead>
+        <tr>
+          <th style={head}>account</th>
+          <th style={head}>parent</th>
+          <th style={head}>size</th>
+        </tr>
+      </thead>
+      <tbody>
+        {parent.map((p, i) => {
+          const cur = s.current === i;
+          const root = p === i;
+          return (
+            <tr key={i} style={{ background: cur ? pal.sig : lit.has(i) ? pal.hl : "transparent", color: cur ? pal.onSig : pal.ink }}>
+              <td style={cell}>{i}</td>
+              <td style={cell}>{p}</td>
+              <td style={{ ...cell, color: cur ? pal.onSig : root ? pal.ink : pal.sub, fontWeight: root ? 700 : 400 }}>{root ? (s.size?.[i] ?? 1) : "\u00b7"}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
 export default function GraphDraw({
   state,
   pal,
@@ -300,7 +372,7 @@ export default function GraphDraw({
   const g = state.show === "graph" || state.show === "both" || state.show === "all";
   const list = state.show === "list" || state.show === "both" || state.show === "all";
   const matrix = state.show === "matrix" || state.show === "all";
-  const table = !!state.dist || !!state.indeg;
+  const table = !!state.dist || !!state.indeg || !!state.parent;
   const panels = [g, list, matrix, table].filter(Boolean).length;
   const side = !stack && panels > 1;
   const bad = ["no", "no such edge", "wrong answer", "too late", "negative cycle", "cycle"].includes(state.out ?? "");
@@ -314,7 +386,7 @@ export default function GraphDraw({
         )}
         {table && (
           <div style={{ flex: side ? "1 1 0" : undefined, minWidth: 0, width: side ? undefined : "min(100%, 340px)", margin: side ? undefined : "0 auto" }}>
-            {state.indeg ? <TopoPanel s={state} pal={pal} fs={fs} /> : <DistPanel s={state} pal={pal} fs={fs} />}
+            {state.parent ? <ParentPanel s={state} pal={pal} fs={fs} /> : state.indeg ? <TopoPanel s={state} pal={pal} fs={fs} /> : <DistPanel s={state} pal={pal} fs={fs} />}
           </div>
         )}
         {(list || matrix) && (

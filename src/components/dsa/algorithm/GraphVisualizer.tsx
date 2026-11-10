@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * An algorithm lesson's visualizer for weighted maps (`::visualizer[id]`, dsa-mastery visualizer.yml with view: graph):
- * Dijkstra's algorithm and Bellman-Ford on a directed map the learner can change. Pick a preset, change any road's cost
+ * An algorithm lesson's visualizer for maps (`::visualizer[id]`, dsa-mastery visualizer.yml with view: graph):
+ * Dijkstra's algorithm and Bellman-Ford on a directed map the learner can change, Kahn's algorithm on a dependency graph, and
+ * union-find on a stream of links. Pick a preset, change any road's cost
  * (a negative cost is allowed, to see Dijkstra fail), choose the start and an optional target, then step through the
  * run forward and back on the StepPlayer. The graph view shows the vertices on a ring, the distance table beside it,
  * which vertices are final, and Dijkstra's waiting heap; auto-play stops at the predict questions.
@@ -14,8 +15,8 @@ import type { Script } from "@/lib/dsa/viz/types";
 import { track } from "@/lib/track";
 import StepPlayer from "../viz/StepPlayer";
 
-const ALGO_LABEL: Record<PathAlgo, string> = { dijkstra: "Dijkstra (heap)", "bellman-ford": "Bellman-Ford (rounds)", kahn: "Kahn (in-degrees and a queue)" };
-const ALGO_SHORT: Record<PathAlgo, string> = { dijkstra: "Dijkstra", "bellman-ford": "Bellman-Ford", kahn: "Kahn" };
+const ALGO_LABEL: Record<PathAlgo, string> = { dijkstra: "Dijkstra (heap)", "bellman-ford": "Bellman-Ford (rounds)", kahn: "Kahn (in-degrees and a queue)", dsu: "Union-find (parents, size and compression)" };
+const ALGO_SHORT: Record<PathAlgo, string> = { dijkstra: "Dijkstra", "bellman-ford": "Bellman-Ford", kahn: "Kahn", dsu: "Union-find" };
 
 export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) {
   const presets = spec.presets;
@@ -56,6 +57,8 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
   const verts = useMemo(() => Array.from({ length: n }, (_, i) => i), [n]);
   const note = presets.find((p) => p.id === preset)?.note;
   const editing = !script;
+  /** Kahn and union-find read a plain list of links: no start, no target and no road costs */
+  const plain = algo === "kahn" || algo === "dsu";
   const sel = "min-h-11 border border-line-strong bg-surface px-2 text-[15px] font-normal text-fg focus:border-signal focus:outline-none";
 
   return (
@@ -92,7 +95,7 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
       {editing ? (
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-end gap-3">
-            {algo !== "kahn" && <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
+            {!plain && <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
               Start
               <select value={source} onChange={(e) => (setSource(Number(e.target.value)), setScript(null))} className={sel}>
                 {verts.map((v) => (
@@ -102,7 +105,7 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
                 ))}
               </select>
             </label>}
-            {algo !== "kahn" && <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
+            {!plain && <label className="flex flex-col gap-1 text-[13px] font-semibold text-fg-2">
               Target (optional)
               <select value={target ?? ""} onChange={(e) => (setTarget(e.target.value === "" ? null : Number(e.target.value)), setScript(null))} className={sel}>
                 <option value="">None: find every distance</option>
@@ -114,8 +117,10 @@ export default function GraphVisualizer({ spec }: { spec: PathVisualizerSpec }) 
               </select>
             </label>}
           </div>
-          {algo === "kahn" ? (
-            <p className="m-0 text-[14px] text-fg-2">Each arrow means: the first one must come before the second. Pick a map, then run it.</p>
+          {plain ? (
+            <p className="m-0 text-[14px] text-fg-2">
+              {algo === "dsu" ? "Each pair is a link between two accounts, read in the listed order. Pick a map, then run it." : "Each arrow means: the first one must come before the second. Pick a map, then run it."}
+            </p>
           ) : (
           <fieldset className="m-0 border-0 p-0">
             <legend className="mb-1 text-[13px] font-semibold text-fg-2">Road costs (one way). Try a negative cost.</legend>

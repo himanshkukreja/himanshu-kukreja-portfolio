@@ -350,9 +350,9 @@ export type PathVisualizerSpec = {
 };
 export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec;
 
-export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn"] as const } };
+export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn", "dsu"] as const } };
 
-export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn");
+export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn" || d.algorithm === "dsu");
 export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
 
 export function pathDemoScript(d: PathDemo): Script {

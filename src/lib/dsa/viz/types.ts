@@ -282,6 +282,10 @@ export type GraphState = {
   topo?: number[];
   /** vertices stuck in a cycle: drawn in the warning colour */
   stuck?: number[];
+  /** union-find runs (A4): each vertex's parent (a root is its own parent). The graph view then draws the trees of the forest instead of a ring, and a table of parents and sizes beside them */
+  parent?: number[];
+  /** each group's size, read at its root (the number at an item that is not a root is out of date, so the table leaves it out) */
+  size?: number[];
 };
 
 /* ------------------------------------------------------------------ the trie state ("trie" view) */
