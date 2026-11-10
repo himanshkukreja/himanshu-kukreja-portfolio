@@ -3,9 +3,12 @@ import { createHash } from "crypto";
 import matter from "gray-matter";
 import { badgeDefsFor, type BadgeDef } from "./rewards";
 import { unstable_cache } from "next/cache";
+import { cache as requestCache } from "react";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
-import { DSA_CONTENT_TAG, dsaFresh, listDsa, readDsa, readDsaJson } from "./content";
+import { DSA_CONTENT_TAG, dsaBundleVersion, dsaFresh, listDsa, readDsa, readDsaHead, readDsaJson } from "./content";
+import { blurbOf, versionedMemo } from "./bundle";
+import { hasLinkTokens, resolveLinkTokens, tokenLinker, type LinkKind } from "./sdm-links";
 import { plainBeatHeading } from "./words";
 import { buildStepLabels, lessonLabel, lessonSlot, stepOf, type StepLabels } from "./steps";
 import { checkpointFor } from "./lesson-stops";
@@ -52,6 +55,38 @@ function cached<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string
   return (...a: A) => (dsaFresh() ? fn(...a) : c(...a));
 }
 
+const indexMemo = versionedMemo();
+
+/**
+ * The index-level loaders (concepts, modules, cast, problems, worlds, step labels...): what nearly every DSA page builds
+ * on, called again and again inside the per-page cached items. Next never reads a data-cache item from inside another
+ * one (a nested unstable_cache call runs its function), so a cold lesson rebuilt these up to 8 times: ~2,000 R2 reads,
+ * 68 s on Workers (Nov 2026).
+ *   with the content bundle (src/lib/dsa/bundle.ts)  built from it once per isolate and content commit and kept in
+ *       memory until the commit changes. No data cache, so a code deploy doesn't empty it either.
+ *   without it  the data cache, as before, and once per request (React cache) instead of once per call.
+ * Every caller gets its own copy (as from the data cache), so one that changes its result can't change anyone else's.
+ */
+function indexed<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string): (...a: A) => Promise<R> {
+  const c = unstable_cache(fn, [key], CACHE);
+  const shared = requestCache(async (...a: A): Promise<R> => {
+    if (dsaFresh()) return fn(...a);
+    const v = await dsaBundleVersion().catch(() => null);
+    if (!v) return c(...a);
+    const [r] = await Promise.all([indexMemo.get(v, `${key}:${JSON.stringify(a)}`, () => fn(...a)), tagThisRender()]);
+    return r;
+  });
+  return async (...a: A) => structuredClone(await shared(...a));
+}
+
+/**
+ * The "dsa-content" tag on the page being rendered, as a data-cache read used to add it: a page built only from
+ * memory-held indexes is still expired by POST /api/revalidate-courses?source=dsa (revalidateTag). One tiny item, read
+ * once per request alongside the work (inside another cached item Next skips the read and the outer item has the tag).
+ */
+const tagItem = unstable_cache(async () => 1, ["dsa-content-tag-v1"], CACHE);
+const tagThisRender = requestCache(() => tagItem().catch(() => 0));
+
 const hash = (s: string) => createHash("sha1").update(s).digest("hex").slice(0, 12);
 
 const humanize = (s: string) => {
@@ -63,7 +98,7 @@ const humanize = (s: string) => {
 
 type CastFile = { cast?: { id: string; name: string; role: string }[] };
 
-const castOf = cached(async (): Promise<Record<string, { name: string; role: string }>> => {
+const castOf = indexed(async (): Promise<Record<string, { name: string; role: string }>> => {
   const md = await readDsa("resources/company/cast.md");
   if (!md) return {};
   const data = matter(md, {}).data as CastFile;
@@ -72,7 +107,7 @@ const castOf = cached(async (): Promise<Record<string, { name: string; role: str
 
 type ConceptsFile = { concepts?: { id: string; module: string; order?: number; title: string; status?: string; summary?: string; kind?: string }[] };
 
-export const getConceptIndex = cached(async (): Promise<ConceptSummary[]> => {
+export const getConceptIndex = indexed(async (): Promise<ConceptSummary[]> => {
   const src = await readDsa("resources/concepts.yml");
   if (!src) return [];
   const data = yaml<ConceptsFile>(src);
@@ -99,7 +134,7 @@ export const lessonHref = (c: Pick<ConceptSummary, "id" | "kind">) => (c.kind ==
 
 type ModulesFile = { modules?: { id: string; code: string; title: string; building?: string; lines?: string[]; objective?: string }[] };
 
-const getModules = cached(async (): Promise<Record<string, { code: string; title: string; building: string; line: string; objective: string }>> => {
+const getModules = indexed(async (): Promise<Record<string, { code: string; title: string; building: string; line: string; objective: string }>> => {
   const src = await readDsa("resources/course.yml");
   if (!src) return {};
   const data = yaml<ModulesFile>(src);
@@ -111,7 +146,7 @@ const getModules = cached(async (): Promise<Record<string, { code: string; title
 type LinesFile = { lines?: { id: string; name: string }[] };
 
 /** Product line labels by id ("stream" → "Music streaming app"), from resources/company/product-lines.yml (plain labels, no company). */
-const getLineNames = cached(async (): Promise<Record<string, string>> => {
+const getLineNames = indexed(async (): Promise<Record<string, string>> => {
   const src = await readDsa("resources/company/product-lines.yml");
   if (!src) return {};
   return Object.fromEntries((yaml<LinesFile>(src).lines || []).map((l) => [l.id, l.name]));
@@ -142,18 +177,6 @@ type ProblemFront = {
 
 const levelOf = (l: unknown): DsaLevel => (l === "easy" || l === "hard" ? l : "medium");
 
-/** The statement's first words as plain text (Scenario, then the task), for the problems search box. */
-function blurbOf(md: string, max = 220): string {
-  const body = md.replace(/^---[\s\S]*?\n---\s*/, "").split(/^## (?:Examples?|Constraints|Hints?)\b/m)[0];
-  const text = body
-    .replace(/```[\s\S]*?```/g, " ")
-    .replace(/^#+\s.*$/gm, " ")
-    .replace(/[`*_>#[\]()|]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-  return text.length > max ? text.slice(0, max).replace(/\s+\S*$/, "") : text;
-}
-
 function summaryOf(id: string, f: ProblemFront, md = ""): ProblemSummary {
   return {
     id,
@@ -175,10 +198,11 @@ function summaryOf(id: string, f: ProblemFront, md = ""): ProblemSummary {
 }
 
 /**
- * Every built problem's summary. Reads each problem.md's front matter once per revalidation; at bank scale
+ * Every built problem's summary, from each problem.md's front matter and first words (the content bundle's heads, so
+ * no per-file reads; without a bundle each file is read, once per revalidation); at bank scale
  * (~1,000) the repo's generated/problem-index.json takes over when it exists, so this stays one small item.
  */
-export const getProblemIndex = cached(async (): Promise<ProblemSummary[]> => {
+export const getProblemIndex = indexed(async (): Promise<ProblemSummary[]> => {
   const pre = await readDsaJson<ProblemSummary[]>("generated/problem-index.json");
   if (Array.isArray(pre)) return pre;
   const dirs = ((await listDsa("resources/problems")) || []).filter((e) => e.endsWith("/")).map((e) => e.slice(0, -1)).filter((d) => ID.test(d));
@@ -186,7 +210,9 @@ export const getProblemIndex = cached(async (): Promise<ProblemSummary[]> => {
   for (let i = 0; i < dirs.length; i += 6) {
     const batch = await Promise.all(
       dirs.slice(i, i + 6).map(async (id) => {
-        const md = await readDsa(`resources/problems/${id}/problem.md`);
+        // the bundle's head of the file (front matter + statement) is all a summary reads; else the whole file
+        const path = `resources/problems/${id}/problem.md`;
+        const md = (await readDsaHead(path)) ?? (await readDsa(path));
         return md ? summaryOf(id, matter(md, {}).data as ProblemFront, md) : null;
       }),
     );
@@ -358,7 +384,7 @@ type PlanFile = {
   parts?: { world?: string; modules?: { id: string; wave?: string; links?: string[]; lessons?: { id: string; title: string }[] }[] }[];
   problems?: { id: string; home?: string; title?: string; status?: string; lesson?: string }[];
 };
-const getDistrictPlan = cached(async (): Promise<{ districts: PlanDistrict[]; rows: PlanProblem[] } | null> => {
+const getDistrictPlan = indexed(async (): Promise<{ districts: PlanDistrict[]; rows: PlanProblem[] } | null> => {
   const src = await readDsa("resources/plan/curriculum.yml");
   if (!src) return null;
   const plan = yaml<PlanFile>(src);
@@ -411,7 +437,7 @@ async function wireDistricts(world: WorldSpec, raw: RawWorld, concepts: Map<stri
   return { ...world, regions };
 }
 
-const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
+const worldCached = indexed(async (id: string): Promise<WorldSpec | null> => {
   const src = await readDsa(`resources/worlds/${id}.yml`);
   if (!src) return null;
   const [concepts, problems, modules, lines] = await Promise.all([getConceptIndex(), getProblemIndex(), getModules(), getLineNames()]);
@@ -437,7 +463,7 @@ const worldCached = cached(async (id: string): Promise<WorldSpec | null> => {
 }, "dsa-world-v6");
 
 /** Every module's learner label ("2.3 Linked lists" plus its building), from the Academy's parts and order. */
-export const getStepLabels = cached(async (): Promise<StepLabels> => {
+export const getStepLabels = indexed(async (): Promise<StepLabels> => {
   const [world, modules] = await Promise.all([worldCached("academy"), getModules()]);
   return buildStepLabels(world, modules);
 }, "dsa-steps-v1");
@@ -447,7 +473,7 @@ export async function getWorld(id: string): Promise<WorldSpec | null> {
   return worldCached(id);
 }
 
-export const getWorlds = cached(async (): Promise<WorldSummary[]> => {
+export const getWorlds = indexed(async (): Promise<WorldSummary[]> => {
   const out = await Promise.all(
     WORLD_IDS.map(async (id) => {
       const src = await readDsa(`resources/worlds/${id}.yml`);
@@ -462,7 +488,7 @@ export const getWorlds = cached(async (): Promise<WorldSummary[]> => {
 }, "dsa-worlds-v2");
 
 /** Every mastery badge (src/lib/dsa/rewards.ts badgeDefsFor): one per module of each world, then the world itself. */
-export const getBadgeDefs = cached(async (): Promise<BadgeDef[]> => {
+export const getBadgeDefs = indexed(async (): Promise<BadgeDef[]> => {
   const worlds = await getWorlds();
   const specs = await Promise.all(worlds.map((w) => getWorld(w.id).catch(() => null)));
   return specs.flatMap((s) => (s ? badgeDefsFor(s) : []));
@@ -470,33 +496,52 @@ export const getBadgeDefs = cached(async (): Promise<BadgeDef[]> => {
 
 /* ------------------------------------------------------------------ links to System Design Mastery */
 
+/**
+ * The renderer's links to System Design Mastery. Cached DSA items carry title tokens (src/lib/dsa/sdm-links.ts), never
+ * the titles: those come from the SD course map and labs, which a nested cached item can't read from the data cache, so
+ * the whole course map was rebuilt inside every cold DSA lesson. withSdmTitles puts the titles in when a page is served.
+ */
 export async function sdmLinker(): Promise<{ sdm: (path: string) => DsaLink; lab: (id: string) => DsaLink }> {
-  const titles = new Map<string, string>();
+  return tokenLinker();
+}
+
+/** SD lesson and lab titles by path and id (the course map and the labs' summaries, each its own cached item). */
+const sdmTitles = requestCache(async (): Promise<{ lessons: Map<string, string>; labs: Map<string, string> }> => {
+  const lessons = new Map<string, string>();
   const labs = new Map<string, string>();
-  try {
-    const { getCourseMap } = await import("@/lib/learn/course");
-    const map = await getCourseMap();
-    if (map) {
-      const all = [...map.weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])]), ...map.sideQuests, ...(map.problems || []), ...(map.lld || []), ...(map.plan ? [map.plan] : [])];
-      for (const l of all) titles.set(`${l.week}/${l.slug}`, l.title);
-    }
-  } catch {
-    /* titles fall back to the slug */
-  }
-  try {
-    const { getLabSummaries } = await import("@/lib/learn/labs/load");
-    for (const l of await getLabSummaries()) labs.set(l.id, l.title);
-  } catch {
-    /* lab titles fall back to the id */
-  }
-  return {
-    sdm: (path) => {
-      const clean = path.replace(/^\/+|\/+$/g, "").replace(/\.md$/, "");
-      const slug = clean.split("/").pop() || clean;
-      return { href: `/${clean}`, title: titles.get(clean) || humanize(slug), kind: clean.startsWith("problem-bank/") ? "problem" : "lesson" };
-    },
-    lab: (id) => ({ href: `/labs/${id}`, title: labs.get(id) || humanize(id), kind: "lab" }),
-  };
+  await Promise.all([
+    (async () => {
+      const { getCourseMap } = await import("@/lib/learn/course");
+      const map = await getCourseMap();
+      if (map) {
+        const all = [...map.weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])]), ...map.sideQuests, ...(map.problems || []), ...(map.lld || []), ...(map.plan ? [map.plan] : [])];
+        for (const l of all) lessons.set(`${l.week}/${l.slug}`, l.title);
+      }
+    })().catch(() => {
+      /* titles fall back to the slug */
+    }),
+    (async () => {
+      const { getLabSummaries } = await import("@/lib/learn/labs/load");
+      for (const l of await getLabSummaries()) labs.set(l.id, l.title);
+    })().catch(() => {
+      /* lab titles fall back to the id */
+    }),
+  ]);
+  return { lessons, labs };
+});
+
+/**
+ * A served DSA item with its SD link titles in (titles as before: the course's own, else the humanized slug or id).
+ * The titles are read while the item is (nearly every lesson and problem links to SD).
+ */
+export async function withSdmTitles<T>(item: Promise<T>): Promise<T> {
+  const titles = sdmTitles();
+  const value = await item;
+  if (!value || !hasLinkTokens(value)) return value;
+  const { lessons, labs } = await titles;
+  return resolveLinkTokens(value, (kind: LinkKind, ref: string) =>
+    kind === "lab" ? labs.get(ref) || humanize(ref) : lessons.get(ref) || humanize(ref.split("/").pop() || ref),
+  );
 }
 
 /** `:::realsystems{sdm="a, b" lab="c"}` targets in a markdown file. */
@@ -632,12 +677,13 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
     practice,
     checkpoint,
   };
-}, "dsa-concept-v3");
+}, "dsa-concept-v4");
 
-export async function getConcept(id: string): Promise<ConceptPage | null> {
+/** One request's calls share one build (the page and its metadata both ask). */
+export const getConcept = requestCache(async (id: string): Promise<ConceptPage | null> => {
   if (!ID.test(id)) return null;
-  return conceptCached(id);
-}
+  return withSdmTitles(conceptCached(id));
+});
 
 /* ------------------------------------------------------------------ concept lectures */
 
@@ -670,10 +716,10 @@ const lectureCached = cached(async (id: string): Promise<Lecture | null> => {
   return resolveDsaLecture(raw, await lectureSources(dir, raw));
 }, "dsa-lecture-v2");
 
-export async function getConceptLecture(id: string): Promise<Lecture | null> {
+export const getConceptLecture = requestCache(async (id: string): Promise<Lecture | null> => {
   if (!ID.test(id)) return null;
   return lectureCached(id);
-}
+});
 
 /* ------------------------------------------------------------------ shorts */
 
@@ -829,12 +875,12 @@ const problemCached = cached(async (id: string): Promise<ProblemPage | null> => 
     prev: at > 0 ? ladder[at - 1] : null,
     next: at >= 0 && at < ladder.length - 1 ? ladder[at + 1] : null,
   };
-}, "dsa-problem-v1");
+}, "dsa-problem-v2");
 
-export async function getProblem(id: string): Promise<ProblemPage | null> {
+export const getProblem = requestCache(async (id: string): Promise<ProblemPage | null> => {
   if (!ID.test(id)) return null;
-  return problemCached(id);
-}
+  return withSdmTitles(problemCached(id));
+});
 
 /** Visible + hidden tests for Submit (GET /api/dsa/tests/<id>), plus the judge's needs. */
 const testsCached = cached(async (id: string): Promise<{ signature: DsaSignature; checker: string; limits: { timeMs: number; memoryMb: number }; visible: DsaTestCase[]; hidden: DsaTestCase[]; version: string } | null> => {
@@ -880,11 +926,11 @@ const editorialCached = cached(async (id: string): Promise<{ html: string } | nu
   const solutions = SOLUTION_FILES.map(([lang], i) => ({ lang, code: codes[i] || "" })).filter((s) => s.code.trim());
   const html = fragment((await renderLesson(sec.md, { kind: "day-content", dsa: { cast, solutions, sdmLink: linker.sdm, labLink: linker.lab } })).html);
   return { html };
-}, "dsa-editorial-v1");
+}, "dsa-editorial-v2");
 
 export async function getEditorial(id: string) {
   if (!ID.test(id)) return null;
-  return editorialCached(id);
+  return withSdmTitles(editorialCached(id));
 }
 
 /* ------------------------------------------------------------------ in-article clips and solution videos */

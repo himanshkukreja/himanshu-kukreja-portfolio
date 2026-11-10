@@ -3,7 +3,8 @@
 // data from R2, 17-30 s, then pages take 1-5 s). The first page goes alone so the shared data is rebuilt once, the
 // rest go a few at a time. By default only what matters most after a deploy (about 100 of the ~1,400 sitemap
 // pages, so about a tenth of the CPU): lessons, top-level hubs and the search index routes the course chat loads; every other
-// page is rendered on its first visit and then served stale-while-revalidate. `all` warms the whole sitemap.
+// page is rendered on its first visit and then served stale-while-revalidate. `all` warms the whole sitemap. Both modes
+// also warm every DSA Mastery page (below), after the rest.
 // Usage: node scripts/cf/warm.mjs <base url> [concurrency=4] [lean|all]
 const base = process.argv[2].replace(/\/$/, "");
 const concurrency = Number(process.argv[3] || 4);
@@ -17,15 +18,31 @@ const extras = ["/api/search/index/a", "/api/search/index/b", "/api/search/index
   // slow to render cold (podcast apps time out on a 39 s feed), so never left for the first visitor
   // builds the search Worker's engine (its Durable Object starts empty after a deploy) before Ask AI needs it
   `/api/search/smart?q=warm-${Date.now()}`,
-  "/podcast.xml", "/papers/index.json", "/revise/anki.txt", "/llms.txt", "/shorts", "/api/offline/catalog", "/api/learn/leaderboard", "/api/learn/daily",
-  // DSA Mastery's hub pages (staging: the full course; production before launch: redirects to the coming-soon page)
-  "/dsa/problems", "/dsa/lectures", "/dsa/cheatsheets", "/dsa/shorts", "/dsa/ask"];
-const paths = [...extras, ...(mode === "all" ? sitemap : sitemap.filter(lean))];
-// lessons first: they're what the release expired and what most visitors open
-// the search index routes first (the search engine is built from them), then lessons
-const rank = (p) => (p.startsWith("/api/search/index") || p === "/api/search/transcripts" ? 0 : p.startsWith("/api/search/smart") ? 1 : /^\/week-/.test(p) ? 2 : 3);
+  "/podcast.xml", "/papers/index.json", "/revise/anki.txt", "/llms.txt", "/shorts", "/api/offline/catalog", "/api/learn/leaderboard", "/api/learn/daily"];
+// DSA Mastery: every hub, lesson and problem page, as the site lists them from its indexes (GET /api/dsa/pages, ~270
+// pages in Nov 2026; one renders cold in 1-3 s with the content bundle). Production before launch answers 404 there:
+// then only the hubs (they redirect to the coming-soon page).
+const DSA_HUBS = ["/dsa/problems", "/dsa/lectures", "/dsa/cheatsheets", "/dsa/shorts", "/dsa/ask"];
+const dsa = await (async () => {
+  try {
+    const r = await fetch(`${base}/api/dsa/pages`, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(60_000) });
+    const j = r.ok ? await r.json() : null;
+    if (Array.isArray(j?.paths) && j.paths.length && j.paths.every((p) => typeof p === "string" && /^\/dsa(?:\/[a-z0-9-]+)*$/.test(p))) {
+      console.log(`DSA: ${j.paths.length} pages (${j.lessons} lessons, ${j.problems} problems)`);
+      return j.paths;
+    }
+    console.log(`DSA: /api/dsa/pages answered ${r.status}: the ${DSA_HUBS.length} hubs only`);
+  } catch (e) {
+    console.log(`DSA: /api/dsa/pages failed (${e.message}): the ${DSA_HUBS.length} hubs only`);
+  }
+  return DSA_HUBS;
+})();
+const paths = [...new Set([...extras, ...(mode === "all" ? sitemap : sitemap.filter(lean)), ...dsa])];
+// the search index routes first (the search engine is built from them), then lessons (what a release expired and what
+// most visitors open), then everything else, DSA last (the most pages, each cheap)
+const rank = (p) => (p.startsWith("/api/search/index") || p === "/api/search/transcripts" ? 0 : p.startsWith("/api/search/smart") ? 1 : /^\/week-/.test(p) ? 2 : /^\/dsa(?:\/|$)/.test(p) ? 4 : 3);
 paths.sort((a, b) => rank(a) - rank(b));
-console.log(`warming ${paths.length} of ${sitemap.length} sitemap pages + search indexes from ${base} (${mode}, ${concurrency} at a time)`);
+console.log(`warming ${paths.length} pages (of ${sitemap.length} in the sitemap, + search indexes and ${dsa.length} DSA) from ${base} (${mode}, ${concurrency} at a time)`);
 
 const res = [];
 async function hit(p) {

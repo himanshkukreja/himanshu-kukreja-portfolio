@@ -1,5 +1,6 @@
 import "server-only";
-import { listContent, readContent } from "@/lib/content-r2";
+import { contentManifest, listContent, readContent, readContentBundle } from "@/lib/content-r2";
+import { bundleLoader, bundleText, type DsaBundle } from "./bundle";
 
 /**
  * The dsa-mastery content repo, read one file at a time (paths relative to the repo root, e.g.
@@ -10,7 +11,8 @@ import { listContent, readContent } from "@/lib/content-r2";
  *   fallback      DSA_GITHUB_REPO=owner/name (optional) → GitHub's contents API with GITHUB_PERSONAL_ACCESS_TOKEN
  *
  * Nothing loads the whole repo: callers read the few files a page needs, and src/lib/dsa/load.ts caches one
- * small item per world, concept and problem.
+ * small item per world, concept and problem. On R2 the files the indexes are built from come from the content bundle
+ * (src/lib/dsa/bundle.ts): one object per content commit, read once per isolate.
  */
 
 export const DSA_CONTENT_TAG = "dsa-content";
@@ -60,9 +62,40 @@ async function githubRead(path: string): Promise<string | null | undefined> {
   return res.text();
 }
 
+/* ------------------------------------------------------------------ the content bundle */
+
+const loadBundle = bundleLoader({
+  manifest: () => contentManifest("dsa", BRANCH),
+  read: (key) => readContentBundle("dsa", key, BRANCH),
+  warn: (msg) => console.warn(`[dsa-bundle] ${msg}`),
+});
+
+/**
+ * The current content commit's bundle (src/lib/dsa/bundle.ts), read once per isolate and commit; null = none (local
+ * files, no R2, no bundle in the manifest, a read or check failed, or DSA_BUNDLE=off): read the files one by one.
+ */
+export async function dsaBundle(): Promise<DsaBundle | null> {
+  if (LOCAL_DIR || process.env.DSA_BUNDLE === "off") return null;
+  return loadBundle();
+}
+
+/** The content commit the bundle describes, when the loaders can use it; null = no bundle (they use the data cache). */
+export async function dsaBundleVersion(): Promise<string | null> {
+  return (await dsaBundle())?.sha ?? null;
+}
+
+/** A problem.md's head (front matter and statement, bundle.ts problemHead) from the bundle; undefined = not in it. */
+export async function readDsaHead(path: string): Promise<string | undefined> {
+  return (await dsaBundle())?.heads.get(path);
+}
+
 /** A file's text, or null when it doesn't exist. Throws when no source can answer (so a cache never stores "missing"). */
 export async function readDsa(path: string): Promise<string | null> {
   if (!SAFE.test(path) || path.includes("..")) return null;
+  if (!LOCAL_DIR) {
+    const fromBundle = bundleText(await dsaBundle(), path);
+    if (fromBundle !== undefined) return fromBundle;
+  }
   if (LOCAL_DIR) return localRead(path);
   const r2 = await readContent("dsa", path, BRANCH);
   if (r2 !== undefined) return r2;

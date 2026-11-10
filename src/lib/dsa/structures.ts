@@ -1,10 +1,11 @@
 import "server-only";
 import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
+import { cache as requestCache } from "react";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
 import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
-import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getStepLabels, getWorld, lessonDir, sdmLinker } from "./load";
+import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getStepLabels, getWorld, lessonDir, sdmLinker, withSdmTitles } from "./load";
 import { lessonLabel, lessonSlot, stepOf } from "./steps";
 import { checkpointFor, warmupsIntro } from "./lesson-stops";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
@@ -223,9 +224,10 @@ async function build(id: string): Promise<StructurePage | null> {
   };
 }
 
-const cachedBuild = unstable_cache(build, ["dsa-structure-v4"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cachedBuild = unstable_cache(build, ["dsa-structure-v5"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
-export async function getStructure(id: string): Promise<StructurePage | null> {
+/** One request's calls share one build (the page and its metadata both ask); SD link titles go in as it's served. */
+export const getStructure = requestCache(async (id: string): Promise<StructurePage | null> => {
   if (!ID.test(id)) return null;
-  return dsaFresh() ? build(id) : cachedBuild(id);
-}
+  return withSdmTitles(dsaFresh() ? build(id) : cachedBuild(id));
+});

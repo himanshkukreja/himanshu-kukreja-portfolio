@@ -26,7 +26,8 @@ import { request } from "https";
  * (r2Read / r2List with the bare branch), and each prefix keeps its own manifest cache.
  */
 
-type Manifest = { sha: string; dirs: Map<string, string[]>; checkedAt: number; etag: string | null };
+/** `bundle`: the manifest's optional bundle entry, as written (DSA Mastery: src/lib/dsa/bundle.ts checks it). */
+type Manifest = { sha: string; dirs: Map<string, string[]>; bundle: unknown; checkedAt: number; etag: string | null };
 type ManifestSlot = { manifest: Manifest | null; loading: Promise<Manifest | null> | null; failedAt: number };
 
 const CHECK_MS = 60_000;
@@ -150,8 +151,8 @@ async function loadManifest(prefix: string): Promise<Manifest | null> {
         slot.manifest.checkedAt = Date.now();
         return slot.manifest;
       }
-      const j = JSON.parse(res.body.toString("utf8")) as { sha: string; dirs: Record<string, string[]> };
-      slot.manifest = { sha: j.sha, dirs: new Map(Object.entries(j.dirs)), checkedAt: Date.now(), etag: res.etag };
+      const j = JSON.parse(res.body.toString("utf8")) as { sha: string; dirs: Record<string, string[]>; bundle?: unknown };
+      slot.manifest = { sha: j.sha, dirs: new Map(Object.entries(j.dirs)), bundle: j.bundle ?? null, checkedAt: Date.now(), etag: res.etag };
       return slot.manifest;
     } catch (e) {
       slot.failedAt = Date.now();
@@ -209,6 +210,28 @@ export async function readContent(source: ContentSource, path: string, branch = 
 export async function listContent(source: ContentSource, path: string, branch = defaultBranch(source)) {
   if (!r2ContentConfigured()) return null;
   return listAt(contentPrefix(source, branch), path);
+}
+
+/** A source's manifest: its commit and its bundle entry (unchecked); null = not served from R2 or unavailable. */
+export async function contentManifest(source: ContentSource, branch = defaultBranch(source)): Promise<{ sha: string; bundle: unknown } | null> {
+  if (!r2ContentConfigured()) return null;
+  const m = await loadManifest(contentPrefix(source, branch));
+  return m ? { sha: m.sha, bundle: m.bundle } : null;
+}
+
+/**
+ * A content bundle (<prefix>/bundles/<40-hex sha>.json, beside files/ and manifest.json) as raw bytes. undefined = not
+ * served from R2 or the read failed, null = no such object. Only bundle keys: everything else is read with readContent.
+ */
+export async function readContentBundle(source: ContentSource, key: string, branch = defaultBranch(source)): Promise<Buffer | null | undefined> {
+  if (!r2ContentConfigured() || !/^bundles\/[0-9a-f]{40}\.json$/.test(key)) return undefined;
+  try {
+    const res = await get(`${contentPrefix(source, branch)}/${key}`);
+    return res ? res.body : null;
+  } catch (e) {
+    console.warn("[content-r2] bundle read failed, falling back:", (e as Error).message);
+    return undefined;
+  }
 }
 
 /** POST /api/revalidate-courses: the next read re-checks the manifests at once. */
