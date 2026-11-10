@@ -37,7 +37,10 @@ const dsa = await (async () => {
   }
   return DSA_HUBS;
 })();
-const paths = [...new Set([...extras, ...(mode === "all" ? sitemap : sitemap.filter(lean)), ...dsa])];
+// with the course on (the pages list answered): the problems page's video marks, which it loads after the page (~20 s
+// to work out cold, from every problem's solution and media)
+const dsaApis = dsa === DSA_HUBS ? [] : ["/api/dsa/problem-videos"];
+const paths = [...new Set([...extras, ...(mode === "all" ? sitemap : sitemap.filter(lean)), ...dsa, ...dsaApis])];
 // the search index routes first (the search engine is built from them), then lessons (what a release expired and what
 // most visitors open), then everything else, DSA last (the most pages, each cheap)
 const rank = (p) => (p.startsWith("/api/search/index") || p === "/api/search/transcripts" ? 0 : p.startsWith("/api/search/smart") ? 1 : /^\/week-/.test(p) ? 2 : /^\/dsa(?:\/|$)/.test(p) ? 4 : 3);

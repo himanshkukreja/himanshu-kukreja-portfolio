@@ -1,7 +1,7 @@
 import "server-only";
 import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
-import { DSA_CONTENT_TAG, dsaFresh, readDsa } from "./content";
+import { DSA_CONTENT_TAG, dsaFresh, readDsa, dsaItem, dsaItemKey } from "./content";
 import { getProblemIndex, getStepLabels } from "./load";
 import { stepOf } from "./steps";
 import { listCheatsheets } from "./cheatsheet";
@@ -262,7 +262,7 @@ async function build(): Promise<PatternEntry[]> {
   return out.sort((a, b) => a.name.localeCompare(b.name, "en", { sensitivity: "base", numeric: true }));
 }
 
-const cached = unstable_cache(build, ["dsa-patterns-az-v2"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cached = unstable_cache(dsaItem(build), ["dsa-patterns-az-v2", dsaItemKey(build)], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 export async function getPatternsAZ(): Promise<PatternEntry[]> {
   return dsaFresh() ? build() : cached();

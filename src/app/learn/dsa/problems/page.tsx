@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConceptIndex, getProblemIndex, getStepLabels } from "@/lib/dsa/load";
-import { problemsWithVideo } from "@/lib/dsa/media";
 import { buildProblemData } from "@/lib/dsa/problem-rows";
 import ProblemBrowser from "@/components/dsa/problems/ProblemBrowser";
 import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
@@ -16,8 +15,9 @@ export const metadata: Metadata = { title: "Problems · DSA Mastery", robots: { 
 export default async function ProblemsPage() {
   if (!DSA_FULL) notFound();
   const [problems, concepts, labels] = await Promise.all([getProblemIndex().catch(() => []), getConceptIndex().catch(() => []), getStepLabels().catch(() => ({}))]);
-  const videos = await problemsWithVideo(problems.map((p) => p.id)).catch(() => []);
-  const data = buildProblemData(problems, { labels, concepts, videos });
+  // the "has a solution video" flags load in the browser (GET /api/dsa/problem-videos): working them out takes every
+  // problem's solution script and published media (~1,400 reads cold, 105 s on staging, Nov 2026)
+  const data = buildProblemData(problems, { labels, concepts, videos: [] });
   if (data.unknown.length) console.warn(`[dsa taxonomy] pattern tags with no facets yet: ${data.unknown.join(", ")}`);
   return (
     <div className="dsa-theme">

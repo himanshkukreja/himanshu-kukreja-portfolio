@@ -3,7 +3,7 @@ import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
-import { DSA_CONTENT_TAG, dsaFresh, readDsa } from "./content";
+import { DSA_CONTENT_TAG, dsaFresh, readDsa, dsaItem, dsaItemKey } from "./content";
 import { conceptHref, getConceptIndex, getProblemIndex, getStepLabels } from "./load";
 import { stepOf, stepRank } from "./steps";
 import type { DsaLevel } from "./types";
@@ -133,7 +133,7 @@ async function build(id: string): Promise<Cheatsheet | null> {
   };
 }
 
-const cachedSheet = unstable_cache(build, ["dsa-cheatsheet-v2"], CACHE);
+const cachedSheet = unstable_cache(dsaItem(build), ["dsa-cheatsheet-v2", dsaItemKey(build)], CACHE);
 
 export async function getCheatsheet(id: string): Promise<Cheatsheet | null> {
   if (!ID.test(id)) return null;

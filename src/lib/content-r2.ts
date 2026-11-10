@@ -220,11 +220,12 @@ export async function contentManifest(source: ContentSource, branch = defaultBra
 }
 
 /**
- * A content bundle (<prefix>/bundles/<40-hex sha>.json, beside files/ and manifest.json) as raw bytes. undefined = not
- * served from R2 or the read failed, null = no such object. Only bundle keys: everything else is read with readContent.
+ * A content bundle (<prefix>/bundles/<40-hex sha>.json, or a page bundle <prefix>/pages/v1-<40-hex tree>.json, beside
+ * files/ and manifest.json) as raw bytes. undefined = not served from R2 or the read failed, null = no such object.
+ * Only bundle keys: everything else is read with readContent.
  */
 export async function readContentBundle(source: ContentSource, key: string, branch = defaultBranch(source)): Promise<Buffer | null | undefined> {
-  if (!r2ContentConfigured() || !/^bundles\/[0-9a-f]{40}\.json$/.test(key)) return undefined;
+  if (!r2ContentConfigured() || !/^(?:bundles\/[0-9a-f]{40}|pages\/v1-[0-9a-f]{40})\.json$/.test(key)) return undefined;
   try {
     const res = await get(`${contentPrefix(source, branch)}/${key}`);
     return res ? res.body : null;

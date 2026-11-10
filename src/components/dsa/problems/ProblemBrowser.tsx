@@ -225,6 +225,26 @@ function StatusTabs({ value, counts, onPick }: { value: StatusView; counts: Reco
 
 /* ------------------------------------------------------------------ the page */
 
+/**
+ * The problems with a published solution video (GET /api/dsa/problem-videos), fetched once the page is interactive:
+ * the page itself carries none, since working them out takes every problem's solution and media. null until it arrives;
+ * empty when it can't be had (no row shows a video mark).
+ */
+function useVideoIds(): Set<string> | null {
+  const [ids, setIds] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    const ctl = new AbortController();
+    fetch("/api/dsa/problem-videos", { signal: ctl.signal })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: { ids?: unknown } | null) => setIds(new Set(Array.isArray(j?.ids) ? j.ids.filter((x): x is string => typeof x === "string") : [])))
+      .catch(() => {
+        if (!ctl.signal.aborted) setIds(new Set());
+      });
+    return () => ctl.abort();
+  }, []);
+  return ids;
+}
+
 /** "Tried" on this device: a problem with a submission history or failed runs saved by the problem room, and not solved. */
 function useTried(): Set<string> {
   const [tried, setTried] = useState<Set<string>>(new Set());
@@ -248,7 +268,9 @@ function useTried(): Set<string> {
   return tried;
 }
 
-export default function ProblemBrowser({ data }: { data: ProblemData }) {
+export default function ProblemBrowser({ data: page }: { data: ProblemData }) {
+  const videoIds = useVideoIds();
+  const data = useMemo<ProblemData>(() => (videoIds ? { ...page, rows: page.rows.map((r) => ({ ...r, video: videoIds.has(r.id) })) } : page), [page, videoIds]);
   const [state, setState] = useState<FilterState>(emptyState);
   const [text, setText] = useState("");
   const [sheet, setSheet] = useState(false);
@@ -456,6 +478,8 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
 
         {total ? (
           <List rows={results} sort={state.sort} d={data} />
+        ) : !videoIds && state.sel.video.length ? (
+          <p className="m-0 font-mono text-[12px] text-fg-3">Finding the problems with a solution video…</p>
         ) : (
           <div className="flex flex-col items-start gap-3 border border-dashed border-line-strong px-5 py-10">
             <p className="m-0 font-display text-[20px] font-bold text-fg">{statusViewOf(state) === "solved" && !chips.some((c) => c.g !== "status") && !state.q.trim() ? "You haven't solved a problem yet" : "No problems match these filters"}</p>

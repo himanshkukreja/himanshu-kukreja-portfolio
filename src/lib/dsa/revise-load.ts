@@ -1,7 +1,7 @@
 import "server-only";
 import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
-import { DSA_CONTENT_TAG, dsaFresh, readDsa } from "./content";
+import { DSA_CONTENT_TAG, dsaFresh, readDsa, dsaItem, dsaItemKey } from "./content";
 import { conceptHref, getConceptIndex, getStepLabels } from "./load";
 import { stepOf, stepRank } from "./steps";
 import type { DsaDeck, DsaRevCard } from "./revise";
@@ -82,7 +82,7 @@ async function load(): Promise<DsaDeck[]> {
   return decks.filter((d): d is DsaDeck => !!d);
 }
 
-const cachedLoad = unstable_cache(load, ["dsa-revise-decks-v2"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cachedLoad = unstable_cache(dsaItem(load), ["dsa-revise-decks-v2", dsaItemKey(load)], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 export function getDsaDecks(): Promise<DsaDeck[]> {
   return dsaFresh() ? load() : cachedLoad();
