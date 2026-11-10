@@ -33,6 +33,8 @@ export type FilterRow = {
   patterns: string[];
   companies: string[];
   video: boolean;
+  /** the classic twin as shown ("LC 1"), or "" */
+  twin?: string;
   /** the pattern tags as written, for the row's small print */
   tags: string[];
   /** lower-cased: title, statement words, pattern names, classic twin (number and name) */

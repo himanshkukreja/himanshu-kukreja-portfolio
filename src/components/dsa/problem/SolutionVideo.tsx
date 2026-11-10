@@ -35,7 +35,7 @@ export default function SolutionVideo({ video, lang }: { video: SolutionVideoDat
   };
 
   return (
-    <section aria-label="Solution video" className="dsa-ui flex flex-col border border-line bg-surface">
+    <section id="solution-video" aria-label="Solution video" className="dsa-ui scroll-mt-[calc(var(--hk-header-h,61px)+8px)] flex flex-col border border-line bg-surface">
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2.5">
         <h2 className="m-0 font-mono text-[12px] font-normal uppercase tracking-label text-signal-text">Solution video · {fmt(video.duration)}</h2>
         <span className="text-[13px] text-fg-3">

@@ -282,6 +282,20 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
     if (tab === "editorial" && unlocked && editorial.state === "locked") void loadEditorial();
   }, [tab, unlocked, editorial.state, loadEditorial]);
 
+  // a link from the exported sheet (?tab=editorial, #solution-video) opens that tab on arrival; the video is scrolled to once it has loaded
+  useEffect(() => {
+    const t = new URLSearchParams(window.location.search).get("tab");
+    if (t === "description" || t === "hints" || t === "editorial" || t === "submissions") {
+      // URL state, read after hydration
+      setTab(t);
+      if (t === "editorial" && window.matchMedia("(max-width: 1023px)").matches) requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ block: "start" }));
+    }
+  }, [p.id]);
+  useEffect(() => {
+    if (editorial.state !== "ready" || !editorial.video || window.location.hash !== "#solution-video") return;
+    requestAnimationFrame(() => document.getElementById("solution-video")?.scrollIntoView({ block: "start" }));
+  }, [editorial.state, editorial.video]);
+
   const switchLang = (l: DsaLang) => {
     setLangsOpen(false);
     const cur = editor.current?.getValue();
