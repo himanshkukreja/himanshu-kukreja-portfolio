@@ -81,6 +81,11 @@ export type LectureStep = {
   /** DSA graph scenes, union-find (A4): each vertex's parent (a root is its own parent) and each root's group size; the scene draws the forest of trees, and each stays until a later step sets it again */
   parent?: number[];
   size?: number[];
+  /** DSA intervals scenes: the talks taken and skipped so far (each stays until a later step sets it again), the talks in focus (`hot`), and the hour the last talk taken ends (a line); `current` is the talk being looked at */
+  picked?: number[];
+  skipped?: number[];
+  hot?: number[];
+  lastEnd?: number;
   /** DSA trie scenes: the words after this step, a half-inserted word, the prefix walked (the node in focus), new and lit nodes (prefixes), the end marker in focus */
   words?: string[];
   grow?: string;
@@ -114,7 +119,8 @@ export type SceneKind =
   | "tree"
   | "heap"
   | "graph"
-  | "trie";
+  | "trie"
+  | "intervals";
 
 /** A DSA trace frame, as the stage draws it (dsa-mastery generated/traces/<id>.json, trimmed). */
 export type LectureTraceFrame = {
@@ -181,6 +187,8 @@ export type LectureScene = {
   directed?: boolean;
   /** DSA trie: the words stored at the start (lowercase letters) */
   words?: string[];
+  /** DSA intervals (greedy choices, A5): the talks as [start, end] in whole hours (2 to 8; talk 0 is A, talk 1 is B, ...), drawn as bars on an hour axis */
+  spans?: number[][];
   /** DSA trace / race / code: the id in the content repo, and (resolved) its data */
   trace?: string;
   traceData?: LectureTrace;

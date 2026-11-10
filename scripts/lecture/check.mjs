@@ -7,8 +7,8 @@ const f = process.argv[2];
 const L = JSON.parse(fs.readFileSync(f, "utf8"));
 const errs = [], warns = [];
 if (!L.quest || !L.title || !L.summary || !Array.isArray(L.scenes)) errs.push("needs quest, title, summary, scenes[]");
-const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie"];
-const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie"];
+const KINDS = ["title", "numbers", "flowchart", "sequence", "state", "list", "compare", "quiz", "chart", "timeline", "phone", "quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals"];
+const DSA_KINDS = ["quote", "array", "trace", "race", "code", "chain", "grid", "stack", "queue", "tree", "heap", "graph", "trie", "intervals"];
 if (L.lesson?.course === "dsa") errs.push("an unresolved DSA lecture: run scripts/lecture/dsa-resolve.mjs first and check its output");
 // flowchart edges as "from>to" (node shapes, classes and edge labels stripped; "A & B --> C" expanded)
 function edgesOf(src) {
@@ -119,6 +119,21 @@ for (const s of L.scenes || []) {
         else for (let i = 0; i < nV; i++) { let x = i, hops = 0; while (st.parent[x] !== x && hops <= nV) { x = st.parent[x]; hops++; } if (hops > nV) { errs.push(`${s.id}#${k}: parent: vertex ${i} never reaches a root (a loop of parents)`); break; } }
       }
       if (st.size !== undefined && !(Array.isArray(st.size) && st.size.length === nV && st.size.every((d) => Number.isInteger(d) && d >= 1))) errs.push(`${s.id}#${k}: size has one group size (a whole number, 1 or more) for each of the ${nV} vertices`);
+    }
+  }
+  if (s.kind === "intervals") {
+    // greedy choices (A5): talks as bars on an hour axis
+    const spans = s.spans || [];
+    const nT = spans.length;
+    if (!(Array.isArray(spans) && nT >= 2 && nT <= 8 && spans.every((t) => Array.isArray(t) && t.length === 2 && t.every(Number.isInteger) && t[0] >= 0 && t[1] <= 24 && t[0] < t[1]))) errs.push(`${s.id}: intervals scenes need spans: 2 to 8 talks [start, end] in whole hours 0 to 24, with the start before the end`);
+    const isTalk = (v) => Number.isInteger(v) && v >= 0 && v < nT;
+    for (const [k, st] of (s.steps || []).entries()) {
+      for (const key of ["picked", "skipped", "hot"]) if (st[key] !== undefined && !(Array.isArray(st[key]) && st[key].every(isTalk) && new Set(st[key]).size === st[key].length)) errs.push(`${s.id}#${k}: ${key} lists distinct talks 0..${nT - 1}`);
+      if (Array.isArray(st.picked) && Array.isArray(st.skipped) && st.picked.some((x) => st.skipped.includes(x))) errs.push(`${s.id}#${k}: a talk cannot be both picked and skipped`);
+      if (st.current !== undefined && st.current !== null && !isTalk(st.current)) errs.push(`${s.id}#${k}: current is a talk 0..${nT - 1}`);
+      if (st.lastEnd !== undefined && !(Number.isInteger(st.lastEnd) && st.lastEnd >= 0 && st.lastEnd <= 24)) errs.push(`${s.id}#${k}: lastEnd is an hour 0 to 24`);
+      if (st.out !== undefined && (typeof st.out !== "string" || !st.out.length || st.out.length > 18)) errs.push(`${s.id}#${k}: out is a chip of 18 characters or fewer`);
+      if (st.cost !== undefined && !(Number.isInteger(st.cost) && st.cost >= 0)) errs.push(`${s.id}#${k}: cost is a whole number`);
     }
   }
   if (s.kind === "trie") {

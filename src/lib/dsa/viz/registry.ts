@@ -14,6 +14,7 @@ import type { Frame, Script } from "./types";
 import { makeTrie, runTrieOp, trieMemoryPicture, TRIE_OPS, type TrieOp, type TrieOpName } from "./trie";
 import { gridSearch, parseGrid } from "./grid";
 import { pathScript, type PathAlgo, type PathEdge } from "./shortest";
+import { intervalsScript, type IntervalRule, type Talk } from "./intervals";
 
 export type SandboxDemo = {
   id: string;
@@ -348,17 +349,45 @@ export type PathVisualizerSpec = {
   presets: PathPreset[];
   demos: PathDemo[];
 };
-export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec;
+/** A list of talks [start, end] in whole hours for the greedy visualizer (A5). */
+export type IntervalsPreset = { id: string; title: string; note?: string; talks: Talk[] };
+export type IntervalsDemo = {
+  id: string;
+  title: string;
+  algorithm: IntervalRule;
+  /** a preset id from the visualizer, or the talks themselves */
+  preset?: string;
+  talks?: Talk[];
+  predict?: boolean;
+};
+export type IntervalsVisualizerSpec = {
+  id: string;
+  view: "intervals";
+  title: string;
+  algorithms: IntervalRule[];
+  cost: string;
+  limits: { talks: [number, number]; hours: [number, number] };
+  presets: IntervalsPreset[];
+  demos: IntervalsDemo[];
+};
+export type VisualizerSpec = GridVisualizerSpec | PathVisualizerSpec | IntervalsVisualizerSpec;
 
-export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn", "dsu"] as const } };
+export const VISUALIZER_VIEWS = { grid: { algorithms: ["bfs", "dfs"] as const }, graph: { algorithms: ["dijkstra", "bellman-ford", "kahn", "dsu"] as const }, intervals: { algorithms: ["earliest-finish", "earliest-start", "shortest-first"] as const } };
 
-export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn" || d.algorithm === "dsu");
-export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
+export const isIntervalsDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo): d is IntervalsDemo => "algorithm" in d && (d.algorithm === "earliest-finish" || d.algorithm === "earliest-start" || d.algorithm === "shortest-first");
+export const isPathDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo): d is PathDemo => "algorithm" in d && (d.algorithm === "dijkstra" || d.algorithm === "bellman-ford" || d.algorithm === "kahn" || d.algorithm === "dsu");
+export const isGridDemo = (d: SandboxDemo | GridDemo | PathDemo | IntervalsDemo): d is GridDemo => "algorithm" in d && (d.algorithm === "bfs" || d.algorithm === "dfs");
 
 export function pathDemoScript(d: PathDemo): Script {
   const n = d.n ?? 0;
   if (!d.edges || n < 2) return { view: "array", title: d.title, costUnit: "steps", frames: [{ state: { values: [], pointers: {}, mark: [], moved: [], dim: [] }, note: "No map.", cost: 0 }] };
   return pathScript(d.algorithm, { n, edges: d.edges }, d.source ?? 0, d.target ?? null, { predict: d.predict, title: d.title }) as Script;
+}
+
+export function intervalsDemoScript(d: IntervalsDemo): Script {
+  const talks = d.talks ?? [];
+  if (talks.length < 2) return { view: "array", title: d.title, costUnit: "steps", frames: [{ state: { values: [], pointers: {}, mark: [], moved: [], dim: [] }, note: "No talks.", cost: 0 }] };
+  return intervalsScript(talks, d.algorithm, { predict: d.predict, title: d.title }) as Script;
 }
 
 export function gridDemoScript(d: GridDemo, presets: GridPreset[] = []): Script {

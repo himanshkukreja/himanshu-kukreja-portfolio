@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -311,5 +311,22 @@ export type TrieState = {
   /** the end marker in focus (a prefix of a stored word) */
   endAt: string | null;
   /** a short result chip ("yes") */
+  out: string | null;
+};
+
+/* ------------------------------------------------------------------ the intervals state ("intervals" view) */
+
+/**
+ * Greedy choices (A5): talks as bars on an hour axis. `spans` are [start, end] in whole hours (talk 0 is A, talk 1 is B, ...). The
+ * talks a rule has taken are filled, the talks it skipped are crossed out, `current` is the talk being looked at, `lit` are talks in
+ * focus, and `lastEnd` draws a line at the end of the last talk taken (earliest finish keeps it; the other rules do not).
+ */
+export type IntervalsState = {
+  spans: [number, number][];
+  picked: number[];
+  skipped: number[];
+  lit: number[];
+  current: number | null;
+  lastEnd: number | null;
   out: string | null;
 };
