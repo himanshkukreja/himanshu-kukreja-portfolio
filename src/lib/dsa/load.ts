@@ -134,12 +134,25 @@ type ProblemFront = {
   checker?: string;
   limits?: { timeMs?: number; memoryMb?: number };
   complexity?: { time?: string; space?: string };
-  tags?: { patterns?: string[]; classic?: string[]; minutes?: number };
+  role?: string;
+  tags?: { patterns?: string[]; classic?: string[]; minutes?: number; difficulty?: number; companyTypes?: string[]; structures?: string[]; algorithms?: string[] };
 };
 
 const levelOf = (l: unknown): DsaLevel => (l === "easy" || l === "hard" ? l : "medium");
 
-function summaryOf(id: string, f: ProblemFront): ProblemSummary {
+/** The statement's first words as plain text (Scenario, then the task), for the problems search box. */
+function blurbOf(md: string, max = 220): string {
+  const body = md.replace(/^---[\s\S]*?\n---\s*/, "").split(/^## (?:Examples?|Constraints|Hints?)\b/m)[0];
+  const text = body
+    .replace(/```[\s\S]*?```/g, " ")
+    .replace(/^#+\s.*$/gm, " ")
+    .replace(/[`*_>#[\]()|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return text.length > max ? text.slice(0, max).replace(/\s+\S*$/, "") : text;
+}
+
+function summaryOf(id: string, f: ProblemFront, md = ""): ProblemSummary {
   return {
     id,
     title: f.title || humanize(id),
@@ -151,6 +164,11 @@ function summaryOf(id: string, f: ProblemFront): ProblemSummary {
     patterns: f.tags?.patterns || [],
     minutes: f.tags?.minutes ?? null,
     classic: f.tags?.classic || [],
+    rating: typeof f.tags?.difficulty === "number" ? f.tags.difficulty : null,
+    role: f.role === "checkpoint" || f.role === "warm-up" ? f.role : "practice",
+    companyTypes: f.tags?.companyTypes || [],
+    own: { structures: f.tags?.structures, algorithms: f.tags?.algorithms },
+    blurb: blurbOf(md),
   };
 }
 
@@ -167,13 +185,13 @@ export const getProblemIndex = cached(async (): Promise<ProblemSummary[]> => {
     const batch = await Promise.all(
       dirs.slice(i, i + 6).map(async (id) => {
         const md = await readDsa(`resources/problems/${id}/problem.md`);
-        return md ? summaryOf(id, matter(md, {}).data as ProblemFront) : null;
+        return md ? summaryOf(id, matter(md, {}).data as ProblemFront, md) : null;
       }),
     );
     out.push(...batch.filter((x): x is ProblemSummary => !!x));
   }
   return out.sort((a, b) => a.module.localeCompare(b.module) || a.concept.localeCompare(b.concept) || a.order - b.order);
-}, "dsa-problems-v1");
+}, "dsa-problems-v2");
 
 /* ------------------------------------------------------------------ worlds */
 

@@ -28,6 +28,16 @@ export type ProblemSummary = {
   patterns: string[];
   minutes: number | null;
   classic: string[];
+  /* the filter fields below are absent from an older generated/problem-index.json: readers default them */
+  /** tags.difficulty, 1 (gentlest) to 10 */
+  rating?: number | null;
+  /** "warm-up" | "practice" | "checkpoint" */
+  role?: string;
+  companyTypes?: string[];
+  /** tags.structures / tags.algorithms as the author wrote them (src/lib/dsa/taxonomy.ts) */
+  own?: { structures?: string[]; algorithms?: string[] };
+  /** the first words of the statement, plain text, for the problems search */
+  blurb?: string;
 };
 
 export type ConceptSummary = {

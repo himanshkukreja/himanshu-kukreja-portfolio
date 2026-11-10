@@ -159,3 +159,18 @@ export async function solutionVideoFor(id: string): Promise<SolutionVideoData | 
     return null;
   }
 }
+
+/** The problems whose solution video is published (script and recorded media match), for the "Has solution video" filter. A few at a time; media.json goes through the fetch cache. */
+export async function problemsWithVideo(ids: string[]): Promise<string[]> {
+  if (!/^https?:\/\//.test(MEDIA())) return [];
+  const rows = await inBatches(ids, 8, async (id) => {
+    try {
+      const l = await getSolutionVideo(id);
+      const m = l ? await published(l.quest) : null;
+      return m && l && m.source === hashOf(l) ? id : "";
+    } catch {
+      return "";
+    }
+  });
+  return rows.filter(Boolean);
+}
