@@ -2,7 +2,7 @@
 
 import { createPortal } from "react-dom";
 import { useSyncExternalStore } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Info, X } from "lucide-react";
 
 type ConfirmDialogProps = {
   isOpen: boolean;
@@ -12,6 +12,8 @@ type ConfirmDialogProps = {
   cancelText?: string;
   onConfirm: () => void;
   onCancel: () => void;
+  /** "danger" (default): red, for deleting; "notice": the course accent, for a trade-off the learner should weigh */
+  tone?: "danger" | "notice";
 };
 
 export default function ConfirmDialog({
@@ -22,6 +24,7 @@ export default function ConfirmDialog({
   cancelText = "Cancel",
   onConfirm,
   onCancel,
+  tone = "danger",
 }: ConfirmDialogProps) {
   // Portals need document.body, which only exists on the client.
   const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
@@ -36,7 +39,7 @@ export default function ConfirmDialog({
           <X className="h-4 w-4" aria-hidden />
         </button>
         <div className="mb-3 flex items-center gap-3">
-          <AlertTriangle className="h-5 w-5 text-bad-text" aria-hidden />
+          {tone === "notice" ? <Info className="h-5 w-5 text-signal-text" aria-hidden /> : <AlertTriangle className="h-5 w-5 text-bad-text" aria-hidden />}
           <h3 id="confirm-title" className="font-display text-2xl font-bold tracking-[-0.02em] text-fg">{title}</h3>
         </div>
         <p className="mb-6 text-[15px] leading-relaxed text-fg-2">{message}</p>
@@ -44,7 +47,7 @@ export default function ConfirmDialog({
           <button type="button" autoFocus onClick={onCancel} className="min-h-11 border border-line-strong px-5 font-medium text-fg hover:bg-surface-2">
             {cancelText}
           </button>
-          <button type="button" onClick={onConfirm} className="min-h-11 bg-bad px-5 font-semibold text-on-bad hover:opacity-90">
+          <button type="button" onClick={onConfirm} className={`min-h-11 px-5 font-semibold hover:opacity-90 ${tone === "notice" ? "bg-signal text-on-signal" : "bg-bad text-on-bad"}`}>
             {confirmText}
           </button>
         </div>

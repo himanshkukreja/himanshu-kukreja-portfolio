@@ -49,6 +49,7 @@ import Jargon from "../glossary/Jargon";
 import { ShowEverything, useDsaFull } from "../simple/view";
 import FirstProblemGuide from "./FirstProblemGuide";
 import SolutionVideo from "./SolutionVideo";
+import ConfirmDialog from "@/components/ConfirmDialog";
 import type { SolutionVideoData } from "@/lib/dsa/media";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 
@@ -393,8 +394,10 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
     if (window.matchMedia("(max-width: 1023px)").matches) requestAnimationFrame(() => tabsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   };
 
+  // "Give up and show the editorial": asked in the site's own dialog (Bits trade-off), then revealed
+  const [askReveal, setAskReveal] = useState(false);
   const revealEditorial = () => {
-    if (!window.confirm(`Show the editorial now? Solving afterwards still marks the problem solved, but earns only ${solveBits({ level: p.level, firstTry: false, noHints: false, editorialFirst: true }).bits} Bits instead of up to ${maxSolveBits(p.level)}.`)) return;
+    setAskReveal(false);
     store.set(`dsa.editorial.${p.id}`, "early");
     setSeenEarly(true);
     // signed in: recorded on the account, so the AI tutor may use the editorial too (a guest's reveal stays here)
@@ -562,6 +565,16 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
           />
         )}
 
+        <ConfirmDialog
+          isOpen={askReveal}
+          tone="notice"
+          title="Show the editorial?"
+          message={`Solving afterwards still marks the problem solved, but earns only ${solveBits({ level: p.level, firstTry: false, noHints: false, editorialFirst: true }).bits} Bits instead of up to ${maxSolveBits(p.level)}.${videoTeaser ? " The solution video opens too." : ""}`}
+          confirmText="Show the editorial"
+          cancelText="Keep trying"
+          onConfirm={revealEditorial}
+          onCancel={() => setAskReveal(false)}
+        />
         {tab === "editorial" && (
           <div className="flex flex-col gap-3">
             {!unlocked ? (
@@ -580,7 +593,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
                     </div>
                   </div>
                 )}
-                <button type="button" onClick={revealEditorial} className="min-h-11 self-start border border-line-strong px-4 text-[14px] text-fg-2 hover:text-fg">
+                <button type="button" onClick={() => setAskReveal(true)} className="min-h-11 self-start border border-line-strong px-4 text-[14px] text-fg-2 hover:text-fg">
                   Give up and show the editorial
                 </button>
               </div>
