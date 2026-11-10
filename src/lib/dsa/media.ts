@@ -1,9 +1,11 @@
 import "server-only";
 import crypto from "crypto";
+import { unstable_cache } from "next/cache";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import type { LectureSummary } from "@/lib/learn/lecture/load";
 import type { PlayableShort } from "@/lib/learn/shorts/types";
-import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort, getSolutionVideo, getStepLabels } from "./load";
+import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort, getProblemIndex, getSolutionVideo, getStepLabels } from "./load";
+import { DSA_CONTENT_TAG, dsaFresh, dsaItem, dsaItemKey } from "./content";
 import { stepOf, stepRank } from "./steps";
 
 /**
@@ -19,12 +21,12 @@ const MEDIA = () => (process.env.NEXT_PUBLIC_LECTURE_MEDIA || "").replace(/\/$/,
 const hashOf = (l: Lecture) => crypto.createHash("sha1").update(JSON.stringify(l)).digest("hex").slice(0, 12);
 const wordsOf = (l: Lecture) => l.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
 
-/** The published media's script hash and length, or null (not published, or no media host). */
-async function published(quest: string): Promise<{ source: string; duration: number } | null> {
+/** The published media's script hash and length, or null (not published, or no media host). `fresh`: past the fetch cache. */
+async function published(quest: string, fresh = false): Promise<{ source: string; duration: number } | null> {
   const base = MEDIA();
   if (!/^https?:\/\//.test(base)) return null;
   try {
-    const res = await fetch(`${base}/${quest}/media.json`, { next: { revalidate: 3600 } });
+    const res = await fetch(`${base}/${quest}/media.json`, fresh ? { cache: "no-store" } : { next: { revalidate: 3600 } });
     if (!res.ok) return null;
     const m = (await res.json()) as { source?: string; duration?: number; video?: string };
     return m.source && m.video ? { source: m.source, duration: Number(m.duration) || 0 } : null;
@@ -162,13 +164,33 @@ export async function solutionVideoFor(id: string): Promise<SolutionVideoData | 
   }
 }
 
-/** The problems whose solution video is published (script and recorded media match), for the "Has solution video" filter. A few at a time; media.json goes through the fetch cache. */
-export async function problemsWithVideo(ids: string[]): Promise<string[]> {
+/**
+ * Every problem whose solution video is published, as one data-cache item (an hour, and the "dsa-content" tag: a content
+ * release works it out again). GET /api/dsa/problem-videos serves it to the problems page, which shows the video marks
+ * and the "Has solution video" filter once it arrives. Built cold it reads every problem's solution (its page bundle)
+ * and media.json, 6 at a time (~250 of each, 20-40 s on staging); after that one read, and a stale copy is served while
+ * the next hour's is worked out. Past the per-problem cache items: inside this one they'd each be written (~480 R2
+ * writes, 64 s, Nov 2026).
+ */
+const videoIds = async (): Promise<string[]> => problemsWithVideo((await getProblemIndex()).map((p) => p.id), { fresh: true });
+const videoIdsCached = unstable_cache(dsaItem(videoIds), ["dsa-problem-videos-v1", dsaItemKey(videoIds)], {
+  revalidate: 3600,
+  tags: [DSA_CONTENT_TAG],
+});
+export async function problemVideoIds(): Promise<string[]> {
+  return dsaFresh() ? problemsWithVideo((await getProblemIndex()).map((p) => p.id)) : videoIdsCached();
+}
+
+/**
+ * The problems whose solution video is published (script and recorded media match), for the "Has solution video"
+ * filter. A few at a time; media.json through the fetch cache, or with `fresh` straight from the media host.
+ */
+export async function problemsWithVideo(ids: string[], opts: { fresh?: boolean } = {}): Promise<string[]> {
   if (!/^https?:\/\//.test(MEDIA())) return [];
-  const rows = await inBatches(ids, 8, async (id) => {
+  const rows = await inBatches(ids, 6, async (id) => {
     try {
-      const l = await getSolutionVideo(id);
-      const m = l ? await published(l.quest) : null;
+      const l = await getSolutionVideo(id, opts);
+      const m = l ? await published(l.quest, opts.fresh) : null;
       return m && l && m.source === hashOf(l) ? id : "";
     } catch {
       return "";

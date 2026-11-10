@@ -4,8 +4,8 @@ import { unstable_cache } from "next/cache";
 import { cache as requestCache } from "react";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaRenderOpts } from "@/lib/course/detect/dsa";
-import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "./content";
-import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getStepLabels, getWorld, lessonDir, sdmLinker, withSdmTitles } from "./load";
+import { DSA_CONTENT_TAG, dsaFresh, dsaItem, dsaItemKey, readDsa, readDsaJson } from "./content";
+import { getConceptIndex, getLessonClips, getLineLabel, getProblemIndex, getStepLabels, getWorld, lessonDir, prefetchLesson, sdmLinker, withSdmTitles } from "./load";
 import { lessonLabel, lessonSlot, stepOf } from "./steps";
 import { checkpointFor, warmupsIntro } from "./lesson-stops";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
@@ -108,7 +108,7 @@ async function build(id: string): Promise<StructurePage | null> {
   if (!c || (c.kind !== "structure" && c.kind !== "algorithm") || c.status !== "built") return null;
   const algorithm = c.kind === "algorithm";
   const dir = lessonDir(c);
-  const [lessonMd, quizMd, sandboxYml, labYml, visible, hidden, castMd, courseYml, problems, academy, linker, ...starters] = await Promise.all([
+  const [lessonMd, quizMd, sandboxYml, labYml, visible, hidden, castMd, courseYml, problems, academy, linker, lessonClips, ...starters] = await Promise.all([
     readDsa(`${dir}/lesson.md`),
     readDsa(`${dir}/quiz.md`),
     readDsa(`${dir}/${algorithm ? "visualizer" : "sandbox"}.yml`),
@@ -120,11 +120,12 @@ async function build(id: string): Promise<StructurePage | null> {
     getProblemIndex(),
     getWorld("academy"),
     sdmLinker(),
+    getLessonClips(id),
     ...STARTERS.map(([, f]) => readDsa(`${dir}/lab/starter/${f}`)),
   ]);
   const media = lectureMediaBase();
   const clips: Record<string, LessonClipData> = Object.fromEntries(
-    (await getLessonClips(id)).map((l) => {
+    lessonClips.map((l) => {
       const v = lectureHash(l);
       const base = media ? `${media.replace(/\/$/, "")}/${l.quest}/` : null;
       return [l.clip!.id, { id: l.clip!.id, caption: l.clip!.caption, base, v, say: l.scenes.flatMap((s) => s.steps.map((st) => st.say)) }];
@@ -224,10 +225,11 @@ async function build(id: string): Promise<StructurePage | null> {
   };
 }
 
-const cachedBuild = unstable_cache(build, ["dsa-structure-v5"], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
+const cachedBuild = unstable_cache(dsaItem(build), ["dsa-structure-v5", dsaItemKey(build)], { revalidate: 604800, tags: [DSA_CONTENT_TAG] });
 
 /** One request's calls share one build (the page and its metadata both ask); SD link titles go in as it's served. */
 export const getStructure = requestCache(async (id: string): Promise<StructurePage | null> => {
   if (!ID.test(id)) return null;
+  prefetchLesson(id);
   return withSdmTitles(dsaFresh() ? build(id) : cachedBuild(id));
 });

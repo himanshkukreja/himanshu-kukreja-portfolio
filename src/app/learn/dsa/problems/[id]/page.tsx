@@ -28,10 +28,10 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function ProblemPage({ params }: Props) {
   if (!DSA_FULL) notFound();
   const { id } = await params;
-  const p = await getProblem(id);
+  // the solution video's length and poster, so the room can show it exists before the editorial (which holds it) opens;
+  // read alongside the problem (one after the other added ~1 s to a cold page on staging, Nov 2026)
+  const [p, video] = await Promise.all([getProblem(id), solutionVideoFor(id).catch(() => null)]);
   if (!p) notFound();
-  // the solution video's length and poster, so the room can show it exists before the editorial (which holds it) opens
-  const video = await solutionVideoFor(id).catch(() => null);
   return (
     <div className="dsa-theme">
       {/* desktop: a split screen exactly the window's height under the header. The page doesn't scroll; the statement

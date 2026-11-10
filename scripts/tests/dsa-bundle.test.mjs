@@ -9,11 +9,11 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
-import { homedir } from "node:os";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 import matter from "gray-matter";
-import { MAX_BUNDLE_BYTES, blurbOf, bundleLoader, bundleRefOf, bundleText, parseBundle, problemHead, versionedMemo } from "../../src/lib/dsa/bundle.ts";
+import { MAX_BUNDLE_BYTES, MAX_PAGE_BYTES, blurbOf, bundleLoader, bundleRefOf, bundleText, pageDirOf, pageLoader, pageRefsOf, pageText, parseBundle, parsePageBundle, problemHead, versionedMemo } from "../../src/lib/dsa/bundle.ts";
 import { hasLinkTokens, linkToken, resolveLinkTokens, tokenLinker } from "../../src/lib/dsa/sdm-links.ts";
 
 const SHA = "a".repeat(40);
@@ -152,6 +152,95 @@ test("loader: reads a commit's bundle once, falls back on any failure, retries l
   assert.equal(await noManifest(), null);
 });
 
+const LESSON = "resources/structures/s7-tries/tries";
+function makePage(over = {}, dir = LESSON) {
+  const j = {
+    format: "dsa-page-bundle",
+    v: 1,
+    dir,
+    files: { [`${dir}/lesson.md`]: "# Tries\n", [`${dir}/lab/starter/starter.py`]: "def f():\n  pass\n" },
+    skipped: [`${dir}/lab/solutions/solution.py`],
+    ...over,
+  };
+  const body = Buffer.from(JSON.stringify(j));
+  const ref = { key: `pages/v1-${"b".repeat(40)}.json`, bytes: body.length, sha256: createHash("sha256").update(body).digest("hex") };
+  return { body, ref };
+}
+
+test("page bundles: named in the manifest's bundle entry, checked, and what they say about each path", () => {
+  const { ref: bundleRef } = makeBundle();
+  const page = makePage();
+  const problem = makePage({}, "resources/problems/busiest-shard");
+  const manifest = { sha: SHA, bundle: { ...bundleRef, pages: { [LESSON]: page.ref, "resources/problems/busiest-shard": problem.ref } } };
+  const refs = pageRefsOf(manifest);
+  assert.equal(refs.size, 2);
+  assert.deepEqual(refs.get(LESSON), page.ref);
+  assert.equal(bundleRefOf(manifest)?.key, bundleRef.key, "the bundle entry still checks out with pages in it");
+  assert.equal(pageRefsOf({ sha: SHA, bundle: { ...bundleRef } }).size, 0, "no pages named");
+  assert.equal(pageRefsOf({ sha: "b".repeat(40), bundle: { ...bundleRef, pages: { [LESSON]: page.ref } } }).size, 0, "no usable bundle: no pages either");
+  for (const [dir, r] of [
+    ["resources/../x/y", page.ref],
+    ["resources/concepts.yml", page.ref],
+    [LESSON, { ...page.ref, key: "pages/../bundles/x.json" }],
+    [LESSON, { ...page.ref, bytes: MAX_PAGE_BYTES + 1 }],
+    [LESSON, { ...page.ref, sha256: "x" }],
+  ])
+    assert.equal(pageRefsOf({ sha: SHA, bundle: { ...bundleRef, pages: { [dir]: r } } }).size, 0, `${dir} ${JSON.stringify(r)}`);
+
+  const pb = parsePageBundle(page.body, page.ref, LESSON);
+  assert.ok(pb);
+  assert.equal(pageText(pb, `${LESSON}/lesson.md`), "# Tries\n");
+  assert.equal(pageText(pb, `${LESSON}/lab/solutions/solution.py`), undefined, "in the folder, not carried: read it");
+  assert.equal(pageText(pb, `${LESSON}/quiz.md`), null, "not in the folder: no read");
+  assert.equal(pageText(pb, "resources/structures/s2-stacks/stacks/lesson.md"), undefined, "another folder: not this bundle's to say");
+  assert.equal(pageText(null, `${LESSON}/lesson.md`), undefined);
+
+  assert.equal(parsePageBundle(page.body, page.ref, "resources/structures/s2-stacks/stacks"), null, "another folder's bundle");
+  const tampered = Buffer.from(page.body);
+  tampered[tampered.length - 3] ^= 1;
+  assert.equal(parsePageBundle(tampered, page.ref, LESSON), null, "hash mismatch");
+  for (const over of [{ format: "x" }, { v: 2 }, { files: { "resources/structures/s2-stacks/stacks/lesson.md": "x" } }, { files: { [`${LESSON}/a.md`]: 1 } }, { skipped: "x" }, { skipped: ["resources/concepts.yml"] }, { skipped: [`${LESSON}/../x`] }]) {
+    const bad = makePage(over);
+    assert.equal(parsePageBundle(bad.body, bad.ref, LESSON), null, JSON.stringify(over));
+  }
+
+  assert.equal(pageDirOf(`${LESSON}/lab/starter/starter.py`), LESSON);
+  assert.equal(pageDirOf("resources/problems/busiest-shard/tests/visible.json"), "resources/problems/busiest-shard");
+  assert.equal(pageDirOf("resources/modules/m5-sliding-window/at-most-k/lesson.md"), "resources/modules/m5-sliding-window/at-most-k");
+  assert.equal(pageDirOf("resources/concepts.yml"), null);
+  assert.equal(pageDirOf("generated/traces/x.json"), null);
+});
+
+test("page loader: one read per folder version, shared, retried after a failure, oldest dropped past its limit", async () => {
+  const page = makePage();
+  let t = 1_000;
+  const reads = [];
+  let store = { [page.ref.key]: page.body };
+  const load = pageLoader({ read: async (k) => (reads.push(k), store[k] ?? null), now: () => t, retryMs: 60_000, max: 2 });
+  const [a, b] = await Promise.all([load(page.ref, LESSON), load(page.ref, LESSON)]);
+  assert.ok(a);
+  assert.equal(a, b);
+  assert.equal(reads.length, 1, "concurrent reads share one");
+
+  const gone = { ...page.ref, key: `pages/v1-${"c".repeat(40)}.json` };
+  assert.equal(await load(gone, LESSON), null, "missing object: null (the files are read one by one)");
+  assert.equal(await load(gone, LESSON), null);
+  assert.equal(reads.length, 2, "no retry within the minute");
+  store = { ...store, [gone.key]: page.body };
+  t += 61_000;
+  assert.ok(await load(gone, LESSON), "retried after a minute");
+
+  const third = makePage({}, "resources/problems/busiest-shard");
+  store = { ...store, [`pages/v1-${"d".repeat(40)}.json`]: third.body };
+  await load({ ...third.ref, key: `pages/v1-${"d".repeat(40)}.json` }, "resources/problems/busiest-shard");
+  const before = reads.length;
+  await load(page.ref, LESSON);
+  assert.equal(reads.length, before + 1, "the oldest was dropped past the limit, so it is read again");
+
+  const flaky = pageLoader({ read: async () => { throw new Error("R2 down"); } });
+  assert.equal(await flaky(page.ref, LESSON), null);
+});
+
 test("problem heads: same front matter and blurb as the whole file, and much smaller", () => {
   const head = problemHead(PROBLEM);
   assert.ok(head.length < PROBLEM.length);
@@ -230,4 +319,27 @@ test("real content: the repo's bundle builder writes a bundle the site accepts, 
   for (const f of ["resources/concepts.yml", "resources/course.yml", "resources/worlds/academy.yml"]) assert.equal(b.files.get(f), readFileSync(join(contentDir, f), "utf8"), f);
   assert.ok(b.heads.size > 0);
   for (const [p, head] of b.heads) assert.equal(head, problemHead(readFileSync(join(contentDir, p), "utf8")), p);
+});
+
+const pagesBuilder = existsSync(builder) && readFileSync(builder, "utf8").includes("--pages");
+test("real content: the builder's page bundles are accepted, carry each folder's files as they are, and list the rest", { skip: !pagesBuilder && `no page bundles in ${builder}` }, () => {
+  const out = mkdtempSync(join(tmpdir(), "dsa-pages-"));
+  try {
+    const body = execFileSync(process.execPath, [builder, contentDir, "--pages", out], { maxBuffer: 64 * 1024 * 1024 });
+    const sha = JSON.parse(body.toString("utf8")).sha;
+    const index = JSON.parse(readFileSync(join(out, "index.json"), "utf8"));
+    const manifest = { sha, bundle: { key: `bundles/${sha}.json`, sha, bytes: body.length, sha256: createHash("sha256").update(body).digest("hex"), pages: index } };
+    const refs = pageRefsOf(manifest);
+    assert.ok(refs.size > 0);
+    assert.equal(refs.size, Object.keys(index).length, "every page bundle named is well-formed");
+    for (const [dir, ref] of refs) {
+      const pb = parsePageBundle(readFileSync(join(out, ref.key.slice("pages/".length))), ref, dir);
+      assert.ok(pb, dir);
+      for (const [p, t] of pb.files) assert.equal(t, readFileSync(join(contentDir, p), "utf8"), p);
+    }
+    const b = parseBundle(body, bundleRefOf(manifest));
+    assert.ok([...b.files.keys()].some((k) => k.startsWith("generated/traces/")), "traces in the content bundle");
+  } finally {
+    rmSync(out, { recursive: true, force: true });
+  }
 });

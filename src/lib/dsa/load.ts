@@ -6,7 +6,7 @@ import { unstable_cache } from "next/cache";
 import { cache as requestCache } from "react";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
-import { DSA_CONTENT_TAG, dsaBundleVersion, dsaFresh, listDsa, readDsa, readDsaHead, readDsaJson } from "./content";
+import { DSA_CONTENT_TAG, dsaBundleVersion, dsaFresh, dsaItem, dsaItemKey, inDsaItem, listDsa, prefetchDsa, readDsa, readDsaHead, readDsaJson } from "./content";
 import { blurbOf, versionedMemo } from "./bundle";
 import { hasLinkTokens, resolveLinkTokens, tokenLinker, type LinkKind } from "./sdm-links";
 import { plainBeatHeading } from "./words";
@@ -34,6 +34,7 @@ import {
   type WorldSummary,
 } from "./types";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
+import { background } from "@/lib/platform";
 
 /**
  * DSA Mastery content loaders (server only). Each piece is its own small data-cache item (plan §14.5): the
@@ -51,7 +52,7 @@ function yaml<T>(src: string): T {
 }
 
 function cached<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string): (...a: A) => Promise<R> {
-  const c = unstable_cache(fn, [key], CACHE);
+  const c = unstable_cache(dsaItem(fn), [key, dsaItemKey(fn)], CACHE);
   return (...a: A) => (dsaFresh() ? fn(...a) : c(...a));
 }
 
@@ -68,21 +69,24 @@ const indexMemo = versionedMemo();
  * Every caller gets its own copy (as from the data cache), so one that changes its result can't change anyone else's.
  */
 function indexed<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string): (...a: A) => Promise<R> {
-  const c = unstable_cache(fn, [key], CACHE);
+  const c = unstable_cache(dsaItem(fn), [key, dsaItemKey(fn)], CACHE);
   const shared = requestCache(async (...a: A): Promise<R> => {
     if (dsaFresh()) return fn(...a);
     const v = await dsaBundleVersion().catch(() => null);
     if (!v) return c(...a);
-    const [r] = await Promise.all([indexMemo.get(v, `${key}:${JSON.stringify(a)}`, () => fn(...a)), tagThisRender()]);
-    return r;
+    // the tag is put on this render when its item is called (Next collects an item's tags before reading it); the read
+    // itself isn't waited for: its tag-cache check took 0.9-1.3 s on staging and held up every index (Nov 2026)
+    if (!inDsaItem()) tagThisRender();
+    return indexMemo.get(v, `${key}:${JSON.stringify(a)}`, () => fn(...a));
   });
   return async (...a: A) => structuredClone(await shared(...a));
 }
 
 /**
- * The "dsa-content" tag on the page being rendered, as a data-cache read used to add it: a page built only from
- * memory-held indexes is still expired by POST /api/revalidate-courses?source=dsa (revalidateTag). One tiny item, read
- * once per request alongside the work (inside another cached item Next skips the read and the outer item has the tag).
+ * The "dsa-content" tag on the page being rendered, as a data-cache item called to add it: a page built only from
+ * memory-held indexes is still expired by POST /api/revalidate-courses?source=dsa (revalidateTag). One tiny item, called
+ * once per request; Next adds its tags to the render as it's called (unstable_cache collects them before its read), so
+ * nothing waits for the read (inside another cached item Next skips it, and the outer item has the tag).
  */
 const tagItem = unstable_cache(async () => 1, ["dsa-content-tag-v1"], CACHE);
 const tagThisRender = requestCache(() => tagItem().catch(() => 0));
@@ -505,8 +509,10 @@ export async function sdmLinker(): Promise<{ sdm: (path: string) => DsaLink; lab
   return tokenLinker();
 }
 
-/** SD lesson and lab titles by path and id (the course map and the labs' summaries, each its own cached item). */
-const sdmTitles = requestCache(async (): Promise<{ lessons: Map<string, string>; labs: Map<string, string> }> => {
+type SdmTitles = { lessons: Map<string, string>; labs: Map<string, string> };
+
+/** SD lesson and lab titles by path and id, from the course map and the labs' summaries (each its own cached item). */
+async function buildSdmTitles(): Promise<SdmTitles> {
   const lessons = new Map<string, string>();
   const labs = new Map<string, string>();
   await Promise.all([
@@ -528,6 +534,45 @@ const sdmTitles = requestCache(async (): Promise<{ lessons: Map<string, string>;
     }),
   ]);
   return { lessons, labs };
+}
+
+type Kv = {
+  get(key: string, opts: { type: "json"; cacheTtl?: number }): Promise<unknown>;
+  put(key: string, value: string, opts?: { expirationTtl?: number }): Promise<void>;
+};
+const pagesKv = (): Kv | undefined => (globalThis as unknown as Record<symbol, { env?: { PAGES?: Kv } } | undefined>)[Symbol.for("__cloudflare-context__")]?.env?.PAGES;
+
+/**
+ * The SD titles a DSA page's links show, kept in Workers KV (the PAGES namespace) for an hour, then served while a
+ * fresh copy is made behind the visitor. Why: from the course map they cost a data-cache read and a tag-cache check on
+ * every cold DSA page (0.8-1.4 s on staging), and right after a deploy the course map itself is rebuilt from ~215 SD
+ * files (6.5 s, and those reads held up the page's own). Only a full set is kept (titles and lab names both found);
+ * without KV (Vercel, next dev) or on any KV error they come from the course map as before.
+ */
+const SDM_TITLES_KEY = "dsa:sdm-titles:v1";
+const SDM_TITLES_FRESH_MS = 3600_000;
+let sdmTitlesRefreshing = false;
+async function storeSdmTitles(kv: Kv, t: SdmTitles): Promise<void> {
+  if (!t.lessons.size || !t.labs.size) return;
+  await kv.put(SDM_TITLES_KEY, JSON.stringify({ at: Date.now(), lessons: Object.fromEntries(t.lessons), labs: Object.fromEntries(t.labs) }), { expirationTtl: 7 * 86400 });
+}
+const titleMap = (o: unknown) => (o && typeof o === "object" && !Array.isArray(o) ? new Map(Object.entries(o as Record<string, unknown>).filter((e): e is [string, string] => typeof e[1] === "string")) : null);
+const sdmTitles = requestCache(async (): Promise<SdmTitles> => {
+  const kv = pagesKv();
+  if (!kv) return buildSdmTitles();
+  const hit = (await kv.get(SDM_TITLES_KEY, { type: "json", cacheTtl: 300 }).catch(() => null)) as { at?: unknown; lessons?: unknown; labs?: unknown } | null;
+  const lessons = titleMap(hit?.lessons);
+  const labs = titleMap(hit?.labs);
+  if (hit && typeof hit.at === "number" && lessons?.size && labs?.size) {
+    if (Date.now() - hit.at > SDM_TITLES_FRESH_MS && !sdmTitlesRefreshing) {
+      sdmTitlesRefreshing = true;
+      background(buildSdmTitles().then((t) => storeSdmTitles(kv, t)).finally(() => (sdmTitlesRefreshing = false)));
+    }
+    return { lessons, labs };
+  }
+  const built = await buildSdmTitles();
+  background(storeSdmTitles(kv, built));
+  return built;
 });
 
 /**
@@ -679,9 +724,15 @@ const conceptCached = cached(async (id: string): Promise<ConceptPage | null> => 
   };
 }, "dsa-concept-v4");
 
+/** Start reading what a lesson's page is built from (the content bundle and its folder's page bundle) at once. */
+export function prefetchLesson(id: string): void {
+  if (!dsaFresh() && ID.test(id)) prefetchDsa({ lesson: id });
+}
+
 /** One request's calls share one build (the page and its metadata both ask). */
 export const getConcept = requestCache(async (id: string): Promise<ConceptPage | null> => {
   if (!ID.test(id)) return null;
+  prefetchLesson(id);
   return withSdmTitles(conceptCached(id));
 });
 
@@ -879,6 +930,8 @@ const problemCached = cached(async (id: string): Promise<ProblemPage | null> => 
 
 export const getProblem = requestCache(async (id: string): Promise<ProblemPage | null> => {
   if (!ID.test(id)) return null;
+  // the content bundle and the problem's page bundle start loading while its cached item is looked up
+  if (!dsaFresh()) prefetchDsa({ problem: id });
   return withSdmTitles(problemCached(id));
 });
 
@@ -968,7 +1021,7 @@ export async function getDsaClip(quest: string): Promise<Lecture | null> {
  * A problem's solution video (resources/problems/<id>/solution.json), resolved with its reference solutions as the
  * "solution" code template, or null when it has none. Media at lectures/dsa--solution--<id>/.
  */
-const solutionCached = cached(async (id: string): Promise<Lecture | null> => {
+async function solutionLecture(id: string): Promise<Lecture | null> {
   const [parts, raw] = await Promise.all([problemParts(id), readDsaJson<RawDsaLecture>(`resources/problems/${id}/solution.json`)]);
   if (!parts || !raw || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
   const refs = lectureRefs(raw);
@@ -987,9 +1040,11 @@ const solutionCached = cached(async (id: string): Promise<Lecture | null> => {
     races: Object.fromEntries(refs.races.map((r, i) => [r, raceList[i]])),
     cast,
   });
-}, "dsa-solution-v1");
+}
+const solutionCached = cached(solutionLecture, "dsa-solution-v1");
 
-export async function getSolutionVideo(id: string): Promise<Lecture | null> {
+/** `fresh`: built from the content without its data-cache item (for a list that is itself one cached item: a nested item isn't read, but it is written, ~1 s of R2 writes each). */
+export async function getSolutionVideo(id: string, opts: { fresh?: boolean } = {}): Promise<Lecture | null> {
   if (!ID.test(id)) return null;
-  return solutionCached(id);
+  return opts.fresh ? solutionLecture(id) : solutionCached(id);
 }

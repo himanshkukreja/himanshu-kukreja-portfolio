@@ -1,6 +1,8 @@
 import "server-only";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { createHash } from "crypto";
 import { contentManifest, listContent, readContent, readContentBundle } from "@/lib/content-r2";
-import { bundleLoader, bundleText, type DsaBundle } from "./bundle";
+import { bundleLoader, bundleText, pageDirOf, pageLoader, pageRefsOf, pageText, type DsaBundle, type PageBundle, type PageRef } from "./bundle";
 
 /**
  * The dsa-mastery content repo, read one file at a time (paths relative to the repo root, e.g.
@@ -12,10 +14,27 @@ import { bundleLoader, bundleText, type DsaBundle } from "./bundle";
  *
  * Nothing loads the whole repo: callers read the few files a page needs, and src/lib/dsa/load.ts caches one
  * small item per world, concept and problem. On R2 the files the indexes are built from come from the content bundle
- * (src/lib/dsa/bundle.ts): one object per content commit, read once per isolate.
+ * (src/lib/dsa/bundle.ts): one object per content commit, read once per isolate; a lesson's or problem's own files from
+ * its page bundle (one object per folder version, read with the content bundle), the rest one by one.
  */
 
 export const DSA_CONTENT_TAG = "dsa-content";
+
+/**
+ * Set while a DSA data-cache item is being built (dsaItem). Inside one, the "dsa-content" tag needn't be added to the
+ * render (the item has it) and a tag item called there is still written each time: a route handler has no React
+ * cache, so the problem video list wrote it ~250 times (staging, Nov 2026).
+ */
+const inItem = new AsyncLocalStorage<true>();
+export const inDsaItem = () => inItem.getStore() === true;
+
+/** `fn` for unstable_cache, run as a DSA item (inDsaItem). The key parts should carry dsaItemKey(fn): see there. */
+export function dsaItem<A extends unknown[], R>(fn: (...a: A) => Promise<R>): (...a: A) => Promise<R> {
+  return (...a: A) => inItem.run(true, () => fn(...a));
+}
+
+/** A key part from the item's own code: unstable_cache keys on its function's source, which a wrapper would hide. */
+export const dsaItemKey = (fn: (...a: never[]) => unknown) => createHash("sha1").update(String(fn)).digest("hex").slice(0, 10);
 
 const LOCAL_DIR = process.env.DSA_LOCAL_DIR;
 const BRANCH = process.env.DSA_BRANCH || "main";
@@ -89,12 +108,62 @@ export async function readDsaHead(path: string): Promise<string | undefined> {
   return (await dsaBundle())?.heads.get(path);
 }
 
+
+const loadPage = pageLoader({
+  read: (key) => readContentBundle("dsa", key, BRANCH),
+  warn: (msg) => console.warn(`[dsa-bundle] ${msg}`),
+});
+
+/**
+ * The page bundle of the lesson or problem folder a path is in (src/lib/dsa/bundle.ts), read once per isolate and
+ * folder version; null = none (not a page folder, no page bundles named, DSA_BUNDLE=off, a read or check failed).
+ */
+async function pageBundleOf(path: string): Promise<PageBundle | null> {
+  const dir = pageDirOf(path);
+  if (!dir || LOCAL_DIR || process.env.DSA_BUNDLE === "off") return null;
+  const ref = pageRefs(await contentManifest("dsa", BRANCH).catch(() => null)).get(dir);
+  return ref ? loadPage(ref, dir) : null;
+}
+
+/** The manifest's page bundles, worked out once per manifest (its bundle entry is the same object until it changes). */
+const refsMemo = new WeakMap<object, Map<string, PageRef>>();
+function pageRefs(m: { sha: string; bundle: unknown } | null): Map<string, PageRef> {
+  const key = m?.bundle && typeof m.bundle === "object" ? m.bundle : null;
+  if (!key) return pageRefsOf(m);
+  let refs = refsMemo.get(key);
+  if (!refs) refsMemo.set(key, (refs = pageRefsOf(m)));
+  return refs;
+}
+
+/**
+ * Start reading the content bundle and a page's bundle without waiting: a page calls it first, so both are read at the
+ * same time, and while its cached item is looked up (~0.2 s for one that isn't there yet, staging, Nov 2026). `page`:
+ * a problem id or a lesson id (its folder is found among the manifest's page bundles, no index needed).
+ */
+export function prefetchDsa(page?: { problem: string } | { lesson: string }): void {
+  if (LOCAL_DIR || process.env.DSA_BUNDLE === "off") return;
+  dsaBundle().catch(() => {});
+  if (!page) return;
+  (async () => {
+    if ("problem" in page) return pageBundleOf(`resources/problems/${page.problem}/problem.md`);
+    const refs = pageRefs(await contentManifest("dsa", BRANCH).catch(() => null));
+    const dir = [...refs.keys()].find((d) => !d.startsWith("resources/problems/") && d.endsWith(`/${page.lesson}`));
+    return dir ? pageBundleOf(`${dir}/lesson.md`) : null;
+  })().catch(() => {});
+}
+
 /** A file's text, or null when it doesn't exist. Throws when no source can answer (so a cache never stores "missing"). */
 export async function readDsa(path: string): Promise<string | null> {
   if (!SAFE.test(path) || path.includes("..")) return null;
   if (!LOCAL_DIR) {
+    // a file the manifest doesn't list doesn't exist at this commit: no read
+    if ((await listContent("dsa", path, BRANCH).catch(() => null))?.kind === "missing") return null;
     const fromBundle = bundleText(await dsaBundle(), path);
     if (fromBundle !== undefined) return fromBundle;
+    // only then the folder's page bundle: other lessons' lab.yml (in the content bundle) loaded 15 page bundles for
+    // the academy map (staging, Nov 2026). The page's own is already on its way (prefetchDsa).
+    const fromPage = pageText(await pageBundleOf(path), path);
+    if (fromPage !== undefined) return fromPage;
   }
   if (LOCAL_DIR) return localRead(path);
   const r2 = await readContent("dsa", path, BRANCH);
