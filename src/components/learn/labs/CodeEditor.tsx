@@ -6,7 +6,7 @@
  * src/lib/offline/lazy.ts, the same import offline saving warms, so it is one chunk either way.
  */
 import { useEffect, useImperativeHandle, useRef, type RefObject } from "react";
-import { Compartment, EditorSelection, EditorState } from "@codemirror/state";
+import { Compartment, EditorSelection, EditorState, Prec } from "@codemirror/state";
 import {
   drawSelection,
   dropCursor,
@@ -20,10 +20,11 @@ import {
 } from "@codemirror/view";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { bracketMatching, HighlightStyle, indentOnInput, indentUnit, syntaxHighlighting } from "@codemirror/language";
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { acceptCompletion, autocompletion, closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
 import { python } from "@codemirror/lang-python";
 import { javascript } from "@codemirror/lang-javascript";
 import { cppLanguage, javaLanguage } from "./clike";
+import { makeSource } from "./completions";
 import { tags as t } from "@lezer/highlight";
 import styles from "./labs.module.css";
 
@@ -39,7 +40,25 @@ export type CodeEditorHandle = {
 export type EditorLang = "python" | "javascript" | "typescript" | "java" | "cpp";
 const langExt = (l: EditorLang) => (l === "python" ? python() : l === "java" ? javaLanguage() : l === "cpp" ? cppLanguage() : javascript({ typescript: l === "typescript" }));
 
+/** touch keyboards: nothing is pre-selected, so Enter stays a newline until the learner picks an option */
+const coarse = () => typeof window !== "undefined" && !!window.matchMedia?.("(pointer: coarse)").matches;
+
+/**
+ * Basic suggestions: the language's own sources plus ./completions. Enter or Tab accepts, Escape closes (Tab still
+ * indents when the list is closed). Opens after 2 typed characters, or at once after a dot.
+ */
+const suggestExt = (l: EditorLang, on: boolean) =>
+  on
+    ? [
+        autocompletion({ activateOnTyping: true, activateOnTypingDelay: 120, maxRenderedOptions: 12, icons: true, selectOnOpen: !coarse() }),
+        EditorState.languageData.of(() => [{ autocomplete: makeSource(l) }]),
+        Prec.high(keymap.of([{ key: "Tab", run: acceptCompletion }])),
+      ]
+    : [];
+
 type Props = {
+  /** basic code suggestions (default on); off in interview mode */
+  suggestions?: boolean;
   /** the language to highlight (defaults to Python) */
   language?: EditorLang;
   /** filled with the editor's handle (a prop, not `ref`, so it survives next/dynamic) */
@@ -81,15 +100,29 @@ const theme = EditorView.theme({
   },
   ".cm-matchingBracket": { backgroundColor: "color-mix(in srgb, var(--c-signal) 22%, transparent)", outline: "1px solid color-mix(in srgb, var(--c-signal) 55%, transparent)" },
   ".cm-nonmatchingBracket": { color: "var(--c-bad-text)" },
+  // suggestions: the editor's own tokens (teal inside .dsa-theme, through --c-signal)
+  ".cm-tooltip.cm-tooltip-autocomplete": { backgroundColor: "var(--c-raised)", color: "var(--c-fg)", border: "1px solid var(--c-line-strong)", boxShadow: "0 8px 24px rgba(0,0,0,0.18)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace", maxHeight: "16em" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "2px 8px 2px 4px", color: "var(--c-fg-2)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "color-mix(in srgb, var(--c-signal) 18%, transparent)", color: "var(--c-fg)" },
+  ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700", color: "var(--c-signal-text)" },
+  ".cm-completionDetail": { color: "var(--c-fg-4)", fontStyle: "normal", marginLeft: "0.8em" },
+  ".cm-completionIcon": { opacity: "1", width: "1.3em", fontSize: "90%", textAlign: "center" },
+  ".cm-completionIcon-keyword": { color: "var(--lab-kw)", "&:after": { content: "'k'" } },
+  ".cm-completionIcon-function, .cm-completionIcon-method": { color: "var(--lab-fn)", "&:after": { content: "'f'" } },
+  ".cm-completionIcon-class, .cm-completionIcon-type": { color: "var(--lab-type)", "&:after": { content: "'C'" } },
+  ".cm-completionIcon-variable, .cm-completionIcon-property, .cm-completionIcon-constant": { color: "var(--lab-prop)", "&:after": { content: "'x'" } },
+  ".cm-completionIcon-snippet": { color: "var(--c-signal-text)", "&:after": { content: "'{}'" } },
 });
 
-export default function CodeEditor({ handle, initial, fontSize, label, onChange, onRun, onFocus, language = "python" }: Props) {
+export default function CodeEditor({ handle, initial, fontSize, label, onChange, onRun, onFocus, language = "python", suggestions = true }: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const cb = useRef({ onChange, onRun, onFocus });
   const fontComp = useRef(new Compartment());
   const langComp = useRef(new Compartment());
   const indentComp = useRef(new Compartment());
+  const suggestComp = useRef(new Compartment());
 
   useEffect(() => {
     cb.current = { onChange, onRun, onFocus };
@@ -127,6 +160,7 @@ export default function CodeEditor({ handle, initial, fontSize, label, onChange,
           rectangularSelection(),
           highlightActiveLine(),
           langComp.current.of(langExt(language)),
+          suggestComp.current.of(suggestExt(language, suggestions)),
           syntaxHighlighting(highlight),
           theme,
           fontComp.current.of(EditorView.theme({ "&": { fontSize: `${fontSize}px` } })),
@@ -148,6 +182,10 @@ export default function CodeEditor({ handle, initial, fontSize, label, onChange,
     // the editor is created once; `initial` only seeds it (setValue replaces it later)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: suggestComp.current.reconfigure(suggestExt(language, suggestions)) });
+  }, [language, suggestions]);
 
   useEffect(() => {
     view.current?.dispatch({ effects: [langComp.current.reconfigure(langExt(language)), indentComp.current.reconfigure(indentUnit.of(language === "python" || language === "java" || language === "cpp" ? "    " : "  "))] });

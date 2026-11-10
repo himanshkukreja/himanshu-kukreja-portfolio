@@ -129,6 +129,25 @@ export function saveFont(n: number) {
   }
 }
 
+const SUGGEST_KEY = "hk.lab.suggest";
+
+/** basic code suggestions in the editor: on unless the reader turned them off */
+export function loadSuggest(): boolean {
+  try {
+    return window.localStorage.getItem(SUGGEST_KEY) !== "off";
+  } catch {
+    return true;
+  }
+}
+
+export function saveSuggest(on: boolean) {
+  try {
+    window.localStorage.setItem(SUGGEST_KEY, on ? "on" : "off");
+  } catch {
+    // keep it for this visit
+  }
+}
+
 export function loadLang(): LabLang | null {
   try {
     const v = window.localStorage.getItem(LANG_KEY);
