@@ -2,13 +2,19 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Filter, Play, Search, X } from "lucide-react";
+import dynamic from "next/dynamic";
+import { ChevronDown, Download, Filter, Play, Search, X } from "lucide-react";
+import { useGame } from "@/game/GameProvider";
 import { useDsaProgress } from "../progress/useDsaProgress";
 import SolvedMark from "../problem/SolvedMark";
 import { activeCount, clearAll, emptyState, evaluate, GROUPS, isFiltered, parseState, serializeState, SORTS, toggle, type FilterRow, type FilterState, type GroupId, type SortId, type Status } from "@/lib/dsa/problem-filters";
-import type { Option, ProblemData } from "@/lib/dsa/problem-rows";
-import { ALGORITHMS, facetLabel, PATTERNS, STRUCTURES } from "@/lib/dsa/taxonomy";
+import type { ProblemData } from "@/lib/dsa/problem-rows";
+import { facetLabel } from "@/lib/dsa/taxonomy";
+import { groupDefs, type GroupDef } from "./problem-options";
 import { holdAttention } from "@/lib/learn/guide/attention";
+
+// the export dialog and its file writer load only when the learner opens it
+const ExportSheetDialog = dynamic(() => import("./ExportSheetDialog"), { ssr: false });
 
 /**
  * /dsa/problems: search, facet filters (OR inside a group, AND across groups, live counts), removable chips, sort, and
@@ -16,45 +22,6 @@ import { holdAttention } from "@/lib/learn/guide/attention";
  * Logic lives in src/lib/dsa/problem-filters.ts.
  */
 
-const LEVELS: Option[] = [
-  { id: "easy", label: "Easy" },
-  { id: "medium", label: "Medium" },
-  { id: "hard", label: "Hard" },
-];
-const STATUSES: Option[] = [
-  { id: "todo", label: "Not started" },
-  { id: "tried", label: "Tried" },
-  { id: "solved", label: "Solved" },
-];
-const KINDS: Option[] = [
-  { id: "warm-up", label: "Warm-up" },
-  { id: "practice", label: "Practice" },
-  { id: "checkpoint", label: "Checkpoint" },
-];
-const TIMES: Option[] = [
-  { id: "quick", label: "15 min or less" },
-  { id: "mid", label: "15 to 30 min" },
-  { id: "long", label: "30 min or more" },
-];
-const VIDEO: Option[] = [{ id: "1", label: "Has a solution video" }];
-const toOptions = (l: { id: string; label: string }[]): Option[] => l.map((f) => ({ id: f.id, label: f.label }));
-
-type GroupDef = { id: GroupId; title: string; options: Option[]; open: boolean; max: number };
-
-function groupDefs(d: ProblemData): GroupDef[] {
-  return [
-    { id: "structures", title: "Data structures", options: toOptions(STRUCTURES), open: true, max: 7 },
-    { id: "algorithms", title: "Algorithms", options: toOptions(ALGORITHMS), open: true, max: 7 },
-    { id: "patterns", title: "Patterns", options: toOptions(PATTERNS), open: false, max: 6 },
-    { id: "level", title: "Difficulty", options: LEVELS, open: true, max: 9 },
-    { id: "status", title: "Status", options: STATUSES, open: true, max: 9 },
-    { id: "step", title: "Step in the course", options: d.steps, open: false, max: 6 },
-    { id: "kind", title: "Kind", options: KINDS, open: false, max: 9 },
-    { id: "video", title: "Video", options: VIDEO, open: false, max: 9 },
-    { id: "company", title: "Company type", options: d.companies, open: false, max: 6 },
-    { id: "time", title: "Time", options: TIMES, open: false, max: 9 },
-  ];
-}
 
 const LEVEL_LABEL: Record<string, string> = { easy: "Easy", medium: "Medium", hard: "Hard" };
 
@@ -232,6 +199,8 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
   const [state, setState] = useState<FilterState>(emptyState);
   const [text, setText] = useState("");
   const [sheet, setSheet] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const { done } = useGame();
   // no first-visit tips (the notebook's) over the open filter sheet
   useEffect(() => (sheet ? holdAttention() : undefined), [sheet]);
   const progress = useDsaProgress();
@@ -239,6 +208,7 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
   const defs = useMemo(() => groupDefs(data), [data]);
   const sheetRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
+  const exportRef = useRef<HTMLButtonElement>(null);
 
   // the URL is the state: read it once the page is interactive, and again on back/forward
   useEffect(() => {
@@ -386,6 +356,17 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
             </select>
             <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" aria-hidden />
           </div>
+          <button
+            ref={exportRef}
+            type="button"
+            onClick={() => setExporting(true)}
+            aria-haspopup="dialog"
+            aria-label="Export sheet"
+            className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 border border-line-strong bg-surface font-mono text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal sm:w-auto sm:px-4"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Export sheet</span>
+          </button>
         </div>
 
         {chips.length || state.q.trim() ? (
@@ -427,6 +408,20 @@ export default function ProblemBrowser({ data }: { data: ProblemData }) {
           </div>
         )}
       </div>
+
+      {exporting ? (
+        <ExportSheetDialog
+          data={data}
+          defs={defs}
+          initial={state}
+          statusOf={statusOf}
+          solvedAt={(id) => done[`dsa:p:${id}`] ?? null}
+          onClose={() => {
+            setExporting(false);
+            exportRef.current?.focus();
+          }}
+        />
+      ) : null}
 
       {/* phone: bottom sheet */}
       {sheet ? (

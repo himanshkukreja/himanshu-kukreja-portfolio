@@ -94,6 +94,7 @@ export function buildProblemData(
       patterns: f.patterns,
       companies: co,
       video: videos.has(p.id),
+      twin: p.classic.length ? classicLabel(p.classic[0]).split(" · ")[0] : "",
       tags: p.patterns,
       text,
     };
