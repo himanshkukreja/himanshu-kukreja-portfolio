@@ -12,7 +12,7 @@ import "server-only";
 import { fetchMarkdownContent, isContentMissing } from "@/lib/github";
 import { lectureMediaBase, lectureHash } from "@/lib/learn/lecture/load";
 import { lessonLectureId } from "@/lib/learn/lecture/types";
-import { resolveDsaClip, type RawClips } from "@/lib/dsa/lecture";
+import { resolveDsaClip, type RawClip, type RawClips } from "@/lib/dsa/lecture";
 import type { DsaRenderOpts } from "./detect/dsa";
 import type { ConceptPage } from "@/lib/dsa/types";
 import { SDM_DSA_ONLY, sdmClipQuest, usesSdmExtras } from "./sdm-extras-shared";
@@ -33,15 +33,36 @@ export async function sdmClips(week: string, slug: string, md: string): Promise<
   const media = lectureMediaBase();
   const out: SdmClips = {};
   for (const clip of raw?.clips ?? []) {
-    const l = resolveDsaClip(clip, null, { module: week, concept: slug, title: slug });
-    if (!l) continue;
-    const quest = sdmClipQuest(week, slug, clip.id);
-    const { dsa: _dsa, ...rest } = l;
-    void _dsa;
-    const lec = { ...rest, quest };
+    const lec = sdmClipLecture(week, slug, clip);
+    if (!lec) continue;
+    const quest = lec.quest;
     out[clip.id] = { id: clip.id, caption: clip.caption, base: media ? `${media.replace(/\/$/, "")}/${quest}/` : null, v: lectureHash(lec), say: lec.scenes.flatMap((sc) => sc.steps.map((st) => st.say)) };
   }
   return out;
+}
+
+/** One clip as a one-scene lecture under its SDM media id; the recorder (/dsa/video/<quest>) and the page share it, so the hashes agree. */
+export function sdmClipLecture(week: string, slug: string, clip: RawClip) {
+  const l = resolveDsaClip(clip, null, { module: week, concept: slug, title: slug });
+  if (!l) return null;
+  const { dsa: _dsa, ...rest } = l;
+  void _dsa;
+  return { ...rest, quest: sdmClipQuest(week, slug, clip.id) };
+}
+
+/** A clip by its media id (clips--<week>--<slug>--<clip>), for the recording page. null when it doesn't exist. */
+export async function getSdmClip(quest: string) {
+  const m = quest.match(/^clips--([a-z0-9-]+?)--([a-z0-9-]+)--([a-z0-9-]+)$/);
+  if (!m) return null;
+  const [, week, slug, id] = m;
+  try {
+    const raw = JSON.parse(await fetchMarkdownContent(`resources/clips/${lessonLectureId(week, slug)}.json`)) as RawClips;
+    const clip = raw?.clips?.find((c) => c.id === id);
+    return clip ? { week, slug, lecture: sdmClipLecture(week, slug, clip) } : null;
+  } catch (e) {
+    if (!isContentMissing(e)) throw e;
+    return null;
+  }
 }
 
 /** Render options for a lesson that uses tabs or clips, plus the clips for the page's hydrator. undefined: the lesson uses neither. */

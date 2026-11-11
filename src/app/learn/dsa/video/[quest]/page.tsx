@@ -5,10 +5,13 @@ import { clipQuestParts, solutionQuestParts } from "@/lib/dsa/lecture";
 import { getConceptIndex, getDsaClip, getProblem, getSolutionVideo, getStepLabels, lessonHref, problemHref } from "@/lib/dsa/load";
 import { stepOf } from "@/lib/dsa/steps";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
+import { getSdmClip } from "@/lib/course/sdm-extras";
+import { lessonPath } from "@/lib/learn/paths";
 import LecturePlayer from "@/components/learn/lecture/LecturePlayer";
 
 // The recording page of DSA Mastery's short videos: a lesson's in-article clip (dsa--clips--<lesson>--<clip>) or a
-// problem's solution video (dsa--solution--<problem>), on the course's lecture player. ?record=1 is the MP4 exporter's
+// problem's solution video (dsa--solution--<problem>), on the course's lecture player. It also records System Design
+// Mastery's in-article clips (clips--<week>--<slug>--<clip>, the design-pattern lessons). ?record=1 is the MP4 exporter's
 // view (scripts/lecture/export.mjs: clips at 1280x720, solutions at 1920x1080). Learners meet these videos inside the
 // lesson (LessonClip) and the problem room's Editorial tab (SolutionVideo), never here: noindex and unlinked.
 
@@ -21,6 +24,8 @@ export function generateStaticParams() {
 type Props = { params: Promise<{ quest: string }> };
 
 async function load(quest: string) {
+  const sdm = await getSdmClip(quest);
+  if (sdm?.lecture) return { l: sdm.lecture, quest: { title: sdm.slug, href: lessonPath(sdm.week, sdm.slug), code: "Clip" } };
   if (clipQuestParts(quest)) {
     const l = await getDsaClip(quest);
     if (!l) return null;
