@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import LldHome from "@/components/learn/lld/LldHome";
 import { getCaseRows } from "@/lib/learn/lld/load";
 import { getPatternSlugs } from "@/lib/learn/lld/pattern";
+import { lldIntroVideo } from "@/lib/learn/lld/intro";
 import { COURSE_ID } from "@/lib/learn/course";
 import { JsonLd, breadcrumbs } from "@/lib/seo/jsonld";
 
@@ -28,7 +29,7 @@ type Props = { params: Promise<{ course: string }> };
 export default async function LowLevelDesignPage({ params }: Props) {
   const { course } = await params;
   if (course !== COURSE_ID) notFound();
-  const [cases, patterns] = await Promise.all([getCaseRows(), getPatternSlugs().catch(() => new Set<string>())]);
+  const [cases, patterns, intro] = await Promise.all([getCaseRows(), getPatternSlugs().catch(() => new Set<string>()), lldIntroVideo().catch(() => null)]);
   return (
     <>
       <JsonLd
@@ -37,7 +38,7 @@ export default async function LowLevelDesignPage({ params }: Props) {
           { name: "Low-level design", path: "/low-level-design" },
         ])}
       />
-      <LldHome cases={cases} livePatterns={[...patterns]} />
+      <LldHome cases={cases} livePatterns={[...patterns]} intro={intro} />
     </>
   );
 }

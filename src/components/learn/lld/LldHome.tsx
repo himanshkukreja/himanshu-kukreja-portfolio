@@ -16,6 +16,8 @@ import { useLearnProgress, type LessonProgress } from "@/lib/learn/progress";
 import { CORE_PATTERNS, PATTERN_GROUPS, PATTERNS, caseBySlug, patternBySlug, patternChipName, patternLessonId, type Difficulty } from "@/lib/learn/lld/meta";
 import { NO_FILTERS, casePct, facets, filterCases, filtersToQuery, hasFilters, nextOnPath, parseFilters, patternMap, suggestedPath, type CaseRow, type Filters } from "@/lib/learn/lld/filters";
 import { STEPS } from "@/lib/learn/lld/steps";
+import LldIntroVideo from "@/components/learn/lld/LldIntroVideo";
+import type { IntroVideo } from "@/lib/learn/lld/intro";
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal";
@@ -38,7 +40,7 @@ function progressOf(p: LessonProgress | undefined) {
   return { steps, pct, state: p?.status === "completed" ? "done" : pct > 0 || p?.status === "in_progress" ? "started" : "new" } as const;
 }
 
-export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; livePatterns: string[] }) {
+export default function LldHome({ cases, livePatterns, intro = null }: { cases: CaseRow[]; livePatterns: string[]; intro?: IntroVideo | null }) {
   const { lessons, ready } = useLearnProgress(COURSE_ID);
   const live = useMemo(() => new Set(livePatterns), [livePatterns]);
   const [mapPick, setMapPick] = useState<string | null>(null);
@@ -80,8 +82,11 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
           <span aria-hidden className="text-line-strong">›</span>
           <span aria-current="page" className="text-fg">Low-level design</span>
         </nav>
+        {/* the intro video sits beside the hero from lg; below it on phones */}
+        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,560px)] lg:items-start lg:gap-10">
+        <div className="min-w-0">
         <p className={`${LABEL} mt-2`}>interview prep · machine coding</p>
-        <h1 className="m-0 mt-2 break-words font-display text-[clamp(34px,9vw,52px)] font-extrabold leading-[0.95] tracking-[-0.04em] lg:text-[clamp(44px,6vw,88px)] lg:leading-[0.9] lg:tracking-[-0.05em]">
+        <h1 className="m-0 mt-2 break-words font-display text-[clamp(34px,9vw,52px)] font-extrabold leading-[0.95] tracking-[-0.04em] lg:text-[clamp(44px,5vw,76px)] lg:leading-[0.9] lg:tracking-[-0.05em]">
           Low-level design<span className="text-signal-text">.</span>
         </h1>
         <p className="m-0 mt-3 max-w-[680px] text-[15px] leading-snug text-fg-2 sm:text-base lg:text-lg lg:leading-relaxed">
@@ -105,9 +110,11 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
               See the suggested path ›
             </a>
           )}
-          <Link href="/lectures/low-level-design--lld-intro" className={`inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-semibold text-fg hover:border-fg ${FOCUS}`}>
-            <span aria-hidden className="text-signal-text">▶</span> Watch the intro
-          </Link>
+          {!intro && (
+            <Link href="/lectures/low-level-design--lld-intro" className={`inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-semibold text-fg hover:border-fg ${FOCUS}`}>
+              <span aria-hidden className="text-signal-text">▶</span> Watch the intro
+            </Link>
+          )}
           <nav aria-label="On this page" className="flex flex-wrap gap-x-1 text-[13px]">
             {[
               ["#path", "Suggested path"],
@@ -120,6 +127,13 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
               </a>
             ))}
           </nav>
+        </div>
+        </div>
+        {intro && (
+          <div className="mt-6 lg:mt-2">
+            <LldIntroVideo video={intro} />
+          </div>
+        )}
         </div>
       </section>
 
