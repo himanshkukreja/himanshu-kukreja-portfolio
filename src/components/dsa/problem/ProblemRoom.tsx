@@ -648,7 +648,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
               </div>
             ) : editorial.state === "ready" ? (
               <div ref={editorialRef} className="flex flex-col gap-4">
-                {editorial.video && <SolutionVideo video={editorial.video} lang={lang} title={p.title} />}
+                {editorial.video && <SolutionVideo video={editorial.video} lang={lang} />}
                 <Html html={editorial.html} />
                 <DsaHydrator rootRef={editorialRef} deps={editorial.html.length.toString()} />
                 {/* the code blocks' Copy (and other chrome) buttons: outside any .course-content, so it binds the editorial's */}
