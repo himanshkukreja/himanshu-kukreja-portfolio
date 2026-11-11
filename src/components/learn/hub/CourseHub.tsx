@@ -19,6 +19,7 @@ import { LEARN_XP, lessonKey } from "@/lib/learn/types";
 import { activityByDay, findResume, readReviewLog, streakFrom, useLearnProgress, weekStates } from "@/lib/learn/progress";
 import { getLessonStages } from "@/lib/learn/actions";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
+import LldSection from "@/components/learn/hub/LldSection";
 import ContinueReadingBanner, { type ResumeStage } from "@/components/ContinueReadingBanner";
 import CourseProgressStats from "@/components/CourseProgressStats";
 import AuthPromptBanner from "@/components/AuthPromptBanner";
@@ -264,6 +265,8 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
           })}
         </div>
       </section>
+
+      <LldSection lld={map.lld || []} lessons={lessons} />
 
       {/* Beyond the course: the other tabs, so the hub says where each thing lives */}
       <section aria-labelledby="beyond-h" className="flex flex-col gap-[18px]">

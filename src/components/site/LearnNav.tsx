@@ -7,7 +7,7 @@
  * (src/lib/learn/paths.ts; SiteHeader passes useCoursePathname()).
  */
 import Link from "next/link";
-import { BookOpen, Briefcase, CloudDownload, Flame, Smartphone, Sparkles, Swords, User, type LucideIcon } from "lucide-react";
+import { BookOpen, Boxes, Briefcase, CloudDownload, Flame, Smartphone, Sparkles, Swords, User, type LucideIcon } from "lucide-react";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { DockDot, TabPending } from "./LinkPending";
 import AdminLink from "./AdminLink";
@@ -30,9 +30,11 @@ export const COURSE_HREF = "/";
  */
 export const PREP_ROUTES = ["prep", "practice", "revise", "cheatsheet", "sheets", "labs", "mock", "numbers", "plan", "tracks", "canvas", "podcast"] as const;
 const PREP_RE = new RegExp(`^/(?:${PREP_ROUTES.join("|")})(?:/|$)`);
-/** the problem bank and the low-level design track (its home, patterns and case studies) belong to interview prep */
-const PREP_LESSON_RE = /^\/(?:problem-bank\/|low-level-design(?:\/|$))/;
+/** the problem bank belongs to interview prep */
+const PREP_LESSON_RE = /^\/problem-bank\//;
 export const isPrep = (p: string) => PREP_RE.test(p) || PREP_LESSON_RE.test(p);
+/** the low-level design track has its own tab (owner, 11 Nov 2026): its home, the design patterns and the case studies */
+const isLld = (p: string) => /^\/low-level-design(\/|$)/.test(p);
 
 const isArena = (p: string) => /^\/(arena|review|design-week)(\/|$)/.test(p);
 const isStories = (p: string) => /^\/war-stories(\/|$)/.test(p);
@@ -40,15 +42,17 @@ const isShorts = (p: string) => /^\/shorts(\/|$)/.test(p);
 export const YOU_ROUTES = ["dashboard", "notebook", "notes", "bookmarks", "saved", "memory", "mastery", "certificate"] as const;
 const isYou = (p: string) => new RegExp(`^/(?:${YOU_ROUTES.join("|")})(?:/|$)`).test(p);
 /** the course tab: the hub, lessons, side quests, concepts, the reading trail, case files… everything not under another tab */
-const isCourse = (p: string) => !isPrep(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/(guide|offline|chat|search|privacy|cert|u)(\/|$)/.test(p);
+const isCourse = (p: string) => !isPrep(p) && !isLld(p) && !isArena(p) && !isStories(p) && !isShorts(p) && !isYou(p) && !/^\/(guide|offline|chat|search|privacy|cert|u)(\/|$)/.test(p);
 
 const isAsk = (p: string) => /^\/(chat|search)(\/|$)/.test(p);
 
-type Tab = { href: string; label: string; on: boolean; icon: LucideIcon; badge?: boolean; primary?: boolean };
+// dock: false keeps a tab out of the phone dock (its 7 columns are full); phones reach it from the course home
+type Tab = { href: string; label: string; on: boolean; icon: LucideIcon; badge?: boolean; primary?: boolean; dock?: false };
 function tabs(pathname: string): Tab[] {
   return [
     { href: COURSE_HREF, label: "course", on: isCourse(pathname), icon: BookOpen },
     { href: "/prep", label: "prep", on: isPrep(pathname), icon: Briefcase },
+    { href: "/low-level-design", label: "lld", on: isLld(pathname), icon: Boxes, dock: false },
     { href: "/arena", label: "arena", on: isArena(pathname), icon: Swords, badge: true },
     { href: "/chat", label: "ask", on: isAsk(pathname), icon: Sparkles, primary: true },
     { href: "/shorts", label: "shorts", on: isShorts(pathname), icon: Smartphone },
@@ -152,7 +156,7 @@ export function LearnDock({ pathname, className }: { pathname: string; className
       <a href={portfolioUrl("/")} aria-label="Himanshu Kukreja, the portfolio" title="Himanshu Kukreja, the portfolio" className="flex min-h-[52px] items-center justify-center font-mono text-[15px] font-semibold text-fg-3">
         <span aria-hidden>~</span>
       </a>
-      {tabs(pathname).map((l) => {
+      {tabs(pathname).filter((l) => l.dock !== false).map((l) => {
         const I = l.icon;
         return (
           <Link

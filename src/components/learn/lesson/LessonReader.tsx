@@ -156,8 +156,9 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
   const openSheet = useCallback(() => setSheet(true), []);
 
   const tools = { readAloud, focus, onFocus: toggleFocus, size, onContents: openSheet };
-  // low-level design case studies: the interview walkthrough (steps, class explorer, code tabs, "try it first")
-  const isLld = meta.kind === "lld";
+  // low-level design case studies: the interview walkthrough (steps, class explorer, code tabs, "try it first"); the
+  // design-pattern lessons (dp-NN) in the same folder read as ordinary lessons (hero, contents)
+  const isLld = meta.kind === "lld" && !meta.slug.startsWith("dp-");
   const Prefs = isLld ? LldPrefsProvider : Fragment;
   const Scope = isLld ? LldScope : Fragment;
 

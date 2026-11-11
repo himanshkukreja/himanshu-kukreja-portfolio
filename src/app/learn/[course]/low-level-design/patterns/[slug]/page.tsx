@@ -1,6 +1,6 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import PatternPage from "@/components/learn/lld/PatternPage";
-import { PATTERNS, patternBySlug } from "@/lib/learn/lld/meta";
+import { PATTERNS, patternBySlug, patternLessonId } from "@/lib/learn/lld/meta";
 import { casesUsing } from "@/lib/learn/lld/load";
 import { getPatternPage, getPatternSlugs } from "@/lib/learn/lld/pattern";
 import { COURSE_ID } from "@/lib/learn/course";
@@ -33,6 +33,9 @@ export default async function PatternRoute({ params }: Props) {
   const pattern = patternBySlug(slug);
   if (!pattern || course !== COURSE_ID) notFound();
   const [data, cases, written] = await Promise.all([getPatternPage(slug), casesUsing(slug), getPatternSlugs().catch(() => new Set<string>())]);
+  // a written pattern is read as its lesson (the lesson reader: snip, notes, highlights, Listen, progress); the pattern
+  // page stays for the ones not written yet
+  if (written.has(slug)) redirect(`/low-level-design/${patternLessonId(pattern)}`);
   const at = PATTERNS.findIndex((p) => p.slug === slug);
   const pick = (i: number) => (PATTERNS[i] ? { slug: PATTERNS[i].slug, name: PATTERNS[i].name } : null);
   const path = `/low-level-design/patterns/${slug}`;

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import { controlMap, isLive, questKey } from "@/lib/learn/controls";
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   fetchMarkdownContent,
   getAllLearningResources,
@@ -16,7 +16,7 @@ import { courseRefResolver } from "@/lib/learn/course-refs";
 import { getLabsForLesson, getLabSummaries } from "@/lib/learn/labs/load";
 import { fillMounts, prepareLld } from "@/lib/learn/lld/load";
 import { sdmRenderExtras } from "@/lib/course/sdm-extras";
-import { caseBySlug, patternByLessonId } from "@/lib/learn/lld/meta";
+import { caseBySlug } from "@/lib/learn/lld/meta";
 import { getTrailForLesson } from "@/lib/learn/trail/load";
 import { getSheet } from "@/lib/learn/sheets/load";
 import { getQuestDrills } from "@/lib/learn/drills/load";
@@ -110,9 +110,8 @@ export default async function LearningResourcePage({ params }: Props) {
   const { course, week, slug } = await params;
   const data = await getLearningResource(week, slug, { strict: true });
   if (!data) notFound();
-  // a design-pattern lesson (dp-NN-*) is read on its pattern page, whatever link led here
-  const pattern = week === "low-level-design" ? patternByLessonId(slug) : undefined;
-  if (pattern) redirect(`/low-level-design/patterns/${pattern.slug}`);
+  // a design-pattern lesson (dp-NN-*) is read here, in the lesson reader like every course lesson (snip, notes,
+  // highlights, Listen, progress and XP: owner, 11 Nov 2026); its pattern page forwards here once the lesson exists
 
   const { resource, content } = data;
   // a side quest hidden or scheduled in /admin/publishing isn't a page yet
