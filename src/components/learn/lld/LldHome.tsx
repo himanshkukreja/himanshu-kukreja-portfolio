@@ -13,7 +13,7 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { COURSE_ID } from "@/lib/learn/paths";
 import { lessonKey } from "@/lib/learn/types";
 import { useLearnProgress, type LessonProgress } from "@/lib/learn/progress";
-import { CORE_PATTERNS, PATTERN_GROUPS, PATTERNS, caseBySlug, patternBySlug, patternChipName, type Difficulty } from "@/lib/learn/lld/meta";
+import { CORE_PATTERNS, PATTERN_GROUPS, PATTERNS, caseBySlug, patternBySlug, patternChipName, patternLessonId, type Difficulty } from "@/lib/learn/lld/meta";
 import { NO_FILTERS, casePct, facets, filterCases, filtersToQuery, hasFilters, nextOnPath, parseFilters, patternMap, suggestedPath, type CaseRow, type Filters } from "@/lib/learn/lld/filters";
 import { STEPS } from "@/lib/learn/lld/steps";
 
@@ -65,7 +65,11 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
   const next = ready ? nextOnPath(path, done) : null;
   const startedAny = ready && cases.some((c) => progressOf(lessons[lessonKey("low-level-design", c.slug)]).state !== "new");
   const nextCase = next ? cases.find((c) => c.slug === next.case) : null;
-  const liveCount = PATTERNS.filter((p) => live.has(p.slug)).length;
+  // the design-pattern lessons come first (owner, 11 Nov 2026): progress and the next lesson start there
+  const patDone = (slug: string) => progressOf(lessons[lessonKey("low-level-design", patternLessonId(patternBySlug(slug)!))]).state === "done";
+  const livePats = PATTERNS.filter((p) => live.has(p.slug));
+  const patsDone = ready ? livePats.filter((p) => patDone(p.slug)).length : 0;
+  const nextPat = ready ? livePats.find((p) => !patDone(p.slug)) : livePats[0];
 
   return (
     <main className="pb-20">
@@ -84,12 +88,15 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
           The round where you turn a vague problem into classes, interfaces and running code in 60 to 90 minutes. Learn the design patterns, then work the {cases.length} classic problems one interview step at a time.
         </p>
         <dl className="m-0 mt-5 flex flex-wrap gap-x-8 gap-y-3">
-          <Stat label="case studies" value={String(cases.length)} />
-          <Stat label="design patterns" value={String(PATTERNS.length)} sub={liveCount ? `${liveCount} with a lesson` : "lessons on the way"} />
-          <Stat label="your progress" value={ready ? `${done.size}/${cases.length}` : "…"} sub="case studies done" />
+          <Stat label="design patterns" value={ready ? `${patsDone}/${livePats.length}` : String(livePats.length)} sub={ready ? "lessons done" : "lessons"} />
+          <Stat label="case studies" value={ready ? `${done.size}/${cases.length}` : String(cases.length)} sub={ready ? "rounds done" : "interview rounds"} />
         </dl>
         <div className="mt-5 flex flex-wrap items-center gap-3">
-          {nextCase ? (
+          {nextPat ? (
+            <Link href={patternHref(nextPat.slug)} className={`inline-flex min-h-11 items-center bg-fg px-4 text-sm font-semibold text-bg hover:opacity-90 ${FOCUS}`}>
+              {patsDone ? "Continue" : "Start"} with {patternChipName(nextPat)} ›
+            </Link>
+          ) : nextCase ? (
             <Link href={nextCase.href} className={`inline-flex min-h-11 items-center bg-fg px-4 text-sm font-semibold text-bg hover:opacity-90 ${FOCUS}`}>
               {startedAny ? "Continue" : "Start"} with {nextCase.name} ›
             </Link>
@@ -124,27 +131,43 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
                   <h3 className="m-0 font-display text-lg font-bold tracking-[-0.02em] text-fg">{s.title}</h3>
                 </div>
                 <p className="m-0 text-[13px] leading-snug text-fg-3">{s.note}</p>
-                <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
-                  {s.patterns.map((slug) => (
-                    <li key={slug}>
-                      <Link href={patternHref(slug)} className={`inline-flex min-h-9 items-center border border-line-strong px-2 text-[13px] text-fg hover:border-fg ${FOCUS}`}>
-                        {patternBySlug(slug)?.name ?? slug}
-                      </Link>
-                    </li>
-                  ))}
-                  {s.cases.map((slug) => {
-                    const c = cases.find((x) => x.slug === slug);
-                    return c ? (
-                      <li key={slug}>
-                        <Link href={c.href} className={`inline-flex min-h-9 items-center gap-1 border px-2 text-[13px] hover:border-fg ${done.has(slug) ? "border-fg bg-fg text-bg" : "border-line-strong text-fg"} ${FOCUS}`}>
-                          {done.has(slug) && <span aria-hidden>✓</span>}
-                          {c.name}
-                          {done.has(slug) && <span className="sr-only"> (done)</span>}
-                        </Link>
-                      </li>
-                    ) : null;
-                  })}
-                </ul>
+                {(() => {
+                  // a step's items, in order: its patterns, then its case studies; the card shows progress and the next one
+                  const items = [
+                    ...s.patterns.map((slug) => ({ key: slug, name: patternBySlug(slug) ? patternChipName(patternBySlug(slug)!) : slug, href: patternHref(slug), done: ready && live.has(slug) && patDone(slug) })),
+                    ...s.cases.flatMap((slug) => {
+                      const c = cases.find((x) => x.slug === slug);
+                      return c ? [{ key: slug, name: c.name, href: c.href, done: done.has(slug) }] : [];
+                    }),
+                  ];
+                  const n = items.filter((x) => x.done).length;
+                  const up = items.find((x) => !x.done);
+                  return (
+                    <>
+                      <p className="m-0 text-[13px] leading-snug text-fg-2">
+                        {items.slice(0, 4).map((x) => x.name).join(", ")}
+                        {items.length > 4 ? ` and ${items.length - 4} more` : ""}
+                      </p>
+                      <div className="mt-auto flex flex-col gap-2 pt-2">
+                        <span aria-hidden className="h-1 w-full bg-surface-2">
+                          <span className="block h-full bg-signal" style={{ width: `${items.length ? Math.round((n / items.length) * 100) : 0}%` }} />
+                        </span>
+                        <span className="flex items-center justify-between gap-2 font-mono text-xs">
+                          {up ? (
+                            <Link href={up.href} className={`min-w-0 truncate text-signal-text hover:underline ${FOCUS}`}>
+                              {n ? "NEXT" : "START"} · {up.name} →
+                            </Link>
+                          ) : (
+                            <span className="text-fg">COMPLETED ✓</span>
+                          )}
+                          <span className="shrink-0 text-fg-3">
+                            {n}/{items.length}
+                          </span>
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
               </li>
             ))}
           </ol>
@@ -159,6 +182,7 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
                 <div key={g.id} className="flex flex-col gap-3">
                   <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
                     <h3 className="m-0 font-display text-xl font-bold tracking-[-0.02em] text-fg">{g.label}</h3>
+                    {ready && <span className="font-mono text-[12px] text-fg-3">{items.filter((p) => live.has(p.slug) && patDone(p.slug)).length}/{items.length}</span>}
                     <span className="text-[13px] text-fg-3">{g.note}</span>
                   </div>
                   <ul className="m-0 grid list-none gap-3 p-0 sm:grid-cols-2 lg:grid-cols-3">
@@ -169,14 +193,19 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
                         <li key={p.slug} className="relative flex min-w-0 flex-col gap-2 border border-line bg-surface p-4 hover:border-line-strong">
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="m-0 min-w-0 text-[16px] font-semibold leading-snug text-fg">
+                              <span className="mb-1 block font-mono text-[11px] font-normal tracking-label text-fg-3">DP-{String(p.n).padStart(2, "0")}</span>
                               <Link href={patternHref(p.slug)} className={`after:absolute after:inset-0 ${FOCUS}`}>
                                 {p.name}
                               </Link>
                             </h4>
-                            <span className={`shrink-0 border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-label ${isLive ? "border-signal text-signal-text" : "border-line-strong text-fg-3"}`}>{isLive ? "lesson" : "coming soon"}</span>
+                            {!isLive ? (
+                              <span className="shrink-0 border border-line-strong px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-label text-fg-3">coming soon</span>
+                            ) : ready && patDone(p.slug) ? (
+                              <span className="shrink-0 font-mono text-[11px] text-signal-text">done ✓</span>
+                            ) : null}
                           </div>
                           <p className="m-0 text-[13px] leading-snug text-fg-2">{p.problem}</p>
-                          <p className="m-0 mt-auto pt-1 font-mono text-[11px] text-fg-3">{used ? `used in ${used} case ${used === 1 ? "study" : "studies"}` : "no case study yet"}</p>
+                          {used > 0 && <p className="m-0 mt-auto pt-1 font-mono text-[11px] text-fg-3">used in {used} case {used === 1 ? "study" : "studies"}</p>}
                         </li>
                       );
                     })}
@@ -246,7 +275,7 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
               {PATTERNS.filter((p) => map[p.slug]).sort((a, b) => map[b.slug].length - map[a.slug].length || a.name.localeCompare(b.name)).map((p) => (
                 <li key={p.slug}>
                   <button type="button" aria-pressed={mapPick === p.slug} onClick={() => setMapPick(mapPick === p.slug ? null : p.slug)} className={`inline-flex min-h-11 items-center gap-2 border px-3 text-sm ${mapPick === p.slug ? "border-fg bg-fg text-bg" : "border-line-strong text-fg hover:border-fg"} ${FOCUS}`}>
-                    {p.name}
+                    {patternChipName(p)}
                     <span className={`font-mono text-[11px] ${mapPick === p.slug ? "text-bg" : "text-fg-3"}`}>{map[p.slug].length}</span>
                   </button>
                 </li>

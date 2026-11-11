@@ -1,9 +1,10 @@
 "use client";
 
 /**
- * The course home's "Low-level design" part (owner, 11 Nov 2026: LLD and the design patterns get their own section,
- * not just a list inside prep): the 28 design-pattern lessons in their five parts, then the 22 case studies, with the
- * reader's progress. map.lld holds both (dp-NN first, then lld-NN; course.ts lessonOf codes them DP-NN and LLD-NN).
+ * The course home's "Low-level design" track (owner, 11 Nov 2026: LLD and the design patterns get their own place
+ * beside the course): six cards in the side quests' style, the five design-pattern parts and the case studies, each
+ * with its range, what it covers, the reader's progress and the next lesson to open. The full lists live on the LLD
+ * home. map.lld holds both kinds (dp-NN first, then lld-NN; course.ts lessonOf codes them DP-NN and LLD-NN).
  */
 import Link from "next/link";
 import type { CourseLesson } from "@/lib/learn/types";
@@ -19,32 +20,25 @@ const PARTS: { title: string; from: number; to: number }[] = [
 ];
 
 type Status = Record<string, { status?: string } | undefined>;
-const num = (l: CourseLesson) => parseInt(l.slug.match(/^dp-(\d+)/)?.[1] || "0", 10);
-// "The Strategy Pattern" → "Strategy"; the long in-practice titles keep their first clause
-const short = (t: string) => t.replace(/^The\s+/, "").replace(/\s+Pattern$/, "").split(":")[0];
+const num = (l: CourseLesson) => parseInt(l.slug.match(/^(?:dp|lld)-(\d+)/)?.[1] || "0", 10);
+// "The Strategy Pattern" → "Strategy"; "SOLID, Part 1: …" → "SOLID, Part 1"; "Design a Parking Lot" → "Parking Lot"
+const short = (t: string) => t.replace(/, and why .*$/i, "").replace(/^The\s+/, "").replace(/\s+Pattern$/, "").replace(/^Design (an? )?/i, "").split(":")[0].trim();
+const covers = (xs: CourseLesson[], shown = 4) => {
+  const names = xs.slice(0, shown).map((l) => short(l.title));
+  return xs.length > shown ? `${names.join(", ")} and ${xs.length - shown} more` : names.join(", ").replace(/, ([^,]*)$/, " and $1");
+};
 
 export default function LldSection({ lld, lessons }: { lld: CourseLesson[]; lessons: Status }) {
+  const done = (l: CourseLesson) => lessons[lessonKey(l.week, l.slug)]?.status === "completed";
   const patterns = lld.filter((l) => l.slug.startsWith("dp-"));
   const cases = lld.filter((l) => l.slug.startsWith("lld-"));
-  if (!patterns.length && !cases.length) return null;
-  const done = (l: CourseLesson) => lessons[lessonKey(l.week, l.slug)]?.status === "completed";
-  const count = (xs: CourseLesson[]) => xs.filter(done).length;
-
-  const chip = (l: CourseLesson, label: string) => (
-    <Link
-      key={l.slug}
-      href={l.href}
-      className={`inline-flex min-h-9 items-center gap-2 border px-2.5 text-[13px] hover:border-fg-4 ${done(l) ? "border-line-strong bg-surface-2 text-fg" : "border-line bg-bg text-fg-2"}`}
-    >
-      <span className="font-mono text-[10px] tracking-label text-fg-3">{l.code}</span>
-      <span>{label}</span>
-      {done(l) && (
-        <span aria-label="completed" className="text-signal-text">
-          ✓
-        </span>
-      )}
-    </Link>
-  );
+  const groups = [
+    ...PARTS.map((p) => ({ title: p.title, kind: "Design patterns", items: patterns.filter((l) => num(l) >= p.from && num(l) <= p.to) })),
+    { title: "Case studies", kind: "Interview rounds", items: cases },
+  ].filter((g) => g.items.length);
+  if (!groups.length) return null;
+  const total = patterns.length + cases.length;
+  const finished = [...patterns, ...cases].filter(done).length;
 
   return (
     <section aria-labelledby="lld-h" className="flex flex-col gap-[18px]">
@@ -53,47 +47,50 @@ export default function LldSection({ lld, lessons }: { lld: CourseLesson[]; less
           Low-level design
         </h2>
         <span className="text-[15px] text-fg-3">
-          Design patterns first, then the machine-coding rounds that use them.{" "}
+          {patterns.length} design patterns, then {cases.length} machine-coding rounds. {finished}/{total} done.{" "}
           <Link href="/low-level-design" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
             LLD home →
           </Link>
         </span>
       </div>
-
-      {patterns.length > 0 && (
-        <div className="flex flex-col gap-4 border border-line bg-surface p-4 sm:p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="m-0 font-display text-[22px] font-bold tracking-[-0.02em] text-fg">Design patterns</h3>
-            <span className="font-mono text-[12px] text-fg-3">
-              {count(patterns)}/{patterns.length} done · code in Python, Java, C++ and JavaScript
-            </span>
-          </div>
-          {PARTS.map((p) => {
-            const xs = patterns.filter((l) => num(l) >= p.from && num(l) <= p.to);
-            if (!xs.length) return null;
-            return (
-              <div key={p.title} className="flex flex-col gap-2">
-                <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">
-                  {p.title} · {count(xs)}/{xs.length}
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(260px,100%),1fr))] gap-2">
+        {groups.map((g) => {
+          const n = g.items.filter(done).length;
+          const next = g.items.find((l) => !done(l));
+          const all = n === g.items.length;
+          const first = g.items[0];
+          const last = g.items[g.items.length - 1];
+          const range = `${first.code}${g.items.length > 1 ? `–${String(num(last)).padStart(2, "0")}` : ""}`;
+          const pct = Math.round((n / g.items.length) * 100);
+          return (
+            <Link
+              key={g.title}
+              href={(next ?? first).href}
+              className={`group flex flex-col gap-2.5 p-4 hover:border-fg-4 sm:min-h-[188px] sm:p-[18px] ${all ? "border border-line-strong bg-surface-2" : "border border-line bg-bg"}`}
+            >
+              <span className="flex items-start justify-between gap-3 font-mono text-[11px] uppercase tracking-label text-fg-3">
+                <span>{g.kind}</span>
+                <span>{range}</span>
+              </span>
+              <span className="font-display text-[22px] font-bold leading-[1.05] tracking-[-0.02em] text-fg">{g.title}</span>
+              <span className="text-[14px] leading-snug text-fg-2">{covers(g.items)}</span>
+              <span className="mt-auto flex flex-col gap-2 pt-1">
+                <span aria-hidden className="h-1 w-full bg-surface-2">
+                  <span className="block h-full bg-signal" style={{ width: `${pct}%` }} />
                 </span>
-                <div className="flex flex-wrap gap-1.5">{xs.map((l) => chip(l, short(l.title)))}</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {cases.length > 0 && (
-        <div className="flex flex-col gap-3 border border-line bg-surface p-4 sm:p-5">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <h3 className="m-0 font-display text-[22px] font-bold tracking-[-0.02em] text-fg">Case studies</h3>
-            <span className="font-mono text-[12px] text-fg-3">
-              {count(cases)}/{cases.length} done · each a 7-step interview walkthrough
-            </span>
-          </div>
-          <div className="flex flex-wrap gap-1.5">{cases.map((l) => chip(l, l.title.replace(/^Design (an? )?/i, "")))}</div>
-        </div>
-      )}
+                <span className="flex items-center justify-between gap-2 font-mono text-xs">
+                  <span className={`min-w-0 truncate ${all ? "text-fg" : "text-signal-text"}`}>
+                    {all ? "COMPLETED ✓" : n ? `NEXT · ${short(next!.title)}` : `START · ${short(first.title)}`}
+                  </span>
+                  <span className="shrink-0 text-fg-3">
+                    {n}/{g.items.length}
+                  </span>
+                </span>
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </section>
   );
 }
