@@ -75,6 +75,14 @@ export const CASES: CaseMeta[] = [
   c(20, "stock-exchange-order-book", "Stock Exchange Order Book", "Expert", 90, "A limit order book and its matching engine, fed from eight threads.", ["command", "concurrency-patterns", "oop-and-composition"], ["order-book-matching"]),
   c(21, "task-scheduler-dependencies", "Task Scheduler with Dependencies", "Expert", 90, "A dependency-aware scheduler with a worker pool, retries and cycle checks.", ["concurrency-patterns", "strategy"], ["task-scheduler-dag"]),
   c(22, "key-value-store-ttl-transactions", "Key-Value Store with TTL and Transactions", "Expert", 90, "An in-memory store with expiry, nested transactions and pluggable eviction.", ["strategy", "proxy", "concurrency-patterns"], ["kv-store-transactions"]),
+  c(23, "tic-tac-toe", "Tic-Tac-Toe", "Medium", 45, "An N×N board with K in a row, a win check that never rescans, pluggable players and undo.", ["strategy", "command", "state", "factory-method-and-abstract-factory"], ["tic-tac-toe"]),
+  c(24, "car-rental", "Car Rental", "Medium", 60, "Branches and car classes, date-range bookings checked by peak overlap, and a pricing rule pipeline.", ["strategy", "chain-of-responsibility", "state", "facade"], ["car-rental"]),
+  c(25, "digital-wallet", "Digital Wallet", "Hard", 90, "A double-entry ledger, idempotent transfers, holds and limits, and locks taken in one order.", ["strategy", "facade", "concurrency-patterns"], ["digital-wallet"]),
+  c(26, "inventory-order-management", "Inventory and Order Management", "Hard", 60, "Stock per warehouse, expiring reservations, split allocation, and an order state machine.", ["strategy", "state", "facade"], ["inventory-order-management"]),
+  c(27, "notification-service", "Notification Service", "Medium", 45, "Channels behind one interface, a rule chain with quiet hours, retries with backoff, and dedupe.", ["chain-of-responsibility", "strategy", "adapter", "observer"], ["notification-service"]),
+  c(28, "airline-booking", "Airline Booking", "Hard", 90, "Seat maps and cabin capacity, timed holds, an overbooking policy, tiered refunds and bumping.", ["strategy", "state", "facade", "oop-and-composition"], ["airline-booking"]),
+  c(29, "restaurant-management", "Restaurant Management", "Medium", 60, "Tables and walk-ins, one kitchen ticket per station, sold-out dishes, and a bill split to the cent.", ["strategy", "observer", "state", "facade"], ["restaurant-management"]),
+  c(30, "traffic-signal", "Traffic Signal Controller", "Medium", 60, "A phase state machine with timings as data, pedestrian and emergency requests, and a safe fault.", ["state", "observer", "command", "facade"], ["traffic-signal"]),
 ];
 
 export const caseBySlug = (slug: string): CaseMeta | undefined => CASES.find((x) => x.slug === slug);

@@ -39,9 +39,9 @@ test("every case study's pattern chips point at a lesson in the catalogue, match
   const slugs = new Set(PATTERNS.map((p) => p.slug));
   for (const c of CASES) for (const p of c.patterns) assert.ok(slugs.has(p), `${c.slug}: ${p}`);
   const of = (n) => CASES.find((c) => c.n === n).patterns;
-  assert.equal(CASES.filter((c) => c.patterns.includes("strategy")).length, 17, "Strategy is in 17 of 22");
-  assert.equal(CASES.filter((c) => c.patterns.includes("state")).length, 9, "State is in 9 of 22");
-  assert.equal(CASES.filter((c) => c.patterns.includes("facade")).length, 6, "Facade is in 6 (lld-05, 06, 12, 14, 15, 17)");
+  assert.equal(CASES.filter((c) => c.patterns.includes("strategy")).length, 24, "Strategy is in 24 of 30");
+  assert.equal(CASES.filter((c) => c.patterns.includes("state")).length, 15, "State is in 15 of 30");
+  assert.equal(CASES.filter((c) => c.patterns.includes("facade")).length, 12, "Facade is in 12 of 30");
   assert.deepEqual(of(10), ["oop-and-composition", "command", "iterator", "concurrency-patterns"]);
   assert.ok(of(22).includes("proxy") && of(18).includes("mediator-and-memento"));
 });

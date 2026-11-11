@@ -202,8 +202,8 @@ test("every case study's patterns exist in the catalogue, and the catalogue's gr
   for (const p of PATTERNS) assert.ok(groups.has(p.group), p.slug);
   for (const c of CASES) for (const p of c.patterns) assert.ok(slugs.has(p), `${c.slug}: ${p}`);
   for (const p of CORE_PATTERNS) assert.ok(slugs.has(p), p);
-  assert.equal(CASES.length, 22);
-  assert.equal(new Set(CASES.map((c) => c.slug)).size, 22);
+  assert.equal(CASES.length, 30);
+  assert.equal(new Set(CASES.map((c) => c.slug)).size, 30);
   assert.equal(caseBySlug("lld-02-lru-cache").name, "LRU Cache");
 });
 
@@ -215,7 +215,7 @@ const rows = CASES.map((c) => ({
 }));
 
 test("filters combine, and an empty filter shows everything", () => {
-  assert.equal(filterCases(rows, NO_FILTERS).length, 22);
+  assert.equal(filterCases(rows, NO_FILTERS).length, 30);
   const strat = filterCases(rows, { ...NO_FILTERS, pattern: "strategy" });
   assert.ok(strat.length > 10 && strat.every((r) => r.patterns.includes("strategy")));
   const hardStrat = filterCases(rows, { pattern: "strategy", difficulty: "Hard", company: null });
@@ -235,7 +235,7 @@ test("facet counts respect the other filters", () => {
 
 test("the pattern map lists each pattern's case studies in lesson order", () => {
   const map = patternMap(rows);
-  assert.deepEqual(map.state.map((r) => r.n), [4, 5, 7, 11, 12, 13, 14, 15, 19]);
+  assert.deepEqual(map.state.map((r) => r.n), [4, 5, 7, 11, 12, 13, 14, 15, 19, 23, 24, 26, 28, 29, 30]);
   assert.deepEqual(map["mediator-and-memento"].map((r) => r.n), [18]);
   assert.equal(map.prototype, undefined);
   // every card appears under each of its patterns, and nowhere else
@@ -250,7 +250,7 @@ test("the suggested path runs foundations, core patterns, easy then hard, each c
   assert.ok(path_[2].cases.every((s) => caseBySlug(s).difficulty === "Medium"));
   assert.ok(path_[3].cases.every((s) => caseBySlug(s).difficulty !== "Medium"));
   const all = [...path_[2].cases, ...path_[3].cases];
-  assert.equal(new Set(all).size, 22);
+  assert.equal(new Set(all).size, 30);
   assert.deepEqual(nextOnPath(path_, new Set()), { stage: "easy", case: "lld-01-parking-lot" });
   assert.deepEqual(nextOnPath(path_, new Set(path_[2].cases)), { stage: "hard", case: path_[3].cases[0] });
   assert.equal(nextOnPath(path_, new Set(all)), null);
