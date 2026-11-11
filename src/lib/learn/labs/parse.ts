@@ -28,6 +28,7 @@
 /** Sections of labs that sit outside the 12 course weeks: a front matter `section:` replaces `week:`. */
 export const LAB_SECTIONS: Record<string, { world: number; code: string; title: string }> = {
   "design-patterns": { world: 100, code: "DP", title: "LLD · Design patterns" },
+  "lld-case-studies": { world: 101, code: "LLD", title: "LLD · Case studies" },
 };
 
 import { createHash } from "crypto";
