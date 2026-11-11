@@ -246,7 +246,7 @@ export const TOOLS = [
   {
     name: "list_by_kind",
     description:
-      "List what the course has of one kind: side quests (quest), war stories (war), case files (case), mock interviews (mock), interview problems (problem), LLD rounds (lld), code labs (lab), design sheets (sheet), concepts (concept), company prep pages (company), lectures, shorts. Optional topic narrows it.",
+      "List what the course has of one kind: side quests (quest), war stories (war), case files (case), mock interviews (mock), interview problems (problem), the low-level design track (lld: the design-pattern lessons DP-01–28 and the case-study rounds), code labs (lab), design sheets (sheet), concepts (concept), company prep pages (company), lectures, shorts. Optional topic narrows it.",
     input_schema: {
       type: "object",
       properties: {
@@ -709,7 +709,7 @@ async function weekPlan(st: ChatState, input: Record<string, unknown>): Promise<
   if (!want) {
     const lines = weeks.map((w) => `W${w.code} ${w.title}: ${w.lessons.length} lessons${w.boss ? " + capstone" : ""}${w.trial ? ` + ${w.trial.parts.length}-part trial` : ""}, about ${Math.round(w.minutes / 60)} h of reading`);
     const total = weeks.reduce((a, w) => a + w.minutes, 0);
-    return `The course plan, in order (about ${Math.round(total / 60)} hours of core reading; lectures, quests and practice are extra):\n${lines.join("\n")}\nSide quests: ${map.sideQuests.filter((q) => !unreleased(q.week)).length}, interview problems: ${map.problems?.length ?? 0}, LLD rounds: ${map.lld?.length ?? 0}, mock interviews: ${map.mocks?.length ?? 0}.\nAsk for one week (e.g. week 4) for its lessons with refs.`;
+    return `The course plan, in order (about ${Math.round(total / 60)} hours of core reading; lectures, quests and practice are extra):\n${lines.join("\n")}\nSide quests: ${map.sideQuests.filter((q) => !unreleased(q.week)).length}, interview problems: ${map.problems?.length ?? 0}, low-level design track (lld tab): ${(map.lld ?? []).filter((l) => l.slug.startsWith("dp-")).length} design-pattern lessons and ${(map.lld ?? []).filter((l) => !l.slug.startsWith("dp-")).length} case studies, mock interviews: ${map.mocks?.length ?? 0}.\nAsk for one week (e.g. week 4) for its lessons with refs.`;
   }
   const w = weeks.find((x) => String(x.num) === String(Number(want)) || x.code === want.padStart(2, "0") || x.key.toLowerCase().includes(want));
   if (!w) return `No week "${str(input.week, 20)}". Weeks run W${weeks[0]?.code ?? "00"} to W${weeks[weeks.length - 1]?.code ?? ""}.`;

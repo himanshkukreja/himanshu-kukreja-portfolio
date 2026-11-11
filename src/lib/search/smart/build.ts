@@ -114,7 +114,8 @@ async function courseLessons(): Promise<{ map: CourseMap; lessons: Lesson[]; byH
   }
   for (const l of map.sideQuests) add(l, "quest", "Side quest");
   for (const l of map.problems ?? []) add(l, "problem", "Interview problem");
-  for (const l of map.lld ?? []) add(l, "lld", "Low-level design");
+  // the LLD track: the design-pattern lessons (dp-NN) and the case-study rounds (lld-NN) share a folder
+  for (const l of map.lld ?? []) add(l, "lld", l.slug.startsWith("dp-") ? "Design patterns" : "Low-level design case study");
   const byHref = new Map(lessons.map(({ l }) => [l.href, lessonId(l.week, l.slug)]));
   return { map, lessons, byHref, live: new Set(map.sideQuests.map((q) => q.slug)) };
 }

@@ -14,7 +14,7 @@ export const SITE_GUIDE: GuideTopic[] = [
     title: "How the course works",
     href: "/guide#overview",
     keywords: "start begin course structure tabs navigation overview",
-    text: "System Design Mastery is free. The Learn header has the tabs course · prep · arena · ask · shorts · stories · you (on phones, the dock at the bottom). Course is the skill tree of weeks (worlds), side quests and concepts; Prep is everything for the interview; Ask is this chat; Arena is the daily challenge, leagues and games; Shorts are one-minute videos; Stories are real incidents and war rooms; You is your progress, notebook, saved paths and certificates. Everything works as a guest; signing in keeps progress on every device.",
+    text: "System Design Mastery is free. The Learn header has the tabs course · prep · lld · arena · ask · shorts · stories · you (on phones, the dock at the bottom; lld is reached from the course home there). Course is the skill tree of weeks (worlds), side quests and concepts; Prep is everything for the interview; LLD is the low-level design track (design patterns, then case studies); Ask is this chat; Arena is the daily challenge, leagues and games; Shorts are one-minute videos; Stories are real incidents and war rooms; You is your progress, notebook, saved paths and certificates. Everything works as a guest; signing in keeps progress on every device.",
   },
   {
     id: "map",
@@ -91,7 +91,14 @@ export const SITE_GUIDE: GuideTopic[] = [
     title: "Interview prep: companies, problems, LLD, tools",
     href: "/prep",
     keywords: "prep interview company pages question bank problem bank low level design lld machine coding numbers playground study planner revision cheat sheet design sheets labs",
-    text: "The Prep tab holds the video lectures, mock interviews, company pages (topics they ask, questions reported by candidates with sources, likely ones labelled as ours), the question bank, the problem bank (URL shortener, rate limiter, chat…), low-level design rounds (parking lot, LRU cache, Splitwise…), revision decks, cheat sheets, design sheets, code labs, the numbers playground and the study planner.",
+    text: "The Prep tab holds the video lectures, mock interviews, company pages (topics they ask, questions reported by candidates with sources, likely ones labelled as ours), the question bank, the problem bank (URL shortener, rate limiter, chat…), revision decks, cheat sheets, design sheets, code labs, the numbers playground and the study planner.",
+  },
+  {
+    id: "lld",
+    title: "Low-level design track: design patterns and case studies",
+    href: "/low-level-design",
+    keywords: "low level design lld machine coding design patterns oop solid uml class diagram strategy observer factory singleton case study parking lot elevator splitwise lru try it first pattern map intro video",
+    text: "The lld tab (/low-level-design) is its own track beside the 12-week course: its lessons earn XP and have their own progress, and the main course percentage does not count them. It opens with a 6-minute intro video on the LLD home. Part one is 28 design-pattern lessons in five parts (Foundations, Creational, Structural, Behavioural, In practice), each read in the lesson reader (snip, notebook, highlights, Listen) with code in Python, Java, C++ and JavaScript, a class diagram, look-alike patterns, when not to use it, a lecture, clips, a quiz, an FAQ and a refactoring lab. Part two is 22 case studies (parking lot, LRU cache, rate limiter, elevator, Splitwise, chess…), each a 7-step interview walkthrough with a Try it first toggle that hides the diagram and code, and a Patterns used here box. The LLD home has a suggested path, filters and a pattern map; the course home has the same track as cards.",
   },
   {
     id: "revise",
