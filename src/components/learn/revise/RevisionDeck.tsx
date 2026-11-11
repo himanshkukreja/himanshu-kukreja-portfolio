@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, RotateCcw, Shuffle, X } from "lucide-react";
 import type { DeckLesson, DeckWeek } from "@/lib/learn/revision/load";
 import { plain } from "@/lib/learn/revision/parse";
+import { deckLabel } from "@/lib/learn/revision/label";
 import { addReviewCard } from "@/lib/learn/review";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
@@ -481,7 +482,7 @@ function EndScreen({
       </div>
       {xp > 0 && (
         <div className="flex items-center justify-between gap-3 border border-signal px-4 py-3">
-          <span className="text-[15px] font-semibold text-fg">World {week.code} revised</span>
+          <span className="text-[15px] font-semibold text-fg">{deckLabel(week)} revised</span>
           <span className="font-mono text-[13px] text-signal-text">+{xp} XP</span>
         </div>
       )}
@@ -520,7 +521,7 @@ function EndScreen({
           </Link>
         )}
         <Link href={`/cheatsheet/${week.id}`} className="flex min-h-[52px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">
-          World {week.code} cheat sheet
+          {deckLabel(week)} cheat sheet
         </Link>
         {mode === "lesson" && (
           <Link href={`/revise/${week.id}`} className="flex min-h-[52px] items-center justify-center border border-line-strong px-5 text-[15px] font-semibold text-fg hover:border-fg-3">

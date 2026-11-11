@@ -57,7 +57,8 @@ async function readAll(): Promise<Source[]> {
     if (isContentMissing(e)) return [];
     throw e; // transient (rate limit, 5xx): never cache an empty deck list
   }
-  const picked = files.filter((f) => f.type === "file" && /^week-\d+\.md$/.test(f.name));
+  // the weeks, plus the low-level design track (low-level-design.md: its pattern lessons and case studies)
+  const picked = files.filter((f) => f.type === "file" && /^(?:week-\d+|low-level-design)\.md$/.test(f.name));
   const out = await Promise.all(
     picked.map(async (f) => {
       try {
@@ -124,7 +125,31 @@ export async function getRevisionWeeks(course: string = COURSE_ID): Promise<Deck
   if (!map) return [];
   const sources = await cachedSources().catch(() => [] as Source[]);
   const byKey = new Map(sources.map((s) => [s.week.week, s]));
-  return map.weeks.map((w) => toDeck(w, byKey.get(w.key)));
+  const decks = map.weeks.map((w) => toDeck(w, byKey.get(w.key)));
+  const lld = lldDeck(map.lld ?? [], byKey.get(LLD_KEY));
+  return lld ? [...decks, lld] : decks;
+}
+
+/** The low-level design track as one more deck: its design-pattern lessons, then its case studies (DP-NN, LLD-NN). */
+import { LLD_KEY } from "./label";
+function lldDeck(all: CourseLesson[], src: Source | undefined): DeckWeek | null {
+  if (!src || !all.length) return null;
+  const bySlug = new Map(src.week.lessons.map((l) => [l.slug, l.cards]));
+  const lessons: DeckLesson[] = all
+    .filter((l) => (bySlug.get(l.slug)?.length ?? 0) > 0)
+    .map((l) => ({ slug: l.slug, title: l.title, label: `${l.code} · ${l.title}`, short: l.code, tag: l.tag, kind: l.kind, href: l.href, cards: bySlug.get(l.slug)! }));
+  return {
+    key: LLD_KEY,
+    id: LLD_KEY,
+    num: 100,
+    code: "LLD",
+    title: "Low-level design",
+    badge: "LLD",
+    lessons,
+    cards: lessons.reduce((a, l) => a + l.cards.length, 0),
+    missing: all.length - lessons.length,
+    version: src.hash,
+  };
 }
 
 /** "week-01", "week-1", "01" or the full folder name → that world. */
@@ -134,3 +159,5 @@ export async function getRevisionWeek(param: string, course: string = COURSE_ID)
   const weeks = await getRevisionWeeks(course);
   return weeks.find((w) => w.key === p || (m && w.num === parseInt(m[1], 10))) ?? null;
 }
+
+export { deckLabel } from "./label";

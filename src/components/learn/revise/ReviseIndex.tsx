@@ -4,6 +4,7 @@ import Link from "next/link";
 import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
 import { useRevisedState } from "./RevisionDeck";
 import { weekRevised } from "./store";
+import { deckLabel } from "@/lib/learn/revision/label";
 
 export type ReviseWeekSummary = {
   key: string;
@@ -32,7 +33,7 @@ export default function ReviseIndex({ weeks }: { weeks: ReviseWeekSummary[] }) {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">
-                  World {w.code}
+                  {deckLabel(w)}
                   {all ? " · revised ✓" : ""}
                 </span>
                 <h2 className="font-display text-[24px] font-bold leading-[1.05] tracking-[-0.02em] text-fg sm:text-[28px]">{w.title}</h2>

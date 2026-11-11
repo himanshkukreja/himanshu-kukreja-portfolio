@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRevisionWeek } from "@/lib/learn/revision/load";
+import { deckLabel, getRevisionWeek } from "@/lib/learn/revision/load";
 import { SITE_ORIGIN } from "@/lib/share/model";
 import CheatSheet from "@/components/learn/cheatsheet/CheatSheet";
 import CheatSheetTools, { FitToPage } from "@/components/learn/cheatsheet/CheatSheetTools";
@@ -21,7 +21,7 @@ type Props = { params: Promise<{ week: string }> };
 export async function generateMetadata({ params }: Props) {
   const w = await getRevisionWeek((await params).week);
   if (!w) return { title: "Not Found" };
-  const title = `${w.title} cheat sheet · World ${w.code} · System Design Mastery`;
+  const title = `${w.title} cheat sheet · ${deckLabel(w)} · System Design Mastery`;
   const description = `One printable page: the key ideas, numbers to remember, trade-offs and classic mistakes of ${w.title}${w.lessons.length ? ` (${w.lessons.length} lessons)` : ""}. Free, from the System Design Mastery course.`;
   return { title, description, openGraph: { title, description, type: "article" }, twitter: { card: "summary_large_image", title, description } };
 }
@@ -39,7 +39,7 @@ export default async function CheatSheetPage({ params }: Props) {
             Revision
           </Link>
           <span aria-hidden>/</span>
-          <span className="text-signal-text">World {w.code} cheat sheet</span>
+          <span className="text-signal-text">{deckLabel(w)} cheat sheet</span>
         </nav>
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div className="flex flex-col gap-2">
@@ -50,7 +50,7 @@ export default async function CheatSheetPage({ params }: Props) {
                 : "The cards for this world are still being written, so the sheet is empty for now."}
             </p>
           </div>
-          {w.lessons.length > 0 && <CheatSheetTools title={`World ${w.code} · ${w.title} cheat sheet`} url={`${SITE_ORIGIN}${path}`} week={w.key} />}
+          {w.lessons.length > 0 && <CheatSheetTools title={`${deckLabel(w)} · ${w.title} cheat sheet`} url={`${SITE_ORIGIN}${path}`} week={w.key} />}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {w.lessons.length > 0 && (
@@ -58,7 +58,7 @@ export default async function CheatSheetPage({ params }: Props) {
               Revise it as cards · ~{w.lessons.length * 5} min
             </Link>
           )}
-          <SaveOfflineButton title={`World ${w.code} cheat sheet`} kind="cheatsheet" />
+          <SaveOfflineButton title={`${deckLabel(w)} cheat sheet`} kind="cheatsheet" />
         </div>
       </div>
       <div className="cs-stage -mx-4 sm:mx-0 lg:py-2">
