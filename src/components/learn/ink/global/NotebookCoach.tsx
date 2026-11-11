@@ -13,6 +13,7 @@ import { INK_EVENTS } from "@/lib/learn/ink/types";
 import { notebookAllowed, readLS, writeLS } from "./context";
 import { attentionHeld } from "@/lib/learn/guide/attention";
 import { NotebookPenIcon } from "./PenIcon";
+import { cleanPath } from "@/lib/learn/paths";
 
 const SEEN = "hk.ink.coach";
 const FIRST_VISIT_DELAY = 2500;
@@ -35,7 +36,9 @@ type Pos = { right: number; bottom: number; arrowRight: number };
 
 export default function NotebookCoach() {
   const pathname = useCoursePathname() || "";
-  const allowed = notebookAllowed(pathname);
+  // not over the DSA coming-soon page's waitlist form (production runs DSA in "soon" mode)
+  const soonPage = process.env.NEXT_PUBLIC_DSA_MODE !== "full" && /^\/dsa(?:\/|$)/.test(cleanPath(pathname));
+  const allowed = notebookAllowed(pathname) && !soonPage;
   const [show, setShow] = useState(false);
   const [pos, setPos] = useState<Pos | null>(null);
   const ref = useRef<HTMLDivElement>(null);
