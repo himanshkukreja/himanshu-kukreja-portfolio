@@ -48,6 +48,9 @@ export default function LldSection({ lld, lessons }: { lld: CourseLesson[]; less
         </h2>
         <span className="text-[15px] text-fg-3">
           {patterns.length} design patterns, then {cases.length} machine-coding rounds. {finished}/{total} done.{" "}
+          <Link href="/lectures/low-level-design--lld-intro" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
+            ▶ watch the intro
+          </Link>{" "}
           <Link href="/low-level-design" className="font-mono text-[13px] text-signal-text underline underline-offset-4">
             LLD home →
           </Link>

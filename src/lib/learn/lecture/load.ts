@@ -136,6 +136,8 @@ export async function lectureSubject(l: Lecture): Promise<{ title: string; href:
     const c = (await getCaseFiles().catch(() => [])).find((x) => x.slug === l.lesson!.slug);
     return c ? { title: c.title, href: `/case-files/${c.slug}`, code: c.caseId, level: "Intermediate" } : null;
   }
+  // the low-level design track's intro has no article of its own: it belongs to the LLD home
+  if (l.lesson?.week === "low-level-design" && l.lesson.slug === "lld-intro") return { title: "Low-level design", href: "/low-level-design", code: "LLD" };
   if (l.lesson) {
     const { week, slug } = l.lesson;
     const w = map.weeks.find((x) => x.key === week);

@@ -105,6 +105,9 @@ export default function LldHome({ cases, livePatterns }: { cases: CaseRow[]; liv
               See the suggested path ›
             </a>
           )}
+          <Link href="/lectures/low-level-design--lld-intro" className={`inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-sm font-semibold text-fg hover:border-fg ${FOCUS}`}>
+            <span aria-hidden className="text-signal-text">▶</span> Watch the intro
+          </Link>
           <nav aria-label="On this page" className="flex flex-wrap gap-x-1 text-[13px]">
             {[
               ["#path", "Suggested path"],
