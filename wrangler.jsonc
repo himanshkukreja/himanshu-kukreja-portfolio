@@ -31,7 +31,9 @@
   "images": { "binding": "IMAGES" },
   // page copies shared by every machine and colo (cloudflare/worker.ts): the colo cache alone missed often
   "kv_namespaces": [{ "binding": "PAGES", "id": "d95b112bef4a4dc697ecc1638de83b04" }],
-  "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off" },
+  // NEXT_CACHE_DO_QUEUE_REVALIDATION_TIMEOUT_MS: the background re-render after a release gives up at 10 s by default; an
+  // LLD case study takes ~9 s cold, so its rebuilds kept failing and the old page stayed (Design Patterns release, Nov 2026)
+  "vars": { "APP_ENV": "production", "SDM_SNAPSHOT": "off", "NEXT_CACHE_DO_QUEUE_REVALIDATION_TIMEOUT_MS": "30000" },
   // SEARCH: the smart-search engine's own Worker (wrangler.search.jsonc; too big for this one's memory)
   "services": [
     { "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course" },
@@ -66,7 +68,7 @@
       "observability": { "enabled": true },
       "images": { "binding": "IMAGES" },
       "kv_namespaces": [{ "binding": "PAGES", "id": "19aa6193f7784663b57cb99385a3f8d9" }],
-      "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off", "JUDGE_URL": "https://judge-lite.systemdesignmastery.dev", "JUDGE_KEY_ID": "staging", "DSA_BETA_EMAILS": "qa-staging@systemdesignmastery.dev" },
+      "vars": { "APP_ENV": "preview", "SDM_SNAPSHOT": "off", "NEXT_CACHE_DO_QUEUE_REVALIDATION_TIMEOUT_MS": "30000", "JUDGE_URL": "https://judge-lite.systemdesignmastery.dev", "JUDGE_KEY_ID": "staging", "DSA_BETA_EMAILS": "qa-staging@systemdesignmastery.dev" },
       "services": [
         { "binding": "WORKER_SELF_REFERENCE", "service": "sdm-course-staging" },
         { "binding": "SEARCH", "service": "sdm-search-staging" }
