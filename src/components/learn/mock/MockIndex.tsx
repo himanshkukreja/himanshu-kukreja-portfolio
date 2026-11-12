@@ -80,10 +80,10 @@ export default function MockIndex({ map, lld = NONE }: { map: CourseMap; lld?: L
         <div role="tablist" aria-label="Kind of round" className="-mb-4 flex gap-1 overflow-x-auto border-b border-line">
           {(
             [
-              ["hld", `System design · ${mocks.length}`],
-              ["lld", `Machine coding (LLD) · ${lld.length}`],
+              ["hld", "System design", "System design", mocks.length],
+              ["lld", "Machine coding (LLD)", "LLD coding", lld.length],
             ] as const
-          ).map(([k, label]) => (
+          ).map(([k, label, short, n]) => (
             <button
               key={k}
               type="button"
@@ -94,7 +94,8 @@ export default function MockIndex({ map, lld = NONE }: { map: CourseMap; lld?: L
               onClick={() => pick(k)}
               className={`-mb-px min-h-11 shrink-0 whitespace-nowrap border-b-2 px-3.5 font-mono text-[12px] uppercase tracking-label ${tab === k ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
             >
-              {label}
+              <span className="hidden sm:inline">{label}</span>
+              <span className="sm:hidden">{short}</span> · {n}
             </button>
           ))}
         </div>

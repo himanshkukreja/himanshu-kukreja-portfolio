@@ -85,7 +85,7 @@ export default function Debrief(props: Props) {
       <div className="grid grid-cols-2 gap-px self-start border border-line bg-line sm:flex sm:flex-wrap">
         <Stat value={mmss(total)} suffix={` / ${mock.minutes}:00`} label="time used" accent={total > mock.minutes * 60} />
         <Stat value={String(over)} suffix={` / ${mock.phases.length}`} label="phases over budget" />
-        <Stat value={String(cbAnswered)} suffix={` / ${cbFired}`} label="curveballs answered" />
+        <Stat value={String(cbAnswered)} suffix={` / ${cbFired}`} label={mock.kind === "lld" ? "requirement change answered" : "curveballs answered"} />
         <Stat value={String(facts.hints)} label="hints used" />
         <Stat value={String(facts.pauses)} label="pauses" />
         <Stat value={String(props.totalWords)} label="words written" />
