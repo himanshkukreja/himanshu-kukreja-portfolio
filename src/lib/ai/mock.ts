@@ -35,12 +35,26 @@ export { plain as htmlToText };
 
 /* ------------------------------------------------------------------ LLD (machine-coding) mocks */
 
+/** Did an interviewer turn already bring the requirement change? (CHANGE opens with "New requirement:"; an older reply
+ *  may retell it in its own words: most of the change's own words then appear in it.) */
+export function changeBrought(reply: string, change: string): boolean {
+  if (/\bnew requirement\b|\brequirement change\b|\bproduct team\b/i.test(reply)) return true;
+  const ask = /"([^"]+)"/.exec(change)?.[1] ?? change;
+  const stem = (w: string) => w.toLowerCase().slice(0, 5);
+  const words = [...new Set((ask.match(/[A-Za-z][A-Za-z-]{3,}/g) ?? []).map(stem))].filter((w) => !["add", "the", "that", "with", "from", "each", "only"].includes(w));
+  if (!words.length) return false;
+  const seen = new Set((reply.match(/[A-Za-z][A-Za-z-]{3,}/g) ?? []).map(stem));
+  return words.filter((w) => seen.has(w)).length / words.length >= 0.6;
+}
+
 /**
  * The interviewer's input for one turn of an LLD mock (lib/learn/mock/lld.ts): the case study's requirements, this
- * phase's questions and hidden rubric, the hidden reference for this phase (never code), and the requirement change
- * with whether the room has announced it yet. `mock` already carries the attempt's change (withChange).
+ * phase's questions and hidden rubric, the hidden reference for this phase (never code), and where the requirement
+ * change stands: "not yet" until the room announces it, then "due" in the code phase until an interviewer turn of this
+ * phase's conversation (`history`) has brought it, then "discussed"; "earlier" in the phases after the code phase (it
+ * was brought there). `mock` already carries the attempt's change (withChange).
  */
-export function lldTurnInput(mock: MockInterview, phase: MockPhase, changeAnnounced: boolean): LldInterviewInput {
+export function lldTurnInput(mock: MockInterview, phase: MockPhase, changeAnnounced: boolean, history: { role: "user" | "assistant"; content: string }[] = []): LldInterviewInput {
   const l = mock.lld!;
   const k = mock.phases.findIndex((p) => p.id === phase.id);
   const codeAt = mock.phases.findIndex((p) => p.id === l.codePhase);
@@ -62,7 +76,13 @@ export function lldTurnInput(mock: MockInterview, phase: MockPhase, changeAnnoun
     phase: { title: phase.title, questions: phase.prompts.map((x) => `- ${x.text}`).join("\n"), rubric: rubricText(phase) },
     requirements: l.ai.requirements,
     reference: reference.slice(0, 6000),
-    change: change && k >= codeAt ? { status: changeAnnounced ? "announced" : "not yet", text: change.text } : null,
+    change:
+      change && k >= codeAt
+        ? {
+            status: !changeAnnounced ? "not yet" : k > codeAt ? "earlier" : history.some((m) => m.role === "assistant" && changeBrought(m.content, change.text)) ? "discussed" : "due",
+            text: change.text,
+          }
+        : null,
   };
 }
 

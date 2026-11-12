@@ -158,6 +158,22 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // stripped by the route). Its prompt (prompts.ts lldInterviewerSystem) answers clarifying questions from the case study's
   // own requirements table and never writes code or names the design; the route also strips any code from the reply.
   // maxInputChars: the conversation of one phase, which may carry the candidate's code (≤ 6,000) once.
+  // 12 Nov 2026, eval-tuned (scripts/ai-eval/lld-mock.ts, owner-approved): 47 scripted turns on the parking lot, elevator
+  // and digital wallet case studies, every phase (good / broad / unanswerable clarifying questions, "just tell me the
+  // classes", asks for code or the reference, off-topic, wrong claims incl. the GIL, long turns with code, silent / "done",
+  // the change due / not yet / handled / after the code phase), 2 samples each = 94 replies a run; deterministic checks +
+  // an Opus judge. Baseline (the first prompt) → the tuned prompt, two confirming runs:
+  //   one question 80% → 100 / 100 · brief (≤ 80 words, ≤ 4 sentences) 97 → 100 / 100 · no classes, code or solution
+  //   97 → 100 / 100 · no lecture 96 → 99 / 99 · grounded in the requirements 93 → 100 / 97 · wrong claim pushed back with
+  //   a question 83 → 94 / 89 · in character 96 → 100 / 99 · requirement change right 85 → 100 / 100 (the due change was
+  //   brought 0 of 6 times: now 12 of 12) · the case's own expectations 63 → 95 / 91 · every check 57% → 95% / 88%.
+  //   Same model, $0.00019 → $0.00014-0.00018 a turn, mean reply 29 → 25 words, p50 1.6 s → 1.4 s. Eval spend $14.15
+  //   (the Opus judge ~$1.5 a run; the interviewer $0.24 in all). What changed: a plan "kind" that picks the move (BROAD,
+  //   NUDGE, DONE and a STEER BACK for small talk, which used to get OFF_TOPIC: LLD_GUARD), the change status worked out
+  //   in code (lldTurnInput: not yet / due / discussed / earlier) and its line given word for word, names only from the
+  //   candidate, a CHALLENGE that never explains (the GIL), and oneAsk() in lldInterviewerReply (one question, cut at a
+  //   second ask). Left: a lock-order claim is sometimes answered with the whole hold-and-wait cycle, and "done" after a
+  //   request without a question mark can jump to the closing question.
   "lld-mock": { label: "AI LLD mock interviewer (turn)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 450, haikuMaxTokens: 650, maxInputChars: 16000, think: false, live: true },
   // lld-mock-scorecard: the debrief, every phase graded against the case study's Interview checklist and the seven steps,
   // quoting the missed checklist lines. Like "mock-scorecard": thinking at medium effort, one call per finished round.
