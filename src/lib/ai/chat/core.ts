@@ -204,9 +204,12 @@ export async function runChatCore(o: {
   // the page shows each step as it happens (the first message of a chat also works out what's due for review)
   if (first) o.emit({ type: "status", tool: "context", label: TOOL_LABEL.context });
   const recentAnswers = o.req.messages.filter((m) => m.role === "assistant").slice(-3).map((m) => m.text);
-  const context = await learnerContext(st, o.memory, first, Date.now(), { recentAnswers });
+  // the learner context and the lookups for this message, side by side (each was a wait of its own before the model);
   // looked up before the model runs, so most answers need no tool round (see prefetchContext)
-  const pre = o.prefetch === false ? { text: "", ran: [] as string[] } : await prefetchContext(st, latestText, { answerTo: o.req.answerTo });
+  const [context, pre] = await Promise.all([
+    learnerContext(st, o.memory, first, Date.now(), { recentAnswers }),
+    o.prefetch === false ? Promise.resolve({ text: "", ran: [] as string[] }) : prefetchContext(st, latestText, { answerTo: o.req.answerTo }),
+  ]);
   const ctxMs = Date.now() - t0;
   const messages = buildMessages(o.req, st, [context, pre.text ? `<looked_up_for_this_message>\n${pre.text}\n</looked_up_for_this_message>` : ""].filter(Boolean).join("\n\n"));
   const system = o.system ? o.system(o.map) : courseChatSystem(o.map, promptOptsFor(o.model, "course-chat"));

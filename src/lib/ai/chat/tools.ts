@@ -61,8 +61,8 @@ export type ChatDeps = {
   mock: (slug: string) => Promise<MockInterview | null>;
   /** the learner's design on the canvas: this key, else their latest (null: none) */
   design: (key?: string) => Promise<DesignCtx | null>;
-  /** what is due for review now (null: not available) */
-  dueReviews: () => Promise<DueItem[] | null>;
+  /** what is due for review now (null: not available, or not ready within `waitMs` when one is given) */
+  dueReviews: (waitMs?: number) => Promise<DueItem[] | null>;
   /** dated steps for a study plan (null: not available) */
   studyPlan: (p: PlanInput) => Promise<PlanStep[] | null>;
   /** the learner's first name, cleaned (lib/ai/answerStyle.ts learnerFirstName; null: unknown) */
@@ -1127,6 +1127,9 @@ const ago = (at: number, now: number) => {
  * recent activity. Everything in it is the learner's own data or course data, and is framed as data. Refs it
  * mentions are registered like any tool's, so the model can cite them without another call.
  */
+/** How long a chat's first message waits for its due reviews (they are warmed when the chat opens: lib/ai/chat/server.ts). */
+export const FIRST_DUE_WAIT_MS = 2000;
+
 export async function learnerContext(st: ChatState, memory: string[] | null, first = false, now = Date.now(), o: { recentAnswers?: string[] } = {}): Promise<string> {
   const fresh: Record<string, ChatSource> = {};
   const parts: string[] = [];
@@ -1134,7 +1137,8 @@ export async function learnerContext(st: ChatState, memory: string[] | null, fir
   const [p, saved, due, name] = await Promise.all([
     st.d.progress().catch(() => null),
     st.d.savedPaths().catch(() => null),
-    first ? st.d.dueReviews().catch(() => null) : Promise.resolve(null),
+    // never holds the first answer up for long: past FIRST_DUE_WAIT_MS the nudge is left out (get_due_reviews still has it)
+    first ? st.d.dueReviews(FIRST_DUE_WAIT_MS).catch(() => null) : Promise.resolve(null),
     st.d.learnerName ? st.d.learnerName().catch(() => null) : Promise.resolve(null),
   ]);
   // the name now and then, not in every answer: only when none of the tutor's last few answers used it (told to use

@@ -12,8 +12,8 @@ import "server-only";
  *   trial_attempts     trial part scores
  *   analytics_events   quiz_answer / lecture_quiz events, last 120 days (only for learners whose browser
  *                      sends events: GPC / hk.notrack / blockers drop them, so misses are best effort)
- * Plus the course map (titles, links, pass marks), the question bank for a missed question's wording (only
- * when there is a quick-check miss; cached per instance) and the lecture scripts for missed lecture titles.
+ * Plus the course map (titles, links, pass marks), the questions of the weeks with a quick-check miss for its
+ * wording (one week at a time, cached per instance) and the lecture scripts for missed lecture titles.
  *
  * Client-only (pass them as `client`, from collectClientSignals(localStorage) on the learner's device):
  * "your turn" verdicts (sd:verdict:*), quick-check picks (sd:quiz:*), a review queue kept in the browser
@@ -23,7 +23,7 @@ import "server-only";
 import { supabase } from "@/lib/supabase";
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
 import { getLecture } from "@/lib/learn/lecture/load";
-import { getQuestionBank } from "@/lib/learn/arena/bank";
+import { getWeekQuestions } from "@/lib/learn/arena/bank";
 import { lessonKeyOfStep, listSavedPaths } from "@/lib/learn/saved-paths";
 import {
   dayIn,
@@ -58,6 +58,8 @@ export type GetDueReviewsInput = {
 };
 
 const EVENT_DAYS = 120;
+/** weeks whose questions are read for the "why" lines (the most a learner's misses span in practice) */
+const MISS_WEEKS = 6;
 const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ? String(v) : "");
 const num = (v: unknown) => (typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN);
 const yes = (v: unknown) => v === true || v === "true" || v === 1;
@@ -178,18 +180,24 @@ export async function loadReviewSignals(input: Omit<GetDueReviewsInput, "limit">
 /** Wording for the "why" lines: question prompts for missed quick checks, titles for missed lectures. */
 async function addNames(sig: ReviewSignals): Promise<ReviewSignals> {
   const done = sig.done || {};
-  const quizMissed = (sig.quiz || []).some((e) => e.first && !e.correct && !done[e.qid]) || (sig.deviceQuiz || []).some((d) => d.firstTry === false);
+  // only the weeks with a quick-check miss (and this browser's picks, which need the answer key) are read: one week's
+  // questions are ~1/12 of the whole bank, which a cold server took 4-40 s to build before the chat's first answer
+  // (AI audit 12 Nov 2026: first answers 26-45 s)
+  const weeks = new Set<string>();
+  for (const e of sig.quiz || []) if (e.first && !e.correct && !done[e.qid] && e.week) weeks.add(e.week);
+  for (const d of sig.deviceQuiz || []) if (d.week) weeks.add(d.week);
   const lectures = Array.from(new Set((sig.lectureQuiz || []).filter((e) => !e.right).map((e) => e.lecture))).slice(0, 8);
-  const [bank, lecs] = await Promise.all([
-    quizMissed ? getQuestionBank().catch(() => null) : Promise.resolve(null),
+  const [banks, lecs] = await Promise.all([
+    Promise.all([...weeks].slice(0, MISS_WEEKS).map((w) => getWeekQuestions(w).catch(() => []))),
     Promise.all(lectures.map(async (slug) => [slug, await getLecture(slug).catch(() => null)] as const)),
   ]);
   const prompts: Record<string, string> = {};
   const answers: Record<string, number> = {};
-  if (bank) {
+  const byId = new Map(banks.flat().map((q) => [q.id, q]));
+  if (byId.size) {
     const ids = new Set([...(sig.quiz || []).map((e) => e.qid), ...(sig.deviceQuiz || []).map((d) => d.qid)]);
     for (const id of ids) {
-      const q = bank.byId.get(id);
+      const q = byId.get(id);
       if (q) {
         prompts[id] = q.prompt;
         answers[id] = q.answer;

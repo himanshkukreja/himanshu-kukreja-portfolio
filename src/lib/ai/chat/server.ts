@@ -127,11 +127,27 @@ export async function makeDeps(a: { origin: string; userId: string | null; page:
     mock: (slug) => getMockInterview(slug),
     design: async (key) => (a.userId ? latestDesign(a.userId, key) : null),
     // seams for lib/learn/review-due.ts and lib/learn/study-plan.ts (helper B): wired in reviewSeams.ts
-    dueReviews: async () => (a.userId ? dueReviewsFor(a.userId) : null),
+    dueReviews: async (waitMs) => (!a.userId ? null : waitMs ? within(dueReviewsFor(a.userId), waitMs, null, "due reviews") : dueReviewsFor(a.userId)),
     studyPlan: async (p) => planFor(p),
     learnerName: async () => (a.devName !== undefined ? a.devName : a.userId ? (await loadRaw(a.userId)).name : null),
   };
   return { deps, map };
+}
+
+/**
+ * The chat is open (its GET, made when the panel or the chat page mounts): build what its first message needs while
+ * the learner types, so that message doesn't wait for a cold server. The course search index (seconds on a cold
+ * instance), the publishing controls, the course map, the learner's progress and their due reviews. Each one is the
+ * same cached promise the message itself awaits; a failure here only means the message builds it again.
+ * (AI audit 12 Nov 2026: first answers took 26-45 s; the time was the search build and the due reviews.)
+ */
+export function prewarmChat(a: { origin: string; userId: string | null }): Promise<unknown> {
+  return Promise.allSettled([
+    getSearch(a.origin).built,
+    liveCheck(),
+    getCourseMap(),
+    ...(a.userId ? [loadRaw(a.userId), dueReviewsFor(a.userId), loadMemory(a.userId)] : []),
+  ]);
 }
 
 /** The learner's design on the canvas, as /api/learn/ai/canvas-review reads it: this key, else their latest. */

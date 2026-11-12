@@ -8,9 +8,20 @@ import { getDueReviews } from "@/lib/learn/review-due";
 import { buildStudyPlan } from "@/lib/learn/study-plan";
 import type { DueItem, PlanInput, PlanStep } from "./tools";
 
-export async function dueReviewsFor(userId: string): Promise<DueItem[] | null> {
-  const r = await getDueReviews({ userId, limit: 8 }).catch(() => null);
-  return r ? r.items.map((i) => ({ kind: i.kind, id: i.id, title: i.title, href: i.href, why: i.why, dueAt: i.dueAt })) : null;
+/** One learner's due reviews, kept two minutes per instance: the chat's warm-up (when it opens), its first message's
+ *  nudge and the get_due_reviews tool share one read. */
+const due = new Map<string, { at: number; p: Promise<DueItem[] | null> }>();
+const DUE_TTL = 2 * 60_000;
+
+export function dueReviewsFor(userId: string): Promise<DueItem[] | null> {
+  const hit = due.get(userId);
+  if (hit && Date.now() - hit.at < DUE_TTL) return hit.p;
+  const p = getDueReviews({ userId, limit: 8 })
+    .then((r) => r.items.map((i) => ({ kind: i.kind, id: i.id, title: i.title, href: i.href, why: i.why, dueAt: i.dueAt })))
+    .catch(() => null);
+  due.set(userId, { at: Date.now(), p });
+  if (due.size > 500) due.delete(due.keys().next().value as string);
+  return p;
 }
 
 /** Each item's first study day (a step split across days starts on its first). */

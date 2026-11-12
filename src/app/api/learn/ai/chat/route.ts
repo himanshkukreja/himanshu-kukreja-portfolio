@@ -9,7 +9,7 @@ import { courseMapSummary } from "@/lib/ai/chat/mapSummary";
 import { memoryLines } from "@/lib/ai/chat/memory-model";
 import { MEMORY_EVERY, updateMemory } from "@/lib/ai/chat/memory";
 import { admitChat, afterMessage, chatLimits, chatToday, logChatCall, quotaFor } from "@/lib/ai/chat/quota";
-import { ChatWarmingError, loadMemory, makeDeps, MEMORY_WAIT_MS, within } from "@/lib/ai/chat/server";
+import { ChatWarmingError, loadMemory, makeDeps, MEMORY_WAIT_MS, prewarmChat, within } from "@/lib/ai/chat/server";
 import { traceOf } from "@/lib/ai/chat/tools";
 import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 import type { ChatEvent } from "@/lib/ai/chat/text";
@@ -28,7 +28,9 @@ const TITLE_GRACE_MS = 1500;
 const noStore = { "Cache-Control": "private, no-store" };
 
 /**
- * GET /api/learn/ai/chat → { quota, memory, feedback } for the chat's header line (signed in).
+ * GET /api/learn/ai/chat → { quota, memory, feedback } for the chat's header line (signed in). The chat makes it as it
+ * opens, so it also warms what the first message needs (prewarmChat: the course search, the learner's progress and due
+ * reviews) after the response, while the learner types.
  */
 export async function GET(request: Request) {
   // `next dev` only (lib/ai/chat/dev.ts): a stand-in learner gets the real quota line; the bare preview a fixed one
@@ -38,6 +40,7 @@ export async function GET(request: Request) {
   if (me instanceof NextResponse) return me;
   const [{ perDay }, t, m, fb] = await Promise.all([chatLimits(), chatToday(me.id), loadMemory(me.id), feedbackEnabled()]);
   const quota = quotaFor(perDay, t.total, !!ownKey(request));
+  after(() => prewarmChat({ origin: originOf(request), userId: me.id }));
   return NextResponse.json({ quota, memory: { available: m.available, paused: m.paused, has: m.available && m.memory.updatedAt > 0 }, feedback: fb }, { headers: noStore });
 }
 
