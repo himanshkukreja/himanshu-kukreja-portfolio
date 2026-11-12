@@ -15,11 +15,12 @@ import "server-only";
  * A learner's own key (BYOK): their cost, the same model, no quota.
  */
 import { supabase } from "@/lib/supabase";
-import { FEATURES } from "@/lib/ai/features";
+import { FEATURES, ROUTING } from "@/lib/ai/features";
 import { MODELS } from "@/lib/ai/prices";
 import { featureConfig, getAiSettings } from "@/lib/ai/settings";
 import { getBudget, startOfToday, type Mode } from "@/lib/ai/governor";
 import type { ChatQuota } from "./text";
+import type { RouteDecision, RouteReason } from "./route-model";
 
 export const CHAT_FEATURES = ["course-chat", "chat-memory", "chat-title", "dsa-chat", "dsa-tutor"] as const;
 /** The chat features whose rows are messages with a daily quota of their own (DSA Mastery's two since 9 Nov 2026). */
@@ -35,8 +36,9 @@ const OFF_TOPIC_PER_DAY = 5;
 
 type Row = { feature: string; model: string; status: string; cost_usd: number | null; byok: boolean | null };
 
-/** Today's chat rows for one learner: the messages of `feature` counted against its quota, and what every chat feature spent. */
-export async function chatToday(userId: string, feature: MessageFeature = "course-chat"): Promise<{ total: number; spend: number }> {
+/** Today's chat rows for one learner: the messages of `feature` counted against its quota, what every chat feature
+ *  spent, and the turns routed to Sonnet across the three message features (the routing's daily cap, features.ts ROUTING). */
+export async function chatToday(userId: string, feature: MessageFeature = "course-chat"): Promise<{ total: number; spend: number; sonnet: number }> {
   const { data, error } = await supabase
     .from("ai_calls")
     .select("feature, model, status, cost_usd, byok")
@@ -44,17 +46,19 @@ export async function chatToday(userId: string, feature: MessageFeature = "cours
     .in("feature", [...CHAT_FEATURES])
     .gte("created_at", startOfToday().toISOString())
     .limit(3000);
-  if (error || !data) return { total: 0, spend: 0 };
+  if (error || !data) return { total: 0, spend: 0, sonnet: 0 };
   let total = 0;
   let spend = 0;
+  let sonnet = 0;
   for (const r of data as Row[]) {
     const counted = r.status === "ok" || r.status === "off_topic";
     if (!counted || r.byok) continue;
     spend += Number(r.cost_usd) || 0;
+    if (r.model === ROUTING.model && (ROUTING.features as string[]).includes(r.feature)) sonnet++;
     if (r.feature !== feature) continue;
     total++;
   }
-  return { total, spend };
+  return { total, spend, sonnet };
 }
 
 /** What chat spent today for this learner (the shared credits leave it out). Fails soft to 0. */
@@ -63,7 +67,7 @@ export async function chatSpendToday(userId: string): Promise<number> {
 }
 
 export type Admit =
-  | { ok: true; model: string; quota: ChatQuota; mode: Mode; byok: boolean; apiKey: string }
+  | { ok: true; model: string; quota: ChatQuota; mode: Mode; byok: boolean; apiKey: string; route?: RouteNote }
   | { ok: false; status: "disabled" | "over_quota" | "rate_limited" | "blocked" | "off_topic"; message: string; quota: ChatQuota | null; mode: Mode };
 
 export async function chatLimits(feature: MessageFeature = "course-chat") {
@@ -75,8 +79,17 @@ export async function chatLimits(feature: MessageFeature = "course-chat") {
 /** The quota line for a learner who has sent `sent` counted messages today (their own key: no quota). */
 export const quotaFor = (perDay: number, sent: number, ownKey: boolean): ChatQuota => ({ left: ownKey ? perDay : Math.max(0, perDay - sent), perDay, ownKey });
 
-/** May this learner send a chat message now, and on which model? */
-export async function admitChat(a: { userId: string; admin: boolean; userKey: string | null; feature?: MessageFeature }): Promise<Admit> {
+/** What the routing did with a turn, for the metering row (ai_calls.meta.route): the classifier's reason, and whether
+ *  the turn went to Sonnet or why it stayed (capped: the learner's daily Sonnet turns; mode: not green; override: an admin
+ *  model). Never learner text. */
+export type RouteNote = { reason: RouteReason; to: "sonnet" | "capped" | "mode" | "override" };
+
+/**
+ * May this learner send a chat message now, and on which model? A hard turn (`route`, from lib/ai/chat/route-model.ts)
+ * goes to Sonnet 5.5 when the governor is green, the feature is on its default model and the learner has Sonnet turns
+ * left today (features.ts ROUTING); otherwise it is answered on the usual model and the note says why.
+ */
+export async function admitChat(a: { userId: string; admin: boolean; userKey: string | null; feature?: MessageFeature; route?: RouteDecision | null }): Promise<Admit> {
   const feature = a.feature ?? "course-chat";
   const w = WORDS[feature];
   // the course chat keeps its own words exactly
@@ -107,8 +120,19 @@ export async function admitChat(a: { userId: string; admin: boolean; userKey: st
   if ((offTopic.count ?? 0) >= OFF_TOPIC_PER_DAY) return refuse("off_topic", "AI is paused for you until midnight UTC after several requests outside the course. It's here for system design and this course.", quota);
   if (!byok && t.total >= perDay) return refuse("over_quota", sdm ? `You've sent today's ${perDay} chat messages. The chat is back after midnight UTC; the search results still work.` : `You've sent today's ${perDay} ${w.noun} messages. They refill after midnight UTC.${w.still}`, quota);
   // amber mode: the amber model (Haiku 5.5, the chat's model too); an admin's model override applies otherwise
-  const model = !byok && budget.mode === "amber" ? FEATURES[feature].amberModel || MODELS.haiku55 : cfg.model;
-  return { ok: true, model, quota, mode: budget.mode, byok, apiKey };
+  let model = !byok && budget.mode === "amber" ? FEATURES[feature].amberModel || MODELS.haiku55 : cfg.model;
+  let route: RouteNote | undefined;
+  if (a.route?.hard && a.route.reason && ROUTING.features.includes(feature)) {
+    const reason = a.route.reason;
+    if (cfg.model !== FEATURES[feature].model) route = { reason, to: "override" };
+    else if (!byok && budget.mode !== "green") route = { reason, to: "mode" };
+    else if (!byok && t.sonnet >= ROUTING.perUserDay) route = { reason, to: "capped" };
+    else {
+      model = ROUTING.model;
+      route = { reason, to: "sonnet" };
+    }
+  }
+  return { ok: true, model, quota, mode: budget.mode, byok, apiKey, ...(route ? { route } : {}) };
 }
 
 /** The quota after one more message. */

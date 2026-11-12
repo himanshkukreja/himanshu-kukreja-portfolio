@@ -10,6 +10,7 @@ import { unlocksFor } from "@/lib/dsa/ai/unlock";
 import { streamDsa } from "@/lib/dsa/ai/run";
 import { prepareAsk } from "@/lib/dsa/ai/turn";
 import { loadMemory } from "@/lib/ai/chat/server";
+import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 import { learnerBrief } from "@/lib/learner/brief";
 import { readClientSignals } from "@/lib/learner/dsa-profile";
 
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
   const [{ perDay }, t, m] = await Promise.all([chatLimits("dsa-chat"), chatToday(me.id, "dsa-chat"), loadMemory(me.id)]);
-  return NextResponse.json({ quota: quotaFor(perDay, t.total, !!ownKey(request)), memory: { available: m.available, paused: m.paused, has: m.available && m.memory.updatedAt > 0 }, feedback: false }, { headers: noStore });
+  return NextResponse.json({ quota: quotaFor(perDay, t.total, !!ownKey(request)), memory: { available: m.available, paused: m.paused, has: m.available && m.memory.updatedAt > 0 }, feedback: await feedbackEnabled() }, { headers: noStore });
 }
 
 export async function POST(request: Request) {
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
     req,
     titled: true,
     lookup: { tool: "search_course", label: "Searching DSA Mastery…" },
+    route: { text: req.messages[req.messages.length - 1].text },
     memory: { where: `DSA Mastery chat${req.page?.title ? `, asked on the page "${req.page.title.slice(0, 120)}"` : ""}`, on: brief.then((b) => !!b?.memory.available && !b.memory.paused) },
     prepare: async () => {
       const [unlocks, outline, b] = await Promise.all([unlocksFor(me.id), courseOutline(), brief]);

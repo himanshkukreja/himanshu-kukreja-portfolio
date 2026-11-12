@@ -4,7 +4,11 @@ import { isAdminEmail } from "@/lib/ai/access";
 import { ownKey, saveTranscript } from "@/lib/ai/client";
 import { FEATURES } from "@/lib/ai/features";
 import { devPreview, originOf } from "@/lib/search/smart/server";
-import { runChatCore, runMockCore, readRequest } from "@/lib/ai/chat/core";
+import { quickCheckOf, runChatCore, runMockCore, readRequest } from "@/lib/ai/chat/core";
+import { classifyTurn } from "@/lib/ai/chat/route-model";
+import { previousAnswerDown, routeMeta } from "@/lib/ai/chat/routing";
+import { citeMeta } from "@/lib/ai/chat/citations";
+import { promptVersion } from "@/lib/ai/promptVersion";
 import { courseMapSummary } from "@/lib/ai/chat/mapSummary";
 import { memoryLines } from "@/lib/ai/chat/memory-model";
 import { MEMORY_EVERY, updateMemory } from "@/lib/ai/chat/memory";
@@ -72,9 +76,14 @@ export async function POST(request: Request) {
   const req = parsed;
   const userKey = ownKey(request);
 
+  // smart routing (lib/ai/chat/route-model.ts): a hard turn may go to Sonnet 5.5 (admitChat decides, within the daily cap)
+  const latestText = req.messages[req.messages.length - 1].text;
+  const route = dev
+    ? null
+    : classifyTurn({ feature: "course-chat", text: latestText, prevDown: await previousAnswerDown(me.id, req.prevCall).catch(() => false), mock: !!req.mock, grading: !!req.answerTo || !!quickCheckOf(req) });
   const admit = dev
     ? ({ ok: true, model: FEATURES["course-chat"].model, quota: null, mode: "green", byok: false, apiKey: process.env.ANTHROPIC_API_KEY || "" } as const)
-    : await admitChat({ userId: me.id, admin, userKey });
+    : await admitChat({ userId: me.id, admin, userKey, route });
   if (!admit.ok) {
     await logChatCall({ user_id: me.id || null, feature: "course-chat", model: FEATURES["course-chat"].model, status: admit.status, error: admit.message, meta: { chat: req.chat }, byok: !!userKey });
     return NextResponse.json({ error: admit.message, status: admit.status, quota: admit.quota }, { status: admit.status === "disabled" ? 403 : 429, headers: noStore });
@@ -136,6 +145,9 @@ export async function POST(request: Request) {
           meta: {
             chat: req.chat,
             turn: userTurns,
+            pv: promptVersion("course-chat", admit.model),
+            ...("route" in admit ? routeMeta(admit.route) : {}),
+            ...(r.cites ? { cites: citeMeta(r.cites) } : {}),
             rounds: r.loop.rounds,
             tools: r.loop.toolCalls.length,
             toolNames: [...new Set(r.loop.toolCalls.map((t) => t.name))].join(","),

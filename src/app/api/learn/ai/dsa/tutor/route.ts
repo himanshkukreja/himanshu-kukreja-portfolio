@@ -12,6 +12,7 @@ import { TUTOR_MODES, type TutorMode } from "@/lib/dsa/ai/modes";
 import { streamDsa } from "@/lib/dsa/ai/run";
 import { prepareTutor, readResult } from "@/lib/dsa/ai/turn";
 import { loadMemory } from "@/lib/ai/chat/server";
+import { feedbackEnabled } from "@/lib/ai/chat/feedback";
 import { learnerBrief } from "@/lib/learner/brief";
 import { readClientSignals } from "@/lib/learner/dsa-profile";
 
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
   const [{ perDay }, t, m] = await Promise.all([chatLimits("dsa-tutor"), chatToday(me.id, "dsa-tutor"), loadMemory(me.id)]);
-  return NextResponse.json({ quota: quotaFor(perDay, t.total, !!ownKey(request)), memory: { available: m.available, paused: m.paused, has: m.available && m.memory.updatedAt > 0 }, feedback: false }, { headers: noStore });
+  return NextResponse.json({ quota: quotaFor(perDay, t.total, !!ownKey(request)), memory: { available: m.available, paused: m.paused, has: m.available && m.memory.updatedAt > 0 }, feedback: await feedbackEnabled() }, { headers: noStore });
 }
 
 export async function POST(request: Request) {
@@ -78,6 +79,7 @@ export async function POST(request: Request) {
     userKey: ownKey(request),
     feature: "dsa-tutor",
     req,
+    route: { text: req.messages[req.messages.length - 1].text, code, mode, verdict: result?.verdict ?? null },
     lookup: { tool: "get_item", label: mode === "hint" ? "Reading your code and the hint ladder…" : mode === "explain" ? "Reading the problem…" : "Reading your code and the problem…", noun: "problem" },
     memory: { where: `the problem room's tutor on "${shard.title}" (${shard.level}, concept: ${shard.conceptTitle}), in ${lang}; this message: ${mode} mode, last result ${VERDICT}, hint rungs open ${hintsOpen} of ${shard.rungs.length}`, on: brief.then((b) => !!b?.memory.available && !b.memory.paused) },
     prepare: async () => {

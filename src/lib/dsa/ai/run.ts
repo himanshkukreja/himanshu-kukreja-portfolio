@@ -20,6 +20,10 @@ import { pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
 import { answerDsa, type Prepared } from "./answer";
 import { DSA_MEMORY_EVERY, updateDsaMemory } from "./memory";
 import { captureLastChat, privateRequest } from "@/lib/ai/chat/capture";
+import { classifyTurn, type RouteInput } from "@/lib/ai/chat/route-model";
+import { previousAnswerDown, routeMeta } from "@/lib/ai/chat/routing";
+import { citeMeta } from "@/lib/ai/chat/citations";
+import { promptVersion } from "@/lib/ai/promptVersion";
 
 export type { Prepared } from "./answer";
 
@@ -43,9 +47,13 @@ export async function streamDsa(o: {
   titled?: boolean;
   /** where the conversation happens, for the memory update every few messages (lib/dsa/ai/memory.ts); null: no memory */
   memory?: { where: string; on: Promise<boolean> } | null;
+  /** the routing classifier's view of this turn (lib/ai/chat/route-model.ts), without the thumbs-down signal (added here) */
+  route?: Omit<RouteInput, "prevDown" | "feature"> | null;
 }): Promise<Response> {
   const { request, me, admin, userKey, feature, req } = o;
-  const admit = await admitChat({ userId: me.id, admin, userKey, feature });
+  // smart routing: a hard turn may go to Sonnet 5.5 (admitChat decides, within the learner's daily Sonnet turns)
+  const route = o.route ? classifyTurn({ ...o.route, feature, prevDown: await previousAnswerDown(me.id, req.prevCall).catch(() => false) }) : null;
+  const admit = await admitChat({ userId: me.id, admin, userKey, feature, route });
   if (!admit.ok) {
     await logChatCall({ user_id: me.id, feature, model: FEATURES[feature].model, status: admit.status, error: admit.message, meta: { chat: req.chat, course: "dsa" }, byok: !!userKey });
     return NextResponse.json({ error: admit.message, status: admit.status, quota: admit.quota }, { status: admit.status === "disabled" ? 403 : 429, headers: noStore });
@@ -103,7 +111,7 @@ export async function streamDsa(o: {
           latency_ms: Date.now() - t0,
           request_id: loop.requestId,
           byok: admit.byok,
-          meta: { chat: req.chat, course: "dsa", turn: userTurns, prep: prepMs, ttft: loop.ttft === null ? null : prepMs + (tPrep - t0) + loop.ttft, stop: loop.stop, ...p.meta },
+          meta: { chat: req.chat, course: "dsa", turn: userTurns, prep: prepMs, ttft: loop.ttft === null ? null : prepMs + (tPrep - t0) + loop.ttft, stop: loop.stop, ...p.meta, pv: promptVersion(feature, admit.model), ...routeMeta(admit.route), ...(ans.cites ? { cites: citeMeta(ans.cites) } : {}) },
         });
         if (ok) {
           await saveTranscript(callId, me.id, feature, p.ask, text);

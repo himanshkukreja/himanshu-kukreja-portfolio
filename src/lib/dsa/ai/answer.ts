@@ -7,6 +7,7 @@
 import { answerTokens, FEATURES } from "@/lib/ai/features";
 import { runLoop, type ApiMessage, type LoopResult } from "@/lib/ai/chat/loop";
 import { cleanAnswer, followupFilter, OFF_TOPIC_MARK, splitFollowups, type ChatSource } from "@/lib/ai/chat/text";
+import { checkCitations, type CiteStats } from "@/lib/ai/chat/citations";
 import { capCode, codeCapStream } from "./text";
 
 export type DsaFeature = "dsa-chat" | "dsa-tutor";
@@ -18,6 +19,8 @@ export type Prepared = {
   sources: Record<string, ChatSource>;
   /** refs from earlier in the chat that stay citable (the page still has their cards) */
   earlierRefs?: string[];
+  /** ref → the passage the model was shown for it (the citation check's evidence; earlier refs have none: kept) */
+  evidence?: Record<string, string>;
   /** think first (Haiku 5.5 adaptive, low effort) */
   think: boolean;
   /** code blocks capped at this many lines (the no-spoiler guard), or null */
@@ -36,6 +39,8 @@ export type DsaAnswer = {
   raw: string;
   /** what the learner sees */
   text: string;
+  /** the citation check's counts (lib/ai/chat/citations.ts); null: nothing cited */
+  cites: CiteStats | null;
   offTopic: boolean;
   followups: string[];
 };
@@ -77,7 +82,15 @@ export async function answerDsa(o: {
   capped?.flush();
   const offTopic = OFF_TOPIC_MARK.test(loop.text);
   const split = splitFollowups(loop.text, o.latest);
-  let text = cleanAnswer(split.text, (r) => !!p.sources[r] || !!p.earlierRefs?.includes(r));
+  const known = (r: string) => !!p.sources[r] || !!p.earlierRefs?.includes(r);
+  let text = cleanAnswer(split.text, known);
+  // every [[sN]] must point at a passage that supports its sentence: swapped for the one that does, or dropped
+  let cites: CiteStats | null = null;
+  if (text && !offTopic && Object.keys(p.sources).length) {
+    const checked = checkCitations(text, p.evidence ?? {}, known);
+    text = checked.text;
+    cites = checked.stats.total ? checked.stats : null;
+  }
   if (p.cap !== null) text = capCode(text, p.cap);
-  return { loop, raw: loop.text, text, offTopic, followups: split.followups };
+  return { loop, raw: loop.text, text, offTopic, followups: split.followups, cites };
 }

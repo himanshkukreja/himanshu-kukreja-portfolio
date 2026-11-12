@@ -194,6 +194,18 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },
 };
 export const FEATURE_IDS = Object.keys(FEATURES) as FeatureId[];
+
+/**
+ * Smart model routing (owner-approved 12 Nov 2026): course-chat, dsa-chat and dsa-tutor answer on Haiku 5.5, and a "hard"
+ * turn (lib/ai/chat/route-model.ts: a multi-step design trade-off, debugging failing code of 25+ lines, an explicit "go
+ * deeper", or the previous answer thumbed down) goes to Sonnet 5.5. Only in the governor's green mode, only while the
+ * feature runs on its default model (an admin override wins), and at most `perUserDay` Sonnet turns per learner per day
+ * across the three (counted from ai_calls; the cost is metered on the row like any message, model "claude-sonnet-5-5").
+ * Cost: a Sonnet chat turn is ~20x a Haiku one (prices.ts); the eval comparison and the cost per 1,000 turns are in
+ * scripts/ai-eval/route.ts. `perUserDay` 10: a learner's worst day adds ~10 x $0.03-0.05.
+ * A learner's own key (BYOK) routes the same way without the daily cap (their cost).
+ */
+export const ROUTING = { model: MODELS.sonnet, perUserDay: 10, features: ["course-chat", "dsa-chat", "dsa-tutor"] as FeatureId[] };
 /** Content-production jobs (scripts/ai-eval, scripts/ai-batch): not learner usage. */
 export const CONTENT_FEATURES = FEATURE_IDS.filter((id) => FEATURES[id].kind === "content");
 export const isContentFeature = (id: string) => (CONTENT_FEATURES as string[]).includes(id);

@@ -23,6 +23,7 @@ import type { QuestDrills } from "@/lib/learn/drills/parse";
 import type { SavedPath } from "@/lib/learn/saved-paths";
 import type { ChatEvent, ChatSource, PageContext, PathCard, QuizCard, QuizKind, QuizResult } from "./text";
 import { isRef, nextRef, NOUN_OF, toolStatus } from "./text";
+import { evidenceFrom } from "./citations";
 import { STORED_NOTE, type DsaDigest, type ProgressSnapshot } from "./progress-model";
 import { findGuide, guideTopic, type GuideTopic } from "./siteGuide";
 import type { MockInterview } from "@/lib/learn/mock/types";
@@ -87,6 +88,9 @@ export class ChatState {
   toolCalls: string[] = [];
   /** refs this message's tools looked up for the learner, in order (not their own context): fallbackAnswer cites them */
   found: string[] = [];
+  /** what the model was shown for each ref this request (result lines, snippets, <course_text>): the citation check's
+   *  evidence (lib/ai/chat/citations.ts) */
+  shown = new Map<string, string>();
   constructor(
     private deps: ChatDeps,
     private emit: (e: ChatEvent) => void,
@@ -208,6 +212,23 @@ export class ChatState {
       label = `Listing the course's ${/^[A-Z]{2}/.test(g) ? g : g.charAt(0).toLowerCase() + g.slice(1)}…`;
     }
     this.emit({ type: "status", tool: name, label: label ?? toolStatus(name, input, (r) => this.sources.get(r)?.title), ...(noun ? { noun } : {}) });
+  }
+
+  /** Remember what a tool result or context block showed the model for each ref (the citation check reads it). */
+  noteShown(text: string) {
+    if (text) evidenceFrom(text, this.shown);
+  }
+
+  /** The citation check's evidence: what the model was shown for each ref, plus its index entry (title, place,
+   *  summary, text); a site-guide ref by its title. Refs with neither are left out (unverifiable, kept). */
+  citationEvidence(): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const [ref, src] of this.sources) {
+      const d = src.id.startsWith("G:") ? null : (this.docCache.get(src.id) ?? null);
+      const parts = [this.shown.get(ref) ?? "", d ? [d.title, d.sub, d.summary, d.kw, d.text].filter(Boolean).join("\n") : ""].filter(Boolean);
+      if (parts.length) out[ref] = parts.join("\n");
+    }
+    return out;
   }
 
   get search() {

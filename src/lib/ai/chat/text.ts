@@ -83,6 +83,9 @@ export type ChatRequest = {
   title?: "first" | "again";
   /** the answer style the learner picked (lib/ai/answerStyle.ts; none: the default tutor style) */
   style?: AnswerStyle;
+  /** the call id of the previous answer when the learner thumbed it down (the routing sends this turn to Sonnet once the
+   *  server has checked the rating: lib/ai/chat/routing.ts) */
+  prevCall?: number;
 };
 
 /** The chat's quota today (GET /api/learn/ai/chat, and on every answer): one daily message limit (Haiku 5.5 answers

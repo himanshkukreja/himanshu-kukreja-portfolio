@@ -71,6 +71,7 @@ export async function prepareAsk(o: {
   const byKey = new Map(Object.entries(earlier).map(([r, id]) => [id, r]));
   const keys = Object.keys(earlier);
   const sources: Record<string, ChatSource> = {};
+  const evidence: Record<string, string> = {};
   const blocks: string[] = [];
   for (const h of found.hits) {
     let ref = byKey.get(h.key);
@@ -80,6 +81,7 @@ export async function prepareAsk(o: {
     }
     sources[ref] = { id: h.key, kind: h.kind === "editorial" ? "problem" : h.kind, title: h.title, sub: h.sub, href: h.href, at: 0 };
     blocks.push(`[${ref}] ${KIND_LABEL[h.kind]} · ${h.title}\n${h.text}`);
+    evidence[ref] = `${h.title}\n${h.sub}\n${h.text}`;
   }
   // the problems this question is about whose editorial stays locked: the model is told so by name
   const locked = found.problems.filter((p) => !unlocked.has(p.id)).slice(0, 3).map((p) => p.title);
@@ -108,6 +110,7 @@ export async function prepareAsk(o: {
     messages: historyMessages(req, content),
     sources,
     earlierRefs: known,
+    evidence,
     // Haiku 5.5 thinks first (low effort): the eval's traces and spoiler checks were wrong far more often without it
     think: true,
     cap: null,

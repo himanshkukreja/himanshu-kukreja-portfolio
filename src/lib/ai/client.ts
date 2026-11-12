@@ -23,6 +23,7 @@ import { CONTENT_CAP_MESSAGE, contentCapReached, getBudget, startOfToday, type M
 import { dailyAllowanceUsd } from "./limits";
 import { CHAT_FEATURES, chatSpendToday } from "./chat/quota";
 import { contentText, gateImages, type AiContent } from "./image";
+import { promptVersion } from "./promptVersion";
 
 const API = "https://api.anthropic.com/v1/messages";
 const RATE_PER_MIN = 10;
@@ -161,6 +162,9 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     if (!def.amberModel) return refuse("over_quota", "This feature pauses when the budget runs ahead of pace");
     model = def.amberModel;
   }
+
+  // the prompt version this answer is written with (lib/ai/promptVersion.ts): feedback and evals split by it
+  base.meta = { ...base.meta, pv: promptVersion(req.feature, model) };
 
   const inputChars = req.capChars ?? req.messages.reduce((a, m) => a + contentText(m.content).length, 0);
   if (inputChars > cfg.maxInputChars) return refuse("too_long", `That's too long (${inputChars.toLocaleString()} characters, the limit is ${cfg.maxInputChars.toLocaleString()})`);

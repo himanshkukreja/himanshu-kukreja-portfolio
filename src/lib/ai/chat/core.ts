@@ -11,6 +11,7 @@ import { isAnswerStyle, messageLines, pickActions, styleLine, type FollowupActio
 import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor, replyFrom, type PromptSystem } from "@/lib/ai/prompts";
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
+import { checkCitations, type CiteStats } from "./citations";
 import { ChatState, closingLine, fallbackAnswer, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
 import { cleanAnswer, followupFilter, isRef, OFF_TOPIC_MARK, REF_RE, splitFollowups, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
 
@@ -89,14 +90,15 @@ export function readRequest(body: unknown, opts: { endsWithUser?: boolean } = {}
   }
   const title = b.title === "first" || b.title === "again" ? b.title : undefined;
   const style = isAnswerStyle(b.style) && b.style !== "tutor" ? b.style : undefined;
-  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock, ...(title ? { title } : {}), ...(style ? { style } : {}) };
+  const prevCall = Number.isInteger(b.prevCall) && Number(b.prevCall) > 0 ? Number(b.prevCall) : undefined;
+  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock, ...(title ? { title } : {}), ...(style ? { style } : {}), ...(prevCall ? { prevCall } : {}) };
 
 }
 
 /** "> **Quick check:** …" in a tutor answer (the question is group 1) */
 const QUICK_CHECK_RE = /^\s*>\s*\*\*\s*quick check\s*:?\s*\*\*\s*:?\s*(.+)$/im;
 /** the quick check the tutor's last answer ended with (the newest message may answer it), if any */
-function quickCheckOf(req: ChatRequest): string | null {
+export function quickCheckOf(req: ChatRequest): string | null {
   const prev = req.messages[req.messages.length - 2];
   return prev?.role === "assistant" && !req.answerTo ? (QUICK_CHECK_RE.exec(prev.text)?.[1] ?? null) : null;
 }
@@ -168,6 +170,8 @@ export type CoreResult = {
   followups?: string[];
   /** the standard actions offered beside them (an explanation's "Explain simpler", "Quiz me"…) */
   actions?: FollowupAction[];
+  /** the citation check's counts (lib/ai/chat/citations.ts); null: nothing cited or not checked */
+  cites?: CiteStats | null;
 };
 
 /** What the learner sees when every model declined (a safety decline is never an error to retry). */
@@ -211,6 +215,9 @@ export async function runChatCore(o: {
     o.prefetch === false ? Promise.resolve({ text: "", ran: [] as string[] }) : prefetchContext(st, latestText, { answerTo: o.req.answerTo }),
   ]);
   const ctxMs = Date.now() - t0;
+  // what the context and the lookups showed the model for each ref: the citation check's evidence
+  st.noteShown(context);
+  st.noteShown(pre.text);
   const messages = buildMessages(o.req, st, [context, pre.text ? `<looked_up_for_this_message>\n${pre.text}\n</looked_up_for_this_message>` : ""].filter(Boolean).join("\n\n"));
   const system = o.system ? o.system(o.map) : courseChatSystem(o.map, promptOptsFor(o.model, "course-chat"));
   const loopAt = Date.now() - t0;
@@ -232,7 +239,11 @@ export async function runChatCore(o: {
       maxToolRounds: MAX_TOOL_ROUNDS,
       deadline: o.deadline,
       signal: o.signal,
-      runTool: (name, input) => runTool(st, name, input),
+      runTool: async (name, input) => {
+        const out = await runTool(st, name, input);
+        st.noteShown(out);
+        return out;
+      },
       onRound: (n) => {
         deltas.flush();
         o.emit({ type: "round", n });
@@ -277,6 +288,15 @@ export async function runChatCore(o: {
       text = cleanAnswer(line, (ref) => st.sources.has(ref));
     }
   }
+  // every [[sN]] must point at a retrieved source that supports its sentence (lib/ai/chat/citations.ts): unsupported
+  // ones are swapped for the source that does, or dropped; the counts go on the metering row. The page shows the
+  // checked text when the answer is done (the streamed draft is replaced).
+  let cites: CiteStats | null = null;
+  if (text && !offTopic) {
+    const checked = checkCitations(text, st.citationEvidence(), (ref) => st.sources.has(ref));
+    text = checked.text;
+    cites = checked.stats;
+  }
   // cards only under a real, whole answer: not a decline, a practice question waiting for its answer, a mock just
   // started, a saved path's one line, or an answer that was cut off
   const cards = !(offTopic || st.flags.quiz || st.mock || loop.error || loop.stop !== "end_turn" || loop.refusal || !text);
@@ -286,7 +306,7 @@ export async function runChatCore(o: {
   const explained = cards && !st.flags.path && !st.flags.plan && !st.flags.saved && !st.flags.graded && !o.req.answerTo && text.split(/\s+/).length >= 40;
   const gap = /^\s*The course has no lesson on\b|\bnot in a lesson of (?:its|their) own\b/i.test(text);
   const actions = explained && !gap ? pickActions(followups, { asked: latest.text }) : [];
-  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups, actions };
+  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups, actions, cites };
 }
 
 /** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */

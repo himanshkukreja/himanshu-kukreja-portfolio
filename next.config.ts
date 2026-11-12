@@ -1,5 +1,7 @@
 import type { NextConfig } from "next";
 import path from "node:path";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { POSTHOG_ASSETS_HOST, POSTHOG_INGEST_HOST, POSTHOG_KEY, POSTHOG_PROXY_PATH } from "./src/lib/analytics/config";
 import { COURSE_ROOT, LEARN_FEATURES, LEARN_FILES } from "./src/lib/learn/paths";
 
@@ -108,9 +110,25 @@ const courseIconRewrites = ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-ic
 process.env.HK_BUILD_ID ||=
   process.env.VERCEL_DEPLOYMENT_ID || process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 12) || process.env.GITHUB_SHA?.slice(0, 12) || `local-${Date.now().toString(36)}`;
 
+// The AI prompts' revision (lib/ai/promptVersion.ts): a hash of the prompt source files, so every AI answer's metering row
+// and its feedback carry the prompt version they were written with (the AI quality dashboard splits by it).
+const promptRev = (files: string[]) => {
+  const h = createHash("sha256");
+  for (const f of files) {
+    try {
+      h.update(readFileSync(path.join(process.cwd(), f)));
+    } catch {
+      h.update(`missing:${f}`);
+    }
+  }
+  return h.digest("hex").slice(0, 12);
+};
+
 const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_HK_BUILD: process.env.HK_BUILD_ID,
+    AI_PROMPT_REV_SDM: promptRev(["src/lib/ai/prompts.ts"]),
+    AI_PROMPT_REV_DSA: promptRev(["src/lib/dsa/ai/prompts.ts", "src/lib/dsa/ai/interview-prompts.ts"]),
   },
   // PostHog API paths end in a slash (/e/, /flags/?v=2): don't 308 them away (only needed, and
   // only switched on, when the proxy is live).
