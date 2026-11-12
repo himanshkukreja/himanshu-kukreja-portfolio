@@ -389,4 +389,13 @@ export const DSA_TUTOR_CASES: DsaTutorCase[] = [
     learner: { level: "some", solved: 8, struggles: [["Fixed and variable windows", "4 failed submits on 2 variable-window problems"]], notes: { struggles: ["variable windows: when and how far to move left"] } },
     turns: [{ mode: "hint", code: "def longest_fresh(tracks):\n    pass\n", result: null, hintsOpen: 3, maxWords: 130, expect: ["A hint at the next rung's level (when a track repeats, where must the new session start?), taken gently in a small step because this is their known weak spot", "Ends with a question"], mustNot: [NO_FULL, "State the rule for the new left edge (e.g. max(left, last + 1)) outright"] }],
   },
+  {
+    id: "t-personal-session-recall",
+    area: "personal",
+    title: "Memory: back on a problem after a break",
+    problem: B,
+    lang: "python",
+    learner: { level: "some", solved: 5, notes: { sessions: ["2026-11-11: Busiest stretch on the launch dashboard: found the >= tie bug on line 8 with the tutor, had not fixed it yet"] } },
+    turns: [{ mode: "ask", user: "I'm back. Where was I on this one?", code: BUSIEST_TIE, result: TIE_FAIL, maxWords: 120, expect: ["Recalls the last session: the >= tie bug on line 8, not fixed yet (their code still has it)", "Gives the next step (make the comparison strict, then rerun), briefly"], mustNot: ["Say it has no memory of earlier sessions"] }],
+  },
 ];

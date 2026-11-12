@@ -75,7 +75,10 @@ export function dsaBriefLines(o: {
     lang ? `codes in ${DSA_LANG_LABEL[lang]}` : "",
     p?.goal ? `goal: ${p.goal}` : n?.goals.length ? `goal: ${clip(n.goals[0], 80)}` : "",
   ].filter(Boolean);
-  if (who.length) lines.push(`${who.join("; ")}.`);
+  if (who.length) {
+    const w = who.join("; ");
+    lines.push(`${w.charAt(0).toUpperCase()}${w.slice(1)}.`);
+  }
   if (n?.prefs.length) lines.push(`Likes answers: ${n.prefs.slice(0, 4).join("; ")}.`);
 
   // 2. their record, and the habits it shows
