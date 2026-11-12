@@ -70,7 +70,7 @@ export type AiRequest = {
    *  the budget, the governor and the feature's calls-per-day still apply (chat calls never use the shared credits) */
   admitted?: boolean;
   /** what counts toward the feature's maxInputChars when the turn also carries the call's own context next to the
-   *  learner's words (lesson-qa's previous exchange: lib/ai/askPrevious.ts); default: all the messages' text */
+   *  learner's words (lesson-qa's previous exchange: lib/ai/askTurn.ts); default: all the messages' text */
   capChars?: number;
 };
 

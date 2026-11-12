@@ -1,12 +1,12 @@
 /**
- * "Ask this lesson" follow-ups (lib/ai/askPrevious.ts): the previous exchange the panel sends never counts toward
+ * "Ask this lesson" follow-ups (lib/ai/askTurn.ts): the previous exchange the panel sends never counts toward
  * lesson-qa's input cap, and it is clipped at a sentence end (AI audit 12 Nov 2026, probe 10: a follow-up after a
  * normal answer was refused as "1,129 characters, the limit is 1,000").
  *   node --test scripts/tests/lesson-qa-previous.test.mjs
  */
 import test from "node:test";
 import assert from "node:assert/strict";
-import { askCapChars, clipAtBoundary, clipPrevious, PREVIOUS_A_CHARS, PREVIOUS_Q_CHARS } from "../../src/lib/ai/askPrevious.ts";
+import { askCapChars, buildAskTurn, clipAtBoundary, clipPrevious, PREVIOUS_A_CHARS, PREVIOUS_Q_CHARS } from "../../src/lib/ai/askTurn.ts";
 
 const LESSON_QA_CAP = 1000; // FEATURES["lesson-qa"].maxInputChars
 const sentence = (i) => `Sentence ${i} explains why a delete beats an update when two writers race on the same key.`;
@@ -17,7 +17,9 @@ test("the audit's failing follow-up: only the new question counts toward the cap
   const prev = clipPrevious({ q: "Why delete the cache entry on a write instead of updating it?", a: longAnswer });
   assert.ok(prev);
   // the turn the model gets carries the whole exchange, well over the cap...
-  const turn = `<previous_exchange>\nQ: ${prev.q}\nA: ${prev.a}\n</previous_exchange>\n\n${question}`;
+  const turn = buildAskTurn({ question, selection: "", kind: "lesson", mode: "", style: "", prev });
+  assert.match(turn, /^<previous_exchange[^>]*>\nQ: Why delete/);
+  assert.ok(turn.endsWith(question));
   assert.ok(turn.length > LESSON_QA_CAP);
   // ...but the cap sees the learner's question only
   assert.equal(askCapChars(question), question.length);

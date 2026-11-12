@@ -10,7 +10,7 @@ import { dsaDigest, practiceOf, STORED_NOTE } from "../../src/lib/ai/chat/practi
 
 const DAY = 86_400_000;
 const T = Date.parse("2026-11-12T10:00:00Z");
-const map = { mocks: [{ id: "mock-03-flipkart-cart", slug: "mock-03-flipkart-cart", title: "Cart at sale scale", company: "Flipkart" }] };
+const map = { mocks: [{ id: "mock-03", slug: "mock-03-flipkart-cart", title: "Cart at sale scale", company: "Flipkart" }] };
 const titleOf = new Map([["week-04-caching/day-02-cache-invalidation", { title: "Invalidation Strategies" }]]);
 
 test("labs, war rooms, papers, drills, explains and quick checks come from game_done", () => {
@@ -42,16 +42,16 @@ test("labs, war rooms, papers, drills, explains and quick checks come from game_
   assert.deepEqual(p.quickChecks.lessons, [{ week: "week-04-caching", slug: "day-02-cache-invalidation", title: "Invalidation Strategies", n: 2, at: T - DAY }]);
 });
 
-test("mock verdict flags and paper scores come from game_flags", () => {
+test("mock verdict flags (keyed by the mock's id) and paper scores come from game_flags", () => {
   const flags = {
-    "mock:mock-03-flipkart-cart": { best: { at: T - DAY, level: "sde2", verdict: "lean-hire", pct: 64.4 }, last: { at: T, level: "sde2", verdict: "lean-no-hire", pct: 48 }, n: 2 },
+    "mock:mock-03": { best: { at: T - DAY, level: "sde2", verdict: "lean-hire", pct: 64.4 }, last: { at: T, level: "sde2", verdict: "lean-no-hire", pct: 48 }, n: 2 },
     "mock:broken": { best: { verdict: 3 } },
     "paper:w05-scaling": { v: 1, attempts: 2, best: { score: 31, max: 50, at: T, attempt: "a2" } },
     "pref:reader": { size: 2 },
   };
   const p = practiceOf({}, flags, map, titleOf);
   assert.deepEqual(p.mockResults, [
-    { id: "mock-03-flipkart-cart", title: "Cart at sale scale (Flipkart)", n: 2, best: { verdict: "lean-hire", level: "sde2", pct: 64, at: T - DAY }, last: { verdict: "lean-no-hire", level: "sde2", pct: 48, at: T } },
+    { id: "mock-03", slug: "mock-03-flipkart-cart", title: "Cart at sale scale (Flipkart)", n: 2, best: { verdict: "lean-hire", level: "sde2", pct: 64, at: T - DAY }, last: { verdict: "lean-no-hire", level: "sde2", pct: 48, at: T } },
   ]);
   assert.deepEqual(p.papers, [{ key: "w05-scaling", passed: 0, best: { score: 31, max: 50 }, attempts: 2 }]);
 });
@@ -103,7 +103,7 @@ test("the DSA digest over the learner model's rows: solves newest first, concept
   assert.deepEqual(d.struggles, profile.struggles);
   // one CE before an Accepted isn't a struggle; an unsolved problem with a failed submit is, and comes first
   assert.deepEqual(d.hard.map((h) => h.id), ["k-closest-points", "compact-log-buffer", "best-distinct-bundle"]);
-  assert.deepEqual(d.hard[1], { id: "compact-log-buffer", title: "Compact the log buffer", failed: 2, verdicts: ["WA", "ERR"], solved: true, revealed: false });
+  assert.deepEqual(d.hard[1], { id: "compact-log-buffer", title: "Compact the log buffer", concept: "Read and write pointers", failed: 2, verdicts: ["WA", "ERR"], solved: true, revealed: false });
   assert.equal(d.hard[2].revealed, true);
   assert.deepEqual(d.habits, []);
 });

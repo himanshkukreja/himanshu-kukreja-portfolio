@@ -161,7 +161,8 @@ export function buildSnapshot(raw: ProgressRaw, map: CourseMap, today = new Date
     .slice(0, 6)
     .map((c) => ({ front: c.front.slice(0, 200), week: c.week, slug: c.lesson_slug, box: c.box, lastGrade: c.last_grade }));
 
-  const mockTitle = new Map((map.mocks ?? []).map((m) => [m.slug, `${m.title} (${m.company})`]));
+  // done keys are mock:<id> ("mock-01"); the map also knows each mock by its slug
+  const mockTitle = new Map((map.mocks ?? []).flatMap((m) => [m.id, m.slug].map((k) => [k, `${m.title} (${m.company})`] as const)));
   const mocks = Object.keys(done)
     .filter((k) => k.startsWith("mock:"))
     .map((k) => k.slice(5))

@@ -24,7 +24,7 @@ export type PracticeSnapshot = {
   /** quick checks answered right first time, by lesson, most recent first */
   quickChecks: { total: number; lessons: { week: string; slug: string; title: string; n: number; at: number }[] };
   /** a mock's best and last verdict (the flag the mock room keeps); the transcript stays in the browser */
-  mockResults: { id: string; title: string; n: number; best: MockVerdict; last: MockVerdict | null }[];
+  mockResults: { id: string; slug: string; title: string; n: number; best: MockVerdict; last: MockVerdict | null }[];
 };
 export type MockVerdict = { verdict: string; level: string; pct: number; at: number };
 
@@ -40,7 +40,7 @@ export type DsaDigest = {
   /** concepts their record shows as hard, with the reason (lib/learner/dsa-profile.ts) */
   struggles: { concept: string; why: string }[];
   /** problems with 2+ failed submits, the editorial revealed, or a failed submit and no solve yet */
-  hard: { id: string; title: string; failed: number; verdicts: string[]; solved: boolean; revealed: boolean }[];
+  hard: { id: string; title: string; concept: string; failed: number; verdicts: string[]; solved: boolean; revealed: boolean }[];
   /** verdict habits ("solutions too slow…") and the editorial habit */
   habits: string[];
 };
@@ -58,7 +58,7 @@ const verdictOf = (v: unknown): MockVerdict | null => {
 const newest = <T extends { at: number }>(xs: T[]) => xs.sort((a, b) => b.at - a.at);
 
 /** The practice record from game_done and game_flags (pure; see PracticeSnapshot). */
-export function practiceOf(done: Record<string, number>, flags: Record<string, unknown>, map: CourseMap, titleOf: Map<string, { title: string }>): PracticeSnapshot {
+export function practiceOf(done: Record<string, number>, flags: Record<string, unknown>, map: Pick<CourseMap, "mocks">, titleOf: Map<string, { title: string }>): PracticeSnapshot {
   const labs = new Map<string, { id: string; cleared: number; interview: number }>();
   const lab = (id: string) => labs.get(id) ?? labs.set(id, { id, cleared: 0, interview: 0 }).get(id)!;
   const warRooms: PracticeSnapshot["warRooms"] = [];
@@ -98,8 +98,9 @@ export function practiceOf(done: Record<string, number>, flags: Record<string, u
     const attempts = Number(f?.attempts) || 0;
     if (passed.has(key) || best || attempts) papers.push({ key, passed: passed.get(key) ?? 0, best, attempts });
   }
-  const mockTitle = new Map<string, string>();
-  for (const m of map.mocks ?? []) for (const id of [m.id, m.slug]) mockTitle.set(id, `${m.title} (${m.company})`);
+  // flags are mock:<id> ("mock-01"); the page and the search index know a mock by its slug
+  const mockOf = new Map<string, { slug: string; title: string }>();
+  for (const m of map.mocks ?? []) for (const id of [m.id, m.slug]) mockOf.set(id, { slug: m.slug, title: `${m.title} (${m.company})` });
   const mockResults: PracticeSnapshot["mockResults"] = [];
   for (const [k, v] of Object.entries(flags)) {
     if (!k.startsWith("mock:") || !v || typeof v !== "object") continue;
@@ -107,7 +108,7 @@ export function practiceOf(done: Record<string, number>, flags: Record<string, u
     const best = verdictOf(f.best);
     if (!best) continue;
     const id = k.slice(5);
-    mockResults.push({ id, title: mockTitle.get(id) ?? id, n: Number(f.n) || 1, best, last: verdictOf(f.last) });
+    mockResults.push({ id, slug: mockOf.get(id)?.slug ?? id, title: mockOf.get(id)?.title ?? id, n: Number(f.n) || 1, best, last: verdictOf(f.last) });
   }
   const labList = [...labs.values()].sort((a, b) => Math.max(b.cleared, b.interview) - Math.max(a.cleared, a.interview));
   return {
@@ -155,7 +156,7 @@ export function dsaDigest(raw: DsaLearnerRaw, ix: DsaIndex, profile: DsaProfile)
   const per = new Map<string, number>();
   for (const r of recent) if (r.concept) per.set(r.concept, (per.get(r.concept) ?? 0) + 1);
   const hard = [...new Set([...fails.keys(), ...revealed])]
-    .map((id) => ({ id, title: meta(id).title, failed: fails.get(id)?.n ?? 0, verdicts: [...(fails.get(id)?.verdicts ?? [])], solved: solvedAt.has(id), revealed: revealed.has(id) }))
+    .map((id) => ({ id, title: meta(id).title, concept: conceptName(meta(id).concept), failed: fails.get(id)?.n ?? 0, verdicts: [...(fails.get(id)?.verdicts ?? [])], solved: solvedAt.has(id), revealed: revealed.has(id) }))
     // one failed submit before an Accepted is normal
     .filter((h) => h.failed >= 2 || h.revealed || (h.failed > 0 && !h.solved))
     .sort((a, b) => Number(a.solved) - Number(b.solved) || b.failed - a.failed)

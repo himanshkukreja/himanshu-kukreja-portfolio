@@ -1126,7 +1126,7 @@ const ago = (at: number, now: number) => {
 /** How long a chat's first message waits for its due reviews (they are warmed when the chat opens: lib/ai/chat/server.ts). */
 export const FIRST_DUE_WAIT_MS = 2000;
 
-const verdictText = (v: { verdict: string; level: string; pct: number }) => `${v.verdict.replace(/-/g, " ")}${v.level ? ` at ${v.level.toUpperCase()}` : ""}${v.pct ? `, ${v.pct}%` : ""}`;
+const verdictText = (v: { verdict: string; level: string; pct: number }) => `"${v.verdict.charAt(0).toUpperCase()}${v.verdict.slice(1).replace(/-/g, " ")}"${v.level ? ` at ${v.level.toUpperCase()}` : ""}${v.pct ? `, ${v.pct}%` : ""}`;
 const human = (id: string) => id.replace(/[-_]+/g, " ");
 
 /**
@@ -1137,7 +1137,7 @@ const human = (id: string) => id.replace(/[-_]+/g, " ");
 async function practiceLines(st: ChatState, p: ProgressSnapshot, now: number, fresh: Record<string, ChatSource>, full: boolean): Promise<string[]> {
   const { practice: x, dsa } = p;
   const n = full ? 12 : 3;
-  await st.ensure([...x.labs.slice(0, n).map((l) => `LB:${l.id}`), ...x.warRooms.slice(0, n).map((w) => `WR:${w.slug}`), ...x.mockResults.slice(0, n).map((m) => `MK:${m.id}`)]);
+  await st.ensure([...x.labs.slice(0, n).map((l) => `LB:${l.id}`), ...x.warRooms.slice(0, n).map((w) => `WR:${w.slug}`), ...x.mockResults.slice(0, n).map((m) => `MK:${m.slug}`)]);
   const named = (id: string, fallback: string) => {
     const d = st.liveDoc(id);
     return d ? `${st.ref(d, fresh)} ${d.title}` : fallback;
@@ -1148,11 +1148,11 @@ async function practiceLines(st: ChatState, p: ProgressSnapshot, now: number, fr
     out.push(
       `Code labs (their record holds only the outcome: how many runs, failed runs or hints a lab took isn't stored, so when they ask how a lab went, give the outcome and its date and say you can't see the runs): ${x.labs
         .slice(0, n)
-        .map((l) => `${named(`LB:${l.id}`, human(l.id))}: ${l.cleared ? `cleared, every test passing${when(l.cleared)}` : "not cleared"}${l.interview ? `; interview mode passed${when(l.interview)}` : ""}`)
+        .map((l) => `${named(`LB:${l.id}`, human(l.id))}: ${l.cleared ? `cleared, every test passing${when(l.cleared)}` : "not cleared"}${l.interview ? `; interview mode passed${when(l.interview)}` : l.cleared ? "; interview mode not passed yet (a natural next step)" : ""}`)
         .join("; ")}${x.labs.length > n ? `; +${x.labs.length - n} more` : ""}`,
     );
   if (x.mockResults.length)
-    out.push(`Mock interview results (verdicts only; transcripts and per-phase scores stay in their browser): ${x.mockResults.slice(0, n).map((m) => `${named(`MK:${m.id}`, m.title)}: best ${verdictText(m.best)}${when(m.best.at)}${m.last && m.n > 1 ? `, last ${verdictText(m.last)}` : ""}, ${m.n} run(s)`).join("; ")}`);
+    out.push(`Mock interview results (only these verdicts are stored: which phase was weak, the transcript and the scorecard text stay in their browser, so never guess them): ${x.mockResults.slice(0, n).map((m) => `${named(`MK:${m.slug}`, m.title)}: best ${verdictText(m.best)}${when(m.best.at)}${m.last && m.n > 1 ? `, last ${verdictText(m.last)}` : ""}, ${m.n} run(s)`).join("; ")}`);
   if (x.warRooms.length) out.push(`War rooms cleared: ${x.warRooms.slice(0, n).map((w) => `${named(`WR:${w.slug}`, human(w.slug))}${when(w.at)}`).join("; ")}`);
   if (x.papers.length) out.push(`Written papers: ${x.papers.slice(0, n).map((q) => `${human(q.key)}: ${q.passed ? "passed" : "not passed yet"}${q.best ? `, best ${q.best.score}/${q.best.max}` : ""}${q.attempts ? `, ${q.attempts} attempt(s)` : ""}`).join("; ")}`);
   if (x.quickChecks.total) out.push(`Quick checks right first time: ${x.quickChecks.total}${x.quickChecks.lessons.length ? `, most recently in ${x.quickChecks.lessons.slice(0, full ? 6 : 2).map((l) => `${l.title} (${l.n})`).join(", ")}` : ""}`);
@@ -1163,8 +1163,12 @@ async function practiceLines(st: ChatState, p: ProgressSnapshot, now: number, fr
     const about = (r: DsaDigest["recent"][number]) => [r.level, r.concept, r.langs.join("/"), r.at > 1 ? ago(r.at, now) : ""].filter(Boolean).join(", ");
     if (dsa.recent.length) bits.push(`${full ? "solved, newest first" : "latest"}: ${dsa.recent.slice(0, full ? 8 : 5).map((r) => `${r.title}${about(r) ? ` (${about(r)})` : ""}`).join("; ")}`);
     if (dsa.concepts.length) bits.push(`concepts solved in: ${dsa.concepts.map((c) => `${c.name} ×${c.solved}`).join(", ")}`);
-    if (dsa.struggles.length) bits.push(`hard for them: ${dsa.struggles.map((c) => `${c.concept} (${c.why})`).join("; ")}`);
-    if (dsa.hard.length) bits.push(`took several tries: ${dsa.hard.slice(0, full ? 5 : 3).map((h) => `${h.title} (${[h.failed ? `${h.failed} failed submit(s): ${h.verdicts.join("/")}` : "", h.revealed ? "editorial revealed" : "", h.solved ? "solved since" : "not solved yet"].filter(Boolean).join(", ")})`).join("; ")}`);
+    // each problem once: under its concept when that concept is one of their struggles, else on its own
+    const tries = (h: DsaDigest["hard"][number]) => `${h.title}: ${[h.failed ? `${h.failed} failed submit(s), ${h.verdicts.join("/")}` : "", h.revealed ? "editorial revealed" : "", h.solved ? "solved since" : "not solved yet"].filter(Boolean).join(", ")}`;
+    const named = new Set(dsa.struggles.map((c) => c.concept));
+    if (dsa.struggles.length) bits.push(`hard for them: ${dsa.struggles.map((c) => { const hs = dsa.hard.filter((h) => h.concept === c.concept); return `${c.concept} (${hs.length ? hs.map(tries).join("; ") : c.why})`; }).join("; ")}`);
+    const other = dsa.hard.filter((h) => !named.has(h.concept));
+    if (other.length) bits.push(`took several tries: ${other.slice(0, full ? 5 : 3).map(tries).join("; ")}`);
     if (dsa.habits.length) bits.push(`habits: ${dsa.habits.join("; ")}`);
     out.push(`DSA Mastery (their coding course on this site): ${bits.join("; ")}.`);
   } else if (full) out.push("DSA Mastery (their coding course on this site): nothing solved or submitted yet.");
