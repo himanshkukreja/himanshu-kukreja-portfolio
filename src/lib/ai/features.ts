@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading" | "plan-coach" | "concept-recap";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -189,6 +189,16 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // words. Cached a day per learner and track (the route reuses the day's transcript), so perDay is small: three tracks.
   // ~600 tokens in, ~150 out: about $0.0001-0.0002 a reading, on the learner's shared daily credits. No thinking.
   "readiness-reading": { label: "Interview-readiness reading", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 4, maxTokens: 350, maxInputChars: 3000, think: false, live: true },
+  // AI planning (owner-approved 12 Nov 2026, lib/learner/planning-model.ts): the plans' dates and order are code; this is
+  // the optional prose on top. "plan-coach": the study plan's one-line "why this week" (cached a week per plan) and a
+  // company plan's priorities paragraph (cached a week per company); course titles, bands and numbers in, never the
+  // learner's words. ~500 tokens in, ~120 out: ~$0.0001 a call. perDay 6 covers a re-plan or two a day.
+  "plan-coach": { label: "Study plan coach (why this week, company priorities)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 6, maxTokens: 300, maxInputChars: 4000, think: false, live: true },
+  // the quiet nudge's on-demand "3-minute recap" of a topic missed twice in 14 days, grounded in the concept's refresher and
+  // the lesson section that teaches it (the key points missed are the course's words). Thinks at low effort: without it
+  // Haiku 5.5 slipped in its worked examples (which value leaves a sliding window; eval 12 Nov 2026). ~2.5k tokens in,
+  // ~350 out plus a short think: ~$0.001.
+  "concept-recap": { label: "3-minute recap of a missed topic", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 10, maxTokens: 650, maxInputChars: 9000, think: true, effort: "low", live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

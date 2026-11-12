@@ -8,6 +8,7 @@
  * reading tools, and the lesson body. Its six beats are Meet it, Operations, Try it (the sandbox), Build it (the lab),
  * Use it well and Recap; the warm-up problems close the page.
  */
+import ConnectedPanel from "@/components/learn/connections/ConnectedPanel";
 import "../dsa.css";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -189,6 +190,7 @@ function Body({ s, lecture }: { s: StructurePage; lecture: LectureCardInfo }) {
           <LessonContentWrapper ref={contentRef} htmlContent={s.html} courseId={DSA_COURSE_ID} week={s.module} lessonSlug={s.id} lessonTitle={s.title} />
           <StructureHydrator rootRef={contentRef} page={s} />
           <End s={s} />
+          <ConnectedPanel page={`dsa-concept:${s.id}`} className="mt-6" />
         </FocusMode>
       </div>
       <div aria-hidden data-focus-hide className="h-20 lg:hidden" />

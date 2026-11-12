@@ -7,6 +7,7 @@ import { resolveTrack } from "@/components/learn/tracks/resolve";
 import { CATEGORY_LABEL, TYPE_LABEL, type CompanyQuestion } from "@/lib/learn/prep/types";
 import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
 import CompanyLogo, { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
+import { CompanyPlanEntry } from "@/components/learn/plan/CompanyPlan";
 
 export const runtime = "nodejs";
 // Rendered once and served from the cache, refreshed weekly and on every content push (revalidate-courses).
@@ -119,6 +120,8 @@ export default async function CompanyPage({ params }: Props) {
           </div>
         )}
       </header>
+
+      <CompanyPlanEntry slug={c.slug} name={c.name} />
 
       {c.rounds.length > 0 && (
         <section aria-labelledby="rounds-h" className="flex flex-col gap-3">

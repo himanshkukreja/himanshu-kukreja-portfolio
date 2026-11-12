@@ -37,6 +37,7 @@ import ShareProgress from "@/components/learn/progress/ShareProgress";
 import CertificateEntry from "@/components/learn/certificate/CertificateEntry";
 import { useMockStatus } from "@/lib/learn/mock/store";
 import ReadinessCard from "@/components/learn/progress/ReadinessCard";
+import QuietNudge, { usePlanStanding } from "@/components/learn/plan/QuietNudge";
 
 export default function DashboardClient({ map, lectures = [] }: { map: CourseMap; lectures?: LectureLite[] }) {
   const d = useProgressData(map);
@@ -167,6 +168,9 @@ export default function DashboardClient({ map, lectures = [] }: { map: CourseMap
   }, [map.weeks, currentWeek, scores]);
   const dueNow = useMemo(() => (cardsReady ? cards.filter((c) => c.dueAt <= localDate()).length : null), [cards, cardsReady]);
 
+  // the quiet nudge's plan line: how the /plan stands today
+  const standing = usePlanStanding(d.ready ? map : null, d.ready ? lessons : null, d.ready ? done : null);
+
   const name = d.profile?.full_name || d.user?.email?.split("@")[0] || "Guest learner";
   const defaultLesson = resume && resume.mode === "resume" ? { week: resume.lesson.week, slug: resume.lesson.slug } : null;
 
@@ -226,6 +230,8 @@ export default function DashboardClient({ map, lectures = [] }: { map: CourseMap
       <Link href="/guide#progress" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg lg:-mt-10">
         what do these numbers mean? read the guide →
       </Link>
+
+      {d.signedIn && <QuietNudge standing={standing} className="-mt-4 lg:-mt-8" />}
 
       {d.signedIn && <ReadinessCard tracks={["sdm", "lld", "dsa"]} />}
 

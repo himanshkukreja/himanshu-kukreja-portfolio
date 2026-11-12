@@ -6,6 +6,7 @@ import type { LectureRef } from "../map/Campus";
 import SolvedMark from "../problem/SolvedMark";
 import HubStart from "./HubStart";
 import BrowseEverything from "./BrowseEverything";
+import QuietNudge from "@/components/learn/plan/QuietNudge";
 
 const WATCH = [
   { href: "/dsa/lectures", kicker: "Lectures", title: "Watch each lesson animated" },
@@ -40,6 +41,8 @@ export default function DsaHub({
     <div className="dsa-theme">
       <main className="mx-auto flex max-w-[1320px] flex-col gap-10 px-4 pb-28 pt-6 sm:px-6 sm:pt-8">
         <HubStart academy={specs.academy ?? null} />
+        {/* one quiet line for a DSA topic missed twice lately (signed-in learners; nothing for guests) */}
+        <QuietNudge course="dsa" className="-mt-4" />
 
         {worlds.length ? (
           <DsaWorlds worlds={worlds} specs={specs} lectures={lectures} mediaBase={mediaBase} />
