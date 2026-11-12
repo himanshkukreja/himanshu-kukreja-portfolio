@@ -36,7 +36,7 @@ export type RouteDecision = { hard: boolean; reason: RouteReason | null; signals
 /** failing code of at least this many lines makes a debugging turn hard */
 export const DEBUG_MIN_LINES = 25;
 
-const DEEPER = /\b(?:go(?:ing)?|dig|dive)\s+deeper\b|\bin\s+(?:more\s+|greater\s+|full\s+)?(?:depth|detail)\b|\bdeep[- ]?dive\b|\bmore\s+detail(?:ed)?\b|\belaborate\b|\bexplain\s+(?:it|this|that)?\s*(?:in\s+)?(?:more|further)\b|\bunder\s+the\s+hood\b/i;
+const DEEPER = /\b(?:go(?:ing)?|dig|dive)\s+deeper\b|\bin\s+(?:more\s+|greater\s+|full\s+)?(?:depth|detail)\b|\bdeep[- ]?dive\b|\bmore\s+detail(?:ed)?\b|\belaborate\b|\bexplain\s+(?:it|this|that)\s+(?:in\s+)?(?:more|further)\s+(?:detail|depth)\b|\bexplain\s+(?:it\s+|this\s+|that\s+)?further\b|\bunder\s+the\s+hood\b/i;
 const FAILING = /\b\w*(?:Error|Exception)\b|\b(?:error|errors|exception|traceback|stack\s*trace|fails?|failing|failed|wrong\s+answer|bug|buggy|doesn'?t\s+work|not\s+working|broken|crash(?:es|ing)?|TLE|time\s+limit|segfault|stack\s*overflow|null\s*pointer|NPE|undefined|NaN|off[- ]by[- ]one|infinite\s+loop|WA\b|RE\b)/i;
 const BAD_VERDICTS = new Set(["WA", "TLE", "RE", "CE", "MLE", "OLE", "ERR"]);
 

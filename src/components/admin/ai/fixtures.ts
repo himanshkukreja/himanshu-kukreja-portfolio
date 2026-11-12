@@ -5,6 +5,8 @@
  */
 import { CONTENT_FEATURES, FEATURES, FEATURE_IDS, type FeatureId } from "@/lib/ai/features";
 import { MODELS, PRICES } from "@/lib/ai/prices";
+import { FEEDBACK_FEATURES, REASON_IDS } from "@/lib/ai/feedback-model";
+import { qualityStats, type CallRow, type FeedbackRow } from "@/lib/admin/aiQuality-model";
 
 if (process.env.NODE_ENV !== "development") {
   throw new Error("admin fixtures are dev-only");
@@ -317,6 +319,8 @@ export function resolveAiFixture(u: URL, init?: RequestInit): unknown {
         features: FEATURE_IDS.map((id) => ({ id, label: FEATURES[id].label, enabled: true, model: FEATURES[id].model, defaultModel: FEATURES[id].model, perDay: FEATURES[id].perDay, live: FEATURES[id].live, maxTokens: FEATURES[id].maxTokens, content: FEATURES[id].kind === "content" })),
         models: Object.values(MODELS).map((id) => ({ id, price: PRICES[id] })),
       };
+    case "/api/admin/ai/quality":
+      return qualityFixture(u);
     case "/api/admin/ai/limits":
       return { shared: { credits: 500, ceiling: 500 }, limits: [] };
     case "/api/admin/ai/calls":
@@ -334,4 +338,58 @@ export function resolveAiFixture(u: URL, init?: RequestInit): unknown {
     default:
       return undefined;
   }
+}
+
+/** /api/admin/ai/quality: seeded calls and ratings for every rateable feature, through the route's own maths */
+function qualityFixture(u: URL) {
+  const days = Math.min(90, Math.max(1, Number(u.searchParams.get("days")) || 14));
+  const r = rng(77);
+  const since = new Date(Date.now() - (days - 1) * DAY);
+  since.setUTCHours(0, 0, 0, 0);
+  const weight: Record<string, number> = { "course-chat": 40, "dsa-chat": 18, "dsa-tutor": 14, "lesson-qa": 22, "snip-explain": 6, "lab-hint": 9, "lab-review": 3, "explain-back": 8, "mock-scorecard": 1.5, "lld-mock-scorecard": 1 };
+  const calls: CallRow[] = [];
+  const fb: FeedbackRow[] = [];
+  let id = 9000;
+  for (let d = 0; d < days; d++)
+    for (const f of FEEDBACK_FEATURES) {
+      const n = Math.round(weight[f] * (0.6 + r() * 0.8));
+      for (let k = 0; k < n; k++) {
+        const at = new Date(since.getTime() + d * DAY + r() * DAY).toISOString();
+        const err = r() < 0.03;
+        const chat = f === "course-chat" || f === "dsa-chat";
+        const sonnet = (chat || f === "dsa-tutor") && r() < 0.06;
+        const base = f === "mock-scorecard" || f === "lld-mock-scorecard" ? 22_000 : chat ? 6000 : 2500;
+        calls.push({ id: ++id, created_at: at, feature: f, model: sonnet ? MODELS.sonnet : MODELS.haiku55, status: err ? "error" : "ok", cost_usd: (sonnet ? 0.035 : 0.0012) * (0.5 + r()), latency_ms: Math.round(base * (0.5 + r() * 1.6)), cites: chat ? { n: 3 + Math.floor(r() * 4), fixed: r() < 0.08 ? 1 : 0, dropped: r() < 0.06 ? 1 : 0 } : null, routed: sonnet ? "sonnet" : (chat && r() < 0.01 ? "capped" : null) });
+        if (!err && r() < 0.18) {
+          const down = r() < (f === "lab-hint" ? 0.35 : 0.2);
+          fb.push({ call_id: id, created_at: at, rating: down ? -1 : 1, reason: down && r() < 0.7 ? REASON_IDS[Math.floor(r() * REASON_IDS.length)] : null, feature: f });
+        }
+      }
+    }
+  const stats = qualityStats(calls, fb, since);
+  const excerpts = [
+    "Cache-aside reads the cache first; on a miss it loads from the database and fills the cache. On a write, update the database, then delete the key…",
+    "Hint 2: look at line 9. When the window moves one step, which index leaves it? Trace example-1 with k = 3 and compare the start you return…",
+    "VERDICT: partial. You got the hash ring and why keys move only on one arc. Missing: virtual nodes. Fix: say how each server gets many points…",
+    "A token bucket refills r tokens a second up to b; each request takes one. Bursts up to b pass, and the long-run rate stays r…",
+  ];
+  const downs = fb.filter((x) => x.rating === -1).slice(-12).reverse();
+  return {
+    window: days,
+    since: since.toISOString(),
+    feedback: { enabled: true, migrated: false },
+    partial: false,
+    total: stats.total,
+    daily: stats.days,
+    features: stats.features,
+    recentDowns: downs.map((d, i) => ({ callId: d.call_id, at: d.created_at, feature: d.feature, model: MODELS.haiku55, pv: ["3f9a1c2e", "b81d07aa"][i % 2], reason: d.reason ?? null, excerpt: excerpts[i % excerpts.length] })),
+    nightly: {
+      runs: Array.from({ length: 6 }, (_, i) => ({
+        at: new Date(Date.now() - (6 - i) * DAY).toISOString(),
+        spend: 1.1 + r() * 0.3,
+        rates: { citations: 1, chat: 0.7 + r() * 0.2, dsa: 0.78 + r() * 0.1, "lld-mock": 0.85 + r() * 0.1, brief: 0.8 + r() * 0.1 },
+        drops: i === 4 ? ["chat"] : [],
+      })),
+    },
+  };
 }

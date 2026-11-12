@@ -80,6 +80,16 @@ export function isSupported(s: { overlap: number; coverage: number }, claimSize:
   return (s.overlap >= 2 && s.coverage >= 0.2) || s.overlap >= 4;
 }
 
+/** evidence with fewer content words than this can't fairly fail a claim: the citation is kept as unverifiable */
+export const MIN_EVIDENCE = 10;
+
+/** A citation used as the object of its sentence ("see [[s3]]", "covered in [[s2]]", "start with [[s1]]", "→ [[s4]]"):
+ *  a pointer to where something is, not support for a claim. */
+export function isPointer(text: string, at: number): boolean {
+  const before = text.slice(Math.max(0, at - 60), at).replace(REF_GROUP, " ").trimEnd();
+  return /(?:\b(?:see|in|at|from|read|reread|re-read|open|try|watch|check|start\s+with|begin\s+with|continue\s+with|next(?:\s+up)?|covered\s+in|covers\s+(?:it|this|that)\s+in|explained\s+in|taught\s+in|walkthrough(?:\s+is)?|lesson|section|lecture|lab|quest|drill|card)|[→:(—-])$/i.test(before);
+}
+
 /** The sentence a citation at `at` is attached to: from the last sentence end before it (on its line), widened to the
  *  previous sentence when that is very short (a citation after "It does." still needs the claim). */
 export function claimBefore(text: string, at: number): string {
@@ -117,8 +127,10 @@ export function checkCitations(answer: string, evidence: Evidence, allowed?: (re
         continue;
       }
       const mine = ev.get(ref);
-      // nothing to check against, or nothing to check (a citation on a bare heading): kept
-      if (!mine || claim.size === 0) {
+      // nothing to check against, too little to check against (an index entry with a one-line summary), nothing to check
+      // (a citation on a bare heading), or a pointer ("see [[s3]]", "the course covers it in [[s2]]": the citation is the
+      // sentence's object, not support for a claim): kept
+      if (!mine || mine.size < MIN_EVIDENCE || claim.size === 0 || isPointer(answer, at)) {
         stats.unverifiable++;
         details.push({ ref, verdict: "unverifiable", score: 0, claim: claimText });
         keep.push(ref);
@@ -135,7 +147,7 @@ export function checkCitations(answer: string, evidence: Evidence, allowed?: (re
       }
       if (isSupported(s, claim.size)) {
         // supported, but only just, while another retrieved source is plainly the one this sentence comes from: swap
-        if (best && best.s.overlap >= s.overlap + 3 && best.s.coverage >= 2 * s.coverage) {
+        if (best && s.coverage < 0.25 && best.s.overlap >= s.overlap + 4 && best.s.coverage >= 2 * s.coverage) {
           stats.fixed++;
           details.push({ ref, verdict: "fixed", to: best.ref, score: s.score, claim: claimText });
           keep.push(best.ref);

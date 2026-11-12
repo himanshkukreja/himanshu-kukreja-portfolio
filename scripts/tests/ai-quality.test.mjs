@@ -28,7 +28,10 @@ for (const c of CITATION_CASES) {
 }
 
 test("citations: the text keeps good refs, swaps fixed ones and cleans an emptied group", () => {
-  const ev = { s1: "Consistent hashing places keys and servers on a hash ring with virtual nodes", s2: "Token bucket rate limiting refills tokens per second" };
+  const ev = {
+    s1: "Consistent hashing places keys and servers on a hash ring; adding a server moves only one arc of keys; virtual nodes give each server many points so load evens out across the cluster",
+    s2: "Token bucket rate limiting: a bucket holds up to b tokens and refills r tokens per second; each request spends one token, bursts pass up to the bucket size",
+  };
   const r = checkCitations("Virtual nodes spread keys around the hash ring evenly [[s2]]. Tokens refill each second in a token bucket [[s2]].", ev);
   assert.equal(r.text, "Virtual nodes spread keys around the hash ring evenly [[s1]]. Tokens refill each second in a token bucket [[s2]].");
   const d = checkCitations("Kafka partitions keep order per partition [[s2]].", ev);
@@ -37,7 +40,7 @@ test("citations: the text keeps good refs, swaps fixed ones and cleans an emptie
 });
 
 test("citations: refs outside the allowed set are dropped; no evidence is unverifiable (kept)", () => {
-  const r = checkCitations("A bloom filter has no false negatives [[s1, s7]].", { s1: "Bloom filter: no false negatives, tunable false positives" }, (ref) => ref === "s1");
+  const r = checkCitations("A bloom filter has no false negatives [[s1, s7]].", { s1: "Bloom filter: a bit array with k hash functions; no false negatives, tunable false positives, no deletes in the basic form" }, (ref) => ref === "s1");
   assert.equal(r.text, "A bloom filter has no false negatives [[s1]].");
   const u = checkCitations("Something from earlier [[s3]].", {});
   assert.equal(u.stats.unverifiable, 1);
@@ -60,6 +63,14 @@ test("citations: evidence from tool results, course text and DSA passages", () =
   assert.match(m.get("s3"), /reads the cache first/);
   assert.match(m.get("s4"), /coalescing/);
   assert.match(m.get("s5"), /left pointer/);
+});
+
+test("citations: a pointer citation (the sentence's object) and thin evidence are kept, never dropped", () => {
+  const ev = { s2: "The week at a glance: Monday caching patterns, Tuesday invalidation, Wednesday CDNs, Thursday the stampede lab, Friday the trial and a mock interview", s3: "Design a news feed" };
+  const r = checkCitations("That is the stampede card you flagged, and the course covers it in [[s2]] on Thursday. For the full walkthrough, see [[s3]].", ev);
+  assert.equal(r.stats.dropped, 0);
+  assert.match(r.text, /covers it in \[\[s2\]\] on Thursday/);
+  assert.match(r.text, /see \[\[s3\]\]\.$/);
 });
 
 test("citations: fixtures cover every outcome", () => {

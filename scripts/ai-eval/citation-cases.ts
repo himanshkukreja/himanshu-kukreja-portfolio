@@ -99,6 +99,15 @@ export const CITATION_CASES: CitationCase[] = [
     expect: ["unverifiable"],
   },
   {
+    // a citation that is the sentence's object is a pointer, not support for a claim: kept (seen in a real answer, where
+    // dropping it left "the course covers it in.")
+    id: "pointer-mid-sentence",
+    feature: "course-chat",
+    evidence: { s1: S.cacheAside, s6: S.stampede },
+    answer: "That is the card you flagged earlier, and the course covers it in [[s1]] on day two. For the stampede itself, see [[s6]].",
+    expect: ["unverifiable", "unverifiable"],
+  },
+  {
     id: "invented-number",
     feature: "course-chat",
     evidence: { s4: S.bloom, s1: S.cacheAside },
