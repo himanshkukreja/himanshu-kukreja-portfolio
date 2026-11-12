@@ -56,12 +56,14 @@ export function messageLines(text: string, style?: AnswerStyle | null): string[]
  * The standard actions under a tutor answer. `ask` is what a tap sends (the prompts know these exact words, so a
  * bare "simpler" still means "your last answer, simpler").
  */
-export type FollowupAction = "simpler" | "example" | "deeper" | "quiz";
+export type FollowupAction = "simpler" | "example" | "deeper" | "quiz" | "reveal";
 export const FOLLOWUP_ACTIONS: Record<FollowupAction, { label: string; ask: string }> = {
   simpler: { label: "Explain simpler", ask: "Explain that more simply." },
   example: { label: "Show an example", ask: "Show me a worked example." },
   deeper: { label: "Go deeper", ask: "Go deeper on that." },
   quiz: { label: "Quiz me", ask: "Quiz me on this." },
+  // "Teach me" mode only (lib/ai/teaching.ts TEACH_REVEAL_ASK): the explanation instead of the next question
+  reveal: { label: "Just show me", ask: "Just show me the explanation." },
 };
 export const isFollowupAction = (x: unknown): x is FollowupAction => typeof x === "string" && x in FOLLOWUP_ACTIONS;
 /** Cards under one answer: the answer's own questions plus actions, never more than this. */

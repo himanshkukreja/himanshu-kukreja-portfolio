@@ -17,7 +17,9 @@ import { citedRefs, cleanAnswer, historyText, trailOf, type ChatEvent, type Chat
 import { useChatPathSaver } from "./savePath";
 import { isHistoryKey, isNamed, readActive, saveActive } from "./history";
 import { readAnswerStyle } from "./useAnswerStyle";
-import { isFollowupAction, type AnswerStyle, type FollowupAction } from "@/lib/ai/answerStyle";
+import { actionOf, isFollowupAction, type AnswerStyle, type FollowupAction } from "@/lib/ai/answerStyle";
+import { nextRestyle, restyleAsk, restyleOf, type Restyle } from "@/lib/ai/teaching";
+import { readTeachMode, recordWorkingStyle, workingStyle } from "./useTeaching";
 
 export type ChatMsg = {
   id: string;
@@ -47,6 +49,10 @@ export type ChatMsg = {
   actions?: FollowupAction[];
   /** a learner message asked in this answer style (not the default) */
   style?: AnswerStyle;
+  /** a learner message sent with "Teach me" on */
+  teach?: boolean;
+  /** a learner message that asked to explain the last answer another way ("Explain it differently") */
+  restyle?: Restyle;
 };
 
 /** A mock interview running in the chat: its phases, the one on now (and since when), and each phase's exchange. */
@@ -284,7 +290,7 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
   );
 
   const send = useCallback(
-    async (text: string, extra: { answerTo?: string; mockEnd?: boolean; /** fields added to this message's body (the problem room's mode, code, language and last result) */ body?: Record<string, unknown> } = {}) => {
+    async (text: string, extra: { answerTo?: string; mockEnd?: boolean; /** fields added to this message's body (the problem room's mode, code, language and last result) */ body?: Record<string, unknown>; /** "Explain it differently" */ restyle?: Restyle } = {}) => {
       const t = text.trim();
       if (!t || abort.current || !uid) return false;
       // another tab of this learner is answering: wait for it to land (both would write the same conversation),
@@ -307,7 +313,21 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
       const phaseId = ms ? ms.phases[ms.phase]?.id : undefined;
       // the answer style picked beside the box (remembered per learner); a mock interview keeps its own voice
       const style = ms ? "tutor" : readAnswerStyle();
-      const user: ChatMsg = { id: rid(), role: "user", text: t.slice(0, 2000), at: Date.now(), ...(extra.answerTo ? { answerTo: extra.answerTo } : {}), ...(ms && !extra.mockEnd ? { mockPhase: phaseId } : {}), ...(style !== "tutor" ? { style } : {}) };
+      // "Teach me" (the switch beside the style) and "Explain it differently" (lib/ai/teaching.ts); never in a mock
+      const teach = !ms && readTeachMode();
+      const restyle = !ms && extra.restyle ? extra.restyle : undefined;
+      // moving on after an answer explained another way: that way worked (noted once in memory; not after a 👎 or when
+      // they asked for it simpler, another example or deeper, which says it didn't land)
+      if (!ms && !restyle) {
+        const msgs = base.messages;
+        const lastA = [...msgs].reverse().find((m) => m.role === "assistant");
+        const asked = lastA ? msgs[msgs.indexOf(lastA) - 1] : undefined;
+        const tried = asked?.role === "user" ? (asked.restyle ?? restyleOf(asked.text)) : null;
+        const act = actionOf(t);
+        const disliked = lastA?.callId ? base.ratings?.[lastA.callId]?.rating === -1 : false;
+        if (tried && lastA && lastA.text && !lastA.error && !disliked && act !== "simpler" && act !== "example" && act !== "deeper" && act !== "reveal") recordWorkingStyle(tried, "moved-on", lastA.id);
+      }
+      const user: ChatMsg = { id: rid(), role: "user", text: t.slice(0, 2000), at: Date.now(), ...(extra.answerTo ? { answerTo: extra.answerTo } : {}), ...(ms && !extra.mockEnd ? { mockPhase: phaseId } : {}), ...(style !== "tutor" ? { style } : {}), ...(teach ? { teach } : {}), ...(restyle ? { restyle } : {}) };
       const reply: ChatMsg = { id: rid(), role: "assistant", text: "", at: Date.now() };
       const withUser: Conversation = { ...base, messages: [...base.messages, user], updatedAt: Date.now() };
       // the lock first, so another tab that reads the new reply knows it is on its way (not interrupted)
@@ -336,6 +356,8 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
         mock: ms && phaseId ? { key: ms.key, phase: phaseId, history: ms.turns[phaseId] ?? [], action: extra.mockEnd ? "end" : "turn", ...(extra.mockEnd ? { phases: ms.turns } : {}) } : null,
         ...(titlePass && !ms ? { title: titlePass } : {}),
         ...(style !== "tutor" ? { style } : {}),
+        ...(teach ? { teach: true } : {}),
+        ...(restyle ? { restyle } : {}),
         ...(isDsaApi(api) ? { learner: dsaClientSignals() } : {}),
         ...(extra.body ?? {}),
       };
@@ -538,9 +560,31 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
   }, [commit]);
   const leaveMock = useCallback(() => commit((c) => ({ ...c, mock: null }), true), [commit]);
 
+  /**
+   * "Explain it differently": the last answer again, another way: the next style after the one last asked for in this
+   * conversation, never the same one twice running, and not the style the learner's memory already writes answers in.
+   */
+  const explainDifferently = useCallback(
+    (extra: { body?: Record<string, unknown> } = {}) => {
+      const last = [...convRef.current.messages].reverse().find((m) => m.role === "user" && (m.restyle || restyleOf(m.text)));
+      const pick = nextRestyle(last ? (last.restyle ?? restyleOf(last.text)) : null, workingStyle());
+      track("ai_explain_differently", { style: pick, from: isDsaApi(api) ? "dsa" : "chat" });
+      return send(restyleAsk(pick), { ...extra, restyle: pick });
+    },
+    [api, send],
+  );
+
   /** 👍 / 👎 / "this was wrong" on one answer (hidden until the feedback table exists). */
   const rate = useCallback(
     (callId: number, r: Omit<Rating, "sent">) => {
+      // a 👍 on an answer explained another way: that way works for them (noted once in memory)
+      if (r.rating === 1) {
+        const msgs = convRef.current.messages;
+        const i = msgs.findIndex((m) => m.callId === callId);
+        const asked = i > 0 ? msgs[i - 1] : undefined;
+        const tried = asked?.role === "user" ? (asked.restyle ?? restyleOf(asked.text)) : null;
+        if (tried) recordWorkingStyle(tried, "thumbs-up", msgs[i].id);
+      }
       commit((c) => ({ ...c, ratings: { ...(c.ratings ?? {}), [callId]: { ...r, sent: false } } }));
       aiFetch("/api/learn/ai/chat/feedback", { method: "POST", body: JSON.stringify({ callId, ...r }), headers: devHeaders })
         .then((res) => res.ok && commit((c) => ({ ...c, ratings: { ...(c.ratings ?? {}), [callId]: { ...r, sent: true } } })))
@@ -559,5 +603,5 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
     [commit],
   );
 
-  return { conv, status, live, draft, quota, memory, feedback, fallback, send, reset, stop, savePath, addSaved, nextPhase, leaveMock, rate, busy: status.kind !== "idle" };
+  return { conv, status, live, draft, quota, memory, feedback, fallback, send, explainDifferently, reset, stop, savePath, addSaved, nextPhase, leaveMock, rate, busy: status.kind !== "idle" };
 }

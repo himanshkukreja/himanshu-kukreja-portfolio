@@ -9,6 +9,7 @@ import "server-only";
  * One model round, no tools: the route looks everything up before the model runs (the retrieval, the problem and the
  * learner's unlocks), so the answer streams from the first token.
  */
+import { TEACH_REVEAL_ASK } from "@/lib/ai/teaching";
 import { after, NextResponse } from "next/server";
 import { saveTranscript } from "@/lib/ai/client";
 import { FEATURES } from "@/lib/ai/features";
@@ -108,8 +109,10 @@ export async function streamDsa(o: {
         if (ok) {
           await saveTranscript(callId, me.id, feature, p.ask, text);
           const cards = p.followups && !offTopic && loop.stop === "end_turn";
-          const followups = cards ? ans.followups : [];
-          const actions: FollowupAction[] = cards && text.split(/\s+/).length >= 40 ? pickActions(followups, { asked: latest.text, quiz: false }) : [];
+          // "Teach me" (lib/ai/teaching.ts): the answer ends with one question, so only "Just show me" sits under it
+          const teaching = !!req.teach && !req.restyle && latest.text.trim() !== TEACH_REVEAL_ASK;
+          const followups = cards && !teaching ? ans.followups : [];
+          const actions: FollowupAction[] = teaching ? (p.followups && !offTopic ? ["reveal"] : []) : cards && text.split(/\s+/).length >= 40 ? pickActions(followups, { asked: latest.text, quiz: false }) : [];
           if (followups.length || actions.length) emit({ type: "followups", items: followups, ...(actions.length ? { actions } : {}) });
           emit({ type: "done", text, offTopic, quota: admit.quota ? afterMessage(admit.quota) : null, tools: 0, ms: Date.now() - t0, callId, mode: "tutor", ttft: loop.ttft });
           // every few messages the learner's memory takes this conversation in (after the answer is out; one learner model

@@ -9,7 +9,7 @@
  * (useAnswerStyle, shared with the chat); "give an example" is a one-off for the next question.
  */
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Sparkles, X } from "lucide-react";
+import { Loader2, Shuffle, Sparkles, X } from "lucide-react";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { aiFetch } from "./aiFetch";
 import { track } from "@/lib/track";
@@ -18,6 +18,9 @@ import ChatMarkdown from "@/components/learn/chat/ChatMarkdown";
 import Followups from "@/components/learn/chat/Followups";
 import { useAnswerStyle } from "@/components/learn/chat/useAnswerStyle";
 import { FOLLOWUP_ACTIONS, isAnswerStyle, pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
+import { nextRestyle, restyleAsk, TEACH_REVEAL_ASK, type Restyle } from "@/lib/ai/teaching";
+import TeachToggle from "@/components/learn/chat/TeachToggle";
+import { readTeachMode, recordWorkingStyle, workingStyle } from "@/components/learn/chat/useTeaching";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
 import { useLessonFaq } from "./useLessonFaq";
 import { matchFaq, type FaqItem } from "@/lib/learn/faq/parse";
@@ -33,7 +36,7 @@ const MODES = [
 ] as const;
 const MODE_LABEL: Record<string, string> = { ...Object.fromEntries(MODES.map((m) => [m.id, m.label])), check: "quiz me" };
 
-type Turn = { q: string; selection: string; mode: string; answer?: string; error?: string; pending?: boolean; saved?: boolean; followups?: string[] };
+type Turn = { q: string; selection: string; mode: string; answer?: string; error?: string; pending?: boolean; saved?: boolean; followups?: string[]; /** "Explain it differently" */ restyle?: Restyle; /** asked with "Teach me" on */ teach?: boolean; id: string };
 
 /** Window event: open the panel for the current lesson with no selection (reading toolbar's "Ask AI"). */
 export const ASK_LESSON_EVENT = "hk:ask-lesson";
@@ -107,22 +110,26 @@ export default function AskLessonPanel({
   // a saved answer costs nothing: offer it when the question matches one
   const dup = q.trim() && !sel && !oneOff && faq ? matchFaq(faq.items, q) : null;
   const showSaved = (it: FaqItem) => {
-    setTurns((t) => [...t, { q: it.q, selection: "", mode: "", answer: `${it.a}${it.section ? ` [${it.section}]` : ""}`, saved: true }]);
+    setTurns((t) => [...t, { id: Math.random().toString(36).slice(2, 10), q: it.q, selection: "", mode: "", answer: `${it.a}${it.section ? ` [${it.section}]` : ""}`, saved: true }]);
     setQ("");
     track("ai_faq_saved", { lesson: `${week}/${slug}` });
   };
 
   // the last answer (not a saved one): sent along, so "explain that more simply" or a quick check's answer has its context
   const lastAnswered = [...turns].reverse().find((t) => t.answer && !t.saved);
-  const send = async (question: string, m: string) => {
-    const turn: Turn = { q: question, selection: sel, mode: m, pending: true };
+  const send = async (question: string, m: string, restyle?: Restyle) => {
+    const teach = readTeachMode();
+    const turn: Turn = { q: question, selection: sel, mode: m, pending: true, id: Math.random().toString(36).slice(2, 10), ...(restyle ? { restyle } : {}), ...(teach ? { teach } : {}) };
+    // moving on after an answer explained another way: that way worked (noted once in memory; not when they asked for it simpler)
+    const prevTurn = turns[turns.length - 1];
+    if (!restyle && prevTurn?.restyle && prevTurn.answer && !prevTurn.error && question !== FOLLOWUP_ACTIONS.simpler.ask && question !== FOLLOWUP_ACTIONS.example.ask && question !== FOLLOWUP_ACTIONS.deeper.ask) recordWorkingStyle(prevTurn.restyle, "moved-on", prevTurn.id);
     const previous = lastAnswered ? { q: lastAnswered.q || "Explain this part.", a: lastAnswered.answer } : null;
     setTurns((t) => [...t, turn]);
     setQ("");
     setOneOff(false);
     track("ai_ask", { feature: "lesson-qa", mode: m || "plain", selection: !!sel, ...(story ? { story: slug } : {}) });
     try {
-      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined, previous }) });
+      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined, previous, ...(teach ? { teach: true } : {}), ...(restyle ? { restyle } : {}) }) });
       const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null; followups?: unknown };
       setAiCredits(body.creditsLeft);
       const followups = Array.isArray(body.followups) ? body.followups.filter((x): x is string => typeof x === "string").slice(0, 3) : [];
@@ -144,6 +151,14 @@ export default function AskLessonPanel({
     else void send(text, action ? "" : mode);
   };
   const latest = turns[turns.length - 1];
+  // "Explain it differently": the next way after the last one asked for in this panel, never the same twice running
+  const differently = () => {
+    if (busy || !lastAnswered) return;
+    const lastWay = [...turns].reverse().find((t) => t.restyle)?.restyle ?? null;
+    const pick = nextRestyle(lastWay, workingStyle());
+    track("ai_explain_differently", { style: pick, from: "lesson-panel" });
+    void send(restyleAsk(pick), "", pick);
+  };
 
   return (
     <div
@@ -187,6 +202,7 @@ export default function AskLessonPanel({
                 {t.selection && <span className="mb-1 block border-l-2 border-signal pl-2 text-[13px] text-fg-3">&ldquo;{t.selection.slice(0, 220)}{t.selection.length > 220 ? "…" : ""}&rdquo;</span>}
                 {t.q || (t.mode === "check" ? "Quiz me on this." : "Explain this part.")}
                 {t.mode && <span className="ml-2 font-mono text-[11px] text-fg-4">· {MODE_LABEL[t.mode]}</span>}
+                {t.teach && !t.restyle && <span className="ml-2 font-mono text-[11px] text-fg-4">· teach me</span>}
               </div>
               {t.saved && <span className="font-mono text-[11px] text-fg-4">saved answer · no credits used</span>}
               {t.pending ? (
@@ -199,7 +215,13 @@ export default function AskLessonPanel({
                 <>
                   <ChatMarkdown text={t.answer || ""} className="!text-[15px]" />
                   {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && (
-                    <Followups items={t.followups ?? []} actions={pickActions(t.followups ?? [], { asked: t.q })} onAsk={onCard} />
+                    // "Teach me": the answer ends with one question, so only "Just show me" sits under it
+                    <Followups items={t.teach && t.q !== TEACH_REVEAL_ASK ? [] : (t.followups ?? [])} actions={t.teach && t.q !== TEACH_REVEAL_ASK ? ["reveal"] : pickActions(t.followups ?? [], { asked: t.q })} onAsk={onCard} />
+                  )}
+                  {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && t.answer.split(/\s+/).length >= 30 && (
+                    <button type="button" onClick={differently} disabled={busy} className="inline-flex min-h-9 items-center gap-1.5 self-start border border-line-strong bg-surface px-2.5 font-mono text-[12px] text-fg-2 hover:border-signal hover:text-fg [@media(pointer:coarse)]:min-h-11">
+                      <Shuffle className="h-3.5 w-3.5 text-signal-text" aria-hidden /> Explain it differently
+                    </button>
                   )}
                 </>
               )}
@@ -231,6 +253,7 @@ export default function AskLessonPanel({
                     {m.label}
                   </button>
                 ))}
+                <TeachToggle from="lesson-panel" />
               </div>
               <div className="flex items-end gap-2">
                 <textarea

@@ -42,8 +42,11 @@ export type ChatMemory = {
   updatedAt: number;
 };
 
-/** Who wrote an item: the course chat, a DSA Mastery tutor (its chat or the problem tutor), or the learner (an edit). */
-export type ItemSrcBy = "chat" | "dsa" | "you";
+/** Who wrote an item: the course chat, a DSA Mastery tutor (its chat or the problem tutor), the learner (an edit, or a
+ *  setting such as "Teach me"), the goal chat ("onboarding", lib/learner/goal-chat-model.ts) or the learner's feedback on
+ *  an answer ("feedback": the explanation style that worked, lib/ai/teaching.ts). */
+export type ItemSrcBy = "chat" | "dsa" | "you" | "onboarding" | "feedback";
+const SRC_BY: ItemSrcBy[] = ["chat", "dsa", "you", "onboarding", "feedback"];
 export type ItemSrc = { by: ItemSrcBy; at: string };
 
 export const MEMORY_LIMITS = { goals: 3, studied: 12, struggles: 8, prefs: 5, quiz: 8, sessions: 8, item: 140, level: 140, summary: 280 } as const;
@@ -77,7 +80,7 @@ function cleanSrc(x: unknown, m: Pick<ChatMemory, SrcField>): Record<string, Ite
     for (const it of itemsOf(m, f)) {
       const k = srcKey(f, it);
       const v = o[k] as { by?: unknown; at?: unknown } | undefined;
-      if (v && (v.by === "chat" || v.by === "dsa" || v.by === "you") && typeof v.at === "string" && DAY_RE.test(v.at)) out[k] = { by: v.by, at: v.at };
+      if (v && SRC_BY.includes(v.by as ItemSrcBy) && typeof v.at === "string" && DAY_RE.test(v.at)) out[k] = { by: v.by as ItemSrcBy, at: v.at };
     }
   return out;
 }
@@ -302,5 +305,49 @@ export function editMemoryItem(m: ChatMemory, field: MemoryField, item: string, 
   const next = { ...m, [field]: list, updatedAt: now.getTime() } as ChatMemory;
   const src = cleanSrc(m.src, next);
   if (!dup) src[srcKey(field, stored)] = { by: "you", at: day };
+  return { ...next, src };
+}
+
+/* ------------------------------------------------------------------ prefs and goals set by the learner, not a tutor */
+
+/**
+ * The prefs after a learner's setting or feedback: items `drop` matches go, `add` (scrubbed, capped like any note) goes
+ * first, stamped `by` on that day; the rest keep their place and provenance, within the cap (the oldest go last).
+ * Used for "Teach me" (by "you") and the explanation style that worked (by "feedback"): lib/ai/teaching.ts.
+ */
+export function setPrefs(m: ChatMemory, o: { drop: (s: string) => boolean; add?: string | null; by: ItemSrcBy; now: Date }): ChatMemory {
+  const add = o.add ? scrub(o.add, MEMORY_LIMITS.item) : "";
+  const kept = m.prefs.filter((x) => !o.drop(x) && x.toLowerCase() !== add.toLowerCase());
+  const prefs = (add ? [add, ...kept] : kept).slice(0, MEMORY_LIMITS.prefs);
+  const next = { ...m, prefs, updatedAt: o.now.getTime() };
+  const src = cleanSrc(m.src, next);
+  if (add) src[srcKey("prefs", add)] = { by: o.by, at: o.now.toISOString().slice(0, 10) };
+  return { ...next, src };
+}
+
+/**
+ * What the goal chat captured (lib/learner/goal-chat-model.ts), written as notes with provenance "onboarding": its goals
+ * go first (an earlier onboarding's goals are replaced; the tutors' own goals stay after them, within the cap); its
+ * level replaces the level (the learner just said it); its prefs replace an earlier onboarding's prefs and go after the
+ * learner's own settings ("Teach me", the style that worked) and before the tutors' notes. Everything is scrubbed and
+ * capped like any note. Nothing given for a field: that field stays as it was.
+ */
+export function applyOnboarding(m: ChatMemory, cap: { goals?: string[]; level?: string; prefs?: string[] }, now: Date): ChatMemory {
+  const day = now.toISOString().slice(0, 10);
+  const by = (f: "goals" | "prefs", x: string) => m.src?.[srcKey(f, x)]?.by;
+  const clean = (xs: string[] | undefined) => (xs ?? []).map((x) => scrub(x, MEMORY_LIMITS.item)).filter(Boolean);
+  const goals = clean(cap.goals);
+  const prefs = clean(cap.prefs);
+  const level = cap.level ? scrub(cap.level, MEMORY_LIMITS.level) : "";
+  const dedupe = (xs: string[]) => xs.filter((x, i) => xs.findIndex((y) => y.toLowerCase() === x.toLowerCase()) === i);
+  const nextGoals = goals.length ? dedupe([...goals, ...m.goals.filter((x) => by("goals", x) !== "onboarding")]).slice(0, MEMORY_LIMITS.goals) : m.goals;
+  const own = m.prefs.filter((x) => by("prefs", x) === "you" || by("prefs", x) === "feedback");
+  const tutors = m.prefs.filter((x) => !own.includes(x) && by("prefs", x) !== "onboarding");
+  const nextPrefs = prefs.length ? dedupe([...own, ...prefs, ...tutors]).slice(0, MEMORY_LIMITS.prefs) : m.prefs;
+  const next = { ...m, goals: nextGoals, prefs: nextPrefs, level: level || m.level, updatedAt: now.getTime() };
+  const src = cleanSrc(m.src, next);
+  for (const g of goals) if (nextGoals.includes(g)) src[srcKey("goals", g)] = { by: "onboarding", at: day };
+  for (const p of prefs) if (nextPrefs.includes(p)) src[srcKey("prefs", p)] = { by: "onboarding", at: day };
+  if (level) src[srcKey("level", level)] = { by: "onboarding", at: day };
   return { ...next, src };
 }

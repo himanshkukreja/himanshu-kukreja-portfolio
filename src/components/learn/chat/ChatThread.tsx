@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { buildIcsForPath } from "./planIcs";
 import SpeakButton from "./SpeakButton";
-import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Mic, Route, Share2, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Mic, Route, Share2, Shuffle, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { KIND_LABEL } from "@/lib/search/smart/types";
 import { atClock } from "@/lib/search/smart/engine";
 import { citedRefs, streamingText, trailOf, type ChatSource } from "@/lib/ai/chat/text";
@@ -196,7 +196,7 @@ function PathCardView({ conv, pref, onSave }: { conv: Conversation; pref: string
 
 export type ThreadActions = { feedback: boolean; share: boolean; onRate?: (callId: number, r: Omit<Rating, "sent">) => void };
 
-function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }: { m: ChatMsg; conv: Conversation; onAnswer: (q: string, a: string) => void; onSave: (p: string) => void; busy: boolean; actions: ThreadActions; animate: boolean; onAsk?: (q: string) => void }) {
+function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk, onDifferently }: { m: ChatMsg; conv: Conversation; onAnswer: (q: string, a: string) => void; onSave: (p: string) => void; busy: boolean; actions: ThreadActions; animate: boolean; onAsk?: (q: string) => void; onDifferently?: () => void }) {
   const order = m.cites ?? citedRefs(m.text);
   const cited = order.map((r) => conv.sources[r]).filter(Boolean);
   // the answer this view just wrote carries on revealing (an error or Stop shows everything at once); its cards follow the text
@@ -245,6 +245,12 @@ function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }:
           <SpeakButton text={m.text} />
           {actions.feedback && m.callId ? <Feedback callId={m.callId} r={conv.ratings?.[m.callId]} onRate={actions.onRate} /> : null}
           {actions.share && m.mode !== "interviewer" && m.mode !== "scorecard" && <ShareAnswer m={m} conv={conv} />}
+          {/* "Explain it differently" (lib/ai/teaching.ts): under the latest real explanation, not a one-liner, a quiz or a mock */}
+          {onDifferently && m.mode !== "interviewer" && m.mode !== "scorecard" && !m.offTopic && !(m.quizzes ?? []).length && m.text.split(/\s+/).length >= 30 && (
+            <button type="button" onClick={onDifferently} className="ml-1 inline-flex min-h-8 items-center gap-1.5 border border-line-strong bg-surface px-2.5 font-mono text-[12px] text-fg-2 hover:border-signal hover:text-fg focus-visible:border-signal [@media(pointer:coarse)]:min-h-11">
+              <Shuffle className="h-3.5 w-3.5 text-signal-text" aria-hidden /> Explain it differently
+            </button>
+          )}
         </div>
       )}
       {settled && onAsk && !!(m.followups?.length || m.actions?.length) && !m.error && <Followups items={m.followups ?? []} actions={m.actions} onAsk={onAsk} className={rise} />}
@@ -367,6 +373,7 @@ export default function ChatThread({
   onSave,
   onStop,
   onAsk,
+  onDifferently,
   actions = { feedback: false, share: true },
   mock,
 }: {
@@ -382,6 +389,8 @@ export default function ChatThread({
   onAsk?: (q: string) => void;
   actions?: ThreadActions;
   mock?: { onNext: () => void; onEnd: () => void; onLeave: () => void };
+  /** "Explain it differently" under the last answer (lib/ai/teaching.ts) */
+  onDifferently?: () => void;
 }) {
   const busy = status.kind !== "idle";
   const last = conv.messages[conv.messages.length - 1];
@@ -401,13 +410,14 @@ export default function ChatThread({
                 {m.answerTo && <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-label text-fg-3">my answer</span>}
                 {m.mockPhase && <span className="mb-1 block font-mono text-[10.5px] uppercase tracking-label text-fg-3">to the interviewer</span>}
                 {m.text}
-                {m.style && <span className="ml-2 whitespace-nowrap font-mono text-[10.5px] text-fg-4">· {ANSWER_STYLES.find((x) => x.id === m.style)?.label.toLowerCase()}</span>}
+                {m.style && !m.restyle && <span className="ml-2 whitespace-nowrap font-mono text-[10.5px] text-fg-4">· {ANSWER_STYLES.find((x) => x.id === m.style)?.label.toLowerCase()}</span>}
+                {m.teach && !m.restyle && <span className="ml-2 whitespace-nowrap font-mono text-[10.5px] text-fg-4">· teach me</span>}
               </div>
             ) : pending ? (
               // the same order as the finished answer (trail, text, then its cards after the text), so nothing jumps when it lands
               <Pending m={m} conv={conv} status={status} draft={draft} live={live} animate={animate} onStop={onStop} />
             ) : (
-              <Assistant m={m} conv={conv} onAnswer={onAnswer} onSave={onSave} busy={busy} actions={actions} animate={animate} onAsk={m === last && !busy && conv.mock?.status !== "live" ? onAsk : undefined} />
+              <Assistant m={m} conv={conv} onAnswer={onAnswer} onSave={onSave} busy={busy} actions={actions} animate={animate} onAsk={m === last && !busy && conv.mock?.status !== "live" ? onAsk : undefined} onDifferently={m === last && !busy && conv.mock?.status !== "live" ? onDifferently : undefined} />
             )}
           </li>
         );

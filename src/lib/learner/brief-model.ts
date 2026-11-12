@@ -138,6 +138,9 @@ export function dsaAdaptLines(o: { feature: "dsa-chat" | "dsa-tutor"; profile: D
   if (/\b(brief|short|concise)\b/.test(prefs) && level !== "experienced") out.push("They like brief answers: keep it short.");
   if (/code first|code-first/.test(prefs)) out.push(`They like code first: lead with a short general sketch${(c?.lang ?? p?.lang) ? ` in ${DSA_LANG_LABEL[(c?.lang ?? p?.lang)!]}` : ""}, then one line of why.`);
   else if (/intuition|analog/.test(prefs) && level !== "new" && !beginnerWords) out.push("They like the intuition first: an everyday picture before the technical words.");
+  // the explanation style that worked ("Explain it differently" + a thumbs-up or moving on: lib/ai/teaching.ts)
+  if (/step[- ]by[- ]step|worked example/.test(prefs)) out.push("A step-by-step worked example works best for them: trace one small input through the idea.");
+  else if (/\bdiagram/.test(prefs)) out.push("A diagram works best for them: sketch the array, pointers or tree as a small text diagram.");
   return out.slice(0, 5);
 }
 

@@ -7,6 +7,7 @@
  * the index's own hrefs, resolved from the refs.
  */
 import type { Kind } from "@/lib/search/smart/types";
+import type { Restyle } from "@/lib/ai/teaching";
 import type { AnswerStyle, FollowupAction } from "@/lib/ai/answerStyle";
 
 /** A cited resource, copied from the index or the site guide (never from the model). */
@@ -83,6 +84,10 @@ export type ChatRequest = {
   title?: "first" | "again";
   /** the answer style the learner picked (lib/ai/answerStyle.ts; none: the default tutor style) */
   style?: AnswerStyle;
+  /** "Teach me" is on: guide with one question at a time (lib/ai/teaching.ts) */
+  teach?: boolean;
+  /** "Explain it differently": re-explain the last answer this way (lib/ai/teaching.ts) */
+  restyle?: Restyle;
 };
 
 /** The chat's quota today (GET /api/learn/ai/chat, and on every answer): one daily message limit (Haiku 5.5 answers
