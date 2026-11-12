@@ -35,7 +35,7 @@ function loadRaw(userId: string): Promise<Raw> {
     // DSA Mastery's record beside the rest (it reads its own game_done; a late or failed read leaves it out)
     const dsaP = within(dsaRecord(userId), DSA_WAIT_MS, null, "dsa record");
     // the outcome log (graded results), named from the course content; memory off: none
-    const outcomesP = within(outcomeLines(userId), DSA_WAIT_MS, null, "outcome log");
+    const outcomesP = within(outcomeLines(userId), OUTCOMES_WAIT_MS, null, "outcome log");
     const [profile, rows, trials, cards] = await Promise.all([
       supabase.from("user_profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("learning_progress").select("*").eq("user_id", userId).eq("course_id", COURSE_ID).limit(2000),
@@ -108,6 +108,9 @@ const MAP_WAIT_MS = 8_000;
 const CONTROLS_WAIT_MS = 5_000;
 export const MEMORY_WAIT_MS = 5_000;
 const DSA_WAIT_MS = 3_000;
+// the outcome log reads memory, the events and the concept names (the explain catalogue on a cold server): 3 s dropped it
+// on a cold staging Worker, so the chat said "no explain-back result" while one was stored (12 Nov 2026)
+const OUTCOMES_WAIT_MS = 7_000;
 const BANK_WAIT_MS = 8_000;
 
 /** The course search index isn't ready yet on this (cold) server. */
