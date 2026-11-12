@@ -66,28 +66,26 @@ export async function POST(request: Request) {
 async function lldTurn(request: Request, me: { id: string; email: string | null }, mock: MockInterview, phase: MockPhase, b: { history?: Msg[]; answer?: string; changeAnnounced?: boolean }) {
   const answer = String(b.answer || "").trim().slice(0, LLD_ANSWER);
   if (!answer) return NextResponse.json({ error: "Say something first" }, { status: 400 });
-  let history = (Array.isArray(b.history) ? b.history : [])
-    .filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-    .slice(-2 * LLD_TURNS)
-    .map((m) => ({ role: m.role, content: m.content.slice(0, 3000) }));
+  const phaseTurns = (Array.isArray(b.history) ? b.history : []).filter((m) => (m.role === "user" || m.role === "assistant") && typeof m.content === "string");
+  let history = phaseTurns.slice(-2 * LLD_TURNS).map((m) => ({ role: m.role, content: m.content.slice(0, 3000) }));
   if (history.filter((m) => m.role === "user").length >= LLD_TURNS) return NextResponse.json({ error: `That's ${LLD_TURNS} exchanges in this phase: time to move on to the next one.` }, { status: 429 });
   // keep the newest turns within the feature's input cap (a pasted file early on shouldn't block the phase)
   while (history.length && history.reduce((a, m) => a + m.content.length, 0) > LLD_HISTORY_CHARS) history = history.slice(2);
   while (history[0]?.role === "assistant") history.shift();
   const turn = history.filter((m) => m.role === "user").length + 1;
+  // the requirement change is "due" until an interviewer turn of this phase has brought it (the whole phase, not the trimmed part)
   const r = await callClaude({
     feature: "lld-mock",
     userId: me.id,
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
-    system: lldInterviewerSystem(lldTurnInput(mock, phase, !!b.changeAnnounced)),
+    system: lldInterviewerSystem(lldTurnInput(mock, phase, !!b.changeAnnounced, phaseTurns)),
     messages: [...history, { role: "user", content: answer }],
     meta: { mock: mock.slug, phase: phase.id, turn, kind: "lld", change: mock.phases.find((p) => p.id === mock.lld?.codePhase)?.curveballs[0]?.id ?? null },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  // the reply is speech: no "Ananya:" label in front of it
-  const first = mock.interviewer.name.split(/\s+/)[0];
-  const text = lldInterviewerReply(r.text).replace(new RegExp(`^\\s*\\**${first}\\**\\s*:\\s*`, "i"), "") || "Go on: talk me through it.";
+  // the reply is speech: no plan, no code, no "Ananya:" label in front of it
+  const text = lldInterviewerReply(r.text, mock.interviewer.name);
   await saveTranscript(r.callId, me.id, "lld-mock", answer, text);
   return NextResponse.json({ text, creditsLeft: r.creditsLeft });
 }
