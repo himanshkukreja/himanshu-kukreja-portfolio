@@ -199,7 +199,7 @@ type Row = { id: string; kind: string; title: string; turns: TurnLog[]; judgeCos
 const URL_RE = /https?:\/\/|www\./i;
 
 async function runChat(c: Extract<PersonalCase, { kind: "chat" }>, e: SmartEngine, map: CourseMap): Promise<{ turns: TurnLog[]; context: string }> {
-  const snap = buildSnapshot(progressRaw(map, c.learner), map, new Date(NOW));
+  const snap = buildSnapshot({ ...progressRaw(map, c.learner), outcomes: c.outcomes ?? null }, map, new Date(NOW));
   const deps: ChatDeps = {
     search: new LocalSearch(Promise.resolve(e)),
     live: () => true,

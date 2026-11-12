@@ -23,7 +23,7 @@ export type PersonalTurn = {
 };
 
 export type PersonalCase =
-  | { id: string; kind: "chat"; title: string; learner: LearnerKind; memory?: string[]; turns: PersonalTurn[] }
+  | { id: string; kind: "chat"; title: string; learner: LearnerKind; memory?: string[]; /** the outcome log's lines (lib/learner outcomeDigest), as the chat's snapshot gets them */ outcomes?: string[]; turns: PersonalTurn[] }
   | {
       id: string;
       kind: "lesson-qa";
@@ -134,14 +134,50 @@ export const PERSONAL_CASES: PersonalCase[] = [
   {
     id: "continuity-explain-back",
     kind: "chat",
-    title: "What did I get wrong in explain-it-back (not stored)",
+    title: "What did I get wrong in explain-it-back (none on record)",
     learner: "mixed",
     turns: [
       {
         user: "What did I get wrong in my explain-it-back on cache-aside just now?",
         must: [NOT_SEEN, /paste|share|send|type/i],
-        expect: ["Says plainly that explain-it-back answers and verdicts aren't stored where it can see them", "Asks them to paste their explanation to grade it, and may give the key points of cache-aside meanwhile, cited"],
+        expect: ["Says plainly that it can't see that explain-it-back (no graded result for it is on record)", "Asks them to paste their explanation to grade it, and may give the key points of cache-aside meanwhile, cited"],
         avoid: ["Pretends to know what the learner wrote or which verdict they got"],
+      },
+    ],
+  },
+  {
+    id: "continuity-explain-back-logged",
+    kind: "chat",
+    title: "What did I get wrong in explain-it-back (the outcome log has it)",
+    learner: "mixed",
+    outcomes: [
+      'explain-back on Consistent hashing (12 Nov): partial; key points missed: "Virtual nodes (many points per server) fix uneven arcs"; "Adding a node takes over one arc: about 1/(N+1) of keys move, all from one neighbour"',
+      'explain-back on Consistent hashing (8 Nov): misconception; key points missed: "Keys and nodes are hashed onto a ring"',
+    ],
+    turns: [
+      {
+        user: "What did I get wrong in my explain-back on consistent hashing?",
+        must: [/virtual node/i, /arc|1\/\(?N ?\+ ?1\)?|one neighbou?r/i],
+        mustNot: [/can(?:'|’)?t see (?:your|that|the) (?:explain|result|verdict)/i],
+        expect: ["Says the last explain-back was graded partial and names both missed points: virtual nodes evening out the arcs, and that adding a node moves only one arc (about 1/(N+1) of keys)", "Explains those points briefly, cited", "May note it improved from the earlier misconception"],
+        avoid: ["Quotes or invents what the learner wrote (only the verdict and the missed points are stored)", "Says it can't see the result"],
+      },
+    ],
+  },
+  {
+    id: "continuity-mock-phases",
+    kind: "chat",
+    title: "Which phase of my last mock was weakest (scorecard levels on record)",
+    learner: "sdm",
+    outcomes: [
+      'mock M1 Billbolt AutoPay AI scorecard (11 Nov): overall junior (picked the SDE bar); Clarify requirements junior, Estimates below junior, API and data model junior, High-level design junior; missed: "Designs for the evening peak and the AutoPay day, not the daily average"; "Computes BillHub\'s drain time for the AutoPay backlog and calls the aggregator the bottleneck"',
+    ],
+    turns: [
+      {
+        user: "Which phase of my last mock was the weakest, and what should I practise?",
+        must: [/estimat/i, /peak|drain/i],
+        expect: ["Names Estimates (below junior) as the weakest phase, from the scorecard on record", "Names what was missed there (designing for the evening peak and the AutoPay day; BillHub's drain time) and suggests practising it, citing a lesson if it found one"],
+        avoid: ["Invents phase levels or feedback that are not in the record", "Says per-phase scores aren't stored"],
       },
     ],
   },
