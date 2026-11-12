@@ -11,6 +11,7 @@
  * small print in one quiet line and the lesson one stage at a time with the edge cases folded (OneStage). The full
  * view ("Show everything") keeps every chip and the whole lesson on one page.
  */
+import ConnectedPanel from "@/components/learn/connections/ConnectedPanel";
 import "../dsa.css";
 import Link from "next/link";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -250,6 +251,7 @@ function Body({ c, lecture }: { c: ConceptPage; lecture: LectureCardInfo }) {
           <DsaHydrator rootRef={contentRef} concept={c} />
           <Jargon rootRef={contentRef} />
           {full ? <End c={c} /> : <OneStage rootRef={contentRef} stages={c.stages} end={<End c={c} />} />}
+          <ConnectedPanel page={`dsa-concept:${c.id}`} className="mt-6" />
         </FocusMode>
       </div>
       <div aria-hidden data-focus-hide className="h-20 lg:hidden" />

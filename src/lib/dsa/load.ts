@@ -603,6 +603,22 @@ function realSystemsTargets(md: string): { sdm: string[]; labs: string[] } {
   return { sdm: [...new Set(sdm)], labs: [...new Set(labs)] };
 }
 
+/**
+ * Every built concept's `:::realsystems{sdm lab}` targets (its lesson's boxes), for the cross-course "Connected to what
+ * you've done" panel and plan (src/lib/learner/connections-model.ts). One read per built concept lesson, cached with the
+ * DSA content. Problems' own boxes come with each problem's page (getProblem's sdmLinks).
+ */
+export const getConceptLinks = indexed(async (): Promise<{ id: string; sdm: string[]; labs: string[] }[]> => {
+  const concepts = (await getConceptIndex()).filter((c) => c.status === "built");
+  const out = await Promise.all(
+    concepts.map(async (c) => {
+      const md = await readDsa(`${lessonDir(c)}/lesson.md`).catch(() => null);
+      return { id: c.id, ...(md ? realSystemsTargets(md) : { sdm: [], labs: [] }) };
+    }),
+  );
+  return out.filter((x) => x.sdm.length || x.labs.length);
+}, "dsa-concept-links-v1");
+
 /* ------------------------------------------------------------------ concepts */
 
 type LessonFront = {

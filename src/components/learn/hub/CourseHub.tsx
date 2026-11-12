@@ -38,12 +38,15 @@ import { SaveCourseButton } from "@/components/offline/OfflineLibrary";
 import { InstallButton } from "@/components/offline/Install";
 import { useOffline } from "@/components/offline/OfflineProvider";
 import ShortsTeaser, { type TeaserShort } from "@/components/learn/war/ShortsTeaser";
+import QuietNudge, { usePlanStanding } from "@/components/learn/plan/QuietNudge";
 
 /** DSA Mastery is fully open on this build (staging: NEXT_PUBLIC_DSA_MODE=full); otherwise /dsa is its coming-soon page. */
 const DSA_LIVE = ["full", "beta", "on"].includes((process.env.NEXT_PUBLIC_DSA_MODE || "").trim().toLowerCase());
 
 export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { items: TeaserShort[]; total: number } }) {
   const { ready, signedIn, lessons, done } = useLearnProgress(map.courseId);
+  // the quiet nudge's plan line (signed-in learners with a /plan)
+  const standing = usePlanStanding(ready && signedIn ? map : null, ready ? lessons : null, ready ? done : null);
   const { profile } = useAuth();
   const { xp, flags, setFlag, awardOnce, hydrated } = useGame();
   const { dueCount, ready: dueReady } = useReviewCards();
@@ -161,6 +164,7 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
       {GUIDE_VIDEOS_ON ? <WelcomeVideoCard fallback={<TourCard />} /> : <TourCard />}
 
       {ready && !signedIn && <AuthPromptBanner variant="learn-page" />}
+      {ready && signedIn && <QuietNudge course="sdm" standing={standing} className="-mt-6" />}
 
       {/* Skill tree */}
       <section aria-labelledby="tree-h" className="flex flex-wrap items-start gap-6">

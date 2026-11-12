@@ -1,5 +1,6 @@
 "use client";
 
+import ConnectedPanel from "@/components/learn/connections/ConnectedPanel";
 import CanvasEntry from "@/components/learn/canvas/CanvasEntry";
 import { Fragment, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { Stage, TocItem } from "@/lib/course/types";
@@ -213,6 +214,8 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
 
             {meta.shorts && <ArticleShorts of={meta.shorts.of} shorts={meta.shorts.items} />}
 
+            {/* the other course, as this learner has done it (signed in; hidden when nothing connects) */}
+            <ConnectedPanel page={`sdm:${meta.week}/${meta.slug}`} className="mx-auto mt-8 w-full max-w-[760px]" />
             <EndOfLesson meta={meta} prev={prev} next={next} trial={trial} />
 
             <OnlineOnly what="The discussion" note="You're reading a saved copy. Comments load again when you're back online.">

@@ -22,6 +22,7 @@
  * offline" beside the title. The simple view also shows only the chosen language (a "switch language" link opens the
  * others) and folds the Bits, ladder step, line and hint counters into one quiet line; the full view keeps them all.
  */
+import ConnectedPanel from "@/components/learn/connections/ConnectedPanel";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 import "../dsa.css";
@@ -693,6 +694,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
           </div>
         )}
 
+        <ConnectedPanel page={`dsa-problem:${p.id}`} className="mt-4" />
         {(p.sdmLinks.length > 0 || p.prev || p.next) && (
           <aside aria-label="Related" className="mt-4 flex flex-col gap-3 border-t border-line pt-4">
             {p.sdmLinks.length > 0 && (

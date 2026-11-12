@@ -7,7 +7,7 @@
  * Exports to any calendar (.ics) and per day to Google Calendar.
  */
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { CourseMap } from "@/lib/learn/types";
 import { daysBetween, dayTitle, defaultSettings, type PlanDay, type PlanSettings } from "@/lib/learn/plan/schedule";
 import { fmtDate, fmtMinutes } from "@/components/learn/progress/derive";
@@ -19,6 +19,14 @@ import { computePlan, usePlanRecord, useToday, type PlanView } from "./usePlan";
 import { downloadIcs, googleDayLink } from "./exportPlan";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
+import { weekOf } from "@/lib/learner/planning-model";
+import { usePlanning } from "./usePlanning";
+import WhyThisWeek from "./WhyThisWeek";
+import ChatPlans from "./ChatPlans";
+import CompanyPlanSection from "./CompanyPlan";
+
+/** Opening a recap slot marks it done (lib/learner/planning-model.ts): the day rows call this for "recap:" entries. */
+const RecapOpened = createContext<(id: string) => void>(() => {});
 
 const WD = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const dow = (d: string) => {
@@ -32,7 +40,9 @@ export default function PlannerClient({ map }: { map: CourseMap }) {
   const { hydrated, record, save, rebaseline, remove } = usePlanRecord();
   const [editing, setEditing] = useState(false);
 
-  const view = useMemo(() => (record && today && d.ready ? computePlan(map, record, d.lessons, d.done, today) : null), [record, today, d.ready, map, d.lessons, d.done]);
+  // the living plan: recap slots for topics missed twice lately go first in the live plan (signed-in learners)
+  const planning = usePlanning({ plan: record?.id ?? null, week: today ? weekOf(today) : null });
+  const view = useMemo(() => (record && today && d.ready ? computePlan(map, record, d.lessons, d.done, today, planning.recaps) : null), [record, today, d.ready, map, d.lessons, d.done, planning.recaps]);
 
   const initial = useMemo<PlanSettings | null>(() => {
     if (!today) return null;
@@ -106,13 +116,18 @@ export default function PlannerClient({ map }: { map: CourseMap }) {
       {!view || editing ? (
         <PlanForm map={map} initial={editing && record ? record.settings : initial} today={today} lessons={d.lessons} done={d.done} goal={d.goal} editing={editing} onSave={onSave} onCancel={editing ? () => setEditing(false) : null} />
       ) : (
-        <Plan view={view} signedIn={d.signedIn} onEdit={() => setEditing(true)} onRebaseline={() => rebaseline(today)} onDelete={remove} />
+        <RecapOpened.Provider value={(id) => planning.opened(id.slice("recap:".length))}>
+          <Plan view={view} signedIn={d.signedIn} onEdit={() => setEditing(true)} onRebaseline={() => rebaseline(today)} onDelete={remove} why={planning.signedIn ? <WhyThisWeek view={view} cached={planning.why} /> : null} />
+        </RecapOpened.Provider>
       )}
+
+      {!editing && <CompanyPlanSection today={today} />}
+      {!editing && <ChatPlans today={today} />}
     </main>
   );
 }
 
-function Plan({ view, signedIn, onEdit, onRebaseline, onDelete }: { view: PlanView; signedIn: boolean; onEdit: () => void; onRebaseline: () => void; onDelete: () => void }) {
+function Plan({ view, signedIn, onEdit, onRebaseline, onDelete, why }: { view: PlanView; signedIn: boolean; onEdit: () => void; onRebaseline: () => void; onDelete: () => void; why: ReactNode }) {
   const { live, today } = view;
   const [confirmDelete, setConfirmDelete] = useState(false);
   const todayDay = live.days.find((d) => d.date === today) || null;
@@ -122,6 +137,7 @@ function Plan({ view, signedIn, onEdit, onRebaseline, onDelete }: { view: PlanVi
   return (
     <>
       <Status view={view} onRebaseline={onRebaseline} onEdit={onEdit} />
+      {why}
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
         <TodayCard day={todayDay} next={next} view={view} />
@@ -273,6 +289,7 @@ function Status({ view, onRebaseline, onEdit }: { view: PlanView; onRebaseline: 
 }
 
 function TodayCard({ day, next, view }: { day: PlanDay | null; next: PlanDay | null; view: PlanView }) {
+  const opened = useContext(RecapOpened);
   const study = day && day.type !== "buffer" ? day : null;
   const firstOpen = study?.entries.find((e) => !e.done) || null;
   const allDone = !!study && study.entries.length > 0 && !firstOpen && study.type !== "revision";
@@ -293,7 +310,7 @@ function TodayCard({ day, next, view }: { day: PlanDay | null; next: PlanDay | n
                 <span aria-label={e.done ? "done" : "to do"} className={`grid h-5 w-5 shrink-0 place-items-center border text-[12px] ${e.done ? "border-signal bg-signal text-on-signal" : "border-line-strong text-transparent"}`}>
                   ✓
                 </span>
-                <Link href={e.href} className={`flex min-w-0 flex-1 flex-col ${e.done ? "text-fg-3" : "text-fg"} hover:underline`}>
+                <Link href={e.href} onClick={() => e.kind === "recap" && opened(e.id)} className={`flex min-w-0 flex-1 flex-col ${e.done ? "text-fg-3" : "text-fg"} hover:underline`}>
                   <span className="font-mono text-[11px] tracking-label text-fg-3">{e.tag}</span>
                   <span className="text-[15px] leading-snug">
                     {e.title}
@@ -305,7 +322,7 @@ function TodayCard({ day, next, view }: { day: PlanDay | null; next: PlanDay | n
             ))}
           </ul>
           {firstOpen && (
-            <Link href={firstOpen.href} className="inline-flex min-h-12 items-center self-start bg-signal px-5 text-[15px] font-semibold text-on-signal hover:brightness-110">
+            <Link href={firstOpen.href} onClick={() => firstOpen.kind === "recap" && opened(firstOpen.id)} className="inline-flex min-h-12 items-center self-start bg-signal px-5 text-[15px] font-semibold text-on-signal hover:brightness-110">
               {study.type === "revision" ? "Start revision →" : `Start: ${firstOpen.title.length > 38 ? `${firstOpen.title.slice(0, 36)}…` : firstOpen.title} →`}
             </Link>
           )}
@@ -417,6 +434,7 @@ function ExportCard({ view, signedIn }: { view: PlanView; signedIn: boolean }) {
 }
 
 function DayRow({ day, view, today = false, past = false }: { day: PlanDay; view: PlanView; today?: boolean; past?: boolean }) {
+  const opened = useContext(RecapOpened);
   const badge = day.type === "buffer" ? "CATCH-UP" : day.type === "revision" ? "REVISION" : day.type === "mock" ? "MOCK" : null;
   const allDone = day.entries.length > 0 && day.entries.every((e) => e.done);
   return (
@@ -441,7 +459,7 @@ function DayRow({ day, view, today = false, past = false }: { day: PlanDay; view
                 <span aria-hidden className={`w-3 shrink-0 font-mono text-[12px] ${e.done ? "text-signal-text" : "text-fg-4"}`}>
                   {e.done ? "✓" : "·"}
                 </span>
-                <Link href={e.href} className={`min-w-0 ${e.done ? "text-fg-3 line-through decoration-fg-4" : "text-fg-2 hover:text-fg"}`}>
+                <Link href={e.href} onClick={() => e.kind === "recap" && opened(e.id)} className={`min-w-0 ${e.done ? "text-fg-3 line-through decoration-fg-4" : "text-fg-2 hover:text-fg"}`}>
                   <span className="font-mono text-[11px] text-fg-3">{e.tag}</span> {e.title}
                   {e.part ? ` (${e.part[0]}/${e.part[1]})` : ""}
                 </Link>

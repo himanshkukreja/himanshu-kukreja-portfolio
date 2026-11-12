@@ -87,12 +87,18 @@ export type PlanView = {
   today: string;
 };
 
-export function computePlan(map: CourseMap, record: PlanRecord, lessons: Record<string, LessonProgress>, done: Record<string, number>, today: string): PlanView {
+/**
+ * The plan as it stands today. `recaps` (the living plan, lib/learner/planning-model.ts recapItems): short slots for
+ * topics missed twice lately, put first in the live plan only. The accepted baseline never has them, so a recap can't make
+ * the learner "behind"; it does push the rest along, which is the point.
+ */
+export function computePlan(map: CourseMap, record: PlanRecord, lessons: Record<string, LessonProgress>, done: Record<string, number>, today: string, recaps?: { items: PlanItem[]; status: Record<string, ItemStatus> } | null): PlanView {
   const s = record.settings;
   const items = buildItems(map, s);
   const stretch = stretchMocks(map, s);
   const status = itemStatus([...items, ...stretch], lessons, done);
-  const liveInput = { items, stretch, status, settings: s, from: today, cutoff: startOfDay(today) };
+  const extra = recaps?.items.length ? recaps : null;
+  const liveInput = { items: extra ? [...extra.items, ...items] : items, stretch, status: extra ? { ...status, ...extra.status } : status, settings: s, from: today, cutoff: startOfDay(today) };
   const live = schedule(liveInput);
   const baseline = schedule({ items, stretch, status, settings: s, from: record.baseStart, cutoff: record.baseAt });
   return {

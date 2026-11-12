@@ -62,7 +62,9 @@ export type PlanRecord = {
   updatedAt: number;
 };
 
-export type ItemKind = "lesson" | "boss" | "trial" | "sidequest" | "mock";
+/** recap: a short slot for a topic missed twice lately (lib/learner/planning-model.ts); dsa, lab: the company plan's
+ *  DSA Mastery lessons and practice, and code labs */
+export type ItemKind = "lesson" | "boss" | "trial" | "sidequest" | "mock" | "recap" | "dsa" | "lab";
 
 export type PlanItem = {
   /** game-style key: lesson:<week>/<slug>, boss:<week>, trial:<week>/part-<n>, mock:<id>, sidequest:<slug> */

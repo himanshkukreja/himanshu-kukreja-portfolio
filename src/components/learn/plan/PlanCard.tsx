@@ -12,13 +12,17 @@ import { daysBetween, dayTitle } from "@/lib/learn/plan/schedule";
 import { fmtDate, fmtMinutes } from "@/components/learn/progress/derive";
 import { Label } from "@/components/learn/progress/ui";
 import { computePlan, usePlanRecord, useToday } from "./usePlan";
+import { usePlanning } from "./usePlanning";
+import { weekOf } from "@/lib/learner/planning-model";
 
 type Props = { map: CourseMap; lessons: Record<string, LessonProgress>; done: Record<string, number>; goalTarget: string | null };
 
 export default function PlanCard({ map, lessons, done, goalTarget }: Props) {
   const today = useToday();
   const { record } = usePlanRecord();
-  const view = useMemo(() => (record && today ? computePlan(map, record, lessons, done, today) : null), [record, today, map, lessons, done]);
+  // the living plan: recaps of topics missed twice lately go first (signed in), and this week's "why" line once made on /plan
+  const planning = usePlanning({ plan: record?.id ?? null, week: today ? weekOf(today) : null });
+  const view = useMemo(() => (record && today ? computePlan(map, record, lessons, done, today, planning.recaps) : null), [record, today, map, lessons, done, planning.recaps]);
 
   if (!view || !today) {
     return (
@@ -61,6 +65,7 @@ export default function PlanCard({ map, lessons, done, goalTarget }: Props) {
         {day ? `Today, ${fmtMinutes(day.minutes)}: ${dayTitle(day)}.` : next ? `No session today. Next: ${fmtDate(next.date)} · ${dayTitle(next)}.` : "Nothing left to schedule."}
         {!view.live.fits && view.needMinutes ? ` At this pace it runs past the interview: ${fmtMinutes(view.needMinutes)}/day would fit.` : ""}
       </p>
+      {planning.why && planning.why.week === weekOf(today) && <p className="m-0 text-[13.5px] leading-relaxed text-fg-3">{planning.why.text}</p>}
       <Link href="/plan" className="inline-flex min-h-11 items-center self-start border border-line-strong px-4 text-sm text-fg hover:bg-surface-2">
         Open plan · calendar →
       </Link>
