@@ -46,7 +46,14 @@ export const ADMIN_GROUPS: { label: string; items: NavItem[] }[] = [
     items: [at("/admin/course", "Course", "course"), at("/admin/content", "Content", "content"), at("/admin/gaps", "Gaps", "gaps"), at("/admin/case-files", "Case files", "case-files"), at("/admin/design-week", "Design week", "design-week")],
   },
   { label: "Video", items: [at("/admin/lectures", "Lectures", "lectures"), at("/admin/shorts", "Shorts", "shorts"), at("/admin/publishing", "Publishing", "publishing"), at("/admin/distribution", "Distribution", "distribution")] },
-  { label: "AI", items: [at("/admin/ai", "AI", "ai"), at("/admin/chat", "Chat", "chat")] },
+  {
+    label: "AI",
+    items: [
+      { href: "/admin/ai", label: "AI", key: "ai", match: (p: string) => p.startsWith("/admin/ai") && !p.startsWith("/admin/ai/quality") },
+      at("/admin/ai/quality", "AI quality", "ai-quality"),
+      at("/admin/chat", "Chat", "chat"),
+    ],
+  },
   { label: "Settings", items: [at("/admin/admins", "Admins", "admins")] },
 ];
 export const ADMIN_NAV: NavItem[] = ADMIN_GROUPS.flatMap((g) => g.items);
