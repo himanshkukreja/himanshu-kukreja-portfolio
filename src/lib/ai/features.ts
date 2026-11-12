@@ -195,8 +195,10 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // learner's words. ~500 tokens in, ~120 out: ~$0.0001 a call. perDay 6 covers a re-plan or two a day.
   "plan-coach": { label: "Study plan coach (why this week, company priorities)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 6, maxTokens: 300, maxInputChars: 4000, think: false, live: true },
   // the quiet nudge's on-demand "3-minute recap" of a topic missed twice in 14 days, grounded in the concept's refresher and
-  // the lesson section that teaches it (the key points missed are the course's words). ~2k tokens in, ~350 out: ~$0.0004.
-  "concept-recap": { label: "3-minute recap of a missed topic", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 10, maxTokens: 650, maxInputChars: 9000, think: false, live: true },
+  // the lesson section that teaches it (the key points missed are the course's words). Thinks at low effort: without it
+  // Haiku 5.5 slipped in its worked examples (which value leaves a sliding window; eval 12 Nov 2026). ~2.5k tokens in,
+  // ~350 out plus a short think: ~$0.001.
+  "concept-recap": { label: "3-minute recap of a missed topic", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 10, maxTokens: 650, maxInputChars: 9000, think: true, effort: "low", live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

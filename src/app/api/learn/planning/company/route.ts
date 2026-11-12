@@ -97,7 +97,7 @@ export async function POST(request: Request) {
     meta: { kind: "company", company: slug, items: plan.items.length },
   });
   if (!ai.ok) return NextResponse.json({ error: ai.message, creditsLeft: ai.creditsLeft }, { status: ai.status === "error" ? 502 : 429, headers: noStore });
-  const paragraph = plainParagraph(ai.text, 700);
+  const paragraph = plainParagraph(ai.text, 760);
   await saveTranscript(ai.callId, me.id, "plan-coach", `${key}\n${facts}`, paragraph);
   return NextResponse.json({ paragraph, cached: false, creditsLeft: ai.creditsLeft }, { headers: noStore });
 }

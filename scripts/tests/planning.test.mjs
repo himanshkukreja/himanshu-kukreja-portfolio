@@ -93,6 +93,7 @@ test("nudge: at most one; the course's own topic first; then the plan line, dism
   const s = [named("sdm:quorum", 3, NOW - H), named("dsa:sliding-window", 2, NOW - 2 * H, "dsa")];
   assert.equal(pickNudge({ struggles: s, prefs: cleanNudgePrefs(null), plan: null, today: "2026-11-12" }).key, "sdm:quorum");
   assert.equal(pickNudge({ struggles: s, prefs: cleanNudgePrefs(null), plan: null, today: "2026-11-12", course: "dsa" }).key, "dsa:sliding-window");
+  assert.equal(pickNudge({ struggles: [s[0]], prefs: cleanNudgePrefs(null), plan: null, today: "2026-11-12", course: "dsa" }), null, "the DSA home shows DSA topics only");
   const fmt = (d) => d;
   const behind = planLine({ status: "behind", days: 2, fits: true, target: "2026-12-15", past: false }, fmt);
   assert.match(behind.text, /2 study days behind your plan to 2026-12-15/);
@@ -149,6 +150,8 @@ test("company plan: weights from rounds and readiness; interleaved by weight; re
   const w2 = trackWeights(["Machine coding", "System design"], {}, { sdm: 3, lld: 2 });
   assert.equal(w2.dsa, 0, "machine coding is not a DSA round");
   assert.ok(w2.lld > 0);
+  const w3 = trackWeights(["Coding", "System design"], { sdm: 0.2, lld: 0.2 }, { sdm: 9, lld: 1 });
+  assert.ok(w3.lld > 0 && w3.lld < w3.sdm / 3, "an LLD question without an LLD round: a small share");
   const mk = (t, n) => Array.from({ length: n }, (_, i) => ({ id: `${t}${i}`, kind: "lesson", week: null, title: `${t}${i}`, tag: "", href: "/", minutes: 30, splittable: true, track: t, why: "", priority: n - i }));
   const out = interleave({ sdm: mk("sdm", 4), lld: [], dsa: mk("dsa", 4) }, { sdm: 1, lld: 0, dsa: 1 }, [{ ...mk("sdm", 1)[0], id: "recap:x" }]);
   assert.equal(out[0].id, "recap:x");
@@ -162,8 +165,9 @@ test("company plan: weights from rounds and readiness; interleaved by weight; re
   assert.equal(cleanCompanyPlan({ company: "Google!", target: "2026-12-20" }), null);
   const brief = companyBrief({ company: "Google", rounds: ["Coding"], focus: ["caching"], target: "2026-12-20", today: "2026-11-12", bands: { dsa: "Early days" }, weights: { sdm: 0, lld: 0, dsa: 1 }, struggles: [], first: [{ title: "Sliding window", track: "dsa", why: "x" }], fits: false });
   assert.match(brief, /38 days from today/);
-  assert.match(brief, /DSA 100%/);
-  assert.match(brief, /does not fit/);
+  assert.match(brief, /DSA: the largest share/);
+  assert.doesNotMatch(brief, /%/);
+  assert.match(brief, /does NOT fit/);
 });
 
 test("dateInText: a future interview date in a goal note", () => {
@@ -192,7 +196,7 @@ test("connections: only what the learner did or has next, at most three, nothing
   };
   const pr = { sdmDone: new Set(["week-04-caching/day-01-caching-patterns"]), sdmNext: new Set(["week-01-data-at-scale/day-03-rate-limiting-at-scale"]), labsDone: new Set(["lru-cache"]), dsaDone: new Set(), dsaSolved: new Map([["sliding-window", 3]]), dsaNext: new Set(["linked-lists"]) };
   const sdm = connections({ kind: "sdm", key: "week-01-data-at-scale/day-03-rate-limiting-at-scale", title: "Rate limiting at scale" }, ix, pr);
-  assert.equal(sdm[0].text, "You solved 3 Sliding window problems in DSA Mastery: Rate limiting at scale uses the same idea.");
+  assert.equal(sdm[0].text, "You solved 3 problems on Sliding window in DSA Mastery: Rate limiting at scale uses the same idea.");
   assert.equal(sdm.length, 1, "the lab wasn't passed");
   const lld = connections({ kind: "sdm", key: "low-level-design/lld-03-lru-cache", title: "LRU cache" }, ix, pr);
   assert.deepEqual(

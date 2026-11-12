@@ -69,7 +69,7 @@ export function connections(ctx: LinkCtx, ix: LinkIndex, pr: LinkProgress): Conn
     const linked = ix.concepts.filter((c) => c.sdm.some((p) => lessonKeyOf(p) === key) || c.labs.some((id) => labIds.has(id)) || c.sdm.some((p) => labIds.has(labOf(p) ?? "")));
     for (const c of linked) {
       const n = pr.dsaSolved.get(c.id) ?? 0;
-      if (n > 0) add({ text: `You solved ${plural(n, `${c.title} problem`)} in DSA Mastery: ${ctx.title} uses the same idea.`, href: c.href, state: "done" }, 100 + n);
+      if (n > 0) add({ text: `You solved ${plural(n, "problem")} on ${c.title} in DSA Mastery: ${ctx.title} uses the same idea.`, href: c.href, state: "done" }, 100 + n);
       else if (pr.dsaDone.has(c.id)) add({ text: `You finished the DSA lesson on ${c.title}: ${ctx.title} builds on it.`, href: c.href, state: "done" }, 90);
       else if (pr.dsaNext.has(c.id)) add({ text: `Coming up in DSA Mastery: ${c.title}, the structure under this lesson.`, href: c.href, state: "next" }, 40);
     }

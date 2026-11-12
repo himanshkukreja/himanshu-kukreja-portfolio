@@ -161,9 +161,19 @@ export async function recapSource(userId: string, key: string): Promise<RecapSou
   const s = (await loadStruggles(userId)).find((x) => x.key === key);
   if (!s) return null;
   const f = await learnerFacts(userId);
-  // the key points the latest explain-back missed, as the course's own words
+  // the key points the latest explain-back missed, by number (the course's own words come from the topic's text)
   const ev = f.events.find((e) => e.kind === "explain_back" && (key.startsWith("dsa:") ? e.ref === key : `sdm:${e.ref}` === key));
   const missNums = ev ? missOf(ev).map(Number).filter((n) => n > 0) : [];
+  const src = await topicText(key, missNums);
+  return src ? { ...src, label: src.label || s.label, href: src.href || s.href } : null;
+}
+
+/**
+ * The course text a topic's recap is grounded in, and its missed key points (numbers → the course's words): a System
+ * Design concept's definition, refresher and the lesson section that teaches it; a DSA lesson's invariant and key points;
+ * a lesson's most relevant sections. The route and the eval (scripts/ai-eval/planning.ts) share it.
+ */
+export async function topicText(key: string, missNums: number[] = []): Promise<RecapSource | null> {
   if (key.startsWith("sdm:")) {
     const { catalogue } = await getCatalogue();
     const c = catalogue.concepts.find((x) => x.id === key.slice(4));
@@ -181,15 +191,30 @@ export async function recapSource(userId: string, key: string): Promise<RecapSou
     };
   }
   if (key.startsWith("dsa:")) {
-    const { getConcept } = await import("@/lib/dsa/load");
+    const { getConcept, getConceptIndex } = await import("@/lib/dsa/load");
     const d = await within(getConcept(key.slice(4)), 8000, null);
     if (!d) return null;
     const points = [d.invariant, ...d.keyPoints].filter(Boolean);
+    const c = (await getConceptIndex().catch(() => [])).find((x) => x.id === d.id);
+    // the lesson's own words (and worked examples) as plain text, the parts nearest its invariant first
+    const plain = d.html
+      .replace(/<(script|style|svg)[\s\S]*?<\/\1>/gi, " ")
+      .replace(/<\/(p|li|h\d|pre|div|tr)>/gi, "\n\n")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/g, " ")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&amp;/g, "&")
+      .replace(/&#39;|&apos;/g, "'")
+      .replace(/&quot;/g, '"')
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n\s*\n\s*(\n\s*)+/g, "\n\n");
+    const excerpt = lessonContext(plain, `${d.title} ${d.invariant} example`, "", 3500);
     return {
       key,
       label: d.title,
-      href: s.href,
-      text: [`DSA lesson: ${d.title}`, d.invariant ? `Invariant: ${d.invariant}` : "", d.keyPoints.length ? `Key points:\n${d.keyPoints.map((k) => `- ${k}`).join("\n")}` : ""].filter(Boolean).join("\n\n"),
+      href: c ? dsaHref(c) : `/dsa/concepts/${d.id}`,
+      text: [`DSA lesson: ${d.title}`, d.invariant ? `Invariant: ${d.invariant}` : "", d.keyPoints.length ? `Key points:\n${d.keyPoints.map((k) => `- ${k}`).join("\n")}` : "", excerpt.trim() ? `From the lesson:\n${excerpt.trim()}` : ""].filter(Boolean).join("\n\n"),
       missed: missNums.map((n) => points[n - 1]).filter(Boolean),
     };
   }
@@ -197,7 +222,8 @@ export async function recapSource(userId: string, key: string): Promise<RecapSou
     const [week, slug] = key.slice(7).split("/");
     const lesson = await within(getLearningResource(week, slug), 8000, null);
     if (!lesson) return null;
-    return { key, label: s.label, href: s.href, text: `Lesson: ${s.label}\n\n${lessonContext(lesson.content, s.label, "", 5000)}`, missed: [] };
+    const title = lesson.resource.title || slug;
+    return { key, label: title, href: `/${week}/${slug}`, text: `Lesson: ${title}\n\n${lessonContext(lesson.content, title, "", 5000)}`, missed: [] };
   }
   return null;
 }
