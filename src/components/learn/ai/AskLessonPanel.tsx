@@ -18,7 +18,7 @@ import ChatMarkdown from "@/components/learn/chat/ChatMarkdown";
 import Followups from "@/components/learn/chat/Followups";
 import { useAnswerStyle } from "@/components/learn/chat/useAnswerStyle";
 import { FOLLOWUP_ACTIONS, isAnswerStyle, pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
-import { nextRestyle, restyleAsk, TEACH_REVEAL_ASK, type Restyle } from "@/lib/ai/teaching";
+import { nextRestyle, restyleAsk, REVEAL_RE, type Restyle } from "@/lib/ai/teaching";
 import TeachToggle from "@/components/learn/chat/TeachToggle";
 import { readTeachMode, recordWorkingStyle, workingStyle } from "@/components/learn/chat/useTeaching";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
@@ -216,7 +216,7 @@ export default function AskLessonPanel({
                   <ChatMarkdown text={t.answer || ""} className="!text-[15px]" />
                   {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && (
                     // "Teach me": the answer ends with one question, so only "Just show me" sits under it
-                    <Followups items={t.teach && t.q !== TEACH_REVEAL_ASK ? [] : (t.followups ?? [])} actions={t.teach && t.q !== TEACH_REVEAL_ASK ? ["reveal"] : pickActions(t.followups ?? [], { asked: t.q })} onAsk={onCard} />
+                    <Followups items={t.teach && !REVEAL_RE.test(t.q) ? [] : (t.followups ?? [])} actions={t.teach && !REVEAL_RE.test(t.q) ? ["reveal"] : pickActions(t.followups ?? [], { asked: t.q })} onAsk={onCard} />
                   )}
                   {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && t.answer.split(/\s+/).length >= 30 && (
                     <button type="button" onClick={differently} disabled={busy} className="inline-flex min-h-9 items-center gap-1.5 self-start border border-line-strong bg-surface px-2.5 font-mono text-[12px] text-fg-2 hover:border-signal hover:text-fg [@media(pointer:coarse)]:min-h-11">

@@ -6,7 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { applyOnboarding, cleanMemory, emptyMemory, mergeMemory, setPrefs, srcKey } from "../../src/lib/ai/chat/memory-model.ts";
-import { hasTeachPref, isStylePref, isTeachPref, nextRestyle, restyleAsk, restyleLine, restyleOf, RESTYLES, stylePref, teachLine, TEACH_PREF, workingStyleOf } from "../../src/lib/ai/teaching.ts";
+import { endAtQuestion, hasTeachPref, isStylePref, isTeachPref, nextRestyle, restyleAsk, restyleLine, restyleOf, RESTYLES, stylePref, teachLine, TEACH_PREF, workingStyleOf } from "../../src/lib/ai/teaching.ts";
 import { goalChatInput, profileNotes, readGoalReply, readProfile, readTurns, withKnown, GOAL_CHAT_MAX_TURNS } from "../../src/lib/learner/goal-chat-model.ts";
 import { dsaRepeatedMistakes, mistakeCandidates, neededContent, pickNewCards, MISTAKE_CARDS_PER_DAY } from "../../src/lib/learner/mistake-cards-model.ts";
 
@@ -45,9 +45,22 @@ test("a re-explanation's words name its way, and the line asks for that way only
 test("teach me: one question at a time, explanation only after a try or a request", () => {
   const t = teachLine();
   assert.match(t, /exactly ONE question/);
-  assert.match(t, /only when they ask for it/);
+  assert.doesNotMatch(t, /give it now/);
   assert.match(t, /No headings, no tables, no bullet lists/);
+  assert.match(t, /nothing after the question/);
   assert.match(teachLine({ answering: true }), /answers your last question: first say/);
+  // asking to see it switches to explaining the whole topic
+  const reveal = teachLine({ answering: true, topic: "Teach me how cache-aside works.", latest: "I don't know, just tell me." });
+  assert.match(reveal, /give it now/);
+  assert.match(reveal, /cache-aside/);
+  assert.match(teachLine({ latest: "Just show me the explanation." }), /give it now/);
+});
+
+test("a teach-me reply ends at its question: a short tail goes, anything bigger stays", () => {
+  assert.equal(endAtQuestion("Not quite. What has to be written first? One short answer is enough."), "Not quite. What has to be written first?");
+  assert.equal(endAtQuestion("**Which parcel can you rule out?**"), "**Which parcel can you rule out?**");
+  assert.equal(endAtQuestion("Which one? See [[s2]] for the lesson."), "Which one? See [[s2]] for the lesson.");
+  assert.equal(endAtQuestion("No question here."), "No question here.");
 });
 
 test("teach me and the style that worked are remembered as prefs, one each, by the learner", () => {

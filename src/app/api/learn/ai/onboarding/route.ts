@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { COURSE_ID } from "@/lib/learn/course";
 import { loadMemory, saveMemory } from "@/lib/ai/chat/server";
 import { applyOnboarding, srcKey, type ChatMemory } from "@/lib/ai/chat/memory-model";
-import { goalChatInput, goalChatSystem, GOAL_CHAT_SCHEMA, hasNotes, profileNotes, readGoalReply, readProfile, readTurns, withKnown, type GoalCourse, type GoalKnown, type GoalProfile } from "@/lib/learner/goal-chat-model";
+import { closingLine, goalChatInput, goalChatSystem, GOAL_CHAT_MAX_TURNS, GOAL_CHAT_SCHEMA, wantsToStop, hasNotes, profileNotes, readGoalReply, readProfile, readTurns, withKnown, type GoalCourse, type GoalKnown, type GoalProfile } from "@/lib/learner/goal-chat-model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -110,10 +110,11 @@ export async function POST(request: Request) {
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429, headers: noStore });
   const reply = readGoalReply(r.text);
   if (!reply) return NextResponse.json({ error: "The goal chat didn't answer this time. Try again, or skip it for now." }, { status: 502, headers: noStore });
-  // the learner's sixth answer always ends it
-  const done = reply.done || users >= 6;
+  // the learner's sixth answer, or asking to stop, always ends it
+  const lastUser = [...turns].reverse().find((t) => t.role === "user")?.text ?? "";
+  const done = reply.done || users >= GOAL_CHAT_MAX_TURNS || (users > 0 && wantsToStop(lastUser));
   const profile = withKnown(reply.profile, known);
   if (!done) return NextResponse.json({ reply: reply.reply, chips: reply.chips, done, profile, creditsLeft: r.creditsLeft }, { headers: noStore });
   const s = await save(me.id, profile, known);
-  return NextResponse.json({ reply: reply.reply.replace(/\?\s*$/, "."), chips: [], done, profile, saved: s.saved, creditsLeft: r.creditsLeft }, { status: s.ok ? 200 : 500, headers: noStore });
+  return NextResponse.json({ reply: closingLine(reply.reply), chips: [], done, profile, saved: s.saved, creditsLeft: r.creditsLeft }, { status: s.ok ? 200 : 500, headers: noStore });
 }

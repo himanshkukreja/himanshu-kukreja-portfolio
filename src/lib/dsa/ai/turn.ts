@@ -6,7 +6,7 @@ import "server-only";
  * what the routes send.
  */
 import { actionOf, messageLines, styleLine } from "@/lib/ai/answerStyle";
-import { restyleLine, teachLine, TEACH_REVEAL_ASK } from "@/lib/ai/teaching";
+import { restyleLine, teachLine } from "@/lib/ai/teaching";
 import type { ApiMessage } from "@/lib/ai/chat/loop";
 import { nextRef, type ChatRequest, type ChatSource } from "@/lib/ai/chat/text";
 import { DSA_LANG_LABEL, type DsaLang } from "../types";
@@ -64,7 +64,9 @@ export async function prepareAsk(o: {
   const short = n < 5 || !!actionOf(latest) || (n < 14 && LEANS.test(latest));
   const page = pageItem(req.page?.path);
   // the page counts only on a concept, lecture or problem page (a list page's headings are noise)
-  const query = [latest, short ? prevUser : "", page ? (req.page?.selection ?? "") : "", page ? `${req.page?.title ?? ""} ${req.page?.heading ?? ""}` : ""].filter(Boolean).join("\n");
+  // "Explain it differently" is about the previous question: it searches with that, never with its own words
+  const asked = req.restyle && prevUser ? prevUser : latest;
+  const query = [asked, short && !req.restyle ? prevUser : "", page ? (req.page?.selection ?? "") : "", page ? `${req.page?.title ?? ""} ${req.page?.heading ?? ""}` : ""].filter(Boolean).join("\n");
   const [found, planned] = await Promise.all([searchDsa({ query, unlocked, page }), plannedConcepts().catch(() => [])]);
 
   // refs: the same passage keeps the ref it had earlier in this chat; new ones continue the numbering
@@ -88,7 +90,7 @@ export async function prepareAsk(o: {
     page && req.page?.path
       ? `<page>The learner is on ${req.page.title ? `"${req.page.title}"` : req.page.path}${req.page.heading ? `, at "${req.page.heading}"` : ""}.${req.page.selection ? ` They selected: "${req.page.selection.slice(0, 600)}"` : ""}</page>`
       : "";
-  const gap = gapLine(latest, planned, found.problems.map((p) => p.concept ?? ""), found.concepts.map((c) => c.title));
+  const gap = gapLine(asked, planned, found.problems.map((p) => p.concept ?? ""), found.concepts.map((c) => c.title));
   const context = [
     pageLine,
     gap,
@@ -130,11 +132,10 @@ export async function prepareAsk(o: {
   };
 }
 
-/** "Teach me"'s line for a DSA turn (none for a re-explanation or a "Just show me"). */
+/** "Teach me"'s line for a DSA turn (none for a re-explanation; a "Just show me" gets the explaining one). */
 function teachOf(req: ChatRequest): string {
-  const latest = req.messages[req.messages.length - 1].text.trim();
-  if (!req.teach || req.restyle || latest === TEACH_REVEAL_ASK) return "";
-  return teachLine({ answering: req.messages.some((m) => m.role === "assistant") });
+  if (!req.teach || req.restyle) return "";
+  return teachLine({ answering: req.messages.some((m) => m.role === "assistant"), topic: req.messages.find((m) => m.role === "user")?.text, latest: req.messages[req.messages.length - 1].text });
 }
 
 /* ------------------------------------------------------------------ the problem room's tutor */

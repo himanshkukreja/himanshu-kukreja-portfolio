@@ -9,7 +9,7 @@ import "server-only";
  * One model round, no tools: the route looks everything up before the model runs (the retrieval, the problem and the
  * learner's unlocks), so the answer streams from the first token.
  */
-import { TEACH_REVEAL_ASK } from "@/lib/ai/teaching";
+import { endAtQuestion, REVEAL_RE } from "@/lib/ai/teaching";
 import { after, NextResponse } from "next/server";
 import { saveTranscript } from "@/lib/ai/client";
 import { FEATURES } from "@/lib/ai/features";
@@ -86,7 +86,9 @@ export async function streamDsa(o: {
         emit({ type: "status", tool: p.think ? "think" : "write", label: p.think ? "Thinking it through…" : "Writing your answer…" });
         // the follow-ups line never streams; capped code blocks stream already capped (the done text is capped the same way)
         const ans = await answerDsa({ feature, model: admit.model, apiKey: admit.apiKey, p, latest: latest.text, deadline: t0 + DEADLINE_MS, signal: request.signal, onDelta: (d) => emit({ type: "delta", text: d }) });
-        const { loop, text, offTopic } = ans;
+        const { loop, offTopic } = ans;
+        // "Teach me": the reply ends with its one question (lib/ai/teaching.ts), unless they asked to see the answer
+        const text = req.teach && !req.restyle && !REVEAL_RE.test(latest.text) ? endAtQuestion(ans.text) : ans.text;
         const ok = !loop.error && !!text;
         const callId = await logChatCall({
           user_id: me.id,
@@ -110,7 +112,7 @@ export async function streamDsa(o: {
           await saveTranscript(callId, me.id, feature, p.ask, text);
           const cards = p.followups && !offTopic && loop.stop === "end_turn";
           // "Teach me" (lib/ai/teaching.ts): the answer ends with one question, so only "Just show me" sits under it
-          const teaching = !!req.teach && !req.restyle && latest.text.trim() !== TEACH_REVEAL_ASK;
+          const teaching = !!req.teach && !req.restyle && !REVEAL_RE.test(latest.text);
           const followups = cards && !teaching ? ans.followups : [];
           const actions: FollowupAction[] = teaching ? (p.followups && !offTopic ? ["reveal"] : []) : cards && text.split(/\s+/).length >= 40 ? pickActions(followups, { asked: latest.text, quiz: false }) : [];
           if (followups.length || actions.length) emit({ type: "followups", items: followups, ...(actions.length ? { actions } : {}) });
