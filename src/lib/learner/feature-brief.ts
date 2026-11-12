@@ -45,7 +45,8 @@ export async function namerFor(events: OutcomeEvent[], extra: { mock?: MockInter
   const needCatalogue = refs.some((r) => r.startsWith("explain_back|") && !r.startsWith("explain_back|dsa:"));
   const dsaConcepts = refs.filter((r) => r.startsWith("explain_back|dsa:")).map((r) => r.slice("explain_back|dsa:".length));
   const [cat, dsa] = await Promise.all([
-    needCatalogue ? getCatalogue().catch(() => null) : Promise.resolve(null),
+    // the explain catalogue is big to build on a cold server: wait at most 2.5 s, then name the concept from its id
+    needCatalogue ? Promise.race([getCatalogue().catch(() => null), new Promise<null>((r) => setTimeout(() => r(null), 2500))]) : Promise.resolve(null),
     dsaConcepts.length ? import("@/lib/dsa/load").then(({ getConcept }) => Promise.all(dsaConcepts.map((id) => getConcept(id).catch(() => null)))).catch(() => []) : Promise.resolve([]),
     ...refs.map(async (r) => {
       const [kind, ref] = r.split("|");
@@ -71,7 +72,7 @@ export async function namerFor(events: OutcomeEvent[], extra: { mock?: MockInter
   for (const d of dsa as ({ id: string; title: string; invariant?: string; keyPoints: string[] } | null)[]) if (d) concepts.set(`dsa:${d.id}`, { term: d.title, points: [d.invariant ?? "", ...d.keyPoints].filter(Boolean) });
   return {
     ref: (e) => {
-      if (e.kind === "explain_back") return concepts.has(e.ref) ? `explain-back on ${concepts.get(e.ref)!.term}` : null;
+      if (e.kind === "explain_back") return `explain-back on ${concepts.get(e.ref)?.term ?? e.ref.replace(/^dsa:/, "").replace(/-/g, " ")}`;
       if (e.kind.startsWith("mock_") || e.kind === "lld_mock") return mocks.get(slugOf(e))?.title ?? null;
       if (e.kind.startsWith("lab_")) return labs.has(e.ref) ? `lab ${labs.get(e.ref)}` : null;
       if (e.kind === "war_room") return rooms.has(e.ref) ? `war room ${rooms.get(e.ref)}` : null;
@@ -80,8 +81,10 @@ export async function namerFor(events: OutcomeEvent[], extra: { mock?: MockInter
     },
     item: (e, id) => {
       if (e.kind === "explain_back") {
-        const p = concepts.get(e.ref)?.points[Number(id) - 1];
-        return p ? firstClause(p) : null;
+        const c = concepts.get(e.ref);
+        const p = c?.points[Number(id) - 1];
+        // no catalogue yet (cold server): the point's number still tells the tutor which key point was missed
+        return p ? firstClause(p) : c ? null : /^\d+$/.test(id) ? `key point ${id}` : null;
       }
       if (e.kind.startsWith("mock_") || e.kind === "lld_mock") return mocks.get(slugOf(e))?.item(id) ?? null;
       if (e.kind === "war_room") return /^\d+$/.test(id) ? `call ${id}` : null;
