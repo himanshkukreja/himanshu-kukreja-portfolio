@@ -4,7 +4,8 @@
  * /certificate: earning a certificate. The checklist (checked on the server from the
  * database: lessons, capstones, re-scored trial answers, bosses, mock scorecards) with what's left and where
  * to finish it → Claim → confirm the name + public page → "You're certified" with Add to LinkedIn,
- * Download PDF and Share. Below it, one certificate per world with its own claim.
+ * Download PDF and Share. Below it, the Low-level design (LLD track) certificate (#lld) and one
+ * certificate per world, each with its own claim.
  * Guests are asked to sign in: their progress lives in this browser and can be imported from the
  * Progress page.
  */
@@ -32,6 +33,7 @@ import {
   checkCertName,
   fmtCertDate,
   linkedinAddUrl,
+  LLD_CERT_NAME,
   type CertificateView,
   type CertKind,
   type CertState,
@@ -78,8 +80,12 @@ function useCertState() {
 
 function replaceCert(s: CertState, cert: CertificateView): CertState {
   if (cert.kind === "course") return { ...s, course: { ...s.course, certificate: cert } };
+  if (cert.kind === "lld") return { ...s, lld: { ...s.lld, certificate: cert } };
   return { ...s, worlds: s.worlds.map((w) => (w.key === cert.world?.key ? { ...w, certificate: cert } : w)) };
 }
+
+/** The XP toast's line for a certificate. */
+const awardLabel = (c: CertificateView) => (c.kind === "course" ? "Certified · System Design Mastery" : c.kind === "lld" ? `Certified · ${LLD_CERT_NAME}` : `World ${c.world?.code} certificate`);
 
 /* ------------------------------------------------------------------ page */
 
@@ -95,9 +101,16 @@ export default function CertificateFlow() {
   // certificates issued on another device still pay their XP here (once)
   useEffect(() => {
     if (!hydrated || !d.state) return;
-    const certs = [d.state.course.certificate, ...d.state.worlds.map((w) => w.certificate)].filter((c): c is CertificateView => !!c && c.status === "valid");
-    certs.forEach((c) => awardOnce(certXpKey(c.kind, c.world?.key), CERT_XP[c.kind], c.kind === "course" ? "Certified · System Design Mastery" : `World ${c.world?.code} certificate`));
+    const certs = [d.state.course.certificate, d.state.lld?.certificate, ...d.state.worlds.map((w) => w.certificate)].filter((c): c is CertificateView => !!c && c.status === "valid");
+    certs.forEach((c) => awardOnce(certXpKey(c.kind, c.world?.key), CERT_XP[c.kind], awardLabel(c)));
   }, [hydrated, d.state, awardOnce]);
+
+  // /certificate#lld (from the LLD home): the section renders after the state loads, so scroll to it then
+  const lldReady = !!d.state && !target && !issued;
+  useEffect(() => {
+    if (!lldReady || window.location.hash !== "#lld") return;
+    window.requestAnimationFrame(() => document.getElementById("lld")?.scrollIntoView({ block: "start" }));
+  }, [lldReady]);
 
   const toTop = () => window.requestAnimationFrame(() => topRef.current?.scrollIntoView({ block: "start" }));
   const startClaim = (t: Target) => {
@@ -138,7 +151,7 @@ export default function CertificateFlow() {
         onIssued={(cert, existing) => {
           d.patch((s) => replaceCert(s, cert));
           if (!existing) track("cert_issued", { kind: cert.kind, world: cert.world?.key ?? null });
-          awardOnce(certXpKey(cert.kind, cert.world?.key), CERT_XP[cert.kind], cert.kind === "course" ? "Certified · System Design Mastery" : `World ${cert.world?.code} certificate`);
+          awardOnce(certXpKey(cert.kind, cert.world?.key), CERT_XP[cert.kind], awardLabel(cert));
           setTarget(null);
           setIssued(cert);
           toTop();
@@ -147,7 +160,7 @@ export default function CertificateFlow() {
       />
     );
   } else if (issued) {
-    const fresh = (issued.kind === "course" ? d.state.course.certificate : d.state.worlds.find((w) => w.key === issued.world?.key)?.certificate) || issued;
+    const fresh = (issued.kind === "course" ? d.state.course.certificate : issued.kind === "lld" ? d.state.lld?.certificate : d.state.worlds.find((w) => w.key === issued.world?.key)?.certificate) || issued;
     body = (
       <div className="flex flex-col gap-8">
         <Issued
@@ -188,6 +201,17 @@ export default function CertificateFlow() {
         ) : (
           <Checklist e={s.course.eligibility} canClaim={s.available && s.signing} onClaim={() => startClaim({ kind: "course", world: null, title: certTitle("course") })} />
         )}
+        {s.lld && (
+          <LldCert
+            row={s.lld}
+            canClaim={s.available && s.signing}
+            onClaim={() => startClaim({ kind: "lld", world: null, title: certTitle("lld") })}
+            badges={!!s.badges}
+            onShare={setShare}
+            onChanged={(c) => d.patch((x) => replaceCert(x, c))}
+            onRemoved={d.refresh}
+          />
+        )}
         <Worlds
           rows={s.worlds}
           canClaim={s.available && s.signing}
@@ -220,7 +244,9 @@ export default function CertificateFlow() {
             kind: "certificate",
             url: () => certPath(share.code),
             text: () =>
-              share.kind === "course"
+              share.kind === "lld"
+                ? `I earned the ${LLD_CERT_NAME} certificate of ${ISSUER}: ${share.stats?.lld ? `all ${share.stats.lld.patterns.total} design-pattern lessons and all ${share.stats.lld.cases.total} case studies` : "every design-pattern lesson and case study"}. Verify it here:`
+                : share.kind === "course"
                 ? `I earned the ${ISSUER} certificate of completion: ${share.stats?.worlds.total ? `${share.stats.worlds.total} worlds` : "every world"}, every trial, every interview boss and ${MOCKS_NEEDED} mock interviews. Verify it here:`
                 : `I earned the World ${share.world?.code} certificate of ${ISSUER} (${share.world?.title}). Verify it here:`,
           }}
@@ -620,7 +646,7 @@ function Issued({
         {revoked ? "Revoked" : justNow ? `Unlocked · +${xp} XP` : `Certified · ${fmtCertDate(cert.issuedAt)}`}
       </span>
       <h1 id={`issued-${cert.code}`} className="m-0 font-display text-[40px] font-extrabold leading-[0.98] tracking-[-0.035em] text-fg sm:text-[56px]">
-        {revoked ? "This certificate was revoked" : course ? "You're certified" : `World ${cert.world?.code} certified`}
+        {revoked ? "This certificate was revoked" : course ? "You're certified" : cert.kind === "lld" ? `${LLD_CERT_NAME} certified` : `World ${cert.world?.code} certified`}
         <span className="text-signal-text">.</span>
       </h1>
       {revoked ? (
@@ -702,6 +728,71 @@ function Issued({
             <Withdraw cert={cert} onDone={onRemoved} />
           </div>
         </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ LLD track */
+
+function LldCert({
+  row,
+  canClaim,
+  onClaim,
+  badges,
+  onShare,
+  onChanged,
+  onRemoved,
+}: {
+  row: CertState["lld"];
+  canClaim: boolean;
+  onClaim: () => void;
+  badges: boolean;
+  onShare: (c: CertificateView) => void;
+  onChanged: (c: CertificateView) => void;
+  onRemoved: () => void;
+}) {
+  const e = row.eligibility;
+  const s = e.stats.lessons;
+  const next = e.requirements.find((r) => !r.done);
+  return (
+    <section id="lld" aria-labelledby="lld-cert-h" className="flex scroll-mt-28 flex-col gap-4">
+      <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-1 border-b border-line pb-3">
+        <h2 id="lld-cert-h" className="m-0 flex flex-col gap-1">
+          <span className={`${LABEL} text-signal-text`}>LLD certificate</span>
+          <span className="font-display text-[28px] font-bold leading-none tracking-[-0.02em] text-fg sm:text-[34px]">{LLD_CERT_NAME}</span>
+        </h2>
+        <span className="font-mono text-[13px] text-fg-3">
+          {s.done}/{s.total} lessons done
+        </span>
+      </div>
+      {row.certificate ? (
+        <Issued cert={row.certificate} badges={badges} onShare={onShare} onChanged={onChanged} onRemoved={onRemoved} />
+      ) : (
+        <>
+          <p className="m-0 max-w-[680px] text-[14px] leading-relaxed text-fg-3">
+            The certificate for the low-level design track, in the same design as the course certificate: complete every design-pattern lesson and every case study.
+          </p>
+          <div className="h-2 bg-surface-2" role="progressbar" aria-valuemin={0} aria-valuemax={s.total} aria-valuenow={s.done} aria-label="LLD lessons done">
+            <div className="h-2 bg-signal transition-[width]" style={{ width: `${Math.round((s.done / Math.max(1, s.total)) * 100)}%` }} />
+          </div>
+          <ul className="m-0 flex list-none flex-col gap-px border border-line bg-line p-0">
+            {e.requirements.map((r) => (
+              <ReqItem key={r.id} r={r} />
+            ))}
+          </ul>
+          {e.eligible ? (
+            <button type="button" onClick={onClaim} disabled={!canClaim} className="min-h-[52px] bg-signal px-6 text-[16px] font-semibold text-on-signal hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50 sm:self-start">
+              Claim my LLD certificate
+            </button>
+          ) : (
+            next && (
+              <Link href={next.href} className="inline-flex min-h-[52px] items-center justify-center gap-2 border border-line-strong px-6 text-[16px] text-fg hover:bg-surface-2 sm:self-start">
+                Next: {next.hrefLabel.toLowerCase()} →
+              </Link>
+            )
+          )}
+        </>
       )}
     </section>
   );

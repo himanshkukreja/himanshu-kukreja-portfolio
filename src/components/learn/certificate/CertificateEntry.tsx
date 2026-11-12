@@ -13,13 +13,14 @@ import { MOCKS_NEEDED } from "@/lib/certificates/core";
 export default function CertificateEntry({ states, done, signedIn }: { states: WeekState[]; done: Record<string, number>; signedIn: boolean }) {
   const certified = !!done["cert:course"];
   const worldCerts = states.filter((s) => !!done[`cert:world:${s.week.key}`]).length;
+  const lldCert = !!done["cert:lld"];
   const cleared = states.filter((s) => s.cleared).length;
   // offer keys alone (the server also checks each scorecard); enough for a progress line
   const offers = Object.keys(done).filter((k) => k.startsWith("offer:")).length;
   const offer = offers >= MOCKS_NEEDED;
   const line = certified
-    ? `Certified · ${worldCerts}/${states.length} world certificates`
-    : `${cleared}/${states.length} worlds cleared · ${offer ? `Hire on ${MOCKS_NEEDED} mocks ✓` : `${offers}/${MOCKS_NEEDED} Hire mocks`}${worldCerts ? ` · ${worldCerts} world certificate${worldCerts === 1 ? "" : "s"}` : ""}`;
+    ? `Certified · ${worldCerts}/${states.length} world certificates${lldCert ? " · LLD certificate" : ""}`
+    : `${cleared}/${states.length} worlds cleared · ${offer ? `Hire on ${MOCKS_NEEDED} mocks ✓` : `${offers}/${MOCKS_NEEDED} Hire mocks`}${worldCerts ? ` · ${worldCerts} world certificate${worldCerts === 1 ? "" : "s"}` : ""}${lldCert ? " · LLD certificate" : ""}`;
   return (
     <section id="certificate" aria-labelledby="cert-entry-h" className="scroll-mt-28">
       <Link href="/certificate" className="group flex flex-col gap-4 border border-line-strong bg-surface p-5 hover:border-signal sm:flex-row sm:items-center sm:justify-between sm:p-6">

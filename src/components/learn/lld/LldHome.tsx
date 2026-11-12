@@ -5,6 +5,8 @@
  *   Design patterns   the catalogue by group (Foundations, Creational, Structural, Behavioural, In practice)
  *   Case studies      the 22 problems as cards with filters by pattern, difficulty and company
  * Progress is read in the browser (the same record the lessons write), so the page itself is static.
+ * "Your LLD certificate" counts the same records (n/58: 28 pattern lessons + 30 case studies) and links
+ * to /certificate#lld, where the claim is checked again on the server from the account's records.
  * The filter logic is pure (src/lib/learn/lld/filters.ts, tested); filters live in the URL so a
  * filtered list can be shared.
  */
@@ -13,6 +15,9 @@ import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { COURSE_ID } from "@/lib/learn/paths";
 import { lessonKey } from "@/lib/learn/types";
 import { useLearnProgress, type LessonProgress } from "@/lib/learn/progress";
+import { useAuth } from "@/contexts/AuthContext";
+import { useGame } from "@/game/GameProvider";
+import { LLD_CASES_NEEDED, LLD_CERT_HREF, LLD_CERT_NAME, LLD_PATTERNS_NEEDED } from "@/lib/certificates/core";
 import { CORE_PATTERNS, PATTERN_GROUPS, PATTERNS, caseBySlug, patternBySlug, patternChipName, patternLessonId, type Difficulty } from "@/lib/learn/lld/meta";
 import { NO_FILTERS, casePct, facets, filterCases, filtersToQuery, hasFilters, nextOnPath, parseFilters, patternMap, suggestedPath, type CaseRow, type Filters } from "@/lib/learn/lld/filters";
 import { STEPS } from "@/lib/learn/lld/steps";
@@ -72,6 +77,14 @@ export default function LldHome({ cases, livePatterns, intro = null }: { cases: 
   const livePats = PATTERNS.filter((p) => live.has(p.slug));
   const patsDone = ready ? livePats.filter((p) => patDone(p.slug)).length : 0;
   const nextPat = ready ? livePats.find((p) => !patDone(p.slug)) : livePats[0];
+  const { user } = useAuth();
+  const { done: game } = useGame();
+  const cert = {
+    patterns: { done: ready ? PATTERNS.filter((p) => patDone(p.slug)).length : 0, total: Math.max(LLD_PATTERNS_NEEDED, PATTERNS.length) },
+    cases: { done: ready ? done.size : 0, total: Math.max(LLD_CASES_NEEDED, cases.length) },
+    certified: !!game["cert:lld"],
+    signedIn: !!user,
+  };
 
   return (
     <main className="pb-20">
@@ -138,6 +151,8 @@ export default function LldHome({ cases, livePatterns, intro = null }: { cases: 
       </section>
 
       <div className="mx-auto flex max-w-[1320px] flex-col gap-12 px-4 sm:px-6 lg:gap-16">
+        <LldCertificate {...cert} ready={ready} />
+
         {/* ------------------------------------------------------------ path */}
         <Section id="path" kicker="suggested path" title="Where to start" aside="Foundations, then the core patterns, then easy and hard case studies.">
           <ol className="m-0 grid list-none gap-3 p-0 md:grid-cols-2 xl:grid-cols-4">
@@ -328,6 +343,50 @@ export default function LldHome({ cases, livePatterns, intro = null }: { cases: 
 }
 
 /* ------------------------------------------------------------------ pieces */
+
+/** "Your LLD certificate": n/58 lessons done, and the way to claim it once both halves are complete. */
+function LldCertificate({ patterns, cases, certified, signedIn, ready }: { patterns: { done: number; total: number }; cases: { done: number; total: number }; certified: boolean; signedIn: boolean; ready: boolean }) {
+  const doneN = patterns.done + cases.done;
+  const total = patterns.total + cases.total;
+  const eligible = ready && patterns.done >= patterns.total && cases.done >= cases.total;
+  const pct = Math.round((doneN / Math.max(1, total)) * 100);
+  return (
+    <section id="certificate" aria-labelledby="lld-cert-h" className="flex scroll-mt-24 flex-col gap-3 border border-line bg-surface p-4 sm:flex-row sm:items-center sm:gap-6 sm:p-5">
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <p className={`${LABEL} m-0 text-signal-text`}>certificate · {LLD_CERT_NAME.toLowerCase()}</p>
+        <h2 id="lld-cert-h" className="m-0 font-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-fg sm:text-[26px]">
+          Your LLD certificate
+        </h2>
+        <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+          <span className="font-mono text-[15px] text-fg">
+            {ready ? doneN : "–"}/{total} <span className="text-fg-3">done</span>
+          </span>
+          <span className="font-mono text-[12px] text-fg-3">
+            {ready ? patterns.done : "–"}/{patterns.total} pattern lessons · {ready ? cases.done : "–"}/{cases.total} case studies
+          </span>
+        </div>
+        <div className="h-1.5 max-w-[520px] bg-surface-2" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={ready ? doneN : 0} aria-label="LLD certificate progress">
+          <div className="h-full bg-signal" style={{ width: `${ready ? pct : 0}%` }} />
+        </div>
+        <p className="m-0 text-[13px] leading-snug text-fg-3">
+          {certified
+            ? "You're certified. View, share or download it from your certificates."
+            : eligible
+              ? signedIn
+                ? "Every pattern lesson and case study done: claim it now."
+                : "Every pattern lesson and case study done. Sign in to claim it; certificates are checked against your account."
+              : `Complete all ${patterns.total} design-pattern lessons and all ${cases.total} case studies to earn a verifiable certificate.`}
+        </p>
+      </div>
+      <Link
+        href={LLD_CERT_HREF}
+        className={`inline-flex min-h-11 shrink-0 items-center justify-center px-4 text-sm font-semibold sm:self-center ${eligible && !certified ? "bg-signal text-on-signal hover:brightness-110" : "border border-line-strong text-fg hover:border-fg"} ${FOCUS}`}
+      >
+        {certified ? "View certificate ›" : eligible ? "Claim your certificate ›" : "See the requirements ›"}
+      </Link>
+    </section>
+  );
+}
 
 function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
   return (

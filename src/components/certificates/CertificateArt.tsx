@@ -3,14 +3,15 @@
  * scaled to their box with container units, so the same markup is the phone preview, the
  * verification page and the printed PDF (297 × 210 mm, see certificate.css).
  *   CourseCertificate  "A": paper (print / PDF) or dark (verification page), orange accent, stats
- *                      row and a QR seal that opens the verification page
+ *                      row and a QR seal that opens the verification page; the LLD track
+ *                      certificate ("Low-level design") uses the same design with its own numbers
  *   WorldCertificate   "E" in the blueprint style: grid paper, engineering title block, the
  *                      world's number, title and day topics
  * Server- and client-safe (no hooks). Colours are fixed on purpose: a certificate looks the same
  * in either site theme.
  */
 import type { CSSProperties, ReactNode } from "react";
-import { CERT_TITLE, DISCLAIMER, ISSUER, LEVEL_TEXT, SIGNER, SIGNER_ROLE, VERDICT_TEXT, certDisplayUrl, certUrl, fmtCertDate, worldsPhrase, type CertificateView } from "@/lib/certificates/core";
+import { CERT_TITLE, DISCLAIMER, ISSUER, LEVEL_TEXT, LLD_CERT_NAME, SIGNER, SIGNER_ROLE, VERDICT_TEXT, certDisplayUrl, certUrl, fmtCertDate, worldsPhrase, type CertificateView } from "@/lib/certificates/core";
 import { qrPath } from "@/lib/certificates/qr";
 
 /** n design pixels (of 1200) in the certificate's own box */
@@ -71,18 +72,29 @@ export function CourseCertificate({ cert, theme = "paper", id }: { cert: Certifi
   const p = theme === "dark" ? DARK : PAPER;
   const s = cert.stats;
   const worlds = s?.worlds.total;
-  const stats = s
-    ? [
+  const lld = cert.kind === "lld";
+  const L = s?.lld;
+  const stats: { v: string; l: string; accent?: boolean }[] | null = !s
+    ? null
+    : lld
+      ? [
+          { v: L ? `${L.patterns.done}/${L.patterns.total}` : "—", l: "design-pattern lessons completed" },
+          { v: L ? `${L.cases.done}/${L.cases.total}` : "—", l: "case studies completed" },
+          { v: `${s.lessons.done}/${s.lessons.total}`, l: "lessons in the low-level design track", accent: true },
+        ]
+      : [
         { v: `${s.worlds.cleared}/${s.worlds.total}`, l: "worlds cleared" },
         { v: `${s.trialParts.passed}/${s.trialParts.total}`, l: "trial parts passed at 80%+" },
         { v: `${s.bosses.beaten}/${s.bosses.total}`, l: "interview bosses beaten" },
         s.offers
           ? { v: `${s.offers.have}× HIRE+`, l: s.mock ? `mock interviews · best ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interviews", accent: true }
           : { v: s.mock ? verdictWord(s.mock.verdict) : "—", l: s.mock ? `mock interview · ${LEVEL_TEXT[s.mock.level] || s.mock.level} level` : "mock interview", accent: true },
-      ]
-    : null;
+      ];
+  const label = lld
+    ? `${CERT_TITLE}, ${LLD_CERT_NAME}: ${cert.name} completed the ${LLD_CERT_NAME} track of ${ISSUER}. Certificate ID ${cert.code}, issued ${fmtCertDate(cert.issuedAt)}.`
+    : `${CERT_TITLE}: ${cert.name} completed ${ISSUER}. Certificate ID ${cert.code}, issued ${fmtCertDate(cert.issuedAt)}.`;
   return (
-    <Sheet id={id} label={`${CERT_TITLE}: ${cert.name} completed ${ISSUER}. Certificate ID ${cert.code}, issued ${fmtCertDate(cert.issuedAt)}.`}>
+    <Sheet id={id} label={label}>
       <div style={{ ...SANS, position: "absolute", inset: 0, boxSizing: "border-box", padding: u(40), background: p.paper, color: p.ink }}>
         <div style={{ width: "100%", height: "100%", boxSizing: "border-box", border: `${u(2)} solid ${p.ink}`, display: "flex", flexDirection: "column" }}>
           <div style={{ height: u(10), background: p.accent, flexShrink: 0 }} />
@@ -99,18 +111,29 @@ export function CourseCertificate({ cert, theme = "paper", id }: { cert: Certifi
             </div>
 
             <div style={{ marginTop: u(44), display: "flex", flexDirection: "column", gap: u(14) }}>
-              <span style={{ ...MONO, fontSize: u(14), letterSpacing: "0.16em", textTransform: "uppercase", color: p.muted }}>{CERT_TITLE}</span>
+              <span style={{ ...MONO, fontSize: u(14), letterSpacing: "0.16em", textTransform: "uppercase", color: p.muted }}>
+                {CERT_TITLE}
+                {lld && <span style={{ color: p.accentInk, fontWeight: 600 }}> · {LLD_CERT_NAME}</span>}
+              </span>
               <span style={{ fontSize: u(20), color: p.muted }}>This certifies that</span>
               <h1 style={{ ...DISPLAY, margin: 0, fontWeight: 800, fontSize: u(nameSize(cert.name, 88)), lineHeight: 0.98, letterSpacing: "-0.035em", overflowWrap: "anywhere" }}>{withDot(cert.name, p.accent)}</h1>
               <p style={{ margin: `${u(8)} 0 0`, fontSize: u(21), lineHeight: 1.5, maxWidth: u(860) }}>
-                completed <b>{ISSUER}</b>, {worldsPhrase(worlds)} on designing systems at scale, and passed its trials, interview bosses and {s?.offers ? `${s.offers.need} timed mock interviews` : "a timed mock interview"}.
+                {lld ? (
+                  <>
+                    completed the <b>{LLD_CERT_NAME}</b> track of <b>{ISSUER}</b>: every design-pattern lesson and every machine-coding case study, from requirements and class diagrams to working code.
+                  </>
+                ) : (
+                  <>
+                    completed <b>{ISSUER}</b>, {worldsPhrase(worlds)} on designing systems at scale, and passed its trials, interview bosses and {s?.offers ? `${s.offers.need} timed mock interviews` : "a timed mock interview"}.
+                  </>
+                )}
               </p>
             </div>
 
             {stats && (
-              <div style={{ marginTop: u(32), display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", borderTop: `${u(1.5)} solid ${p.ink}`, borderBottom: `${u(1.5)} solid ${p.ink}` }}>
+              <div style={{ marginTop: u(32), display: "grid", gridTemplateColumns: `repeat(${stats.length}, minmax(0, 1fr))`, borderTop: `${u(1.5)} solid ${p.ink}`, borderBottom: `${u(1.5)} solid ${p.ink}` }}>
                 {stats.map((x, i) => (
-                  <div key={x.l} style={{ padding: `${u(16)} ${i === 3 ? 0 : u(20)} ${u(16)} ${i === 0 ? 0 : u(20)}`, display: "flex", flexDirection: "column", gap: u(4), borderRight: i < 3 ? `${u(1)} solid ${p.rule}` : undefined }}>
+                  <div key={x.l} style={{ padding: `${u(16)} ${i === stats.length - 1 ? 0 : u(20)} ${u(16)} ${i === 0 ? 0 : u(20)}`, display: "flex", flexDirection: "column", gap: u(4), borderRight: i < stats.length - 1 ? `${u(1)} solid ${p.rule}` : undefined }}>
                     <span style={{ ...MONO, fontSize: u(x.v.length > 8 ? 26 : 34), fontWeight: 600, color: x.accent ? p.accentInk : p.ink, whiteSpace: "nowrap" }}>{x.v}</span>
                     <span style={{ fontSize: u(14), color: p.muted }}>{x.l}</span>
                   </div>
@@ -139,7 +162,10 @@ export function CourseCertificate({ cert, theme = "paper", id }: { cert: Certifi
             </div>
 
             <p style={{ margin: `${u(22)} 0 0`, fontSize: u(12), color: p.muted, lineHeight: 1.5 }}>
-              {DISCLAIMER} Earned by reading every lesson and capstone and passing every trial, boss and {s?.offers ? `${s.offers.need} mock interviews` : "a mock interview"}; verify the ID above.
+              {DISCLAIMER}{" "}
+              {lld
+                ? `Earned by completing all ${L?.patterns.total ?? ""} design-pattern lessons and all ${L?.cases.total ?? ""} case studies of the track; verify the ID above.`.replace(/ {2,}/g, " ")
+                : `Earned by reading every lesson and capstone and passing every trial, boss and ${s?.offers ? `${s.offers.need} mock interviews` : "a mock interview"}; verify the ID above.`}
             </p>
           </div>
         </div>

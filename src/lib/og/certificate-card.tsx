@@ -4,7 +4,7 @@
  * gets the neutral card (no name).
  */
 import { ImageResponse } from "next/og";
-import { CERT_TITLE, ISSUER, VERDICT_TEXT, type CertificateView } from "@/lib/certificates/core";
+import { CERT_TITLE, ISSUER, LLD_CERT_NAME, VERDICT_TEXT, type CertificateView } from "@/lib/certificates/core";
 import { C, display, Mark, mono, ogFonts } from "./brand";
 
 export const CERT_OG_SIZE = { width: 1200, height: 627 };
@@ -43,7 +43,14 @@ export async function certificateCard(cert: CertificateView | null) {
   const s = cert.stats;
   const revoked = cert.status === "revoked";
   const cells =
-    cert.kind === "course" && s
+    cert.kind === "lld" && s
+      ? [
+          { v: "LLD", l: "low-level design", accent: true },
+          { v: `${s.lessons.done}/${s.lessons.total}`, l: "lessons" },
+          { v: s.lld ? `${s.lld.patterns.done}/${s.lld.patterns.total}` : "—", l: "design patterns" },
+          { v: s.lld ? `${s.lld.cases.done}/${s.lld.cases.total}` : "—", l: "case studies" },
+        ]
+      : cert.kind === "course" && s
       ? [
           { v: `${s.worlds.cleared}/${s.worlds.total}`, l: "worlds" },
           { v: `${s.trialParts.passed}/${s.trialParts.total}`, l: "trial parts" },
@@ -58,7 +65,7 @@ export async function certificateCard(cert: CertificateView | null) {
             { v: s.bosses.total ? (s.bosses.beaten ? "BEATEN" : "—") : "N/A", l: "interview boss" },
           ]
         : [];
-  const kicker = cert.kind === "course" ? `${ISSUER} · ${CERT_TITLE}` : `${ISSUER} · World ${cert.world?.code ?? ""} · ${cert.world?.title ?? ""}`;
+  const kicker = cert.kind === "course" ? `${ISSUER} · ${CERT_TITLE}` : cert.kind === "lld" ? `${ISSUER} · ${LLD_CERT_NAME}` : `${ISSUER} · World ${cert.world?.code ?? ""} · ${cert.world?.title ?? ""}`;
   return new ImageResponse(
     (
       <Shell badge={revoked ? `Revoked · ${cert.code}` : `Certified · ${cert.code}`}>

@@ -16,6 +16,7 @@ import "@/components/certificates/certificate.css";
 
 function own(state: CertState, code: string): CertificateView | null {
   if (state.course.certificate?.code === code) return state.course.certificate;
+  if (state.lld?.certificate?.code === code) return state.lld.certificate;
   return state.worlds.find((w) => w.certificate?.code === code)?.certificate ?? null;
 }
 

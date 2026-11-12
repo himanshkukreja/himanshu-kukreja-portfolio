@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { CERT_TITLE, DISCLAIMER, ISSUER, LEVEL_TEXT, SIGNER, VERDICT_TEXT, certPath, fmtCertDate, normalizeCode, worldsPhrase, type CertificateView } from "@/lib/certificates/core";
+import { CERT_TITLE, DISCLAIMER, ISSUER, LEVEL_TEXT, LLD_CERT_NAME, SIGNER, VERDICT_TEXT, certPath, fmtCertDate, normalizeCode, worldsPhrase, type CertificateView } from "@/lib/certificates/core";
 import { publicCertificate, type PublicCert } from "@/lib/certificates/service";
 import { CertificateArt } from "@/components/certificates/CertificateArt";
 import { PdfLink, ViewBeacon } from "@/components/certificates/CertClient";
@@ -30,7 +30,7 @@ async function load(raw: string): Promise<PublicCert | null> {
   return publicCertificate(code);
 }
 
-const what = (v: CertificateView) => (v.kind === "course" ? CERT_TITLE : `World ${v.world?.code ?? ""} · ${v.world?.title ?? ""}`);
+const what = (v: CertificateView) => (v.kind === "course" ? CERT_TITLE : v.kind === "lld" ? `${CERT_TITLE} · ${LLD_CERT_NAME}` : `World ${v.world?.code ?? ""} · ${v.world?.title ?? ""}`);
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   // a database error falls back to plain metadata; the page then throws into error.tsx (never cached)
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const description =
     v.status === "revoked"
       ? `Certificate ${v.code} was revoked.`
-      : `Verify ${v.name}'s ${ISSUER} ${v.kind === "course" ? "certificate of completion" : `World ${v.world?.code} certificate`}: ID ${v.code}, issued ${fmtCertDate(v.issuedAt)}.`;
+      : `Verify ${v.name}'s ${ISSUER} ${v.kind === "course" ? "certificate of completion" : v.kind === "lld" ? `${LLD_CERT_NAME} certificate` : `World ${v.world?.code} certificate`}: ID ${v.code}, issued ${fmtCertDate(v.issuedAt)}.`;
   return {
     title,
     description,
@@ -103,9 +103,17 @@ export default async function CertificatePage({ params }: Props) {
   const worldsTotal = v.kind === "course" ? s?.worlds.total : v.world?.of;
   const mock = s?.mock ? `${VERDICT_TEXT[s.mock.verdict] || s.mock.verdict}` : null;
 
+  const L = s?.lld;
   const stats: { value: string; label: string; accent?: boolean }[] = !s
     ? []
-    : v.kind === "course"
+    : v.kind === "lld"
+      ? [
+          { value: "LLD", label: `${LLD_CERT_NAME}: patterns and case studies`, accent: true },
+          { value: `${s.lessons.done}/${s.lessons.total}`, label: "lessons of the track completed" },
+          { value: L ? `${L.patterns.done}/${L.patterns.total}` : "—", label: "design-pattern lessons" },
+          { value: L ? `${L.cases.done}/${L.cases.total}` : "—", label: "case studies" },
+        ]
+      : v.kind === "course"
       ? [
           { value: `${s.worlds.cleared}/${s.worlds.total}`, label: `worlds cleared, ${s.lessons.done} core lessons read` },
           { value: `${s.trialParts.passed}/${s.trialParts.total}`, label: "trial parts passed at 80% or more" },
@@ -122,7 +130,13 @@ export default async function CertificatePage({ params }: Props) {
         ];
 
   const how =
-    v.kind === "course"
+    v.kind === "lld"
+      ? [
+          `All ${L?.patterns.total ?? ""} design-pattern lessons completed: problem, class diagram, code in four languages and when not to use it`.replace(/ {2,}/g, " "),
+          `All ${L?.cases.total ?? ""} low-level design case studies completed, each a full interview walkthrough from requirements to follow-ups`.replace(/ {2,}/g, " "),
+          "Checked on the server from the learner's progress records when it was claimed",
+        ]
+      : v.kind === "course"
       ? [
           s?.capstones ? `Every core lesson and all ${s.capstones.total} capstone interviews completed` : "Every core lesson completed",
           "Every trial part passed at 80%+ (options shuffled, answers re-checked on the server)",
@@ -176,7 +190,11 @@ export default async function CertificatePage({ params }: Props) {
             {!/[.!?]$/.test(v.name) && <span className="text-signal-text">.</span>}
           </h1>
           <p className="m-0 max-w-[640px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
-            {v.kind === "course" ? (
+            {v.kind === "lld" ? (
+              <>
+                Completed the <b className="text-fg">{LLD_CERT_NAME}</b> track of {ISSUER}: every design-pattern lesson and every machine-coding case study, from requirements and class diagrams to working code.
+              </>
+            ) : v.kind === "course" ? (
               <>
                 Completed every world of {ISSUER}, {worldsPhrase(worldsTotal)} on designing systems at scale, and passed its trials, interview bosses and {s?.offers ? `${s.offers.need} timed mock interviews` : "a timed mock interview"}.
               </>
