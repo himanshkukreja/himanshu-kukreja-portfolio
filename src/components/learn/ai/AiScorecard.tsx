@@ -14,6 +14,7 @@ import type { MockRun } from "@/lib/learn/mock/store";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
 import AiText from "./AiText";
+import CompareLines from "./CompareLines";
 import { AI_PRIVACY } from "./AskLessonPanel";
 import { attemptKey, useMockChats } from "./mockChat";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
@@ -40,6 +41,7 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
   const { chats } = useMockChats(attemptKey(mock.slug, run.startedAt));
   const [busy, setBusy] = useState(false);
   const [parts, setParts] = useState<Part[] | null>(null);
+  const [compare, setCompare] = useState<string[]>([]);
   const [error, setError] = useState("");
   // a machine-coding round (kind "lld") is graded against its case study's Interview checklist, under its own feature
   const lld = mock.kind === "lld";
@@ -59,10 +61,14 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
     try {
       // the whiteboard drawing, as text the grader can read ("API → Payments")
       const board = [sketchSummary(run.sketch), run.board.trim()].filter(Boolean).join("\n");
-      const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases, board, ...(lld ? { change: run.change ?? null } : {}) }) });
-      const body = (await r.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
+      // level: the bar picked in the lobby (the server compares with earlier attempts and saves the levels to the account)
+      const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases, board, level: run.level, ...(lld ? { change: run.change ?? null } : {}) }) });
+      const body = (await r.json().catch(() => ({}))) as { text?: string; compare?: string[]; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
-      if (r.ok) setParts(parse(body.text || ""));
+      if (r.ok) {
+        setParts(parse(body.text || ""));
+        setCompare(Array.isArray(body.compare) ? body.compare : []);
+      }
       else setError(body.error || "Something went wrong.");
     } catch {
       setError("You seem to be offline.");
@@ -123,6 +129,7 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
           </div>
         );
       })}
+      {parts && <CompareLines lines={compare} />}
       <AiFreeNote />
       <p className="m-0 text-[11px] leading-snug text-fg-4">{AI_PRIVACY}</p>
     </section>

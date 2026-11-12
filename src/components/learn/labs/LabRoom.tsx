@@ -943,7 +943,7 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
               </div>
             )}
           </div>
-          {!live && <LabTutor labId={lab.id} lang={lang} stage={projectStages ? unlocked : null} getCode={() => code.current} result={result} passed={passedAll} />}
+          {!live && <LabTutor labId={lab.id} lang={lang} stage={projectStages ? unlocked : null} getCode={() => code.current} result={result} passed={passedAll} failedRuns={failedRuns} />}
           {!live && <LabReview key={lang} labId={lab.id} lang={lang} stage={projectStages ? unlocked : null} getCode={() => code.current} passed={passedAll} />}
           {prev && !next && (
             <Link href={prev.href} className="self-start font-mono text-xs text-fg-3 hover:text-fg">

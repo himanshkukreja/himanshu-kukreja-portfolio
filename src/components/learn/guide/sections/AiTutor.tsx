@@ -67,6 +67,7 @@ export default function AiTutorDetails() {
         </p>
         <p>
           <strong>What&apos;s sent.</strong> What you type into an AI feature (a question, your code, your answers) goes to Anthropic&apos;s AI to answer it. It isn&apos;t used to train models. We keep the conversation text for 30 days to stop abuse, then it&apos;s deleted. AI needs an account.
+          While tutor memory is on, AI features also get a few lines about you (level, earlier attempts, what you found hard), and graded results (verdicts, levels, points missed: never your answers) are saved to your account; memory off stops both.
         </p>
       </div>
       <Where>

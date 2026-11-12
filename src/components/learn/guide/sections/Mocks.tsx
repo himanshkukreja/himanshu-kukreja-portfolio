@@ -134,7 +134,8 @@ export default function MocksDetails({ d }: { d: GuideData }) {
       </div>
       <Note title="Where your answers live">
         <p>
-          The round itself (notes, whiteboard, clock, self-scores) stays in this browser. The result (finished, offer, best verdict) goes with your XP, so signed in it follows you to other devices. What you send to the AI
+          The round itself (notes, whiteboard, clock, self-scores) stays in this browser. The result (finished, offer, best verdict) goes with your XP, so signed in it follows you to other devices, and while tutor
+          memory is on the AI scorecard&apos;s levels and the rubric points it marked missed are saved to your account (never your answers), so the next scorecard can say what moved. What you send to the AI
           interviewer, the coach or the AI scorecard goes to Anthropic&apos;s AI to answer it (more in <a href="#ai" className="text-signal-text underline underline-offset-4">AI in the course</a>).
         </p>
       </Note>

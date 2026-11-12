@@ -3,7 +3,8 @@
 /**
  * Mock interview state on the client.
  * - The run in progress (notes, whiteboard, clock, prompts fired, self-scores) lives in this
- *   browser only: localStorage `hk.mock.v1:<id>`. Nothing is sent to the server.
+ *   browser only: localStorage `hk.mock.v1:<id>`. The answers are never stored on the server; an AI scorecard's
+ *   levels and missed rubric signal ids go to the learner's outcome log (lib/learner/events.ts) while memory is on.
  * - Results go through the game engine, which syncs to the account for signed-in learners:
  *   done keys `mock:<id>` (+150 XP) and `offer:<id>` (+100 XP), and a small flag `mock:<id>`
  *   with the best and last verdict.

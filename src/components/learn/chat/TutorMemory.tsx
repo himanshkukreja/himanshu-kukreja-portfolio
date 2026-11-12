@@ -166,7 +166,7 @@ export default function TutorMemory() {
           <section aria-label="Memory switch" className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3.5">
             <span className="flex items-center gap-2.5 text-[15px] text-fg">
               <Brain className="h-4 w-4 text-signal-text" aria-hidden />
-              {s.paused ? "Memory is off: the tutor doesn't keep notes between chats." : "Memory is on: the tutor keeps notes between chats."}
+              {s.paused ? "Memory is off: the tutor doesn't keep notes between chats." : "Memory is on: the tutor keeps notes between chats, and the AI features see a few lines from them and your graded results."}
             </span>
             <button type="button" disabled={busy} onClick={() => toggle(!s.paused)} className={`min-h-10 px-3.5 font-mono text-[12.5px] ${s.paused ? "bg-signal font-semibold text-on-signal" : "border border-line-strong text-fg-2 hover:text-fg"}`}>
               {s.paused ? "Turn memory on" : "Turn memory off (and forget)"}

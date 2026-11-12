@@ -516,7 +516,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
         phaseId={phase.id}
         interviewer={mock.interviewer.name}
         notes={note}
-        {...(lld ? { feature: "lld-mock" as const, extra: { change: change?.id ?? null, changeAnnounced }, notesLabel: isCode ? "Send my code so far" : undefined } : {})}
+        {...(lld ? { feature: "lld-mock" as const, extra: { change: change?.id ?? null, changeAnnounced, level: run.level }, notesLabel: isCode ? "Send my code so far" : undefined } : { extra: { level: run.level } })}
       />
 
       <div className="flex flex-col gap-3">

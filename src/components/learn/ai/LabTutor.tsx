@@ -21,7 +21,7 @@ import { setAiCredits, useAiStatus } from "./useAiStatus";
 type Item = { kind: "hint" | "review"; level: number; text?: string; error?: string; pending?: boolean };
 const LEVEL = ["", "a nudge", "the exact spot", "the fix, in words"];
 
-export default function LabTutor({ labId, getCode, result, passed, lang = "python", stage = null }: { labId: string; getCode: () => string; result: HarnessResult | null; passed: boolean; lang?: LabLang; stage?: number | null }) {
+export default function LabTutor({ labId, getCode, result, passed, lang = "python", stage = null, failedRuns = null }: { labId: string; getCode: () => string; result: HarnessResult | null; passed: boolean; lang?: LabLang; stage?: number | null; failedRuns?: number | null }) {
   const status = useAiStatus();
   const { openAuthModal } = useAuthModal();
   const [items, setItems] = useState<Item[]>([]);
@@ -49,7 +49,8 @@ export default function LabTutor({ labId, getCode, result, passed, lang = "pytho
     try {
       const res = await aiFetch("/api/learn/ai/lab", {
         method: "POST",
-        body: JSON.stringify({ labId, kind, lang, stage, level: item.level, code: getCode(), failures, setup: result.setup?.message }),
+        // failedRuns: the Nth failure on this lab, so the hint can fit it (the server's learner brief)
+        body: JSON.stringify({ labId, kind, lang, stage, level: item.level, code: getCode(), failures, setup: result.setup?.message, ...(failedRuns != null ? { failedRuns } : {}) }),
       });
       const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);

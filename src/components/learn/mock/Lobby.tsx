@@ -243,13 +243,13 @@ export default function Lobby({
                 <li>Ask {firstName(mock.interviewer.name)} clarifying questions: the answers come from the case study&apos;s own requirements. Anything not specified is yours to assume, out loud.</li>
                 <li>Code in the editor, in your language. Halfway through the code phase the requirements change once; answer it and change the code.</li>
                 <li>{firstName(mock.interviewer.name)} probes, never writes code or hands you the design. Hints exist; each one is noted.</li>
-                <li>Debrief: the reference design per phase, the case study&apos;s interview checklist as your rubric, a hire / no-hire verdict, and an AI scorecard that quotes what you missed.</li>
+                <li>Debrief: the reference design per phase, the case study&apos;s interview checklist as your rubric, a hire / no-hire verdict, and an AI scorecard that quotes what you missed (its levels are saved to your account while tutor memory is on; your code isn&apos;t).</li>
               </ol>
             ) : (
             <ol className="m-0 flex flex-col gap-2 pl-[22px] text-[15px] leading-normal text-fg-2">
               <li>One clock, like a real call. Each phase has a budget; {firstName(mock.interviewer.name)} tells you when to move on but never cuts you off.</li>
               <li>Prompts and follow-ups arrive while you work. Curveballs change the problem mid-round and need their own answer.</li>
-              <li>Write your answer per phase; a whiteboard tab is there for boxes and arrows. Everything autosaves in this browser.</li>
+              <li>Write your answer per phase; a whiteboard tab is there for boxes and arrows. Everything autosaves in this browser; signed in, the AI scorecard&apos;s levels (never your answers) are saved to your account while tutor memory is on.</li>
               <li>Hints exist, but the interviewer notes every one. Pausing is allowed; real calls don&apos;t pause.</li>
               <li>Debrief: reveal the model answer phase by phase, score yourself on the rubric, get a hire / no-hire verdict, then ask Claude or ChatGPT for a second opinion.</li>
             </ol>

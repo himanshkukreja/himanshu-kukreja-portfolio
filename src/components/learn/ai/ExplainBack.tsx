@@ -10,6 +10,7 @@ import { useAuthModal } from "@/contexts/AuthModalContext";
 import { aiFetch } from "./aiFetch";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
+import CompareLines from "./CompareLines";
 import { AI_PRIVACY } from "./AskLessonPanel";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
 
@@ -38,7 +39,7 @@ export default function ExplainBack({
   const { openAuthModal } = useAuthModal();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [res, setRes] = useState<{ verdict: string | null; text: string } | null>(null);
+  const [res, setRes] = useState<{ verdict: string | null; text: string; compare: string[] } | null>(null);
   const [error, setError] = useState("");
   // for guests the feature flags say whether AI is on for learners: pitch sign-in only then
   if (!status || !status.features["explain-back"]) return null;
@@ -49,10 +50,10 @@ export default function ExplainBack({
     track("ai_ask", { feature: "explain-back", concept: conceptId });
     try {
       const r = await aiFetch("/api/learn/ai/explain", { method: "POST", body: JSON.stringify(course ? { conceptId, text, course } : { conceptId, text }) });
-      const body = (await r.json().catch(() => ({}))) as { verdict?: string | null; text?: string; error?: string; creditsLeft?: number | null };
+      const body = (await r.json().catch(() => ({}))) as { verdict?: string | null; text?: string; compare?: string[]; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) {
-        setRes({ verdict: body.verdict ?? null, text: body.text || "" });
+        setRes({ verdict: body.verdict ?? null, text: body.text || "", compare: Array.isArray(body.compare) ? body.compare : [] });
         onVerdict?.(body.verdict ?? null);
       }
       else setError(body.error || "Something went wrong.");
@@ -101,6 +102,7 @@ export default function ExplainBack({
           {p.missing && p.missing.toLowerCase() !== "nothing" && <p className="m-0"><strong className="text-fg">Missing:</strong> {p.missing}</p>}
           {p.fix && <p className="m-0"><strong className="text-fg">Fix:</strong> {p.fix}</p>}
           {!p.got && !p.missing && !p.fix && <p className="m-0 whitespace-pre-wrap">{res.text}</p>}
+          <CompareLines lines={res.compare} />
         </div>
       )}
       <AiFreeNote />
