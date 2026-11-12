@@ -350,3 +350,9 @@ export const courseOutline = cached(async (): Promise<string> => {
     `${planned} more concepts are planned (opening in weekly waves); ${problems.length} problems are live in all.`,
   ].join("\n");
 }, "dsa-ai-outline-v1");
+
+/** Concepts with no lesson yet (planned), for the chat's honest "no lesson on it yet" (lib/dsa/ai/turn.ts gapLine). */
+export const plannedConcepts = cached(async (): Promise<{ id: string; title: string }[]> => {
+  const concepts = await getConceptIndex();
+  return concepts.filter((c) => c.status !== "built").map((c) => ({ id: c.id, title: c.title }));
+}, "dsa-ai-planned-v1");

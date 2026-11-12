@@ -8,7 +8,7 @@ import "server-only";
 import { callClaude } from "@/lib/ai/client";
 import { chatMemorySystem } from "@/lib/ai/prompts";
 import { REF_RE, type ChatTurn } from "./text";
-import { mergeMemory } from "./memory-model";
+import { mergeMemory, sdmNotes } from "./memory-model";
 import { loadMemory, saveMemory } from "./server";
 
 /** Update every this many learner messages (and when the chat ends). */
@@ -32,9 +32,11 @@ export async function updateMemory(a: { userId: string; admin: boolean; userKey:
   const turns = a.turns.slice(-16);
   if (!turns.some((t) => t.role === "user")) return false;
   const convo = turns.map((t) => `${t.role === "user" ? "Learner" : "Tutor"}: ${t.text.replace(REF_RE, "").replace(/\s+/g, " ").slice(0, 900)}`).join("\n");
-  const { sessions, updatedAt: _u, v: _v, ...notes } = m.memory;
+  // its own items only: DSA Mastery's (tagged) stay as they are (memory-model.ts mergeMemory)
+  const { sessions, updatedAt: _u, v: _v, mistakes: _m, ...notes } = sdmNotes(m.memory);
   void _u;
   void _v;
+  void _m;
   const user = `<current_notes>\n${JSON.stringify({ ...notes, recent_sessions: sessions.slice(0, 3).map((s) => s.summary) })}\n</current_notes>\n\n<conversation>\n${convo}\n</conversation>`;
   const r = await callClaude({
     feature: "chat-memory",

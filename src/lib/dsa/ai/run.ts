@@ -9,39 +9,22 @@ import "server-only";
  * One model round, no tools: the route looks everything up before the model runs (the retrieval, the problem and the
  * learner's unlocks), so the answer streams from the first token.
  */
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { saveTranscript } from "@/lib/ai/client";
-import { answerTokens, FEATURES } from "@/lib/ai/features";
-import { runLoop, type ApiMessage } from "@/lib/ai/chat/loop";
+import { FEATURES } from "@/lib/ai/features";
 import { admitChat, afterMessage, logChatCall, type MessageFeature } from "@/lib/ai/chat/quota";
-import { cleanAnswer, followupFilter, OFF_TOPIC_MARK, splitFollowups, type ChatEvent, type ChatRequest, type ChatSource } from "@/lib/ai/chat/text";
+import type { ChatEvent, ChatRequest } from "@/lib/ai/chat/text";
 import { makeChatTitle } from "@/lib/ai/chat/title";
 import { titlePassFor } from "@/lib/ai/chat/title-model";
 import { pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
-import { capCode, codeCapStream } from "./text";
+import { answerDsa, type Prepared } from "./answer";
+import { DSA_MEMORY_EVERY, updateDsaMemory } from "./memory";
+
+export type { Prepared } from "./answer";
 
 const DEADLINE_MS = 50_000;
 const TITLE_GRACE_MS = 1500;
 const noStore = { "Cache-Control": "private, no-store" };
-
-export type Prepared = {
-  system: { text: string; cache?: boolean }[];
-  messages: ApiMessage[];
-  /** refs the answer may cite (sent to the page before the model runs) */
-  sources: Record<string, ChatSource>;
-  /** refs from earlier in the chat that stay citable (the page still has their cards) */
-  earlierRefs?: string[];
-  /** think first (Haiku 5.5 adaptive, low effort) */
-  think: boolean;
-  /** code blocks capped at this many lines (the no-spoiler guard), or null */
-  cap: number | null;
-  /** what goes in the transcript as the learner's turn */
-  ask: string;
-  /** for the metering row (counts and ids only, never learner text) */
-  meta: Record<string, string | number | boolean | null>;
-  /** offer follow-up cards and the answer-style actions under the answer */
-  followups: boolean;
-};
 
 type Me = { id: string; email: string | null };
 
@@ -57,6 +40,8 @@ export async function streamDsa(o: {
   prepare: (emit: (e: ChatEvent) => void) => Promise<Prepared>;
   /** name a new conversation from its first message (/dsa/ask) */
   titled?: boolean;
+  /** where the conversation happens, for the memory update every few messages (lib/dsa/ai/memory.ts); null: no memory */
+  memory?: { where: string; on: Promise<boolean> } | null;
 }): Promise<Response> {
   const { request, me, admin, userKey, feature, req } = o;
   const admit = await admitChat({ userId: me.id, admin, userKey, feature });
@@ -98,31 +83,8 @@ export async function streamDsa(o: {
         if (Object.keys(p.sources).length) emit({ type: "sources", sources: p.sources });
         emit({ type: "status", tool: p.think ? "think" : "write", label: p.think ? "Thinking it through…" : "Writing your answer…" });
         // the follow-ups line never streams; capped code blocks stream already capped (the done text is capped the same way)
-        const capped = p.cap !== null ? codeCapStream(p.cap, (d) => emit({ type: "delta", text: d })) : null;
-        const deltas = followupFilter((d) => (capped ? capped.push(d) : emit({ type: "delta", text: d })));
-        const h55 = /haiku-5-5/.test(admit.model);
-        const thinks = p.think && h55;
-        const loop = await runLoop({
-          apiKey: admit.apiKey,
-          model: admit.model,
-          system: p.system.map((b) => ({ type: "text" as const, text: b.text, ...(b.cache ? { cache_control: { type: "ephemeral" as const } } : {}) })),
-          tools: [],
-          messages: p.messages,
-          maxTokens: answerTokens(feature, admit.model) + (thinks ? 2000 : 0),
-          thinking: thinks ? { type: "adaptive" } : /haiku/.test(admit.model) ? { type: "disabled" } : /sonnet-5/.test(admit.model) ? { type: "between_tools" } : null,
-          ...(thinks ? { effort: FEATURES[feature].effort ?? ("low" as const) } : {}),
-          maxToolRounds: 0,
-          deadline: t0 + DEADLINE_MS,
-          signal: request.signal,
-          runTool: async () => "",
-          onText: (d) => deltas.push(d),
-        });
-        deltas.flush();
-        capped?.flush();
-        const offTopic = OFF_TOPIC_MARK.test(loop.text);
-        const split = splitFollowups(loop.text, latest.text);
-        let text = cleanAnswer(split.text, (r) => !!p.sources[r] || !!p.earlierRefs?.includes(r));
-        if (p.cap !== null) text = capCode(text, p.cap);
+        const ans = await answerDsa({ feature, model: admit.model, apiKey: admit.apiKey, p, latest: latest.text, deadline: t0 + DEADLINE_MS, signal: request.signal, onDelta: (d) => emit({ type: "delta", text: d }) });
+        const { loop, text, offTopic } = ans;
         const ok = !loop.error && !!text;
         const callId = await logChatCall({
           user_id: me.id,
@@ -145,10 +107,16 @@ export async function streamDsa(o: {
         if (ok) {
           await saveTranscript(callId, me.id, feature, p.ask, text);
           const cards = p.followups && !offTopic && loop.stop === "end_turn";
-          const followups = cards ? split.followups : [];
+          const followups = cards ? ans.followups : [];
           const actions: FollowupAction[] = cards && text.split(/\s+/).length >= 40 ? pickActions(followups, { asked: latest.text, quiz: false }) : [];
           if (followups.length || actions.length) emit({ type: "followups", items: followups, ...(actions.length ? { actions } : {}) });
           emit({ type: "done", text, offTopic, quota: admit.quota ? afterMessage(admit.quota) : null, tools: 0, ms: Date.now() - t0, callId, mode: "tutor", ttft: loop.ttft });
+          // every few messages the learner's memory takes this conversation in (after the answer is out; one learner model
+          // shared with the course chat, DSA items tagged: lib/ai/chat/memory-model.ts)
+          if (o.memory && userTurns % DSA_MEMORY_EVERY === 0 && !offTopic && (await o.memory.on)) {
+            const where = o.memory.where;
+            after(() => updateDsaMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: [...req.messages, { role: "assistant", text }], where }).catch(() => false));
+          }
         } else {
           emit({ type: "error", message: loop.error === "timeout" ? "The answer took too long. Try asking again." : "The tutor didn't answer this time. Try again in a moment." });
         }
@@ -168,13 +136,4 @@ export async function streamDsa(o: {
     },
   });
   return new Response(stream, { headers: { "Content-Type": "text/event-stream; charset=utf-8", "Cache-Control": "no-store, no-transform", "X-Accel-Buffering": "no" } });
-}
-
-/** The conversation as the model sees it: the last `keep` turns as they were, then the new message with its context. */
-export function historyMessages(req: ChatRequest, latestContent: string, keep = 10): ApiMessage[] {
-  const turns = req.messages.slice(0, -1).slice(-keep);
-  const out: ApiMessage[] = turns.map((t) => ({ role: t.role, content: t.text }));
-  out.push({ role: "user", content: latestContent });
-  while (out.length && out[0].role !== "user") out.shift();
-  return out;
 }

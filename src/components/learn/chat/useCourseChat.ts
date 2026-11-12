@@ -9,6 +9,7 @@
  * One conversation is shared by the search page and the Ask panel on every Learn page (same storage key,
  * and a window event keeps open views in step).
  */
+import { dsaClientSignals } from "@/lib/dsa/ai/client-signals";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { track } from "@/lib/track";
@@ -156,6 +157,10 @@ export type CourseChatOpts = {
   /** the chat's API (GET: quota line; POST: one message): the course chat's by default; DSA Mastery's tutors pass theirs */
   api?: string;
 };
+
+/** DSA Mastery's tutors (/api/learn/ai/dsa/…): every message carries what this device knows about the learner, and a
+ *  finished chat goes to DSA's memory update (one shared memory, lib/dsa/ai/memory.ts). */
+const isDsaApi = (api: string) => api.startsWith("/api/learn/ai/dsa/");
 
 export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
   const [conv, setConv] = useState<Conversation>(fresh);
@@ -317,6 +322,7 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
         mock: ms && phaseId ? { key: ms.key, phase: phaseId, history: ms.turns[phaseId] ?? [], action: extra.mockEnd ? "end" : "turn", ...(extra.mockEnd ? { phases: ms.turns } : {}) } : null,
         ...(titlePass && !ms ? { title: titlePass } : {}),
         ...(style !== "tutor" ? { style } : {}),
+        ...(isDsaApi(api) ? { learner: dsaClientSignals() } : {}),
         ...(extra.body ?? {}),
       };
       let started: MockCard | null = null;
@@ -472,13 +478,13 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
     const userTurns = c.messages.filter((m) => m.role === "user").length;
     if (uid && memory?.available && !memory.paused && userTurns > c.memoryTurns && userTurns >= 2) {
       const body = { chat: c.chat, messages: c.messages.filter((m) => m.text && !m.error).map((m) => ({ role: m.role, text: m.text })) };
-      aiFetch("/api/learn/ai/chat/memory", { method: "POST", body: JSON.stringify(body), headers: devHeaders, keepalive: true }).catch(() => {});
+      aiFetch(isDsaApi(api) ? "/api/learn/ai/dsa/memory" : "/api/learn/ai/chat/memory", { method: "POST", body: JSON.stringify(body), headers: devHeaders, keepalive: true }).catch(() => {});
     }
     commit(fresh(), true);
     setFallback(false);
     setLive(null);
     track("chat_new", { turns: userTurns });
-  }, [commit, devHeaders, memory, uid]);
+  }, [api, commit, devHeaders, memory, uid]);
 
   const stop = useCallback(() => abort.current?.abort(), []);
 
