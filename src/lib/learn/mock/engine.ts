@@ -129,6 +129,10 @@ export function roundFacts(mock: MockInterview, run: MockRun): RoundFacts {
 
 export function placeholderFor(title: string): string {
   const t = title.toLowerCase();
+  // machine-coding rounds (lib/learn/mock/lld.ts)
+  if (/entit|class diagram/.test(t)) return "The entities (the nouns), each class's one job, its key fields and methods, and how the classes connect. Draw the class diagram on the whiteboard tab.";
+  if (/pattern/.test(t)) return "Each pattern you use, where it sits in your design, and the trade-off it buys. Say which one you left out, and why.";
+  if (/concurrency|edge case/.test(t)) return "Where two callers can collide, what your lock covers and why, then every edge case you handle: bad input, duplicates, full, time.";
   if (/clarif|requirement|scope/.test(t)) return "The questions you'd ask, one per line. Then your assumptions and the requirements you'll design for.";
   if (/estimat|number|capacity|sizing/.test(t)) return "Show the maths: per day → per second, the peak, storage. Round freely and write the conclusion each number leads to.";
   if (/api|data model|schema/.test(t)) return "Endpoints with request/response shapes, then tables, keys and indexes.";

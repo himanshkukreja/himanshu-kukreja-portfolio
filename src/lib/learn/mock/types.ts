@@ -66,7 +66,35 @@ export type MockPhase = {
 export type MockPerson = { name: string; title: string; style: string };
 export type MockCompany = { name: string; tagline: string; location: string; about: string };
 
+/**
+ * What an LLD (machine-coding) mock adds: the case study it runs (lib/learn/mock/lld.ts), the code phase, the
+ * requirement changes it can bring (the lesson's follow-ups) and the material the AI interviewer and grader read.
+ */
+export type MockLld = {
+  caseSlug: string;
+  /** the case study's number (LLD-01) */
+  n: number;
+  name: string;
+  difficulty: string;
+  /** the case-study page */
+  caseHref: string;
+  /** the phase written in the code editor */
+  codePhase: string;
+  /** the phase the whiteboard (class diagram) belongs to */
+  designPhase: string;
+  followups: { ask: string; answer: string }[];
+  /** one candidate change per usable follow-up; an attempt gets one of them (withChange) */
+  changes: (MockMessage & { followup: number })[];
+  defaultChange: string;
+  checklist: string[];
+  /** plain text for the AI interviewer and grader: requirements (asks and answers, scope), the design, patterns, concurrency */
+  ai: { requirements: string; design: string; patterns: string; concurrency: string };
+};
+
 export type MockInterview = {
+  /** "lld": a machine-coding round on a low-level design case study (lib/learn/mock/lld.ts); unset: system design */
+  kind?: "lld";
+  lld?: MockLld;
   id: string;
   slug: string;
   /** 1-based order from the file name */

@@ -107,7 +107,14 @@ export default function JoinBriefing({
             <PenTool className={icon} aria-hidden />
             <p className="m-0">
               <strong className="text-fg">Answer however you think best:</strong> type in the answer box, tap <Mic className="inline h-3.5 w-3.5" aria-label="the mic" /> to <strong className="text-fg">dictate</strong> (Chrome, Edge,
-              Safari), and draw the design on the <strong className="text-fg">whiteboard</strong> tab: building blocks, technology logos, your own blocks, arrows that stay attached. Everything autosaves in this browser.
+              Safari), and draw on the <strong className="text-fg">whiteboard</strong> tab{mock.kind === "lld" ? (
+                <>
+                  {" "}(your class diagram). In the code phase the answer box is a <strong className="text-fg">code editor</strong>: Python, Java, C++, TypeScript or JavaScript.
+                </>
+              ) : (
+                <>: building blocks, technology logos, your own blocks, arrows that stay attached.</>
+              )}{" "}
+              Everything autosaves in this browser.
             </p>
           </div>
           <div className={row}>
@@ -121,6 +128,7 @@ export default function JoinBriefing({
               )}
             </p>
           </div>
+          {mock.kind !== "lld" && (
           <div className={`${row} border border-line bg-raised p-3.5`}>
             <Sparkles className={icon} aria-hidden />
             <div className="flex flex-col gap-2">
@@ -138,17 +146,22 @@ export default function JoinBriefing({
               )}
             </div>
           </div>
+          )}
           <div className={row}>
             <span className={`${icon} font-mono text-[13px]`} aria-hidden>
               ✓
             </span>
             <p className="m-0">
-              <strong className="text-fg">At the end, the debrief:</strong> the model answer for every phase, a levelled rubric you score yourself on, a hire / no-hire verdict, your whiteboard, and an AI scorecard if you&apos;re
-              signed in.
+              <strong className="text-fg">At the end, the debrief:</strong>{" "}
+              {mock.kind === "lld"
+                ? "the case study's reference design for every phase, a rubric built from its interview checklist that you score yourself on, a hire / no-hire verdict, and an AI scorecard that names every checklist line you missed."
+                : "the model answer for every phase, a levelled rubric you score yourself on, a hire / no-hire verdict, your whiteboard, and an AI scorecard if you're signed in."}
             </p>
           </div>
           <p className="m-0 border-l-2 border-signal pl-3 text-[14px] text-fg-3">
-            Treat it like the real thing: think out loud, write your numbers down, and say which trade-off you are making and why.
+            {mock.kind === "lld"
+              ? "Treat it like the real thing: ask before you model, say the trade-off behind every pattern, and keep the code runnable."
+              : "Treat it like the real thing: think out loud, write your numbers down, and say which trade-off you are making and why."}
           </p>
         </div>
 

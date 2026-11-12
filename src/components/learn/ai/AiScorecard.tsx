@@ -18,7 +18,7 @@ import { AI_PRIVACY } from "./AskLessonPanel";
 import { attemptKey, useMockChats } from "./mockChat";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
 
-type Part = { title: string; level: string; met: string; missed: string; next: string; summary: string };
+type Part = { title: string; level: string; met: string; missed: string; next: string; summary: string; checklist: string };
 
 function parse(text: string): Part[] {
   return text
@@ -29,7 +29,7 @@ function parse(text: string): Part[] {
       const [title, ...rest] = b.split("\n");
       const body = rest.join("\n");
       const get = (k: string) => body.match(new RegExp(`^${k}:\\s*([\\s\\S]*?)(?=^[A-Z]+:|$(?![\\s\\S]))`, "m"))?.[1]?.trim() || "";
-      return { title: title.trim(), level: get("LEVEL"), met: get("MET"), missed: get("MISSED"), next: get("NEXT"), summary: get("SUMMARY") };
+      return { title: title.trim(), level: get("LEVEL"), met: get("MET"), missed: get("MISSED"), next: get("NEXT"), summary: get("SUMMARY"), checklist: get("CHECKLIST") };
     });
 }
 
@@ -41,12 +41,15 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
   const [busy, setBusy] = useState(false);
   const [parts, setParts] = useState<Part[] | null>(null);
   const [error, setError] = useState("");
-  if (!status?.features["mock-scorecard"] || !status.signedIn) return null;
+  // a machine-coding round (kind "lld") is graded against its case study's Interview checklist, under its own feature
+  const lld = mock.kind === "lld";
+  const feature = lld ? "lld-mock-scorecard" : "mock-scorecard";
+  if (!status?.features[feature] || !status.signedIn) return null;
 
   const get = async () => {
     setBusy(true);
     setError("");
-    track("ai_ask", { feature: "mock-scorecard", mock: mock.slug });
+    track("ai_ask", { feature, mock: mock.slug });
     const phases = mock.phases.map((p) => ({
       id: p.id,
       notes: run.notes[p.id] || "",
@@ -56,7 +59,7 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
     try {
       // the whiteboard drawing, as text the grader can read ("API → Payments")
       const board = [sketchSummary(run.sketch), run.board.trim()].filter(Boolean).join("\n");
-      const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases, board }) });
+      const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases, board, ...(lld ? { change: run.change ?? null } : {}) }) });
       const body = (await r.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) setParts(parse(body.text || ""));
@@ -73,7 +76,9 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
         <Sparkles className="h-3.5 w-3.5" aria-hidden /> ai scorecard{status.preview ? " · admin preview" : ""}
       </h2>
       <p className="m-0 text-[15px] text-fg-2">
-        A strict second opinion: every phase graded against its rubric from what you wrote and said, with quotes. It sits beside your own scores; it doesn&apos;t change your XP or verdict.
+        {lld
+          ? "A strict second opinion: every phase graded against the case study's interview checklist and the seven steps, from your notes, your code and what you said, quoting each checklist line you missed. It sits beside your own scores; it doesn't change your XP or verdict."
+          : "A strict second opinion: every phase graded against its rubric from what you wrote and said, with quotes. It sits beside your own scores; it doesn't change your XP or verdict."}
       </p>
       {!parts && (
         <button type="button" disabled={busy} onClick={() => void get()} className="min-h-11 self-start bg-signal px-4 text-[15px] font-semibold text-on-signal disabled:opacity-50">
@@ -95,6 +100,7 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
               <strong className="text-[16px] text-fg">{p.title}</strong>
               {p.level && <span className={`border px-2 py-0.5 font-mono text-[11px] uppercase tracking-label ${TONE[lvl] ?? "border-line-strong text-fg-3"}`}>{p.level}</span>}
             </span>
+            {p.checklist && <span className="font-mono text-[12px] text-fg-3">interview checklist · {p.checklist}</span>}
             {p.summary && <p className="m-0 text-[15px] leading-relaxed text-fg-2">{p.summary}</p>}
             {p.met && (
               <div className="flex flex-col gap-1 text-[14px]">

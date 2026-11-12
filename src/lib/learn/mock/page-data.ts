@@ -7,8 +7,12 @@ import { unstable_cache } from "next/cache";
 import { COURSE_ID, COURSE_MAP_TAG, getCourseMap } from "@/lib/learn/course";
 import { buildMock, loadMockSources } from "./load";
 import type { MockInterview } from "./types";
+import { buildLldMock } from "./lld-load";
+import { isLldMockSlug } from "./lld";
 
 async function build(slug: string): Promise<MockInterview | null> {
+  // a machine-coding round on a low-level design case study (/mock/lld-NN-*)
+  if (isLldMockSlug(slug)) return buildLldMock(slug);
   const [map, sources] = await Promise.all([getCourseMap(COURSE_ID), loadMockSources()]);
   const src = sources.find((s) => s.slug === slug);
   if (!src || !map) return null;
@@ -19,7 +23,7 @@ async function build(slug: string): Promise<MockInterview | null> {
 const cached = unstable_cache((slug: string) => build(slug), ["mock-interview-v1"], { revalidate: 604800, tags: [COURSE_MAP_TAG] });
 
 export async function getMockInterview(slug: string): Promise<MockInterview | null> {
-  if (!/^mock-\d+-[\w-]+$/.test(slug)) return null;
+  if (!/^mock-\d+-[\w-]+$/.test(slug) && !isLldMockSlug(slug)) return null;
   // local content (SDM_LOCAL_DIR) is read fresh so edits show up on reload
   return process.env.SDM_LOCAL_DIR && process.env.NODE_ENV !== "production" ? build(slug) : cached(slug);
 }

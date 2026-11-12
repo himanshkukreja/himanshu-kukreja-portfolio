@@ -57,6 +57,10 @@ export type MockRun = {
   claimed: boolean;
   attempt: number;
   history: MockResult[];
+  /** machine-coding rounds (kind "lld"): this attempt's requirement change (an id of mock.lld.changes) */
+  change?: string;
+  /** machine-coding rounds: the code editor's language */
+  lang?: string;
 };
 
 export const freshRun = (version: string, level: MockLevel, keep?: Pick<MockRun, "attempt" | "history">): MockRun => ({

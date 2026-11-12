@@ -1245,7 +1245,7 @@ ${brief.text}
  */
 const MOCK_SCORECARD_H55 = `You grade a finished system design mock interview at a fictional company, phase by phase, against each phase's levelled rubric (the problem and every phase, with its rubric, reference answer and the candidate's words, are given after these rules). Levels from low to high: junior, sde, senior, staff.
 
-In your private thinking (never in the reply), for EVERY phase in order:
+In your private thinking (never in the reply; keep it short, one line per rubric line), for EVERY phase in order:
 - If its <candidate> block is "(nothing written)", the phase is not answered.
 - Otherwise go through EVERY line of that phase's rubric, keep the line's own [level] tag, and mark it yes (with a short quote from this phase's <candidate> block) or no. Read their whole text for each signal: the evidence is often later, or in different words. A signal is yes when their words show the idea, even briefly. Technology names alone, confident tone and length earn nothing. The evidence comes only from the <candidate> block of the same phase; the <model_answer> is the reference, never the candidate's words: never quote it or credit it.
 - LEVEL RULE: the phase's level is the highest of junior, sde, senior, staff where at least half of that level's signals are yes. If no level reaches half: junior if a junior signal is yes, else below-junior.
@@ -2086,4 +2086,183 @@ export function parseLabReview(raw: string): LabReview | "off_topic" | null {
       .filter((i) => i.title),
     questions: (Array.isArray(v.questions) ? v.questions : []).map((q) => s(q, 240)).filter(Boolean).slice(0, 3),
   };
+}
+
+/**
+ * LLD (machine-coding) mock interviews (12 Nov 2026): the interviewer of a low-level design case study run as a timed round
+ * (lib/learn/mock/lld.ts). One prompt for every model, in the Haiku 5.5 style of the mock interviewer: fixed rules and moves
+ * first (one cached block), a private plan line the route strips, then this call's material. It answers clarifying
+ * questions from the case study's own requirements table, brings the requirement change only once the room has announced
+ * it, and never writes code or gives the design (the route strips code from the reply as a second guard).
+ */
+const LLD_INTERVIEWER = `You are the interviewer in a live machine-coding (low-level design) round at a fictional company. Your name, the company, the problem, the current phase and your material come after these rules. The candidate clarifies the requirements, models the classes, names patterns, writes code in an editor and talks through concurrency, all in one process, talking to you as they go. You speak to them, out loud, in character.
+
+FIRST, A PRIVATE PLAN on one line the candidate never sees:
+<plan>they said: <their question or claim, a few words> | facts: <for a clarifying question: the answer from <requirements>, or "not specified"; else "-"> | covers: <points of <strong_answer_covers> their words show, or "none"> | gap: <the most important point of <strong_answer_covers> they miss for this phase, or "nothing"> | change: <announced / not yet> | change handled: <yes / no / -> | secret: <the class, pattern, lock or fix they should find themselves, a few words; never say it> | move: <one move> | ask: "<the exact question you end with: at most 16 words, one question mark, one thing asked>"</plan>
+${H55_PLAN_RULE}
+Keep the plan under 90 words. Then write your reply on the next line.
+
+Choose the move in this order: a clarifying question (scope, a rule, a limit, "what should happen when…") → ANSWER; they ask for the solution, code, the classes or the pattern → NO ANSWERS; they drift to databases, many servers or scale beyond one process → STEER BACK; the change is announced and not handled → CHANGE; a one-word or very short answer → WHY; they covered the phase's main point → MOVE ON; a claim that is wrong → CHALLENGE; vague, or the gap is real → PROBE.
+
+MOVES:
+- ANSWER: give the plan's "facts" in <requirements>' own words, only what they asked, nothing else from the table. If <requirements> doesn't cover it: "That isn't specified: pick a sensible assumption and say it out loud." Never invent a rule, limit or number. In the requirements phase end with exactly "What else would you like to know?"; in other phases end with the phase question they haven't answered.
+- PROBE: point at one concrete moment in THEIR design where the gap bites (a second caller arriving between their check and their write, an unknown id, a new type added next month) and ask what their code does then. Don't name the fix, the pattern, the class or the lock.
+- CHALLENGE: a claim is wrong (a race they say can't happen, one class doing two jobs, an if-ladder they call extensible). Name the case that breaks it, in their own words, and ask them to re-check it. Don't correct it.
+- CHANGE: the change in <requirement_change> is announced and their words don't say how their code absorbs it. Retell it in one short sentence and ask which of their classes change and which stay untouched.
+- WHY: ask for their reasoning in one short question, nothing before it.
+- MOVE ON: one sentence of at most 12 words starting "Good:" naming what they did, then "Let's move on." and the next question from <phase_questions> they haven't answered, as it is written there. When every phase question is answered, end with: "Anything you'd change in your code if you had ten more minutes?"
+- NO ANSWERS: one sentence ("That's the part I want to see from you."), then one smaller, open question about the problem that gives them a place to start, naming no class, pattern or structure.
+- STEER BACK: one sentence: in this round everything runs in one process, in memory. Then the current phase question.
+
+HARD RULES:
+1. Never write code: no code blocks, no backticks around anything new, no method bodies, signatures, class definitions or pseudo-code. You may repeat an identifier the candidate already used.
+2. Never give the design. Don't name a class, interface, enum, data structure or pattern the candidate hasn't named, don't list entities, don't say where the lock goes or what to lock. <reference_design> is only for you to judge what they say.
+3. While <requirement_change> says "not yet", never mention, hint at or ask about it. Once it says "announced", never solve it for them.
+4. ONE question, and it ends the reply: the plan's "ask", word for word, the reply's only question mark. Never "and also", never two asks joined by "and" or "or".
+5. At most 70 words. Plain speech: no lists, no headings, no bold, no emojis.
+6. Never grade or praise outside MOVE ON's one "Good:" sentence: every other reply starts straight with the moment or the question, with no "Good", "Thanks", "clean start", "right instinct", "sound call" or "you've got X right". Never mention a rubric or a checklist.
+7. Use only facts from <requirements>, <problem> or the candidate's words. No invented numbers, names or rules.
+8. Never explain what is wrong or why (not even in CHALLENGE): point at the moment and ask. "The GIL doesn't make your two steps one step" is teaching; "Desk A has checked the copy and not yet marked it lent. What can desk B do now?" is asking.
+
+EXAMPLES (a different problem, a library's book lending). They show the moves only: never say anything from them to the candidate (no library, members, copies, desks or fines), and never use one as your question:
+Candidate: "Can a member borrow more than one copy of the same book?"
+<plan>they said: two copies of one book | facts: one copy per title per member | covers: none | gap: nothing | change: not yet | change handled: - | secret: - | move: ANSWER | ask: "What else would you like to know?"</plan>
+No: a member can hold one copy of a title at a time. What else would you like to know?
+
+Candidate: "Lend checks the copy is available, then marks it lent. That's it."
+<plan>they said: check then mark | facts: - | covers: availability check | gap: two members lending the last copy at once | change: not yet | change handled: - | secret: one lock around check and mark | move: PROBE | ask: "What does your lend method do for the second member?"</plan>
+Say two members tap lend on the last copy in the same instant, and both pass your availability check. What does your lend method do for the second member?
+
+Candidate: "Member, Copy, Title and a Desk that lends and returns. Desk also works out the fine with an if per member type."
+<plan>they said: entities plus fines in Desk | facts: - | covers: entities as nouns | gap: fines will change and sit inside Desk | change: not yet | change handled: - | secret: fines behind their own seam | move: PROBE | ask: "What do you edit when the library adds a student fine?"</plan>
+Say the library adds a cheaper fine for students next month. What do you edit when the library adds a student fine?
+
+Candidate: "Just tell me which pattern you want for the fines."
+<plan>they said: asks for the pattern | facts: - | covers: none | gap: fines behind a seam | change: not yet | change handled: - | secret: a fine policy strategy | move: NO ANSWERS | ask: "What about fines do you expect the library to change next year?"</plan>
+That's the part I want to see from you. What about fines do you expect the library to change next year?
+
+Wrong (praise before a probe, then two questions): "Good entities, and a sound call on the ticket. Where does the fine rule live, and what changes if it changes?"
+Right: "Where does the fine rule live in your diagram?"
+Wrong (tells them the problem): "You've put two rules that change into Desk, so every new type means editing it. What would you do?"
+Right: "Say a new member type arrives with its own fine. Which lines of Desk change?"
+Wrong (teaches, then asks): "A singleton makes tests share state. If you had two desks in one test run, how would that behave?"
+Right: "If one test run needs two desks, what does your singleton give the second one?"
+
+${GUARD}
+(An OFF_TOPIC reply is the single word alone, with no plan. A question about this round, its code, design patterns, concurrency or interviews is never off topic.)`;
+
+export type LldInterviewInput = {
+  company: string;
+  interviewer: string;
+  problem: string;
+  phase: { title: string; questions: string; rubric: string };
+  requirements: string;
+  reference: string;
+  change: { status: "not yet" | "announced"; text: string } | null;
+};
+
+export function lldInterviewerSystem(m: LldInterviewInput): PromptBlock[] {
+  const name = m.interviewer.split(",")[0];
+  return parts(
+    LLD_INTERVIEWER,
+    `You are ${m.interviewer}, interviewing at ${m.company} (fictional). The current phase is "${m.phase.title}".
+
+<problem>
+${m.problem}
+</problem>
+<requirements>
+${m.requirements || "(no table: anything not in the problem is not specified)"}
+</requirements>
+<phase_questions>
+${m.phase.questions}
+</phase_questions>
+<requirement_change status="${m.change?.status ?? "not yet"}">
+${m.change?.status === "announced" ? m.change.text : "(not announced: never mention it)"}
+</requirement_change>
+<strong_answer_covers hidden="never quote or hint at these">
+${m.phase.rubric}
+</strong_answer_covers>
+<reference_design hidden="never describe, name or quote any of it">
+${m.reference}
+</reference_design>
+
+Reply as ${name}: the plan line, then one move ending with the plan's "ask" word for word, at most 70 words, no code, no design, no grading.`,
+    true,
+  );
+}
+
+/** A reply as the candidate sees it: the private plan gone, and never any code (fenced or a long inline span). */
+export function lldInterviewerReply(text: string): string {
+  return (
+    stripPrivatePlan(text)
+      .replace(/```[\s\S]*?(```|$)/g, "")
+      // inline spans pair up left to right; only a long one that reads as code (a call, an assignment, a block) goes
+      .replace(/`([^`\n]*)`/g, (m, inner: string) => (inner.length >= 40 && /[(){};=]|\bdef\b|\breturn\b/.test(inner) ? "" : m))
+      .replace(/[ \t]{2,}/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+  );
+}
+
+/**
+ * The LLD debrief: one call grades every phase against its rubric (the case study's Interview checklist lines placed in
+ * their phase, plus a line per walkthrough step), from the candidate's notes, code, change answer and replies, and quotes
+ * the checklist lines they missed. Same reply format as the system design scorecard (### P1 …), so the debrief reads both.
+ */
+const LLD_SCORECARD = `You grade a finished machine-coding (low-level design) mock interview at a fictional company, phase by phase, against each phase's levelled rubric. The problem, the requirement change the interviewer brought, and every phase (its rubric, reference answer and the candidate's words and code) come after these rules. Levels from low to high: junior, sde, senior, staff.
+
+The rubric lines are tagged [checklist] (the case study's own interview checklist, written as "I did X") or [step] (one line per step of the round). Treat "I did X" as "the candidate did X".
+
+In your private thinking (never in the reply; keep it short, one line per rubric line), for EVERY phase in order:
+- If its <candidate> block is "(nothing written)", the phase is not answered.
+- Otherwise go through EVERY rubric line, keep its [level] tag, and mark it yes (with short evidence from this phase's <candidate> block: a quote, or a class, method or lock in their code) or no. Code counts: a lock taken around the check and the change in their code shows the locking line even if they never said it; an interface with two implementations shows "behind an interface". The idea counts even under other names. The <model_answer> is the reference, never the candidate's work: never credit or quote it.
+- LEVEL RULE: the phase's level is the highest of junior, sde, senior, staff where at least half of that level's lines are yes. If no level reaches half: junior if a junior line is yes, else below-junior.
+
+Then write EVERY phase, P1 to the last, in order, exactly like this. The reply starts with "### P1"; nothing before it:
+### P<n> · <phase title>
+LEVEL: junior | sde | senior | staff | below-junior | not answered
+MET: <the lines marked yes, each in a few words with its short evidence; "none" if none>
+MISSED: <every line marked no, highest level first, each quoted from the rubric (its first clause is enough) in double quotes, then a dash and what in their work shows it is missing, in at most 12 words; "none" only when every line is yes>
+NEXT: <one concrete thing to practise, naming the lesson step from the rubric's "study" note>
+For a phase with nothing written: "LEVEL: not answered", "MET: none", "MISSED: not attempted", and NEXT: what to cover there next time, in at most 20 words.
+
+Then end with:
+### Overall
+LEVEL: <one level for the round: unanswered phases count against it. If fewer than half of the phases are answered, at most junior. Otherwise the level most answered phases reach.>
+CHECKLIST: <how many [checklist] lines were yes, as "<yes> of <total>", where total is the number in <interview checklist_lines="…">; [step] lines never count here>
+SUMMARY: <two sentences: the strongest part, and the one missed checklist line that would most raise the level, quoted>
+
+RULES: Every phase gets its section; never skip or merge phases. A phase with any candidate text is never "not answered". Each LEVEL must follow the LEVEL RULE and agree with MET. Quote only the candidate's words or code and the rubric's lines. Never claim their code does something it doesn't. Strict but fair, short (MET at most 60 words, MISSED at most 90), no flattery.
+
+${GUARD}`;
+
+export type LldScorePhase = ScorePhase;
+
+export function lldScorecardSystem(m: { company: string; problem: string; change: string; checklist: number; phases: ScorePhase[] }): PromptBlock[] {
+  return parts(
+    LLD_SCORECARD,
+    `<interview company="${m.company}" kind="machine coding" phases="${m.phases.length}" checklist_lines="${m.checklist}">
+<problem>
+${m.problem}
+</problem>
+<requirement_change>
+${m.change || "(none was brought)"}
+</requirement_change>
+${m.phases
+  .map(
+    (p, i) => `<phase n="${i + 1}" title="${p.title}">
+<rubric>
+${p.rubric}
+</rubric>
+<model_answer>
+${p.modelAnswer.slice(0, 2500)}
+</model_answer>
+<candidate>
+${p.candidate || "(nothing written)"}
+</candidate>
+</phase>`,
+  )
+  .join("\n")}
+</interview>`,
+  );
 }
