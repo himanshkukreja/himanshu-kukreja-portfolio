@@ -5,12 +5,15 @@ import { isAdminEmail } from "@/lib/ai/access";
 import { canvasReviewSystem, promptOptsFor, replyFrom } from "@/lib/ai/prompts";
 import { canvasPrompts, FREE_RE, getDesign, isPromptKey, promptBrief, saveReview } from "@/lib/learn/canvas";
 import { sketchSummary } from "@/lib/learn/mock/sketch";
+import { learnerBrief } from "@/lib/learner/brief";
+import { withBrief } from "@/lib/learner/feature-brief-model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** POST { key } → { text, creditsLeft }: a staff-engineer review of the SAVED drawing and notes. */
+/** POST { key } → { text, creditsLeft }: a staff-engineer review of the SAVED drawing and notes. The learner's turn carries
+ *  their brief (lib/learner: level, how they like answers, what they found hard). */
 export async function POST(request: Request) {
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
@@ -33,14 +36,16 @@ export async function POST(request: Request) {
     brief = { title: p.title, text: await promptBrief(p) };
   }
   const input = `<drawing>\n${drawing || "(nothing labelled on the board)"}\n</drawing>\n\n<notes>\n${d.notes.trim() || "(no notes)"}\n</notes>`;
+  const lb = await learnerBrief(me.id, { feature: "canvas-review", ref: { topic: brief.title } });
   const r = await callClaude({
     feature: "canvas-review",
     userId: me.id,
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => canvasReviewSystem(brief, promptOptsFor(model, "canvas-review")),
-    messages: [{ role: "user", content: input.slice(0, 12000) }],
-    meta: { design: key },
+    messages: [{ role: "user", content: withBrief(lb.text, input.slice(0, 12000)) }],
+    capChars: Math.min(input.length, 12000),
+    meta: { design: key, ...(lb.text ? { brief: true } : {}) },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
   // a tuned prompt's private plan line never reaches the learner (or the saved review)

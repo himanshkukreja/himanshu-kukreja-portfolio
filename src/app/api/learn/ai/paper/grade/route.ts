@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { callClaude, ownKey, saveTranscript, type AiResult } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
@@ -8,6 +8,7 @@ import { firstJson } from "@/lib/ai/notes";
 import { paperGradeInput, paperGradeSystem, paperRecheckInput } from "@/lib/ai/prompts";
 import { checkGrade, ESCALATION_TEXT, escalationReasons, type CheckedGrade, type EscalationReason, type QuestionGrade } from "@/lib/learn/papers/grade";
 import { getParsedPaper } from "@/lib/learn/papers/load";
+import { recordOutcome } from "@/lib/learner/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -29,7 +30,8 @@ const aiError = (r: Extract<AiResult, { ok: false }>) =>
  * escalationReasons says so, a second, stricter Haiku 5.5 pass re-grades from scratch with adaptive thinking (medium
  * effort) and its result is kept (7 Nov 2026: this replaced the Sonnet 5.5 re-grade, at about a tenth of its cost). Every grade is checked against the
  * scheme (checkGrade) before it is returned. Nothing is stored here: the browser keeps the marks (game flag) and the
- * page image is never stored (the transcript keeps the text only).
+ * page image is never stored (the transcript keeps the text only). The mark and the scheme points not fully awarded go to
+ * the learner's outcome log (lib/learner/events.ts: numbers only, never the answer).
  */
 export async function POST(request: Request) {
   const me = await requireLearner(request);
@@ -120,5 +122,7 @@ export async function POST(request: Request) {
   };
   // the transcript keeps the text, not the image (an answer sheet is the learner's private handwriting)
   if (first.callId) await saveTranscript(first.callId, me.id, "paper-grade", `[answer image ${ok.info.width}x${ok.info.height}, ${ok.info.bytes} bytes]\n${text}`, JSON.stringify(grade).slice(0, 8000));
+  const miss = grade.points.map((p, i) => (p.awarded < p.max ? i + 1 : 0)).filter(Boolean);
+  after(() => recordOutcome(request, me.id, { course: "sdm", kind: "paper", ref: `${paper.key}/q${q.n}`, outcome: `${grade.score}/${grade.max}`, detail: { score: grade.score, max: grade.max, miss } }).then(() => undefined));
   return NextResponse.json({ grade, creditsLeft }, { headers: noStore });
 }

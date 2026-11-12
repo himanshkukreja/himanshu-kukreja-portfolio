@@ -6,6 +6,7 @@ import { FEATURES } from "@/lib/ai/features";
 import { checkImage, IMAGE_TYPES, type AiImageBlock, type ImageMediaType } from "@/lib/ai/image";
 import { snipAskInput, snipExplainInput, snipExplainSystem, snipFollowUpInput } from "@/lib/ai/prompts";
 import { SNIP_KINDS, snipGrounding, type LectureMoment, type SnipKind } from "../_lib/context";
+import { learnerBrief } from "@/lib/learner/brief";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -74,6 +75,8 @@ function aiError(r: Extract<AiResult, { ok: false }>) {
  * characters). The conversation goes to the model as real turns: the image and the snip text in the first user turn
  * only (one image a call), the earlier answers as its turns, then the new question. Every turn is one call (~1 credit).
  * A question that isn't about the snip or the course gets OFF_TOPIC (status off_topic, a one-line decline).
+ * The newest user turn also carries the learner's brief (lib/learner, 12 Nov 2026: level, how they like answers, what
+ * they found hard on this topic); it doesn't count toward the input cap. Off when memory is.
  */
 export async function POST(request: Request) {
   const me = await requireLearner(request);
@@ -129,6 +132,17 @@ export async function POST(request: Request) {
     messages.push({ role: "user", content: snipFollowUpInput(i + 1 < history.length ? history[i + 1].q || "Explain this snip." : q) });
   });
 
+  // the learner's brief rides on the newest turn (the image's turn for a first explain)
+  const capChars = input.length + history.reduce((a, t) => a + t.q.length + t.a.length, 0) + (history.length ? q.length : 0);
+  const brief = await learnerBrief(me.id, { feature: "snip-explain", ref: { topic: `${where.title} ${heading} ${q}` }, styleChosen: /^(explain (this )?simply|in hinglish|more detail)/i.test(q) });
+  const sent = messages.slice();
+  if (brief.text) {
+    const last = sent[sent.length - 1];
+    sent[sent.length - 1] =
+      typeof last.content === "string"
+        ? { ...last, content: `${brief.text}\n\n${last.content}` }
+        : { ...last, content: [...last.content.slice(0, -1), { type: "text", text: `${brief.text}\n\n${(last.content[last.content.length - 1] as { text: string }).text}` }] };
+  }
   const r = await callClaude({
     feature: "snip-explain",
     userId: me.id,
@@ -136,8 +150,9 @@ export async function POST(request: Request) {
     userKey: ownKey(request),
     system: snipExplainSystem({ kind, title: g.title || title, context: g.context }),
     // the image first, then the text about it (the Messages API's advice for image prompts)
-    messages,
-    meta: { kind, key: key || null, ...g.meta, text_chars: text.length, ctx_chars: g.context.length, turn: history.length + 1, q_chars: q.length },
+    messages: sent,
+    capChars,
+    meta: { kind, key: key || null, ...g.meta, text_chars: text.length, ctx_chars: g.context.length, turn: history.length + 1, q_chars: q.length, ...(brief.text ? { brief: true } : {}) },
     timeoutMs: 55_000,
   });
   // the model's decline (not the day's pause after several): a short polite line in the thread, `declined`

@@ -4,12 +4,17 @@ import { getStore } from "@/lib/design-week/store";
 import { callClaude, ownKey, saveTranscript } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { designReviewSystem, promptOptsFor, replyFrom } from "@/lib/ai/prompts";
+import { learnerBrief } from "@/lib/learner/brief";
+import { withBrief } from "@/lib/learner/feature-brief-model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-/** POST /api/learn/ai/design-review { slug, md } → { text, creditsLeft }: a staff-engineer review of a design-of-the-week draft. */
+/**
+ * POST /api/learn/ai/design-review { slug, md } → { text, creditsLeft }: a staff-engineer review of a design-of-the-week
+ * draft. The learner's turn carries their brief (lib/learner: level, how they like answers, what they found hard).
+ */
 export async function POST(request: Request) {
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
@@ -21,14 +26,16 @@ export async function POST(request: Request) {
     .catch(() => null);
   if (!c || c.status === "draft") return NextResponse.json({ error: "Unknown challenge" }, { status: 404 });
   const problem = `${c.title}\n\n${c.briefMd}\n\nConstraints:\n${c.constraints.map((x) => `- ${x}`).join("\n")}`;
+  const brief = await learnerBrief(me.id, { feature: "design-review", ref: { topic: c.title } });
   const r = await callClaude({
     feature: "design-review",
     userId: me.id,
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => designReviewSystem({ title: c.title, text: problem }, promptOptsFor(model, "design-review")),
-    messages: [{ role: "user", content: md.slice(0, 15000) }],
-    meta: { challenge: c.slug },
+    messages: [{ role: "user", content: withBrief(brief.text, md.slice(0, 15000), "My design:") }],
+    capChars: Math.min(md.length, 15000),
+    meta: { challenge: c.slug, ...(brief.text ? { brief: true } : {}) },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
   const text = replyFrom(r.text, "STRENGTHS");

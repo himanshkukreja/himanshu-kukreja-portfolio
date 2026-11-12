@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { requireLearner } from "@/app/api/learn/_lib/auth";
 import { getWarRoom } from "@/lib/learn/war/load";
 import { callsText, decisions, plain, revisitCandidates } from "@/lib/learn/war/ai";
@@ -6,6 +6,7 @@ import { callClaude, OFF_TOPIC_MESSAGE, ownKey, saveTranscript } from "@/lib/ai/
 import { isAdminEmail } from "@/lib/ai/access";
 import { warRoomDebriefSystem } from "@/lib/ai/prompts";
 import type { RunGrade } from "@/lib/learn/war/types";
+import { recordOutcome } from "@/lib/learner/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,6 +35,7 @@ const clean = (v: unknown, max: number) =>
  * ends on its right option). The picks are checked against the script and the totals recomputed here; the typed moves
  * are the learner's words, sent as data. The room's answer key, postmortem, real incident and candidate lessons go in
  * the system prompt, so every line is grounded in the room; the lessons come back as real links.
+ * The grade and the calls picked wrong first go to the learner's outcome log (lib/learner/events.ts; never typed moves).
  */
 export async function POST(request: Request) {
   const me = await requireLearner(request);
@@ -120,6 +122,8 @@ export async function POST(request: Request) {
   if (!r.ok && r.status === "off_topic" && r.message === OFF_TOPIC_MESSAGE) return NextResponse.json({ error: "The review couldn't read this run. Try again.", creditsLeft: r.creditsLeft }, { status: 422 });
   if (!r.ok) return NextResponse.json({ error: r.message, status: r.status, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
   await saveTranscript(r.callId, me.id, "war-room-debrief", run, r.text);
+  const wrongFirst = calls.filter((c) => !c.d.options[picks.get(c.beat)![0]].best).map((c) => c.n);
+  after(() => recordOutcome(request, me.id, { course: "sdm", kind: "war_room", ref: room.slug, outcome: grade, detail: { wrong, first: firstTime, calls: calls.length, hurts: hurts.length, miss: wrongFirst } }).then(() => undefined));
 
   const t = r.text.replace(/\*\*/g, "").replace(/\r\n?/g, "\n");
   const section = (name: string) => t.match(new RegExp(`^\\s*${name}:[ \\t]*([\\s\\S]*?)(?=^\\s*(?:VERDICT|WELL|CHANGE|REVISIT):|(?![\\s\\S]))`, "im"))?.[1]?.trim() || "";

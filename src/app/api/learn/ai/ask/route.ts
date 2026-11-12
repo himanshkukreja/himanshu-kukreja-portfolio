@@ -9,6 +9,8 @@ import { lessonContext } from "@/lib/ai/retrieve";
 import { isAnswerStyle, styleLine } from "@/lib/ai/answerStyle";
 import { splitFollowups } from "@/lib/ai/chat/text";
 import { ASK_MODES as MODES, askCapChars, buildAskTurn, clipPrevious } from "@/lib/ai/askTurn";
+import { learnerBrief } from "@/lib/learner/brief";
+import { withBrief } from "@/lib/learner/feature-brief-model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,6 +25,8 @@ const SLUG = /^[A-Za-z0-9-]{1,120}$/;
  * `style` is the learner's answer style (lib/ai/answerStyle.ts), `previous` their last question and its answer in the
  * panel (so "explain that more simply" and a quick check's answer work); both go in the learner's turn, as data.
  * The answer's follow-ups line becomes `followups` (the panel's cards).
+ * The learner's turn also carries their brief (lib/learner, 12 Nov 2026): level and how they like answers (the default
+ * style when they picked none, O10), what they found hard, and their graded results on this topic. Off when memory is.
  */
 export async function POST(request: Request) {
   const me = await requireLearner(request);
@@ -51,6 +55,7 @@ export async function POST(request: Request) {
   const mode = body.mode && MODES[body.mode] ? MODES[body.mode] : "";
   // the panel's last exchange, clipped at a sentence end; it never counts toward the input cap (lib/ai/askTurn.ts)
   const prev = clipPrevious(body.previous);
+  const brief = await learnerBrief(me.id, { feature: "lesson-qa", ref: { topic: `${doc.title} ${question} ${selection.slice(0, 200)}` }, styleChosen: !!mode || isAnswerStyle(body.style) });
   const ask = buildAskTurn({ question, selection, kind, mode, style: styleLine(isAnswerStyle(body.style) ? body.style : null), prev });
   // a follow-up about the previous answer finds its sections from that question's words too
   const context = { title: doc.title, text: lessonContext(doc.content, [question, prev && !selection ? prev.q : ""].filter(Boolean).join(" "), selection), kind } as const;
@@ -62,9 +67,9 @@ export async function POST(request: Request) {
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system,
-    messages: [{ role: "user", content: ask }],
+    messages: [{ role: "user", content: withBrief(brief.text, ask) }],
     capChars: askCapChars(question),
-    meta: story ? { story, mode: body.mode ?? null, selection: !!selection } : { week, slug, mode: body.mode ?? null, selection: !!selection },
+    meta: { ...(story ? { story } : { week, slug }), mode: body.mode ?? null, selection: !!selection, ...(brief.text ? { brief: true } : {}) },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, status: r.status, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
   const { text, followups } = splitFollowups(r.text, question);
