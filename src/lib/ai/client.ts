@@ -69,6 +69,9 @@ export type AiRequest = {
    *  admitted message): the block list, the per-minute rate and the off-topic pause were checked there; the switches,
    *  the budget, the governor and the feature's calls-per-day still apply (chat calls never use the shared credits) */
   admitted?: boolean;
+  /** what counts toward the feature's maxInputChars when the turn also carries the call's own context next to the
+   *  learner's words (lesson-qa's previous exchange: lib/ai/askPrevious.ts); default: all the messages' text */
+  capChars?: number;
 };
 
 /** A plausible Anthropic key from the x-anthropic-key header, or null. */
@@ -159,7 +162,7 @@ export async function callClaude(req: AiRequest): Promise<AiResult> {
     model = def.amberModel;
   }
 
-  const inputChars = req.messages.reduce((a, m) => a + contentText(m.content).length, 0);
+  const inputChars = req.capChars ?? req.messages.reduce((a, m) => a + contentText(m.content).length, 0);
   if (inputChars > cfg.maxInputChars) return refuse("too_long", `That's too long (${inputChars.toLocaleString()} characters, the limit is ${cfg.maxInputChars.toLocaleString()})`);
   // images: only features that take them, one each for the page features, real PNG/WebP within the byte and pixel caps
   const imgs = gateImages(
