@@ -38,6 +38,7 @@ import CertificateEntry from "@/components/learn/certificate/CertificateEntry";
 import { useMockStatus } from "@/lib/learn/mock/store";
 import ReadinessCard from "@/components/learn/progress/ReadinessCard";
 import QuietNudge, { usePlanStanding } from "@/components/learn/plan/QuietNudge";
+import { GoalChatButton } from "@/components/learn/ai/GoalChat";
 
 export default function DashboardClient({ map, lectures = [] }: { map: CourseMap; lectures?: LectureLite[] }) {
   const d = useProgressData(map);
@@ -227,9 +228,12 @@ export default function DashboardClient({ map, lectures = [] }: { map: CourseMap
 
       <SectionNav />
 
-      <Link href="/guide#progress" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg lg:-mt-10">
-        what do these numbers mean? read the guide →
-      </Link>
+      <div className="-mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 lg:-mt-10">
+        <Link href="/guide#progress" className="inline-flex min-h-10 items-center font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+          what do these numbers mean? read the guide →
+        </Link>
+        {d.signedIn && <GoalChatButton from="dashboard" />}
+      </div>
 
       {d.signedIn && <QuietNudge standing={standing} className="-mt-4 lg:-mt-8" />}
 

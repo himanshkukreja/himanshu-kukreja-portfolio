@@ -8,6 +8,7 @@
 import { answerTokens, FEATURES } from "@/lib/ai/features";
 import { MODELS } from "@/lib/ai/prices";
 import { isAnswerStyle, messageLines, pickActions, styleLine, type FollowupAction } from "@/lib/ai/answerStyle";
+import { endAtQuestion, isRestyle, restyleLine, REVEAL_RE, teachLine } from "@/lib/ai/teaching";
 import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor, replyFrom, type PromptSystem } from "@/lib/ai/prompts";
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
@@ -91,7 +92,10 @@ export function readRequest(body: unknown, opts: { endsWithUser?: boolean } = {}
   const title = b.title === "first" || b.title === "again" ? b.title : undefined;
   const style = isAnswerStyle(b.style) && b.style !== "tutor" ? b.style : undefined;
   const prevCall = Number.isInteger(b.prevCall) && Number(b.prevCall) > 0 ? Number(b.prevCall) : undefined;
-  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock, ...(title ? { title } : {}), ...(style ? { style } : {}), ...(prevCall ? { prevCall } : {}) };
+  // "Teach me" and "Explain it differently" (lib/ai/teaching.ts); a re-explanation needs an answer before it
+  const teach = b.teach === true;
+  const restyle = isRestyle(b.restyle) && messages.some((m) => m.role === "assistant") ? b.restyle : undefined;
+  return { chat, messages, sources: rec(b.sources, 300), quizzes: rec(b.quizzes, 80), paths, answerTo, page, mock, ...(title ? { title } : {}), ...(style ? { style } : {}), ...(teach ? { teach } : {}), ...(restyle ? { restyle } : {}), ...(prevCall ? { prevCall } : {}) };
 
 }
 
@@ -140,8 +144,10 @@ export function buildMessages(req: ChatRequest, st: ChatState, context: string):
   const check = qc
     ? `<quick_check>Your last answer ended with this Quick check: "${clip(qc.replace(REF_RE, "").trim(), 300)}". If this message answers it, grade their answer to THAT question. Before the first word, work out the correct answer and compare it with theirs ("${clip(latest.text.replace(/\s+/g, " ").trim(), 200)}"): the same answer or the same idea in other words → "Right!"; the right idea with a slip or missing piece → "Close!"; a different number, option or idea → "Not quite." Then the correct answer with its one-line reason (the arithmetic for a number), in two or three sentences in all, and nothing else (no shape, no callouts). If it is a new question, answer that instead.</quick_check>`
     : "";
-  // the answer style the learner picked goes with their words (the system prompt stays one cached block)
-  out.push({ role: "user", content: [ask, check, styleLine(req.style), ...messageLines(latest.text, req.style), context].filter(Boolean).join("\n\n") });
+  // the answer style the learner picked goes with their words (the system prompt stays one cached block); so do "Teach
+  // me" (its quick-check grading is its own: one question at a time) and "Explain it differently"
+  const teach = req.teach && !req.restyle ? teachLine({ answering: turns.some((t) => t.role === "assistant"), topic: req.messages.find((m) => m.role === "user")?.text, latest: latest.text }) : "";
+  out.push({ role: "user", content: [ask, teach ? "" : check, req.restyle ? restyleLine(req.restyle) : styleLine(req.style), teach, ...messageLines(latest.text, req.style), context].filter(Boolean).join("\n\n") });
   // the API wants the first message from the user; consecutive same-role messages are joined by the API
   if (out[0].role !== "user") out.unshift({ role: "user", content: "(continuing our chat)" });
   return out;
@@ -214,7 +220,7 @@ export async function runChatCore(o: {
   // looked up before the model runs, so most answers need no tool round (see prefetchContext)
   const [context, pre] = await Promise.all([
     learnerContext(st, o.memory, first, Date.now(), { recentAnswers }),
-    o.prefetch === false ? Promise.resolve({ text: "", ran: [] as string[] }) : prefetchContext(st, latestText, { answerTo: o.req.answerTo }),
+    o.prefetch === false ? Promise.resolve({ text: "", ran: [] as string[] }) : prefetchContext(st, o.req.restyle ? ([...o.req.messages.slice(0, -1)].reverse().find((m) => m.role === "user")?.text ?? latestText) : latestText, { answerTo: o.req.answerTo }),
   ]);
   const ctxMs = Date.now() - t0;
   // what the context and the lookups showed the model for each ref: the citation check's evidence
@@ -277,7 +283,9 @@ export async function runChatCore(o: {
   const offTopic = OFF_TOPIC_MARK.test(loop.text);
   const latest = o.req.messages[o.req.messages.length - 1];
   const split = splitFollowups(loop.text, latest.text);
-  let text = cleanAnswer(split.text, (ref) => st.sources.has(ref));
+  // "Teach me": the reply ends with its one question (a short tail after it goes), unless they asked to see the answer
+  const teaching = !!o.req.teach && !o.req.restyle && !REVEAL_RE.test(latest.text);
+  let text = cleanAnswer(teaching ? endAtQuestion(split.text) : split.text, (ref) => st.sources.has(ref));
   // the tools ran (a plan or path card may already be on the page) but no answer came, even from the answer-only
   // round (lib/ai/chat/loop.ts), or time ran out after them: a short answer from what they made, never an error
   // for work that succeeded. Still the one message (one ai_calls row, one quota message).
@@ -309,8 +317,9 @@ export async function runChatCore(o: {
   // grade, mock, gap ("no lesson on X yet": nothing of the course's to simplify, deepen or quiz on) or a one-line answer
   const explained = cards && !st.flags.path && !st.flags.plan && !st.flags.saved && !st.flags.graded && !o.req.answerTo && text.split(/\s+/).length >= 40;
   const gap = /^\s*The course has no lesson on\b|\bnot in a lesson of (?:its|their) own\b/i.test(text);
-  const actions = explained && !gap ? pickActions(followups, { asked: latest.text }) : [];
-  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups, actions, cites, citeDetails };
+  // "Teach me": the answer ends with the tutor's one question, so no cards compete with it; only "Just show me"
+  const actions = teaching ? (cards && !gap ? (["reveal"] as FollowupAction[]) : []) : explained && !gap ? pickActions(followups, { asked: latest.text }) : [];
+  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups: teaching ? [] : followups, actions, cites, citeDetails };
 }
 
 /** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */

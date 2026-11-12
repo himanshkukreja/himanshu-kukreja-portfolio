@@ -21,6 +21,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import AnswerStylePicker from "@/components/learn/chat/AnswerStylePicker";
+import TeachToggle from "@/components/learn/chat/TeachToggle";
+import { GoalChatNudge } from "@/components/learn/ai/GoalChat";
 import ChatComposer, { type ComposerHandle } from "@/components/learn/chat/ChatComposer";
 import ChatHistory, { useChatHistory } from "@/components/learn/chat/ChatHistory";
 import ChatThread from "@/components/learn/chat/ChatThread";
@@ -259,7 +261,7 @@ export default function DsaAsk({ concepts, problems }: { concepts: Concept[]; pr
         autoFocus={wide && empty && !q}
         placeholder={phone ? "Ask about DSA…" : "Ask about a concept, a problem or your approach…"}
         hint={hint}
-        tools={canChat ? <AnswerStylePicker from="page" /> : undefined}
+        tools={canChat ? <><AnswerStylePicker from="page" /><TeachToggle from="dsa-page" /></> : undefined}
       />
     </div>
   );
@@ -331,6 +333,7 @@ export default function DsaAsk({ concepts, problems }: { concepts: Concept[]; pr
         </p>
       </header>
       {wide && box}
+      {canChat && <GoalChatNudge from="dsa-chat" />}
       {uid && history.threads.length > 0 && (
         <section aria-labelledby="dsa-recent-h" className="flex flex-col gap-2.5">
           <div className="flex items-baseline justify-between gap-2">
@@ -401,6 +404,7 @@ export default function DsaAsk({ concepts, problems }: { concepts: Concept[]; pr
         onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
         onSave={chat.savePath}
         actions={{ feedback: chat.feedback, share: false, onRate: chat.rate, feature: "dsa-chat" }}
+        onDifferently={canChat ? () => void chat.explainDifferently() : undefined}
       />
       {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} privacy={DSA_PRIVACY} className="mt-2" />}
     </div>

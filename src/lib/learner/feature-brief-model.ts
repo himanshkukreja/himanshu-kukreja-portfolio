@@ -256,6 +256,9 @@ export function defaultStyleLines(notes: BriefNotes | null): string[] {
   else if (/\b(detail(ed|s)?|depth|in-depth|thorough)\b/.test(prefs)) out.push("They like depth: include the why and one trade-off.");
   if (/\b(examples?|real[- ](world|apps?)|indian apps?)\b/.test(prefs)) out.push("They like concrete examples: use one from a real product.");
   else if (/\bcode first|code-first|show (me )?code\b/.test(prefs)) out.push("They like code first: lead with a short sketch, then one line of why.");
+  // the explanation style that worked ("Explain it differently" + a thumbs-up or moving on: lib/ai/teaching.ts)
+  if (/step[- ]by[- ]step|worked example/.test(prefs)) out.push("A step-by-step worked example works best for them: walk one small concrete input through the idea.");
+  else if (/\bdiagram/.test(prefs)) out.push("A diagram works best for them: include a small labelled text diagram when the idea has parts.");
   return out;
 }
 

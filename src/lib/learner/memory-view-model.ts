@@ -26,13 +26,15 @@ export type ViewRow = {
   part?: string | null;
 };
 
-export type KnownSrc = "chat" | "dsa" | "you" | "mock" | "lab" | "explain-back" | "war-room" | "paper" | "chat-quiz";
+export type KnownSrc = "chat" | "dsa" | "you" | "onboarding" | "feedback" | "mock" | "lab" | "explain-back" | "war-room" | "paper" | "chat-quiz";
 export type KnownItem = { key: string; text: string; src: KnownSrc; at: number; course: "sdm" | "dsa"; ids: number[] };
 
 export const SRC_LABEL: Record<KnownSrc, string> = {
   chat: "course chat",
   dsa: "DSA chat or tutor",
-  you: "edited by you",
+  you: "set or edited by you",
+  onboarding: "your goal chat",
+  feedback: "from your feedback on answers",
   mock: "mock",
   lab: "lab",
   "explain-back": "explain-back",

@@ -6,6 +6,7 @@ import "server-only";
  * what the routes send.
  */
 import { actionOf, messageLines, styleLine } from "@/lib/ai/answerStyle";
+import { restyleLine, teachLine } from "@/lib/ai/teaching";
 import type { ApiMessage } from "@/lib/ai/chat/loop";
 import { nextRef, type ChatRequest, type ChatSource } from "@/lib/ai/chat/text";
 import { DSA_LANG_LABEL, type DsaLang } from "../types";
@@ -63,7 +64,9 @@ export async function prepareAsk(o: {
   const short = n < 5 || !!actionOf(latest) || (n < 14 && LEANS.test(latest));
   const page = pageItem(req.page?.path);
   // the page counts only on a concept, lecture or problem page (a list page's headings are noise)
-  const query = [latest, short ? prevUser : "", page ? (req.page?.selection ?? "") : "", page ? `${req.page?.title ?? ""} ${req.page?.heading ?? ""}` : ""].filter(Boolean).join("\n");
+  // "Explain it differently" is about the previous question: it searches with that, never with its own words
+  const asked = req.restyle && prevUser ? prevUser : latest;
+  const query = [asked, short && !req.restyle ? prevUser : "", page ? (req.page?.selection ?? "") : "", page ? `${req.page?.title ?? ""} ${req.page?.heading ?? ""}` : ""].filter(Boolean).join("\n");
   const [found, planned] = await Promise.all([searchDsa({ query, unlocked, page }), plannedConcepts().catch(() => [])]);
 
   // refs: the same passage keeps the ref it had earlier in this chat; new ones continue the numbering
@@ -89,7 +92,7 @@ export async function prepareAsk(o: {
     page && req.page?.path
       ? `<page>The learner is on ${req.page.title ? `"${req.page.title}"` : req.page.path}${req.page.heading ? `, at "${req.page.heading}"` : ""}.${req.page.selection ? ` They selected: "${req.page.selection.slice(0, 600)}"` : ""}</page>`
       : "";
-  const gap = gapLine(latest, planned, found.problems.map((p) => p.concept ?? ""), found.concepts.map((c) => c.title));
+  const gap = gapLine(asked, planned, found.problems.map((p) => p.concept ?? ""), found.concepts.map((c) => c.title));
   const context = [
     pageLine,
     gap,
@@ -99,11 +102,13 @@ export async function prepareAsk(o: {
     .filter(Boolean)
     .join("\n\n");
   // the answer style beside the box; DSA's interview is a coding round
-  const style = styleLine(req.style).replace("a system design round", "a coding interview");
+  // "Explain it differently" replaces the style line; "Teach me" adds its own (lib/ai/teaching.ts)
+  const style = req.restyle ? restyleLine(req.restyle) : styleLine(req.style).replace("a system design round", "a coding interview");
+  const teach = teachOf(req);
   const lines = messageLines(latest, req.style);
   // the length rule once more in the turn (Haiku drifts long on a long prompt), unless a style or "briefly" set its own
-  const length = req.style || lines.some((l) => l.startsWith("<length>")) || /\b(in depth|detailed|deeper|go deeper)\b/i.test(latest) ? "" : "<length>At most about 170 words (a quick question: about 80), unless <adapt> says shorter.</length>";
-  const content = [latest, style, ...lines, length, o.brief ?? "", context].filter(Boolean).join("\n\n");
+  const length = req.style || req.restyle || teach || lines.some((l) => l.startsWith("<length>")) || /\b(in depth|detailed|deeper|go deeper)\b/i.test(latest) ? "" : "<length>At most about 170 words (a quick question: about 80), unless <adapt> says shorter.</length>";
+  const content = [latest, style, teach, ...lines, length, o.brief ?? "", context].filter(Boolean).join("\n\n");
   const known = Object.keys(earlier).filter((r) => KEY_RE.test(earlier[r]));
   return {
     system: dsaAskSystem(o.outline),
@@ -124,8 +129,16 @@ export async function prepareAsk(o: {
       known: known.length,
       brief: o.brief ? o.brief.split("\n").length - 2 : 0,
       ...(req.style ? { style: req.style } : {}),
+      ...(req.teach ? { teach: true } : {}),
+      ...(req.restyle ? { restyle: req.restyle } : {}),
     },
   };
+}
+
+/** "Teach me"'s line for a DSA turn (none for a re-explanation; a "Just show me" gets the explaining one). */
+function teachOf(req: ChatRequest): string {
+  if (!req.teach || req.restyle) return "";
+  return teachLine({ answering: req.messages.some((m) => m.role === "assistant"), topic: req.messages.find((m) => m.role === "user")?.text, latest: req.messages[req.messages.length - 1].text });
 }
 
 /* ------------------------------------------------------------------ the problem room's tutor */
@@ -226,7 +239,9 @@ export function prepareTutor(o: {
         .join("\n")}\n</code>`
     : "<code>(the editor is empty or still the starter code)</code>";
   const attempts = unlocked ? "" : `<attempts>Failed submits on this problem so far: ${o.fails ?? 0}; the editorial opens at 3 (or if they solve it, or reveal it from the Editorial tab).</attempts>`;
-  const content = [`<mode>${modeLine}</mode>`, `<message>${latest}</message>`, ...messageLines(latest), o.brief ?? "", attempts, codeBlock, resultLine(result)].filter(Boolean).join("\n\n");
+  // "Explain it differently" and "Teach me" (lib/ai/teaching.ts); a hint is already a nudge, so it stays one
+  const extra = req.restyle ? restyleLine(req.restyle) : mode === "hint" ? "" : teachOf(req);
+  const content = [`<mode>${modeLine}</mode>`, `<message>${latest}</message>`, extra, ...messageLines(latest), o.brief ?? "", attempts, codeBlock, resultLine(result)].filter(Boolean).join("\n\n");
   return {
     system,
     messages: historyMessages(req, content, 8),
@@ -237,6 +252,6 @@ export function prepareTutor(o: {
     cap: unlocked ? null : mode === "hint" ? CAP_HINT : CAP_LOCKED,
     ask: `[${mode} · ${problemId} · ${lang}] ${latest}\n\n${code.slice(0, 4000)}`,
     followups: false,
-    meta: { problem: problemId, mode, lang, unlocked, rung: hintsOpen, verdict: result?.verdict ?? null, codeChars: code.length, fails: o.fails ?? null, brief: o.brief ? o.brief.split("\n").length - 2 : 0 },
+    meta: { problem: problemId, mode, lang, unlocked, rung: hintsOpen, verdict: result?.verdict ?? null, codeChars: code.length, fails: o.fails ?? null, brief: o.brief ? o.brief.split("\n").length - 2 : 0, ...(req.teach ? { teach: true } : {}), ...(req.restyle ? { restyle: req.restyle } : {}) },
   };
 }

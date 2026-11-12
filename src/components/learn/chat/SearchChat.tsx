@@ -31,6 +31,8 @@ import { isNaturalQuery } from "@/lib/search/smart/text";
 import { whenLabel } from "@/lib/learn/chat-history";
 import { track } from "@/lib/track";
 import AnswerStylePicker from "./AnswerStylePicker";
+import TeachToggle from "./TeachToggle";
+import { GoalChatNudge } from "@/components/learn/ai/GoalChat";
 import ChatComposer, { type ComposerHandle } from "./ChatComposer";
 import ChatHistory, { useChatHistory } from "./ChatHistory";
 import ChatThread from "./ChatThread";
@@ -281,7 +283,7 @@ function ChatPage() {
         autoFocus={wide && empty && !q}
         placeholder={phone ? "Ask the course…" : "Ask anything about system design…"}
         hint={hint}
-        tools={canChat ? <AnswerStylePicker from="page" /> : undefined}
+        tools={canChat ? <><AnswerStylePicker from="page" /><TeachToggle from="page" /></> : undefined}
         onFocusChange={(f) => (f ? setFocused(true) : window.setTimeout(() => setFocused(false), 180))}
       />
       {pinned && rail && <div className="mt-2 border border-line-strong">{signInLine}</div>}
@@ -373,6 +375,7 @@ function ChatPage() {
         <WatchHowItWorks id="ai-tutor" />
       </header>
       {wide && box}
+      {canChat && <GoalChatNudge from="chat" />}
       {canChat && !rail && (
         <div role="group" aria-label="Quick actions" className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {QUICK_ACTIONS.map((a) => (
@@ -461,6 +464,7 @@ function ChatPage() {
         onSave={chat.savePath}
         actions={{ feedback: chat.feedback, share: true, onRate: chat.rate }}
         mock={{ onNext: chat.nextPhase, onEnd: () => void chat.send("End the interview and score me.", { mockEnd: true }), onLeave: chat.leaveMock }}
+        onDifferently={canChat ? () => void chat.explainDifferently() : undefined}
       />
       {chat.fallback && !rail && (
         <button type="button" onClick={() => setSheet("context")} className="min-h-10 self-start font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-2">

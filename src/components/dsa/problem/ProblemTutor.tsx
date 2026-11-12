@@ -21,6 +21,7 @@ import ChatHistory, { useChatHistory } from "@/components/learn/chat/ChatHistory
 import { NewMessagePill, useFollow } from "@/components/learn/chat/ChatLive";
 import { ChatFinePrint, DSA_PRIVACY, QuotaLine } from "@/components/learn/chat/ChatMeta";
 import { useCourseChat } from "@/components/learn/chat/useCourseChat";
+import TeachToggle from "@/components/learn/chat/TeachToggle";
 import { TUTOR_ASK, type TutorMode } from "@/lib/dsa/ai/modes";
 import type { JudgeOutcome } from "@/lib/dsa/harness";
 import type { DsaLang, ProblemPage } from "@/lib/dsa/types";
@@ -105,11 +106,20 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
   const failing = !!last && last.o.verdict !== "AC";
   const hasCode = () => code().trim().length > 0;
 
-  const send = async (mode: TutorMode, words: string) => {
-    if (!canChat || chat.busy) return;
+  const bodyFor = (mode: TutorMode) => {
     // "Explain this problem simply" is about the problem, not their code: neither the code nor the last run goes with it
     const plain = mode === "explain";
-    const body = { dsa: { problemId: p.id, mode, code: plain ? "" : code().slice(0, 12_000), lang, result: plain ? null : wireResult(last, p), hintsOpen } };
+    return { dsa: { problemId: p.id, mode, code: plain ? "" : code().slice(0, 12_000), lang, result: plain ? null : wireResult(last, p), hintsOpen } };
+  };
+  // "Explain it differently" (lib/ai/teaching.ts): the last answer again another way, as a free question with the code
+  const differently = () => {
+    if (!canChat || chat.busy) return;
+    track("dsa_tutor", { problem: p.id, mode: "differently", lang, verdict: last?.o.verdict ?? null });
+    void chat.explainDifferently({ body: bodyFor("ask") });
+  };
+  const send = async (mode: TutorMode, words: string) => {
+    if (!canChat || chat.busy) return;
+    const body = bodyFor(mode);
     track("dsa_tutor", { problem: p.id, mode, lang, verdict: last?.o.verdict ?? null });
     const ok = await chat.send(words, { body });
     // the hint came from the next rung: the room's ladder opens it too, so the two never drift apart
@@ -246,7 +256,7 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
                 </p>
               </div>
             ) : (
-              <ChatThread conv={chat.conv} status={chat.status} draft={chat.draft} live={chat.live} onStop={chat.stop} onAnswer={() => {}} onSave={() => {}} actions={{ feedback: chat.feedback, share: false, onRate: chat.rate, feature: "dsa-tutor" }} />
+              <ChatThread conv={chat.conv} status={chat.status} draft={chat.draft} live={chat.live} onStop={chat.stop} onAnswer={() => {}} onSave={() => {}} actions={{ feedback: chat.feedback, share: false, onRate: chat.rate, feature: "dsa-tutor" }} onDifferently={canChat ? differently : undefined} />
             )}
           </div>
         </div>
@@ -254,7 +264,7 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
       </div>
       <div className="flex shrink-0 flex-col gap-1.5 border-t border-line px-3 pb-2 pt-2.5">
         {canChat ? (
-          <ChatComposer ref={composer} id={`dsa-tutor-${p.id}`} value={text} onChange={setText} onAsk={ask} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder="Ask about this problem or your code…" />
+          <ChatComposer ref={composer} id={`dsa-tutor-${p.id}`} value={text} onChange={setText} onAsk={ask} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder="Ask about this problem or your code…" tools={<TeachToggle from="dsa-tutor" />} />
         ) : (
           <p className="m-0 text-[14px] text-fg-3">{ai ? "The tutor is resting right now. Run, Submit and the hint ladder still work." : "Checking the tutor…"}</p>
         )}

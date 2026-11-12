@@ -7,6 +7,7 @@ import { isAdminEmail } from "@/lib/ai/access";
 import { lessonQaSystem, promptOptsFor } from "@/lib/ai/prompts";
 import { lessonContext } from "@/lib/ai/retrieve";
 import { isAnswerStyle, styleLine } from "@/lib/ai/answerStyle";
+import { endAtQuestion, isRestyle, restyleLine, REVEAL_RE, teachLine } from "@/lib/ai/teaching";
 import { splitFollowups } from "@/lib/ai/chat/text";
 import { ASK_MODES as MODES, askCapChars, buildAskTurn, clipPrevious } from "@/lib/ai/askTurn";
 import { learnerBrief } from "@/lib/learner/brief";
@@ -27,11 +28,13 @@ const SLUG = /^[A-Za-z0-9-]{1,120}$/;
  * The answer's follow-ups line becomes `followups` (the panel's cards).
  * The learner's turn also carries their brief (lib/learner, 12 Nov 2026): level and how they like answers (the default
  * style when they picked none, O10), what they found hard, and their graded results on this topic. Off when memory is.
+ * `teach: true` ("Teach me", lib/ai/teaching.ts): one guiding question at a time, the explanation once they've tried;
+ * `restyle` ("Explain it differently"): the previous answer again, another way (an analogy, steps, a diagram, code first).
  */
 export async function POST(request: Request) {
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
-  const body = (await request.json().catch(() => ({}))) as { week?: string; slug?: string; story?: string; question?: string; selection?: string; mode?: string; style?: string; previous?: { q?: unknown; a?: unknown } | null };
+  const body = (await request.json().catch(() => ({}))) as { week?: string; slug?: string; story?: string; question?: string; selection?: string; mode?: string; style?: string; previous?: { q?: unknown; a?: unknown } | null; teach?: unknown; restyle?: unknown };
   const story = body.story ? String(body.story) : "";
   const week = String(body.week || "");
   const slug = String(body.slug || "");
@@ -58,7 +61,10 @@ export async function POST(request: Request) {
   const brief = await learnerBrief(me.id, { feature: "lesson-qa", ref: { topic: `${doc.title} ${question} ${selection.slice(0, 200)}` }, styleChosen: !!mode || isAnswerStyle(body.style), styleLine: true });
   // the learner's own pick, else the style their memory points to (O10: a beginner gets "simple"), never over a mode
   const style = isAnswerStyle(body.style) ? body.style : !mode ? brief.style : null;
-  const ask = buildAskTurn({ question, selection, kind, mode, style: styleLine(style), prev });
+  // "Explain it differently" (needs the previous answer) replaces the style line; "Teach me" adds its own
+  const restyle = isRestyle(body.restyle) && prev ? body.restyle : null;
+  const teach = body.teach === true && !restyle ? teachLine({ answering: !!prev, topic: prev?.q ?? question, latest: question }) : "";
+  const ask = buildAskTurn({ question, selection, kind, mode, style: [restyle ? restyleLine(restyle) : styleLine(style), teach].filter(Boolean).join("\n\n"), prev });
   // a follow-up about the previous answer finds its sections from that question's words too
   const context = { title: doc.title, text: lessonContext(doc.content, [question, prev && !selection ? prev.q : ""].filter(Boolean).join(" "), selection), kind } as const;
   // the prompt is picked by the model the call actually uses (Haiku 5.5 has its own variant)
@@ -71,10 +77,13 @@ export async function POST(request: Request) {
     system,
     messages: [{ role: "user", content: withBrief(brief, ask) }],
     capChars: askCapChars(question),
-    meta: { ...(story ? { story } : { week, slug }), mode: body.mode ?? null, selection: !!selection, ...(brief.text ? { brief: true } : {}) },
+    meta: { ...(story ? { story } : { week, slug }), mode: body.mode ?? null, selection: !!selection, ...(brief.text ? { brief: true } : {}), ...(teach ? { teach: true } : {}), ...(restyle ? { restyle } : {}) },
   });
   if (!r.ok) return NextResponse.json({ error: r.message, status: r.status, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
-  const { text, followups } = splitFollowups(r.text, question);
+  const split = splitFollowups(r.text, question);
+  // "Teach me": the reply ends with its one question (lib/ai/teaching.ts), unless they asked to see the answer
+  const text = teach && !REVEAL_RE.test(question) ? endAtQuestion(split.text) : split.text;
+  const followups = split.followups;
   await saveTranscript(r.callId, me.id, "lesson-qa", ask, text);
   return NextResponse.json({ text, followups, creditsLeft: r.creditsLeft, callId: r.callId });
 }

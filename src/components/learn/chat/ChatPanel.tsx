@@ -23,6 +23,8 @@ import { useLessonFaq } from "@/components/learn/ai/useLessonFaq";
 import { matchFaq } from "@/lib/learn/faq/parse";
 import { track } from "@/lib/track";
 import AnswerStylePicker from "./AnswerStylePicker";
+import TeachToggle from "./TeachToggle";
+import { GoalChatNudge } from "@/components/learn/ai/GoalChat";
 import ChatComposer, { type ComposerHandle } from "./ChatComposer";
 import ChatHistory, { useChatHistory } from "./ChatHistory";
 import { useKeyboardInset } from "./ui";
@@ -233,6 +235,7 @@ export default function ChatPanel({ open, onClose, initial, pathname, course = "
                 : "Ask about this page or anything in the course. The tutor knows where you are, answers with sources, finds lecture moments, quizzes you and builds paths you can save."}
             </p>
           )}
+          {empty && canChat && <GoalChatNudge from={dsa ? "dsa-panel" : "panel"} />}
           {empty && canChat && (
             <div className="flex flex-wrap gap-1.5" role="group" aria-label="Quick asks">
               {(dsa ? (/^\/dsa\/(?:concepts|problems)\/[^/]+/.test(pathname) ? DSA_QUICK : DSA_QUICK_ANY) : QUICK).map((x) => (
@@ -263,6 +266,7 @@ export default function ChatPanel({ open, onClose, initial, pathname, course = "
                 onSave={chat.savePath}
                 actions={dsa ? { feedback: chat.feedback, share: false, onRate: chat.rate, feature: "dsa-chat" } : { feedback: chat.feedback, share: true, onRate: chat.rate }}
                 mock={{ onNext: chat.nextPhase, onEnd: () => void chat.send("End the interview and score me.", { mockEnd: true }), onLeave: chat.leaveMock }}
+                onDifferently={canChat ? () => void chat.explainDifferently() : undefined}
               />}
         </div>
         </div>
@@ -278,7 +282,7 @@ export default function ChatPanel({ open, onClose, initial, pathname, course = "
             <p className="m-0 text-[14px] text-fg-3">{ai ? "The tutor is resting right now. Search the course from the box at the top." : "Checking the tutor…"}</p>
           ) : (
             <>
-              <ChatComposer ref={composer} id="chat-panel-input" value={text} onChange={setText} onAsk={() => send(text)} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder={dsa ? "Ask about DSA, or this page…" : isLesson ? "Ask about this lesson, or anything…" : "Ask the course…"} tools={<AnswerStylePicker from="panel" />} />
+              <ChatComposer ref={composer} id="chat-panel-input" value={text} onChange={setText} onAsk={() => send(text)} onStop={chat.stop} busy={chat.busy} canAsk compact placeholder={dsa ? "Ask about DSA, or this page…" : isLesson ? "Ask about this lesson, or anything…" : "Ask the course…"} tools={<><AnswerStylePicker from="panel" /><TeachToggle from="panel" /></>} />
               {attached && (
                 <p className="m-0 flex items-start gap-2 border-l-2 border-signal pl-2 text-[13px] text-fg-3">
                   <span className="min-w-0 flex-1">

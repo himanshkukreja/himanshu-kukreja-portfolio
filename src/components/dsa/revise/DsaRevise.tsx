@@ -134,7 +134,9 @@ function DueCards({ decks }: { decks: DsaDeck[] }) {
   const deckOf = useMemo(() => new Map(decks.map((d) => [d.concept, d])), [decks]);
   const points = (c: ReviewCard) => {
     const m = c.sourceRef.match(/^dsa-revise:([^:]+):(.+)$/);
-    return m ? deckOf.get(m[1])?.cards.find((x) => x.id === m[2]) : undefined;
+    const deck = m ? deckOf.get(m[1])?.cards.find((x) => x.id === m[2]) : undefined;
+    // a card from the learner's own mistakes (lib/learner/mistake-cards-model.ts) carries its key points itself
+    return deck ?? (c.detail.points?.length ? { points: c.detail.points.map((p) => (p.k ? `${p.k} ${p.v}` : p.v)), kind: undefined } : undefined);
   };
 
   const grade = async (g: ReviewGrade) => {
@@ -170,8 +172,14 @@ function DueCards({ decks }: { decks: DsaDeck[] }) {
           <Face card={{ ...card, points: points(card)?.points, kind: points(card)?.kind }} side="front" />
           {shown ? (
             <>
-              <div className="border-t border-line pt-4">
+              <div className="flex flex-col gap-2.5 border-t border-line pt-4">
                 <Face card={{ ...card, points: points(card)?.points, kind: points(card)?.kind }} side="back" />
+                {card.source === "mistake" && card.detail.why && <p className="m-0 text-[13.5px] leading-snug text-fg-3">{card.detail.why}</p>}
+                {card.source === "mistake" && card.detail.href && (
+                  <Link href={card.detail.href} className="self-start font-mono text-[12.5px] text-signal-text underline decoration-line-strong underline-offset-4">
+                    Open {card.detail.hrefLabel || "the lesson"} ›
+                  </Link>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 {(["again", "hard", "good", "easy"] as ReviewGrade[]).map((g) => (
