@@ -16,6 +16,7 @@ import { COURSE_ID } from "@/lib/learn/paths";
 import { lessonKey } from "@/lib/learn/types";
 import { useLearnProgress, type LessonProgress } from "@/lib/learn/progress";
 import { useAuth } from "@/contexts/AuthContext";
+import ReadinessCard from "@/components/learn/progress/ReadinessCard";
 import { useGame } from "@/game/GameProvider";
 import { LLD_CASES_NEEDED, LLD_CERT_HREF, LLD_CERT_NAME, LLD_PATTERNS_NEEDED } from "@/lib/certificates/core";
 import { CORE_PATTERNS, PATTERN_GROUPS, PATTERNS, caseBySlug, patternBySlug, patternChipName, patternLessonId, type Difficulty } from "@/lib/learn/lld/meta";
@@ -152,6 +153,7 @@ export default function LldHome({ cases, livePatterns, intro = null }: { cases: 
 
       <div className="mx-auto flex max-w-[1320px] flex-col gap-12 px-4 sm:px-6 lg:gap-16">
         <LldCertificate {...cert} ready={ready} />
+        {user && <ReadinessCard tracks={["lld"]} id="lld-readiness" />}
 
         {/* ------------------------------------------------------------ path */}
         <Section id="path" kicker="suggested path" title="Where to start" aside="Foundations, then the core patterns, then easy and hard case studies.">
