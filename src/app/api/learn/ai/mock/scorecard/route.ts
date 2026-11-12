@@ -76,7 +76,7 @@ export async function POST(request: Request) {
     const text = replyFrom(r.text, "### P1");
     await saveTranscript(r.callId, me.id, "lld-mock-scorecard", phases.map((p) => `## ${p.title}\n${p.candidate}`).join("\n\n"), text);
     const compare = outcomes(request, me.id, mock, text, level, brief);
-    return NextResponse.json({ text, compare, creditsLeft: r.creditsLeft });
+    return NextResponse.json({ text, compare, creditsLeft: r.creditsLeft, callId: r.callId });
   }
 
   const r = await callClaude({
@@ -93,7 +93,7 @@ export async function POST(request: Request) {
   const text = replyFrom(r.text, "### P1");
   await saveTranscript(r.callId, me.id, "mock-scorecard", phases.map((p) => `## ${p.title}\n${p.candidate}`).join("\n\n"), text);
   const compare = outcomes(request, me.id, mock, text, level, brief);
-  return NextResponse.json({ text, compare, creditsLeft: r.creditsLeft });
+  return NextResponse.json({ text, compare, creditsLeft: r.creditsLeft, callId: r.callId });
 }
 
 /** The scorecard's outcomes go to the log after the answer is out; the compare lines go back with it. */

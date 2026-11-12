@@ -400,7 +400,7 @@ export default function DsaAsk({ concepts, problems }: { concepts: Concept[]; pr
         onAsk={canChat ? (t) => (track("dsa_ask_followup", {}), ask(t)) : undefined}
         onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
         onSave={chat.savePath}
-        actions={{ feedback: false, share: false }}
+        actions={{ feedback: chat.feedback, share: false, onRate: chat.rate, feature: "dsa-chat" }}
       />
       {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} privacy={DSA_PRIVACY} className="mt-2" />}
     </div>

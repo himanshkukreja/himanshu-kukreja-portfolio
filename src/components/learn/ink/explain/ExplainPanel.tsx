@@ -19,6 +19,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 import { ArrowUp, Check, Copy, MessageSquare, NotebookPen, RotateCcw, Sparkles, X } from "lucide-react";
 import { aiHtml } from "@/components/learn/ai/AiText";
+import AnswerFeedback from "@/components/learn/ai/AnswerFeedback";
 import { Dots } from "@/components/learn/chat/ChatLive";
 import { setAiCredits } from "@/components/learn/ai/useAiStatus";
 import { AI_FREE_LINE } from "@/components/learn/ai/AiFreeNote";
@@ -38,7 +39,7 @@ const STEPS_ASK = ["Reading your question…", "Looking at the snip and the less
 /** One question and its answer in the thread: `q` null for the plain explain. */
 type TurnState = { id: number; q: string | null } & (
   | { kind: "loading" }
-  | { kind: "done"; text: string; credits: number }
+  | { kind: "done"; text: string; credits: number; callId?: number | null }
   | { kind: "declined"; message: string }
   | { kind: "error"; error: ExplainError }
 );
@@ -174,7 +175,7 @@ export default function ExplainPanel({ shot, saved, question, onSaved, onClose }
         .then((res) => {
           setAiCredits(res.creditsLeft);
           setCreditsLeft(res.creditsLeft);
-          settle({ id, q, kind: "done", text: res.text, credits: res.credits });
+          settle({ id, q, kind: "done", text: res.text, credits: res.credits, callId: res.callId });
         })
         .catch((e) => {
           if ((e as Error).name === "AbortError") return;
@@ -378,6 +379,7 @@ export default function ExplainPanel({ shot, saved, question, onSaved, onClose }
                 </div>
               )}
               {t.kind === "done" && <div aria-live="polite" className="flex flex-col gap-3 text-[15px] leading-relaxed text-fg-2" dangerouslySetInnerHTML={{ __html: aiHtml(tidy(t.text)) }} />}
+              {t.kind === "done" && <AnswerFeedback callId={t.callId} feature="snip-explain" className="mt-1" />}
               {t.kind === "declined" && (
                 <p aria-live="polite" className="m-0 text-[14px] leading-snug text-fg-3">
                   {t.message}

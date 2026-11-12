@@ -92,6 +92,7 @@ export async function POST(request: Request) {
       review: parsed,
       compare,
       creditsLeft: r.creditsLeft,
+      callId: r.callId,
       costUsd: r.costUsd,
       usage: { input: r.usage?.input_tokens ?? 0, output: r.usage?.output_tokens ?? 0, cacheRead: r.usage?.cache_read_input_tokens ?? 0, cacheWrite: r.usage?.cache_creation_input_tokens ?? 0 },
     });
@@ -116,5 +117,5 @@ export async function POST(request: Request) {
   const answer = stripPrivatePlan(r.text);
   await saveTranscript(r.callId, me.id, "lab-hint", user, answer);
   after(() => recordOutcome(request, me.id, { course: "sdm", kind: "lab_hint", ref: lab.id, outcome: `hint-${level}`, detail: { level, ...labStage, ...(failedRuns != null ? { fails: failedRuns } : {}) } }).then(() => undefined));
-  return NextResponse.json({ text: answer, creditsLeft: r.creditsLeft });
+  return NextResponse.json({ text: answer, creditsLeft: r.creditsLeft, callId: r.callId });
 }

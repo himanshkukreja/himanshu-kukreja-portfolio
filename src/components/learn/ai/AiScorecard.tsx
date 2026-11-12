@@ -14,6 +14,7 @@ import type { MockRun } from "@/lib/learn/mock/store";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
 import AiText from "./AiText";
+import AnswerFeedback from "./AnswerFeedback";
 import CompareLines from "./CompareLines";
 import { AI_PRIVACY } from "./AskLessonPanel";
 import { attemptKey, useMockChats } from "./mockChat";
@@ -42,6 +43,7 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
   const [busy, setBusy] = useState(false);
   const [parts, setParts] = useState<Part[] | null>(null);
   const [compare, setCompare] = useState<string[]>([]);
+  const [callId, setCallId] = useState<number | null>(null);
   const [error, setError] = useState("");
   // a machine-coding round (kind "lld") is graded against its case study's Interview checklist, under its own feature
   const lld = mock.kind === "lld";
@@ -63,11 +65,12 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
       const board = [sketchSummary(run.sketch), run.board.trim()].filter(Boolean).join("\n");
       // level: the bar picked in the lobby (the server compares with earlier attempts and saves the levels to the account)
       const r = await aiFetch("/api/learn/ai/mock/scorecard", { method: "POST", body: JSON.stringify({ slug: mock.slug, phases, board, level: run.level, ...(lld ? { change: run.change ?? null } : {}) }) });
-      const body = (await r.json().catch(() => ({}))) as { text?: string; compare?: string[]; error?: string; creditsLeft?: number | null };
+      const body = (await r.json().catch(() => ({}))) as { text?: string; compare?: string[]; error?: string; creditsLeft?: number | null; callId?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) {
         setParts(parse(body.text || ""));
         setCompare(Array.isArray(body.compare) ? body.compare : []);
+        setCallId(body.callId ?? null);
       }
       else setError(body.error || "Something went wrong.");
     } catch {
@@ -130,6 +133,7 @@ export default function AiScorecard({ mock, run }: { mock: MockInterview; run: M
         );
       })}
       {parts && <CompareLines lines={compare} />}
+      {parts && <AnswerFeedback key={callId ?? 0} callId={callId} feature={feature} />}
       <AiFreeNote />
       <p className="m-0 text-[11px] leading-snug text-fg-4">{AI_PRIVACY}</p>
     </section>

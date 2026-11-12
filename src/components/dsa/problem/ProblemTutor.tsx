@@ -246,7 +246,7 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
                 </p>
               </div>
             ) : (
-              <ChatThread conv={chat.conv} status={chat.status} draft={chat.draft} live={chat.live} onStop={chat.stop} onAnswer={() => {}} onSave={() => {}} actions={{ feedback: false, share: false }} />
+              <ChatThread conv={chat.conv} status={chat.status} draft={chat.draft} live={chat.live} onStop={chat.stop} onAnswer={() => {}} onSave={() => {}} actions={{ feedback: chat.feedback, share: false, onRate: chat.rate, feature: "dsa-tutor" }} />
             )}
           </div>
         </div>

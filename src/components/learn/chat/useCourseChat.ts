@@ -13,6 +13,7 @@ import { dsaClientSignals } from "@/lib/dsa/ai/client-signals";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { NOTRACK_KEY, track } from "@/lib/track";
+import { postRating, type AnswerRating } from "@/components/learn/ai/AnswerFeedback";
 import { citedRefs, cleanAnswer, historyText, trailOf, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
 import { useChatPathSaver } from "./savePath";
 import { isHistoryKey, isNamed, readActive, saveActive } from "./history";
@@ -51,7 +52,15 @@ export type ChatMsg = {
 
 /** A mock interview running in the chat: its phases, the one on now (and since when), and each phase's exchange. */
 export type MockSession = MockCard & { phase: number; phaseAt: number; turns: Record<string, ChatTurn[]>; status: "live" | "scored" };
-export type Rating = { rating: -1 | 0 | 1; wrong: boolean; note: string; sent?: boolean };
+/** A rating on one answer: 👍 / 👎 and the optional reason chip (components/learn/ai/AnswerFeedback.tsx). */
+export type Rating = AnswerRating;
+
+/** The call id of the conversation's latest answer when the learner thumbed it down (sent as `prevCall`). */
+function prevDownCall(c: Conversation): number | null {
+  const last = [...c.messages].reverse().find((m) => m.role === "assistant" && !m.error && m.text);
+  const id = last?.callId;
+  return id && c.ratings?.[id]?.rating === -1 ? id : null;
+}
 
 export type SavedState = "saved" | "updated" | "full" | "failed";
 export type Conversation = {
@@ -337,6 +346,8 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
         ...(titlePass && !ms ? { title: titlePass } : {}),
         ...(style !== "tutor" ? { style } : {}),
         ...(isDsaApi(api) ? { learner: dsaClientSignals() } : {}),
+        // the previous answer was thumbed down: the server checks the rating and may route this turn to a stronger model
+        ...(prevDownCall(base) ? { prevCall: prevDownCall(base)! } : {}),
         ...(extra.body ?? {}),
       };
       let started: MockCard | null = null;
@@ -538,14 +549,15 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
   }, [commit]);
   const leaveMock = useCallback(() => commit((c) => ({ ...c, mock: null }), true), [commit]);
 
-  /** 👍 / 👎 / "this was wrong" on one answer (hidden until the feedback table exists). */
+  /** 👍 / 👎 and the reason chip on one answer (hidden until the feedback table exists); never the learner's words. */
   const rate = useCallback(
     (callId: number, r: Omit<Rating, "sent">) => {
       commit((c) => ({ ...c, ratings: { ...(c.ratings ?? {}), [callId]: { ...r, sent: false } } }));
-      aiFetch("/api/learn/ai/chat/feedback", { method: "POST", body: JSON.stringify({ callId, ...r }), headers: devHeaders })
-        .then((res) => res.ok && commit((c) => ({ ...c, ratings: { ...(c.ratings ?? {}), [callId]: { ...r, sent: true } } })))
+      postRating(callId, r, devHeaders)
+        .then((ok) => {
+          if (ok) commit((c) => ({ ...c, ratings: { ...(c.ratings ?? {}), [callId]: { ...r, sent: true } } }));
+        })
         .catch(() => {});
-      track("chat_feedback", { rating: r.rating, wrong: r.wrong, note: !!r.note });
     },
     [commit, devHeaders],
   );

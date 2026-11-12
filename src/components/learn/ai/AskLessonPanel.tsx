@@ -20,6 +20,7 @@ import { useAnswerStyle } from "@/components/learn/chat/useAnswerStyle";
 import { FOLLOWUP_ACTIONS, isAnswerStyle, pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
 import { useLessonFaq } from "./useLessonFaq";
+import AnswerFeedback from "./AnswerFeedback";
 import { matchFaq, type FaqItem } from "@/lib/learn/faq/parse";
 
 /** "" is the default tutor style; all but "example" are answer styles (remembered); "check" is the "Quiz me" card's mode */
@@ -33,7 +34,7 @@ const MODES = [
 ] as const;
 const MODE_LABEL: Record<string, string> = { ...Object.fromEntries(MODES.map((m) => [m.id, m.label])), check: "quiz me" };
 
-type Turn = { q: string; selection: string; mode: string; answer?: string; error?: string; pending?: boolean; saved?: boolean; followups?: string[] };
+type Turn = { q: string; selection: string; mode: string; answer?: string; error?: string; pending?: boolean; saved?: boolean; followups?: string[]; callId?: number | null };
 
 /** Window event: open the panel for the current lesson with no selection (reading toolbar's "Ask AI"). */
 export const ASK_LESSON_EVENT = "hk:ask-lesson";
@@ -123,10 +124,10 @@ export default function AskLessonPanel({
     track("ai_ask", { feature: "lesson-qa", mode: m || "plain", selection: !!sel, ...(story ? { story: slug } : {}) });
     try {
       const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined, previous }) });
-      const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null; followups?: unknown };
+      const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null; followups?: unknown; callId?: number | null };
       setAiCredits(body.creditsLeft);
       const followups = Array.isArray(body.followups) ? body.followups.filter((x): x is string => typeof x === "string").slice(0, 3) : [];
-      setTurns((t) => t.map((x) => (x === turn ? { ...x, pending: false, ...(res.ok ? { answer: body.text || "", followups } : { error: body.error || "Something went wrong. Try again." }) } : x)));
+      setTurns((t) => t.map((x) => (x === turn ? { ...x, pending: false, ...(res.ok ? { answer: body.text || "", followups, callId: body.callId ?? null } : { error: body.error || "Something went wrong. Try again." }) } : x)));
     } catch {
       setTurns((t) => t.map((x) => (x === turn ? { ...x, pending: false, error: "You seem to be offline. Try again when you're back." } : x)));
     }
@@ -198,6 +199,7 @@ export default function AskLessonPanel({
               ) : (
                 <>
                   <ChatMarkdown text={t.answer || ""} className="!text-[15px]" />
+                  {!t.saved && !!t.answer && <AnswerFeedback callId={t.callId} feature="lesson-qa" />}
                   {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && (
                     <Followups items={t.followups ?? []} actions={pickActions(t.followups ?? [], { asked: t.q })} onAsk={onCard} />
                   )}

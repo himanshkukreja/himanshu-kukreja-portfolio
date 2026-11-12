@@ -67,7 +67,7 @@ export class ExplainError extends Error {
   }
 }
 
-export type Explained = { text: string; credits: number; creditsLeft: number | null; ms: number };
+export type Explained = { text: string; credits: number; creditsLeft: number | null; ms: number; /** the answer's metering row (its feedback goes to it) */ callId: number | null };
 
 /** One question → answer about a snip: `q` null for the plain explain. */
 export type Turn = { q: string | null; a: string };
@@ -123,13 +123,13 @@ export async function explainSnip(shot: SnipShot, signal?: AbortSignal, ask: { q
     if ((e as Error).name === "AbortError") throw e;
     throw new ExplainError("network", "Couldn't reach the AI. Check your connection and try again.");
   }
-  const body = (await res.json().catch(() => null)) as { text?: string; credits?: number; creditsLeft?: number | null; error?: string; status?: string; declined?: boolean } | null;
+  const body = (await res.json().catch(() => null)) as { text?: string; credits?: number; creditsLeft?: number | null; error?: string; status?: string; declined?: boolean; callId?: number | null } | null;
   if (res.status === 401) throw new ExplainError("auth", "Sign in to use Explain.");
   if (!res.ok || !body?.text) {
     const code = (body?.status as ExplainFailure) || (res.status === 413 ? "too_long" : res.status === 429 ? "over_quota" : "error");
     throw new ExplainError(code, body?.error || "The AI didn't answer. Try again in a moment.", body?.creditsLeft ?? null, !!body?.declined);
   }
-  return { text: body.text, credits: body.credits ?? 1, creditsLeft: body.creditsLeft ?? null, ms: Math.round(performance.now() - t0) };
+  return { text: body.text, credits: body.credits ?? 1, creditsLeft: body.creditsLeft ?? null, ms: Math.round(performance.now() - t0), callId: body.callId ?? null };
 }
 
 /* ------------------------------------------------------------------ the explanation as notebook text boxes */

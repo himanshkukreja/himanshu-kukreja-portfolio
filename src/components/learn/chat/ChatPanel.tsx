@@ -261,7 +261,7 @@ export default function ChatPanel({ open, onClose, initial, pathname, course = "
                 onAsk={canChat ? (t) => (track("chat_followup", { from: "panel" }), send(t)) : undefined}
                 onAnswer={(qref, a) => void chat.send(a, { answerTo: qref })}
                 onSave={chat.savePath}
-                actions={dsa ? { feedback: false, share: false } : { feedback: chat.feedback, share: true, onRate: chat.rate }}
+                actions={dsa ? { feedback: chat.feedback, share: false, onRate: chat.rate, feature: "dsa-chat" } : { feedback: chat.feedback, share: true, onRate: chat.rate }}
                 mock={{ onNext: chat.nextPhase, onEnd: () => void chat.send("End the interview and score me.", { mockEnd: true }), onLeave: chat.leaveMock }}
               />}
         </div>

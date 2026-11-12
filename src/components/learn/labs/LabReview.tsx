@@ -16,6 +16,7 @@ import { AI_FREE_LINE } from "@/components/learn/ai/AiFreeNote";
 import { track } from "@/lib/track";
 import type { LabLang } from "@/lib/learn/labs/types";
 import CompareLines from "@/components/learn/ai/CompareLines";
+import AnswerFeedback from "@/components/learn/ai/AnswerFeedback";
 
 type Review = {
   verdict: "clean" | "minor" | "issues";
@@ -36,7 +37,7 @@ const VERDICT: Record<Review["verdict"], string> = { clean: "Clean", minor: "Min
 export default function LabReview({ labId, lang, stage, getCode, passed }: { labId: string; lang: LabLang; stage: number | null; getCode: () => string; passed: boolean }) {
   const status = useAiStatus();
   const { openAuthModal } = useAuthModal();
-  const [state, setState] = useState<{ pending?: boolean; review?: Review; compare?: string[]; error?: string; forCode?: string } | null>(null);
+  const [state, setState] = useState<{ pending?: boolean; review?: Review; compare?: string[]; error?: string; forCode?: string; callId?: number | null } | null>(null);
   if (!passed || !status || !status.features["lab-review"]) return null;
   if (!status.signedIn) {
     return (
@@ -54,9 +55,9 @@ export default function LabReview({ labId, lang, stage, getCode, passed }: { lab
     track("ai_ask", { feature: "lab-review", lab: labId, lang });
     try {
       const res = await aiFetch("/api/learn/ai/lab", { method: "POST", body: JSON.stringify({ labId, kind: "review", lang, stage, code }) });
-      const body = (await res.json().catch(() => ({}))) as { review?: Review; compare?: string[]; error?: string; creditsLeft?: number | null };
+      const body = (await res.json().catch(() => ({}))) as { review?: Review; compare?: string[]; error?: string; creditsLeft?: number | null; callId?: number | null };
       setAiCredits(body.creditsLeft);
-      setState(res.ok && body.review ? { review: body.review, compare: Array.isArray(body.compare) ? body.compare : [], forCode: code } : { error: body.error || "Something went wrong.", forCode: code });
+      setState(res.ok && body.review ? { review: body.review, compare: Array.isArray(body.compare) ? body.compare : [], forCode: code, callId: body.callId ?? null } : { error: body.error || "Something went wrong.", forCode: code });
     } catch {
       setState({ error: "You seem to be offline.", forCode: code });
     }
@@ -137,6 +138,7 @@ export default function LabReview({ labId, lang, stage, getCode, passed }: { lab
             </div>
           )}
           <CompareLines lines={state?.compare} />
+          <AnswerFeedback key={state?.callId ?? 0} callId={state?.callId} feature="lab-review" className="self-start" />
           {r.questions.length > 0 && (
             <div className="flex flex-col gap-2">
               <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">The interviewer asks next</span>

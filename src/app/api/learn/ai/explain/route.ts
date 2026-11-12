@@ -76,5 +76,5 @@ export async function POST(request: Request) {
   const prev = brief.events.find((e) => e.kind === "explain_back" && e.ref === ref);
   const compare = compareExplain(prev, { verdict, miss }, (id) => brief.names.item({ course, kind: "explain_back", ref, outcome: null, detail: {}, at: 0 }, id) ?? keyPoints[Number(id) - 1] ?? null);
   if (verdict) after(() => recordOutcome(request, me.id, { course, kind: "explain_back", ref, outcome: verdict, detail: { miss } }).then(() => undefined));
-  return NextResponse.json({ verdict, text: out, compare, creditsLeft: r.creditsLeft });
+  return NextResponse.json({ verdict, text: out, compare, creditsLeft: r.creditsLeft, callId: r.callId });
 }

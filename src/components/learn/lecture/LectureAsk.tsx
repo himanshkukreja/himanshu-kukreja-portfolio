@@ -19,13 +19,14 @@ import { diagramNodes, LECTURE_PRESETS, stripTags, type LecturePreset } from "@/
 import { AI_PRIVACY } from "@/components/learn/ai/AskLessonPanel";
 import AiFreeNote from "@/components/learn/ai/AiFreeNote";
 import AiText from "@/components/learn/ai/AiText";
+import AnswerFeedback from "@/components/learn/ai/AnswerFeedback";
 import ChatMarkdown from "@/components/learn/chat/ChatMarkdown";
 import Followups from "@/components/learn/chat/Followups";
 import { readAnswerStyle } from "@/components/learn/chat/useAnswerStyle";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { setAiCredits, useAiStatus } from "@/components/learn/ai/useAiStatus";
 
-export type AskTurn = { id: number; q: string; preset?: LecturePreset; scene: string; step: number; at: number; answer?: string; error?: string; pending?: boolean; show?: string[]; jump?: string | null; followups?: string[] };
+export type AskTurn = { id: number; q: string; preset?: LecturePreset; scene: string; step: number; at: number; answer?: string; error?: string; pending?: boolean; show?: string[]; jump?: string | null; followups?: string[]; callId?: number | null };
 export type FaqEntry = { q: string; a: string };
 
 const PRESETS = Object.entries(LECTURE_PRESETS) as [LecturePreset, (typeof LECTURE_PRESETS)[LecturePreset]][];
@@ -88,12 +89,12 @@ export default function LectureAsk({ lecture, scene, sceneNo, step, at, picked, 
         method: "POST",
         body: JSON.stringify({ slug: lecture.quest, scene: scene.id, step, question: question.trim(), preset, picked, previous: prev ? { q: prev.q, a: prev.answer } : null, style: readAnswerStyle() }),
       });
-      const body = (await res.json().catch(() => ({}))) as { text?: string; show?: string[]; jump?: string | null; error?: string; creditsLeft?: number | null; followups?: unknown };
+      const body = (await res.json().catch(() => ({}))) as { text?: string; show?: string[]; jump?: string | null; error?: string; creditsLeft?: number | null; followups?: unknown; callId?: number | null };
       setAiCredits(body.creditsLeft);
       if (!res.ok) return done({ error: body.error || "Something went wrong. Try again." });
       const show = Array.isArray(body.show) ? body.show : [];
       const followups = Array.isArray(body.followups) ? body.followups.filter((x): x is string => typeof x === "string").slice(0, 2) : [];
-      done({ answer: stripTags(body.text || ""), show, jump: body.jump ?? null, followups });
+      done({ answer: stripTags(body.text || ""), show, jump: body.jump ?? null, followups, callId: body.callId ?? null });
       if (show.length) onShow(turn.scene, turn.step, show);
     } catch {
       done({ error: "You seem to be offline. Try again when you're back." });
@@ -161,6 +162,7 @@ export default function LectureAsk({ lecture, scene, sceneNo, step, at, picked, 
               ) : (
                 <>
                   <ChatMarkdown text={t.answer || ""} className="!gap-2 !text-[14px]" />
+                  <AnswerFeedback callId={t.callId} feature="lesson-qa" />
                   {(labels.length > 0 || (jump && jumpAt != null)) && (
                     <div className="flex flex-wrap gap-1.5">
                       {labels.length > 0 && (

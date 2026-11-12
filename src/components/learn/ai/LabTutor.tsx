@@ -15,10 +15,11 @@ import type { LabLang } from "@/lib/learn/labs/types";
 import { track } from "@/lib/track";
 import AiFreeNote from "./AiFreeNote";
 import AiText from "./AiText";
+import AnswerFeedback from "./AnswerFeedback";
 import { AI_PRIVACY } from "./AskLessonPanel";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
 
-type Item = { kind: "hint" | "review"; level: number; text?: string; error?: string; pending?: boolean };
+type Item = { kind: "hint" | "review"; level: number; text?: string; error?: string; pending?: boolean; callId?: number | null };
 const LEVEL = ["", "a nudge", "the exact spot", "the fix, in words"];
 
 export default function LabTutor({ labId, getCode, result, passed, lang = "python", stage = null, failedRuns = null }: { labId: string; getCode: () => string; result: HarnessResult | null; passed: boolean; lang?: LabLang; stage?: number | null; failedRuns?: number | null }) {
@@ -52,9 +53,9 @@ export default function LabTutor({ labId, getCode, result, passed, lang = "pytho
         // failedRuns: the Nth failure on this lab, so the hint can fit it (the server's learner brief)
         body: JSON.stringify({ labId, kind, lang, stage, level: item.level, code: getCode(), failures, setup: result.setup?.message, ...(failedRuns != null ? { failedRuns } : {}) }),
       });
-      const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
+      const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null; callId?: number | null };
       setAiCredits(body.creditsLeft);
-      setItems((x) => x.map((i) => (i === item ? { ...i, pending: false, ...(res.ok ? { text: body.text } : { error: body.error || "Something went wrong." }) } : i)));
+      setItems((x) => x.map((i) => (i === item ? { ...i, pending: false, ...(res.ok ? { text: body.text, callId: body.callId ?? null } : { error: body.error || "Something went wrong." }) } : i)));
     } catch {
       setItems((x) => x.map((i) => (i === item ? { ...i, pending: false, error: "You seem to be offline." } : i)));
     }
@@ -78,7 +79,10 @@ export default function LabTutor({ labId, getCode, result, passed, lang = "pytho
           ) : i.error ? (
             <span className="text-[14px] text-fg-2">{i.error}</span>
           ) : (
-            <AiText text={i.text || ""} />
+            <>
+              <AiText text={i.text || ""} />
+              <AnswerFeedback callId={i.callId} feature={i.kind === "hint" ? "lab-hint" : "lab-review"} />
+            </>
           )}
         </div>
       ))}

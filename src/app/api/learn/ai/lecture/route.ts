@@ -77,5 +77,5 @@ export async function POST(request: Request) {
   // the tags first (wherever they are), then the follow-ups line off the end
   const tagged = readTags(r.text, lecture, built.scene);
   const { text, followups } = splitFollowups(tagged.text, question);
-  return NextResponse.json({ text, show: tagged.show, jump: tagged.jump, followups, creditsLeft: r.creditsLeft });
+  return NextResponse.json({ text, show: tagged.show, jump: tagged.jump, followups, creditsLeft: r.creditsLeft, callId: r.callId });
 }

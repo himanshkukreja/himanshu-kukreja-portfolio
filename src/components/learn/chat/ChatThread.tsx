@@ -8,9 +8,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
+import AnswerFeedback from "@/components/learn/ai/AnswerFeedback";
 import { buildIcsForPath } from "./planIcs";
 import SpeakButton from "./SpeakButton";
-import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Flag, Mic, Route, Share2, ThumbsDown, ThumbsUp, X } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarPlus, Check, CircleHelp, Clock, Mic, Route, Share2, X } from "lucide-react";
 import { KIND_LABEL } from "@/lib/search/smart/types";
 import { atClock } from "@/lib/search/smart/engine";
 import { citedRefs, streamingText, trailOf, type ChatSource } from "@/lib/ai/chat/text";
@@ -194,7 +195,7 @@ function PathCardView({ conv, pref, onSave }: { conv: Conversation; pref: string
   );
 }
 
-export type ThreadActions = { feedback: boolean; share: boolean; onRate?: (callId: number, r: Omit<Rating, "sent">) => void };
+export type ThreadActions = { feedback: boolean; share: boolean; onRate?: (callId: number, r: Omit<Rating, "sent">) => void; /** the answers' feature (analytics label) */ feature?: string };
 
 function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }: { m: ChatMsg; conv: Conversation; onAnswer: (q: string, a: string) => void; onSave: (p: string) => void; busy: boolean; actions: ThreadActions; animate: boolean; onAsk?: (q: string) => void }) {
   const order = m.cites ?? citedRefs(m.text);
@@ -243,52 +244,12 @@ function Assistant({ m, conv, onAnswer, onSave, busy, actions, animate, onAsk }:
       {settled && m.text && !m.error && (
         <div className={`flex flex-wrap items-center gap-1 ${rise}`}>
           <SpeakButton text={m.text} />
-          {actions.feedback && m.callId ? <Feedback callId={m.callId} r={conv.ratings?.[m.callId]} onRate={actions.onRate} /> : null}
+          {actions.feedback && m.callId && actions.onRate ? <AnswerFeedback callId={m.callId} feature={actions.feature ?? "course-chat"} value={conv.ratings?.[m.callId]} onRate={actions.onRate} /> : null}
           {actions.share && m.mode !== "interviewer" && m.mode !== "scorecard" && <ShareAnswer m={m} conv={conv} />}
         </div>
       )}
       {settled && onAsk && !!(m.followups?.length || m.actions?.length) && !m.error && <Followups items={m.followups ?? []} actions={m.actions} onAsk={onAsk} className={rise} />}
     </div>
-  );
-}
-
-/** 👍 / 👎, and "this was wrong" with an optional note. */
-function Feedback({ callId, r, onRate }: { callId: number; r?: Rating; onRate?: (callId: number, r: Omit<Rating, "sent">) => void }) {
-  const [open, setOpen] = useState(false);
-  const [note, setNote] = useState(r?.note ?? "");
-  if (!onRate) return null;
-  const btn = (on: boolean) => `grid h-8 w-8 [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11 place-items-center border ${on ? "border-signal text-signal-text" : "border-transparent text-fg-4 hover:text-fg"}`;
-  return (
-    <span className="inline-flex flex-wrap items-center gap-0.5">
-      <button type="button" aria-label="Helpful" aria-pressed={r?.rating === 1} onClick={() => onRate(callId, { rating: r?.rating === 1 ? 0 : 1, wrong: false, note: "" })} className={btn(r?.rating === 1)}>
-        <ThumbsUp className="h-3.5 w-3.5" aria-hidden />
-      </button>
-      <button type="button" aria-label="Not helpful" aria-pressed={r?.rating === -1} onClick={() => (onRate(callId, { rating: -1, wrong: !!r?.wrong, note: r?.note ?? "" }), setOpen(true))} className={btn(r?.rating === -1)}>
-        <ThumbsDown className="h-3.5 w-3.5" aria-hidden />
-      </button>
-      <button type="button" aria-label="This was wrong" aria-pressed={!!r?.wrong} title="This was wrong" onClick={() => (onRate(callId, { rating: r?.rating === 1 ? 0 : (r?.rating ?? 0), wrong: true, note: r?.note ?? "" }), setOpen(true))} className={btn(!!r?.wrong)}>
-        <Flag className="h-3.5 w-3.5" aria-hidden />
-      </button>
-      {open && (
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            onRate(callId, { rating: r?.rating ?? -1, wrong: !!r?.wrong, note: note.trim().slice(0, 500) });
-            setOpen(false);
-          }}
-          className="flex w-full items-center gap-1.5 pt-1"
-        >
-          <label htmlFor={`fb-${callId}`} className="sr-only">
-            What was wrong? (optional)
-          </label>
-          <input id={`fb-${callId}`} value={note} onChange={(e) => setNote(e.target.value.slice(0, 500))} placeholder="What was wrong? (optional)" className="min-h-9 min-w-0 flex-1 border border-line-strong bg-bg px-2.5 text-[16px] sm:text-[13px] text-fg placeholder:text-fg-4" />
-          <button type="submit" className="min-h-9 border border-line-strong px-2.5 font-mono text-[11.5px] text-fg-2 hover:text-fg">
-            send
-          </button>
-        </form>
-      )}
-      {r?.sent && !open && <span className="font-mono text-[10.5px] text-fg-4">thanks</span>}
-    </span>
   );
 }
 

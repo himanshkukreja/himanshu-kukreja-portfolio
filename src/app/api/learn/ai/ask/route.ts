@@ -76,5 +76,5 @@ export async function POST(request: Request) {
   if (!r.ok) return NextResponse.json({ error: r.message, status: r.status, creditsLeft: r.creditsLeft }, { status: r.status === "error" ? 502 : 429 });
   const { text, followups } = splitFollowups(r.text, question);
   await saveTranscript(r.callId, me.id, "lesson-qa", ask, text);
-  return NextResponse.json({ text, followups, creditsLeft: r.creditsLeft });
+  return NextResponse.json({ text, followups, creditsLeft: r.creditsLeft, callId: r.callId });
 }

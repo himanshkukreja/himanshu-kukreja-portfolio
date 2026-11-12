@@ -165,5 +165,5 @@ export async function POST(request: Request) {
     .map((m) => `[${m.role}] ${typeof m.content === "string" ? m.content : ""}`)
     .join("\n\n");
   await saveTranscript(r.callId, me.id, "snip-explain", `[snip image ${ok.info.width}x${ok.info.height}, ${ok.info.bytes} bytes]\n${input}${thread ? `\n\n${thread}` : ""}`, r.text);
-  return NextResponse.json({ text: r.text.trim(), credits: r.credits, creditsLeft: r.creditsLeft });
+  return NextResponse.json({ text: r.text.trim(), credits: r.credits, creditsLeft: r.creditsLeft, callId: r.callId });
 }
