@@ -34,6 +34,8 @@ export async function updateDsaMemory(a: {
   turns: ChatTurn[];
   /** where the conversation happened: "DSA Mastery chat" or the problem room's tutor on a problem, with its mode, verdict and rung */
   where: string;
+  /** what started it when it isn't the chat itself (lib/ai/chat/capture.ts: idle, the next chat, "New chat") */
+  via?: string;
 }): Promise<boolean> {
   if (!a.userId) return false;
   const m = await loadMemory(a.userId);
@@ -52,7 +54,7 @@ export async function updateDsaMemory(a: {
     system: dsaMemorySystem(),
     messages: [{ role: "user", content: user }],
     timeoutMs: 20_000,
-    meta: { chat: a.chat, turns: turns.length, course: "dsa" },
+    meta: { chat: a.chat, turns: turns.length, course: "dsa", users: a.turns.filter((t) => t.role === "user").length, ...(a.via ? { via: a.via } : {}) },
   });
   if (!r.ok) return false;
   const update = firstJson(r.text);

@@ -4,7 +4,7 @@ import { chatDevLearner } from "@/lib/ai/chat/dev";
 import { isAdminEmail } from "@/lib/ai/access";
 import { ownKey } from "@/lib/ai/client";
 import { readRequest } from "@/lib/ai/chat/core";
-import { updateMemory } from "@/lib/ai/chat/memory";
+import { captureChat, privateRequest } from "@/lib/ai/chat/capture";
 import { clearMemory, loadMemory, saveMemory, setMemoryPaused } from "@/lib/ai/chat/server";
 import { MEMORY_FIELDS, removeMemoryItem, type MemoryField } from "@/lib/ai/chat/memory-model";
 
@@ -20,7 +20,8 @@ const noStore = { "Cache-Control": "private, no-store" };
  *   DELETE  → forget everything (the row is deleted)
  *   PATCH   { paused }  → stop remembering (and forget) or start again
  *   PATCH   { remove: { field, item } } → forget one item (the memory page's ×; either course's: one shared memory)
- *   POST    ChatRequest → a chat ended ("New chat"): bring the memory up to date from it, after the response
+ *   POST    ChatRequest (+ via: "idle") → a chat ended ("New chat") or went quiet (the page, after 10 minutes): bring the
+ *           memory up to date from it, after the response, unless its messages are already noted (lib/ai/chat/capture.ts)
  * Only ever the caller's own row (the user id comes from the verified session).
  */
 export async function GET(request: Request) {
@@ -56,10 +57,14 @@ export async function PATCH(request: Request) {
 export async function POST(request: Request) {
   const me = chatDevLearner(request) ?? (await requireLearner(request));
   if (me instanceof NextResponse) return me;
-  const req = readRequest(await request.json().catch(() => null), { endsWithUser: false });
+  const body = await request.json().catch(() => null);
+  const req = readRequest(body, { endsWithUser: false });
   if (typeof req === "string") return NextResponse.json({ error: req }, { status: 400, headers: noStore });
+  const via = (body as { via?: unknown }).via === "idle" ? "idle" : "end";
+  // a background capture (the page saw the chat go quiet) never runs with GPC or the analytics opt-out
+  if (via === "idle" && privateRequest(request)) return NextResponse.json({ ok: false }, { status: 202, headers: noStore });
   const admin = await isAdminEmail(me.email);
   const userKey = ownKey(request);
-  after(() => updateMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: req.messages }).catch(() => false));
+  after(() => captureChat({ userId: me.id, admin, userKey, chat: req.chat, turns: req.messages, course: "sdm", via }).catch(() => false));
   return NextResponse.json({ ok: true }, { status: 202, headers: noStore });
 }

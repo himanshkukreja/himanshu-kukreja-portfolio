@@ -25,7 +25,9 @@ const firstJson = (t: string): unknown => {
   }
 };
 
-export async function updateMemory(a: { userId: string; admin: boolean; userKey: string | null; chat: string; turns: ChatTurn[] }): Promise<boolean> {
+/** `via`: what started the update when it isn't the chat itself (capture.ts: the chat went idle, the next one started,
+ *  "New chat"); logged with the learner messages it covers, so a chat is never summarised twice for the same messages. */
+export async function updateMemory(a: { userId: string; admin: boolean; userKey: string | null; chat: string; turns: ChatTurn[]; via?: string }): Promise<boolean> {
   if (!a.userId) return false;
   const m = await loadMemory(a.userId);
   if (!m.available || m.paused) return false;
@@ -46,10 +48,13 @@ export async function updateMemory(a: { userId: string; admin: boolean; userKey:
     system: chatMemorySystem(),
     messages: [{ role: "user", content: user }],
     timeoutMs: 20_000,
-    meta: { chat: a.chat, turns: turns.length },
+    meta: { chat: a.chat, turns: turns.length, users: a.turns.filter((t) => t.role === "user").length, ...(a.via ? { via: a.via } : {}) },
   });
   if (!r.ok) return false;
   const update = firstJson(r.text);
   if (!update) return false;
-  return saveMemory(a.userId, mergeMemory(m.memory, update, a.chat, new Date()));
+  // re-read just before writing: DSA Mastery's tutor may have written in the meantime (its items are kept as they are)
+  const now = await loadMemory(a.userId);
+  if (!now.available || now.paused) return false;
+  return saveMemory(a.userId, mergeMemory(now.memory, update, a.chat, new Date()));
 }

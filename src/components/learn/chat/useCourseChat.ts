@@ -12,7 +12,7 @@
 import { dsaClientSignals } from "@/lib/dsa/ai/client-signals";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { aiFetch } from "@/components/learn/ai/aiFetch";
-import { track } from "@/lib/track";
+import { NOTRACK_KEY, track } from "@/lib/track";
 import { citedRefs, cleanAnswer, historyText, trailOf, type ChatEvent, type ChatQuota, type ChatRequest, type ChatSource, type ChatTurn, type MockCard, type PageContext, type PathCard, type QuizCard, type QuizResult } from "@/lib/ai/chat/text";
 import { useChatPathSaver } from "./savePath";
 import { isHistoryKey, isNamed, readActive, saveActive } from "./history";
@@ -157,6 +157,20 @@ export type CourseChatOpts = {
   /** the chat's API (GET: quota line; POST: one message): the course chat's by default; DSA Mastery's tutors pass theirs */
   api?: string;
 };
+
+/** A quiet chat goes to the tutor's memory after this long (once; the server skips what is already noted). */
+const IDLE_MS = 10 * 60_000;
+
+/** Global Privacy Control or the site's analytics opt-out: the server then never notes a chat in the background
+ *  (lib/ai/chat/capture.ts privateRequest). Sent with every message (the next chat's first message may note the last). */
+function privacyHeaders(): Record<string, string> {
+  try {
+    const gpc = (navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true;
+    return gpc || window.localStorage.getItem(NOTRACK_KEY) === "1" ? { "x-hk-notrack": "1" } : {};
+  } catch {
+    return {};
+  }
+}
 
 /** DSA Mastery's tutors (/api/learn/ai/dsa/…): every message carries what this device knows about the learner, and a
  *  finished chat goes to DSA's memory update (one shared memory, lib/dsa/ai/memory.ts). */
@@ -340,7 +354,7 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
       const t0 = performance.now();
       let gotDone = false;
       try {
-        const res = await aiFetch(api, { method: "POST", body: JSON.stringify(body), headers: devHeaders, signal: ctrl.signal });
+        const res = await aiFetch(api, { method: "POST", body: JSON.stringify(body), headers: { ...devHeaders, ...privacyHeaders() }, signal: ctrl.signal });
         if (!res.ok || !res.body || !(res.headers.get("content-type") || "").includes("event-stream")) {
           const b = (await res.json().catch(() => ({}))) as { error?: string; quota?: ChatQuota | null };
           if (b.quota) setQuota(b.quota);
@@ -485,6 +499,26 @@ export function useCourseChat(uid: string | null, opts: CourseChatOpts = {}) {
     setLive(null);
     track("chat_new", { turns: userTurns });
   }, [api, commit, devHeaders, memory, uid]);
+
+  // a chat that goes quiet for IDLE_MS is noted in the tutor's memory (the AI audit, 12 Nov 2026: chats of one to three
+  // messages that were simply left were never noted). Once a chat: memoryTurns then covers it, and the server skips a
+  // chat whose messages are already noted. Not with memory off, GPC or the analytics opt-out, or during a mock.
+  useEffect(() => {
+    if (!uid || !memory?.available || memory.paused || status.kind !== "idle") return;
+    const c = conv;
+    const userTurns = c.messages.filter((m) => m.role === "user").length;
+    const last = c.messages[c.messages.length - 1];
+    if (!userTurns || userTurns <= c.memoryTurns || last?.role !== "assistant" || last.error || c.mock?.status === "live") return;
+    if (privacyHeaders()["x-hk-notrack"]) return;
+    const t = setTimeout(() => {
+      const now = convRef.current;
+      if (now.chat !== c.chat || now.messages.length !== c.messages.length) return;
+      const body = { chat: now.chat, via: "idle", messages: now.messages.filter((m) => m.text && !m.error).map((m) => ({ role: m.role, text: m.text })) };
+      aiFetch(isDsaApi(api) ? "/api/learn/ai/dsa/memory" : "/api/learn/ai/chat/memory", { method: "POST", body: JSON.stringify(body), headers: { ...devHeaders, ...privacyHeaders() }, keepalive: true }).catch(() => {});
+      commit((x) => (x.chat === now.chat ? { ...x, memoryTurns: Math.max(x.memoryTurns, userTurns) } : x));
+    }, Math.max(1000, last.at + IDLE_MS - Date.now()));
+    return () => clearTimeout(t);
+  }, [api, commit, conv, devHeaders, memory, status.kind, uid]);
 
   const stop = useCallback(() => abort.current?.abort(), []);
 

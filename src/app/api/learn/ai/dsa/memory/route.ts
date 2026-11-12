@@ -4,7 +4,7 @@ import { isAdminEmail } from "@/lib/ai/access";
 import { ownKey } from "@/lib/ai/client";
 import { readRequest } from "@/lib/ai/chat/core";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { updateDsaMemory } from "@/lib/dsa/ai/memory";
+import { captureChat, privateRequest } from "@/lib/ai/chat/capture";
 import { learnerBrief } from "@/lib/learner/brief";
 import { readClientSignals } from "@/lib/learner/dsa-profile";
 
@@ -20,7 +20,8 @@ const notFound = () => NextResponse.json({ error: "Not found" }, { status: 404 }
  * one item, clearing and switching memory off go through /api/learn/ai/chat/memory):
  *   GET   → { available, paused, notes, brief, adapt }: DSA's notes (shared level and preferences, DSA struggles, mistakes,
  *           sessions) and what the tutors read about the learner right now (lib/learner/brief.ts), for the memory page
- *   POST  ChatRequest → a DSA chat ended ("New chat"): its conversation goes to the memory update, after the response
+ *   POST  ChatRequest (+ via: "idle") → a DSA chat ended ("New chat") or went quiet: its conversation goes to the memory
+ *         update, after the response
  * Only ever the caller's own row (the user id comes from the verified session). 404 until DSA Mastery is on.
  */
 export async function GET(request: Request) {
@@ -37,10 +38,15 @@ export async function POST(request: Request) {
   if (!DSA_FULL) return notFound();
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
-  const req = readRequest(await request.json().catch(() => null), { endsWithUser: false });
+  const body = await request.json().catch(() => null);
+  const req = readRequest(body, { endsWithUser: false });
   if (typeof req === "string") return NextResponse.json({ error: req }, { status: 400, headers: noStore });
+  const via = (body as { via?: unknown }).via === "idle" ? "idle" : "end";
+  // a background capture (the page saw the chat go quiet) never runs with GPC or the analytics opt-out
+  if (via === "idle" && privateRequest(request)) return NextResponse.json({ ok: false }, { status: 202, headers: noStore });
   const admin = await isAdminEmail(me.email);
   const userKey = ownKey(request);
-  after(() => updateDsaMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: req.messages, where: "DSA Mastery (a finished conversation)" }).catch(() => false));
+  // unless its messages are already noted (lib/ai/chat/capture.ts)
+  after(() => captureChat({ userId: me.id, admin, userKey, chat: req.chat, turns: req.messages, course: "dsa", via, where: "DSA Mastery (a finished conversation)" }).catch(() => false));
   return NextResponse.json({ ok: true }, { status: 202, headers: noStore });
 }

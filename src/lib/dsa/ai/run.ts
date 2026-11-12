@@ -19,6 +19,7 @@ import { titlePassFor } from "@/lib/ai/chat/title-model";
 import { pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
 import { answerDsa, type Prepared } from "./answer";
 import { DSA_MEMORY_EVERY, updateDsaMemory } from "./memory";
+import { captureLastChat, privateRequest } from "@/lib/ai/chat/capture";
 
 export type { Prepared } from "./answer";
 
@@ -117,6 +118,9 @@ export async function streamDsa(o: {
             const where = o.memory.where;
             after(() => updateDsaMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: [...req.messages, { role: "assistant", text }], where }).catch(() => false));
           }
+          // a new DSA chat's first message: the previous DSA chat goes to the memory if it never did (lib/ai/chat/capture.ts)
+          if (o.memory && o.titled && userTurns === 1 && !privateRequest(request))
+            after(() => captureLastChat({ userId: me.id, admin, userKey, current: req.chat, course: "dsa" }).catch(() => false));
         } else {
           emit({ type: "error", message: loop.error === "timeout" ? "The answer took too long. Try asking again." : "The tutor didn't answer this time. Try again in a moment." });
         }

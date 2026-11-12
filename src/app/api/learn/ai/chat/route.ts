@@ -8,6 +8,7 @@ import { runChatCore, runMockCore, readRequest } from "@/lib/ai/chat/core";
 import { courseMapSummary } from "@/lib/ai/chat/mapSummary";
 import { memoryLines } from "@/lib/ai/chat/memory-model";
 import { MEMORY_EVERY, updateMemory } from "@/lib/ai/chat/memory";
+import { captureLastChat, privateRequest } from "@/lib/ai/chat/capture";
 import { admitChat, afterMessage, chatLimits, chatToday, logChatCall, quotaFor } from "@/lib/ai/chat/quota";
 import { ChatWarmingError, loadMemory, makeDeps, MEMORY_WAIT_MS, prewarmChat, within } from "@/lib/ai/chat/server";
 import { traceOf } from "@/lib/ai/chat/tools";
@@ -174,6 +175,10 @@ export async function POST(request: Request) {
           // every few messages the tutor's memory of this learner is brought up to date (after the answer is out)
           if (me.id && userTurns % MEMORY_EVERY === 0 && !r.offTopic)
             after(() => updateMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: [...req.messages, { role: "assistant", text: r.text }] }).catch(() => false));
+          // a new chat's first message: the learner's previous chat has ended, so it goes to the memory if it never did
+          // (lib/ai/chat/capture.ts: at most once a chat; not with GPC or the analytics opt-out)
+          if (me.id && !dev && userTurns === 1 && !req.mock && !privateRequest(request))
+            after(() => captureLastChat({ userId: me.id, admin, userKey, current: req.chat, course: "sdm" }).catch(() => false));
         } else {
           emit({ type: "error", message: r.loop.error === "timeout" ? "The answer took too long. The search results are below; try asking again." : "The tutor didn't answer this time. The search results are below; try again in a moment." });
         }
