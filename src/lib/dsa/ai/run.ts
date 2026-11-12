@@ -9,7 +9,7 @@ import "server-only";
  * One model round, no tools: the route looks everything up before the model runs (the retrieval, the problem and the
  * learner's unlocks), so the answer streams from the first token.
  */
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { saveTranscript } from "@/lib/ai/client";
 import { FEATURES } from "@/lib/ai/features";
 import { admitChat, afterMessage, logChatCall, type MessageFeature } from "@/lib/ai/chat/quota";
@@ -18,6 +18,7 @@ import { makeChatTitle } from "@/lib/ai/chat/title";
 import { titlePassFor } from "@/lib/ai/chat/title-model";
 import { pickActions, type FollowupAction } from "@/lib/ai/answerStyle";
 import { answerDsa, type Prepared } from "./answer";
+import { DSA_MEMORY_EVERY, updateDsaMemory } from "./memory";
 
 export type { Prepared } from "./answer";
 
@@ -39,6 +40,8 @@ export async function streamDsa(o: {
   prepare: (emit: (e: ChatEvent) => void) => Promise<Prepared>;
   /** name a new conversation from its first message (/dsa/ask) */
   titled?: boolean;
+  /** where the conversation happens, for the memory update every few messages (lib/dsa/ai/memory.ts); null: no memory */
+  memory?: { where: string; on: Promise<boolean> } | null;
 }): Promise<Response> {
   const { request, me, admin, userKey, feature, req } = o;
   const admit = await admitChat({ userId: me.id, admin, userKey, feature });
@@ -108,6 +111,12 @@ export async function streamDsa(o: {
           const actions: FollowupAction[] = cards && text.split(/\s+/).length >= 40 ? pickActions(followups, { asked: latest.text, quiz: false }) : [];
           if (followups.length || actions.length) emit({ type: "followups", items: followups, ...(actions.length ? { actions } : {}) });
           emit({ type: "done", text, offTopic, quota: admit.quota ? afterMessage(admit.quota) : null, tools: 0, ms: Date.now() - t0, callId, mode: "tutor", ttft: loop.ttft });
+          // every few messages the learner's memory takes this conversation in (after the answer is out; one learner model
+          // shared with the course chat, DSA items tagged: lib/ai/chat/memory-model.ts)
+          if (o.memory && userTurns % DSA_MEMORY_EVERY === 0 && !offTopic && (await o.memory.on)) {
+            const where = o.memory.where;
+            after(() => updateDsaMemory({ userId: me.id, admin, userKey, chat: req.chat, turns: [...req.messages, { role: "assistant", text }], where }).catch(() => false));
+          }
         } else {
           emit({ type: "error", message: loop.error === "timeout" ? "The answer took too long. Try asking again." : "The tutor didn't answer this time. Try again in a moment." });
         }

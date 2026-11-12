@@ -11,6 +11,9 @@ import { forgetUnlocks, unlocksFor } from "@/lib/dsa/ai/unlock";
 import { TUTOR_MODES, type TutorMode } from "@/lib/dsa/ai/modes";
 import { streamDsa } from "@/lib/dsa/ai/run";
 import { prepareTutor, readResult } from "@/lib/dsa/ai/turn";
+import { loadMemory } from "@/lib/ai/chat/server";
+import { learnerBrief } from "@/lib/learner/brief";
+import { readClientSignals } from "@/lib/learner/dsa-profile";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,14 +31,16 @@ const MAX_CODE = 12_000;
  * signature, target complexity and the hint ladder up to the learner's next rung go in the system prompt; the editorial and
  * the reference solution only when this learner unlocked it (read from their own rows, lib/dsa/ai/unlock.ts). While it is
  * locked, code blocks in the answer are capped (lib/dsa/ai/text.ts capCode) on top of the prompt's no-spoiler rule.
- * Hint, ask: no thinking; debug, complexity, review, dry run: Haiku 5.5 thinks first (low effort). 404 in "soon" mode.
+ * The learner's turn also carries the learner brief (lib/learner/brief.ts) and their failed submits on this problem; every
+ * few messages the shared memory takes the session in (lib/dsa/ai/memory.ts). Every mode but "explain" thinks first
+ * (Haiku 5.5, low effort). 404 in "soon" mode.
  */
 export async function GET(request: Request) {
   if (!DSA_FULL) return notFound();
   const me = await requireLearner(request);
   if (me instanceof NextResponse) return me;
-  const [{ perDay }, t] = await Promise.all([chatLimits("dsa-tutor"), chatToday(me.id, "dsa-tutor")]);
-  return NextResponse.json({ quota: quotaFor(perDay, t.total, !!ownKey(request)), memory: { available: false, paused: false, has: false }, feedback: false }, { headers: noStore });
+  const [{ perDay }, t, m] = await Promise.all([chatLimits("dsa-tutor"), chatToday(me.id, "dsa-tutor"), loadMemory(me.id)]);
+  return NextResponse.json({ quota: quotaFor(perDay, t.total, !!ownKey(request)), memory: { available: m.available, paused: m.paused, has: m.available && m.memory.updatedAt > 0 }, feedback: false }, { headers: noStore });
 }
 
 export async function POST(request: Request) {
@@ -58,6 +63,13 @@ export async function POST(request: Request) {
   const shard = await getProblemShard(problemId).catch(() => null);
   if (!shard) return NextResponse.json({ error: "Unknown problem" }, { status: 404, headers: noStore });
   const admin = await isAdminEmail(me.email);
+  // a submit changes the record the brief and the unlock rule read (failed submits, a solve): read it fresh
+  if (result?.mode === "submit") forgetUnlocks(me.id);
+  const signals = readClientSignals(body?.learner);
+  // the editor's language is the one they code in right now
+  const client = { lang, full: !!signals?.full, exp: signals?.exp ?? null };
+  const brief = learnerBrief(me.id, { course: "dsa", feature: "dsa-tutor", ref: { problemId }, client }).catch(() => null);
+  const VERDICT = result ? `${result.mode} ${result.verdict} ${result.passed}/${result.total}` : "no run yet";
 
   return streamDsa({
     request,
@@ -67,11 +79,10 @@ export async function POST(request: Request) {
     feature: "dsa-tutor",
     req,
     lookup: { tool: "get_item", label: mode === "hint" ? "Reading your code and the hint ladder…" : mode === "explain" ? "Reading the problem…" : "Reading your code and the problem…", noun: "problem" },
+    memory: { where: `the problem room's tutor on "${shard.title}" (${shard.level}, concept: ${shard.conceptTitle}), in ${lang}; this message: ${mode} mode, last result ${VERDICT}, hint rungs open ${hintsOpen} of ${shard.rungs.length}`, on: brief.then((b) => !!b?.memory.available && !b.memory.paused) },
     prepare: async () => {
-      // a fresh read after an accepted submit (the solve was recorded a moment ago)
-      if (result?.verdict === "AC" && result.mode === "submit") forgetUnlocks(me.id);
-      const unlocks = await unlocksFor(me.id);
-      return prepareTutor({ req, problemId, shard, mode, lang, code, result, hintsOpen, unlocked: unlocks.unlocked.has(problemId), solved: unlocks.solved.has(problemId) });
+      const [unlocks, b] = await Promise.all([unlocksFor(me.id), brief]);
+      return prepareTutor({ req, problemId, shard, mode, lang, code, result, hintsOpen, unlocked: unlocks.unlocked.has(problemId), solved: unlocks.solved.has(problemId), fails: b?.facts?.fails ?? 0, brief: b?.text || undefined });
     },
   });
 }

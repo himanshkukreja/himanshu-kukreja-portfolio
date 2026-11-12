@@ -258,7 +258,7 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
         ) : (
           <p className="m-0 text-[14px] text-fg-3">{ai ? "The tutor is resting right now. Run, Submit and the hint ladder still work." : "Checking the tutor…"}</p>
         )}
-        <ChatFinePrint memory={null} privacy={DSA_PRIVACY} />
+        <ChatFinePrint memory={chat.memory} privacy={DSA_PRIVACY} />
       </div>
     </div>
     </>

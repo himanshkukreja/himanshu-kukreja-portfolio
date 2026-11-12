@@ -385,7 +385,7 @@ export default function DsaAsk({ concepts, problems }: { concepts: Concept[]; pr
           ))}
         </ul>
       </section>
-      {canChat && <ChatFinePrint memory={null} history={history.remote} privacy={DSA_PRIVACY} />}
+      {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} privacy={DSA_PRIVACY} />}
     </div>
   );
 
@@ -402,7 +402,7 @@ export default function DsaAsk({ concepts, problems }: { concepts: Concept[]; pr
         onSave={chat.savePath}
         actions={{ feedback: false, share: false }}
       />
-      {canChat && <ChatFinePrint memory={null} history={history.remote} privacy={DSA_PRIVACY} className="mt-2" />}
+      {canChat && <ChatFinePrint memory={chat.memory} history={history.remote} privacy={DSA_PRIVACY} className="mt-2" />}
     </div>
   );
 

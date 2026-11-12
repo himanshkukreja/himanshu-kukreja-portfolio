@@ -12,7 +12,7 @@ import { DSA_LANG_LABEL, type DsaLang } from "../types";
 import type { Prepared } from "./answer";
 import type { TutorMode } from "./modes";
 import { dsaAskSystem, dsaTutorSystem } from "./prompts";
-import { pageItem, searchDsa, type DsaHit, type ProblemShard } from "./search";
+import { pageItem, plannedConcepts, searchDsa, type DsaHit, type ProblemShard } from "./search";
 import { tokens } from "./text";
 
 /** The conversation as the model sees it: the last `keep` turns as they were, then the new message with its context. */
@@ -30,16 +30,41 @@ const KIND_LABEL: Record<DsaHit["kind"], string> = { lesson: "lesson", lecture: 
 /** a ref this chat handed out earlier: its id is one of our chunk keys */
 export const KEY_RE = /^[clpe]:[a-z0-9-]+:\d{1,4}$/;
 
-export async function prepareAsk(o: { req: ChatRequest; unlocked: Set<string>; outline: string }): Promise<Prepared> {
+const COMMON = new Set(["algorithm", "algorithms", "sort", "sorted", "order", "value", "values", "count", "graph", "graphs", "tree", "trees", "problem", "problems", "pattern", "patterns", "search", "array", "arrays", "string", "strings", "basics", "explain", "between", "ordering", "structure", "structures", "advanced"]);
+
+/**
+ * A topic the course has no lesson on yet, named by the learner or behind the practice problems the search found: one
+ * line for the model, so it says so first instead of guessing (eval: "Dijkstra" got an invented lesson).
+ */
+export function gapLine(query: string, planned: { id: string; title: string }[], problemConcepts: string[], builtFound: string[] = []): string {
+  const q = new Set(tokens(query));
+  // a built lesson the search found shares a word with the question: it is covered (a hash map question isn't a gap
+  // because "Best, average and worst case" is planned)
+  if (builtFound.slice(0, 2).some((t) => tokens(t).some((w) => w.length >= 4 && q.has(w)))) return "";
+  const hit = planned.find((c) => problemConcepts.slice(0, 2).includes(c.id) && tokens(c.title).some((t) => q.has(t))) ?? planned.find((c) => tokens(c.title).some((t) => t.length >= 5 && !COMMON.has(t) && q.has(t)));
+  return hit ? `<gap>The course has no lesson on "${hit.title}" yet (it is planned). Say so first; a practice problem that uses it stays under the no-spoiler rule.</gap>` : "";
+}
+
+/** A follow-up that leans on the previous message ("And what breaks if…", "why that?"): it searches with that message too. */
+const LEANS = /^(and|but|so|then|also|ok|okay|what about|how about|why|instead)\b|\b(that|this|it|those|these|them|there)\b/i;
+
+export async function prepareAsk(o: {
+  req: ChatRequest;
+  unlocked: Set<string>;
+  outline: string;
+  /** the learner brief (lib/learner/brief.ts): goes in the learner's turn, never the cached system prompt */
+  brief?: string;
+}): Promise<Prepared> {
   const { req, unlocked } = o;
   const latest = req.messages[req.messages.length - 1].text;
   // a short follow-up ("why?", "Explain that more simply.") searches with the learner's previous question too
   const prevUser = [...req.messages.slice(0, -1)].reverse().find((m) => m.role === "user")?.text ?? "";
-  const short = tokens(latest).length < 5 || !!actionOf(latest);
+  const n = tokens(latest).length;
+  const short = n < 5 || !!actionOf(latest) || (n < 14 && LEANS.test(latest));
   const page = pageItem(req.page?.path);
   // the page counts only on a concept, lecture or problem page (a list page's headings are noise)
   const query = [latest, short ? prevUser : "", page ? (req.page?.selection ?? "") : "", page ? `${req.page?.title ?? ""} ${req.page?.heading ?? ""}` : ""].filter(Boolean).join("\n");
-  const found = await searchDsa({ query, unlocked, page });
+  const [found, planned] = await Promise.all([searchDsa({ query, unlocked, page }), plannedConcepts().catch(() => [])]);
 
   // refs: the same passage keeps the ref it had earlier in this chat; new ones continue the numbering
   const earlier = req.sources ?? {};
@@ -62,8 +87,10 @@ export async function prepareAsk(o: { req: ChatRequest; unlocked: Set<string>; o
     page && req.page?.path
       ? `<page>The learner is on ${req.page.title ? `"${req.page.title}"` : req.page.path}${req.page.heading ? `, at "${req.page.heading}"` : ""}.${req.page.selection ? ` They selected: "${req.page.selection.slice(0, 600)}"` : ""}</page>`
       : "";
+  const gap = gapLine(latest, planned, found.problems.map((p) => p.concept ?? ""), found.concepts.map((c) => c.title));
   const context = [
     pageLine,
+    gap,
     blocks.length ? `<dsa_sources>\n${blocks.join("\n\n")}\n</dsa_sources>` : "<dsa_sources>(nothing in the course matched this message)</dsa_sources>",
     locked.length ? `<locked_editorials>${locked.join("; ")}: not unlocked by this learner. No full solution or full approach for these.</locked_editorials>` : "",
   ]
@@ -71,14 +98,18 @@ export async function prepareAsk(o: { req: ChatRequest; unlocked: Set<string>; o
     .join("\n\n");
   // the answer style beside the box; DSA's interview is a coding round
   const style = styleLine(req.style).replace("a system design round", "a coding interview");
-  const content = [latest, style, ...messageLines(latest, req.style), context].filter(Boolean).join("\n\n");
+  const lines = messageLines(latest, req.style);
+  // the length rule once more in the turn (Haiku drifts long on a long prompt), unless a style or "briefly" set its own
+  const length = req.style || lines.some((l) => l.startsWith("<length>")) || /\b(in depth|detailed|deeper|go deeper)\b/i.test(latest) ? "" : "<length>At most about 170 words (a quick question: about 80), unless <adapt> says shorter.</length>";
+  const content = [latest, style, ...lines, length, o.brief ?? "", context].filter(Boolean).join("\n\n");
   const known = Object.keys(earlier).filter((r) => KEY_RE.test(earlier[r]));
   return {
     system: dsaAskSystem(o.outline),
     messages: historyMessages(req, content),
     sources,
     earlierRefs: known,
-    think: false,
+    // Haiku 5.5 thinks first (low effort): the eval's traces and spoiler checks were wrong far more often without it
+    think: true,
     cap: null,
     ask: latest,
     followups: true,
@@ -88,6 +119,7 @@ export async function prepareAsk(o: { req: ChatRequest; unlocked: Set<string>; o
       searchMs: found.ms,
       page: page ? `${page.kind}:${page.id}` : null,
       known: known.length,
+      brief: o.brief ? o.brief.split("\n").length - 2 : 0,
       ...(req.style ? { style: req.style } : {}),
     },
   };
@@ -136,7 +168,7 @@ export function resultLine(r: TutorResult | null): string {
   if (!r) return "<last_result>No Run or Submit yet.</last_result>";
   const parts = [`${r.mode === "submit" ? "Submit (visible + hidden tests)" : "Run (visible tests)"}: ${VERDICT_WORDS[r.verdict]}, ${r.passed}/${r.total} tests passed.`];
   if (r.failing) {
-    if (r.failing.hidden) parts.push(`First failing test: a hidden test ("${r.failing.name}"; its input is not shown to the learner, so don't guess it: reason about edge cases).${r.failing.message ? ` Note: ${r.failing.message}` : ""}`);
+    if (r.failing.hidden) parts.push(`First failing test: a hidden test ("${r.failing.name}"). Its input is not shown to the learner or to you: tell them so in a few words, never guess it, and reason about the edge case it likely covers.${r.failing.message ? ` Note: ${r.failing.message}` : ""}`);
     else parts.push(`First failing test "${r.failing.name}": input ${r.failing.input}; expected ${r.failing.expected}; their output ${r.failing.got || "(none)"}.${r.failing.message ? ` Error: ${r.failing.message}` : ""}`);
   }
   if (r.message) parts.push(`Message: ${r.message}`);
@@ -158,6 +190,10 @@ export function prepareTutor(o: {
   hintsOpen: number;
   unlocked: boolean;
   solved: boolean;
+  /** failed submits on this problem so far (three open the editorial) */
+  fails?: number;
+  /** the learner brief (lib/learner/brief.ts), in the learner's turn */
+  brief?: string;
 }): Prepared {
   const { req, shard, mode, lang, code, result, hintsOpen, unlocked, problemId } = o;
   const latest = req.messages[req.messages.length - 1].text;
@@ -186,15 +222,18 @@ export function prepareTutor(o: {
         .map((l, i) => `${String(i + 1).padStart(3)}| ${l}`)
         .join("\n")}\n</code>`
     : "<code>(the editor is empty or still the starter code)</code>";
-  const content = [`<mode>${modeLine}</mode>`, `<message>${latest}</message>`, ...messageLines(latest), codeBlock, resultLine(result)].join("\n\n");
+  const attempts = unlocked ? "" : `<attempts>Failed submits on this problem so far: ${o.fails ?? 0}; the editorial opens at 3 (or if they solve it, or reveal it from the Editorial tab).</attempts>`;
+  const content = [`<mode>${modeLine}</mode>`, `<message>${latest}</message>`, ...messageLines(latest), o.brief ?? "", attempts, codeBlock, resultLine(result)].filter(Boolean).join("\n\n");
   return {
     system,
     messages: historyMessages(req, content, 8),
     sources: {},
-    think: mode === "debug" || mode === "complexity" || mode === "review" || mode === "dryrun",
+    // every mode but "explain the problem" thinks first: without it, hints and free questions under pressure leaked the fix
+    // and wrote notes to themselves (eval 12 Nov 2026)
+    think: mode !== "explain",
     cap: unlocked ? null : mode === "hint" ? CAP_HINT : CAP_LOCKED,
     ask: `[${mode} · ${problemId} · ${lang}] ${latest}\n\n${code.slice(0, 4000)}`,
     followups: false,
-    meta: { problem: problemId, mode, lang, unlocked, rung: hintsOpen, verdict: result?.verdict ?? null, codeChars: code.length },
+    meta: { problem: problemId, mode, lang, unlocked, rung: hintsOpen, verdict: result?.verdict ?? null, codeChars: code.length, fails: o.fails ?? null, brief: o.brief ? o.brief.split("\n").length - 2 : 0 },
   };
 }
