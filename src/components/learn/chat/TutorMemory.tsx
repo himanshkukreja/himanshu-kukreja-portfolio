@@ -6,7 +6,7 @@
  *
  *   What the AI knows   the shared memory's notes (goals, level, how you like answers; then System Design Mastery's and
  *                       DSA Mastery's own: studied, found hard, recent practice, mistakes, session notes), each with its
- *                       provenance (course chat, DSA chat or tutor, edited by you) and date, a pencil to rewrite it and a
+ *                       provenance (course chat, DSA chat or tutor, the goal chat, your feedback, set or edited by you) and date, a pencil to rewrite it and a
  *                       × to forget it; plus what the features take from your graded results (explain-back, mock, lab…),
  *                       forgotten by deleting the results behind it
  *   Graded results      the outcome log (learner_events): kind, what, verdict or level, date; × per row, delete all
@@ -26,6 +26,7 @@ import { outcomeKindLabel, outcomeWords, SRC_LABEL, type KnownItem, type KnownSr
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { dsaClientSignals } from "@/lib/dsa/ai/client-signals";
 import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
+import { GoalChatButton } from "@/components/learn/ai/GoalChat";
 
 type State = { available: boolean; paused: boolean; memory: ChatMemory };
 type Outcomes = { available: boolean; rows: ViewRow[]; known: KnownItem[] };
@@ -173,6 +174,12 @@ export default function TutorMemory() {
   useEffect(() => {
     if (user) load();
   }, [user, load]);
+  // the goal chat just wrote notes: show them
+  useEffect(() => {
+    const on = () => load();
+    window.addEventListener("hk:goal-chat-saved", on);
+    return () => window.removeEventListener("hk:goal-chat-saved", on);
+  }, [load]);
 
   const flash = (t: string) => {
     setNote(t);
@@ -289,7 +296,10 @@ export default function TutorMemory() {
           and the other AI features can pick up where you left off, they keep short learning notes and your graded results. Here is all of it, where each item came from, and the controls: edit or forget any item,
           clear everything, or switch memory off.
         </p>
-        <WatchHowItWorks id="ai-tutor" chapter="It remembers you" guide="ai-chat" />
+        <div className="flex flex-wrap items-center gap-3">
+          <GoalChatButton from="memory" />
+          <WatchHowItWorks id="ai-tutor" chapter="It remembers you" guide="ai-chat" />
+        </div>
       </section>
 
       {loading ? null : !user ? (
