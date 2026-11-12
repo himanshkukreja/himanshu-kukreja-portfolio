@@ -225,6 +225,12 @@ export async function resetLearnerData(userId: string, scope: ResetScope, parts:
     } else {
       deleted.game_done = 0;
     }
+    // the outcome log (graded results) of a reset course, or of everything (lib/learner/events.ts)
+    if (scope.kind === "all" || scope.kind === "course") {
+      const { clearOutcomes } = await import("@/lib/learner/events");
+      await clearOutcomes(userId, scope.kind === "all" ? undefined : scope.course === "dsa" ? "dsa" : "sdm");
+      deleted.learner_events = 1;
+    }
   }
 
   return { deleted };

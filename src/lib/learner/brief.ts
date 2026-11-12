@@ -12,8 +12,9 @@ import "server-only";
  *                          editorial habit, a known weak spot). Memory switched off: only what the learner set on the page
  *                          (language, level).
  *
- * Only `course: "dsa"` is built so far; the course chat still reads its own snapshot and memory lines (lib/ai/chat), and
- * can move onto this reader later.
+ * The other features (lesson-qa, snip-explain, the labs, explain-back, the mocks, the design reviews) get the outcome-log
+ * brief (./feature-brief.ts, 12 Nov 2026: earlier attempts on this ref, repeated misses, growth, the default answer
+ * style). The course chat still reads its own snapshot and memory lines (lib/ai/chat), now with the outcome log too.
  */
 import { supabase } from "@/lib/supabase";
 import { dsaNotes, untag, type DsaNotes } from "@/lib/ai/chat/memory-model";
@@ -23,6 +24,7 @@ import { DSA_COURSE_ID } from "@/lib/dsa/types";
 import { ONBOARDING_FLAG } from "@/lib/dsa/onboarding/recommend";
 import { dsaAdaptLines, dsaBriefLines, learnerTurnBlock, type BriefRef } from "./brief-model";
 import { buildDsaProfile, problemFacts, type DsaClientSignals, type DsaIndex, type DsaLearnerRaw, type DsaProfile } from "./dsa-profile";
+import { featureBrief, type FeatureBrief, type FeatureBriefOpts } from "./feature-brief";
 
 /* ------------------------------------------------------------------ the rows */
 
@@ -90,10 +92,20 @@ export type LearnerBrief = {
   memory: Pick<MemoryState, "available" | "paused">;
 };
 
-export async function learnerBrief(
-  userId: string,
-  o: { course: "dsa"; feature: "dsa-chat" | "dsa-tutor"; ref?: { problemId?: string; conceptId?: string }; client?: DsaClientSignals | null },
-): Promise<LearnerBrief> {
+type DsaBriefOpts = { course: "dsa"; feature: "dsa-chat" | "dsa-tutor"; ref?: { problemId?: string; conceptId?: string }; client?: DsaClientSignals | null };
+
+/**
+ * The brief for a feature's learner turn. DSA Mastery's chats ("dsa-chat", "dsa-tutor") get the DSA profile brief below;
+ * every other feature (lesson-qa, snip-explain, the labs, explain-back, the mocks, the design reviews) the outcome-log
+ * brief of ./feature-brief.ts.
+ */
+export function learnerBrief(userId: string, o: DsaBriefOpts): Promise<LearnerBrief>;
+export function learnerBrief(userId: string, o: FeatureBriefOpts): Promise<FeatureBrief>;
+export function learnerBrief(userId: string, o: DsaBriefOpts | FeatureBriefOpts): Promise<LearnerBrief | FeatureBrief> {
+  return o.feature === "dsa-chat" || o.feature === "dsa-tutor" ? dsaBrief(userId, o as DsaBriefOpts) : featureBrief(userId, o as FeatureBriefOpts);
+}
+
+async function dsaBrief(userId: string, o: DsaBriefOpts): Promise<LearnerBrief> {
   const [raw, mem, ix] = await Promise.all([
     dsaRows(userId).catch(() => null),
     Promise.race([loadMemory(userId), new Promise<null>((r) => setTimeout(() => r(null), 2500))]).catch(() => null),
