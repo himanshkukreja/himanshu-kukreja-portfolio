@@ -14,12 +14,12 @@ import "server-only";
  * endpoints answer 503 and the buttons stay hidden; certificates themselves don't depend on it.
  */
 import crypto from "node:crypto";
-import { CERT_ORIGIN, CERT_TITLE, DISCLAIMER, ISSUER, MOCKS_NEEDED, TRIAL_PASS_PCT, certTitle, certUrl, type CertificateView } from "./core";
+import { CERT_ORIGIN, CERT_TITLE, DISCLAIMER, ISSUER, LLD_CASES_NEEDED, LLD_CERT_NAME, LLD_PATTERNS_NEEDED, MOCKS_NEEDED, TRIAL_PASS_PCT, certTitle, certUrl, type CertificateView } from "./core";
 
 const ORIGIN = CERT_ORIGIN;
 export const ISSUER_URL = `${ORIGIN}/api/badges/issuer`;
 export const JWKS_URL = `${ORIGIN}/.well-known/jwks.json`;
-export const badgeKind = (c: Pick<CertificateView, "kind" | "world">) => (c.kind === "course" ? "course" : `world-${c.world?.code ?? "00"}`);
+export const badgeKind = (c: Pick<CertificateView, "kind" | "world">) => (c.kind === "course" ? "course" : c.kind === "lld" ? "lld" : `world-${c.world?.code ?? "00"}`);
 export const badgeClassUrl = (kind: string) => `${ORIGIN}/api/badges/class/${kind}`;
 export const badgeImageUrl = (kind: string) => `${ORIGIN}/api/badges/image/${kind}`;
 export const assertionUrl = (code: string) => `${ORIGIN}/cert/${code}/badge.json`;
@@ -74,6 +74,13 @@ function about(kind: string, worldTitle?: string | null) {
       name: certTitle("course"),
       description: `${CERT_TITLE} for ${ISSUER}, an online course on designing systems at scale. ${DISCLAIMER}`,
       criteria: `Every core lesson and every capstone interview completed; every trial part passed at ${TRIAL_PASS_PCT}% or more (answers re-checked on the server); every interview boss beaten; ${MOCKS_NEEDED} different timed mock interviews self-scored against a levelled rubric at Hire or better.`,
+    };
+  }
+  if (kind === "lld") {
+    return {
+      name: certTitle("lld"),
+      description: `${CERT_TITLE} for the ${LLD_CERT_NAME} track of ${ISSUER}: design patterns and machine-coding case studies. ${DISCLAIMER}`,
+      criteria: `Every design-pattern lesson (${LLD_PATTERNS_NEEDED}) and every low-level design case study (${LLD_CASES_NEEDED}) of the track completed, checked on the server from the learner's progress records.`,
     };
   }
   const code = kind.replace("world-", "");

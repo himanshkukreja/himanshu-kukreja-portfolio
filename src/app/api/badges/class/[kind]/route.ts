@@ -11,10 +11,10 @@ export function generateStaticParams() {
 
 type Ctx = { params: Promise<{ kind: string }> };
 
-/** Open Badges 2.0 BadgeClass: `course` or `world-NN`. */
+/** Open Badges 2.0 BadgeClass: `course`, `lld` or `world-NN`. */
 export async function GET(_req: Request, { params }: Ctx) {
   const { kind } = await params;
-  if (kind === "course") return NextResponse.json(ob2BadgeClass("course"), { headers: { "access-control-allow-origin": "*" } });
+  if (kind === "course" || kind === "lld") return NextResponse.json(ob2BadgeClass(kind), { headers: { "access-control-allow-origin": "*" } });
   const m = /^world-(\d{2})$/.exec(kind);
   if (!m) return NextResponse.json({ error: "Not found." }, { status: 404 });
   const map = await getCourseMap(COURSE_ID).catch(() => null);

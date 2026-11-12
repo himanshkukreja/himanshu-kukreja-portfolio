@@ -14,6 +14,8 @@ import {
   courseShape,
   evidenceLine,
   evidenceSnapshot,
+  lldEligibility,
+  LLD_CERT_NAME,
   suggestCertName,
   uniqueCode,
   worldEligibility,
@@ -131,12 +133,14 @@ export async function learnerState(userId: string): Promise<CertState> {
   const [l, certs, meta] = await Promise.all([learner(userId, c), rowsFor(userId), metadataName(userId)]);
   const find = (kind: CertKind, world: string | null) => certs.rows.find((r) => r.kind === kind && (r.world_key ?? null) === world) ?? null;
   const courseCert = find("course", null);
+  const lldCert = find("lld", null);
   return {
     available: certs.available,
     signing: !!signingSource(),
     badges: !!(await import("./badges")).badgeKey(),
     suggestedName: suggestCertName(courseCert?.display_name, certs.rows[0]?.display_name, l.fullName, meta),
     course: { eligibility: courseEligibility(c, l.evidence), certificate: courseCert ? toView(courseCert, c) : null },
+    lld: { eligibility: lldEligibility(c, l.evidence), certificate: lldCert ? toView(lldCert, c) : null },
     worlds: c.worlds.map((w) => {
       const row = find("world", w.key);
       return { key: w.key, num: w.num, code: w.code, title: w.title, eligibility: worldEligibility(c, w.key, l.evidence)!, certificate: row ? toView(row, c) : null };
@@ -146,7 +150,7 @@ export async function learnerState(userId: string): Promise<CertState> {
 
 /** POST /api/learn/certificates/claim — re-claiming returns the certificate already issued. */
 export async function claim(userId: string, input: { kind?: unknown; world?: unknown; name?: unknown; isPublic?: unknown }): Promise<{ certificate: CertificateView; existing: boolean }> {
-  const kind: CertKind | null = input.kind === "course" || input.kind === "world" ? input.kind : null;
+  const kind: CertKind | null = input.kind === "course" || input.kind === "world" || input.kind === "lld" ? input.kind : null;
   if (!kind) throw new CertError(400, "Unknown certificate.");
   const c = await course();
   const w = kind === "world" ? c.worlds.find((x) => x.key === input.world) : null;
@@ -170,7 +174,7 @@ export async function claim(userId: string, input: { kind?: unknown; world?: unk
 
   // the rules, again, from the database (never from the request)
   const l = await learner(userId, c);
-  const e: Eligibility | null = kind === "course" ? courseEligibility(c, l.evidence) : worldEligibility(c, worldKey!, l.evidence);
+  const e: Eligibility | null = kind === "course" ? courseEligibility(c, l.evidence) : kind === "lld" ? lldEligibility(c, l.evidence) : worldEligibility(c, worldKey!, l.evidence);
   if (!e || !e.eligible) throw new CertError(409, "Not every requirement is met yet.", "not_eligible", { eligibility: e });
 
   const evidence = { ...evidenceSnapshot(c, e, l.evidence), world: w ? { key: w.key, num: w.num, code: w.code, title: w.title, topics: worldTopics(w), of: c.worlds.length } : null };
@@ -179,7 +183,14 @@ export async function claim(userId: string, input: { kind?: unknown; world?: unk
     // ISO with milliseconds: Postgres keeps them exactly, so the row read back signs the same way
     const issuedAt = new Date().toISOString();
     const signature = signCertificate({ code, userId, kind, worldKey, displayName: name.name, issuedAt });
-    const res = await store.insert({ code, user_id: userId, kind, world_key: worldKey, display_name: name.name, issued_at: issuedAt, evidence, signature, is_public: input.isPublic === true });
+    let res;
+    try {
+      res = await store.insert({ code, user_id: userId, kind, world_key: worldKey, display_name: name.name, issued_at: issuedAt, evidence, signature, is_public: input.isPublic === true });
+    } catch (err) {
+      // the table's checks only know kind 'lld' once supabase/migrations/20261112_lld_certificate.sql is applied
+      if (kind === "lld" && /check constraint/i.test((err as Error).message || "")) throw new CertError(503, "LLD certificates are switching on soon.", "unavailable");
+      throw err;
+    }
     if (res.ok) {
       refreshPublic(code);
       return { certificate: toView(res.row, c), existing: false };
@@ -370,7 +381,7 @@ export async function adminList(q = ""): Promise<AdminCerts> {
       id: r.id,
       code: r.code,
       kind: r.kind,
-      label: r.kind === "course" ? "Course" : String(r.kind) === "dsa" ? "DSA Mastery · Foundations" : `World ${r.code.slice(1, 3)}${ev.world?.title ? ` · ${ev.world.title}` : ""}`,
+      label: r.kind === "course" ? "Course" : r.kind === "lld" ? LLD_CERT_NAME : String(r.kind) === "dsa" ? "DSA Mastery · Foundations" : `World ${r.code.slice(1, 3)}${ev.world?.title ? ` · ${ev.world.title}` : ""}`,
       name: r.display_name,
       email: mail[r.user_id] ?? null,
       userId: r.user_id,

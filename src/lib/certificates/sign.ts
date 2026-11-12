@@ -16,7 +16,7 @@ import { createHmac, hkdfSync, timingSafeEqual } from "node:crypto";
 export type SignedFields = {
   code: string;
   userId: string;
-  kind: "course" | "world" | "dsa";
+  kind: "course" | "world" | "dsa" | "lld";
   worldKey: string | null;
   displayName: string;
   issuedAt: string;

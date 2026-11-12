@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST { kind: "course" | "world", world?: "<week folder>", name, isPublic } → { certificate, existing }.
+ * POST { kind: "course" | "world" | "lld", world?: "<week folder>", name, isPublic } → { certificate, existing }.
  * The rules are re-checked from the database here; 409 { eligibility } when something is missing.
  * Idempotent: claiming again returns the certificate already issued (201 only for a new one).
  */

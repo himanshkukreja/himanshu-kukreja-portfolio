@@ -9,6 +9,7 @@ import "server-only";
  *   fx-cert-world   first three worlds cleared, World 03 missing a trial part and its boss
  *   fx-grace        already certified: course SDM-7F3K-92QX + W02-4QX8 (public), W01-H7P2
  *                   (revoked), W00-ZK3P (private, so its page is a 404); shares /u/grace-h
+ *   fx-cert-lld     every LLD pattern lesson and case study done, nothing claimed (the LLD certificate flow)
  *   fx-priya, fx-rohan, fx-meera   more rows for the admin table
  */
 import { COURSE_ID, getCourseMap } from "@/lib/learn/course";
@@ -24,6 +25,7 @@ export const FIXTURE_PEOPLE: Record<string, { name: string; email: string }> = {
   "fx-cert-mock": { name: "Alan Turing", email: "alan@example.com" },
   "fx-cert-world": { name: "Katherine Johnson", email: "katherine@example.com" },
   "fx-grace": { name: "Grace Hopper", email: "grace@example.com" },
+  "fx-cert-lld": { name: "Barbara Liskov", email: "barbara@example.com" },
   "fx-priya": { name: "Priya Nair", email: "priya@example.com" },
   "fx-rohan": { name: "Rohan Gupta", email: "rohan@example.net" },
   "fx-meera": { name: "Meera Joshi", email: "meera@example.dev" },
@@ -80,6 +82,11 @@ export async function fixtureLearner(userId: string): Promise<LoadedLearner | nu
   if (userId === "fx-cert-ready" || userId === "fx-grace" || userId === "fx-meera") return { evidence: evidenceFor(course, { worlds: n, mock: userId === "fx-meera" ? "strong-hire" : "hire" }), fullName: name };
   if (userId === "fx-cert-mock") return { evidence: evidenceFor(course, { worlds: n, mock: "lean-hire" }), fullName: name };
   if (userId === "fx-cert-world") return { evidence: evidenceFor(course, { worlds: 3, partialMissingPart: 4, mock: null }), fullName: name };
+  if (userId === "fx-cert-lld") {
+    const ev = evidenceFor(course, { worlds: 2, mock: null });
+    [...(course.lld?.patterns || []), ...(course.lld?.cases || [])].forEach((l, i) => (ev.lessons[`${l.week}/${l.slug}`] = { at: iso(T0 + i * DAY), seconds: 1800 }));
+    return { evidence: ev, fullName: name };
+  }
   if (userId === "fx-priya" || userId === "fx-rohan") return { evidence: evidenceFor(course, { worlds: 5, mock: null }), fullName: name };
   return null;
 }

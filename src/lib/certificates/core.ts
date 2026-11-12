@@ -12,6 +12,9 @@
  *                       interviews at Hire or better (game_done `offer:<id>` + its game_flags
  *                       `mock:<id>` scorecard)
  *   world certificate   that world's lessons, its trial parts and its boss (when it has one)
+ *   LLD certificate     the Low-level design track: every design-pattern lesson (dp-NN, at least
+ *                       LLD_PATTERNS_NEEDED) and every case study (lld-NN, at least LLD_CASES_NEEDED) of
+ *                       the course map's `lld` list completed (learning_progress, week low-level-design)
  *
  * When the course grows (e.g. Week 11 and Week 0 Parts 7-8), nothing here changes: the rules
  * run against the live course map at claim time, the result is frozen into the row (evidence.stats,
@@ -33,9 +36,23 @@ export const CERT_TITLE = "Certificate of Completion";
 /** Required on the certificate, the PDF and the verification page. */
 export const DISCLAIMER = "This certifies completion of an online course. It is not an accredited academic qualification.";
 
-/** XP for claiming (game keys `cert:course` / `cert:world:<week>`). */
-export const CERT_XP = { course: 500, world: 150 } as const;
-export const certXpKey = (kind: CertKind, worldKey?: string | null) => (kind === "course" ? "cert:course" : `cert:world:${worldKey}`);
+/** XP for claiming (game keys `cert:course` / `cert:world:<week>` / `cert:lld`). */
+export const CERT_XP = { course: 500, world: 150, lld: 300 } as const;
+export const certXpKey = (kind: CertKind, worldKey?: string | null) => (kind === "course" ? "cert:course" : kind === "lld" ? "cert:lld" : `cert:world:${worldKey}`);
+/** XP of a `cert:*` game key. */
+export const certXpOfKey = (key: string) => (key === "cert:course" ? CERT_XP.course : key === "cert:lld" ? CERT_XP.lld : CERT_XP.world);
+/** What a `cert:*` game key is, for the XP history. */
+export const certKeyLabel = (key: string, world?: { code: string; title: string } | null) =>
+  key === "cert:course" ? `Certified · ${ISSUER}` : key === "cert:lld" ? `Certified · ${LLD_CERT_NAME}` : `World certificate · ${world ? `W${world.code} · ${world.title}` : key.slice(11)}`;
+
+/** The Low-level design (LLD track) certificate: the 28 design-pattern lessons and the 30 case studies. */
+export const LLD_CERT_NAME = "Low-level design";
+export const LLD_WEEK = "low-level-design";
+export const LLD_PATTERNS_NEEDED = 28;
+export const LLD_CASES_NEEDED = 30;
+export const LLD_LESSONS_NEEDED = LLD_PATTERNS_NEEDED + LLD_CASES_NEEDED;
+/** Where the LLD certificate is claimed (the certificate page's LLD section). */
+export const LLD_CERT_HREF = "/certificate#lld";
 
 /** Pass mark for a trial part: 80 %, rounded up (same as the trial engine). */
 export const passMark = (n: number) => Math.ceil(n * 0.8);
@@ -57,15 +74,16 @@ export const LEVEL_TEXT: Record<string, string> = { junior: "Junior", sde: "SDE"
 
 /* ------------------------------------------------------------------ codes */
 
-export type CertKind = "course" | "world";
+export type CertKind = "course" | "world" | "lld";
 
 /** 32 symbols: digits 2–9 and A–Z without I and O (no 0/O, 1/I mix-ups). 32 divides 256, so bytes map without bias. */
 export const CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ";
 const SYM = "[2-9A-HJ-NP-Z]";
 export const COURSE_CODE_RE = new RegExp(`^SDM-${SYM}{4}-${SYM}{4}$`);
 export const WORLD_CODE_RE = new RegExp(`^W\\d{2}-${SYM}{4}$`);
+export const LLD_CODE_RE = new RegExp(`^LLD-${SYM}{4}-${SYM}{4}$`);
 
-export const isValidCode = (c: string) => COURSE_CODE_RE.test(c) || WORLD_CODE_RE.test(c);
+export const isValidCode = (c: string) => COURSE_CODE_RE.test(c) || WORLD_CODE_RE.test(c) || LLD_CODE_RE.test(c);
 
 /** What a visitor typed or pasted → canonical form (upper case, no spaces); null when it can't be a code. */
 export function normalizeCode(raw: unknown): string | null {
@@ -90,11 +108,11 @@ function symbols(n: number, fill: RandomFill): string {
   return out;
 }
 
-/** A fresh code: SDM-7F3K-92QX (course, 40 random bits) or W02-4QX8 (world, 20 random bits). */
+/** A fresh code: SDM-7F3K-92QX (course) or LLD-7F3K-92QX (LLD track), 40 random bits; W02-4QX8 (world, 20 random bits). */
 export function generateCode(kind: CertKind, worldNum: number | null, fill: RandomFill = defaultFill): string {
-  if (kind === "course") {
+  if (kind === "course" || kind === "lld") {
     const s = symbols(8, fill);
-    return `SDM-${s.slice(0, 4)}-${s.slice(4)}`;
+    return `${kind === "lld" ? "LLD" : "SDM"}-${s.slice(0, 4)}-${s.slice(4)}`;
   }
   if (worldNum === null || !Number.isInteger(worldNum) || worldNum < 0 || worldNum > 99) throw new Error("world number required");
   return `W${String(worldNum).padStart(2, "0")}-${symbols(4, fill)}`;
@@ -185,6 +203,7 @@ function istParts(iso: string): { year: number; month: number } {
 /** Certification name shown on LinkedIn and in share text. */
 export function certTitle(kind: CertKind, world?: { code: string; title: string } | null): string {
   if (kind === "course") return `${ISSUER} · ${CERT_TITLE}`;
+  if (kind === "lld") return `${ISSUER} · ${LLD_CERT_NAME}`;
   return `${ISSUER} · World ${world?.code ?? ""}: ${world?.title ?? ""}`.trim();
 }
 
@@ -224,12 +243,22 @@ export type CertWorld = {
   trial: { week: string; slug: string; href: string; parts: CertPart[] } | null;
 };
 export type CertMock = { id: string; n: number; code: string; company: string; href: string };
-export type CertCourse = { worlds: CertWorld[]; mocks: CertMock[] };
+/** The LLD track: design-pattern lessons (dp-NN) and case studies (lld-NN), in course order. */
+export type CertLld = { patterns: CertLesson[]; cases: CertLesson[] };
+export type CertCourse = { worlds: CertWorld[]; mocks: CertMock[]; lld?: CertLld };
+
+/** The course map's `lld` list → patterns and case studies (by file name: dp-NN-… and lld-NN-…). */
+export function lldShape(list: CertLesson[] | null | undefined): CertLld {
+  const lesson = (l: CertLesson): CertLesson => ({ week: l.week, slug: l.slug, title: l.title, label: l.label, href: l.href, kind: l.kind });
+  const all = (list || []).map(lesson);
+  return { patterns: all.filter((l) => /^dp-\d+/.test(l.slug)), cases: all.filter((l) => /^lld-\d+/.test(l.slug)) };
+}
 
 /** Course map → the slice the rules need (plain JSON). */
 export function courseShape(map: {
   weeks: { key: string; num: number; code: string; title: string; lessons: CertLesson[]; boss: CertLesson | null; trial: { week: string; slug: string; href: string; parts: CertPart[] } | null }[];
   mocks?: { id: string; n: number; code: string; company: string; href: string }[];
+  lld?: CertLesson[];
 }): CertCourse {
   const lesson = (l: CertLesson): CertLesson => ({ week: l.week, slug: l.slug, title: l.title, label: l.label, href: l.href, kind: l.kind });
   return {
@@ -243,6 +272,7 @@ export function courseShape(map: {
       trial: w.trial ? { week: w.trial.week, slug: w.trial.slug, href: w.trial.href, parts: w.trial.parts.map((p) => ({ n: p.n, title: p.title, questions: p.questions, href: p.href })) } : null,
     })),
     mocks: (map.mocks || []).map((m) => ({ id: m.id, n: m.n, code: m.code, company: m.company, href: m.href })),
+    lld: lldShape(map.lld),
   };
 }
 
@@ -326,7 +356,7 @@ export const lessonKey = (week: string, slug: string) => `${week}/${slug}`;
 
 export type TodoItem = { label: string; href: string; note?: string };
 
-export type ReqId = "lessons" | "capstones" | "trials" | "bosses" | "mock";
+export type ReqId = "lessons" | "capstones" | "trials" | "bosses" | "mock" | "patterns" | "cases";
 
 export type Requirement = {
   id: ReqId;
@@ -352,6 +382,8 @@ export type CertStats = {
   offers?: { have: number; need: number };
   /** capstone interviews read (same) */
   capstones?: { read: number; total: number };
+  /** LLD certificates: design-pattern lessons and case studies completed */
+  lld?: { patterns: { done: number; total: number }; cases: { done: number; total: number } };
 };
 
 export type Eligibility = {
@@ -526,6 +558,54 @@ export function worldEligibility(course: CertCourse, worldKey: string, ev: Learn
   return { kind: "world", world: w.key, eligible: met === reqs.length, met, total: reqs.length, requirements: reqs, stats: statsFor([w], course, ev, false) };
 }
 
+/**
+ * One LLD half (patterns or case studies). `need` is the larger of the plan's count and what the course
+ * map lists: a lesson that isn't published yet can't be completed, so the certificate can't be earned
+ * until the whole track is out; when the track grows, new lessons count for claims made after that.
+ */
+function lldReq(id: "patterns" | "cases", items: CertLesson[], min: number, ev: LearnerEvidence): Requirement {
+  const need = Math.max(min, items.length);
+  const left = items.filter((l) => !ev.lessons[lessonKey(l.week, l.slug)]);
+  const have = items.length - left.length;
+  const what = id === "patterns" ? "design-pattern lessons" : "case studies";
+  const unpublished = need - items.length;
+  return {
+    id,
+    label: id === "patterns" ? `Complete all ${need} design-pattern lessons` : `Complete all ${need} case studies`,
+    detail: `${have}/${need} ${what} done${unpublished > 0 ? ` · ${unpublished} not published yet` : ""}`,
+    done: need > 0 && have === need,
+    have,
+    need,
+    todo: left.map((l) => ({ label: `${id === "patterns" ? "Pattern" : "Case study"} · ${l.title}`, href: l.href })),
+    href: left[0]?.href || "/low-level-design",
+    hrefLabel: id === "patterns" ? "Continue the patterns" : "Continue the case studies",
+  };
+}
+
+/** The LLD certificate's checklist: every design-pattern lesson and every case study completed. */
+export function lldEligibility(course: CertCourse, ev: LearnerEvidence): Eligibility {
+  const lld = course.lld ?? { patterns: [], cases: [] };
+  const reqs = [lldReq("patterns", lld.patterns, LLD_PATTERNS_NEEDED, ev), lldReq("cases", lld.cases, LLD_CASES_NEEDED, ev)];
+  const met = reqs.filter((r) => r.done).length;
+  const [p, c] = reqs;
+  return {
+    kind: "lld",
+    world: null,
+    eligible: met === reqs.length,
+    met,
+    total: reqs.length,
+    requirements: reqs,
+    stats: {
+      worlds: { cleared: 0, total: 0 },
+      lessons: { done: p.have + c.have, total: p.need + c.need },
+      trialParts: { passed: 0, total: 0 },
+      bosses: { beaten: 0, total: 0 },
+      mock: null,
+      lld: { patterns: { done: p.have, total: p.need }, cases: { done: c.have, total: c.need } },
+    },
+  };
+}
+
 /* ------------------------------------------------------------------ evidence snapshot */
 
 export type EvidenceSnapshot = {
@@ -545,6 +625,22 @@ export type EvidenceSnapshot = {
 
 /** Fast trial runs (under 2 s a question) and lessons with no tracked reading time are flagged, not refused. */
 export function evidenceSnapshot(course: CertCourse, e: Eligibility, ev: LearnerEvidence, now = new Date()): EvidenceSnapshot {
+  if (e.kind === "lld") {
+    const all = [...(course.lld?.patterns || []), ...(course.lld?.cases || [])];
+    const done = all.map((l) => ev.lessons[lessonKey(l.week, l.slug)]).filter(Boolean) as { at: string | null; seconds: number }[];
+    const untracked = done.filter((l) => !l.seconds).length;
+    return {
+      v: 1,
+      computedAt: now.toISOString(),
+      rules: `lld ${e.stats.lld?.patterns.total ?? LLD_PATTERNS_NEEDED} patterns+${e.stats.lld?.cases.total ?? LLD_CASES_NEEDED} case studies`,
+      stats: e.stats,
+      lessons: { done: done.length, total: e.stats.lessons.total, trackedSeconds: done.reduce((a, l) => a + (l.seconds || 0), 0), untracked },
+      trials: [],
+      bosses: [],
+      mock: null,
+      flags: untracked ? [`${untracked} lesson${untracked === 1 ? "" : "s"} with no tracked reading time (imported or read elsewhere)`] : [],
+    };
+  }
   const worlds = e.kind === "course" ? course.worlds : course.worlds.filter((w) => w.key === e.world);
   const lessons = worlds.flatMap((w) => w.lessons).map((l) => ev.lessons[lessonKey(l.week, l.slug)]).filter(Boolean) as { at: string | null; seconds: number }[];
   const trials = worlds.flatMap((w) =>
@@ -581,6 +677,7 @@ export function evidenceSnapshot(course: CertCourse, e: Eligibility, ev: Learner
 export function evidenceLine(kind: CertKind, ev: Partial<EvidenceSnapshot> | null | undefined): string {
   const s = ev?.stats;
   if (!s) return "—";
+  if (kind === "lld") return s.lld ? `patterns ${s.lld.patterns.done}/${s.lld.patterns.total} · case studies ${s.lld.cases.done}/${s.lld.cases.total}` : `lessons ${s.lessons.done}/${s.lessons.total}`;
   if (kind === "course") return `${s.lessons.done}/${s.lessons.total} · ${s.capstones ? `${s.capstones.read}/${s.capstones.total} · ` : ""}${s.trialParts.passed}/${s.trialParts.total} · ${s.bosses.beaten}/${s.bosses.total} · ${s.offers ? `${s.offers.have} mocks, best ` : ""}${s.mock ? VERDICT_TEXT[s.mock.verdict] || s.mock.verdict : "—"}`;
   return `lessons ${s.lessons.done}/${s.lessons.total} · trial ${s.trialParts.passed}/${s.trialParts.total}${s.bosses.total ? ` · boss ${s.bosses.beaten ? "✓" : "✕"}` : ""}`;
 }
@@ -610,5 +707,7 @@ export type CertState = {
   badges?: boolean;
   suggestedName: string;
   course: { eligibility: Eligibility; certificate: CertificateView | null };
+  /** the Low-level design (LLD track) certificate */
+  lld: { eligibility: Eligibility; certificate: CertificateView | null };
   worlds: { key: string; num: number; code: string; title: string; eligibility: Eligibility; certificate: CertificateView | null }[];
 };
