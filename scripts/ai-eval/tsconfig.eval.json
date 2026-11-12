@@ -1,0 +1,7 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": "../..",
+    "paths": { "@/*": ["./src/*"], "next/cache": ["./scripts/ai-eval/stubs/next-cache.ts"] }
+  }
+}

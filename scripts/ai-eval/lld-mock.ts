@@ -21,6 +21,7 @@
  *   EVAL_REPEAT=<n>     samples per case (default 1)
  *   EVAL_NOJUDGE=1      replies and deterministic checks only (cheap prompt iterations you read yourself)
  *   EVAL_MODEL=<id>     the interviewer's model (default: the feature's, Haiku 5.5)
+ *   EVAL_JUDGE=<id>     the judge (default Opus 5.5; the nightly run uses Sonnet 5.5)
  */
 import fs from "fs";
 import path from "path";
@@ -36,7 +37,8 @@ import { LLD_CASES, type LldEvalCase } from "./lld-mock-cases";
 const OUT = path.resolve(process.argv[2] || "lld-mock-eval-out");
 const ONLY = process.argv.slice(3);
 const MODEL = process.env.EVAL_MODEL || FEATURES["lld-mock"].model;
-const JUDGE = MODELS.opus;
+/** the judge: Opus by default (the tuning runs of 12 Nov 2026); the nightly run sets EVAL_JUDGE to Sonnet 5.5 */
+const JUDGE = process.env.EVAL_JUDGE || MODELS.opus;
 const REPEAT = Math.max(1, Number(process.env.EVAL_REPEAT) || 1);
 const NOJUDGE = process.env.EVAL_NOJUDGE === "1";
 const KEY = process.env.ANTHROPIC_API_KEY || "";

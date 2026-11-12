@@ -23,6 +23,7 @@
  *   EVAL_NOJUDGE=1   answers and deterministic checks only
  *   EVAL_MODEL=<id>  the tutor's model (default: each feature's own, Haiku 5.5)
  *   EVAL_JUDGE=<id>  the judge (default Sonnet 5.5)
+ *   EVAL_CASES=route | nightly   the smart routing's hard turns (route-cases.ts) or the nightly subset (NIGHTLY_DSA)
  */
 import fs from "fs";
 import path from "path";
@@ -38,6 +39,10 @@ import type { DsaLang } from "@/lib/dsa/types";
 import { DSA_CHAT_CASES, type DsaArea, type DsaChatCase, type LearnerFixture } from "./dsa-chat-cases";
 import { DSA_TUTOR_CASES, type DsaTutorCase } from "./dsa-tutor-cases";
 import { learnerInputs } from "./dsa-learner";
+import { ROUTE_DSA_CHAT_CASES, ROUTE_DSA_TUTOR_CASES } from "./route-cases";
+
+/** the nightly regression subset: grounding, spoilers, method, debugging, off-topic, personalisation */
+export const NIGHTLY_DSA = ["c-variable-window-invariant", "c-gap-kadane", "c-spoiler-pressure", "c-injection", "c-personal-beginner", "t-hint-first", "t-debug-tie", "t-debug-offbyone", "t-explain-beginner"];
 
 const OUT = path.resolve(process.argv[2] || "dsa-eval-out");
 const ONLY = process.argv.slice(3);
@@ -289,7 +294,12 @@ async function main() {
   if (!process.env.DSA_LOCAL_DIR) throw new Error("DSA_LOCAL_DIR is not set (the dsa-mastery checkout)");
   const outline = await courseOutline();
   type Job = { kind: "chat"; c: DsaChatCase } | { kind: "tutor"; c: DsaTutorCase };
-  const jobs: Job[] = [...DSA_CHAT_CASES.filter((c) => picked(c.id, c.area, "dsa-chat")).map((c) => ({ kind: "chat" as const, c })), ...DSA_TUTOR_CASES.filter((c) => picked(c.id, c.area, "dsa-tutor")).map((c) => ({ kind: "tutor" as const, c }))];
+  // EVAL_CASES=route: the smart routing's hard turns (route-cases.ts); EVAL_CASES=nightly: the nightly subset
+  const route = process.env.EVAL_CASES === "route";
+  const nightly = process.env.EVAL_CASES === "nightly";
+  const chatCases = route ? ROUTE_DSA_CHAT_CASES : nightly ? DSA_CHAT_CASES.filter((c) => NIGHTLY_DSA.includes(c.id)) : DSA_CHAT_CASES;
+  const tutorCases = route ? ROUTE_DSA_TUTOR_CASES : nightly ? DSA_TUTOR_CASES.filter((c) => NIGHTLY_DSA.includes(c.id)) : DSA_TUTOR_CASES;
+  const jobs: Job[] = [...chatCases.filter((c) => picked(c.id, c.area, "dsa-chat")).map((c) => ({ kind: "chat" as const, c })), ...tutorCases.filter((c) => picked(c.id, c.area, "dsa-tutor")).map((c) => ({ kind: "tutor" as const, c }))];
   console.log(`${jobs.length} cases, ${jobs.reduce((a, j) => a + j.c.turns.length, 0)} turns · chat ${modelFor("dsa-chat")} · tutor ${modelFor("dsa-tutor")}${NOJUDGE ? " · no judge" : ` · judge ${JUDGE}`}`);
   const rows = await pool(jobs, 5, async (j): Promise<Row> => {
     const feature: DsaFeature = j.kind === "chat" ? "dsa-chat" : "dsa-tutor";

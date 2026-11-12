@@ -11,7 +11,7 @@ import { isAnswerStyle, messageLines, pickActions, styleLine, type FollowupActio
 import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promptOptsFor, replyFrom, type PromptSystem } from "@/lib/ai/prompts";
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
-import { checkCitations, type CiteStats } from "./citations";
+import { checkCitations, type CiteDetail, type CiteStats } from "./citations";
 import { ChatState, closingLine, fallbackAnswer, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
 import { cleanAnswer, followupFilter, isRef, OFF_TOPIC_MARK, REF_RE, splitFollowups, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
 
@@ -172,6 +172,8 @@ export type CoreResult = {
   actions?: FollowupAction[];
   /** the citation check's counts (lib/ai/chat/citations.ts); null: nothing cited or not checked */
   cites?: CiteStats | null;
+  /** the citations it fixed or dropped, with the claim (the eval reads them; the route logs only the counts) */
+  citeDetails?: CiteDetail[];
 };
 
 /** What the learner sees when every model declined (a safety decline is never an error to retry). */
@@ -292,10 +294,12 @@ export async function runChatCore(o: {
   // ones are swapped for the source that does, or dropped; the counts go on the metering row. The page shows the
   // checked text when the answer is done (the streamed draft is replaced).
   let cites: CiteStats | null = null;
+  let citeDetails: CiteDetail[] | undefined;
   if (text && !offTopic) {
     const checked = checkCitations(text, st.citationEvidence(), (ref) => st.sources.has(ref));
     text = checked.text;
     cites = checked.stats;
+    citeDetails = checked.details.filter((d) => d.verdict === "fixed" || d.verdict === "dropped");
   }
   // cards only under a real, whole answer: not a decline, a practice question waiting for its answer, a mock just
   // started, a saved path's one line, or an answer that was cut off
@@ -306,7 +310,7 @@ export async function runChatCore(o: {
   const explained = cards && !st.flags.path && !st.flags.plan && !st.flags.saved && !st.flags.graded && !o.req.answerTo && text.split(/\s+/).length >= 40;
   const gap = /^\s*The course has no lesson on\b|\bnot in a lesson of (?:its|their) own\b/i.test(text);
   const actions = explained && !gap ? pickActions(followups, { asked: latest.text }) : [];
-  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups, actions, cites };
+  return { text, offTopic, loop, state: st, ask: o.req.answerTo ? `[answer to ${o.req.answerTo}] ${latest.text}` : latest.text, mode: "tutor", ctxMs, loopAt, fellBack, followups, actions, cites, citeDetails };
 }
 
 /** The mock interview behind a key, if it is still live (a course mock, or a side quest's design round). */

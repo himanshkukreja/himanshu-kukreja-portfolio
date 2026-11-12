@@ -1,0 +1,139 @@
+# Nightly AI regression evals (AI quality layer, owner-approved 12 Nov 2026): the course chat, the DSA chat and tutor, the
+# LLD mock interviewer, the learner brief and the citation check (scripts/ai-eval/nightly.ts), on the live models and
+# prompts of the checked-out commit, judged by Sonnet 5.5 (never Opus).
+#
+# Hard cost cap: EVAL_MAX_USD (the repository variable AI_EVALS_MAX_USD, default $1.50 a night) is split between the evals;
+# every Anthropic call is priced before it is sent (scripts/ai-eval/spend-cap.ts) and one that would pass its eval's share
+# is never sent. Calls go straight to the API: nothing is written to the database.
+#
+# Results: the run's artifact (every eval's results and logs), the step summary, and the pass rates appended to
+# scripts/ai-eval/nightly/history.json on the `ai-evals` branch (a branch that never deploys; /admin/ai/quality reads it).
+# A pass rate more than 10 points under the previous night's opens (or comments on) an issue labelled ai-evals.
+#
+# Secrets: ANTHROPIC_API_KEY (the evals' calls) and PRODUCTION_ENV (GITHUB_PERSONAL_ACCESS_TOKEN for the course content
+# checkouts); both already used by cloudflare-deploy.yml. Without ANTHROPIC_API_KEY the run stops at the first step and says so.
+# Off until the repository variable AI_EVALS_NIGHTLY is "on" (the schedule then runs it); workflow_dispatch always works,
+# with `dry` for a pipeline check (one case per eval, no judge: a few cents).
+name: ai-evals-nightly
+
+on:
+  schedule:
+    - cron: "40 21 * * *" # 03:10 IST, after the day's traffic
+  workflow_dispatch:
+    inputs:
+      dry:
+        description: "Dry run: one case per eval, no judge (checks the pipeline for a few cents)"
+        type: boolean
+        default: true
+      only:
+        description: "Only these evals (comma list: citations,chat,dsa,lld-mock,brief; empty = all)"
+        type: string
+        default: ""
+
+concurrency:
+  group: ai-evals-nightly
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  evals:
+    if: github.event_name == 'workflow_dispatch' || vars.AI_EVALS_NIGHTLY == 'on'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      EVAL_MAX_USD: ${{ vars.AI_EVALS_MAX_USD || '1.5' }}
+      NIGHTLY_DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry && '1' || '0' }}
+      NIGHTLY_ONLY: ${{ inputs.only || '' }}
+      NIGHTLY_HISTORY: ${{ github.workspace }}/history/scripts/ai-eval/nightly/history.json
+    steps:
+      - name: Secrets present?
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PRODUCTION_ENV: ${{ secrets.PRODUCTION_ENV }}
+        run: |
+          [ -n "$ANTHROPIC_API_KEY" ] || { echo "::error::The ANTHROPIC_API_KEY secret is missing: the evals can't call the API." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          [ -n "$PRODUCTION_ENV" ] || { echo "::error::The PRODUCTION_ENV secret is missing: no content token for the course checkouts." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      # the site's settings (Supabase URL and keys are read-only here: the evals call the API directly) and the content
+      # token; the course content from disk (SDM_LOCAL_DIR, DSA_LOCAL_DIR), as the evals expect
+      - name: Env and course content
+        env:
+          PRODUCTION_ENV: ${{ secrets.PRODUCTION_ENV }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          printf '%s\n' "$PRODUCTION_ENV" > .env.local
+          printf 'ANTHROPIC_API_KEY=%s\n' "$ANTHROPIC_API_KEY" >> .env.local
+          TOKEN=$(grep -E '^GITHUB_PERSONAL_ACCESS_TOKEN=' .env.local | head -1 | cut -d= -f2- | tr -d '"')
+          [ -n "$TOKEN" ] || { echo "::error::GITHUB_PERSONAL_ACCESS_TOKEN is not in PRODUCTION_ENV: can't check out the course content." | tee -a "$GITHUB_STEP_SUMMARY"; exit 1; }
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/himanshkukreja/system-design-mastery.git" "$RUNNER_TEMP/sdm"
+          git clone --depth 1 "https://x-access-token:${TOKEN}@github.com/himanshkukreja/dsa-mastery.git" "$RUNNER_TEMP/dsa"
+          echo "SDM_LOCAL_DIR=$RUNNER_TEMP/sdm" >> "$GITHUB_ENV"
+          echo "DSA_LOCAL_DIR=$RUNNER_TEMP/dsa" >> "$GITHUB_ENV"
+          node scripts/build/gen-runtime-files.mjs
+
+      # the previous nights' pass rates (the ai-evals branch; created on the first run)
+      - name: History
+        run: |
+          if git fetch -q --depth=1 origin ai-evals:refs/remotes/origin/ai-evals; then
+            git worktree add -q --detach history origin/ai-evals
+          else
+            # the first run: an empty orphan branch (a worktree shares the checkout's push credentials)
+            git worktree add -q --detach history
+            git -C history checkout -q --orphan ai-evals
+            git -C history rm -rq --cached . >/dev/null
+            find history -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          fi
+          mkdir -p history/scripts/ai-eval/nightly
+
+      - name: Run the evals
+        id: run
+        run: npx tsx --env-file=.env.local scripts/ai-eval/nightly.ts "$RUNNER_TEMP/out"
+
+      - name: Summary
+        if: always()
+        run: cat "$RUNNER_TEMP/out/summary.md" >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || true
+
+      - name: Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-evals-${{ github.run_id }}
+          path: ${{ runner.temp }}/out
+          retention-days: 30
+
+      # the pass rates on the ai-evals branch (never deploys: deploys run on main only); a dry run isn't recorded
+      - name: Store the pass rates
+        if: steps.run.outcome == 'success' && env.NIGHTLY_DRY != '1'
+        run: |
+          cp "$RUNNER_TEMP/out/nightly.json" history/scripts/ai-eval/nightly/latest.json
+          cd history
+          git config user.name "ai-evals-bot"
+          git config user.email "ai-evals-bot@users.noreply.github.com"
+          git add scripts/ai-eval/nightly/history.json scripts/ai-eval/nightly/latest.json
+          git commit -q -m "ai-evals: nightly pass rates $(date -u +%F)" || exit 0
+          git push -q origin HEAD:ai-evals
+
+      - name: Open an issue on a drop
+        if: steps.run.outcome == 'success' && steps.run.outputs.drops != '0' && env.NIGHTLY_DRY != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body="$(cat "$RUNNER_TEMP/out/summary.md")
+
+          Run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          gh label create ai-evals --color D93F0B --description "Nightly AI eval regressions" 2>/dev/null || true
+          open=$(gh issue list --label ai-evals --state open --json number --jq '.[0].number')
+          if [ -n "$open" ]; then gh issue comment "$open" --body "$body"; else gh issue create --label ai-evals --title "AI evals: a pass rate dropped more than 10 points ($(date -u +%F))" --body "$body"; fi
