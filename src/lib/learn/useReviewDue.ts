@@ -3,6 +3,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { REVIEW_CHANGED_EVENT, loadReviewCards, localDate, type ReviewCard } from "./review";
+import { userFetch } from "@/components/learn/progress/userFetch";
+import { NOTRACK_KEY } from "@/lib/track";
+
+const SYNC_KEY = "hk.review.mistakes";
+let syncing: Promise<void> | null = null;
+/** Mistakes → review cards on the server, at most every 30 minutes a tab session (never with GPC or the opt-out). */
+function syncMistakes(): Promise<void> {
+  if (syncing) return syncing;
+  syncing = (async () => {
+    try {
+      const last = Number(window.sessionStorage.getItem(SYNC_KEY)) || 0;
+      if (Date.now() - last < 30 * 60_000) return;
+      window.sessionStorage.setItem(SYNC_KEY, String(Date.now()));
+      if ((navigator as Navigator & { globalPrivacyControl?: boolean }).globalPrivacyControl === true || window.localStorage.getItem(NOTRACK_KEY) === "1") return;
+    } catch {
+      return;
+    }
+    const r = await userFetch("/api/learn/review/mistakes", { method: "POST", body: "{}" }).catch(() => null);
+    const b = (await r?.json().catch(() => null)) as { added?: number } | null;
+    if (b?.added) window.dispatchEvent(new Event(REVIEW_CHANGED_EVENT));
+  })().finally(() => {
+    syncing = null;
+  });
+  return syncing;
+}
 
 /**
  * Due review cards, shared by the course nav badge, the hub's standup card and the profile.
@@ -38,6 +63,9 @@ export function useReviewCards(scope: "sdm" | "dsa" = "sdm") {
       });
     };
     run(false);
+    // the learner's recent mistakes become cards (POST /api/learn/review/mistakes; lib/learner/mistake-cards-model.ts):
+    // at most every half hour a tab session, signed in only; new cards reload the queue
+    if (user) void syncMistakes();
     const onChange = () => run(true);
     window.addEventListener(REVIEW_CHANGED_EVENT, onChange);
     window.addEventListener("storage", onChange);
@@ -46,7 +74,7 @@ export function useReviewCards(scope: "sdm" | "dsa" = "sdm") {
       window.removeEventListener(REVIEW_CHANGED_EVENT, onChange);
       window.removeEventListener("storage", onChange);
     };
-  }, [uid, loading]);
+  }, [uid, loading, user]);
 
   const today = localDate();
   const mine = useMemo(() => (cards ? cards.filter((c) => (scope === "dsa" ? c.courseId === "dsa" : c.courseId !== "dsa")) : null), [cards, scope]);

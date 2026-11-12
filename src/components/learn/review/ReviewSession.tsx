@@ -36,8 +36,9 @@ const SRC: Record<ReviewSource, { label: string; glyph: string; title: string; d
   highlight: { label: "HIGHLIGHT", glyph: "❝", title: "Highlights turned into cards", desc: "A sentence from a lesson with the key phrase blanked out." },
   interview: { label: "INTERVIEW · REVIEW AGAIN", glyph: "?", title: "Interview “review again”", desc: "Reveal cards you marked as not yet solid." },
   notes: { label: "MY NOTEBOOK", glyph: "✎", title: "Cards from your notebook", desc: "Question cards the AI made from your own notebook pages." },
+  mistake: { label: "FROM YOUR MISTAKES", glyph: "↺", title: "From your mistakes", desc: "What you missed in explain-backs, mocks, lab reviews and chat quizzes, as cards from the course's own words. Up to five new a day." },
 };
-const SOURCES: ReviewSource[] = ["trial_miss", "trial_flag", "highlight", "interview", "notes"];
+const SOURCES: ReviewSource[] = ["trial_miss", "trial_flag", "highlight", "interview", "notes", "mistake"];
 const GRADES: { g: ReviewGrade; label: string }[] = [
   { g: "again", label: "Again" },
   { g: "hard", label: "Hard" },
@@ -173,7 +174,8 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
   const metaOf = (c: ReviewCard) => (c.week && c.lessonSlug ? index.get(lessonKey(c.week, c.lessonSlug)) || fallbackMeta(map.courseId, c.week, c.lessonSlug) : null);
   const hrefOf = (c: ReviewCard) => {
     const m = metaOf(c);
-    if (!m) return null;
+    // a mistake card about a lab or a mock links where the course teaches it
+    if (!m) return c.detail.href ?? null;
     return c.stage ? `${m.href}#${c.stage}` : m.href;
   };
   const shortOf = (c: ReviewCard) => c.detail.short || (c.front.length > 54 ? `${c.front.slice(0, 52).trim()}…` : c.front);
@@ -399,7 +401,9 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
                       ? "Aim for the 3-4 points a strong answer would hit."
                       : card.source.startsWith("trial")
                         ? "The trial had four options. Recall the answer without them."
-                        : ""}
+                        : card.source === "mistake"
+                          ? "You missed this one before. Say the answer in your own words first."
+                          : ""}
                 </span>
               </div>
 
@@ -440,11 +444,13 @@ export default function ReviewSession({ map }: { map: CourseMap }) {
                     {hrefOf(card) && (
                       <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 pt-1">
                         <Link href={hrefOf(card) as string} className="inline-flex min-h-11 items-center text-[15px] font-semibold text-signal-text">
-                          Open in lesson ›
+                          {metaOf(card) ? "Open in lesson ›" : `Open ${card.detail.hrefLabel || "where it's taught"} ›`}
                         </Link>
-                        <span className="font-mono text-xs text-fg-3">
-                          {metaOf(card)?.tag} · {metaOf(card)?.title}
-                        </span>
+                        {metaOf(card) && (
+                          <span className="font-mono text-xs text-fg-3">
+                            {metaOf(card)?.tag} · {metaOf(card)?.title}
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>

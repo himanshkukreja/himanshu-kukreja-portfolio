@@ -12,7 +12,8 @@
  */
 import { supabaseClient } from "@/lib/supabase-client";
 
-export type ReviewSource = "trial_miss" | "trial_flag" | "highlight" | "interview" | "notes";
+/** "mistake": cards made from the learner's own mistakes (lib/learner/mistake-cards-model.ts; source_ref "mistake:…") */
+export type ReviewSource = "trial_miss" | "trial_flag" | "highlight" | "interview" | "notes" | "mistake";
 export type ReviewGrade = "again" | "hard" | "good" | "easy";
 
 /** Optional extras shown on the back of a card. Stored inside `back` as JSON when present. */
@@ -27,6 +28,9 @@ export type ReviewCardDetail = {
   context?: string;
   /** short queue title, e.g. "Purpose of the HALF-OPEN state" */
   short?: string;
+  /** mistake cards: where the course teaches it (a lesson section, a lab, a DSA concept) and its name */
+  href?: string;
+  hrefLabel?: string;
 };
 
 export type ReviewCardInput = {
@@ -208,11 +212,14 @@ async function currentUserId(): Promise<string | null> {
   }
 }
 
+/** A mistake card stored under the bridge source (until migration 20261112_review_cards_mistake_source.sql) is one too. */
+const sourceOf = (r: Pick<Row, "source" | "source_ref">): ReviewSource => (r.source_ref.startsWith("mistake:") ? "mistake" : r.source);
+
 function fromRow(r: Row): ReviewCard {
   const { back, detail } = decodeBack(r.back);
   return {
     id: r.id,
-    source: r.source,
+    source: sourceOf(r),
     sourceRef: r.source_ref,
     courseId: r.course_id,
     week: r.week,
