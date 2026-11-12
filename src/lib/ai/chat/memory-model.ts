@@ -36,8 +36,15 @@ export type ChatMemory = {
   mistakes: string[];
   /** one per past conversation, newest first */
   sessions: MemorySession[];
+  /** where each item came from and when (the memory page's provenance): keyed by `srcKey(field, stored item)`; items
+   *  noted before 12 Nov 2026 have none (the page shows the memory's last update for them) */
+  src: Record<string, ItemSrc>;
   updatedAt: number;
 };
+
+/** Who wrote an item: the course chat, a DSA Mastery tutor (its chat or the problem tutor), or the learner (an edit). */
+export type ItemSrcBy = "chat" | "dsa" | "you";
+export type ItemSrc = { by: ItemSrcBy; at: string };
 
 export const MEMORY_LIMITS = { goals: 3, studied: 12, struggles: 8, prefs: 5, quiz: 8, sessions: 8, item: 140, level: 140, summary: 280 } as const;
 /** DSA Mastery's own items, on top of the course chat's caps */
@@ -50,7 +57,47 @@ export const untag = (s: string) => (isDsa(s) ? s.slice(DSA_TAG.length) : s);
 export const tagDsa = (s: string) => (isDsa(s) ? s : `${DSA_TAG}${s}`);
 export const courseOf = (s: string): MemoryCourse => (isDsa(s) ? "dsa" : "sdm");
 
-export const emptyMemory = (): ChatMemory => ({ v: 1, goals: [], level: "", studied: [], struggles: [], prefs: [], quiz: [], mistakes: [], sessions: [], updatedAt: 0 });
+export const emptyMemory = (): ChatMemory => ({ v: 1, goals: [], level: "", studied: [], struggles: [], prefs: [], quiz: [], mistakes: [], sessions: [], src: {}, updatedAt: 0 });
+
+/* ------------------------------------------------------------------ provenance */
+
+/** The list fields (and the level) an item's provenance is kept for; sessions carry their own date and course. */
+const SRC_FIELDS = ["goals", "level", "studied", "struggles", "prefs", "quiz", "mistakes"] as const;
+type SrcField = (typeof SRC_FIELDS)[number];
+export const srcKey = (field: SrcField, stored: string) => `${field}|${field === "level" ? "" : stored.toLowerCase()}`;
+const itemsOf = (m: Pick<ChatMemory, SrcField>, f: SrcField): string[] => (f === "level" ? (m.level ? [m.level] : []) : m[f]);
+const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Provenance kept only for items that exist, each valid. */
+function cleanSrc(x: unknown, m: Pick<ChatMemory, SrcField>): Record<string, ItemSrc> {
+  const out: Record<string, ItemSrc> = {};
+  if (!x || typeof x !== "object" || Array.isArray(x)) return out;
+  const o = x as Record<string, unknown>;
+  for (const f of SRC_FIELDS)
+    for (const it of itemsOf(m, f)) {
+      const k = srcKey(f, it);
+      const v = o[k] as { by?: unknown; at?: unknown } | undefined;
+      if (v && (v.by === "chat" || v.by === "dsa" || v.by === "you") && typeof v.at === "string" && DAY_RE.test(v.at)) out[k] = { by: v.by, at: v.at };
+    }
+  return out;
+}
+
+/**
+ * The provenance after a writer's update: an item it kept keeps its old line (or none, for an item noted before
+ * provenance existed); an item it added is stamped with the writer and the day.
+ */
+function stampSrc(prev: ChatMemory, next: Pick<ChatMemory, SrcField>, by: ItemSrcBy, day: string): Record<string, ItemSrc> {
+  const out: Record<string, ItemSrc> = {};
+  for (const f of SRC_FIELDS) {
+    const before = new Set(itemsOf(prev, f).map((x) => x.toLowerCase()));
+    for (const it of itemsOf(next, f)) {
+      const k = srcKey(f, it);
+      if (prev.src?.[k]) out[k] = prev.src[k];
+      else if (!before.has(it.toLowerCase())) out[k] = { by, at: day };
+    }
+  }
+  return out;
+}
 
 /**
  * Text that may be stored: plain, short, no contact details or links. Identifiers stay as written: underscores
@@ -107,8 +154,7 @@ export function cleanMemory(x: unknown): ChatMemory {
     if (dsa) dsaN++;
     else sdmN++;
   }
-  return {
-    v: 1,
+  const lists = {
     goals: list(o.goals, MEMORY_LIMITS.goals),
     level: scrub(o.level, MEMORY_LIMITS.level),
     studied: list(o.studied, MEMORY_LIMITS.studied, MEMORY_LIMITS.item, DSA_MEMORY_LIMITS.studied),
@@ -117,9 +163,8 @@ export function cleanMemory(x: unknown): ChatMemory {
     quiz: list(o.quiz, MEMORY_LIMITS.quiz, 180),
     // DSA's own field: every item is a DSA item
     mistakes: list(Array.isArray(o.mistakes) ? o.mistakes.map((x) => (typeof x === "string" ? tagDsa(x) : x)) : [], 0, MEMORY_LIMITS.item, DSA_MEMORY_LIMITS.mistakes),
-    sessions,
-    updatedAt: Number(o.updatedAt) || 0,
   };
+  return { v: 1, ...lists, sessions, src: cleanSrc(o.src, lists), updatedAt: Number(o.updatedAt) || 0 };
 }
 
 export const isEmptyMemory = (m: ChatMemory) => !m.goals.length && !m.level && !m.studied.length && !m.struggles.length && !m.prefs.length && !m.quiz.length && !m.mistakes.length && !m.sessions.length;
@@ -170,8 +215,7 @@ export function mergeMemory(prev: ChatMemory, update: unknown, chat: string, now
   const dsaOf = (xs: string[]) => xs.filter(isDsa);
   const sdmSessions = prev.sessions.filter((s) => s.course !== "dsa");
   const sessions = [...(summary ? [{ at: day, chat, summary }, ...sdmSessions.filter((s) => s.chat !== chat)] : sdmSessions).slice(0, MEMORY_LIMITS.sessions), ...prev.sessions.filter((s) => s.course === "dsa")];
-  return {
-    v: 1,
+  const next = {
     goals: u.goals.length || Array.isArray(o.goals) ? u.goals : prev.goals,
     level: u.level || prev.level,
     studied: Array.isArray(o.studied) ? [...u.studied, ...dsaOf(prev.studied)] : prev.studied,
@@ -179,9 +223,8 @@ export function mergeMemory(prev: ChatMemory, update: unknown, chat: string, now
     prefs: Array.isArray(o.prefs) ? u.prefs : prev.prefs,
     quiz: Array.isArray(o.quiz) ? u.quiz : prev.quiz,
     mistakes: prev.mistakes,
-    sessions,
-    updatedAt: now.getTime(),
   };
+  return { v: 1, ...next, sessions, src: stampSrc(prev, next, "chat", day), updatedAt: now.getTime() };
 }
 
 /**
@@ -201,8 +244,7 @@ export function mergeDsaMemory(prev: ChatMemory, update: unknown, chat: string, 
   const sdmOf = (xs: string[]) => xs.filter((x) => !isDsa(x));
   const dsaSessions = prev.sessions.filter((s) => s.course === "dsa");
   const sessions = [...prev.sessions.filter((s) => s.course !== "dsa"), ...(summary ? [{ at: day, chat, summary, course: "dsa" as const }, ...dsaSessions.filter((s) => s.chat !== chat)] : dsaSessions).slice(0, DSA_MEMORY_LIMITS.sessions)];
-  return {
-    v: 1,
+  const next = {
     goals: Array.isArray(o.goals) ? u.goals : prev.goals,
     level: u.level || prev.level,
     prefs: Array.isArray(o.prefs) ? u.prefs : prev.prefs,
@@ -210,9 +252,8 @@ export function mergeDsaMemory(prev: ChatMemory, update: unknown, chat: string, 
     struggles: Array.isArray(o.struggles) ? [...sdmOf(prev.struggles), ...u.struggles] : prev.struggles,
     quiz: prev.quiz,
     mistakes: Array.isArray(o.mistakes) ? u.mistakes : prev.mistakes,
-    sessions,
-    updatedAt: now.getTime(),
   };
+  return { v: 1, ...next, sessions, src: stampSrc(prev, next, "dsa", day), updatedAt: now.getTime() };
 }
 
 export const MEMORY_FIELDS = ["goals", "level", "studied", "struggles", "prefs", "quiz", "mistakes", "sessions"] as const;
@@ -221,7 +262,45 @@ export type MemoryField = (typeof MEMORY_FIELDS)[number];
 /** One item the learner removed on the memory page (its × button): a list item by its stored text, the level, or a session by its line. */
 export function removeMemoryItem(m: ChatMemory, field: MemoryField, item: string): ChatMemory {
   const key = item.trim().toLowerCase();
-  if (field === "level") return { ...m, level: "" };
-  if (field === "sessions") return { ...m, sessions: m.sessions.filter((s) => s.summary.toLowerCase() !== key) };
-  return { ...m, [field]: m[field].filter((x) => x.toLowerCase() !== key) };
+  let next: ChatMemory;
+  if (field === "level") next = { ...m, level: "" };
+  else if (field === "sessions") next = { ...m, sessions: m.sessions.filter((s) => s.summary.toLowerCase() !== key) };
+  else next = { ...m, [field]: m[field].filter((x) => x.toLowerCase() !== key) };
+  return { ...next, src: cleanSrc(m.src, next) };
+}
+
+/** The cap an edited item is held to (the same as a written one). */
+const capOf = (field: MemoryField) => (field === "level" ? MEMORY_LIMITS.level : field === "sessions" ? MEMORY_LIMITS.summary : field === "quiz" ? 180 : MEMORY_LIMITS.item);
+
+/**
+ * One item the learner rewrote on the memory page (its pencil): the new words go through the same scrub and cap as
+ * anything a tutor writes, a DSA item stays a DSA item, and its provenance becomes "you" on that day (a session keeps
+ * its date and course). null when the edit is unusable: an unknown item, or nothing left after the scrub (forget it
+ * instead). Rewriting an item to one that already exists just drops the old one.
+ */
+export function editMemoryItem(m: ChatMemory, field: MemoryField, item: string, text: string, now: Date): ChatMemory | null {
+  const key = item.trim().toLowerCase();
+  const day = now.toISOString().slice(0, 10);
+  const words = scrub(untag(typeof text === "string" ? text.trim() : ""), capOf(field));
+  if (!words) return null;
+  if (field === "sessions") {
+    const i = m.sessions.findIndex((s) => s.summary.toLowerCase() === key);
+    if (i < 0) return null;
+    return { ...m, sessions: m.sessions.map((s, j) => (j === i ? { ...s, summary: words } : s)), updatedAt: now.getTime() };
+  }
+  if (field === "level") {
+    if (!m.level) return null;
+    const next = { ...m, level: words, updatedAt: now.getTime() };
+    return { ...next, src: { ...cleanSrc(m.src, next), [srcKey("level", words)]: { by: "you", at: day } } };
+  }
+  const xs = m[field];
+  const i = xs.findIndex((x) => x.toLowerCase() === key);
+  if (i < 0) return null;
+  const stored = field === "mistakes" || isDsa(xs[i]) ? `${DSA_TAG}${words}` : words;
+  const dup = xs.some((x, j) => j !== i && x.toLowerCase() === stored.toLowerCase());
+  const list = dup ? xs.filter((_, j) => j !== i) : xs.map((x, j) => (j === i ? stored : x));
+  const next = { ...m, [field]: list, updatedAt: now.getTime() } as ChatMemory;
+  const src = cleanSrc(m.src, next);
+  if (!dup) src[srcKey(field, stored)] = { by: "you", at: day };
+  return { ...next, src };
 }

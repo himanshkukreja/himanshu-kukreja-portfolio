@@ -35,10 +35,12 @@ export async function updateMemory(a: { userId: string; admin: boolean; userKey:
   if (!turns.some((t) => t.role === "user")) return false;
   const convo = turns.map((t) => `${t.role === "user" ? "Learner" : "Tutor"}: ${t.text.replace(REF_RE, "").replace(/\s+/g, " ").slice(0, 900)}`).join("\n");
   // its own items only: DSA Mastery's (tagged) stay as they are (memory-model.ts mergeMemory)
-  const { sessions, updatedAt: _u, v: _v, mistakes: _m, ...notes } = sdmNotes(m.memory);
+  // (provenance stays out: the page's, not the model's)
+  const { sessions, updatedAt: _u, v: _v, mistakes: _m, src: _s, ...notes } = sdmNotes(m.memory);
   void _u;
   void _v;
   void _m;
+  void _s;
   const user = `<current_notes>\n${JSON.stringify({ ...notes, recent_sessions: sessions.slice(0, 3).map((s) => s.summary) })}\n</current_notes>\n\n<conversation>\n${convo}\n</conversation>`;
   const r = await callClaude({
     feature: "chat-memory",

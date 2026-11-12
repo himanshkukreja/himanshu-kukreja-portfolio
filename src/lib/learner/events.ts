@@ -11,7 +11,10 @@ import "server-only";
  *   loadOutcomes(userId)                    the learner's recent outcomes, newest first (≤ 200, the last 120 days),
  *                                           kept 30 seconds per learner; a missing table reads as none.
  *   clearOutcomes(userId, course?)          a course reset (lib/learn/reset.ts).
+ *   listOutcomeRows(userId)                 the memory page's list, with row ids (the log only, not DSA submits).
+ *   deleteOutcomeRows(token, userId, …)     the memory page's delete (one row, some, or all), as the learner.
  */
+import { createClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { privateRequest } from "@/lib/ai/chat/capture";
 import { forgetProgress, loadMemory } from "@/lib/ai/chat/server";
@@ -72,4 +75,42 @@ export async function clearOutcomes(userId: string, course?: EventCourse): Promi
   const { error } = await q;
   if (error && !isMissing(error)) throw new Error(error.message);
   forgetOutcomes(userId);
+}
+
+/* ------------------------------------------------------------------ the memory page: list and delete the learner's own rows */
+
+export type OutcomeRow = OutcomeEvent & { id: number };
+
+/** The learner's graded results with their row ids (the log only: DSA submits are their own progress table), newest first. */
+export async function listOutcomeRows(userId: string, limit = 300): Promise<{ available: boolean; rows: OutcomeRow[] }> {
+  const { data, error } = await supabase.from("learner_events").select("id, course, kind, ref, outcome, detail, at").eq("user_id", userId).order("at", { ascending: false }).limit(limit);
+  if (error) {
+    if (!isMissing(error)) console.warn("[learner] list:", error.message);
+    return { available: false, rows: [] };
+  }
+  const rows = ((data ?? []) as { id: number; course: EventCourse; kind: OutcomeEvent["kind"]; ref: string; outcome: string | null; detail: OutcomeEvent["detail"] | null; at: string }[]).map((r) => ({ ...r, detail: r.detail ?? {}, at: Date.parse(r.at) || 0 }));
+  return { available: true, rows };
+}
+
+/**
+ * Delete some of the learner's results (`ids`) or all of them, with the learner's own session: the delete policy
+ * (supabase/migrations/20261112_learner_events_delete.sql, auth.uid() = user_id) is what keeps it to their rows, and
+ * the user id filter says the same again. Returns how many rows went; throws when the delete failed.
+ */
+export async function deleteOutcomeRows(token: string, userId: string, what: { ids: number[] } | { all: true }): Promise<number> {
+  const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  let q = db.from("learner_events").delete({ count: "exact" }).eq("user_id", userId);
+  if ("ids" in what) {
+    const ids = [...new Set(what.ids.filter((n) => Number.isSafeInteger(n) && n > 0))].slice(0, 500);
+    if (!ids.length) return 0;
+    q = q.in("id", ids);
+  }
+  const { error, count } = await q;
+  if (error) throw new Error(error.message);
+  forgetOutcomes(userId);
+  forgetProgress(userId);
+  return count ?? 0;
 }

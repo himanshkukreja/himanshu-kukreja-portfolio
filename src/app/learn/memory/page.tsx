@@ -5,8 +5,8 @@ export const runtime = "nodejs";
 export const revalidate = 86400;
 
 export const metadata = {
-  title: "What the tutor remembers · Learn · Himanshu Kukreja",
-  description: "What the System Design Mastery course tutor remembers about your learning between chats, and how to clear it.",
+  title: "What the AI knows · Learn · Himanshu Kukreja",
+  description: "What the System Design Mastery tutors and AI features know about your learning, where each note came from, and how to edit, forget or clear it.",
   robots: { index: false, follow: true },
 };
 
