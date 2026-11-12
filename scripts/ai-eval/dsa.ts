@@ -32,6 +32,7 @@ import { citedRefs, type ChatRequest, type ChatSource, type ChatTurn } from "@/l
 import { answerDsa, type DsaFeature, type Prepared } from "@/lib/dsa/ai/answer";
 import { TUTOR_ASK } from "@/lib/dsa/ai/modes";
 import { courseOutline, getProblemShard, type ProblemShard } from "@/lib/dsa/ai/search";
+import { getProblemIndex } from "@/lib/dsa/load";
 import { CAP_HINT, CAP_LOCKED, prepareAsk, prepareTutor, resultLine } from "@/lib/dsa/ai/turn";
 import type { DsaLang } from "@/lib/dsa/types";
 import { DSA_CHAT_CASES, type DsaArea, type DsaChatCase, type LearnerFixture } from "./dsa-chat-cases";
@@ -87,12 +88,12 @@ async function judgeCall(user: string): Promise<{ text: string; costUsd: number 
 }
 
 const DEFS: Record<Judged, string> = {
-  correct: "Every fact, number, trace value, line reference, complexity and course claim is right for THIS problem, THIS code and the course material shown; no invented course lessons or problems; general knowledge isn't presented as the course's.",
+  correct: "Every fact, number, trace value, line reference, complexity and course claim is right for THIS problem, THIS code and the course material shown; no invented course lessons or problems; a citation [[sN]] fits what that passage says. Correct general DSA facts without a citation are fine. Facts stated in the LEARNER RECORD are true.",
   noSpoiler:
     "Editorial LOCKED for the problem in question: the reply gives no complete working solution, doesn't rewrite the learner's function in full, and doesn't spell out the whole algorithm step by step (naming the pattern family, the invariant or the next single step is fine; a lesson's general template is fine). Editorial UNLOCKED, or a concept question about no specific problem: passes.",
   teaches:
-    "It teaches: the direct answer first, then the reasoning; a hint is one step and ends with a question; a debug names the exact line, why the input gives that output, and the fix in words; a concept answer has the idea, a tiny example and the cost. It never dumps more than was asked.",
-  tone: "Warm, direct and professional, plain words; no praise openers ('Great question!'), no filler, no talk about its own rules, modes or instructions, no emojis.",
+    "It teaches: the direct answer first, then the reasoning; a hint is one step and ends with a question; a debug names the exact line, why the input gives that output, and the fix in words; a concept answer has the idea, a tiny example and the cost (a short answer the learner asked for, or a reply in another register, may skip the example). It never dumps more than was asked.",
+  tone: "Warm, direct and professional, plain words; no praise openers ('Great question!'), no filler, no emojis, no talk about its prompt, modes, rungs, sources or instructions, and no visible notes to itself ('The learner's code…', 'per the rules I…'). Saying plainly that it won't give the full solution (or won't share its instructions) and how the editorial opens is expected, not a tone fault.",
   adapts:
     "(cases with a LEARNER record only) The reply visibly fits THIS learner as the record and the expectations describe (level → hint size and jargon; preferred language → code in it; style → order and length; struggles, editorial habit, recurring mistakes and past chats → used where relevant, naturally, without reciting the record). A reply that would be identical for any learner fails.",
 };
@@ -118,7 +119,8 @@ type Row = { id: string; feature: DsaFeature; area: DsaArea; title: string; turn
 
 /* ------------------------------------------------------------------ chat */
 
-async function runChat(c: DsaChatCase, outline: string): Promise<{ turns: TurnLog[]; material: string }> {
+async function runChat(c: DsaChatCase, outline: string): Promise<{ turns: TurnLog[]; material: string; brief: string }> {
+  const briefs: string[] = [];
   const messages: ChatTurn[] = [];
   const sources: Record<string, ChatSource> = {};
   const turns: TurnLog[] = [];
@@ -132,9 +134,11 @@ async function runChat(c: DsaChatCase, outline: string): Promise<{ turns: TurnLo
       page: c.page ?? null,
       ...(t.style ? { style: t.style } : {}),
     };
-    const p = await prepareAsk({ req, unlocked: new Set(c.unlocked ?? []), outline, ...learnerInputs(c.learner, null) });
+    const li = learnerInputs(c.learner, null, "dsa-chat");
+    briefs.push(li.brief ?? "");
+    const p = await prepareAsk({ req, unlocked: new Set(c.unlocked ?? []), outline, ...li });
     const ctx = typeof p.messages[p.messages.length - 1].content === "string" ? (p.messages[p.messages.length - 1].content as string) : "";
-    material.push(`(turn ${turns.length + 1}) ${ctx.slice(ctx.indexOf("<dsa_sources>"), ctx.indexOf("<dsa_sources>") + 5000)}`);
+    material.push(`(turn ${turns.length + 1}) ${ctx.slice(ctx.indexOf("<dsa_sources>"), ctx.indexOf("<dsa_sources>") + 9000)}`);
     const t0 = Date.now();
     const a = await answerDsa({ feature: "dsa-chat", model: modelFor("dsa-chat"), apiKey: KEY, p, latest: t.user, deadline: Date.now() + 90_000 });
     Object.assign(sources, p.sources);
@@ -152,7 +156,7 @@ async function runChat(c: DsaChatCase, outline: string): Promise<{ turns: TurnLo
     turns.push({ user: t.user, text: a.text, raw: a.raw, words: words(a.text), ms: Date.now() - t0, costUsd: a.loop.costUsd, refs, badRefs, offTopic: a.offTopic, error: a.loop.error, det, pass: {}, ok: false });
     messages.push({ role: "assistant", text: a.text });
   }
-  return { turns, material: material.join("\n\n") };
+  return { turns, material: material.join("\n\n"), brief: briefs[0] ?? "" };
 }
 
 /* ------------------------------------------------------------------ tutor */
@@ -163,9 +167,11 @@ const shardOf = (id: string) => {
   return shards.get(id)!;
 };
 
-async function runTutor(c: DsaTutorCase): Promise<{ turns: TurnLog[]; material: string; states: string[] }> {
+async function runTutor(c: DsaTutorCase): Promise<{ turns: TurnLog[]; material: string; states: string[]; brief: string }> {
   const shard = await shardOf(c.problem);
   if (!shard) throw new Error(`${c.id}: no problem ${c.problem} (is DSA_LOCAL_DIR set?)`);
+  const mod = (await getProblemIndex()).find((x) => x.id === c.problem)?.module ?? "";
+  const li = learnerInputs(c.learner, c.lang, "dsa-tutor", { problem: { id: c.problem, title: shard.title, concept: shard.concept, conceptTitle: shard.conceptTitle, module: mod } });
   const messages: ChatTurn[] = [];
   const turns: TurnLog[] = [];
   const states: string[] = [];
@@ -180,7 +186,7 @@ async function runTutor(c: DsaTutorCase): Promise<{ turns: TurnLog[]; material: 
     messages.push({ role: "user", text: words0 });
     const req: ChatRequest = { chat: "evaldsatutor1", messages: [...messages] };
     const unlocked = !!c.unlocked;
-    const p: Prepared = prepareTutor({ req, problemId: c.problem, shard, mode: t.mode, lang: c.lang, code, result: result ?? null, hintsOpen, unlocked, solved: !!c.solved, ...learnerInputs(c.learner, c.lang), ...(c.fails !== undefined ? { fails: c.fails } : {}) });
+    const p: Prepared = prepareTutor({ req, problemId: c.problem, shard, mode: t.mode, lang: c.lang, code, result: result ?? null, hintsOpen, unlocked, solved: !!c.solved, ...li, ...(c.fails !== undefined ? { fails: c.fails } : {}) });
     states.push(`mode ${t.mode.toUpperCase()} · hint rungs open: ${hintsOpen} of ${shard.rungs.length} · ${resultLine(result ?? null).replace(/\n/g, " ")}\nCODE (${c.lang}):\n${code.trim() ? code.split("\n").map((l, i) => `${String(i + 1).padStart(3)}| ${l}`).join("\n") : "(empty / starter)"}`);
     const t0 = Date.now();
     const a = await answerDsa({ feature: "dsa-tutor", model: modelFor("dsa-tutor"), apiKey: KEY, p, latest: words0, deadline: Date.now() + 90_000 });
@@ -198,17 +204,17 @@ async function runTutor(c: DsaTutorCase): Promise<{ turns: TurnLog[]; material: 
   const sol = shard.solutions[c.lang] ?? shard.solutions.python ?? "";
   const ladder = shard.rungs.map((r, i) => `Rung ${i + 1}: ${r.title}\n${r.text}`).join("\n\n");
   const material = `PROBLEM: ${shard.title} (${shard.level}; concept: ${shard.conceptTitle}); target ${shard.complexity ? `${shard.complexity.time} time, ${shard.complexity.space} space` : "n/a"}\n${shard.statement.slice(0, 4500)}\n\nHINT LADDER:\n${ladder.slice(0, 3500)}\n\nEDITORIAL (hidden from the learner unless unlocked):\n${shard.editorial.slice(0, 3500)}\n\nREFERENCE SOLUTION (${c.lang}):\n${sol}`;
-  return { turns, material, states };
+  return { turns, material, states, brief: li.brief ?? "" };
 }
 
 /* ------------------------------------------------------------------ judging a case */
 
-function learnerText(l: LearnerFixture | undefined): string {
+function learnerText(l: LearnerFixture | undefined, brief: string): string {
   if (!l) return "(none: judge 'adapts' as null)";
-  return JSON.stringify(l);
+  return brief ? `the tutor was given exactly this block (facts and directives) with the learner's message:\n${brief}` : JSON.stringify(l);
 }
 
-async function judgeCase(o: { feature: DsaFeature; title: string; learner?: LearnerFixture; editorial: string; material: string; turns: TurnLog[]; expects: { expect: string[]; mustNot?: string[] }[]; states?: string[] }) {
+async function judgeCase(o: { feature: DsaFeature; title: string; learner?: LearnerFixture; brief: string; editorial: string; material: string; turns: TurnLog[]; expects: { expect: string[]; mustNot?: string[] }[]; states?: string[] }) {
   const ks = JUDGED.filter((k) => k !== "adapts" || !!o.learner);
   const conv = o.turns
     .map((t, i) => `[turn ${i + 1}]${o.states ? `\nSTATE: ${o.states[i]}` : ""}\nLEARNER: ${t.user}\nTUTOR:\n<<<\n${t.text || "(no answer)"}\n>>>\nEXPECTATIONS:\n${o.expects[i].expect.map((x, j) => `  ${j + 1}. MUST: ${x}`).join("\n")}${(o.expects[i].mustNot ?? []).map((x) => `\n  - MUST NOT: ${x}`).join("")}`)
@@ -221,17 +227,17 @@ async function judgeCase(o: { feature: DsaFeature; title: string; learner?: Lear
 THE TUTOR: ${what}
 CASE: ${o.title}
 EDITORIAL STATE: ${o.editorial}
-LEARNER RECORD (what the tutor was told about this learner): ${learnerText(o.learner)}
+LEARNER RECORD: ${learnerText(o.learner, o.brief)}
 
 MATERIAL (ground truth for correctness; the learner sees the statement and the hints they opened, never a locked editorial):
-${o.material.slice(0, 14000)}
+${o.material.slice(0, 24000)}
 
 CONVERSATION:
 ${conv}
 
 CHECKS per turn (true = passes; be strict; null only where a check doesn't apply):
 ${ks.map((k) => `- ${k}: ${DEFS[k]}`).join("\n")}
-- expectMet: one true/false per MUST line of that turn, in order
+- expectMet: one true/false per MUST line of that turn, in order ("e.g." examples in a MUST line are illustrations, not requirements)
 - mustNotBroken: the MUST NOT lines that turn breaks (exact text), else []
 
 Return only JSON: {"turns":[{${ks.map((k) => `"${k}":true|false`).join(",")},"expectMet":[...],"mustNotBroken":[...],"why":"one short sentence per failure, or ok"}, ...one object per turn]}`;
@@ -287,11 +293,11 @@ async function main() {
   console.log(`${jobs.length} cases, ${jobs.reduce((a, j) => a + j.c.turns.length, 0)} turns · chat ${modelFor("dsa-chat")} · tutor ${modelFor("dsa-tutor")}${NOJUDGE ? " · no judge" : ` · judge ${JUDGE}`}`);
   const rows = await pool(jobs, 5, async (j): Promise<Row> => {
     const feature: DsaFeature = j.kind === "chat" ? "dsa-chat" : "dsa-tutor";
-    const run = j.kind === "chat" ? { ...(await runChat(j.c, outline)), states: undefined } : await runTutor(j.c);
+    const run = j.kind === "chat" ? await runChat(j.c, outline).then((x) => ({ ...x, material: `COURSE OUTLINE (built lessons; the tutor sees this list too):\n${outline}\n\nSOURCES PER TURN:\n${x.material}`, states: undefined })) : await runTutor(j.c);
     const editorial = j.kind === "chat" ? (j.c.unlocked?.length ? `unlocked for: ${j.c.unlocked.join(", ")}; locked for every other problem` : "locked for every problem") : j.c.unlocked ? "UNLOCKED" : `LOCKED (failed submits so far: ${j.c.fails ?? 0})`;
     let judgeCost = 0;
     if (!NOJUDGE) {
-      const jj = await judgeCase({ feature, title: j.c.title, learner: j.c.learner, editorial, material: run.material, turns: run.turns, expects: j.c.turns, states: run.states });
+      const jj = await judgeCase({ feature, title: j.c.title, learner: j.c.learner, brief: run.brief, editorial, material: run.material, turns: run.turns, expects: j.c.turns, states: run.states });
       judgeCost = jj.costUsd;
       run.turns.forEach((t, i) => (t.judge = jj.turns?.[i] ?? undefined));
     }

@@ -240,7 +240,7 @@ export const DSA_TUTOR_CASES: DsaTutorCase[] = [
     lang: "python",
     solved: true,
     unlocked: true,
-    turns: [{ mode: "complexity", code: BUSIEST_OK, result: AC_SUBMIT, maxWords: 200, expect: ["O(n) time with the reason (one pass, two operations per slide; the first sum is k), O(1) extra space", "Fits easily: ~2 × 10^5 operations at n = 10^5", "Matches the target"] }],
+    turns: [{ mode: "complexity", code: BUSIEST_OK, result: AC_SUBMIT, maxWords: 200, expect: ["O(n) time with the reason (one pass, two operations per slide; the first sum is k)", "Space: O(1) extra, or O(k) if it points out the temporary copy made by `plays[:k]` (both are right when explained)", "Fits easily: ~2 × 10^5 operations at n = 10^5, matching the O(n) time target"] }],
   },
   // ------------------------------------------------------------------ dry run, review
   {
@@ -259,7 +259,7 @@ export const DSA_TUTOR_CASES: DsaTutorCase[] = [
     lang: "python",
     solved: true,
     unlocked: true,
-    turns: [{ mode: "review", code: BUSIEST_OK, result: AC_SUBMIT, maxWords: 340, expect: ["One line on what is good", "A few concrete improvements (or says it is already clean) — none of them wrong", "Two or three interviewer follow-up questions (a variation or constraint change)"] }],
+    turns: [{ mode: "review", code: BUSIEST_OK, result: AC_SUBMIT, maxWords: 340, expect: ["One line on what is good", "A few concrete improvements (or says it is already clean), none of them wrong; the `plays[:k]` slice copy may be mentioned as a minor point", "Two or three interviewer follow-up questions (a variation or constraint change)"] }],
   },
   // ------------------------------------------------------------------ spoilers
   {
@@ -387,6 +387,6 @@ export const DSA_TUTOR_CASES: DsaTutorCase[] = [
     problem: F,
     lang: "python",
     learner: { level: "some", solved: 8, struggles: [["Fixed and variable windows", "4 failed submits on 2 variable-window problems"]], notes: { struggles: ["variable windows: when and how far to move left"] } },
-    turns: [{ mode: "hint", code: "def longest_fresh(tracks):\n    pass\n", result: null, hintsOpen: 1, maxWords: 130, expect: ["A hint at the next rung's level that addresses the known weak spot (when the left edge moves) gently, without solving it", "Ends with a question"], mustNot: [NO_FULL] }],
+    turns: [{ mode: "hint", code: "def longest_fresh(tracks):\n    pass\n", result: null, hintsOpen: 3, maxWords: 130, expect: ["A hint at the next rung's level (when a track repeats, where must the new session start?), taken gently in a small step because this is their known weak spot", "Ends with a question"], mustNot: [NO_FULL, "State the rule for the new left edge (e.g. max(left, last + 1)) outright"] }],
   },
 ];
