@@ -24,6 +24,8 @@ export type ProgressRaw = {
   flags?: Record<string, unknown> | null;
   /** the learner's DSA Mastery record (dsaDigest); absent or null: not loaded */
   dsa?: DsaDigest | null;
+  /** the outcome log as named lines, newest first (lib/learner outcomeDigest); absent or null: memory off or none */
+  outcomes?: string[] | null;
 };
 
 export type ProgressSnapshot = {
@@ -45,6 +47,8 @@ export type ProgressSnapshot = {
   next: { week: string; slug: string; title: string; code: string; minutes: number }[];
   practice: PracticeSnapshot;
   dsa: DsaDigest | null;
+  /** graded results from the outcome log (explain-backs, mock scorecards, labs, war rooms, papers, chat quizzes) */
+  outcomes: string[];
 };
 
 const ms = (s?: string | null) => {
@@ -190,5 +194,6 @@ export function buildSnapshot(raw: ProgressRaw, map: CourseMap, today = new Date
     next,
     practice,
     dsa: raw.dsa ?? null,
+    outcomes: raw.outcomes ?? [],
   };
 }

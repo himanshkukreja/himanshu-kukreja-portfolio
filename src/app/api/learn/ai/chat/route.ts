@@ -17,6 +17,7 @@ import type { ChatEvent } from "@/lib/ai/chat/text";
 import { chatDevLearner, chatDevName } from "@/lib/ai/chat/dev";
 import { makeChatTitle } from "@/lib/ai/chat/title";
 import { titlePassFor } from "@/lib/ai/chat/title-model";
+import { recordOutcome } from "@/lib/learner/events";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
       try {
         const tPrep = Date.now();
         // every part of the setup is bounded (lib/ai/chat/server.ts): a cold server answers without what isn't ready
-        const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null, devName: chatDevName(request) }), me.id ? within(loadMemory(me.id), MEMORY_WAIT_MS, null, "memory") : Promise.resolve(null)]);
+        const [{ deps, map }, mem] = await Promise.all([makeDeps({ origin: originOf(request), userId: me.id || null, page: req.page ?? null, devName: chatDevName(request), recordQuiz: me.id && !dev && !devUser ? (q) => after(() => recordOutcome(request, me.id, { course: "sdm", kind: "chat_quiz", ref: q.item.replace(/[^A-Za-z0-9:._/-]+/g, "_").slice(0, 160), outcome: q.correct === null ? "answered" : q.correct ? "right" : "wrong", detail: { kind: q.kind } }).then(() => undefined)) : undefined }), me.id ? within(loadMemory(me.id), MEMORY_WAIT_MS, null, "memory") : Promise.resolve(null)]);
         const memory = mem && mem.available && !mem.paused ? memoryLines(mem.memory) : null;
         const prepMs = Date.now() - tPrep;
         const r = await (req.mock ? runMockCore : runChatCore)({ deps, req, model: admit.model, apiKey: admit.apiKey, map: courseMapSummary(map), memory, emit, deadline: t0 + DEADLINE_MS, signal: request.signal });

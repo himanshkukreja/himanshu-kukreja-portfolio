@@ -115,6 +115,6 @@ test("an unknown problem id still reads as words; the editorial habit shows from
 });
 
 test("the stored-data note names what isn't stored", () => {
-  assert.match(STORED_NOTE, /Not stored: explain-it-back/);
-  assert.match(STORED_NOTE, /hints used in code labs/);
+  assert.match(STORED_NOTE, /Not stored: what they wrote or said/);
+  assert.match(STORED_NOTE, /while their tutor memory is on, the graded results/);
 });

@@ -34,6 +34,8 @@ function loadRaw(userId: string): Promise<Raw> {
   const p = (async () => {
     // DSA Mastery's record beside the rest (it reads its own game_done; a late or failed read leaves it out)
     const dsaP = within(dsaRecord(userId), DSA_WAIT_MS, null, "dsa record");
+    // the outcome log (graded results), named from the course content; memory off: none
+    const outcomesP = within(outcomeLines(userId), DSA_WAIT_MS, null, "outcome log");
     const [profile, rows, trials, cards] = await Promise.all([
       supabase.from("user_profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("learning_progress").select("*").eq("user_id", userId).eq("course_id", COURSE_ID).limit(2000),
@@ -42,7 +44,7 @@ function loadRaw(userId: string): Promise<Raw> {
     ]);
     const prof = (profile.data ?? null) as (ProgressRaw["profile"] & { game_flags?: Record<string, unknown> | null; full_name?: string | null }) | null;
     const flags = (prof?.game_flags && typeof prof.game_flags === "object" ? prof.game_flags : {}) as Record<string, unknown>;
-    const dsa = await dsaP;
+    const [dsa, outcomes] = await Promise.all([dsaP, outcomesP]);
     return {
       raw: {
         profile: prof ? { xp: prof.xp, game_done: prof.game_done, current_streak: prof.current_streak } : null,
@@ -51,6 +53,7 @@ function loadRaw(userId: string): Promise<Raw> {
         cards: cards.error ? [] : ((cards.data ?? []) as ProgressRaw["cards"]),
         flags,
         dsa,
+        outcomes,
       },
       flags,
       // the tutor may call them by their first name (only a clean one: letters, no email-like profile name)
@@ -75,6 +78,20 @@ async function dsaRecord(userId: string): Promise<DsaDigest | null> {
   const profile = buildDsaProfile(raw, ix, null);
   if (!profile.attempted && !profile.lessonsDone) return null;
   return dsaDigest(raw, ix, profile);
+}
+
+/**
+ * The learner's graded results from the outcome log (lib/learner: explain-backs with the key points missed, mock
+ * scorecards, labs, war rooms, papers, quick checks in the chat), as named lines. Only while memory is on (the log is
+ * the learner model's; paused means no brief). null: off, or nothing recorded.
+ */
+async function outcomeLines(userId: string): Promise<string[] | null> {
+  const m = await loadMemory(userId);
+  if (!m.available || m.paused) return null;
+  const [{ loadOutcomes }, { namerFor }, { outcomeDigest }] = await Promise.all([import("@/lib/learner/events"), import("@/lib/learner/feature-brief"), import("@/lib/learner/feature-brief-model")]);
+  const events = await loadOutcomes(userId);
+  if (!events.some((e) => e.kind !== "dsa_submit")) return null;
+  return outcomeDigest(events, await namerFor(events), 10);
 }
 
 /** After a save, the next message should see it. */
@@ -114,7 +131,7 @@ export function within<T>(p: Promise<T>, ms: number, fallback: T | (() => T), wh
   return Promise.race([p.catch(() => value()), late]).finally(() => clearTimeout(timer));
 }
 
-export async function makeDeps(a: { origin: string; userId: string | null; page: PageContext | null; devName?: string | null }): Promise<{ deps: ChatDeps; map: CourseMap | null }> {
+export async function makeDeps(a: { origin: string; userId: string | null; page: PageContext | null; devName?: string | null; recordQuiz?: ChatDeps["recordQuiz"] }): Promise<{ deps: ChatDeps; map: CourseMap | null }> {
   const warming = Symbol("warming");
   const search = getSearch(a.origin);
   const allLive = () => Object.assign(() => true, { blocked: [] as string[] });
@@ -151,6 +168,7 @@ export async function makeDeps(a: { origin: string; userId: string | null; page:
     dueReviews: async (waitMs) => (!a.userId ? null : waitMs ? within(dueReviewsFor(a.userId), waitMs, null, "due reviews") : dueReviewsFor(a.userId)),
     studyPlan: async (p) => planFor(p),
     learnerName: async () => (a.devName !== undefined ? a.devName : a.userId ? (await loadRaw(a.userId)).name : null),
+    ...(a.recordQuiz ? { recordQuiz: a.recordQuiz } : {}),
   };
   return { deps, map };
 }

@@ -67,6 +67,8 @@ export type ChatDeps = {
   studyPlan: (p: PlanInput) => Promise<PlanStep[] | null>;
   /** the learner's first name, cleaned (lib/ai/answerStyle.ts learnerFirstName; null: unknown) */
   learnerName?: () => Promise<string | null>;
+  /** note a graded practice answer in the learner's outcome log (lib/learner/events.ts; absent: not noted) */
+  recordQuiz?: (q: { item: string; kind: string; correct: boolean | null }) => void;
 };
 
 /** What a conversation has handed out so far (rebuilt from the request and checked again every message). */
@@ -906,10 +908,12 @@ async function checkAnswer(st: ChatState, input: Record<string, unknown>): Promi
     const correct = picked ? picked === p.answer.letter : null;
     const result: QuizResult = { qref, answer: picked || cap(answer, 40), correct, correctLetter: p.answer.letter };
     st.send({ type: "graded", result });
+    st.d.recordQuiz?.({ item, kind: p.kind, correct });
     const idx = LETTERS.indexOf(p.answer.letter ?? "");
     return `${DATA_NOTE}\n${qref}: the learner ${picked ? `chose ${picked}` : `answered "${cap(answer, 80)}" (no option letter found)`}. Correct option: ${p.answer.letter}) ${oneLine(p.options[idx] ?? "")}. Marked: ${correct === null ? "they wrote words, not a letter: grade what they wrote against the correct option and the explanation below (Right / Partly right / Not quite), then say which letter was right" : correct ? "RIGHT" : "WRONG"}.\n<reference_explanation>\n${p.answer.text || "(the course gives no explanation for this one: explain from the correct option)"}\n</reference_explanation>${from ? `\nFrom: ${from}` : ""}`;
   }
   st.send({ type: "graded", result: { qref, answer: cap(answer, 80), correct: null } });
+  st.d.recordQuiz?.({ item, kind: p.kind, correct: null });
   const extra = p.kind === "drill" ? `\nThe answer must mention:\n${(p.answer.must ?? []).map((m) => `- ${m}`).join("\n")}\nA common weak answer: ${p.answer.weak}` : "";
   return `${DATA_NOTE}\n${qref}: grade the learner's answer against this reference only. Say right, partly right or not quite, name what they got and what they missed.\n<learner_answer>\n${cap(answer, 1500)}\n</learner_answer>\n<reference_answer>\n${cap(p.answer.text, 3000)}${extra}\n</reference_answer>${from ? `\nFrom: ${from}` : ""}`;
 }
@@ -1158,6 +1162,8 @@ async function practiceLines(st: ChatState, p: ProgressSnapshot, now: number, fr
   if (x.quickChecks.total) out.push(`Quick checks right first time: ${x.quickChecks.total}${x.quickChecks.lessons.length ? `, most recently in ${x.quickChecks.lessons.slice(0, full ? 6 : 2).map((l) => `${l.title} (${l.n})`).join(", ")}` : ""}`);
   if (full && x.drills.length) out.push(`Drills done: ${x.drills.slice(0, n).map((d) => human(d.id)).join("; ")}`);
   if (x.explains.length) out.push(`Explain-it-back passes recorded: ${x.explains.slice(0, n).map((e) => human(e.id)).join("; ")}`);
+  // the outcome log: what the graders said (levels and the course's own words for what was missed, never the learner's)
+  if (p.outcomes.length) out.push(`Graded results, newest first (the AI graders' verdicts and the course points missed; their own answers aren't kept): ${p.outcomes.slice(0, full ? 10 : 4).join(" | ")}`);
   if (dsa) {
     const bits = [`${dsa.solved} problem(s) solved${dsa.attempted > dsa.solved ? ` of ${dsa.attempted} tried` : ""}${dsa.lessonsDone ? `, ${dsa.lessonsDone} concept lesson(s) done` : ""}`];
     const about = (r: DsaDigest["recent"][number]) => [r.level, r.concept, r.langs.join("/"), r.at > 1 ? ago(r.at, now) : ""].filter(Boolean).join(", ");
