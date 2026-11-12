@@ -5,17 +5,25 @@
  *   user_profiles      game_done (lesson:/stage:/boss:/trial:/mock:/offer: keys), xp, streak
  *   trial_attempts     trial part scores (best attempt per part)
  *   review_cards       spaced-repetition cards (box 1-2 or graded again/hard = weak spots)
+ *   practice           code labs, war rooms, papers, quick checks, mock verdicts and DSA Mastery (practice-model.ts)
  * Pure, so the route and the eval build the same snapshot (the eval from a fixture). Never includes
  * anyone else's data: the route loads the raw rows by the verified user id.
  */
 import type { CourseMap, CourseLesson } from "@/lib/learn/types";
 import { lessonKey } from "@/lib/learn/types";
+import { practiceOf, type DsaDigest, type PracticeSnapshot } from "./practice-model";
+
+export { dsaDigest, STORED_NOTE, type DsaDigest, type MockVerdict, type PracticeSnapshot } from "./practice-model";
 
 export type ProgressRaw = {
   profile: { xp?: number | null; game_done?: Record<string, number> | null; current_streak?: number | null } | null;
   rows: { week: string; lesson_slug: string; status?: string | null; progress_percentage?: number | null; max_progress?: number | null; completed_stages?: string[] | null; last_stage?: string | null; last_accessed_at?: string | null; completed_at?: string | null }[];
   trials: { week: string; part: number; score: number; total: number; passed: boolean }[];
   cards: { front: string; week: string | null; lesson_slug: string | null; box: number; last_grade: string | null; due_at: string | null }[];
+  /** user_profiles.game_flags (mock verdicts, written papers); absent: none */
+  flags?: Record<string, unknown> | null;
+  /** the learner's DSA Mastery record (dsaDigest); absent or null: not loaded */
+  dsa?: DsaDigest | null;
 };
 
 export type ProgressSnapshot = {
@@ -35,6 +43,8 @@ export type ProgressSnapshot = {
   dueCards: number;
   mocks: { slug: string; title: string; offer: boolean }[];
   next: { week: string; slug: string; title: string; code: string; minutes: number }[];
+  practice: PracticeSnapshot;
+  dsa: DsaDigest | null;
 };
 
 const ms = (s?: string | null) => {
@@ -159,8 +169,9 @@ export function buildSnapshot(raw: ProgressRaw, map: CourseMap, today = new Date
 
   const core = weeks.flatMap((w) => [...w.lessons, ...(w.boss ? [w.boss] : [])]);
   const quests = map.sideQuests.filter((q) => !unreleased(q.week));
+  const practice = practiceOf(done, raw.flags ?? {}, map, titleOf);
   return {
-    started: entries.length > 0 || Object.keys(done).some((k) => /^(lesson|stage|trial|boss|mock):/.test(k)),
+    started: entries.length > 0 || Object.keys(done).some((k) => /^(lesson|stage|trial|boss|mock|lab|lab-iv|warroom|paper|quiz):/.test(k)),
     lessonsDone: core.filter(isDone).length,
     lessonsTotal: core.length,
     questsDone: quests.filter(isDone).length,
@@ -176,5 +187,7 @@ export function buildSnapshot(raw: ProgressRaw, map: CourseMap, today = new Date
     dueCards: raw.cards.filter((c) => c.due_at && c.due_at.slice(0, 10) <= day).length,
     mocks,
     next,
+    practice,
+    dsa: raw.dsa ?? null,
   };
 }

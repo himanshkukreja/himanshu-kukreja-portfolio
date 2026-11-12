@@ -23,7 +23,7 @@ import type { QuestDrills } from "@/lib/learn/drills/parse";
 import type { SavedPath } from "@/lib/learn/saved-paths";
 import type { ChatEvent, ChatSource, PageContext, PathCard, QuizCard, QuizKind, QuizResult } from "./text";
 import { isRef, nextRef, NOUN_OF, toolStatus } from "./text";
-import type { ProgressSnapshot } from "./progress-model";
+import { STORED_NOTE, type DsaDigest, type ProgressSnapshot } from "./progress-model";
 import { findGuide, guideTopic, type GuideTopic } from "./siteGuide";
 import type { MockInterview } from "@/lib/learn/mock/types";
 import { fromCourseMock, fromQuest, mockCard, type ChatMock } from "./mock";
@@ -273,7 +273,7 @@ export const TOOLS = [
   },
   {
     name: "get_progress",
-    description: "The learner's own progress: completed and in-progress lessons, week by week; trial (MCQ) scores; review cards they find hard; mocks done; their current week and the next lessons, with refs.",
+    description: "The learner's own progress: completed and in-progress lessons, week by week; trial (MCQ) scores; review cards they find hard; mocks done with their verdicts; code labs cleared, war rooms, written papers and quick checks; their DSA Mastery record (problems solved, patterns, struggles); their current week and the next lessons, with refs. Says what isn't stored.",
     input_schema: { type: "object", properties: {} },
   },
   {
@@ -695,6 +695,8 @@ async function getProgress(st: ChatState): Promise<string> {
   if (p.weak.length) out.push(`Review cards they find hard (spaced repetition: box 1-2 or graded again/hard):\n${p.weak.map((c) => `- "${cap(oneLine(c.front), 140)}"${c.week && c.slug ? ` from ${lessonRef(c.week, c.slug) || `${c.week}/${c.slug}`}` : ""}`).join("\n")}`);
   if (p.dueCards) out.push(`${p.dueCards} review card(s) due today.`);
   if (p.mocks.length) out.push(`Mock interviews done: ${p.mocks.map((m) => `${m.title}${m.offer ? " (Hire or better)" : ""}`).join("; ")}.`);
+  out.push(...(await practiceLines(st, p, Date.now(), fresh, true)));
+  out.push(STORED_NOTE);
   if (p.next.length) out.push(`Next unfinished lessons in order:\n${p.next.map((l) => `- ${[lessonRef(l.week, l.slug), l.title].filter(Boolean).join(" ")} (W${l.code}, ~${l.minutes} min)`).join("\n")}`);
   st.sourcesSent(fresh);
   return out.join("\n");
@@ -1121,15 +1123,58 @@ const ago = (at: number, now: number) => {
   return d <= 0 ? "today" : d === 1 ? "yesterday" : `${d} days ago`;
 };
 
+/** How long a chat's first message waits for its due reviews (they are warmed when the chat opens: lib/ai/chat/server.ts). */
+export const FIRST_DUE_WAIT_MS = 2000;
+
+const verdictText = (v: { verdict: string; level: string; pct: number }) => `${v.verdict.replace(/-/g, " ")}${v.level ? ` at ${v.level.toUpperCase()}` : ""}${v.pct ? `, ${v.pct}%` : ""}`;
+const human = (id: string) => id.replace(/[-_]+/g, " ");
+
+/**
+ * Lines about what the learner practised beyond lessons (code labs, mocks, war rooms, papers, quick checks) and their
+ * DSA Mastery record, from the snapshot (progress-model.ts PracticeSnapshot, DsaDigest). `full`: get_progress's
+ * complete list; else the short version for the learner context. Labs, war rooms and mocks get refs.
+ */
+async function practiceLines(st: ChatState, p: ProgressSnapshot, now: number, fresh: Record<string, ChatSource>, full: boolean): Promise<string[]> {
+  const { practice: x, dsa } = p;
+  const n = full ? 12 : 3;
+  await st.ensure([...x.labs.slice(0, n).map((l) => `LB:${l.id}`), ...x.warRooms.slice(0, n).map((w) => `WR:${w.slug}`), ...x.mockResults.slice(0, n).map((m) => `MK:${m.id}`)]);
+  const named = (id: string, fallback: string) => {
+    const d = st.liveDoc(id);
+    return d ? `${st.ref(d, fresh)} ${d.title}` : fallback;
+  };
+  const when = (at: number) => (at > 1 ? ` (${ago(at, now)})` : "");
+  const out: string[] = [];
+  if (x.labs.length)
+    out.push(
+      `Code labs (their record holds only the outcome: how many runs, failed runs or hints a lab took isn't stored, so when they ask how a lab went, give the outcome and its date and say you can't see the runs): ${x.labs
+        .slice(0, n)
+        .map((l) => `${named(`LB:${l.id}`, human(l.id))}: ${l.cleared ? `cleared, every test passing${when(l.cleared)}` : "not cleared"}${l.interview ? `; interview mode passed${when(l.interview)}` : ""}`)
+        .join("; ")}${x.labs.length > n ? `; +${x.labs.length - n} more` : ""}`,
+    );
+  if (x.mockResults.length)
+    out.push(`Mock interview results (verdicts only; transcripts and per-phase scores stay in their browser): ${x.mockResults.slice(0, n).map((m) => `${named(`MK:${m.id}`, m.title)}: best ${verdictText(m.best)}${when(m.best.at)}${m.last && m.n > 1 ? `, last ${verdictText(m.last)}` : ""}, ${m.n} run(s)`).join("; ")}`);
+  if (x.warRooms.length) out.push(`War rooms cleared: ${x.warRooms.slice(0, n).map((w) => `${named(`WR:${w.slug}`, human(w.slug))}${when(w.at)}`).join("; ")}`);
+  if (x.papers.length) out.push(`Written papers: ${x.papers.slice(0, n).map((q) => `${human(q.key)}: ${q.passed ? "passed" : "not passed yet"}${q.best ? `, best ${q.best.score}/${q.best.max}` : ""}${q.attempts ? `, ${q.attempts} attempt(s)` : ""}`).join("; ")}`);
+  if (x.quickChecks.total) out.push(`Quick checks right first time: ${x.quickChecks.total}${x.quickChecks.lessons.length ? `, most recently in ${x.quickChecks.lessons.slice(0, full ? 6 : 2).map((l) => `${l.title} (${l.n})`).join(", ")}` : ""}`);
+  if (full && x.drills.length) out.push(`Drills done: ${x.drills.slice(0, n).map((d) => human(d.id)).join("; ")}`);
+  if (x.explains.length) out.push(`Explain-it-back passes recorded: ${x.explains.slice(0, n).map((e) => human(e.id)).join("; ")}`);
+  if (dsa) {
+    const bits = [`${dsa.solved} problem(s) solved${dsa.attempted > dsa.solved ? ` of ${dsa.attempted} tried` : ""}${dsa.conceptsDone ? `, ${dsa.conceptsDone} concept lesson(s) done` : ""}`];
+    const about = (r: DsaDigest["recent"][number]) => [r.level, r.langs.join("/"), r.at > 1 ? ago(r.at, now) : ""].filter(Boolean).join(", ");
+    if (dsa.recent.length) bits.push(`${full ? "solved, newest first" : "latest"}: ${dsa.recent.slice(0, full ? 8 : 5).map((r) => `${r.title}${about(r) ? ` (${about(r)})` : ""}`).join("; ")}`);
+    if (dsa.patterns.length) bits.push(`patterns: ${dsa.patterns.map((q) => `${human(q.name)} ×${q.solved}`).join(", ")}`);
+    if (dsa.struggles.length) bits.push(`struggled with: ${dsa.struggles.slice(0, full ? 5 : 3).map((q) => `${q.title} (${[q.failed ? `${q.failed} failed submit(s): ${q.verdicts.join("/")}` : "", q.hints ? `${q.hints} hint(s)` : "", q.editorial ? "opened the editorial" : "", q.solved ? "solved since" : "not solved yet"].filter(Boolean).join(", ")})`).join("; ")}`);
+    out.push(`DSA Mastery (their coding course on this site): ${bits.join("; ")}.`);
+  } else if (full) out.push("DSA Mastery (their coding course on this site): nothing solved or submitted yet.");
+  return out;
+}
+
 /**
  * What the tutor knows at the start of every turn, attached to the learner's latest message (never to the
  * system prompt): where they are, the memory of earlier chats, their progress and weak spots, saved paths and
  * recent activity. Everything in it is the learner's own data or course data, and is framed as data. Refs it
  * mentions are registered like any tool's, so the model can cite them without another call.
  */
-/** How long a chat's first message waits for its due reviews (they are warmed when the chat opens: lib/ai/chat/server.ts). */
-export const FIRST_DUE_WAIT_MS = 2000;
-
 export async function learnerContext(st: ChatState, memory: string[] | null, first = false, now = Date.now(), o: { recentAnswers?: string[] } = {}): Promise<string> {
   const fresh: Record<string, ChatSource> = {};
   const parts: string[] = [];
@@ -1163,6 +1208,8 @@ export async function learnerContext(st: ChatState, memory: string[] | null, fir
     if (failed.length) lines.push(`Trial parts not passed yet: ${failed.slice(0, 3).map((t) => `W${t.code} part ${t.part} ${t.title} (best ${t.best}/${t.total})`).join("; ")}`);
     if (p.weak.length) lines.push(`Review cards they find hard: ${p.weak.slice(0, 3).map((c) => `"${cap(oneLine(c.front), 90)}"`).join("; ")}`);
     if (p.mocks.length) lines.push(`Mocks done: ${p.mocks.map((m) => `${m.title}${m.offer ? " (Hire or better)" : ""}`).join("; ")}`);
+    lines.push(...(await practiceLines(st, p, now, fresh, false)));
+    lines.push(STORED_NOTE);
     parts.push(`Their progress (get_progress has the full picture):\n${lines.map((l) => `- ${l}`).join("\n")}`);
   }
   if (due?.length) parts.push(`Due for review now (${due.length}; this is the start of the chat, so end your answer with a one-line nudge about it): ${due.slice(0, 3).map((d) => `${cap(oneLine(d.title), 70)} (${cap(oneLine(d.why), 90)})`).join("; ")}. get_due_reviews has the list.`);

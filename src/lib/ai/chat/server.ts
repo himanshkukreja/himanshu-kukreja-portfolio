@@ -18,7 +18,9 @@ import { getMockInterview } from "@/lib/learn/mock/page-data";
 import { canvasPrompts, FREE_RE, getDesign, myDesigns, promptBrief } from "@/lib/learn/canvas";
 import { sketchSummary } from "@/lib/learn/mock/sketch";
 import type { PageContext } from "./text";
-import { buildSnapshot, type ProgressRaw, type ProgressSnapshot } from "./progress-model";
+import { buildSnapshot, dsaDigest, type DsaDigest, type ProgressRaw, type ProgressSnapshot } from "./progress-model";
+import { dsaLearnerData } from "@/lib/dsa/learner-data";
+import { getProblemIndex } from "@/lib/dsa/load";
 import { cleanMemory, emptyMemory, type ChatMemory } from "./memory-model";
 import { dueReviewsFor, planFor } from "./reviewSeams";
 import { learnerFirstName } from "@/lib/ai/answerStyle";
@@ -32,6 +34,8 @@ function loadRaw(userId: string): Promise<Raw> {
   const hit = cache.get(userId);
   if (hit && Date.now() - hit.at < 60_000) return hit.p;
   const p = (async () => {
+    // DSA Mastery's record beside the rest (it reads its own game_done; a late or failed read leaves it out)
+    const dsaP = within(dsaRecord(userId), DSA_WAIT_MS, null, "dsa record");
     const [profile, rows, trials, cards] = await Promise.all([
       supabase.from("user_profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("learning_progress").select("*").eq("user_id", userId).eq("course_id", COURSE_ID).limit(2000),
@@ -39,14 +43,18 @@ function loadRaw(userId: string): Promise<Raw> {
       supabase.from("review_cards").select("front, week, lesson_slug, box, last_grade, due_at").eq("user_id", userId).eq("course_id", COURSE_ID).limit(500),
     ]);
     const prof = (profile.data ?? null) as (ProgressRaw["profile"] & { game_flags?: Record<string, unknown> | null; full_name?: string | null }) | null;
+    const flags = (prof?.game_flags && typeof prof.game_flags === "object" ? prof.game_flags : {}) as Record<string, unknown>;
+    const dsa = await dsaP;
     return {
       raw: {
         profile: prof ? { xp: prof.xp, game_done: prof.game_done, current_streak: prof.current_streak } : null,
         rows: (rows.data ?? []) as ProgressRaw["rows"],
         trials: trials.error ? [] : ((trials.data ?? []) as ProgressRaw["trials"]),
         cards: cards.error ? [] : ((cards.data ?? []) as ProgressRaw["cards"]),
+        flags,
+        dsa,
       },
-      flags: (prof?.game_flags && typeof prof.game_flags === "object" ? prof.game_flags : {}) as Record<string, unknown>,
+      flags,
       // the tutor may call them by their first name (only a clean one: letters, no email-like profile name)
       name: learnerFirstName(prof?.full_name),
     };
@@ -55,6 +63,33 @@ function loadRaw(userId: string): Promise<Raw> {
   if (cache.size > 500) cache.delete(cache.keys().next().value as string);
   p.catch(() => cache.delete(userId));
   return p;
+}
+
+/**
+ * The learner's DSA Mastery record for the chat: what they solved (lib/dsa/learner-data.ts: dsa: keys, completed problem
+ * rows, Accepted submits), with titles and patterns from the problem index, and where they struggled (submits that
+ * weren't Accepted, hints and editorials from dsa_problem_progress). null: nothing recorded.
+ */
+async function dsaRecord(userId: string): Promise<DsaDigest | null> {
+  const [data, index, failed, progress] = await Promise.all([
+    dsaLearnerData(userId),
+    getProblemIndex().catch(() => []),
+    supabase.from("dsa_submissions").select("problem_id, verdict").eq("user_id", userId).neq("verdict", "AC").order("created_at", { ascending: false }).limit(300),
+    supabase.from("dsa_problem_progress").select("problem_id, status, hints_used, editorial_viewed").eq("user_id", userId).limit(1000),
+  ]);
+  const solved = data.signals.solved as Set<string>;
+  const fails = (failed.error ? [] : (failed.data ?? [])) as { problem_id: string; verdict: string }[];
+  const rows = (progress.error ? [] : (progress.data ?? [])) as { problem_id: string; status: string; hints_used: number | null; editorial_viewed: boolean | null }[];
+  if (!solved.size && !fails.length && !rows.length && !(data.signals.concepts as Set<string>).size) return null;
+  return dsaDigest({
+    solved,
+    solvedAt: data.solvedAt,
+    langs: data.langs as Map<string, Set<string>>,
+    conceptsDone: (data.signals.concepts as Set<string>).size,
+    problems: new Map(index.map((p) => [p.id, { title: p.title, level: p.level, patterns: p.patterns ?? [] }])),
+    failed: fails.map((f) => ({ problem: f.problem_id, verdict: f.verdict })),
+    progress: rows.map((r) => ({ problem: r.problem_id, status: r.status, hints: Number(r.hints_used) || 0, editorial: !!r.editorial_viewed })),
+  });
 }
 
 /** After a save, the next message should see it. */
@@ -70,6 +105,7 @@ export const ENGINE_WAIT_MS = 20_000;
 const MAP_WAIT_MS = 8_000;
 const CONTROLS_WAIT_MS = 5_000;
 export const MEMORY_WAIT_MS = 5_000;
+const DSA_WAIT_MS = 3_000;
 const BANK_WAIT_MS = 8_000;
 
 /** The course search index isn't ready yet on this (cold) server. */
