@@ -108,7 +108,7 @@ export async function POST(request: Request) {
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => labHintSystem({ title: lab.title, brief }, promptOptsFor(model, "lab-hint")),
-    messages: [{ role: "user", content: withBrief(lb.text, user) }],
+    messages: [{ role: "user", content: withBrief(lb, user) }],
     capChars: user.length,
     meta: { lab: lab.id, kind: "hint", level, lang, ...(lb.text ? { brief: true } : {}) },
   });

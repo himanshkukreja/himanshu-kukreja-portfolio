@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => designReviewSystem({ title: c.title, text: problem }, promptOptsFor(model, "design-review")),
-    messages: [{ role: "user", content: withBrief(brief.text, md.slice(0, 15000), "My design:") }],
+    messages: [{ role: "user", content: withBrief(brief, md.slice(0, 15000), "My design:") }],
     capChars: Math.min(md.length, 15000),
     meta: { challenge: c.slug, ...(brief.text ? { brief: true } : {}) },
   });

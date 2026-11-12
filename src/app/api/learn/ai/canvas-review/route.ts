@@ -43,7 +43,7 @@ export async function POST(request: Request) {
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system: (model) => canvasReviewSystem(brief, promptOptsFor(model, "canvas-review")),
-    messages: [{ role: "user", content: withBrief(lb.text, input.slice(0, 12000)) }],
+    messages: [{ role: "user", content: withBrief(lb, input.slice(0, 12000)) }],
     capChars: Math.min(input.length, 12000),
     meta: { design: key, ...(lb.text ? { brief: true } : {}) },
   });

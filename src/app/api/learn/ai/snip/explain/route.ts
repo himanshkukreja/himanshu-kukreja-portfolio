@@ -7,6 +7,7 @@ import { checkImage, IMAGE_TYPES, type AiImageBlock, type ImageMediaType } from 
 import { snipAskInput, snipExplainInput, snipExplainSystem, snipFollowUpInput } from "@/lib/ai/prompts";
 import { SNIP_KINDS, snipGrounding, type LectureMoment, type SnipKind } from "../_lib/context";
 import { learnerBrief } from "@/lib/learner/brief";
+import { withBrief } from "@/lib/learner/feature-brief-model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -140,8 +141,8 @@ export async function POST(request: Request) {
     const last = sent[sent.length - 1];
     sent[sent.length - 1] =
       typeof last.content === "string"
-        ? { ...last, content: `${brief.text}\n\n${last.content}` }
-        : { ...last, content: [...last.content.slice(0, -1), { type: "text", text: `${brief.text}\n\n${(last.content[last.content.length - 1] as { text: string }).text}` }] };
+        ? { ...last, content: withBrief(brief, last.content) }
+        : { ...last, content: [...last.content.slice(0, -1), { type: "text", text: withBrief(brief, (last.content[last.content.length - 1] as { text: string }).text) }] };
   }
   const r = await callClaude({
     feature: "snip-explain",

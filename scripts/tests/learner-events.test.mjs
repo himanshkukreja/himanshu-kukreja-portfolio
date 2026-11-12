@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { cleanDetail, eventRow, namedItems, rankOf, scorecardParts, levelWord } from "../../src/lib/learner/events-model.ts";
-import { compareExplain, compareLabReview, compareMock, defaultStyleLines, featureBriefText, outcomeDigest } from "../../src/lib/learner/feature-brief-model.ts";
+import { compareExplain, compareLabReview, compareMock, defaultStyleLines, featureBriefText, outcomeDigest, withBrief } from "../../src/lib/learner/feature-brief-model.ts";
 
 const T = Date.parse("2026-11-12T10:00:00Z");
 const DAY = 86_400_000;
@@ -89,7 +89,7 @@ test("mock interviewer: the round, the bar, the last attempt's weak phase and th
   assert.match(b.text, /at the SDE bar they picked/);
   assert.match(b.text, /weakest phase Capacity \(junior\)/);
   assert.match(b.text, /In this phase last time they missed: "Uses idempotency keys"/);
-  assert.match(b.text, /never name it first/);
+  assert.match(b.text, /one neutral question/);
 });
 
 test("explain-back and lesson-qa: earlier attempts, struggles, default style from memory (O10)", () => {
@@ -103,6 +103,13 @@ test("explain-back and lesson-qa: earlier attempts, struggles, default style fro
   const chosen = featureBriefText({ feature: "lesson-qa", course: "sdm", notes, events, names, ref: { topic: "x" }, styleChosen: true, now: T });
   assert.doesNotMatch(chosen.text, /keep it brief/);
   assert.deepEqual(defaultStyleLines({ goals: [], level: "8 years, staff engineer", prefs: ["hinglish"], struggles: [] }).length, 2);
+  // lesson-qa turns the default style into its own <answer_style> line: the beginner's style lines leave the adapt block
+  const viaLine = featureBriefText({ feature: "lesson-qa", course: "sdm", notes, events, names, ref: { topic: "x" }, styleLine: true, now: T });
+  assert.equal(viaLine.style, "simple");
+  assert.doesNotMatch(viaLine.tail, /For a beginner|keep it brief/);
+  assert.equal(withBrief(viaLine, "Q?").indexOf("<learner"), 0);
+  assert.ok(withBrief(viaLine, "Q?").trimEnd().endsWith("</adapt>"));
+  assert.equal(withBrief({ head: "", tail: "" }, "Q?"), "Q?");
 });
 
 test("compared with last time (O9)", () => {

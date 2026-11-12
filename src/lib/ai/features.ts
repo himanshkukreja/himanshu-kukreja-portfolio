@@ -76,7 +76,10 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   "explain-back": { label: "Explain-it-back grade", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 150, maxTokens: 400, maxInputChars: 1500, think: true, effort: "low", live: true },
   "mock-interviewer": { label: "AI mock interviewer (turn)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 450, haikuMaxTokens: 650, maxInputChars: 4000, think: false, live: true },
   "mock-coach": { label: "AI mock live coach (per phase)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 150, maxTokens: 500, haikuMaxTokens: 800, maxInputChars: 14000, think: false, live: true },
-  "mock-scorecard": { label: "AI mock scorecard", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 12, maxTokens: 3000, maxInputChars: 60000, think: true, effort: "medium", live: true },
+  // haikuMaxTokens 6000 (12 Nov 2026): a strong 7-phase attempt quotes a lot under MET, and with medium-effort thinking
+  // Haiku 5.5 ran out of its 3,000 + 3,000 before "### Overall" in 3 of 4 eval runs (scripts/ai-eval/brief.ts), with or
+  // without the learner brief; a cut-off scorecard has no overall level, so nothing is compared or noted
+  "mock-scorecard": { label: "AI mock scorecard", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 12, maxTokens: 3000, haikuMaxTokens: 6000, maxInputChars: 60000, think: true, effort: "medium", live: true },
   "design-review": { label: "Design review", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1500, maxInputChars: 15000, think: true, effort: "medium", live: true },
   "canvas-review": { label: "Design canvas review", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 1500, maxInputChars: 12000, think: false, live: true },
   // Haiku: in the blind eval it matched Sonnet on every case at about a third of the cost; Haiku 5.5 tied Haiku 4.5 (16 runs) at a tenth of its cost

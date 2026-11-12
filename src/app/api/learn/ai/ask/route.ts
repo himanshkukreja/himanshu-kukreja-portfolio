@@ -55,8 +55,10 @@ export async function POST(request: Request) {
   const mode = body.mode && MODES[body.mode] ? MODES[body.mode] : "";
   // the panel's last exchange, clipped at a sentence end; it never counts toward the input cap (lib/ai/askTurn.ts)
   const prev = clipPrevious(body.previous);
-  const brief = await learnerBrief(me.id, { feature: "lesson-qa", ref: { topic: `${doc.title} ${question} ${selection.slice(0, 200)}` }, styleChosen: !!mode || isAnswerStyle(body.style) });
-  const ask = buildAskTurn({ question, selection, kind, mode, style: styleLine(isAnswerStyle(body.style) ? body.style : null), prev });
+  const brief = await learnerBrief(me.id, { feature: "lesson-qa", ref: { topic: `${doc.title} ${question} ${selection.slice(0, 200)}` }, styleChosen: !!mode || isAnswerStyle(body.style), styleLine: true });
+  // the learner's own pick, else the style their memory points to (O10: a beginner gets "simple"), never over a mode
+  const style = isAnswerStyle(body.style) ? body.style : !mode ? brief.style : null;
+  const ask = buildAskTurn({ question, selection, kind, mode, style: styleLine(style), prev });
   // a follow-up about the previous answer finds its sections from that question's words too
   const context = { title: doc.title, text: lessonContext(doc.content, [question, prev && !selection ? prev.q : ""].filter(Boolean).join(" "), selection), kind } as const;
   // the prompt is picked by the model the call actually uses (Haiku 5.5 has its own variant)
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
     adminPreview: await isAdminEmail(me.email),
     userKey: ownKey(request),
     system,
-    messages: [{ role: "user", content: withBrief(brief.text, ask) }],
+    messages: [{ role: "user", content: withBrief(brief, ask) }],
     capChars: askCapChars(question),
     meta: { ...(story ? { story } : { week, slug }), mode: body.mode ?? null, selection: !!selection, ...(brief.text ? { brief: true } : {}) },
   });

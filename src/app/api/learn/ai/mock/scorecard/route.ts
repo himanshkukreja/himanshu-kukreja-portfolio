@@ -7,10 +7,11 @@ import { lldScorecardSystem, mockFullScorecardSystem, promptOptsFor, replyFrom }
 import { lldRubricText, problemText, promptPhase } from "@/lib/ai/mock";
 import { withChange } from "@/lib/learn/mock/lld";
 import { MOCK_LEVELS, type MockInterview } from "@/lib/learn/mock/types";
+import { scorecardOutcome } from "@/lib/learner/scorecard";
 import { learnerBrief } from "@/lib/learner/brief";
 import { recordOutcome } from "@/lib/learner/events";
-import { namedItems, scorecardParts, type NewEvent } from "@/lib/learner/events-model";
-import { compareMock, mockRuns, refEvents, withBrief, type Namer } from "@/lib/learner/feature-brief-model";
+import { withBrief, type Namer } from "@/lib/learner/feature-brief-model";
+import type { OutcomeEvent } from "@/lib/learner/events-model";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -95,41 +96,9 @@ export async function POST(request: Request) {
   return NextResponse.json({ text, compare, creditsLeft: r.creditsLeft });
 }
 
-/**
- * The scorecard as outcomes: each phase's level and the rubric signal ids it met and missed (read from the grader's
- * MET / MISSED lines against the phase's own rubric), the round's level, the bar picked and the weakest phase. Written
- * after the answer is out; returns the "compared with last time" lines (from the log as it was before this attempt).
- */
-function outcomes(request: Request, userId: string, mock: MockInterview, text: string, level: string | null, brief: { events: Parameters<typeof refEvents>[0]; names: Namer }): string[] {
-  const parts = scorecardParts(text);
-  const overall = parts.find((p) => /^overall/i.test(p.title))?.level || "";
-  const phases = mock.phases
-    .map((ph, i) => {
-      const part = parts.find((p) => new RegExp(`^P${i + 1}\\b`).test(p.title));
-      if (!part) return null;
-      const items = ph.rubric.map((s) => ({ id: s.id, text: s.text }));
-      const miss = /not attempted/i.test(part.missed) ? ph.rubric.map((s) => s.id) : namedItems(part.missed, items);
-      const met = namedItems(part.met, items).filter((id) => !miss.includes(id));
-      return { id: ph.id, title: ph.title, level: part.level || "none", miss, met };
-    })
-    .filter((p): p is NonNullable<typeof p> => !!p);
-  if (!overall || !phases.length) return [];
-  const lld = mock.kind === "lld";
-  const prev = mockRuns(refEvents(brief.events, lld ? { kinds: ["lld_mock"], ref: mock.slug } : { kinds: ["mock_overall", "mock_phase"], prefix: mock.slug }))[0];
-  const compare = compareMock(prev, { overall, phases }, (id) => brief.names.item({ course: "sdm", kind: lld ? "lld_mock" : "mock_overall", ref: mock.slug, outcome: null, detail: {}, at: 0 }, id));
-  const run = Date.now();
-  const levels = Object.fromEntries(phases.map((p) => [p.id, p.level]));
-  const answered = phases.filter((p) => p.level !== "none");
-  const weak = answered.length ? answered.reduce((a, p) => (MOCK_RANK.indexOf(p.level) < MOCK_RANK.indexOf(a.level) ? p : a)).id : null;
-  const checklist = parts.find((p) => p.checklist)?.checklist.match(/(\d+)\s*(?:of|\/)\s*(\d+)/);
-  const rows: NewEvent[] = lld
-    ? [{ course: "sdm", kind: "lld_mock", ref: mock.slug, outcome: overall, detail: { run, phases: levels, miss: phases.flatMap((p) => p.miss), ...(level ? { target: level } : {}), ...(weak ? { weak } : {}), ...(checklist ? { cl: Number(checklist[1]), of: Number(checklist[2]) } : {}) } }]
-    : [
-        { course: "sdm", kind: "mock_overall", ref: mock.slug, outcome: overall, detail: { run, phases: levels, ...(level ? { target: level } : {}), ...(weak ? { weak } : {}) } },
-        ...phases.map((p): NewEvent => ({ course: "sdm", kind: "mock_phase", ref: `${mock.slug}/${p.id}`, outcome: p.level, detail: { run, miss: p.miss, met: p.met } })),
-      ];
-  after(() => recordOutcome(request, userId, rows).then(() => undefined));
-  return compare;
+/** The scorecard's outcomes go to the log after the answer is out; the compare lines go back with it. */
+function outcomes(request: Request, userId: string, mock: MockInterview, text: string, level: string | null, brief: { events: OutcomeEvent[]; names: Namer }): string[] {
+  const o = scorecardOutcome(mock, text, level, brief.events, brief.names);
+  if (o.rows.length) after(() => recordOutcome(request, userId, o.rows).then(() => undefined));
+  return o.compare;
 }
-
-const MOCK_RANK = ["none", "below-junior", "junior", "sde", "senior", "staff"];

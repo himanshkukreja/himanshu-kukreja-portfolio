@@ -18,7 +18,7 @@ import { dsaNotes, sdmNotes, untag } from "@/lib/ai/chat/memory-model";
 import type { MockInterview } from "@/lib/learn/mock/types";
 import { loadOutcomes } from "./events";
 import type { EventCourse, OutcomeEvent } from "./events-model";
-import { featureBriefText, type BriefNotes, type FeatureBriefInput, type Namer } from "./feature-brief-model";
+import { featureBriefText, type BriefNotes, type BriefText, type FeatureBriefInput, type Namer } from "./feature-brief-model";
 
 const within = <T,>(p: Promise<T>, ms: number, fallback: T): Promise<T> => Promise.race([p.catch(() => fallback), new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
 const firstClause = (s: string) => s.replace(/\s+/g, " ").split(/(?<=[a-z0-9)])[.;:](\s|$)| — | - /i)[0].trim();
@@ -92,10 +92,7 @@ export async function namerFor(events: OutcomeEvent[], extra: { mock?: MockInter
 }
 
 export type FeatureBriefOpts = Omit<FeatureBriefInput, "notes" | "events" | "names" | "now" | "course"> & { course?: EventCourse; mockContent?: MockInterview | null };
-export type FeatureBrief = {
-  text: string;
-  lines: string[];
-  adapt: string[];
+export type FeatureBrief = BriefText & {
   /** memory on: the brief and outcome recording apply */
   on: boolean;
   /** the learner's outcomes (newest first) and names for them, for the route's compare lines (empty when off) */

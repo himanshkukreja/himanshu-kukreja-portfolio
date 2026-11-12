@@ -92,28 +92,42 @@ export function eventRow(userId: string, e: NewEvent): { user_id: string; course
 /* ------------------------------------------------------------------ reading a grader's words as ids */
 
 const STOP = new Set("about above after again also and any are because been before being both but can could does doing down each from further have having here how into its itself just more most must need not now off once only other over own same should some such than that the their them then there these they this those through too under until very was were what when where which while who why will with would you your yours".split(" "));
-const stem = (w: string) => w.toLowerCase().replace(/(ing|ed|es|s)$/, "").slice(0, 6);
+const stem = (w: string) => w.toLowerCase().replace(/(ing|ed|s)$/, "").replace(/e$/, "").slice(0, 6);
 const terms = (s: string) => new Set((s.toLowerCase().match(/[a-z0-9][a-z0-9-]{2,}/g) ?? []).filter((w) => !STOP.has(w)).map(stem));
 
 /**
- * Which rubric items a grader's free text names (its MISSED or MISSING line), as their ids: an item counts when most of
- * its own distinctive words appear in the text (the grader quotes or paraphrases the rubric line). Deterministic, so the
- * log stores ids, never the grader's or the learner's words. `min`: the share of an item's words that must appear.
+ * Which rubric items a grader's free text names (its MISSED or MISSING line), as their ids. Deterministic, so the log
+ * stores ids, never the grader's or the learner's words. An item counts when
+ *   - most of its own distinctive words appear in the text (the grader quoted it, or its first clause), or
+ *   - it is the closest item to one of the text's gaps (split on ";", new lines and bullets) and shares at least two
+ *     distinctive words with it, covering a third of the gap's words or half of the item's (a paraphrase).
+ * `min`: the share of an item's words that must appear for the first rule.
  */
 export function namedItems(text: string, items: { id: string; text: string }[], min = 0.5): string[] {
   const t = terms(text);
   if (!t.size || /^\s*(none|nothing|n\/a)\b/i.test(text)) return [];
-  const out: string[] = [];
-  for (const it of items) {
-    const w = [...terms(it.text)];
-    if (!w.length) continue;
-    const hit = w.filter((x) => t.has(x)).length;
-    // a long rubric line is usually quoted by its first clause: judge it on its first dozen words too
-    const head = [...terms(it.text.split(/[;:,(]/)[0])];
-    const headHit = head.length >= 2 ? head.filter((x) => t.has(x)).length / head.length : 0;
-    if (hit / w.length >= min || headHit >= 0.75) out.push(it.id);
+  const own = items.map((it) => ({ id: it.id, w: [...terms(it.text)], head: [...terms(it.text.split(/[;:,(]/)[0])] }));
+  const out = new Set<string>();
+  for (const it of own) {
+    if (!it.w.length) continue;
+    const hit = it.w.filter((x) => t.has(x)).length;
+    // a long rubric line is usually quoted by its first clause: judge it on that too
+    const headHit = it.head.length >= 2 ? it.head.filter((x) => t.has(x)).length / it.head.length : 0;
+    if (hit / it.w.length >= min || headHit >= 0.75) out.add(it.id);
   }
-  return out;
+  for (const gap of text.split(/;|\n|(?:^|\s)[-•*]\s|\.\s+(?=[A-Z"])/)) {
+    const g = terms(gap);
+    if (g.size < 2) continue;
+    let best: { id: string; shared: number; score: number } | null = null;
+    for (const it of own) {
+      const shared = it.w.filter((x) => g.has(x)).length;
+      if (shared < 2) continue;
+      const score = Math.max(shared / g.size, shared / it.w.length) + shared / (it.w.length * 100);
+      if (!best || score > best.score) best = { id: it.id, shared, score };
+    }
+    if (best && (best.shared / g.size >= 0.34 || best.score >= 0.5)) out.add(best.id);
+  }
+  return items.map((i) => i.id).filter((id) => out.has(id));
 }
 
 /** A scorecard's sections: "### P1 · Title" blocks and "### Overall", with their LEVEL / MET / MISSED lines. */

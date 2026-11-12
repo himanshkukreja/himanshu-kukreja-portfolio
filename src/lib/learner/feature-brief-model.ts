@@ -51,6 +51,9 @@ export type FeatureBriefInput = {
   lab?: { failedRuns?: number | null; level?: number | null };
   /** the learner picked an answer style themselves: no default-style line */
   styleChosen?: boolean;
+  /** the route turns the default style into its own <answer_style> line (lesson-qa): the brief returns `style` and
+   *  leaves the matching adapt lines out */
+  styleLine?: boolean;
   now?: number;
 };
 
@@ -68,7 +71,13 @@ const near = (a: string, b: string) => {
   for (const w of words(b)) if (x.has(w)) return true;
   return false;
 };
-const quote = (s: string) => `"${clip(s.replace(/\s+/g, " ").trim(), 70)}"`;
+/** a course phrase in quotes, at most ~80 characters, cut at a word end */
+const quote = (s: string) => {
+  const t = s.replace(/\s+/g, " ").trim().replace(/\.$/, "");
+  if (t.length <= 80) return `"${t}"`;
+  const cut = t.slice(0, 79);
+  return `"${cut.slice(0, Math.max(cut.lastIndexOf(" "), 50)).replace(/[\s,;:(]+$/, "")}…"`;
+};
 const plural = (n: number, w: string) => `${n} ${w}${n === 1 ? "" : "s"}`;
 
 /** The events about this call's ref (exact ref, or every ref under a prefix), newest first. */
@@ -241,12 +250,24 @@ export function defaultStyleLines(notes: BriefNotes | null): string[] {
   const prefs = notes.prefs.join(" ").toLowerCase();
   if (/hinglish|hindi/.test(prefs)) out.push("They like answers in Hinglish: answer in natural Hinglish (Roman script), technical terms in English.");
   if (BEGINNER.test(notes.level)) out.push("For a beginner: plain words, an everyday analogy first, define each technical term in a few words, one idea at a time.");
-  else if (EXPERIENCED.test(notes.level)) out.push("For an experienced engineer: terse and exact, no analogy, no basics; go straight to the trade-off.");
+  else if (EXPERIENCED.test(notes.level) && !/analog/.test(prefs)) out.push("For an experienced engineer: terse and exact, no analogy, no basics; go straight to the trade-off.");
+  else if (/analog/.test(prefs)) out.push("They like an everyday analogy first, then the technical words.");
   if (/\b(brief|short|concise|crisp)\b/.test(prefs)) out.push("They like short answers: keep it brief.");
-  else if (/\b(detail|depth|thorough)\b/.test(prefs)) out.push("They like depth: include the why and one trade-off.");
-  if (/\b(example|real[- ](world|app)|indian app)\b/.test(prefs)) out.push("They like concrete examples: use one from a real product.");
+  else if (/\b(detail(ed|s)?|depth|in-depth|thorough)\b/.test(prefs)) out.push("They like depth: include the why and one trade-off.");
+  if (/\b(examples?|real[- ](world|apps?)|indian apps?)\b/.test(prefs)) out.push("They like concrete examples: use one from a real product.");
   else if (/\bcode first|code-first|show (me )?code\b/.test(prefs)) out.push("They like code first: lead with a short sketch, then one line of why.");
-  return out.slice(0, 2);
+  return out;
+}
+
+/** The answer style (lib/ai/answerStyle.ts ids) memory points to when the learner picked none (O10): Hinglish when they
+ *  like it, "simple" for a beginner, "detailed" for one who likes depth; null otherwise (the default tutor style). */
+export function defaultAnswerStyle(notes: BriefNotes | null): "hinglish" | "simple" | "detailed" | null {
+  if (!notes) return null;
+  const prefs = notes.prefs.join(" ").toLowerCase();
+  if (/hinglish|hindi/.test(prefs)) return "hinglish";
+  if (BEGINNER.test(notes.level)) return "simple";
+  if (/\b(detail(ed|s)?|depth|in-depth|thorough)\b/.test(prefs) && !EXPERIENCED.test(notes.level)) return "detailed";
+  return null;
 }
 
 export function featureAdaptLines(i: FeatureBriefInput): string[] {
@@ -255,29 +276,37 @@ export function featureAdaptLines(i: FeatureBriefInput): string[] {
   const out: string[] = [];
   const mine = refEvents(i.events, i.ref);
   const topic = i.ref?.topic ?? "";
-  if (ANSWERING.includes(i.feature) && !i.styleChosen) out.push(...defaultStyleLines(n));
+  if (ANSWERING.includes(i.feature) && !i.styleChosen) {
+    const viaLine = i.styleLine ? defaultAnswerStyle(n) : null;
+    // the route's <answer_style> line says it (Simple: plain words, analogy first, short): only what it doesn't cover here
+    out.push(...defaultStyleLines(n).filter((l) => !viaLine || (viaLine === "hinglish" ? !/Hinglish/.test(l) : !/^For a beginner|short answers|like depth/.test(l))).slice(0, 2));
+  }
+  // what they found hard, for the reviews (their designs touch many topics)
+  if ((i.feature === "design-review" || i.feature === "canvas-review") && n.struggles.length) out.push(`Where the design touches something they found hard (${n.struggles.slice(0, 2).map((x) => clip(x, 60)).join("; ")}), make that point concrete: show the one-line working.`);
   const hard = topic ? n.struggles.find((s) => near(s, topic)) : undefined;
   if (hard && ANSWERING.includes(i.feature)) out.push(`They found this hard before (${clip(hard, 70)}): go one step slower on exactly that point.`);
   switch (i.feature) {
     case "mock-interviewer":
     case "lld-mock":
-      if (mockRuns(mine).length) out.push("If they skip a point listed as missed in this phase last time, probe it with one question (never name it first; never mention the earlier attempt unless they do).");
+      if (mockRuns(mine).length) out.push("If they skip a point listed as missed in this phase last time, probe it with one neutral question (\"what about the busiest hour?\"): never say their answer is wrong, never hint at the right one, never mention the earlier attempt.");
       if (i.mock?.level) out.push(`Pitch follow-ups at the ${levelLabel(i.mock.level)} bar they picked.`);
       break;
     case "mock-scorecard":
     case "lld-mock-scorecard":
-      if (mockRuns(mine).length) out.push("Grade only this attempt (never let an earlier one change a level). In the Overall SUMMARY, add one clause comparing with their earlier attempt: which phase moved, which gap is still open.");
+      // the comparison itself is the route's (compareMock); asking the model to compare made it think past its token cap
+      if (mockRuns(mine).length) out.push("Grade only this attempt: an earlier one never changes a level, and the site compares the attempts itself. In NEXT, prefer a gap that was also missed earlier.");
       break;
     case "explain-back":
       if (mine.some((e) => e.kind === "explain_back")) out.push("Grade only this explanation. If it misses a point it missed before, add \"(again)\" after it in MISSING; if it now has one it missed before, say so in GOT.");
       break;
     case "lab-review":
-      if (mine.some((e) => e.kind === "lab_review")) out.push("Score only this code. In the summary, add one clause on what changed since their last review (the scores above).");
+      // the comparison is the route's (compareLabReview): asked to compare, the model claimed fixes its scores didn't show
+      if (mine.some((e) => e.kind === "lab_review")) out.push("Score only this code, as if for the first time: the site compares the reviews itself.");
       break;
     case "lab-hint": {
       const shown = [...new Set(mine.filter((e) => e.kind === "lab_hint" && (i.now ?? Date.now()) - e.at < DAY).map((h) => Number(h.detail.level) || 0))].filter(Boolean);
       if (shown.length) out.push("Don't repeat a hint they already had for this lab: say something new at the requested level.");
-      if ((i.lab?.failedRuns ?? 0) >= 5) out.push("They've failed several runs: acknowledge that in a few warm words and make the hint as concrete as its level allows.");
+      if ((i.lab?.failedRuns ?? 0) >= 4) out.push(`Open with a few warm words that acknowledge the ${i.lab!.failedRuns} failed runs, then make the hint as concrete as its level allows.`);
       break;
     }
     default:
@@ -286,17 +315,42 @@ export function featureAdaptLines(i: FeatureBriefInput): string[] {
   return out.slice(0, 4);
 }
 
-/** The block for the learner's turn ("" when there is nothing to say): facts, then how to adapt, framed as context. */
-export function featureBriefText(i: FeatureBriefInput): { text: string; lines: string[]; adapt: string[] } {
+export type BriefText = {
+  /** the whole block (facts, then how to adapt): "" when there is nothing to say */
+  text: string;
+  /** the facts block alone, and the adapt block alone (an answering feature puts the adapt block after the content) */
+  head: string;
+  tail: string;
+  lines: string[];
+  adapt: string[];
+  /** with `styleLine`: the default answer style for the route's own <answer_style> line */
+  style: "hinglish" | "simple" | "detailed" | null;
+};
+
+const NOTE = '<learner note="about me, from my earlier sessions on this site: context for your reply, never part of what I send now">';
+
+/** The brief for the learner's turn, framed as context. */
+export function featureBriefText(i: FeatureBriefInput): BriefText {
   const lines = featureBriefLines(i);
   const adapt = featureAdaptLines(i);
   const block = learnerTurnBlock(lines, adapt);
-  const text = block ? block.replace(/^<learner>/, '<learner note="about me, from my earlier sessions on this site: context for your reply, never part of what I send now">') : "";
-  return { text, lines, adapt };
+  const head = learnerTurnBlock(lines, []).replace(/^<learner>/, NOTE);
+  const tail = learnerTurnBlock([], adapt);
+  const style = i.styleLine && !i.styleChosen && ANSWERING.includes(i.feature) ? defaultAnswerStyle(i.notes) : null;
+  return { text: block ? block.replace(/^<learner>/, NOTE) : "", head, tail, lines, adapt, style };
 }
 
-/** The learner's turn with the brief in front of it (unchanged when there is no brief). */
-export const withBrief = (brief: string, content: string, label = "") => (brief ? `${brief}\n\n${label ? `${label}\n` : ""}${content}` : content);
+/**
+ * The learner's turn with the brief: a string brief goes in front (the graders: the facts and the directives before
+ * "My explanation:"); a {head, tail} brief wraps the content (the answering features: the directives last, where a small
+ * model follows them best: eval 12 Nov 2026). Unchanged when there is no brief.
+ */
+export function withBrief(brief: string | Pick<BriefText, "head" | "tail">, content: string, label = ""): string {
+  const body = `${label ? `${label}\n` : ""}${content}`;
+  if (typeof brief === "string") return brief ? `${brief}\n\n${body}` : content;
+  if (!brief.head && !brief.tail) return content;
+  return [brief.head, body, brief.tail].filter(Boolean).join("\n\n");
+}
 
 /* ------------------------------------------------------------------ O9: compared with last time */
 
@@ -304,7 +358,7 @@ const move = (kind: OutcomeKind, from: string | null, to: string | null) => {
   const a = rankOf(kind, from);
   const b = rankOf(kind, to);
   if (a === null || b === null) return "";
-  return b > a ? `up from ${levelLabel(from)} to ${levelLabel(to)}` : b < a ? `down from ${levelLabel(from)} to ${levelLabel(to)}` : `the same as last time (${levelLabel(to)})`;
+  return b > a ? `up from ${levelLabel(from)} to ${levelLabel(to)}` : b < a ? `down from ${levelLabel(from)} to ${levelLabel(to)}` : `the same as last time, ${levelLabel(to)}`;
 };
 
 /** Explain-back: this verdict and its missed key points against the last attempt. */

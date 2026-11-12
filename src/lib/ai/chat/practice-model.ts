@@ -47,7 +47,7 @@ export type DsaDigest = {
 
 /** Said with the snapshot, so "how did my lab go" is answered from what is stored and nothing more. */
 export const STORED_NOTE =
-  "Stored on the server: lessons, quick checks right first time, trials, review cards, code labs cleared and interview passes, war rooms cleared, written paper scores, mock verdicts and DSA Mastery submits; and, while their tutor memory is on, the graded results listed above (explain-it-back verdicts with the key points missed, AI scorecard levels per phase with the points missed, lab hints taken and review scores, war-room grades, paper marks, quick checks here). Not stored: what they wrote or said (explanations, mock answers and transcripts, code), feedback text, and any result not listed above. When asked about something not stored, say plainly you can't see it, then help from what is stored (or ask them to paste it).";
+  "Stored on the server: lessons, quick checks right first time, trials, review cards, code labs cleared and interview passes, war rooms cleared, written paper scores, mock verdicts and DSA Mastery submits; and, while their tutor memory is on, the graded results listed above, if any are listed (explain-it-back verdicts with the key points missed, AI scorecard levels per phase with the points missed, lab hints taken and review scores, war-room grades, paper marks, quick checks here). Not stored: what they wrote or said (explanations, mock answers and transcripts, code), feedback text, and any result not listed above. When asked about something not stored, say plainly you can't see it, then help from what is stored (or ask them to paste it).";
 
 const at = (v: unknown) => (Number(v) > 0 ? Number(v) : 0);
 const verdictOf = (v: unknown): MockVerdict | null => {
