@@ -206,7 +206,9 @@ const APPROACH_PREF: Record<GoalApproach, string> = { analogies: "analogies firs
  */
 export function profileNotes(p: GoalProfile): { goals: string[]; level: string; prefs: string[] } {
   const goals: string[] = [];
-  const target = [p.level, p.role].filter(Boolean).join(" ");
+  // the level once ("SDE-2 backend engineer", never "SDE-2 backend engineer, SDE-2")
+  const role = p.level ? p.role.replace(new RegExp(`[,;]?\\s*${p.level.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "ig"), "").trim() : p.role;
+  const target = [p.level, role].filter(Boolean).join(" ");
   if (target || p.companies.length) goals.push(`Aiming for ${target || "a role"}${p.companies.length ? ` at ${p.companies.join(", ")}` : ""}`);
   if (p.timeline) goals.push(`Timeline: ${p.timeline}`);
   if (p.courses.length) goals.push(`Studying ${p.courses.map((c) => COURSE_NAME[c]).join(" and ")}`);

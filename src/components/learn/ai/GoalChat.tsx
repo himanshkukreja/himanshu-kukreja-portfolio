@@ -301,12 +301,15 @@ export function GoalChatButton({ from, className = "" }: { from: string; classNa
   const { user } = useAuth();
   const host = useGoalChatHost();
   const s = useGoalState();
-  if (!user || !s.ready || !s.on) return <>{host}</>;
+  // one stable shape (the button, then the host): a change of state never remounts an open dialog
+  const show = !!user && s.ready && s.on;
   return (
     <>
-      <button type="button" onClick={() => openGoalChat(from)} className={`inline-flex min-h-10 items-center gap-2 border border-line-strong bg-surface px-3.5 font-mono text-[12.5px] text-fg-2 hover:border-signal hover:text-fg ${className}`}>
-        <Target className="h-3.5 w-3.5 text-signal-text" aria-hidden /> {s.eligible ? "Set my goals" : "Update my goals"}
-      </button>
+      {show ? (
+        <button type="button" onClick={() => openGoalChat(from)} className={`inline-flex min-h-10 items-center gap-2 border border-line-strong bg-surface px-3.5 font-mono text-[12.5px] text-fg-2 hover:border-signal hover:text-fg ${className}`}>
+          <Target className="h-3.5 w-3.5 text-signal-text" aria-hidden /> {s.eligible ? "Set my goals" : "Update my goals"}
+        </button>
+      ) : null}
       {host}
     </>
   );
@@ -319,10 +322,12 @@ export function GoalChatNudge({ from }: { from: string }) {
   const host = useGoalChatHost();
   const s = useGoalState();
   const answered = !!flags?.[GOAL_CHAT_FLAG];
-  if (!user || !s.ready || !s.eligible || answered) return <>{host}</>;
+  // one stable shape (the card, then the host): the card going when the chat saves never remounts the open dialog
+  const show = !!user && s.ready && s.eligible && !answered;
   return (
     <>
-      <div className="flex flex-col gap-2.5 border border-line-strong bg-surface px-4 py-3.5">
+      {show ? (
+        <div className="flex flex-col gap-2.5 border border-line-strong bg-surface px-4 py-3.5">
         <span className="flex items-center gap-2 font-mono text-[11px] uppercase tracking-label text-signal-text">
           <Target className="h-3.5 w-3.5" aria-hidden /> new here?
         </span>
@@ -342,7 +347,8 @@ export function GoalChatNudge({ from }: { from: string }) {
             not now
           </button>
         </div>
-      </div>
+        </div>
+      ) : null}
       {host}
     </>
   );
