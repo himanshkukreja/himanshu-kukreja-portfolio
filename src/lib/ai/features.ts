@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -152,6 +152,18 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // a wrong bug report costs the learner more than two seconds; hints and questions don't. maxInputChars: the code
   // (≤ 12,000) + the run result (≤ 3,000) + the question (≤ 2,000), checked by the route.
   "dsa-tutor": { label: "DSA problem tutor message", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 200, maxTokens: 1400, maxInputChars: 18000, think: true, effort: "low", live: true },
+  // LLD (machine-coding) mock interviews (owner-approved 12 Nov 2026): a low-level design case study run as a timed round in
+  // the mock room (/mock/lld-NN-*), signed-in learners only, on the shared daily credits like the system design mocks.
+  // lld-mock: the interviewer's turn, on the same model as "mock-interviewer" (Haiku 5.5, no thinking, a private plan line
+  // stripped by the route). Its prompt (prompts.ts lldInterviewerSystem) answers clarifying questions from the case study's
+  // own requirements table and never writes code or names the design; the route also strips any code from the reply.
+  // maxInputChars: the conversation of one phase, which may carry the candidate's code (≤ 6,000) once.
+  "lld-mock": { label: "AI LLD mock interviewer (turn)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 300, maxTokens: 450, haikuMaxTokens: 650, maxInputChars: 16000, think: false, live: true },
+  // lld-mock-scorecard: the debrief, every phase graded against the case study's Interview checklist and the seven steps,
+  // quoting the missed checklist lines. Like "mock-scorecard": thinking at medium effort, one call per finished round.
+  // maxTokens 4000: in testing (12 Nov 2026) a five-phase round thought ~4,500 tokens and wrote ~1,300; at 3000 (+3000 thinking
+  // headroom) one reply was cut after P1.
+  "lld-mock-scorecard": { label: "AI LLD mock scorecard", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 12, maxTokens: 4000, maxInputChars: 60000, think: true, effort: "medium", live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

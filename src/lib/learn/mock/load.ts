@@ -89,7 +89,7 @@ export function resolveStudy(code: string, ctx: MockCtx): StudyRef | null {
   return null;
 }
 
-async function mdToHtml(md: string): Promise<string> {
+export async function mdToHtml(md: string): Promise<string> {
   if (!md.trim()) return "";
   const { unified } = await import("unified");
   const remarkParse = (await import("remark-parse")).default;

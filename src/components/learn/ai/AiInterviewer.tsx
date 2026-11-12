@@ -16,8 +16,29 @@ import AiText from "./AiText";
 import { AI_PRIVACY } from "./AskLessonPanel";
 import { attemptKey, useMockChats, type ChatMsg } from "./mockChat";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
+import type { FeatureId } from "@/lib/ai/features";
 
-export default function AiInterviewer({ slug, startedAt, phaseId, interviewer, notes }: { slug: string; startedAt: number | null; phaseId: string; interviewer: string; notes: string }) {
+export default function AiInterviewer({
+  slug,
+  startedAt,
+  phaseId,
+  interviewer,
+  notes,
+  feature = "mock-interviewer",
+  extra,
+  notesLabel = "Send my notes for this part",
+}: {
+  slug: string;
+  startedAt: number | null;
+  phaseId: string;
+  interviewer: string;
+  notes: string;
+  /** "lld-mock" in a machine-coding round (its own feature key, the same route) */
+  feature?: FeatureId;
+  /** more fields for the turn route (a machine-coding round: its requirement change and whether it has arrived) */
+  extra?: Record<string, unknown>;
+  notesLabel?: string;
+}) {
   const status = useAiStatus();
   const { openAuthModal } = useAuthModal();
   const { chats, setPhase } = useMockChats(attemptKey(slug, startedAt));
@@ -97,9 +118,9 @@ export default function AiInterviewer({ slug, startedAt, phaseId, interviewer, n
     const next: ChatMsg[] = [...msgs, { role: "user", content: answer.trim() }];
     setPhase(phaseId, next);
     setText("");
-    track("ai_ask", { feature: "mock-interviewer", mock: slug, phase: phaseId, turn: next.filter((m) => m.role === "user").length });
+    track("ai_ask", { feature, mock: slug, phase: phaseId, turn: next.filter((m) => m.role === "user").length });
     try {
-      const r = await aiFetch("/api/learn/ai/mock/turn", { method: "POST", body: JSON.stringify({ slug, phaseId, history: msgs, answer: answer.trim() }) });
+      const r = await aiFetch("/api/learn/ai/mock/turn", { method: "POST", body: JSON.stringify({ ...extra, slug, phaseId, history: msgs, answer: answer.trim() }) });
       const body = (await r.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null };
       setAiCredits(body.creditsLeft);
       if (r.ok) {
@@ -118,7 +139,7 @@ export default function AiInterviewer({ slug, startedAt, phaseId, interviewer, n
     sendRef.current = send;
   });
 
-  if (!status?.features["mock-interviewer"]) return null;
+  if (!status?.features[feature]) return null;
   return (
     <section aria-label={`Talk to ${first}`} className="flex flex-col gap-3 border border-signal bg-surface p-4 sm:p-5">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -197,7 +218,7 @@ export default function AiInterviewer({ slug, startedAt, phaseId, interviewer, n
             {!call && <MicButton value={text} onChange={(v) => setText(v.slice(0, 4000))} />}
             {notes.trim().split(/\s+/).length >= 15 && msgs.length === 0 && (
               <button type="button" disabled={busy} onClick={() => void send(notes)} className="min-h-10 border border-line-strong px-4 font-mono text-xs text-fg hover:border-fg-3 disabled:opacity-50">
-                Send my notes for this part
+                {notesLabel}
               </button>
             )}
           </div>

@@ -21,6 +21,8 @@ export async function POST(request: Request) {
   const mock = await getMockInterview(String(b.slug || ""));
   const phase = mock?.phases.find((p) => p.id === b.phaseId);
   if (!mock || !phase) return NextResponse.json({ error: "Unknown interview" }, { status: 404 });
+  // machine-coding rounds (kind "lld") have no live coach: the interviewer and the debrief grade them
+  if (mock.kind === "lld") return NextResponse.json({ error: "The live coach is for system design rounds." }, { status: 404 });
   const said = (Array.isArray(b.chat) ? b.chat : []).filter((m) => m.role === "user" && typeof m.content === "string").map((m) => m.content.slice(0, 2000));
   const candidate = [
     b.notes ? `Written answer:\n${String(b.notes).slice(0, 6000)}` : "",

@@ -20,6 +20,7 @@ import { aiFetch } from "@/components/learn/ai/aiFetch";
 import { attemptKey, useMockChats } from "@/components/learn/ai/mockChat";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
 import { sketchSummary } from "@/lib/learn/mock/sketch";
+import { changeForAttempt, withChange } from "@/lib/learn/mock/lld";
 import Lobby from "./Lobby";
 import Room from "./Room";
 import Debrief from "./Debrief";
@@ -29,10 +30,12 @@ import type { ArticleShort } from "@/components/learn/lesson/ArticleShorts";
 
 type LectureCard = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 
-export default function MockInterviewRoom({ mock, lecture = null, shorts = null }: { mock: MockInterview; lecture?: LectureCard; shorts?: { of: string; items: ArticleShort[] } | null }) {
+export default function MockInterviewRoom({ mock: source, lecture = null, shorts = null }: { mock: MockInterview; lecture?: LectureCard; shorts?: { of: string; items: ArticleShort[] } | null }) {
   const { awardOnce, setFlag, flags, done, hydrated } = useGame();
   const rootRef = useRef<HTMLDivElement>(null);
   const [run, setRun] = useState<MockRun | null>(null);
+  // a machine-coding round (kind "lld") brings one requirement change per attempt: the mock with this attempt's change
+  const mock = useMemo(() => withChange(source, run?.change), [source, run?.change]);
   const [running, setRunning] = useState(false);
   const [away, setAway] = useState(false);
   const [skipWarn, setSkipWarn] = useState(false);
@@ -106,9 +109,11 @@ export default function MockInterviewRoom({ mock, lecture = null, shorts = null 
   const start = useCallback(
     (level: MockLevel, opts?: { coach?: boolean }) => {
       setRun((r) => {
-        const base = freshRun(mock.version, level, { attempt: (r?.attempt || 0) + 1, history: r?.history || [] });
+        const attempt = (r?.attempt || 0) + 1;
+        const base = freshRun(mock.version, level, { attempt, history: r?.history || [] });
         const coachOn = opts?.coach ?? r?.coachOn ?? true;
-        return enterPhase(mock, { ...base, coachOn, screen: "room", live: true, startedAt: Date.now() }, 0);
+        const change = changeForAttempt(source, attempt) ?? undefined;
+        return enterPhase(withChange(source, change), { ...base, coachOn, change, lang: r?.lang, screen: "room", live: true, startedAt: Date.now() }, 0);
       });
       setRunning(true);
       setAway(false);
@@ -116,7 +121,7 @@ export default function MockInterviewRoom({ mock, lecture = null, shorts = null 
       track("play", { game: mock.id, result: "started", level });
       scrollTop();
     },
-    [mock, scrollTop]
+    [mock, source, scrollTop]
   );
 
   const resume = useCallback(() => {
@@ -157,7 +162,8 @@ export default function MockInterviewRoom({ mock, lecture = null, shorts = null 
   // ------------------------------------------------------------------ live AI coach (after each phase)
 
   const ai = useAiStatus();
-  const coachAvailable = !!ai?.signedIn && !!ai?.features["mock-coach"];
+  // machine-coding rounds have no live coach (the interviewer and the debrief grade them)
+  const coachAvailable = mock.kind !== "lld" && !!ai?.signedIn && !!ai?.features["mock-coach"];
   const { chats } = useMockChats(attemptKey(mock.slug, run?.startedAt ?? null));
   const askCoach = useCallback(
     (k: number, r: MockRun) => {
@@ -231,6 +237,7 @@ export default function MockInterviewRoom({ mock, lecture = null, shorts = null 
   const setAnswer = useCallback((cid: string, v: string) => setRun((r) => (r ? { ...r, answers: { ...r.answers, [cid]: v } } : r)), []);
   const setBoard = useCallback((v: string) => setRun((r) => (r ? { ...r, board: v } : r)), []);
   const setSketch = useCallback((v: string) => setRun((r) => (r ? { ...r, sketch: v } : r)), []);
+  const setLang = useCallback((v: string) => setRun((r) => (r ? { ...r, lang: v } : r)), []);
   const setScore = useCallback((sid: string, v: SignalScore | null) => {
     setRun((r) => {
       if (!r || r.claimed) return r;
@@ -265,7 +272,7 @@ export default function MockInterviewRoom({ mock, lecture = null, shorts = null 
 
   const retry = useCallback(() => {
     setRunning(false);
-    setRun((r) => (r ? { ...freshRun(mock.version, r.level, r), screen: "lobby" } : r));
+    setRun((r) => (r ? { ...freshRun(mock.version, r.level, r), lang: r.lang, screen: "lobby" } : r));
     scrollTop();
   }, [mock.version, scrollTop]);
 
@@ -300,6 +307,7 @@ export default function MockInterviewRoom({ mock, lecture = null, shorts = null 
           setAnswer={setAnswer}
           setBoard={setBoard}
           setSketch={setSketch}
+          setLang={setLang}
           coachAvailable={coachAvailable}
           onCoachToggle={(on) => setRun((r) => (r ? { ...r, coachOn: on } : r))}
         />

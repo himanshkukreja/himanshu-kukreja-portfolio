@@ -14,6 +14,14 @@ import type { MockRun } from "@/lib/learn/mock/store";
 import { firedCurveballs, firstName, pendingOnSubmit, placeholderFor, totalUsed, transcript, type FeedItem } from "@/lib/learn/mock/engine";
 import { words } from "@/lib/learn/mock/score";
 import { Avatar, CourseHtml, InlineHtml, LABEL, Pad } from "./ui";
+import { loadCodeEditor } from "@/lib/offline/lazy";
+import type { CodeEditorHandle, EditorLang } from "@/components/learn/labs/CodeEditor";
+
+// machine-coding rounds: the code labs' editor (CodeMirror), loaded only in the code phase
+const CodeEditor = dynamic(() => loadCodeEditor(), {
+  ssr: false,
+  loading: () => <div className="grid h-full place-items-center bg-raised font-mono text-xs text-fg-3">loading the editor…</div>,
+});
 
 // the drawing board is a big library: load it only when the whiteboard tab is opened
 const BoardCanvas = dynamic(() => import("@/components/learn/board/BoardCanvas"), {
@@ -42,6 +50,8 @@ type Props = {
   setAnswer: (cid: string, v: string) => void;
   setBoard: (v: string) => void;
   setSketch: (v: string) => void;
+  /** machine-coding rounds: the code editor's language */
+  setLang?: (v: string) => void;
 };
 
 export default function Room(props: Props) {
@@ -327,7 +337,7 @@ function Bubble({ it, who, fresh }: { it: FeedItem; who: string; fresh: boolean 
         : it.kind === "auto"
           ? "border border-line bg-bg text-fg-3"
           : "border border-line bg-surface-2";
-  const tag = it.kind === "curveball" ? `curveball${it.title ? ` · ${it.title}` : ""}` : it.kind === "hint" ? "hint · noted by the interviewer" : it.kind === "auto" ? "keeping time" : "";
+  const tag = it.kind === "curveball" ? (it.title === "Requirement change" ? "requirement change" : `curveball${it.title ? ` · ${it.title}` : ""}`) : it.kind === "hint" ? "hint · noted by the interviewer" : it.kind === "auto" ? "keeping time" : "";
   return (
     <li className={`flex flex-col gap-1.5 ${fresh ? "animate-hk-in" : ""}`}>
       <span className="flex items-baseline justify-between gap-2 font-mono text-[11px] tracking-label text-fg-3">
@@ -407,8 +417,13 @@ function Transcript({ mock, run, items, running }: { mock: MockInterview; run: M
 // ---------------------------------------------------------------------------------------------
 // Workspace
 
-function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote, setAnswer, setBoard, setSketch, coachAvailable, onCoachToggle }: Props & { phase: MockPhase; items: FeedItem[] }) {
+function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote, setAnswer, setBoard, setSketch, setLang, coachAvailable, onCoachToggle }: Props & { phase: MockPhase; items: FeedItem[] }) {
   const [tab, setTab] = useState<"notes" | "board">("notes");
+  // a machine-coding round (kind "lld"): the code phase is written in the editor, and the turn route needs the change
+  const lld = mock.kind === "lld" ? mock.lld : undefined;
+  const isCode = !!lld && phase.id === lld.codePhase;
+  const change = lld ? mock.phases.find((p) => p.id === lld.codePhase)?.curveballs[0] : undefined;
+  const changeAnnounced = !!change && run.fired[change.id] !== undefined;
   const latestRef = useRef<HTMLDivElement>(null);
   const wantScroll = useRef(false);
   // phones: the transcript sits above the workspace, so repeat the newest line here
@@ -473,7 +488,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
         const v = run.answers[c.id] || "";
         return (
           <div key={c.id} className="flex flex-col gap-3 border-2 border-signal bg-surface p-4 sm:p-5">
-            <span className="font-mono text-[11px] font-semibold uppercase tracking-label text-signal-text">Curveball{c.title ? ` · ${c.title}` : ""}</span>
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-label text-signal-text">{lld ? c.title || "Requirement change" : `Curveball${c.title ? ` · ${c.title}` : ""}`}</span>
             <InlineHtml html={c.html} className="text-[15px] leading-relaxed text-fg-2" />
             <Pad
               id={`cb-${c.id}`}
@@ -484,7 +499,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
               rows={5}
               mono={false}
               onKeyDown={onKey}
-              placeholder="What changes, what breaks, what you'd do first. The interviewer is waiting on this one."
+              placeholder={lld ? "Which of your classes change, which stay untouched, and the new class or rule you add. Then change the code." : "What changes, what breaks, what you'd do first. The interviewer is waiting on this one."}
               right={<span className="font-mono text-xs text-fg-3">{words(v)} words</span>}
             />
           </div>
@@ -495,13 +510,20 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
         <CoachCard phase={mock.phases[run.phase - 1]} text={run.coach?.[mock.phases[run.phase - 1].id]} on={run.coachOn !== false} onToggle={onCoachToggle} />
       )}
 
-      <AiInterviewer slug={mock.slug} startedAt={run.startedAt} phaseId={phase.id} interviewer={mock.interviewer.name} notes={note} />
+      <AiInterviewer
+        slug={mock.slug}
+        startedAt={run.startedAt}
+        phaseId={phase.id}
+        interviewer={mock.interviewer.name}
+        notes={note}
+        {...(lld ? { feature: "lld-mock" as const, extra: { change: change?.id ?? null, changeAnnounced }, notesLabel: isCode ? "Send my code so far" : undefined } : {})}
+      />
 
       <div className="flex flex-col gap-3">
         <div role="tablist" aria-label="Workspace" className="flex gap-1 border-b border-line">
           {(
             [
-              ["notes", `Answer · P${phase.n}`],
+              ["notes", `${isCode ? "Code" : "Answer"} · P${phase.n}`],
               ["board", "Whiteboard"],
             ] as const
           ).map(([k, label]) => (
@@ -521,6 +543,9 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
           ))}
         </div>
         <div role="tabpanel" id="panel-notes" aria-labelledby="tab-notes" hidden={tab !== "notes"}>
+          {isCode ? (
+            <CodePad key={`${run.startedAt}-${phase.id}`} id={`code-${phase.id}`} value={note} onChange={(v) => setNote(phase.id, v)} lang={(run.lang as EditorLang) || "python"} setLang={setLang} onDone={done} />
+          ) : (
           <Pad
             id={`notes-${phase.id}`}
             dictate
@@ -532,6 +557,7 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
             placeholder={placeholderFor(phase.title)}
             right={<span className="font-mono text-xs text-fg-3">{w} words</span>}
           />
+          )}
         </div>
         <div role="tabpanel" id="panel-board" aria-labelledby="tab-board" hidden={tab !== "board"} className={tab === "board" ? "flex flex-col gap-2 [--hk-board-reserve:88px]" : "hidden"}>
           {tab === "board" && <BoardCanvas value={run.sketch || ""} onChange={setSketch} />}
@@ -572,5 +598,51 @@ function Workspace({ mock, run, phase, items, skipWarn, onDone, onHint, setNote,
         </div>
       </div>
     </section>
+  );
+}
+
+// ---------------------------------------------------------------------------------------------
+// Code (machine-coding rounds)
+
+const CODE_LANGS: { id: EditorLang; label: string }[] = [
+  { id: "python", label: "Python" },
+  { id: "java", label: "Java" },
+  { id: "cpp", label: "C++" },
+  { id: "typescript", label: "TypeScript" },
+  { id: "javascript", label: "JavaScript" },
+];
+
+/** The code phase's editor: the code labs' CodeMirror editor, autosaved as this phase's answer. Nothing runs here. */
+function CodePad({ id, value, onChange, lang, setLang, onDone }: { id: string; value: string; onChange: (v: string) => void; lang: EditorLang; setLang?: (v: string) => void; onDone: () => void }) {
+  const handle = useRef<CodeEditorHandle | null>(null);
+  const lines = value ? value.split("\n").length : 0;
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+        <span id={`${id}-label`} className="font-mono text-xs uppercase tracking-label text-fg">
+          ❯ Your code · autosaved
+        </span>
+        <label className="flex items-center gap-2 font-mono text-[11px] text-fg-3">
+          language
+          <select
+            value={lang}
+            onChange={(e) => setLang?.(e.target.value)}
+            className="min-h-9 border border-line-strong bg-bg px-2 font-mono text-[12px] text-fg focus:border-signal focus:outline-none"
+          >
+            {CODE_LANGS.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div className="h-[min(560px,64vh)] min-h-[340px] overflow-hidden border border-line-strong" aria-labelledby={`${id}-label`}>
+        <CodeEditor handle={handle} initial={value} fontSize={14} language={lang} suggestions label="Your code for this round" onChange={onChange} onRun={onDone} />
+      </div>
+      <span className="font-mono text-[11px] leading-snug text-fg-3">
+        {lines} line{lines === 1 ? "" : "s"} · bottom-up: enums and data, the interfaces, the class that changes state, then a small main. Nothing runs here: talk the interviewer through what your main prints.
+      </span>
+    </div>
   );
 }

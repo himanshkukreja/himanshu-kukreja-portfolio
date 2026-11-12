@@ -170,7 +170,7 @@ function ScoreButtons({ value, onPick, disabled, label }: { value: SignalScore |
   );
 }
 
-function PhaseReview({ run, score, phase, setScore, setRevealed }: Props & { phase: MockPhase }) {
+function PhaseReview({ mock, run, score, phase, setScore, setRevealed }: Props & { phase: MockPhase }) {
   const used = run.used[phase.id] || 0;
   const note = run.notes[phase.id] || "";
   const open = !!run.revealed[phase.id];
@@ -214,7 +214,7 @@ function PhaseReview({ run, score, phase, setScore, setRevealed }: Props & { pha
 
       {curve.map((c) => (
         <div key={c.id} className="flex flex-col gap-2 border-l-2 border-signal pl-3.5">
-          <span className="font-mono text-[11px] font-semibold uppercase tracking-label text-signal-text">Curveball{c.title ? ` · ${c.title}` : ""}</span>
+          <span className="font-mono text-[11px] font-semibold uppercase tracking-label text-signal-text">{c.title === "Requirement change" ? c.title : `Curveball${c.title ? ` · ${c.title}` : ""}`}</span>
           <InlineHtml html={c.html} className="text-[14px] leading-relaxed text-fg-3" />
           {(run.answers[c.id] || "").trim() ? (
             <pre className="m-0 whitespace-pre-wrap break-words bg-raised p-3 font-sans text-[14.5px] leading-relaxed text-fg-2">{run.answers[c.id]}</pre>
@@ -249,7 +249,7 @@ function PhaseReview({ run, score, phase, setScore, setRevealed }: Props & { pha
       </div>
 
       <div className="flex flex-col gap-2">
-        <span className={LABEL}>rubric · what interviewers look for</span>
+        <span className={LABEL}>{mock.kind === "lld" ? "rubric · the case study's interview checklist and the seven steps" : "rubric · what interviewers look for"}</span>
         <ol className="m-0 flex list-none flex-col p-0">
           {phase.rubric.map((s) => {
             const bonus = levelIndex(s.level) > li;

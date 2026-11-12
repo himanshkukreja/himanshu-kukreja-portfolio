@@ -16,6 +16,7 @@ import type { ReaderMeta } from "@/components/learn/lesson/types";
 import { LLD_LANGS, STEPS } from "@/lib/learn/lld/steps";
 import { companyHref } from "@/lib/learn/prep/types";
 import { TryFirstSwitch } from "./LldPrefs";
+import { lldRoundMinutes } from "@/lib/learn/mock/lld";
 
 const LABEL = "font-mono text-[11px] uppercase tracking-label text-fg-3";
 
@@ -104,6 +105,13 @@ export default function LldHero({ meta }: { meta: ReaderMeta }) {
       )}
 
       <div className="mt-5 flex flex-wrap items-start gap-3">
+        {lld && (
+          // the case study as a timed machine-coding round with the AI interviewer (/mock/lld-NN-*, lib/learn/mock/lld.ts)
+          <Link href={`/mock/${meta.slug}`} className="inline-flex min-h-11 items-center gap-2 bg-signal px-4 text-sm font-semibold text-on-signal hover:opacity-90">
+            Mock this round
+            <span className="font-mono text-[12px] font-normal opacity-80">· {lldRoundMinutes(lld.roundMinutes)} min · AI interviewer</span>
+          </Link>
+        )}
         {resume && (
           <button type="button" onClick={() => scrollToId(resume.id)} className="min-h-11 bg-fg px-4 text-sm font-semibold text-bg hover:opacity-90">
             Resume at {resume.label} ›

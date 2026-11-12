@@ -13,6 +13,7 @@ import { firstName } from "@/lib/learn/mock/engine";
 import { Avatar, CourseHtml, LABEL } from "./ui";
 import JoinBriefing, { briefingSkipped } from "./JoinBriefing";
 import { useAiStatus } from "@/components/learn/ai/useAiStatus";
+import { useAuthModal } from "@/contexts/AuthModalContext";
 import ArticleShorts, { type ArticleShort } from "@/components/learn/lesson/ArticleShorts";
 
 export default function Lobby({
@@ -42,7 +43,11 @@ export default function Lobby({
   // every start goes through the briefing (what happens next), unless the learner turned it off
   const [brief, setBrief] = useState(false);
   const ai = useAiStatus();
-  const coachAvailable = !!ai?.signedIn && !!ai?.features["mock-coach"];
+  const { openAuthModal } = useAuthModal();
+  // a machine-coding round (kind "lld") is an AI mock: signed-in learners only (owner, 12 Nov 2026)
+  const lld = mock.kind === "lld" ? mock.lld : undefined;
+  const needsSignIn = !!lld && !!ai && !ai.signedIn;
+  const coachAvailable = !lld && !!ai?.signedIn && !!ai?.features["mock-coach"];
   const begin = () => (briefingSkipped() ? onStart(level, { coach: coachAvailable && run.coachOn !== false }) : setBrief(true));
   const curveballs = mock.phases.reduce((a, p) => a + p.curveballs.length, 0);
   const signals = mock.phases.reduce((a, p) => a + p.rubric.length, 0);
@@ -74,7 +79,7 @@ export default function Lobby({
             mock interviews
           </Link>
           <span aria-hidden>/</span>
-          <span className="text-fg-2">M{mock.n}</span>
+          <span className="text-fg-2">{lld ? mock.code : `M${mock.n}`}</span>
         </nav>
         <SaveOfflineButton title={`Mock interview ${num} · ${mock.company.name}`} kind="mock" url={mock.href} />
       </div>
@@ -82,19 +87,42 @@ export default function Lobby({
       <header className="grid items-center gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,500px)]">
         <div className="flex min-w-0 flex-col gap-5">
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">
-            Mock interview {num} · after world {mock.afterCode} · covers {mock.coversLabel}
+            {lld ? `Machine-coding mock · ${mock.code} · ${lld.difficulty} · AI interviewer` : `Mock interview ${num} · after world ${mock.afterCode} · covers ${mock.coversLabel}`}
           </span>
           <h1 className="font-display text-[clamp(40px,6.4vw,96px)] font-extrabold leading-[0.9] tracking-tightest text-fg">
-            {mock.company.name}
+            {lld ? lld.name : mock.company.name}
             <span className="text-signal-text">.</span>
-            <span className="block text-[0.5em] font-bold leading-[1.05] tracking-[-0.035em] text-fg-2">{mock.title}</span>
+            <span className="block text-[0.5em] font-bold leading-[1.05] tracking-[-0.035em] text-fg-2">{lld ? `${mock.title}, at ${mock.company.name}` : mock.title}</span>
           </h1>
           <p className="max-w-[720px] text-[17px] leading-relaxed text-fg-2 sm:text-[19px]">
-            A real interview loop, timed: an unseen problem from a fictional company that mixes everything from {mock.coversLabel}. The interviewer talks while you work, throws curveballs, and keeps time. The model answer, the rubric and
-            your verdict wait for the debrief.
+            {lld ? (
+              <>
+                A machine-coding round, timed: clarify the requirements, model the classes, name your patterns, write the code in the editor, then concurrency and edge cases. {firstName(mock.interviewer.name)} answers your
+                questions, brings one requirement change while you code, and keeps time. The reference design, a rubric built from the case study&apos;s interview checklist and your AI scorecard wait for the debrief.
+              </>
+            ) : (
+              <>
+                A real interview loop, timed: an unseen problem from a fictional company that mixes everything from {mock.coversLabel}. The interviewer talks while you work, throws curveballs, and keeps time. The model answer, the rubric
+                and your verdict wait for the debrief.
+              </>
+            )}
           </p>
         </div>
         {hasMockCover(mock.id) && <MockCover id={mock.id} n={mock.n} company={mock.company.name} className="hidden lg:block" />}
+        {lld && (
+          <section aria-label="The case study" className="flex flex-col gap-3 border border-line-strong bg-surface p-5 sm:p-6">
+            <span className={LABEL}>the case study behind this round</span>
+            <span className="font-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-fg">
+              {mock.code} · {lld.name}
+            </span>
+            <span className="text-[15px] leading-relaxed text-fg-2">
+              {mock.minutes} minutes · {mock.phases.length} phases on the walkthrough&apos;s seven steps · {lld.checklist.length} checklist lines graded · one requirement change from its follow-ups.
+            </span>
+            <Link href={lld.caseHref} className="inline-flex min-h-11 items-center self-start border border-line-strong px-3.5 font-mono text-[13px] text-fg hover:border-fg-3">
+              read the case study (spoilers) →
+            </Link>
+          </section>
+        )}
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[minmax(0,7fr)_minmax(0,5fr)]">
@@ -105,7 +133,7 @@ export default function Lobby({
               <span className="text-fg-2">from</span> recruiting@{mock.company.name.toLowerCase().replace(/[^a-z0-9]+/g, "")}.example
             </span>
             <span id="note-h" className="text-fg">
-              <span className="text-fg-2">subject</span> Your system design round · {mock.role}
+              <span className="text-fg-2">subject</span> Your {lld ? "machine-coding" : "system design"} round · {mock.role}
             </span>
           </div>
           <div className="px-5 py-5 sm:px-6">
@@ -209,6 +237,15 @@ export default function Lobby({
           </fieldset>
           <div className="flex flex-col gap-3 border border-line px-5 py-5">
             <span className={LABEL}>how the round works</span>
+            {lld ? (
+              <ol className="m-0 flex flex-col gap-2 pl-[22px] text-[15px] leading-normal text-fg-2">
+                <li>One clock, like a real call: {mock.phases.map((p) => `${p.title.toLowerCase()} (${p.minutes} min)`).join(", ")}.</li>
+                <li>Ask {firstName(mock.interviewer.name)} clarifying questions: the answers come from the case study&apos;s own requirements. Anything not specified is yours to assume, out loud.</li>
+                <li>Code in the editor, in your language. Halfway through the code phase the requirements change once; answer it and change the code.</li>
+                <li>{firstName(mock.interviewer.name)} probes, never writes code or hands you the design. Hints exist; each one is noted.</li>
+                <li>Debrief: the reference design per phase, the case study&apos;s interview checklist as your rubric, a hire / no-hire verdict, and an AI scorecard that quotes what you missed.</li>
+              </ol>
+            ) : (
             <ol className="m-0 flex flex-col gap-2 pl-[22px] text-[15px] leading-normal text-fg-2">
               <li>One clock, like a real call. Each phase has a budget; {firstName(mock.interviewer.name)} tells you when to move on but never cuts you off.</li>
               <li>Prompts and follow-ups arrive while you work. Curveballs change the problem mid-round and need their own answer.</li>
@@ -216,6 +253,7 @@ export default function Lobby({
               <li>Hints exist, but the interviewer notes every one. Pausing is allowed; real calls don&apos;t pause.</li>
               <li>Debrief: reveal the model answer phase by phase, score yourself on the rubric, get a hire / no-hire verdict, then ask Claude or ChatGPT for a second opinion.</li>
             </ol>
+            )}
           </div>
         </div>
 
@@ -223,7 +261,7 @@ export default function Lobby({
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">Reward</span>
           <div className="flex items-center gap-5">
             <div aria-hidden className="grid h-16 w-16 shrink-0 place-items-center border-2 border-fg">
-              <span className="grid h-10 w-10 place-items-center bg-signal font-mono text-sm font-semibold text-on-signal">{best ? "✓" : `M${mock.n}`}</span>
+              <span className="grid h-10 w-10 place-items-center bg-signal font-mono text-sm font-semibold text-on-signal">{best ? "✓" : lld ? `L${mock.n}` : `M${mock.n}`}</span>
             </div>
             <div className="flex flex-col gap-1">
               <span className="font-mono text-[26px] font-semibold text-fg">
@@ -272,15 +310,26 @@ export default function Lobby({
                 </button>
               )}
             </>
+          ) : needsSignIn ? (
+            <button type="button" onClick={openAuthModal} className="flex min-h-[56px] items-center justify-between gap-3 bg-signal px-5 text-[17px] font-semibold text-on-signal hover:opacity-90">
+              <span>Sign in free to start ❯</span>
+              <span className="font-mono text-sm">{mock.minutes}:00</span>
+            </button>
           ) : (
-            <button type="button" onClick={begin} className="flex min-h-[56px] items-center justify-between gap-3 bg-signal px-5 text-[17px] font-semibold text-on-signal hover:opacity-90">
+            <button type="button" onClick={begin} disabled={!!lld && !ai} className="flex min-h-[56px] items-center justify-between gap-3 bg-signal px-5 text-[17px] font-semibold text-on-signal hover:opacity-90 disabled:opacity-60">
               <span>Join the call ❯</span>
               <span className="font-mono text-sm">
                 {mock.minutes}:00 · {LEVEL_LABEL[level]}
               </span>
             </button>
           )}
-          <span className="text-[13px] text-fg-3">The clock starts when you join. Your answers stay on this device.</span>
+          <span className="text-[13px] text-fg-3">
+            {lld
+              ? needsSignIn
+                ? "Machine-coding mocks run with an AI interviewer, so they need a free account. Each reply uses a little of your daily AI credits."
+                : "The clock starts when you join. Your code and answers stay on this device; each interviewer reply uses a little of your daily AI credits."
+              : "The clock starts when you join. Your answers stay on this device."}
+          </span>
           {run.history.length > 0 && (
             <div className="flex flex-col gap-1.5 border-t border-line pt-3">
               <span className={LABEL}>past rounds</span>
