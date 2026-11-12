@@ -1159,11 +1159,13 @@ async function practiceLines(st: ChatState, p: ProgressSnapshot, now: number, fr
   if (full && x.drills.length) out.push(`Drills done: ${x.drills.slice(0, n).map((d) => human(d.id)).join("; ")}`);
   if (x.explains.length) out.push(`Explain-it-back passes recorded: ${x.explains.slice(0, n).map((e) => human(e.id)).join("; ")}`);
   if (dsa) {
-    const bits = [`${dsa.solved} problem(s) solved${dsa.attempted > dsa.solved ? ` of ${dsa.attempted} tried` : ""}${dsa.conceptsDone ? `, ${dsa.conceptsDone} concept lesson(s) done` : ""}`];
-    const about = (r: DsaDigest["recent"][number]) => [r.level, r.langs.join("/"), r.at > 1 ? ago(r.at, now) : ""].filter(Boolean).join(", ");
+    const bits = [`${dsa.solved} problem(s) solved${dsa.attempted > dsa.solved ? ` of ${dsa.attempted} tried` : ""}${dsa.lessonsDone ? `, ${dsa.lessonsDone} concept lesson(s) done` : ""}`];
+    const about = (r: DsaDigest["recent"][number]) => [r.level, r.concept, r.langs.join("/"), r.at > 1 ? ago(r.at, now) : ""].filter(Boolean).join(", ");
     if (dsa.recent.length) bits.push(`${full ? "solved, newest first" : "latest"}: ${dsa.recent.slice(0, full ? 8 : 5).map((r) => `${r.title}${about(r) ? ` (${about(r)})` : ""}`).join("; ")}`);
-    if (dsa.patterns.length) bits.push(`patterns: ${dsa.patterns.map((q) => `${human(q.name)} ×${q.solved}`).join(", ")}`);
-    if (dsa.struggles.length) bits.push(`struggled with: ${dsa.struggles.slice(0, full ? 5 : 3).map((q) => `${q.title} (${[q.failed ? `${q.failed} failed submit(s): ${q.verdicts.join("/")}` : "", q.hints ? `${q.hints} hint(s)` : "", q.editorial ? "opened the editorial" : "", q.solved ? "solved since" : "not solved yet"].filter(Boolean).join(", ")})`).join("; ")}`);
+    if (dsa.concepts.length) bits.push(`concepts solved in: ${dsa.concepts.map((c) => `${c.name} ×${c.solved}`).join(", ")}`);
+    if (dsa.struggles.length) bits.push(`hard for them: ${dsa.struggles.map((c) => `${c.concept} (${c.why})`).join("; ")}`);
+    if (dsa.hard.length) bits.push(`took several tries: ${dsa.hard.slice(0, full ? 5 : 3).map((h) => `${h.title} (${[h.failed ? `${h.failed} failed submit(s): ${h.verdicts.join("/")}` : "", h.revealed ? "editorial revealed" : "", h.solved ? "solved since" : "not solved yet"].filter(Boolean).join(", ")})`).join("; ")}`);
+    if (dsa.habits.length) bits.push(`habits: ${dsa.habits.join("; ")}`);
     out.push(`DSA Mastery (their coding course on this site): ${bits.join("; ")}.`);
   } else if (full) out.push("DSA Mastery (their coding course on this site): nothing solved or submitted yet.");
   return out;

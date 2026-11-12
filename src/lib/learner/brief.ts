@@ -62,7 +62,8 @@ export function dsaRows(userId: string): Promise<DsaLearnerRaw> {
 /* ------------------------------------------------------------------ the index (titles, concepts, modules) */
 
 let ixMemo: { at: number; p: Promise<DsaIndex & { modules: Map<string, string> }> } | null = null;
-function dsaIndex(): Promise<DsaIndex & { modules: Map<string, string> }> {
+/** Problem titles, concepts and modules, kept ten minutes (also the course chat's DSA digest: lib/ai/chat/server.ts). */
+export function dsaIndex(): Promise<DsaIndex & { modules: Map<string, string> }> {
   if (ixMemo && Date.now() - ixMemo.at < 10 * 60_000) return ixMemo.p;
   const p = Promise.all([getProblemIndex().catch(() => []), getConceptIndex().catch(() => [])]).then(([ps, cs]) => ({
     problems: new Map(ps.map((x) => [x.id, { title: x.title, concept: x.concept, level: x.level }])),

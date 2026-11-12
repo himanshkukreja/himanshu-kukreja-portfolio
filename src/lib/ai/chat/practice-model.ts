@@ -4,11 +4,12 @@
  *   game_done   lab:/lab-iv: (code labs cleared, interview passes), warroom:, paper:, drill:, explain:, quiz: (quick
  *               checks right first time), each with when it happened
  *   game_flags  mock:<id> (a mock's best and last verdict), paper:<key> (a written paper's best score and attempts)
- *   DSA         solved problems, recent solves, patterns and struggles (dsaDigest; the server reads the rows through
- *               lib/dsa/learner-data.ts and the dsa_submissions / dsa_problem_progress tables)
+ *   DSA         solved problems, recent solves, concepts and struggles (dsaDigest, over the learner model's rows and
+ *               profile: lib/learner/brief.ts dsaRows, lib/learner/dsa-profile.ts buildDsaProfile)
  * What is NOT on the server is said with it (STORED_NOTE), so the chat says "I can't see that" instead of guessing.
  */
 import type { CourseMap } from "@/lib/learn/types";
+import type { DsaIndex, DsaLearnerRaw, DsaProfile } from "@/lib/learner/dsa-profile";
 
 /** What the learner practised outside lessons, from the synced game state (times are ms; 0 = unknown). */
 export type PracticeSnapshot = {
@@ -27,17 +28,21 @@ export type PracticeSnapshot = {
 };
 export type MockVerdict = { verdict: string; level: string; pct: number; at: number };
 
-/** A learner's DSA Mastery record, digested for the chat (built on the server by dsaDigest). */
+/** A learner's DSA Mastery record, digested for the chat (dsaDigest, from the learner model's rows: lib/learner). */
 export type DsaDigest = {
   solved: number;
   attempted: number;
-  conceptsDone: number;
+  lessonsDone: number;
   /** most recent solves first */
-  recent: { id: string; title: string; level: string; patterns: string[]; langs: string[]; at: number }[];
-  /** the patterns behind their solves, most solved first */
-  patterns: { name: string; solved: number }[];
-  /** problems with failed submits, hints or the editorial opened, most failed first */
-  struggles: { id: string; title: string; failed: number; verdicts: string[]; solved: boolean; hints: number; editorial: boolean }[];
+  recent: { id: string; title: string; level: string; concept: string; langs: string[]; at: number }[];
+  /** the concepts behind their solves, most solved first */
+  concepts: { name: string; solved: number }[];
+  /** concepts their record shows as hard, with the reason (lib/learner/dsa-profile.ts) */
+  struggles: { concept: string; why: string }[];
+  /** problems with 2+ failed submits, the editorial revealed, or a failed submit and no solve yet */
+  hard: { id: string; title: string; failed: number; verdicts: string[]; solved: boolean; revealed: boolean }[];
+  /** verdict habits ("solutions too slow…") and the editorial habit */
+  habits: string[];
 };
 
 /** Said with the snapshot, so "how did my lab go" is answered from what is stored and nothing more. */
@@ -116,51 +121,55 @@ export function practiceOf(done: Record<string, number>, flags: Record<string, u
   };
 }
 
-/** The DSA record as the chat sees it (pure: the server passes what lib/dsa/learner-data.ts and the tables give). */
-export function dsaDigest(i: {
-  solvedAt: Map<string, number>;
-  solved: Set<string>;
-  langs: Map<string, Set<string>>;
-  conceptsDone: number;
-  problems: Map<string, { title: string; level: string; patterns: string[] }>;
-  /** submits that weren't Accepted (problem, verdict) */
-  failed: { problem: string; verdict: string }[];
-  /** dsa_problem_progress rows */
-  progress: { problem: string; status: string; hints: number; editorial: boolean }[];
-}): DsaDigest {
-  const meta = (id: string) => i.problems.get(id) ?? { title: id.replace(/-/g, " "), level: "", patterns: [] };
-  const recent = [...i.solved]
-    .map((id) => ({ id, ...meta(id), langs: [...(i.langs.get(id) ?? [])], at: i.solvedAt.get(id) ?? 0 }))
-    .sort((a, b) => b.at - a.at);
-  const pat = new Map<string, number>();
-  for (const r of recent) for (const p of r.patterns) pat.set(p, (pat.get(p) ?? 0) + 1);
-  const st = new Map<string, { failed: number; verdicts: Set<string>; hints: number; editorial: boolean }>();
-  const get = (id: string) => st.get(id) ?? st.set(id, { failed: 0, verdicts: new Set(), hints: 0, editorial: false }).get(id)!;
-  for (const f of i.failed) {
-    const s = get(f.problem);
-    s.failed++;
-    s.verdicts.add(f.verdict);
-  }
-  for (const p of i.progress) {
-    if (p.hints > 0 || p.editorial) {
-      const s = get(p.problem);
-      s.hints = Math.max(s.hints, p.hints);
-      s.editorial ||= p.editorial;
+/**
+ * The DSA record as the chat sees it: the learner model's profile (lib/learner/dsa-profile.ts buildDsaProfile: counts,
+ * concept struggles, habits) plus what the course chat needs on top, from the same rows: every solve with its title,
+ * level, concept and languages (newest first), the concepts behind them, and the problems that took several tries.
+ */
+export function dsaDigest(raw: DsaLearnerRaw, ix: DsaIndex, profile: DsaProfile): DsaDigest {
+  // every solve, at its first known time (the earliest Accepted submit or the award; 0 = unknown)
+  const solvedAt = new Map<string, number>();
+  const solve = (id: string, t = 0) => {
+    const prev = solvedAt.get(id) ?? 0;
+    solvedAt.set(id, prev && t ? Math.min(prev, t) : prev || t);
+  };
+  for (const r of raw.rows) if (r.week === "problems" && r.status === "completed") solve(r.lesson_slug);
+  for (const r of raw.prog) if (r.status === "solved") solve(r.problem_id);
+  for (const [k, v] of Object.entries(raw.done)) if (k.startsWith("dsa:p:")) solve(k.slice(6), at(v));
+  const langs = new Map<string, Set<string>>();
+  const fails = new Map<string, { n: number; verdicts: Set<string> }>();
+  for (const x of raw.subs) {
+    if (x.verdict === "AC") {
+      solve(x.problem_id, at(Date.parse(x.created_at)));
+      (langs.get(x.problem_id) ?? langs.set(x.problem_id, new Set()).get(x.problem_id)!).add(x.language);
+    } else {
+      const f = fails.get(x.problem_id) ?? fails.set(x.problem_id, { n: 0, verdicts: new Set() }).get(x.problem_id)!;
+      f.n++;
+      f.verdicts.add(x.verdict);
     }
   }
-  const attempted = new Set([...i.solved, ...st.keys(), ...i.progress.map((p) => p.problem)]);
-  const struggles = [...st.entries()]
-    // one failed submit before an Accepted is normal: a struggle is 2+ fails, a hint or the editorial, or no solve yet
-    .filter(([id, s]) => s.failed >= 2 || s.hints > 0 || s.editorial || (s.failed > 0 && !i.solved.has(id)))
-    .map(([id, s]) => ({ id, title: meta(id).title, failed: s.failed, verdicts: [...s.verdicts], solved: i.solved.has(id), hints: s.hints, editorial: s.editorial }))
-    .sort((a, b) => Number(a.solved) - Number(b.solved) || b.failed + b.hints * 2 - (a.failed + a.hints * 2))
+  const revealed = new Set(raw.prog.filter((r) => r.editorial_viewed).map((r) => r.problem_id));
+  const meta = (id: string) => ix.problems.get(id) ?? { title: id.replace(/-/g, " "), level: "", concept: "" };
+  const conceptName = (c: string) => (c ? (ix.concepts.get(c) ?? c.replace(/-/g, " ")) : "");
+  const recent = [...solvedAt.entries()].map(([id, t]) => ({ id, ...meta(id), concept: conceptName(meta(id).concept), langs: [...(langs.get(id) ?? [])], at: t })).sort((a, b) => b.at - a.at);
+  const per = new Map<string, number>();
+  for (const r of recent) if (r.concept) per.set(r.concept, (per.get(r.concept) ?? 0) + 1);
+  const hard = [...new Set([...fails.keys(), ...revealed])]
+    .map((id) => ({ id, title: meta(id).title, failed: fails.get(id)?.n ?? 0, verdicts: [...(fails.get(id)?.verdicts ?? [])], solved: solvedAt.has(id), revealed: revealed.has(id) }))
+    // one failed submit before an Accepted is normal
+    .filter((h) => h.failed >= 2 || h.revealed || (h.failed > 0 && !h.solved))
+    .sort((a, b) => Number(a.solved) - Number(b.solved) || b.failed - a.failed)
     .slice(0, 5);
+  const habits = [...profile.patterns];
+  if (profile.editorialFirst.n >= 2) habits.push(`revealed the editorial before solving on ${profile.editorialFirst.n} of their last ${profile.editorialFirst.of} problems`);
   return {
-    solved: i.solved.size,
-    attempted: attempted.size,
-    conceptsDone: i.conceptsDone,
+    solved: Math.max(profile.solved, recent.length),
+    attempted: profile.attempted,
+    lessonsDone: profile.lessonsDone,
     recent: recent.slice(0, 8),
-    patterns: [...pat.entries()].map(([name, solved]) => ({ name, solved })).sort((a, b) => b.solved - a.solved).slice(0, 6),
-    struggles,
+    concepts: [...per.entries()].map(([name, solved]) => ({ name, solved })).sort((a, b) => b.solved - a.solved).slice(0, 6),
+    struggles: profile.struggles,
+    hard,
+    habits,
   };
 }

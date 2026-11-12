@@ -19,8 +19,6 @@ import { canvasPrompts, FREE_RE, getDesign, myDesigns, promptBrief } from "@/lib
 import { sketchSummary } from "@/lib/learn/mock/sketch";
 import type { PageContext } from "./text";
 import { buildSnapshot, dsaDigest, type DsaDigest, type ProgressRaw, type ProgressSnapshot } from "./progress-model";
-import { dsaLearnerData } from "@/lib/dsa/learner-data";
-import { getProblemIndex } from "@/lib/dsa/load";
 import { cleanMemory, emptyMemory, type ChatMemory } from "./memory-model";
 import { dueReviewsFor, planFor } from "./reviewSeams";
 import { learnerFirstName } from "@/lib/ai/answerStyle";
@@ -66,30 +64,17 @@ function loadRaw(userId: string): Promise<Raw> {
 }
 
 /**
- * The learner's DSA Mastery record for the chat: what they solved (lib/dsa/learner-data.ts: dsa: keys, completed problem
- * rows, Accepted submits), with titles and patterns from the problem index, and where they struggled (submits that
- * weren't Accepted, hints and editorials from dsa_problem_progress). null: nothing recorded.
+ * The learner's DSA Mastery record for the chat, from the one learner model (lib/learner: the same cached rows and
+ * profile the DSA tutors read), digested for the course chat (practice-model.ts dsaDigest). It is progress, so it is
+ * read whether or not memory is on (the course chat's own progress is too). null: nothing recorded.
+ * (Imported when used: lib/learner/brief.ts reads this module's loadMemory.)
  */
 async function dsaRecord(userId: string): Promise<DsaDigest | null> {
-  const [data, index, failed, progress] = await Promise.all([
-    dsaLearnerData(userId),
-    getProblemIndex().catch(() => []),
-    supabase.from("dsa_submissions").select("problem_id, verdict").eq("user_id", userId).neq("verdict", "AC").order("created_at", { ascending: false }).limit(300),
-    supabase.from("dsa_problem_progress").select("problem_id, status, hints_used, editorial_viewed").eq("user_id", userId).limit(1000),
-  ]);
-  const solved = data.signals.solved as Set<string>;
-  const fails = (failed.error ? [] : (failed.data ?? [])) as { problem_id: string; verdict: string }[];
-  const rows = (progress.error ? [] : (progress.data ?? [])) as { problem_id: string; status: string; hints_used: number | null; editorial_viewed: boolean | null }[];
-  if (!solved.size && !fails.length && !rows.length && !(data.signals.concepts as Set<string>).size) return null;
-  return dsaDigest({
-    solved,
-    solvedAt: data.solvedAt,
-    langs: data.langs as Map<string, Set<string>>,
-    conceptsDone: (data.signals.concepts as Set<string>).size,
-    problems: new Map(index.map((p) => [p.id, { title: p.title, level: p.level, patterns: p.patterns ?? [] }])),
-    failed: fails.map((f) => ({ problem: f.problem_id, verdict: f.verdict })),
-    progress: rows.map((r) => ({ problem: r.problem_id, status: r.status, hints: Number(r.hints_used) || 0, editorial: !!r.editorial_viewed })),
-  });
+  const [{ dsaRows, dsaIndex }, { buildDsaProfile }] = await Promise.all([import("@/lib/learner/brief"), import("@/lib/learner/dsa-profile")]);
+  const [raw, ix] = await Promise.all([dsaRows(userId), dsaIndex()]);
+  const profile = buildDsaProfile(raw, ix, null);
+  if (!profile.attempted && !profile.lessonsDone) return null;
+  return dsaDigest(raw, ix, profile);
 }
 
 /** After a save, the next message should see it. */

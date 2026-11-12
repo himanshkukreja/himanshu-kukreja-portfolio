@@ -61,42 +61,57 @@ test("an empty record is empty", () => {
   assert.equal(p.labs.length + p.warRooms.length + p.papers.length + p.mockResults.length + p.quickChecks.total, 0);
 });
 
-const problems = new Map([
-  ["busiest-launch-stretch", { title: "Busiest stretch on the launch dashboard", level: "easy", patterns: ["sliding-window-fixed"] }],
-  ["compact-log-buffer", { title: "Compact the log buffer", level: "easy", patterns: ["read-write-pointers", "two-pointers"] }],
-  ["best-distinct-bundle", { title: "Best bundle of distinct products", level: "medium", patterns: ["sliding-window-fixed", "window-counts"] }],
-  ["k-closest-points", { title: "K closest points", level: "medium", patterns: ["heap"] }],
-]);
+const ix = {
+  problems: new Map([
+    ["busiest-launch-stretch", { title: "Busiest stretch on the launch dashboard", concept: "fixed-window", level: "easy" }],
+    ["compact-log-buffer", { title: "Compact the log buffer", concept: "read-write-pointers", level: "easy" }],
+    ["best-distinct-bundle", { title: "Best bundle of distinct products", concept: "fixed-window", level: "medium" }],
+    ["k-closest-points", { title: "K closest points", concept: "heaps", level: "medium" }],
+  ]),
+  concepts: new Map([["fixed-window", "Fixed-size sliding window"], ["read-write-pointers", "Read and write pointers"]]),
+};
+const iso = (t) => new Date(t).toISOString();
+// the learner model's rows (lib/learner/brief.ts dsaRows): submits newest first
+const raw = {
+  done: { "dsa:p:best-distinct-bundle": T - 2 * DAY, "dsa:c:fixed-window": T - 3 * DAY },
+  onboarding: null,
+  rows: [],
+  subs: [
+    { problem_id: "k-closest-points", language: "python", verdict: "TLE", created_at: iso(T - 1000) },
+    { problem_id: "busiest-launch-stretch", language: "java", verdict: "AC", created_at: iso(T) },
+    { problem_id: "busiest-launch-stretch", language: "python", verdict: "AC", created_at: iso(T - 60_000) },
+    { problem_id: "busiest-launch-stretch", language: "cpp", verdict: "CE", created_at: iso(T - 120_000) },
+    { problem_id: "compact-log-buffer", language: "python", verdict: "AC", created_at: iso(T - DAY) },
+    { problem_id: "compact-log-buffer", language: "python", verdict: "WA", created_at: iso(T - DAY - 60_000) },
+    { problem_id: "compact-log-buffer", language: "python", verdict: "ERR", created_at: iso(T - DAY - 120_000) },
+  ],
+  prog: [{ problem_id: "best-distinct-bundle", status: "solved", editorial_viewed: true }],
+};
+const profile = { lang: null, level: null, levelFrom: null, goal: null, solved: 3, attempted: 4, lessonsDone: 1, bits: null, struggles: [{ concept: "Heaps", why: "1 failed submit on 1 problem, 1 still unsolved" }], editorialFirst: { n: 1, of: 4 }, patterns: [] };
 
-test("the DSA digest: solves newest first, patterns, and struggles", () => {
-  const d = dsaDigest({
-    solved: new Set(["busiest-launch-stretch", "compact-log-buffer", "best-distinct-bundle"]),
-    solvedAt: new Map([["busiest-launch-stretch", T], ["compact-log-buffer", T - DAY], ["best-distinct-bundle", T - 2 * DAY]]),
-    langs: new Map([["busiest-launch-stretch", new Set(["python", "java"])]]),
-    conceptsDone: 2,
-    problems,
-    failed: [
-      { problem: "compact-log-buffer", verdict: "WA" },
-      { problem: "compact-log-buffer", verdict: "ERR" },
-      { problem: "busiest-launch-stretch", verdict: "CE" },
-      { problem: "k-closest-points", verdict: "TLE" },
-    ],
-    progress: [{ problem: "best-distinct-bundle", status: "solved", hints: 2, editorial: false }],
-  });
+test("the DSA digest over the learner model's rows: solves newest first, concepts, problems that took tries", () => {
+  const d = dsaDigest(raw, ix, profile);
   assert.equal(d.solved, 3);
   assert.equal(d.attempted, 4);
-  assert.equal(d.conceptsDone, 2);
+  assert.equal(d.lessonsDone, 1);
   assert.deepEqual(d.recent.map((r) => r.id), ["busiest-launch-stretch", "compact-log-buffer", "best-distinct-bundle"]);
-  assert.deepEqual(d.recent[0].langs, ["python", "java"]);
-  assert.deepEqual(d.patterns[0], { name: "sliding-window-fixed", solved: 2 });
+  // the earliest Accepted is the solve's time; languages from Accepted submits only
+  assert.equal(d.recent[0].at, T - 60_000);
+  assert.deepEqual(d.recent[0].langs.sort(), ["java", "python"]);
+  assert.equal(d.recent[0].concept, "Fixed-size sliding window");
+  assert.deepEqual(d.concepts[0], { name: "Fixed-size sliding window", solved: 2 });
+  assert.deepEqual(d.struggles, profile.struggles);
   // one CE before an Accepted isn't a struggle; an unsolved problem with a failed submit is, and comes first
-  assert.deepEqual(d.struggles.map((s) => s.id), ["k-closest-points", "best-distinct-bundle", "compact-log-buffer"]);
-  assert.deepEqual(d.struggles[2], { id: "compact-log-buffer", title: "Compact the log buffer", failed: 2, verdicts: ["WA", "ERR"], solved: true, hints: 0, editorial: false });
+  assert.deepEqual(d.hard.map((h) => h.id), ["k-closest-points", "compact-log-buffer", "best-distinct-bundle"]);
+  assert.deepEqual(d.hard[1], { id: "compact-log-buffer", title: "Compact the log buffer", failed: 2, verdicts: ["WA", "ERR"], solved: true, revealed: false });
+  assert.equal(d.hard[2].revealed, true);
+  assert.deepEqual(d.habits, []);
 });
 
-test("an unknown problem id still reads as words", () => {
-  const d = dsaDigest({ solved: new Set(["two-sum-sorted"]), solvedAt: new Map(), langs: new Map(), conceptsDone: 0, problems: new Map(), failed: [], progress: [] });
+test("an unknown problem id still reads as words; the editorial habit shows from two", () => {
+  const d = dsaDigest({ ...raw, done: { "dsa:p:two-sum-sorted": T }, subs: [], prog: [] }, ix, { ...profile, editorialFirst: { n: 3, of: 5 }, patterns: ["compile errors on 2 problems"] });
   assert.equal(d.recent[0].title, "two sum sorted");
+  assert.deepEqual(d.habits, ["compile errors on 2 problems", "revealed the editorial before solving on 3 of their last 5 problems"]);
 });
 
 test("the stored-data note names what isn't stored", () => {
