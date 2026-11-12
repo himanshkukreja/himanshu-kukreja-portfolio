@@ -50,7 +50,7 @@ export type MistakeContent = {
   /** an SD Mastery concept id, or "dsa:<id>" for a DSA concept: its name, key points in order (point n = miss "n") and where it's taught */
   concept: (ref: string) => { term: string; points: string[]; href?: string; week?: string; slug?: string; anchor?: string } | null;
   /** a mock by slug: its phases' questions and rubric signals (with where the course teaches each) */
-  mock: (slug: string) => { code: string; title: string; phases: { id: string; title: string; question: string; signals: { id: string; text: string; study?: { title: string; href: string } }[] }[] } | null;
+  mock: (slug: string) => { code: string; title: string; phases: { id: string; title: string; question: string; signals: { id: string; text: string; level?: string; study?: { title: string; href: string } }[] }[] } | null;
   /** a lab by id: its interviewer follow-ups (question and answer, plain text) */
   lab: (id: string) => { title: string; href: string; followUps: { q: string; a: string }[] } | null;
   /** a question-bank item by id: the question, the right option, the course's explanation and its lesson */
@@ -96,6 +96,9 @@ export function neededContent(events: OutcomeEvent[], dsaHard: { concept: string
     mcqs: uniq(recent.filter((e) => e.kind === "chat_quiz" && e.outcome === "wrong" && e.ref.startsWith("mcq:")).map((e) => e.ref.slice(4))),
   };
 }
+
+/** the order the missed rubric lines are shown in: the bar just above Junior first */
+const LEVELS = ["sde", "senior", "staff", "junior"];
 
 const LAB_AREAS: [string, string][] = [
   ["c", "correctness"],
@@ -164,7 +167,10 @@ export function mistakeCandidates(events: OutcomeEvent[], dsaHard: { concept: st
       for (const [phaseId, miss] of missByPhase) {
         const ph = m.phases.find((p) => p.id === phaseId);
         if (!ph || !miss.length) continue;
-        const sig = miss.map((id) => ph.signals.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s);
+        const found = miss.map((id) => ph.signals.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s);
+        // what a strong answer covers: the SDE-and-up signals they missed (a Junior signal describes the minimum), strongest bar first
+        const strong = found.filter((s) => s.level && s.level !== "junior").sort((a, b) => LEVELS.indexOf(a.level ?? "") - LEVELS.indexOf(b.level ?? ""));
+        const sig = strong.length ? strong : found;
         if (!sig.length) continue;
         const study = sig.find((s) => s.study)?.study;
         const points = sig.slice(0, 4).map((s) => ({ k: "", v: clip(s.text, 220) }));

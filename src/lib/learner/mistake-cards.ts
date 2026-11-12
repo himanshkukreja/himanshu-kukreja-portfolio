@@ -72,7 +72,7 @@ async function contentFor(need: ReturnType<typeof neededContent>): Promise<Mista
           id: p.id,
           title: p.title,
           question: strip(p.prompts[0]?.text ?? p.prompts[0]?.html ?? ""),
-          signals: p.rubric.map((s) => ({ id: s.id, text: s.text, ...(s.study[0] ? { study: { title: s.study[0].title, href: s.study[0].href } } : {}) })),
+          signals: p.rubric.map((s) => ({ id: s.id, text: s.text, level: s.level, ...(s.study[0] ? { study: { title: s.study[0].title, href: s.study[0].href } } : {}) })),
         })),
       };
     },

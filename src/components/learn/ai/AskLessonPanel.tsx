@@ -218,7 +218,7 @@ export default function AskLessonPanel({
                     // "Teach me": the answer ends with one question, so only "Just show me" sits under it
                     <Followups items={t.teach && !REVEAL_RE.test(t.q) ? [] : (t.followups ?? [])} actions={t.teach && !REVEAL_RE.test(t.q) ? ["reveal"] : pickActions(t.followups ?? [], { asked: t.q })} onAsk={onCard} />
                   )}
-                  {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && t.answer.split(/\s+/).length >= 30 && (
+                  {t === latest && !t.saved && !!t.answer && t.mode !== "check" && status?.signedIn && t.answer.split(/\s+/).length >= 30 && !(t.teach && !t.restyle && !REVEAL_RE.test(t.q)) && (
                     <button type="button" onClick={differently} disabled={busy} className="inline-flex min-h-9 items-center gap-1.5 self-start border border-line-strong bg-surface px-2.5 font-mono text-[12px] text-fg-2 hover:border-signal hover:text-fg [@media(pointer:coarse)]:min-h-11">
                       <Shuffle className="h-3.5 w-3.5 text-signal-text" aria-hidden /> Explain it differently
                     </button>

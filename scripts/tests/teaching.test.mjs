@@ -162,7 +162,7 @@ const content = {
     })[ref] ?? null,
   mock: (slug) =>
     slug === "mock-01-x"
-      ? { code: "M1", title: "BillBolt", phases: [{ id: "p2", title: "Capacity", question: "Estimate the QPS and storage.", signals: [{ id: "p2.s1", text: "States peak QPS from DAU with a peak factor", study: { title: "Back of the envelope", href: "/learn/w1" } }, { id: "p2.s2", text: "Sizes storage for 5 years" }] }] }
+      ? { code: "M1", title: "BillBolt", phases: [{ id: "p2", title: "Capacity", question: "Estimate the QPS and storage.", signals: [{ id: "p2.s1", text: "States peak QPS from DAU with a peak factor", level: "sde", study: { title: "Back of the envelope", href: "/learn/w1" } }, { id: "p2.s2", text: "Sizes storage for 5 years", level: "senior" }, { id: "p2.s0", text: "Gives some number", level: "junior" }] }] }
       : null,
   lab: (id) => (id === "lru-cache" ? { title: "LRU cache", href: "/labs/lru-cache", followUps: [{ q: "How would you make it thread safe?", a: "Guard get and put with one lock, or shard the map." }] } : null),
   mcq: (id) => (id === "quiz:sdm/week-04/x:1:1" ? { prompt: "Which pattern deletes on write?", answer: "Cache-aside with invalidation", explain: "Delete avoids the update race.", week: "week-04", slug: "x", label: "W04 · Caching" } : null),
@@ -204,6 +204,11 @@ test("the latest result decides: improved since means no card; unanswered and cl
   assert.deepEqual(mistakeCandidates(events, [], content, NOW), []);
   // and nothing older than the window
   assert.deepEqual(mistakeCandidates([ev("explain_back", "cache-aside", "partial", { miss: ["1"] }, 40 * DAY)], [], content, NOW), []);
+});
+
+test("a mock card shows the stronger bars it missed, not the Junior minimum", () => {
+  const [c] = mistakeCandidates([ev("mock_phase", "mock-01-x/p2", "junior", { run: 1, miss: ["p2.s0", "p2.s2", "p2.s1"] }, DAY)], [], content, NOW);
+  assert.deepEqual(c.detail.points.map((p) => p.v), ["States peak QPS from DAU with a peak factor", "Sizes storage for 5 years"]);
 });
 
 test("an LLD round's misses become one card per phase; a DSA explain-back and repeated fails share one card", () => {

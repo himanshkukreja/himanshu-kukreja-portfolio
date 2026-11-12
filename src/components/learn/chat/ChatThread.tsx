@@ -15,6 +15,7 @@ import { KIND_LABEL } from "@/lib/search/smart/types";
 import { atClock } from "@/lib/search/smart/engine";
 import { citedRefs, streamingText, trailOf, type ChatSource } from "@/lib/ai/chat/text";
 import { ANSWER_STYLES } from "@/lib/ai/answerStyle";
+import { REVEAL_RE } from "@/lib/ai/teaching";
 import Followups from "./Followups";
 import ChatMarkdown from "./ChatMarkdown";
 import { Thinking, Trail, useReducedMotion, useReveal } from "./ChatLive";
@@ -397,6 +398,9 @@ export default function ChatThread({
   const reduced = useReducedMotion();
   // messages that arrive while the thread is open rise in; the ones it opened with just show
   const [openedAt] = useState(() => Date.now());
+  // a "Teach me" reply is the tutor's question: nothing to re-explain yet (its "Just show me" is the way out)
+  const asked = conv.messages[conv.messages.length - 2];
+  const teachTurn = asked?.role === "user" && !!asked.teach && !asked.restyle && !REVEAL_RE.test(asked.text);
   return (
     <ol className="m-0 flex list-none flex-col gap-6 p-0" aria-label="Conversation">
       {conv.messages.map((m) => {
@@ -417,7 +421,7 @@ export default function ChatThread({
               // the same order as the finished answer (trail, text, then its cards after the text), so nothing jumps when it lands
               <Pending m={m} conv={conv} status={status} draft={draft} live={live} animate={animate} onStop={onStop} />
             ) : (
-              <Assistant m={m} conv={conv} onAnswer={onAnswer} onSave={onSave} busy={busy} actions={actions} animate={animate} onAsk={m === last && !busy && conv.mock?.status !== "live" ? onAsk : undefined} onDifferently={m === last && !busy && conv.mock?.status !== "live" ? onDifferently : undefined} />
+              <Assistant m={m} conv={conv} onAnswer={onAnswer} onSave={onSave} busy={busy} actions={actions} animate={animate} onAsk={m === last && !busy && conv.mock?.status !== "live" ? onAsk : undefined} onDifferently={m === last && !busy && conv.mock?.status !== "live" && !teachTurn ? onDifferently : undefined} />
             )}
           </li>
         );
