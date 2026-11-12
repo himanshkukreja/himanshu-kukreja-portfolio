@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -183,6 +183,12 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // maxTokens 4000: in testing (12 Nov 2026) a five-phase round thought ~4,500 tokens and wrote ~1,300; at 3000 (+3000 thinking
   // headroom) one reply was cut after P1.
   "lld-mock-scorecard": { label: "AI LLD mock scorecard", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 12, maxTokens: 4000, maxInputChars: 60000, think: true, effort: "medium", live: true },
+  // The interview-readiness estimate's reading (owner-approved 12 Nov 2026, AI audit O12): the estimate itself is plain
+  // code (lib/learner/readiness-model.ts); on demand ("Read my estimate") Haiku 5.5 writes one short paragraph naming the
+  // 2-3 things that would raise it, linking only to the links the code chose. Numbers and labels in, never the learner's
+  // words. Cached a day per learner and track (the route reuses the day's transcript), so perDay is small: three tracks.
+  // ~600 tokens in, ~150 out: about $0.0001-0.0002 a reading, on the learner's shared daily credits. No thinking.
+  "readiness-reading": { label: "Interview-readiness reading", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 4, maxTokens: 350, maxInputChars: 3000, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

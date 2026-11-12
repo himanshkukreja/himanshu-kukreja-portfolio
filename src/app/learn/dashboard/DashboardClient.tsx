@@ -36,6 +36,7 @@ import ArenaStatsCard from "@/components/learn/arena/ArenaStatsCard";
 import ShareProgress from "@/components/learn/progress/ShareProgress";
 import CertificateEntry from "@/components/learn/certificate/CertificateEntry";
 import { useMockStatus } from "@/lib/learn/mock/store";
+import ReadinessCard from "@/components/learn/progress/ReadinessCard";
 
 export default function DashboardClient({ map, lectures = [] }: { map: CourseMap; lectures?: LectureLite[] }) {
   const d = useProgressData(map);
@@ -225,6 +226,8 @@ export default function DashboardClient({ map, lectures = [] }: { map: CourseMap
       <Link href="/guide#progress" className="-mt-6 inline-flex min-h-10 items-center self-start font-mono text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg lg:-mt-10">
         what do these numbers mean? read the guide →
       </Link>
+
+      {d.signedIn && <ReadinessCard tracks={["sdm", "lld", "dsa"]} />}
 
       <CourseMapGrid rows={rows} side={map.sideQuests} lessons={lessons} currentWeek={currentWeek} mocks={mocks} />
 
