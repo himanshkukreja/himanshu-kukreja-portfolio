@@ -205,7 +205,8 @@ export const FEATURE_IDS = Object.keys(FEATURES) as FeatureId[];
  * scripts/ai-eval/route.ts. `perUserDay` 10: a learner's worst day adds ~10 x $0.03-0.05.
  * A learner's own key (BYOK) routes the same way without the daily cap (their cost).
  */
-export const ROUTING = { model: MODELS.sonnet, perUserDay: 10, features: ["course-chat", "dsa-chat", "dsa-tutor"] as FeatureId[] };
+// DSA left out (12 Nov 2026 eval: Sonnet gave no gain on the hard DSA turns at ~20x the cost; revisit with a Sonnet-tuned DSA prompt)
+export const ROUTING = { model: MODELS.sonnet, perUserDay: 10, features: ["course-chat"] as FeatureId[] };
 /** Content-production jobs (scripts/ai-eval, scripts/ai-batch): not learner usage. */
 export const CONTENT_FEATURES = FEATURE_IDS.filter((id) => FEATURES[id].kind === "content");
 export const isContentFeature = (id: string) => (CONTENT_FEATURES as string[]).includes(id);
