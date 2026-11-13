@@ -6,7 +6,7 @@
  * per phase, kept in this browser; it feeds the AI scorecard in the debrief.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Loader2, Phone, PhoneOff, Sparkles } from "lucide-react";
+import { Loader2, Phone, PhoneOff, Sparkles, Volume2, VolumeX } from "lucide-react";
 import { appendSpoken, dictationSupported, MicButton, speak, stopSpeaking, useDictation } from "@/components/learn/mock/Dictate";
 import { useAuthModal } from "@/contexts/AuthModalContext";
 import { aiFetch } from "./aiFetch";
@@ -50,12 +50,28 @@ export default function AiInterviewer({
   const [call, setCall] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [canCall, setCanCall] = useState(false);
+  // read the interviewer's typed-chat replies aloud (browser voice); off by default, remembered on this device
+  const [readAloud, setReadAloud] = useState(false);
+  const [canSpeak, setCanSpeak] = useState(false);
+  const [noMic, setNoMic] = useState(false);
+  const readRef = useRef(false);
   const heard = useRef("");
   const callRef = useRef(false);
   useEffect(() => {
-    const t = window.setTimeout(() => setCanCall(dictationSupported() && "speechSynthesis" in window), 0);
+    const t = window.setTimeout(() => {
+      setCanCall(dictationSupported() && "speechSynthesis" in window);
+      setNoMic(!dictationSupported());
+      setCanSpeak("speechSynthesis" in window);
+      try {
+        setReadAloud(localStorage.getItem("sdm_mock_read_aloud") === "1");
+      } catch {}
+    }, 0);
     return () => window.clearTimeout(t);
   }, []);
+  useEffect(() => {
+    readRef.current = readAloud;
+    if (!readAloud) stopSpeaking();
+  }, [readAloud]);
   useEffect(() => {
     callRef.current = call;
     if (!call) stopSpeaking();
@@ -126,6 +142,7 @@ export default function AiInterviewer({
       if (r.ok) {
         setPhase(phaseId, [...next, { role: "assistant", content: body.text || "" }]);
         setBusy(false);
+        if (readRef.current && !callRef.current && body.text) void speak(body.text);
         return body.text || "";
       }
       setError(body.error || "Something went wrong.");
@@ -216,6 +233,25 @@ export default function AiInterviewer({
               Send · ⌘↵
             </button>
             {!call && <MicButton value={text} onChange={(v) => setText(v.slice(0, 4000))} />}
+            {canSpeak && !call && (
+              <button
+                type="button"
+                aria-pressed={readAloud}
+                onClick={() => {
+                  const v = !readAloud;
+                  setReadAloud(v);
+                  try {
+                    localStorage.setItem("sdm_mock_read_aloud", v ? "1" : "0");
+                  } catch {}
+                }}
+                title="Read the interviewer's replies aloud"
+                className={`inline-flex min-h-10 items-center gap-1.5 border px-2.5 font-mono text-[11px] ${readAloud ? "border-signal text-signal-text" : "border-line-strong text-fg-2 hover:border-fg-3"}`}
+              >
+                {readAloud ? <Volume2 className="h-3.5 w-3.5" aria-hidden /> : <VolumeX className="h-3.5 w-3.5" aria-hidden />}
+                read replies aloud: {readAloud ? "on" : "off"}
+              </button>
+            )}
+            {noMic && <span className="self-center font-mono text-[11px] text-fg-3">Voice answers need Chrome, Edge or Safari. Type your answer instead.</span>}
             {notes.trim().split(/\s+/).length >= 15 && msgs.length === 0 && (
               <button type="button" disabled={busy} onClick={() => void send(notes)} className="min-h-10 border border-line-strong px-4 font-mono text-xs text-fg hover:border-fg-3 disabled:opacity-50">
                 {notesLabel}

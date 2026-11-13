@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading" | "plan-coach" | "concept-recap" | "goal-chat" | "weak-drill";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading" | "plan-coach" | "concept-recap" | "goal-chat" | "weak-drill" | "weekly-digest";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -212,6 +212,11 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // browser from the model's own answer key, so no learner text reaches the server; the result is one chat_quiz outcome.
   // Haiku 5.5, no thinking; ~3k tokens in, ~450 out: about $0.0013 a drill. perDay 8 covers a few drills and warm-ups a day.
   "weak-drill": { label: "Weak-spot drill (3 questions, or a smaller version)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 8, maxTokens: 1200, maxInputChars: 9000, think: false, live: true },
+  // The opt-in weekly progress email (owner-approved 13 Nov 2026; lib/learner/weekly-digest*.ts): one short paragraph
+  // written from the week's counts, topic names and level words only (never chat, notes or memory text), cached per
+  // learner per week in ai_transcripts. Haiku 5.5, no thinking; ~350 tokens in, ~90 out: ~$0.0001 per email. perDay 3:
+  // the cron writes it once a week, a preview or re-run may ask again.
+  "weekly-digest": { label: "Weekly progress email (summary line)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 3, maxTokens: 220, maxInputChars: 2500, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

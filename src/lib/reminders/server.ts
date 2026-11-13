@@ -10,9 +10,11 @@ import { supabase } from "@/lib/supabase";
 import { sendRawEmail } from "@/lib/mailer";
 // course URLs live on the course host
 import { COURSE_ORIGIN as SITE_URL } from "@/lib/site/hosts";
+import { buildDigest, digestHtml, digestParagraph, digestWeekKey } from "@/lib/learner/weekly-digest";
+import { didTotal } from "@/lib/learner/weekly-digest-model";
 import { COURSE_BRAND_CELL, courseBrand } from "@/lib/email/brand";
 
-export type ReminderPrefs = { emailOn: boolean; pushOn: boolean; pushDevices: number; tz: string };
+export type ReminderPrefs = { emailOn: boolean; pushOn: boolean; pushDevices: number; tz: string; weeklyOn: boolean };
 type Row = { user_id: string; email_on: boolean; push_on: boolean; push_subs: PushSubscription[]; tz: string; last_sent_on: string | null; unsub_token: string };
 
 export const vapidPublicKey = () => process.env.VAPID_PUBLIC_KEY || null;
@@ -50,13 +52,15 @@ export function atRisk(activeDays: Set<string>, today: string): number {
 const ok = (tz: unknown) => (typeof tz === "string" && tz.length <= 64 && /^[A-Za-z_]+(\/[A-Za-z0-9_+-]+)*$/.test(tz) ? tz : "Asia/Kolkata");
 
 export async function getPrefs(userId: string): Promise<ReminderPrefs> {
-  const { data } = await supabase.from("learner_reminders").select("email_on, push_on, push_subs, tz").eq("user_id", userId).maybeSingle();
-  const r = data as Pick<Row, "email_on" | "push_on" | "push_subs" | "tz"> | null;
-  return { emailOn: !!r?.email_on, pushOn: !!r?.push_on, pushDevices: Array.isArray(r?.push_subs) ? r!.push_subs.length : 0, tz: r?.tz || "Asia/Kolkata" };
+  // weekly_on arrives with the 20261113 migration; until it is applied the weekly email simply reads as off
+  let res = await supabase.from("learner_reminders").select("email_on, push_on, push_subs, tz, weekly_on").eq("user_id", userId).maybeSingle();
+  if (res.error) res = (await supabase.from("learner_reminders").select("email_on, push_on, push_subs, tz").eq("user_id", userId).maybeSingle()) as typeof res;
+  const r = res.data as unknown as (Pick<Row, "email_on" | "push_on" | "push_subs" | "tz"> & { weekly_on?: boolean }) | null;
+  return { emailOn: !!r?.email_on, pushOn: !!r?.push_on, pushDevices: Array.isArray(r?.push_subs) ? r!.push_subs.length : 0, tz: r?.tz || "Asia/Kolkata", weeklyOn: !!r?.weekly_on };
 }
 
 /** Partial update from the Progress page. A new push subscription is added (one per device endpoint). */
-export async function savePrefs(userId: string, body: { emailOn?: unknown; pushOn?: unknown; subscription?: unknown; removeEndpoint?: unknown; tz?: unknown }): Promise<ReminderPrefs> {
+export async function savePrefs(userId: string, body: { emailOn?: unknown; weeklyOn?: unknown; pushOn?: unknown; subscription?: unknown; removeEndpoint?: unknown; tz?: unknown }): Promise<ReminderPrefs> {
   const { data } = await supabase.from("learner_reminders").select("push_subs").eq("user_id", userId).maybeSingle();
   let subs = (Array.isArray((data as Row | null)?.push_subs) ? (data as Row).push_subs : []) as PushSubscription[];
   const sub = body.subscription as PushSubscription | undefined;
@@ -66,16 +70,17 @@ export async function savePrefs(userId: string, body: { emailOn?: unknown; pushO
   if (typeof body.removeEndpoint === "string") subs = subs.filter((s) => s.endpoint !== body.removeEndpoint);
   const patch: Record<string, unknown> = { user_id: userId, push_subs: subs, updated_at: new Date().toISOString() };
   if (typeof body.emailOn === "boolean") patch.email_on = body.emailOn;
+  if (typeof body.weeklyOn === "boolean") patch.weekly_on = body.weeklyOn;
   if (typeof body.pushOn === "boolean") patch.push_on = body.pushOn && subs.length > 0;
   if (body.tz !== undefined) patch.tz = ok(body.tz);
   const { error } = await supabase.from("learner_reminders").upsert(patch, { onConflict: "user_id" });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(/weekly_on/.test(error.message) ? "The weekly email isn't available yet." : error.message);
   return getPrefs(userId);
 }
 
-export async function unsubscribeByToken(token: string): Promise<boolean> {
+export async function unsubscribeByToken(token: string, kind: "streak" | "weekly" = "streak"): Promise<boolean> {
   if (!/^[0-9a-f-]{36}$/i.test(token)) return false;
-  const { data, error } = await supabase.from("learner_reminders").update({ email_on: false, updated_at: new Date().toISOString() }).eq("unsub_token", token).select("user_id");
+  const { data, error } = await supabase.from("learner_reminders").update({ ...(kind === "weekly" ? { weekly_on: false } : { email_on: false }), updated_at: new Date().toISOString() }).eq("unsub_token", token).select("user_id");
   return !error && !!data?.length;
 }
 
@@ -141,6 +146,40 @@ export async function runReminders(now = new Date()): Promise<{ checked: number;
       }
     }
     if (sent) await supabase.from("learner_reminders").update({ last_sent_on: today }).eq("user_id", r.user_id);
+  }
+  return out;
+}
+
+/**
+ * The weekly progress email run (Sundays, pg_cron → /api/cron/weekly-digest). One per learner per week (weekly_last),
+ * only when the week has something to say (activity or a slipped topic). `only`: one user id (tests). `dryTo`: send to this
+ * address instead of the learner's (QA). Returns counts only.
+ */
+export async function runWeeklyDigest(o: { now?: number; only?: string; dryTo?: string } = {}): Promise<{ checked: number; sent: number; skipped: number; failed: number }> {
+  const now = o.now ?? Date.now();
+  let q = supabase.from("learner_reminders").select("user_id, tz, weekly_last, unsub_token").eq("weekly_on", true);
+  if (o.only) q = q.eq("user_id", o.only);
+  const { data, error } = await q;
+  if (error) throw new Error(error.message);
+  const rows = (data || []) as { user_id: string; tz: string; weekly_last: string | null; unsub_token: string }[];
+  const out = { checked: rows.length, sent: 0, skipped: 0, failed: 0 };
+  for (const r of rows) {
+    try {
+      const week = digestWeekKey(now, r.tz);
+      if (r.weekly_last === week && !o.dryTo) { out.skipped++; continue; }
+      const facts = await buildDigest(r.user_id, now);
+      if (!didTotal(facts.did) && !facts.slipped.length) { out.skipped++; continue; }
+      const para = await digestParagraph(r.user_id, facts, now, r.tz);
+      let to = o.dryTo;
+      if (!to) to = (await supabase.auth.admin.getUserById(r.user_id)).data?.user?.email || undefined;
+      if (!to) { out.skipped++; continue; }
+      await sendRawEmail(to, "Your week on System Design Mastery", digestHtml(facts, para, r.unsub_token));
+      if (!o.dryTo) await supabase.from("learner_reminders").update({ weekly_last: week }).eq("user_id", r.user_id);
+      out.sent++;
+    } catch (e) {
+      out.failed++;
+      console.warn("[weekly-digest] failed", (e as Error).message);
+    }
   }
   return out;
 }

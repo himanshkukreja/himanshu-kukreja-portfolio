@@ -14,6 +14,7 @@
  *   Clear all           memory notes and/or graded results; the on/off switch stays at the top
  * The learner's own rows only (/api/learn/ai/chat/memory, /api/learn/ai/outcomes; verified session).
  */
+import WeeklyEmail from "@/components/learn/progress/WeeklyEmail";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Brain, Check, Pencil, Trash2, X } from "lucide-react";
@@ -357,6 +358,10 @@ export default function TutorMemory() {
             <button type="button" disabled={busy} onClick={() => toggle(!s.paused)} className={`min-h-10 px-3.5 font-mono text-[12.5px] ${s.paused ? "bg-signal font-semibold text-on-signal" : "border border-line-strong text-fg-2 hover:text-fg"}`}>
               {s.paused ? "Turn memory on" : "Turn memory off (and forget)"}
             </button>
+          </section>
+
+          <section aria-label="Weekly progress email" className="border border-line bg-surface px-4 py-3.5">
+            <WeeklyEmail signedIn />
           </section>
 
           <p role="status" aria-live="polite" className={`m-0 -my-4 h-4 font-mono text-[12px] text-signal-text ${note ? "" : "invisible"}`}>

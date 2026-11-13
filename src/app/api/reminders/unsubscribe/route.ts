@@ -12,9 +12,10 @@ const page = (title: string, body: string) =>
 
 /** One-click email unsubscribe from a reminder email's footer link (?t=<token>). */
 export async function GET(req: NextRequest) {
-  const ok = await unsubscribeByToken(req.nextUrl.searchParams.get("t") || "");
+  const weekly = req.nextUrl.searchParams.get("k") === "weekly";
+  const ok = await unsubscribeByToken(req.nextUrl.searchParams.get("t") || "", weekly ? "weekly" : "streak");
   const html = ok
-    ? page("Reminder emails are off", "You won't get streak reminder emails any more. You can switch them back on any time.")
+    ? page(weekly ? "Weekly emails are off" : "Reminder emails are off", weekly ? "You won't get the weekly progress email any more. You can switch it back on any time." : "You won't get streak reminder emails any more. You can switch them back on any time.")
     : page("That link didn't work", "It may be old. You can turn reminder emails off on your Progress page.");
   return new Response(html, { status: ok ? 200 : 400, headers: { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store" } });
 }
