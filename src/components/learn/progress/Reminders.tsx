@@ -8,8 +8,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { track } from "@/lib/track";
 import { userJson } from "./userFetch";
+import WeeklyEmail from "./WeeklyEmail";
 
-type Prefs = { emailOn: boolean; pushOn: boolean; pushDevices: number; tz: string };
+type Prefs = { emailOn: boolean; pushOn: boolean; pushDevices: number; tz: string; weeklyOn?: boolean };
 
 const b64ToBytes = (b64: string) => {
   const pad = "=".repeat((4 - (b64.length % 4)) % 4);
@@ -149,6 +150,7 @@ export default function Reminders({ signedIn, onSignIn }: { signedIn: boolean; o
               {busy === "email" ? "…" : prefs.emailOn ? "on · turn off" : "turn on"}
             </button>
           </div>
+          <WeeklyEmail signedIn={signedIn} className={row} />
           {note && <p className="m-0 font-mono text-xs text-bad-text">{note}</p>}
         </>
       )}
