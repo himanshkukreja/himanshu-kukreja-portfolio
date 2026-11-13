@@ -22,6 +22,7 @@ import { buildSnapshot, dsaDigest, type DsaDigest, type ProgressRaw, type Progre
 import { cleanMemory, emptyMemory, type ChatMemory } from "./memory-model";
 import { dueReviewsFor, planFor } from "./reviewSeams";
 import { learnerFirstName } from "@/lib/ai/answerStyle";
+import { readMyNotes, tutorNotesOn } from "@/lib/learner/notes-reader";
 
 const isMissing = (e: { code?: string; message?: string } | null) => !!e && (["42P01", "42703", "PGRST204", "PGRST205"].includes(e.code || "") || /does not exist|could not find the/i.test(e.message || ""));
 
@@ -167,6 +168,9 @@ export async function makeDeps(a: { origin: string; userId: string | null; page:
     page: a.page,
     mock: (slug) => getMockInterview(slug),
     design: async (key) => (a.userId ? latestDesign(a.userId, key) : null),
+    // "Let the tutor read my notes" (opt-in, default off): the tool is offered only when on, and every read re-checks the switch fresh
+    notesOn: !!a.userId && (await tutorNotesOn(a.userId).catch(() => false)),
+    myNotes: async (week, slug) => (a.userId ? readMyNotes(a.userId, week, slug) : null),
     // seams for lib/learn/review-due.ts and lib/learn/study-plan.ts (helper B): wired in reviewSeams.ts
     dueReviews: async (waitMs) => (!a.userId ? null : waitMs ? within(dueReviewsFor(a.userId), waitMs, null, "due reviews") : dueReviewsFor(a.userId)),
     studyPlan: async (p) => planFor(p),

@@ -44,6 +44,7 @@ import DsaCrumbs from "../DsaCrumbs";
 import { useDsaProgress, useRecordSolve } from "../progress/useDsaProgress";
 import ProblemInterview from "./ProblemInterview";
 import ProblemTutor, { type TutorRequest } from "./ProblemTutor";
+import Warmup from "./Warmup";
 import { useDailySolve, useIsDaily } from "../daily/useDsaDaily";
 import { Lock, MessageCircleQuestion, MessageSquareQuote, NotebookPen, PlayCircle, Sparkles } from "lucide-react";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
@@ -800,6 +801,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
               </p>
             )}
             {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} onTutor={askTutor} code={outcome.code} lang={outcome.lang} fn={fnNameFor(outcome.lang, p.signature.fn)} />}
+            {outcome && outcome.o.verdict !== "AC" && !solved && fails >= 3 && <Warmup problem={p.id} concept={p.conceptTitle} />}
             {stdout && (
               <details className="border border-line bg-surface">
                 <summary className="min-h-10 cursor-pointer px-3 py-2 font-mono text-[12px] text-fg-3">Your printed output</summary>

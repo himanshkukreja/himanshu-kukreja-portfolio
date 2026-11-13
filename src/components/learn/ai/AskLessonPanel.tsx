@@ -22,6 +22,8 @@ import { nextRestyle, restyleAsk, REVEAL_RE, type Restyle } from "@/lib/ai/teach
 import TeachToggle from "@/components/learn/chat/TeachToggle";
 import { readTeachMode, recordWorkingStyle, workingStyle } from "@/components/learn/chat/useTeaching";
 import { setAiCredits, useAiStatus } from "./useAiStatus";
+import { useGame } from "@/game/GameProvider";
+import { notesOptedIn } from "@/lib/learner/notes-model";
 import { useLessonFaq } from "./useLessonFaq";
 import AnswerFeedback from "./AnswerFeedback";
 import { matchFaq, type FaqItem } from "@/lib/learn/faq/parse";
@@ -63,6 +65,9 @@ export default function AskLessonPanel({
   story?: boolean;
 }) {
   const status = useAiStatus();
+  const { flags: gameFlags, hydrated: gameReady } = useGame();
+  // "Let the tutor read my notes" (opt-in on /memory): only then is the button here, and only then does the server read them
+  const notesOn = !story && gameReady && !!status?.signedIn && notesOptedIn(gameFlags);
   const faq = useLessonFaq(story ? null : week, slug);
   const noun = story ? "case file" : "lesson";
   const { openAuthModal } = useAuthModal();
@@ -118,7 +123,7 @@ export default function AskLessonPanel({
 
   // the last answer (not a saved one): sent along, so "explain that more simply" or a quick check's answer has its context
   const lastAnswered = [...turns].reverse().find((t) => t.answer && !t.saved);
-  const send = async (question: string, m: string, restyle?: Restyle) => {
+  const send = async (question: string, m: string, restyle?: Restyle, notes?: boolean) => {
     const teach = readTeachMode();
     const turn: Turn = { q: question, selection: sel, mode: m, pending: true, id: Math.random().toString(36).slice(2, 10), ...(restyle ? { restyle } : {}), ...(teach ? { teach } : {}) };
     // moving on after an answer explained another way: that way worked (noted once in memory; not when they asked for it simpler)
@@ -130,7 +135,7 @@ export default function AskLessonPanel({
     setOneOff(false);
     track("ai_ask", { feature: "lesson-qa", mode: m || "plain", selection: !!sel, ...(story ? { story: slug } : {}) });
     try {
-      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined, previous, ...(teach ? { teach: true } : {}), ...(restyle ? { restyle } : {}) }) });
+      const res = await aiFetch("/api/learn/ai/ask", { method: "POST", body: JSON.stringify({ ...(story ? { story: slug } : { week, slug }), question: turn.q, selection: turn.selection, mode: turn.mode || undefined, previous, ...(teach ? { teach: true } : {}), ...(restyle ? { restyle } : {}), ...(notes && notesOn ? { notes: true } : {}) }) });
       const body = (await res.json().catch(() => ({}))) as { text?: string; error?: string; creditsLeft?: number | null; followups?: unknown; callId?: number | null };
       setAiCredits(body.creditsLeft);
       const followups = Array.isArray(body.followups) ? body.followups.filter((x): x is string => typeof x === "string").slice(0, 3) : [];
@@ -256,6 +261,11 @@ export default function AskLessonPanel({
                   </button>
                 ))}
                 <TeachToggle from="lesson-panel" />
+                {notesOn && (
+                  <button type="button" disabled={busy} onClick={() => void send(q.trim() || "Explain this the way my notes put it, and tell me what my notes miss or get wrong.", mode, undefined, true)} title="The tutor reads your own notes on this lesson, only for this answer" className="min-h-8 border border-line-strong px-2.5 font-mono text-[11px] text-fg-2 hover:text-fg disabled:opacity-50">
+                    like my notes
+                  </button>
+                )}
               </div>
               <div className="flex items-end gap-2">
                 <textarea

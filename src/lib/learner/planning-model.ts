@@ -44,6 +44,9 @@ export function classify(e: Pick<OutcomeEvent, "kind" | "ref" | "outcome">, conc
     return { key, unit: key, miss: o === "solid" ? false : o === "partial" || o === "misconception" ? true : null };
   }
   if (e.kind === "chat_quiz") {
+    // a weak-spot drill (lib/learner/drill-model.ts): the item id is the topic key itself
+    const d = e.ref.match(/^drill:((?:sdm|dsa|lesson):[\w./-]+)$/);
+    if (d) return { key: d[1], unit: d[1], miss: o === "wrong" ? true : o === "right" ? false : null };
     const m = e.ref.match(/^(?:cp|mcq):(week-[\w.-]+|bonus-problems|problem-bank|low-level-design)[/_]([\w.-]+?)(?:[#@_]|$)/);
     if (!m) return null;
     const key = `lesson:${m[1]}/${m[2]}`;

@@ -333,6 +333,7 @@ export const TOOL_LABEL: Record<string, string> = {
   site_guide: "Checking how the site works…",
   start_mock: "Setting up your mock interview…",
   review_my_design: "Reading your design…",
+  read_my_notes: "Reading your notes…",
   get_due_reviews: "Checking what's due for review…",
   make_study_plan: "Building your plan…",
   // not tools: steps of the message itself
@@ -409,6 +410,7 @@ const TOOL_DONE: Record<string, [string, string]> = {
   site_guide: ["checked the site guide", "checked the site guide {n}×"],
   start_mock: ["set up the interview", "set up the interview"],
   review_my_design: ["read your design", "read your design"],
+  read_my_notes: ["read your notes", "read your notes"],
   get_due_reviews: ["checked your reviews", "checked your reviews"],
   make_study_plan: ["laid out your plan", "laid out {n} plans"],
   scorecard: ["scored your interview", "scored your interview"],

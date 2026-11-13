@@ -19,6 +19,7 @@ import { track } from "@/lib/track";
 import { pickNudge, planLine, type PlanStanding, type StruggleCourse } from "@/lib/learner/planning-model";
 import { computePlan, usePlanRecord, useToday } from "./usePlan";
 import { usePlanning } from "./usePlanning";
+import DrillPanel from "./DrillPanel";
 
 /** How the learner's /plan stands today (null: no plan, or not loaded yet). */
 export function usePlanStanding(map: CourseMap | null, lessons: Record<string, LessonProgress> | null, done: Record<string, number> | null): PlanStanding | null {
@@ -57,6 +58,7 @@ export default function QuietNudge({ course, standing, className = "" }: { cours
   const ai = useAiStatus();
   const today = useToday();
   const [recap, setRecap] = useState<{ key: string; state: "loading" | "ok" | "err"; text?: string; href?: string; err?: string } | null>(null);
+  const [drill, setDrill] = useState<{ key: string; label: string; href: string } | null>(null);
   const nudge = useMemo(() => {
     if (!p.signedIn || !p.ready || !today) return null;
     return pickNudge({ struggles: p.struggles, prefs: p.prefs, plan: planLine(standing ?? null, (d) => fmtDate(d)), today, course });
@@ -64,8 +66,16 @@ export default function QuietNudge({ course, standing, className = "" }: { cours
 
   // an open recap takes the nudge's place (opening it marks the nudge done, so the next one waits until it is closed)
   const open = recap;
-  if (!nudge && !open) return null;
   const aiOn = !!ai?.signedIn && !!ai.features["concept-recap"];
+  const drillOn = !!ai?.signedIn && !!ai.features["weak-drill"];
+  if (drill) return <DrillPanel topicKey={drill.key} label={drill.label} href={drill.href} onClose={() => setDrill(null)} />;
+  if (!nudge && !open) return null;
+  const startDrill = (key: string, label: string, href: string) => {
+    p.opened(key);
+    setRecap(null);
+    setDrill({ key, label, href });
+  };
+  const nudgeLabel = nudge && nudge.kind === "struggle" ? p.struggles.find((s) => s.key === nudge.key)?.label || "this topic" : "";
 
   const askRecap = async (key: string, href: string) => {
     p.opened(key);
@@ -93,7 +103,13 @@ export default function QuietNudge({ course, standing, className = "" }: { cours
             <button type="button" onClick={() => askRecap(nudge.key, nudge.href)} className="min-h-8 font-semibold text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
               3-minute recap?
             </button>
-          ) : (
+          ) : null}
+          {nudge.kind === "struggle" && drillOn ? (
+            <button type="button" onClick={() => startDrill(nudge.key, nudgeLabel, nudge.href)} className="min-h-8 font-semibold text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+              Drill it
+            </button>
+          ) : null}
+          {nudge.kind !== "struggle" && (
             <Link href={nudge.href} className="min-h-8 font-semibold text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
               open plan
             </Link>
@@ -126,6 +142,11 @@ export default function QuietNudge({ course, standing, className = "" }: { cours
             </div>
           ) : (
             <p className="m-0 text-[14px] text-fg-3">{open.err}</p>
+          )}
+          {drillOn && p.struggles.some((s) => s.key === open.key) && (
+            <button type="button" onClick={() => startDrill(open.key, p.struggles.find((s) => s.key === open.key)?.label || "this topic", open.href || "")} className="self-start font-mono text-[13px] font-semibold text-signal-text underline decoration-line-strong underline-offset-4">
+              Drill it: 3 quick questions
+            </button>
           )}
           {open.href && (
             <Link href={open.href} className="self-start font-mono text-[13px] text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">

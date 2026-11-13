@@ -38,6 +38,7 @@ import CertificateEntry from "@/components/learn/certificate/CertificateEntry";
 import { useMockStatus } from "@/lib/learn/mock/store";
 import ReadinessCard from "@/components/learn/progress/ReadinessCard";
 import QuietNudge, { usePlanStanding } from "@/components/learn/plan/QuietNudge";
+import WeakSpots from "@/components/learn/plan/WeakSpots";
 import { GoalChatButton } from "@/components/learn/ai/GoalChat";
 
 export default function DashboardClient({ map, lectures = [] }: { map: CourseMap; lectures?: LectureLite[] }) {
@@ -236,6 +237,7 @@ export default function DashboardClient({ map, lectures = [] }: { map: CourseMap
       </div>
 
       {d.signedIn && <QuietNudge standing={standing} className="-mt-4 lg:-mt-8" />}
+      {d.signedIn && <WeakSpots />}
 
       {d.signedIn && <ReadinessCard tracks={["sdm", "lld", "dsa"]} />}
 

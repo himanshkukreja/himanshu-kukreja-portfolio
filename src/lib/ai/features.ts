@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading" | "plan-coach" | "concept-recap" | "goal-chat";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading" | "plan-coach" | "concept-recap" | "goal-chat" | "weak-drill";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -206,6 +206,12 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // turn, ~$0.001 a whole chat, on the learner's shared daily credits. perDay 20: a chat is at most 7 calls (the opening
   // line + 6 answers), so about three goes a day. maxInputChars: the conversation (6 x 400 + the replies) + what's known.
   "goal-chat": { label: "Goal chat (welcome)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 20, maxTokens: 400, maxInputChars: 6000, think: false, live: true },
+  // weak-spot drills (owner-approved 13 Nov 2026, AI wave 2): 3 quick questions (MCQ or short answer) on a topic missed twice
+  // in 14 days, or one warm-up question ("Try a smaller version") on a DSA problem failed 3+ times, grounded in the course
+  // text for the topic (planning.topicText) and answering strict JSON (lib/learner/drill-model.ts DRILL_SCHEMA). Graded in the
+  // browser from the model's own answer key, so no learner text reaches the server; the result is one chat_quiz outcome.
+  // Haiku 5.5, no thinking; ~3k tokens in, ~450 out: about $0.0013 a drill. perDay 8 covers a few drills and warm-ups a day.
+  "weak-drill": { label: "Weak-spot drill (3 questions, or a smaller version)", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 8, maxTokens: 1200, maxInputChars: 9000, think: false, live: true },
   // maxTokens: the largest live cap (mock-scorecard), so an eval answer gets the room its feature has in production
   eval: { label: "Model evaluation", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 0, maxTokens: 3000, maxInputChars: 200000, think: true, live: false, kind: "content" },
   batch: { label: "Batch content jobs", model: MODELS.opus, amberModel: MODELS.opus, perDay: 0, maxTokens: 8000, maxInputChars: 400000, think: true, live: false, kind: "content" },

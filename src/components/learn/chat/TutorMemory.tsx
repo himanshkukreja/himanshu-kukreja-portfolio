@@ -27,6 +27,9 @@ import { DSA_FULL } from "@/lib/dsa/flags";
 import { dsaClientSignals } from "@/lib/dsa/ai/client-signals";
 import WatchHowItWorks from "@/components/learn/guide/videos/WatchHowItWorks";
 import { GoalChatButton } from "@/components/learn/ai/GoalChat";
+import WeakSpots from "@/components/learn/plan/WeakSpots";
+import { useGame } from "@/game/GameProvider";
+import { notesOptedIn, TUTOR_NOTES_FLAG } from "@/lib/learner/notes-model";
 
 type State = { available: boolean; paused: boolean; memory: ChatMemory };
 type Outcomes = { available: boolean; rows: ViewRow[]; known: KnownItem[] };
@@ -135,6 +138,33 @@ const FEATURES_USING: [string, string][] = [
   ["Mock and LLD mock interviewers and scorecards", "your goal and how earlier rounds went"],
   ["Design and canvas reviews", "your level and what you found hard"],
 ];
+
+/** "Let the tutor read my notes": off by default; one quiet line says what it does. */
+function NotesSwitch() {
+  const { flags, setFlag, hydrated } = useGame();
+  const on = hydrated && notesOptedIn(flags);
+  return (
+    <section aria-label="Tutor reads my notes" className="flex flex-col gap-1.5 border border-line bg-surface px-4 py-3.5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <span className="text-[15px] text-fg">Let the tutor read my notes</span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          disabled={!hydrated}
+          onClick={() => {
+            setFlag(TUTOR_NOTES_FLAG, { on: !on, updatedAt: Date.now() });
+            track("tutor_notes_switch", { on: !on });
+          }}
+          className={`min-h-10 px-3.5 font-mono text-[12.5px] ${on ? "border border-line-strong text-fg-2 hover:text-fg" : "bg-signal font-semibold text-on-signal"}`}
+        >
+          {on ? "On: turn off" : "Turn on"}
+        </button>
+      </div>
+      <p className="m-0 text-[12.5px] leading-relaxed text-fg-3">When on, if you ask for it, the tutor reads your own notebook pages and highlights for the lesson you are on, for that answer only. It never keeps them.</p>
+    </section>
+  );
+}
 
 export default function TutorMemory() {
   const { user, loading } = useAuth();
@@ -332,6 +362,10 @@ export default function TutorMemory() {
           <p role="status" aria-live="polite" className={`m-0 -my-4 h-4 font-mono text-[12px] text-signal-text ${note ? "" : "invisible"}`}>
             {note}
           </p>
+
+          <NotesSwitch />
+
+          {!s.paused && <WeakSpots className="border border-line bg-surface px-4 py-3.5" />}
 
           <section aria-labelledby="tm-knows" className="flex flex-col gap-5 border border-line-strong bg-surface p-4 sm:p-5">
             <div className="flex flex-wrap items-baseline justify-between gap-2">

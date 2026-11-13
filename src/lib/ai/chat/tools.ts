@@ -29,6 +29,7 @@ import { findGuide, guideTopic, type GuideTopic } from "./siteGuide";
 import type { MockInterview } from "@/lib/learn/mock/types";
 import { fromCourseMock, fromQuest, mockCard, type ChatMock } from "./mock";
 import { cleanPath } from "@/lib/learn/paths";
+import { notesBlock, NOTES_ASK_RE, NOTES_TASK, type MyNotes } from "@/lib/learner/notes-model";
 import type { ApiDoc, DocQuery, SearchApi } from "@/lib/search/smart/api";
 
 /** The learner's latest design on the canvas (/canvas), as canvas-review reads it. */
@@ -68,6 +69,10 @@ export type ChatDeps = {
   studyPlan: (p: PlanInput) => Promise<PlanStep[] | null>;
   /** the learner's first name, cleaned (lib/ai/answerStyle.ts learnerFirstName; null: unknown) */
   learnerName?: () => Promise<string | null>;
+  /** true when the learner switched on "Let the tutor read my notes" (offers the read_my_notes tool; the tool re-checks fresh) */
+  notesOn?: boolean;
+  /** the learner's own notes for a lesson, read now by the verified user id; null when the switch is off (lib/learner/notes-reader.ts) */
+  myNotes?: (week: string, slug: string) => Promise<MyNotes | null>;
   /** note a graded practice answer in the learner's outcome log (lib/learner/events.ts; absent: not noted) */
   recordQuiz?: (q: { item: string; kind: string; correct: boolean | null }) => void;
 };
@@ -390,7 +395,14 @@ export const TOOLS = [
   },
 ] as const;
 
-export type ToolName = (typeof TOOLS)[number]["name"];
+/** Offered only while the learner's "Let the tutor read my notes" switch is on (core.ts); runTool re-checks it fresh. */
+export const NOTES_TOOL = {
+  name: "read_my_notes",
+  description:
+    "The notes the learner themselves wrote on the lesson they are reading: their notebook pages tied to it, highlights and margin notes (not your memory of them). Call it FIRST whenever they say \"my notes\", \"my highlights\", \"in my words\" or ask you to check, use or explain like their notes. Use when they ask to explain something like their notes, in their words, to check their notes, or what they got wrong or missed in them. Returns the notes with how to use them.",
+  input_schema: { type: "object", properties: {} },
+} as const;
+export type ToolName = (typeof TOOLS)[number]["name"] | "read_my_notes";
 
 /* ------------------------------------------------------------------ helpers */
 
@@ -508,6 +520,18 @@ async function reviewDesign(st: ChatState, _input: Record<string, unknown>): Pro
   const near = (await ranked(st, `${d.title} ${d.brief.slice(0, 200)}`, ["lesson", "section", "concept", "problem"], 6)).out.map(({ d: x }) => line(st, x, fresh, x.summary));
   st.sourcesSent(fresh);
   return `${DATA_NOTE}${near.length ? `\nCourse material on this kind of design (cite the one that fixes each gap; search_course for any other gap):\n${near.join("\n")}` : ""}\nThe learner's design "${cap(d.title, 100)}" (saved ${d.updatedAt.slice(0, 10)}). Review it like a staff engineer, as the canvas review does: a one-line verdict, two or three strengths, then the three most important gaps, worst first, each with the box or arrow to add and the lesson that teaches it (cite one of the course material refs above; search_course only for a gap none of them covers, all such searches in one step), then one next step. Judge only what is drawn and written.\n<problem>\n${cap(d.brief, 2500)}\n</problem>\n<drawing>\n${cap(d.drawing || "(nothing labelled on the board)", 3500)}\n</drawing>\n<notes>\n${cap(d.notes || "(no notes)", 2500)}\n</notes>`;
+}
+
+async function readNotes(st: ChatState): Promise<string> {
+  const d = st.d.notesOn && st.d.myNotes ? await pageDoc(st).catch(() => null) : null;
+  if (!st.d.notesOn || !st.d.myNotes) return "The learner hasn't switched on \"Let the tutor read my notes\" (it is on the What the AI knows page), so you cannot read their notes. Say so in one line and answer from the course instead.";
+  const m = d ? /^L:([^/]+)\/(.+)$/.exec(d.id) : null;
+  if (!m) return "The learner isn't on a lesson page, so there are no lesson notes to read. Ask them to open the lesson, or answer from the course.";
+  const notes = await st.d.myNotes(m[1], m[2]).catch(() => null);
+  if (!notes) return "The learner has switched off note reading, so you cannot read their notes. Answer from the course instead.";
+  const block = notesBlock(notes);
+  if (!block) return "The learner has no notebook pages, highlights or notes on this lesson yet. Say so, offer to explain from the lesson, and suggest a highlight or a notebook page for next time.";
+  return `${DATA_NOTE}\nThe learner's own notes on "${cap(oneLine(d!.title), 100)}" (private to them; use only in this answer). ${NOTES_TASK}\nTo check them against the lesson, call get_item with the lesson's ref first when you need its exact words.\n${block}`;
 }
 
 async function dueReviews(st: ChatState): Promise<string> {
@@ -1026,6 +1050,8 @@ export async function runTool(st: ChatState, name: string, input: unknown): Prom
       return startMock(st, args);
     case "review_my_design":
       return reviewDesign(st, args);
+    case "read_my_notes":
+      return readNotes(st);
     case "get_due_reviews":
       return dueReviews(st);
     case "make_study_plan":
@@ -1103,6 +1129,12 @@ export async function prefetchContext(st: ChatState, ask: string, opts: { answer
     return { text: parts.join("\n\n"), ran };
   }
   const q = ask.replace(/\s+/g, " ").trim();
+  // "explain like my notes": with the switch on and the learner asking for their notes, read them now (readNotes re-checks the switch fresh)
+  if (st.d.notesOn && st.d.myNotes && NOTES_ASK_RE.test(q)) {
+    st.status("read_my_notes", {});
+    parts.push(`read_my_notes already ran for this message (don't call it again; use it):\n${await readNotes(st)}`);
+    ran.push("read_my_notes");
+  }
   const page = st.d.page?.path ? await pageDoc(st) : null;
   const aboutPage = !!page && (!!st.d.page?.selection || /\b(this|here|section|page|above|yeh|ye|isko|iska)\b/i.test(q));
   if (aboutPage && page) {

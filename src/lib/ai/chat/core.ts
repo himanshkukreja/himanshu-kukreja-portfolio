@@ -13,7 +13,7 @@ import { courseChatSystem, mockFullScorecardSystem, mockInterviewerSystem, promp
 import { fromCourseMock, fromQuest, weakAreasPath, type ChatMock } from "./mock";
 import { runLoop, type ApiMessage, type LoopResult } from "./loop";
 import { checkCitations, type CiteDetail, type CiteStats } from "./citations";
-import { ChatState, closingLine, fallbackAnswer, learnerContext, prefetchContext, runTool, TOOLS, type ChatDeps } from "./tools";
+import { ChatState, closingLine, fallbackAnswer, learnerContext, prefetchContext, runTool, TOOLS, NOTES_TOOL, type ChatDeps } from "./tools";
 import { cleanAnswer, followupFilter, isRef, OFF_TOPIC_MARK, REF_RE, splitFollowups, TOOL_LABEL, type ChatSource, type MockState, type ChatEvent, type ChatRequest, type ChatTurn, type PageContext, type PathCard } from "./text";
 
 /** Turns kept word for word; older ones become a short summary. */
@@ -237,7 +237,7 @@ export async function runChatCore(o: {
       apiKey: o.apiKey,
       model,
       system: [{ type: "text", text: sys, cache_control: { type: "ephemeral" } }],
-      tools: TOOLS,
+      tools: o.deps.notesOn && o.deps.myNotes ? [...TOOLS, NOTES_TOOL] : TOOLS,
       messages,
       // an answer to the tutor's quick check: Haiku 5.5 thinks first (low effort). Without it, the verdict came before
       // the working and "800?" was "Right!" with 200 worked out after it (local test, 8 Nov 2026)
