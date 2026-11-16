@@ -95,11 +95,19 @@ export default function ChatPanel({ open, onClose, initial, pathname, course = "
   const kb = useKeyboardInset();
 
   // desktop: the panel docks right and the page makes room for it
+  // On a DSA problem page it instead slides over the statement side (the left pane) and the editor keeps its width.
+  const overStatement = /(^|\/)dsa\/problems\/[^/]+/.test(pathname);
   useEffect(() => {
     if (!open) return;
-    document.documentElement.classList.add("hk-ask-open");
-    return () => document.documentElement.classList.remove("hk-ask-open");
-  }, [open]);
+    const cls = overStatement ? "hk-ask-over" : "hk-ask-open";
+    document.documentElement.classList.add(cls);
+    // focus goes back to whatever opened the panel
+    const from = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      document.documentElement.classList.remove(cls);
+      if (from && from.isConnected) from.focus({ preventScroll: true });
+    };
+  }, [open, overStatement]);
 
   const send = useCallback(
     (t: string) => {
@@ -159,7 +167,7 @@ export default function ChatPanel({ open, onClose, initial, pathname, course = "
 
   return (
     <div
-      className="fixed inset-0 z-[75] flex items-end justify-end bg-black/40 lg:pointer-events-none lg:top-[var(--hk-header-h,61px)] lg:items-stretch lg:bg-transparent lg:!pb-0"
+      className={`fixed inset-0 z-[75] flex items-end ${overStatement ? "justify-end lg:justify-start" : "justify-end"} bg-black/40 lg:pointer-events-none lg:top-[var(--hk-header-h,61px)] lg:items-stretch lg:bg-transparent lg:!pb-0`}
       style={kb ? { paddingBottom: kb } : undefined}
       onMouseDown={(e) => e.target === e.currentTarget && onClose()}
     >
@@ -168,7 +176,7 @@ export default function ChatPanel({ open, onClose, initial, pathname, course = "
         role="dialog"
         aria-modal="false"
         aria-label="Ask the course"
-        className="flex max-h-[min(88dvh,calc(100%-12px))] w-full min-w-0 flex-col border-t border-line-strong bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.5)] md:mx-auto md:max-w-[640px] md:border-x lg:pointer-events-auto lg:mx-0 lg:max-h-none lg:max-w-none lg:w-[var(--hk-ask-w)] lg:border-l lg:border-r-0 lg:border-t-0 lg:shadow-none"
+        className={`flex max-h-[min(88dvh,calc(100%-12px))] w-full min-w-0 flex-col border-t border-line-strong bg-surface shadow-[0_-12px_40px_rgba(0,0,0,0.5)] md:mx-auto md:max-w-[640px] md:border-x lg:pointer-events-auto lg:mx-0 lg:max-h-none lg:max-w-none ${overStatement ? "lg:w-[var(--hk-ask-over-w)] lg:border-r lg:border-l-0" : "lg:w-[var(--hk-ask-w)] lg:border-l lg:border-r-0"} lg:border-t-0 lg:shadow-none`}
       >
         <header className="flex items-start justify-between gap-2 border-b border-line py-2 pl-4 pr-2">
           <div className="flex min-w-0 flex-col gap-1">

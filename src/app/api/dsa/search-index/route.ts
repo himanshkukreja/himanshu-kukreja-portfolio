@@ -43,6 +43,8 @@ async function timings(slug: string, source: string, steps: number): Promise<num
   }
 }
 
+const CACHE = { "Cache-Control": "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800" };
+
 export async function GET() {
   if (!DSA_FULL) return NextResponse.json({ v: 1, docs: [], transcripts: { v: 1, built: "", l: [], m: [] } } satisfies DsaSearchIndex);
   const [concepts, problems, labels, shorts] = await Promise.all([getConceptIndex().catch(() => []), getProblemIndex().catch(() => []), getStepLabels().catch(() => ({})), listDsaShorts().catch(() => [])]);
@@ -74,5 +76,5 @@ export async function GET() {
     m.push([k, -1, text]);
   }
   const transcripts: TranscriptIndex = { v: 1, built: new Date().toISOString(), l, m };
-  return NextResponse.json({ v: 1, docs, transcripts } satisfies DsaSearchIndex);
+  return NextResponse.json({ v: 1, docs, transcripts } satisfies DsaSearchIndex, { headers: CACHE });
 }

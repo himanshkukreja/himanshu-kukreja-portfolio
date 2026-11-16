@@ -766,6 +766,19 @@ type SearchBarProps = {
 export default function SearchBar({ variant = "bar", hotkey = false, label }: SearchBarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const onDsaPage = isDsaPath(usePathname() || "/");
+
+  // On DSA pages the search index is fetched when the browser is idle, so the first ⌘K already has DSA results.
+  useEffect(() => {
+    if (!hotkey || !onDsaPage) return;
+    const w = window as Window & { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number; cancelIdleCallback?: (h: number) => void };
+    if (w.requestIdleCallback) {
+      const h = w.requestIdleCallback(() => void loadDsaIndex(), { timeout: 2500 });
+      return () => w.cancelIdleCallback?.(h);
+    }
+    const t = window.setTimeout(() => void loadDsaIndex(), 1200);
+    return () => window.clearTimeout(t);
+  }, [hotkey, onDsaPage]);
 
   const close = useCallback(() => {
     setIsOpen(false);

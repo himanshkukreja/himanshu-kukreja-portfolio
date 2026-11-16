@@ -27,9 +27,9 @@ const C = {
   ink3: "#55555B",
   line: "#DDDBD4",
   lineStrong: "#C9C7BF",
-  dsa: "#14B8A6",
+  dsa: "#0F766E",
   dsaText: "#0B6E64",
-  onDsa: "#021A16",
+  onDsa: "#FFFFFF",
 };
 const F_DISPLAY = "'Bricolage Grotesque','Helvetica Neue',Helvetica,Arial,sans-serif";
 const F_BODY = "'Geist','Helvetica Neue',Helvetica,Arial,sans-serif";

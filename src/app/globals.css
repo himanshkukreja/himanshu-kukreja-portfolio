@@ -1146,8 +1146,16 @@ html.hk-focus .hk-top-fill {
 /* "Ask this lesson" docked on the right (desktop): the page makes room instead of being covered */
 :root {
   --hk-ask-w: 440px;
+  /* the problem page's tutor covers the statement pane: 47vw to 1279 px, the 600 px column (plus its gutter) from 1280 */
+  --hk-ask-over-w: 47vw;
 }
-html.hk-ask-open [data-ask-fab] {
+@media (min-width: 1280px) {
+  :root {
+    --hk-ask-over-w: 612px;
+  }
+}
+html.hk-ask-open [data-ask-fab],
+html.hk-ask-over [data-ask-fab] {
   display: none !important;
 }
 @media (min-width: 1024px) {
