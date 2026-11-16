@@ -298,14 +298,14 @@ export default function LessonShell(props: LessonShellProps) {
   useEffect(() => {
     if (!p.ready || moved.current) return;
     moved.current = true;
-    const back = p.lastStage && stages.some((s) => s.id === p.lastStage) ? p.lastStage : null;
+    // a finished lesson opens at its start; one in progress opens where they were
+    const back = !p.completed && p.lastStage && stages.some((s) => s.id === p.lastStage) ? p.lastStage : null;
     if (!back) return;
     const s = stepOfStage(kind, stageRef(back));
-    if (s === "learn") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBeat(back === "intro" ? (beats[0] ?? "") : back);
-    }
-  }, [p.ready, p.lastStage, stages, kind, stageRef, beats]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setStep(s);
+    if (s === "learn") setBeat(back === "intro" ? (beats[0] ?? "") : back);
+  }, [p.ready, p.completed, p.lastStage, stages, kind, stageRef, beats]);
 
   // Listen reads on through the lesson: open the step and beat of the line it reads
   useEffect(() => {
@@ -454,7 +454,6 @@ export default function LessonShell(props: LessonShellProps) {
             <Link href={backHref} aria-label="Back to the course" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg hover:bg-surface-2">
               <ArrowLeft className="h-4 w-4" aria-hidden />
             </Link>
-            <span className="min-w-0 truncate font-mono text-[12px] text-fg-2">{props.moduleTitle}</span>
           </div>
           <div className="hidden items-center gap-3 font-mono text-[12px] text-fg-3 lg:flex">
             {props.nav.prev ? (
@@ -481,6 +480,7 @@ export default function LessonShell(props: LessonShellProps) {
             </button>
           ) : null}
           <LessonTools title={props.title} focus={focus} onFocus={toggleFocus} onSavePlace={savePlace} />
+          <p className="m-0 min-w-0 basis-full truncate font-mono text-[12px] text-fg-2 lg:hidden">{props.moduleTitle}</p>
         </div>
 
         {/* title block */}
