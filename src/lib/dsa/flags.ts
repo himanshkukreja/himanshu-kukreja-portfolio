@@ -36,4 +36,4 @@ export const isDsaPath = (p: string) => /^\/dsa(?:\/|$)/.test(p.split(/[?#]/)[0]
 export const isDsaProblemRoom = (p: string) => /^\/dsa\/problems\/[^/]+\/?$/.test(p.split(/[?#]/)[0]);
 
 /** DSA's course tabs (redesign, 16 Nov 2026): home, Practice, Review, Progress. The floating Notebook pen stays off them (lesson and problem tools carry the Notebook; the account menu reaches All notes). */
-export const isDsaTabPage = (p: string) => /^\/dsa(\/(practice|review|progress))?\/?$/.test(p.split(/[?#]/)[0]);
+export const isDsaTabPage = (p: string) => /^\/dsa(\/(practice|review|progress|playground))?\/?$/.test(p.split(/[?#]/)[0]);

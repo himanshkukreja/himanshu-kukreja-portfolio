@@ -17,6 +17,7 @@ import DsaExplainBack from "@/components/dsa/rewards/DsaExplainBack";
 import { loadRaceChart, loadTracePlayer } from "@/lib/offline/lazy";
 import { CheckpointGate, CodeTabs, Poll, Reorder, ReviewCards } from "./widgets";
 import LessonClip from "../clip/LessonClip";
+import RunnableSnippets from "../playground/RunnableSnippets";
 
 const TracePlayer = dynamic(loadTracePlayer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the player…</p> });
 const RaceChart = dynamic(loadRaceChart, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the race…</p> });
@@ -74,6 +75,8 @@ export default function DsaHydrator({
         const el = widgetFor(h, concept, clips);
         return el ? createPortal(el, h.stage, h.key) : null;
       })}
+      {/* a DSA lesson's code runs in place (Edit, Run, Open in Playground); not SDM lessons or problem editorials */}
+      {concept ? <RunnableSnippets rootRef={rootRef} traces={concept.traces} lesson={concept} deps={deps} /> : null}
     </>
   );
 }

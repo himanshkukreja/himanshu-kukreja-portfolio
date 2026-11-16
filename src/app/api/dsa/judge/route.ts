@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
-import { getLearner, isMissing } from "@/app/api/learn/_lib/auth";
-import { RateLimiter } from "@/lib/design-week/core";
+import { getLearner } from "@/app/api/learn/_lib/auth";
+import { JUDGE_DAILY_CAP, JUDGE_MAX_CODE, JUDGE_PER_MINUTE, judgeMinute, underDailyCap } from "@/lib/dsa/judge-limits";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { dsaBetaAllowed } from "@/lib/dsa/access";
 import { getProblemTests } from "@/lib/dsa/load";
@@ -27,28 +26,11 @@ export const maxDuration = 60;
 const NO_STORE = { "Cache-Control": "no-store" };
 const fail = (status: number, error: string, extra: Record<string, unknown> = {}) => NextResponse.json({ error, ...extra }, { status, headers: NO_STORE });
 
-const PER_MINUTE = 8;
-const DAILY_CAP = 300;
-const MAX_CODE = 64 * 1024;
-const minute = new RateLimiter(PER_MINUTE, 60_000);
-const localDaily = new Map<string, { day: string; n: number }>();
-
-/** One judge run against today's cap: the table when the migration is applied, else this isolate's count. */
-async function underDailyCap(userId: string): Promise<boolean> {
-  try {
-    const { data, error } = await supabase.rpc("dsa_judge_hit", { p_user: userId, p_cap: DAILY_CAP });
-    if (!error && typeof data === "number") return data >= 0;
-    if (error && !isMissing(error) && !/function .* does not exist|Could not find the function/i.test(error.message || "")) console.warn("[dsa-judge] usage:", error.message);
-  } catch {
-    /* fall through to the local count */
-  }
-  const day = new Date().toISOString().slice(0, 10);
-  const cur = localDaily.get(userId);
-  const n = cur && cur.day === day ? cur.n + 1 : 1;
-  localDaily.set(userId, { day, n });
-  if (localDaily.size > 10_000) for (const [k, v] of localDaily) if (v.day !== day) localDaily.delete(k);
-  return n <= DAILY_CAP;
-}
+// limits shared with Playground programs (/api/dsa/program): one allowance per learner
+const PER_MINUTE = JUDGE_PER_MINUTE;
+const DAILY_CAP = JUDGE_DAILY_CAP;
+const MAX_CODE = JUDGE_MAX_CODE;
+const minute = judgeMinute;
 
 type JudgeTest = { id: string; verdict: string; timeMs: number; hidden: boolean; message?: string; output?: string; stdout?: string; stderr?: string };
 type JudgeBody = { verdict?: string; compile?: { ok: boolean; output: string }; tests?: JudgeTest[]; summary?: { passed: number; total: number }; firstFailure?: { id: string; message?: string; input?: string } | null; judgeMs?: number; error?: string; message?: string };
