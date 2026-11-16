@@ -10,19 +10,9 @@ import { useEffect, useRef, useState } from "react";
 import { Bookmark, BookmarkCheck, MessageSquareQuote, MoreHorizontal, NotebookPen } from "lucide-react";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
-import { track } from "@/lib/track";
 import ResetProblem from "./ResetProblem";
-import { store, type ProblemPosition, type Room } from "./useProblemRoom";
-
-const SAVED_KEY = "dsa.saved";
-const readSaved = (): string[] => {
-  try {
-    const v = JSON.parse(store.get(SAVED_KEY) || "[]");
-    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
-  } catch {
-    return [];
-  }
-};
+import { useSavedProblems } from "@/components/dsa/practice/useSavedProblems";
+import type { ProblemPosition, Room } from "./useProblemRoom";
 
 const LINK = "inline-flex min-h-10 items-center text-[14px] text-fg-2 hover:text-fg [@media(pointer:coarse)]:min-h-11";
 const ITEM = "flex min-h-10 w-full items-center gap-2 px-3 text-left text-[14px] text-fg-2 hover:bg-surface-2 hover:text-fg [@media(pointer:coarse)]:min-h-11";
@@ -30,13 +20,9 @@ const ITEM = "flex min-h-10 w-full items-center gap-2 px-3 text-left text-[14px]
 export default function ProblemHeader({ room, position }: { room: Room; position: ProblemPosition | null }) {
   const { p, solved, hints, fails, history, seenEarly, drawer, setDrawer, freshStart } = room;
   const [menu, setMenu] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { isSaved, toggle } = useSavedProblems();
+  const saved = isSaved(p.id);
   const box = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    // device state, read after hydration
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSaved(readSaved().includes(p.id));
-  }, [p.id]);
   useEffect(() => {
     if (!menu) return;
     const away = (e: Event) => {
@@ -53,13 +39,7 @@ export default function ProblemHeader({ room, position }: { room: Room; position
     };
   }, [menu]);
 
-  const toggleSaved = () => {
-    const cur = readSaved();
-    const next = cur.includes(p.id) ? cur.filter((x) => x !== p.id) : [...cur, p.id];
-    store.set(SAVED_KEY, JSON.stringify(next));
-    setSaved(next.includes(p.id));
-    track("dsa_save_for_later", { problem: p.id, saved: next.includes(p.id) });
-  };
+  const toggleSaved = () => toggle(p.id);
 
   const prev = position?.prev ?? p.prev;
   const next = position?.next ?? p.next;
