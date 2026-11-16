@@ -27,7 +27,7 @@ export default function Drawer({ open, label, onClose, children }: { open: boole
       hidden={!open}
       role="dialog"
       aria-label={label}
-      className="fixed inset-x-0 bottom-0 top-[var(--hk-header-h,61px)] z-[61] flex flex-col border border-line-strong bg-surface lg:absolute lg:inset-0 lg:z-30 lg:border-0"
+      className={`${open ? "flex" : "hidden"} fixed inset-x-0 bottom-0 top-[var(--hk-header-h,61px)] z-[61] flex-col border border-line-strong bg-surface lg:absolute lg:inset-0 lg:z-30 lg:border-0`}
       data-drawer={label}
     >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2">

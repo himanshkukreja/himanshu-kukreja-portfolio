@@ -112,7 +112,7 @@ export default function ProblemHeader({ room, position }: { room: Room; position
             <MoreHorizontal className="h-4 w-4" aria-hidden />
           </button>
           {/* kept mounted so the dialogs it opens (Reset, Save offline) outlive closing the menu */}
-          <div hidden={!menu} className="absolute right-0 top-full z-40 mt-1 flex w-60 flex-col border border-line-strong bg-surface py-1 shadow-lg">
+          <div hidden={!menu} className={`${menu ? "flex" : "hidden"} absolute right-0 top-full z-40 mt-1 w-60 flex-col border border-line-strong bg-surface py-1 shadow-lg`}>
             <button type="button" onClick={toggleSaved} className={ITEM}>
               {saved ? <BookmarkCheck className="h-4 w-4 text-signal-text" aria-hidden /> : <Bookmark className="h-4 w-4" aria-hidden />}
               {saved ? "Saved for later ✓" : "Save for later"}

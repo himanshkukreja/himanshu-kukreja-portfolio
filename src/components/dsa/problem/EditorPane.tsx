@@ -54,10 +54,6 @@ export default function EditorPane({ room }: { room: Room }) {
             ))}
           </select>
         </label>
-        <span className="hidden min-w-0 truncate font-mono text-[11px] text-fg-3 xl:inline">
-          write <code className="text-fg-2">{fnNameFor(lang, p.signature.fn)}</code>
-          {lang === "java" ? " in class Solution" : ""} · {BROWSER_LANGS.has(lang) ? "runs in your browser" : "judged on the server"}
-        </span>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <EditorThemeMenu />
           <button type="button" onClick={() => setSuggestions(!suggestions)} aria-pressed={suggestions} title="Basic code suggestions as you type (off in interview mode)" className={TOOL}>
@@ -105,21 +101,22 @@ export default function EditorPane({ room }: { room: Room }) {
       </div>
 
       <div ref={runRow} className="flex shrink-0 flex-wrap items-center gap-2 border border-line bg-surface p-3" data-guide="run">
-        <div className="mr-auto flex min-w-0 flex-col gap-0.5">
-          <span className="font-mono text-[11px] text-fg-3">
-            {gate.locked ? (
-              <>
-                <button type="button" onClick={() => gate.ask("run")} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
-                  Sign in
-                </button>{" "}
-                (free for now) to run and submit your code
-              </>
-            ) : (
-              `Run: ${p.visible.length} sample tests · Submit: + ${p.hiddenCount} hidden · ⌘/Ctrl + Enter runs`
-            )}
-          </span>
-        </div>
-        <button type="button" onClick={() => void go("run")} disabled={!!busy} className="inline-flex min-h-11 items-center gap-2 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text disabled:opacity-50">
+        <p className="m-0 w-full min-w-0 font-mono text-[11px] leading-snug text-fg-3">
+          {gate.locked ? (
+            <>
+              <button type="button" onClick={() => gate.ask("run")} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+                Sign in
+              </button>{" "}
+              (free for now) to run and submit your code
+            </>
+          ) : (
+            <>
+              write <code className="text-fg-2">{fnNameFor(lang, p.signature.fn)}</code>
+              {lang === "java" ? " in class Solution" : ""} · {BROWSER_LANGS.has(lang) ? "runs in your browser" : "judged on the server"} · ⌘/Ctrl + Enter runs
+            </>
+          )}
+        </p>
+        <button type="button" onClick={() => void go("run")} disabled={!!busy} className="ml-auto inline-flex min-h-11 items-center gap-2 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text disabled:opacity-50">
           {gate.locked && <Lock className="h-3.5 w-3.5" aria-hidden />}
           {busy === "run" ? "Running…" : "Run"}
         </button>
