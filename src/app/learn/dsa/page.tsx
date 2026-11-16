@@ -5,6 +5,7 @@ import type { LectureRef } from "@/components/dsa/home/useLectureSeconds";
 import { JsonLd, breadcrumbs } from "@/lib/seo/jsonld";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConceptIndex, getConceptLecture, getConceptShortIds, getLessonMinutes, getProblemIndex, getStepLabels, getWorld } from "@/lib/dsa/load";
+import { liveDsaShortIds } from "@/lib/dsa/media";
 import { buildOutline } from "@/lib/dsa/outline";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 
@@ -54,7 +55,7 @@ async function Home() {
   const shorts: Record<string, string[]> = {};
   await Promise.all(
     built.map(async (c) => {
-      const [l, ids] = await Promise.all([getConceptLecture(c.id).catch(() => null), getConceptShortIds(c.id).catch(() => [] as string[])]);
+      const [l, ids] = await Promise.all([getConceptLecture(c.id).catch(() => null), getConceptShortIds(c.id).then(liveDsaShortIds).catch(() => [] as string[])]);
       if (l) lectures[c.id] = { slug: l.quest, source: lectureHash(l) };
       if (ids.length) shorts[c.id] = ids;
     }),

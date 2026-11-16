@@ -4,6 +4,7 @@ import "server-only";
  * module ("Lesson 3 of 6"), the previous and next built lessons, and its 60-second shorts. Small and cached with the
  * rest of the DSA content (getConceptIndex, getConceptShortIds, getDsaShort).
  */
+import { liveDsaShortIds } from "./media";
 import { getConceptIndex, getConceptShortIds, getDsaShort, lessonHref } from "./load";
 
 export type LessonExtras = {
@@ -13,7 +14,7 @@ export type LessonExtras = {
 };
 
 export async function getLessonExtras(id: string, module: string): Promise<LessonExtras> {
-  const [index, shortIds] = await Promise.all([getConceptIndex(), getConceptShortIds(id).catch(() => [] as string[])]);
+  const [index, shortIds] = await Promise.all([getConceptIndex(), getConceptShortIds(id).then(liveDsaShortIds).catch(() => [] as string[])]);
   const built = index.filter((x) => x.status === "built");
   const at = built.findIndex((x) => x.id === id);
   const inModule = built.filter((x) => x.module === module);
