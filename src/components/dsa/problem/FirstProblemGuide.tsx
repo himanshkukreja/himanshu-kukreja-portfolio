@@ -84,7 +84,9 @@ export default function FirstProblemGuide({ fn, toolbar, examples, run, avoid, o
       { left: r.right + 12, top: clamp(r.top, 12, vh - h - 12) },
     ];
     const fits = (c: { left: number; top: number }) => c.left >= 12 && c.left + w <= vw - 12 && c.top >= 12 && c.top + h <= vh - 12 && !hits(c.left, c.top);
-    const { left, top } = spots.find(fits) ?? spots[0];
+    const pick = spots.find(fits) ?? spots[0];
+    const left = clamp(pick.left, 12, vw - w - 12);
+    const top = clamp(pick.top, 12, vh - h - 12);
     setBox({ ring: r, card: { left, top } });
   }, [step]);
 

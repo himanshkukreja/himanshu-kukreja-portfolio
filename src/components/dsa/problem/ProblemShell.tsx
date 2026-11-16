@@ -68,7 +68,7 @@ export default function ProblemShell({ room, position }: { room: Room; position:
       <FirstProblemGuide
         fn={fnNameFor(lang, p.signature.fn)}
         toolbar={() => document.querySelector<HTMLElement>('[data-guide="toolbar"]')}
-        examples={() => room.statementRef.current?.querySelector<HTMLElement>('[aria-labelledby="ps-examples"]') || room.tabsRef.current}
+        examples={() => room.statementRef.current?.querySelector<HTMLElement>("#ps-examples") || room.tabsRef.current}
         run={() => room.runRow.current}
         avoid={() => room.editorBox.current}
         onStep={(i) => setPane(i === 1 ? "problem" : "code")}

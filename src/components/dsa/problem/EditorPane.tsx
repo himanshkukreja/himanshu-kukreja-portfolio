@@ -59,7 +59,7 @@ export default function EditorPane({ room }: { room: Room }) {
           <button type="button" onClick={() => setSuggestions(!suggestions)} aria-pressed={suggestions} title="Basic code suggestions as you type (off in interview mode)" className={TOOL}>
             Suggest: {suggestions ? "on" : "off"}
           </button>
-          <span className="inline-flex items-center" role="group" aria-label="Font size">
+          <span className="hidden items-center sm:inline-flex" role="group" aria-label="Font size">
             <button type="button" onClick={() => setFontSize(fontSize - 1)} aria-label="Smaller text" className={`${TOOL} px-1.5`}>
               <Minus className="h-3.5 w-3.5" aria-hidden />
             </button>
