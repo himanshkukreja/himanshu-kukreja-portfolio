@@ -1,0 +1,142 @@
+"use client";
+
+import Link from "next/link";
+import { Bookmark, Play } from "lucide-react";
+import type { FilterRow, Status } from "@/lib/dsa/problem-filters";
+import type { ProblemData } from "@/lib/dsa/problem-rows";
+
+/**
+ * Practice's compact table: status, title, difficulty (the word, in its token colour), the lesson it belongs to (opens
+ * the lesson's Practice step), time, a play mark when the solution has a video, and Save for later. On a phone the lesson
+ * and the time fold under the title.
+ */
+
+const LEVEL: Record<string, { word: string; tone: string }> = {
+  easy: { word: "EASY", tone: "text-ok-text" },
+  medium: { word: "MEDIUM", tone: "text-amber" },
+  hard: { word: "HARD", tone: "text-bad-text" },
+};
+
+function StatusRing({ status }: { status: Status }) {
+  return (
+    <span className={`grid h-5 w-5 shrink-0 place-items-center border-2 ${status === "solved" ? "border-fg bg-fg text-bg" : status === "tried" ? "border-dashed border-fg-2 text-fg-2" : "border-line-strong"}`}>
+      {status === "solved" ? (
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
+          <path d="M4 12.5l5 5L20 6.5" />
+        </svg>
+      ) : status === "tried" ? (
+        <span aria-hidden className="font-mono text-[11px] leading-none">
+          ·
+        </span>
+      ) : null}
+      <span className="sr-only">{status === "solved" ? "Solved" : status === "tried" ? "Tried, not solved yet" : "Not started"}</span>
+    </span>
+  );
+}
+
+export type TableProps = {
+  rows: FilterRow[];
+  d: ProblemData;
+  statusOf: (id: string) => Status;
+  isSaved: (id: string) => boolean;
+  onSave: (id: string) => void;
+  /** a row to tag ("Today") */
+  tag?: { id: string; label: string } | null;
+};
+
+export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag }: TableProps) {
+  return (
+    <div className="overflow-x-auto border border-line bg-surface">
+      <table className="w-full border-collapse text-left">
+        <thead className="sr-only md:not-sr-only">
+          <tr className="border-b border-line bg-surface-2 font-mono text-[11px] uppercase tracking-label text-fg-3">
+            <th scope="col" className="w-12 py-2 pl-4 pr-2 font-medium">
+              <span className="sr-only">Status</span>
+            </th>
+            <th scope="col" className="py-2 pr-3 font-medium">
+              Problem
+            </th>
+            <th scope="col" className="hidden w-[84px] py-2 pr-3 font-medium md:table-cell">
+              Level
+            </th>
+            <th scope="col" className="hidden w-[230px] py-2 pr-3 font-medium md:table-cell">
+              Lesson
+            </th>
+            <th scope="col" className="hidden w-[64px] py-2 pr-3 text-right font-medium md:table-cell">
+              Time
+            </th>
+            <th scope="col" className="hidden w-9 py-2 pr-1 font-medium md:table-cell">
+              <span className="sr-only">Solution video</span>
+            </th>
+            <th scope="col" className="w-11 py-2 pr-2 font-medium">
+              <span className="sr-only">Save for later</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((p) => {
+            const lv = LEVEL[p.level];
+            const lessonHref = d.lessons[p.concept];
+            const lessonTitle = d.concepts[p.concept];
+            const saved = isSaved(p.id);
+            return (
+              <tr key={p.id} className="border-b border-line last:border-b-0 hover:bg-surface-2">
+                <td className="py-1 pl-4 pr-2 align-middle">
+                  <StatusRing status={statusOf(p.id)} />
+                </td>
+                <td className="min-w-0 py-1 pr-3 align-middle">
+                  <Link href={`/dsa/problems/${p.id}`} className="block text-[15px] text-fg hover:underline hover:decoration-line-strong hover:underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+                    {p.title}
+                    {tag && tag.id === p.id ? <span className="ml-2 border border-signal px-1.5 py-px font-mono text-[11px] uppercase tracking-label text-signal-text">{tag.label}</span> : null}
+                  </Link>
+                  <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[11px] text-fg-3 md:hidden">
+                    <span className={`font-semibold tracking-label ${lv.tone}`}>{lv.word}</span>
+                    {lessonTitle ? <span className="max-w-[180px] truncate">{lessonTitle}</span> : null}
+                    {p.minutes ? <span>{p.minutes} min</span> : null}
+                    {p.video ? (
+                      <span className="inline-flex items-center gap-1 text-signal-text">
+                        <Play className="h-3 w-3 fill-current" aria-hidden /> video
+                      </span>
+                    ) : null}
+                  </span>
+                </td>
+                <td className={`hidden py-1 pr-3 align-middle font-mono text-[11px] font-semibold tracking-label md:table-cell ${lv.tone}`}>{lv.word}</td>
+                <td className="hidden py-1 pr-3 align-middle md:table-cell">
+                  {lessonHref ? (
+                    <Link href={`${lessonHref}#practice`} className="inline-flex max-w-[220px] items-center truncate border border-line-strong px-2 py-0.5 text-[12.5px] text-fg-2 hover:border-signal hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+                      <span className="truncate">{lessonTitle || "The lesson"}</span>
+                    </Link>
+                  ) : lessonTitle ? (
+                    <span className="block max-w-[220px] truncate text-[12.5px] text-fg-3">{lessonTitle}</span>
+                  ) : (
+                    <span className="text-[12.5px] text-fg-3">More practice</span>
+                  )}
+                </td>
+                <td className="hidden py-1 pr-3 text-right align-middle font-mono text-[12px] tabular-nums text-fg-3 md:table-cell">{p.minutes ? `${p.minutes} min` : ""}</td>
+                <td className="hidden py-1 pr-1 align-middle md:table-cell">
+                  {p.video ? (
+                    <span className="inline-flex text-signal-text" title="Has a solution video">
+                      <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
+                      <span className="sr-only">Has a solution video</span>
+                    </span>
+                  ) : null}
+                </td>
+                <td className="py-1 pr-2 align-middle">
+                  <button
+                    type="button"
+                    onClick={() => onSave(p.id)}
+                    aria-pressed={saved}
+                    aria-label={saved ? `Remove ${p.title} from Saved` : `Save ${p.title} for later`}
+                    className={`grid h-11 w-11 place-items-center md:h-9 [@media(pointer:coarse)]:md:h-11 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal-text ${saved ? "text-signal-text" : "text-fg-3 hover:text-fg"}`}
+                  >
+                    <Bookmark className={`h-4 w-4 ${saved ? "fill-current" : ""}`} aria-hidden />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}

@@ -7,6 +7,7 @@ import type { PlayableShort } from "@/lib/learn/shorts/types";
 import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort, getProblemIndex, getSolutionVideo, getStepLabels } from "./load";
 import { DSA_CONTENT_TAG, dsaFresh, dsaItem, dsaItemKey } from "./content";
 import { stepOf, stepRank } from "./steps";
+import { controlMap, isLive, questKey, shortKey, type Control } from "@/lib/learn/controls";
 
 /**
  * DSA Mastery's videos: the concept lectures (/dsa/lectures) and the vertical shorts (/dsa/shorts). Their recorded
@@ -89,13 +90,17 @@ export async function listDsaLectures(): Promise<DsaLectureSummary[]> {
  * Every DSA short whose recorded video matches its script (others aren't watchable yet), in course order. The feed
  * shuffles them; `full` opens the concept's lecture at the short's moment, `article` the concept page.
  */
-export async function listDsaShorts(opts: { includeUnpublished?: boolean } = {}): Promise<(PlayableShort & { recorded: boolean })[]> {
+export async function listDsaShorts(opts: { includeUnpublished?: boolean; ignoreControls?: boolean } = {}): Promise<(PlayableShort & { recorded: boolean })[]> {
   const base = MEDIA();
+  // publishing controls (/admin/publishing): a hidden or not-yet-scheduled short leaves every list; no row = live, and a
+  // read failure hides nothing (controlMap returns an empty map). The single-short page keeps its own check (ignoreControls).
+  const controls: Map<string, Control> = opts.ignoreControls ? new Map() : await controlMap().catch(() => new Map<string, Control>());
   const built = await builtInOrder();
   const ids = (await inBatches(built, 6, (c) => getConceptShortIds(c.id))).flat();
   const rows = await inBatches(ids, 6, async (id) => {
     const l = await getDsaShort(id).catch(() => null);
     if (!l?.short || !l.dsa) return null;
+    if (!isLive(controls.get(shortKey(l.quest))) || !isLive(controls.get(questKey(l.short.of)))) return null;
     const v = hashOf(l);
     const media = await published(l.quest);
     const recorded = !!media && media.source === v;
@@ -118,6 +123,12 @@ export async function listDsaShorts(opts: { includeUnpublished?: boolean } = {})
     return row;
   });
   return rows.filter((x): x is PlayableShort & { recorded: boolean } => !!x);
+}
+
+/** Short ids (a lesson's or the home's list) with the hidden and not-yet-scheduled ones taken out (publishing controls; a read failure hides nothing). */
+export async function liveDsaShortIds(ids: string[]): Promise<string[]> {
+  const controls = await controlMap().catch(() => new Map<string, Control>());
+  return ids.filter((id) => isLive(controls.get(shortKey(id))));
 }
 
 /** A problem's solution video as the Editorial tab plays it (src/components/dsa/problem/SolutionVideo.tsx). */

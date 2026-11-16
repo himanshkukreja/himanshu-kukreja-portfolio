@@ -12,11 +12,19 @@ export function revalidateControlled(keys: string[]) {
   revalidateTag(CONTROLS_TAG);
   if (keys.some((k) => k.startsWith("quest:"))) revalidateTag(COURSE_MAP_TAG);
   revalidatePath("/learn/shorts");
+  // DSA Mastery's pages that list shorts: the feed, Review and the course home (and the offline-save list)
+  revalidatePath("/learn/dsa/shorts");
+  revalidatePath("/learn/dsa/review");
+  revalidatePath("/learn/dsa");
+  revalidatePath("/api/dsa/search-index");
   revalidatePath("/api/search/transcripts"); // ⌘K's "In lectures" leaves out hidden shorts and quests
   revalidatePath("/api/search/index/[part]", "page"); // smart search leaves them out too (and re-checks the controls per query)
   for (const k of keys) {
     const [kind, id] = [k.slice(0, k.indexOf(":")), k.slice(k.indexOf(":") + 1)];
-    if (kind === "short") revalidatePath(`/learn/shorts/${id}`);
+    if (kind === "short") {
+      revalidatePath(`/learn/shorts/${id}`);
+      revalidatePath(`/learn/dsa/shorts/${id}`);
+    }
     else {
       revalidatePath(`/learn/${COURSE_ID}/bonus-problems/${id}`);
       revalidatePath(`/learn/lectures/${id}`);
