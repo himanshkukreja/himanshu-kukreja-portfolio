@@ -32,9 +32,12 @@ export function checkpointFor(world: string, region: WorldRegion | undefined, mo
 
 /**
  * Where "Back to the course" goes: the lesson's checkpoint or lesson stop on the course outline (the course home is
- * /dsa since the redesign; the stop is an anchor there), else the course home itself.
+ * /dsa since the redesign; the module is the anchor there: #m3, which opens and scrolls to it), else the course home itself.
  */
-export const mapHref = (cp: Pick<ConceptCheckpoint, "nodeId"> | null): string => (cp?.nodeId ? `/dsa#${encodeURIComponent(cp.nodeId)}` : "/dsa");
+export const mapHref = (cp: Pick<ConceptCheckpoint, "nodeId"> | null): string => {
+  const code = /^([a-z]\d{1,2})\./.exec(cp?.nodeId || "")?.[1];
+  return code ? `/dsa#${code}` : "/dsa";
+};
 
 /** The first lessons' texts, by lesson id (the structure type alone repeats for a module's second lesson). */
 const FIRST: Record<string, string> = {

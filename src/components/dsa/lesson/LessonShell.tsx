@@ -582,12 +582,6 @@ export default function LessonShell(props: LessonShellProps) {
                       {beatName(prevBeat)}
                     </button>
                   ) : null}
-                  {nextBeat && !(showGate && locked) ? (
-                    <button type="button" onClick={() => goBeat(nextBeat)} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text hover:bg-[var(--c-dsa-hl)] sm:flex-none">
-                      Next: {beatName(nextBeat)}
-                      <ArrowRight className="h-4 w-4" aria-hidden />
-                    </button>
-                  ) : null}
                 </div>
               </nav>
             ) : null}
@@ -613,7 +607,7 @@ export default function LessonShell(props: LessonShellProps) {
         </div>
       </div>
 
-      <StepFooter step={step} onNext={(s) => go(s)} nextLesson={props.nav.next} backHref={backHref} />
+      <StepFooter step={step} onNext={(s) => go(s)} nextPart={paged && nextBeat && !(showGate && locked) ? () => goBeat(nextBeat) : null} nextLesson={props.nav.next} backHref={backHref} />
       {focus ? <FocusControls stages={p.stages} size={size} onExit={() => changeFocus(false)} /> : null}
       <ContentsSheet open={sheet} onClose={() => setSheet(false)} toc={props.toc} stages={stages} kicker={props.moduleTitle.toUpperCase()} title={props.title} />
     </>

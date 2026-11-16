@@ -9,7 +9,7 @@ import { ArrowRight } from "lucide-react";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { STEP_ORDER, STEP_TITLE, nextStep, type StepId } from "@/lib/dsa/lesson-steps";
 
-export default function StepFooter({ step, onNext, nextLesson, backHref }: { step: StepId; onNext: (s: StepId) => void; nextLesson: { href: string; title: string } | null; backHref: string }) {
+export default function StepFooter({ step, onNext, nextPart, nextLesson, backHref }: { step: StepId; onNext: (s: StepId) => void; nextPart: (() => void) | null; nextLesson: { href: string; title: string } | null; backHref: string }) {
   const p = useLessonProgress();
   const n = STEP_ORDER.indexOf(step) + 1;
   const next = nextStep(step);
@@ -38,8 +38,8 @@ export default function StepFooter({ step, onNext, nextLesson, backHref }: { ste
           {p.completed ? "✓ Learnt" : "Mark as learnt"}
         </button>
         {next ? (
-          <button type="button" onClick={() => onNext(next)} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap bg-signal px-4 text-[14px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))] sm:flex-none sm:text-[15px]">
-            Next: {STEP_TITLE[next]}
+          <button type="button" onClick={() => (nextPart ? nextPart() : onNext(next))} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap bg-signal px-4 text-[14px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))] sm:flex-none sm:text-[15px]">
+            {nextPart ? "Next part" : `Next: ${STEP_TITLE[next]}`}
             <ArrowRight className="h-4 w-4" aria-hidden />
           </button>
         ) : (

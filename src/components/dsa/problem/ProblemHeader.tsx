@@ -3,7 +3,7 @@
 /**
  * The problem page's own bar under the site header (a focus page: no course tabs): "← lesson", "PRACTICE n OF m",
  * previous / next inside the lesson's Practice list, Interview, and the ⋯ menu (Reset problem, Save offline, Save for
- * later, Notebook, Show everything).
+ * later, Notebook).
  */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -11,7 +11,6 @@ import { Bookmark, BookmarkCheck, MessageSquareQuote, MoreHorizontal, NotebookPe
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 import { track } from "@/lib/track";
-import { ShowEverything } from "../simple/view";
 import ResetProblem from "./ResetProblem";
 import { store, type ProblemPosition, type Room } from "./useProblemRoom";
 
@@ -64,7 +63,7 @@ export default function ProblemHeader({ room, position }: { room: Room; position
 
   const prev = position?.prev ?? p.prev;
   const next = position?.next ?? p.next;
-  const lesson = position?.lesson ?? { title: p.conceptTitle, href: `/dsa/concepts/${p.concept}#practice` };
+  const lesson = position?.lesson ?? { title: "Practice", href: "/dsa/practice" };
   const dirty = solved || hints > 0 || fails > 0 || history.length > 0 || seenEarly;
 
   return (
@@ -73,7 +72,7 @@ export default function ProblemHeader({ room, position }: { room: Room; position
         <span aria-hidden>←&nbsp;</span>
         <span className="truncate">{lesson.title}</span>
       </Link>
-      {position ? (
+      {position && position.m > 0 ? (
         <span className="border border-line-strong px-2.5 py-1 font-mono text-[12px] uppercase tracking-label text-fg-2" data-practice-position>
           Practice {position.n} of {position.m}
         </span>
@@ -142,9 +141,6 @@ export default function ProblemHeader({ room, position }: { room: Room; position
                 />
               </div>
             )}
-            <div className="px-3 py-1">
-              <ShowEverything />
-            </div>
           </div>
         </div>
       </div>

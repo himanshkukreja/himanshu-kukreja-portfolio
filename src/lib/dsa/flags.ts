@@ -34,3 +34,6 @@ export const isDsaPath = (p: string) => /^\/dsa(?:\/|$)/.test(p.split(/[?#]/)[0]
 /** A DSA problem room (/dsa/problems/<id>): its editor fills the screen height, so the floating Notebook pen would sit
  *  over Run / Submit; the room has its own Notebook button in the editor toolbar instead. */
 export const isDsaProblemRoom = (p: string) => /^\/dsa\/problems\/[^/]+\/?$/.test(p.split(/[?#]/)[0]);
+
+/** DSA's course tabs (redesign, 16 Nov 2026): home, Practice, Review, Progress. The floating Notebook pen stays off them (lesson and problem tools carry the Notebook; the account menu reaches All notes). */
+export const isDsaTabPage = (p: string) => /^\/dsa(\/(practice|review|progress))?\/?$/.test(p.split(/[?#]/)[0]);

@@ -36,7 +36,7 @@ import {
   type Outline,
   type OnboardingRecord,
 } from "@/lib/dsa/onboarding/recommend";
-import { saveWelcome, setDsaFull, useWelcome } from "../simple/view";
+import { saveWelcome, useWelcome } from "../simple/view";
 import { useLang } from "../concept/widgets";
 import TopicGlyph from "./Glyphs";
 import IdCard, { type IdFields } from "./IdCard";
@@ -223,8 +223,6 @@ export default function OnboardingFlow({ rerun, onClose }: { rerun: boolean; onC
     };
     setFlag(ONBOARDING_FLAG, r);
     setLang(effLang);
-    if (exp === "experienced") setDsaFull(true);
-    else if (exp === "new") setDsaFull(false);
     saveWelcome({ exp, goal, skipped: false });
     // the welcome bonus: DSA Mastery Bits once per account (never SD Mastery XP)
     const bonus = grantBits(awardKeys.welcome(), DSA_WELCOME_BONUS.amount, "Welcome to DSA Mastery") > 0;

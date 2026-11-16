@@ -48,15 +48,16 @@ export default async function ProblemPage({ params }: Props) {
 
 /**
  * "Practice 2 of 5" and the previous / next problem inside the owning lesson's Practice list (its `practice` front matter),
- * with the lesson to go back to (its Practice section). null when the problem is not in a lesson's list (the room then
- * falls back to the problem ladder's prev / next and the concept link).
+ * with the lesson to go back to (its Practice section). n and m are 0 when the problem is not in a lesson's list (the room then
+ * shows plain "Practice" with the problem ladder's prev / next); null when the lesson itself is missing.
  */
 async function positionOf(id: string, concept: string): Promise<ProblemPosition | null> {
   const [c, index] = await Promise.all([getConcept(concept).catch(() => null), getConceptIndex().catch(() => [])]);
   if (!c) return null;
   const at = c.practice.findIndex((x) => x.id === id);
-  if (at < 0) return null;
   const summary = index.find((x) => x.id === concept);
+  // not in the lesson's list: no n of m, but the lesson is still its home to go back to
+  if (at < 0) return { lesson: { title: c.title, href: `${summary ? lessonHref(summary) : `/dsa/concepts/${concept}`}#practice` }, n: 0, m: 0, prev: null, next: null };
   const pick = (x: { id: string; title: string } | undefined) => (x ? { id: x.id, title: x.title } : null);
   return {
     lesson: { title: c.title, href: `${summary ? lessonHref(summary) : `/dsa/concepts/${concept}`}#practice` },

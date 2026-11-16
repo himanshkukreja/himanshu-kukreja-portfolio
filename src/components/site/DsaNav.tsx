@@ -11,6 +11,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { BarChart3, Check, ChevronsUpDown, Code2, Layers, Map as MapIcon, AlignLeft, Sparkles, User, type LucideIcon } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
 import { DSA_FULL, isDsaProblemRoom, isDsaReaderPath } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
@@ -195,7 +196,10 @@ export function DsaAsk() {
 export function DsaDock({ pathname, className }: { pathname: string; className: string }) {
   const list = tabs(pathname).filter((t) => t.where !== "desk");
   const hide = DSA_FULL && (isDsaReaderPath(pathname) || isDsaProblemRoom(pathname));
-  const cols = list.length === 5 ? "grid-cols-5" : "grid-cols-4";
+  const { user, loading } = useAuth();
+  // below 400 px the header drops the course switch and a guest has no account menu: a fifth dock item is the way back to SD Mastery
+  const guestSwitch = !user && !loading && DSA_FULL;
+  const cols = list.length === 5 ? "grid-cols-5" : guestSwitch ? "grid-cols-5 min-[400px]:grid-cols-4" : "grid-cols-4";
   const item = (on: boolean) =>
     `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap font-mono text-[10.5px] leading-none max-[359px]:text-[10px] max-[359px]:tracking-[-0.03em] ${on ? "text-fg" : "text-fg-3"}`;
   if (hide) return null;
@@ -234,6 +238,14 @@ export function DsaDock({ pathname, className }: { pathname: string; className: 
           </Link>
         );
       })}
+      {guestSwitch ? (
+        <Link href="/" aria-label="System design course" className={`${item(false)} min-[400px]:hidden`}>
+          <span aria-hidden className="grid h-[22px] w-[22px] place-items-center">
+            <CourseMark className="h-[18px] w-[18px]" />
+          </span>
+          SD course
+        </Link>
+      ) : null}
     </nav>
   );
 }
