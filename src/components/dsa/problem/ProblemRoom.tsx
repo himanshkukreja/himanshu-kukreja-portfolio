@@ -30,6 +30,7 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CodeEditorHandle } from "@/components/learn/labs/CodeEditor";
+import EditorThemeMenu from "@/components/learn/labs/EditorThemeMenu";
 import { loadCodeEditor, loadCourseEnhancer } from "@/lib/offline/lazy";
 import { getRunner, retainRunner } from "@/lib/learn/labs/runner";
 import { userFetch } from "@/components/learn/progress/userFetch";
@@ -771,7 +772,8 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
             write <code className="text-fg-2">{fnNameFor(lang, p.signature.fn)}</code>
             {lang === "java" ? " in class Solution" : ""} · {BROWSER_LANGS.has(lang) ? "runs in your browser" : "judged on the server"}
           </span>
-          <button type="button" onClick={reset} className="ml-auto min-h-10 shrink-0 whitespace-nowrap px-2 font-mono text-[12px] text-fg-3 underline">
+          <EditorThemeMenu className="ml-auto" />
+          <button type="button" onClick={reset} className="min-h-10 shrink-0 whitespace-nowrap px-2 font-mono text-[12px] text-fg-3 underline">
             reset code
           </button>
           {/* the Notebook lives here in the problem room: a floating pen would sit over Run / Submit (the editor fills the height) */}

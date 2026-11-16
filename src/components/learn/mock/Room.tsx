@@ -14,6 +14,7 @@ import type { MockRun } from "@/lib/learn/mock/store";
 import { firedCurveballs, firstName, pendingOnSubmit, placeholderFor, totalUsed, transcript, type FeedItem } from "@/lib/learn/mock/engine";
 import { words } from "@/lib/learn/mock/score";
 import { Avatar, CourseHtml, InlineHtml, LABEL, Pad } from "./ui";
+import EditorThemeMenu from "@/components/learn/labs/EditorThemeMenu";
 import { loadCodeEditor } from "@/lib/offline/lazy";
 import type { CodeEditorHandle, EditorLang } from "@/components/learn/labs/CodeEditor";
 
@@ -622,6 +623,7 @@ function CodePad({ id, value, onChange, lang, setLang, onDone }: { id: string; v
         <span id={`${id}-label`} className="font-mono text-xs uppercase tracking-label text-fg">
           ❯ Your code · autosaved
         </span>
+        <EditorThemeMenu className="ml-auto" />
         <label className="flex items-center gap-2 font-mono text-[11px] text-fg-3">
           language
           <select

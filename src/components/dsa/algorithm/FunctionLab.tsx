@@ -17,6 +17,7 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import type { CodeEditorHandle } from "@/components/learn/labs/CodeEditor";
+import EditorThemeMenu from "@/components/learn/labs/EditorThemeMenu";
 import { loadCodeEditor } from "@/lib/offline/lazy";
 import { getRunner, retainRunner } from "@/lib/learn/labs/runner";
 import { userFetch } from "@/components/learn/progress/userFetch";
@@ -198,7 +199,8 @@ export default function FunctionLab({ lab, lessonId }: { lab: FunctionLabData; l
           ))}
         </div>
         <span className="font-mono text-[11px] text-fg-3">{BROWSER_LANGS.has(lang) ? "runs in your browser" : "judged on the server"}</span>
-        <button type="button" onClick={reset} className="ml-auto min-h-10 px-2 font-mono text-[12px] text-fg-3 underline">
+        <EditorThemeMenu className="ml-auto" />
+        <button type="button" onClick={reset} className="min-h-10 px-2 font-mono text-[12px] text-fg-3 underline">
           reset code
         </button>
       </div>

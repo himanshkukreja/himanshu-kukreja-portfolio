@@ -22,6 +22,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Check, ChevronDown, Eye, Lightbulb, Loader2, Lock, Minus, Play, Sparkles, Plus, RotateCcw, Timer, X } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { track } from "@/lib/track";
+import EditorThemeMenu from "./EditorThemeMenu";
 import { loadCodeEditor } from "@/lib/offline/lazy";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -821,6 +822,7 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
               )}
               <RuntimeBadge status={status} elapsed={elapsed} lang={lang} />
               <span className="ml-auto flex items-center gap-1">
+                <EditorThemeMenu className="mr-1" />
                 <button type="button" onClick={() => bumpFont(-1)} aria-label="Smaller code font" title="Smaller font" className="grid h-10 w-10 place-items-center text-fg-3 hover:text-fg">
                   <Minus className="h-4 w-4" aria-hidden />
                 </button>

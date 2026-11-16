@@ -17,6 +17,7 @@
  * - "site" is a stored mode that was never picked, or the old "Site theme" choice: it resolves to Light or
  *   Night from the browser's old light / dark choice (resolveMode), and ReadingModeHost saves that once.
  */
+import { cleanEditorPick, type EditorPick } from "@/lib/editor/themes";
 import { CONTENT_AREA, COURSE_ID, cleanPath } from "./paths";
 import { COURSE_HOST_NAMES, PORTFOLIO_HOST_NAMES, isPortfolioHost } from "@/lib/site/hosts";
 
@@ -33,6 +34,8 @@ export type ReadingSettings = {
   size: number;
   leading: ReadLeading;
   width: ReadWidth;
+  /** the code editor's palette: "site" (Match site theme, default) or a manual pick (src/lib/editor/themes.ts) */
+  editor: EditorPick;
   /** epoch ms of the last change (0: never changed); the newer copy wins across devices */
   updatedAt: number;
 };
@@ -47,7 +50,7 @@ export const LOOK_KEY = "hk.reader.look";
 /** Game flag carrying the settings to the account (src/lib/learn/saved-paths.ts mergeGameFlags: newer wins). */
 export const READING_FLAG = "pref:reader";
 
-export const DEFAULT_READING: ReadingSettings = { mode: "site", font: "sans", size: TEXT_SIZES[0], leading: "normal", width: "normal", updatedAt: 0 };
+export const DEFAULT_READING: ReadingSettings = { mode: "site", font: "sans", size: TEXT_SIZES[0], leading: "normal", width: "normal", editor: "site", updatedAt: 0 };
 
 type ModeInfo = {
   id: ThemeId;
@@ -104,11 +107,12 @@ export function cleanReading(raw: unknown, size?: unknown): ReadingSettings {
     size: (TEXT_SIZES as readonly number[]).includes(n) ? n : DEFAULT_READING.size,
     leading: pick(o.leading, LEADINGS, DEFAULT_READING.leading),
     width: pick(o.width, WIDTHS, DEFAULT_READING.width),
+    editor: cleanEditorPick(o.editor),
     updatedAt: Number(o.updatedAt) || 0,
   };
 }
 
-export const sameReading = (a: ReadingSettings, b: ReadingSettings) => a.mode === b.mode && sameType(a, b);
+export const sameReading = (a: ReadingSettings, b: ReadingSettings) => a.mode === b.mode && a.editor === b.editor && sameType(a, b);
 
 /** The same type settings (font, size, spacing, width), whatever the theme. */
 export const sameType = (a: ReadingSettings, b: ReadingSettings) => a.font === b.font && a.size === b.size && a.leading === b.leading && a.width === b.width;
@@ -205,7 +209,7 @@ export function updateReading(patch: Partial<Omit<ReadingSettings, "updatedAt">>
 
 /** Back to the default font, size, spacing and width; the theme is the site's and stays. */
 export function resetReading() {
-  writeReading({ ...DEFAULT_READING, mode: readReading().mode, updatedAt: Date.now() });
+  writeReading({ ...DEFAULT_READING, mode: readReading().mode, editor: readReading().editor, updatedAt: Date.now() });
 }
 
 /** The browser's old light / dark choice (next-themes' localStorage "theme"); null when storage is unavailable. */

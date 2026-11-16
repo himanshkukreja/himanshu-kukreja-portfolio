@@ -2,10 +2,10 @@
 
 /**
  * The code-lab editor: CodeMirror 6 with Python, JavaScript or TypeScript (switched in place through a
- * compartment), themed from the site's tokens (CSS variables, so it follows every theme with no re-render). Loaded on demand through loadCodeEditor() in
+ * compartment), themed by a palette (src/lib/editor/themes.ts: Match site theme by default, or the learner's manual pick; CSS variables, so a switch re-colours in place). Loaded on demand through loadCodeEditor() in
  * src/lib/offline/lazy.ts, the same import offline saving warms, so it is one chunk either way.
  */
-import { useEffect, useImperativeHandle, useRef, type RefObject } from "react";
+import { useEffect, useImperativeHandle, useRef, type CSSProperties, type RefObject } from "react";
 import { Compartment, EditorSelection, EditorState, Prec } from "@codemirror/state";
 import {
   drawSelection,
@@ -27,6 +27,8 @@ import { cppLanguage, javaLanguage } from "./clike";
 import { makeSource } from "./completions";
 import { tags as t } from "@lezer/highlight";
 import styles from "./labs.module.css";
+import { paletteVars } from "@/lib/editor/themes";
+import { useEditorTheme } from "./useEditorTheme";
 
 export type CodeEditorHandle = {
   getValue(): string;
@@ -72,51 +74,66 @@ type Props = {
 };
 
 const highlight = HighlightStyle.define([
-  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.definitionKeyword], color: "var(--lab-kw)", fontWeight: "600" },
-  { tag: [t.string, t.special(t.string), t.regexp], color: "var(--lab-str)" },
-  { tag: [t.number, t.bool, t.null, t.atom], color: "var(--lab-num)" },
-  { tag: [t.comment, t.lineComment, t.blockComment], color: "var(--lab-com)", fontStyle: "italic" },
-  { tag: [t.function(t.variableName), t.function(t.propertyName), t.function(t.definition(t.variableName))], color: "var(--lab-fn)" },
-  { tag: [t.definition(t.className), t.className, t.typeName], color: "var(--lab-type)" },
-  { tag: [t.self, t.special(t.variableName)], color: "var(--lab-self)" },
-  { tag: [t.propertyName], color: "var(--lab-prop)" },
-  { tag: [t.operator, t.punctuation, t.bracket], color: "var(--lab-op)" },
-  { tag: t.invalid, color: "var(--c-bad-text)" },
+  { tag: [t.keyword, t.controlKeyword, t.moduleKeyword, t.operatorKeyword, t.definitionKeyword], color: "var(--ed-kw)", fontWeight: "600" },
+  { tag: [t.string, t.special(t.string), t.regexp], color: "var(--ed-str)" },
+  { tag: [t.number, t.bool, t.null, t.atom], color: "var(--ed-num)" },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: "var(--ed-com)", fontStyle: "italic" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName), t.function(t.definition(t.variableName))], color: "var(--ed-fn)" },
+  { tag: [t.definition(t.className), t.className, t.typeName], color: "var(--ed-type)" },
+  { tag: [t.self, t.special(t.variableName)], color: "var(--ed-self)" },
+  { tag: [t.propertyName], color: "var(--ed-prop)" },
+  { tag: [t.operator, t.punctuation, t.bracket], color: "var(--ed-op)" },
+  { tag: t.invalid, color: "var(--ed-err)" },
 ]);
 
+const mono = "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace";
+
+/** Every colour is a --ed-* variable (src/lib/editor/themes.ts, set on the host element), so a theme switch re-colours in place. */
 const theme = EditorView.theme({
-  "&": { color: "var(--c-fg)", backgroundColor: "var(--c-raised)", height: "100%" },
+  "&": { color: "var(--ed-fg)", backgroundColor: "var(--ed-bg)", height: "100%" },
   "&.cm-focused": { outline: "none" },
-  ".cm-scroller": { fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace", lineHeight: "1.65", overflow: "auto" },
-  ".cm-content": { caretColor: "var(--c-signal)", padding: "12px 0 40px" },
+  ".cm-scroller": { fontFamily: mono, lineHeight: "1.65", overflow: "auto" },
+  ".cm-content": { caretColor: "var(--ed-caret)", padding: "12px 0 40px" },
   ".cm-line": { padding: "0 14px 0 10px" },
-  ".cm-gutters": { backgroundColor: "var(--c-surface)", color: "var(--c-fg-4)", border: "none", borderRight: "1px solid var(--c-line)" },
+  ".cm-gutters": { backgroundColor: "var(--ed-gutter-bg)", color: "var(--ed-gutter-fg)", border: "none", borderRight: "1px solid var(--ed-gutter-line)" },
   ".cm-lineNumbers .cm-gutterElement": { padding: "0 10px 0 12px", minWidth: "36px" },
-  ".cm-activeLine": { backgroundColor: "color-mix(in srgb, var(--c-signal) 6%, transparent)" },
-  ".cm-activeLineGutter": { backgroundColor: "color-mix(in srgb, var(--c-signal) 8%, transparent)", color: "var(--c-fg-2)" },
-  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--c-signal)", borderLeftWidth: "2px" },
+  ".cm-activeLine": { backgroundColor: "var(--ed-active-line)" },
+  ".cm-activeLineGutter": { backgroundColor: "var(--ed-active-line)", color: "var(--ed-gutter-fg-active)" },
+  ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--ed-caret)", borderLeftWidth: "2px" },
   "&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, .cm-content ::selection": {
-    backgroundColor: "color-mix(in srgb, var(--c-signal) 26%, transparent)",
+    backgroundColor: "var(--ed-selection)",
   },
-  ".cm-matchingBracket": { backgroundColor: "color-mix(in srgb, var(--c-signal) 22%, transparent)", outline: "1px solid color-mix(in srgb, var(--c-signal) 55%, transparent)" },
-  ".cm-nonmatchingBracket": { color: "var(--c-bad-text)" },
-  // suggestions: the editor's own tokens (teal inside .dsa-theme, through --c-signal)
-  ".cm-tooltip.cm-tooltip-autocomplete": { backgroundColor: "var(--c-raised)", color: "var(--c-fg)", border: "1px solid var(--c-line-strong)", boxShadow: "0 8px 24px rgba(0,0,0,0.18)" },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: "var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace", maxHeight: "16em" },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "2px 8px 2px 4px", color: "var(--c-fg-2)" },
-  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "color-mix(in srgb, var(--c-signal) 18%, transparent)", color: "var(--c-fg)" },
-  ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700", color: "var(--c-signal-text)" },
-  ".cm-completionDetail": { color: "var(--c-fg-4)", fontStyle: "normal", marginLeft: "0.8em" },
+  ".cm-matchingBracket, &.cm-focused .cm-matchingBracket": { backgroundColor: "var(--ed-bracket)", outline: "1px solid var(--ed-bracket-line)" },
+  ".cm-nonmatchingBracket, &.cm-focused .cm-nonmatchingBracket": { color: "var(--ed-err)", backgroundColor: "transparent", outline: "1px solid var(--ed-err)" },
+  // search matches (the search panel, when a build adds it) and diagnostics (lint underlines)
+  ".cm-searchMatch": { backgroundColor: "var(--ed-search)", outline: "1px solid var(--ed-popup-line)" },
+  ".cm-searchMatch.cm-searchMatch-selected": { backgroundColor: "var(--ed-search-active)" },
+  ".cm-selectionMatch": { backgroundColor: "var(--ed-bracket)" },
+  ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy var(--ed-err)", textUnderlineOffset: "3px" },
+  ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy var(--ed-warn)", textUnderlineOffset: "3px" },
+  ".cm-diagnostic-error": { borderLeft: "3px solid var(--ed-err)" },
+  ".cm-diagnostic-warning": { borderLeft: "3px solid var(--ed-warn)" },
+  ".cm-panels": { backgroundColor: "var(--ed-popup-bg)", color: "var(--ed-fg)" },
+  ".cm-panels input, .cm-panels button": { color: "var(--ed-fg)", backgroundColor: "var(--ed-bg)", border: "1px solid var(--ed-popup-line)" },
+  // suggestions
+  ".cm-tooltip": { backgroundColor: "var(--ed-popup-bg)", color: "var(--ed-fg)", border: "1px solid var(--ed-popup-line)" },
+  ".cm-tooltip.cm-tooltip-autocomplete": { backgroundColor: "var(--ed-popup-bg)", color: "var(--ed-fg)", border: "1px solid var(--ed-popup-line)", boxShadow: "0 8px 24px rgba(0,0,0,0.22)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul": { fontFamily: mono, maxHeight: "16em" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li": { padding: "2px 8px 2px 4px", color: "var(--ed-fg)" },
+  ".cm-tooltip.cm-tooltip-autocomplete > ul > li[aria-selected]": { backgroundColor: "var(--ed-popup-sel)", color: "var(--ed-fg)" },
+  ".cm-completionMatchedText": { textDecoration: "none", fontWeight: "700", color: "var(--ed-accent)" },
+  ".cm-completionDetail": { color: "var(--ed-gutter-fg)", fontStyle: "normal", marginLeft: "0.8em" },
   ".cm-completionIcon": { opacity: "1", width: "1.3em", fontSize: "90%", textAlign: "center" },
-  ".cm-completionIcon-keyword": { color: "var(--lab-kw)", "&:after": { content: "'k'" } },
-  ".cm-completionIcon-function, .cm-completionIcon-method": { color: "var(--lab-fn)", "&:after": { content: "'f'" } },
-  ".cm-completionIcon-class, .cm-completionIcon-type": { color: "var(--lab-type)", "&:after": { content: "'C'" } },
-  ".cm-completionIcon-variable, .cm-completionIcon-property, .cm-completionIcon-constant": { color: "var(--lab-prop)", "&:after": { content: "'x'" } },
-  ".cm-completionIcon-snippet": { color: "var(--c-signal-text)", "&:after": { content: "'{}'" } },
+  ".cm-completionIcon-keyword": { color: "var(--ed-kw)", "&:after": { content: "'k'" } },
+  ".cm-completionIcon-function, .cm-completionIcon-method": { color: "var(--ed-fn)", "&:after": { content: "'f'" } },
+  ".cm-completionIcon-class, .cm-completionIcon-type": { color: "var(--ed-type)", "&:after": { content: "'C'" } },
+  ".cm-completionIcon-variable, .cm-completionIcon-property, .cm-completionIcon-constant": { color: "var(--ed-prop)", "&:after": { content: "'x'" } },
+  ".cm-completionIcon-snippet": { color: "var(--ed-accent)", "&:after": { content: "'{}'" } },
 });
 
 export default function CodeEditor({ handle, initial, fontSize, label, onChange, onRun, onFocus, language = "python", suggestions = true }: Props) {
   const host = useRef<HTMLDivElement>(null);
+  const { palette } = useEditorTheme();
   const view = useRef<EditorView | null>(null);
   const cb = useRef({ onChange, onRun, onFocus });
   const fontComp = useRef(new Compartment());
@@ -217,5 +234,5 @@ export default function CodeEditor({ handle, initial, fontSize, label, onChange,
     [initial]
   );
 
-  return <div ref={host} className={`${styles.editor} h-full min-h-0`} />;
+  return <div ref={host} className={`${styles.editor} h-full min-h-0`} style={paletteVars(palette) as CSSProperties} data-editor-palette={palette.bg} />;
 }
