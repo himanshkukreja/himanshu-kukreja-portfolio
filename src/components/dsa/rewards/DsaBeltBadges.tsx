@@ -287,14 +287,14 @@ function HowToEarn() {
   );
 }
 
-export default function DsaBeltBadges({ defs: initial }: { defs: BadgeDef[] | null }) {
+export default function DsaBeltBadges({ defs: initial, embedded = false }: { defs: BadgeDef[] | null; embedded?: boolean }) {
   const defs = useBadgeDefs(initial);
   const { user, loading } = useAuth();
   const { openAuthModal } = useAuthModal();
   return (
-    <div className="dsa-theme">
-      <main className="mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
-        <header className="flex flex-col gap-2">
+    <div className={embedded ? undefined : "dsa-theme"}>
+      <main className={embedded ? "flex flex-col gap-8" : "mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6"}>
+        {embedded ? null : <header className="flex flex-col gap-2">
           <DsaCrumbs items={[{ href: "/dsa", label: "DSA Mastery" }, { label: "Belt & badges" }]} />
           <h1 className="m-0 font-display text-[36px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[48px]">
             Belt &amp; badges<span className="text-signal-text">.</span>
@@ -302,7 +302,7 @@ export default function DsaBeltBadges({ defs: initial }: { defs: BadgeDef[] | nu
           <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
             Every lesson, problem and daily solve earns Bits. Bits move you up the belts, from White to Black. Belts show how far you have come; they never lock anything.
           </p>
-          <Link href="/dsa/stats" className="inline-flex min-h-10 items-center self-start text-[14px] text-signal-text underline decoration-line-strong underline-offset-4">
+          <Link href="/dsa/progress#stats" className="inline-flex min-h-10 items-center self-start text-[14px] text-signal-text underline decoration-line-strong underline-offset-4">
             My stats →
           </Link>
           {!loading && !user && (
@@ -314,7 +314,7 @@ export default function DsaBeltBadges({ defs: initial }: { defs: BadgeDef[] | nu
               to keep them on every device and appear on the leaderboard.
             </p>
           )}
-        </header>
+        </header>}
         <BeltHero />
         <Badges defs={defs} />
         <InterviewReady />
@@ -322,7 +322,7 @@ export default function DsaBeltBadges({ defs: initial }: { defs: BadgeDef[] | nu
           <Breakdown />
           <HowToEarn />
         </div>
-        <DsaLeaderboard />
+        {embedded ? null : <DsaLeaderboard />}
       </main>
     </div>
   );

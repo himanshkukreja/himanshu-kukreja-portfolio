@@ -51,10 +51,10 @@ function Shorts({ shorts }: { shorts: ReviewShort[] }) {
           {rows.map((s) => (
             <li key={s.id} className="w-[150px] shrink-0">
               <Link href={`/dsa/shorts?v=${encodeURIComponent(s.id)}`} className="group flex flex-col gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
-                <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-plate">
+                <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[var(--c-plate)]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.poster} alt="" loading="lazy" className="h-full w-full object-cover" />
-                  <span className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-plate/80 px-2 py-1.5 font-mono text-[11px] text-plate-fg">
+                  <span className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--c-plate)_80%,transparent)] px-2 py-1.5 font-mono text-[11px] text-[color:var(--c-plate-fg)]">
                     <Play className="h-3 w-3 fill-current" aria-hidden /> {Math.max(1, Math.round(s.seconds))} s
                   </span>
                 </span>

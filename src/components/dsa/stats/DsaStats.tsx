@@ -181,7 +181,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n.toLocaleString
 
 /* ------------------------------------------------------------------ the page */
 
-export default function DsaStats({ rows, steps }: { rows: StatRow[]; steps: { id: string; label: string }[] }) {
+export default function DsaStats({ rows, steps, embedded = false }: { rows: StatRow[]; steps: { id: string; label: string }[]; embedded?: boolean }) {
   const { user, loading } = useAuth();
   const { openAuthModal } = useAuthModal();
   const { done, hydrated, flags } = useGame();
@@ -212,9 +212,9 @@ export default function DsaStats({ rows, steps }: { rows: StatRow[]; steps: { id
   const nothingYet = !!stats && stats.solved.total === 0 && stats.activity.activeDays === 0 && stats.lessons.steps === 0;
 
   return (
-    <div className="dsa-theme">
-      <main className="mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
-        <header className="flex flex-col gap-2">
+    <div className={embedded ? undefined : "dsa-theme"}>
+      <main className={embedded ? "flex flex-col gap-8" : "mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6"}>
+        {embedded ? null : <header className="flex flex-col gap-2">
           <DsaCrumbs items={[{ href: "/dsa", label: "DSA Mastery" }, { label: "My stats" }]} />
           <h1 className="m-0 font-display text-[36px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[48px]">
             My stats<span className="text-signal-text">.</span>
@@ -230,11 +230,11 @@ export default function DsaStats({ rows, steps }: { rows: StatRow[]; steps: { id
                 to keep them on every device.
               </span>
             )}
-            <Link href="/dsa/progress" className="inline-flex min-h-10 items-center text-signal-text underline decoration-line-strong underline-offset-4">
+            <Link href="/dsa/progress#belt" className="inline-flex min-h-10 items-center text-signal-text underline decoration-line-strong underline-offset-4">
               Belt &amp; badges →
             </Link>
           </p>
-        </header>
+        </header>}
 
         {!stats ? (
           <p role="status" className="m-0 font-mono text-[13px] text-fg-3">
@@ -244,7 +244,7 @@ export default function DsaStats({ rows, steps }: { rows: StatRow[]; steps: { id
           <div className="flex flex-col items-start gap-3 border border-dashed border-line-strong px-5 py-10">
             <p className="m-0 font-display text-[22px] font-bold text-fg">Solve your first problem to see your stats</p>
             <p className="m-0 max-w-[52ch] text-[15px] leading-relaxed text-fg-2">Your solves, streaks, lessons and Bits will show up here as you go. A first Easy problem takes about ten minutes.</p>
-            <Link href="/dsa/problems" className="inline-flex h-11 items-center bg-signal px-5 font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
+            <Link href="/dsa/practice" className="inline-flex h-11 items-center bg-signal px-5 font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal">
               Pick a problem
             </Link>
           </div>

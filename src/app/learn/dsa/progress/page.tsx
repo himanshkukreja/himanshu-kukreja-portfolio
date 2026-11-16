@@ -1,22 +1,49 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { getBadgeDefs } from "@/lib/dsa/load";
-import DsaBeltBadges from "@/components/dsa/rewards/DsaBeltBadges";
+import { getBadgeDefs, getConceptIndex, getProblemIndex, getStepLabels, getWorld } from "@/lib/dsa/load";
+import { buildProblemData } from "@/lib/dsa/problem-rows";
+import type { StatRow } from "@/lib/dsa/stats";
+import ProgressPage from "@/components/dsa/progress/ProgressPage";
 
-// /dsa/progress: Belt & badges. The badge definitions come from the world specs (ISR, refreshed with the content);
-// the learner's Bits, belt and badges are computed in the browser from their synced progress. Staging only.
+// /dsa/progress (the Progress tab): summary, readiness, streak, plan, belt and badges, leaderboard, stats, certificate, share,
+// settings. The page carries the bank and the lessons in short form (ISR, refreshed with the content); everything personal is
+// computed in the browser from the learner's synced progress. Staging only.
 
 export const revalidate = 604800;
 
 export const metadata: Metadata = {
-  title: "Belt & badges · DSA Mastery",
-  description: "Your DSA Mastery belt, Bits, mastery badges and the weekly leaderboard.",
+  title: "Progress · DSA Mastery",
+  description: "Your DSA Mastery progress: lessons and problems done, interview readiness, streak, belt, certificate and settings.",
   robots: { index: false, follow: false },
 };
 
 export default async function DsaProgressPage() {
   if (!DSA_FULL) notFound();
-  const defs = await getBadgeDefs().catch(() => null);
-  return <DsaBeltBadges defs={defs} />;
+  const [defs, problems, concepts, labels, academy] = await Promise.all([
+    getBadgeDefs().catch(() => null),
+    getProblemIndex().catch(() => []),
+    getConceptIndex().catch(() => []),
+    getStepLabels().catch(() => ({})),
+    getWorld("academy").catch(() => null),
+  ]);
+  const data = buildProblemData(problems, { labels, concepts, videos: [] });
+  const rows: StatRow[] = data.rows.map((r) => ({ id: r.id, level: r.level, module: r.module, structures: r.structures, algorithms: r.algorithms }));
+  const built = concepts.filter((c) => c.status === "built");
+  // the Academy's parts, each with its ready lessons (a module belongs to the part of its region)
+  const partOfModule = new Map<string, string>((academy?.regions || []).filter((r) => r.part).map((r) => [r.module, String(r.part)]));
+  const parts = (academy?.parts || [])
+    .map((p) => ({ id: p.id, title: p.label ? `${p.label} ${p.title}`.trim() : p.title, concepts: built.filter((c) => partOfModule.get(c.module) === p.id).map((c) => c.id) }))
+    .filter((p) => p.concepts.length);
+  return (
+    <ProgressPage
+      defs={defs}
+      problems={problems.map((p) => ({ id: p.id, level: p.level }))}
+      parts={parts}
+      lessonTotal={parts.reduce((a, p) => a + p.concepts.length, 0)}
+      plannedLessons={concepts.length - built.length}
+      rows={rows}
+      steps={data.steps.map((s) => ({ id: s.id, label: s.label }))}
+    />
+  );
 }

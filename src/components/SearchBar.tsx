@@ -12,7 +12,7 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Search, Sparkles } from "lucide-react";
 import Fuse from "fuse.js";
@@ -24,6 +24,8 @@ import { InlineLoader } from "@/components/ui/loader";
 import { TRANSCRIPT_SHORT, TRANSCRIPT_UNTIMED, type TranscriptIndex } from "@/lib/learn/lecture/transcript";
 import { useSmartAccess } from "@/components/learn/search/useSmartAccess";
 import { isNaturalQuery } from "@/lib/search/smart/text";
+import { isDsaPath } from "@/lib/dsa/flags";
+import { mergeTranscripts, type DsaSearchIndex } from "@/lib/dsa/search-index";
 
 type Doc = LearningResource & { content?: string; excerpt?: string };
 type Group = "ask" | "companies" | "lessons" | "cases" | "transcripts" | "questions" | "notes";
@@ -52,6 +54,8 @@ function weekNum(week: string) {
 }
 
 function badgeFor(d: { week: string; slug: string; type?: string }) {
+  if (d.week === "dsa/problems") return "PRB";
+  if (d.week.startsWith("dsa/")) return "DSA";
   const n = weekNum(d.week);
   const W = n === null ? "" : `W${pad(n)}`;
   if (d.type === "bonus" || d.week === "bonus-problems") return `SQ-${pad(parseInt(d.slug.match(/bonus-(\d+)/)?.[1] || "0", 10))}`;
@@ -69,6 +73,8 @@ function badgeFor(d: { week: string; slug: string; type?: string }) {
 }
 
 function topicFor(week: string) {
+  if (week === "dsa/problems") return "DSA problem";
+  if (week.startsWith("dsa/")) return "DSA lesson";
   if (week === "overview") return "Course plan";
   if (week === "bonus-problems") return "Side quests";
   if (week === "problem-bank") return "Interview problems";
@@ -130,18 +136,46 @@ const prepTranscripts = (idx: TranscriptIndex): Transcripts => ({
 
 /** Loaded once per page session (the palette unmounts on close; reopening it doesn't fetch ~1 MB again). */
 let transcriptLoad: Promise<Transcripts> | null = null;
-function loadTranscripts(): Promise<Transcripts> {
-  transcriptLoad ??= fetch("/api/search/transcripts")
-    .then((r) => (r.ok ? (r.json() as Promise<TranscriptIndex>) : Promise.reject(new Error(String(r.status)))))
-    .then((d) => {
-      if (!Array.isArray(d.m) || !Array.isArray(d.l)) throw new Error("bad transcript index");
-      return prepTranscripts(d);
-    })
+let transcriptLoadDsa: Promise<Transcripts> | null = null;
+
+/** DSA Mastery's lessons, problems and lecture moments (GET /api/dsa/search-index), fetched once and only on DSA pages. */
+let dsaLoad: Promise<DsaSearchIndex | null> | null = null;
+function loadDsaIndex(): Promise<DsaSearchIndex | null> {
+  dsaLoad ??= fetch("/api/dsa/search-index")
+    .then((r) => (r.ok ? (r.json() as Promise<DsaSearchIndex>) : null))
+    .then((d) => (d && Array.isArray(d.docs) && d.transcripts && Array.isArray(d.transcripts.m) ? d : null))
+    .catch(() => {
+      dsaLoad = null;
+      return null;
+    });
+  return dsaLoad;
+}
+
+function loadTranscripts(dsa = false): Promise<Transcripts> {
+  const fetchShared = () =>
+    fetch("/api/search/transcripts")
+      .then((r) => (r.ok ? (r.json() as Promise<TranscriptIndex>) : Promise.reject(new Error(String(r.status)))))
+      .then((d) => {
+        if (!Array.isArray(d.m) || !Array.isArray(d.l)) throw new Error("bad transcript index");
+        return d;
+      });
+  if (!dsa) {
+    transcriptLoad ??= fetchShared()
+      .then(prepTranscripts)
+      .catch((e) => {
+        transcriptLoad = null; // try again next time
+        throw e;
+      });
+    return transcriptLoad;
+  }
+  // on a DSA page the DSA moments are appended to the shared index (the DSA part failing leaves the shared index as it is)
+  transcriptLoadDsa ??= Promise.all([fetchShared(), loadDsaIndex()])
+    .then(([d, x]) => prepTranscripts(x ? mergeTranscripts(d, x.transcripts) : d))
     .catch((e) => {
-      transcriptLoad = null; // try again next time
+      transcriptLoadDsa = null;
       throw e;
     });
-  return transcriptLoad;
+  return transcriptLoadDsa;
 }
 
 /** 4:12, or 1:02:33 past an hour */
@@ -223,6 +257,7 @@ type NoteRow = { id: string; week: string; lesson_slug: string; note_text: strin
 
 function Palette({ onClose }: { onClose: () => void }) {
   const router = useRouter();
+  const onDsa = isDsaPath(usePathname() || "/");
   const { user } = useAuth();
   // smart search (/chat): an "Ask" row, for admins only until it launches (lib/search/smart/flag.ts)
   const smart = useSmartAccess() === "open";
@@ -250,18 +285,25 @@ function Palette({ onClose }: { onClose: () => void }) {
       setRecent([]);
     }
     let off = false;
+    const isDsaDoc = (d: Doc) => d.course === "dsa";
+    // on a DSA page its lessons and problems are searched too; each index lands on its own, so a slow shared index never holds DSA back
+    if (onDsa)
+      void loadDsaIndex().then((x) => {
+        if (!off && x) setDocs((prev) => [...(prev || []).filter((d) => !isDsaDoc(d)), ...(x.docs as unknown as Doc[])]);
+      });
     fetch("/api/search")
       .then((r) => r.json())
       .then((d) => {
         if (off) return;
-        setDocs((d.results || []) as Doc[]);
+        const base = (d.results || []) as Doc[];
+        setDocs((prev) => [...base, ...(prev || []).filter(isDsaDoc)]);
         setCases((d.cases || []) as CaseDoc[]);
         setCompanies((d.companies || []) as CompanyDoc[]);
       })
       .catch(() => {
         if (!off) {
-          setDocs([]);
-          setFailed(true);
+          setDocs((prev) => prev ?? []);
+          setFailed(!onDsa);
         }
       });
     return () => {
@@ -274,10 +316,10 @@ function Palette({ onClose }: { onClose: () => void }) {
     if (!wantsTranscripts || transcripts !== null) return;
     // no cleanup: setting "loading" re-runs this effect, and that must not drop the result
     setTranscripts("loading");
-    loadTranscripts()
+    loadTranscripts(onDsa)
       .then((t) => setTranscripts(t))
       .catch(() => setTranscripts("failed"));
-  }, [wantsTranscripts, transcripts]);
+  }, [wantsTranscripts, transcripts, onDsa]);
 
   useEffect(() => {
     if (!user) return;
