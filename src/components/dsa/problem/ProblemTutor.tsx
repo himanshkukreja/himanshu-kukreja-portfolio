@@ -43,6 +43,8 @@ type Props = {
   request: TutorRequest | null;
   /** Called once a request has been sent, so the room clears it. */
   onRequestHandled?: () => void;
+  /** inside the problem page's drawer: fills it (no border, no "expand") */
+  embedded?: boolean;
 };
 
 const ACTIONS: { mode: Exclude<TutorMode, "ask">; label: string; icon: LucideIcon; title: string }[] = [
@@ -69,7 +71,7 @@ function wireResult(last: Props["last"], p: ProblemPage) {
   };
 }
 
-export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, solved, request, onRequestHandled }: Props) {
+export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, solved, request, onRequestHandled, embedded = false }: Props) {
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const ai = useAiStatus();
@@ -164,15 +166,17 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
 
   return (
     <>
-    {wide && <div aria-hidden className="fixed inset-0 z-[60] bg-black/40" onClick={() => setWide(false)} />}
+    {wide && !embedded && <div aria-hidden className="fixed inset-0 z-[60] bg-black/40" onClick={() => setWide(false)} />}
     <div
       className={
-        wide
+        embedded
+          ? "flex h-full min-h-0 flex-col bg-surface"
+          : wide
           ? "fixed inset-x-0 bottom-0 top-[var(--hk-header-h,61px)] z-[61] flex flex-col border border-line-strong bg-surface shadow-2xl sm:inset-x-[max(16px,calc(50vw-500px))] sm:bottom-4 sm:top-[calc(var(--hk-header-h,61px)+16px)]"
           : "flex h-[min(80dvh,760px)] min-h-[480px] flex-col border border-line-strong bg-surface lg:h-[calc(100dvh-var(--hk-header-h,61px)-150px)] lg:min-h-[560px]"
       }
-      role={wide ? "dialog" : undefined}
-      aria-modal={wide || undefined}
+      role={wide && !embedded ? "dialog" : undefined}
+      aria-modal={(wide && !embedded) || undefined}
       aria-label={wide ? "Problem tutor" : undefined}
       data-dsa-tutor
     >
@@ -192,15 +196,17 @@ export default function ProblemTutor({ p, lang, code, last, hintsOpen, onHint, s
             <History className="h-3.5 w-3.5" aria-hidden /> chats ({pastChats})
           </button>
         )}
+        {!embedded && (
         <button
-          type="button"
-          onClick={() => setWide((w) => !w)}
-          aria-pressed={wide}
-          className={`${canChat && pastChats > 0 ? "" : "ml-auto "}inline-flex min-h-9 items-center gap-1.5 px-1.5 font-mono text-[11.5px] text-fg-3 hover:text-fg [@media(pointer:coarse)]:min-h-11`}
-        >
-          {wide ? <Minimize2 className="h-3.5 w-3.5" aria-hidden /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
-          {wide ? "close" : "expand"}
-        </button>
+            type="button"
+            onClick={() => setWide((w) => !w)}
+            aria-pressed={wide}
+            className={`${(canChat && pastChats > 0) || embedded ? "" : "ml-auto "}inline-flex min-h-9 items-center gap-1.5 px-1.5 font-mono text-[11.5px] text-fg-3 hover:text-fg [@media(pointer:coarse)]:min-h-11`}
+          >
+            {wide ? <Minimize2 className="h-3.5 w-3.5" aria-hidden /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+            {wide ? "close" : "expand"}
+          </button>
+        )}
         {!empty && (
           <button type="button" onClick={chat.reset} disabled={chat.busy} className="inline-flex min-h-9 items-center gap-1.5 px-1.5 font-mono text-[11.5px] text-fg-3 hover:text-fg disabled:opacity-50 [@media(pointer:coarse)]:min-h-11">
             <MessageSquarePlus className="h-3.5 w-3.5" aria-hidden /> new chat
