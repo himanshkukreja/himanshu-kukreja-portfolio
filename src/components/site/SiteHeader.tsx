@@ -181,7 +181,7 @@ export default function SiteHeader() {
         inert={hidden || undefined}
         className={`hk-header hk-titlebar${dsa ? " dsa-theme" : ""} sticky top-0 z-50 border-b border-line bg-bg/90 backdrop-blur transition-transform duration-200 ${hidden ? "-translate-y-full" : ""}`}
       >
-        <div className="hk-titlebar-row relative mx-auto flex max-w-[1320px] items-center gap-x-3 px-4 py-2.5 sm:gap-x-5 sm:px-6 lg:gap-x-3 xl:gap-x-5">
+        <div className={`hk-titlebar-row relative mx-auto flex items-center gap-x-3 px-4 sm:gap-x-5 sm:px-6 lg:gap-x-3 xl:gap-x-5 ${dsa ? "max-w-[1440px] py-2 lg:min-h-16 lg:px-10 lg:py-[13px]" : "max-w-[1320px] py-2.5"}`}>
           <AppBack />
           {dsa ? (
             <>

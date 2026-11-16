@@ -59,14 +59,14 @@ function FilterMenu({ def, open, onOpen, state, counts, base, onToggle }: { def:
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => onOpen(!open)}
-        className={`inline-flex h-11 items-center gap-2 border px-3 font-mono text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text ${n ? "border-signal bg-surface" : "border-line-strong bg-surface"}`}
+        className={`inline-flex h-11 items-center gap-2 border px-3 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px] ${n ? "border-signal bg-surface" : "border-line-strong bg-surface"}`}
       >
         {def.id === "step" ? "Module" : def.title.replace("Step in the course", "Module")}
         {n ? <span className="bg-signal px-1.5 py-0.5 text-[11px] text-on-signal">{n}</span> : null}
         <ChevronDown className={`h-4 w-4 text-fg-3 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
       </button>
       {open ? (
-        <div role="group" aria-label={def.title} className="absolute left-0 top-full z-30 mt-1 max-h-[60vh] w-[300px] overflow-y-auto border border-line-strong bg-surface px-3 py-1 shadow-lg">
+        <div role="group" aria-label={def.title} className="absolute left-0 top-full z-30 mt-1 max-h-[60vh] w-[300px] overflow-y-auto border border-line-strong bg-surface px-3 py-1 shadow-lg rounded-[14px]">
           <Group bare def={def} state={state} counts={counts} base={base} onToggle={onToggle} />
         </div>
       ) : null}
@@ -105,14 +105,14 @@ function StatusTabs({ value, counts, onPick }: { value: StatusView; counts: Reco
 function PlannedPanel({ id }: { id: ListId }) {
   const def = listDef(id);
   return (
-    <section aria-labelledby="pl-h" className="flex flex-col items-start gap-3 border border-dashed border-line-strong bg-surface px-5 py-8">
+    <section aria-labelledby="pl-h" className="flex flex-col items-start gap-3 border border-dashed border-line-strong bg-surface px-5 py-8 rounded-2xl">
       <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">Planned</span>
       <h2 id="pl-h" className="m-0 font-display text-[22px] font-bold tracking-[-0.02em] text-fg">
         {def.label}
       </h2>
       <p className="m-0 max-w-[60ch] text-[15px] leading-relaxed text-fg-2">{def.planned?.line}</p>
       {def.planned?.link ? (
-        <Link href={def.planned.link.href} className="inline-flex min-h-11 items-center bg-signal px-4 font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+        <Link href={def.planned.link.href} className="inline-flex min-h-11 items-center bg-signal px-4 text-[14px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
           {def.planned.link.label} →
         </Link>
       ) : null}
@@ -153,7 +153,7 @@ function Fold({ title, count, hint, defaultOpen, children }: { title: string; co
           type="button"
           aria-expanded={open}
           onClick={() => setOpen(!open)}
-          className="flex min-h-11 w-full items-center justify-between gap-3 border border-line bg-surface px-4 text-left hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal-text"
+          className="flex min-h-11 w-full items-center justify-between gap-3 border border-line bg-surface px-4 text-left hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal-text rounded-[10px]"
         >
           <span className="min-w-0">
             <span className="font-display text-[17px] font-bold tracking-[-0.01em] text-fg">{title}</span>
@@ -351,7 +351,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
       {/* a list that has nothing to show yet */}
       {planned ? <PlannedPanel id={view.list} /> : null}
       {view.list === "daily" && daily.data?.daily ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3 rounded-2xl">
           <p className="m-0 text-[14px] text-fg-2">
             <span className="font-semibold text-fg">Today is #{daily.data.daily.number}.</span> {streak?.today ? "✓ Solved today." : "Solve it before midnight India time to keep your streak."}
           </p>
@@ -364,10 +364,10 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
         </div>
       ) : null}
       {view.list === "saved" && saved.ready && !saved.saved.size ? (
-        <div className="flex flex-col items-start gap-3 border border-dashed border-line-strong px-5 py-10">
+        <div className="flex flex-col items-start gap-3 border border-dashed border-line-strong px-5 py-10 rounded-2xl">
           <p className="m-0 font-display text-[20px] font-bold text-fg">Nothing saved yet</p>
           <p className="m-0 max-w-[52ch] text-[15px] leading-relaxed text-fg-2">Tap the bookmark on any problem (here or on its page) and it waits for you in this list. It stays on this device; sign in and it follows your account.</p>
-          <button type="button" onClick={() => pickList("all")} className="inline-flex h-11 items-center bg-signal px-5 font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+          <button type="button" onClick={() => pickList("all")} className="inline-flex h-11 items-center bg-signal px-5 text-[14px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
             Browse all problems
           </button>
         </div>
@@ -381,7 +381,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                 // nothing ready in this set (or the filters removed it): a one-line state, not an empty table
                 if (filtered || !section.planned) return null;
                 return (
-                  <p key={section.id} className="m-0 flex flex-wrap items-baseline justify-between gap-2 border border-dashed border-line px-4 py-3 text-[14px] text-fg-2">
+                  <p key={section.id} className="m-0 flex flex-wrap items-baseline justify-between gap-2 border border-dashed border-line px-4 py-3 text-[14px] text-fg-2 rounded-2xl">
                     <span className="font-semibold text-fg">{section.title}</span>
                     <span className="font-mono text-[12px] text-fg-3">{plannedNote(section)}</span>
                   </p>
@@ -430,10 +430,10 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
         ) : view.list === "daily" && dailyIds === null ? (
           <div aria-busy="true" aria-label="Loading the daily problems" className="h-[200px] animate-pulse bg-surface-2" />
         ) : (
-          <div className="flex flex-col items-start gap-3 border border-dashed border-line-strong px-5 py-10">
+          <div className="flex flex-col items-start gap-3 border border-dashed border-line-strong px-5 py-10 rounded-2xl">
             <p className="m-0 font-display text-[20px] font-bold text-fg">{statusViewOf(state) === "solved" && !chips.some((c) => c.g !== "status") && !state.q.trim() ? "You haven't solved a problem here yet" : "No problems match these filters"}</p>
             <p className="m-0 max-w-[52ch] text-[15px] leading-relaxed text-fg-2">Try removing one filter, or searching a shorter word. Choosing several options inside one group widens the list; every group you use narrows it.</p>
-            <button type="button" onClick={clear} className="inline-flex h-11 items-center bg-signal px-5 font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+            <button type="button" onClick={clear} className="inline-flex h-11 items-center bg-signal px-5 text-[14px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
               Clear filters
             </button>
           </div>
@@ -475,7 +475,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                     placeholder="Search by title, idea or a classic (LC 1)"
                     autoComplete="off"
                     enterKeyHint="search"
-                    className="h-11 w-full border border-line-strong bg-surface pl-9 pr-3 text-[15px] text-fg placeholder:text-fg-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text"
+                    className="h-11 w-full border border-line-strong bg-surface pl-9 pr-3 text-[15px] text-fg placeholder:text-fg-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
                   />
                 </div>
                 {/* module, pattern, difficulty, status: inline from a tablet up */}
@@ -492,7 +492,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                       setSheet(true);
                     }}
                     aria-haspopup="dialog"
-                    className="inline-flex h-11 items-center gap-2 border border-line-strong bg-surface px-3 font-mono text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text"
+                    className="inline-flex h-11 items-center gap-2 border border-line-strong bg-surface px-3 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
                   >
                     <SlidersHorizontal className="h-4 w-4" aria-hidden />
                     More filters{moreN ? ` (${moreN})` : ""}
@@ -502,7 +502,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                   type="button"
                   onClick={() => setSheet(true)}
                   aria-haspopup="dialog"
-                  className="inline-flex h-11 min-w-[44px] flex-1 items-center justify-center gap-2 border border-line-strong bg-surface px-4 font-mono text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text sm:hidden"
+                  className="inline-flex h-11 min-w-[44px] flex-1 items-center justify-center gap-2 border border-line-strong bg-surface px-4 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text sm:hidden rounded-[10px]"
                 >
                   <Filter className="h-4 w-4" aria-hidden />
                   Filters{n ? ` (${n})` : ""}
@@ -515,7 +515,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                     id="pb-sort"
                     value={state.sort}
                     onChange={(e) => commitFilters({ ...state, sort: e.target.value as SortId })}
-                    className="h-11 w-full appearance-none border border-line-strong bg-surface pl-3 pr-9 font-mono text-[13px] text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text"
+                    className="h-11 w-full appearance-none border border-line-strong bg-surface pl-3 pr-9 text-[14px] font-medium text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
                   >
                     {SORTS.map((s) => (
                       <option key={s.id} value={s.id}>
@@ -534,7 +534,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                       id="pb-group"
                       value={view.grouping}
                       onChange={(e) => commit(state, { ...view, page: 1, grouping: e.target.value as Grouping })}
-                      className="h-11 appearance-none border border-line-strong bg-surface pl-3 pr-9 font-mono text-[13px] text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text"
+                      className="h-11 appearance-none border border-line-strong bg-surface pl-3 pr-9 text-[14px] font-medium text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
                     >
                       <option value="none">No grouping</option>
                       <option value="lesson">By lesson</option>
@@ -549,7 +549,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                   onClick={() => setExporting(true)}
                   aria-haspopup="dialog"
                   aria-label="Export sheet"
-                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 border border-line-strong bg-surface font-mono text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text sm:w-auto sm:px-4"
+                  className="inline-flex h-11 w-11 shrink-0 items-center justify-center gap-2 border border-line-strong bg-surface text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text sm:w-auto sm:px-4 rounded-[10px]"
                 >
                   <Download className="h-4 w-4" aria-hidden />
                   <span className="hidden sm:inline">Export</span>
@@ -635,10 +635,10 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
               ))}
             </div>
             <div className="flex gap-3 border-t border-line bg-bg px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
-              <button type="button" onClick={clear} disabled={!n && !state.q} className="h-11 flex-1 border border-line-strong font-mono text-[13px] text-fg disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text">
+              <button type="button" onClick={clear} disabled={!n && !state.q} className="h-11 flex-1 border border-line-strong text-[14px] font-medium text-fg disabled:opacity-40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]">
                 Clear all
               </button>
-              <button type="button" onClick={() => setSheet(false)} className="h-11 flex-[2] bg-signal font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+              <button type="button" onClick={() => setSheet(false)} className="h-11 flex-[2] bg-signal text-[14px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
                 Show {total} {total === 1 ? "problem" : "problems"}
               </button>
             </div>

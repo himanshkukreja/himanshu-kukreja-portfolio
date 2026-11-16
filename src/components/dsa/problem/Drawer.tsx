@@ -31,7 +31,7 @@ export default function Drawer({ open, label, onClose, children }: { open: boole
       data-drawer={label}
     >
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-line px-4 py-2">
-        <span className="font-mono text-[12px] uppercase tracking-label text-fg-3">{label}</span>
+        <span className="font-mono text-[12px] uppercase tracking-[0.06em] text-fg-3">{label}</span>
         <button ref={close} type="button" onClick={onClose} className="inline-flex min-h-10 items-center gap-1.5 px-2 text-[13px] text-fg-2 hover:text-fg [@media(pointer:coarse)]:min-h-11">
           <X className="h-4 w-4" aria-hidden /> Close
         </button>

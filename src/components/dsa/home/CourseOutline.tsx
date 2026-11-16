@@ -59,17 +59,19 @@ export default function CourseOutline({
   );
 
   return (
-    <div className="border border-line bg-surface">
+    <div className="overflow-hidden rounded-2xl border border-line bg-surface sm:rounded-[18px]">
       {parts.map(({ p, mods, done, ready, planned }, i) => {
         const all = ready > 0 && done === ready;
+        const here = mods.some(({ m }) => m.regionCode === currentCode);
         return (
           <section key={p.id} aria-labelledby={`dsa-part-${p.id}`} className={i ? "border-t border-line" : ""}>
-            <div className="flex flex-wrap items-center gap-x-3.5 gap-y-1 px-4 py-4 sm:px-6">
-              <span className="w-14 font-mono text-[12px] text-signal-text sm:w-[3.75rem]">{p.label}</span>
-              <h3 id={`dsa-part-${p.id}`} className="m-0 min-w-0 flex-1 text-[15.5px] font-semibold text-fg">
+            <div className={`flex flex-wrap items-center gap-x-3.5 gap-y-1 px-4 sm:px-6 ${mods.length ? "pb-2 pt-3.5 sm:pt-4" : "py-3.5 sm:py-4"}`}>
+              <span className={`hidden w-[70px] font-mono text-[12px] sm:inline ${here ? "text-signal-text" : "text-fg-3"}`}>{p.label}</span>
+              <h3 id={`dsa-part-${p.id}`} className="m-0 min-w-0 flex-1 text-[15px] font-semibold text-fg">
+                <span className="sm:hidden">{p.label.replace(/^PART/i, "Part")} · </span>
                 {p.title}
               </h3>
-              <span className="text-[13px] text-fg-3">
+              <span className={`text-[12px] sm:text-[13px] ${all ? "font-medium text-ok-text" : "text-fg-3"}`}>
                 {ready === 0 ? `Soon · ${planned} planned` : all ? `Done · ${ready} ${ready === 1 ? "lesson" : "lessons"}` : `${done} of ${ready} lessons${planned ? ` · ${planned} planned` : ""}`}
               </span>
             </div>
@@ -93,9 +95,9 @@ export default function CourseOutline({
               );
             })}
             {p.final ? (
-              <div className="flex min-h-12 items-center gap-3 border-t border-line px-4 py-3 text-fg-3 sm:px-6">
-                <span className="w-14 sm:w-[3.75rem]" aria-hidden />
-                <span className="min-w-0 flex-1 text-[14.5px]">Final review: {p.final.title}</span>
+              <div className="mx-4 flex min-h-12 items-center gap-3.5 border-t border-line py-3 text-fg-3 sm:mx-6">
+                <span className="hidden w-[70px] sm:block" aria-hidden />
+                <span className="min-w-0 flex-1 text-[14px]">Final review: {p.final.title}</span>
                 <span className="text-[13px]">{p.final.built ? "Open" : "Soon"}</span>
               </div>
             ) : null}

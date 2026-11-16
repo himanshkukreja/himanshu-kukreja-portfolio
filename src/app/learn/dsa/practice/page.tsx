@@ -26,7 +26,7 @@ export default async function PracticePage() {
         <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
           <div className="flex flex-col gap-1">
             <span className="font-mono text-xs uppercase tracking-label text-signal-text">Practice</span>
-            <h1 className="m-0 font-display text-[32px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[40px]">
+            <h1 className="m-0 font-display text-[30px] font-extrabold leading-[1.02] tracking-[-0.03em] text-fg sm:text-[46px]">
               The problem bank<span className="text-signal-text">.</span>
             </h1>
           </div>

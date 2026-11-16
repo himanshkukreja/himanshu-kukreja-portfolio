@@ -21,29 +21,32 @@ export default function StepFooter({ step, onNext, nextPart, nextLesson, backHre
         ? `Keep reading: about ${Math.ceil(p.completeLeftMin)} min of reading left before this can be marked as learnt`
         : "Read the parts of the lesson first";
   return (
-    <div data-focus-hide data-reader-ui data-ask-shift className="hk-safe-x fixed inset-x-0 z-40 border-t border-line-strong bg-bg" style={{ bottom: "var(--site-dock, 0px)" }}>
-      <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] pt-1.5 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-2">
-        <span className="min-w-0 basis-full truncate font-mono text-[11px] uppercase tracking-label text-fg-3 sm:basis-auto sm:text-[12px]" aria-live="polite">
-          Step {n} of {STEP_ORDER.length} · {STEP_TITLE[step]}
+    <div data-focus-hide data-reader-ui data-ask-shift className="hk-safe-x fixed inset-x-0 z-40 border-t border-line bg-surface" style={{ bottom: "var(--site-dock, 0px)" }}>
+      <div className="mx-auto flex min-h-[72px] max-w-[1248px] items-center gap-2.5 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 sm:gap-4 sm:px-6 sm:py-3.5">
+        <span className="min-w-0 flex-1 truncate font-mono text-[11px] uppercase tracking-[0.06em] text-fg-3 sm:text-[12px]" aria-live="polite">
+          Step {n} of {STEP_ORDER.length}
+          <span className="hidden sm:inline"> · {STEP_TITLE[step]}</span>
         </span>
-        <span className="hidden flex-1 sm:block" />
         <button
           type="button"
           onClick={p.complete}
           disabled={p.completed || !p.canComplete || !p.ready}
           title={reason}
           aria-label={p.completed ? "Learnt" : `Mark as learnt. ${reason}`}
-          className={`inline-flex min-h-11 items-center whitespace-nowrap px-3 font-mono text-[13px] sm:px-4 ${p.completed ? "border border-fg text-fg" : "border border-line-strong text-fg hover:border-signal disabled:text-fg-4 disabled:hover:border-line-strong"}`}
+          className={`inline-flex min-h-11 items-center justify-center whitespace-nowrap rounded-[10px] border bg-surface px-3 text-[14px] font-medium max-sm:w-11 max-sm:px-0 sm:px-4 ${p.completed ? "border-fg text-fg" : "border-line-strong text-fg hover:bg-surface-2 disabled:text-fg-4 disabled:hover:bg-surface"}`}
         >
-          {p.completed ? "✓ Learnt" : "Mark as learnt"}
+          <span className="sm:hidden" aria-hidden>
+            ✓
+          </span>
+          <span className="hidden sm:inline">{p.completed ? "✓ Learnt" : "Mark as learnt"}</span>
         </button>
         {next ? (
-          <button type="button" onClick={() => (nextPart ? nextPart() : onNext(next))} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap bg-signal px-4 text-[14px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))] sm:flex-none sm:text-[15px]">
+          <button type="button" onClick={() => (nextPart ? nextPart() : onNext(next))} className="inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-signal px-5 text-[15px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))] sm:min-h-11 sm:rounded-[10px] sm:text-[14px]">
             {nextPart ? "Next part" : `Next: ${STEP_TITLE[next]}`}
             <ArrowRight className="h-4 w-4" aria-hidden />
           </button>
         ) : (
-          <Link href={nextLesson?.href ?? backHref} className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 whitespace-nowrap bg-signal px-4 text-[14px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))] sm:flex-none sm:text-[15px]">
+          <Link href={nextLesson?.href ?? backHref} className="inline-flex min-h-12 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-signal px-5 text-[15px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))] sm:min-h-11 sm:rounded-[10px] sm:text-[14px]">
             {nextLesson ? "Next lesson" : "Back to the course"}
             <ArrowRight className="h-4 w-4" aria-hidden />
           </Link>

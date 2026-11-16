@@ -97,13 +97,13 @@ export function CourseSwitch({ pathname }: { pathname: string }) {
         aria-expanded={open}
         aria-label="Switch course"
         title="Switch course"
-        className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 border font-mono text-[12px] min-[400px]:w-10 xl:w-auto xl:px-3 ${open ? "border-signal text-signal-text" : "border-line-strong text-fg-2 hover:text-fg"}`}
+        className={`inline-flex h-[38px] shrink-0 items-center justify-center gap-2 rounded-full border font-mono text-[12px] min-[400px]:w-[38px] xl:w-auto xl:px-3 ${open ? "border-signal text-signal-text" : "border-line text-fg-3 hover:text-fg"}`}
       >
         <ChevronsUpDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
         <span className="hidden whitespace-nowrap xl:inline">System design ⇄ DSA</span>
       </button>
       {open && (
-        <div role="menu" aria-label="Courses" className="absolute right-0 top-[calc(100%+12px)] z-50 flex w-[min(320px,calc(100vw-32px))] animate-hk-in flex-col border border-line-strong bg-surface p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
+        <div role="menu" aria-label="Courses" className="absolute right-0 top-[calc(100%+12px)] z-50 flex w-[min(320px,calc(100vw-32px))] animate-hk-in flex-col rounded-2xl border border-line bg-surface p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
           <span className="px-2.5 pb-1.5 pt-1 font-mono text-[11px] uppercase tracking-label text-fg-3">Your courses · one account</span>
           {COURSES.map((c) => {
             const here = c.id === "dsa";
@@ -114,7 +114,7 @@ export function CourseSwitch({ pathname }: { pathname: string }) {
                 role="menuitem"
                 aria-current={here ? "page" : undefined}
                 onClick={() => setOpen(false)}
-                className={`flex min-h-14 items-center gap-3 px-2.5 py-2 ${here ? "bg-surface-2" : "hover:bg-surface-2"}`}
+                className={`flex min-h-14 items-center gap-3 rounded-xl px-2.5 py-2 ${here ? "bg-surface-2" : "hover:bg-surface-2"}`}
               >
                 {c.id === "sdm" ? <CourseMark className="h-8 w-8" /> : <DsaMark className="h-8 w-8" />}
                 <span className="flex min-w-0 flex-1 flex-col gap-0.5">
@@ -136,23 +136,23 @@ export function DsaBrand() {
   return (
     <div className="flex shrink-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
       <Link href={DSA_HOME} aria-label="DSA Mastery, course home" className="inline-flex min-h-10 shrink-0 items-center gap-2 py-1 font-display text-lg font-extrabold tracking-[-0.03em] text-fg sm:text-xl">
-        <DsaMark className="h-7 w-7" />
-        <span aria-hidden className="whitespace-nowrap max-[379px]:hidden">
+        <DsaMark className="h-[22px] w-[22px] sm:h-6 sm:w-6" />
+        <span aria-hidden className="whitespace-nowrap text-[18px] max-[379px]:hidden sm:text-[20px]">
           DSA Mastery<span className="text-signal-text">.</span>
         </span>
       </Link>
-      <span className="hidden border border-signal px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-label text-signal-text sm:inline">{DSA_FULL ? "beta" : "soon"}</span>
+      <span className="hidden rounded-full border border-signal px-2 py-px font-mono text-[10px] font-semibold uppercase tracking-label text-signal-text sm:inline">{DSA_FULL ? "beta" : "soon"}</span>
     </div>
   );
 }
 
-const tabClass = (on: boolean) => `relative inline-flex items-center gap-2 whitespace-nowrap px-2.5 py-2.5 ${on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`;
+const tabClass = (on: boolean) => `relative inline-flex items-center gap-2 whitespace-nowrap rounded-lg px-3.5 py-2 ${on ? "bg-surface-2 text-fg" : "text-fg-3 hover:bg-surface-2 hover:text-fg"}`;
 
-/** Desktop DSA tabs, inline in the header row: Course, Practice, Review, Progress (mono 13 px, the open one underlined). */
+/** Desktop DSA tabs, inline in the header row: Course, Practice, Review, Progress (Geist 14/500 pills, the open one filled). */
 export function DsaTabs({ pathname }: { pathname: string }) {
   const desk = tabs(pathname).filter((t) => t.where !== "dock");
   return (
-    <nav aria-label="DSA Mastery" className="hidden items-center font-mono text-[13px] lg:flex">
+    <nav aria-label="DSA Mastery" className="ml-3 hidden items-center gap-1 text-[14px] font-medium lg:flex xl:ml-5">
       {desk.map((t) =>
         t.href ? (
           <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={tabClass(t.on)}>
@@ -180,7 +180,7 @@ export function DsaAsk() {
       onClick={() => openCourseChat()}
       aria-label="Ask the tutor"
       title="Ask the tutor"
-      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 border border-line-strong px-2.5 font-mono text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text min-[400px]:px-3"
+      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-[10px] border border-line bg-surface px-2.5 text-[13px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text min-[400px]:px-3.5"
     >
       <Sparkles className="h-4 w-4 shrink-0 text-signal-text" aria-hidden />
       <span className="hidden sm:inline xl:hidden">Ask</span>
@@ -201,7 +201,7 @@ export function DsaDock({ pathname, className }: { pathname: string; className: 
   const guestSwitch = !user && !loading && DSA_FULL;
   const cols = list.length === 5 ? "grid-cols-5" : guestSwitch ? "grid-cols-5 min-[400px]:grid-cols-4" : "grid-cols-4";
   const item = (on: boolean) =>
-    `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap font-mono text-[10.5px] leading-none max-[359px]:text-[10px] max-[359px]:tracking-[-0.03em] ${on ? "text-fg" : "text-fg-3"}`;
+    `relative flex min-h-[54px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap text-[12px] leading-none max-[359px]:text-[11px] max-[359px]:tracking-[-0.02em] ${on ? "font-semibold text-signal-text" : "font-medium text-fg-3"}`;
   if (hide) return null;
   return (
     <nav aria-label="DSA Mastery" className={`${className} ${cols} !gap-0 !px-1.5 max-[359px]:!px-1`}>
@@ -218,7 +218,7 @@ export function DsaDock({ pathname, className }: { pathname: string; className: 
             </span>
           ) : (
             <span aria-hidden className="grid h-[22px] w-[22px] place-items-center">
-              <I className={`h-[18px] w-[18px] ${t.on ? "text-signal-text" : ""}`} strokeWidth={t.on ? 2.25 : 1.75} />
+              <I className="h-5 w-5" strokeWidth={t.on ? 2.25 : 1.75} />
             </span>
           );
         if (!t.href)

@@ -41,7 +41,20 @@ function ReadingText({ r }: { r: Reading }) {
   );
 }
 
-export default function ReadinessCard({ tracks, id = "readiness", compact = false }: { tracks: Track[]; id?: string; /** one column (a narrow side column: the DSA home) */ compact?: boolean }) {
+export default function ReadinessCard({
+  tracks,
+  id = "readiness",
+  compact = false,
+  rounded = false,
+}: {
+  tracks: Track[];
+  id?: string;
+  /** one column (a narrow side column: the DSA home) */
+  compact?: boolean;
+  /** the DSA redesign's rounded card (DSA pages only; SD Mastery and LLD keep the square card) */
+  rounded?: boolean;
+}) {
+  const rd = (on: string, off = "") => (rounded ? on : off);
   const { user, loading } = useAuth();
   const ai = useAiStatus();
   const [data, setData] = useState<Data | null>(null);
@@ -87,13 +100,13 @@ export default function ReadinessCard({ tracks, id = "readiness", compact = fals
   };
 
   return (
-    <section id={id} aria-labelledby={`${id}-h`} className="flex scroll-mt-28 flex-col gap-4 border border-line-strong bg-surface p-4 sm:p-5">
+    <section id={id} aria-labelledby={`${id}-h`} className={`flex scroll-mt-28 flex-col gap-4 border bg-surface ${rd("rounded-2xl border-line p-[22px]", "border-line-strong p-4 sm:p-5")}`}>
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <div className="flex items-baseline gap-2.5">
-          <h2 id={`${id}-h`} className="m-0 font-display text-[22px] font-bold tracking-[-0.02em] text-fg">
+          <h2 id={`${id}-h`} className={rounded && compact ? "m-0 text-[16px] font-semibold text-fg" : "m-0 font-display text-[22px] font-bold tracking-[-0.02em] text-fg"}>
             Interview readiness
           </h2>
-          <span className="border border-line-strong px-1.5 py-px font-mono text-[10.5px] uppercase tracking-label text-fg-3">estimate</span>
+          <span className={`border px-1.5 py-px font-mono text-[10.5px] uppercase tracking-label text-fg-3 ${rd("rounded-full border-line px-2", "border-line-strong")}`}>estimate</span>
         </div>
         {shown.length > 1 && (
           <div role="tablist" aria-label="Track" className="flex flex-wrap gap-1">
@@ -104,7 +117,7 @@ export default function ReadinessCard({ tracks, id = "readiness", compact = fals
                 type="button"
                 aria-selected={t.track === r?.track}
                 onClick={() => setTab(t.track)}
-                className={`min-h-9 px-3 font-mono text-[12px] ${t.track === r?.track ? "bg-fg text-bg" : "border border-line-strong text-fg-2 hover:text-fg"}`}
+                className={`min-h-9 px-3 font-mono text-[12px] ${rd("rounded-full")} ${t.track === r?.track ? "bg-fg text-bg" : "border border-line-strong text-fg-2 hover:text-fg"}`}
               >
                 {TRACK_LABEL[t.track]}
               </button>
@@ -114,15 +127,15 @@ export default function ReadinessCard({ tracks, id = "readiness", compact = fals
       </div>
 
       {!data ? (
-        <div aria-busy="true" className="h-[140px] animate-pulse bg-bg" />
+        <div aria-busy="true" className={`h-[140px] animate-pulse bg-bg ${rd("rounded-xl")}`} />
       ) : !r ? null : (
         <div role={shown.length > 1 ? "tabpanel" : undefined} className={`grid gap-5 ${compact ? "" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-8"}`}>
           <div className="flex min-w-0 flex-col gap-3">
             {shown.length === 1 && <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">{TRACK_LABEL[r.track]}</span>}
-            <p className="m-0 font-display text-[clamp(26px,4vw,34px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg">{r.bandLabel}</p>
+            <p className={`m-0 font-display font-extrabold leading-[1.05] tracking-[-0.03em] text-fg ${rounded && compact ? "text-[26px]" : "text-[clamp(26px,4vw,34px)]"}`}>{r.bandLabel}</p>
             <div className="flex gap-1" role="img" aria-label={`Step ${r.step} of ${BANDS.length - 1}: ${r.bandLabel}`}>
               {BANDS.slice(1).map((b, i) => (
-                <span key={b.id} className={`h-2 flex-1 ${i < r.step ? "bg-signal" : "bg-line"}`} title={b.label} />
+                <span key={b.id} className={`h-2 flex-1 ${rd("rounded-full")} ${i < r.step ? "bg-signal" : rd("bg-line dark:bg-line-strong", "bg-line")}`} title={b.label} />
               ))}
             </div>
             <div className="flex justify-between font-mono text-[10.5px] text-fg-4">
@@ -168,7 +181,7 @@ export default function ReadinessCard({ tracks, id = "readiness", compact = fals
               </div>
             ) : aiOn && r.band !== "not-started" ? (
               <div className="flex flex-wrap items-center gap-3">
-                <button type="button" disabled={asking} onClick={ask} className="inline-flex min-h-10 items-center gap-2 border border-line-strong px-3.5 font-mono text-[12.5px] text-fg hover:border-fg disabled:opacity-60">
+                <button type="button" disabled={asking} onClick={ask} className={`inline-flex min-h-10 items-center gap-2 border border-line-strong px-3.5 text-fg hover:border-fg disabled:opacity-60 ${rd("rounded-[10px] text-[14px] font-medium", "font-mono text-[12.5px]")}`}>
                   <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />
                   {asking ? "Reading…" : "Read my estimate"}
                 </button>

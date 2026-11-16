@@ -57,7 +57,7 @@ function VerdictPanel({
   const friendly = useFriendly(outcome, code, lang, fn);
   return (
     <div className="flex flex-col gap-3" aria-live="polite">
-      <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-1 border-l-4 px-3 py-2 ${ok ? "border-ok bg-surface" : "border-bad bg-surface"}`}>
+      <div className={`flex flex-wrap items-baseline gap-x-3 gap-y-1 rounded-[10px] border-l-4 bg-bg px-3 py-2 ${ok ? "border-ok" : "border-bad"}`}>
         <span className={`font-display text-[20px] font-bold ${ok ? "text-ok-text" : "text-bad-text"}`}>
           {ok ? "✓" : "✗"} {VERDICT_LABEL[outcome.verdict]}
         </span>
@@ -68,7 +68,7 @@ function VerdictPanel({
           <button
             type="button"
             onClick={() => onTutor(ok ? "review" : "debug")}
-            className="ml-auto inline-flex min-h-9 items-center gap-1.5 border border-signal px-2.5 font-mono text-[12px] text-signal-text hover:bg-[var(--c-dsa-hl)] [@media(pointer:coarse)]:min-h-11"
+            className="ml-auto inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-signal px-2.5 text-[13px] font-medium text-signal-text hover:bg-[var(--c-dsa-hl)] [@media(pointer:coarse)]:min-h-11"
           >
             <Sparkles className="h-3.5 w-3.5" aria-hidden />
             {ok ? "Get a review" : "Ask the tutor why"}
@@ -76,7 +76,7 @@ function VerdictPanel({
         )}
       </div>
       {friendly ? (
-        <div className="flex flex-col gap-1.5 border border-bad/40 bg-surface px-3 py-2.5" data-friendly-error>
+        <div className="flex flex-col gap-1.5 rounded-[10px] border border-bad/40 bg-surface px-3 py-2.5" data-friendly-error>
           <p className="m-0 text-[15px] leading-snug text-fg">{friendly.text}</p>
           {friendly.raw ? (
             <details>
@@ -104,14 +104,14 @@ function VerdictPanel({
                 role="tab"
                 aria-selected={i === sel}
                 onClick={() => setSel(i)}
-                className={`min-h-9 border px-2.5 font-mono text-[12px] ${i === sel ? "border-signal text-fg" : "border-line-strong text-fg-3"}`}
+                className={`min-h-9 rounded-full border px-3 font-mono text-[12px] ${i === sel ? "border-signal text-fg" : "border-line-strong text-fg-3"}`}
               >
                 {c.ok ? "✓" : "✗"} {c.name}
               </button>
             ))}
           </div>
           {cur && (
-            <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 border border-line bg-surface p-3 font-mono text-[12px]">
+            <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1.5 rounded-[10px] bg-bg p-3 font-mono text-[12px]">
               {tc &&
                 Object.entries(tc.input).map(([k, v]) => (
                   <div key={k} className="contents">
@@ -177,7 +177,7 @@ export default function ResultsPanel({ room }: { room: Room }) {
     { id: "submissions" as const, label: `Submissions${history.length ? ` · ${history.length}` : ""}` },
   ];
   return (
-    <div className="flex min-h-0 flex-1 flex-col border border-line bg-surface" data-results-panel>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-line bg-surface" data-results-panel>
       <div role="tablist" aria-label="Results and submissions" className="flex shrink-0 border-b border-line">
         {tabs.map((t) => (
           <button
@@ -199,14 +199,14 @@ export default function ResultsPanel({ room }: { room: Room }) {
           <div className="flex flex-col gap-3">
             {loadMsg && <p className="m-0 text-[13px] text-fg-3">{loadMsg}</p>}
             {notice && (
-              <p data-dsa-verdict className={`m-0 border px-3 py-2 text-[14px] ${outcome?.o.verdict === "AC" ? "border-ok text-ok-text" : "border-line-strong text-fg"}`} role="status">
+              <p data-dsa-verdict className={`m-0 rounded-[10px] border px-3 py-2 text-[14px] ${outcome?.o.verdict === "AC" ? "border-ok text-ok-text" : "border-line-strong text-fg"}`} role="status">
                 {notice}
               </p>
             )}
             {outcome && <VerdictPanel outcome={outcome.o} mode={outcome.mode} visible={p.visible} onTutor={askTutor} code={outcome.code} lang={outcome.lang} fn={fnNameFor(outcome.lang, p.signature.fn)} />}
             {outcome && outcome.o.verdict !== "AC" && !solved && fails >= 3 && <Warmup problem={p.id} concept={p.conceptTitle} />}
             {stdout && (
-              <details className="border border-line bg-bg">
+              <details className="rounded-[10px] border border-line bg-bg">
                 <summary className="min-h-10 cursor-pointer px-3 py-2 font-mono text-[12px] text-fg-3">Your printed output</summary>
                 <pre className="m-0 max-h-48 overflow-auto whitespace-pre-wrap px-3 pb-3 font-mono text-[12px] text-fg-2">{stdout}</pre>
               </details>

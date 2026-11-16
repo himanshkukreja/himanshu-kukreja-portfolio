@@ -26,7 +26,7 @@ export default function ProblemShell({ room, position }: { room: Room; position:
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <ProblemHeader room={room} position={position} />
-      <div role="tablist" aria-label="Problem or code" className="flex border-b border-line bg-surface px-4 lg:hidden">
+      <div role="tablist" aria-label="Problem or code" className="mx-3 mt-3 grid grid-cols-2 rounded-[10px] bg-surface-2 p-[3px] lg:hidden">
         {paneTabs.map((t) => (
           <button
             key={t.id}
@@ -34,14 +34,14 @@ export default function ProblemShell({ room, position }: { room: Room; position:
             role="tab"
             aria-selected={pane === t.id}
             onClick={() => setPane(t.id)}
-            className={`inline-flex min-h-11 flex-1 items-center justify-center border-b-2 text-[14px] ${pane === t.id ? "border-signal font-semibold text-fg" : "border-transparent font-medium text-fg-3"}`}
+            className={`inline-flex min-h-[38px] items-center justify-center rounded-lg text-[14px] ${pane === t.id ? "bg-surface font-semibold text-fg shadow-[0_1px_2px_color-mix(in_srgb,var(--c-fg)_12%,transparent)]" : "font-medium text-fg-3"}`}
           >
             {t.label}
           </button>
         ))}
       </div>
       <div className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 gap-3 p-3 pb-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:grid-rows-[minmax(0,1fr)] lg:pb-3 xl:grid-cols-[minmax(0,600px)_minmax(0,1fr)]">
-        <section aria-label="Problem" className={`relative min-h-[60vh] min-w-0 flex-col border border-line bg-surface lg:min-h-0 ${pane === "problem" ? "flex" : "hidden lg:flex"}`}>
+        <section aria-label="Problem" className={`relative min-h-[60vh] min-w-0 flex-col overflow-hidden rounded-[14px] border border-line bg-surface lg:min-h-0 ${pane === "problem" ? "flex" : "hidden lg:flex"}`}>
           <ProblemTabs room={room} />
           <Drawer open={drawer === "tutor"} label="Problem tutor" onClose={closeDrawer}>
             <ProblemTutor

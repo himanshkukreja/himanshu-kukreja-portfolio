@@ -13,6 +13,7 @@ import { track } from "@/lib/track";
 import type { NextStep } from "@/lib/dsa/continue";
 import { leftOffText, type PracticeRef } from "@/lib/dsa/left-off";
 import { useResolves } from "../revise/useResolves";
+import { BTN_SECONDARY, KICKER, SIDE_CARD, SM } from "../ui/kit";
 
 export type { PracticeRef };
 
@@ -42,18 +43,18 @@ export default function TutorCard({ next, problems }: { next: NextStep; /** the 
 
   if (loading || !user || !memory || next.state !== "continue" || !r.ready) return null;
   return (
-    <section aria-labelledby="dsa-tutor-h" className="flex flex-col gap-3 border border-line bg-surface p-5">
-      <h2 id="dsa-tutor-h" className="m-0 font-mono text-[12px] font-normal uppercase tracking-label text-fg-3">
+    <section aria-labelledby="dsa-tutor-h" className={SIDE_CARD}>
+      <h2 id="dsa-tutor-h" className={KICKER}>
         Your tutor · where you left off
       </h2>
-      <p className="m-0 text-[14px] leading-relaxed text-fg-2">{text}</p>
+      <p className="m-0 text-[14px] leading-[1.55] text-fg-2">{text}</p>
       <button
         type="button"
         onClick={() => {
           track("dsa_home_ask", { lesson: next.lessonId });
           openCourseChat({ q: `Help me with the lesson "${next.lessonTitle}"` });
         }}
-        className="inline-flex min-h-11 items-center self-start border border-line-strong px-3.5 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text"
+        className={`${BTN_SECONDARY} ${SM} self-start`}
       >
         Ask about this lesson
       </button>

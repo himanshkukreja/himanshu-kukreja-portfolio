@@ -19,7 +19,7 @@ import { store, type Room } from "./useProblemRoom";
 
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
 
-const TOOL = "inline-flex min-h-9 shrink-0 items-center justify-center gap-1.5 border border-line-strong px-2 font-mono text-[12px] text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 [@media(pointer:coarse)]:min-h-11";
+const TOOL = "inline-flex min-h-[30px] shrink-0 items-center justify-center gap-1.5 rounded-[7px] border border-line px-2 text-[12px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 [@media(pointer:coarse)]:min-h-11";
 
 export default function EditorPane({ room }: { room: Room }) {
   const { p, lang, gate, busy, go, editor, editorBox, runRow, fontSize, setFontSize, suggestions, setSuggestions, drawer, setDrawer, initialFor, resetCode } = room;
@@ -39,13 +39,16 @@ export default function EditorPane({ room }: { room: Room }) {
 
   return (
     <section aria-label="Your solution" className="flex min-h-0 min-w-0 flex-col gap-3 lg:h-full">
-      <div className="flex shrink-0 flex-wrap items-center gap-2" data-guide="toolbar">
-        <label className="flex items-center gap-2 text-[13px] text-fg-2">
+      {/* the editor card (the canvas): its toolbar on top, the editor below, one 14 px frame in every theme (a manual
+          editor theme can differ in tone from the page) */}
+      <div className="flex shrink-0 flex-col overflow-hidden rounded-[14px] border border-line bg-surface lg:min-h-[246px] lg:flex-[3] lg:shrink">
+      <div className="flex min-h-[46px] shrink-0 flex-wrap items-center gap-2 border-b border-line px-3 py-1.5 sm:px-3.5" data-guide="toolbar">
+        <label className="flex items-center gap-2 text-[13px] text-fg-3">
           <span className="sr-only sm:not-sr-only">Language</span>
           <select
             value={lang}
             onChange={(e) => room.switchLang(e.target.value as DsaLang)}
-            className="min-h-9 border border-line-strong bg-surface px-2 font-mono text-[13px] text-fg [@media(pointer:coarse)]:min-h-11"
+            className="min-h-[30px] rounded-[7px] border border-line-strong bg-bg px-2 text-[13px] font-medium text-fg [@media(pointer:coarse)]:min-h-11"
           >
             {DSA_LANGS.map((l) => (
               <option key={l} value={l}>
@@ -74,14 +77,13 @@ export default function EditorPane({ room }: { room: Room }) {
           <button type="button" onClick={() => window.dispatchEvent(new CustomEvent(INK_EVENTS.open, { detail: {} }))} aria-label="Open the notebook" title="Notebook" className={TOOL}>
             <NotebookPen className="h-3.5 w-3.5" aria-hidden />
           </button>
-          <span className="font-mono text-[12px] text-fg-3" role="status" aria-live="polite">
+          <span className="text-[12px] text-fg-4" role="status" aria-live="polite">
             {saved ? "Saved" : ""}
           </span>
         </div>
       </div>
 
-      {/* a 1 px frame in every theme: a manual editor theme can differ in tone from the page */}
-      <div ref={editorBox} className="h-[320px] shrink-0 border border-line-strong sm:h-[380px] lg:h-auto lg:min-h-[200px] lg:flex-[3] lg:shrink">
+      <div ref={editorBox} className="h-[320px] shrink-0 sm:h-[380px] lg:h-auto lg:min-h-0 lg:flex-1">
         <CodeEditor
           key={p.id}
           handle={editor}
@@ -95,13 +97,14 @@ export default function EditorPane({ room }: { room: Room }) {
           onFocus={() => BROWSER_LANGS.has(lang) && void getRunner(lang === "python" ? "py" : "js").warm()}
         />
       </div>
+      </div>
 
       <div className="flex min-h-[160px] flex-col lg:min-h-[120px] lg:flex-[2]">
         <ResultsPanel room={room} />
       </div>
 
-      <div ref={runRow} className="flex shrink-0 flex-wrap items-center gap-2 border border-line bg-surface p-3" data-guide="run">
-        <p className="m-0 w-full min-w-0 font-mono text-[11px] leading-snug text-fg-3">
+      <div ref={runRow} className="flex shrink-0 flex-wrap items-center gap-2.5 rounded-[14px] border border-line bg-surface px-4 py-3.5 xl:flex-nowrap xl:gap-3.5" data-guide="run">
+        <p className="m-0 w-full min-w-0 text-[13px] leading-snug text-fg-3 xl:w-auto xl:flex-1">
           {gate.locked ? (
             <>
               <button type="button" onClick={() => gate.ask("run")} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
@@ -116,11 +119,11 @@ export default function EditorPane({ room }: { room: Room }) {
             </>
           )}
         </p>
-        <button type="button" onClick={() => void go("run")} disabled={!!busy} className="ml-auto inline-flex min-h-11 items-center gap-2 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text disabled:opacity-50">
+        <button type="button" onClick={() => void go("run")} disabled={!!busy} className="inline-flex min-h-[42px] items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-4 text-[14px] font-medium text-fg hover:bg-surface-2 disabled:opacity-50 max-xl:ml-auto [@media(pointer:coarse)]:min-h-11">
           {gate.locked && <Lock className="h-3.5 w-3.5" aria-hidden />}
           {busy === "run" ? "Running…" : "Run"}
         </button>
-        <button type="button" onClick={() => void go("submit")} disabled={!!busy} className="inline-flex min-h-11 items-center gap-2 bg-signal px-5 text-[15px] font-semibold text-on-signal disabled:opacity-50">
+        <button type="button" onClick={() => void go("submit")} disabled={!!busy} className="inline-flex min-h-[42px] items-center gap-2 rounded-[10px] bg-signal px-5 text-[14px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))] disabled:opacity-50 [@media(pointer:coarse)]:min-h-11">
           {gate.locked && <Lock className="h-3.5 w-3.5" aria-hidden />}
           {busy === "submit" ? "Submitting…" : "Submit"}
         </button>
@@ -128,7 +131,7 @@ export default function EditorPane({ room }: { room: Room }) {
           type="button"
           onClick={() => setDrawer(drawer === "tutor" ? null : "tutor")}
           aria-pressed={drawer === "tutor"}
-          className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-[14px] font-medium text-fg hover:border-signal"
+          className="inline-flex min-h-[42px] items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-3.5 text-[14px] font-medium text-fg hover:bg-surface-2 [@media(pointer:coarse)]:min-h-11"
         >
           <Sparkles className="h-4 w-4 text-signal-text" aria-hidden />
           Ask the tutor

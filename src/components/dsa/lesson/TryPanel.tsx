@@ -42,7 +42,7 @@ function OwnInput({ spec }: { spec: VisualizerSpec }) {
   );
 }
 
-const card = "dsa-ui border border-line bg-surface";
+const card = "dsa-ui overflow-hidden rounded-[14px] border border-line bg-surface";
 
 export default function TryPanel({
   kind,
@@ -83,7 +83,7 @@ export default function TryPanel({
             <RaceChart race={r} />
           </section>
         ))}
-        <section aria-label="Lab" className="border border-dashed border-line-strong bg-surface-2 px-4 py-4">
+        <section aria-label="Lab" className="rounded-[14px] border border-dashed border-line-strong bg-bg px-4 py-4">
           <p className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3">Lab</p>
           <p className="m-0 mt-1 text-[15px] text-fg-2">Lab coming. A build-it lab for this pattern is on the way; until then the practice problems are the hands-on part.</p>
         </section>
@@ -103,7 +103,7 @@ export default function TryPanel({
         </section>
       ) : null}
       {hasLabBeat ? null : (
-        <section aria-label="Lab" className="border border-dashed border-line-strong bg-surface-2 px-4 py-4">
+        <section aria-label="Lab" className="rounded-[14px] border border-dashed border-line-strong bg-bg px-4 py-4">
           <p className="m-0 text-[15px] text-fg-2">Lab coming for this lesson.</p>
         </section>
       )}

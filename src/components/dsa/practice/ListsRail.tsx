@@ -39,7 +39,7 @@ export default function ListsRail({ active, counts, hrefOf, onPick }: Props) {
                   href={hrefOf(l.id)}
                   onClick={click(l.id)}
                   aria-current={on ? "page" : undefined}
-                  className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap border px-3 text-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text ${on ? "border-signal bg-signal font-semibold text-on-signal" : "border-line-strong bg-surface text-fg"}`}
+                  className={`inline-flex min-h-11 items-center gap-2 whitespace-nowrap border px-3 text-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px] ${on ? "border-signal bg-signal font-semibold text-on-signal" : "border-line-strong bg-surface text-fg"}`}
                 >
                   {l.label}
                   {!l.ready ? <span className={`font-mono text-[11px] ${on ? "text-on-signal" : "text-fg-3"}`}>soon</span> : null}

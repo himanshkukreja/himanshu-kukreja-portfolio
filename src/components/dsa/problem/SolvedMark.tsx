@@ -7,7 +7,7 @@ export default function SolvedMark({ id }: { id: string }) {
   const p = useDsaProgress();
   const solved = p.solved.has(id);
   return (
-    <span className={`grid h-5 w-5 shrink-0 place-items-center border-2 ${solved ? "border-fg bg-fg text-bg" : "border-line-strong"}`}>
+    <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-full border-2 ${solved ? "border-ok bg-ok text-on-ok" : "border-line-strong"}`}>
       {solved ? (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
           <path d="M4 12.5l5 5L20 6.5" />

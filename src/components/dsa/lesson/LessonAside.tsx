@@ -15,9 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 export type AsideLink = { href: string; title: string };
 type Rs = { href: string; title: string };
 
-const label = "m-0 font-mono text-[11px] uppercase tracking-label text-fg-3";
-const box = "flex flex-col gap-2 border border-line bg-surface p-4";
-const row = "flex min-h-10 items-center gap-2 text-[14px] leading-snug text-fg-2 underline-offset-4 hover:text-fg hover:underline";
+const label = "m-0 font-mono text-[12px] uppercase tracking-[0.06em] text-fg-3";
+const box = "flex flex-col gap-2.5 rounded-2xl border border-line bg-surface p-[18px]";
+const row = "flex min-h-9 items-center gap-2 text-[14px] leading-snug text-fg underline-offset-4 hover:underline";
 
 export default function LessonAside({
   lessonId,
@@ -89,11 +89,11 @@ export default function LessonAside({
             onChange={(e) => setQ(e.target.value)}
             type="text"
             placeholder="Ask anything about this lesson"
-            className="min-h-11 w-full border border-line-strong bg-bg px-3 text-[14px] text-fg placeholder:text-fg-4"
+            className="min-h-10 w-full rounded-[10px] border border-line bg-bg px-3 text-[14px] text-fg placeholder:text-fg-4 [@media(pointer:coarse)]:min-h-11"
           />
           <div className="flex items-center justify-between gap-2">
-            <span className="font-mono text-[11px] text-fg-3">Answers from this lesson, with sources.</span>
-            <button type="submit" className="inline-flex min-h-10 shrink-0 items-center bg-signal px-3 font-mono text-[12px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))]">
+            <span className="text-[12px] text-fg-4">Answers from this lesson, with sources.</span>
+            <button type="submit" className="inline-flex min-h-9 shrink-0 items-center rounded-[9px] bg-signal px-3 text-[13px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))]">
               Ask
             </button>
           </div>
@@ -107,7 +107,7 @@ export default function LessonAside({
             {shorts.slice(0, 4).map((s) => (
               <li key={s.href}>
                 <Link href={s.href} className={row}>
-                  <span aria-hidden className="text-signal-text">
+                  <span aria-hidden className="text-[11px] text-signal-text">
                     ▶
                   </span>
                   {s.title}
@@ -116,7 +116,7 @@ export default function LessonAside({
             ))}
           </ul>
           {shortsHref && shorts.length > 4 ? (
-            <Link href={shortsHref} className="font-mono text-[12px] text-fg-3 underline underline-offset-4 hover:text-fg">
+            <Link href={shortsHref} className="text-[13px] text-fg-3 hover:text-fg">
               all {shorts.length} clips
             </Link>
           ) : null}
@@ -173,7 +173,7 @@ export default function LessonAside({
       <ConnectedPanel page={`dsa-concept:${lessonId}`} />
 
       {cheatsheet ? (
-        <Link href={cheatsheet} className="inline-flex min-h-11 items-center justify-between border border-line-strong px-4 text-[14px] text-fg hover:border-signal">
+        <Link href={cheatsheet} className="inline-flex min-h-12 items-center justify-between rounded-2xl border border-line bg-surface px-[18px] text-[14px] font-medium text-fg hover:bg-surface-2">
           Cheat sheet
           <span aria-hidden className="text-signal-text">
             →

@@ -47,17 +47,17 @@ export default function ProblemHeader({ room, position }: { room: Room; position
   const dirty = solved || hints > 0 || fails > 0 || history.length > 0 || seenEarly;
 
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-surface px-4 py-1.5 sm:px-6" data-problem-header>
+    <div className="flex min-h-12 shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b border-line bg-surface px-4 py-1.5 sm:px-6" data-problem-header>
       <Link href={lesson.href} className={`${LINK} min-w-0 max-w-[60vw] truncate sm:max-w-[320px]`}>
         <span aria-hidden>←&nbsp;</span>
         <span className="truncate">{lesson.title}</span>
       </Link>
       {position && position.m > 0 ? (
-        <span className="border border-line-strong px-2.5 py-1 font-mono text-[12px] uppercase tracking-label text-fg-2" data-practice-position>
+        <span className="rounded-full bg-surface-2 px-2.5 py-[5px] font-mono text-[12px] uppercase text-fg-2" data-practice-position>
           Practice {position.n} of {position.m}
         </span>
       ) : (
-        <span className="font-mono text-[12px] uppercase tracking-label text-fg-3">Practice</span>
+        <span className="rounded-full bg-surface-2 px-2.5 py-[5px] font-mono text-[12px] uppercase text-fg-3">Practice</span>
       )}
       <div className="ml-auto flex flex-wrap items-center gap-x-4 gap-y-1">
         {prev ? (
@@ -74,7 +74,7 @@ export default function ProblemHeader({ room, position }: { room: Room; position
           type="button"
           onClick={() => setDrawer(drawer === "interview" ? null : "interview")}
           aria-pressed={drawer === "interview"}
-          className="inline-flex min-h-10 items-center gap-1.5 border border-line-strong px-3 text-[14px] font-medium text-fg hover:border-signal [@media(pointer:coarse)]:min-h-11"
+          className="inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border border-line px-3 text-[14px] font-medium text-fg hover:bg-surface-2 [@media(pointer:coarse)]:min-h-11"
         >
           <MessageSquareQuote className="h-4 w-4 text-signal-text" aria-hidden />
           Interview
@@ -86,12 +86,12 @@ export default function ProblemHeader({ room, position }: { room: Room; position
             aria-haspopup="true"
             aria-expanded={menu}
             aria-label="More: reset, save, notebook"
-            className="inline-flex min-h-10 w-10 items-center justify-center border border-line-strong text-fg-2 hover:bg-surface-2 hover:text-fg [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:w-11"
+            className="inline-flex min-h-9 w-9 items-center justify-center rounded-[10px] border border-line text-fg-2 hover:bg-surface-2 hover:text-fg [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:w-11"
           >
             <MoreHorizontal className="h-4 w-4" aria-hidden />
           </button>
           {/* kept mounted so the dialogs it opens (Reset, Save offline) outlive closing the menu */}
-          <div hidden={!menu} className={`${menu ? "flex" : "hidden"} absolute right-0 top-full z-40 mt-1 w-60 flex-col border border-line-strong bg-surface py-1 shadow-lg`}>
+          <div hidden={!menu} className={`${menu ? "flex" : "hidden"} absolute right-0 top-full z-40 mt-1 w-60 flex-col overflow-hidden rounded-[14px] border border-line bg-surface py-1 shadow-lg`}>
             <button type="button" onClick={toggleSaved} className={ITEM}>
               {saved ? <BookmarkCheck className="h-4 w-4 text-signal-text" aria-hidden /> : <Bookmark className="h-4 w-4" aria-hidden />}
               {saved ? "Saved for later ✓" : "Save for later"}

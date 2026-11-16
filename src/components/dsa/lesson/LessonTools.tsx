@@ -16,7 +16,7 @@ import { toggleAnnotating, useAnnotate } from "@/components/learn/ink/annotate/m
 import { setTermsEnabled, subscribeTerms, termsEnabled } from "@/lib/concepts/dom";
 import { useWholeLesson } from "./learnPrefs";
 
-const tool = "inline-flex min-h-11 items-center gap-2 border border-line-strong px-3 font-mono text-[13px] text-fg hover:bg-surface-2";
+const tool = "inline-flex min-h-10 items-center gap-2 rounded-[10px] border border-line bg-surface px-3.5 text-[13px] font-medium text-fg hover:bg-surface-2 [@media(pointer:coarse)]:min-h-11";
 
 /** "Whole lesson on one page": a real switch, in the Aa panel (it replaces the old "Show everything"). */
 function WholeLessonRow() {
@@ -30,8 +30,8 @@ function WholeLessonRow() {
         </span>
         <span className="relative inline-flex shrink-0 items-center">
           <input type="checkbox" role="switch" checked={whole} onChange={(e) => setWhole(e.target.checked)} className="peer sr-only" />
-          <span aria-hidden className="block h-6 w-11 border border-line-strong bg-surface-2 transition-colors peer-checked:border-signal peer-checked:bg-signal peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-signal" />
-          <span aria-hidden className="absolute left-1 top-1 h-4 w-4 bg-fg-3 transition-transform peer-checked:translate-x-5 peer-checked:bg-on-signal" />
+          <span aria-hidden className="block h-6 w-11 rounded-full border border-line-strong bg-surface-2 transition-colors peer-checked:border-signal peer-checked:bg-signal peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-signal" />
+          <span aria-hidden className="absolute left-1 top-1 h-4 w-4 rounded-full bg-fg-3 transition-transform peer-checked:translate-x-5 peer-checked:bg-on-signal" />
         </span>
       </label>
     </div>
@@ -132,7 +132,7 @@ export default function LessonTools({
           <MoreHorizontal className="h-4 w-4" aria-hidden />
         </button>
         {open ? (
-          <div id={menuId} role="menu" aria-label="More lesson tools" className="absolute right-0 top-[calc(100%+6px)] z-[61] flex w-[248px] flex-col border border-line-strong bg-surface py-1">
+          <div id={menuId} role="menu" aria-label="More lesson tools" className="absolute right-0 top-[calc(100%+6px)] z-[61] flex w-[248px] flex-col overflow-hidden rounded-[14px] border border-line bg-surface py-1 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
             <MenuItem icon={<Maximize2 className="h-4 w-4" />} pressed={focus} onClick={run(onFocus)}>
               {focus ? "Exit focus" : "Focus"} <kbd className="ml-auto border border-line-strong px-1 font-mono text-[10px] text-fg-3">F</kbd>
             </MenuItem>

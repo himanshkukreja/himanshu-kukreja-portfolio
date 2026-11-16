@@ -8,10 +8,10 @@ export type KeyIdeaData = { title?: string; html?: string; more?: string; text?:
 export default function KeyIdea({ idea, className = "" }: { idea: KeyIdeaData; className?: string }) {
   if (!idea || (!idea.html && !idea.text && !idea.points?.length)) return null;
   return (
-    <section aria-labelledby="dsa-key-idea" className={`border border-line border-l-[3px] border-l-signal bg-surface px-4 py-4 sm:px-6 sm:py-5 ${className}`}>
-      <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">Key idea</span>
+    <section aria-labelledby="dsa-key-idea" className={`rounded-xl border border-line bg-surface p-3.5 sm:border-0 sm:bg-bg sm:px-[18px] sm:py-4 ${className}`}>
+      <span className="font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-signal-text sm:text-[12px]">Key idea</span>
       {idea.title ? (
-        <h2 id="dsa-key-idea" className="m-0 mt-1 font-display text-[21px] font-bold leading-tight tracking-[-0.02em] text-fg">
+        <h2 id="dsa-key-idea" className="m-0 mt-1.5 text-[17px] font-semibold leading-snug text-fg">
           {idea.title}
         </h2>
       ) : (

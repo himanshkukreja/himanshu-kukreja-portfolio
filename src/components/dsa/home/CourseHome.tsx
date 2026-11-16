@@ -23,6 +23,7 @@ import TodayCard, { TodayTiles } from "./TodayCard";
 import TutorCard from "./TutorCard";
 import Welcome from "./Welcome";
 import type { LectureRef } from "./useLectureSeconds";
+import { FILL, SECTION_H, SEG, TRACK, seg } from "../ui/kit";
 
 const VIEW_EVENT = "dsa:home-view";
 const DESKTOP = "(min-width: 1024px)";
@@ -47,9 +48,11 @@ export type HomeProps = {
   mediaBase: string | null;
   /** short ids by lesson id, for Quick review */
   shorts: Record<string, string[]>;
+  /** phase-2 widgets (course path, warm-up, heatmap) slot in here without a restyle: above Continue, and atop the side column */
+  slots?: { top?: React.ReactNode; side?: React.ReactNode };
 };
 
-export default function CourseHome({ outline, academy, concepts, problems, lectures, mediaBase, shorts }: HomeProps) {
+export default function CourseHome({ outline, academy, concepts, problems, lectures, mediaBase, shorts, slots }: HomeProps) {
   const progress = useDsaProgress();
   const welcome = useWelcome();
   const { user, profile, loading } = useAuth();
@@ -114,71 +117,84 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
 
   return (
     <div className="dsa-theme">
-      <main className="mx-auto flex max-w-[1320px] flex-col gap-10 px-4 pb-28 pt-6 sm:px-6 sm:pt-9 lg:flex-row lg:items-start">
-        <div className="flex min-w-0 flex-1 flex-col gap-7">
-          <p className="m-0 font-mono text-[11.5px] uppercase tracking-label text-fg-3 sm:text-[12px]">{kicker}</p>
+      <main className="mx-auto flex max-w-[1248px] flex-col gap-10 px-4 pb-28 pt-[18px] sm:px-6 sm:pt-9 lg:flex-row lg:items-start">
+        <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-7">
+          <p className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3 sm:text-[12px]">{kicker}</p>
 
-          {welcomeCard ? <div aria-hidden className="min-h-[300px] border border-line bg-surface sm:min-h-[330px]" /> : showWelcome ? <Welcome /> : <ContinueCard next={next ?? { state: "empty" }} ready={progress.ready && !!next} />}
+          {/* phase-2 slot: the course path / warm-up widgets sit here, above Continue */}
+          {slots?.top ? <div data-slot="home-top">{slots.top}</div> : null}
+
+          {welcomeCard ? <div aria-hidden className="min-h-[260px] rounded-2xl border border-line bg-surface sm:min-h-[330px] sm:rounded-[18px]" /> : showWelcome ? <Welcome /> : <ContinueCard next={next ?? { state: "empty" }} ready={progress.ready && !!next} />}
           {/* one quiet line for a DSA topic missed twice lately (signed-in learners; nothing for guests) */}
-          <QuietNudge course="dsa" className="-mt-3" />
+          <QuietNudge course="dsa" className="-mt-2 sm:-mt-3" />
 
           <TodayTiles />
 
-          <section aria-labelledby="dsa-course-h" className="flex flex-col gap-3.5">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-6">
-              <div>
-                <h2 id="dsa-course-h" className="m-0 font-display text-[22px] font-extrabold tracking-[-0.02em] text-fg sm:text-[26px]">
-                  Your course
-                </h2>
-                <p className="m-0 mt-1.5 text-[14px] text-fg-2">Four parts, in order. Skip ahead any time: nothing is locked.</p>
+          <section aria-labelledby="dsa-course-h" className="mt-1.5 flex flex-col gap-3 sm:mt-0 sm:gap-[18px]">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5">
+              <div className="flex items-baseline justify-between gap-3">
+                <div>
+                  <h2 id="dsa-course-h" className={SECTION_H}>
+                    Your course
+                  </h2>
+                  <p className="m-0 mt-1.5 hidden text-[14px] text-fg-3 sm:block">Four parts, in order. Skip ahead any time: nothing is locked.</p>
+                  <div className="mt-3">
+                <div role="group" aria-label="Outline view" className={SEG}>
+                  {[
+                    { on: !lecturesView, label: "Lessons", pick: () => setView(false) },
+                    { on: lecturesView, label: "Lectures", pick: () => setView(true) },
+                  ].map((b) => (
+                    <button key={b.label} type="button" aria-pressed={b.on} onClick={b.pick} className={`${seg(b.on)} !min-h-8 !px-3 !text-[12.5px]`}>
+                      {b.label}
+                    </button>
+                  ))}
+                </div>
+                  </div>
+                </div>
+                <span className="shrink-0 text-[12px] text-fg-3 sm:hidden">
+                  {totals.done} of {totals.ready} lessons
+                </span>
               </div>
-              <div className="flex flex-col gap-2 sm:w-[340px]">
-                <div className="flex justify-between gap-3 text-[12.5px] text-fg-2 sm:text-[13px]">
+              <div className="hidden flex-col gap-2 sm:flex sm:w-[320px]">
+                <div className="flex justify-between gap-3 text-[13px] text-fg-2">
                   <span>
-                    {totals.done} of {totals.ready} lessons ready{totals.planned ? ` · ${totals.planned} planned` : ""}
+                    {totals.done} of {totals.ready} lessons{totals.planned ? <span className="text-fg-3"> · {totals.planned} planned</span> : null}
                   </span>
                   <span className="shrink-0">
                     {totals.solved} of {totals.problems} problems
                   </span>
                 </div>
-                <div aria-hidden className="h-1.5 bg-line dark:bg-line-strong">
-                  <div className="h-1.5 bg-signal" style={{ width: `${totals.ready ? Math.round((totals.done / totals.ready) * 100) : 0}%` }} />
-                </div>
+                <span aria-hidden className={TRACK}>
+                  <span className={`${FILL} bg-signal`} style={{ width: `${totals.ready ? Math.round((totals.done / totals.ready) * 100) : 0}%` }} />
+                </span>
               </div>
             </div>
-            <div role="group" aria-label="Outline view" className="flex gap-1.5 font-mono text-[12px]">
-              {[
-                { on: !lecturesView, label: "Lessons", pick: () => setView(false) },
-                { on: lecturesView, label: "Lectures", pick: () => setView(true) },
-              ].map((b) => (
-                <button
-                  key={b.label}
-                  type="button"
-                  aria-pressed={b.on}
-                  onClick={b.pick}
-                  className={`min-h-9 px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text ${b.on ? "bg-fg text-bg" : "border border-line-strong text-fg-2 hover:text-fg"}`}
-                >
-                  {b.label}
-                </button>
-              ))}
-            </div>
-            <CourseOutline outline={outline} progress={progress} currentCode={currentModule?.mod.regionCode ?? null} nowLesson={here?.lessonId ?? null} lectures={lectures} mediaBase={mediaBase} lecturesView={lecturesView} />
+            <CourseOutline
+              outline={outline}
+              progress={progress}
+              currentCode={currentModule?.mod.regionCode ?? null}
+              nowLesson={here?.lessonId ?? null}
+              lectures={lectures}
+              mediaBase={mediaBase}
+              lecturesView={lecturesView}
+            />
           </section>
 
           {user ? (
-            <button type="button" onClick={openOnboarding} className="min-h-10 self-start font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+            <button type="button" onClick={openOnboarding} className="min-h-10 self-start text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
               Redo the welcome tour
             </button>
           ) : null}
         </div>
 
-        {/* reserved at 320 px on computers so the page doesn't shift when it fills in; nothing mounts on phones */}
-        <aside aria-label="Today and review" className="hidden w-[320px] shrink-0 flex-col gap-4 pt-[34px] lg:flex">
+        {/* reserved at 360 px on computers so the page doesn't shift when it fills in; nothing mounts on phones */}
+        <aside aria-label="Today and review" className="hidden w-[360px] shrink-0 flex-col gap-[18px] pt-[30px] lg:flex">
           {desktop ? (
             <>
+              {slots?.side ? <div data-slot="home-side">{slots.side}</div> : null}
               <TodayCard />
               {next ? <TutorCard next={next} problems={practice} /> : null}
-              <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact />
+              <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
               <QuickReview ids={quick} />
             </>
           ) : null}

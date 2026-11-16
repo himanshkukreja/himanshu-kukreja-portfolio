@@ -19,7 +19,7 @@ const LEVEL: Record<string, { word: string; tone: string }> = {
 
 function StatusRing({ status }: { status: Status }) {
   return (
-    <span className={`grid h-5 w-5 shrink-0 place-items-center border-2 ${status === "solved" ? "border-fg bg-fg text-bg" : status === "tried" ? "border-dashed border-fg-2 text-fg-2" : "border-line-strong"}`}>
+    <span className={`grid h-5 w-5 shrink-0 place-items-center border-2 rounded-full ${status === "solved" ? "border-fg bg-fg text-bg" : status === "tried" ? "border-dashed border-fg-2 text-fg-2" : "border-line-strong"}`}>
       {status === "solved" ? (
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
           <path d="M4 12.5l5 5L20 6.5" />
@@ -46,7 +46,7 @@ export type TableProps = {
 
 export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag }: TableProps) {
   return (
-    <div className="overflow-x-auto border border-line bg-surface">
+    <div className="overflow-x-auto border border-line bg-surface rounded-2xl">
       <table className="w-full border-collapse text-left">
         <thead className="sr-only md:not-sr-only">
           <tr className="border-b border-line bg-surface-2 font-mono text-[11px] uppercase tracking-label text-fg-3">

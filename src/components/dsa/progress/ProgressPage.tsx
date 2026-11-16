@@ -75,7 +75,7 @@ function Summary({ problems, parts, lessonTotal, plannedLessons }: Pick<Progress
   );
   return (
     <div className="flex flex-col gap-4">
-      <div className="grid grid-cols-2 gap-px border border-line bg-line lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-px border border-line bg-line lg:grid-cols-4 overflow-hidden rounded-2xl">
         {tile(`${s.lessons} of ${lessonTotal}`, "Lessons done")}
         {tile(`${s.solved} of ${s.problemsTotal}`, "Problems solved")}
         {tile(String(s.checkpoints), "Checkpoints passed")}
@@ -96,7 +96,7 @@ function Settings() {
   const { openAuthModal } = useAuthModal();
   const [lang, setLang] = useLang();
   return (
-    <div className="grid gap-px border border-line bg-line lg:grid-cols-2">
+    <div className="grid gap-px border border-line bg-line lg:grid-cols-2 overflow-hidden rounded-2xl">
       <div className="flex flex-col gap-3 bg-surface p-4 sm:p-5">
         <label htmlFor="pg-lang" className="font-mono text-[11px] uppercase tracking-label text-fg-3">
           Code language
@@ -105,7 +105,7 @@ function Settings() {
           id="pg-lang"
           value={lang}
           onChange={(e) => setLang(e.target.value as DsaLang)}
-          className="h-11 max-w-[260px] border border-line-strong bg-surface px-3 font-mono text-[14px] text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text"
+          className="h-11 max-w-[260px] border border-line-strong bg-surface px-3 font-mono text-[14px] text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
         >
           {DSA_LANGS.map((l) => (
             <option key={l} value={l}>
@@ -142,7 +142,7 @@ export default function ProgressPage(props: ProgressPageProps) {
       <main className="mx-auto flex max-w-[1100px] flex-col gap-12 px-4 pb-24 pt-6 sm:px-6">
         <header className="flex flex-col gap-2">
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">Progress</span>
-          <h1 className="m-0 font-display text-[32px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[40px]">
+          <h1 className="m-0 font-display text-[30px] font-extrabold leading-[1.02] tracking-[-0.03em] text-fg sm:text-[46px]">
             How far you have come<span className="text-signal-text">.</span>
           </h1>
           {!loading && !user ? (
@@ -158,7 +158,7 @@ export default function ProgressPage(props: ProgressPageProps) {
             <ul className="m-0 flex w-max list-none gap-2 p-0">
               {[["readiness", "Readiness"], ["streak", "Streak"], ["plan", "Plan"], ["belt", "Belt & badges"], ["leaderboard", "Leaderboard"], ["stats", "Stats"], ["certificate", "Certificate"], ["share", "Share"], ["settings", "Settings"]].map(([id, label]) => (
                 <li key={id}>
-                  <a href={`#${id}`} className="inline-flex min-h-10 items-center border border-line-strong bg-surface px-3 font-mono text-[12.5px] text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text">
+                  <a href={`#${id}`} className="inline-flex min-h-10 items-center border border-line-strong bg-surface px-3 text-[13px] text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]">
                     {label}
                   </a>
                 </li>
@@ -173,9 +173,9 @@ export default function ProgressPage(props: ProgressPageProps) {
 
         <Section id="readiness" title="Interview readiness" note="a band per topic, never a percentage">
           {user ? (
-            <ReadinessCard tracks={["dsa"]} id="readiness-card" />
+            <ReadinessCard tracks={["dsa"]} id="readiness-card" rounded />
           ) : (
-            <p className="m-0 border border-dashed border-line-strong px-4 py-4 text-[14px] text-fg-2">
+            <p className="m-0 border border-dashed border-line-strong px-4 py-4 text-[14px] text-fg-2 rounded-2xl">
               Readiness is worked out from your solves, interview rounds and reviews on your account.{" "}
               <button type="button" onClick={openAuthModal} className="min-h-10 text-signal-text underline decoration-line-strong underline-offset-4">
                 Sign in free
@@ -190,9 +190,9 @@ export default function ProgressPage(props: ProgressPageProps) {
         </Section>
 
         <Section id="plan" title="Plan">
-          <div className="flex flex-col gap-3 border border-line bg-surface p-4 sm:p-5">
+          <div className="flex flex-col gap-3 border border-line bg-surface p-4 sm:p-5 rounded-2xl">
             <p className="m-0 max-w-[62ch] text-[14.5px] leading-relaxed text-fg-2">Pick an interview date and get a day-by-day plan that includes the DSA lessons, a revision stretch and a calendar file (.ics). Fall behind and it adjusts.</p>
-            <Link href="/plan" className="inline-flex min-h-11 items-center self-start bg-signal px-4 font-mono text-[13px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+            <Link href="/plan" className="inline-flex min-h-11 items-center self-start bg-signal px-4 text-[14px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
               Open the study planner →
             </Link>
             <CompanyPlanSection today={today} />
@@ -212,9 +212,9 @@ export default function ProgressPage(props: ProgressPageProps) {
         </Section>
 
         <Section id="certificate" title="Certificate">
-          <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface p-4 sm:p-5 rounded-2xl">
             <p className="m-0 max-w-[58ch] text-[14.5px] leading-relaxed text-fg-2">The Foundations certificate lists exactly what it needs. See what is done, claim it, and share a link anyone can verify.</p>
-            <Link href="/dsa/certificate" className="inline-flex min-h-11 items-center border border-signal px-4 font-mono text-[13px] font-semibold text-signal-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+            <Link href="/dsa/certificate" className="inline-flex min-h-11 items-center border border-signal px-4 text-[14px] font-semibold text-signal-text focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
               See the requirements →
             </Link>
           </div>

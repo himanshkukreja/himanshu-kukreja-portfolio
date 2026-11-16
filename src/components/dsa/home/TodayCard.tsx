@@ -14,6 +14,7 @@ import { localDay } from "@/lib/dsa/revise";
 import { useDsaDaily, useDsaStreak } from "../daily/useDsaDaily";
 import { useResolves } from "../revise/useResolves";
 import { useOnboardingRecord } from "../onboarding/useOnboarding";
+import { CARD_H, SIDE_CARD } from "../ui/kit";
 
 const STEP_KEYS = ["dsa:s:", "dsa:cpq:", "dsa:lab:"];
 
@@ -54,7 +55,7 @@ function useToday() {
   return { goal, units: Math.min(goal.pips, units), streak, daily: data?.daily ?? null, n, cardsReady: r.ready && ready, hydrated };
 }
 
-const CARD = "flex flex-col gap-3.5 border border-line bg-surface p-5";
+const CARD = `${SIDE_CARD} !gap-3.5`;
 
 export default function TodayCard() {
   const t = useToday();
@@ -62,29 +63,33 @@ export default function TodayCard() {
   return (
     <section aria-labelledby="dsa-today-h" className={CARD}>
       <div className="flex items-center justify-between gap-3">
-        <h2 id="dsa-today-h" className="m-0 text-[16px] font-semibold text-fg">
+        <h2 id="dsa-today-h" className={CARD_H}>
           Today
         </h2>
         <span className="font-mono text-[12px] text-fg-3">{days > 0 ? `${days}-day streak` : "No streak yet"}</span>
       </div>
       <p className="m-0 text-[14px] text-fg-2">Goal: {t.goal.text}</p>
-      <div className="flex gap-1.5" role="img" aria-label={`${t.units} of ${t.goal.pips} goal points today`}>
+      <div
+        className="flex gap-1.5"
+        role="img"
+        aria-label={t.units >= t.goal.pips ? "Goal met today" : `${t.units} of ${t.goal.pips} goal points today (a lesson step is 2, a problem is 1)`}
+        title={t.units >= t.goal.pips ? "Goal met today" : "A lesson step is 2 points, a problem is 1"}
+      >
         {Array.from({ length: t.goal.pips }, (_, i) => (
-          <span key={i} className={`h-2 flex-1 ${i < t.units ? "bg-signal" : "bg-line dark:bg-line-strong"}`} />
+          <span key={i} className={`h-2 flex-1 rounded-full ${i < t.units ? "bg-signal" : "bg-line dark:bg-line-strong"}`} />
         ))}
       </div>
-      <span className="text-[12.5px] text-fg-3">{t.units >= t.goal.pips ? "Goal met today" : `${t.units} of ${t.goal.pips} points today (a lesson step is 2, a problem is 1)`}</span>
-      <Link href="/dsa/review" className="flex min-h-11 items-center justify-between gap-3 bg-surface-2 px-3.5 py-2.5 text-[14px] font-medium text-fg hover:bg-line">
+      <Link href="/dsa/review" className="flex min-h-11 items-center justify-between gap-3 rounded-[10px] bg-bg px-3.5 py-3 text-[14px] font-medium text-fg hover:bg-surface-2">
         <span>{!t.cardsReady ? "Review cards" : t.n ? `${t.n} review ${t.n === 1 ? "card" : "cards"} due` : "Nothing due to review"}</span>
         <span className="shrink-0 text-fg-3">{t.cardsReady && t.n ? `${Math.max(1, Math.round(t.n * 0.6))} min →` : "Open →"}</span>
       </Link>
       {t.daily ? (
         <Link href={`/dsa/problems/${t.daily.problem.id}`} className="flex min-h-11 flex-col justify-center gap-0.5 text-[14px] text-fg hover:text-signal-text">
-          <span className="flex items-center gap-1.5 font-mono text-[11.5px] uppercase tracking-label text-fg-3">
+          <span className="flex items-center gap-1.5 font-mono text-[11.5px] uppercase tracking-[0.06em] text-fg-3">
             {t.streak?.today ? <Check className="h-3.5 w-3.5 shrink-0 text-ok-text" aria-label="solved today" /> : null}
             Today&apos;s problem{t.streak?.today ? " · solved" : ""}
           </span>
-          <span className="min-w-0 font-medium underline decoration-line-strong underline-offset-4">{t.daily.problem.title}</span>
+          <span className="min-w-0 font-medium">{t.daily.problem.title}</span>
         </Link>
       ) : null}
     </section>
@@ -97,11 +102,11 @@ export function TodayTiles() {
   const days = t.streak?.current ?? 0;
   return (
     <div className="grid grid-cols-2 gap-2.5 lg:hidden">
-      <Link href="/dsa/review" className="flex min-h-[68px] flex-col justify-center gap-1 border border-line bg-surface p-3.5 hover:bg-surface-2">
+      <Link href="/dsa/review" className="flex min-h-[68px] flex-col justify-center gap-1 rounded-[14px] border border-line bg-surface p-3.5 hover:bg-surface-2">
         <span className="text-[15px] font-semibold text-fg">{!t.cardsReady ? "Cards" : t.n ? `${t.n} ${t.n === 1 ? "card" : "cards"} due` : "None due"}</span>
         <span className="text-[13px] text-fg-3">Review{t.cardsReady && t.n ? ` · ${Math.max(1, Math.round(t.n * 0.6))} min` : ""}</span>
       </Link>
-      <Link href="/dsa/practice?list=daily" className="flex min-h-[68px] flex-col justify-center gap-1 border border-line bg-surface p-3.5 hover:bg-surface-2">
+      <Link href="/dsa/practice?list=daily" className="flex min-h-[68px] flex-col justify-center gap-1 rounded-[14px] border border-line bg-surface p-3.5 hover:bg-surface-2">
         <span className="text-[15px] font-semibold text-fg">{days > 0 ? `${days}-day streak` : "No streak yet"}</span>
         <span className="text-[13px] text-fg-3">
           {t.units >= t.goal.pips ? "Goal met today" : `Goal ${t.units} of ${t.goal.pips} today`}

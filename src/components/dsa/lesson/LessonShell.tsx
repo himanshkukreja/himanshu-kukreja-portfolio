@@ -59,7 +59,9 @@ import LessonAside, { type AsideLink } from "./LessonAside";
 import LessonTools from "./LessonTools";
 import PracticeStep from "./PracticeStep";
 import StepFooter from "./StepFooter";
-import { StepBar, StepRail, type StepView } from "./StepRail";
+import { StepBar, StepPills, type StepView } from "./StepRail";
+import StepPreviews from "./StepPreviews";
+import { CHIP, PAGE_H } from "../ui/kit";
 import TryPanel from "./TryPanel";
 import { useLearnMode, useWholeLesson, type LearnMode } from "./learnPrefs";
 import { stepCss } from "./stepStyles";
@@ -102,10 +104,12 @@ export type LessonShellProps = {
   usedLater?: AsideLink[];
   /** the hydrator for this kind of lesson (DsaHydrator or StructureHydrator), given the lesson text's ref */
   hydrator: (rootRef: React.RefObject<HTMLDivElement | null>) => React.ReactNode;
+  /** phase-2 widgets (inline visualiser, predict checks) slot into the Learn card, above the lesson text */
+  learnSlot?: React.ReactNode;
 };
 
 const FOLDED = "stretch";
-const FACT = "border border-line-strong px-2 py-1";
+const FACT = CHIP;
 
 export default function LessonShell(props: LessonShellProps) {
   const { kind, stages } = props;
@@ -402,6 +406,10 @@ export default function LessonShell(props: LessonShellProps) {
   const backHref = mapHref(props.checkpoint);
   const lectureMin = props.lecture?.minutes ?? null;
 
+  // "2.1 Arrays and strings · lesson 3 of 7" → the module for the crumbs and "Lesson 3 of 7" after it
+  const [modName, modAt] = props.moduleTitle.split(" · ");
+  const lessonAt = modAt ? modAt.charAt(0).toUpperCase() + modAt.slice(1) : props.nav.position;
+
   const chips: string[] = [];
   if (lectureMin) chips.push(`${lectureMin} min lecture`);
   chips.push(`${props.minutes} min read`);
@@ -413,14 +421,13 @@ export default function LessonShell(props: LessonShellProps) {
 
   const stepHeading = (
     <div className="flex flex-wrap items-center justify-between gap-3">
-      <h2 className="m-0 font-display text-[26px] font-extrabold leading-none tracking-[-0.02em] text-fg sm:text-[30px]">
-        <span className="text-fg-3">{STEP_ORDER.indexOf(step) + 1} · </span>
-        {STEP_TITLE[step]}
+      <h2 className={`m-0 text-[17px] font-semibold text-fg sm:text-[18px] ${step === "learn" ? "hidden sm:block" : ""}`}>
+        {STEP_ORDER.indexOf(step) + 1} · {STEP_TITLE[step]}
       </h2>
       {step === "learn" ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {effMode !== "watch" ? (
-            <button type="button" onClick={() => setSheet(true)} className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-3 font-mono text-[13px] text-fg-2 hover:bg-surface-2 hover:text-fg">
+            <button type="button" onClick={() => setSheet(true)} className="order-2 inline-flex min-h-[38px] items-center gap-2 rounded-[10px] border border-line bg-surface px-3 text-[13px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg sm:order-none">
               <List className="h-4 w-4" aria-hidden />
               Contents
             </button>
@@ -444,26 +451,30 @@ export default function LessonShell(props: LessonShellProps) {
   return (
     <>
       <style>{css}</style>
-      <div className="mx-auto max-w-[1320px] px-4 pb-8 pt-4 sm:px-6 lg:pt-6">
+      <div className="mx-auto max-w-[1248px] px-4 pb-8 pt-2 sm:px-6 lg:pt-[26px]">
         {/* header row: crumbs and prev/next on a computer; back, the lesson's place and Ask on a phone; the tools on both */}
         <div className="flex flex-wrap items-center gap-x-3 gap-y-2" data-focus-hide>
           <div className="hidden min-w-0 flex-1 lg:block">
-            <DsaCrumbs items={[{ href: backHref, label: "Course" }, { label: props.moduleTitle }]} />
+            <DsaCrumbs items={[{ href: "/dsa", label: "Course" }, { href: backHref, label: modName }, ...(lessonAt ? [{ label: lessonAt }] : [])]} />
           </div>
           <div className="flex min-w-0 flex-1 items-center gap-2 lg:hidden">
-            <Link href={backHref} aria-label="Back to the course" className="grid h-11 w-11 shrink-0 place-items-center border border-line-strong text-fg hover:bg-surface-2">
-              <ArrowLeft className="h-4 w-4" aria-hidden />
+            <Link href={backHref} aria-label="Back to the course" className="-ml-2.5 grid h-11 w-11 shrink-0 place-items-center rounded-[10px] text-fg hover:bg-surface-2">
+              <ArrowLeft className="h-5 w-5" aria-hidden />
             </Link>
+            <span className="min-w-0 truncate text-[13px] text-fg-3">
+              {modName.replace(/^\d+(\.\d+)*\s+/, "")}
+              {lessonAt ? ` · ${lessonAt}` : ""}
+            </span>
           </div>
-          <div className="hidden items-center gap-3 font-mono text-[12px] text-fg-3 lg:flex">
+          <div className="hidden items-center gap-2.5 text-[13px] text-fg-3 lg:flex">
             {props.nav.prev ? (
-              <Link href={props.nav.prev.href} className="max-w-[220px] truncate underline decoration-line-strong underline-offset-4 hover:text-fg">
+              <Link href={props.nav.prev.href} className="max-w-[220px] truncate hover:text-fg">
                 ← {props.nav.prev.title}
               </Link>
             ) : null}
             {props.nav.prev && props.nav.next ? <span aria-hidden>·</span> : null}
             {props.nav.next ? (
-              <Link href={props.nav.next.href} className="max-w-[220px] truncate underline decoration-line-strong underline-offset-4 hover:text-fg">
+              <Link href={props.nav.next.href} className="max-w-[220px] truncate hover:text-fg">
                 {props.nav.next.title} →
               </Link>
             ) : null}
@@ -473,25 +484,20 @@ export default function LessonShell(props: LessonShellProps) {
               type="button"
               onClick={() => openCourseChat()}
               aria-label="Ask the DSA Mastery tutor about this lesson"
-              className="inline-flex min-h-11 items-center gap-2 border border-signal px-3 font-mono text-[13px] font-semibold text-signal-text hover:bg-signal hover:text-on-signal xl:hidden"
+              className="inline-flex min-h-9 items-center gap-1.5 rounded-[9px] border border-line bg-surface px-3 text-[13px] font-medium text-fg hover:bg-surface-2 xl:hidden [@media(pointer:coarse)]:min-h-11"
             >
               <Sparkles className="h-4 w-4" aria-hidden />
               Ask
             </button>
           ) : null}
           <LessonTools title={props.title} focus={focus} onFocus={toggleFocus} onSavePlace={savePlace} />
-          <p className="m-0 min-w-0 basis-full truncate font-mono text-[12px] text-fg-2 lg:hidden">{props.moduleTitle}</p>
         </div>
 
         {/* title block */}
-        <header className="mt-5 flex flex-col gap-3" data-focus-hide>
-          <p className="m-0 flex flex-wrap items-baseline gap-x-2 font-mono text-[12px] uppercase tracking-label text-signal-text">
-            Lesson · {props.moduleTitle}
-            {props.regionTitle ? <span className="normal-case tracking-normal text-fg-3">{props.regionTitle}</span> : null}
-          </p>
-          <h1 className="m-0 max-w-[900px] font-display text-[34px] font-extrabold leading-[1] tracking-[-0.03em] text-fg sm:text-[48px]">{props.title}</h1>
-          <p className="m-0 max-w-[760px] text-[16px] leading-relaxed text-fg-2 sm:text-[18px]">{props.summary}</p>
-          <div className="flex flex-wrap items-center gap-2 font-mono text-[12px] text-fg-3">
+        <header className="mt-2 flex flex-col gap-2.5 lg:mt-5" data-focus-hide>
+          <h1 className={`${PAGE_H} max-w-[1000px]`}>{props.title}</h1>
+          <p className="m-0 max-w-[760px] text-[14px] leading-normal text-fg-2 sm:text-[17px]">{props.summary}</p>
+          <div className="hidden flex-wrap items-center gap-2 sm:flex">
             {chips.map((c) => (
               <span key={c} className={FACT}>
                 {c}
@@ -502,15 +508,14 @@ export default function LessonShell(props: LessonShellProps) {
           </div>
         </header>
 
-        <StepBar steps={steps} onPick={(s) => go(s)} className="mt-5 lg:hidden [html.hk-ask-open_&]:block [html.hk-nb-side_&]:block" />
+        <StepBar steps={steps} onPick={(s) => go(s)} className="mt-3.5 lg:hidden [html.hk-ask-open_&]:block [html.hk-nb-side_&]:block" />
+        <StepPills steps={steps} onPick={(s) => go(s)} className="mt-5 hidden lg:block [html.hk-ask-open_&]:hidden [html.hk-nb-side_&]:hidden" />
 
-        <div data-reader-grid className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)_300px] xl:gap-8">
-          <div className="hidden lg:block" data-focus-hide data-reader-left>
-            <StepRail steps={steps} onPick={(s) => go(s)} className="sticky top-[calc(var(--hk-header-h,64px)+16px)]" />
-          </div>
-
-          <div ref={mainRef} className="min-w-0 scroll-mt-24 pb-28" data-lesson-main data-step={step}>
-            <div className="flex flex-col gap-5">
+        <div data-reader-grid data-dsa-grid className="mt-3.5 grid grid-cols-1 gap-6 lg:mt-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-9">
+          <div ref={mainRef} className="flex min-w-0 scroll-mt-24 flex-col gap-4 pb-28 sm:gap-[22px]" data-lesson-main data-step={step}>
+            {/* the open step: one rounded card on computers (the canvas), the bare page on phones (LessonMobile) */}
+            <section aria-label={`Step ${STEP_ORDER.indexOf(step) + 1}: ${STEP_TITLE[step]}`} className="min-w-0 sm:rounded-[18px] sm:border sm:border-line sm:bg-surface sm:p-[22px]">
+            <div className="flex flex-col gap-4">
               <div data-focus-hide>{stepHeading}</div>
 
               {step === "learn" && effMode === "watch" && props.lecture ? (
@@ -521,13 +526,13 @@ export default function LessonShell(props: LessonShellProps) {
               ) : null}
 
               {step === "learn" && effMode === "listen" ? (
-                <div className="flex flex-col gap-2 border border-line bg-surface p-4" role="group" aria-label="Listen to this lesson">
+                <div className="flex flex-col gap-2 rounded-xl border border-line bg-bg p-4" role="group" aria-label="Listen to this lesson">
                   <div className="flex flex-wrap items-center gap-3">
                     <button
                       type="button"
                       onClick={readAloud.toggle}
                       aria-pressed={readAloud.playing && !readAloud.paused}
-                      className="inline-flex min-h-11 items-center gap-2 bg-signal px-4 font-mono text-[13px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))]"
+                      className="inline-flex min-h-11 items-center gap-2 rounded-[10px] bg-signal px-4 text-[14px] font-semibold text-on-signal hover:bg-[var(--c-signal-strong,var(--c-signal))]"
                     >
                       {readAloud.playing && !readAloud.paused ? "❚❚ Pause" : readAloud.paused ? "▶ Resume" : "▶ Listen to this lesson"}
                     </button>
@@ -540,6 +545,7 @@ export default function LessonShell(props: LessonShellProps) {
               ) : null}
 
               {step === "learn" && effMode !== "watch" && (whole || beat === beats[0]) ? <KeyIdea idea={kind === "concept" ? props.keyIdea : null} /> : null}
+              {step === "learn" && props.learnSlot ? <div data-slot="lesson-learn">{props.learnSlot}</div> : null}
 
               {step === "try" && !gateBlocksTry ? <TryPanel kind={kind} lessonId={props.id} traces={props.traces} races={props.races} visualizer={props.visualizer} hasLabBeat={hasLabBeat} /> : null}
               {step === "practice" ? <PracticeStep problems={props.practice} intro={props.practiceIntro} module={props.module} /> : null}
@@ -554,12 +560,12 @@ export default function LessonShell(props: LessonShellProps) {
             <Jargon rootRef={contentRef} />
 
             {foldNow ? (
-              <div className="mt-2 flex max-w-[var(--read-measure,740px)] flex-col gap-3 border border-dashed border-line-strong bg-surface-2 p-4 sm:p-5">
+              <div className="mt-2 flex max-w-[var(--read-measure,740px)] flex-col gap-3 rounded-xl border border-dashed border-line-strong bg-bg p-4 sm:p-5">
                 <p className="m-0 text-[15px] leading-relaxed text-fg">The tricky inputs, the common mistakes and a few interview variations. Worth reading before interviews; fine to skip on a first read.</p>
                 <button
                   type="button"
                   onClick={() => setFolded(false)}
-                  className="inline-flex min-h-11 items-center self-start border-2 border-signal px-4 text-[15px] font-semibold text-signal-text hover:bg-[var(--c-dsa-hl)]"
+                  className="inline-flex min-h-11 items-center self-start rounded-[10px] border-2 border-signal px-4 text-[15px] font-semibold text-signal-text hover:bg-[var(--c-dsa-hl)]"
                 >
                   Show edge cases
                 </button>
@@ -571,12 +577,12 @@ export default function LessonShell(props: LessonShellProps) {
             {/* Read, one beat at a time: back / which beat / next */}
             {paged ? (
               <nav aria-label="Parts of the lesson" className="mt-8 flex flex-col gap-3 border-t border-line pt-5" data-focus-hide>
-                <span className="font-mono text-[12px] text-fg-3" aria-live="polite">
+                <span className="text-[13px] text-fg-3" aria-live="polite">
                   Part {beatAt + 1} of {beats.length} · {beatName(beat)}
                 </span>
                 <div className="flex flex-wrap items-center gap-2.5">
                   {prevBeat ? (
-                    <button type="button" onClick={() => goBeat(prevBeat)} className="inline-flex min-h-11 items-center gap-2 border border-line-strong px-4 text-[15px] text-fg hover:border-fg">
+                    <button type="button" onClick={() => goBeat(prevBeat)} className="inline-flex min-h-11 items-center gap-2 rounded-[10px] border border-line-strong px-4 text-[14px] font-medium text-fg hover:bg-surface-2">
                       <ArrowLeft className="h-4 w-4" aria-hidden />
                       <span className="sr-only">Back to </span>
                       {beatName(prevBeat)}
@@ -591,6 +597,10 @@ export default function LessonShell(props: LessonShellProps) {
                 <CheckEnd checkpoint={props.checkpoint} next={props.nav.next} cheatsheet={props.cheatsheet} />
               </div>
             ) : null}
+            </section>
+
+            {/* the other three steps, each its own card (the canvas shows the whole lesson at a glance) */}
+            <StepPreviews steps={steps} current={step} problems={props.practice} onPick={(s) => go(s)} />
           </div>
 
           {/* the aside: a third column on wide screens; below that it folds into the end of Learn */}

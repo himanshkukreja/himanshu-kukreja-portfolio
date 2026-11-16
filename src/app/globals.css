@@ -466,6 +466,55 @@
   background: var(--c-dsa-hl);
 }
 
+/* DSA redesign shell (the approved canvas, 16 Nov 2026; DSA pages only, SD Mastery keeps its own look): a plain paper
+   ground (no dot grid), a white header with rounded controls (the shared search, theme and account buttons are reshaped
+   here, scoped to the DSA header, so their SD Mastery look is untouched) and rounded menus. */
+:root[data-course="dsa"] body {
+  background-image: none;
+}
+.hk-header.dsa-theme {
+  background-color: color-mix(in srgb, var(--c-surface) 94%, transparent);
+}
+.hk-header.dsa-theme .hk-titlebar-row :is(button, a).border,
+.hk-header.dsa-theme .hk-titlebar-row span[role="status"].border {
+  border-radius: 10px;
+  border-color: var(--c-line);
+}
+/* computers: the canvas's 38 px controls; touch screens keep their 40-44 px targets */
+@media (min-width: 1024px) and (pointer: fine) {
+  .hk-header.dsa-theme .hk-titlebar-row :is(button, a).border:not([data-wco-search]) {
+    height: 38px;
+    min-height: 38px;
+  }
+  .hk-header.dsa-theme .hk-titlebar-row :is(button, a).border.w-10,
+  .hk-header.dsa-theme .hk-titlebar-row :is(button, a).border.min-\[400px\]\:w-11 {
+    width: 38px;
+  }
+}
+.hk-header.dsa-theme [data-wco-search="full"] {
+  min-height: 38px;
+  border-color: var(--c-line);
+  font-size: 13px;
+  color: var(--c-fg-4);
+}
+.hk-header.dsa-theme [data-wco-search="full"] kbd {
+  border-radius: 6px;
+  border-color: var(--c-line);
+}
+.hk-header.dsa-theme .hk-titlebar-row img,
+.hk-header.dsa-theme .hk-titlebar-row button:has(> img),
+.hk-header.dsa-theme .hk-titlebar-row button:has(> span > img) {
+  border-radius: 999px;
+}
+.hk-header.dsa-theme [role="menu"],
+.hk-header.dsa-theme [role="dialog"],
+.hk-header.dsa-theme .hk-titlebar-row div.absolute.border {
+  border-radius: 14px;
+}
+.hk-dock.dsa-theme {
+  background-color: color-mix(in srgb, var(--c-surface) 96%, transparent);
+}
+
 /* DSA Bits: the header count bumps and a toast's number pops when Bits land (src/components/dsa/rewards); both are
    switched off with prefers-reduced-motion by the rule below that zeroes every animation */
 @keyframes dsa-bits-bump {
@@ -1180,6 +1229,13 @@ html.hk-ask-over [data-ask-fab] {
   }
   html.hk-ask-open [data-reader-grid] {
     grid-template-columns: 220px minmax(0, 1fr) !important;
+  }
+}
+/* the DSA lesson has no left column (its steps are a row above the body): one column while a panel is open */
+@media (min-width: 1024px) {
+  html.hk-ask-open [data-reader-grid][data-dsa-grid],
+  html.hk-nb-side [data-reader-grid][data-dsa-grid] {
+    grid-template-columns: minmax(0, 1fr) !important;
   }
 }
 

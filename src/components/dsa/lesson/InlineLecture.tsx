@@ -17,7 +17,7 @@ type Card = { href: string; minutes: number; checkpoints: number; chapters: numb
 type Data = { lecture: Lecture; quest: { title: string; href: string; code: string }; source: string; mediaBase: string | null };
 
 function Plate({ children }: { children: React.ReactNode }) {
-  return <div className="grid aspect-video w-full place-items-center border border-line-strong bg-[var(--c-plate)] font-mono text-[13px] text-[var(--c-plate-fg-2)]">{children}</div>;
+  return <div className="grid aspect-video w-full place-items-center overflow-hidden rounded-[14px] bg-[var(--c-plate)] font-mono text-[13px] text-[var(--c-plate-fg-2)]">{children}</div>;
 }
 
 export default function InlineLecture({ lessonId, card }: { lessonId: string; card: Card }) {
@@ -48,7 +48,7 @@ export default function InlineLecture({ lessonId, card }: { lessonId: string; ca
   if (!wide || data === "failed") return <LectureEntry lecture={card} what="The whole lesson" className="" />;
   if (!data) return <Plate>Loading the lecture…</Plate>;
   return (
-    <div className="dark:border dark:border-line-strong dark:bg-surface dark:p-2">
+    <div className="overflow-hidden rounded-[14px]">
       <LecturePlayer embedded lecture={data.lecture} quest={data.quest} source={data.source} mediaBase={data.mediaBase} />
     </div>
   );

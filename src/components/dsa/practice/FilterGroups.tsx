@@ -49,7 +49,7 @@ export function Group({ def, state, counts, base, onToggle, bare = false }: { ba
                 className={`flex min-h-10 cursor-pointer items-center gap-3 px-1 text-[14px] hover:bg-surface-2 lg:min-h-9 ${dead ? "text-fg-3" : "text-fg"} has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-signal-text`}
               >
                 <input type="checkbox" checked={on} onChange={() => onToggle(def.id, o.id)} className="peer sr-only" />
-                <span aria-hidden className="grid h-[18px] w-[18px] shrink-0 place-items-center border-2 border-line-strong peer-checked:border-signal peer-checked:bg-signal">
+                <span aria-hidden className="grid h-[18px] w-[18px] shrink-0 place-items-center border-2 border-line-strong peer-checked:border-signal peer-checked:bg-signal rounded-[5px]">
                   {on ? (
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" className="text-on-signal">
                       <path d="M4 12.5l5 5L20 6.5" />
@@ -126,7 +126,7 @@ export function Chip({ label, remove, onRemove }: { label: string; remove: strin
       type="button"
       onClick={onRemove}
       aria-label={`Remove filter ${remove}`}
-      className="inline-flex min-h-10 items-center gap-2 border border-signal bg-surface px-3 font-mono text-[12px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text"
+      className="inline-flex min-h-10 items-center gap-2 border border-signal bg-surface px-3 text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
     >
       {label}
       <X className="h-3.5 w-3.5 text-fg-3" aria-hidden />

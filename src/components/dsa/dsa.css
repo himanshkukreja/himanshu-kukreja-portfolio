@@ -376,3 +376,26 @@
   outline-offset: 2px;
 }
 
+
+/* The redesign's rounded family (the approved canvas, 16 Nov 2026), DSA pages only: the lesson blocks, the widgets the
+   hydrators mount inside them and the clips take the cards' corners. SD Mastery keeps its square blocks (no
+   data-course="dsa" there). */
+:root[data-course="dsa"] .course-content :is(.sdb, .dsa-line, .dsa-realsystems, .dsa-toggle, .sdb-step, .sdb-vs),
+:root[data-course="dsa"] .course-content figure:is([data-dsa], .sdb) {
+  border-radius: 14px;
+  overflow: hidden;
+}
+:root[data-course="dsa"] .course-content :is(.sdb-col, .sdb-panel),
+:root[data-course="dsa"] .course-content :is(figure, .sdb) :is(button, input, select, textarea, pre, video, img) {
+  border-radius: 10px;
+}
+:root[data-course="dsa"] .course-content :is(.sdb-kicker, .dsa-tag, .dsa-line-avatar, .sdb-glyph) {
+  border-radius: 999px;
+}
+:root[data-course="dsa"] .course-content pre {
+  border-radius: 12px;
+}
+/* the editor toolbar's shared controls (the editor theme menu) take the toolbar's 7 px corners on DSA pages */
+:root[data-course="dsa"] [data-guide="toolbar"] :is(button, select).border {
+  border-radius: 7px;
+}

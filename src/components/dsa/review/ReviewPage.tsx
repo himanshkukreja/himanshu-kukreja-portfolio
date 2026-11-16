@@ -51,7 +51,7 @@ function Shorts({ shorts }: { shorts: ReviewShort[] }) {
           {rows.map((s) => (
             <li key={s.id} className="w-[150px] shrink-0">
               <Link href={`/dsa/shorts?v=${encodeURIComponent(s.id)}`} className="group flex flex-col gap-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
-                <span className="relative block aspect-[9/16] overflow-hidden border border-line-strong bg-[var(--c-plate)]">
+                <span className="relative block aspect-[9/16] overflow-hidden bg-[var(--c-plate)] rounded-[10px]">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={s.poster} alt="" loading="lazy" className="h-full w-full object-cover" />
                   <span className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 bg-[color-mix(in_srgb,var(--c-plate)_80%,transparent)] px-2 py-1.5 font-mono text-[11px] text-[color:var(--c-plate-fg)]">
@@ -64,7 +64,7 @@ function Shorts({ shorts }: { shorts: ReviewShort[] }) {
           ))}
         </ul>
       ) : (
-        <p className="m-0 border border-dashed border-line-strong px-4 py-4 text-[14px] text-fg-2">The first shorts are being recorded. Each lesson gets a few 60-second videos, one idea each; they show up here.</p>
+        <p className="m-0 border border-dashed border-line-strong px-4 py-4 text-[14px] text-fg-2 rounded-2xl">The first shorts are being recorded. Each lesson gets a few 60-second videos, one idea each; they show up here.</p>
       )}
     </section>
   );
@@ -82,7 +82,7 @@ function Sheets({ sheets }: { sheets: ReviewSheet[] }) {
             const done = p.concepts.has(s.concept);
             return (
               <li key={s.id} className="min-w-0">
-                <Link href={`/dsa/cheatsheets/${s.id}`} className="group flex h-full flex-col gap-2 border border-line-strong bg-surface p-4 hover:border-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+                <Link href={`/dsa/cheatsheets/${s.id}`} className="group flex h-full flex-col gap-2 border border-line-strong bg-surface p-4 hover:border-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-2xl">
                   <span className="flex items-center justify-between gap-2 font-mono text-[11px] uppercase tracking-label text-fg-3">
                     <span>
                       {s.code} {s.moduleTitle}
@@ -97,7 +97,7 @@ function Sheets({ sheets }: { sheets: ReviewSheet[] }) {
           })}
         </ul>
       ) : (
-        <p className="m-0 border border-dashed border-line-strong px-4 py-4 text-[14px] text-fg-2">Cheat sheets appear as lessons are written.</p>
+        <p className="m-0 border border-dashed border-line-strong px-4 py-4 text-[14px] text-fg-2 rounded-2xl">Cheat sheets appear as lessons are written.</p>
       )}
     </section>
   );
@@ -107,7 +107,7 @@ function Plans() {
   return (
     <section id="plans" aria-labelledby="plans-h" className="flex scroll-mt-24 flex-col gap-3">
       <Head id="plans-h" title="Interview-night plans" note="planned" />
-      <div className="flex flex-col gap-3 border border-dashed border-line-strong bg-surface p-4 sm:p-5">
+      <div className="flex flex-col gap-3 border border-dashed border-line-strong bg-surface p-4 sm:p-5 rounded-2xl">
         <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
           {["7 days", "14 days", "30 days"].map((d) => (
             <li key={d} className="border border-line-strong px-3 py-1.5 font-mono text-[13px] text-fg-2">
@@ -128,7 +128,7 @@ function Drills() {
   return (
     <section id="drills" aria-labelledby="drills-h" className="flex scroll-mt-24 flex-col gap-3">
       <Head id="drills-h" title="Drills" />
-      <div className="flex flex-col gap-4 border border-line bg-surface p-4 sm:p-5">
+      <div className="flex flex-col gap-4 border border-line bg-surface p-4 sm:p-5 rounded-2xl">
         <WeakSpots />
         <p className="m-0 max-w-[62ch] text-[14.5px] leading-relaxed text-fg-2">
           Miss a topic twice in two weeks and a three-question drill on it waits here. Signed in, with the tutor on, it opens in place.
@@ -153,12 +153,12 @@ function Reference() {
         {items.map((it) => (
           <li key={it.title} className="min-w-0">
             {it.href ? (
-              <Link href={it.href} className="flex h-full flex-col gap-1.5 border border-line-strong bg-surface p-4 hover:border-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
+              <Link href={it.href} className="flex h-full flex-col gap-1.5 border border-line-strong bg-surface p-4 hover:border-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-2xl">
                 <span className="font-display text-[18px] font-bold tracking-[-0.02em] text-fg">{it.title}</span>
                 <span className="text-[13.5px] leading-snug text-fg-2">{it.line}</span>
               </Link>
             ) : (
-              <div className="flex h-full flex-col gap-1.5 border border-dashed border-line-strong p-4">
+              <div className="flex h-full flex-col gap-1.5 border border-dashed border-line-strong p-4 rounded-2xl">
                 <span className="font-display text-[18px] font-bold tracking-[-0.02em] text-fg-2">
                   {it.title} <span className="font-mono text-[11px] font-normal text-fg-3">· soon</span>
                 </span>
@@ -189,7 +189,7 @@ export default function ReviewPage({ decks, problems, shorts, sheets }: { decks:
       <main className="mx-auto flex max-w-[1100px] flex-col gap-10 px-4 pb-24 pt-6 sm:px-6">
         <header className="flex flex-col gap-2">
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">Review</span>
-          <h1 className="m-0 font-display text-[32px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[40px]">
+          <h1 className="m-0 font-display text-[30px] font-extrabold leading-[1.02] tracking-[-0.03em] text-fg sm:text-[46px]">
             Bring it back<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[640px] text-[15.5px] leading-relaxed text-fg-2">Cards that are due, problems that tripped you up, and 60-second refreshers for the lessons you have done.</p>
@@ -197,7 +197,7 @@ export default function ReviewPage({ decks, problems, shorts, sheets }: { decks:
             <ul className="m-0 flex w-max list-none gap-2 p-0">
               {JUMPS.map(([id, label]) => (
                 <li key={id}>
-                  <a href={`#${id}`} className="inline-flex min-h-10 items-center border border-line-strong bg-surface px-3 font-mono text-[12.5px] text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text">
+                  <a href={`#${id}`} className="inline-flex min-h-10 items-center border border-line-strong bg-surface px-3 text-[13px] text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]">
                     {label}
                   </a>
                 </li>

@@ -35,7 +35,7 @@ function Choice({ label, line, on, onPick }: { label: string; line?: string; on:
       type="button"
       onClick={onPick}
       aria-pressed={on}
-      className={`flex min-h-16 w-full flex-col items-start justify-center gap-0.5 border px-4 py-3 text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text ${
+      className={`flex min-h-16 w-full flex-col items-start justify-center gap-0.5 rounded-xl border px-4 py-3 text-left outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text ${
         on ? "border-signal bg-surface-2 shadow-[inset_3px_0_0_var(--c-signal)]" : "border-line-strong bg-surface hover:border-fg"
       }`}
     >
@@ -67,19 +67,19 @@ export default function Welcome() {
   ];
   const s = steps[step];
   return (
-    <section aria-labelledby="dsa-welcome-h" className="flex flex-col gap-5 border border-line bg-surface p-5 sm:p-8">
+    <section aria-labelledby="dsa-welcome-h" className="flex flex-col gap-[18px] rounded-2xl border border-line bg-surface p-[18px] sm:rounded-[18px] sm:p-[30px]">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="font-mono text-[12px] uppercase tracking-label text-signal-text">Welcome to DSA Mastery · {step + 1} of 3</span>
-        <button type="button" onClick={() => finish(goal, true)} className="min-h-10 font-mono text-[12px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+        <span className="font-mono text-[11px] font-medium uppercase tracking-[0.06em] text-signal-text sm:text-[12px]">Welcome to DSA Mastery · {step + 1} of 3</span>
+        <button type="button" onClick={() => finish(goal, true)} className="min-h-10 text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
           Skip
         </button>
       </div>
       <div aria-hidden className="flex gap-1">
         {steps.map((_, i) => (
-          <span key={i} className={`h-1 flex-1 ${i <= step ? "bg-signal" : "bg-line dark:bg-line-strong"}`} />
+          <span key={i} className={`h-1.5 flex-1 rounded-full ${i <= step ? "bg-signal" : "bg-line dark:bg-line-strong"}`} />
         ))}
       </div>
-      <h1 id="dsa-welcome-h" className="m-0 font-display text-[28px] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg sm:text-[36px]">
+      <h1 id="dsa-welcome-h" className="m-0 font-display text-[26px] font-extrabold leading-[1.05] tracking-[-0.025em] text-fg sm:text-[40px]">
         {s.q}
       </h1>
       <div role="group" aria-labelledby="dsa-welcome-h" className={`grid gap-2 ${s.items.length === 4 ? "sm:grid-cols-2" : "sm:grid-cols-3"}`}>
@@ -88,7 +88,7 @@ export default function Welcome() {
         ))}
       </div>
       {step > 0 ? (
-        <button type="button" onClick={() => setStep(step - 1)} className="min-h-10 self-start font-mono text-[12px] text-fg-3 hover:text-fg">
+        <button type="button" onClick={() => setStep(step - 1)} className="min-h-10 self-start text-[13px] text-fg-3 hover:text-fg">
           ← Back
         </button>
       ) : (
