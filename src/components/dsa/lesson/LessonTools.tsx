@@ -132,7 +132,7 @@ export default function LessonTools({
           <MoreHorizontal className="h-4 w-4" aria-hidden />
         </button>
         {open ? (
-          <div id={menuId} role="menu" aria-label="More lesson tools" className="absolute right-0 top-[calc(100%+6px)] z-[61] flex w-[248px] flex-col border border-line-strong bg-surface py-1 shadow-[0_16px_48px_rgba(0,0,0,0.28)]">
+          <div id={menuId} role="menu" aria-label="More lesson tools" className="absolute right-0 top-[calc(100%+6px)] z-[61] flex w-[248px] flex-col border border-line-strong bg-surface py-1">
             <MenuItem icon={<Maximize2 className="h-4 w-4" />} pressed={focus} onClick={run(onFocus)}>
               {focus ? "Exit focus" : "Focus"} <kbd className="ml-auto border border-line-strong px-1 font-mono text-[10px] text-fg-3">F</kbd>
             </MenuItem>

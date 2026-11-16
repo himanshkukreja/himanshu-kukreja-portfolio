@@ -58,7 +58,7 @@ export default function LessonAside({
         seen.add(href);
         // the link's own words, without the small tag in front of them ("Lesson")
         const c = a.cloneNode(true) as HTMLElement;
-        c.querySelectorAll(".dsa-tag,[data-sd-chrome]").forEach((n) => n.remove());
+        c.querySelectorAll(".dsa-tag,.dsa-rs-kind,[data-sd-chrome]").forEach((n) => n.remove());
         out.push({ href, title: (c.textContent || a.textContent || href).trim() });
       });
       setSystems((prev) => (prev.length === out.length && prev.every((p, i) => p.href === out[i].href && p.title === out[i].title) ? prev : out));

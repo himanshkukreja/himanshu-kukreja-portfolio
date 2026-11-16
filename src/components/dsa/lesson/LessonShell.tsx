@@ -10,7 +10,7 @@
  *   Practice the lesson's problems in order
  *   Check    the closing beat: quiz, explain it back, the 60-second answer, review cards
  *
- * A generated stylesheet hides every beat outside the shown set (lib/dsa/lesson-steps.ts hideStagesCss, the OneStage
+ * A generated stylesheet hides every beat outside the shown set (stepStyles.ts, the OneStage
  * mechanism generalised), so the progress engine, highlights, Listen and the hydrators keep working on one DOM.
  */
 import Link from "next/link";
@@ -39,7 +39,6 @@ import {
   STEP_ORDER,
   STEP_TITLE,
   groupStages,
-  hideStagesCss,
   learnBeats,
   stepOfHash,
   stepOfStage,
@@ -63,6 +62,7 @@ import StepFooter from "./StepFooter";
 import { StepBar, StepRail, type StepView } from "./StepRail";
 import TryPanel from "./TryPanel";
 import { useLearnMode, useWholeLesson, type LearnMode } from "./learnPrefs";
+import { stepCss } from "./stepStyles";
 
 export type LectureCardInfo = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
 
@@ -277,8 +277,14 @@ export default function LessonShell(props: LessonShellProps) {
   // Back and Forward move between steps
   useEffect(() => {
     const on = () => {
-      const st = stepOfHash(window.location.hash);
-      setStep(st ?? "learn");
+      const h = decodeURIComponent(window.location.hash.slice(1));
+      const st = stepOfHash(h);
+      if (st || !h) return setStep(st ?? "learn");
+      // a link to a beat or a heading inside the lesson: open the step and beat holding it, then go there
+      const sid = stageOf(document.getElementById(h));
+      if (!sid) return;
+      place(sid, h !== FOLDED);
+      requestAnimationFrame(() => scrollToId(h));
     };
     window.addEventListener("popstate", on);
     window.addEventListener("hashchange", on);
@@ -286,7 +292,7 @@ export default function LessonShell(props: LessonShellProps) {
       window.removeEventListener("popstate", on);
       window.removeEventListener("hashchange", on);
     };
-  }, []);
+  }, [stageOf, place]);
 
   // coming back: the beat they were reading
   useEffect(() => {
@@ -366,11 +372,7 @@ export default function LessonShell(props: LessonShellProps) {
   // a guest on a gated concept lesson gets the sign-in card in place of Try it's widgets (they are the lesson's text, as widgets)
   const gateBlocksTry = step === "try" && kind === "concept" && hasGate && locked;
 
-  const css =
-    hideStagesCss(visible) +
-    // the practice ladder inside the closing beat is the Practice step's list now
-    `[data-dsa-one] #practice-ladder,[data-dsa-one] #practice-ladder + .sd-table{display:none!important}` +
-    (foldNow ? `[data-dsa-one] section[data-sd="stage"][data-stage-id="${FOLDED}"]>:not(header){display:none!important}` : "");
+  const css = stepCss({ visible, foldedStage: foldNow ? FOLDED : null });
 
   /* ---------------------------------------------------------------- the rail */
   const solvedAll = props.practice.length > 0 && props.practice.every((x) => dsa.solved.has(x.id));
