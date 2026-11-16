@@ -449,7 +449,7 @@ export default function Playground({ filesEnabled }: { filesEnabled: boolean }) 
           </label>
           <div className="flex min-h-[160px] flex-[1.4] flex-col gap-1.5">
             <span className="text-[13px] text-fg-2">Output</span>
-            <div className={`${CARD} flex min-h-0 flex-1 flex-col gap-2 p-3`}>
+            <div className={`${CARD} flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3`}>
               <ProgramOutput
                 state={out}
                 className="min-h-0 flex-1"

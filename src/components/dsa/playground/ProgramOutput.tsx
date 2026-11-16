@@ -46,7 +46,7 @@ export default function ProgramOutput({ state, empty, className = "", maxHeight 
   const stderr = state.kind === "done" ? state.result.stderr : "";
   return (
     <div className={`flex min-h-0 flex-col gap-2 ${className}`} aria-live="polite" aria-busy={state.kind === "running"}>
-      <div className={`min-h-0 overflow-auto ${maxHeight}`}>
+      <div className={`min-h-[2.5rem] overflow-auto ${maxHeight}`}>
         {stdout ? <pre className="m-0 whitespace-pre-wrap break-words font-mono text-[13px] leading-relaxed text-fg">{stdout}</pre> : null}
         {stderr ? <pre className="m-0 mt-1 whitespace-pre-wrap break-words font-mono text-[12.5px] leading-relaxed text-bad-text">{stderr}</pre> : null}
         {state.kind === "done" && !stdout && !stderr ? <p className="m-0 font-mono text-[12.5px] text-fg-3">(no output)</p> : null}
