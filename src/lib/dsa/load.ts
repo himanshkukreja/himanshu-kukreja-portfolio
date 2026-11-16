@@ -126,6 +126,23 @@ export const getConceptIndex = indexed(async (): Promise<ConceptSummary[]> => {
   }));
 }, "dsa-concepts-v3");
 
+/**
+ * Reading minutes of every written lesson (its lesson.md front matter `minutes`), for the home's outline ("3 h 40 min") and
+ * Continue's time left. Not in the concept index: the bundle holds no lesson.md, so this is one small cached item read once
+ * per content revalidation, and only the home asks.
+ */
+export const getLessonMinutes = cached(async (): Promise<Record<string, number>> => {
+  const concepts = (await getConceptIndex()).filter((c) => c.status === "built");
+  const rows = await Promise.all(
+    concepts.map(async (c) => {
+      const md = await readDsa(`${lessonDir(c)}/lesson.md`).catch(() => null);
+      const m = md ? Number((matter(md, {}).data as { minutes?: unknown }).minutes) : 0;
+      return [c.id, Number.isFinite(m) && m > 0 ? m : 0] as const;
+    }),
+  );
+  return Object.fromEntries(rows);
+}, "dsa-lesson-minutes-v1");
+
 /* Visual lessons: structure lessons (Academy Part 2) and algorithm lessons (Part 3) have their own folder and page. */
 /** A concept's content folder: resources/modules/, resources/structures/ (structure lesson) or resources/algorithms/ (algorithm lesson). */
 export const lessonDir = (c: Pick<ConceptSummary, "id" | "module" | "kind">) => `resources/${c.kind === "structure" ? "structures" : c.kind === "algorithm" ? "algorithms" : "modules"}/${c.module}/${c.id}`;

@@ -72,6 +72,11 @@ const LEGACY: [RegExp, string][] = [
   [/^\/tracks\/?$/, "/prep/companies"],
   [/^\/tracks\/([^/]+)\/?$/, "/prep/companies/$1"],
   [/^\/search\/?$/, "/chat"],
+  // DSA Mastery's tabs (redesign, Nov 2026): the bank is Practice, Revise is Review, My stats is a section of Progress.
+  // Exact paths, so /dsa/problems/<id> stays. The ones that read a query live in src/lib/dsa/redirects.ts.
+  [/^\/dsa\/problems\/?$/, "/dsa/practice"],
+  [/^\/dsa\/revise\/?$/, "/dsa/review"],
+  [/^\/dsa\/stats\/?$/, "/dsa/progress"],
 ];
 
 /** Content folders of the course repo: weeks, the plan ("overview"), side quests, problem bank, LLD. */

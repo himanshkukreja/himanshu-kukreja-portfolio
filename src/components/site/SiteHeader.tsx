@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
@@ -9,8 +10,7 @@ import { useGame } from "@/game/GameProvider";
 import { BADGES, MAIN_QUESTS, levelProgress } from "@/game/catalog";
 import SearchBar from "@/components/SearchBar";
 import { LearnBrand, LearnDock, LearnTabs } from "./LearnNav";
-import { DsaBrand, DsaDock, DsaTabs } from "./DsaNav";
-import { BitsBar, BitsChip } from "@/components/dsa/rewards/BitsChip";
+import { CourseSwitch, DsaAsk, DsaBrand, DsaDock, DsaTabs } from "./DsaNav";
 import BitsToaster from "@/components/dsa/rewards/BitsToaster";
 import { isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
 import { useCoursePathname, useSite } from "./SiteMode";
@@ -23,6 +23,9 @@ import AppBack, { useAppDepth } from "./AppBack";
 import AdminLink from "./AdminLink";
 import { usePageTone } from "@/components/learn/reading/useReading";
 import ThemeMenu from "./ThemeMenu";
+
+// badges, streak milestones and the board summary (they used to mount with the header's Bits chip); DSA pages only, after the page
+const DsaRewardsHost = dynamic(() => import("@/components/dsa/rewards/DsaRewardsHost"), { ssr: false });
 
 // Portfolio nav. The course (and its case files) lives on its own domain now: "learn ↗" goes there.
 const NAV = [
@@ -182,7 +185,7 @@ export default function SiteHeader() {
           <AppBack />
           {dsa ? (
             <>
-              <DsaBrand pathname={pathname} />
+              <DsaBrand />
               <DsaTabs pathname={pathname} />
             </>
           ) : learn ? (
@@ -212,7 +215,9 @@ export default function SiteHeader() {
           <div className="flex-1" />
           {/* min-w-0: in learn mode the search box gives up width before the row overflows */}
           <div className="flex min-w-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
-            {learn && <SearchBar variant="nav" hotkey />}
+            {dsa && <CourseSwitch pathname={pathname} />}
+            {learn && <SearchBar variant="nav" hotkey label={dsa ? "Search lessons and problems" : undefined} />}
+            {dsa && <DsaAsk />}
             {/* SD Mastery's guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here (not on DSA pages) */}
             {learn && !dsa && (
               <Link
@@ -229,10 +234,9 @@ export default function SiteHeader() {
                 phones in the course (no room in the row) and very narrow screens get it in the account menu, with a
                 shield on the account button */}
             <AdminLink variant="header" display={learn ? "hidden sm:inline-flex lg:hidden" : "hidden min-[360px]:inline-flex"} />
-            {/* DSA Mastery pages: DSA's own belt and Bits (never SD Mastery's XP level); everywhere else the level chip */}
-            {dsa ? (
-              <BitsChip on={pathname.startsWith("/dsa/progress")} />
-            ) : (
+            {/* DSA Mastery pages carry no level or Bits chip in the header (the belt and Bits live on Progress; the toasts stay);
+                everywhere else the level chip */}
+            {dsa ? null : (
               <>
                 <button
                   type="button"
@@ -280,9 +284,7 @@ export default function SiteHeader() {
           </div>
           {questsOpen && <QuestLog onClose={() => setQuestsOpen(false)} />}
         </div>
-        {dsa ? (
-          <BitsBar />
-        ) : (
+        {dsa ? null : (
           <div className="h-[3px] bg-surface-2 sm:hidden">
             <div className="h-[3px] bg-signal" style={{ width: `${p.pct}%` }} />
           </div>
@@ -290,6 +292,7 @@ export default function SiteHeader() {
       </header>
       <OfflineStrip />
       {dsa && <BitsToaster />}
+      {dsa && <DsaRewardsHost />}
 
       {dsa ? (
         <DsaDock pathname={pathname} className={`${dockClass} dsa-theme`} />

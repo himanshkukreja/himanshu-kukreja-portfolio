@@ -17,7 +17,7 @@
  * chat's message box on /chat) lifts it clear: useClearOf.
  *
  * On DSA Mastery pages (/dsa/…, once NEXT_PUBLIC_DSA_MODE is full) the button and the panel are DSA Mastery's tutor
- * (ChatPanel course="dsa"): not on /dsa/ask (the chat is the page) or in a problem room (its own Tutor tab).
+ * (ChatPanel course="dsa"). They have no floating button: the DSA header's "Ask the tutor" opens the same panel.
  */
 import dynamic from "next/dynamic";
 import { useCoursePathname } from "@/components/site/SiteMode";
@@ -133,7 +133,8 @@ export default function ChatDock({ companion }: { companion?: React.ReactNode })
   // a DSA problem room has its own tutor tab beside the editor
   const room = /^\/dsa\/problems\/[^/]+/.test(pathname);
   // case files (/case-files/…) have their own Ask button; the panel still opens there (tutor:open from Explain / Ask the tutor)
-  const fab = !open && available && !onSearch && !room && !isLesson(pathname) && !NO_FAB.test(pathname) && !pathname.startsWith("/case-files");
+  // on every DSA page in full mode the header's "Ask the tutor" replaces the floating button
+  const fab = !open && available && !dsa && !onSearch && !room && !isLesson(pathname) && !NO_FAB.test(pathname) && !pathname.startsWith("/case-files");
 
   return (
     <>

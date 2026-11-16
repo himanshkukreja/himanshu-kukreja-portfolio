@@ -239,6 +239,8 @@ export const dsaKeys = {
   checkpointQuiz: (nodeId: string) => `dsa:cpq:${nodeId}`,
   trace: (id: string) => `dsa:tr:${id}`,
   lab: (id: string) => `dsa:lab:${id}`,
+  /** the lesson's Try-it was used (a trace or visualiser run finished); worth 0 Bits, it only ticks the Try step (continue.ts) */
+  try: (concept: string) => `dsa:try:${concept}`,
   gate: (world: string, region: string, n: string | number) => `dsa:gate:${world}:${region}:${n}`,
 };
 

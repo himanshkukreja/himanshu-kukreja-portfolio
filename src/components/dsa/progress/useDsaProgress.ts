@@ -7,6 +7,7 @@
  *     dsa:p:<problem>   accepted solve           dsa:c:<concept>   lesson complete
  *     dsa:s:<c>/<beat>  a beat (stage) read       dsa:cpq:<node>    checkpoint quiz passed
  *     dsa:lab:<lab>     a build-it lab passed (the structure/algorithm checkpoint needs it with the quiz)
+ *     dsa:try:<c>       the lesson's Try-it used (0 Bits; the home's Continue ticks Try with it)
  *   learning_progress rows with course_id 'dsa' (signed in) or the guest store hk.lesson.v1 ("dsa/<week>/<slug>")
  *     week <module>, lesson_slug <concept>    the concept's beats (completed_stages), status completed
  *     week 'problems', lesson_slug <problem>   status completed on an accepted solve; completed_stages = languages
@@ -32,13 +33,20 @@ function fromGame(done: Record<string, number>) {
   const concepts = new Set<string>();
   const checkpoints = new Set<string>();
   const labs = new Set<string>();
+  const tries = new Set<string>();
+  const beats = new Map<string, Set<string>>();
   for (const k of Object.keys(done)) {
     if (k.startsWith("dsa:p:")) solved.add(k.slice(6));
+    else if (k.startsWith("dsa:try:")) tries.add(k.slice(8));
+    else if (k.startsWith("dsa:s:")) {
+      const [c, beat] = k.slice(6).split("/");
+      if (c && beat) (beats.get(c) ?? beats.set(c, new Set()).get(c)!).add(beat);
+    }
     else if (k.startsWith("dsa:c:")) concepts.add(k.slice(6));
     else if (k.startsWith("dsa:cpq:")) checkpoints.add(k.slice(8));
     else if (k.startsWith("dsa:lab:")) labs.add(k.slice(8));
   }
-  return { solved, concepts, checkpoints, labs };
+  return { solved, concepts, checkpoints, labs, tries, beats };
 }
 
 function fromRows(rows: Row[], into: { solved: Set<string>; concepts: Set<string> }, resets: Map<string, number>) {
@@ -86,7 +94,14 @@ function remoteRows(userId: string): Promise<Row[]> {
   return shared.inflight;
 }
 
-export type DsaProgress = ProgressSignals & { ready: boolean; signedIn: boolean };
+export type DsaProgress = ProgressSignals & {
+  /** lessons whose Try-it was used (dsa:try:<c>) */
+  tries: ReadonlySet<string>;
+  /** beats read by lesson (dsa:s:<c>/<beat>) */
+  beats: ReadonlyMap<string, ReadonlySet<string>>;
+  ready: boolean;
+  signedIn: boolean;
+};
 
 /** Everything the map and the problem lists need to mark nodes done. */
 export function useDsaProgress(): DsaProgress {
@@ -126,7 +141,7 @@ export function useDsaProgress(): DsaProgress {
   return useMemo(() => {
     const g = fromGame(applyResets(done));
     fromRows(rows, g, resetTimes(done));
-    return { solved: g.solved, concepts: g.concepts, checkpoints: g.checkpoints, labs: g.labs, ready: hydrated && loaded, signedIn: !!userId };
+    return { solved: g.solved, concepts: g.concepts, checkpoints: g.checkpoints, labs: g.labs, tries: g.tries, beats: g.beats, ready: hydrated && loaded, signedIn: !!userId };
   }, [done, rows, hydrated, loaded, userId]);
 }
 

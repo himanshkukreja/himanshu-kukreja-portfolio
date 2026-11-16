@@ -717,9 +717,11 @@ type SearchBarProps = {
   variant?: "bar" | "floating" | "nav";
   /** listen for ⌘K / Ctrl+K and the hk:course-search event (one instance per page: the site header) */
   hotkey?: boolean;
+  /** the nav button's words (DSA Mastery: "Search lessons and problems"); default "Search lessons, topics…" */
+  label?: string;
 };
 
-export default function SearchBar({ variant = "bar", hotkey = false }: SearchBarProps) {
+export default function SearchBar({ variant = "bar", hotkey = false, label }: SearchBarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -768,7 +770,7 @@ export default function SearchBar({ variant = "bar", hotkey = false }: SearchBar
             className="hidden min-h-10 w-[240px] min-w-[148px] shrink items-center gap-2.5 border border-line-strong bg-bg px-3 text-left text-sm text-fg-4 hover:text-fg-3 md:flex lg:hidden xl:flex"
           >
             <Search className="h-[15px] w-[15px] shrink-0 text-fg-3" aria-hidden />
-            <span className="min-w-0 flex-1 truncate">Search lessons, topics…</span>
+            <span className="min-w-0 flex-1 truncate">{label ?? "Search lessons, topics…"}</span>
             <kbd className="shrink-0 border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-fg-3">⌘K</kbd>
           </button>
           <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" data-wco-search="icon" className="grid h-10 w-10 shrink-0 place-items-center border border-line-strong text-fg min-[400px]:h-11 min-[400px]:w-11 md:hidden lg:grid xl:hidden">

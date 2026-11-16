@@ -2,19 +2,18 @@
 
 /**
  * DSA Mastery mode for the global SiteHeader: on /dsa and everything under it the header is DSA Mastery's own bar (one
- * bar, no sub-nav), a sibling of SD Mastery's: the index mark and "DSA Mastery." wordmark, the BETA (or SOON) tag,
- * a course switcher back to System Design Mastery, and DSA's tabs; on phones the bottom dock carries DSA's tabs.
- * The shared right side (search, level, theme, account) stays in SiteHeader. Paths are clean course paths.
+ * bar, no sub-nav), a sibling of SD Mastery's: the index mark and "DSA Mastery." wordmark, the BETA (or SOON) tag, and
+ * four tabs (Course, Practice, Review, Progress); on phones the bottom dock carries the same four. The course switch
+ * ("System design ⇄ DSA"), search, Ask, theme and account sit on the right (SiteHeader). Paths are clean course paths.
+ * Redesign Phase 1 (16 Nov 2026): the old "more" menu and the simple/full views are gone; the "on" rules are the build
+ * spec's §2.1.
  */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { Award, BarChart3, CalendarDays, Check, ChevronDown, ChevronsUpDown, Code2, FileText, Layers, Map as MapIcon, Play, Sparkles, User, type LucideIcon } from "lucide-react";
-import { DSA_FULL } from "@/lib/dsa/flags";
+import { BarChart3, Check, ChevronsUpDown, Code2, Layers, Map as MapIcon, AlignLeft, Sparkles, User, type LucideIcon } from "lucide-react";
+import { DSA_FULL, isDsaProblemRoom, isDsaReaderPath } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
 import { DsaMark } from "@/components/dsa/DsaMark";
-import { ShowEverything, useDsaFull } from "@/components/dsa/simple/view";
-import { openOnboarding } from "@/components/dsa/onboarding/useOnboarding";
-import { useAuth } from "@/contexts/AuthContext";
 import CourseMark from "./CourseMark";
 import AdminLink from "./AdminLink";
 import { DockDot, TabPending } from "./LinkPending";
@@ -23,65 +22,36 @@ export const DSA_HOME = "/dsa";
 
 type Tab = {
   id: string;
-  /** a link, or (ask, before launch) a button that opens the course tutor's panel in place */
   href?: string;
   label: string;
   /** the phone dock's label */
   short: string;
   on: boolean;
   icon: LucideIcon | "sdm";
-  primary?: boolean;
   /** where it shows: desktop tab row, phone dock, or both */
   where: "both" | "dock" | "desk";
-  /** desktop: listed under "more" instead of in the tab row (the row keeps the main four, so it never overflows) */
-  more?: boolean;
+  primary?: boolean;
 };
 
+const at = (p: string, ...bases: string[]) => bases.some((b) => p === b || p.startsWith(`${b}/`));
+
 /**
- * Staging (full mode build):
- * - the simple view (everyone by default, owner 9 Nov 2026): learn (the hub and the lessons) · practice · ask, with
- *   lectures, daily, revise, shorts and cheat sheets under "more";
- * - the full view ("Show everything"): world map · problems · lectures · ask, the rest under "more".
- * Phones: the same first two, ask, "you" and the way back to SD Mastery (five slots either way).
- * Production until launch (soon): the coming-soon page, ask, you, SD Mastery.
+ * The four DSA tabs and where each is "on" (build spec §2.1): Course for the home and every lesson (and its lecture),
+ * Practice for the bank and every problem, Review for shorts, cheat sheets, complexity and the patterns A-Z, Progress for
+ * the belt, stats and certificates. Production until launch (soon): the coming-soon page, ask, you, SD Mastery.
  */
-function tabs(p: string, full = false): Tab[] {
-  // DSA Mastery's tutor page (staging); before launch "ask" opens the course tutor's panel (no /dsa/ask in "soon" mode)
-  const ask: Tab = { id: "ask", ...(DSA_FULL ? { href: `${DSA_HOME}/ask` } : {}), label: "ask", short: "ask", on: p.startsWith(`${DSA_HOME}/ask`), icon: Sparkles, primary: true, where: "both" };
-  const you: Tab = { id: "you", href: "/dashboard", label: "you", short: "you", on: false, icon: User, where: "dock" };
-  const sdm: Tab = { id: "sdm", href: "/", label: "SD Mastery", short: "sdm", on: false, icon: "sdm", where: "dock" };
-  if (!DSA_FULL) return [{ id: "soon", href: DSA_HOME, label: "coming soon", short: "dsa", on: p === DSA_HOME || p === `${DSA_HOME}/`, icon: MapIcon, where: "both" }, ask, you, sdm];
-  const learnOn = p === DSA_HOME || p === `${DSA_HOME}/` || (p.startsWith(`${DSA_HOME}/concepts/`) && !/\/lecture\/?$/.test(p));
-  if (!full)
-    return [
-      { id: "map", href: DSA_HOME, label: "learn", short: "learn", on: learnOn, icon: MapIcon, where: "both" },
-      { id: "problems", href: `${DSA_HOME}/problems`, label: "practice", short: "practice", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
-      ask,
-      { id: "lectures", href: `${DSA_HOME}/lectures`, label: "lectures", short: "lectures", on: p.startsWith(`${DSA_HOME}/lectures`) || /^\/dsa\/concepts\/[^/]+\/lecture/.test(p), icon: Play, where: "desk", more: true },
-      { id: "daily", href: `${DSA_HOME}/daily`, label: "daily problem", short: "daily", on: p.startsWith(`${DSA_HOME}/daily`), icon: CalendarDays, where: "desk", more: true },
-      { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", more: true },
-      { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", more: true },
-      { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", more: true },
-      { id: "belt", href: `${DSA_HOME}/progress`, label: "belt & badges", short: "belt", on: p.startsWith(`${DSA_HOME}/progress`), icon: Award, where: "desk", more: true },
-      { id: "stats", href: `${DSA_HOME}/stats`, label: "my stats", short: "stats", on: p.startsWith(`${DSA_HOME}/stats`), icon: BarChart3, where: "desk", more: true },
-      you,
-      sdm,
-    ];
+export function tabs(p: string): Tab[] {
+  if (!DSA_FULL) {
+    const ask: Tab = { id: "ask", label: "ask", short: "ask", on: false, icon: Sparkles, primary: true, where: "both" };
+    const you: Tab = { id: "you", href: "/dashboard", label: "you", short: "you", on: false, icon: User, where: "dock" };
+    const sdm: Tab = { id: "sdm", href: "/", label: "SD Mastery", short: "sdm", on: false, icon: "sdm", where: "dock" };
+    return [{ id: "soon", href: DSA_HOME, label: "coming soon", short: "dsa", on: p === DSA_HOME || p === `${DSA_HOME}/`, icon: MapIcon, where: "both" }, ask, you, sdm];
+  }
   return [
-    { id: "map", href: DSA_HOME, label: "world map", short: "map", on: p === DSA_HOME || p === `${DSA_HOME}/` || (p.startsWith(`${DSA_HOME}/concepts/`) && !/\/lecture\/?$/.test(p)), icon: MapIcon, where: "both" },
-    { id: "problems", href: `${DSA_HOME}/problems`, label: "problems", short: "problems", on: p.startsWith(`${DSA_HOME}/problems`), icon: Code2, where: "both" },
-    // desktop only: the phone dock has no free slot (the hub and the concept pages link them there)
-    { id: "lectures", href: `${DSA_HOME}/lectures`, label: "lectures", short: "lectures", on: p.startsWith(`${DSA_HOME}/lectures`) || /^\/dsa\/concepts\/[^/]+\/lecture/.test(p), icon: Play, where: "desk" },
-    // under "more" on desktop: seven tabs pushed the header's account button 21 px off a 1440 px screen (9 Nov 2026)
-    { id: "daily", href: `${DSA_HOME}/daily`, label: "daily problem", short: "daily", on: p.startsWith(`${DSA_HOME}/daily`), icon: CalendarDays, where: "desk", more: true },
-    { id: "revise", href: `${DSA_HOME}/revise`, label: "revise", short: "revise", on: p.startsWith(`${DSA_HOME}/revise`), icon: Layers, where: "desk", more: true },
-    { id: "shorts", href: `${DSA_HOME}/shorts`, label: "shorts", short: "shorts", on: p.startsWith(`${DSA_HOME}/shorts`), icon: Play, where: "desk", more: true },
-    { id: "sheets", href: `${DSA_HOME}/cheatsheets`, label: "cheat sheets", short: "sheets", on: p.startsWith(`${DSA_HOME}/cheatsheets`), icon: FileText, where: "desk", more: true },
-    { id: "belt", href: `${DSA_HOME}/progress`, label: "belt & badges", short: "belt", on: p.startsWith(`${DSA_HOME}/progress`), icon: Award, where: "desk", more: true },
-    { id: "stats", href: `${DSA_HOME}/stats`, label: "my stats", short: "stats", on: p.startsWith(`${DSA_HOME}/stats`), icon: BarChart3, where: "desk", more: true },
-    ask,
-    you,
-    sdm,
+    { id: "course", href: DSA_HOME, label: "Course", short: "Course", on: p === DSA_HOME || at(p, "/dsa/concepts", "/dsa/structures", "/dsa/algorithms"), icon: AlignLeft, where: "both" },
+    { id: "practice", href: `${DSA_HOME}/practice`, label: "Practice", short: "Practice", on: at(p, "/dsa/practice", "/dsa/problems"), icon: Code2, where: "both" },
+    { id: "review", href: `${DSA_HOME}/review`, label: "Review", short: "Review", on: at(p, "/dsa/review", "/dsa/shorts", "/dsa/cheatsheets", "/dsa/complexity", "/dsa/patterns"), icon: Layers, where: "both" },
+    { id: "progress", href: `${DSA_HOME}/progress`, label: "Progress", short: "Progress", on: at(p, "/dsa/progress", "/dsa/certificate", "/dsa/cert"), icon: BarChart3, where: "both" },
   ];
 }
 
@@ -90,8 +60,12 @@ const COURSES = [
   { id: "dsa", href: DSA_HOME, name: "DSA Mastery", line: "Data structures and algorithms" },
 ] as const;
 
-/** The switcher's menu: both courses, this one ticked. Closes on a pick, Escape, a click outside or a route change. */
-function CourseSwitch({ pathname }: { pathname: string }) {
+/**
+ * The course switch, "System design ⇄ DSA": the pill at xl, an icon button below (it stays in the header down to 400 px;
+ * under that the account menu's "course" link and the logo take over). The menu lists both courses, this one ticked, and
+ * closes on a pick, Escape, a click outside or a route change.
+ */
+export function CourseSwitch({ pathname }: { pathname: string }) {
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(pathname);
   if (seen !== pathname) {
@@ -113,7 +87,7 @@ function CourseSwitch({ pathname }: { pathname: string }) {
     };
   }, [open]);
   return (
-    // below 400 px the phone's bottom bar has the "sdm" switch, so this frees the header for the signed-in avatar
+    // below 400 px the header has no room: the signed-in avatar menu has "course" (the way back to System Design Mastery)
     <div ref={ref} className="relative hidden shrink-0 min-[400px]:block">
       <button
         type="button"
@@ -122,12 +96,13 @@ function CourseSwitch({ pathname }: { pathname: string }) {
         aria-expanded={open}
         aria-label="Switch course"
         title="Switch course"
-        className={`grid h-8 w-7 place-items-center border ${open ? "border-signal text-signal-text" : "border-line-strong text-fg-3 hover:text-fg"}`}
+        className={`inline-flex h-10 shrink-0 items-center justify-center gap-2 border font-mono text-[12px] min-[400px]:w-10 xl:w-auto xl:px-3 ${open ? "border-signal text-signal-text" : "border-line-strong text-fg-2 hover:text-fg"}`}
       >
-        <ChevronsUpDown className="h-3.5 w-3.5" aria-hidden />
+        <ChevronsUpDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        <span className="hidden whitespace-nowrap xl:inline">System design ⇄ DSA</span>
       </button>
       {open && (
-        <div role="menu" aria-label="Courses" className="absolute left-0 top-[calc(100%+12px)] z-50 flex w-[min(320px,calc(100vw-32px))] animate-hk-in flex-col border border-line-strong bg-surface p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)] max-[379px]:-left-9">
+        <div role="menu" aria-label="Courses" className="absolute right-0 top-[calc(100%+12px)] z-50 flex w-[min(320px,calc(100vw-32px))] animate-hk-in flex-col border border-line-strong bg-surface p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
           <span className="px-2.5 pb-1.5 pt-1 font-mono text-[11px] uppercase tracking-label text-fg-3">Your courses · one account</span>
           {COURSES.map((c) => {
             const here = c.id === "dsa";
@@ -155,8 +130,8 @@ function CourseSwitch({ pathname }: { pathname: string }) {
   );
 }
 
-/** The DSA brand: the index mark + "DSA Mastery." (the mark alone under 380 px, like SD Mastery's), the tag, the switcher. */
-export function DsaBrand({ pathname }: { pathname: string }) {
+/** The DSA brand: the index mark + "DSA Mastery." (the mark alone under 380 px, like SD Mastery's) and the tag. */
+export function DsaBrand() {
   return (
     <div className="flex shrink-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
       <Link href={DSA_HOME} aria-label="DSA Mastery, course home" className="inline-flex min-h-10 shrink-0 items-center gap-2 py-1 font-display text-lg font-extrabold tracking-[-0.03em] text-fg sm:text-xl">
@@ -166,25 +141,20 @@ export function DsaBrand({ pathname }: { pathname: string }) {
         </span>
       </Link>
       <span className="hidden border border-signal px-1.5 py-px font-mono text-[10px] font-semibold uppercase tracking-label text-signal-text sm:inline">{DSA_FULL ? "beta" : "soon"}</span>
-      <CourseSwitch pathname={pathname} />
     </div>
   );
 }
 
-const tabClass = (on: boolean) => `relative inline-flex items-center gap-2 whitespace-nowrap px-2 py-2.5 ${on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`;
+const tabClass = (on: boolean) => `relative inline-flex items-center gap-2 whitespace-nowrap px-2.5 py-2.5 ${on ? "text-fg shadow-[inset_0_-2px_0_var(--c-signal)]" : "text-fg-3 hover:text-fg"}`;
 
-/** Desktop DSA tabs, inline in the header row. */
+/** Desktop DSA tabs, inline in the header row: Course, Practice, Review, Progress (mono 13 px, the open one underlined). */
 export function DsaTabs({ pathname }: { pathname: string }) {
-  const full = useDsaFull();
-  const desk = tabs(pathname, full).filter((t) => t.where !== "dock");
-  const main = desk.filter((t) => !t.more);
-  const more = desk.filter((t) => t.more);
+  const desk = tabs(pathname).filter((t) => t.where !== "dock");
   return (
     <nav aria-label="DSA Mastery" className="hidden items-center font-mono text-[13px] lg:flex">
-      {main.map((t) =>
+      {desk.map((t) =>
         t.href ? (
           <Link key={t.id} href={t.href} aria-current={t.on ? "page" : undefined} className={tabClass(t.on)}>
-            {t.primary && <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />}
             {t.label}
             <TabPending />
           </Link>
@@ -195,95 +165,40 @@ export function DsaTabs({ pathname }: { pathname: string }) {
           </button>
         ),
       )}
-      {more.length > 0 && <MoreTabs pathname={pathname} items={more} switcher={DSA_FULL} />}
       <AdminLink variant="tab" />
     </nav>
   );
 }
 
-/** "more ▾": the secondary DSA pages in a small menu (closes on a pick, Escape, a click outside or a route change). */
-function MoreTabs({ pathname, items, switcher }: { pathname: string; items: Tab[]; switcher: boolean }) {
-  const { user } = useAuth();
-  const [open, setOpen] = useState(false);
-  const [seen, setSeen] = useState(pathname);
-  if (seen !== pathname) {
-    setSeen(pathname);
-    setOpen(false);
-  }
-  const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!open) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setOpen(false);
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
-  }, [open]);
-  const on = items.some((t) => t.on);
+/** "Ask the tutor" in the header (full mode): the tutor panel (ChatPanel course="dsa") opens beside the page. An icon below xl. */
+export function DsaAsk() {
+  if (!DSA_FULL) return null;
   return (
-    <div ref={ref} className="relative">
-      <button type="button" onClick={() => setOpen((o) => !o)} aria-haspopup="menu" aria-expanded={open} className={`${tabClass(on)} gap-1`}>
-        more
-        <ChevronDown className={`h-3.5 w-3.5 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden />
-      </button>
-      {open && (
-        <div role="menu" aria-label="More of DSA Mastery" className="absolute left-0 top-[calc(100%+8px)] z-50 flex w-56 animate-hk-in flex-col border border-line-strong bg-surface p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
-          {items.map((t) => {
-            const I = t.icon === "sdm" ? null : t.icon;
-            return (
-              <Link
-                key={t.id}
-                href={t.href ?? "#"}
-                role="menuitem"
-                aria-current={t.on ? "page" : undefined}
-                onClick={() => setOpen(false)}
-                className={`flex min-h-11 items-center gap-2.5 px-2.5 font-mono text-[13px] ${t.on ? "bg-surface-2 text-fg" : "text-fg-2 hover:bg-surface-2 hover:text-fg"}`}
-              >
-                {I && <I className="h-4 w-4 text-signal-text" aria-hidden />}
-                {t.label}
-              </Link>
-            );
-          })}
-          {(switcher || user) && (
-            <div className="mt-1 flex flex-col border-t border-line px-2.5 pt-1">
-              {user && (
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    setOpen(false);
-                    openOnboarding();
-                  }}
-                  className="inline-flex min-h-9 items-center font-mono text-[12px] text-fg-3 hover:text-fg"
-                >
-                  Redo the welcome tour
-                </button>
-              )}
-              {switcher && <ShowEverything />}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    <button
+      type="button"
+      onClick={() => openCourseChat()}
+      aria-label="Ask the tutor"
+      title="Ask the tutor"
+      className="inline-flex h-10 shrink-0 items-center justify-center gap-2 border border-line-strong px-2.5 font-mono text-[13px] text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text min-[400px]:px-3"
+    >
+      <Sparkles className="h-4 w-4 shrink-0 text-signal-text" aria-hidden />
+      <span className="hidden sm:inline xl:hidden">Ask</span>
+      <span className="hidden xl:inline">Ask the tutor</span>
+    </button>
   );
 }
 
 /**
- * Phone/tablet bottom dock on DSA pages: DSA's tabs in LearnDock's shape (an icon over a short mono label, "ask" the
- * filled square in the middle, 52 px rows). Fewer tabs than the course dock, so labels keep 10.5 px down to 360 px and
- * 10 px below it; "problems" is the longest and fits a fifth of 320 px.
+ * Phone/tablet bottom dock on DSA pages: the four tabs in LearnDock's shape (an icon over a short mono label, 52 px rows).
+ * Hidden on lesson and problem pages: they carry their own sticky step footer (and the header's Ask replaces the dock's).
  */
 export function DsaDock({ pathname, className }: { pathname: string; className: string }) {
-  const full = useDsaFull();
-  const list = tabs(pathname, full).filter((t) => t.where !== "desk");
+  const list = tabs(pathname).filter((t) => t.where !== "desk");
+  const hide = DSA_FULL && (isDsaReaderPath(pathname) || isDsaProblemRoom(pathname));
   const cols = list.length === 5 ? "grid-cols-5" : "grid-cols-4";
   const item = (on: boolean) =>
     `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap font-mono text-[10.5px] leading-none max-[359px]:text-[10px] max-[359px]:tracking-[-0.03em] ${on ? "text-fg" : "text-fg-3"}`;
+  if (hide) return null;
   return (
     <nav aria-label="DSA Mastery" className={`${className} ${cols} !gap-0 !px-1.5 max-[359px]:!px-1`}>
       {list.map((t) => {

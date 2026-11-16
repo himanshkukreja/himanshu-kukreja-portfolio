@@ -6,11 +6,11 @@ import { buildProblemData } from "@/lib/dsa/problem-rows";
 import ProblemBrowser from "@/components/dsa/problems/ProblemBrowser";
 import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
 
-// /dsa/problems: every built problem, searchable and filterable (src/lib/dsa/problem-filters.ts), grouped by concept in course order, with the learner's solved ticks. Staging only.
+// /dsa/practice (was /dsa/problems; the old URL redirects, src/lib/learn/paths.ts): every built problem, searchable and filterable (src/lib/dsa/problem-filters.ts), grouped by concept in course order, with the learner's solved ticks. Staging only.
 
 export const revalidate = 604800;
 
-export const metadata: Metadata = { title: "Problems · DSA Mastery", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Practice · DSA Mastery", robots: { index: false, follow: false } };
 
 export default async function ProblemsPage() {
   if (!DSA_FULL) notFound();
@@ -25,7 +25,7 @@ export default async function ProblemsPage() {
         <header className="flex flex-col gap-2">
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">The problem bank</span>
           <h1 className="m-0 font-display text-[36px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[48px]">
-            Problems<span className="text-signal-text">.</span>
+            Practice<span className="text-signal-text">.</span>
           </h1>
           <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
             Original problems set in everyday apps, each tied to the concept it practises. Filter by data structure, algorithm, pattern, difficulty and more. Python and JavaScript run in your browser; Java and C++ run on the judge.

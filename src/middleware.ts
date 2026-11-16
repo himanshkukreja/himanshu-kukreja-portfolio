@@ -8,6 +8,7 @@ import { bridgeHtml } from "@/lib/site/bridge";
 import { isProductionDeploy } from "@/lib/platform";
 import { selfFetch } from "@/lib/platform";
 import { DSA_FULL, dsaPathAllowedSoon } from "@/lib/dsa/flags";
+import { dsaRedirect } from "@/lib/dsa/redirects";
 
 /**
  * Two sites, one app (src/lib/site/hosts.ts):
@@ -123,6 +124,18 @@ async function courseHost(req: NextRequest): Promise<NextResponse> {
     if (PROD && devOnly(pathname)) return new NextResponse("Not found", { status: 404, headers: { "x-robots-tag": "noindex" } });
     const clean = cleanPath(pathname);
     if (clean !== pathname) return redirect(new URL(clean + search, req.url).toString(), 308);
+  }
+
+  // DSA Mastery (redesign): before launch (soon) every /dsa/* path but the coming-soon page goes to /dsa first; once it is
+  // on, the old world / node / lectures / daily URLs go to their new homes (src/lib/dsa/redirects.ts), then the path-only
+  // ones below (LEGACY in src/lib/learn/paths.ts)
+  if (pathname === "/dsa" || pathname.startsWith("/dsa/")) {
+    if (!DSA_FULL) {
+      if (!dsaPathAllowedSoon(pathname)) return NextResponse.redirect(new URL("/dsa", req.url), { status: 307, headers: { "x-robots-tag": "noindex", "cache-control": "no-store" } });
+    } else {
+      const to = dsaRedirect(pathname, req.nextUrl.searchParams);
+      if (to) return redirect(new URL(to, req.url).toString(), 308);
+    }
   }
 
   const legacy = legacyTarget(pathname);

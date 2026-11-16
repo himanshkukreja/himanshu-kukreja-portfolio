@@ -383,54 +383,69 @@
    tokens point at these, so every component built on signal / signal-text / link turns teal there.
    --------------------------------------------------------------------------------------------- */
 :root {
-  --c-dsa: #14B8A6;
-  --c-on-dsa: #021A16;
+  --c-dsa: #0F766E;
+  --c-on-dsa: #FFFFFF;
+  --c-dsa-strong: #115E59;
   --c-dsa-text: #0B6E64;
   --c-dsa-hl: rgba(20, 184, 166, 0.22);
 }
 .dark {
   --c-dsa: #2DD4BF;
   --c-on-dsa: #021A16;
+  --c-dsa-strong: #5EEAD4;
   --c-dsa-text: #2DD4BF;
   --c-dsa-hl: rgba(45, 212, 191, 0.24);
 }
+/* The light themes' fills are the deeper teal with white ink (redesign, 16 Nov 2026): the old #14B8A6 family was 2.1 to
+   3.1:1 against the page, under WCAG 1.4.11's 3:1 for thin graphics (the step strip, progress bars, the active tab's
+   underline). The dark themes' fills already pass and stay; every theme gets a --c-dsa-strong for hover and pressed. */
 @media screen {
   html[data-read-mode="sepia"] {
-    --c-dsa: #2A9D8A;
-    --c-on-dsa: #03140F;
+    --c-dsa: #0E6159;
+    --c-on-dsa: #FFFFFF;
+    --c-dsa-strong: #0B514A;
     --c-dsa-text: #1D6359;
     --c-dsa-hl: rgba(42, 157, 138, 0.2);
   }
   html[data-read-mode="paper"] {
-    --c-dsa: #1BA592;
-    --c-on-dsa: #021A16;
+    --c-dsa: #0F6B64;
+    --c-on-dsa: #FFFFFF;
+    --c-dsa-strong: #0C5A54;
     --c-dsa-text: #0F675D;
     --c-dsa-hl: rgba(27, 165, 146, 0.2);
   }
   html[data-read-mode="mint"] {
-    --c-dsa: #1F9C8C;
-    --c-on-dsa: #021A16;
+    --c-dsa: #0E6159;
+    --c-on-dsa: #FFFFFF;
+    --c-dsa-strong: #0B514A;
     --c-dsa-text: #0E5F58;
     --c-dsa-hl: rgba(31, 156, 140, 0.2);
   }
   html[data-read-mode="dusk"] {
     --c-dsa: #4BBFAC;
     --c-on-dsa: #04120F;
+    --c-dsa-strong: #6CCFBE;
     --c-dsa-text: #6CCFBE;
     --c-dsa-hl: rgba(75, 191, 172, 0.24);
   }
   html[data-read-mode="calm"] {
     --c-dsa: #5CC2AF;
     --c-on-dsa: #04120F;
+    --c-dsa-strong: #7DD0C0;
     --c-dsa-text: #86D3C3;
     --c-dsa-hl: rgba(92, 194, 175, 0.26);
   }
   html[data-read-mode="quiet"] {
     --c-dsa: #2DD4BF;
     --c-on-dsa: #021A16;
+    --c-dsa-strong: #5EEAD4;
     --c-dsa-text: #6FD8C7;
     --c-dsa-hl: rgba(45, 212, 191, 0.24);
   }
+}
+:root[data-course="dsa"],
+.dsa-theme {
+  --c-signal-strong: var(--c-dsa-strong);
 }
 /* on every DSA Mastery page <html> carries data-course="dsa" (READING_JS before first paint, then SiteHeader), so
    everything on the page turns teal, portals and overlays included (the chat panel, the Notebook, toasts, the route
