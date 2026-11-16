@@ -25,7 +25,7 @@ function seen(): boolean {
 }
 const noop = () => () => {};
 
-export default function FirstProblemGuide({ fn, editor, examples, run }: { fn: string; editor: GuideTarget; examples: GuideTarget; run: GuideTarget }) {
+export default function FirstProblemGuide({ fn, toolbar, examples, run, avoid, onStep }: { fn: string; toolbar: GuideTarget; examples: GuideTarget; run: GuideTarget; /** the editor: the card never sits over it */ avoid?: GuideTarget; /** the page brings the step's pane into view (phones show one pane at a time) */ onStep?: (step: number) => void }) {
   const done = useSyncExternalStore(noop, seen, () => true);
   const [closed, setClosed] = useState(false);
   const [step, setStep] = useState(0);
@@ -35,15 +35,19 @@ export default function FirstProblemGuide({ fn, editor, examples, run }: { fn: s
   const open = !done && !closed;
 
   const steps = [
-    { title: "This is your function", body: `Write your code inside ${fn}. It receives the inputs from the problem and returns the answer.` },
+    { title: "Pick your language", body: `Choose Python, JavaScript, Java or C++; your code is kept for each. Write inside ${fn}: it receives the inputs from the problem and returns the answer.` },
     { title: "These are the examples", body: "Each example is a small test: this input should give this output. Try the first one by hand before you code." },
     { title: "Run, then Submit", body: "Run checks your code on the examples. Submit also runs hidden tests; when it says Accepted, the problem is solved." },
   ];
   const s = steps[step];
   // the targets are read when placing (the page's elements can be replaced): kept current without re-running effects
-  const targets = useRef<GuideTarget[]>([editor, examples, run]);
+  const targets = useRef<GuideTarget[]>([toolbar, examples, run]);
+  const avoidRef = useRef(avoid);
+  const onStepRef = useRef(onStep);
   useEffect(() => {
-    targets.current = [editor, examples, run];
+    targets.current = [toolbar, examples, run];
+    avoidRef.current = avoid;
+    onStepRef.current = onStep;
   });
 
   const finish = useCallback(
@@ -67,27 +71,41 @@ export default function FirstProblemGuide({ fn, editor, examples, run }: { fn: s
     if (!desk) return setBox({ ring: r, card: null });
     const w = 320;
     const h = card.current?.offsetHeight || 170;
-    let left = Math.min(Math.max(12, r.left), window.innerWidth - w - 12);
-    let top = r.bottom + 12;
-    if (top + h > window.innerHeight - 12) top = r.top - h - 12;
-    if (top < 12) {
-      // no room above or below (a tall target, the editor): inside it, at its bottom right, over the empty lines
-      top = Math.max(12, Math.min(r.bottom, window.innerHeight) - h - 16);
-      left = Math.max(12, Math.min(r.right, window.innerWidth) - w - 16);
-    }
+    const bad = avoidRef.current?.()?.getBoundingClientRect() ?? null;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const hits = (l: number, t: number) => !!bad && l < bad.right && l + w > bad.left && t < bad.bottom && t + h > bad.top;
+    const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, hi));
+    // below, above, left of, then right of the target: the first spot that fits the screen and stays off the editor
+    const spots = [
+      { left: clamp(r.left, 12, vw - w - 12), top: r.bottom + 12 },
+      { left: clamp(r.left, 12, vw - w - 12), top: r.top - h - 12 },
+      { left: r.left - w - 12, top: clamp(r.top, 12, vh - h - 12) },
+      { left: r.right + 12, top: clamp(r.top, 12, vh - h - 12) },
+    ];
+    const fits = (c: { left: number; top: number }) => c.left >= 12 && c.left + w <= vw - 12 && c.top >= 12 && c.top + h <= vh - 12 && !hits(c.left, c.top);
+    const pick = spots.find(fits) ?? spots[0];
+    const left = clamp(pick.left, 12, vw - w - 12);
+    const top = clamp(pick.top, 12, vh - h - 12);
     setBox({ ring: r, card: { left, top } });
   }, [step]);
 
   useEffect(() => {
     if (!open) return;
-    const el = targets.current[step]?.();
-    if (el && window.matchMedia("(min-width: 1024px)").matches) el.scrollIntoView({ block: "nearest", behavior: "instant" as ScrollBehavior });
-    else if (el) {
-      // phones: the target just under the header, so the card at the bottom of the screen doesn't cover it
-      const head = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hk-header-h")) || 61;
-      window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - head - 12), behavior: "instant" as ScrollBehavior });
-    }
-    const raf = requestAnimationFrame(place);
+    onStepRef.current?.(step);
+    // after the page has shown the step's pane (phones show one at a time)
+    const raf = requestAnimationFrame(() =>
+      requestAnimationFrame(() => {
+        const el = targets.current[step]?.();
+        if (el && window.matchMedia("(min-width: 1024px)").matches) el.scrollIntoView({ block: "nearest", behavior: "instant" as ScrollBehavior });
+        else if (el) {
+          // phones: the target just under the header, so the card at the bottom of the screen doesn't cover it
+          const head = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--hk-header-h")) || 61;
+          window.scrollTo({ top: Math.max(0, el.getBoundingClientRect().top + window.scrollY - head - 12), behavior: "instant" as ScrollBehavior });
+        }
+        place();
+      }),
+    );
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && finish("skip");
     window.addEventListener("resize", place);
     window.addEventListener("scroll", place, true);
@@ -120,7 +138,7 @@ export default function FirstProblemGuide({ fn, editor, examples, run }: { fn: s
         role="dialog"
         aria-labelledby="dsa-guide-h"
         aria-describedby="dsa-guide-b"
-        className={`fixed z-[75] flex flex-col gap-2.5 border border-line-strong bg-surface p-4 shadow-[0_14px_40px_rgba(0,0,0,0.22)] ${box?.card ? "w-[320px]" : "bottom-[calc(76px+env(safe-area-inset-bottom))] left-3 right-3"}`}
+        className={`fixed z-[75] flex flex-col gap-2.5 border border-line-strong bg-surface p-4 shadow-lg ${box?.card ? "w-[320px]" : "bottom-[calc(76px+env(safe-area-inset-bottom))] left-3 right-3"}`}
         style={box?.card ? { left: box.card.left, top: box.card.top } : undefined}
       >
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">Your first problem · {step + 1} of 3</span>

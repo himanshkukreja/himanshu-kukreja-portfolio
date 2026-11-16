@@ -62,6 +62,8 @@ type Props = {
   unlocked: boolean;
   /** the last submit was Accepted in this visit: the server re-reads the solve */
   justSolved: boolean;
+  /** inside the problem page's drawer: fills it (no border, no "expand") */
+  embedded?: boolean;
 };
 
 type Live = {
@@ -220,7 +222,7 @@ function RoundRow({ r }: { r: Round }) {
   );
 }
 
-export default function ProblemInterview({ p, lang, code, accepted, unlocked, justSolved }: Props) {
+export default function ProblemInterview({ p, lang, code, accepted, unlocked, justSolved, embedded = false }: Props) {
   const { user } = useAuth();
   const { openAuthModal } = useAuthModal();
   const ai = useAiStatus();
@@ -397,15 +399,17 @@ export default function ProblemInterview({ p, lang, code, accepted, unlocked, ju
 
   return (
     <>
-      {wide && <div aria-hidden className="fixed inset-0 z-[60] bg-black/40" onClick={() => setWide(false)} />}
+      {wide && !embedded && <div aria-hidden className="fixed inset-0 z-[60] bg-black/40" onClick={() => setWide(false)} />}
       <div
         className={
-          wide
+          embedded
+            ? "flex h-full min-h-0 flex-col bg-surface"
+            : wide
             ? "fixed inset-x-0 bottom-0 top-[var(--hk-header-h,61px)] z-[61] flex flex-col border border-line-strong bg-surface shadow-2xl sm:inset-x-[max(16px,calc(50vw-500px))] sm:bottom-4 sm:top-[calc(var(--hk-header-h,61px)+16px)]"
             : "flex h-[min(80dvh,760px)] min-h-[480px] flex-col border border-line-strong bg-surface lg:h-[calc(100dvh-var(--hk-header-h,61px)-150px)] lg:min-h-[560px]"
         }
-        role={wide ? "dialog" : undefined}
-        aria-modal={wide || undefined}
+        role={wide && !embedded ? "dialog" : undefined}
+        aria-modal={(wide && !embedded) || undefined}
         aria-label={wide ? "Interview" : undefined}
         data-dsa-interview
       >
@@ -415,10 +419,14 @@ export default function ProblemInterview({ p, lang, code, accepted, unlocked, ju
             {ai?.preview && <span className="border border-line-strong px-1 text-fg-3">admin preview</span>}
           </span>
           {canChat && <QuotaLine quota={quota} />}
-          <button type="button" onClick={() => setWide((w) => !w)} aria-pressed={wide} className={`${BTN} ml-auto`}>
-            {wide ? <Minimize2 className="h-3.5 w-3.5" aria-hidden /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
-            {wide ? "close" : "expand"}
-          </button>
+          {embedded ? (
+            <span className="ml-auto" />
+          ) : (
+            <button type="button" onClick={() => setWide((w) => !w)} aria-pressed={wide} className={`${BTN} ml-auto`}>
+              {wide ? <Minimize2 className="h-3.5 w-3.5" aria-hidden /> : <Maximize2 className="h-3.5 w-3.5" aria-hidden />}
+              {wide ? "close" : "expand"}
+            </button>
+          )}
           {live?.status === "live" && (
             <button type="button" onClick={() => void finish()} disabled={!!busy} className={BTN}>
               {answered ? "end round" : "cancel round"}

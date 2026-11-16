@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { getProblem } from "@/lib/dsa/load";
+import { getConcept, getConceptIndex, getProblem, lessonHref } from "@/lib/dsa/load";
+import type { ProblemPosition } from "@/components/dsa/problem/ProblemRoom";
 import ProblemRoom from "@/components/dsa/problem/ProblemRoom";
 import { solutionVideoFor } from "@/lib/dsa/media";
 
@@ -32,14 +33,36 @@ export default async function ProblemPage({ params }: Props) {
   // read alongside the problem (one after the other added ~1 s to a cold page on staging, Nov 2026)
   const [p, video] = await Promise.all([getProblem(id), solutionVideoFor(id).catch(() => null)]);
   if (!p) notFound();
+  const position = await positionOf(p.id, p.concept);
   return (
     <div className="dsa-theme">
       {/* desktop: a split screen exactly the window's height under the header. The page doesn't scroll; the statement
           scrolls in its own column and the editor stays put (a sticky editor still slid at the top and bottom) */}
       <main className="lg:flex lg:h-[calc(100dvh-var(--hk-header-h,61px))] lg:flex-col lg:overflow-hidden">
         {/* "Save offline" sits in the room's header, beside the title (it floated over the editor here) */}
-        <ProblemRoom p={p} videoTeaser={video ? { duration: video.duration, poster: video.poster } : null} />
+        <ProblemRoom p={p} videoTeaser={video ? { duration: video.duration, poster: video.poster } : null} position={position} />
       </main>
     </div>
   );
+}
+
+/**
+ * "Practice 2 of 5" and the previous / next problem inside the owning lesson's Practice list (its `practice` front matter),
+ * with the lesson to go back to (its Practice section). null when the problem is not in a lesson's list (the room then
+ * falls back to the problem ladder's prev / next and the concept link).
+ */
+async function positionOf(id: string, concept: string): Promise<ProblemPosition | null> {
+  const [c, index] = await Promise.all([getConcept(concept).catch(() => null), getConceptIndex().catch(() => [])]);
+  if (!c) return null;
+  const at = c.practice.findIndex((x) => x.id === id);
+  if (at < 0) return null;
+  const summary = index.find((x) => x.id === concept);
+  const pick = (x: { id: string; title: string } | undefined) => (x ? { id: x.id, title: x.title } : null);
+  return {
+    lesson: { title: c.title, href: `${summary ? lessonHref(summary) : `/dsa/concepts/${concept}`}#practice` },
+    n: at + 1,
+    m: c.practice.length,
+    prev: pick(c.practice[at - 1]),
+    next: pick(c.practice[at + 1]),
+  };
 }
