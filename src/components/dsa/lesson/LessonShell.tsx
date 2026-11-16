@@ -474,7 +474,7 @@ export default function LessonShell(props: LessonShellProps) {
               type="button"
               onClick={() => openCourseChat()}
               aria-label="Ask the DSA Mastery tutor about this lesson"
-              className="inline-flex min-h-11 items-center gap-2 border border-signal px-3 font-mono text-[13px] font-semibold text-signal-text hover:bg-signal hover:text-on-signal lg:hidden"
+              className="inline-flex min-h-11 items-center gap-2 border border-signal px-3 font-mono text-[13px] font-semibold text-signal-text hover:bg-signal hover:text-on-signal xl:hidden"
             >
               <Sparkles className="h-4 w-4" aria-hidden />
               Ask
@@ -502,10 +502,10 @@ export default function LessonShell(props: LessonShellProps) {
           </div>
         </header>
 
-        <StepBar steps={steps} onPick={(s) => go(s)} className="mt-5 lg:hidden" />
+        <StepBar steps={steps} onPick={(s) => go(s)} className="mt-5 lg:hidden [html.hk-ask-open_&]:block [html.hk-nb-side_&]:block" />
 
-        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)_300px] xl:gap-8">
-          <div className="hidden lg:block" data-focus-hide>
+        <div data-reader-grid className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-[210px_minmax(0,1fr)] xl:grid-cols-[210px_minmax(0,1fr)_300px] xl:gap-8">
+          <div className="hidden lg:block" data-focus-hide data-reader-left>
             <StepRail steps={steps} onPick={(s) => go(s)} className="sticky top-[calc(var(--hk-header-h,64px)+16px)]" />
           </div>
 

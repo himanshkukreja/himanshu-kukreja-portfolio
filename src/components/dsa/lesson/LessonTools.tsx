@@ -40,7 +40,7 @@ function WholeLessonRow() {
 
 function MenuItem({ icon, children, onClick, pressed }: { icon: React.ReactNode; children: React.ReactNode; onClick: () => void; pressed?: boolean }) {
   return (
-    <button type="button" role="menuitem" onClick={onClick} aria-pressed={pressed} className="flex min-h-11 w-full items-center gap-3 px-3 text-left text-[14px] text-fg hover:bg-surface-2">
+    <button type="button" role={pressed === undefined ? "menuitem" : "menuitemcheckbox"} aria-checked={pressed} onClick={onClick} className="flex min-h-11 w-full items-center gap-3 px-3 text-left text-[14px] text-fg hover:bg-surface-2">
       <span aria-hidden className="grid w-5 shrink-0 place-items-center text-fg-2">
         {icon}
       </span>

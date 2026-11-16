@@ -21,7 +21,7 @@ export default function StepFooter({ step, onNext, nextLesson, backHref }: { ste
         ? `Keep reading: about ${Math.ceil(p.completeLeftMin)} min of reading left before this can be marked as learnt`
         : "Read the parts of the lesson first";
   return (
-    <div data-focus-hide data-reader-ui className="hk-safe-x fixed inset-x-0 z-40 border-t border-line-strong bg-bg" style={{ bottom: "var(--site-dock, 0px)" }}>
+    <div data-focus-hide data-reader-ui data-ask-shift className="hk-safe-x fixed inset-x-0 z-40 border-t border-line-strong bg-bg" style={{ bottom: "var(--site-dock, 0px)" }}>
       <div className="mx-auto flex max-w-[1320px] flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] pt-1.5 sm:flex-nowrap sm:gap-3 sm:px-6 sm:py-2">
         <span className="min-w-0 basis-full truncate font-mono text-[11px] uppercase tracking-label text-fg-3 sm:basis-auto sm:text-[12px]" aria-live="polite">
           Step {n} of {STEP_ORDER.length} · {STEP_TITLE[step]}

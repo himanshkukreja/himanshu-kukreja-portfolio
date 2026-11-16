@@ -77,7 +77,7 @@ export default function LessonAside({
   };
 
   return (
-    <aside aria-label="About this lesson" data-focus-hide className={`min-w-0 flex-col gap-4 ${className}`}>
+    <aside aria-label="About this lesson" data-focus-hide data-reader-right className={`min-w-0 flex-col gap-4 ${className}`}>
       {canAsk ? (
         <form onSubmit={ask} className={box}>
           <label htmlFor="dsa-ask-lesson" className={label}>
