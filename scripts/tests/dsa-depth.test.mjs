@@ -65,8 +65,8 @@ test("checkpoints: own, shared section (lesson stop stands in), and none", () =>
   assert.equal(shared.problems.length, 0);
   assert.equal(checkpointFor("academy", s1, "s1-linked-lists", "not-on-the-map"), null);
   assert.equal(checkpointFor("academy", undefined, "x", "y"), null);
-  assert.equal(mapHref(shared), "/dsa?node=s1.list-reversal");
-  assert.equal(mapHref(null), "/dsa", "never an empty ?node=");
+  assert.equal(mapHref(shared), "/dsa#s1.list-reversal");
+  assert.equal(mapHref(null), "/dsa", "never an empty anchor");
 });
 
 test("warm-ups intro: per lesson, never repeated across a module", () => {

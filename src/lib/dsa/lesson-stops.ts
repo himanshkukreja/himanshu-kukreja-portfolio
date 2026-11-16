@@ -30,8 +30,11 @@ export function checkpointFor(world: string, region: WorldRegion | undefined, mo
   return null;
 }
 
-/** Where "Back to the map" goes: the lesson's checkpoint or lesson stop, else the map itself. */
-export const mapHref = (cp: Pick<ConceptCheckpoint, "nodeId"> | null): string => (cp?.nodeId ? `/dsa?node=${encodeURIComponent(cp.nodeId)}` : "/dsa");
+/**
+ * Where "Back to the course" goes: the lesson's checkpoint or lesson stop on the course outline (the course home is
+ * /dsa since the redesign; the stop is an anchor there), else the course home itself.
+ */
+export const mapHref = (cp: Pick<ConceptCheckpoint, "nodeId"> | null): string => (cp?.nodeId ? `/dsa#${encodeURIComponent(cp.nodeId)}` : "/dsa");
 
 /** The first lessons' texts, by lesson id (the structure type alone repeats for a module's second lesson). */
 const FIRST: Record<string, string> = {

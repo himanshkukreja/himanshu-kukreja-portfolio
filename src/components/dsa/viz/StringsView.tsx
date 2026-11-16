@@ -16,7 +16,7 @@ const PAL: StringsPalette = {
   onSig: "var(--c-on-signal)",
   pillBg: "var(--c-fg)",
   pillInk: "var(--c-bg)",
-  bad: "var(--c-bad-text, #b3261e)",
+  bad: "var(--c-bad-text)",
   badInk: "var(--c-bg)",
 };
 

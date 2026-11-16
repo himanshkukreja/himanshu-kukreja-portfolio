@@ -6,6 +6,7 @@ import { getStructure } from "@/lib/dsa/structures";
 import { lectureCard } from "@/lib/learn/lecture/load";
 import StructureReader from "@/components/dsa/structure/StructureReader";
 import { gateArticle } from "@/lib/gate/server";
+import { getLessonExtras } from "@/lib/dsa/lesson-extras";
 import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
 
 // A structure lesson (/dsa/structures/<id>), Academy Part 2 "Core data structures": the visual explainer with its
@@ -38,11 +39,12 @@ export default async function StructurePage({ params }: Props) {
   const card = lectureCard(lecture);
   // signed out: the first part, then the sign-in card (src/lib/gate); the whole lesson stays in the HTML
   const gate = gateArticle(s.html);
+  const extras = await getLessonExtras(s.id, s.module);
   return (
     <div className="dsa-theme">
       <main className="pb-16">
         <JsonLd data={signInGated(plainArticle({ title: s.title, description: s.summary, path: `/dsa/structures/${s.id}` }), gate.gated)} />
-        <StructureReader page={{ ...s, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(s.id) } : null} />
+        <StructureReader page={{ ...s, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(s.id) } : null} extras={extras} />
       </main>
     </div>
   );
