@@ -777,7 +777,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           <div className="flex max-w-[520px] flex-col items-center gap-2 sm:gap-3">
             <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">free for now · just sign in</span>
             <span className="font-display text-[clamp(18px,3vw,32px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">Sign in to keep watching</span>
-            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">The whole course is free right now. Sign in to watch the rest, keep your place, earn {dsaVideo ? "Bits" : "XP"} on the checkpoints and ask the AI tutor about any moment.</span>
+            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">The whole course is free right now. Sign in to watch the rest, earn {dsaVideo ? "Bits" : "XP"} and ask the AI tutor about any moment.</span>
             <div className="flex flex-wrap justify-center gap-2">
               <button type="button" onClick={() => askSignIn("video")} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
                 sign in free

@@ -1329,5 +1329,7 @@ html.hk-guest .hk-gate-peek {
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
 }
+/* a whole stage as the peek: room for its heading and the first lines under it */
+html.hk-guest section.hk-gate-peek { max-height: 15rem; }
 /* one prompt at a time: the gate's card replaces the "save your run" banner */
 html.hk-guest body:has(.hk-gate-card) [data-auth-prompt] { display: none; }

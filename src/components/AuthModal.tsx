@@ -198,7 +198,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
                   </div>
                   <div className="flex items-start gap-2 text-fg-2 text-sm mt-2">
                     <span className="text-signal-text">✓</span>
-                    <p>100% free, no credit card required</p>
+                    <p>Every lesson, lecture and lab in full, free for now</p>
                   </div>
                 </div>
 
