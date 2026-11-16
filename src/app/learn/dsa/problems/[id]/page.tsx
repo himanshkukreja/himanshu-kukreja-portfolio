@@ -4,6 +4,7 @@ import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConcept, getConceptIndex, getProblem, lessonHref } from "@/lib/dsa/load";
 import type { ProblemPosition } from "@/components/dsa/problem/ProblemRoom";
 import ProblemRoom from "@/components/dsa/problem/ProblemRoom";
+import { getStructure } from "@/lib/dsa/structures";
 import { solutionVideoFor } from "@/lib/dsa/media";
 
 // A DSA Mastery problem (/dsa/problems/<id>): the statement and hints from the content repo, cached (ISR, refreshed on
@@ -52,7 +53,11 @@ export default async function ProblemPage({ params }: Props) {
  * shows plain "Practice" with the problem ladder's prev / next); null when the lesson itself is missing.
  */
 async function positionOf(id: string, concept: string): Promise<ProblemPosition | null> {
-  const [c, index] = await Promise.all([getConcept(concept).catch(() => null), getConceptIndex().catch(() => [])]);
+  // Part 1 and 4 lessons are concepts; Part 2 structures and Part 3 algorithms have their own loader (same title / practice list)
+  const [c, index] = await Promise.all([
+    (async (): Promise<{ title: string; practice: { id: string; title: string }[] } | null> => (await getConcept(concept).catch(() => null)) ?? (await getStructure(concept).catch(() => null)))(),
+    getConceptIndex().catch(() => []),
+  ]);
   if (!c) return null;
   const at = c.practice.findIndex((x) => x.id === id);
   const summary = index.find((x) => x.id === concept);
