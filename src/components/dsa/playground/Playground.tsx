@@ -452,12 +452,12 @@ export default function Playground({ filesEnabled }: { filesEnabled: boolean }) 
             <div className={`${CARD} flex min-h-0 flex-1 flex-col gap-2 overflow-auto p-3`}>
               <ProgramOutput
                 state={out}
-                className="min-h-0 flex-1"
+                className={compare && outB.kind !== "idle" ? "shrink-0" : "min-h-0 flex-1"}
                 maxHeight="max-h-[40vh] lg:max-h-none"
                 empty={locked ? "Sign in (free) to run your code: Python and JavaScript run in your browser, Java and C++ on our server." : "Run the code to see its output: stdout, stderr, exit code, time and memory."}
               />
               {compare && outB.kind !== "idle" ? (
-                <div className="border-t border-line pt-2">
+                <div className="shrink-0 border-t border-line pt-2">
                   {outB.kind === "done" ? (
                     <div className="flex flex-col gap-1">
                       {outB.result.stdout || outB.result.stderr ? (
@@ -479,7 +479,7 @@ export default function Playground({ filesEnabled }: { filesEnabled: boolean }) 
                   ) : null}
                 </div>
               ) : null}
-              <div className="mt-auto flex flex-wrap gap-2 pt-1">
+              <div className="mt-auto flex shrink-0 flex-wrap gap-2 pt-1">
                 <button type="button" onClick={ask} className={`${QUIET} h-8 rounded-lg text-[12.5px]`}>
                   <Sparkles className="h-3.5 w-3.5 text-signal-text" aria-hidden />
                   Ask the tutor about this code
