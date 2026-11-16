@@ -17,7 +17,7 @@ export default function DsaNotFound() {
         <Link href="/dsa" className="inline-flex min-h-11 items-center bg-signal px-4 text-[15px] font-semibold text-on-signal">
           Back to the world map
         </Link>
-        <Link href="/dsa/problems" className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">
+        <Link href="/dsa/practice" className="inline-flex min-h-11 items-center border border-line-strong px-4 text-[15px] text-fg">
           All problems
         </Link>
       </div>

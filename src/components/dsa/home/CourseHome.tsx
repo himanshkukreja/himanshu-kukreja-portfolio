@@ -178,7 +178,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             <>
               <TodayCard />
               {next ? <TutorCard next={next} problems={practice} /> : null}
-              <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" />
+              <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact />
               <QuickReview ids={quick} />
             </>
           ) : null}

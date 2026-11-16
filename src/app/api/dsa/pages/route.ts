@@ -10,7 +10,7 @@ import { getConceptIndex, getProblemIndex, lessonHref, problemHref } from "@/lib
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const HUBS = ["/dsa", "/dsa/problems", "/dsa/lectures", "/dsa/cheatsheets", "/dsa/shorts", "/dsa/ask", "/dsa/complexity", "/dsa/progress", "/dsa/revise", "/dsa/stats", "/dsa/certificate"];
+const HUBS = ["/dsa", "/dsa/practice", "/dsa/review", "/dsa/cheatsheets", "/dsa/shorts", "/dsa/ask", "/dsa/complexity", "/dsa/progress", "/dsa/certificate"];
 
 export async function GET() {
   if (!DSA_FULL) return NextResponse.json({ error: "Not found" }, { status: 404 });

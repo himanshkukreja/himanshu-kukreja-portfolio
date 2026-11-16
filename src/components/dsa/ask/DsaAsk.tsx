@@ -447,7 +447,7 @@ export default function DsaAsk({ concepts, problems }: { concepts: Concept[]; pr
             </li>
           ))}
         </ul>
-        <Link href="/dsa/problems" className="mt-1 font-mono text-[12px] text-signal-text underline decoration-line-strong underline-offset-4">
+        <Link href="/dsa/practice" className="mt-1 font-mono text-[12px] text-signal-text underline decoration-line-strong underline-offset-4">
           all problems →
         </Link>
       </section>

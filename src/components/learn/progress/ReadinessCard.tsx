@@ -41,7 +41,7 @@ function ReadingText({ r }: { r: Reading }) {
   );
 }
 
-export default function ReadinessCard({ tracks, id = "readiness" }: { tracks: Track[]; id?: string }) {
+export default function ReadinessCard({ tracks, id = "readiness", compact = false }: { tracks: Track[]; id?: string; /** one column (a narrow side column: the DSA home) */ compact?: boolean }) {
   const { user, loading } = useAuth();
   const ai = useAiStatus();
   const [data, setData] = useState<Data | null>(null);
@@ -116,7 +116,7 @@ export default function ReadinessCard({ tracks, id = "readiness" }: { tracks: Tr
       {!data ? (
         <div aria-busy="true" className="h-[140px] animate-pulse bg-bg" />
       ) : !r ? null : (
-        <div role={shown.length > 1 ? "tabpanel" : undefined} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-8">
+        <div role={shown.length > 1 ? "tabpanel" : undefined} className={`grid gap-5 ${compact ? "" : "lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:gap-8"}`}>
           <div className="flex min-w-0 flex-col gap-3">
             {shown.length === 1 && <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">{TRACK_LABEL[r.track]}</span>}
             <p className="m-0 font-display text-[clamp(26px,4vw,34px)] font-extrabold leading-[1.05] tracking-[-0.03em] text-fg">{r.bandLabel}</p>
