@@ -39,6 +39,8 @@ import styles from "@/components/learn/lesson/reader.module.css";
 import { BEAT_6S } from "@/lib/dsa/words";
 import Jargon from "../glossary/Jargon";
 import OneStage from "./OneStage";
+import SignInGate from "@/components/gate/SignInGate";
+import { PEEK_CLASS } from "@/lib/gate/split";
 import { ShowEverything, useDsaFull } from "../simple/view";
 
 type LectureCardInfo = { href: string; minutes: number; checkpoints: number; chapters: number } | null;
@@ -248,6 +250,8 @@ function Body({ c, lecture }: { c: ConceptPage; lecture: LectureCardInfo }) {
           <div data-dsa-one={full ? undefined : ""}>
             <LessonContentWrapper ref={contentRef} htmlContent={c.html} courseId={DSA_COURSE_ID} week={c.module} lessonSlug={c.id} lessonTitle={c.title} />
           </div>
+          {/* signed out: the gated text fades into the sign-in card (src/lib/gate); the simple view shows it at its step */}
+          {full && c.html.includes(PEEK_CLASS) && <SignInGate kind="dsa-concept" className="mt-6" />}
           <DsaHydrator rootRef={contentRef} concept={c} />
           <Jargon rootRef={contentRef} />
           {full ? <End c={c} /> : <OneStage rootRef={contentRef} stages={c.stages} end={<End c={c} />} />}

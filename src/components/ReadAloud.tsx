@@ -20,6 +20,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Volume2, Pause, Play, Settings2, X, Minimize2, Square, SkipBack, SkipForward } from "lucide-react";
 import { extractBlocks, listenSource, type ListenBlock } from "@/lib/listen/extract";
 import { listenMediaBase, type ListenManifest } from "@/lib/listen/manifest";
+import { useSignInGate } from "@/components/gate/SignInGate";
 
 export type ReadAloudStatus = "unsupported" | "idle" | "playing" | "paused";
 
@@ -344,9 +345,11 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>, { 
     [finish, highlight, speakFrom]
   );
 
+  // the sign-in gate (src/lib/gate): Listen is for signed-in readers; a guest's tap opens the (free) sign-in
+  const { blocked } = useSignInGate("listen");
   const start = useCallback(() => {
     const root = contentRef.current;
-    if (!root) return;
+    if (!root || blocked("listen")) return;
     cleanupHighlights(root);
     highlightRef.current = null;
     const blocks = extractBlocks(root);
@@ -361,7 +364,7 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>, { 
     // the recording plays only if it was made from exactly this text
     if (m && listenSource(blocks) === m.source && playFrom(from)) return;
     speakFrom(from);
-  }, [contentRef, playFrom, speakFrom]);
+  }, [contentRef, playFrom, speakFrom, blocked]);
 
   const pause = useCallback(() => {
     if (modeRef.current === "natural") {
@@ -513,11 +516,12 @@ export function useReadAloud(contentRef: React.RefObject<HTMLElement | null>, { 
   }, [contentRef]);
 
   const toggle = useCallback(() => {
+    if (!playing && blocked("listen")) return;
     if (!playing) window.dispatchEvent(new CustomEvent("hk:narrate", { detail: 0 }));
     if (!playing) start();
     else if (paused) resume();
     else pause();
-  }, [playing, paused, start, resume, pause]);
+  }, [playing, paused, start, resume, pause, blocked]);
 
   const supported = speechOk || !!manifest;
   const status: ReadAloudStatus = !supported ? "unsupported" : playing ? (paused ? "paused" : "playing") : "idle";

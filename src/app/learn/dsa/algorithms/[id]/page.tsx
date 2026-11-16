@@ -5,6 +5,8 @@ import { conceptLectureHref, getConceptLecture } from "@/lib/dsa/load";
 import { getStructure } from "@/lib/dsa/structures";
 import { lectureCard } from "@/lib/learn/lecture/load";
 import StructureReader from "@/components/dsa/structure/StructureReader";
+import { gateArticle } from "@/lib/gate/server";
+import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
 
 // An algorithm lesson (/dsa/algorithms/<id>), Academy Part 3 "Algorithms": the explainer with step-through demos and
 // the visualizer (the learner's own grid, stepped forward and back with predict questions), why it works with code in
@@ -33,10 +35,13 @@ export default async function AlgorithmPage({ params }: Props) {
   const [s, lecture] = await Promise.all([getStructure(id), getConceptLecture(id).catch(() => null)]);
   if (!s || s.kind !== "algorithm") notFound();
   const card = lectureCard(lecture);
+  // signed out: the first part, then the sign-in card (src/lib/gate); the whole lesson stays in the HTML
+  const gate = gateArticle(s.html);
   return (
     <div className="dsa-theme">
       <main className="pb-16">
-        <StructureReader page={s} lecture={card ? { ...card, href: conceptLectureHref(s.id) } : null} />
+        <JsonLd data={signInGated(plainArticle({ title: s.title, description: s.summary, path: `/dsa/algorithms/${s.id}` }), gate.gated)} />
+        <StructureReader page={{ ...s, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(s.id) } : null} />
       </main>
     </div>
   );

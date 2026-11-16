@@ -15,6 +15,8 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { LessonProgressProvider, useLessonProgress } from "@/components/LessonProgressTracker";
 import { useDsaLessonAward } from "@/components/dsa/rewards/useDsaBits";
 import LessonContentWrapper from "@/components/LessonContentWrapper";
+import SignInGate from "@/components/gate/SignInGate";
+import { PEEK_CLASS } from "@/lib/gate/split";
 import FocusMode from "@/components/FocusMode";
 import TableOfContents from "@/components/TableOfContents";
 import { useReadAloud } from "@/components/ReadAloud";
@@ -188,6 +190,8 @@ function Body({ s, lecture }: { s: StructurePage; lecture: LectureCardInfo }) {
         <FocusMode focus={focus} onFocusChange={setFocus} leftOnMobile={false} sidebarLeft={<Rail s={s} />} sidebarRight={<TableOfContents toc={s.toc} stages={s.stages} />}>
           {lecture && <LectureEntry lecture={lecture} what="The whole lesson" />}
           <LessonContentWrapper ref={contentRef} htmlContent={s.html} courseId={DSA_COURSE_ID} week={s.module} lessonSlug={s.id} lessonTitle={s.title} />
+          {/* signed out: the gated text fades into the sign-in card (src/lib/gate) */}
+          {s.html.includes(PEEK_CLASS) && <SignInGate kind={s.kind === "algorithm" ? "dsa-algorithm" : "dsa-structure"} className="mt-6" />}
           <StructureHydrator rootRef={contentRef} page={s} />
           <End s={s} />
           <ConnectedPanel page={`dsa-concept:${s.id}`} className="mt-6" />

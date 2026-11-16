@@ -4,6 +4,7 @@
  * /notebook/page/<id>: one notebook page, full screen (over the site header and the You tabs), so the page
  * gets the whole iPad. Signed-out visitors get a sign-in prompt instead.
  */
+import { GATE_ON } from "@/lib/gate/flag";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -93,7 +94,7 @@ export default function FullPageEditor({ pageId }: { pageId: string }) {
             </button>
           </div>
           <Link href="/" className="text-sm text-fg-3 underline">
-            Reading never needs an account
+            {GATE_ON ? "Back to the course" : "Reading never needs an account"}
           </Link>
         </div>
       ) : (

@@ -58,6 +58,7 @@ import { celebrate } from "@/lib/dsa/celebrate";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import type { SolutionVideoData } from "@/lib/dsa/media";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
+import { GateNotice, useSignInGate } from "@/components/gate/SignInGate";
 
 const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div className="grid h-full place-items-center font-mono text-[12px] text-fg-3">Loading the editor…</div> });
 const CourseEnhancer = dynamic(loadCourseEnhancer, { ssr: false });
@@ -237,6 +238,9 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
   const starter = useMemo(() => Object.fromEntries(DSA_LANGS.map((l) => [l, starterCode(l, p.signature)])) as Record<DsaLang, string>, [p.signature]);
   const initialFor = useCallback((l: DsaLang) => (typeof window === "undefined" ? starter[l] : store.get(codeKey(l)) ?? starter[l]), [starter]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // the sign-in gate (src/lib/gate): signed out, the statement and examples stay open; Run, Submit, the hints, the
+  // editorial and the solution video ask for a (free) sign-in
+  const gate = useSignInGate("dsa-problem");
   const [tab, setTab] = useState<Tab>("description");
   const [hints, setHints] = useState(0);
   const [editorial, setEditorial] = useState<{ state: "locked" | "loading" | "ready" | "error"; html: string; video?: SolutionVideoData | null }>({ state: "locked", html: "" });
@@ -355,7 +359,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
   };
 
   const go = async (mode: "run" | "submit") => {
-    if (busy) return;
+    if (busy || gate.blocked(mode)) return;
     const code = editor.current?.getValue() ?? initialFor(lang);
     store.set(codeKey(lang), code);
     setBusy(mode);
@@ -527,7 +531,7 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
               >
                 <PlayCircle className="h-4 w-4 text-signal-text" aria-hidden />
                 Solution video · {mmss(videoTeaser.duration)}
-                {!unlocked && <Lock className="h-3.5 w-3.5 text-fg-3" aria-label="opens with the editorial" />}
+                {(!unlocked || gate.locked) && <Lock className="h-3.5 w-3.5 text-fg-3" aria-label={gate.locked ? "opens when you sign in" : "opens with the editorial"} />}
               </button>
             )}
             {/* save for offline: the statement, visible tests and hints, with the Python runtime so Run works offline */}
@@ -572,7 +576,8 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
           </div>
         )}
 
-        {tab === "hints" && (
+        {tab === "hints" && gate.locked && <GateNotice kind="dsa-problem" feature="hints" title="Sign in to open the hints" />}
+        {tab === "hints" && !gate.locked && (
           <div className="flex flex-col gap-3">
             <p className="m-0 text-[14px] text-fg-2">Five hints, from restating the task to a skeleton with blanks. Open one at a time and try again after each.</p>
             {p.hints.slice(0, hints).map((h, i) => (
@@ -626,7 +631,10 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
           onConfirm={revealEditorial}
           onCancel={() => setAskReveal(false)}
         />
-        {tab === "editorial" && (
+        {tab === "editorial" && gate.locked && (
+          <GateNotice kind="dsa-problem" feature="editorial" title={videoTeaser ? `Sign in for the editorial and the ${mmss(videoTeaser.duration)} solution video` : "Sign in for the editorial and the solutions"} />
+        )}
+        {tab === "editorial" && !gate.locked && (
           <div className="flex flex-col gap-3">
             {!unlocked ? (
               <div className="flex flex-col gap-3 border border-line bg-surface p-5">
@@ -782,14 +790,27 @@ export default function ProblemRoom({ p, videoTeaser = null }: { p: ProblemPage;
           <CodeEditor key={`${p.id}`} handle={editor} initial={initialFor(lang)} fontSize={14} label={`${DSA_LANG_LABEL[lang]} solution`} language={lang} onRun={() => void go("run")} onFocus={() => BROWSER_LANGS.has(lang) && void getRunner(lang === "python" ? "py" : "js").warm()} />
         </div>
         <div ref={runRow} className="flex shrink-0 flex-wrap items-center gap-2">
-          <button type="button" onClick={() => void go("run")} disabled={!!busy} className="min-h-11 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text disabled:opacity-50">
+          <button type="button" onClick={() => void go("run")} disabled={!!busy} className="inline-flex min-h-11 items-center gap-2 border-2 border-signal px-5 text-[15px] font-semibold text-signal-text disabled:opacity-50">
+            {gate.locked && <Lock className="h-3.5 w-3.5" aria-hidden />}
             {busy === "run" ? "Running…" : "Run"}
           </button>
-          <button type="button" onClick={() => void go("submit")} disabled={!!busy} className="min-h-11 bg-signal px-5 text-[15px] font-semibold text-on-signal disabled:opacity-50">
+          <button type="button" onClick={() => void go("submit")} disabled={!!busy} className="inline-flex min-h-11 items-center gap-2 bg-signal px-5 text-[15px] font-semibold text-on-signal disabled:opacity-50">
+            {gate.locked && <Lock className="h-3.5 w-3.5" aria-hidden />}
             {busy === "submit" ? "Submitting…" : "Submit"}
           </button>
           <span className="font-mono text-[11px] text-fg-3">
-            {full ? `Run: ${p.visible.length} visible tests · Submit: + ${p.hiddenCount} hidden · ⌘/Ctrl + Enter runs` : "Run tries the examples · Submit checks every test"}
+            {gate.locked ? (
+              <>
+                <button type="button" onClick={() => gate.ask("run")} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+                  Sign in
+                </button>{" "}
+                (free for now) to run and submit your code
+              </>
+            ) : full ? (
+              `Run: ${p.visible.length} visible tests · Submit: + ${p.hiddenCount} hidden · ⌘/Ctrl + Enter runs`
+            ) : (
+              "Run tries the examples · Submit checks every test"
+            )}
           </span>
         </div>
         {(loadMsg || notice || outcome || stdout) && (

@@ -6,6 +6,7 @@
  * the guide changes when the product does. Screenshots: `npm run guide:shots`. Videos:
  * src/lib/learn/guide/videos.ts (behind NEXT_PUBLIC_GUIDE_VIDEOS=1 and published.json).
  */
+import { GATE_ON } from "@/lib/gate/flag";
 import Link from "next/link";
 import type { CourseMap } from "@/lib/learn/types";
 import { Marker } from "./Shot";
@@ -62,7 +63,7 @@ export default function Guide({ map, caseActivities = CASE_ACTIVITIES, lectures 
             <p className="m-0 max-w-[62ch] text-[17px] leading-relaxed text-fg-2 sm:text-[18px]">
               A free course{s ? ` of ${s.worlds} worlds, ${s.coreLessons} core lessons, ${s.bosses} interview bosses and ${s.sideQuests} side quests` : ""} where you learn system design by doing: read it, build it, draw it,
               get judged, get interviewed. It&apos;s for engineers preparing for a system design interview, developers who want to design real systems, students who have never designed one and anyone moving into backend or a
-              senior role. Reading never needs an account. Below, every feature {videos ? "has a short video" : "comes with screenshots"} and the steps to use it.
+              senior role. {GATE_ON ? "Every lesson opens without an account; signing in (free) reads it in full." : "Reading never needs an account."} Below, every feature {videos ? "has a short video" : "comes with screenshots"} and the steps to use it.
             </p>
             <div className="flex flex-wrap items-center gap-3">
               <Link href={COURSE} className="inline-flex min-h-12 items-center bg-signal px-6 text-[15px] font-semibold text-on-signal hover:brightness-110">

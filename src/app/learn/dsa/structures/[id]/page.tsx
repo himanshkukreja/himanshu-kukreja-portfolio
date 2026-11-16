@@ -5,6 +5,8 @@ import { conceptLectureHref, getConceptLecture } from "@/lib/dsa/load";
 import { getStructure } from "@/lib/dsa/structures";
 import { lectureCard } from "@/lib/learn/lecture/load";
 import StructureReader from "@/components/dsa/structure/StructureReader";
+import { gateArticle } from "@/lib/gate/server";
+import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
 
 // A structure lesson (/dsa/structures/<id>), Academy Part 2 "Core data structures": the visual explainer with its
 // memory picture, step-by-step demos and the sandbox, the build-it-yourself lab, the checkpoint quiz and the warm-up
@@ -34,10 +36,13 @@ export default async function StructurePage({ params }: Props) {
   if (!s) notFound();
   if (s.kind === "algorithm") permanentRedirect(`/dsa/algorithms/${s.id}`);
   const card = lectureCard(lecture);
+  // signed out: the first part, then the sign-in card (src/lib/gate); the whole lesson stays in the HTML
+  const gate = gateArticle(s.html);
   return (
     <div className="dsa-theme">
       <main className="pb-16">
-        <StructureReader page={s} lecture={card ? { ...card, href: conceptLectureHref(s.id) } : null} />
+        <JsonLd data={signInGated(plainArticle({ title: s.title, description: s.summary, path: `/dsa/structures/${s.id}` }), gate.gated)} />
+        <StructureReader page={{ ...s, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(s.id) } : null} />
       </main>
     </div>
   );

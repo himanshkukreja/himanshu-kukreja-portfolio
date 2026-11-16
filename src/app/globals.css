@@ -1313,3 +1313,21 @@ html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
   .hk-chat-in, .hk-step-in { animation: none; }
   .hk-step-out { display: none; }
 }
+
+/* Sign-in gate (src/lib/gate): a guest (html.hk-guest, set before paint) reads up to the cut; the first gated block
+   fades out under a fixed height and the rest isn't shown; the card follows. Members never match these rules.
+   The full text stays in the HTML (a soft gate, marked for search engines with isAccessibleForFree: false). */
+.hk-gate-card { display: none; }
+html.hk-guest .hk-gate-card { display: block; margin-top: 0.5rem; margin-bottom: 2rem; }
+html.hk-guest .hk-gated:not(.hk-gate-peek) { display: none !important; }
+html.hk-guest .hk-gate-peek {
+  max-height: 9rem;
+  overflow: hidden;
+  margin-bottom: 0 !important;
+  pointer-events: none;
+  user-select: none;
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.35) 55%, transparent 100%);
+}
+/* one prompt at a time: the gate's card replaces the "save your run" banner */
+html.hk-guest body:has(.hk-gate-card) [data-auth-prompt] { display: none; }

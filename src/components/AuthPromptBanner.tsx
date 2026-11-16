@@ -1,9 +1,12 @@
 "use client";
 
 /**
- * Guest prompt: "Save your run". Reading stays free and open; signing in only keeps progress.
- * Opens the global sign-in dialog. Hidden for signed-in visitors and after dismissal (per tab).
+ * Guest prompt: "Save your run". Everything is free; signing in keeps progress (and, with the sign-in gate on, reads
+ * every page in full: src/lib/gate).
+ * Opens the global sign-in dialog. Hidden for signed-in visitors and after dismissal (per tab), and on a page with the
+ * sign-in gate's card (globals.css "Sign-in gate"), so a guest never gets two prompts.
  */
+import { GATE_ON } from "@/lib/gate/flag";
 import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useAuthModal } from "@/contexts/AuthModalContext";
@@ -20,7 +23,9 @@ type AuthPromptBannerProps = {
 const COPY: Record<NonNullable<AuthPromptBannerProps["variant"]>, { title: string; body: string }> = {
   "learn-page": {
     title: "Keep what you earn",
-    body: "Reading stays free and open. Your progress lives in this browser until you sign in; then it follows you to every device.",
+    body: GATE_ON
+      ? "The whole course is free for now. Sign in to read every lesson in full; your progress then follows you to every device."
+      : "Reading stays free and open. Your progress lives in this browser until you sign in; then it follows you to every device.",
   },
   "lesson-page": {
     title: "Save this lesson's progress",
@@ -54,7 +59,7 @@ export default function AuthPromptBanner({ variant = "learn-page", persistent = 
   const { title, body } = COPY[variant];
 
   return (
-    <section aria-label="Sign in to save progress" className={`relative flex flex-col gap-5 border border-line bg-raised p-5 sm:p-6 ${row ? "lg:flex-row lg:items-center lg:gap-8" : ""}`}>
+    <section aria-label="Sign in to save progress" data-auth-prompt="" className={`relative flex flex-col gap-5 border border-line bg-raised p-5 sm:p-6 ${row ? "lg:flex-row lg:items-center lg:gap-8" : ""}`}>
       {!persistent && (
         <button
           type="button"

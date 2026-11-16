@@ -27,6 +27,8 @@ import { track } from "@/lib/track";
 import type { GuideVideo } from "@/lib/learn/guide/videos";
 import ChapterSegments from "@/components/learn/video/ChapterSegments";
 import { useIdle } from "@/components/learn/video/useIdle";
+import { useSignInGate } from "@/components/gate/SignInGate";
+import { gateCourse } from "@/lib/gate/flag";
 
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
 
@@ -45,6 +47,7 @@ export default function GuidePlayer({
   elRef,
   autoFocus = false,
   className = "",
+  freeSeconds,
 }: {
   video: GuideVideo;
   /** where it was opened (analytics): guide, welcome, feature:<page>, link */
@@ -58,12 +61,23 @@ export default function GuidePlayer({
   autoFocus?: boolean;
   /** on the <video> (e.g. a max height); not applied in full screen */
   className?: string;
+  /** a lecture (not a product demo): signed out, it plays this far, then asks for a (free) sign-in (src/lib/gate) */
+  freeSeconds?: number;
 }) {
   const v = useRef<HTMLVideoElement | null>(null);
   const shell = useRef<HTMLDivElement>(null);
   const bar = useRef<HTMLDivElement>(null);
   const trackEl = useRef<HTMLTrackElement>(null);
   const sent = useRef({ play: false, done: false });
+  const { locked, ask } = useSignInGate("lecture");
+  const limit = freeSeconds && locked ? freeSeconds : null;
+  const [wall, setWall] = useState(false);
+  const hitWall = (el: HTMLVideoElement) => {
+    el.pause();
+    if (el.currentTime > limit!) el.currentTime = limit!;
+    if (!wall) track("gate_shown", { course: gateCourse(window.location.pathname), page: "lecture", feature: "video" });
+    setWall(true);
+  };
 
   const [playing, setPlaying] = useState(false);
   const [ended, setEnded] = useState(false);
@@ -384,6 +398,10 @@ export default function GuidePlayer({
         }}
         onPlay={(e) => {
           const el = e.currentTarget;
+          if (limit && el.currentTime >= limit - 0.25) {
+            hitWall(el);
+            return;
+          }
           setPlaying(true);
           setEnded(false);
           if (el.readyState < 3) setLoading(true);
@@ -400,6 +418,7 @@ export default function GuidePlayer({
         }}
         onTimeUpdate={(e) => {
           const el = e.currentTarget;
+          if (limit && el.currentTime >= limit) hitWall(el);
           if (!scrubbing.current) setTime(el.currentTime);
           readBuffered(el);
           onTime?.(el.currentTime);
@@ -433,6 +452,31 @@ export default function GuidePlayer({
         >
           {ended ? <RotateCcw className="h-6 w-6 sm:h-7 sm:w-7" aria-hidden /> : <Play className="ml-0.5 h-6 w-6 fill-current sm:h-7 sm:w-7" aria-hidden />}
         </button>
+      )}
+      {/* signed out, past the free part: sign in (free) to keep watching */}
+      {wall && limit && (
+        <div className="absolute inset-0 z-20 grid place-items-center bg-black/[0.92] p-4 text-center sm:p-6">
+          <div className="flex max-w-[520px] flex-col items-center gap-2 sm:gap-3">
+            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">free for now · just sign in</span>
+            <span className="font-display text-[clamp(18px,3vw,32px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">Sign in to keep watching</span>
+            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">The whole course is free right now. Sign in to watch the rest and unlock the AI tutor, progress sync and notes.</span>
+            <div className="flex flex-wrap justify-center gap-2">
+              <button type="button" onClick={() => ask("video")} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
+                sign in free
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setWall(false);
+                  if (v.current) v.current.currentTime = 0;
+                }}
+                className="min-h-11 border border-[#3a3a40] px-4 font-mono text-sm text-[#f3f2ee]"
+              >
+                ↺ from the start
+              </button>
+            </div>
+          </div>
+        </div>
       )}
       {/* buffering */}
       {playing && loading && slow && (

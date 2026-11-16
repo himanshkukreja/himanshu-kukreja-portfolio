@@ -4,6 +4,8 @@ import { DSA_FULL } from "@/lib/dsa/flags";
 import { conceptLectureHref, getConcept, getConceptIndex, getConceptLecture, isVisualLesson, lessonHref } from "@/lib/dsa/load";
 import { lectureCard } from "@/lib/learn/lecture/load";
 import DsaConceptReader from "@/components/dsa/concept/DsaConceptReader";
+import { gateArticle } from "@/lib/gate/server";
+import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
 
 // A DSA Mastery concept (/dsa/concepts/<concept>): the 6S lesson from the content repo, its six beats as the reader's
 // stages. Rendered once and cached (ISR, refreshed on content sync); progress, widgets and the quiz run on the client.
@@ -37,10 +39,13 @@ export default async function ConceptPage({ params }: Props) {
   }
   // "watch it first": the concept's animated lecture, on its own page (like an SDM lesson's)
   const card = lectureCard(lecture);
+  // signed out: the first part, then the sign-in card (src/lib/gate); the whole lesson stays in the HTML
+  const gate = gateArticle(c.html);
   return (
     <div className="dsa-theme">
       <main className="pb-16">
-        <DsaConceptReader concept={c} lecture={card ? { ...card, href: conceptLectureHref(c.id) } : null} />
+        <JsonLd data={signInGated(plainArticle({ title: c.title, description: c.summary, path: `/dsa/concepts/${c.id}` }), gate.gated)} />
+        <DsaConceptReader concept={{ ...c, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(c.id) } : null} />
       </main>
     </div>
   );

@@ -70,6 +70,7 @@ import LabChaos, { type ChaosRun } from "./LabChaos";
 import LabScale, { type ScaleRunState } from "./LabScale";
 import LabReview from "./LabReview";
 import { FollowUpCard, InterviewBar, InterviewSummary } from "./LabInterview";
+import { useSignInGate } from "@/components/gate/SignInGate";
 import "@/app/learn/course-content.css";
 import "@/app/learn/course-blocks.css";
 
@@ -109,6 +110,8 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
   const ivRecord = useInterviews()[lab.id];
   const live = ivRecord?.live ?? null;
   const mounted = useSyncExternalStore(noop, () => true, () => false);
+  // the sign-in gate (src/lib/gate): signed out, the brief and the editor stay open; running asks for a (free) sign-in
+  const gate = useSignInGate("lab");
 
   const [lang, setLang] = useState<LabLang>(lab.languages[0]);
   const L = lab.langs[lang]!;
@@ -377,7 +380,7 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
 
   // ------------------------------------------------------------------ running
   const runTests = useCallback(async () => {
-    if (running) return;
+    if (running || gate.blocked("run")) return;
     setRunning(true);
     setOutput("");
     setResultTab((t) => (t === "output" ? "tests" : t));
@@ -431,10 +434,10 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
     setRun({ outcome, wallMs, at: Date.now(), gained, unlocked: unlockedNow });
     setRunning(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running, fam, groups, lab, lang, L, awardOnce, runs, progress?.revealedAt, live, projectStages, unlocked, slot, finishInterview]);
+  }, [running, fam, groups, lab, lang, L, awardOnce, runs, progress?.revealedAt, live, projectStages, unlocked, slot, finishInterview, gate.blocked]);
 
   const runChaos = async (opts: { seed?: number; test?: string }) => {
-    if (running || !lab.chaos || !L.chaos) return;
+    if (running || !lab.chaos || !L.chaos || gate.blocked("chaos")) return;
     setRunning(true);
     const outcome = await getRunner(fam).runChaos(input(), L.chaos, { scenarios: lab.chaos.scenarios, runs: lab.chaos.runs, seed: opts.seed ?? null, test: opts.test ?? null }, 45_000);
     setChaosRun({ outcome, replay: opts.seed != null ? { seed: opts.seed, test: opts.test ?? "" } : null, at: Date.now() });
@@ -445,7 +448,7 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
   };
 
   const runScale = async () => {
-    if (running || !lab.scale || !L.scale) return;
+    if (running || !lab.scale || !L.scale || gate.blocked("scale")) return;
     setRunning(true);
     const limit = Math.min(120_000, lab.scale.budgetSec * 1000 * lab.scale.sizes.length * 3 + 20_000);
     const outcome = await getRunner(fam).runScale(input(), L.scale, { sizes: lab.scale.sizes, budgetMs: lab.scale.budgetSec * 1000 }, limit);
@@ -865,10 +868,14 @@ export default function LabRoom({ lab, next, prev }: { lab: Lab; next: { href: s
             </div>
             <div className="flex flex-wrap items-center gap-3 border-t border-line px-3 py-2.5">
               <button type="button" onClick={() => void runTests()} disabled={running} className="inline-flex min-h-11 items-center gap-2 bg-signal px-5 text-[15px] font-semibold text-on-signal hover:brightness-110 disabled:opacity-70" data-hk-run="">
-                {running ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
+                {running ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : gate.locked ? <Lock className="h-4 w-4" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
                 {running ? (status.phase === "loading" ? `Loading ${fam === "py" ? "Python" : "JavaScript"}…` : "Running…") : projectStages ? `Run stage ${unlocked + 1}` : "Run tests"}
               </button>
-              <span className="hidden font-mono text-[11px] text-fg-3 sm:inline">⌘/Ctrl + Enter</span>
+              {gate.locked ? (
+                <span className="font-mono text-[11px] text-fg-3">sign in (free for now) to run it</span>
+              ) : (
+                <span className="hidden font-mono text-[11px] text-fg-3 sm:inline">⌘/Ctrl + Enter</span>
+              )}
               <span className="ml-auto font-mono text-[11px] text-fg-3">
                 {runs ? `${runs} run${runs === 1 ? "" : "s"}` : "not run yet"} · {lab.timeoutSec} s limit
               </span>

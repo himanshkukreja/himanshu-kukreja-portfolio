@@ -1,4 +1,5 @@
 /** 02 Lectures and Listen, in depth: the lecture player, the playlist, Listen and the podcast. */
+import { GATE_ON, LECTURE_FREE_S } from "@/lib/gate/flag";
 import Shot from "../Shot";
 import { A, Kbd, Note, Pair, PROSE, Steps, Sub, Table, Topic, Where } from "../ui";
 import { LECTURE_QUIZ_XP, type GuideData } from "./types";
@@ -23,7 +24,7 @@ export default function LecturesDetails({ d }: { d: GuideData }) {
           (the <strong>↩ recall</strong> chips), and when one ends the next one in the same track starts by itself.
         </p>
         <p>
-          <strong>Watching is free with an account.</strong> Signed out, a lecture plays its first minute, then asks you to sign in. <strong>Share</strong> in the player gives you a link that can start at the
+          <strong>Watching is free with an account.</strong> Signed out, a lecture plays its first {GATE_ON ? `${LECTURE_FREE_S} seconds` : "minute"}, then asks you to sign in. <strong>Share</strong> in the player gives you a link that can start at the
           moment you are on; anyone who opens a link you shared watches all of it, no account needed. The <strong>👍</strong> next to Save offline upvotes a lecture (one vote each, signed in), and the
           header and the playlist show how many people have watched it.
         </p>

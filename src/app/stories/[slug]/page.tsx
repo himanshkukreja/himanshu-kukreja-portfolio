@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { JsonLd, breadcrumbs, caseFileArticle } from "@/lib/seo/jsonld";
+import { JsonLd, breadcrumbs, caseFileArticle, signInGated } from "@/lib/seo/jsonld";
+import { gateArticle } from "@/lib/gate/server";
 import { notFound } from "next/navigation";
 import { getAllStories, getStorySource } from "@/lib/stories";
 import { resolveCoverUrl } from "@/lib/utils";
@@ -60,7 +61,11 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
   // Stories go through the same rich renderer as course lessons (diagrams, callouts, numbers sheets,
   // compare cards, highlighted code…); the plain pipeline stays as a fallback (render-story.ts).
   // hover definitions for course concepts the case file mentions (cards link into the course)
-  const { htmlContent, checkpoints } = await renderStoryBody(story.body, { terms: await termsFor() });
+  const body = await renderStoryBody(story.body, { terms: await termsFor() });
+  const { checkpoints } = body;
+  // signed out: the first part, then the sign-in card (src/lib/gate); the whole case stays in the HTML
+  const gate = gateArticle(body.htmlContent);
+  const htmlContent = gate.html;
 
   const [cases, lecture, shorts] = await Promise.all([
     getCaseFiles(),
@@ -92,7 +97,7 @@ export default async function StoryReadPage({ params }: { params: Promise<{ slug
     <main className="min-h-screen">
       <JsonLd
         data={[
-          caseFileArticle({ title: story.title, description: story.seoDescription || story.excerpt || "", path: `/case-files/${slug}`, date: story.date, image: resolveCoverUrl(story.cover) || undefined }),
+          signInGated(caseFileArticle({ title: story.title, description: story.seoDescription || story.excerpt || "", path: `/case-files/${slug}`, date: story.date, image: resolveCoverUrl(story.cover) || undefined }), gate.gated),
           breadcrumbs([
             { name: "Case files", path: "/case-files" },
             { name: story.title, path: `/case-files/${slug}` },

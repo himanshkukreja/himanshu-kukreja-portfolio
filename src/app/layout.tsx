@@ -21,6 +21,8 @@ import { IMPORT_JS } from "@/lib/site/carry";
 import { READING_JS } from "@/lib/learn/readingModes";
 import ReadingModeHost from "@/components/learn/reading/ReadingModeHost";
 import { PORTFOLIO_ORIGIN, courseUrlFor } from "@/lib/site/hosts";
+import { GATE_JS, GATE_ON } from "@/lib/gate/flag";
+import { GateSync } from "@/components/gate/SignInGate";
 
 
 
@@ -103,6 +105,8 @@ export default function RootLayout({
       <head>
         {/* first: a one-time import of course state carried over from himanshukukreja.in (#hk-import=…, src/lib/site/carry.ts) */}
         <script dangerouslySetInnerHTML={{ __html: IMPORT_JS }} />
+        {/* then the sign-in gate's guess (src/lib/gate/flag.ts): html.hk-guest unless a session is stored, so gated text never flashes either way */}
+        {GATE_ON && <script dangerouslySetInnerHTML={{ __html: GATE_JS }} />}
         {/* then the page's theme (the course's eight on its host, light / dark elsewhere) and tone, before first paint (src/lib/learn/readingModes.ts) */}
         <script dangerouslySetInnerHTML={{ __html: READING_JS }} />
         <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
@@ -135,6 +139,7 @@ export default function RootLayout({
         <AnalyticsProvider />
         <SiteModeProvider>
         <AuthProvider>
+          <GateSync />
           <AuthModalProvider>
             <ThemeProvider>
               <GameProvider>

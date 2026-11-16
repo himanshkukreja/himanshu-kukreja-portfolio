@@ -20,6 +20,8 @@ import { useLessonProgress } from "@/components/LessonProgressTracker";
 import { REVEAL_EVENT, scrollToId } from "@/components/learn/lesson/layout";
 import type { DsaStage } from "@/lib/dsa/types";
 import { BEAT_6S } from "@/lib/dsa/words";
+import SignInGate, { useSignInGate } from "@/components/gate/SignInGate";
+import { GATED_CLASS, PEEK_CLASS } from "@/lib/gate/split";
 
 const FOLDED = "stretch";
 const safe = (id: string) => id.replace(/[^a-z0-9_-]/gi, "");
@@ -103,10 +105,30 @@ export default function OneStage({ rootRef, stages, end }: { rootRef: React.RefO
     return () => mo.disconnect();
   }, [rootRef, stageOf]);
 
+  // the sign-in gate (src/lib/gate): signed out, the steps stop where the open part ends and the card shows there
+  const { locked } = useSignInGate("dsa-concept");
+  const [gatedIds, setGatedIds] = useState<{ hidden: Set<string>; peek: Set<string> } | null>(null);
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || !root.querySelector(`.${PEEK_CLASS}`)) return;
+    const hidden = new Set<string>();
+    const peek = new Set<string>();
+    root.querySelectorAll<HTMLElement>('section[data-sd="stage"]').forEach((sec) => {
+      const id = sec.dataset.stageId || sec.id;
+      if (sec.classList.contains(GATED_CLASS) && !sec.classList.contains(PEEK_CLASS)) hidden.add(id);
+      else if (sec.classList.contains(PEEK_CLASS) || sec.querySelector(`.${PEEK_CLASS}`)) peek.add(id);
+    });
+    // read once from the server's markup after mount
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setGatedIds({ hidden, peek });
+  }, [rootRef]);
+
   const at = Math.max(0, steps.findIndex((s) => s.id === active));
   const cur = steps[at];
   const prev = steps[at - 1];
   const next = steps[at + 1];
+  // this step is where a guest's reading ends (its text fades out, or the next step is behind the card)
+  const gateHere = !!gatedIds && !!cur && (gatedIds.peek.has(cur.id) || gatedIds.hidden.has(cur.id) || (!!next && gatedIds.hidden.has(next.id)));
   const go = (id: string) => {
     moved.current = true;
     flushSync(() => setActive(id));
@@ -135,6 +157,7 @@ export default function OneStage({ rootRef, stages, end }: { rootRef: React.RefO
           </button>
         </div>
       ) : null}
+      {gateHere && <SignInGate kind="dsa-concept" className="mt-6" />}
       <nav aria-label="Lesson steps" className="mt-10 flex flex-col gap-3 border-t border-line pt-6">
         <span className="font-mono text-[12px] text-fg-3" aria-live="polite">
           Step {at + 1} of {steps.length} · {cur?.label}
@@ -148,7 +171,7 @@ export default function OneStage({ rootRef, stages, end }: { rootRef: React.RefO
               {prev.label}
             </button>
           ) : null}
-          {next ? (
+          {next && !(gateHere && locked) ? (
             <button type="button" onClick={() => go(next.id)} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 bg-signal px-5 text-[16px] font-semibold text-on-signal hover:opacity-90 sm:flex-none">
               Next: {next.label}
               <ArrowRight className="h-4 w-4" aria-hidden />

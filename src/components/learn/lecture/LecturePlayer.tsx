@@ -33,7 +33,6 @@ import LectureAsk, { type AskTurn, type FaqEntry } from "./LectureAsk";
 import LectureShare from "./LectureShare";
 import LectureVote from "./LectureVote";
 import { useAuth } from "@/contexts/AuthContext";
-import { useAuthModal } from "@/contexts/AuthModalContext";
 import { userFetch } from "@/components/learn/progress/userFetch";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INTRO } from "./anim";
@@ -43,6 +42,8 @@ import LectureCaptureHost from "@/components/learn/ink/capture/LectureCaptureHos
 import { SNIP_START, startSnip } from "@/components/learn/ink/capture/events";
 import ChapterSegments from "@/components/learn/video/ChapterSegments";
 import { useIdle } from "@/components/learn/video/useIdle";
+import { GATE_ON, LECTURE_FREE_S, gateCourse } from "@/lib/gate/flag";
+import { useSignInGate } from "@/components/gate/SignInGate";
 
 declare global {
   interface Window {
@@ -69,8 +70,9 @@ function captionAt(say: string, f: number): string {
   return parts[parts.length - 1];
 }
 
-/** signed out (and not from a share link), a lecture plays this far, then asks to sign in (free) */
-const FREE_S = 60;
+/** signed out (and not from a share link), a lecture plays this far, then asks to sign in (free): the sign-in gate's
+ *  75 s (src/lib/gate/flag.ts), or the minute it had before the gate when the gate is switched off */
+const FREE_S = GATE_ON ? LECTURE_FREE_S : 60;
 
 /** seconds the end screen counts down before the next lecture plays itself */
 const AUTO_NEXT_S = 8;
@@ -212,7 +214,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   const dsaTitle = quest?.title ?? lecture.title;
   const ai = useAiStatus();
   const { user, loading: authLoading } = useAuth();
-  const { openAuthModal } = useAuthModal();
+  // sign-in from the lecture's own gate goes through the shared one (its analytics, and gate_unlocked after)
+  const { ask: askSignIn } = useSignInGate("lecture");
   // a learner's public share link (?s=<token>): verified once, then it plays in full without an account
   const [shared, setShared] = useState<string | null>(null);
   const [gate, setGate] = useState(false);
@@ -448,6 +451,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         setTime(FREE_S);
         setGate(true);
         track("lecture_gate", { quest: slug });
+        track("gate_shown", { course: gateCourse(pagePath), page: "lecture", feature: "video" });
         return;
       }
       // a quiz's answer step waits for the learner's answer
@@ -771,11 +775,11 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
       ) : gate && gated ? (
         <div className="absolute inset-0 z-10 grid place-items-center bg-black/[0.92] p-4 text-center sm:p-6">
           <div className="flex max-w-[520px] flex-col items-center gap-2 sm:gap-3">
-            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">free · just sign in</span>
+            <span className="font-mono text-[11px] uppercase tracking-label text-signal-text sm:text-[12px]">free for now · just sign in</span>
             <span className="font-display text-[clamp(18px,3vw,32px)] font-extrabold leading-tight tracking-[-0.02em] text-[#f3f2ee]">Sign in to keep watching</span>
-            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">Every lecture is free with an account. You also keep your place, earn {dsaVideo ? "Bits" : "XP"} on the checkpoints and can ask the AI about any moment.</span>
+            <span className="text-[13px] leading-snug text-[#c9c8c4] sm:text-[15px]">The whole course is free right now. Sign in to watch the rest, keep your place, earn {dsaVideo ? "Bits" : "XP"} on the checkpoints and ask the AI tutor about any moment.</span>
             <div className="flex flex-wrap justify-center gap-2">
-              <button type="button" onClick={openAuthModal} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
+              <button type="button" onClick={() => askSignIn("video")} className="inline-flex min-h-11 items-center bg-signal px-5 font-mono text-sm font-semibold text-on-signal">
                 sign in free
               </button>
               <button type="button" onClick={() => { setGate(false); seek(0); }} className="min-h-11 border border-[#3a3a40] px-4 font-mono text-sm text-[#f3f2ee]">
@@ -868,8 +872,8 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         </div>
         {gated && (
           <p className="m-0 font-mono text-[12px] text-fg-3">
-            The first minute is open to everyone. The rest is free too:{" "}
-            <button type="button" onClick={openAuthModal} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+            {FREE_S === 60 ? "The first minute" : `The first ${FREE_S} seconds`} {FREE_S === 60 ? "is" : "are"} open to everyone. The rest is free for now:{" "}
+            <button type="button" onClick={() => askSignIn("video")} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
               sign in
             </button>{" "}
             to watch it all.

@@ -38,6 +38,8 @@ import { AskPrompt, FocusControls, MobileReadingBar, ReadingDock } from "./Readi
 import { useReadingSettings } from "@/components/learn/reading/useReading";
 import { headerStackBottom, stageRailHeight } from "./layout";
 import type { NavLink, RailData, ReaderMeta, TrialPartLink } from "./types";
+import SignInGate from "@/components/gate/SignInGate";
+import { PEEK_CLASS } from "@/lib/gate/split";
 
 type Props = {
   meta: ReaderMeta;
@@ -207,6 +209,10 @@ export default function LessonReader({ meta, html, stages, toc, rail, prev, next
               />
             </AnnotateHost>
             </Scope>
+            {/* signed out: the gated text fades into this (src/lib/gate); members never see it */}
+            {html.includes(PEEK_CLASS) && (
+              <SignInGate kind={meta.kind === "bonus" ? "side-quest" : meta.kind === "lld" ? (meta.slug.startsWith("dp-") ? "pattern" : "lld") : meta.kind === "capstone" ? "capstone" : meta.kind === "problem" ? "problem" : "lesson"} />
+            )}
             <DeepLinkResolver rootRef={contentRef} />
             {html.includes('data-dsa="') && <SdmWidgets contentRef={contentRef} clips={meta.clips} />}
             {isLld && meta.lld && <LldHydrator lld={meta.lld} contentRef={contentRef} />}

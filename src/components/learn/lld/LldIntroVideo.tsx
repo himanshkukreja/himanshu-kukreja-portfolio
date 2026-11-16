@@ -9,6 +9,7 @@ import Link from "next/link";
 import GuidePlayer from "@/components/learn/guide/videos/GuidePlayer";
 import type { GuideVideo } from "@/lib/learn/guide/videos";
 import type { IntroVideo } from "@/lib/learn/lld/intro";
+import { LECTURE_FREE_S } from "@/lib/gate/flag";
 
 const fmt = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, "0")}`;
 
@@ -37,7 +38,7 @@ export default function LldIntroVideo({ video }: { video: IntroVideo }) {
           full lecture page →
         </Link>
       </header>
-      <GuidePlayer video={player} from="feature:low-level-design" />
+      <GuidePlayer video={player} from="feature:low-level-design" freeSeconds={LECTURE_FREE_S} />
     </section>
   );
 }

@@ -43,7 +43,8 @@ import {
 } from "@/components/learn/lesson/data";
 import type { NavLink, ReaderMeta } from "@/components/learn/lesson/types";
 import { shortsOf } from "@/lib/learn/shorts/load";
-import { JsonLd, breadcrumbs, lessonArticle } from "@/lib/seo/jsonld";
+import { JsonLd, breadcrumbs, lessonArticle, signInGated } from "@/lib/seo/jsonld";
+import { gateArticle } from "@/lib/gate/server";
 import { capstoneKey, gatedStages, parseCapstoneBrief } from "@/lib/learn/designFirst";
 
 export const runtime = "nodejs";
@@ -196,7 +197,9 @@ export default async function LearningResourcePage({ params }: Props) {
   // code tabs and clips (the DSA directives an SDM lesson may use) need render options and the clips' data
   const extras = await sdmRenderExtras(week, slug, content);
   const rendered = await renderLesson(lld?.markdown ?? content, { kind: resource.type, terms, courseRefs, ...(extras ? { dsa: extras.dsa } : {}) });
-  const lessonHtml = lld ? fillMounts(rendered.html) : rendered.html;
+  // signed out, the reader sees the first part, then the sign-in card; the whole text stays in the HTML (src/lib/gate)
+  const gate = gateArticle(lld ? fillMounts(rendered.html) : rendered.html);
+  const lessonHtml = gate.html;
   const lldLabs = lld?.meta?.labs.length
     ? await getLabSummaries()
         .then((all) => all.filter((l) => lld.meta!.labs.some((x) => x.id === l.id)))
@@ -250,7 +253,7 @@ export default async function LearningResourcePage({ params }: Props) {
 
   const path = `/${week}/${slug}`;
   const ld = [
-    lessonArticle({ title, description: meta.subtitle ?? null, path, coursePath: `/`, section: resource.type === "lld" ? "Low-level design" : `${weekLabel(week)} · ${weekTopic(week)}` }),
+    signInGated(lessonArticle({ title, description: meta.subtitle ?? null, path, coursePath: `/`, section: resource.type === "lld" ? "Low-level design" : `${weekLabel(week)} · ${weekTopic(week)}` }), gate.gated),
     breadcrumbs([
       { name: "Learn", path: "/" },
       { name: "System Design Mastery", path: `/` },

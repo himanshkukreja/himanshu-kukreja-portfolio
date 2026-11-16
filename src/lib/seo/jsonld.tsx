@@ -73,6 +73,31 @@ export function caseFileArticle(o: { title: string; description: string; path: s
   };
 }
 
+/** An article page of the course with no richer type of its own (war stories, DSA lessons). */
+export function plainArticle(o: { title: string; description?: string | null; path: string }) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: o.title.slice(0, 110),
+    ...(o.description ? { description: o.description } : {}),
+    url: `${SITE_URL}${o.path}`,
+    mainEntityOfPage: `${SITE_URL}${o.path}`,
+    inLanguage: "en",
+    author: AUTHOR,
+    publisher: AUTHOR,
+  };
+}
+
+/**
+ * The sign-in gate (src/lib/gate) as Google's markup for gated content: the text marked .hk-gated is in the HTML
+ * for everyone but shown to signed-in readers only, so it says so (not cloaking: one HTML for all). `gated` false
+ * (gate off, or a page too short to cut) leaves the object as it was.
+ */
+export function signInGated<T extends object>(ld: T, gated: boolean): T {
+  if (!gated) return ld;
+  return { ...ld, isAccessibleForFree: false, hasPart: { "@type": "WebPageElement", isAccessibleForFree: false, cssSelector: ".hk-gated" } };
+}
+
 /** Renders one or more schema.org objects. `<` is escaped so content can never close the script tag. */
 /**
  * A video (lecture or short) for Google's video results: the watch page, the file, the poster, the

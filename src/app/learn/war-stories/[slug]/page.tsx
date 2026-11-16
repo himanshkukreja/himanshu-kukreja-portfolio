@@ -4,7 +4,9 @@ import { getShorts, getStory, getWarStories } from "@/lib/learn/war/load";
 import { listShorts } from "@/lib/learn/shorts/load";
 import ShortEntry from "@/components/learn/war/ShortEntry";
 import { THEME_LABEL } from "@/lib/learn/war/types";
-import { breadcrumbs, JsonLd } from "@/lib/seo/jsonld";
+import { breadcrumbs, JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
+import { gateArticle } from "@/lib/gate/server";
+import SignInGate from "@/components/gate/SignInGate";
 import StoryRead from "@/components/learn/war/StoryRead";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { ReadingButton } from "@/components/learn/reading/ReadingPanel";
@@ -48,15 +50,20 @@ export default async function StoryPage({ params }: Props) {
   const short = native.find((x) => x.lecture === of) ?? letterboxed.find((x) => x.lecture === of) ?? null;
   const i = stories.findIndex((x) => x.slug === s.slug);
   const next = stories.length > 1 ? stories[(i + 1) % stories.length] : null;
+  // signed out: the first part, then the sign-in card (src/lib/gate); the whole story stays in the HTML
+  const gate = gateArticle(s.html);
   return (
     <main className="mx-auto flex w-full max-w-[var(--read-measure,760px)] flex-col gap-6 px-4 pb-24 pt-6 sm:px-6 sm:pt-12">
       {/* Listen: the recorded natural voice (scripts/listen, key war/<slug>) when it matches this text, else the browser's */}
       <ListenProvider listenKey={listenKey("war", "", s.slug)}>
         <JsonLd
-          data={breadcrumbs([
-            { name: "War stories", path: "/war-stories" },
-            { name: s.title, path: s.href },
-          ])}
+          data={[
+            signInGated(plainArticle({ title: s.title, description: s.hook, path: s.href }), gate.gated),
+            breadcrumbs([
+              { name: "War stories", path: "/war-stories" },
+              { name: s.title, path: s.href },
+            ]),
+          ]}
         />
         <nav aria-label="Breadcrumb" className="flex flex-wrap items-center gap-2 font-mono text-xs uppercase tracking-label text-fg-3">
           <Link href="/war-stories" className="hover:text-fg">
@@ -85,8 +92,9 @@ export default async function StoryPage({ params }: Props) {
         {short && <ShortEntry short={short} />}
         {/* select a passage → "Explain this" / "Ask the tutor" (the course chat) */}
         <TutorSelectionArea>
-          <ListenArticle html={s.html} className="course-content max-w-none" />
+          <ListenArticle html={gate.html} className="course-content max-w-none" />
         </TutorSelectionArea>
+        {gate.gated && <SignInGate kind="war-story" className="my-0" />}
         <section aria-labelledby="src-h" className="flex flex-col gap-2 border-t border-line pt-5">
           <h2 id="src-h" className="m-0 font-mono text-xs uppercase tracking-label text-fg-3">
             Sources

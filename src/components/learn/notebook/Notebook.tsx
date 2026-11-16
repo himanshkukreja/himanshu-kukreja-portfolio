@@ -12,6 +12,7 @@
  * Handwritten notes on a passage (content_notes rows with `ink`, components/learn/ink/passage) are Notes: their ink
  * as a thumbnail, their typed text once turned into text; search finds them by that text and by the passage.
  */
+import { GATE_ON } from "@/lib/gate/flag";
 import Link from "next/link";
 import NotebookDesigns from "@/components/learn/canvas/NotebookDesigns";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -547,7 +548,7 @@ export default function Notebook({ map, initialTab = "highlights" }: { map: Cour
           <div className="flex min-w-0 flex-[999_1_640px] flex-col gap-4">
             <AuthPromptBanner variant="notebook" persistent layout="stack" />
             <p className="text-sm text-fg-3">
-              Reading never needs an account. <Link href={`/`} className="text-signal-text underline">Go to the skill tree</Link>.
+              {GATE_ON ? "Every lesson opens without an account." : "Reading never needs an account."} <Link href={`/`} className="text-signal-text underline">Go to the skill tree</Link>.
             </p>
           </div>
           <CaptureTips />

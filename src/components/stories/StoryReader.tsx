@@ -1,5 +1,7 @@
 "use client";
 
+import SignInGate from "@/components/gate/SignInGate";
+import { PEEK_CLASS } from "@/lib/gate/split";
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
@@ -549,6 +551,8 @@ export default function StoryReader({ meta, checkpoints, htmlContent, debrief, p
               <StoryContentWrapper htmlContent={htmlContent} contentRef={contentRef} className={styles.prose} withReadAloud={false} />
               <CourseEnhancer lessonKey={`story/${meta.slug}`} />
             </div>
+            {/* signed out: the gated text fades into this (src/lib/gate) */}
+            {htmlContent.includes(PEEK_CLASS) && <SignInGate kind="case-file" className="my-0" />}
 
             <div ref={endRef} aria-hidden className="h-px" />
 
