@@ -199,7 +199,7 @@ export default function StackView({ state, prev, t }: { state: StackState; prev:
 
       {state.out && (
         <g>
-          <rect x={LEFT} y={6} width={Math.max(90, state.out.length * 9.5 + 20)} height={26} rx={3} fill={state.out === "stack overflow" || state.out === "empty" ? "var(--c-bad-text, #b3261e)" : "var(--c-fg)"} />
+          <rect x={LEFT} y={6} width={Math.max(90, state.out.length * 9.5 + 20)} height={26} rx={3} fill={state.out === "stack overflow" || state.out === "empty" ? "var(--c-bad-text)" : "var(--c-fg)"} />
           <text x={LEFT + 10} y={24} fontSize={14} fontWeight={700} className="font-mono" fill="var(--c-bg)">
             {state.out}
           </text>

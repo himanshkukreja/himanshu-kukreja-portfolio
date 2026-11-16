@@ -22,6 +22,8 @@ type Props = {
   /** "auto": a bottom sheet below 1024px, a popover from there up */
   as?: "auto" | "popover" | "sheet";
   className?: string;
+  /** extra rows at the end of the panel (the DSA lesson's "Whole lesson on one page"); SDM passes nothing */
+  extra?: ReactNode;
 };
 
 /**
@@ -34,7 +36,7 @@ type Open = { kind: "sheet" } | { kind: "popover"; placement: "up" | "down"; max
 /** the panel's full height (px): a popover flips to the other side of the button when it wouldn't fit */
 const PANEL_H = 600;
 
-export default function ReadingSettings({ children, placement = "up", as = "auto", className = "" }: Props) {
+export default function ReadingSettings({ children, placement = "up", as = "auto", className = "", extra }: Props) {
   const [open, setOpen] = useState<Open | null>(null);
   const ref = useRef<HTMLButtonElement>(null);
   const id = useId();
@@ -53,8 +55,8 @@ export default function ReadingSettings({ children, placement = "up", as = "auto
   return (
     <div className={`relative ${className}`}>
       {children({ ref, onClick, "aria-expanded": !!open, "aria-haspopup": "dialog", "aria-controls": open ? id : undefined })}
-      {open?.kind === "popover" && <Popover id={id} placement={open.placement} maxHeight={open.maxHeight} trigger={ref} onClose={close} />}
-      {open?.kind === "sheet" && <Sheet id={id} trigger={ref} onClose={close} />}
+      {open?.kind === "popover" && <Popover id={id} placement={open.placement} maxHeight={open.maxHeight} trigger={ref} onClose={close} extra={extra} />}
+      {open?.kind === "sheet" && <Sheet id={id} trigger={ref} onClose={close} extra={extra} />}
     </div>
   );
 }
@@ -133,7 +135,7 @@ function usePanel(panel: RefObject<HTMLDivElement | null>, trigger: RefObject<HT
   }, [panel, trigger, onClose, modal]);
 }
 
-function Popover({ id, placement, maxHeight, trigger, onClose }: { id: string; placement: "up" | "down"; maxHeight: number; trigger: RefObject<HTMLButtonElement | null>; onClose: () => void }) {
+function Popover({ id, placement, maxHeight, trigger, onClose, extra }: { id: string; placement: "up" | "down"; maxHeight: number; trigger: RefObject<HTMLButtonElement | null>; onClose: () => void; extra?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   usePanel(ref, trigger, onClose, false);
   return (
@@ -147,12 +149,12 @@ function Popover({ id, placement, maxHeight, trigger, onClose }: { id: string; p
         placement === "up" ? "bottom-[calc(100%+8px)]" : "top-[calc(100%+8px)]"
       }`}
     >
-      <PanelBody onClose={onClose} />
+      <PanelBody onClose={onClose} extra={extra} />
     </div>
   );
 }
 
-function Sheet({ id, trigger, onClose }: { id: string; trigger: RefObject<HTMLButtonElement | null>; onClose: () => void }) {
+function Sheet({ id, trigger, onClose, extra }: { id: string; trigger: RefObject<HTMLButtonElement | null>; onClose: () => void; extra?: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   usePanel(ref, trigger, onClose, true);
   // portalled: the reading bar slides with a transform, which would pin a fixed child to the bar
@@ -169,7 +171,7 @@ function Sheet({ id, trigger, onClose }: { id: string; trigger: RefObject<HTMLBu
       >
         <span aria-hidden className="mt-2 h-1 w-10 shrink-0 self-center bg-line-strong" />
         <div className={`min-h-0 overflow-y-auto ${styles.sheet}`}>
-          <PanelBody onClose={onClose} />
+          <PanelBody onClose={onClose} extra={extra} />
         </div>
       </div>
     </div>,
@@ -215,7 +217,7 @@ function Segmented<T extends string>({ name, options, value, onPick }: { name: s
   );
 }
 
-function PanelBody({ onClose }: { onClose: () => void }) {
+function PanelBody({ onClose, extra }: { onClose: () => void; extra?: ReactNode }) {
   const s = useReadingSettings();
   const { siteDark } = usePageTone();
   // the theme in force ("site", never picked, stands for Light or Night until the host saves it)
@@ -308,6 +310,7 @@ function PanelBody({ onClose }: { onClose: () => void }) {
         <Group label="Width" value={WIDTHS.find((w) => w.id === s.width)?.name ?? ""}>
           <Segmented name={`${name}-width`} options={WIDTHS} value={s.width} onPick={(width) => updateReading({ width })} />
         </Group>
+        {extra}
       </div>
     </div>
   );

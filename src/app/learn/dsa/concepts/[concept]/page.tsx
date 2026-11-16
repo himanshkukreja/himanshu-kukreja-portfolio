@@ -5,6 +5,7 @@ import { conceptLectureHref, getConcept, getConceptIndex, getConceptLecture, isV
 import { lectureCard } from "@/lib/learn/lecture/load";
 import DsaConceptReader from "@/components/dsa/concept/DsaConceptReader";
 import { gateArticle } from "@/lib/gate/server";
+import { getLessonExtras } from "@/lib/dsa/lesson-extras";
 import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
 
 // A DSA Mastery concept (/dsa/concepts/<concept>): the 6S lesson from the content repo, its six beats as the reader's
@@ -41,11 +42,12 @@ export default async function ConceptPage({ params }: Props) {
   const card = lectureCard(lecture);
   // signed out: the first part, then the sign-in card (src/lib/gate); the whole lesson stays in the HTML
   const gate = gateArticle(c.html);
+  const extras = await getLessonExtras(c.id, c.module);
   return (
     <div className="dsa-theme">
       <main className="pb-16">
         <JsonLd data={signInGated(plainArticle({ title: c.title, description: c.summary, path: `/dsa/concepts/${c.id}` }), gate.gated)} />
-        <DsaConceptReader concept={{ ...c, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(c.id) } : null} />
+        <DsaConceptReader concept={{ ...c, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(c.id) } : null} extras={extras} />
       </main>
     </div>
   );

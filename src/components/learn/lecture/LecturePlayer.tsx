@@ -93,9 +93,11 @@ type Props = {
   next?: Next;
   /** "Learners often ask here": pre-answered questions per scene id (null: none written yet) */
   faq?: Record<string, FaqEntry[]> | null;
+  /** inside a lesson page (DSA's Learn > Watch): compact chrome, no page header, chapters under the player. Nothing else changes. */
+  embedded?: boolean;
 };
 
-export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null, faq = null }: Props) {
+export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null, faq = null, embedded = false }: Props) {
   const flat = useMemo(() => flatten(lecture), [lecture]);
   const [record, setRecord] = useState(false);
   useEffect(() => {
@@ -103,7 +105,7 @@ export default function LecturePlayer({ lecture, quest, source, mediaBase, next 
     return () => window.clearTimeout(id);
   }, []);
   if (record) return <RecordStage lecture={lecture} flat={flat} quest={quest} />;
-  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} faq={faq} />;
+  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} faq={faq} embedded={embedded} />;
 }
 
 /* ---------- record mode: the exporter drives every frame ---------- */
@@ -203,7 +205,12 @@ function RecordStage({ lecture, flat, quest }: { lecture: Lecture; flat: Flat; q
 
 /* ---------- the learner's player ---------- */
 
-function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & { flat: Flat }) {
+/** the lecture's own page is a <main>; inside a lesson page (embedded) the page already has one */
+function Root({ embedded, className, children }: { embedded: boolean; className: string; children: React.ReactNode }) {
+  return embedded ? <div className={className}>{children}</div> : <main className={className}>{children}</main>;
+}
+
+function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded = false }: Props & { flat: Flat }) {
   const slug = lecture.quest;
   // the lecture's own page: DSA concept lectures live under their concept
   const pagePath = lecture.dsa ? `/dsa/concepts/${lecture.dsa.concept}/lecture` : `/lectures/${slug}`;
@@ -831,9 +838,18 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
   );
 
   const btn = "grid h-10 min-w-9 shrink-0 place-items-center px-1.5 font-mono text-xs text-fg-2 hover:text-fg sm:min-w-10 sm:px-2";
+  const gatedNote = gated ? (
+    <p className="m-0 font-mono text-[12px] text-fg-3">
+      {FREE_S === 60 ? "The first minute" : `The first ${FREE_S} seconds`} {FREE_S === 60 ? "is" : "are"} open to everyone. The rest is free for now:{" "}
+      <button type="button" onClick={() => askSignIn("video")} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
+        sign in
+      </button>{" "}
+      to watch it all.
+    </p>
+  ) : null;
   return (
-    <main className="mx-auto flex max-w-[1360px] flex-col gap-5 px-4 pb-28 pt-6 sm:px-6 sm:pt-10">
-      <header className="flex flex-col gap-2">
+    <Root embedded={embedded} className={embedded ? "flex flex-col gap-3" : "mx-auto flex max-w-[1360px] flex-col gap-5 px-4 pb-28 pt-6 sm:px-6 sm:pt-10"}>
+      {embedded ? null : <header className="flex flex-col gap-2">
         <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[11px] uppercase tracking-label text-signal-text">
           <span>
             lecture · {fmt(duration)} · {quizzes.length} checkpoints{media ? "" : " · browser voice"}
@@ -870,18 +886,11 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           <SaveOfflineButton title={lecture.title} kind="lecture" url={pagePath} mediaBase={mediaBase ? `${mediaBase.replace(/\/$/, "")}/${slug}/` : undefined} />
           <LectureVote id={slug} />
         </div>
-        {gated && (
-          <p className="m-0 font-mono text-[12px] text-fg-3">
-            {FREE_S === 60 ? "The first minute" : `The first ${FREE_S} seconds`} {FREE_S === 60 ? "is" : "are"} open to everyone. The rest is free for now:{" "}
-            <button type="button" onClick={() => askSignIn("video")} className="text-signal-text underline decoration-line-strong underline-offset-4 hover:decoration-signal">
-              sign in
-            </button>{" "}
-            to watch it all.
-          </p>
-        )}
-      </header>
+        {gatedNote}
+      </header>}
+      {embedded ? gatedNote : null}
 
-      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-5 lg:grid-cols-[minmax(0,1fr)_300px]">
+      <div className={`grid grid-cols-[minmax(0,1fr)] items-start gap-5 ${embedded ? "" : "lg:grid-cols-[minmax(0,1fr)_300px]"}`}>
         <div
           ref={shellRef}
           onPointerMove={fs ? wake : undefined}
@@ -1052,14 +1061,14 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
         </div>
 
         {/* beside the player (lg) the column matches its height; below it on phones and tablets it doesn't, and the list scrolls in its own 50vh */}
-        <aside className="flex min-h-0 flex-col gap-3 lg:max-h-[var(--shell-h)] lg:overflow-hidden" style={shellH && !fs ? ({ "--shell-h": `${shellH}px` } as React.CSSProperties) : undefined}>
+        <aside className={`flex min-h-0 flex-col gap-3 ${embedded ? "" : "lg:max-h-[var(--shell-h)] lg:overflow-hidden"}`} style={shellH && !fs && !embedded ? ({ "--shell-h": `${shellH}px` } as React.CSSProperties) : undefined}>
           <h2 className="m-0 flex items-baseline justify-between font-mono text-[11px] uppercase tracking-label text-fg-3">
             chapters
             <span className="normal-case tracking-normal text-fg-4">
               {cur.scene + 1}/{chapters.length}
             </span>
           </h2>
-          <ol ref={listRef} className="m-0 flex max-h-[50vh] min-h-0 list-none flex-col gap-0.5 overflow-y-auto overscroll-contain p-0 pr-1 lg:max-h-none lg:flex-1">
+          <ol ref={listRef} className={`m-0 flex min-h-0 list-none flex-col gap-0.5 overflow-y-auto overscroll-contain p-0 pr-1 ${embedded ? "max-h-[36vh]" : "max-h-[50vh] lg:max-h-none lg:flex-1"}`}>
             {chapters.map((c) => {
               const on = cur.scene === c.k;
               const q = c.s.kind === "quiz";
@@ -1091,14 +1100,16 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
               {autoSwitch(false)}
             </div>
           )}
-          {quest && (
+          {quest && !embedded && (
             <Link href={quest.href} className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
               ← {readLabel(lecture).toLowerCase()}: {quest.title}
             </Link>
           )}
-          <Link href="/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
-            all lectures
-          </Link>
+          {embedded ? null : (
+            <Link href="/prep/lectures" className="font-mono text-xs text-fg-3 underline underline-offset-4 hover:text-fg">
+              all lectures
+            </Link>
+          )}
         </aside>
       </div>
 
@@ -1109,6 +1120,6 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq }: Props & 
           {media.music && <audio ref={musicRef} src={media.music} preload="none" loop />}
         </>
       )}
-    </main>
+    </Root>
   );
 }
