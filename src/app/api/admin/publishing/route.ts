@@ -7,6 +7,7 @@ import { getControls, isLive, questKey, shortKey, type Control } from "@/lib/lea
 import { COURSE_ID } from "@/lib/learn/course";
 import { revalidateControlled } from "@/lib/learn/controlsRevalidate";
 import { listAllShorts } from "@/lib/learn/shorts/load";
+import { listDsaShorts } from "@/lib/dsa/media";
 import { adminShortsStats } from "@/lib/learn/shorts/stats";
 import { SHORT_CATEGORIES } from "@/lib/learn/shorts/types";
 
@@ -50,13 +51,15 @@ export async function GET(request: Request) {
   const days = Math.min(180, Math.max(1, Number(new URL(request.url).searchParams.get("days")) || 30));
   const since = new Date(Date.now() - days * 86_400_000).toISOString();
   try {
-    const [shorts, controls, stats, resources, qv, votes] = await Promise.all([
+    const [shorts, controls, stats, resources, qv, votes, dsaShorts] = await Promise.all([
       listAllShorts(),
       getControls(),
       adminShortsStats(days),
       getAllLearningResources(),
       questViews(since),
       supabase.from("lecture_votes").select("lecture_id").like("lecture_id", "bonus-%").limit(20000),
+      // DSA Mastery's recorded shorts, past the controls so a hidden one still shows here (additive: a failure leaves the list as it was)
+      listDsaShorts({ ignoreControls: true }).catch(() => []),
     ]);
     const ctl = new Map(controls.map((c) => [c.key, c]));
     const st = new Map(stats.shorts.map((s) => [s.id, s]));
@@ -67,15 +70,16 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         days,
-        shorts: shorts.map((s) => {
+        shorts: [...shorts.map((s) => ({ ...s, track: "sdm" as const })), ...dsaShorts.map((s) => ({ id: s.id, title: s.title, label: s.label, category: "dsa", lecture: s.lecture, poster: s.poster, seconds: s.seconds, track: "dsa" as const }))].map((s) => {
           const c = ctl.get(shortKey(s.id));
           const n = st.get(s.id);
           const questHidden = s.lecture.startsWith("bonus-") && !isLive(ctl.get(questKey(s.lecture)));
           return {
             id: s.id,
             title: s.title,
-            group: `${label.get(s.category) || s.category} · ${s.label}`,
+            group: `${label.get(s.category) || (s.track === "dsa" ? "DSA Mastery" : s.category)} · ${s.label}`,
             category: s.category,
+            track: s.track,
             lecture: s.lecture,
             poster: s.poster,
             seconds: s.seconds,

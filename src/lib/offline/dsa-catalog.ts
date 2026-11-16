@@ -48,6 +48,10 @@ export async function dsaCatalogGroups(mediaBase: string | null): Promise<Catalo
     kind: "dsa",
     items: [
       { url: "/dsa", title: "DSA Mastery · home", kind: "hub", tag: "MAP", group: "dsa-concepts", version: hash(JSON.stringify(built.map((c) => c.id)) + problems.length), bytes: 60_000 },
+      // the three other tabs: pages that carry the bank, the decks and the shorts/sheets lists (the learner's own data loads from the account or this device)
+      { url: "/dsa/practice", title: `Practice · ${problems.length} problems`, kind: "tool", tag: "PRACTICE", group: "dsa-concepts", version: hash(problems.map((p) => p.id).join()), bytes: 90_000 },
+      { url: "/dsa/review", title: "Review · cards, shorts and sheets", kind: "tool", tag: "REVIEW", group: "dsa-concepts", version: hash(lessons.map((l) => l.version).join()), bytes: 70_000 },
+      { url: "/dsa/progress", title: "Progress · readiness, belt, stats", kind: "tool", tag: "PROGRESS", group: "dsa-concepts", version: hash(JSON.stringify(built.map((c) => c.id)) + problems.length), bytes: 80_000 },
       ...lessons.map(({ c, version, bytes }): CatalogItem => ({ url: lessonHref(c), title: c.title, kind: "dsa-concept", tag: `${code(c.module)} · ${c.order}`, group: "dsa-concepts", version, bytes })),
     ],
   });
@@ -62,7 +66,7 @@ export async function dsaCatalogGroups(mediaBase: string | null): Promise<Catalo
     id: "dsa-problems",
     title: "DSA problems",
     kind: "dsa",
-    items: [{ url: "/dsa/problems", title: `Problems · ${problems.length}`, kind: "tool", tag: "PROBLEMS", group: "dsa-problems", version: hash(problems.map((p) => p.id).join()), bytes: 30_000 }, ...rows],
+    items: [...rows],
   });
 
   // cheat sheets: cut from the lessons, so they change with them

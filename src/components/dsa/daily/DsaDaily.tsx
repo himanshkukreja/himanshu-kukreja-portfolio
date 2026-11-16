@@ -23,7 +23,7 @@ function Stat({ value, label }: { value: string | number; label: string }) {
   );
 }
 
-export default function DsaDaily() {
+export default function DsaDaily({ embedded = false }: { embedded?: boolean }) {
   const { data, loading, error } = useDsaDaily();
   const streak = useDsaStreak();
   const progress = useDsaProgress();
@@ -32,9 +32,9 @@ export default function DsaDaily() {
   const today = data?.today;
 
   return (
-    <div className="dsa-theme">
-      <main className="mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
-        <header className="flex flex-col gap-2">
+    <div className={embedded ? undefined : "dsa-theme"}>
+      <main className={embedded ? "flex flex-col gap-6" : "mx-auto flex max-w-[1100px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6"}>
+        {embedded ? null : <header className="flex flex-col gap-2">
           <DsaCrumbs items={[{ href: "/dsa", label: "DSA Mastery" }, { label: "Daily problem" }]} />
           <span className="font-mono text-xs uppercase tracking-label text-signal-text">Daily problem{d ? ` · #${d.number} · ${shortDate(d.date)}` : ""}</span>
           <h1 className="m-0 font-display text-[36px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[48px]">
@@ -43,7 +43,7 @@ export default function DsaDaily() {
           <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
             The same problem for everyone, new at midnight India time. Get it Accepted the same day to keep your daily streak going.
           </p>
-        </header>
+        </header>}
 
         <section aria-labelledby="today-h" className="grid gap-px border border-line bg-line lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <div className="flex min-w-0 flex-col gap-3 bg-surface p-5 sm:p-6">

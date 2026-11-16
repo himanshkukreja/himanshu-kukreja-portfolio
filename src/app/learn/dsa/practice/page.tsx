@@ -1,38 +1,38 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { getConceptIndex, getProblemIndex, getStepLabels } from "@/lib/dsa/load";
-import { buildProblemData } from "@/lib/dsa/problem-rows";
-import ProblemBrowser from "@/components/dsa/problems/ProblemBrowser";
+import { getPracticeData } from "@/lib/dsa/practice-load";
+import PracticeBank from "@/components/dsa/practice/PracticeBank";
 import { SaveGroupButton } from "@/components/offline/SaveOfflineButton";
 
-// /dsa/practice (was /dsa/problems; the old URL redirects, src/lib/learn/paths.ts): every built problem, searchable and filterable (src/lib/dsa/problem-filters.ts), grouped by concept in course order, with the learner's solved ticks. Staging only.
+// /dsa/practice: the problem bank (the Practice tab). Lists (all, daily, Core 150, interview patterns, by company type, mine),
+// a filter bar and a compact 50-row table; filters, URL state and the export are the old bank's (src/lib/dsa/problem-filters.ts).
+// The page is ISR (refreshed with the content); the learner's ticks, saved problems and the daily load in the browser.
 
 export const revalidate = 604800;
 
-export const metadata: Metadata = { title: "Practice · DSA Mastery", robots: { index: false, follow: false } };
+export const metadata: Metadata = {
+  title: "Practice · DSA Mastery",
+  description: "Original problems set in everyday apps, tied to the lesson that teaches them. Filter by module, pattern and difficulty, or follow a curated list.",
+  robots: { index: false, follow: false },
+};
 
-export default async function ProblemsPage() {
+export default async function PracticePage() {
   if (!DSA_FULL) notFound();
-  const [problems, concepts, labels] = await Promise.all([getProblemIndex().catch(() => []), getConceptIndex().catch(() => []), getStepLabels().catch(() => ({}))]);
-  // the "has a solution video" flags load in the browser (GET /api/dsa/problem-videos): working them out takes every
-  // problem's solution script and published media (~1,400 reads cold, 105 s on staging, Nov 2026)
-  const data = buildProblemData(problems, { labels, concepts, videos: [] });
-  if (data.unknown.length) console.warn(`[dsa taxonomy] pattern tags with no facets yet: ${data.unknown.join(", ")}`);
+  const { data, lists } = await getPracticeData();
   return (
     <div className="dsa-theme">
-      <main className="mx-auto flex max-w-[1240px] flex-col gap-8 px-4 pb-24 pt-8 sm:px-6">
-        <header className="flex flex-col gap-2">
-          <span className="font-mono text-xs uppercase tracking-label text-signal-text">The problem bank</span>
-          <h1 className="m-0 font-display text-[36px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[48px]">
-            Practice<span className="text-signal-text">.</span>
-          </h1>
-          <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
-            Original problems set in everyday apps, each tied to the concept it practises. Filter by data structure, algorithm, pattern, difficulty and more. Python and JavaScript run in your browser; Java and C++ run on the judge.
-          </p>
-          <SaveGroupButton group="dsa-problems" label="Save every problem offline" className="self-start" />
+      <main className="mx-auto flex max-w-[1240px] flex-col gap-5 px-4 pb-24 pt-6 sm:px-6">
+        <header className="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
+          <div className="flex flex-col gap-1">
+            <span className="font-mono text-xs uppercase tracking-label text-signal-text">Practice</span>
+            <h1 className="m-0 font-display text-[32px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[40px]">
+              The problem bank<span className="text-signal-text">.</span>
+            </h1>
+          </div>
+          <SaveGroupButton group="dsa-problems" label="Save every problem offline" />
         </header>
-        <ProblemBrowser data={data} />
+        <PracticeBank data={data} lists={lists} />
       </main>
     </div>
   );

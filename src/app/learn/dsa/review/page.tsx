@@ -3,21 +3,33 @@ import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getProblemIndex } from "@/lib/dsa/load";
 import { getDsaDecks } from "@/lib/dsa/revise-load";
-import DsaRevise from "@/components/dsa/revise/DsaRevise";
+import { listCheatsheets } from "@/lib/dsa/cheatsheet";
+import { listDsaShorts } from "@/lib/dsa/media";
+import ReviewPage from "@/components/dsa/review/ReviewPage";
 
-// /dsa/review (was /dsa/revise; the old URL redirects, src/lib/learn/paths.ts): re-solve reminders, the learner's due cards and the pattern decks. The decks come from the content repo
-// (ISR, refreshed on every content sync); the queues are per learner and load in the browser. Staging only.
+// /dsa/review (the Review tab): due cards, mistakes to redo, shorts, cheat sheets, plans, drills, reference. Decks, shorts and
+// sheets come from the content (ISR; the shorts go through the publishing controls and the page is refreshed when they change);
+// the queues are per learner and load in the browser. Staging only.
 
-export const revalidate = 604800;
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: "Review · DSA Mastery",
-  description: "Re-solve the problems that tripped you up after 1, 3 and 7 days, and flip a pattern deck for every concept.",
+  description: "Cards that are due, problems to redo, 60-second shorts and cheat sheets for the lessons you have done.",
   robots: { index: false, follow: false },
 };
 
-export default async function DsaRevisePage() {
+const conceptOf = (href: string) => href.split("/").filter(Boolean).pop() || "";
+
+export default async function DsaReviewPage() {
   if (!DSA_FULL) notFound();
-  const [decks, problems] = await Promise.all([getDsaDecks().catch(() => []), getProblemIndex().catch(() => [])]);
-  return <DsaRevise decks={decks} problems={problems.map((p) => ({ id: p.id, title: p.title, level: p.level, concept: p.concept }))} />;
+  const [decks, problems, shorts, sheets] = await Promise.all([getDsaDecks().catch(() => []), getProblemIndex().catch(() => []), listDsaShorts().catch(() => []), listCheatsheets().catch(() => [])]);
+  return (
+    <ReviewPage
+      decks={decks}
+      problems={problems.map((p) => ({ id: p.id, title: p.title, level: p.level, concept: p.concept }))}
+      shorts={shorts.map((s) => ({ id: s.id, title: s.title, label: s.label, poster: s.poster, seconds: s.seconds, concept: conceptOf(s.article) }))}
+      sheets={sheets.map((s) => ({ id: s.id, title: s.title, code: s.code, moduleTitle: s.moduleTitle, invariant: s.invariant, concept: s.id }))}
+    />
+  );
 }

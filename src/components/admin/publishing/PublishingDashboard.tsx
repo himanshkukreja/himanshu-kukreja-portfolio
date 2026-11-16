@@ -11,7 +11,7 @@ import { Badge, Card, EmptyState, ErrorState, fmtNum, Kpi, PageHead, Table, Tabs
 import { adminJson } from "@/lib/admin/fetch";
 
 type State = "live" | "hidden" | "scheduled";
-type ShortRow = { id: string; title: string; group: string; category: string; lecture: string; poster: string; seconds: number; status: State; publishAt: string | null; pin: number | null; questHidden: boolean; viewers: number; plays: number; avgSec: number | null; finish: number | null; votes: number; saves: number; comments: number };
+type ShortRow = { id: string; title: string; group: string; category: string; track?: "sdm" | "dsa"; lecture: string; poster: string; seconds: number; status: State; publishAt: string | null; pin: number | null; questHidden: boolean; viewers: number; plays: number; avgSec: number | null; finish: number | null; votes: number; saves: number; comments: number };
 type QuestRow = { slug: string; title: string; href: string; status: State; publishAt: string | null; views: number; viewers: number; votes: number; shorts: number };
 type Resp = { days: number; shorts: ShortRow[]; quests: QuestRow[] };
 type Action = "publish" | "hide" | "schedule" | "pin" | "unpin";
@@ -30,6 +30,7 @@ export default function PublishingDashboard() {
   const [q, setQ] = useState("");
   const [only, setOnly] = useState<"all" | State | "pinned">("all");
   const [cat, setCat] = useState("all");
+  const [track, setTrack] = useState<"all" | "sdm" | "dsa">("all");
   const [sel, setSel] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -41,10 +42,11 @@ export default function PublishingDashboard() {
     return (data?.shorts ?? []).filter(
       (s) =>
         (cat === "all" || s.category === cat) &&
+        (track === "all" || (s.track ?? "sdm") === track) &&
         (only === "all" || (only === "pinned" ? s.pin !== null : s.status === only)) &&
         (!n || s.title.toLowerCase().includes(n) || s.id.includes(n) || s.group.toLowerCase().includes(n))
     );
-  }, [data, q, only, cat]);
+  }, [data, q, only, cat, track]);
   const quests = useMemo(() => {
     const n = q.trim().toLowerCase();
     return (data?.quests ?? []).filter((x) => (only === "all" || only === "pinned" || x.status === only) && (!n || x.title.toLowerCase().includes(n) || x.slug.includes(n)));
@@ -125,6 +127,13 @@ export default function PublishingDashboard() {
               <option value="scheduled">scheduled</option>
               {tab === "shorts" && <option value="pinned">pinned</option>}
             </select>
+            {tab === "shorts" && (
+              <select value={track} onChange={(e) => setTrack(e.target.value as typeof track)} aria-label="Course" className="min-h-9 border border-line-strong bg-bg px-2 font-mono text-xs text-fg">
+                <option value="all">every course</option>
+                <option value="sdm">System Design</option>
+                <option value="dsa">DSA Mastery</option>
+              </select>
+            )}
             {tab === "shorts" && (
               <select value={cat} onChange={(e) => setCat(e.target.value)} className="min-h-9 border border-line-strong bg-bg px-2 font-mono text-xs text-fg">
                 <option value="all">every category</option>
