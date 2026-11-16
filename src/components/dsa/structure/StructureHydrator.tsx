@@ -14,6 +14,7 @@ import { createPortal } from "react-dom";
 import DsaExplainBack from "@/components/dsa/rewards/DsaExplainBack";
 import type { StructurePage } from "@/lib/dsa/structures";
 import { CheckpointGate, CodeTabs, Poll, ReviewCards } from "../concept/widgets";
+import RunnableSnippets from "../playground/RunnableSnippets";
 import LessonClip from "../clip/LessonClip";
 import { loadFunctionLab, loadGraphSandbox, loadGraphVisualizer, loadGridVisualizer, loadIntervalsVisualizer, loadDpVisualizer, loadStringsVisualizer, loadBitsVisualizer, loadHeapSandbox, loadQueueSandbox, loadStackSandbox, loadStructureLab, loadStructureSandbox, loadTreeSandbox, loadTrieSandbox, loadVizDemo } from "./lazy";
 
@@ -51,6 +52,8 @@ function Hydrated({ fig, children }: { fig: HTMLElement; children: React.ReactNo
   }, [fig]);
   return <>{children}</>;
 }
+
+const NO_TRACES: never[] = [];
 
 export default function StructureHydrator({ rootRef, page }: { rootRef: React.RefObject<HTMLElement | null>; page: StructurePage }) {
   const [hosts, setHosts] = useState<Host[]>([]);
@@ -103,6 +106,8 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         else if (h.kind === "cards" && cards.length) el = <Hydrated fig={h.fig}><ReviewCards cards={cards} /></Hydrated>;
         return el ? createPortal(el, h.stage, h.key) : null;
       })}
+      {/* the lesson's code runs in place (Edit, Run, Open in Playground) */}
+      <RunnableSnippets rootRef={rootRef} traces={NO_TRACES} lesson={page} />
     </>
   );
 }

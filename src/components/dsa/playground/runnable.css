@@ -1,0 +1,67 @@
+/* Runnable lesson snippets (RunnableSnippets.tsx): the buttons in a code block's head and the editor/output under it.
+   Theme tokens only, so every site theme (and the reading modes) carries them. */
+
+.course-content .sd-code[data-runnable] .sd-code-head {
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+.course-content .sd-code [data-pg-bar] {
+  display: inline-flex;
+  margin-left: auto;
+}
+.course-content .sd-code [data-pg-bar]:empty,
+.course-content .sd-code [data-pg-below]:empty {
+  display: none;
+}
+.course-content .sd-code .pg-btn {
+  font-family: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.course-content .sd-code .pg-btn:focus-visible {
+  outline: 2px solid var(--c-signal-text);
+  outline-offset: 2px;
+}
+.course-content .sd-code .pg-quiet {
+  border: 1px solid var(--c-line);
+  background: var(--c-surface);
+  color: var(--c-fg-2);
+}
+.course-content .sd-code .pg-quiet:hover {
+  border-color: var(--c-line-strong);
+  color: var(--c-fg);
+}
+.course-content .sd-code .pg-run {
+  border: 1px solid transparent;
+  background: var(--c-signal);
+  color: var(--c-on-signal);
+  font-weight: 600;
+}
+.course-content .sd-code .pg-run:hover {
+  filter: brightness(1.08);
+}
+.course-content .sd-code .pg-run:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+/* editing: the editor replaces the static code */
+.course-content .sd-code[data-pg-editing] > .sd-code-pre,
+.course-content .sd-code[data-pg-editing] > .sd-code-more {
+  display: none;
+}
+.course-content .sd-code .pg-below {
+  border-top: 1px solid var(--c-line);
+  background: var(--c-surface);
+}
+.course-content .sd-code .pg-editor {
+  border-bottom: 1px solid var(--c-line);
+}
+.course-content .sd-code .pg-out pre {
+  font-size: 13px;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}

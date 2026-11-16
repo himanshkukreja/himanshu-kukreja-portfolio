@@ -10,7 +10,7 @@
  */
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { BarChart3, Check, ChevronsUpDown, Code2, Layers, Map as MapIcon, AlignLeft, Sparkles, User, type LucideIcon } from "lucide-react";
+import { BarChart3, Check, ChevronsUpDown, Code2, Layers, Map as MapIcon, AlignLeft, Sparkles, SquareTerminal, User, type LucideIcon } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { DSA_FULL, isDsaProblemRoom, isDsaReaderPath } from "@/lib/dsa/flags";
 import { openCourseChat } from "@/components/learn/chat/openChat";
@@ -53,6 +53,7 @@ export function tabs(p: string): Tab[] {
     { id: "practice", href: `${DSA_HOME}/practice`, label: "Practice", short: "Practice", on: at(p, "/dsa/practice", "/dsa/problems"), icon: Code2, where: "both" },
     { id: "review", href: `${DSA_HOME}/review`, label: "Review", short: "Review", on: at(p, "/dsa/review", "/dsa/shorts", "/dsa/cheatsheets", "/dsa/complexity", "/dsa/patterns"), icon: Layers, where: "both" },
     { id: "progress", href: `${DSA_HOME}/progress`, label: "Progress", short: "Progress", on: at(p, "/dsa/progress", "/dsa/certificate", "/dsa/cert"), icon: BarChart3, where: "both" },
+    { id: "playground", href: `${DSA_HOME}/playground`, label: "Playground", short: "Code", on: at(p, "/dsa/playground"), icon: SquareTerminal, where: "both" },
   ];
 }
 
@@ -199,7 +200,7 @@ export function DsaDock({ pathname, className }: { pathname: string; className: 
   const { user, loading } = useAuth();
   // below 400 px the header drops the course switch and a guest has no account menu: a fifth dock item is the way back to SD Mastery
   const guestSwitch = !user && !loading && DSA_FULL;
-  const cols = list.length === 5 ? "grid-cols-5" : guestSwitch ? "grid-cols-5 min-[400px]:grid-cols-4" : "grid-cols-4";
+  const cols = guestSwitch ? (list.length === 5 ? "grid-cols-6 min-[400px]:grid-cols-5" : "grid-cols-5 min-[400px]:grid-cols-4") : list.length === 5 ? "grid-cols-5" : "grid-cols-4";
   const item = (on: boolean) =>
     `relative flex min-h-[52px] min-w-0 flex-col items-center justify-center gap-[5px] whitespace-nowrap font-mono text-[10.5px] leading-none max-[359px]:text-[10px] max-[359px]:tracking-[-0.03em] ${on ? "text-fg" : "text-fg-3"}`;
   if (hide) return null;
