@@ -376,5 +376,3 @@
   outline-offset: 2px;
 }
 
-/* modal backdrop shared by the DSA sheets and dialogs (the shell phase defines the same token in globals.css) */
-.dsa-theme { --c-scrim: rgba(0, 0, 0, 0.5); }
