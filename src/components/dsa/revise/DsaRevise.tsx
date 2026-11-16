@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * /dsa/revise: DSA Mastery's revision page, in three parts.
+ * The parts of Review (/dsa/review, src/components/dsa/review/ReviewPage.tsx), in three pieces.
  *   1. Re-solve: problems the learner struggled with come back after 1, 3 and 7 days (src/lib/dsa/revise.ts).
  *   2. Your cards: deck cards marked "again" join the shared review queue (review_cards, course_id 'dsa', or this
  *      browser's queue for guests) and come back on the Leitner schedule SD Mastery's standup uses (1/3/7/16/35 days).
@@ -17,7 +17,6 @@ import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { track } from "@/lib/track";
 import { DSA_COURSE_ID, type DsaLevel } from "@/lib/dsa/types";
 import { DSA_REVISE_REF, RESOLVE_STEPS, failSummary, type DsaDeck, type DsaRevCard, type ResolveItem } from "@/lib/dsa/revise";
-import DsaCrumbs from "../DsaCrumbs";
 import { useResolves } from "./useResolves";
 
 export type ReviseProblem = { id: string; title: string; level: DsaLevel; concept: string };
@@ -51,13 +50,13 @@ function ResolveRow({ it, p }: { it: ResolveItem; p: ReviseProblem | undefined }
   );
 }
 
-function Resolves({ problems }: { problems: Map<string, ReviseProblem> }) {
+export function Resolves({ problems }: { problems: Map<string, ReviseProblem> }) {
   const r = useResolves();
   return (
     <section aria-labelledby="resolve-h" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="resolve-h" className="m-0 font-display text-[24px] font-bold tracking-[-0.02em] text-fg">
-          Re-solve
+          Mistakes to redo
         </h2>
         <span className="font-mono text-[12px] text-fg-3">{r.ready ? `${r.due.length} due · ${r.upcoming.length} coming back · ${r.done.length} done` : " "}</span>
       </div>
@@ -120,7 +119,7 @@ function Face({ card, side }: { card: { kind?: DsaRevCard["kind"]; front: string
 
 /* ------------------------------------------------------------------ your cards (spaced repetition) */
 
-function DueCards({ decks }: { decks: DsaDeck[] }) {
+export function DueCards({ decks }: { decks: DsaDeck[] }) {
   const { cards, due, ready } = useReviewCards("dsa");
   // a reviewed card: DSA Mastery Bits once per card per day (dsa:rv:<day>:<card>), never SD Mastery XP
   const { award } = useDsaAward();
@@ -157,7 +156,7 @@ function DueCards({ decks }: { decks: DsaDeck[] }) {
     <section aria-labelledby="cards-h" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id="cards-h" className="m-0 font-display text-[24px] font-bold tracking-[-0.02em] text-fg">
-          Your cards
+          Due now
         </h2>
         <span className="font-mono text-[12px] text-fg-3">{ready ? `${due.length} due · ${cards.length} in your queue` : " "}</span>
       </div>
@@ -224,7 +223,7 @@ function DueCards({ decks }: { decks: DsaDeck[] }) {
             }}
             className="inline-flex min-h-11 items-center bg-signal px-4 font-mono text-[13.5px] font-semibold text-on-signal"
           >
-            Start the review →
+            Start ({Math.max(1, Math.round(list.length / 3))} min) →
           </button>
         </div>
       ) : (
@@ -351,7 +350,7 @@ function DeckViewer({ deck, onClose }: { deck: DsaDeck; onClose: () => void }) {
   );
 }
 
-function Decks({ decks }: { decks: DsaDeck[] }) {
+export function Decks({ decks }: { decks: DsaDeck[] }) {
   const [open, setOpen] = useState<string | null>(null);
   const { cards } = useReviewCards("dsa");
   const inQueue = useMemo(() => {
@@ -398,28 +397,5 @@ function Decks({ decks }: { decks: DsaDeck[] }) {
         ))}
       </ul>
     </section>
-  );
-}
-
-export default function DsaRevise({ decks, problems }: { decks: DsaDeck[]; problems: ReviseProblem[] }) {
-  const byId = useMemo(() => new Map(problems.map((p) => [p.id, p])), [problems]);
-  return (
-    <div className="dsa-theme">
-      <main className="mx-auto flex max-w-[1100px] flex-col gap-10 px-4 pb-24 pt-8 sm:px-6">
-        <header className="flex flex-col gap-2">
-          <DsaCrumbs items={[{ href: "/dsa", label: "DSA Mastery" }, { label: "Revise" }]} />
-          <span className="font-mono text-xs uppercase tracking-label text-signal-text">Revise · re-solve, recall, repeat</span>
-          <h1 className="m-0 font-display text-[36px] font-extrabold leading-none tracking-[-0.03em] text-fg sm:text-[48px]">
-            Revise<span className="text-signal-text">.</span>
-          </h1>
-          <p className="m-0 max-w-[680px] text-[16px] leading-relaxed text-fg-2">
-            The problems that tripped you up come back until you can solve them cold, and every concept has a deck of cards from its lesson.
-          </p>
-        </header>
-        <Resolves problems={byId} />
-        <DueCards decks={decks} />
-        <Decks decks={decks} />
-      </main>
-    </div>
   );
 }
