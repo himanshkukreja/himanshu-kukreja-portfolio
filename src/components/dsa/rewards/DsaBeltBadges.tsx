@@ -75,8 +75,8 @@ function BeltHero() {
               <li key={b.id} className={`flex items-center gap-3 px-2 py-1.5 ${here ? "bg-[var(--c-dsa-hl)]" : ""}`} aria-current={here ? "step" : undefined}>
                 <BeltSwatch belt={b} size={26} />
                 <span className={`min-w-[64px] text-[15px] ${here ? "font-semibold text-fg" : past ? "text-fg-2" : "text-fg-3"}`}>{b.name}</span>
-                <span className="font-mono text-[12px] tabular-nums text-fg-3">{b.min.toLocaleString("en-US")}+</span>
-                <span className="ml-auto hidden text-right text-[12.5px] text-fg-3 sm:inline">{b.line}</span>
+                <span className={`font-mono text-[12px] tabular-nums ${here ? "text-fg-2" : "text-fg-3"}`}>{b.min.toLocaleString("en-US")}+</span>
+                <span className={`ml-auto hidden text-right text-[12.5px] sm:inline ${here ? "text-fg-2" : "text-fg-3"}`}>{b.line}</span>
                 {past && <span className="sr-only">(reached)</span>}
               </li>
             );

@@ -53,7 +53,7 @@ function Bar({ label, done, total }: { label: string; done: number; total: numbe
     <li className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between gap-3 text-[13.5px]">
         <span className="min-w-0 truncate text-fg-2">{label}</span>
-        <span className="shrink-0 font-mono text-[12px] tabular-nums text-fg-3">
+        <span className="shrink-0 font-mono text-[12px] tabular-nums text-fg-2">
           {done} of {total}
         </span>
       </div>
