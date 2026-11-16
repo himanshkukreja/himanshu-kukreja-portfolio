@@ -275,7 +275,8 @@ export function gateHtml(html: string, o: GateOptions = {}): GateResult {
   if (!top || !top.length) return whole;
   const total = sum(top);
   if (total < (o.minChars ?? 1500)) return whole;
-  const marks = plan(html, top, total * (o.lo ?? 0.25), total * (o.hi ?? 0.4), total, 0, true);
+  // scripts and styles in the body aren't text: they're left as they are
+  const marks = plan(html, top, total * (o.lo ?? 0.25), total * (o.hi ?? 0.4), total, 0, true)?.filter((n) => !RAW.has(n.tag) && n.tag !== "template" && n.tag !== "noscript");
   if (!marks || !marks.length) return whole;
   // a short block right at the cut (a heading, an eyebrow, a rule) stays open, so the faded peek is real text
   for (let k = 0; k < 3 && marks.length > 1 && marks[0].tag !== "section" && marks[0].text < 160; k++) marks.shift();

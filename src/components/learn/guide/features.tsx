@@ -3,6 +3,7 @@
  * Each one's "How to use it" follows its video's flow (the scripts in the series' script.md files), in
  * the real UI's words; numbers come from the code (./facts). The in-depth part is ./sections/*.
  */
+import { GATE_ON } from "@/lib/gate/flag";
 import type { Feature } from "./FeatureSection";
 import { Kbd } from "./ui";
 import { BOSS_PASS_PCT, BOSS_XP, DAILY_N, DAILY_SECONDS, LAB_REVEAL_AFTER_RUNS, LAB_XP, LEARN_XP, QUIZ_XP, REVIEW_XP_PER_CARD, TRIAL_PASS_PCT } from "./facts";
@@ -36,7 +37,7 @@ export function guideFeatures(d: GuideData): Feature[] {
       shot: "hub-hero",
       steps: [
         <>
-          Open the <strong>course</strong> tab. No sign-up to read and nothing is locked: the <strong>Start here</strong> card (later <strong>Continue</strong>) always points at your next step.
+          Open the <strong>course</strong> tab. {GATE_ON ? "Every lesson opens without an account, and a free sign-in reads it in full; nothing is locked by level:" : "No sign-up to read and nothing is locked:"} the <strong>Start here</strong> card (later <strong>Continue</strong>) always points at your next step.
         </>,
         <>
           Read the <strong>skill tree</strong>: each row is a world, one week of the course. A Preview and five day lessons, then the <strong>boss</strong> (the diamond, a timed interview) and the <strong>T</strong> boxes, the

@@ -6,6 +6,7 @@
  * says where they are and offers the course map or the start. Shown once per browser, never to
  * someone who has already opened another course page; dismissible.
  */
+import { GATE_ON } from "@/lib/gate/flag";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { track } from "@/lib/track";
@@ -44,7 +45,7 @@ export default function LandingContext({ meta }: { meta: ReaderMeta }) {
       style={{ bottom: "calc(var(--site-dock, 0px) + 132px)" }}
     >
       <p className="m-0 min-w-0 flex-[1_1_300px]">
-        You&apos;re reading <span className="text-fg">{where}</span> in <span className="text-fg">System Design Mastery</span>, a free course with interview bosses, trials and mock interviews. No sign-up needed.
+        You&apos;re reading <span className="text-fg">{where}</span> in <span className="text-fg">System Design Mastery</span>, a free course with interview bosses, trials and mock interviews. {GATE_ON ? "Free for now: sign in to read every page in full." : "No sign-up needed."}
       </p>
       <span className="flex flex-wrap items-center gap-2">
         <Link href={COURSE_HREF} onClick={() => track("landing_context", { action: "map" })} className="inline-flex min-h-10 items-center border border-line-strong px-3 font-mono text-xs text-fg hover:bg-surface-2">

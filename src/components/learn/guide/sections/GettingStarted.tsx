@@ -1,4 +1,5 @@
 /** 01 Getting started, in depth: the tabs, the course map, the lesson screen, progress rules, the study planner. */
+import { GATE_ON } from "@/lib/gate/flag";
 import Shot from "../Shot";
 import ReadingFact from "../ReadingFact";
 import { A, Kbd, Note, Pair, PROSE, Steps, Sub, Table, Topic, Where } from "../ui";
@@ -212,6 +213,7 @@ export default function GettingStartedDetails({ d }: { d: GuideData }) {
         caption="Where progress is saved"
         head={["", "Guest (no account)", "Signed in"]}
         rows={[
+          ...(GATE_ON ? [["Reading and lectures", "The first part of each page, the first 75 s of a lecture", "Everything, free for now"]] : []),
           ["Lesson & stage progress, resume point", "This browser only", "Your account, on every device. Anything you read as a guest here is merged in when you first sign in"],
           ["XP, quests, badges", "This browser only", "Your account (merged the same way)"],
           ["Review cards, trial attempts", "This browser only", "Your account, with this browser as a backup if saving fails"],

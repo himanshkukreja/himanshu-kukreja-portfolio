@@ -93,6 +93,9 @@ test("comments, scripts and entities don't count as text and don't confuse the c
   assert.equal(r.gated, true);
   assert.equal(strip(r.html), html);
   assert.doesNotMatch(r.html, /<script[^>]*hk-gated/);
+  // nor one after the cut
+  const tail = `<div class="sd-body">${Array.from({ length: 8 }, (_, i) => `<p>${words(80, `w${i}`)}</p>`).join("")}<script>window.x = 1</script></div>`;
+  assert.doesNotMatch(gateHtml(tail).html, /<script[^>]*hk-gated/);
 });
 
 /* ------------------------------------------------------------------ the before-paint guess */
