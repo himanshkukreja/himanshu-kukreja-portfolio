@@ -43,7 +43,7 @@ function writeSaved(uid: string, day: string, s: Saved) {
   }
 }
 
-const OPTION = "flex min-h-11 w-full items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-[14.5px] leading-snug focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text";
+const OPTION = "flex min-h-12 w-full items-center gap-2.5 rounded-xl border px-3.5 py-2.5 text-left text-[14.5px] leading-snug focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text";
 
 export default function WarmupCard({ recent, station, ready }: { recent: string[]; station: string[]; ready: boolean }) {
   const { user, loading } = useAuth();
@@ -161,6 +161,7 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
           );
         })}
       </ul>
+      {!answered ? <p className="m-0 text-[12.5px] leading-snug text-fg-3">Pick one. An answer, right or wrong, keeps today&apos;s streak going.</p> : null}
       {answered ? (
         <div className="flex flex-col gap-2.5" aria-live="polite">
           <p className="m-0 text-[13.5px] leading-snug text-fg-2">
