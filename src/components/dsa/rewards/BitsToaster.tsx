@@ -13,19 +13,27 @@ import { TOOL_ICON_PATH } from "@/lib/dsa/metro/toolbox";
 import { BeltSwatch } from "./BeltSwatch";
 import { celebrate } from "@/lib/dsa/celebrate";
 
+const toolOwner: { current: object | null } = { current: null };
+
 export default function BitsToaster() {
   const [toasts, setToasts] = useState<BitsToast[]>([]);
   const [tools, setTools] = useState<ToolToast[]>([]);
   // a newly earned tool (a finished station): its card stays a little longer than a Bits toast and links to the toolbox
-  useEffect(
-    () =>
-      onTool((t) => {
-        setTools((list) => [...list.slice(-1), t]);
-        void celebrate("belt", null);
-        window.setTimeout(() => setTools((list) => list.filter((x) => x.id !== t.id)), 6500);
-      }),
-    [],
-  );
+  // the header and the Bits chip can both mount a toaster: only the first one to mount shows the tool card
+  useEffect(() => {
+    const me = {};
+    if (!toolOwner.current) toolOwner.current = me;
+    const off = onTool((t) => {
+      if (toolOwner.current !== me) return;
+      setTools((list) => [...list.slice(-1), t]);
+      void celebrate("belt", null);
+      window.setTimeout(() => setTools((list) => list.filter((x) => x.id !== t.id)), 6500);
+    });
+    return () => {
+      off();
+      if (toolOwner.current === me) toolOwner.current = null;
+    };
+  }, []);
   useEffect(
     () =>
       onBits((t) => {

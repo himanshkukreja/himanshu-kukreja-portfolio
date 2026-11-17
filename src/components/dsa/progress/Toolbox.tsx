@@ -56,7 +56,7 @@ function ToolCard({ t, now }: { t: Tool; now: number }) {
         {sub[0]}
       </p>
       <p className="m-0 text-[12.5px] leading-snug text-fg-3">{sub[1]}</p>
-      {fresh ? <span className="absolute right-3 top-3.5 rounded-full bg-signal px-2 py-0.5 text-[10.5px] font-semibold text-on-signal">New</span> : null}
+      {fresh ? <span className="absolute bottom-3 right-3 rounded-full bg-signal px-2 py-0.5 text-[10.5px] font-semibold text-on-signal">New</span> : null}
     </li>
   );
 }

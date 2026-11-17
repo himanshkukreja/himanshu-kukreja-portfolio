@@ -10,13 +10,13 @@
 
 export const exerciseKey = (lesson: string, id: string) => `dsa:ex:${lesson}:${id}`;
 
-/** The ids of the exercises in a rendered lesson (`<figure ... data-dsa="exercise" ... id="ex-<id>">`), in page order, once each. */
+/**
+ * The ids of the exercises in a rendered lesson, in page order, once each: `<figure ... data-dsa="exercise" data-id="<id>" ...>`.
+ * The id attribute comes before `data-ex` (a JSON blob that may hold any character), so the scan stops there.
+ */
 export function exerciseIdsOf(html: string | null | undefined): string[] {
   const out: string[] = [];
-  for (const m of (html || "").matchAll(/<figure\b[^>]*\bdata-dsa="exercise"[^>]*>/g)) {
-    const id = /\bid="ex-([^"]+)"/.exec(m[0]);
-    if (id && !out.includes(id[1])) out.push(id[1]);
-  }
+  for (const m of (html || "").matchAll(/<figure\b[^>]*?\bdata-dsa="exercise"[^>]*?\bdata-id="([^"]+)"/g)) if (!out.includes(m[1])) out.push(m[1]);
   return out;
 }
 

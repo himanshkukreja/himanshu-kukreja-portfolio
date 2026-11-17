@@ -164,6 +164,11 @@ test("exercises: ids are read from the rendered lesson, once each, in page order
   assert.deepEqual(exerciseIdsOf(null), []);
 });
 
+test("exercises: ids are found even when the data-ex JSON holds > and quotes", () => {
+  const f = `<figure class="sdb dsa-exercise" data-dsa="exercise" data-id="bs-x" data-ex-kind="bug" data-ex="{&#x22;q&#x22;:&#x22;a > b&#x22;}" id="ex-bs-x"><p>q</p></figure>`;
+  assert.deepEqual(exerciseIdsOf(f), ["bs-x"]);
+});
+
 test("exercises: left = not in the game store and not on this device; the text says how many", () => {
   const ids = ["a", "b", "c"];
   assert.deepEqual(exercisesLeft("lesson", ids, {}), ["a", "b", "c"]);
