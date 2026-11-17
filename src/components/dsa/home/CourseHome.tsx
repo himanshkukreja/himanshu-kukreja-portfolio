@@ -6,6 +6,7 @@
  * phones the order is kicker, Continue, two small tiles, the outline). The page around it is static ISR; everything
  * personal (progress, Continue, the column) paints in on the client.
  */
+import AiAdSection from "@/components/learn/promo/AiAdSection";
 import { useMemo, useSyncExternalStore } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import QuietNudge from "@/components/learn/plan/QuietNudge";
@@ -148,6 +149,8 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact rounded />]}
             below={
               <>
+                {/* guests: the AI tutor ad (CSS shows it to guests only) */}
+                <AiAdSection course="dsa" />
                 <QuietNudge course="dsa" />
                 {wide ? null : <TodayTiles />}
                 {wide ? null : warmup}
@@ -169,6 +172,8 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
           {slots?.top ? <div data-slot="home-top">{slots.top}</div> : null}
 
           {welcomeCard ? <div aria-hidden className="min-h-[260px] rounded-2xl border border-line bg-surface sm:min-h-[330px] sm:rounded-[18px]" /> : showWelcome ? <Welcome /> : <ContinueCard next={next ?? { state: "empty" }} ready={progress.ready && !!next} />}
+          {/* guests: the AI tutor ad (CSS shows it to guests only), right after the hero card */}
+          <AiAdSection course="dsa" />
           {/* one quiet line for a DSA topic missed twice lately (signed-in learners; nothing for guests) */}
           <QuietNudge course="dsa" className="-mt-2 sm:-mt-3" />
 

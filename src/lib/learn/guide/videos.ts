@@ -29,7 +29,9 @@ export type GuideVideoId =
   | "notebook"
   | "ai-tutor"
   | "progress-profile"
-  | "full-tour";
+  | "full-tour"
+  | "ai-ad"
+  | "ai-demo";
 
 export type Chapter = { t: number; label: string };
 
@@ -327,6 +329,49 @@ export const GUIDE_VIDEO_CATALOG: readonly Entry[] = [
   },
 ];
 
+/**
+ * The AI tutor promo (17 Nov 2026): "It remembers", the 2-min ad on both course landings (with a 49 s 9:16 cut for phones), and
+ * "How our AI works", the 8-min demo with chapters on /ai-tutor. Not part of the feature series: they show whenever they are in
+ * published.json, with or without NEXT_PUBLIC_GUIDE_VIDEOS.
+ */
+export const PROMO_CATALOG: readonly Entry[] = [
+  {
+    id: "ai-ad",
+    n: 100,
+    title: "It remembers: the AI tutor",
+    summary: "Most platforms hand you answers and forget you. This tutor remembers every mistake and teaches from it.",
+    duration: 122,
+    chapters: [],
+    href: "/ai-tutor",
+    hrefLabel: "the AI tutor",
+    guide: "ai-tutor",
+  },
+  {
+    id: "ai-demo",
+    n: 101,
+    title: "How our AI works",
+    summary: "One tutor that learns you: a study plan, answers from the lesson, hints that never spoil, memory, mocks and your data.",
+    duration: 497,
+    chapters: ch(`
+0:00 Cold open: one tutor that learns you
+0:34 I have four weeks and one hour a day
+1:25 I do not get why this works: ask the lesson
+2:47 I am stuck, but do not spoil it: DSA tutor
+3:56 I keep forgetting this
+4:57 I learn by writing: the notebook
+5:39 I bombed my last mock
+6:42 I fell off for two weeks
+7:31 Who sees my data?
+8:03 Try it free`),
+    href: "/ai-tutor",
+    hrefLabel: "the AI tutor",
+    guide: "ai-tutor",
+  },
+];
+
+/** The length of the ad's 9:16 cut (published next to the 16:9 one). */
+export const AD_VERTICAL_SECONDS = 49;
+
 type Published = { v: string; duration?: number; chapters?: Chapter[]; files?: string[] };
 const PUBLISHED = (manifest as { videos?: Record<string, Published> }).videos || {};
 
@@ -352,6 +397,8 @@ export type GuideVideo = Omit<Entry, "duration" | "chapters"> & {
   /** a ~10 s muted loop (the trailer only) */
   preview: string | null;
   vertical: string | null;
+  /** 720×1280 frame for the 9:16 cut */
+  posterVertical: string | null;
 };
 
 function resolve(e: Entry): GuideVideo | null {
@@ -370,8 +417,15 @@ function resolve(e: Entry): GuideVideo | null {
     captions: has("captions.vtt") ? url("captions.vtt") : null,
     preview: p.files?.includes("preview.mp4") ? url("preview.mp4") : null,
     vertical: p.files?.includes("video-9x16.mp4") ? url("video-9x16.mp4") : null,
+    posterVertical: p.files?.includes("poster-9x16.jpg") ? url("poster-9x16.jpg") : null,
   };
 }
+
+/** A promo video (the ad, the demo) when published; independent of the feature-video flag. */
+export const promoVideo = (id: "ai-ad" | "ai-demo"): GuideVideo | null => {
+  const e = PROMO_CATALOG.find((v) => v.id === id);
+  return e ? resolve(e) : null;
+};
 
 /** Every published video in series order (trailer, 01–12, full tour); empty when the flag is off. */
 export const GUIDE_VIDEOS: readonly GuideVideo[] = GUIDE_VIDEOS_ON ? GUIDE_VIDEO_CATALOG.map(resolve).filter((v): v is GuideVideo => !!v) : [];

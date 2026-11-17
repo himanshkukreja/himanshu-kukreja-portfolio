@@ -6,6 +6,8 @@
  * saved to the account for 90 days once chat_threads exists, else kept on the device, deletable from History).
  */
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { isDsaPath } from "@/lib/dsa/flags";
 import { AI_FREE_LINE } from "@/components/learn/ai/AiFreeNote";
 import type { ChatQuota } from "@/lib/ai/chat/text";
 
@@ -35,6 +37,7 @@ export const historyLine = (where: "on" | "off" | "unknown") =>
  * under it on a tap (the owner found the whole paragraph under every chat distracting, 29 Oct 2026).
  */
 export function ChatFinePrint({ memory, history, className = "", privacy = CHAT_PRIVACY }: { memory: { available: boolean; paused: boolean } | null; history?: "on" | "off" | "unknown"; className?: string; /** another tutor's retention (DSA Mastery: 30 days) */ privacy?: string }) {
+  const dsa = isDsaPath(usePathname() || "");
   return (
     <details className={`group text-[11.5px] leading-snug text-fg-4 ${className}`}>
       <summary className="inline-flex min-h-8 cursor-pointer list-none items-center gap-1 font-mono text-[11px] hover:text-fg-3 [&::-webkit-details-marker]:hidden">
@@ -51,7 +54,11 @@ export function ChatFinePrint({ memory, history, className = "", privacy = CHAT_
             </Link>
             .
           </>
-        )}
+        )}{" "}
+        <Link href={dsa ? "/dsa/ai-tutor" : "/ai-tutor"} className="underline decoration-line-strong underline-offset-2 hover:text-fg-2">
+          How the tutor works
+        </Link>
+        .
       </p>
     </details>
   );

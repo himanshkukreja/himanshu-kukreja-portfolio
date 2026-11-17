@@ -47,6 +47,9 @@ const IDS = [
   "ai-tutor",
   "progress-profile",
   "full-tour",
+  // the AI tutor promo: the ad on the course landings, the full demo on /ai-tutor (src/lib/learn/guide/videos.ts PROMO_CATALOG)
+  "ai-ad",
+  "ai-demo",
 ];
 const PREVIEW_FOR = new Set(["welcome-trailer"]);
 const PREVIEW_SEC = 10;
@@ -164,12 +167,13 @@ function gather(id) {
   const main = pick(dir, [`${base}-1080p.mp4`], (n) => n.endsWith("-1080p.mp4"));
   if (!main) return { id, skip: `no *-1080p.mp4 in ${path.basename(dir)} (still rendering?)` };
   const vertical = pick(dir, [`${base}-9x16.mp4`], (n) => n.endsWith("-9x16.mp4"));
+  const verticalPoster = pick(dir, ["poster-9x16.jpg"], () => false);
   const srt = pick(dir, [`${base}.srt`], (n) => n.endsWith(".srt") && !/9x16|4x5/.test(n));
   const poster = pick(dir, ["thumbnail.jpg"], (n) => /^thumbnail.*\.jpe?g$/.test(n) && !/4k/i.test(n));
   const script = pick(dir, ["script.md"], () => false);
   const fresh = [main, vertical, srt, poster].filter(Boolean).filter((f) => Date.now() - fs.statSync(f).mtimeMs < 120_000);
   if (fresh.length && !opt.force) return { id, skip: `${fresh.map((f) => path.basename(f)).join(", ")} changed in the last 2 min (still rendering? --force to publish anyway)` };
-  return { id, dir, main, vertical, srt, poster, script };
+  return { id, dir, main, vertical, verticalPoster, srt, poster, script };
 }
 
 // ------------------------------------------------------------------------------------------ R2
@@ -259,6 +263,7 @@ for (const id of ids) {
   const out = {}; // published name → { file } or { body }
   out["video-1080p.mp4"] = { file: g.main };
   if (g.vertical) out["video-9x16.mp4"] = { file: g.vertical };
+  if (g.verticalPoster) out["poster-9x16.jpg"] = { file: g.verticalPoster };
   if (g.poster) out["poster.jpg"] = { file: g.poster };
   else {
     run(FFMPEG, ["-v", "error", "-y", "-ss", "3", "-i", g.main, "-frames:v", "1", "-vf", "scale=1280:-2", "-q:v", "3", path.join(tmp, "poster.jpg")]);

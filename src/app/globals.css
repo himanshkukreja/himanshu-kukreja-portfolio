@@ -1437,6 +1437,9 @@ html:has([role="group"][aria-label="Read aloud"]) [data-chat-fab] {
    fades out under a fixed height and the rest isn't shown; the card follows. Members never match these rules.
    The full text stays in the HTML (a soft gate, marked for search engines with isAccessibleForFree: false). */
 .hk-gate-card { display: none; }
+/* a promo shown to guests only (the AI tutor ad on the course landings): rendered for everyone, shown by CSS before paint */
+.hk-guest-only { display: none; }
+html.hk-guest .hk-guest-only { display: grid; }
 html.hk-guest .hk-gate-card { display: block; margin-top: 0.5rem; margin-bottom: 2rem; }
 html.hk-guest .hk-gated:not(.hk-gate-peek) { display: none !important; }
 html.hk-guest .hk-gate-peek {

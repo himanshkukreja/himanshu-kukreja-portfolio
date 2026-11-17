@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-02T08:28:31.338Z",
+  "updated": "2026-11-17T11:21:12.499Z",
   "videos": {
     "welcome-trailer": {
       "v": "0419c0dd1f",
@@ -696,6 +696,77 @@
       "bytes": 224463663,
       "source": "99-full-tour",
       "published": "2026-11-02T08:28:31.338Z"
+    },
+    "ai-ad": {
+      "v": "39c6014f4f",
+      "duration": 122.1,
+      "chapters": [],
+      "files": [
+        "video-1080p.mp4",
+        "video-9x16.mp4",
+        "poster-9x16.jpg",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 37853126,
+      "source": "ai-ad",
+      "published": "2026-11-17T11:20:55.353Z"
+    },
+    "ai-demo": {
+      "v": "e180ea44fc",
+      "duration": 496.9,
+      "chapters": [
+        {
+          "t": 0,
+          "label": "Cold open: one tutor that learns you"
+        },
+        {
+          "t": 34,
+          "label": "I have four weeks and one hour a day"
+        },
+        {
+          "t": 85,
+          "label": "I do not get why this works: ask the lesson"
+        },
+        {
+          "t": 167,
+          "label": "I am stuck, but do not spoil it: DSA tutor"
+        },
+        {
+          "t": 236,
+          "label": "I keep forgetting this"
+        },
+        {
+          "t": 297,
+          "label": "I learn by writing: the notebook"
+        },
+        {
+          "t": 339,
+          "label": "I bombed my last mock"
+        },
+        {
+          "t": 402,
+          "label": "I fell off for two weeks"
+        },
+        {
+          "t": 451,
+          "label": "Who sees my data?"
+        },
+        {
+          "t": 483,
+          "label": "Try it free"
+        }
+      ],
+      "files": [
+        "video-1080p.mp4",
+        "poster.jpg",
+        "thumb.jpg",
+        "captions.vtt"
+      ],
+      "bytes": 211187665,
+      "source": "ai-demo",
+      "published": "2026-11-17T11:21:12.498Z"
     }
   }
 }

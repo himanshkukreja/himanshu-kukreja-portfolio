@@ -76,7 +76,7 @@ function pagesOf(d) {
   const concept = d.concepts[0] || d.conceptIds.find((c) => !d.structures.includes(c) && !d.algorithms.includes(c));
   if (concept) p.push({ id: "lesson-concept", url: `/dsa/concepts/${concept}` });
   if (d.problems[0]) p.push({ id: "problem", url: `/dsa/problems/${d.problems[0]}` });
-  p.push({ id: "practice", url: "/dsa/practice" }, { id: "search-results", url: "/dsa/practice?q=array" }, { id: "review", url: "/dsa/review" }, { id: "progress", url: "/dsa/progress" }, { id: "playground", url: "/dsa/playground" }, { id: "cheatsheets", url: "/dsa/cheatsheets" });
+  p.push({ id: "practice", url: "/dsa/practice" }, { id: "search-results", url: "/dsa/practice?q=array" }, { id: "review", url: "/dsa/review" }, { id: "progress", url: "/dsa/progress" }, { id: "playground", url: "/dsa/playground" }, { id: "cheatsheets", url: "/dsa/cheatsheets" }, { id: "ai-tutor", url: "/dsa/ai-tutor" }, { id: "sdm-ai-tutor", url: "/ai-tutor" });
   if (d.cheat) p.push({ id: "cheatsheet", url: `/dsa/cheatsheets/${d.cheat}` });
   return ONLY.length ? p.filter((x) => ONLY.includes(x.id)) : p;
 }

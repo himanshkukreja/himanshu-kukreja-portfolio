@@ -5,6 +5,7 @@
  * every world (nodes per lesson, boss, trial parts), selected-world panel, side quests, and the
  * world-cleared / level-up moments. Progress: one batched load (useLearnProgress).
  */
+import AiAdSection from "@/components/learn/promo/AiAdSection";
 import { LOGO_NOTE } from "@/components/learn/prep/CompanyLogo";
 import { LEVEL_TONE_PAGE } from "@/lib/learn/level";
 import Link from "next/link";
@@ -159,6 +160,9 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
           <ContinueReadingBanner ready={ready} resume={resume} stages={stages} dueCount={dueCount} dueReady={dueReady} streak={streak} />
         </div>
       </section>
+
+      {/* guests: the AI tutor ad, right after the hero (CSS shows it to guests only) */}
+      <AiAdSection course="sdm" />
 
       {/* first visit: the welcome video (when the feature videos are on) takes the tour card's place */}
       {GUIDE_VIDEOS_ON ? <WelcomeVideoCard fallback={<TourCard />} /> : <TourCard />}

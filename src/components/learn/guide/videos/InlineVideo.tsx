@@ -9,25 +9,28 @@
 import dynamic from "next/dynamic";
 import { useRef, useState } from "react";
 import { Play } from "lucide-react";
-import { fmtClock, guideVideo, type GuideVideoId } from "@/lib/learn/guide/videos";
+import { fmtClock, guideVideo, type GuideVideo, type GuideVideoId } from "@/lib/learn/guide/videos";
 
 const GuidePlayer = dynamic(() => import("./GuidePlayer"), { ssr: false, loading: () => <div className="aspect-video w-full bg-black" /> });
 
 export default function InlineVideo({
   id,
+  video,
   from = "guide",
   priority = false,
   showChapters = true,
   sizes = "(min-width: 1280px) 600px, (min-width: 1024px) 760px, 100vw",
 }: {
-  id: GuideVideoId;
+  id?: GuideVideoId;
+  /** a video that isn't in the feature series (the AI tutor promo), instead of an id */
+  video?: GuideVideo | null;
   from?: string;
   /** above the fold: load the poster eagerly */
   priority?: boolean;
   showChapters?: boolean;
   sizes?: string;
 }) {
-  const v = guideVideo(id);
+  const v = video ?? (id ? guideVideo(id) : null);
   const [start, setStart] = useState<number | null>(null);
   const [time, setTime] = useState(0);
   const el = useRef<HTMLVideoElement | null>(null);

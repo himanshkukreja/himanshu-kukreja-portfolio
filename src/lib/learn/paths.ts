@@ -24,6 +24,7 @@ export const COURSE_ROOT = `/learn/${COURSE_ID}`;
 
 /** Every directory under src/app/learn that is a feature (not the [course] content route). */
 export const LEARN_FEATURES = [
+  "ai-tutor",
   "answer",
   "arena",
   "bookmarks",
