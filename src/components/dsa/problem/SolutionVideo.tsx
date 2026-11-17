@@ -62,7 +62,7 @@ export default function SolutionVideo({
   return (
     <section
       aria-label="Solution video"
-      className="dsa-ui flex flex-col border border-line bg-surface"
+      className={`dsa-ui flex flex-col border border-line bg-surface ${video.player ? "-mx-4 sm:mx-0" : ""}`}
     >
       <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-line px-4 py-2.5">
         <h2 className="m-0 font-mono text-[12px] font-normal uppercase tracking-label text-signal-text">
