@@ -35,6 +35,8 @@ export type StatsInput = {
   /** Date#getTimezoneOffset() of the viewer, so days are the learner's own days */
   tzOffsetMin: number;
   weeks?: number;
+  /** days (YYYY-MM-DD) that count as active on their own: the finished warm-ups (warmup.ts warmDaysOf), kept by their own day, not by when the key was written */
+  extraDays?: Iterable<string>;
 };
 
 export type Bar = { id: string; label: string; solved: number; total: number };
@@ -113,7 +115,8 @@ export function computeStats(i: StatsInput) {
     const k = dayKey(ms, i.tzOffsetMin);
     active.set(k, (active.get(k) || 0) + 1);
   };
-  for (const [k, at] of Object.entries(i.done)) if (k.startsWith("dsa:") && !k.startsWith("dsa:b:") && !k.startsWith("dsa:rs:")) bump(Number(at));
+  for (const [k, at] of Object.entries(i.done)) if (k.startsWith("dsa:") && !k.startsWith("dsa:b:") && !k.startsWith("dsa:rs:") && !k.startsWith("dsa:warm:")) bump(Number(at));
+  for (const d of i.extraDays || []) active.set(d, (active.get(d) || 0) + 1);
   const allHistory = Object.entries(i.histories).flatMap(([id, h]) => h.map((r) => ({ ...r, id })));
   for (const h of allHistory) bump(h.at);
   const { current, longest } = streaksOf(new Set(active.keys()), today);

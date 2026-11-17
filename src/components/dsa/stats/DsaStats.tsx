@@ -16,6 +16,7 @@ import { useDsaProgress } from "../progress/useDsaProgress";
 import { BeltSwatch } from "../rewards/BeltSwatch";
 import { useDsaBits } from "../rewards/useDsaBits";
 import { awardKeys, eventBits, SOLVE_BITS } from "@/lib/dsa/rewards";
+import { warmDaysOf } from "@/lib/dsa/warmup";
 import { computeStats, type Bar, type HistoryRow, type StatRow } from "@/lib/dsa/stats";
 import { facetLabel } from "@/lib/dsa/taxonomy";
 
@@ -206,7 +207,7 @@ export default function DsaStats({ rows, steps, embedded = false }: { rows: Stat
       const b = eventBits(done, awardKeys.solve(id));
       if (b >= 0) solveBits[id] = b;
     }
-    return computeStats({ done, solved: progress.solved, rows, histories: histories || {}, solveBits, tiers: SOLVE_BITS, awards: bits.awards, now: clock.now, tzOffsetMin: clock.tz });
+    return computeStats({ extraDays: warmDaysOf(done), done, solved: progress.solved, rows, histories: histories || {}, solveBits, tiers: SOLVE_BITS, awards: bits.awards, now: clock.now, tzOffsetMin: clock.tz });
   }, [ready, done, progress.solved, rows, histories, bits.awards, clock]);
 
   const stepLabel = useMemo(() => new Map(steps.map((s) => [s.id, s.label])), [steps]);

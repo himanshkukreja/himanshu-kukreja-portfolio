@@ -9,6 +9,8 @@ import { buildMetro, stationDone } from "../../src/lib/dsa/metro/model.ts";
 import { BANDS, TOOLS, bandFor, isFresh, newlyEarned, toolKey, toolbox } from "../../src/lib/dsa/metro/toolbox.ts";
 import { GROUPS, LEVEL_WEIGHT, radarPoint, skillRadar } from "../../src/lib/dsa/skill-radar.ts";
 import { exerciseIdsOf, exerciseKey, exercisesLeft, exercisesLeftText, exercisesSolved } from "../../src/lib/dsa/exercise-gate.ts";
+import { computeStats } from "../../src/lib/dsa/stats.ts";
+import { warmDaysOf } from "../../src/lib/dsa/warmup.ts";
 import { BITS_TABLE, awardsOf, bitsOfKey, computeBits } from "../../src/lib/dsa/rewards.ts";
 
 const lesson = (id, built = true) => ({ conceptId: id, title: id, href: built ? `/dsa/concepts/${id}` : null, kind: "concept", minutes: 10, problemCount: 2, built, nodeId: id });
@@ -193,4 +195,18 @@ test("exercises: each solved exercise is worth 5 Bits, once, whatever the sync d
   // the same key merged from two devices is still one award
   assert.equal(computeBits([...a, ...awardsOf({ [k]: 999 })]).total, 10);
   assert.equal(computeBits(a).byKind.exercise, 10);
+});
+
+test("activity: warm-up days, exercises and reviews are active days; the streak runs through them", () => {
+  const D = (d) => Date.parse(`${d}T09:00:00Z`);
+  const done = { "dsa:warm:2026-11-15": D("2026-11-15"), "dsa:warm:2026-11-16": D("2026-11-16"), [exerciseKey("l", "e")]: D("2026-11-17"), "dsa:rv:2026-11-10:c": D("2026-11-10"), "dsa:b:solve:x=10": D("2026-11-01") };
+  const stats = computeStats({ done, extraDays: warmDaysOf(done), solved: new Set(), rows: [], histories: {}, solveBits: {}, tiers: {}, awards: [], now: D("2026-11-17"), tzOffsetMin: 0 });
+  const heat = Object.fromEntries(stats.activity.heat.map((d) => [d.date, d.count]));
+  assert.equal(heat["2026-11-15"], 1, "warm-up day counted once");
+  assert.equal(heat["2026-11-17"], 1, "exercise day");
+  assert.equal(heat["2026-11-10"], 1, "revision card day");
+  assert.equal(heat["2026-11-01"], 0, "Bits events are not activity");
+  assert.equal(stats.activity.current, 3, "15, 16 and 17 Nov in a row");
+  assert.equal(stats.activity.longest, 3);
+  assert.equal(stats.activity.activeDays, 4);
 });

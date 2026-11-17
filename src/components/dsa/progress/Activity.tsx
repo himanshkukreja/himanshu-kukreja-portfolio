@@ -9,6 +9,7 @@
 import { useMemo, useState } from "react";
 import { useGame } from "@/game/GameProvider";
 import { SOLVE_BITS } from "@/lib/dsa/rewards";
+import { warmDaysOf } from "@/lib/dsa/warmup";
 import { computeStats, type StatRow } from "@/lib/dsa/stats";
 import { CARD, KICKER } from "../ui/kit";
 import { Heatmap, useHistories } from "../stats/DsaStats";
@@ -31,7 +32,7 @@ export default function Activity({ rows }: { rows: StatRow[] }) {
   const histories = useHistories();
   const [clock] = useState(() => ({ now: Date.now(), tz: new Date().getTimezoneOffset() }));
   const ready = hydrated && progress.ready && histories !== null;
-  const a = useMemo(() => (ready ? computeStats({ done, solved: progress.solved, rows, histories: histories || {}, solveBits: {}, tiers: SOLVE_BITS, awards: [], now: clock.now, tzOffsetMin: clock.tz, weeks: 32 }).activity : null), [ready, done, progress.solved, rows, histories, clock]);
+  const a = useMemo(() => (ready ? computeStats({ extraDays: warmDaysOf(done), done, solved: progress.solved, rows, histories: histories || {}, solveBits: {}, tiers: SOLVE_BITS, awards: [], now: clock.now, tzOffsetMin: clock.tz, weeks: 32 }).activity : null), [ready, done, progress.solved, rows, histories, clock]);
   return (
     <div className={`${CARD} grid items-center gap-5 p-4 sm:p-5 md:grid-cols-[minmax(0,1fr)_240px]`}>
       <div className="flex min-w-0 flex-col gap-2">
