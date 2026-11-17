@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { isQaUser } from "@/lib/analytics/exclude";
 import { welcomeEmail } from "@/lib/email/welcome";
 import { brevoConfigured, brevoTransport } from "@/lib/email/transport";
 
@@ -97,6 +98,7 @@ export async function POST(request: NextRequest) {
     const { data: { user }, error: userError } = await supabaseAdmin.auth.getUser(token);
     if (userError || !user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const userId = user.id;
+    if (isQaUser(user)) return NextResponse.json({ message: "QA account - welcome email not sent", alreadySent: true });
 
     // Get user profile for display name
     const { data: profile } = await supabaseAdmin
