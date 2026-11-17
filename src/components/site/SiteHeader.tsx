@@ -216,7 +216,7 @@ export default function SiteHeader() {
           {/* min-w-0: in learn mode the search box gives up width before the row overflows */}
           <div className="flex min-w-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
             {dsa && <CourseSwitch pathname={pathname} />}
-            {learn && <SearchBar variant="nav" hotkey label={dsa ? "Search lessons and problems" : undefined} />}
+            {learn && <SearchBar variant="nav" hotkey wide2xl={dsa} label={dsa ? "Search lessons and problems" : undefined} />}
             {dsa && <DsaAsk />}
             {/* SD Mastery's guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here (not on DSA pages) */}
             {learn && !dsa && (

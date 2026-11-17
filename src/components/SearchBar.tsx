@@ -761,9 +761,11 @@ type SearchBarProps = {
   hotkey?: boolean;
   /** the nav button's words (DSA Mastery: "Search lessons and problems"); default "Search lessons, topics…" */
   label?: string;
+  /** nav variant: the full search box waits for 2xl (an icon button until then); DSA Mastery's header has five tabs and the course switch */
+  wide2xl?: boolean;
 };
 
-export default function SearchBar({ variant = "bar", hotkey = false, label }: SearchBarProps) {
+export default function SearchBar({ variant = "bar", hotkey = false, label, wide2xl = false }: SearchBarProps) {
   const [isOpen, setIsOpen] = useState(false);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const onDsaPage = isDsaPath(usePathname() || "/");
@@ -822,13 +824,13 @@ export default function SearchBar({ variant = "bar", hotkey = false, label }: Se
             type="button"
             onClick={() => setIsOpen(true)}
             data-wco-search="full"
-            className="hidden min-h-10 w-[240px] min-w-[148px] shrink items-center gap-2.5 border border-line-strong bg-bg px-3 text-left text-sm text-fg-4 hover:text-fg-3 md:flex lg:hidden xl:flex"
+            className={`hidden min-h-10 w-[240px] min-w-[148px] shrink items-center gap-2.5 border border-line-strong bg-bg px-3 text-left text-sm text-fg-4 hover:text-fg-3 md:flex lg:hidden ${wide2xl ? "2xl:flex" : "xl:flex"}`}
           >
             <Search className="h-[15px] w-[15px] shrink-0 text-fg-3" aria-hidden />
             <span className="min-w-0 flex-1 truncate">{label ?? "Search lessons, topics…"}</span>
             <kbd className="shrink-0 border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-fg-3">⌘K</kbd>
           </button>
-          <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" data-wco-search="icon" className="grid h-10 w-10 shrink-0 place-items-center border border-line-strong text-fg min-[400px]:h-11 min-[400px]:w-11 md:hidden lg:grid xl:hidden">
+          <button type="button" onClick={() => setIsOpen(true)} aria-label="Search the course" data-wco-search="icon" className={`grid h-10 w-10 shrink-0 place-items-center border border-line-strong text-fg min-[400px]:h-11 min-[400px]:w-11 md:hidden lg:grid ${wide2xl ? "2xl:hidden" : "xl:hidden"}`}>
             <Search className="h-4 w-4" aria-hidden />
           </button>
         </>
