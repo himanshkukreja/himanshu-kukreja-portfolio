@@ -1,13 +1,17 @@
 /**
  * DEV-ONLY signed-in fixture for the layout gap check (scripts/qa/layout-gaps.mjs). Honoured only when
- * NODE_ENV !== "production": `?qa=signed-in` (kept for the tab in sessionStorage) makes AuthProvider hand out a fake learner
+ * NODE_ENV !== "production" (or in a local build made with NEXT_PUBLIC_QA_FIXTURE=1 for the check): `?qa=signed-in` (kept for the tab in sessionStorage) makes AuthProvider hand out a fake learner
  * and answers the learner's /api/learn/* reads with fake data, so every signed-in card (interview readiness, left-off, Today,
  * the tutor, achievements) renders at its real size. In a production build every function here returns false/null at once.
  */
 const KEY = "hk.qa.signedin";
 
+/** dev server, or a LOCAL production build made for the check with NEXT_PUBLIC_QA_FIXTURE=1 (never set in CI or on staging/prod,
+ *  where this constant is false at build time and the fixture code is dead) */
+const ENABLED = process.env.NODE_ENV !== "production" || process.env.NEXT_PUBLIC_QA_FIXTURE === "1";
+
 export function qaSignedIn(): boolean {
-  if (process.env.NODE_ENV === "production" || typeof window === "undefined") return false;
+  if (!ENABLED || typeof window === "undefined") return false;
   try {
     const q = new URLSearchParams(window.location.search).get("qa");
     if (q === "signed-in") window.sessionStorage.setItem(KEY, "1");

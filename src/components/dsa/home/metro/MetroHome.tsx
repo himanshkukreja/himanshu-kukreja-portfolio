@@ -92,14 +92,15 @@ export default function MetroHome({ outline, progress, problems, next, kicker, i
       {wide ? (
         huge ? (
           <>
-            {/* the top band: both columns end on the same line (the row stretches them; the lesson list scrolls inside its card, the map sits centred in what is left) */}
+            {/* the top band: route + station on the left, the map with its legend right under it on the right (sticky under the header);
+                the left column is sized so the two end together: the lesson list scrolls inside its card */}
             <div className="grid items-stretch gap-6 grid-cols-[380px_minmax(0,1fr)]">
-              <div className="flex flex-col gap-4">
-                <RouteCard metro={metro} info={info} hereStation={hereStation} next={next} ready={ready} isNew={isNew} goal={goal} onGoal={setGoal} />
+              <div className="flex min-w-0 flex-col gap-4">
+                <RouteCard metro={metro} info={info} hereStation={hereStation} next={next} ready={ready} isNew={isNew} goal={goal} onGoal={setGoal} compact />
                 <StationCard station={cardStation} lineTitle={lineTitle} isHere={cardId === hereId} inRoute={info.ids.includes(cardId)} content={cardContent} fill />
               </div>
-              <div className="flex min-w-0 flex-col gap-4 pt-4">
-                <div className="flex flex-1 flex-col justify-center">{mapEl}</div>
+              <div className="flex min-w-0 flex-col gap-3 self-start sticky top-[76px]">
+                {mapEl}
                 <Legend metro={metro} wide />
               </div>
             </div>

@@ -7,12 +7,18 @@
  *                                   [--tag after] [--gap 160]
  *
  * For every page x width x state it loads the page, scrolls it top to bottom (so lazy parts mount), then measures:
+ *   (the home map is measured with Arrays selected: a 7-lesson station card)
  *   1. Columns: inside one parent, blocks that sit side by side (their x ranges do not overlap) and whose vertical ranges
  *      overlap are columns. A column whose bottom is more than --gap px (default 160) above a sibling column's bottom is a
  *      gap (the owner's "huge empty block"). Sticky columns (asides built to stay in view) are ignored, as are columns
  *      shorter than 120 px (labels, buttons) and fixed/absolute elements. A grid of uniform cards (heights within 1.6x) with a
  *      partly filled last row is a normal grid and is not reported.
  *   2. Horizontal overflow: the page is wider than the window, or an element sticks out past the right edge.
+ *   3. Pixels (catches empty space INSIDE a box, which comparing box bottoms cannot see, e.g. a map floating in a tall
+ *      frame): a screenshot of the page (first 9000 px) is scanned for rows that are pure page background across a
+ *      column's width (every detected column except sticky asides, plus the full content width). A run of such rows longer than --gap px
+ *      fails. Runs touching the end of the content (after the last card) are ignored, so are rows that differ only by a
+ *      few levels (shadows, borders). Failing runs are outlined in blue in the screenshot.
  * Output: a table, results.json, and a screenshot (failing columns outlined in red) per failure in --out
  * (default ~/Downloads/dsa-redesign/gaps). `--shots all` also saves every screenshot (named <tag>-<page>-<state>-<width>.png).
  * Exit code 1 when anything fails.
@@ -22,6 +28,10 @@
  * and tutor-memory reads with fake data, and this script seeds localStorage with progress (lessons and problems done) so the
  * left-off, Today, tutor, readiness and quick-review cards all render at real size. The fixture is inert when
  * NODE_ENV === "production", so against staging or production only the guest state runs (the signed-in state is skipped).
+ *
+ * The dev server is slow under load; for a fast run build locally with the fixture on (never in CI or on staging):
+ *   NEXT_PUBLIC_QA_FIXTURE=1 HOST_OVERRIDE=course NEXT_PUBLIC_DSA_MODE=full ... npx next build && npx next start -p 3410
+ * GAP_DEBUG=1 also writes the scanned screenshot of every check.
  *
  * Needs puppeteer-core (from ~/.cache/hk-render/deps) and Google Chrome; the dev server from the session handoff
  * (HOST_OVERRIDE=course NEXT_PUBLIC_DSA_MODE=full ... npx next dev -p 3410) or a local `next build && next start`.
@@ -51,7 +61,14 @@ mkdirSync(OUT, { recursive: true });
 
 /* ------------------------------------------------------------ pages */
 async function discover() {
-  const html = await (await fetch(`${BASE}/dsa`)).text();
+  let html = "";
+  for (let i = 0; i < 6 && !html; i++) {
+    try {
+      html = await (await fetch(`${BASE}/dsa`, { signal: AbortSignal.timeout(280000) })).text();
+    } catch (e) {
+      console.log(`  (waiting for ${BASE}: ${e.cause?.code || e.message})`);
+    }
+  }
   const pick = (re) => [...new Set([...html.matchAll(re)].map((m) => m[1]))];
   const structures = pick(/\/dsa\/structures\/([a-z0-9-]+)/g);
   const algorithms = pick(/\/dsa\/algorithms\/([a-z0-9-]+)/g);
@@ -68,7 +85,7 @@ async function discover() {
 
 function pagesOf(d) {
   const p = [
-    { id: "home-map", url: "/dsa", prefs: { "dsa:home-view:v1": "map" } },
+    { id: "home-map", url: "/dsa", prefs: { "dsa:home-view:v1": "map" }, pin: "Arrays" },
     { id: "home-list", url: "/dsa", prefs: { "dsa:home-view:v1": "list" } },
   ];
   if (d.structures[0]) p.push({ id: "lesson-structure", url: `/dsa/structures/${d.structures[0]}` });
@@ -84,7 +101,7 @@ function pagesOf(d) {
 /* ------------------------------------------------------------ in-page measurement */
 function measure(GAP) {
   const vw = window.innerWidth;
-  const out = { overflow: null, gaps: [] };
+  const out = { overflow: null, gaps: [], regions: [] };
   const sw = document.documentElement.scrollWidth;
   if (sw > vw + 1) {
     const wide = [];
@@ -144,6 +161,7 @@ function measure(GAP) {
       } else cols.push({ l: k.l, r: k.r, t: k.t, b: k.b, kids: [k] });
     }
     if (cols.length < 2) continue;
+    for (const c of cols) out.regions.push({ l: c.l, r: c.r, t: c.t, b: Math.max(...cols.map((o) => o.b)), parent: label(parent), sticky: c.kids.some((k) => hasSticky(k.el)) });
     // a block that spans the other columns (full-width) means these are rows, not columns
     const live = cols.filter((c) => !c.kids.some((k) => hasSticky(k.el)) && c.b - c.t >= 120);
     if (live.length < 2) continue;
@@ -157,9 +175,73 @@ function measure(GAP) {
       }
     }
   }
+  const main = document.querySelector("main") || document.body;
+  const mr = rect(main);
+  out.regions.push({ l: mr.l, r: mr.r, t: mr.t, b: mr.b, parent: "main (full width)", full: true });
   // keep the outermost report per area: drop a gap fully inside another gap's box
   out.gaps = out.gaps.filter((g, i) => !out.gaps.some((h, j) => j !== i && h.left <= g.left + 2 && h.left + h.width >= g.left + g.width - 2 && h.bottom >= g.bottom - 2 && h.top <= g.top + 2 && (h.refBottom - h.bottom > g.refBottom - g.bottom || (h.refBottom - h.bottom === g.refBottom - g.bottom && j < i))));
   return out;
+}
+
+/** in the page: rows of a screenshot that are pure page background across each region; returns runs longer than GAP */
+async function scan(b64, regions, GAP, MAXY) {
+  const img = new Image();
+  img.src = "data:image/png;base64," + b64;
+  await img.decode();
+  const W = img.naturalWidth;
+  const H = Math.min(img.naturalHeight, MAXY);
+  const cv = document.createElement("canvas");
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, W, H).data;
+  // page background = the most common colour of the left gutter (x = 3)
+  const counts = new Map();
+  for (let y = 0; y < H; y += 3) {
+    const i = (y * W + 3) * 4;
+    const k = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+    counts.set(k, (counts.get(k) || 0) + 1);
+  }
+  const bgk = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+  const bg = [(bgk >> 16) & 255, (bgk >> 8) & 255, bgk & 255];
+  const TOL = 4;
+  const isBg = (i) => Math.abs(data[i] - bg[0]) <= TOL && Math.abs(data[i + 1] - bg[1]) <= TOL && Math.abs(data[i + 2] - bg[2]) <= TOL;
+  const rowBlank = (y, l, r) => {
+    for (let x = l; x < r; x += 2) if (!isBg((y * W + x) * 4)) return false;
+    return true;
+  };
+  const seen = new Set();
+  const runs = [];
+  for (const g of regions) {
+    if (g.sticky) continue; // a sticky aside stays in view while the page scrolls: its trailing space is by design
+    const l = Math.max(0, Math.round(g.l) + 3);
+    const r = Math.min(W, Math.round(g.r) - 3);
+    if (r - l < 100) continue;
+    const key = `${l}-${r}-${Math.round(g.t)}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const y0 = Math.max(0, Math.round(g.t));
+    const y1 = Math.min(H, Math.round(g.b));
+    let start = -1;
+    let lastContent = y0;
+    const found = [];
+    for (let y = y0; y < y1; y++) {
+      if (rowBlank(y, l, r)) {
+        if (start < 0) start = y;
+      } else {
+        if (start >= 0 && y - start > GAP) found.push([start, y]);
+        start = -1;
+        lastContent = y;
+      }
+    }
+    // a run reaching the end of the region is the space after the last content: ignored for the full width; for a column
+    // it is the space under the column's last card (the box-bottom check owns that case, it is reported too)
+    if (start >= 0 && !g.full && y1 - start > GAP && lastContent > y0) found.push([start, y1]);
+    for (const [a, b] of found) runs.push({ left: l, width: r - l, top: a, height: b - a, parent: g.parent, full: !!g.full });
+  }
+  // one report per area: drop a run inside a bigger one
+  return runs.filter((x, i) => !runs.some((y, j) => j !== i && y.left <= x.left + 2 && y.left + y.width >= x.left + x.width - 2 && y.top <= x.top + 2 && y.top + y.height >= x.top + x.height - 2 && (y.height > x.height || (y.height === x.height && j < i))));
 }
 
 /* ------------------------------------------------------------ run */
@@ -226,6 +308,8 @@ try {
             await page.goto(url, { waitUntil: "load", timeout: 240000 });
             await page.waitForNetworkIdle({ idleTime: 1200, timeout: 25000 }).catch(() => {});
             await new Promise((r) => setTimeout(r, 1500));
+            // the home map: select a 7-lesson station (Arrays) so the station card shows a long lesson list
+            if (pg.pin) await retry(page, (name) => [...document.querySelectorAll("button,a")].find((e) => (e.getAttribute("aria-label") || "").startsWith(name))?.click(), pg.pin);
           } catch (e) {
             console.log(`  ! ${pg.id} ${state}: ${e.message}`);
           }
@@ -241,22 +325,44 @@ try {
         });
         await page.waitForNetworkIdle({ idleTime: 800, timeout: 15000 }).catch(() => {});
         await new Promise((r) => setTimeout(r, 1200));
+        // wait until the layout stops moving (self-balancing flows re-place cards over a few frames)
+        await retry(page, async () => {
+          const sig = () => document.documentElement.scrollHeight + ":" + [...document.querySelectorAll("[data-balanced] > *, main > *")].map((e) => { const r = e.getBoundingClientRect(); return `${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.height)}`; }).join("|");
+          let last = "";
+          let same = 0;
+          for (let i = 0; i < 40 && same < 4; i++) {
+            await new Promise((r) => setTimeout(r, 250));
+            const now = sig();
+            same = now === last ? same + 1 : 0;
+            last = now;
+          }
+        });
         const m = await retry(page, measure, GAP);
         const height = await retry(page, () => document.documentElement.scrollHeight);
-        const fail = !!m.overflow || m.gaps.length > 0;
-        const rec = { page: pg.id, state, width: w, height, fail, overflow: m.overflow, gaps: m.gaps };
+        await retry(page, () => document.querySelectorAll("nextjs-portal, [data-nextjs-toast]").forEach((n) => (n.style.display = "none")));
+        const probe = await page.screenshot(height <= 9000 ? { fullPage: true, encoding: "base64" } : { clip: { x: 0, y: 0, width: w, height: 9000 }, captureBeyondViewport: true, encoding: "base64" });
+        if (process.env.GAP_DEBUG) writeFileSync(path.join(OUT, `probe-${pg.id}-${state}-${w}.png`), Buffer.from(probe, "base64"));
+        const blank = await retry(page, scan, probe, m.regions, GAP, 9000);
+        const fail = !!m.overflow || m.gaps.length > 0 || blank.length > 0;
+        const rec = { page: pg.id, state, width: w, height, fail, overflow: m.overflow, gaps: m.gaps, blank };
         results.push(rec);
         const name = `${pg.id}-${state}-${w}.png`;
         if (fail || SHOTS === "all") {
           if (fail) {
-            await page.evaluate((gaps) => {
+            await page.evaluate((gaps, blank) => {
               for (const g of gaps) {
                 const b = document.createElement("div");
                 b.setAttribute("data-gap-mark", "1");
                 b.style.cssText = `position:absolute;left:${g.left}px;top:${g.bottom}px;width:${g.width}px;height:${g.gap}px;outline:3px solid #e11d48;background:rgba(225,29,72,.12);z-index:99999;pointer-events:none`;
                 document.body.appendChild(b);
               }
-            }, m.gaps);
+              for (const g of blank) {
+                const b = document.createElement("div");
+                b.setAttribute("data-gap-mark", "1");
+                b.style.cssText = `position:absolute;left:${g.left}px;top:${g.top}px;width:${g.width}px;height:${g.height}px;outline:3px solid #2563eb;background:rgba(37,99,235,.12);z-index:99999;pointer-events:none`;
+                document.body.appendChild(b);
+              }
+            }, m.gaps, blank);
           }
           try {
             await page.screenshot({ path: path.join(OUT, `${TAG ? TAG + "-" : fail ? "fail-" : ""}${name}`), fullPage: true });
@@ -265,14 +371,14 @@ try {
           }
           await page.evaluate(() => document.querySelectorAll("[data-gap-mark]").forEach((n) => n.remove()));
         }
-        console.log(`${fail ? "FAIL" : "ok  "} ${pg.id.padEnd(17)} ${state.padEnd(9)} ${String(w).padStart(4)}  h=${height}${m.gaps.map((g) => `  gap ${g.gap}px under ${g.column} (${g.parent})`).join("")}${m.overflow ? `  overflow ${m.overflow.scrollWidth}>${m.overflow.viewport} ${m.overflow.culprits.join("; ")}` : ""}`);
+        console.log(`${fail ? "FAIL" : "ok  "} ${pg.id.padEnd(17)} ${state.padEnd(9)} ${String(w).padStart(4)}  h=${height}${m.gaps.map((g) => `  gap ${g.gap}px under ${g.column} (${g.parent})`).join("")}${blank.map((g) => `  blank ${g.height}px at y=${g.top} (${g.parent})`).join("")}${m.overflow ? `  overflow ${m.overflow.scrollWidth}>${m.overflow.viewport} ${m.overflow.culprits.join("; ")}` : ""}`);
         } catch (e) {
           results.push({ page: pg.id, state, width: w, fail: true, error: e.message.slice(0, 120), overflow: null, gaps: [] });
           console.log(`FAIL ${pg.id.padEnd(17)} ${state.padEnd(9)} ${String(w).padStart(4)}  could not measure: ${e.message.slice(0, 100)}`);
         }
       }
       for (const e of errs) console.log(`  note (${pg.id} ${state}): ${e}`);
-      await page.close();
+      await page.close().catch(() => {});
     }
   }
 } finally {

@@ -9,8 +9,8 @@ import Link from "next/link";
 import { Play } from "lucide-react";
 import { CARD_H, SIDE_CARD } from "../ui/kit";
 
-/** three plate shades, darkest first (the canvas's tiles): the plate tokens, so they read the same in every theme */
-const SHADE = ["var(--c-plate)", "color-mix(in srgb, var(--c-plate) 84%, var(--c-plate-fg))", "color-mix(in srgb, var(--c-plate) 68%, var(--c-plate-fg))"];
+/** three plate shades, lifted a little toward the plate text colour and edged with the line token, so even the first tile reads against a black page (dark themes) as well as a paper one */
+const SHADE = ["color-mix(in srgb, var(--c-plate) 90%, var(--c-plate-fg))", "color-mix(in srgb, var(--c-plate) 80%, var(--c-plate-fg))", "color-mix(in srgb, var(--c-plate) 70%, var(--c-plate-fg))"];
 
 /** "shorts--dsa--m3-hashing--prefix-sums--why-seed-zero" → "Why seed zero". */
 export function shortTitle(id: string): string {
@@ -38,7 +38,7 @@ export default function QuickReview({ ids }: { ids: string[] }) {
             <Link
               href={`/dsa/shorts/${id}`}
               style={{ background: SHADE[i] }}
-              className="flex aspect-[9/14] max-h-[200px] flex-col justify-between rounded-[10px] p-2.5 text-[12px] font-semibold leading-snug text-[var(--c-plate-fg)] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text"
+              className="flex aspect-[9/14] max-h-[200px] flex-col border border-line-strong justify-between rounded-[10px] p-2.5 text-[12px] font-semibold leading-snug text-[var(--c-plate-fg)] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text"
             >
               <Play className="h-3.5 w-3.5 fill-current text-[var(--c-plate-fg)] opacity-70" aria-hidden />
               <span className="line-clamp-4">{shortTitle(id)}</span>

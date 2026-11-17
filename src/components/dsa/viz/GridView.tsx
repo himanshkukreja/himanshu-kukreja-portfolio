@@ -74,8 +74,8 @@ export default function GridView({ state, t }: { state: GridState; prev: GridSta
   const centre = (n: number) => [x(n % cols) + CELL / 2, y(Math.floor(n / cols)) + CELL / 2];
   const pathD = se && se.path.length > 1 ? se.path.map((n, i) => `${i ? "L" : "M"}${centre(n).join(" ")}`).join(" ") : "";
   return (
-    <div className="flex flex-col gap-3 px-1 md:flex-row md:items-start md:gap-5">
-      <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full md:w-auto md:max-w-[60%] md:flex-1" style={{ maxHeight: 520 }} aria-hidden>
+    <div className="flex flex-col gap-3 px-1">
+      <svg viewBox={`0 0 ${width} ${height}`} className="mx-auto block h-auto w-full max-w-[460px]" style={{ maxHeight: 520 }} aria-hidden>
         <defs>
           <pattern id="grid-wall" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
             <rect width="8" height="8" fill="var(--c-surface-2)" />
@@ -144,7 +144,7 @@ export default function GridView({ state, t }: { state: GridState; prev: GridSta
         })}
       </svg>
       {se && (
-        <div className="flex min-w-0 flex-col gap-2 md:w-[38%] md:max-w-[340px]">
+        <div className="mx-auto flex w-full min-w-0 max-w-[460px] flex-col gap-2">
           <FrontierPanel se={se} name={(n) => cellName(cols, n)} />
           <p className="m-0 font-mono text-[11px] leading-relaxed text-fg-3">
             Numbers: {se.algo === "bfs" ? "steps from S (distance)" : "the order DFS visited the cells"}. Dashed: {se.algo === "bfs" ? "waiting in the queue" : "on the call stack"}.

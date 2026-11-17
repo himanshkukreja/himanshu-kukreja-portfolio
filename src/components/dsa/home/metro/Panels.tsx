@@ -151,8 +151,11 @@ export function RouteCard({
   goal,
   onGoal,
   className = "",
+  compact = false,
 }: {
   className?: string;
+  /** computers, two-column band: the short form (the station card says where you are) */
+  compact?: boolean;
   metro: Metro;
   info: RouteInfo;
   hereStation: Station | undefined;
@@ -166,17 +169,17 @@ export function RouteCard({
   const main = ready ? primaryOf(next, hereStation, isNew) : null;
   const goalName = metro.byId.get(info.goal)?.label || "";
   return (
-    <section aria-label="Your route" className={`${PANEL} flex flex-col gap-3.5 p-6 ${className}`}>
+    <section aria-label="Your route" className={`${PANEL} flex flex-col ${compact ? "gap-3 p-5" : "gap-3.5 p-6"} ${className}`}>
       <p className={`${KICKER} !text-signal-text`}>Your route</p>
       {ready ? (
         <>
-          <h2 className="m-0 font-display text-[32px] font-extrabold leading-[1.05] tracking-[-0.02em] text-fg">{routeHeading(metro, info)}</h2>
+          <h2 className={`m-0 font-display font-extrabold ${compact ? "text-[28px]" : "text-[32px]"} leading-[1.05] tracking-[-0.02em] text-fg`}>{routeHeading(metro, info)}</h2>
           <RouteChips metro={metro} ids={info.ids} />
-          <p className="m-0 text-[13px] leading-normal text-fg-3">
-            {info.lessons ? `${info.lessons} ${info.lessons === 1 ? "lesson" : "lessons"}${info.minutes ? ` and about ${fmtDuration(info.minutes)}` : ""} away. ` : ""}Everything off your route is dimmed, but nothing is locked.
+          <p className={`m-0 text-[13px] leading-normal text-fg-3 ${compact ? "hidden" : ""}`}>
+            {info.lessons ? `${info.lessons} ${info.lessons === 1 ? "lesson" : "lessons"}${info.minutes ? ` and about ${fmtDuration(info.minutes)}` : ""} away. ` : ""}{compact ? "Nothing is locked." : "Everything off your route is dimmed, but nothing is locked."}
           </p>
-          <div className="mt-auto flex flex-col gap-2.5 border-t border-line pt-3.5">
-            {hereStation ? (
+          <div className={`mt-auto flex flex-col gap-2.5 border-t border-line ${compact ? "pt-3" : "pt-3.5"}`}>
+            {hereStation && !compact ? (
               <>
                 <span className="text-[12px] text-fg-3">
                   You are here · {hereStation.label} · {hereStation.done} of {hereStation.total} lessons done
@@ -280,7 +283,7 @@ export function StationCard({
   ];
   const lessons = content?.lessons ?? [];
   return (
-    <section aria-label="Station card" className={`${PANEL} flex flex-col gap-3 px-6 py-5 ${fill ? "min-h-0 flex-1" : ""}`} data-tour-card>
+    <section aria-label="Station card" className={`${PANEL} flex flex-col gap-2.5 px-5 py-4 ${fill ? "min-h-0 flex-1" : ""}`} data-tour-card>
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-[11px] tracking-[0.06em] text-fg-3">STATION</span>
         {station.lines.map((l) => (
@@ -290,26 +293,25 @@ export function StationCard({
         ))}
         {isHere ? <span className="rounded-full bg-signal px-2.5 py-[3px] text-[11px] font-semibold text-on-signal">You are here</span> : inRoute ? <span className="rounded-full bg-surface-2 px-2.5 py-[3px] text-[11px] font-semibold text-fg">On your route</span> : null}
       </div>
-      <div aria-live="polite" className="flex flex-col gap-3">
-        <h3 className="m-0 font-display text-[30px] font-extrabold leading-none tracking-[-0.02em] text-fg">{station.label}</h3>
-        <p className="m-0 text-[13px] text-fg-2">{note}</p>
+      <div aria-live="polite" className="flex flex-col gap-1.5">
+        <h3 className="m-0 font-display text-[28px] font-extrabold leading-none tracking-[-0.02em] text-fg">{station.label}</h3>
+        {station.lines.length > 1 || station.planned ? <p className="m-0 text-[13px] text-fg-2">{note}</p> : null}
       </div>
-      <dl className="m-0 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
+      <dl className="m-0 flex flex-wrap gap-x-4 gap-y-0.5 text-[12.5px]">
         {tiles.map((t) => (
           <div key={t.k} className="flex items-baseline gap-1.5">
-            <dt className="text-fg-3">{t.k}</dt>
+            <dt className="text-fg-3">{t.k === "Reading time" ? "Reading" : t.k}</dt>
             <dd className="m-0 font-semibold text-fg">{t.v}</dd>
           </div>
         ))}
       </dl>
-      <span aria-hidden className={TRACK}>
-        <span className={`${FILL} bg-signal`} style={{ width: `${pct}%` }} />
-      </span>
       {lessons.length ? (
-        <div className={`flex flex-col gap-1.5 border-t border-line pt-3 ${fill ? "min-h-0 flex-1" : ""}`}>
-          <span className="text-[12px] font-semibold text-fg-2">Lessons in {station.label}</span>
-          <div className={`${fill ? "max-h-[176px] min-h-[120px] flex-1 overflow-y-auto overscroll-contain" : ""}`}>
-            <LessonList station={station} lessons={lessons} here={isHere} scroll={!fill} from="card" />
+        <div className="flex flex-col gap-1 border-t border-line pt-2">
+          <div className="relative">
+            <div className="max-h-[168px] overflow-y-auto overscroll-contain pr-1">
+              <LessonList station={station} lessons={lessons} here={isHere} scroll={false} from="card" />
+            </div>
+            {lessons.length > 4 ? <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-surface to-transparent" /> : null}
           </div>
         </div>
       ) : null}

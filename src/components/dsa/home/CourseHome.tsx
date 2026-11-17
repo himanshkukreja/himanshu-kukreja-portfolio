@@ -66,6 +66,8 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
   const desktop = useDesktop();
   const [view, setHomeView] = useHomeView();
   const wide = useMedia("(min-width: 768px)");
+  // wide cards (two columns of ~700 px from 1440): the readiness card lays its two halves side by side, so it is not the tallest block
+  const roomy = useMedia("(min-width: 1440px)");
   const [, setGoalPref] = useGoal();
   const recommended = useRecommendedStart(academy);
   // "?view=lectures" is read here, on the client, so the page itself stays one static ISR page
@@ -146,7 +148,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             kicker={kicker}
             intro={showWelcome && progress.ready && progress.concepts.size === 0 && progress.solved.size === 0 ? <Welcome onDone={(g) => setGoalPref({ kind: g === "placements" ? "scratch" : g ? "interview" : "scratch" })} /> : null}
             onRedo={user ? openOnboarding : undefined}
-            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact rounded />]}
+            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact={!roomy} rounded />]}
             below={
               <>
                 {/* guests: the AI tutor ad (CSS shows it to guests only) */}

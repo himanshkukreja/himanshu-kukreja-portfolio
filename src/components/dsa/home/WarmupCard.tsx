@@ -77,11 +77,8 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
       setState("ready");
       return;
     }
-    // done on another device today: the card says so and asks no question
-    if (warmDoneToday(done, day)) {
-      setState("none");
-      return;
-    }
+    // done on another device today: the same question (the pick is seeded by user and day) is shown with its answer, not asked again
+    const already = warmDoneToday(done, day);
     setState("loading");
     const qs = new URLSearchParams({ recent: recent.join(","), station: station.join(",") });
     fetch(`/api/dsa/warmup?${qs}`)
@@ -90,11 +87,11 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
         if (!alive.current) return;
         const pick = b ? pickWarmup(b.tiers, warmSeed(user?.id, day)) : null;
         if (!pick) return setState("none");
-        const next = { q: pick.q, picked: null };
+        const next = { q: pick.q, picked: already ? -1 : null }; // -1: answered somewhere else, the pick is unknown
         writeSaved(uid, day, next);
         setSaved(next);
         setState("ready");
-        track("dsa_warmup_shown", { tier: pick.tier });
+        if (!already) track("dsa_warmup_shown", { tier: pick.tier });
       })
       .catch(() => alive.current && setState("none"));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,7 +134,7 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
         <h2 id="dsa-warm-h" className={CARD_H}>
           Daily warm-up
         </h2>
-        <span className="font-mono text-[12px] text-fg-3">{answered ? (days > 0 ? `${days}-day streak` : "about 30 s") : "about 30 s"}</span>
+        <span className="font-mono text-[12px] text-fg-3">{answered ? (days > 0 ? `${days}-day streak` : "done today") : "about 30 s"}</span>
       </div>
       <p className={KICKER}>From {q.lesson}</p>
       <p className="m-0 text-[15.5px] font-semibold leading-snug text-fg">{q.question}</p>
@@ -165,7 +162,7 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
       {answered ? (
         <div className="flex flex-col gap-2.5" aria-live="polite">
           <p className="m-0 text-[13.5px] leading-snug text-fg-2">
-            <span className={`font-semibold ${right ? "text-ok-text" : "text-fg"}`}>{right ? "Right. " : "Not quite. "}</span>
+            <span className={`font-semibold ${right ? "text-ok-text" : "text-fg"}`}>{saved.picked === -1 ? "Today's answer is marked. " : right ? "Right. " : "Not quite. "}</span>
             {q.why}
           </p>
           <p className="m-0 flex items-center gap-2 rounded-xl bg-bg px-3 py-2.5 text-[13.5px] font-medium text-fg">

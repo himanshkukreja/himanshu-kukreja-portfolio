@@ -45,7 +45,7 @@ export function LessonList({ station, lessons, here, scroll = true, from }: { st
             <span className="shrink-0 font-mono text-[11.5px] text-fg-3">{l.href ? (l.minutes ? `${l.minutes} min` : "") : "Soon"}</span>
           </>
         );
-        const cls = `flex min-h-10 items-center gap-2.5 rounded-[10px] px-2 py-1.5 ${you ? "bg-surface-2" : ""}`;
+        const cls = `flex min-h-9 items-center gap-2.5 rounded-[10px] px-2 py-1 ${you ? "bg-surface-2" : ""}`;
         return (
           <li key={l.conceptId}>
             {l.href ? (
