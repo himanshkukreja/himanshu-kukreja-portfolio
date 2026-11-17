@@ -16,6 +16,7 @@ type Result = ReturnType<typeof checkOrder>;
  */
 export default function OrderExercise({ ex, lang, completed, onComplete }: { ex: OrderEx; lang: ExLang; completed: boolean; onComplete: () => void }) {
   const lines = ex.code[lang]!;
+  const pre = ex.pre?.[lang] ?? [];
   const sol = useMemo(() => lines.map((l, i) => (l.distractor ? -1 : i)).filter((i) => i >= 0), [lines]);
   const distractors = useMemo(() => lines.map((l, i) => (l.distractor ? i : -1)).filter((i) => i >= 0), [lines]);
   const start = () => shuffleIndices(lines.length, seedOf(ex.id + lang));
@@ -227,6 +228,16 @@ export default function OrderExercise({ ex, lang, completed, onComplete }: { ex:
       <p className="m-0 text-[13px] text-fg-3">
         Your program, top to bottom. Indentation is already part of each line.{distractors.length ? " Some lines are not needed: set them aside." : ""} Keyboard: Space picks a line up, the arrow keys move it, Space puts it down.
       </p>
+      {pre.length ? (
+        <div role="group" aria-label="Fixed lines, already in place above your program" className="m-0 flex flex-col gap-1 rounded-lg border border-dashed border-line bg-surface-2 px-3 py-2 opacity-80">
+          <p className="m-0 font-mono text-[11px] uppercase tracking-[0.06em] text-fg-3">Already in place</p>
+          {pre.map((t, i) => (
+            <span key={i} className="min-w-0 overflow-x-auto whitespace-pre font-mono text-[13px] leading-[1.5] text-fg-3 select-none">
+              {t}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div role="list" aria-label="Your program" className="m-0 flex min-h-[52px] list-none flex-col gap-1.5 p-0" {...zone("prog")}>
         {prog.map((line, i) => row(line, i, "prog", prog.length))}
       </div>

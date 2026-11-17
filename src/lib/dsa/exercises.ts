@@ -52,7 +52,8 @@ export type PredictEx = Base & {
 };
 
 export type OrderLine = { text: string; distractor: boolean; group: number | null };
-export type OrderEx = Base & { kind: "order"; code: Partial<Record<ExLang, OrderLine[]>> };
+/** `pre` (optional): fixed lines per language (`@python-pre`, ...) shown greyed and locked above the puzzle; never shuffled, never in the answer. */
+export type OrderEx = Base & { kind: "order"; code: Partial<Record<ExLang, OrderLine[]>>; pre?: Partial<Record<ExLang, string[]>> };
 
 export type InputType = "int" | "int[]" | "int[][]" | "string" | "string[]" | "bool";
 export type InputField = { name: string; type: InputType };
@@ -74,7 +75,7 @@ export type ParseResult = { ok: true; ex: Exercise } | { ok: false; errors: stri
 
 /* ------------------------------------------------------------------ shared scanning */
 
-const SECTION = /^@(python|java|javascript|cpp|run-wrong|run-right)\s*$/;
+const SECTION = /^@(python|java|javascript|cpp|python-pre|java-pre|javascript-pre|cpp-pre|run-wrong|run-right)\s*$/;
 // a line that ends the current code section
 const FIELD = /^(?:%%\s*\w+\s*:|\?\s|hint:|fails:|trace:|answer:|input:|example:|breaks:|sig:|check:|>|[-*]\s+\[[ xX]\]\s)/;
 
@@ -222,11 +223,18 @@ function parseOrder(s: Scan): ParseResult {
     if (lines.some((x) => x.distractor && x.group !== null)) errors.push(`${l}: a distractor cannot be in a group`);
     code[l] = lines;
   }
+  const pre: NonNullable<OrderEx["pre"]> = {};
+  for (const l of EX_LANGS) {
+    const p = trimBlock(s.sections[`${l}-pre`] ?? []);
+    if (!p.length) continue;
+    if (!code[l]) errors.push(`${l}-pre: no ${l} section`);
+    else pre[l] = p;
+  }
   if (!Object.keys(code).length) errors.push("no language section");
   if (!s.question) errors.push("missing `? question`");
   if (!s.explain.length) errors.push("missing `>` explanation");
   if (errors.length) return { ok: false, errors };
-  return { ok: true, ex: { kind: "order", ...base, question: s.question, explain: s.explain, code } };
+  return { ok: true, ex: { kind: "order", ...base, question: s.question, explain: s.explain, code, ...(Object.keys(pre).length ? { pre } : {}) } };
 }
 
 /** Split on commas that are not inside brackets or quotes. */

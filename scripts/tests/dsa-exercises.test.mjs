@@ -162,6 +162,29 @@ test("order: lines keep indentation, distractors and swap groups parse", () => {
   assert.equal(X.solutionOf(lines).length, 12);
 });
 
+test("order: no -pre section leaves the parsed block exactly as before (no pre key)", () => {
+  const r = X.parseExercise("order", ORDER);
+  assert.ok(r.ok);
+  assert.equal("pre" in r.ex, false);
+});
+
+test("order: @python-pre lines are fixed, kept apart from the puzzle and never counted", () => {
+  const withPre = ORDER.replace("@python\n", "@python-pre\nfrom collections import deque\n@python\n");
+  const r = X.parseExercise("order", withPre);
+  assert.ok(r.ok, r.errors?.join());
+  assert.deepEqual(r.ex.pre, { python: ["from collections import deque"] });
+  assert.equal(r.ex.code.python.length, 13);
+  assert.equal(r.ex.code.python[0].text, "def bfs(graph, start):");
+  assert.equal(X.solutionOf(r.ex.code.python).length, 12);
+  assert.equal(X.parseExercise("order", ORDER).ex.code.python.length, r.ex.code.python.length);
+});
+
+test("order: a -pre section without its language is refused", () => {
+  const r = X.parseExercise("order", ORDER.replace("@python\n", "@java-pre\nimport java.util.*;\n@python\n"));
+  assert.equal(r.ok, false);
+  assert.match(r.errors.join(), /java-pre/);
+});
+
 test("order: a set literal at the end of a line is not a group, a lone group is refused", () => {
   const l = X.parseOrderLines(["    seen = {1}", "{3}     x = 2", "~ pass", "{12} y", "~", "  ~ keep"]);
   assert.equal(l[0].group, null);
