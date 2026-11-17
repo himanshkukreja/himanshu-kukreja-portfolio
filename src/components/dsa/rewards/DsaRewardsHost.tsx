@@ -29,9 +29,26 @@ import {
 } from "@/lib/dsa/rewards";
 import { useDsaProgress } from "@/components/dsa/progress/useDsaProgress";
 import { useDsaStreak } from "@/components/dsa/daily/useDsaDaily";
-import { dsaGrant } from "./award";
+import { announceTool, dsaGrant } from "./award";
+import { STATIONS } from "@/lib/dsa/metro/layout";
+import { TOOLS, newlyEarned, toolKey } from "@/lib/dsa/metro/toolbox";
 
 let defsP: Promise<BadgeDef[] | null> | null = null;
+let stationsP: Promise<{ id: string; lessonIds: string[] }[] | null> | null = null;
+
+/** The stations and their written lessons, fetched once per page load (null when unavailable). */
+function fetchStations() {
+  if (!stationsP) {
+    stationsP = fetch("/api/dsa/toolbox")
+      .then((r) => (r.ok ? (r.json() as Promise<{ stations: { id: string; lessonIds: string[] }[] }>) : null))
+      .then((j) => j?.stations ?? null)
+      .catch(() => null);
+    void stationsP.then((v) => {
+      if (!v) stationsP = null;
+    });
+  }
+  return stationsP;
+}
 
 /** The badge definitions, fetched once per page load and shared (null when unavailable). */
 export function fetchBadgeDefs(): Promise<BadgeDef[] | null> {
@@ -81,6 +98,30 @@ export default function DsaRewardsHost() {
       dsaGrant(game, awardKeys.badge(d.id), d.bits, label);
     }
   }, [defs, progress, game]);
+
+  // tools: a finished station earns its tool. The key is written once (so the toast is a one-time event, on every device);
+  // a station finished before tools existed is recorded without a toast
+  const [stations, setStations] = useState<{ id: string; lessonIds: string[] }[] | null>(null);
+  useEffect(() => {
+    let off = false;
+    void fetchStations().then((v) => {
+      if (!off) setStations(v);
+    });
+    return () => {
+      off = true;
+    };
+  }, []);
+  useEffect(() => {
+    if (!stations || !progress.ready || !hydrated) return;
+    const now = Date.now();
+    const { record, announce } = newlyEarned(stations, progress.concepts, game.peekDone(), now);
+    if (!record.length) return;
+    const { added } = game.markDone(record.map(toolKey));
+    for (const key of added) {
+      const id = key.slice("dsa:tool:".length);
+      if (announce.includes(id)) announceTool({ station: STATIONS.find((x) => x.id === id)?.label ?? id, name: TOOLS[id]?.name ?? id, icon: TOOLS[id]?.icon ?? "layers" });
+    }
+  }, [stations, progress.ready, progress.concepts, hydrated, game, done]);
 
   // daily streak milestones
   useEffect(() => {

@@ -27,7 +27,7 @@ const LEVELS = [
 const LANG_LABEL: Record<string, string> = { python: "Python", javascript: "JavaScript", java: "Java", cpp: "C++" };
 
 /** This device's submit history, per problem (dsa.history.<id>, written by the problem room). */
-function useHistories(): Record<string, HistoryRow[]> | null {
+export function useHistories(): Record<string, HistoryRow[]> | null {
   const [h, setH] = useState<Record<string, HistoryRow[]> | null>(null);
   useEffect(() => {
     const out: Record<string, HistoryRow[]> = {};
@@ -95,7 +95,7 @@ function Bars({ rows, empty }: { rows: Bar[]; empty: string }) {
 }
 
 /** The last 26 weeks as a grid of days (columns are weeks, rows Monday to Sunday); more activity, a deeper teal. */
-function Heatmap({ heat }: { heat: { date: string; count: number; future: boolean }[] }) {
+export function Heatmap({ heat, className = "max-w-[520px]" }: { heat: { date: string; count: number; future: boolean }[]; className?: string }) {
   const cell = 11;
   const gap = 3;
   const weeks = Math.ceil(heat.length / 7);
@@ -106,11 +106,12 @@ function Heatmap({ heat }: { heat: { date: string; count: number; future: boolea
   const labels: { x: number; t: string }[] = [];
   for (let c = 0; c < weeks; c++) {
     const d = heat[c * 7]?.date;
-    if (d && (c === 0 || month(d) !== month(heat[(c - 1) * 7].date))) labels.push({ x: c * (cell + gap), t: month(d) });
+    // a month's name goes over its first column, unless the last one is too close for both to fit
+    if (d && (c === 0 || month(d) !== month(heat[(c - 1) * 7].date)) && (!labels.length || c * (cell + gap) - labels[labels.length - 1].x >= 3 * (cell + gap))) labels.push({ x: c * (cell + gap), t: month(d) });
   }
   const total = heat.reduce((a, d) => a + (d.count > 0 ? 1 : 0), 0);
   return (
-    <svg viewBox={`0 0 ${w} ${h + 16}`} role="img" aria-label={`Activity over the last six months: ${total} active days`} className="block h-auto w-full max-w-[520px]">
+    <svg viewBox={`0 0 ${w} ${h + 16}`} role="img" aria-label={`Activity over the last ${Math.round(weeks / 4.35)} months: ${total} active days`} className={`block h-auto w-full ${className}`}>
       {labels.map((l) => (
         <text key={l.x} x={l.x} y={9} fontSize="9" fill="var(--c-fg-3)" fontFamily="var(--font-mono, monospace)">
           {l.t}
@@ -261,12 +262,14 @@ export default function DsaStats({ rows, steps, embedded = false }: { rows: Stat
               <Card title="Problems solved" note={`${stats.solved.total} of ${stats.solved.bank} problems in the bank.`}>
                 <Bars rows={LEVELS.map((l) => ({ id: l.id, label: l.label, ...stats.solved.byLevel[l.id] }))} empty="" />
               </Card>
-              <Card title="Activity" note={`${plural(stats.activity.activeDays, "active day")} on record. Any lesson step, problem or submit counts.`}>
+              {embedded ? <Card title="Solves over time" note="Problems solved each week, the last 26 weeks.">
+                <WeeklyBars weeks={stats.weekly} />
+              </Card> : <Card title="Activity" note={`${plural(stats.activity.activeDays, "active day")} on record. Any lesson step, problem or submit counts.`}>
                 <Heatmap heat={stats.activity.heat} />
                 <p className="m-0 font-mono text-[12px] text-fg-3">
                   Current streak {plural(stats.activity.current, "day")} · longest {plural(stats.activity.longest, "day")}
                 </p>
-              </Card>
+              </Card>}
               <Card title="By data structure" note="Problems you solved, out of the bank.">
                 <Bars rows={stats.solved.byStructure.map((b) => ({ ...b, label: facetLabel("structures", b.id) }))} empty="Solve a problem to fill this in." />
               </Card>
@@ -276,9 +279,9 @@ export default function DsaStats({ rows, steps, embedded = false }: { rows: Stat
               <Card title="By course step" className="lg:col-span-2">
                 <Bars rows={stats.solved.byStep.map((b) => ({ ...b, label: stepLabel.get(b.id) || b.id })).filter((b) => b.total > 0)} empty="" />
               </Card>
-              <Card title="Solves over time" note="Problems solved each week, the last 26 weeks.">
+              {embedded ? null : <Card title="Solves over time" note="Problems solved each week, the last 26 weeks.">
                 <WeeklyBars weeks={stats.weekly} />
-              </Card>
+              </Card>}
               <Card title="Bits and belts" note="Your Bits at the end of each week.">
                 <BitsLine weeks={stats.weekly} />
                 <div className="flex flex-col gap-2">

@@ -33,6 +33,8 @@ export type Station = {
   solved: number;
   minutes: number;
   planned: boolean;
+  /** the written lessons' concept ids, in course order (the toolbox dates a finished station by their finish times) */
+  lessonIds: string[];
   /** the first lesson not done (or the first), null while nothing is written */
   href: string | null;
   nextLesson: number;
@@ -40,7 +42,10 @@ export type Station = {
 };
 
 export type Progress = { concepts: ReadonlySet<string>; solved: ReadonlySet<string> };
-export type ProblemRef = { id: string; concept: string };
+export type ProblemRef = { id: string; concept: string; level?: "easy" | "medium" | "hard" };
+
+/** THE "station done" rule, used by the map, the route, the toolbox and the tool toasts: it has written lessons and every one is done. */
+export const stationDone = (builtConceptIds: readonly string[], concepts: ReadonlySet<string>) => builtConceptIds.length > 0 && builtConceptIds.every((c) => concepts.has(c));
 
 export type Metro = {
   stations: Station[];
@@ -85,7 +90,7 @@ export function buildMetro(outline: Outline, progress: Progress, problems: Probl
       line: lineOfPart(outline.parts[part].id, part),
       lines: [lineOfPart(outline.parts[part].id, part), ...(s.also || [])],
       note: s.note,
-      state: built.length > 0 && done === built.length ? "done" : done > 0 ? "prog" : "todo",
+      state: stationDone(built.map((l) => l.conceptId), progress.concepts) ? "done" : done > 0 ? "prog" : "todo",
       done,
       total: built.length,
       all: mod.lessons.length,
@@ -93,6 +98,7 @@ export function buildMetro(outline: Outline, progress: Progress, problems: Probl
       solved: built.reduce((n, l) => n + (solvedBy.get(l.conceptId) || 0), 0),
       minutes: mod.minutes,
       planned: built.length === 0,
+      lessonIds: built.map((l) => l.conceptId),
       href: built[pick]?.href ?? null,
       nextLesson: pick + 1,
       regionCode: mod.regionCode,

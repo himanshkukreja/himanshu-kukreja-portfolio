@@ -9,6 +9,7 @@
  * lib/dsa/lesson-steps.ts maps them onto Learn, Try it, Practice and Check.
  */
 import { useMemo } from "react";
+import { useExerciseGate } from "@/components/dsa/lesson/exercises/useExerciseGate";
 import { LessonProgressProvider } from "@/components/LessonProgressTracker";
 import { useDsaLessonAward } from "@/components/dsa/rewards/useDsaBits";
 import { DSA_COURSE_ID, dsaKeys } from "@/lib/dsa/types";
@@ -23,8 +24,9 @@ export default function StructureReader({ page: s, lecture = null, extras = NO_E
   const xpKeys = useMemo(() => ({ stage: (id: string) => dsaKeys.stage(s.id, id), lesson: dsaKeys.concept(s.id) }), [s.id]);
   // beats and the finished lesson earn DSA Mastery Bits, never SD Mastery XP
   const award = useDsaLessonAward();
+  const gate = useExerciseGate(s.id, s.html);
   return (
-    <LessonProgressProvider courseId={DSA_COURSE_ID} week={s.module} lessonSlug={s.id} title={s.title} stages={s.stages} contentVersion={s.contentVersion} xpKeys={xpKeys} award={award}>
+    <LessonProgressProvider courseId={DSA_COURSE_ID} week={s.module} lessonSlug={s.id} title={s.title} stages={s.stages} contentVersion={s.contentVersion} xpKeys={xpKeys} award={award} gate={gate}>
       <LessonShell
         kind={s.kind === "algorithm" ? "algorithm" : "structure"}
         id={s.id}

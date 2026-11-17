@@ -10,6 +10,7 @@
  * preference in the Aa reading panel. The lesson HTML itself is unchanged.
  */
 import { useMemo } from "react";
+import { useExerciseGate } from "@/components/dsa/lesson/exercises/useExerciseGate";
 import { LessonProgressProvider } from "@/components/LessonProgressTracker";
 import { useDsaLessonAward } from "@/components/dsa/rewards/useDsaBits";
 import { DSA_COURSE_ID, dsaKeys, type ConceptPage } from "@/lib/dsa/types";
@@ -24,6 +25,7 @@ export default function DsaConceptReader({ concept: c, lecture = null, extras = 
   const xpKeys = useMemo(() => ({ stage: (id: string) => dsaKeys.stage(c.id, id), lesson: dsaKeys.concept(c.id) }), [c.id]);
   // beats and the finished lesson earn DSA Mastery Bits, never SD Mastery XP
   const award = useDsaLessonAward();
+  const gate = useExerciseGate(c.id, c.html);
   const keyIdea = c.picture
     ? { title: c.picture.title || c.title, html: c.picture.html, more: c.picture.more }
     : c.keyPoints.length
@@ -32,7 +34,7 @@ export default function DsaConceptReader({ concept: c, lecture = null, extras = 
         ? { title: c.title, text: c.invariant }
         : null;
   return (
-    <LessonProgressProvider courseId={DSA_COURSE_ID} week={c.module} lessonSlug={c.id} title={c.title} stages={c.stages} contentVersion={c.contentVersion} xpKeys={xpKeys} award={award}>
+    <LessonProgressProvider courseId={DSA_COURSE_ID} week={c.module} lessonSlug={c.id} title={c.title} stages={c.stages} contentVersion={c.contentVersion} xpKeys={xpKeys} award={award} gate={gate}>
       <LessonShell
         kind="concept"
         id={c.id}

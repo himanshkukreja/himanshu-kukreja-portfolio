@@ -10,6 +10,7 @@
  *   progress keys (fixed Bits, the key itself is the award; most already existed for the map)
  *     dsa:s:<concept>/<beat>   lesson beat read           dsa:c:<concept>       lesson finished
  *     dsa:qc:<page>:<b>:<q>    quick check, first try     dsa:cpq:<node>        checkpoint quiz passed
+ *     dsa:ex:<lesson>:<id>     in-lesson exercise solved (5 Bits, once each; a lesson with exercises is learnt only when they are solved)
  *     dsa:tr:<trace>           dry run, every step right  dsa:lab:<lab>         build-it lab passed
  *     dsa:lq:<lecture>:<q>     lecture question right     dsa:lec:<lecture>     lecture watched to the end
  *     dsa:daily:<day>          the daily problem solved   dsa:rv:<day>:<card>   a revision card reviewed (once a day)
@@ -66,6 +67,8 @@ export const BITS_TABLE = {
   beat: 2,
   lesson: 10,
   quickCheck: 1,
+  /** an in-lesson exercise solved (bug, predict, order, break it): once each; between a quick check and a dry run, as it takes real thought */
+  exercise: 5,
   checkpointQuiz: 15,
   dryRun: 5,
   lab: 30,
@@ -133,6 +136,7 @@ export type AwardKind =
   | "beat"
   | "lesson"
   | "check"
+  | "exercise"
   | "quiz"
   | "trace"
   | "lab"
@@ -154,6 +158,7 @@ export const KIND_LABEL: Record<AwardKind, string> = {
   beat: "Lesson beats",
   lesson: "Lessons finished",
   check: "Quick checks",
+  exercise: "Exercises",
   quiz: "Checkpoint quizzes",
   trace: "Dry runs",
   lab: "Build-it labs",
@@ -206,6 +211,7 @@ const FIXED: { prefix: string; kind: AwardKind; bits: number; name: string }[] =
   { prefix: "dsa:s:", kind: "beat", bits: BITS_TABLE.beat, name: "beat" },
   { prefix: "dsa:c:", kind: "lesson", bits: BITS_TABLE.lesson, name: "lesson" },
   { prefix: "dsa:qc:", kind: "check", bits: BITS_TABLE.quickCheck, name: "check" },
+  { prefix: "dsa:ex:", kind: "exercise", bits: BITS_TABLE.exercise, name: "exercise" },
   { prefix: "dsa:cpq:", kind: "quiz", bits: BITS_TABLE.checkpointQuiz, name: "quiz" },
   { prefix: "dsa:tr:", kind: "trace", bits: BITS_TABLE.dryRun, name: "dryrun" },
   { prefix: "dsa:lab:", kind: "lab", bits: BITS_TABLE.lab, name: "lab" },

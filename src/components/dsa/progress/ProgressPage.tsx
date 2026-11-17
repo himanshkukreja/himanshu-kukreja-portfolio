@@ -11,6 +11,11 @@ import DsaDaily from "../daily/DsaDaily";
 import DsaBeltBadges from "../rewards/DsaBeltBadges";
 import DsaLeaderboard from "../rewards/DsaLeaderboard";
 import DsaStats from "../stats/DsaStats";
+import Toolbox from "./Toolbox";
+import SkillRadar from "./SkillRadar";
+import Activity from "./Activity";
+import type { Outline } from "@/lib/dsa/outline";
+import type { ProblemRef } from "@/lib/dsa/metro/model";
 import ReadinessCard from "@/components/learn/progress/ReadinessCard";
 import ShareProgress from "@/components/learn/progress/ShareProgress";
 import CompanyPlanSection from "@/components/learn/plan/CompanyPlan";
@@ -28,7 +33,7 @@ import type { BadgeDef } from "@/lib/dsa/rewards";
  * only composes them and gives each an anchor (#readiness, #streak, #plan, #belt, #leaderboard, #stats, #certificate, #share, #settings).
  */
 
-export type ProgressPageProps = { defs: BadgeDef[] | null; problems: ProgressProblem[]; parts: ProgressPart[]; lessonTotal: number; rows: StatRow[]; steps: { id: string; label: string }[]; plannedLessons: number };
+export type ProgressPageProps = { defs: BadgeDef[] | null; outline: Outline | null; problemRefs: ProblemRef[]; problems: ProgressProblem[]; parts: ProgressPart[]; lessonTotal: number; rows: StatRow[]; steps: { id: string; label: string }[]; plannedLessons: number };
 
 const H2 = "m-0 font-display text-[24px] font-bold tracking-[-0.02em] text-fg";
 const LINK = "font-mono text-[12.5px] text-signal-text underline decoration-line-strong underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text";
@@ -137,38 +142,57 @@ export default function ProgressPage(props: ProgressPageProps) {
   const { user, loading } = useAuth();
   const { openAuthModal } = useAuthModal();
   const today = istDate();
+  const intro = (
+    <div className="flex flex-col gap-2">
+      {!loading && !user ? (
+        <p className="m-0 text-[14px] text-fg-3">
+          You are playing as a guest: this page shows what is saved in this browser.{" "}
+          <button type="button" onClick={openAuthModal} className="min-h-10 text-signal-text underline decoration-line-strong underline-offset-4">
+            Sign in free
+          </button>{" "}
+          to keep it on every device.
+        </p>
+      ) : null}
+      <nav aria-label="On this page" className="-mx-4 overflow-x-auto px-4 pt-1 sm:mx-0 sm:px-0">
+        <ul className="m-0 flex w-max list-none gap-2 p-0">
+          {[["toolbox", "Toolbox"], ["summary", "Summary"], ["radar", "Skill radar"], ["activity", "Activity"], ["readiness", "Readiness"], ["streak", "Daily"], ["plan", "Plan"], ["belt", "Belt & badges"], ["leaderboard", "Leaderboard"], ["stats", "Stats"], ["certificate", "Certificate"], ["share", "Share"], ["settings", "Settings"]].map(([id, label]) => (
+            <li key={id}>
+              <a href={`#${id}`} className="inline-flex min-h-10 items-center border border-line-strong bg-surface px-3 text-[13px] text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]">
+                {label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    </div>
+  );
   return (
     <div className="dsa-theme">
       <main className="mx-auto flex max-w-[1100px] flex-col gap-12 px-4 pb-24 pt-6 sm:px-6">
-        <header className="flex flex-col gap-2">
-          <span className="font-mono text-xs uppercase tracking-label text-signal-text">Progress</span>
-          <h1 className="m-0 font-display text-[30px] font-extrabold leading-[1.02] tracking-[-0.03em] text-fg sm:text-[46px]">
-            How far you have come<span className="text-signal-text">.</span>
-          </h1>
-          {!loading && !user ? (
-            <p className="m-0 text-[14px] text-fg-3">
-              You are playing as a guest: this page shows what is saved in this browser.{" "}
-              <button type="button" onClick={openAuthModal} className="min-h-10 text-signal-text underline decoration-line-strong underline-offset-4">
-                Sign in free
-              </button>{" "}
-              to keep it on every device.
-            </p>
-          ) : null}
-          <nav aria-label="On this page" className="-mx-4 overflow-x-auto px-4 pt-1 sm:mx-0 sm:px-0">
-            <ul className="m-0 flex w-max list-none gap-2 p-0">
-              {[["readiness", "Readiness"], ["streak", "Streak"], ["plan", "Plan"], ["belt", "Belt & badges"], ["leaderboard", "Leaderboard"], ["stats", "Stats"], ["certificate", "Certificate"], ["share", "Share"], ["settings", "Settings"]].map(([id, label]) => (
-                <li key={id}>
-                  <a href={`#${id}`} className="inline-flex min-h-10 items-center border border-line-strong bg-surface px-3 text-[13px] text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]">
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </header>
+        {props.outline ? (
+          <Toolbox outline={props.outline} problems={props.problemRefs} intro={intro} />
+        ) : (
+          <header className="flex flex-col gap-2">
+            <span className="font-mono text-xs uppercase tracking-label text-signal-text">Progress</span>
+            <h1 className="m-0 font-display text-[30px] font-extrabold leading-[1.02] tracking-[-0.03em] text-fg sm:text-[46px]">
+              How far you have come<span className="text-signal-text">.</span>
+            </h1>
+            {intro}
+          </header>
+        )}
 
         <Section id="summary" title="Summary">
           <Summary problems={props.problems} parts={props.parts} lessonTotal={props.lessonTotal} plannedLessons={props.plannedLessons} />
+        </Section>
+
+        {props.outline ? (
+          <Section id="radar" title="Skill radar" note="strength per topic group, out of 100">
+            <SkillRadar outline={props.outline} problems={props.problemRefs} />
+          </Section>
+        ) : null}
+
+        <Section id="activity" title="Activity and streak">
+          <Activity rows={props.rows} />
         </Section>
 
         <Section id="readiness" title="Interview readiness" note="a band per topic, never a percentage">
@@ -185,7 +209,7 @@ export default function ProgressPage(props: ProgressPageProps) {
           )}
         </Section>
 
-        <Section id="streak" title="Streak and daily history">
+        <Section id="streak" title="Daily problem history">
           <DsaDaily embedded />
         </Section>
 

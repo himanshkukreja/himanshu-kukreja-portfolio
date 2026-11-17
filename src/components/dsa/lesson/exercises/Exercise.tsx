@@ -24,7 +24,7 @@ export default function Exercise({ fig, lessonId, lessonTitle, traceTitles }: { 
     }
   }, [fig]);
   const [chosen, setLang] = useLang();
-  const { completed, complete } = useExerciseProgress(lessonId, ex?.id || "");
+  const { completed, complete } = useExerciseProgress(lessonId, ex?.id || "", lessonTitle);
   useEffect(() => {
     if (ex) fig.setAttribute("data-hydrated", "");
   }, [fig, ex]);

@@ -9,6 +9,7 @@
  * components use useDsaBits().
  */
 import type { GameContextValue } from "@/game/GameProvider";
+import type { ToolIcon } from "@/lib/dsa/metro/toolbox";
 import { awardsOf, beltFor, computeBits, eventBits, eventKey, type Belt } from "@/lib/dsa/rewards";
 
 export type DsaGame = Pick<GameContextValue, "markDone" | "peekDone">;
@@ -27,6 +28,23 @@ export function onBits(fn: (t: BitsToast) => void): () => void {
 }
 
 const totalOf = (done: Record<string, number>) => computeBits(awardsOf(done)).total;
+
+export type ToolToast = { id: number; station: string; name: string; icon: ToolIcon };
+const toolListeners = new Set<(t: ToolToast) => void>();
+
+/** Subscribe to newly earned tools (the toaster). */
+export function onTool(fn: (t: ToolToast) => void): () => void {
+  toolListeners.add(fn);
+  return () => {
+    toolListeners.delete(fn);
+  };
+}
+
+/** Announce a tool the learner just earned. Callers record its `dsa:tool:` key first, so this happens once per tool, ever. */
+export function announceTool(t: Omit<ToolToast, "id">): void {
+  const toast = { ...t, id: ++seq };
+  toolListeners.forEach((f) => f(toast));
+}
 
 /**
  * Mark DSA keys done (progress keys such as dsa:s:/dsa:cpq:/dsa:daily:, or event keys from eventKey) and announce

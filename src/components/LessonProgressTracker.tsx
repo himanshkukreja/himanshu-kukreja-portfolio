@@ -84,6 +84,10 @@ export type LessonProgressValue = {
   reading: Record<string, StageReading>;
   /** "Mark complete" is allowed (enough reading time, or every required stage read) */
   canComplete: boolean;
+  /** in-lesson exercises not solved yet (DSA: the lesson is learnt only when they are); 0 when the lesson has none */
+  exercisesLeft: number;
+  /** the first unsolved exercise's id (its figure is `#ex-<id>`) */
+  firstExercise: string | null;
   /** minutes of reading left before "Mark complete" unlocks (0 once it has) */
   completeLeftMin: number;
   /** clears a stage if its reading time is met; returns whether it is done */
@@ -124,6 +128,11 @@ type Props = {
    * its own (Bits, src/lib/dsa/rewards.ts), so its lessons never add SD Mastery XP.
    */
   award?: (key: string, xp: number, label: string) => number;
+  /**
+   * DSA Mastery: exercises still to solve. While `left` > 0 the lesson does not complete, by reading or by the button (the
+   * button says how many are left and links to the first); it completes by itself once they are solved and the reading rules hold.
+   */
+  gate?: { left: number; first: string | null; /** the solved set has loaded (until then nothing completes) */ ready?: boolean };
   children: React.ReactNode;
 };
 
@@ -157,7 +166,7 @@ function fromRow(row: RemoteLessonRow | null): Stored {
 
 const fmtLeft = (secs: number) => `~${Math.max(1, Math.ceil(secs / 60))} min`;
 
-export function LessonProgressProvider({ courseId, week, lessonSlug, title, stages, contentVersion, xpKeys, award, children }: Props) {
+export function LessonProgressProvider({ courseId, week, lessonSlug, title, stages, contentVersion, xpKeys, award, gate, children }: Props) {
   const { user } = useAuth();
   const userId = user?.id ?? null;
   const { done: gameDone, awardOnce: gameAwardOnce, hydrated } = useGame();
@@ -426,8 +435,18 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
   );
 
   // The lesson is complete: once, after genuine reading (all stages read, or the gated button).
+  const gateRef = useRef(gate);
+  useEffect(() => {
+    gateRef.current = gate;
+  }, [gate]);
   const finishLesson = useCallback(() => {
     if (!storedRef.current.completed) {
+      const left = gateRef.current?.left ?? 0;
+      if (gateRef.current && gateRef.current.ready === false) return;
+      if (left > 0 && !gameCompletedRef.current) {
+        say(`${left} ${left === 1 ? "exercise" : "exercises"} left. Solve ${left === 1 ? "it" : "them"} and this lesson counts as learnt.`);
+        return;
+      }
       const secs = Math.min(timeCap, storedRef.current.timeSpent + (clock.current?.seconds() ?? 0));
       track("lesson_complete", { ...trackCtx.current, minutes: Math.round(secs / 60) });
       clearedRef.current = true;
@@ -436,7 +455,7 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       if (userId) void recordLearningActivity(userId);
     }
     awardOnce(lessonXpKey, 60, `${title} · complete`);
-  }, [update, awardOnce, lessonXpKey, title, userId, timeCap, flushDwell]);
+  }, [update, awardOnce, lessonXpKey, title, userId, timeCap, flushDwell, say]);
 
   // A stage is read: once, only from the reading rules / a checkpoint with its time met.
   const clearStage = useCallback(
@@ -457,6 +476,13 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
     },
     [stages, isDone, update, flushDwell, userId, awardOnce, stageKey, title, required, finishLesson]
   );
+
+  // the last exercise is solved after the reading was done: the lesson is learnt now
+  const exercisesLeft = gate?.left ?? 0;
+  useEffect(() => {
+    if (!gate || gate.ready === false || exercisesLeft > 0 || !ready || storedRef.current.completed || gameCompletedRef.current) return;
+    if (required.length && required.every((s) => isDone(s.id))) finishLesson();
+  }, [gate, exercisesLeft, ready, required, isDone, finishLesson]);
 
   const markStageDone = useCallback(
     (id: string) => {
@@ -674,12 +700,14 @@ export function LessonProgressProvider({ courseId, week, lessonSlug, title, stag
       minutesLeft,
       reading,
       canComplete,
+      exercisesLeft,
+      firstExercise: gate?.first ?? null,
       completeLeftMin,
       markStageDone,
       saveCheckpoint,
       complete,
     }),
-    [ready, stages, required, doneSet, stored.lastStage, completed, current, currentPct, minutesLeft, reading, canComplete, completeLeftMin, markStageDone, saveCheckpoint, complete]
+    [ready, stages, required, doneSet, stored.lastStage, completed, current, currentPct, minutesLeft, reading, canComplete, exercisesLeft, gate?.first, completeLeftMin, markStageDone, saveCheckpoint, complete]
   );
 
   return (
