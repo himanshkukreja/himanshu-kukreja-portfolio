@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useMemo } from "react";
 import { Play } from "lucide-react";
 import { useDsaProgress } from "../progress/useDsaProgress";
-import { Decks, DueCards, Resolves, type ReviseProblem } from "../revise/DsaRevise";
+import { Decks, Resolves, type ReviseProblem } from "../revise/DsaRevise";
+import FlipReview from "./FlipReview";
 import WeakSpots from "@/components/learn/plan/WeakSpots";
 import type { DsaDeck } from "@/lib/dsa/revise";
 
@@ -206,7 +207,7 @@ export default function ReviewPage({ decks, problems, shorts, sheets }: { decks:
           </nav>
         </header>
         <div id="due" className="scroll-mt-24">
-          <DueCards decks={decks} />
+          <FlipReview decks={decks} />
         </div>
         <div id="mistakes" className="scroll-mt-24">
           <Resolves problems={byId} />

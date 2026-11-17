@@ -405,3 +405,43 @@
 :root[data-course="dsa"] [data-guide="toolbar"] :is(button, select).border {
   border-radius: 7px;
 }
+
+/* Review flip cards (src/components/dsa/review/FlipReview.tsx): a card that turns over to its answer. Reduced motion
+   swaps the faces without turning. */
+.dsa-flip {
+  perspective: 1400px;
+}
+.dsa-flip-inner {
+  display: grid;
+  transform-style: preserve-3d;
+  transition: transform 0.55s cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.dsa-flip[data-flipped="true"] .dsa-flip-inner {
+  transform: rotateY(180deg);
+}
+.dsa-flip-face {
+  grid-area: 1 / 1;
+  min-width: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.dsa-flip-back {
+  transform: rotateY(180deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .dsa-flip {
+    perspective: none;
+  }
+  .dsa-flip-inner {
+    transition: none;
+    transform: none !important;
+    transform-style: flat;
+  }
+  .dsa-flip-back {
+    transform: none;
+  }
+  .dsa-flip[data-flipped="true"] .dsa-flip-front,
+  .dsa-flip:not([data-flipped="true"]) .dsa-flip-back {
+    display: none;
+  }
+}
