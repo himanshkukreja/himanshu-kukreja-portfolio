@@ -102,7 +102,7 @@ export const LINKS: [string, string][] = [
 /** The pill that names each line, placed beside its start. */
 export const TAGS: { line: LineId; x: number; y: number }[] = [
   { line: "toolkit", x: 125, y: 10 },
-  { line: "ds", x: 250, y: 10 },
+  { line: "ds", x: 890, y: 10 },
   { line: "pat", x: 225, y: 213 },
   { line: "algo", x: 30, y: 340 },
 ];
