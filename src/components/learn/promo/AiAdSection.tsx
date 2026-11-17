@@ -58,7 +58,7 @@ export default function AiAdSection({ course }: { course: PromoCourse }) {
         </Link>
       </div>
 
-      <div className={`order-1 min-w-0 sm:order-2 ${mode === "tall" ? "mx-auto w-full max-w-[340px]" : ""}`}>
+      <div className={`order-1 min-w-0 sm:order-2 ${mode === "tall" ? "mx-auto w-full max-w-[340px]" : "w-full sm:max-w-[620px] sm:justify-self-end"}`}>
         {mode === null ? (
           <>
             {/* 16:9 (640 px and up) */}
