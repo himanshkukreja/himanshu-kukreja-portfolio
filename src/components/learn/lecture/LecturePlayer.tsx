@@ -95,9 +95,11 @@ type Props = {
   faq?: Record<string, FaqEntry[]> | null;
   /** inside a lesson page (DSA's Learn > Watch): compact chrome, no page header, chapters under the player. Nothing else changes. */
   embedded?: boolean;
+  /** the recording has no separate narration.mp3 (DSA solution videos publish only their MP4): play the MP4's own audio track */
+  audioFromVideo?: boolean;
 };
 
-export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null, faq = null, embedded = false }: Props) {
+export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null, faq = null, embedded = false, audioFromVideo = false }: Props) {
   const flat = useMemo(() => flatten(lecture), [lecture]);
   const [record, setRecord] = useState(false);
   useEffect(() => {
@@ -105,7 +107,7 @@ export default function LecturePlayer({ lecture, quest, source, mediaBase, next 
     return () => window.clearTimeout(id);
   }, []);
   if (record) return <RecordStage lecture={lecture} flat={flat} quest={quest} />;
-  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} faq={faq} embedded={embedded} />;
+  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} faq={faq} embedded={embedded} audioFromVideo={audioFromVideo} />;
 }
 
 /* ---------- record mode: the exporter drives every frame ---------- */
@@ -210,7 +212,7 @@ function Root({ embedded, className, children }: { embedded: boolean; className:
   return embedded ? <div className={className}>{children}</div> : <main className={className}>{children}</main>;
 }
 
-function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded = false }: Props & { flat: Flat }) {
+function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded = false, audioFromVideo = false }: Props & { flat: Flat }) {
   const slug = lecture.quest;
   // the lecture's own page: DSA concept lectures live under their concept
   const pagePath = lecture.dsa ? `/dsa/concepts/${lecture.dsa.concept}/lecture` : `/lectures/${slug}`;
@@ -302,14 +304,16 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded =
       .then((m) => {
         if (off || !m || m.source !== source) return;
         const abs = (u?: string) => (u ? new URL(u, new URL(base, window.location.href)).href : undefined);
-        setMedia({ ...m, audio: abs(m.audio)!, music: abs(m.music) });
+        const audio = audioFromVideo ? abs(m.video) : abs(m.audio);
+        if (!audio) return;
+        setMedia({ ...m, audio, music: audioFromVideo ? undefined : abs(m.music) });
       })
       .catch(() => {})
       .finally(() => !off && setMediaTried(true));
     return () => {
       off = true;
     };
-  }, [mediaBase, slug, source]);
+  }, [mediaBase, slug, source, audioFromVideo]);
 
   // timeline: where each step starts (recorded audio, else an estimate)
   const starts = useMemo(() => {

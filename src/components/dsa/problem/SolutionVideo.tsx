@@ -77,6 +77,7 @@ export default function SolutionVideo({
       {video.player ? (
         <LecturePlayer
           embedded
+          audioFromVideo
           lecture={video.player.lecture}
           quest={{ title: problem.title, href: problem.href, code: "Solution" }}
           source={video.player.source}
