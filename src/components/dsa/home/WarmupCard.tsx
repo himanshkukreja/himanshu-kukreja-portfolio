@@ -16,7 +16,7 @@ import { recordLearningActivity } from "@/components/learn/lesson/progress";
 import { localDay } from "@/lib/dsa/revise";
 import { pickWarmup, shuffledOrder, warmDoneToday, warmKey, warmSeed, type WarmQ } from "@/lib/dsa/warmup";
 import { track } from "@/lib/track";
-import { useDsaStreak } from "../daily/useDsaDaily";
+import { useActivityStreak } from "../progress/useActivityStreak";
 import { CARD_H, KICKER, SIDE_CARD } from "../ui/kit";
 
 type Saved = { q: WarmQ; picked: number | null };
@@ -48,7 +48,8 @@ const OPTION = "flex min-h-12 w-full items-center gap-2.5 rounded-xl border px-3
 export default function WarmupCard({ recent, station, ready }: { recent: string[]; station: string[]; ready: boolean }) {
   const { user, loading } = useAuth();
   const { done, hydrated, markDone } = useGame();
-  const streak = useDsaStreak();
+  // the one main streak (the activity streak Progress and the Today card show): never a warm-up-only count
+  const streak = useActivityStreak();
   const uid = user?.id || "guest";
   const day = useSyncExternalStore(
     () => () => {},
@@ -120,7 +121,7 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
           Daily warm-up
         </h2>
         <p className="m-0 flex items-center gap-2 text-[14px] font-medium text-ok-text">
-          <Check className="h-4 w-4" aria-hidden /> Keep your streak: done for today ✓
+          <Check className="h-4 w-4" aria-hidden /> Done for today ✓{days > 0 ? ` · ${days}-day streak` : ""}
         </p>
       </section>
     );
@@ -134,7 +135,7 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
         <h2 id="dsa-warm-h" className={CARD_H}>
           Daily warm-up
         </h2>
-        <span className="font-mono text-[12px] text-fg-3">{answered ? (days > 0 ? `${days}-day streak` : "done today") : "about 30 s"}</span>
+        <span className="font-mono text-[12px] text-fg-3">{answered ? "done today" : "about 30 s"}</span>
       </div>
       <p className={KICKER}>From {q.lesson}</p>
       <p className="m-0 text-[15.5px] font-semibold leading-snug text-fg">{q.question}</p>
@@ -166,7 +167,7 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
             {q.why}
           </p>
           <p className="m-0 flex items-center gap-2 rounded-xl bg-bg px-3 py-2.5 text-[13.5px] font-medium text-fg">
-            <Check className="h-4 w-4 shrink-0 text-ok-text" aria-hidden /> Keep your streak: done for today ✓
+            <Check className="h-4 w-4 shrink-0 text-ok-text" aria-hidden /> Done for today ✓{days > 0 ? ` · ${days}-day streak` : ""}
           </p>
           <Link href={q.href} className="self-start text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
             Revisit {q.lesson} →
