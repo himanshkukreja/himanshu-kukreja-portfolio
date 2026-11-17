@@ -12,6 +12,7 @@ import { useGame } from "@/game/GameProvider";
 import { useReviewCards } from "@/lib/learn/useReviewDue";
 import { localDay } from "@/lib/dsa/revise";
 import { useDsaDaily, useDsaStreak } from "../daily/useDsaDaily";
+import { useActivityStreak } from "../progress/useActivityStreak";
 import { useResolves } from "../revise/useResolves";
 import { useOnboardingRecord } from "../onboarding/useOnboarding";
 import { CARD_H, SIDE_CARD } from "../ui/kit";
@@ -40,6 +41,7 @@ function useToday() {
   const { done, hydrated } = useGame();
   const rec = useOnboardingRecord();
   const streak = useDsaStreak();
+  const main = useActivityStreak();
   const { data } = useDsaDaily();
   const r = useResolves();
   const { due, ready } = useReviewCards("dsa");
@@ -52,14 +54,14 @@ function useToday() {
   );
   const units = useMemo(() => (hydrated && today ? goalUnitsToday(done, today) : 0), [done, hydrated, today]);
   const n = r.due.length + due.length;
-  return { goal, units: Math.min(goal.pips, units), streak, daily: data?.daily ?? null, n, cardsReady: r.ready && ready, hydrated };
+  return { days: main?.current ?? 0, goal, units: Math.min(goal.pips, units), streak, daily: data?.daily ?? null, n, cardsReady: r.ready && ready, hydrated };
 }
 
 const CARD = `${SIDE_CARD} !gap-3.5`;
 
 export default function TodayCard() {
   const t = useToday();
-  const days = t.streak?.current ?? 0;
+  const days = t.days;
   return (
     <section aria-labelledby="dsa-today-h" className={CARD}>
       <div className="flex items-center justify-between gap-3">
@@ -99,7 +101,7 @@ export default function TodayCard() {
 /** The phone's two small tiles under Continue: cards due, and the streak with the goal. */
 export function TodayTiles() {
   const t = useToday();
-  const days = t.streak?.current ?? 0;
+  const days = t.days;
   return (
     <div className="grid grid-cols-2 gap-2.5 lg:hidden">
       <Link href="/dsa/review" className="flex min-h-[68px] flex-col justify-center gap-1 rounded-[14px] border border-line bg-surface p-3.5 hover:bg-surface-2">

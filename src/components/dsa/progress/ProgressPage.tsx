@@ -38,6 +38,9 @@ export type ProgressPageProps = { defs: BadgeDef[] | null; outline: Outline | nu
 const H2 = "m-0 font-display text-[24px] font-bold tracking-[-0.02em] text-fg";
 const LINK = "font-mono text-[12.5px] text-signal-text underline decoration-line-strong underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text";
 
+/** The jump bar: seven groups, each pointing at its first section (every section keeps its own anchor). */
+const JUMPS: [string, string][] = [["toolbox", "Toolbox"], ["summary", "Skills"], ["activity", "Activity"], ["readiness", "Readiness"], ["belt", "Badges"], ["stats", "Stats"], ["plan", "Plan & settings"]];
+
 function Section({ id, title, note, children }: { id: string; title: string; note?: string; children: React.ReactNode }) {
   return (
     <section id={id} aria-labelledby={`${id}-h`} className="flex scroll-mt-24 flex-col gap-3">
@@ -91,7 +94,7 @@ function Summary({ problems, parts, lessonTotal, plannedLessons }: Pick<Progress
           <Bar key={x.id} label={x.title} done={x.done} total={x.total} />
         ))}
       </ul>
-      <p className="m-0 font-mono text-[12px] text-fg-3">Counts are lessons and problems that are ready{plannedLessons ? `; ${plannedLessons} more lessons are planned and not counted` : ""}.</p>
+      <p className="m-0 font-mono text-[12px] text-fg-3">Counts are lessons and problems that are ready{plannedLessons ? `; ${plannedLessons} more ${plannedLessons === 1 ? "lesson is" : "lessons are"} planned and not counted` : ""}.</p>
     </div>
   );
 }
@@ -153,9 +156,9 @@ export default function ProgressPage(props: ProgressPageProps) {
           to keep it on every device.
         </p>
       ) : null}
-      <nav aria-label="On this page" className="-mx-4 overflow-x-auto px-4 pt-1 sm:mx-0 sm:px-0">
-        <ul className="m-0 flex w-max list-none gap-2 p-0">
-          {[["toolbox", "Toolbox"], ["summary", "Summary"], ["radar", "Skill radar"], ["activity", "Activity"], ["readiness", "Readiness"], ["streak", "Daily"], ["plan", "Plan"], ["belt", "Belt & badges"], ["leaderboard", "Leaderboard"], ["stats", "Stats"], ["certificate", "Certificate"], ["share", "Share"], ["settings", "Settings"]].map(([id, label]) => (
+      <nav aria-label="On this page" className="pt-1">
+        <ul className="m-0 flex list-none flex-wrap gap-2 p-0">
+          {JUMPS.map(([id, label]) => (
             <li key={id}>
               <a href={`#${id}`} className="inline-flex min-h-10 items-center border border-line-strong bg-surface px-3 text-[13px] text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]">
                 {label}
@@ -195,6 +198,10 @@ export default function ProgressPage(props: ProgressPageProps) {
           <Activity rows={props.rows} />
         </Section>
 
+        <Section id="streak" title="Daily problem history">
+          <DsaDaily embedded />
+        </Section>
+
         <Section id="readiness" title="Interview readiness" note="a band per topic, never a percentage">
           {user ? (
             <ReadinessCard tracks={["dsa"]} id="readiness-card" rounded />
@@ -209,20 +216,6 @@ export default function ProgressPage(props: ProgressPageProps) {
           )}
         </Section>
 
-        <Section id="streak" title="Daily problem history">
-          <DsaDaily embedded />
-        </Section>
-
-        <Section id="plan" title="Plan">
-          <div className="flex flex-col gap-3 border border-line bg-surface p-4 sm:p-5 rounded-2xl">
-            <p className="m-0 max-w-[62ch] text-[14.5px] leading-relaxed text-fg-2">Pick an interview date and get a day-by-day plan that includes the DSA lessons, a revision stretch and a calendar file (.ics). Fall behind and it adjusts.</p>
-            <Link href="/plan" className="inline-flex min-h-11 items-center self-start bg-signal px-4 text-[14px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
-              Open the study planner →
-            </Link>
-            <CompanyPlanSection today={today} />
-          </div>
-        </Section>
-
         <Section id="belt" title="Belt & badges">
           <DsaBeltBadges defs={props.defs} embedded />
         </Section>
@@ -233,6 +226,16 @@ export default function ProgressPage(props: ProgressPageProps) {
 
         <Section id="stats" title="Stats">
           <DsaStats rows={props.rows} steps={props.steps} embedded />
+        </Section>
+
+        <Section id="plan" title="Plan">
+          <div className="flex flex-col gap-3 border border-line bg-surface p-4 sm:p-5 rounded-2xl">
+            <p className="m-0 max-w-[62ch] text-[14.5px] leading-relaxed text-fg-2">Pick an interview date and get a day-by-day plan that includes the DSA lessons, a revision stretch and a calendar file (.ics). Fall behind and it adjusts.</p>
+            <Link href="/plan" className="inline-flex min-h-11 items-center self-start bg-signal px-4 text-[14px] font-semibold text-on-signal focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text rounded-[10px]">
+              Open the study planner →
+            </Link>
+            <CompanyPlanSection today={today} />
+          </div>
         </Section>
 
         <Section id="certificate" title="Certificate">

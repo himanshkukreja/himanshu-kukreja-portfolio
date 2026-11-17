@@ -72,7 +72,7 @@ export default function DailyCard() {
             {streak ? (
               streak.current > 0 ? (
                 <>
-                  <span className="font-semibold text-signal-text">{streak.current}-day streak</span>
+                  <span className="font-semibold text-signal-text">{streak.current}-day daily-problem streak</span>
                   {streak.best > streak.current ? ` · best ${streak.best}` : ""}
                 </>
               ) : (

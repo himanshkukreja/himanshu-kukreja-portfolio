@@ -33,7 +33,7 @@ function Radar({ axes }: { axes: RadarAxis[] }) {
   const poly = axes.map((a, i) => radarPoint(i, n, a.strength, R, CX, CY).map((v) => v.toFixed(1)).join(",")).join(" ");
   const summary = axes.map((a) => `${a.label} ${a.strength} of 100`).join(", ");
   return (
-    <svg viewBox="0 24 360 252" role="img" aria-label={`Skill radar. ${summary}.`} className="mx-auto block h-auto w-full max-w-[420px]">
+    <svg viewBox="-40 12 440 296" overflow="visible" role="img" aria-label={`Skill radar. ${summary}.`} className="mx-auto block h-auto w-full max-w-[420px]">
       {RINGS.map((r) => (
         <polygon key={r} points={axes.map((_, i) => radarPoint(i, n, r, R, CX, CY).map((v) => v.toFixed(1)).join(",")).join(" ")} fill="none" stroke="var(--c-line)" strokeWidth="1" />
       ))}

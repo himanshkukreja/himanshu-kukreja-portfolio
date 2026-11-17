@@ -202,7 +202,7 @@ async function dsaInput(userId: string, events: OutcomeEvent[]): Promise<DsaInpu
     if (s.verdict === "AC") solved.add(s.problem_id);
     else failed.add(s.problem_id);
   }
-  const lessonsDone = Object.keys(raw.done).filter((k) => /^dsa:c:/.test(k)).length;
+  const lessonsDone = Object.keys(raw.done).filter((k) => k.startsWith("dsa:c:") && ix.built.has(k.slice(6))).length;
   // patterns: the modules behind the concepts; one counts with two or more solved problems in it
   const modules = new Set([...ix.concepts.keys()].map((c) => ix.modules.get(c)).filter((m): m is string => !!m));
   const perModule = new Map<string, number>();
@@ -215,7 +215,7 @@ async function dsaInput(userId: string, events: OutcomeEvent[]): Promise<DsaInpu
   const latest = new Map<string, string>();
   for (const e of events) if (e.kind === "explain_back" && e.ref.startsWith("dsa:") && !latest.has(e.ref) && e.outcome) latest.set(e.ref, e.outcome);
   return {
-    lessons: { done: Math.min(lessonsDone, ix.concepts.size), total: ix.concepts.size },
+    lessons: { done: Math.min(lessonsDone, ix.built.size), total: ix.built.size },
     patterns: { done: [...perModule.values()].filter((n) => n >= 2).length, total: modules.size },
     solved: solved.size,
     firstTry: { done: subSolved.filter((id) => !failed.has(id)).length, total: subSolved.length },

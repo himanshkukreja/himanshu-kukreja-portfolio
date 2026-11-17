@@ -18,7 +18,7 @@ function Stat({ value, label }: { value: string | number; label: string }) {
   return (
     <div className="flex flex-col gap-1 bg-surface p-4">
       <span className="font-display text-[30px] font-extrabold leading-none tracking-[-0.03em] text-fg">{value}</span>
-      <span className="font-mono text-[11px] uppercase tracking-label text-fg-3">{label}</span>
+      <span className="font-mono text-[11px] uppercase leading-tight tracking-label text-fg-3">{label}</span>
     </div>
   );
 }
@@ -89,8 +89,8 @@ export default function DsaDaily({ embedded = false }: { embedded?: boolean }) {
             )}
           </div>
           <div className="grid grid-cols-3 gap-px bg-line lg:grid-cols-1">
-            <Stat value={streak ? streak.current : "–"} label="day streak" />
-            <Stat value={streak ? streak.best : "–"} label="best streak" />
+            <Stat value={streak ? streak.current : "–"} label="Daily problem streak" />
+            <Stat value={streak ? streak.best : "–"} label="Best daily problem streak" />
             <Stat value={streak ? streak.days.size : "–"} label="days solved" />
           </div>
         </section>

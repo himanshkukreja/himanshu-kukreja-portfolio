@@ -63,13 +63,15 @@ export function dsaRows(userId: string): Promise<DsaLearnerRaw> {
 
 /* ------------------------------------------------------------------ the index (titles, concepts, modules) */
 
-let ixMemo: { at: number; p: Promise<DsaIndex & { modules: Map<string, string> }> } | null = null;
+let ixMemo: { at: number; p: Promise<DsaIndex & { modules: Map<string, string>; built: Set<string> }> } | null = null;
 /** Problem titles, concepts and modules, kept ten minutes (also the course chat's DSA digest: lib/ai/chat/server.ts). */
-export function dsaIndex(): Promise<DsaIndex & { modules: Map<string, string> }> {
+export function dsaIndex(): Promise<DsaIndex & { modules: Map<string, string>; built: Set<string> }> {
   if (ixMemo && Date.now() - ixMemo.at < 10 * 60_000) return ixMemo.p;
   const p = Promise.all([getProblemIndex().catch(() => []), getConceptIndex().catch(() => [])]).then(([ps, cs]) => ({
     problems: new Map(ps.map((x) => [x.id, { title: x.title, concept: x.concept, level: x.level }])),
     concepts: new Map(cs.map((x) => [x.id, x.title])),
+    // the ready lessons: totals count ready content, the same as Progress's Summary
+    built: new Set(cs.filter((x) => x.status === "built").map((x) => x.id)),
     modules: new Map([...cs.map((x) => [x.id, x.module] as const), ...ps.map((x) => [`p:${x.id}`, x.module] as const)]),
   }));
   ixMemo = { at: Date.now(), p };
