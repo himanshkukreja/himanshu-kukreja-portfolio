@@ -17,7 +17,7 @@ export default function SetsCard({ sets }: { sets: CompanySetLink[] }) {
   const p = useDsaProgress();
   if (!sets.length) return null;
   return (
-    <section aria-labelledby="dsa-sets-h" className={SIDE_CARD} data-home-sets>
+    <section aria-labelledby="dsa-sets-h" className={`${SIDE_CARD} !gap-2 !p-[18px]`} data-home-sets>
       <div className="flex items-center justify-between gap-3">
         <h2 id="dsa-sets-h" className={`${CARD_H} flex items-center gap-2`}>
           <Briefcase className="h-4 w-4 text-fg-3" aria-hidden />
@@ -27,9 +27,8 @@ export default function SetsCard({ sets }: { sets: CompanySetLink[] }) {
           All of Practice →
         </Link>
       </div>
-      <p className="m-0 text-[13.5px] leading-snug text-fg-2">Rounds written for the kind of company that asks them. Not on the map: it stays about topics.</p>
       <ul className="m-0 flex list-none flex-col gap-1 p-0">
-        {sets.slice(0, 4).map((s) => (
+        {sets.slice(0, 3).map((s) => (
           <li key={s.key}>
             <Link href={s.href} onClick={() => track("dsa_sets_card", { to: s.key })} className="flex min-h-11 items-center gap-2.5 rounded-[10px] px-2 py-1.5 hover:bg-surface-2">
               <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-fg-3 ${p.concepts.has(s.key) ? "bg-fg-3" : "bg-surface"}`} />
