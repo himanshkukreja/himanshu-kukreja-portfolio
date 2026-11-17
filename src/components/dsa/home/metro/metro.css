@@ -1,0 +1,73 @@
+/* The DSA metro map (redesign, 17 Nov 2026). Theme tokens only. Motion is subtle and off under prefers-reduced-motion. */
+.metro-line {
+  stroke-linecap: round;
+  fill: none;
+}
+/* done segments and stations glow softly on the dark themes only */
+.metro-glow,
+.metro-halo {
+  opacity: 0;
+}
+.dark .metro-glow,
+html[data-read-mode="dusk"] .metro-glow,
+html[data-read-mode="calm"] .metro-glow,
+html[data-read-mode="quiet"] .metro-glow {
+  opacity: 0.45;
+}
+.dark .metro-halo,
+html[data-read-mode="dusk"] .metro-halo,
+html[data-read-mode="calm"] .metro-halo,
+html[data-read-mode="quiet"] .metro-halo {
+  opacity: 0.7;
+}
+.metro-route {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: metro-draw 1.8s ease-out both;
+}
+.metro-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: metro-pulse 2.2s ease-out infinite;
+}
+@keyframes metro-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes metro-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(3);
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .metro-route,
+  .metro-pulse {
+    animation: none;
+  }
+  .metro-pulse {
+    transform: scale(1.8);
+    opacity: 0.35;
+  }
+}
+.metro-tip {
+  pointer-events: none;
+}
+/* the coach marks' spotlight: a hole in a dimmed screen, drawn with a huge shadow so it follows the element */
+.metro-spot {
+  box-shadow: 0 0 0 9999px color-mix(in srgb, var(--c-fg) 55%, transparent);
+  transition: top 0.2s ease, left 0.2s ease, width 0.2s ease, height 0.2s ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  .metro-spot {
+    transition: none;
+  }
+}

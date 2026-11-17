@@ -22,6 +22,9 @@ import QuickReview from "./QuickReview";
 import TodayCard, { TodayTiles } from "./TodayCard";
 import TutorCard from "./TutorCard";
 import Welcome from "./Welcome";
+import MetroHome from "./metro/MetroHome";
+import { HomeBar } from "./metro/Panels";
+import { useHomeView, useMedia } from "./metro/useMetroPrefs";
 import type { LectureRef } from "./useLectureSeconds";
 import { FILL, SECTION_H, SEG, TRACK, seg } from "../ui/kit";
 
@@ -57,6 +60,8 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
   const welcome = useWelcome();
   const { user, profile, loading } = useAuth();
   const desktop = useDesktop();
+  const [view, setHomeView] = useHomeView();
+  const wide = useMedia("(min-width: 768px)");
   const recommended = useRecommendedStart(academy);
   // "?view=lectures" is read here, on the client, so the page itself stays one static ISR page
   const lecturesView = useSyncExternalStore(
@@ -115,11 +120,52 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
   const showWelcome = welcome === null && !user && !loading;
   const currentModule = here ? moduleOfLesson(outline, here.lessonId) : null;
 
+  if (view === "map") {
+    return (
+      <div className="dsa-theme">
+        <main className="mx-auto flex max-w-[1560px] flex-col gap-5 px-4 pb-28 pt-[18px] sm:px-6 sm:pt-6">
+          <MetroHome
+            outline={outline}
+            progress={progress}
+            problems={problems}
+            next={next}
+            kicker={kicker}
+            aside={
+              <div className="flex flex-col gap-4">
+                <TodayCard />
+                {next ? <TutorCard next={next} problems={practice} /> : null}
+              </div>
+            }
+            below={
+              <>
+                {welcomeCard ? null : showWelcome ? <Welcome /> : null}
+                <QuietNudge course="dsa" />
+                {wide ? (
+                  <div className="grid items-start gap-4 md:grid-cols-2">
+                    <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
+                    <QuickReview ids={quick} />
+                  </div>
+                ) : (
+                  <TodayTiles />
+                )}
+                {user ? (
+                  <button type="button" onClick={openOnboarding} className="min-h-10 self-start text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
+                    Redo the welcome tour
+                  </button>
+                ) : null}
+              </>
+            }
+          />
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="dsa-theme">
       <main className="mx-auto flex max-w-[1248px] flex-col gap-10 px-4 pb-28 pt-[18px] sm:px-6 sm:pt-9 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-7">
-          <p className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3 sm:text-[12px]">{kicker}</p>
+          <HomeBar kicker={kicker} view="list" onView={setHomeView} />
 
           {/* phase-2 slot: the course path / warm-up widgets sit here, above Continue */}
           {slots?.top ? <div data-slot="home-top">{slots.top}</div> : null}

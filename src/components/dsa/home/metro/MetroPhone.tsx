@@ -1,0 +1,168 @@
+"use client";
+
+/**
+ * The metro map on phones (below 768 px): one vertical "next stops" strip along your route instead of the map (the approved
+ * MetroPhone board). The current stop is open, with its lessons and Open; tap any stop to see the same. Finished stops fold
+ * into one line; the stops off your route are counted, not drawn. The Next stop button stays at the bottom of the screen.
+ */
+import Link from "next/link";
+import { useState } from "react";
+import { ArrowRight, Check } from "lucide-react";
+import { track } from "@/lib/track";
+import { LINE_TOKEN, type LineId } from "@/lib/dsa/metro/layout";
+import type { GoalPref, Metro, RouteInfo, Station } from "@/lib/dsa/metro/model";
+import type { NextStep } from "@/lib/dsa/continue";
+import { BIG, BTN_PRIMARY } from "../../ui/kit";
+import { GoalPicker, Legend, RouteChips, primaryOf, routeHeading } from "./Panels";
+import { stateWords } from "./MetroMap";
+
+const tone = (l: LineId) => `var(${LINE_TOKEN[l]})`;
+
+function Dot({ s, here }: { s: Station; here: boolean }) {
+  const c = tone(s.line);
+  return (
+    <span
+      aria-hidden
+      className={`flex shrink-0 items-center justify-center rounded-full ${here ? "h-7 w-7" : "h-[22px] w-[22px]"}`}
+      style={{ background: s.state === "done" ? c : "var(--c-surface)", border: `${s.state === "prog" ? 4 : 3}px solid ${s.state === "done" ? c : s.state === "prog" ? "var(--c-line-strong)" : c}`, borderTopColor: s.state === "prog" ? c : undefined, boxShadow: here ? `0 0 0 4px var(--c-bg), 0 0 0 6px ${c}` : undefined }}
+    >
+      {s.state === "done" ? <Check className="h-3 w-3" style={{ color: "var(--c-m-on)" }} strokeWidth={3} /> : null}
+    </span>
+  );
+}
+
+export default function MetroPhone({
+  metro,
+  info,
+  hereId,
+  next,
+  ready,
+  goal,
+  isNew,
+  onGoal,
+  lineTitle,
+}: {
+  metro: Metro;
+  info: RouteInfo;
+  hereId: string;
+  next: NextStep | null;
+  ready: boolean;
+  goal: GoalPref | null;
+  isNew: boolean;
+  onGoal: (g: GoalPref) => void;
+  lineTitle: (l: LineId) => string;
+}) {
+  const [open, setOpen] = useState<string | null>(null);
+  const [showDone, setShowDone] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const route = info.ids.map((id) => metro.byId.get(id)).filter((s): s is Station => !!s);
+  const onRoute = new Set(info.ids);
+  const doneOff = metro.stations.filter((s) => s.state === "done" && !onRoute.has(s.id));
+  const rest = metro.stations.filter((s) => s.state !== "done" && !onRoute.has(s.id));
+  const sel = open ?? hereId;
+  const main = ready ? primaryOf(next, metro.byId.get(hereId)) : null;
+  const goalName = metro.byId.get(info.goal)?.label || "";
+
+  return (
+    <div className="flex flex-col gap-4">
+      {ready ? (
+        <>
+          <div className="flex flex-col gap-2.5">
+            <h2 className="m-0 font-display text-[28px] font-extrabold leading-[1.05] tracking-[-0.02em] text-fg">{routeHeading(metro, info)}</h2>
+            <RouteChips metro={metro} ids={info.ids} />
+            <span className="text-[12.5px] text-fg-3">
+              Goal: {goalName} ·{" "}
+              <button type="button" aria-expanded={picking} onClick={() => setPicking((v) => !v)} className="min-h-8 text-fg underline underline-offset-2">
+                {isNew && !goal ? "Choose your goal" : "change goal"}
+              </button>
+            </span>
+            {picking ? <GoalPicker metro={metro} goal={goal} onSave={onGoal} onClose={() => setPicking(false)} /> : null}
+          </div>
+
+          <ol aria-label="Your next stops" className="relative m-0 flex list-none flex-col gap-2.5 p-0">
+            {doneOff.length ? (
+              <li className="flex items-center justify-between gap-3 pl-[42px] text-[13px] text-fg-2">
+                <span>
+                  {doneOff.length} {doneOff.length === 1 ? "stop" : "stops"} done
+                </span>
+                <button type="button" aria-expanded={showDone} onClick={() => setShowDone((v) => !v)} className="min-h-9 px-1 text-[13px] text-fg-3 underline underline-offset-2">
+                  {showDone ? "Hide" : "Show"}
+                </button>
+              </li>
+            ) : null}
+            {showDone
+              ? doneOff.map((s) => (
+                  <li key={s.id} className="pl-[42px] text-[13px] text-fg-3">
+                    {s.label}
+                  </li>
+                ))
+              : null}
+            {route.map((s, i) => {
+              const here = s.id === hereId;
+              const expanded = s.id === sel;
+              const isGoal = s.id === info.goal && route.length > 1;
+              return (
+                <li key={s.id} className="relative flex items-start gap-3" data-tour={here ? "station" : undefined}>
+                  <span className="relative flex w-7 shrink-0 justify-center">
+                    {i < route.length - 1 ? <span aria-hidden className="absolute -bottom-[10px] left-1/2 top-[26px] w-1.5 -translate-x-1/2 rounded-full" style={{ background: tone(s.line) }} /> : null}
+                    <span className="relative z-10 mt-3">
+                      <Dot s={s} here={here} />
+                    </span>
+                  </span>
+                  <div className={`min-w-0 flex-1 rounded-[14px] border ${expanded ? "border-signal bg-surface" : "border-line bg-surface"} ${here && expanded ? "bg-bg" : ""}`}>
+                    <button
+                      type="button"
+                      aria-expanded={expanded}
+                      onClick={() => setOpen(s.id === sel && open ? null : s.id)}
+                      className="flex min-h-12 w-full items-center gap-2 px-4 py-3 text-left"
+                    >
+                      <span className="text-[16px] font-semibold text-fg">{s.label}</span>
+                      {here ? <span className="rounded-full bg-signal px-2 py-0.5 text-[11px] font-semibold text-on-signal">You are here</span> : null}
+                      {isGoal ? <span className="rounded-full bg-fg px-2 py-0.5 text-[11px] font-semibold text-bg">Goal</span> : null}
+                      <span className="ml-auto text-[12.5px] text-fg-3">{s.planned ? "Soon" : `${s.done}/${s.total}`}</span>
+                    </button>
+                    {expanded ? (
+                      <div className="flex flex-col gap-2.5 px-4 pb-4">
+                        <span className="text-[13px] text-fg-2">
+                          {s.lines.length > 1 ? `On two lines: ${s.lines.map(lineTitle).join(" and ")}. ` : `${lineTitle(s.line)} line. `}
+                          {stateWords(s)}.{s.problems ? ` ${s.solved}/${s.problems} problems.` : ""}
+                        </span>
+                        {s.href ? (
+                          <div className="flex items-center gap-3">
+                            <Link href={s.href} onClick={() => track("dsa_station_open", { station: s.id, from: "phone" })} className={`${BTN_PRIMARY} min-h-11 rounded-[10px] px-5 text-[14px]`}>
+                              Open
+                            </Link>
+                            {s.state === "prog" || here ? <span className="text-[12.5px] text-fg-3">Resume at lesson {s.nextLesson}</span> : null}
+                          </div>
+                        ) : null}
+                      </div>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
+            {rest.length ? (
+              <li className="pl-[42px] text-[13px] text-fg-3">
+                {rest.length} more {rest.length === 1 ? "stop" : "stops"} after this, on other lines
+              </li>
+            ) : null}
+          </ol>
+
+          <Legend metro={metro} />
+        </>
+      ) : (
+        <div aria-hidden aria-busy="true" className="min-h-[360px]" />
+      )}
+
+      {/* the one obvious button, kept on screen above the dock */}
+      <div className="sticky bottom-[84px] z-20 -mx-1 bg-gradient-to-t from-bg via-bg to-transparent px-1 pb-2 pt-4" data-tour="route">
+        {main ? (
+          <Link href={main.href} onClick={() => track("dsa_continue", { from: "metro-phone", first: main.first })} className={`${BTN_PRIMARY} ${BIG} w-full !min-h-[52px] justify-center shadow-[0_10px_30px_color-mix(in_srgb,var(--c-fg)_18%,transparent)]`}>
+            <span className="min-w-0 truncate">{main.label}</span>
+            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+          </Link>
+        ) : null}
+      </div>
+    </div>
+  );
+}

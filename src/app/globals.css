@@ -466,6 +466,44 @@
   background: var(--c-dsa-hl);
 }
 
+/* The DSA metro map's four line colours (one per course part; the Data structures line is the course teal), defined for all
+   8 themes: the four light ones (light, sepia, paper, mint) use the deep set, 3:1 or more against their page for the thin
+   lines; the four dark ones (night, dusk, calm, quiet) use the bright set. --c-m-on is the ink on a line-coloured pill.
+   No purple. */
+:root {
+  --c-m-toolkit: #B45309;
+  --c-m-ds: var(--c-dsa);
+  --c-m-algo: #1D4ED8;
+  --c-m-pat: #BE185D;
+  --c-m-on: #FFFFFF;
+}
+.dark,
+html[data-read-mode="dusk"],
+html[data-read-mode="calm"],
+html[data-read-mode="quiet"] {
+  --c-m-toolkit: #F59E0B;
+  --c-m-algo: #60A5FA;
+  --c-m-pat: #F472B6;
+  --c-m-on: #0B0B0C;
+}
+@media screen {
+  html[data-read-mode="sepia"] {
+    --c-m-toolkit: #A64B08;
+    --c-m-algo: #1E4FC4;
+    --c-m-pat: #B0175A;
+  }
+  html[data-read-mode="calm"] {
+    --c-m-toolkit: #E8A23C;
+    --c-m-algo: #7DB1EE;
+    --c-m-pat: #EE8FB8;
+  }
+  html[data-read-mode="dusk"] {
+    --c-m-toolkit: #E9A23B;
+    --c-m-algo: #7AAEEA;
+    --c-m-pat: #EC87B0;
+  }
+}
+
 /* DSA redesign shell (the approved canvas, 16 Nov 2026; DSA pages only, SD Mastery keeps its own look): a plain paper
    ground (no dot grid), a white header with rounded controls (the shared search, theme and account buttons are reshaped
    here, scoped to the DSA header, so their SD Mastery look is untouched) and rounded menus. */
