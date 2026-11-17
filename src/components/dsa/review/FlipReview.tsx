@@ -109,6 +109,7 @@ export default function FlipReview({ decks }: { decks: DsaDeck[] }) {
   useEffect(() => {
     if (!ready || started.current || !due.length) return;
     started.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- a one-time snapshot of the queue when it first loads
     setSession({ items: [...due].sort((a, b) => a.box - b.box || a.dueAt.localeCompare(b.dueAt)).map(itemOf), practice: false });
     setI(0);
     setFlipped(false);

@@ -10,6 +10,8 @@ import { useMemo, useSyncExternalStore } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import QuietNudge from "@/components/learn/plan/QuietNudge";
 import ReadinessCard from "@/components/learn/progress/ReadinessCard";
+import { recentConcepts } from "@/lib/dsa/warmup";
+import { useGame } from "@/game/GameProvider";
 import { nextStep, bucketsOf, type ConceptInfo, type ProblemInfo } from "@/lib/dsa/continue";
 import { moduleOfLesson, type Outline } from "@/lib/dsa/outline";
 import type { WorldSpec } from "@/lib/dsa/types";
@@ -21,6 +23,7 @@ import CourseOutline from "./CourseOutline";
 import QuickReview from "./QuickReview";
 import TodayCard, { TodayTiles } from "./TodayCard";
 import TutorCard from "./TutorCard";
+import WarmupCard from "./WarmupCard";
 import Welcome from "./Welcome";
 import MetroHome from "./metro/MetroHome";
 import { HomeBar } from "./metro/Panels";
@@ -88,6 +91,15 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
   const next = useMemo(() => (progress.ready ? nextStep(academy, concepts, problems, progress, { startRegion: recommended }) : null), [academy, concepts, problems, progress, recommended]);
   const here = next && next.state !== "empty" && next.state !== "caught-up" ? next : null;
 
+  // the daily warm-up draws from the lessons studied lately, then from the station the learner is on (the Toolkit is the server's fallback)
+  const { done: gameDone } = useGame();
+  const recentLessons = useMemo(() => recentConcepts(gameDone, 5), [gameDone]);
+  const stationLessons = useMemo(() => {
+    const m = here ? moduleOfLesson(outline, here.lessonId) : null;
+    return m ? m.mod.lessons.filter((l) => l.built).map((l) => l.conceptId).slice(0, 12) : [];
+  }, [here, outline]);
+  const warmup = <WarmupCard recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />;
+
   // the current lesson's practice problems (for the tutor card's sentence)
   const practice = useMemo(() => {
     if (!here) return [];
@@ -133,11 +145,12 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             kicker={kicker}
             intro={showWelcome && progress.ready && progress.concepts.size === 0 && progress.solved.size === 0 ? <Welcome onDone={(g) => setGoalPref({ kind: g === "placements" ? "scratch" : g ? "interview" : "scratch" })} /> : null}
             onRedo={user ? openOnboarding : undefined}
-            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact rounded />]}
+            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact rounded />]}
             below={
               <>
                 <QuietNudge course="dsa" />
                 {wide ? null : <TodayTiles />}
+                {wide ? null : warmup}
               </>
             }
           />
@@ -160,6 +173,9 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
           <QuietNudge course="dsa" className="-mt-2 sm:-mt-3" />
 
           <TodayTiles />
+
+          {/* phones and tablets (the side column is computers only): the warm-up sits right after Continue */}
+          {desktop ? null : warmup}
 
           <section aria-labelledby="dsa-course-h" className="mt-1.5 flex flex-col gap-3 sm:mt-0 sm:gap-[18px]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5">
@@ -220,6 +236,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
               {slots?.side ? <div data-slot="home-side">{slots.side}</div> : null}
               <TodayCard />
               {next ? <TutorCard next={next} problems={practice} /> : null}
+              {warmup}
               <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
               <QuickReview ids={quick} />
             </>
