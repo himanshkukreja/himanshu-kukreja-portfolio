@@ -71,21 +71,27 @@ export const getCatalog = cached(async (): Promise<CatalogEntry[]> => {
   const built = concepts.filter((c) => c.status === "built");
   const titleOf = new Map(concepts.map((c) => [c.id, c.title]));
   const out: CatalogEntry[] = [];
-  for (const c of built) {
-    const md = await readDsa(`resources/modules/${c.module}/${c.id}/lesson.md`).catch(() => null);
-    const f = (md ? matter(md, {}).data : {}) as LessonFront;
-    out.push({
-      kind: "concept",
-      id: c.id,
-      title: f.title || c.title,
-      sub: "Concept",
-      href: conceptHref(c.id),
-      text: [c.summary, f.invariant, ...(f.keyPoints || []), (f.signals || []).join(", ")].filter(Boolean).join("\n"),
-    });
-  }
-  for (let i = 0; i < problems.length; i += 8) {
+  // sixteen reads at a time (a cold build read ~100 lessons one after another: the tutor's first answer after a deploy took 40 s)
+  for (let i = 0; i < built.length; i += 16) {
     const batch = await Promise.all(
-      problems.slice(i, i + 8).map(async (p) => {
+      built.slice(i, i + 16).map(async (c): Promise<CatalogEntry> => {
+        const md = await readDsa(`resources/modules/${c.module}/${c.id}/lesson.md`).catch(() => null);
+        const f = (md ? matter(md, {}).data : {}) as LessonFront;
+        return {
+          kind: "concept",
+          id: c.id,
+          title: f.title || c.title,
+          sub: "Concept",
+          href: conceptHref(c.id),
+          text: [c.summary, f.invariant, ...(f.keyPoints || []), (f.signals || []).join(", ")].filter(Boolean).join("\n"),
+        };
+      }),
+    );
+    out.push(...batch);
+  }
+  for (let i = 0; i < problems.length; i += 16) {
+    const batch = await Promise.all(
+      problems.slice(i, i + 16).map(async (p) => {
         const md = await readDsa(`resources/problems/${p.id}/problem.md`).catch(() => null);
         if (!md) return null;
         const { data, content } = matter(md, {});
