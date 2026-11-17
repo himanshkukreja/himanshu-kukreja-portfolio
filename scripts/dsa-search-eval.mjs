@@ -23,6 +23,7 @@ const { buildProblemData } = await L("problem-rows.ts");
 const { itemsFromRows } = await L("search/items.ts");
 const { instantRank, makeIndex, smartRank } = await L("search/rank.ts");
 const { buildTaxonomy, parseSmart, smartSystem, smartKey, SMART_MODEL, SMART_SCHEMA } = await L("search/smart.ts");
+const { classicsOf } = await L("classics.ts");
 const { blurbOf } = await L("bundle.ts");
 const { isNatural } = await L("search/engine.ts");
 
@@ -36,7 +37,7 @@ for (const id of fs.readdirSync(dir).sort()) {
   const t = f.tags || {};
   problems.push({
     id, title: f.title || id, module: f.module || "", concept: f.concept || "", line: f.line || "", level: f.level === "easy" || f.level === "hard" ? f.level : "medium", order: f.order ?? 0,
-    patterns: t.patterns || [], minutes: t.minutes ?? null, classic: t.classic || [], rating: typeof t.difficulty === "number" ? t.difficulty : null,
+    patterns: t.patterns || [], minutes: t.minutes ?? null, classic: classicsOf(id, t.classic), rating: typeof t.difficulty === "number" ? t.difficulty : null,
     role: f.role === "checkpoint" || f.role === "warm-up" ? f.role : "practice", companyTypes: t.companyTypes || [], own: { structures: t.structures, algorithms: t.algorithms },
     blurb: blurbOf(md), domain: typeof t.domain === "string" ? t.domain : undefined, signals: Array.isArray(t.signals) ? t.signals.slice(0, 4) : undefined,
   });

@@ -6,6 +6,7 @@ import { unstable_cache } from "next/cache";
 import { cache as requestCache } from "react";
 import { renderLesson } from "@/lib/course/render";
 import type { DsaLink, DsaRenderOpts } from "@/lib/course/detect/dsa";
+import { classicsOf } from "./classics";
 import { DSA_CONTENT_TAG, dsaBundleVersion, dsaFresh, dsaItem, dsaItemKey, inDsaItem, listDsa, prefetchDsa, readDsa, readDsaHead, readDsaJson } from "./content";
 import { blurbOf, versionedMemo } from "./bundle";
 import { hasLinkTokens, resolveLinkTokens, tokenLinker, type LinkKind } from "./sdm-links";
@@ -209,7 +210,7 @@ function summaryOf(id: string, f: ProblemFront, md = ""): ProblemSummary {
     order: f.order ?? 0,
     patterns: f.tags?.patterns || [],
     minutes: f.tags?.minutes ?? null,
-    classic: f.tags?.classic || [],
+    classic: classicsOf(id, f.tags?.classic),
     rating: typeof f.tags?.difficulty === "number" ? f.tags.difficulty : null,
     role: f.role === "checkpoint" || f.role === "warm-up" ? f.role : "practice",
     companyTypes: f.tags?.companyTypes || [],
@@ -950,7 +951,7 @@ const problemCached = cached(async (id: string): Promise<ProblemPage | null> => 
     limits: { timeMs: f.limits?.timeMs || 2000, memoryMb: f.limits?.memoryMb || 256 },
     complexity: f.complexity?.time ? { time: f.complexity.time, space: f.complexity.space || "" } : null,
     patterns: f.tags?.patterns || [],
-    classic: f.tags?.classic || [],
+    classic: classicsOf(id, f.tags?.classic),
     minutes: f.tags?.minutes ?? null,
     sections,
     hints,

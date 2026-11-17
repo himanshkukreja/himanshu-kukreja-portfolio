@@ -3,9 +3,13 @@
  * name ("two sum") as well as its number ("LC 1"). A twin missing here still answers to its number. Pure data.
  */
 import { MORE_CLASSIC_NAMES } from "./classics-more";
+import { FIXED_CLASSIC_NAMES } from "./classics-fixes";
+
+export { classicsOf } from "./classics-fixes";
 
 export const CLASSIC_NAMES: Record<string, string> = {
   ...MORE_CLASSIC_NAMES,
+  ...FIXED_CLASSIC_NAMES,
   "lc-1": "Two Sum", "lc-3": "Longest Substring Without Repeating Characters", "lc-14": "Longest Common Prefix", "lc-15": "3Sum", "lc-16": "3Sum Closest",
   "lc-18": "4Sum", "lc-19": "Remove Nth Node From End of List", "lc-20": "Valid Parentheses", "lc-21": "Merge Two Sorted Lists",
   "lc-26": "Remove Duplicates from Sorted Array", "lc-27": "Remove Element", "lc-49": "Group Anagrams", "lc-75": "Sort Colors",
