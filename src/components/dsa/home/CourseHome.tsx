@@ -188,7 +188,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
         </div>
 
         {/* reserved at 360 px on computers so the page doesn't shift when it fills in; nothing mounts on phones */}
-        <aside aria-label="Today and review" className="hidden w-[360px] shrink-0 flex-col gap-[18px] pt-[30px] lg:flex">
+        <aside aria-label="Today and review" className="hidden w-[360px] shrink-0 flex-col gap-[18px] pt-[30px] lg:sticky lg:top-[76px] lg:flex lg:max-h-[calc(100vh-92px)] lg:overflow-y-auto lg:overscroll-contain lg:pb-1">
           {desktop ? (
             <>
               {slots?.side ? <div data-slot="home-side">{slots.side}</div> : null}
