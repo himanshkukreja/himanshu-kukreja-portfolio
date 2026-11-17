@@ -29,6 +29,8 @@ export type ReadWidth = "narrow" | "normal" | "wide";
 
 export type ReadingSettings = {
   mode: ReadMode;
+  /** DSA Mastery's own theme (a separate choice from `mode`, which is SDM's): "site" = never picked there, so DSA is dark (Night) */
+  dsaMode: ReadMode;
   font: ReadFont;
   /** px, one of TEXT_SIZES */
   size: number;
@@ -50,7 +52,7 @@ export const LOOK_KEY = "hk.reader.look";
 /** Game flag carrying the settings to the account (src/lib/learn/saved-paths.ts mergeGameFlags: newer wins). */
 export const READING_FLAG = "pref:reader";
 
-export const DEFAULT_READING: ReadingSettings = { mode: "site", font: "sans", size: TEXT_SIZES[0], leading: "normal", width: "normal", editor: "site", updatedAt: 0 };
+export const DEFAULT_READING: ReadingSettings = { mode: "site", dsaMode: "site", font: "sans", size: TEXT_SIZES[0], leading: "normal", width: "normal", editor: "site", updatedAt: 0 };
 
 type ModeInfo = {
   id: ThemeId;
@@ -103,6 +105,7 @@ export function cleanReading(raw: unknown, size?: unknown): ReadingSettings {
   const n = Number(size ?? o.size);
   return {
     mode: MODE_IDS.has(o.mode as string) ? (o.mode as ReadMode) : DEFAULT_READING.mode,
+    dsaMode: MODE_IDS.has(o.dsaMode as string) ? (o.dsaMode as ReadMode) : DEFAULT_READING.dsaMode,
     font: pick(o.font, FONTS, DEFAULT_READING.font),
     size: (TEXT_SIZES as readonly number[]).includes(n) ? n : DEFAULT_READING.size,
     leading: pick(o.leading, LEADINGS, DEFAULT_READING.leading),
@@ -112,7 +115,7 @@ export function cleanReading(raw: unknown, size?: unknown): ReadingSettings {
   };
 }
 
-export const sameReading = (a: ReadingSettings, b: ReadingSettings) => a.mode === b.mode && a.editor === b.editor && sameType(a, b);
+export const sameReading = (a: ReadingSettings, b: ReadingSettings) => a.mode === b.mode && a.dsaMode === b.dsaMode && a.editor === b.editor && sameType(a, b);
 
 /** The same type settings (font, size, spacing, width), whatever the theme. */
 export const sameType = (a: ReadingSettings, b: ReadingSettings) => a.font === b.font && a.size === b.size && a.leading === b.leading && a.width === b.width;
@@ -120,10 +123,30 @@ export const sameType = (a: ReadingSettings, b: ReadingSettings) => a.font === b
 export const themeInfo = (id: ThemeId) => READ_MODES.find((m) => m.id === id) ?? READ_MODES[0];
 
 /** The theme a stored mode stands for: "site" (never picked, or the old "Site theme") follows the old light / dark choice. */
-export function resolveMode(mode: ReadMode, siteDark: boolean): ThemeId {
+export function resolveMode(mode: ReadMode, siteDark: boolean, dsa = false): ThemeId {
   if (mode !== "site" && READ_MODES.some((m) => m.id === mode)) return mode;
+  // DSA Mastery defaults to the true-black theme (owner, 17 Nov 2026), SDM to light; the old light / dark switch is SDM's
+  if (dsa) return DSA_DEFAULT_THEME;
   return siteDark ? "night" : "light";
 }
+
+/** The theme DSA Mastery wears until the learner picks one there. */
+export const DSA_DEFAULT_THEME: ThemeId = "night";
+
+/**
+ * The stored theme choice for a course: SDM and DSA each keep their own (`mode`, `dsaMode`), so picking a theme
+ * on one never moves the other. "site" = not picked there yet.
+ */
+export const modeOf = (s: Pick<ReadingSettings, "mode" | "dsaMode">, dsa: boolean): ReadMode => (dsa ? s.dsaMode : s.mode);
+
+/** The settings patch that saves a theme pick for the course the learner is on. */
+export const modePatch = (theme: ThemeId, dsa: boolean): Partial<Pick<ReadingSettings, "mode" | "dsaMode">> => (dsa ? { dsaMode: theme } : { mode: theme });
+
+/** The theme in force on a themed page of the given course. */
+export const effectiveTheme = (s: Pick<ReadingSettings, "mode" | "dsaMode">, dsa: boolean, siteDark: boolean): ThemeId => resolveMode(modeOf(s, dsa), siteDark, dsa);
+
+/** Is this a DSA Mastery page (/dsa and below; the course host's clean path)? */
+export const isDsaPage = (path: string | null | undefined) => !!path && /^\/dsa(?:\/|$)/.test(cleanPath(path).replace(/[?#].*$/, ""));
 
 // ---- the reading routes ----------------------------------------------------------------------------
 
@@ -209,7 +232,7 @@ export function updateReading(patch: Partial<Omit<ReadingSettings, "updatedAt">>
 
 /** Back to the default font, size, spacing and width; the theme is the site's and stays. */
 export function resetReading() {
-  writeReading({ ...DEFAULT_READING, mode: readReading().mode, editor: readReading().editor, updatedAt: Date.now() });
+  writeReading({ ...DEFAULT_READING, mode: readReading().mode, dsaMode: readReading().dsaMode, editor: readReading().editor, updatedAt: Date.now() });
 }
 
 /** The browser's old light / dark choice (next-themes' localStorage "theme"); null when storage is unavailable. */
@@ -237,9 +260,9 @@ export function subscribeReading(cb: () => void) {
 // ---- the page --------------------------------------------------------------------------------------
 
 /** Is the page dark? A themed page follows its theme, every other page (the portfolio host) the site theme. */
-export function pageIsDark(themed: boolean, s: ReadingSettings, siteDark: boolean): boolean {
+export function pageIsDark(themed: boolean, s: ReadingSettings, siteDark: boolean, dsa = false): boolean {
   if (!themed) return siteDark;
-  return themeInfo(resolveMode(s.mode, siteDark)).dark;
+  return themeInfo(effectiveTheme(s, dsa, siteDark)).dark;
 }
 
 /** The browser chrome colour (meta theme-color) for the page as it is now. */
@@ -253,14 +276,14 @@ export function chromeColor(root: HTMLElement = document.documentElement): strin
  * Puts the theme and the reading settings on <html> (READING_JS does the same before paint; keep the two in
  * step): the theme on themed pages, the type settings on reading routes there.
  */
-export function applyReading(themed: boolean, reading: boolean, s: ReadingSettings, siteDark: boolean) {
+export function applyReading(themed: boolean, reading: boolean, s: ReadingSettings, siteDark: boolean, dsa = false) {
   const root = document.documentElement;
   // a page that pins its own theme (the case file editor's preview frame shows the theme picked there)
   if (root.hasAttribute("data-read-pin")) return;
   const on = (name: string, value: string | null) => (value ? root.setAttribute(name, value) : root.removeAttribute(name));
   const read = themed && reading;
-  root.classList.toggle("dark", pageIsDark(themed, s, siteDark));
-  on("data-read-mode", themed ? resolveMode(s.mode, siteDark) : null);
+  root.classList.toggle("dark", pageIsDark(themed, s, siteDark, dsa));
+  on("data-read-mode", themed ? effectiveTheme(s, dsa, siteDark) : null);
   on("data-read-font", read && s.font !== "sans" ? s.font : null);
   on("data-read-leading", read && s.leading !== "normal" ? s.leading : null);
   on("data-read-width", read && s.width !== "normal" ? s.width : null);
@@ -290,9 +313,11 @@ else if(!h||ph.indexOf(h)>=0||ph.indexOf(hb)>=0)themed=false;
 else{var f=/(?:^|;\\s*)hk_site=(course|portfolio)/.exec(document.cookie);themed=f?f[1]==="course":${COURSE_ROUTE.toString()}.test(raw)}
 var p=raw.replace(/^\\/learn\\/${COURSE_ID}(?=\\/|$)/,"").replace(/^\\/learn(?=\\/|$)/,"").replace(/^\\/stories(?=\\/|$)/,"/case-files")||"/";
 var read=themed&&${READING_ROUTE.toString()}.test(p);
-if(themed&&/^\\/dsa(?:\\/|$)/.test(p))r.setAttribute("data-course","dsa");
+var dsa=themed&&/^\\/dsa(?:\\/|$)/.test(p);
+if(dsa)r.setAttribute("data-course","dsa");
 var modes=${JSON.stringify(Object.fromEntries(READ_MODES.map((m) => [m.id, [m.dark ? 1 : 0, m.bg]])))};
-var m=themed?(Object.prototype.hasOwnProperty.call(modes,s.mode)?s.mode:dark?"night":"light"):null;
+var pk=dsa?s.dsaMode:s.mode;
+var m=themed?(Object.prototype.hasOwnProperty.call(modes,pk)?pk:dsa?${JSON.stringify(DSA_DEFAULT_THEME)}:dark?"night":"light"):null;
 if(m)dark=!!modes[m][0];
 r.classList.toggle("dark",dark);
 if(m)r.setAttribute("data-read-mode",m);

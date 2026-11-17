@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { Palette } from "lucide-react";
-import { READ_MODES, resolveMode, updateReading, type ThemeId } from "@/lib/learn/readingModes";
+import { READ_MODES, effectiveTheme, modePatch, updateReading, type ThemeId } from "@/lib/learn/readingModes";
 import { usePageTone, useReadingSettings } from "@/components/learn/reading/useReading";
 
 /**
@@ -24,7 +24,7 @@ export default function ThemeMenu() {
     () => true,
     () => false
   );
-  const current: ThemeId | null = mounted ? (tone.theme ?? resolveMode(settings.mode, tone.siteDark)) : null;
+  const current: ThemeId | null = mounted ? (tone.theme ?? effectiveTheme(settings, tone.dsa, tone.siteDark)) : null;
   const name = READ_MODES.find((m) => m.id === current)?.name;
 
   const close = (focusBack: boolean) => {
@@ -78,7 +78,7 @@ export default function ThemeMenu() {
   };
 
   const pick = (theme: ThemeId) => {
-    updateReading({ mode: theme });
+    updateReading(modePatch(theme, tone.dsa));
     close(true);
   };
 

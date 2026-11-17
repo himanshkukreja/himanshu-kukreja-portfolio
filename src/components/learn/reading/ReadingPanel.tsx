@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
-import { DEFAULT_READING, FONTS, LEADINGS, READ_MODES, TEXT_SIZES, WIDTHS, resetReading, resolveMode, sameType, themeInfo, updateReading } from "@/lib/learn/readingModes";
+import { DEFAULT_READING, FONTS, LEADINGS, READ_MODES, TEXT_SIZES, WIDTHS, effectiveTheme, resetReading, modePatch, sameType, themeInfo, updateReading } from "@/lib/learn/readingModes";
 import { usePageTone, useReadingSettings } from "./useReading";
 import styles from "@/components/learn/lesson/reader.module.css";
 
@@ -219,9 +219,9 @@ function Segmented<T extends string>({ name, options, value, onPick }: { name: s
 
 function PanelBody({ onClose, extra }: { onClose: () => void; extra?: ReactNode }) {
   const s = useReadingSettings();
-  const { siteDark } = usePageTone();
-  // the theme in force ("site", never picked, stands for Light or Night until the host saves it)
-  const theme = resolveMode(s.mode, siteDark);
+  const tone = usePageTone();
+  // the theme in force on this course (never picked: SDM Light or Night, DSA Night)
+  const theme = effectiveTheme(s, tone.dsa, tone.siteDark);
   const name = useId();
   const i = Math.max(0, (TEXT_SIZES as readonly number[]).indexOf(s.size));
   // Reset is for the type settings: the theme is the whole site's
@@ -250,7 +250,7 @@ function PanelBody({ onClose, extra }: { onClose: () => void; extra?: ReactNode 
           {/* eight themes: two rows of four */}
           <div className="grid grid-cols-4 gap-1.5">
             {READ_MODES.map((m) => (
-              <Choice key={m.id} name={`${name}-mode`} checked={theme === m.id} onChange={() => updateReading({ mode: m.id })} label={m.name}>
+              <Choice key={m.id} name={`${name}-mode`} checked={theme === m.id} onChange={() => updateReading(modePatch(m.id, tone.dsa))} label={m.name}>
                 <span className={`flex flex-col border border-line-strong peer-checked:border-signal peer-checked:outline peer-checked:outline-1 peer-checked:-outline-offset-2 peer-checked:outline-signal ${RING}`}>
                   <span aria-hidden className="relative grid h-10 place-items-center" style={{ background: m.bg, color: m.fg }}>
                     <span className="-mt-0.5 font-display text-[17px] font-bold leading-none">Aa</span>

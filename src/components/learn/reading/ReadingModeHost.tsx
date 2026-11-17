@@ -3,7 +3,7 @@
 import { useEffect, useLayoutEffect } from "react";
 import { usePathname } from "next/navigation";
 import { useGame } from "@/game/GameProvider";
-import { READING_FLAG, applyReading, cleanReading, isReadingPath, isThemedHere, readReading, resolveMode, storedSiteDark, writeReading } from "@/lib/learn/readingModes";
+import { READING_FLAG, applyReading, cleanReading, isDsaPage, isReadingPath, isThemedHere, readReading, resolveMode, storedSiteDark, writeReading } from "@/lib/learn/readingModes";
 import { usePageTone, useReadingSettings } from "./useReading";
 
 /**
@@ -25,13 +25,14 @@ export default function ReadingModeHost() {
   // theme READING_JS put on until the re-render.
   useLayoutEffect(() => {
     const themed = isThemedHere(path);
-    applyReading(themed, themed && isReadingPath(path), readReading(), storedSiteDark() ?? siteDark);
+    applyReading(themed, themed && isReadingPath(path), readReading(), storedSiteDark() ?? siteDark, themed && isDsaPage(path));
   }, [path, settings, siteDark]);
 
   // A theme never picked (or the old "Site theme" choice) becomes Light or Night from the old light / dark
   // switch, once, on a course page. Not stamped: a choice synced from another device still wins over it.
   useEffect(() => {
-    if (!isThemedHere(path)) return;
+    // DSA's own choice stays "never picked" (dark by default) until the learner picks; only SDM's is saved from the old switch
+    if (!isThemedHere(path) || isDsaPage(path)) return;
     const s = readReading();
     if (s.mode === "site") writeReading({ ...s, mode: resolveMode("site", storedSiteDark() ?? siteDark) });
   }, [path, settings, siteDark]);
