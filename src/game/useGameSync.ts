@@ -102,6 +102,29 @@ async function pull(userId: string): Promise<{ snap: Snapshot | null; error: boo
   }
 }
 
+/**
+ * Leaving the page (pagehide, or the tab going hidden: the last event a phone gives) with a push still waiting for its
+ * debounce: write now, with a keepalive request that outlives the page. It can't read the account first, so it merges
+ * into the last copy this tab pulled or wrote (the merge only adds to it); a copy another device changed since is
+ * caught by that device's next merge. Without a session token or a known remote copy it does nothing (the next visit
+ * pushes). Returns whether a request was sent.
+ */
+function flushBeacon(userId: string, remote: Snapshot | null, local: Snapshot, token: string | null): boolean {
+  if (!remote || !token) return false;
+  const next = mergeGame(remote, local);
+  try {
+    void fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_profiles?id=eq.${encodeURIComponent(userId)}`, {
+      method: "PATCH",
+      keepalive: true,
+      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, Authorization: `Bearer ${token}`, "Content-Type": "application/json", Prefer: "return=minimal" },
+      body: JSON.stringify({ xp: next.xp, game_done: next.done, game_flags: next.flags }),
+    }).catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /** Bumps when the connection comes back, so a sync that failed offline runs again. */
 function useReconnectTick() {
   const [tick, setTick] = useState(0);
@@ -143,6 +166,43 @@ export function useGameSync(
   const mergedFor = useRef<string | null>(null);
   const lastPushed = useRef<string>("");
   const reconnect = useReconnectTick();
+  // for the leave-the-page flush: the latest state, the last account copy this tab saw, the session's token
+  const latest = useRef(state);
+  const remoteSeen = useRef<Snapshot | null>(null);
+  const token = useRef<string | null>(null);
+  latest.current = state;
+
+  useEffect(() => {
+    if (!userId) return;
+    let live = true;
+    supabaseClient.auth.getSession().then(({ data }) => live && (token.current = data.session?.access_token ?? null)).catch(() => {});
+    const { data: sub } = supabaseClient.auth.onAuthStateChange((_e, session) => {
+      token.current = session?.access_token ?? null;
+    });
+    return () => {
+      live = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [userId]);
+
+  // Leaving: a pick made less than the debounce ago would be lost (a theme choice, then closing the tab)
+  useEffect(() => {
+    if (!userId) return;
+    const flush = () => {
+      if (disabled.current || mergedFor.current !== userId) return;
+      if (JSON.stringify(latest.current) === lastPushed.current) return;
+      if (flushBeacon(userId, remoteSeen.current, latest.current, token.current)) lastPushed.current = JSON.stringify(latest.current);
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    window.addEventListener("pagehide", flush);
+    document.addEventListener("visibilitychange", onHide);
+    return () => {
+      window.removeEventListener("pagehide", flush);
+      document.removeEventListener("visibilitychange", onHide);
+    };
+  }, [userId]);
 
   // Pull + merge once per signed-in user.
   useEffect(() => {
@@ -156,6 +216,7 @@ export function useGameSync(
         return;
       }
       mergedFor.current = userId;
+      remoteSeen.current = remote;
       const owner = readOwner();
       // another account's progress lives in this browser: start from the account, don't absorb it
       const local = owner && owner !== userId ? EMPTY : state;
@@ -180,6 +241,7 @@ export function useGameSync(
         if (!offline) disabled.current = true;
         return;
       }
+      remoteSeen.current = remote;
       const next = mergeGame(remote, state);
       const { error } = await supabaseClient
         .from("user_profiles")
@@ -191,6 +253,7 @@ export function useGameSync(
       }
       const nextBody = JSON.stringify(next);
       lastPushed.current = nextBody;
+      remoteSeen.current = next;
       // adopt quests another device added (or a reset elsewhere) so this tab stops re-pushing stale state
       if (nextBody !== body) replace(next);
     }, 1200);

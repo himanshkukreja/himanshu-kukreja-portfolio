@@ -54,8 +54,11 @@ const cfg = () => {
   return { host: endpoint.host, hostname: endpoint.hostname, port: endpoint.port, secure: endpoint.protocol === "https:", bucket: e.SDM_R2_BUCKET, key: e.SDM_R2_ACCESS_KEY_ID, secret: e.SDM_R2_SECRET_ACCESS_KEY };
 };
 
-type R2ObjectLike = { httpEtag: string; arrayBuffer?: () => Promise<ArrayBuffer> };
-type R2BucketLike = { get(key: string, opts?: { onlyIf?: { etagDoesNotMatch: string } }): Promise<R2ObjectLike | null> };
+type R2ObjectLike = { httpEtag: string; arrayBuffer?: () => Promise<ArrayBuffer>; text?: () => Promise<string> };
+type R2BucketLike = {
+  get(key: string, opts?: { onlyIf?: { etagDoesNotMatch: string } }): Promise<R2ObjectLike | null>;
+  put?(key: string, body: string, opts?: { httpMetadata?: { contentType?: string } }): Promise<unknown>;
+};
 
 /** The Worker's R2 binding, when running on Cloudflare (OpenNext keeps the request's env on this symbol). */
 function binding(): R2BucketLike | null {
@@ -232,6 +235,37 @@ export async function readContentBundle(source: ContentSource, key: string, bran
   } catch (e) {
     console.warn("[content-r2] bundle read failed, falling back:", (e as Error).message);
     return undefined;
+  }
+}
+
+/**
+ * A derived object (<prefix>/derived/<name>.json, written by the site itself, never by the content sync): something the
+ * site works out from the content once per content commit and keeps across deploys, which the Next data cache can't
+ * (its keys carry the build id). Only through the Worker's R2 binding; undefined = no binding or the read failed.
+ */
+export async function readDerived(source: ContentSource, name: string, branch = defaultBranch(source)): Promise<string | null | undefined> {
+  const b = binding();
+  if (!b || process.env.SDM_R2 === "off" || !/^[a-z0-9-]+$/.test(name)) return undefined;
+  try {
+    const o = await b.get(`${contentPrefix(source, branch)}/derived/${name}.json`);
+    if (!o) return null;
+    return typeof o.text === "function" ? await o.text() : undefined;
+  } catch (e) {
+    console.warn("[content-r2] derived read failed:", (e as Error).message);
+    return undefined;
+  }
+}
+
+/** Write a derived object (see readDerived); best effort, false when it couldn't be written. */
+export async function writeDerived(source: ContentSource, name: string, body: string, branch = defaultBranch(source)): Promise<boolean> {
+  const b = binding();
+  if (!b || typeof b.put !== "function" || process.env.SDM_R2 === "off" || !/^[a-z0-9-]+$/.test(name)) return false;
+  try {
+    await b.put(`${contentPrefix(source, branch)}/derived/${name}.json`, body, { httpMetadata: { contentType: "application/json" } });
+    return true;
+  } catch (e) {
+    console.warn("[content-r2] derived write failed:", (e as Error).message);
+    return false;
   }
 }
 

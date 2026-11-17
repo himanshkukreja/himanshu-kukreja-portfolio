@@ -21,7 +21,8 @@ import "server-only";
  */
 import matter from "gray-matter";
 import { unstable_cache } from "next/cache";
-import { DSA_CONTENT_TAG, dsaFresh, readDsa, readDsaJson } from "../content";
+import { readDerived, writeDerived } from "@/lib/content-r2";
+import { DSA_CONTENT_TAG, dsaBundleVersion, dsaFresh, readDsa, readDsaHead, readDsaJson } from "../content";
 import { conceptHref, conceptLectureHref, getConcept, getConceptIndex, getProblemIndex, problemHref } from "../load";
 import type { DsaLang, DsaSignature } from "../types";
 import { bm25Index, bm25Scores, plainMd, sectionChunks, tokens, type Bm25 } from "./text";
@@ -66,7 +67,7 @@ function sectionOf(body: string, title: string): string {
   return (end < 0 ? rest : rest.slice(0, end)).trim();
 }
 
-export const getCatalog = cached(async (): Promise<CatalogEntry[]> => {
+async function buildCatalog(): Promise<CatalogEntry[]> {
   const [concepts, problems] = await Promise.all([getConceptIndex(), getProblemIndex()]);
   const built = concepts.filter((c) => c.status === "built");
   const titleOf = new Map(concepts.map((c) => [c.id, c.title]));
@@ -92,7 +93,9 @@ export const getCatalog = cached(async (): Promise<CatalogEntry[]> => {
   for (let i = 0; i < problems.length; i += 16) {
     const batch = await Promise.all(
       problems.slice(i, i + 16).map(async (p) => {
-        const md = await readDsa(`resources/problems/${p.id}/problem.md`).catch(() => null);
+        // the bundle's head of the file (front matter and statement, "Your task" included) is all the catalog reads: no page bundle per problem
+        const path = `resources/problems/${p.id}/problem.md`;
+        const md = (await readDsaHead(path)) ?? (await readDsa(path).catch(() => null));
         if (!md) return null;
         const { data, content } = matter(md, {});
         const f = data as ProblemFront;
@@ -111,7 +114,33 @@ export const getCatalog = cached(async (): Promise<CatalogEntry[]> => {
     for (const b of batch) if (b) out.push(b);
   }
   return out;
-}, "dsa-ai-catalog-v1");
+}
+
+/**
+ * The catalog, as one object per content commit in R2 (<prefix>/derived/ai-catalog-v1-<sha>.json, the Worker writes it the first
+ * time): a cold isolate, and the first answer after a deploy, load it in one read instead of building from ~330 lesson and problem
+ * reads (about 45 s on Workers, Nov 2026: R2 allows 6 connections at a time, so reading 16 at once didn't help). The warm-up
+ * (GET /api/dsa/ai-warm) writes it. Without a bundle (local files, no R2) it is built each time the data cache needs it.
+ */
+export async function loadCatalog(): Promise<{ entries: CatalogEntry[]; from: "r2" | "built"; ms: number }> {
+  const t = Date.now();
+  const sha = await dsaBundleVersion().catch(() => null);
+  const name = sha ? `ai-catalog-v1-${sha}` : null;
+  if (name) {
+    const raw = await readDerived("dsa", name);
+    if (raw) {
+      try {
+        const j = JSON.parse(raw) as { sha?: string; entries?: CatalogEntry[] };
+        if (j.sha === sha && Array.isArray(j.entries) && j.entries.length) return { entries: j.entries, from: "r2", ms: Date.now() - t };
+      } catch {}
+    }
+  }
+  const entries = await buildCatalog();
+  if (name && entries.length) await writeDerived("dsa", name, JSON.stringify({ sha, entries }));
+  return { entries, from: "built", ms: Date.now() - t };
+}
+
+export const getCatalog = cached(async (): Promise<CatalogEntry[]> => (await loadCatalog()).entries, "dsa-ai-catalog-v2");
 
 /** The catalog's BM25 index, one per isolate (rebuilt when the catalog item changes). */
 let catalogIx: { from: CatalogEntry[]; ix: Bm25 } | null = null;
