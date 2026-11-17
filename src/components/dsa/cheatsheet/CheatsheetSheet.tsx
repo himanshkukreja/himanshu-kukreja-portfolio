@@ -17,6 +17,7 @@ import { DSA_LANGS, DSA_LANG_LABEL } from "@/lib/dsa/types";
 import type { Cheatsheet } from "@/lib/dsa/cheatsheet";
 import { useLang } from "../concept/widgets";
 import DsaCrumbs from "../DsaCrumbs";
+import Balanced from "../home/metro/Balanced";
 import { track } from "@/lib/track";
 import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 
@@ -91,10 +92,11 @@ export default function CheatsheetSheet({ s, lectureHref }: { s: Cheatsheet; lec
         </div>
       </header>
 
-      <div className="dsa-cheat-grid grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-7 lg:grid-cols-[minmax(0,5fr)_minmax(0,7fr)] lg:items-start">
-        <div className="flex min-w-0 flex-col gap-7">
-          {s.signals.length > 0 && (
-            <Section title="Spot it: the words in the question">
+      {/* the sections flow into two columns chosen from their measured heights, so the columns end together at any width */}
+      <Balanced
+        items={[
+          s.signals.length > 0 && (
+            <Section key="signals" title="Spot it: the words in the question">
               <ul className="m-0 flex list-none flex-wrap gap-1.5 p-0">
                 {s.signals.map((x) => (
                   <li key={x} className="border border-line-strong bg-surface px-2 py-1 font-mono text-[12.5px] text-fg-2">
@@ -103,32 +105,30 @@ export default function CheatsheetSheet({ s, lectureHref }: { s: Cheatsheet; lec
                 ))}
               </ul>
             </Section>
-          )}
-          {s.invariant && (
-            <Section title="The invariant">
+          ),
+          s.invariant && (
+            <Section key="invariant" title="The invariant">
               <p className="m-0 border-l-[3px] border-signal bg-surface px-4 py-3 text-[15.5px] font-medium leading-relaxed text-fg">{s.invariant}</p>
             </Section>
-          )}
-          {s.patternHtml && (
-            <Section title="The pattern">
+          ),
+          s.patternHtml && (
+            <Section key="pattern" title="The pattern">
               <Html html={s.patternHtml} />
             </Section>
-          )}
-          {s.complexityHtml && (
-            <Section title="Complexity">
+          ),
+          s.complexityHtml && (
+            <Section key="complexity" title="Complexity">
               <Html html={s.complexityHtml} />
             </Section>
-          )}
-        </div>
-        <div className="flex min-w-0 flex-col gap-7">
-          <Section title={`Template${s.templates.length === 1 ? "" : "s"} · ${DSA_LANG_LABEL[lang]}`}>
+          ),
+          <Section key="templates" title={`Template${s.templates.length === 1 ? "" : "s"} · ${DSA_LANG_LABEL[lang]}`}>
             <p className="dsa-noprint m-0 text-[13px] leading-snug text-fg-3">The lesson&rsquo;s templates, checked in all four languages against the same test cases.</p>
             {s.templates.map((t) => (
               <Html key={t.id} html={t.html} />
             ))}
-          </Section>
-        </div>
-      </div>
+          </Section>,
+        ]}
+      />
 
       <div className="dsa-cheat-grid grid grid-cols-[minmax(0,1fr)] gap-x-8 gap-y-7 lg:grid-cols-3">
         {s.pitfalls.length > 0 && (

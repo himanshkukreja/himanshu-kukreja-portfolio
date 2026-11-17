@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { User, Session } from "@supabase/supabase-js";
+import { QA_PROFILE, QA_USER, qaSignedIn } from "@/lib/dsa/qa-fixture";
 import { supabaseClient, UserProfile, getCurrentUser, getUserProfile } from "@/lib/supabase-client";
 
 // =====================================================
@@ -114,6 +115,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Get initial session
     const initAuth = async () => {
+      // dev-only fixture for the layout gap check (never true in a production build)
+      if (qaSignedIn()) {
+        setUser(QA_USER as unknown as User);
+        setProfile(QA_PROFILE as unknown as UserProfile);
+        setLoading(false);
+        initializedRef.current = true;
+        return;
+      }
       try {
         console.log("[AuthContext] Initializing auth...");
 
@@ -149,6 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const {
       data: { subscription },
     } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+      if (qaSignedIn()) return; // dev-only fixture learner: ignore the real (empty) session
       console.log("[AuthContext] Auth state changed:", event, session ? "authenticated" : "not authenticated");
 
       // Supabase re-emits SIGNED_IN / TOKEN_REFRESHED for the SAME user on every token refresh,

@@ -132,27 +132,12 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             next={next}
             kicker={kicker}
             intro={showWelcome && progress.ready && progress.concepts.size === 0 && progress.solved.size === 0 ? <Welcome onDone={(g) => setGoalPref({ kind: g === "placements" ? "scratch" : g ? "interview" : "scratch" })} /> : null}
-            asideA={
-              <>
-                <TodayCard />
-                {next ? <TutorCard next={next} problems={practice} /> : null}
-              </>
-            }
-            asideB={
-              <>
-                <QuickReview ids={quick} />
-                <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
-              </>
-            }
+            onRedo={user ? openOnboarding : undefined}
+            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact rounded />]}
             below={
               <>
                 <QuietNudge course="dsa" />
                 {wide ? null : <TodayTiles />}
-                {user ? (
-                  <button type="button" onClick={openOnboarding} className="min-h-10 self-start text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
-                    Redo the welcome tour
-                  </button>
-                ) : null}
               </>
             }
           />
@@ -165,7 +150,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
     <div className="dsa-theme">
       <main className="mx-auto flex max-w-[1248px] flex-col gap-10 px-4 pb-28 pt-[18px] sm:px-6 sm:pt-9 lg:flex-row lg:items-start">
         <div className="flex min-w-0 flex-1 flex-col gap-4 sm:gap-7">
-          <HomeBar kicker={kicker} view="list" onView={setHomeView} />
+          <HomeBar kicker={kicker} view="list" onView={setHomeView} onRedo={user ? openOnboarding : undefined} />
 
           {/* phase-2 slot: the course path / warm-up widgets sit here, above Continue */}
           {slots?.top ? <div data-slot="home-top">{slots.top}</div> : null}
@@ -226,11 +211,6 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             />
           </section>
 
-          {user ? (
-            <button type="button" onClick={openOnboarding} className="min-h-10 self-start text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
-              Redo the welcome tour
-            </button>
-          ) : null}
         </div>
 
         {/* reserved at 360 px on computers so the page doesn't shift when it fills in; nothing mounts on phones */}

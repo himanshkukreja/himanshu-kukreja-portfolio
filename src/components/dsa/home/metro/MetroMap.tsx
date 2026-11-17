@@ -228,10 +228,11 @@ export default function MetroMap({
             transform: `translate(${shown.x < 140 ? "-20%" : shown.x > 1120 ? "-80%" : "-50%"}, ${shown.y > 160 ? "calc(-100% - 26px)" : "28px"})`,
           }}
         >
-          <span className="block text-[13.5px] font-semibold">{shown.label}</span>
+          <span className="block text-[13.5px] font-semibold">
+            {shown.label} · {shown.planned ? "lessons on their way" : `${shown.total} ${shown.total === 1 ? "lesson" : "lessons"} · ${shown.id === pinnedId ? "listed in the station card" : "click to see them"}`}
+          </span>
           {shown.lines.length > 1 ? <span className="mt-0.5 block text-fg-2">{interchangeText(shown, lineTitle)}</span> : <span className="mt-0.5 block text-fg-3">{lineTitle(shown.line)} line</span>}
           <span className="mt-1 block text-fg-3">{stateWords(shown)}</span>
-          <span className="mt-1 block text-fg-3">{shown.id === pinnedId ? "Open it from the station card below." : "Click for its station card."}</span>
         </div>
       ) : null}
 

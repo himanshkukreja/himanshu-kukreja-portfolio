@@ -232,3 +232,31 @@ export function currentStation(outline: Outline, metro: Pick<Metro, "byId">, pro
   if (last && open(last)) return last;
   return order.find((m) => open(m.id))?.id ?? (last || order[0]?.id) ?? "";
 }
+
+export type StationLesson = {
+  n: number;
+  conceptId: string;
+  title: string;
+  /** the lesson's page; null while it is planned */
+  href: string | null;
+  minutes: number;
+  /** done, the one the learner is on (first not done) or not started */
+  status: "done" | "now" | "todo";
+};
+
+/** The lessons of a station, from the same outline the List view reads: number, title, status, minutes, link. */
+export function stationLessons(outline: Outline, station: Pick<Station, "regionCode">, progress: Pick<Progress, "concepts">): { lessons: StationLesson[]; moduleId: string } | null {
+  for (const part of outline.parts)
+    for (const m of part.modules) {
+      if (m.regionCode !== station.regionCode) continue;
+      let nowSet = false;
+      const lessons = m.lessons.map((l, i): StationLesson => {
+        const done = l.built && progress.concepts.has(l.conceptId);
+        const now = !done && l.built && !nowSet;
+        if (now) nowSet = true;
+        return { n: i + 1, conceptId: l.conceptId, title: l.title, href: l.built ? l.href : null, minutes: l.minutes, status: done ? "done" : now ? "now" : "todo" };
+      });
+      return { lessons, moduleId: m.moduleId };
+    }
+  return null;
+}

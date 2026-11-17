@@ -1,9 +1,12 @@
 "use client";
 
+import { qaApi } from "@/lib/dsa/qa-fixture";
 import { supabaseClient } from "@/lib/supabase-client";
 
 /** fetch() for the learner's own /api/learn/* routes, with their Supabase access token attached. */
 export async function userFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const fake = (init.method || "GET") === "GET" ? qaApi(input) : null; // dev-only fixture (null in production)
+  if (fake) return new Response(JSON.stringify(fake), { status: 200, headers: { "Content-Type": "application/json" } });
   const { data } = await supabaseClient.auth.getSession();
   const headers = new Headers(init.headers);
   if (data.session?.access_token) headers.set("Authorization", `Bearer ${data.session.access_token}`);

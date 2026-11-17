@@ -34,11 +34,11 @@ export default function QuickReview({ ids }: { ids: string[] }) {
       </div>
       <ul className="m-0 grid list-none grid-cols-3 gap-2 p-0">
         {tiles.map((id, i) => (
-          <li key={id} className="min-w-0">
+          <li key={id} className="min-w-0 max-w-[170px]">
             <Link
               href={`/dsa/shorts/${id}`}
               style={{ background: SHADE[i] }}
-              className="flex aspect-[9/14] flex-col justify-between rounded-[10px] p-2.5 text-[12px] font-semibold leading-snug text-[var(--c-plate-fg)] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text"
+              className="flex aspect-[9/14] max-h-[200px] flex-col justify-between rounded-[10px] p-2.5 text-[12px] font-semibold leading-snug text-[var(--c-plate-fg)] hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text"
             >
               <Play className="h-3.5 w-3.5 fill-current text-[var(--c-plate-fg)] opacity-70" aria-hidden />
               <span className="line-clamp-4">{shortTitle(id)}</span>

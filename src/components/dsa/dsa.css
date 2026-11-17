@@ -324,6 +324,12 @@
     white-space: pre-wrap !important;
     overflow-wrap: anywhere;
   }
+  .dsa-cheat [data-balanced] {
+    display: block !important;
+  }
+  .dsa-cheat [data-balanced] > * {
+    margin-bottom: 12px;
+  }
   .dsa-cheat .dsa-cheat-grid {
     grid-template-columns: minmax(0, 1fr) !important;
     gap: 12px !important;

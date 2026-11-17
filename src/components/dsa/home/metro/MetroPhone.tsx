@@ -10,11 +10,12 @@ import { useState } from "react";
 import { ArrowRight, Check } from "lucide-react";
 import { track } from "@/lib/track";
 import { LINE_TOKEN, type LineId } from "@/lib/dsa/metro/layout";
-import type { GoalPref, Metro, RouteInfo, Station } from "@/lib/dsa/metro/model";
+import type { GoalPref, Metro, RouteInfo, Station, StationLesson } from "@/lib/dsa/metro/model";
 import type { NextStep } from "@/lib/dsa/continue";
 import { BIG, BTN_PRIMARY } from "../../ui/kit";
 import { GoalPicker, Legend, RouteChips, primaryOf, routeHeading } from "./Panels";
 import { stateWords } from "./MetroMap";
+import { LessonList, ProblemsLink } from "./StationLessons";
 
 const tone = (l: LineId) => `var(${LINE_TOKEN[l]})`;
 
@@ -41,6 +42,7 @@ export default function MetroPhone({
   isNew,
   onGoal,
   lineTitle,
+  lessonsOf,
 }: {
   metro: Metro;
   info: RouteInfo;
@@ -51,15 +53,17 @@ export default function MetroPhone({
   isNew: boolean;
   onGoal: (g: GoalPref) => void;
   lineTitle: (l: LineId) => string;
+  lessonsOf: (s: Station) => { lessons: StationLesson[]; moduleId: string } | null;
 }) {
-  const [open, setOpen] = useState<string | null>(null);
+  // undefined = the stop the learner is at is open; null = all folded; one stop open at a time
+  const [open, setOpen] = useState<string | null | undefined>(undefined);
   const [showDone, setShowDone] = useState(false);
   const [picking, setPicking] = useState(false);
   const route = info.ids.map((id) => metro.byId.get(id)).filter((s): s is Station => !!s);
   const onRoute = new Set(info.ids);
   const doneOff = metro.stations.filter((s) => s.state === "done" && !onRoute.has(s.id));
   const rest = metro.stations.filter((s) => s.state !== "done" && !onRoute.has(s.id));
-  const sel = open ?? hereId;
+  const sel = open === undefined ? hereId : open;
   const main = ready ? primaryOf(next, metro.byId.get(hereId), isNew) : null;
   const goalName = metro.byId.get(info.goal)?.label || "";
 
@@ -113,7 +117,8 @@ export default function MetroPhone({
                     <button
                       type="button"
                       aria-expanded={expanded}
-                      onClick={() => setOpen(s.id === sel && open ? null : s.id)}
+                      aria-controls={`stop-${s.id}`}
+                      onClick={() => setOpen(s.id === sel ? null : s.id)}
                       className="flex min-h-12 w-full items-center gap-2 px-4 py-3 text-left"
                     >
                       <span className="text-[16px] font-semibold text-fg">{s.label}</span>
@@ -122,19 +127,26 @@ export default function MetroPhone({
                       <span className="ml-auto text-[12.5px] text-fg-3">{s.planned ? "Soon" : `${s.done}/${s.total}`}</span>
                     </button>
                     {expanded ? (
-                      <div className="flex flex-col gap-2.5 px-4 pb-4">
+                      <div id={`stop-${s.id}`} className="flex flex-col gap-2.5 px-4 pb-4">
                         <span className="text-[13px] text-fg-2">
                           {s.lines.length > 1 ? `On two lines: ${s.lines.map(lineTitle).join(" and ")}. ` : `${lineTitle(s.line)} line. `}
-                          {stateWords(s)}.{s.problems ? ` ${s.solved}/${s.problems} problems.` : ""}
+                          {stateWords(s)}.
                         </span>
-                        {s.href ? (
-                          <div className="flex items-center gap-3">
+                        {(() => {
+                          const c = lessonsOf(s);
+                          return c ? <LessonList station={s} lessons={c.lessons} here={here} from="phone" /> : null;
+                        })()}
+                        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                          {s.href ? (
                             <Link href={s.href} onClick={() => track("dsa_station_open", { station: s.id, from: "phone" })} className={`${BTN_PRIMARY} min-h-11 rounded-[10px] px-5 text-[14px]`}>
-                              Open
+                              {s.state === "prog" || here ? `Continue: lesson ${s.nextLesson}` : "Start"}
                             </Link>
-                            {s.state === "prog" || here ? <span className="text-[12.5px] text-fg-3">Resume at lesson {s.nextLesson}</span> : null}
-                          </div>
-                        ) : null}
+                          ) : null}
+                          {(() => {
+                            const c = lessonsOf(s);
+                            return c ? <ProblemsLink station={s} moduleId={c.moduleId} from="phone" /> : null;
+                          })()}
+                        </div>
                       </div>
                     ) : null}
                   </div>

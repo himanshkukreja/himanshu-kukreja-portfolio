@@ -14,7 +14,7 @@ import "./metro.css";
 type Step = { key: string; title: string; body: string };
 const STEPS: Step[] = [
   { key: "lines", title: "Lines are parts", body: "Each coloured line is one part of the course." },
-  { key: "station", title: "Stations are topics", body: "Stations are topics. Tap one to see its lessons." },
+  { key: "station", title: "Stations are topics", body: "Stations are topics. Tap a station to see its lessons and problems." },
   { key: "route", title: "Your route", body: "Your route is the bright line. Just follow Next stop." },
   { key: "toggle", title: "A list instead", body: "Prefer a list? Switch here." },
 ];

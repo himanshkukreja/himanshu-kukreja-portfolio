@@ -6,21 +6,22 @@
  */
 import Link from "next/link";
 import { useId, useState } from "react";
-import { ArrowRight, HelpCircle } from "lucide-react";
+import { ArrowRight, HelpCircle, RotateCcw } from "lucide-react";
 import { track } from "@/lib/track";
 import { LINE_TOKEN, type LineId } from "@/lib/dsa/metro/layout";
-import { interchangeText, type GoalKind, type GoalPref, type Metro, type RouteInfo, type Station } from "@/lib/dsa/metro/model";
+import { interchangeText, type StationLesson, type GoalKind, type GoalPref, type Metro, type RouteInfo, type Station } from "@/lib/dsa/metro/model";
 import type { NextStep } from "@/lib/dsa/continue";
 import { fmtDuration } from "@/lib/dsa/outline";
 import { BIG, BTN_PRIMARY, FILL, KICKER, SEG, TRACK, seg } from "../../ui/kit";
 import type { HomeView } from "./useMetroPrefs";
+import { LessonList, ProblemsLink } from "./StationLessons";
 
 const tone = (l: LineId) => `var(${LINE_TOKEN[l]})`;
 const PANEL = "rounded-[18px] border border-line bg-surface shadow-[0_10px_30px_color-mix(in_srgb,var(--c-fg)_8%,transparent)]";
 const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text";
 
 /** Map | List, and (map view) the "How this map works" link. */
-export function HomeBar({ kicker, view, onView, onHow }: { kicker: string; view: HomeView; onView: (v: HomeView) => void; onHow?: () => void }) {
+export function HomeBar({ kicker, view, onView, onHow, onRedo }: { kicker: string; view: HomeView; onView: (v: HomeView) => void; onHow?: () => void; onRedo?: () => void }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
       <p className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3 sm:text-[12px]">{kicker}</p>
@@ -29,6 +30,12 @@ export function HomeBar({ kicker, view, onView, onHow }: { kicker: string; view:
           <button type="button" onClick={onHow} className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg ${FOCUS}`}>
             <HelpCircle className="h-4 w-4" aria-hidden />
             <span className="sr-only sm:not-sr-only">How this map works</span>
+          </button>
+        ) : null}
+        {onRedo ? (
+          <button type="button" onClick={onRedo} className={`inline-flex min-h-10 items-center gap-1.5 rounded-lg px-2 text-[13px] font-medium text-fg-2 underline decoration-line-strong underline-offset-4 hover:text-fg ${FOCUS}`}>
+            <RotateCcw className="h-4 w-4" aria-hidden />
+            <span className="sr-only sm:not-sr-only">Redo the welcome tour</span>
           </button>
         ) : null}
         <div role="group" aria-label="Course view" className={SEG} data-tour="toggle">
@@ -143,7 +150,9 @@ export function RouteCard({
   isNew,
   goal,
   onGoal,
+  className = "",
 }: {
+  className?: string;
   metro: Metro;
   info: RouteInfo;
   hereStation: Station | undefined;
@@ -157,7 +166,7 @@ export function RouteCard({
   const main = ready ? primaryOf(next, hereStation, isNew) : null;
   const goalName = metro.byId.get(info.goal)?.label || "";
   return (
-    <section aria-label="Your route" className={`${PANEL} flex flex-col gap-3.5 p-6`}>
+    <section aria-label="Your route" className={`${PANEL} flex flex-col gap-3.5 p-6 ${className}`}>
       <p className={`${KICKER} !text-signal-text`}>Your route</p>
       {ready ? (
         <>
@@ -166,7 +175,7 @@ export function RouteCard({
           <p className="m-0 text-[13px] leading-normal text-fg-3">
             {info.lessons ? `${info.lessons} ${info.lessons === 1 ? "lesson" : "lessons"}${info.minutes ? ` and about ${fmtDuration(info.minutes)}` : ""} away. ` : ""}Everything off your route is dimmed, but nothing is locked.
           </p>
-          <div className="flex flex-col gap-2.5 border-t border-line pt-3.5">
+          <div className="mt-auto flex flex-col gap-2.5 border-t border-line pt-3.5">
             {hereStation ? (
               <>
                 <span className="text-[12px] text-fg-3">
@@ -244,7 +253,23 @@ export function Legend({ metro, className = "", wide = false }: { metro: Metro; 
   );
 }
 
-export function StationCard({ station, lineTitle, isHere, inRoute }: { station: Station | undefined; lineTitle: (l: LineId) => string; isHere: boolean; inRoute: boolean }) {
+export function StationCard({
+  station,
+  lineTitle,
+  isHere,
+  inRoute,
+  content,
+  fill = false,
+}: {
+  station: Station | undefined;
+  lineTitle: (l: LineId) => string;
+  isHere: boolean;
+  inRoute: boolean;
+  /** the station's lessons (the same outline the List view reads) and its module id for the Practice filter */
+  content?: { lessons: StationLesson[]; moduleId: string } | null;
+  /** grow to the height the row gives it (the lesson list takes the room) */
+  fill?: boolean;
+}) {
   if (!station) return null;
   const pct = station.total ? Math.round((station.done / station.total) * 100) : 0;
   const note = station.lines.length > 1 ? interchangeText(station, lineTitle) : station.planned ? "The lessons for this topic are on their way." : station.state === "done" ? "Finished. Nice work." : station.state === "prog" ? "You are partway through this station." : "Open any time; nothing is locked.";
@@ -253,8 +278,9 @@ export function StationCard({ station, lineTitle, isHere, inRoute }: { station: 
     { k: "Problems", v: `${station.solved} / ${station.problems}` },
     { k: "Reading time", v: station.minutes ? fmtDuration(station.minutes) : "Soon" },
   ];
+  const lessons = content?.lessons ?? [];
   return (
-    <section aria-live="polite" aria-label="Station card" className={`${PANEL} flex flex-col gap-3 px-6 py-5`} data-tour-card>
+    <section aria-label="Station card" className={`${PANEL} flex flex-col gap-3 px-6 py-5 ${fill ? "min-h-0 flex-1" : ""}`} data-tour-card>
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-mono text-[11px] tracking-[0.06em] text-fg-3">STATION</span>
         {station.lines.map((l) => (
@@ -264,27 +290,38 @@ export function StationCard({ station, lineTitle, isHere, inRoute }: { station: 
         ))}
         {isHere ? <span className="rounded-full bg-signal px-2.5 py-[3px] text-[11px] font-semibold text-on-signal">You are here</span> : inRoute ? <span className="rounded-full bg-surface-2 px-2.5 py-[3px] text-[11px] font-semibold text-fg">On your route</span> : null}
       </div>
-      <h3 className="m-0 font-display text-[30px] font-extrabold leading-none tracking-[-0.02em] text-fg">{station.label}</h3>
-      <p className="m-0 text-[13px] text-fg-2">{note}</p>
-      <dl className="m-0 grid grid-cols-3 gap-2.5">
+      <div aria-live="polite" className="flex flex-col gap-3">
+        <h3 className="m-0 font-display text-[30px] font-extrabold leading-none tracking-[-0.02em] text-fg">{station.label}</h3>
+        <p className="m-0 text-[13px] text-fg-2">{note}</p>
+      </div>
+      <dl className="m-0 flex flex-wrap gap-x-5 gap-y-1 text-[13px]">
         {tiles.map((t) => (
-          <div key={t.k} className="rounded-xl bg-surface-2 px-3 py-2.5">
-            <dt className="text-[11px] text-fg-3">{t.k}</dt>
-            <dd className="m-0 text-[16px] font-semibold text-fg">{t.v}</dd>
+          <div key={t.k} className="flex items-baseline gap-1.5">
+            <dt className="text-fg-3">{t.k}</dt>
+            <dd className="m-0 font-semibold text-fg">{t.v}</dd>
           </div>
         ))}
       </dl>
       <span aria-hidden className={TRACK}>
         <span className={`${FILL} bg-signal`} style={{ width: `${pct}%` }} />
       </span>
-      <div className="flex flex-wrap items-center gap-3">
+      {lessons.length ? (
+        <div className={`flex flex-col gap-1.5 border-t border-line pt-3 ${fill ? "min-h-0 flex-1" : ""}`}>
+          <span className="text-[12px] font-semibold text-fg-2">Lessons in {station.label}</span>
+          <div className={`${fill ? "max-h-[176px] min-h-[120px] flex-1 overflow-y-auto overscroll-contain" : ""}`}>
+            <LessonList station={station} lessons={lessons} here={isHere} scroll={!fill} from="card" />
+          </div>
+        </div>
+      ) : null}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {station.href ? (
           <Link href={station.href} onClick={() => track("dsa_station_open", { station: station.id })} className={`${BTN_PRIMARY} min-h-11 rounded-[10px] px-5 text-[14px]`}>
-            Open{station.state === "prog" ? `: lesson ${station.nextLesson}` : ""}
+            {station.state === "prog" || isHere ? `Continue: lesson ${station.nextLesson}` : "Start"}
           </Link>
         ) : (
           <span className="inline-flex min-h-11 items-center rounded-[10px] bg-surface-2 px-5 text-[14px] font-medium text-fg-3">Soon</span>
         )}
+        {content ? <ProblemsLink station={station} moduleId={content.moduleId} from="card" /> : null}
         <span className="text-[12.5px] text-fg-3">{station.planned ? `${station.all} lessons planned` : station.state === "done" ? "All lessons done" : `${station.total - station.done} ${station.total - station.done === 1 ? "lesson" : "lessons"} to go`}</span>
       </div>
     </section>
