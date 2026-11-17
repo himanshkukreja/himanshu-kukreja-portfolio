@@ -134,6 +134,29 @@
   color: var(--c-fg-3);
 }
 
+/* the ladder (a lean lesson's `::ladder`, components/dsa/lesson/Ladder.tsx): the lesson text's list and link styles stay off it */
+.course-content .dsa-ladder ol[data-ladder-list],
+.course-content .dsa-ladder ol[data-ladder-list] > li {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.course-content .dsa-ladder ol[data-ladder-list] > li {
+  margin: 0;
+  padding: 0;
+}
+.course-content .dsa-ladder ol[data-ladder-list] > li::marker {
+  content: none;
+}
+.course-content .dsa-ladder a[data-ladder-step],
+.course-content .dsa-ladder a[data-ladder-step]:hover {
+  color: inherit;
+  text-decoration: none;
+}
+.course-content .dsa-ladder.dsa-widget {
+  padding: 0;
+}
+
 /* real-systems box */
 .course-content .dsa-realsystems {
   border: 1px solid var(--c-line-strong);

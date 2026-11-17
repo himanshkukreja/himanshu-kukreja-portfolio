@@ -22,7 +22,7 @@ export default function Ladder({ items }: { items: LadderItem[] }) {
       <p className="m-0 font-mono text-[12px] uppercase tracking-label text-fg-3" aria-live="polite">
         {solved} of {items.length} solved
       </p>
-      <ol className="m-0 flex list-none flex-col gap-2 p-0" aria-label="The ladder, easy to hard">
+      <ol data-ladder-list className="m-0 flex list-none flex-col gap-2 p-0" aria-label="The ladder, easy to hard">
         {items.map((x, i) => {
           const done = p.solved.has(x.id);
           return (

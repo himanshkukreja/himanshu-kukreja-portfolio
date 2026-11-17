@@ -450,7 +450,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
               }
               const first = all.findIndex((x) => x.rows.length) === i;
               return (
-                <Fold key={section.id} title={section.title} count={rows.length} hint={section.planned ? plannedNote(section) : section.hint} defaultOpen={first || filtered}>
+                <Fold key={section.id} title={section.title} count={rows.length} hint={[section.hint, section.planned ? plannedNote(section) : ""].filter(Boolean).join(" · ") || undefined} defaultOpen={first || filtered}>
                   {() => (
                   <div className="flex flex-col gap-3">
                     {section.links?.length ? (
