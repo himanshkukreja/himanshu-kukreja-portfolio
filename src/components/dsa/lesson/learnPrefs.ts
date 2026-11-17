@@ -3,8 +3,9 @@
 /**
  * The lesson page's two remembered choices (kept on this device, like the rest of DSA's view settings):
  * - Learn mode: Watch, Read or Listen (`dsa.learnMode`); Read on the first visit, then the last one used.
- * - Whole lesson: Read shows the whole lesson on one page instead of one beat at a time (`dsa.lesson.whole`). It lives
- *   in the Aa reading panel. It replaces the old "Show everything" switch; a learner who had that on starts with it on.
+ * - Whole lesson: Read shows the whole lesson on one page (`dsa.lesson.whole`), the default since 17 Nov 2026 (the owner:
+ *   one beat per page made the lessons look thin). Off pages through one beat at a time. It lives in the Aa reading
+ *   panel and in the "Read it all on one page" button of the paged view.
  * Read with useSyncExternalStore: the server and the first paint use the defaults, so there is never a hydration error.
  */
 import { useSyncExternalStore } from "react";
@@ -12,7 +13,6 @@ import { useSyncExternalStore } from "react";
 export type LearnMode = "watch" | "read" | "listen";
 const MODE_KEY = "dsa.learnMode";
 const WHOLE_KEY = "dsa.lesson.whole";
-const OLD_VIEW_KEY = "dsa.view";
 const EVENT = "dsa:lesson-prefs";
 
 function read(key: string): string | null {
@@ -46,9 +46,7 @@ const readMode = (): LearnMode => {
 export const useLearnMode = (): [LearnMode, (m: LearnMode) => void] => [useSyncExternalStore(subscribe, readMode, () => "read" as LearnMode), (m) => write(MODE_KEY, m)];
 
 const readWhole = (): boolean => {
-  const v = read(WHOLE_KEY);
-  if (v === "1") return true;
-  if (v === "0") return false;
-  return read(OLD_VIEW_KEY) === "full";
+  // on unless the learner turned it off (the old "Show everything" switch, dsa.view, no longer matters: on is the default)
+  return read(WHOLE_KEY) !== "0";
 };
-export const useWholeLesson = (): [boolean, (on: boolean) => void] => [useSyncExternalStore(subscribe, readWhole, () => false), (on) => write(WHOLE_KEY, on ? "1" : "0")];
+export const useWholeLesson = (): [boolean, (on: boolean) => void] => [useSyncExternalStore(subscribe, readWhole, () => true), (on) => write(WHOLE_KEY, on ? "1" : "0")];

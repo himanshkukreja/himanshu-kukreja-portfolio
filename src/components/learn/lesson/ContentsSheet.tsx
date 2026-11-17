@@ -16,6 +16,8 @@ type Props = {
   stages: Stage[];
   kicker: string;
   title: string;
+  /** also open on computers (as a side panel). The SDM reader has its own desktop rail, so it keeps the phone-only sheet. */
+  anyWidth?: boolean;
 };
 
 /**
@@ -25,7 +27,9 @@ type Props = {
  */
 function jumpTo(id: string) {
   announceJump(id);
-  const el = document.getElementById(id);
+  let el = document.getElementById(id);
+  // behind the sign-in card (not laid out for a guest): land on the card instead of jumping to the top of the page
+  if (el && !el.getClientRects().length) el = document.querySelector<HTMLElement>("[data-gate-card]") ?? el;
   if (!el) return;
   const headerH = parseFloat(window.getComputedStyle(document.documentElement).getPropertyValue("--hk-header-h")) || 0;
   const rail = stageRailHeight();
@@ -40,7 +44,7 @@ function jumpTo(id: string) {
 }
 
 /** Phone contents: bottom sheet grouped by stage, with "find in this lesson". */
-export default function ContentsSheet({ open, onClose, toc, stages, kicker, title }: Props) {
+export default function ContentsSheet({ open, onClose, toc, stages, kicker, title, anyWidth = false }: Props) {
   const { current, done, completed } = useLessonProgress();
   const groups = useMemo(() => buildTocGroups(toc, stages), [toc, stages]);
   const ids = useMemo(() => toc.map((t) => t.id), [toc]);
@@ -92,14 +96,14 @@ export default function ContentsSheet({ open, onClose, toc, stages, kicker, titl
   const requiredCount = numberedStages(stages.filter((s) => !isOptionalStage(s))).length;
 
   return (
-    <div className="fixed inset-0 z-[60] lg:hidden" data-reader-ui>
+    <div className={`fixed inset-0 z-[60] ${anyWidth ? "" : "lg:hidden"}`} data-reader-ui>
       <button type="button" aria-label="Close contents" tabIndex={-1} onClick={onClose} className="absolute inset-0 h-full w-full bg-black/60" />
       <div
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-label="Contents"
-        className={`absolute inset-x-0 bottom-0 top-[18%] flex flex-col gap-2 border-t border-line-strong bg-surface px-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-2 ${styles.sheetIn}`}
+        className={`absolute inset-x-0 bottom-0 top-[18%] flex flex-col gap-2 border-t border-line-strong bg-surface px-4 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] pt-2 ${anyWidth ? "lg:inset-y-0 lg:left-auto lg:top-0 lg:w-[440px] lg:border-l lg:pt-5" : ""} ${styles.sheetIn}`}
       >
         <span aria-hidden className="h-1 w-10 self-center bg-line-strong" />
         <div className="flex items-center justify-between gap-3">

@@ -298,3 +298,41 @@ export function gateHtml(html: string, o: GateOptions = {}): GateResult {
   }
   return { html: out, gated: true, open: Math.round(((total - gatedText) / total) * 100) / 100 };
 }
+
+/**
+ * A lesson whose stages are spread over steps (DSA Mastery: Learn, Try it, Check): the cut is measured over the
+ * stages `counts` accepts (Learn's) alone, so a guest reads about 25-40% of the Learn text however much Try it and
+ * Check hold, and every stage `counts` rejects is gated once the lesson is gated at all. The rejected stages are
+ * set aside while the cut is found (a placeholder comment), then put back with the gated class on their `<section>`.
+ * Falls back to gateHtml's own answer when the stages can't be read as balanced HTML.
+ */
+export function gateStagedHtml(html: string, counts: (stage: { id: string; label: string }) => boolean, o: GateOptions = {}): GateResult {
+  const whole: GateResult = { html, gated: false, open: 1 };
+  if (!html) return whole;
+  const found: { start: number; end: number; open: string }[] = [];
+  let kept = 0;
+  const re = /<section\b[^>]*\bdata-sd="stage"[^>]*>/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    const idm = /\bdata-stage-id="([^"]*)"/.exec(m[0]) || /\bid="([^"]*)"/.exec(m[0]);
+    const label = /\bdata-label="([^"]*)"/.exec(m[0])?.[1] ?? "";
+    const close = matchClose(html, m.index + m[0].length, html.length, "section");
+    if (!close) return gateHtml(html, o);
+    if (counts({ id: idm?.[1] ?? "", label })) kept++;
+    else found.push({ start: m.index, end: close.end, open: m[0] });
+    re.lastIndex = close.end;
+  }
+  if (!found.length || !kept) return gateHtml(html, o);
+  // set the rejected stages aside, back to front so the offsets hold
+  let masked = html;
+  for (let k = found.length - 1; k >= 0; k--) masked = `${masked.slice(0, found[k].start)}<!--hk-set-aside:${k}-->${masked.slice(found[k].end)}`;
+  const r = gateHtml(masked, o);
+  if (!r.gated) return whole;
+  let out = r.html;
+  for (let k = found.length - 1; k >= 0; k--) {
+    const f = found[k];
+    const section = `${withClass(f.open, GATED_CLASS)}${html.slice(f.start + f.open.length, f.end)}`;
+    out = out.replace(`<!--hk-set-aside:${k}-->`, () => section);
+  }
+  return { html: out, gated: true, open: r.open };
+}

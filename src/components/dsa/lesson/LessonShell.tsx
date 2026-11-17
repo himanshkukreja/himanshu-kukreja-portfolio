@@ -59,6 +59,7 @@ import LessonAside, { type AsideLink } from "./LessonAside";
 import LessonTools from "./LessonTools";
 import PracticeStep from "./PracticeStep";
 import StepFooter from "./StepFooter";
+import LessonParts from "./LessonParts";
 import { StepBar, StepPills, type StepView } from "./StepRail";
 import StepPreviews from "./StepPreviews";
 import { CHIP, PAGE_H } from "../ui/kit";
@@ -123,7 +124,7 @@ export default function LessonShell(props: LessonShellProps) {
   const game = useGame();
   const dsa = useDsaProgress();
   const [mode, setMode] = useLearnMode();
-  const [whole] = useWholeLesson();
+  const [whole, setWhole] = useWholeLesson();
   const [sheet, setSheet] = useState(false);
   const [folded, setFolded] = useState(true);
 
@@ -552,6 +553,19 @@ export default function LessonShell(props: LessonShellProps) {
               {step === "check" ? <CheckStep checkpoint={props.checkpoint} labId={props.labId ?? null} hasQuiz={props.hasQuiz} /> : null}
             </div>
 
+            {/* Learn on one page: the parts of the lesson, following the scroll */}
+            {step === "learn" && whole && effMode !== "watch" && beats.length > 1 ? (
+              <LessonParts
+                className="mt-4"
+                rootRef={contentRef}
+                parts={beats.map((id) => ({ id, name: beatName(id), locked: locked && !!gatedIds && gatedIds.hidden.has(id) }))}
+                onJump={(id) => {
+                  moved.current = true;
+                  scrollToId(id);
+                }}
+              />
+            ) : null}
+
             {/* the lesson text: one server-rendered page, its beats shown by the step styles above */}
             <div data-dsa-one className={`mt-5 max-w-[var(--read-measure,740px)] ${textHidden ? "hidden" : ""}`}>
               <LessonContentWrapper ref={contentRef} htmlContent={props.html} courseId={DSA_COURSE_ID} week={props.module} lessonSlug={props.id} lessonTitle={props.title} />
@@ -580,6 +594,23 @@ export default function LessonShell(props: LessonShellProps) {
                 <span className="text-[13px] text-fg-3" aria-live="polite">
                   Part {beatAt + 1} of {beats.length} · {beatName(beat)}
                 </span>
+                <ol className="m-0 flex list-none flex-wrap gap-1.5 p-0" aria-label="All parts">
+                  {beats.map((id, i) => (
+                    <li key={id}>
+                      <button
+                        type="button"
+                        onClick={() => goBeat(id)}
+                        aria-current={id === beat ? "step" : undefined}
+                        className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] [@media(pointer:coarse)]:min-h-11 ${id === beat ? "border-signal bg-signal font-semibold text-on-signal" : "border-line text-fg-2 hover:bg-surface-2 hover:text-fg"}`}
+                      >
+                        <span aria-hidden className="font-mono text-[11px] opacity-70">
+                          {i + 1}
+                        </span>
+                        {beatName(id)}
+                      </button>
+                    </li>
+                  ))}
+                </ol>
                 <div className="flex flex-wrap items-center gap-2.5">
                   {prevBeat ? (
                     <button type="button" onClick={() => goBeat(prevBeat)} className="inline-flex min-h-11 items-center gap-2 rounded-[10px] border border-line-strong px-4 text-[14px] font-medium text-fg hover:bg-surface-2">
@@ -588,6 +619,9 @@ export default function LessonShell(props: LessonShellProps) {
                       {beatName(prevBeat)}
                     </button>
                   ) : null}
+                  <button type="button" onClick={() => setWhole(true)} className="inline-flex min-h-11 items-center rounded-[10px] px-3 text-[14px] font-medium text-signal-text underline underline-offset-4 hover:bg-surface-2">
+                    Read it all on one page
+                  </button>
                 </div>
               </nav>
             ) : null}
@@ -619,7 +653,7 @@ export default function LessonShell(props: LessonShellProps) {
 
       <StepFooter step={step} onNext={(s) => go(s)} nextPart={paged && nextBeat && !(showGate && locked) ? () => goBeat(nextBeat) : null} nextLesson={props.nav.next} backHref={backHref} />
       {focus ? <FocusControls stages={p.stages} size={size} onExit={() => changeFocus(false)} /> : null}
-      <ContentsSheet open={sheet} onClose={() => setSheet(false)} toc={props.toc} stages={stages} kicker={props.moduleTitle.toUpperCase()} title={props.title} />
+      <ContentsSheet anyWidth open={sheet} onClose={() => setSheet(false)} toc={props.toc} stages={stages} kicker={props.moduleTitle.toUpperCase()} title={props.title} />
     </>
   );
 }

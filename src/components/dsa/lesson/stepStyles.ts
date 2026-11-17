@@ -9,8 +9,7 @@ import { hideStagesCss } from "@/lib/dsa/lesson-steps";
 export function stepCss(opts: { visible: string[]; foldedStage?: string | null }): string {
   return (
     hideStagesCss(opts.visible) +
-    // the practice ladder inside the closing beat is the Practice step's list now
-    `[data-dsa-one] #practice-ladder,[data-dsa-one] #practice-ladder + .sd-table{display:none!important}` +
+    // (the practice ladder inside the closing beat stays: its "what it practises" and product-line columns are in no other step)
     // a folded beat (a concept's edge cases) shows only its header until "Show edge cases"
     (opts.foldedStage ? `[data-dsa-one] section[data-sd="stage"][data-stage-id="${opts.foldedStage.replace(/[^a-z0-9_-]/gi, "")}"]>:not(header){display:none!important}` : "")
   );

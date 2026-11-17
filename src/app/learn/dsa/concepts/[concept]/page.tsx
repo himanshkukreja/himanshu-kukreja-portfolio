@@ -4,7 +4,7 @@ import { DSA_FULL } from "@/lib/dsa/flags";
 import { conceptLectureHref, getConcept, getConceptIndex, getConceptLecture, isVisualLesson, lessonHref } from "@/lib/dsa/load";
 import { lectureCard } from "@/lib/learn/lecture/load";
 import DsaConceptReader from "@/components/dsa/concept/DsaConceptReader";
-import { gateArticle } from "@/lib/gate/server";
+import { gateLesson } from "@/lib/gate/server";
 import { getLessonExtras } from "@/lib/dsa/lesson-extras";
 import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
 
@@ -41,7 +41,7 @@ export default async function ConceptPage({ params }: Props) {
   // "watch it first": the concept's animated lecture, on its own page (like an SDM lesson's)
   const card = lectureCard(lecture);
   // signed out: the first part, then the sign-in card (src/lib/gate); the whole lesson stays in the HTML
-  const gate = gateArticle(c.html);
+  const gate = gateLesson(c.html, "concept");
   const extras = await getLessonExtras(c.id, c.module);
   return (
     <div className="dsa-theme">

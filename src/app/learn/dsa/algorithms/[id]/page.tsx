@@ -5,7 +5,7 @@ import { conceptLectureHref, getConceptLecture } from "@/lib/dsa/load";
 import { getStructure } from "@/lib/dsa/structures";
 import { lectureCard } from "@/lib/learn/lecture/load";
 import StructureReader from "@/components/dsa/structure/StructureReader";
-import { gateArticle } from "@/lib/gate/server";
+import { gateLesson } from "@/lib/gate/server";
 import { getLessonExtras } from "@/lib/dsa/lesson-extras";
 import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
 
@@ -37,7 +37,7 @@ export default async function AlgorithmPage({ params }: Props) {
   if (!s || s.kind !== "algorithm") notFound();
   const card = lectureCard(lecture);
   // signed out: the first part, then the sign-in card (src/lib/gate); the whole lesson stays in the HTML
-  const gate = gateArticle(s.html);
+  const gate = gateLesson(s.html, "algorithm");
   const extras = await getLessonExtras(s.id, s.module);
   return (
     <div className="dsa-theme">

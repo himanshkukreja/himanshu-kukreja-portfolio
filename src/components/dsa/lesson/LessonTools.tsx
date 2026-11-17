@@ -26,7 +26,7 @@ function WholeLessonRow() {
       <label className="flex min-h-11 cursor-pointer items-center justify-between gap-4">
         <span className="flex min-w-0 flex-col">
           <span className="text-sm font-semibold text-fg">Whole lesson on one page</span>
-          <span className="text-[12px] leading-snug text-fg-3">Read every part of the lesson in one scroll instead of one part at a time.</span>
+          <span className="text-[12px] leading-snug text-fg-3">On: every part of the lesson in one scroll. Off: one part at a time.</span>
         </span>
         <span className="relative inline-flex shrink-0 items-center">
           <input type="checkbox" role="switch" checked={whole} onChange={(e) => setWhole(e.target.checked)} className="peer sr-only" />

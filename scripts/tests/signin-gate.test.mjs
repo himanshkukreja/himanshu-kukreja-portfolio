@@ -7,7 +7,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import vm from "node:vm";
-import { gateHtml, GATED_CLASS, PEEK_CLASS } from "../../src/lib/gate/split.ts";
+import { gateHtml, gateStagedHtml, GATED_CLASS, PEEK_CLASS } from "../../src/lib/gate/split.ts";
 import { GATE_JS, GUEST_CLASS, gateCourse, LECTURE_FREE_S } from "../../src/lib/gate/flag.ts";
 
 const words = (n, w = "lorem") => Array.from({ length: n }, (_, i) => `${w}${i}`).join(" ");
@@ -137,4 +137,33 @@ test("gateCourse and the lecture window", () => {
   assert.equal(gateCourse("/week-01-data-at-scale/day-01"), "sdm");
   assert.equal(gateCourse("/dsalike"), "sdm");
   assert.equal(LECTURE_FREE_S, 75);
+});
+
+test("gateStagedHtml: the cut is a share of the counted stages; the others are gated whole once there is a gate", () => {
+  const ids = ["intro", "a", "b", "c", "d"];
+  const learn = new Set(ids);
+  const html = `<div class="sd-body">${[...ids.map((id) => stage(id, para(80, id) + para(80, id))), stage("sandbox", para(400, "sbx")), stage("recap", para(400, "rcp"))].join("")}</div>`;
+  const r = gateStagedHtml(html, (s) => learn.has(s.id));
+  assert.equal(r.gated, true);
+  // only classes were added: all the text is there
+  assert.equal(strip(r.html), html);
+  assert.equal(textOf(r.html), textOf(html));
+  // about 25-45% of the counted stages stay open (the other stages' text is not in the measure)
+  const open = r.html.slice(0, r.html.search(/<[^>]*hk-gated/));
+  const openLearn = textOf(open).length;
+  const learnAll = textOf(ids.map((id) => para(80, id) + para(80, id) + id).join("")).length;
+  assert.ok(openLearn / learnAll >= 0.2 && openLearn / learnAll <= 0.5, `open ${openLearn / learnAll}`);
+  // the stages that do not count are gated, and only one peek exists
+  for (const id of ["sandbox", "recap"]) assert.match(r.html, new RegExp(`<section[^>]*id="${id}"[^>]*class="sd-stage ${GATED_CLASS}"`));
+  assert.equal((r.html.match(new RegExp(PEEK_CLASS, "g")) || []).length, 1);
+  // a plain gateHtml over the same page would have opened much more of the counted stages
+  assert.ok(gateHtml(html).open < 0.45);
+});
+
+test("gateStagedHtml: short lessons and unreadable stages stay as gateHtml leaves them", () => {
+  assert.equal(gateStagedHtml("", () => true).gated, false);
+  const tiny = `<div>${stage("intro", "<p>short</p>")}${stage("sandbox", "<p>short</p>")}</div>`;
+  assert.equal(gateStagedHtml(tiny, (s) => s.id === "intro").gated, false);
+  const broken = `<div><section data-sd="stage" id="intro"><p>${words(900)}</p></div>`;
+  assert.equal(gateStagedHtml(broken, () => true).html, gateHtml(broken).html);
 });
