@@ -18,6 +18,7 @@ import "server-only";
  */
 import { createHash } from "crypto";
 import { supabase } from "@/lib/supabase";
+import { QA_USER_ID } from "@/lib/analytics/exclude";
 import { COURSE_ID } from "@/lib/learn/course";
 import { getQuestionBank } from "./bank";
 import { verifyDaily } from "./daily";
@@ -218,6 +219,7 @@ async function collect(): Promise<Map<string, Item[]>> {
       v.correct * POINTS.dailyCorrect + (v.correct === v.total ? POINTS.dailyPerfect : 0) + Math.round(POINTS.dailySpeedMax * speed * (v.correct / v.total));
     add(run.user, { at: run.at, day: run.date, kind: "daily", key, pts });
   }
+  items.delete(QA_USER_ID); // the QA account never appears on a board
   return items;
 }
 

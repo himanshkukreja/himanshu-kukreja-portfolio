@@ -17,6 +17,7 @@
  * → none. Applied to recipients, "preview as", test sends and per-batch merge vars at send time (the
  * batch re-reads overrides fresh, so names saved after queuing reach not-yet-sent messages).
  */
+import { isQaUser } from "@/lib/analytics/exclude";
 import { supabase } from "@/lib/supabase";
 import { learnActiveUserIds } from "@/lib/announce/audience";
 import { COURSE_ID } from "@/lib/learn/course";
@@ -146,6 +147,7 @@ async function buildBase(): Promise<Base> {
     const email = lc(u.email || "");
     if (!email || !EMAIL_RE.test(email) || people.has(email)) continue;
     if (u.banned_until && new Date(u.banned_until).getTime() > now) continue;
+    if (isQaUser({ id: u.id, email })) continue; // the QA account is never a learner
     const meta = u.user_metadata || {};
     const metaName = typeof meta.full_name === "string" ? meta.full_name : typeof meta.name === "string" ? meta.name : null;
     const p = prof.get(u.id);
@@ -252,6 +254,7 @@ export async function resolveAudience(spec: AudienceSpec, opts: { exclude?: Set<
       continue;
     }
     seen.add(e);
+    if (isQaUser({ email: e })) continue;
     if (b.unsubscribed.has(e)) {
       unsubscribed++;
       continue;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isQaUser } from "@/lib/analytics/exclude";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { supabase } from "@/lib/supabase";
 import { getLearner } from "@/app/api/learn/_lib/auth";
@@ -59,7 +60,7 @@ export async function GET(request: Request) {
       const belt = (typeof f.belt === "string" && BELT_IDS.has(f.belt) ? f.belt : beltFor(total).belt.id) as BeltId;
       return { id: r.id, name: displayName(r.id, r.full_name, r.profile_visibility), bits: period === "week" ? week : total, belt };
     })
-    .filter((r) => r.bits > 0)
+    .filter((r) => r.bits > 0 && !isQaUser({ id: r.id }))
     .sort((a, b) => b.bits - a.bits || a.name.localeCompare(b.name));
 
   // ties share a rank (1, 2, 2, 4)
