@@ -37,6 +37,10 @@ export type FilterRow = {
   twin?: string;
   /** the pattern tags as written, for the row's small print */
   tags: string[];
+  /** the classic twin's names for the search ("Two Sum", "LC 1") */
+  aliases?: string[];
+  /** the story domain (payments, logistics ...) */
+  domain?: string;
   /** lower-cased: title, statement words, pattern names, classic twin (number and name) */
   text: string;
 };

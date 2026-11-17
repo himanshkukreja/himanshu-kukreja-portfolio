@@ -1,0 +1,254 @@
+{
+ "about": "40 queries for the Practice search. A query with `ids` hits when one of them is in the top 5; one with `topic` (group:id) hits when at least 3 of the top 5 carry that topic (and the level, when given). Run: node scripts/dsa-search-eval.mjs [--smart]",
+ "queries": [
+  {
+   "q": "Rain trapped between towers",
+   "kind": "exact",
+   "ids": [
+    "rain-trapped-between-towers"
+   ]
+  },
+  {
+   "q": "Fewest coins for a refund",
+   "kind": "exact",
+   "ids": [
+    "fewest-coins-for-a-refund"
+   ]
+  },
+  {
+   "q": "Word ladder length",
+   "kind": "exact",
+   "ids": [
+    "word-ladder-length"
+   ]
+  },
+  {
+   "q": "Number of provinces",
+   "kind": "exact",
+   "ids": [
+    "number-of-provinces"
+   ]
+  },
+  {
+   "q": "Largest island by area",
+   "kind": "exact",
+   "ids": [
+    "largest-island-by-area"
+   ]
+  },
+  {
+   "q": "median of a stream of latencies",
+   "kind": "exact",
+   "ids": [
+    "median-of-a-stream-of-latencies"
+   ]
+  },
+  {
+   "q": "rain trappd between towrs",
+   "kind": "typo",
+   "ids": [
+    "rain-trapped-between-towers"
+   ]
+  },
+  {
+   "q": "wrod ladder",
+   "kind": "typo",
+   "ids": [
+    "word-ladder-length"
+   ]
+  },
+  {
+   "q": "numbr of provnces",
+   "kind": "typo",
+   "ids": [
+    "number-of-provinces"
+   ]
+  },
+  {
+   "q": "fewest coin refnd",
+   "kind": "typo",
+   "ids": [
+    "fewest-coins-for-a-refund"
+   ]
+  },
+  {
+   "q": "slidng windw",
+   "kind": "typo",
+   "topic": "patterns:sliding-window"
+  },
+  {
+   "q": "binry serch",
+   "kind": "typo",
+   "topic": "algorithms:binary-search"
+  },
+  {
+   "q": "sliding window",
+   "kind": "topic",
+   "topic": "patterns:sliding-window"
+  },
+  {
+   "q": "dynamic programming",
+   "kind": "topic",
+   "topic": "algorithms:dynamic-programming"
+  },
+  {
+   "q": "union find",
+   "kind": "topic",
+   "topic": "algorithms:union-find"
+  },
+  {
+   "q": "monotonic stack",
+   "kind": "topic",
+   "topic": "patterns:monotonic-stack"
+  },
+  {
+   "q": "trie",
+   "kind": "topic",
+   "topic": "structures:trie"
+  },
+  {
+   "q": "prefix sums",
+   "kind": "tag",
+   "topic": "algorithms:prefix-sums"
+  },
+  {
+   "q": "k-way merge",
+   "kind": "tag",
+   "topic": "patterns:merge-sorted"
+  },
+  {
+   "q": "kadane",
+   "kind": "tag",
+   "topic": "patterns:kadane"
+  },
+  {
+   "q": "dp",
+   "kind": "shorthand",
+   "topic": "algorithms:dynamic-programming"
+  },
+  {
+   "q": "ll",
+   "kind": "shorthand",
+   "topic": "structures:linked-list"
+  },
+  {
+   "q": "pq",
+   "kind": "shorthand",
+   "topic": "structures:heap"
+  },
+  {
+   "q": "bfs",
+   "kind": "shorthand",
+   "topic": "algorithms:bfs"
+  },
+  {
+   "q": "easy two pointers",
+   "kind": "filter",
+   "topic": "patterns:two-pointers",
+   "level": "easy"
+  },
+  {
+   "q": "hard dp",
+   "kind": "filter",
+   "topic": "algorithms:dynamic-programming",
+   "level": "hard"
+  },
+  {
+   "q": "I want to learn sliding window, give me medium string problems",
+   "kind": "natural",
+   "topic": "patterns:sliding-window",
+   "level": "medium"
+  },
+  {
+   "q": "how do I practice detecting a cycle in a linked list",
+   "kind": "natural",
+   "ids": [
+    "detect-a-loop-in-a-retry-chain",
+    "where-the-loop-begins"
+   ]
+  },
+  {
+   "q": "I keep failing heap problems, give me some top k questions",
+   "kind": "natural",
+   "topic": "patterns:top-k"
+  },
+  {
+   "q": "problems where I need to count subarrays with a given sum",
+   "kind": "natural",
+   "ids": [
+    "streaks-that-sum-to-the-target"
+   ]
+  },
+  {
+   "q": "easy problems about hash maps for a beginner",
+   "kind": "natural",
+   "topic": "structures:hash",
+   "level": "easy"
+  },
+  {
+   "q": "which problems teach binary search on the answer",
+   "kind": "natural",
+   "topic": "patterns:binary-search-answer"
+  },
+  {
+   "q": "two sum",
+   "kind": "classic",
+   "ids": [
+    "refund-pair-for-total",
+    "spare-capacity-pair",
+    "farthest-matching-pair",
+    "track-pairs-fill-slots",
+    "balanced-ledger-quads"
+   ]
+  },
+  {
+   "q": "LRU cache",
+   "kind": "classic",
+   "ids": [
+    "design-a-cache-with-eviction"
+   ]
+  },
+  {
+   "q": "trapping rain water",
+   "kind": "classic",
+   "ids": [
+    "rain-trapped-between-towers"
+   ]
+  },
+  {
+   "q": "merge intervals",
+   "kind": "classic",
+   "ids": [
+    "merge-the-overlapping-slots"
+   ]
+  },
+  {
+   "q": "number of islands",
+   "kind": "classic",
+   "ids": [
+    "count-rack-blocks"
+   ]
+  },
+  {
+   "q": "course schedule",
+   "kind": "classic",
+   "ids": [
+    "can-every-course-be-finished"
+   ]
+  },
+  {
+   "q": "valid parentheses",
+   "kind": "classic",
+   "ids": [
+    "balanced-config-brackets"
+   ]
+  },
+  {
+   "q": "kth largest element in an array",
+   "kind": "classic",
+   "ids": [
+    "kth-fastest-pickup"
+   ]
+  }
+ ]
+}

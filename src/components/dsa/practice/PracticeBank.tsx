@@ -3,7 +3,7 @@
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, Download, Filter, Search, SlidersHorizontal, X } from "lucide-react";
+import { ChevronDown, Download, Filter, SlidersHorizontal, Sparkles, X } from "lucide-react";
 import { useGame } from "@/game/GameProvider";
 import { useDsaProgress } from "../progress/useDsaProgress";
 import { useDsaDaily, useDsaStreak } from "../daily/useDsaDaily";
@@ -13,7 +13,15 @@ import type { ProblemData } from "@/lib/dsa/problem-rows";
 import { groupDefs } from "../problems/problem-options";
 import { holdAttention } from "@/lib/learn/guide/attention";
 import { isListId, listCount, listDef, listIdSet, LISTS, pageOf, plannedNote, recommendedOrder, sectionRows, type ListContext, type ListId, type PracticeLists, type Section } from "@/lib/dsa/lists";
+import { FACETS } from "@/lib/dsa/taxonomy";
+import { companyLabel } from "@/lib/dsa/problem-rows";
+import { itemsFromRows } from "@/lib/dsa/search/items";
+import { buildIndex, isNatural, type SearchIndex } from "@/lib/dsa/search/engine";
+import { instantRank, smartRank } from "@/lib/dsa/search/rank";
+import { smartKey } from "@/lib/dsa/search/smart";
 import ListsRail from "./ListsRail";
+import SmartSearchBox from "./SmartSearchBox";
+import { useSmartSearch } from "./useSmartSearch";
 import { ProblemTable } from "./ProblemTable";
 import { Chip, Group, useTried, useVideoIds } from "./FilterGroups";
 import { useSavedProblems } from "./useSavedProblems";
@@ -189,6 +197,11 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const daily = useDsaDaily();
   const streak = useDsaStreak();
   const defs = useMemo(() => groupDefs(data), [data]);
+  // the search box: the instant engine's index is built when the box is first used (about 30 ms, once); the smart layer is signed-in only
+  const smartHook = useSmartSearch();
+  const [indexOn, setIndexOn] = useState(false);
+  const sortedRows = useMemo(() => [...data.rows].sort((a, b) => a.seq - b.seq || a.order - b.order), [data.rows]);
+  const index = useMemo<SearchIndex | null>(() => (indexOn ? buildIndex(itemsFromRows(sortedRows, data.concepts, companyLabel)) : null), [indexOn, sortedRows, data.concepts]);
   const sheetRef = useRef<HTMLDivElement>(null);
   const openerRef = useRef<HTMLButtonElement>(null);
   const exportRef = useRef<HTMLButtonElement>(null);
@@ -253,7 +266,23 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
     return set ? data.rows.filter((r) => set.has(r.id)) : data.rows;
   }, [view.list, ctx, data.rows]);
 
-  const { results, counts, total } = useMemo(() => evaluate(inList, state, statusOf), [inList, state, statusOf]);
+  // search: the instant engine ranks the typed words (and the filter words in them); a smart answer for this very text
+  // replaces it with the model's chips and keywords, ranked by the same engine
+  const searchProgress = useMemo(() => ({ statusOf, isSaved: saved.isSaved }), [statusOf, saved.isSaved]);
+  useEffect(() => {
+    if (state.q.trim()) setIndexOn(true);
+  }, [state.q]);
+  const smartHere = smartHook.state && smartHook.state.key === smartKey(state.q) ? smartHook.state : null;
+  const instant = useMemo(() => (index && state.q.trim() && !smartHere ? instantRank(index, state.q, searchProgress, 1000) : null), [index, state.q, smartHere, searchProgress]);
+  const smartRanked = useMemo(() => (index && smartHere ? smartRank(sortedRows, index, smartHere.answer, statusOf, state.q) : null), [index, smartHere, sortedRows, statusOf, state.q]);
+  const rankAt = useMemo(() => {
+    const ids = instant ? instant.hits.map((h) => h.item.id) : smartRanked ? smartRanked.rows.map((r) => r.id) : null;
+    return ids ? new Map(ids.map((id, i) => [id, i])) : null;
+  }, [instant, smartRanked]);
+  // before the index exists the old word filter answers (a link with ?q= opens straight onto it)
+  const pending = !!state.q.trim() && !index;
+  const scoped = useMemo(() => (rankAt && !pending ? inList.filter((r) => rankAt.has(r.id)) : inList), [rankAt, pending, inList]);
+  const { results, counts, total } = useMemo(() => evaluate(scoped, pending ? state : { ...state, q: "" }, statusOf), [scoped, pending, state, statusOf]);
   const base = useMemo(() => evaluate(inList, emptyState(), () => "todo").counts, [inList]);
   const summary = useMemo(() => solvedSummary(data.rows, (id) => progress.solved.has(id)), [data.rows, progress.solved]);
   const viewCounts = useMemo(() => statusViewCounts(counts.status), [counts]);
@@ -269,15 +298,30 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
       const at = new Map(dailyIds.map((id, i) => [id, i]));
       return [...results].sort((a, b) => (at.get(a.id) ?? 99) - (at.get(b.id) ?? 99));
     }
+    if (rankAt && state.sort === "course") return [...results].sort((a, b) => (rankAt.get(a.id) ?? 0) - (rankAt.get(b.id) ?? 0));
     return state.sort === "course" ? recommendedOrder(results, (id) => progress.solved.has(id)) : results;
-  }, [results, state.sort, progress.solved, view.list, dailyIds]);
+  }, [results, state.sort, progress.solved, view.list, dailyIds, rankAt]);
   const paged = pageOf(ordered, view.page);
 
   const onToggle = (g: GroupId, v: string) => commitFilters(toggle(state, g, v));
   const clear = () => {
     setText("");
+    smartHook.clear();
     commitFilters(clearAll(state));
   };
+  // a sentence from a signed-in learner goes to the smart layer by itself (once it has sat for a moment); Enter and the
+  // "Ask smart search" row ask at once. Guests and failures keep the instant results.
+  const askSmart = (q: string) => {
+    setText(q);
+    commit({ ...stateRef.current.state, q }, { ...stateRef.current.view, page: 1 }, "replace");
+    void smartHook.ask(q);
+  };
+  const { signedIn: smartSignedIn, ask: smartAsk } = smartHook;
+  useEffect(() => {
+    if (!smartSignedIn || !isNatural(state.q) || smartHere) return;
+    const t = setTimeout(() => void smartAsk(state.q), 700);
+    return () => clearTimeout(t);
+  }, [state.q, smartHere, smartSignedIn, smartAsk]);
   const pickList = (id: ListId) => {
     setMenu(null);
     commit({ ...state }, { list: id, page: 1, grouping: view.grouping });
@@ -344,6 +388,21 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
       : view.list === "interview-patterns"
         ? `${lists["interview-patterns"].sections.filter((s) => s.ids.length).length} of ${lists["interview-patterns"].sections.length} sets open${lists["interview-patterns"].sections.some((s) => s.planned) ? ` · ${lists["interview-patterns"].sections.reduce((a, s) => a + (s.planned || 0), 0)} more problems planned` : ""}`
         : "";
+
+  // the smart answer as chips the learner can take off (nothing is asked again; the page re-ranks at once)
+  const topicLabel = (id: string) => [...FACETS.patterns, ...FACETS.algorithms, ...FACETS.structures].find((f) => f.id === id)?.label || id;
+  const smartChips = useMemo(() => {
+    if (!smartHere) return [];
+    const f = smartHere.answer.filters;
+    const out: { id: string; label: string; remove: () => void }[] = [];
+    f.topics.forEach((id) => out.push({ id: `t-${id}`, label: topicLabel(id), remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, topics: a.filters.topics.filter((x) => x !== id) } })) }));
+    f.difficulty.forEach((d) => out.push({ id: `d-${d}`, label: d[0].toUpperCase() + d.slice(1), remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, difficulty: a.filters.difficulty.filter((x) => x !== d) } })) }));
+    f.domains.forEach((id) => out.push({ id: `c-${id}`, label: companyLabel(id), remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, domains: a.filters.domains.filter((x) => x !== id) } })) }));
+    f.tags.forEach((id) => out.push({ id: `g-${id}`, label: id.replace(/-/g, " "), remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, tags: a.filters.tags.filter((x) => x !== id) } })) }));
+    if (f.status) out.push({ id: "s", label: f.status === "solved" ? "Solved" : "Unsolved", remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, status: undefined } })) });
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [smartHere, smartHook.edit]);
 
   const sheetDefs = defs.map((d) => ({ d, primary: PRIMARY.includes(d.id) }));
   const body = (
@@ -462,22 +521,21 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
           <>
             <div ref={barRef} className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
-                <div role="search" className="relative min-w-0 flex-1 basis-full sm:basis-[220px]">
-                  <label htmlFor="pb-search" className="sr-only">
-                    Search problems by title, words in the statement, or a classic like LC 1
-                  </label>
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" aria-hidden />
-                  <input
-                    id="pb-search"
-                    type="search"
-                    value={text}
-                    onChange={(e) => setText(e.target.value)}
-                    placeholder="Search by title, idea or a classic (LC 1)"
-                    autoComplete="off"
-                    enterKeyHint="search"
-                    className="h-11 w-full border border-line-strong bg-surface pl-9 pr-3 text-[15px] text-fg placeholder:text-fg-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
-                  />
-                </div>
+                <SmartSearchBox
+                  value={text}
+                  onChange={setText}
+                  index={index}
+                  onFocusIndex={() => setIndexOn(true)}
+                  progress={searchProgress}
+                  signedIn={smartHook.signedIn}
+                  authLoading={smartHook.authLoading}
+                  busy={smartHook.busy}
+                  message={smartHook.message}
+                  onAsk={askSmart}
+                  onClear={() => smartHook.clear()}
+                  smartOn={!!smartHere}
+                  placeholder="Name, topic, tag or a question"
+                />
                 {/* module, pattern, difficulty, status: inline from a tablet up */}
                 <div className="hidden flex-wrap items-center gap-2 sm:flex">
                   {PRIMARY.map((g) => {
@@ -585,8 +643,35 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
               </ul>
             ) : null}
 
+            {smartHere ? (
+              <section aria-label="What smart search understood" className="flex flex-col gap-2 border border-line bg-surface px-3 py-3 rounded-[14px]">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-label text-signal-text">
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                    Understood as
+                  </span>
+                  <ul className="m-0 flex list-none flex-wrap items-center gap-2 p-0">
+                    {smartChips.map((c) => (
+                      <li key={c.id}>
+                        <Chip label={c.label} remove={c.label} onRemove={c.remove} />
+                      </li>
+                    ))}
+                    {!smartChips.length ? <li className="font-mono text-[12px] text-fg-3">no filters, ranked by words</li> : null}
+                  </ul>
+                </div>
+                {smartHere.answer.note ? <p className="m-0 text-[14px] leading-relaxed text-fg-2">{smartHere.answer.note}</p> : null}
+                {smartRanked?.relaxed.length ? <p className="m-0 font-mono text-[12px] text-fg-3">Nothing fit every filter, so the closest are shown.</p> : null}
+                {smartHere.learn ? (
+                  <Link href={smartHere.learn.href} className="inline-flex min-h-11 w-fit items-center gap-2 text-[14px] font-semibold text-signal-text underline decoration-line-strong underline-offset-4 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text">
+                    Learn {smartHere.learn.title} first →
+                  </Link>
+                ) : null}
+              </section>
+            ) : null}
+
             <p role="status" aria-live="polite" className="m-0 font-mono text-[12px] text-fg-3">
               {filtered ? `${total} of ${inList.length} problems` : `${inList.length} problems`}
+              {instant?.pq.filterWords.length ? ` · from your words: ${[...new Set(instant.pq.filterWords.map((f) => f.value))].join(", ")}` : ""}
             </p>
           </>
         ) : null}

@@ -193,7 +193,7 @@ type ProblemFront = {
   limits?: { timeMs?: number; memoryMb?: number };
   complexity?: { time?: string; space?: string };
   role?: string;
-  tags?: { patterns?: string[]; classic?: string[]; minutes?: number; difficulty?: number; companyTypes?: string[]; structures?: string[]; algorithms?: string[] };
+  tags?: { patterns?: string[]; classic?: string[]; minutes?: number; difficulty?: number; companyTypes?: string[]; structures?: string[]; algorithms?: string[]; domain?: string; signals?: string[] };
 };
 
 const levelOf = (l: unknown): DsaLevel => (l === "easy" || l === "hard" ? l : "medium");
@@ -215,6 +215,8 @@ function summaryOf(id: string, f: ProblemFront, md = ""): ProblemSummary {
     companyTypes: f.tags?.companyTypes || [],
     own: { structures: f.tags?.structures, algorithms: f.tags?.algorithms },
     blurb: blurbOf(md),
+    domain: typeof f.tags?.domain === "string" ? f.tags.domain : undefined,
+    signals: Array.isArray(f.tags?.signals) ? f.tags.signals.filter((x): x is string => typeof x === "string").slice(0, 4) : undefined,
   };
 }
 

@@ -4,12 +4,18 @@
  * from types, so node --test can run it. The route (src/app/api/dsa/search-index/route.ts) feeds it from the content.
  */
 import type { TranscriptIndex } from "@/lib/learn/lecture/transcript";
+import { CLASSIC_NAMES } from "./classics";
+import { facetsOf } from "./taxonomy";
+import { topicLabels } from "./search/items";
+import type { SearchMeta } from "./search/items";
 
-export type DsaSearchDoc = { slug: string; title: string; course: string; week: string; path: string; type: "day-content" | "problem"; order: number; content: string; excerpt: string };
+export type DsaSearchDoc = { slug: string; title: string; course: string; week: string; path: string; type: "day-content" | "problem"; order: number; content: string; excerpt: string;
+  /** problems only: what the instant engine ranks on (src/lib/dsa/search/): level, other names, topics, tags, domains, lesson */
+  meta?: SearchMeta };
 export type DsaSearchIndex = { v: 1; docs: DsaSearchDoc[]; transcripts: TranscriptIndex };
 
 type Concept = { id: string; module: string; order: number; title: string; status: string; summary: string; kind?: "concept" | "structure" | "algorithm" };
-type Problem = { id: string; title: string; module: string; concept: string; level: string; patterns: string[]; classic: string[]; blurb?: string };
+type Problem = { id: string; title: string; module: string; concept: string; level: string; patterns: string[]; classic: string[]; blurb?: string; own?: { structures?: string[]; algorithms?: string[] }; companyTypes?: string[]; domain?: string; signals?: string[] };
 
 const plain = (s: string) => s.replace(/\s+/g, " ").trim();
 const dash = (s: string) => s.replace(/-/g, " ");
@@ -29,8 +35,16 @@ export function buildDsaDocs(concepts: Concept[], problems: Problem[], stepOf: (
     });
   const probs = problems.map((p, i): DsaSearchDoc => {
     const lesson = titles.get(p.concept) || "";
-    const text = plain([p.title, p.blurb || "", p.level, ...p.patterns.map(dash), ...p.classic, lesson].join(" "));
-    return { slug: p.id, title: p.title, course: "dsa", week: "dsa/problems", path: `dsa/problems/${p.id}`, type: "problem", order: 10_000 + i, content: text, excerpt: plain(p.blurb || `${p.level} problem${lesson ? ` · ${lesson}` : ""}`) };
+    const text = plain([p.title, p.blurb || "", p.level, ...p.patterns.map(dash), ...p.classic, lesson, p.domain || "", ...(p.signals || []).slice(0, 3)].join(" "));
+    const f = facetsOf({ patterns: p.patterns, module: p.module, structures: p.own?.structures, algorithms: p.own?.algorithms });
+    const aliases = p.classic.flatMap((c) => {
+      const num = c.match(/^lc-(\d+)$/i);
+      const name = CLASSIC_NAMES[c.toLowerCase()];
+      return [...(name ? [name] : []), num ? `LC ${num[1]}` : c];
+    });
+    const level = p.level === "easy" || p.level === "hard" ? p.level : "medium";
+    const meta: SearchMeta = { lv: level, al: aliases, tp: topicLabels(f), tg: p.patterns, dm: [...(p.companyTypes || []), ...(p.domain ? [p.domain] : [])], ls: lesson };
+    return { meta, slug: p.id, title: p.title, course: "dsa", week: "dsa/problems", path: `dsa/problems/${p.id}`, type: "problem", order: 10_000 + i, content: text, excerpt: plain(p.blurb || `${p.level} problem${lesson ? ` · ${lesson}` : ""}`) };
   });
   return [...lessons, ...probs];
 }

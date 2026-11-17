@@ -1,0 +1,89 @@
+import { NextResponse } from "next/server";
+import { requireLearner } from "@/app/api/learn/_lib/auth";
+import { callClaude, ownKey } from "@/lib/ai/client";
+import { isAdminEmail } from "@/lib/ai/access";
+import { DSA_FULL } from "@/lib/dsa/flags";
+import { getPracticeData } from "@/lib/dsa/practice-load";
+import { buildTaxonomy, parseSmart, smartKey, smartSystem, SMART_SCHEMA, type SmartResponse, type Taxonomy } from "@/lib/dsa/search/smart";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const maxDuration = 30;
+
+const noStore = { "Cache-Control": "private, no-store" };
+/** the model gets this long; after it the page keeps its instant results */
+const TIMEOUT_MS = 9_000;
+/** identical normalised questions reuse the answer for this long: no second call */
+const CACHE_MS = 24 * 3600_000;
+const CACHE_MAX = 500;
+const cache = new Map<string, { at: number; a: SmartResponse }>();
+const inflight = new Map<string, Promise<{ a: SmartResponse; left: number | null } | { error: string; status: number }>>();
+
+/** the taxonomy and the system prompt, rebuilt every few minutes (the page's data is itself ISR) */
+let taxo: { at: number; t: Taxonomy; system: string; lessons: Record<string, string>; titles: Record<string, string> } | null = null;
+async function taxonomy() {
+  if (taxo && Date.now() - taxo.at < 10 * 60_000) return taxo;
+  const { data } = await getPracticeData();
+  const t = buildTaxonomy(data.rows, data.companies, data.concepts, data.lessons);
+  taxo = { at: Date.now(), t, system: smartSystem(t), lessons: data.lessons, titles: data.concepts };
+  return taxo;
+}
+
+/**
+ * POST /api/dsa/smart-search { q } -> { filters, keywords, learnFirst?, note, learn? } for a signed-in learner: the Practice
+ * tab's search box, asked for a sentence ("I want to learn sliding window, give me medium string problems") or when the
+ * learner presses Enter / "Ask smart search". The model (Claude Haiku 4.5, feature "dsa-smart-search": metered, under the
+ * budget governor, 60 a day each) sees only the query and a compact taxonomy, never the problem list, and answers in strict
+ * JSON; only ids that exist are kept. The page ranks the problems itself with the instant engine. Identical normalised
+ * questions are cached here for a day. Any failure is a plain error; the page keeps its instant results.
+ */
+export async function POST(request: Request) {
+  if (!DSA_FULL) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  const me = await requireLearner(request);
+  if (me instanceof NextResponse) return me;
+  const body = (await request.json().catch(() => ({}))) as { q?: unknown };
+  const q = String(body.q ?? "").trim().slice(0, 200);
+  const key = smartKey(q);
+  if (key.length < 3) return NextResponse.json({ error: "Type a little more." }, { status: 400, headers: noStore });
+
+  const tx = await taxonomy().catch(() => null);
+  if (!tx) return NextResponse.json({ error: "Smart search is not ready. The instant results are complete." }, { status: 503, headers: noStore });
+  const ck = `${tx.t.topics.length}.${tx.t.tags.length}.${tx.t.lessons.length}|${key}`;
+  const hit = cache.get(ck);
+  if (hit && Date.now() - hit.at < CACHE_MS) return NextResponse.json({ ...hit.a, cached: true } satisfies SmartResponse, { headers: noStore });
+
+  // one call per learner per question at a time (a double Enter waits for the first)
+  const fk = `${me.id}|${ck}`;
+  let job = inflight.get(fk);
+  if (!job) {
+    job = (async () => {
+      const r = await callClaude({
+        feature: "dsa-smart-search",
+        userId: me.id,
+        adminPreview: await isAdminEmail(me.email),
+        userKey: ownKey(request),
+        system: tx.system,
+        messages: [{ role: "user", content: q }],
+        outputSchema: SMART_SCHEMA as unknown as Record<string, unknown>,
+        timeoutMs: TIMEOUT_MS,
+        meta: { chars: q.length },
+      });
+      if (!r.ok) {
+        const over = r.status === "over_quota" || r.status === "rate_limited";
+        return { error: over ? "You've used today's smart searches. The instant results are all still here." : "Smart search is resting for a moment. The instant results are complete.", status: over ? 429 : 502 };
+      }
+      const a = parseSmart(r.text, tx.t);
+      if (!a) return { error: "Smart search didn't understand that one. The instant results are complete.", status: 502 };
+      const learn = a.learnFirst && tx.lessons[a.learnFirst] ? { id: a.learnFirst, title: tx.titles[a.learnFirst] || a.learnFirst, href: tx.lessons[a.learnFirst] } : undefined;
+      const out: SmartResponse = { ...a, ...(learn ? { learn } : {}) };
+      cache.delete(ck);
+      cache.set(ck, { at: Date.now(), a: out });
+      while (cache.size > CACHE_MAX) cache.delete(cache.keys().next().value as string);
+      return { a: out, left: r.creditsLeft };
+    })().finally(() => inflight.delete(fk));
+    inflight.set(fk, job);
+  }
+  const out = await job;
+  if ("error" in out) return NextResponse.json({ error: out.error }, { status: out.status, headers: noStore });
+  return NextResponse.json({ ...out.a, cached: false, left: out.left } satisfies SmartResponse, { headers: noStore });
+}

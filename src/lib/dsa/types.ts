@@ -38,6 +38,10 @@ export type ProblemSummary = {
   own?: { structures?: string[]; algorithms?: string[] };
   /** the first words of the statement, plain text, for the problems search */
   blurb?: string;
+  /** tags.domain: the story the problem is told in (payments, logistics ...) */
+  domain?: string;
+  /** tags.signals: the phrases that say when to reach for it, for the problems search */
+  signals?: string[];
 };
 
 export type ConceptSummary = {

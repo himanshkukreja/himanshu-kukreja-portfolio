@@ -77,6 +77,8 @@ export function buildProblemData(
       ...label("patterns"),
       ...p.patterns.map((t) => t.replace(/-/g, " ")),
       ...p.classic.map((c) => `${c.toLowerCase()} ${classicLabel(c).split(" · ")[1] || ""}`),
+      p.domain || "",
+      ...(p.signals || []).slice(0, 3),
     ]
       .join(" ")
       .toLowerCase()
@@ -99,6 +101,11 @@ export function buildProblemData(
       video: videos.has(p.id),
       twin: p.classic.length ? classicLabel(p.classic[0]).split(" · ")[0] : "",
       tags: p.patterns,
+      aliases: p.classic.flatMap((c) => {
+        const [num, name] = classicLabel(c).split(" · ");
+        return name ? [name, num] : [num];
+      }),
+      domain: p.domain,
       text,
     };
   });

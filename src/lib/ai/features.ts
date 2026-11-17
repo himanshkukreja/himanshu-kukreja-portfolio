@@ -1,7 +1,7 @@
 /** The AI features, their defaults and their limits. Admin settings (ai_settings.features) override model, enabled and perDay. */
 import { MODELS } from "./prices";
 
-export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading" | "plan-coach" | "concept-recap" | "goal-chat" | "weak-drill" | "weekly-digest";
+export type FeatureId = "lesson-qa" | "lab-hint" | "lab-review" | "explain-back" | "mock-interviewer" | "mock-coach" | "mock-scorecard" | "design-review" | "canvas-review" | "war-room" | "war-room-debrief" | "war-room-ask" | "smart-search" | "dsa-smart-search" | "course-chat" | "chat-memory" | "chat-title" | "notes-convert" | "notes-check" | "notes-cards" | "eval" | "batch" | "snip-explain" | "paper-grade" | "dictation-polish" | "dsa-chat" | "dsa-tutor" | "lld-mock" | "lld-mock-scorecard" | "readiness-reading" | "plan-coach" | "concept-recap" | "goal-chat" | "weak-drill" | "weekly-digest";
 
 /** How hard Haiku 5.5 thinks when a feature thinks (adaptive thinking; output_config.effort). */
 export type Effort = "low" | "medium" | "high";
@@ -95,6 +95,10 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // maxTokens: room for the short cited answer (~150 tokens) on top of the path (~400-500); haikuMaxTokens: + the private
   // "check" field that leads the structured output (~80-150 tokens)
   "smart-search": { label: "Smart search learning path", model: MODELS.haiku55, amberModel: MODELS.haiku55, perDay: 120, maxTokens: 950, haikuMaxTokens: 1300, maxInputChars: 14000, think: false, live: true },
+  // the Practice tab's search box (DSA Mastery): a sentence like "sliding window, medium string problems" to filters, keywords and a
+  // lesson to read first, from a compact taxonomy (src/lib/dsa/search/smart.ts). Claude Haiku 4.5 (the owner's pick, 17 Nov 2026), one
+  // short JSON answer (~1.6k tokens in, ~80 out, about $0.002), no thinking. 60 a day per learner; identical questions are cached.
+  "dsa-smart-search": { label: "DSA Practice smart search", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 60, maxTokens: 500, maxInputChars: 400, think: false, live: true },
   // the course chat (/chat and the Ask panel): a tool-use conversation (lib/ai/chat). Its own quota, outside the
   // shared credits: `perDay` messages a day. Every message on Haiku 5.5 with its tuned prompt since 7 Nov 2026 (owner's
   // decision): the earlier 30 Sonnet messages a day, then "fast mode" up to a 300-message ceiling, are one limit now.
