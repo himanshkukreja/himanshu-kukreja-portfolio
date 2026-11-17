@@ -18,6 +18,7 @@ import { loadRaceChart, loadTracePlayer } from "@/lib/offline/lazy";
 import { CheckpointGate, CodeTabs, Poll, Reorder, ReviewCards } from "./widgets";
 import LessonClip from "../clip/LessonClip";
 import RunnableSnippets from "../playground/RunnableSnippets";
+import Exercise from "../lesson/exercises/Exercise";
 
 const TracePlayer = dynamic(loadTracePlayer, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the player…</p> });
 const RaceChart = dynamic(loadRaceChart, { ssr: false, loading: () => <p className="p-4 text-[14px] text-fg-3">Loading the race…</p> });
@@ -114,6 +115,8 @@ function widgetFor(h: Host, c?: ConceptPage, sdmClips?: ConceptPage["clips"]): R
     }
     case "poll":
       return <Poll fig={h.fig} conceptId={c.id} />;
+    case "exercise":
+      return <Exercise fig={h.fig} lessonId={c.id} lessonTitle={c.title} traceTitles={Object.fromEntries(Object.entries(c.traces).map(([k, t]) => [k, t.title]))} />;
     case "trace":
     case "handsolve": {
       const t = c.traces[id];

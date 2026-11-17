@@ -14,6 +14,7 @@ import { highlightLines, plainLines } from "../highlight";
 import type { LessonKind } from "../types";
 import type { PracticeGame } from "@/lib/learn/arena/games";
 import { quizFigure } from "./quiz";
+import { exerciseFigure } from "./exercise";
 import { parseSteps } from "@/lib/diagrams/steps";
 
 export type CodeKind =
@@ -740,6 +741,15 @@ export async function renderCode(node: Code, ctx: CodeCtx): Promise<HastElement>
     const fig = quizFigure(node.value, { index: meta?.index ?? 0, practice: meta?.practice });
     if (fig) {
       ctx.count("quiz");
+      return fig;
+    }
+    return codeFigure(value, null, ctx, true);
+  }
+  // DSA Mastery's in-lesson exercises (src/lib/dsa/exercises.ts); an invalid block stays a plain code block
+  if (node.lang && /^(bug|predict|order|breakit)$/i.test(node.lang)) {
+    const fig = exerciseFigure(node.lang, node.value);
+    if (fig) {
+      ctx.count("exercise");
       return fig;
     }
     return codeFigure(value, null, ctx, true);

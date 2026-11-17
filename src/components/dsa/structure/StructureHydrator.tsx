@@ -8,6 +8,7 @@
  * empty `[data-dsa-stage]` that gets a portal; a MutationObserver re-targets when the lesson HTML is re-injected.
  * The sandbox and the lab are their own chunks (next/dynamic, ssr:false).
  */
+import Exercise from "../lesson/exercises/Exercise";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
@@ -86,6 +87,7 @@ export default function StructureHydrator({ rootRef, page }: { rootRef: React.Re
         let el: React.ReactNode = null;
         if (h.kind === "tabs") el = <CodeTabs fig={h.fig} />;
         else if (h.kind === "poll") el = <Poll fig={h.fig} conceptId={page.id} />;
+        else if (h.kind === "exercise") el = <Exercise fig={h.fig} lessonId={page.id} lessonTitle={page.title} />;
         else if (h.kind === "clip" && page.clips?.[id]) el = <Hydrated fig={h.fig}><LessonClip clip={page.clips[id]} fig={h.fig} /></Hydrated>;
         else if (h.kind === "viz" && page.demos[id]) el = <Hydrated fig={h.fig}><VizDemo demo={page.demos[id]} structure={page.sandbox?.structure} /></Hydrated>;
         else if (h.kind === "sandbox" && page.sandbox && page.sandbox.id === id) el = <Hydrated fig={h.fig}>{page.sandbox.structure === "stack" ? <StackSandbox spec={page.sandbox} /> : page.sandbox.structure === "queue" ? <QueueSandbox spec={page.sandbox} /> : page.sandbox.structure === "tree" ? <TreeSandbox spec={page.sandbox} /> : page.sandbox.structure === "heap" ? <HeapSandbox spec={page.sandbox} /> : page.sandbox.structure === "graph" ? <GraphSandbox spec={page.sandbox} /> : page.sandbox.structure === "trie" ? <TrieSandbox spec={page.sandbox} /> : <Sandbox spec={page.sandbox} />}</Hydrated>;
