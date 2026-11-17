@@ -24,7 +24,7 @@ import TutorCard from "./TutorCard";
 import Welcome from "./Welcome";
 import MetroHome from "./metro/MetroHome";
 import { HomeBar } from "./metro/Panels";
-import { useHomeView, useMedia } from "./metro/useMetroPrefs";
+import { useGoal, useHomeView, useMedia } from "./metro/useMetroPrefs";
 import type { LectureRef } from "./useLectureSeconds";
 import { FILL, SECTION_H, SEG, TRACK, seg } from "../ui/kit";
 
@@ -62,6 +62,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
   const desktop = useDesktop();
   const [view, setHomeView] = useHomeView();
   const wide = useMedia("(min-width: 768px)");
+  const [, setGoalPref] = useGoal();
   const recommended = useRecommendedStart(academy);
   // "?view=lectures" is read here, on the client, so the page itself stays one static ISR page
   const lecturesView = useSyncExternalStore(
@@ -130,24 +131,23 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             problems={problems}
             next={next}
             kicker={kicker}
-            aside={
-              <div className="flex flex-col gap-4">
+            intro={showWelcome && progress.ready && progress.concepts.size === 0 && progress.solved.size === 0 ? <Welcome onDone={(g) => setGoalPref({ kind: g === "placements" ? "scratch" : g ? "interview" : "scratch" })} /> : null}
+            asideA={
+              <>
                 <TodayCard />
                 {next ? <TutorCard next={next} problems={practice} /> : null}
-              </div>
+              </>
+            }
+            asideB={
+              <>
+                <QuickReview ids={quick} />
+                <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
+              </>
             }
             below={
               <>
-                {welcomeCard ? null : showWelcome ? <Welcome /> : null}
                 <QuietNudge course="dsa" />
-                {wide ? (
-                  <div className="grid items-start gap-4 md:grid-cols-2">
-                    <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
-                    <QuickReview ids={quick} />
-                  </div>
-                ) : (
-                  <TodayTiles />
-                )}
+                {wide ? null : <TodayTiles />}
                 {user ? (
                   <button type="button" onClick={openOnboarding} className="min-h-10 self-start text-[13px] text-fg-3 underline decoration-line-strong underline-offset-4 hover:text-fg">
                     Redo the welcome tour

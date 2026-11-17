@@ -60,7 +60,7 @@ export default function MetroPhone({
   const doneOff = metro.stations.filter((s) => s.state === "done" && !onRoute.has(s.id));
   const rest = metro.stations.filter((s) => s.state !== "done" && !onRoute.has(s.id));
   const sel = open ?? hereId;
-  const main = ready ? primaryOf(next, metro.byId.get(hereId)) : null;
+  const main = ready ? primaryOf(next, metro.byId.get(hereId), isNew) : null;
   const goalName = metro.byId.get(info.goal)?.label || "";
 
   return (
@@ -104,7 +104,7 @@ export default function MetroPhone({
               return (
                 <li key={s.id} className="relative flex items-start gap-3" data-tour={here ? "station" : undefined}>
                   <span className="relative flex w-7 shrink-0 justify-center">
-                    {i < route.length - 1 ? <span aria-hidden className="absolute -bottom-[10px] left-1/2 top-[26px] w-1.5 -translate-x-1/2 rounded-full" style={{ background: tone(s.line) }} /> : null}
+                    {i < route.length - 1 ? <span aria-hidden className="absolute -bottom-[33px] left-1/2 w-1.5 -translate-x-1/2" style={{ background: tone(s.line), top: here ? 26 : 23 }} /> : null}
                     <span className="relative z-10 mt-3">
                       <Dot s={s} here={here} />
                     </span>
@@ -148,21 +148,23 @@ export default function MetroPhone({
             ) : null}
           </ol>
 
+          {/* the one obvious button, kept on screen above the dock */}
+          <div className="sticky bottom-[84px] z-20 -mx-1 bg-gradient-to-t from-bg via-bg to-transparent px-1 pb-2 pt-4" data-tour="route">
+            {main ? (
+              <Link href={main.href} onClick={() => track("dsa_continue", { from: "metro-phone", first: main.first })} className={`${BTN_PRIMARY} ${BIG} w-full !min-h-[52px] justify-center shadow-[0_10px_30px_color-mix(in_srgb,var(--c-fg)_18%,transparent)]`}>
+                <span className="min-w-0 truncate">{main.label}</span>
+                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+              </Link>
+            ) : null}
+          </div>
+
           <Legend metro={metro} />
+
         </>
       ) : (
         <div aria-hidden aria-busy="true" className="min-h-[360px]" />
       )}
 
-      {/* the one obvious button, kept on screen above the dock */}
-      <div className="sticky bottom-[84px] z-20 -mx-1 bg-gradient-to-t from-bg via-bg to-transparent px-1 pb-2 pt-4" data-tour="route">
-        {main ? (
-          <Link href={main.href} onClick={() => track("dsa_continue", { from: "metro-phone", first: main.first })} className={`${BTN_PRIMARY} ${BIG} w-full !min-h-[52px] justify-center shadow-[0_10px_30px_color-mix(in_srgb,var(--c-fg)_18%,transparent)]`}>
-            <span className="min-w-0 truncate">{main.label}</span>
-            <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
-          </Link>
-        ) : null}
-      </div>
     </div>
   );
 }

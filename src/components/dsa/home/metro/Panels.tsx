@@ -44,13 +44,17 @@ export function HomeBar({ kicker, view, onView, onHow }: { kicker: string; view:
 }
 
 /** Where the primary button goes and says. One button, always: Start here / Next stop, or a caught-up fallback. */
-export function primaryOf(next: NextStep | null, station: Station | undefined): { href: string; label: string; first: boolean } | null {
+export function primaryOf(next: NextStep | null, station: Station | undefined, isNew = false): { href: string; label: string; first: boolean } | null {
   if (!next) return null;
   if (next.state === "empty") return { href: "/dsa/practice", label: "Open Practice", first: false };
+  if (next.state === "caught-up" && !station?.href) return { href: "/dsa/practice?list=core-150", label: "Practise more", first: false };
+  if (station?.href) {
+    // the station's first unfinished lesson; when Continue points at that very lesson its button also knows the step
+    const same = next.state !== "caught-up" && next.regionCode === station.regionCode && next.n === station.nextLesson;
+    return { href: same ? next.href : station.href, label: `${isNew ? "Start here" : "Next stop"}: ${station.label}, lesson ${station.nextLesson}`, first: isNew };
+  }
   if (next.state === "caught-up") return { href: "/dsa/practice?list=core-150", label: "Practise more", first: false };
-  const name = station?.label || next.moduleTitle;
-  const start = next.state === "start";
-  return { href: next.href, label: `${start ? "Start here" : "Next stop"}: ${name}, lesson ${next.n}`, first: start };
+  return { href: next.href, label: `${next.state === "start" ? "Start here" : "Next stop"}: ${next.moduleTitle}, lesson ${next.n}`, first: next.state === "start" };
 }
 
 const GOALS: { kind: GoalKind; title: string; hint: string }[] = [
@@ -150,7 +154,7 @@ export function RouteCard({
   onGoal: (g: GoalPref) => void;
 }) {
   const [picking, setPicking] = useState(false);
-  const main = ready ? primaryOf(next, hereStation) : null;
+  const main = ready ? primaryOf(next, hereStation, isNew) : null;
   const goalName = metro.byId.get(info.goal)?.label || "";
   return (
     <section aria-label="Your route" className={`${PANEL} flex flex-col gap-3.5 p-6`}>
@@ -204,11 +208,11 @@ export function RouteCard({
 }
 
 /** Always visible: what the colours and the dots mean, in plain words. */
-export function Legend({ metro, className = "" }: { metro: Metro; className?: string }) {
+export function Legend({ metro, className = "", wide = false }: { metro: Metro; className?: string; wide?: boolean }) {
   return (
-    <section aria-label="Map legend" data-tour="lines" className={`${PANEL} flex flex-col gap-3 px-5 py-4 text-[12.5px] text-fg ${className}`}>
-      <p className="m-0 text-[12px] text-fg-3">Each coloured line is one part of the course.</p>
-      <ul className="m-0 grid list-none grid-cols-2 gap-x-3.5 gap-y-2.5 p-0">
+    <section aria-label="Map legend" data-tour="lines" className={`${PANEL} flex flex-col gap-3 px-5 py-4 text-[12.5px] text-fg ${wide ? "lg:flex-row lg:items-center lg:gap-6" : ""} ${className}`}>
+      <p className={`m-0 text-[12px] text-fg-3 ${wide ? "lg:max-w-[150px]" : ""}`}>Each coloured line is one part of the course.</p>
+      <ul className={`m-0 grid list-none gap-x-3.5 gap-y-2.5 p-0 ${wide ? "grid-cols-2 lg:grid-cols-4" : "grid-cols-2"}`}>
         {metro.lines.map((l) => (
           <li key={l.id} className="flex items-center gap-2">
             <span aria-hidden className="h-1.5 w-[22px] shrink-0 rounded-full" style={{ background: tone(l.id) }} />
@@ -216,7 +220,7 @@ export function Legend({ metro, className = "" }: { metro: Metro; className?: st
           </li>
         ))}
       </ul>
-      <ul className="m-0 flex list-none flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-line p-0 pt-3 text-fg-2">
+      <ul className={`m-0 flex list-none flex-wrap items-center gap-x-3.5 gap-y-2 border-t border-line p-0 pt-3 text-fg-2 ${wide ? "lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0" : ""}`}>
         <li className="flex items-center gap-1.5">
           <span aria-hidden className="h-3 w-3 rounded-full bg-signal" />
           Done

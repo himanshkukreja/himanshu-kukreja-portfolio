@@ -45,7 +45,7 @@ function Choice({ label, line, on, onPick }: { label: string; line?: string; on:
   );
 }
 
-export default function Welcome() {
+export default function Welcome({ onDone }: { onDone?: (goal: Goal | null) => void } = {}) {
   const [, setLang] = useLang();
   // the welcome has the floor: other first-visit tips (the Notebook coach) wait until it's answered or skipped
   useEffect(() => holdAttention(), []);
@@ -58,6 +58,7 @@ export default function Welcome() {
     if (lang) setLang(lang);
     saveWelcome({ exp, goal: g, skipped });
     track("dsa_welcome", { exp: exp ?? "", lang: lang ?? "", goal: g ?? "", skipped });
+    onDone?.(skipped ? null : g);
   };
 
   const steps = [

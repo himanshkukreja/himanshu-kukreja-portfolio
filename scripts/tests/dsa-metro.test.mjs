@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { EDGES, LINE_OF_PART, LINKS, STATIONS, TAGS, VIEW } from "../../src/lib/dsa/metro/layout.ts";
-import { buildMetro, computeRoute, goalStation, interchangeText, routeInfo, stepToward } from "../../src/lib/dsa/metro/model.ts";
+import { buildMetro, computeRoute, currentStation, goalStation, interchangeText, routeInfo, stepToward } from "../../src/lib/dsa/metro/model.ts";
 
 const ACADEMY = join(process.env.DSA_LOCAL_DIR || join(homedir(), ".cache/hk-render/dsa-content"), "resources/worlds/academy.yml");
 const real = existsSync(ACADEMY)
@@ -136,4 +136,27 @@ test("keyboard: arrow keys move along the lines and never dead-end", () => {
   assert.equal(stepToward(m, "s2-stacks", "right"), "s4-trees-and-bst");
   assert.equal(stepToward(m, "s5-heaps", "down"), "s6-graphs");
   assert.ok(stepToward(m, "m0-toolkit", "down"), "falls back to the nearest station that way");
+});
+
+test("current station: first topic not done, or the last one worked on; never a finished one", () => {
+  const all = (ids) => new Set(ids.flatMap((id) => [`${id}-1`, `${id}-2`]));
+  const upToArrays = ["m0-toolkit", "m1-complexity", "m2-arrays-strings"];
+  const prog = { concepts: new Set([...all(upToArrays), "m3-hashing-1"]), solved: new Set() };
+  const m = buildMetro(outline, prog);
+  assert.equal(m.byId.get("m3-hashing").state, "prog");
+  assert.equal(currentStation(outline, m, prog), "m3-hashing");
+  // the route and its stop count start there: Hashing, Linked lists, Stacks, Trees
+  const r = routeInfo(m, "m3-hashing", null, prog, outline);
+  assert.deepEqual(r.ids, ["m3-hashing", "s1-linked-lists", "s2-stacks", "s4-trees-and-bst"]);
+  assert.equal(r.stops, 4);
+  // nothing done: the first topic; the next lesson is its first
+  const none0 = buildMetro(outline, none);
+  assert.equal(currentStation(outline, none0, none), "m0-toolkit");
+  assert.equal(none0.byId.get("m0-toolkit").nextLesson, 1);
+  // a topic finished out of order does not make it current; the next open topic after the last one worked on does
+  const skip = { concepts: all(["m0-toolkit", "m1-complexity"]), solved: new Set() };
+  assert.equal(currentStation(outline, buildMetro(outline, skip), skip), "m2-arrays-strings");
+  // the same state rule everywhere: a station is done only when every written lesson is
+  assert.equal(m.byId.get("m2-arrays-strings").state, "done");
+  assert.equal(m.byId.get("m3-hashing").nextLesson, 2);
 });

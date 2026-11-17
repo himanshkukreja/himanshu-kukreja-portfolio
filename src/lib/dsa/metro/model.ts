@@ -215,3 +215,20 @@ export function stepToward(metro: Pick<Metro, "adj" | "byId">, from: string, dir
   }
   return best;
 }
+
+/**
+ * Where the learner is: the station of the last lesson they finished, if that topic is not done yet; otherwise the first
+ * topic in course order that has written lessons and is not done (nothing done yet: the first). One rule for the map,
+ * the route card, the station card and the phone strip, all of which read the same station states.
+ */
+export function currentStation(outline: Outline, metro: Pick<Metro, "byId">, progress: Progress): string {
+  const order = outline.parts.flatMap((p) => p.modules.map((m) => ({ id: m.regionId, lessons: m.lessons }))).filter((m) => metro.byId.has(m.id));
+  const open = (id: string) => {
+    const s = metro.byId.get(id)!;
+    return !s.planned && s.state !== "done";
+  };
+  let last = "";
+  for (const m of order) if (m.lessons.some((l) => l.built && progress.concepts.has(l.conceptId))) last = m.id;
+  if (last && open(last)) return last;
+  return order.find((m) => open(m.id))?.id ?? (last || order[0]?.id) ?? "";
+}
