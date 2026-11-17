@@ -1,3 +1,4 @@
+import { isQaUser } from "@/lib/analytics/exclude";
 import "server-only";
 import { isAdminEmail, normEmail } from "@/lib/admin/admins";
 import { DSA_MODE } from "./flags";
@@ -11,6 +12,7 @@ export async function dsaBetaAllowed(email: string | null | undefined): Promise<
   if (!email) return false;
   if ((process.env.NEXT_PUBLIC_DSA_MODE || "").trim().toLowerCase() === "on") return true;
   if (DSA_MODE !== "full") return false;
+  if (isQaUser({ email })) return true; // the QA account tests the whole product before launch
   if (await isAdminEmail(email)) return true;
   const list = (process.env.DSA_BETA_EMAILS || "").split(",").map(normEmail).filter(Boolean);
   return list.includes(normEmail(email));
