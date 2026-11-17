@@ -22,7 +22,7 @@ const CodeEditor = dynamic(loadCodeEditor, { ssr: false, loading: () => <div cla
 const TOOL = "inline-flex min-h-[30px] shrink-0 items-center justify-center gap-1.5 rounded-[7px] border border-line px-2 text-[12px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 [@media(pointer:coarse)]:min-h-11";
 
 export default function EditorPane({ room }: { room: Room }) {
-  const { p, lang, gate, busy, go, editor, editorBox, runRow, fontSize, setFontSize, suggestions, setSuggestions, drawer, setDrawer, initialFor, resetCode } = room;
+  const { p, lang, gate, busy, go, editor, editorBox, runRow, fontSize, setFontSize, suggestions, setSuggestions, drawer, setDrawer, setPane, initialFor, resetCode } = room;
   const [saved, setSaved] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => void (timer.current && clearTimeout(timer.current)), []);
@@ -129,7 +129,11 @@ export default function EditorPane({ room }: { room: Room }) {
         </button>
         <button
           type="button"
-          onClick={() => setDrawer(drawer === "tutor" ? null : "tutor")}
+          onClick={() => {
+            // the tutor drawer lives over the Problem pane: on a phone the Code pane is showing, so bring the Problem pane forward with it
+            if (drawer !== "tutor") setPane("problem");
+            setDrawer(drawer === "tutor" ? null : "tutor");
+          }}
           aria-pressed={drawer === "tutor"}
           className="inline-flex min-h-[42px] items-center gap-2 rounded-[10px] border border-line-strong bg-surface px-3.5 text-[14px] font-medium text-fg hover:bg-surface-2 [@media(pointer:coarse)]:min-h-11"
         >

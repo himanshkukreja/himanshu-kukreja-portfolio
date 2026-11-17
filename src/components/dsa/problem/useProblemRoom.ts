@@ -296,6 +296,7 @@ export function useProblemRoom(p: ProblemPage, videoTeaser: VideoTeaser | null) 
   // "Ask the tutor why" / "Get a review" under a verdict: the tutor drawer, asked at once
   const askTutor = (mode: "debug" | "review") => {
     setDrawer("tutor");
+    setPane("problem"); // the drawer sits over the Problem pane; on a phone the Code pane is the one showing
     setTutorReq({ mode, key: Date.now() });
   };
   // "Explain this problem simply": the tutor in its plain-language mode (what goes in, what comes out, the first example; no approach)
