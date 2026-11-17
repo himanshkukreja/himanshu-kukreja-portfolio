@@ -7,6 +7,7 @@ import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConceptIndex, getConceptLecture, getConceptShortIds, getLessonMinutes, getProblemIndex, getStepLabels, getWorld } from "@/lib/dsa/load";
 import { liveDsaShortIds } from "@/lib/dsa/media";
 import { buildOutline } from "@/lib/dsa/outline";
+import { getLeanBranches, getLeanIndex } from "@/lib/dsa/kinds-load";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 
 // DSA Mastery (systemdesignmastery.dev/dsa). Two builds of one route (src/lib/dsa/flags.ts):
@@ -40,12 +41,14 @@ export const metadata: Metadata = DSA_FULL
     };
 
 async function Home() {
-  const [academy, concepts, problems, steps, minutes] = await Promise.all([
+  const [academy, concepts, problems, steps, minutes, branches, leanAll] = await Promise.all([
     getWorld("academy").catch(() => null),
     getConceptIndex().catch(() => []),
     getProblemIndex().catch(() => []),
     getStepLabels().catch(() => ({})),
     getLessonMinutes().catch(() => ({}) as Record<string, number>),
+    getLeanBranches().catch(() => []),
+    getLeanIndex().catch(() => []),
   ]);
   if (!academy) return <p className="m-0 mx-auto max-w-[720px] border border-line bg-surface p-5 text-fg-2">The course couldn&apos;t load just now. Please refresh in a minute.</p>;
   const built = concepts.filter((c) => c.status === "built");
@@ -60,7 +63,8 @@ async function Home() {
       if (ids.length) shorts[c.id] = ids;
     }),
   );
-  const outline = buildOutline(academy, concepts, problems, steps, minutes);
+  // side branches (streets, camp tents, Core 150 gap sets) hang off their station on the map; company sets are not on it
+  const outline = buildOutline(academy, concepts, problems, steps, minutes, branches.map((b) => ({ station: b.station!, key: b.key, kind: b.kind, module: b.module, lesson: b.id, title: b.title, href: b.href, minutes: b.minutes, problemCount: b.ladder.length })));
   return (
     <CourseHome
       outline={outline}
@@ -70,6 +74,7 @@ async function Home() {
       lectures={lectures}
       mediaBase={lectureMediaBase()}
       shorts={shorts}
+      sets={leanAll.filter((l) => l.company).map((l) => ({ key: l.key, title: l.title, group: l.moduleTitle.replace(/ interview set$/i, ""), href: l.href, problems: l.ladder.length }))}
     />
   );
 }

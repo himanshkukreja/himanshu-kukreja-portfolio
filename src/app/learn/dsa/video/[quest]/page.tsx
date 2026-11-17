@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { clipQuestParts, solutionQuestParts } from "@/lib/dsa/lecture";
+import { getLeanClip } from "@/lib/dsa/kinds-load";
 import { getConceptIndex, getDsaClip, getProblem, getSolutionVideo, getStepLabels, lessonHref, problemHref } from "@/lib/dsa/load";
 import { stepOf } from "@/lib/dsa/steps";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
@@ -28,7 +29,12 @@ async function load(quest: string) {
   if (sdm?.lecture) return { l: sdm.lecture, quest: { title: sdm.slug, href: lessonPath(sdm.week, sdm.slug), code: "Clip" } };
   if (clipQuestParts(quest)) {
     const l = await getDsaClip(quest);
-    if (!l) return null;
+    if (!l) {
+      // a lean lesson's clip (street, camp tent, set; src/lib/dsa/kinds.ts)
+      const parts = clipQuestParts(quest)!;
+      const lean = await getLeanClip(parts.lesson, parts.id);
+      return lean ? { l: lean.lecture, quest: { title: lean.lean.title, href: lean.lean.href, code: lean.lean.station ? stepOf(await getStepLabels(), lean.lean.station).step : "Clip" } } : null;
+    }
     const c = (await getConceptIndex()).find((x) => x.id === l.clip?.lesson);
     return c ? { l, quest: { title: c.title, href: lessonHref(c), code: stepOf(await getStepLabels(), c.module).step } } : null;
   }

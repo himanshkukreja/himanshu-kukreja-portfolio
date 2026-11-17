@@ -11,10 +11,10 @@ import { track } from "@/lib/track";
 import { LINE_TOKEN, type LineId } from "@/lib/dsa/metro/layout";
 import { interchangeText, type StationLesson, type GoalKind, type GoalPref, type Metro, type RouteInfo, type Station } from "@/lib/dsa/metro/model";
 import type { NextStep } from "@/lib/dsa/continue";
-import { fmtDuration } from "@/lib/dsa/outline";
+import { fmtDuration, type OutlineBranch } from "@/lib/dsa/outline";
 import { BIG, BTN_PRIMARY, FILL, KICKER, SEG, TRACK, seg } from "../../ui/kit";
 import type { HomeView } from "./useMetroPrefs";
-import { LessonList, ProblemsLink } from "./StationLessons";
+import { BranchList, LessonList, ProblemsLink } from "./StationLessons";
 
 const tone = (l: LineId) => `var(${LINE_TOKEN[l]})`;
 const PANEL = "rounded-[18px] border border-line bg-surface shadow-[0_10px_30px_color-mix(in_srgb,var(--c-fg)_8%,transparent)]";
@@ -251,6 +251,13 @@ export function Legend({ metro, className = "", wide = false }: { metro: Metro; 
           </span>
           You are here
         </li>
+        <li className="flex items-center gap-1.5">
+          <span aria-hidden className="inline-flex items-center">
+            <span className="h-px w-2 bg-fg-3" />
+            <span className="h-2 w-2 rounded-full border-[1.5px] border-fg-3 bg-surface" />
+          </span>
+          Side branch (optional)
+        </li>
       </ul>
     </section>
   );
@@ -269,7 +276,7 @@ export function StationCard({
   isHere: boolean;
   inRoute: boolean;
   /** the station's lessons (the same outline the List view reads) and its module id for the Practice filter */
-  content?: { lessons: StationLesson[]; moduleId: string } | null;
+  content?: { lessons: StationLesson[]; moduleId: string; branches?: (OutlineBranch & { done: boolean })[] } | null;
   /** grow to the height the row gives it (the lesson list takes the room) */
   fill?: boolean;
 }) {
@@ -313,6 +320,11 @@ export function StationCard({
             </div>
             {lessons.length > 4 ? <span aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-6 bg-gradient-to-t from-surface to-transparent" /> : null}
           </div>
+        </div>
+      ) : null}
+      {content?.branches?.length ? (
+        <div className="border-t border-line pt-2">
+          <BranchList station={station} branches={content.branches} from="card" />
         </div>
       ) : null}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

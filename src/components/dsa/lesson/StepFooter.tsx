@@ -8,13 +8,14 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { useLessonProgress } from "@/components/LessonProgressTracker";
-import { STEP_ORDER, STEP_TITLE, nextStep, type StepId } from "@/lib/dsa/lesson-steps";
+import { STEP_TITLE, nextStep, stepOrderOf, type LessonKind, type StepId } from "@/lib/dsa/lesson-steps";
 import { exercisesLeftText } from "@/lib/dsa/exercise-gate";
 
-export default function StepFooter({ step, onNext, nextPart, nextLesson, backHref }: { step: StepId; onNext: (s: StepId) => void; nextPart: (() => void) | null; nextLesson: { href: string; title: string } | null; backHref: string }) {
+export default function StepFooter({ step, onNext, nextPart, nextLesson, backHref, kind }: { kind?: LessonKind; step: StepId; onNext: (s: StepId) => void; nextPart: (() => void) | null; nextLesson: { href: string; title: string } | null; backHref: string }) {
   const p = useLessonProgress();
-  const n = STEP_ORDER.indexOf(step) + 1;
-  const next = nextStep(step);
+  const order = stepOrderOf(kind);
+  const n = order.indexOf(step) + 1;
+  const next = nextStep(step, kind);
   const left = !p.completed && p.canComplete ? p.exercisesLeft : 0;
   const leftText = exercisesLeftText(p.exercisesLeft);
   const reason = p.completed
@@ -30,7 +31,7 @@ export default function StepFooter({ step, onNext, nextPart, nextLesson, backHre
     <div data-focus-hide data-reader-ui data-ask-shift className="hk-safe-x fixed inset-x-0 z-40 border-t border-line bg-surface" style={{ bottom: "var(--site-dock, 0px)" }}>
       <div className="mx-auto flex min-h-[72px] max-w-[1248px] items-center gap-2.5 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+12px)] pt-3 sm:gap-4 sm:px-6 sm:py-3.5">
         <span className="min-w-0 flex-1 truncate font-mono text-[11px] uppercase tracking-[0.06em] text-fg-3 sm:text-[12px]" aria-live="polite">
-          Step {n} of {STEP_ORDER.length}
+          Step {n} of {order.length}
           <span className="hidden sm:inline"> · {STEP_TITLE[step]}</span>
         </span>
         {left > 0 && p.firstExercise ? (

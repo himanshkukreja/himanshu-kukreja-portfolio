@@ -39,7 +39,7 @@ export default function CheckStep({ checkpoint, labId, hasQuiz }: { checkpoint: 
 }
 
 /** The way on, below the lesson's closing beat. */
-export function CheckEnd({ checkpoint, next, cheatsheet }: { checkpoint: ConceptCheckpoint | null; next: { href: string; title: string } | null; cheatsheet: string | null }) {
+export function CheckEnd({ checkpoint, next, cheatsheet, backHref }: { checkpoint: ConceptCheckpoint | null; next: { href: string; title: string } | null; cheatsheet: string | null; backHref?: string }) {
   return (
       <div id="check-end" className="flex flex-col gap-3 border-t border-line pt-6" data-check-end>
         <div className="flex flex-wrap gap-3">
@@ -48,7 +48,7 @@ export function CheckEnd({ checkpoint, next, cheatsheet }: { checkpoint: Concept
               Next lesson: {next.title} →
             </Link>
           ) : null}
-          <Link href={mapHref(checkpoint)} className={`${BTN_SECONDARY} ${MID}`}>
+          <Link href={backHref ?? mapHref(checkpoint)} className={`${BTN_SECONDARY} ${MID}`}>
             Back to the course
           </Link>
           {cheatsheet ? (

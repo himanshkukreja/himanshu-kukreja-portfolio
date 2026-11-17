@@ -16,6 +16,7 @@
  * window.__LECTURE_SET(i, t, dur, token) for every frame and screenshots once
  * window.__LECTURE_FRAME === token; window.__LECTURE_PLAN lists each step's motion length.
  */
+import { leanLectureHref } from "@/lib/dsa/kinds";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
@@ -215,7 +216,8 @@ function Root({ embedded, className, children }: { embedded: boolean; className:
 function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded = false, audioFromVideo = false }: Props & { flat: Flat }) {
   const slug = lecture.quest;
   // the lecture's own page: DSA concept lectures live under their concept
-  const pagePath = lecture.dsa ? `/dsa/concepts/${lecture.dsa.concept}/lecture` : `/lectures/${slug}`;
+  const leanKind = lecture.dsa?.kind === "street" || lecture.dsa?.kind === "camp-tent" || lecture.dsa?.kind === "set" ? lecture.dsa.kind : null;
+  const pagePath = lecture.dsa ? (leanKind ? `${leanLectureHref(leanKind, lecture.dsa.module, lecture.dsa.concept)}` : `/dsa/concepts/${lecture.dsa.concept}/lecture`) : `/lectures/${slug}`;
   const { awardOnce, flags, setFlag, hydrated, markDone, peekDone } = useGame();
   // DSA Mastery videos (concept lectures, lesson clips, solution videos) earn DSA Bits, never SD Mastery XP
   const dsaVideo = !!(lecture.dsa || lecture.clip || lecture.solution);

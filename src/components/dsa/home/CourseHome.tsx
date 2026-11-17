@@ -22,6 +22,7 @@ import { useWelcome } from "../simple/view";
 import ContinueCard from "./ContinueCard";
 import CourseOutline from "./CourseOutline";
 import QuickReview from "./QuickReview";
+import SetsCard, { type CompanySetLink } from "./SetsCard";
 import TodayCard, { TodayTiles } from "./TodayCard";
 import TutorCard from "./TutorCard";
 import WarmupCard from "./WarmupCard";
@@ -55,11 +56,13 @@ export type HomeProps = {
   mediaBase: string | null;
   /** short ids by lesson id, for Quick review */
   shorts: Record<string, string[]>;
+  /** the written company sets (not on the map): the home's link card into Practice > By company type */
+  sets?: CompanySetLink[];
   /** phase-2 widgets (course path, warm-up, heatmap) slot in here without a restyle: above Continue, and atop the side column */
   slots?: { top?: React.ReactNode; side?: React.ReactNode };
 };
 
-export default function CourseHome({ outline, academy, concepts, problems, lectures, mediaBase, shorts, slots }: HomeProps) {
+export default function CourseHome({ outline, academy, concepts, problems, lectures, mediaBase, shorts, sets = [], slots }: HomeProps) {
   const progress = useDsaProgress();
   const welcome = useWelcome();
   const { user, profile, loading } = useAuth();
@@ -148,7 +151,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             kicker={kicker}
             intro={showWelcome && progress.ready && progress.concepts.size === 0 && progress.solved.size === 0 ? <Welcome onDone={(g) => setGoalPref({ kind: g === "placements" ? "scratch" : g ? "interview" : "scratch" })} /> : null}
             onRedo={user ? openOnboarding : undefined}
-            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact={!roomy} rounded />]}
+            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <SetsCard key="sets" sets={sets} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact={!roomy} rounded />]}
             below={
               <>
                 {/* guests: the AI tutor ad (CSS shows it to guests only) */}
@@ -156,6 +159,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
                 <QuietNudge course="dsa" />
                 {wide ? null : <TodayTiles />}
                 {wide ? null : warmup}
+                {wide ? null : <SetsCard sets={sets} />}
               </>
             }
           />
@@ -183,6 +187,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
 
           {/* phones and tablets (the side column is computers only): the warm-up sits right after Continue */}
           {desktop ? null : warmup}
+          {desktop ? null : <SetsCard sets={sets} />}
 
           <section aria-labelledby="dsa-course-h" className="mt-1.5 flex flex-col gap-3 sm:mt-0 sm:gap-[18px]">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-5">
@@ -246,6 +251,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
               {warmup}
               <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
               <QuickReview ids={quick} />
+              <SetsCard sets={sets} />
             </>
           ) : null}
         </aside>

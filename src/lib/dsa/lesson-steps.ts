@@ -10,9 +10,13 @@
  */
 
 export type StepId = "learn" | "try" | "practice" | "check";
-export type LessonKind = "concept" | "structure" | "algorithm";
+/** "lean": a street, camp tent or set (src/lib/dsa/kinds.ts): Learn, Practice (the ladder) and Check; no Try it. */
+export type LessonKind = "concept" | "structure" | "algorithm" | "lean";
 
 export const STEP_ORDER: readonly StepId[] = ["learn", "try", "practice", "check"];
+/** A lean lesson has no sandbox, visualiser or lab, so no Try it step. */
+export const LEAN_STEP_ORDER: readonly StepId[] = ["learn", "practice", "check"];
+export const stepOrderOf = (kind: LessonKind | undefined): readonly StepId[] => (kind === "lean" ? LEAN_STEP_ORDER : STEP_ORDER);
 
 export const STEP_TITLE: Record<StepId, string> = { learn: "Learn", try: "Try it", practice: "Practice", check: "Check" };
 export const STEP_SUB: Record<StepId, string> = {
@@ -67,6 +71,20 @@ const MAP: Record<LessonKind, Record<Key, StepId>> = {
     "use-it-well": "learn",
     recap: "check",
   },
+  // streets and camp tents: family, move, beyond (and contest craft) are Learn; the ladder is Practice; recap is Check.
+  // sets: brief, moves are Learn; the ladder and "Practise it" are Practice
+  lean: {
+    intro: "learn",
+    family: "learn",
+    move: "learn",
+    beyond: "learn",
+    contest: "learn",
+    brief: "learn",
+    moves: "learn",
+    ladder: "practice",
+    practice: "practice",
+    recap: "check",
+  },
 };
 
 /** "Use it well" -> "use-it-well" */
@@ -117,8 +135,14 @@ export function stepOfHash(hash: string): StepId | null {
   return isStepId(h) ? h : null;
 }
 
-export const nextStep = (s: StepId): StepId | null => STEP_ORDER[STEP_ORDER.indexOf(s) + 1] ?? null;
-export const prevStep = (s: StepId): StepId | null => STEP_ORDER[STEP_ORDER.indexOf(s) - 1] ?? null;
+export const nextStep = (s: StepId, kind?: LessonKind): StepId | null => {
+  const o = stepOrderOf(kind);
+  return o[o.indexOf(s) + 1] ?? null;
+};
+export const prevStep = (s: StepId, kind?: LessonKind): StepId | null => {
+  const o = stepOrderOf(kind);
+  return o[o.indexOf(s) - 1] ?? null;
+};
 
 /** The CSS (without a selector for `[data-dsa-one]`) the shell generates: hide every beat outside the shown set. */
 export function hideStagesCss(visible: string[], scope = "[data-dsa-one]"): string {
@@ -138,6 +162,6 @@ export function stepSub(step: StepId, kind: LessonKind, f: StepFacts): string {
     if (kind === "algorithm") return "Visualiser and lab";
     return "Sandbox and lab";
   }
-  if (step === "practice") return f.practice ? `${f.practice} problem${f.practice === 1 ? "" : "s"}` : "Problems";
+  if (step === "practice") return f.practice ? `${f.practice} problem${f.practice === 1 ? "" : "s"}` : kind === "lean" ? "The ladder" : "Problems";
   return STEP_SUB.check;
 }

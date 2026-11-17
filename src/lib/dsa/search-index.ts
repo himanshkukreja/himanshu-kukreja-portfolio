@@ -5,6 +5,7 @@
  */
 import type { TranscriptIndex } from "@/lib/learn/lecture/transcript";
 import { CLASSIC_NAMES } from "./classics";
+import { LEAN_BRANCH_WORD, LEAN_ROOT, type LeanKind } from "./kinds";
 import { facetsOf } from "./taxonomy";
 import { topicLabels } from "./search/items";
 import type { SearchMeta } from "./search/items";
@@ -23,8 +24,11 @@ const dash = (s: string) => s.replace(/-/g, " ");
 /** The lesson's folder in the URL: /dsa/structures/<id>, /dsa/algorithms/<id>, else /dsa/concepts/<id>. */
 export const lessonWeek = (c: Pick<Concept, "kind">) => (c.kind === "structure" ? "dsa/structures" : c.kind === "algorithm" ? "dsa/algorithms" : "dsa/concepts");
 
-/** One doc per ready lesson and per problem. Planned lessons are left out (there is no page to open). */
-export function buildDsaDocs(concepts: Concept[], problems: Problem[], stepOf: (module: string) => string = () => ""): DsaSearchDoc[] {
+/** A written lean lesson (street, camp tent, set; kinds.ts) as the palette lists it. */
+export type LeanDocInput = { id: string; module: string; kind: LeanKind; title: string; summary: string; /** the station's label ("2.3 Hashing"), a company set's group ("Fintech") */ where: string };
+
+/** One doc per ready lesson (Academy and lean) and per problem. Planned lessons are left out (there is no page to open). */
+export function buildDsaDocs(concepts: Concept[], problems: Problem[], stepOf: (module: string) => string = () => "", lean: LeanDocInput[] = []): DsaSearchDoc[] {
   const titles = new Map(concepts.map((c) => [c.id, c.title]));
   const lessons = concepts
     .filter((c) => c.status === "built")
@@ -33,6 +37,11 @@ export function buildDsaDocs(concepts: Concept[], problems: Problem[], stepOf: (
       const step = stepOf(c.module);
       return { slug: c.id, title: c.title, course: "dsa", week, path: `${week}/${c.id}`, type: "day-content", order: i, content: plain(`${c.title} ${step} ${c.summary}`), excerpt: plain(c.summary) };
     });
+  // streets, camp tents and sets: /dsa/<districts|camps|sets>/<module>/<lesson> (the palette links /<week>/<slug>)
+  const leanDocs = lean.map((l, i): DsaSearchDoc => {
+    const week = `dsa/${LEAN_ROOT[l.kind]}/${l.module}`;
+    return { slug: l.id, title: l.title, course: "dsa", week, path: `${week}/${l.id}`, type: "day-content", order: lessons.length + i, content: plain(`${l.title} ${LEAN_BRANCH_WORD[l.kind]} ${l.where} ${l.summary}`), excerpt: plain(l.summary) };
+  });
   const probs = problems.map((p, i): DsaSearchDoc => {
     const lesson = titles.get(p.concept) || "";
     const text = plain([p.title, p.blurb || "", p.level, ...p.patterns.map(dash), ...p.classic, lesson, p.domain || "", ...(p.signals || []).slice(0, 3)].join(" "));
@@ -46,7 +55,7 @@ export function buildDsaDocs(concepts: Concept[], problems: Problem[], stepOf: (
     const meta: SearchMeta = { lv: level, al: aliases, tp: topicLabels(f), tg: p.patterns, dm: [...(p.companyTypes || []), ...(p.domain ? [p.domain] : [])], ls: lesson };
     return { meta, slug: p.id, title: p.title, course: "dsa", week: "dsa/problems", path: `dsa/problems/${p.id}`, type: "problem", order: 10_000 + i, content: text, excerpt: plain(p.blurb || `${p.level} problem${lesson ? ` · ${lesson}` : ""}`) };
   });
-  return [...lessons, ...probs];
+  return [...lessons, ...leanDocs, ...probs];
 }
 
 /** The shared transcript index with the DSA one appended: the DSA moments' lecture numbers move past the shared lectures. */

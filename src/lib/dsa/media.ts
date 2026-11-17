@@ -4,9 +4,11 @@ import { unstable_cache } from "next/cache";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import type { LectureSummary } from "@/lib/learn/lecture/load";
 import type { PlayableShort } from "@/lib/learn/shorts/types";
-import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getDsaShort, getProblemIndex, getSolutionVideo, getStepLabels } from "./load";
+import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getProblemIndex, getSolutionVideo, getStepLabels } from "./load";
+import { getDsaShortAny, getLeanIndex, getLeanShortIds } from "./kinds-load";
 import { DSA_CONTENT_TAG, dsaFresh, dsaItem, dsaItemKey } from "./content";
 import { stepOf, stepRank } from "./steps";
+import { leanLectureHref } from "./kinds";
 import { controlMap, isLive, questKey, shortKey, type Control } from "@/lib/learn/controls";
 
 /**
@@ -96,9 +98,13 @@ export async function listDsaShorts(opts: { includeUnpublished?: boolean; ignore
   // read failure hides nothing (controlMap returns an empty map). The single-short page keeps its own check (ignoreControls).
   const controls: Map<string, Control> = opts.ignoreControls ? new Map() : await controlMap().catch(() => new Map<string, Control>());
   const built = await builtInOrder();
-  const ids = (await inBatches(built, 6, (c) => getConceptShortIds(c.id))).flat();
+  // lean lessons (streets, camp tents, sets; kinds.ts) have shorts too: the same feed, linking to their own pages
+  const lean = await getLeanIndex().catch(() => []);
+  const leanIds = (await inBatches(lean, 6, (x) => getLeanShortIds(x.module, x.id))).flat();
+  const leanSet = new Set(leanIds);
+  const ids = [...(await inBatches(built, 6, (c) => getConceptShortIds(c.id))).flat(), ...leanIds];
   const rows = await inBatches(ids, 6, async (id) => {
-    const l = await getDsaShort(id).catch(() => null);
+    const l = await getDsaShortAny(id).catch(() => null);
     if (!l?.short || !l.dsa) return null;
     if (!isLive(controls.get(shortKey(l.quest))) || !isLive(controls.get(questKey(l.short.of)))) return null;
     const v = hashOf(l);
@@ -106,6 +112,7 @@ export async function listDsaShorts(opts: { includeUnpublished?: boolean; ignore
     const recorded = !!media && media.source === v;
     if (!recorded && !opts.includeUnpublished) return null;
     const words = wordsOf(l);
+    const x = leanSet.has(id) ? lean.find((y) => y.module === l.dsa!.module && y.id === l.dsa!.concept) : undefined;
     const row: PlayableShort & { recorded: boolean } = {
       id: l.quest,
       title: l.title,
@@ -113,8 +120,8 @@ export async function listDsaShorts(opts: { includeUnpublished?: boolean; ignore
       category: "course",
       topics: l.short.topics ?? [],
       lecture: l.short.of,
-      full: `${conceptLectureHref(l.dsa.concept)}${l.short.at ? `?at=${encodeURIComponent(l.short.at)}` : ""}`,
-      article: conceptHref(l.dsa.concept),
+      full: `${x ? leanLectureHref(x.kind, x.module, x.id) : conceptLectureHref(l.dsa.concept)}${l.short.at ? `?at=${encodeURIComponent(l.short.at)}` : ""}`,
+      article: x ? x.href : conceptHref(l.dsa.concept),
       src: `${base}/${l.quest}/video.mp4?v=${v}`,
       poster: `${base}/${l.quest}/poster.jpg?v=${v}`,
       seconds: recorded && media.duration ? Math.round(media.duration) : Math.round((words / 150) * 60 * 1.08),

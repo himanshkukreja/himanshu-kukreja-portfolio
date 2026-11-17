@@ -4,6 +4,7 @@
 // usage: node scripts/lecture/dsa-resolve.mjs <dsa-mastery dir> <module>/<concept>[/<short slug>] <out.json>
 //   e.g. node scripts/lecture/dsa-resolve.mjs ~/dsa-mastery m5-sliding-window/fixed-and-variable-windows /tmp/x.json
 //        node scripts/lecture/dsa-resolve.mjs ~/dsa-mastery m5-sliding-window/at-most-k/the-subtraction-trick /tmp/s.json (a short)
+//        node scripts/lecture/dsa-resolve.mjs ~/dsa-mastery d1-arrays-hashing/pairs-and-complements /tmp/x.json (a lean lesson: street; camp-1/..., co-fintech/... and core-150-gaps/... likewise)
 //        node scripts/lecture/dsa-resolve.mjs ~/dsa-mastery clips/s1-linked-lists/linked-lists/insert-head /tmp/c.json (an in-article clip)
 //        node scripts/lecture/dsa-resolve.mjs ~/dsa-mastery solution/newest-first-thread /tmp/v.json (a problem's solution video)
 // clips record from /dsa/video/dsa--clips--<lesson>--<clip> at 1280x720 with no music; solution videos from
@@ -68,7 +69,7 @@ if (id.startsWith("solution/")) {
 if (id.startsWith("clips/")) {
   // an in-article clip: <lesson dir>/clips.json, borrowing from the lesson's resolved lecture
   const [, cmod, lesson, clipId] = id.split("/");
-  const cdir = ["structures", "algorithms", "modules"].map((r) => `resources/${r}/${cmod}/${lesson}`).find((d) => fs.existsSync(path.join(repo, d)));
+  const cdir = ["structures", "algorithms", "modules", "districts", "camps", "sets"].map((r) => `resources/${r}/${cmod}/${lesson}`).find((d) => fs.existsSync(path.join(repo, d)));
   const clips = cdir && json(`${cdir}/clips.json`);
   const clip = clips?.clips?.find((c) => c.id === clipId);
   if (!clip) {
@@ -91,9 +92,10 @@ if (id.startsWith("clips/")) {
   process.exit(0);
 }
 const [mod, concept, short] = id.split("/");
-// a 6S concept (resources/modules/), a structure lesson (Academy Part 2, resources/structures/) or an algorithm
-// lesson (Part 3, resources/algorithms/)
-const dir = ["structures", "algorithms"].map((r) => `resources/${r}/${mod}/${concept}`).find((d) => fs.existsSync(path.join(repo, d))) || `resources/modules/${mod}/${concept}`;
+// a 6S concept (resources/modules/), a structure lesson (Academy Part 2, resources/structures/), an algorithm
+// lesson (Part 3, resources/algorithms/) or a lean lesson beyond the Academy (a street in resources/districts/, a camp
+// tent in resources/camps/, a set in resources/sets/; src/lib/dsa/kinds.ts): all <module>/<lesson>
+const dir = ["structures", "algorithms", "districts", "camps", "sets"].map((r) => `resources/${r}/${mod}/${concept}`).find((d) => fs.existsSync(path.join(repo, d))) || `resources/modules/${mod}/${concept}`;
 const file = short ? `${dir}/shorts/${short}.json` : `${dir}/lecture.json`;
 const raw = json(file);
 if (!raw) {

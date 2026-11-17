@@ -8,7 +8,8 @@
 import Link from "next/link";
 import { Check, ChevronDown, Play, ShieldCheck } from "lucide-react";
 import { clock, useLectureSeconds, type LectureRef } from "./useLectureSeconds";
-import { fmtDuration, type OutlineCheckpoint, type OutlineLesson, type OutlineModule } from "@/lib/dsa/outline";
+import { fmtDuration, type OutlineBranch, type OutlineCheckpoint, type OutlineLesson, type OutlineModule } from "@/lib/dsa/outline";
+import { LEAN_BRANCH_WORD } from "@/lib/dsa/kinds";
 import { readProgress, isWatched } from "@/lib/learn/lecture/progress";
 
 export type ModuleView = {
@@ -104,6 +105,20 @@ function CheckpointRow({ cp, done }: { cp: OutlineCheckpoint; done: boolean }) {
   );
 }
 
+/** A side branch of the module (a street, camp tent or gap set): optional, lighter than the lessons, never counted in the module's totals. */
+function BranchRow({ b, done }: { b: OutlineBranch; done: boolean }) {
+  return (
+    <Link href={b.href} className="flex min-h-11 items-center gap-3 border-t border-line bg-raised px-4 py-[9px] pl-6 hover:bg-surface-2" data-branch-row>
+      <span aria-hidden className={`ml-1 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-fg-3 ${done ? "bg-fg-3" : "bg-surface"}`} />
+      <span className="min-w-0 flex-1 text-[14px] text-fg">
+        <span className="text-fg-3">{LEAN_BRANCH_WORD[b.kind]}</span> · {b.title}
+        {done ? <span className="sr-only"> (done)</span> : null}
+      </span>
+      <span className="shrink-0 text-[12px] text-fg-3 sm:text-[13px]">{[b.minutes ? `${b.minutes} min` : "", b.problemCount ? `${b.problemCount} problems` : ""].filter(Boolean).join(" · ")}</span>
+    </Link>
+  );
+}
+
 function SoonRow({ label }: { label: string }) {
   return (
     <div className="flex min-h-11 items-center gap-3 border-t border-line bg-raised px-4 py-[9px] text-fg-3">
@@ -188,6 +203,10 @@ export default function ModuleRow({
           ))}
           {m.checkpoints.filter((c) => !m.lessons.some((l) => l.conceptId === c.afterLesson)).map((c) => (
             <CheckpointRow key={c.nodeId} cp={c} done={checkpoints.has(c.nodeId)} />
+          ))}
+          {m.branches.length ? <p className="m-0 border-t border-line bg-raised px-4 pb-1 pt-2.5 font-mono text-[11px] tracking-[0.06em] text-fg-3">ALSO ON THIS STOP · OPTIONAL</p> : null}
+          {m.branches.map((b) => (
+            <BranchRow key={b.key} b={b} done={concepts.has(b.key)} />
           ))}
           <SoonRow label="Skip ahead: a short check to skip this module" />
           <SoonRow label={m.boss ? `Module review: ${m.boss.title}` : "Module review"} />

@@ -1,0 +1,15 @@
+import { LeanLessonRoute, leanMetadata, type LeanParams } from "@/components/dsa/lean/LeanRoutes";
+
+// A lean lesson beyond the Academy (/dsa/sets/<module>/<lesson>): the lesson shell with its beats, the ladder of problems,
+// exercises, quiz and clips. Rendered once and cached (ISR, refreshed on content sync). src/lib/dsa/kinds.ts says which kinds.
+
+export const revalidate = 604800;
+export const dynamicParams = true;
+export function generateStaticParams() {
+  return [];
+}
+
+export const generateMetadata = (p: LeanParams) => leanMetadata("sets", p);
+export default function Page(p: LeanParams) {
+  return LeanLessonRoute("sets", p);
+}

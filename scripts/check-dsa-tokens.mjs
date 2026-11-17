@@ -6,7 +6,7 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
-const DIRS = ["home", "lesson", "practice", "review", "progress", "ui"].map((d) => `src/components/dsa/${d}`);
+const DIRS = ["home", "lesson", "lean", "practice", "review", "progress", "ui"].map((d) => `src/components/dsa/${d}`);
 const FILES = ["src/components/site/DsaNav.tsx"];
 const BAD = /#[0-9a-fA-F]{3,8}\b|\brgba?\(|\b(?:bg|text|border|outline|ring|fill|stroke)-(?:white|black|gray|slate|zinc|neutral|teal|emerald|green|red)\b/;
 

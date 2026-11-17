@@ -48,11 +48,11 @@ const ID = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const CACHE = { revalidate: 604800, tags: [DSA_CONTENT_TAG] };
 
 /** YAML through gray-matter's engine (already a dependency); options passed so gray-matter keeps no copy. */
-function yaml<T>(src: string): T {
+export function yaml<T>(src: string): T {
   return matter(`---\n${src}\n---\n`, {}).data as T;
 }
 
-function cached<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string): (...a: A) => Promise<R> {
+export function cached<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string): (...a: A) => Promise<R> {
   const c = unstable_cache(dsaItem(fn), [key, dsaItemKey(fn)], CACHE);
   return (...a: A) => (dsaFresh() ? fn(...a) : c(...a));
 }
@@ -69,7 +69,7 @@ const indexMemo = versionedMemo();
  *   without it  the data cache, as before, and once per request (React cache) instead of once per call.
  * Every caller gets its own copy (as from the data cache), so one that changes its result can't change anyone else's.
  */
-function indexed<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string): (...a: A) => Promise<R> {
+export function indexed<A extends unknown[], R>(fn: (...a: A) => Promise<R>, key: string): (...a: A) => Promise<R> {
   const c = unstable_cache(dsaItem(fn), [key, dsaItemKey(fn)], CACHE);
   const shared = requestCache(async (...a: A): Promise<R> => {
     if (dsaFresh()) return fn(...a);
@@ -103,7 +103,7 @@ const humanize = (s: string) => {
 
 type CastFile = { cast?: { id: string; name: string; role: string }[] };
 
-const castOf = indexed(async (): Promise<Record<string, { name: string; role: string }>> => {
+export const castOf = indexed(async (): Promise<Record<string, { name: string; role: string }>> => {
   const md = await readDsa("resources/company/cast.md");
   if (!md) return {};
   const data = matter(md, {}).data as CastFile;
@@ -781,7 +781,7 @@ export const getConcept = requestCache(async (id: string): Promise<ConceptPage |
  * "dsa--<module>--<concept>".
  */
 /** What a lecture or short points at (its lesson's templates, traces, races, the cast), read for resolving. */
-async function lectureSources(dir: string, raw: RawDsaLecture) {
+export async function lectureSources(dir: string, raw: RawDsaLecture) {
   const refs = lectureRefs(raw);
   const [lessonMd, cast, traceList, raceList] = await Promise.all([
     readDsa(`${dir}/lesson.md`),

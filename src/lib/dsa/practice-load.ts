@@ -3,7 +3,8 @@ import matter from "gray-matter";
 import { readDsa } from "./content";
 import { getConceptIndex, getProblemIndex, getStepLabels, getWorld } from "./load";
 import { buildProblemData, type ProblemData } from "./problem-rows";
-import { companyList, coreList, districtList, type PracticeLists } from "./lists";
+import { campList, companyList, coreList, districtList, type PracticeLists } from "./lists";
+import { getLeanIndex, getPlanFacts } from "./kinds-load";
 import { districtName } from "./districts";
 
 /**
@@ -12,12 +13,14 @@ import { districtName } from "./districts";
  * districts with their streets). The rest of the lists (daily, saved) are per learner and load in the browser.
  */
 export async function getPracticeData(): Promise<{ data: ProblemData; lists: PracticeLists }> {
-  const [problems, concepts, labels, world, plan] = await Promise.all([
+  const [problems, concepts, labels, world, plan, lean, facts] = await Promise.all([
     getProblemIndex().catch(() => []),
     getConceptIndex().catch(() => []),
     getStepLabels().catch(() => ({})),
     getWorld("product-districts").catch(() => null),
     readDsa("resources/plan/curriculum.yml").catch(() => null),
+    getLeanIndex().catch(() => []),
+    getPlanFacts().catch(() => ({ lessons: [], rows: [], ratings: [] })),
   ]);
   const data = buildProblemData(problems, { labels, concepts, videos: [] });
   if (data.unknown.length) console.warn(`[dsa taxonomy] pattern tags with no facets yet: ${data.unknown.join(", ")}`);
@@ -32,7 +35,21 @@ export async function getPracticeData(): Promise<{ data: ProblemData; lists: Pra
   const lists: PracticeLists = {
     "core-150": coreList(problems, gaps),
     "interview-patterns": districtList((world?.regions || []).map((r) => ({ id: r.id, title: r.moduleTitle || districtName(r.title), opens: r.opens, planned: r.planned, stretches: r.stretches }))),
-    "company-types": companyList(data.rows, data.companies),
+    // each written company set (kinds.ts) is linked from its type's section
+    "company-types": companyList(data.rows, data.companies, lean.filter((l) => l.company).map((l) => ({ module: l.module, title: `${l.title} (set lesson)`, href: l.href }))),
+    // the camps: every camp tent of the plan, with the problems the plan homes in it (written or not), its lesson when written
+    "cp-camps": campList(campsOf(facts, lean), new Set(problems.map((p) => p.id))),
   };
   return { data, lists };
+}
+
+/** The plan's camps (module camp-N): their tents, each tent's problem rows and its lesson link when written. */
+function campsOf(facts: Awaited<ReturnType<typeof getPlanFacts>>, lean: Awaited<ReturnType<typeof getLeanIndex>>) {
+  const rows = new Map(facts.rows);
+  const camps = new Map<string, { id: string; title: string; band: [number, number] | null; tents: { id: string; title: string; ids: string[]; href: string | null }[] }>();
+  for (const l of facts.lessons.filter((x) => x.kind === "camp-tent")) {
+    const c = camps.get(l.module) ?? camps.set(l.module, { id: l.module, title: l.moduleTitle, band: l.rating, tents: [] }).get(l.module)!;
+    c.tents.push({ id: l.id, title: l.title, ids: rows.get(`${l.module}/${l.id}`) || [], href: lean.find((x) => x.module === l.module && x.id === l.id)?.href ?? null });
+  }
+  return [...camps.values()];
 }

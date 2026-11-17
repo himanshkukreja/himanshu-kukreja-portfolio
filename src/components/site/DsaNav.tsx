@@ -49,8 +49,8 @@ export function tabs(p: string): Tab[] {
     return [{ id: "soon", href: DSA_HOME, label: "coming soon", short: "dsa", on: p === DSA_HOME || p === `${DSA_HOME}/`, icon: MapIcon, where: "both" }, ask, you, sdm];
   }
   return [
-    { id: "course", href: DSA_HOME, label: "Course", short: "Course", on: p === DSA_HOME || at(p, "/dsa/concepts", "/dsa/structures", "/dsa/algorithms"), icon: AlignLeft, where: "both" },
-    { id: "practice", href: `${DSA_HOME}/practice`, label: "Practice", short: "Practice", on: at(p, "/dsa/practice", "/dsa/problems"), icon: Code2, where: "both" },
+    { id: "course", href: DSA_HOME, label: "Course", short: "Course", on: p === DSA_HOME || at(p, "/dsa/concepts", "/dsa/structures", "/dsa/algorithms", "/dsa/districts", "/dsa/camps", "/dsa/sets/core-150-gaps"), icon: AlignLeft, where: "both" },
+    { id: "practice", href: `${DSA_HOME}/practice`, label: "Practice", short: "Practice", on: at(p, "/dsa/practice", "/dsa/problems") || (at(p, "/dsa/sets") && !at(p, "/dsa/sets/core-150-gaps")), icon: Code2, where: "both" },
     { id: "review", href: `${DSA_HOME}/review`, label: "Review", short: "Review", on: at(p, "/dsa/review", "/dsa/shorts", "/dsa/cheatsheets", "/dsa/complexity", "/dsa/patterns"), icon: Layers, where: "both" },
     { id: "progress", href: `${DSA_HOME}/progress`, label: "Progress", short: "Progress", on: at(p, "/dsa/progress", "/dsa/certificate", "/dsa/cert"), icon: BarChart3, where: "both" },
     { id: "playground", href: `${DSA_HOME}/playground`, label: "Playground", short: "Code", on: at(p, "/dsa/playground"), icon: SquareTerminal, where: "both" },

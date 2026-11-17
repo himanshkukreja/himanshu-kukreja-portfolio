@@ -290,7 +290,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
 
   const def = listDef(view.list);
   const planned = !def.ready;
-  const sections: Section[] | null = view.list === "interview-patterns" ? lists["interview-patterns"].sections : view.list === "company-types" ? lists["company-types"].sections : null;
+  const sections: Section[] | null = view.list === "interview-patterns" ? lists["interview-patterns"].sections : view.list === "company-types" ? lists["company-types"].sections : view.list === "cp-camps" ? lists["cp-camps"].sections : null;
 
   // the rows in the order shown: recommended = course order with unsolved first; the daily list keeps its own order
   const ordered = useMemo(() => {
@@ -387,7 +387,9 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
       ? `${lists["core-150"].ids.length} ready${lists["core-150"].planned ? ` · ${lists["core-150"].planned} more planned toward ${lists["core-150"].target}` : ""}`
       : view.list === "interview-patterns"
         ? `${lists["interview-patterns"].sections.filter((s) => s.ids.length).length} of ${lists["interview-patterns"].sections.length} sets open${lists["interview-patterns"].sections.some((s) => s.planned) ? ` · ${lists["interview-patterns"].sections.reduce((a, s) => a + (s.planned || 0), 0)} more problems planned` : ""}`
-        : "";
+        : view.list === "cp-camps"
+          ? `${lists["cp-camps"].sections.filter((s) => s.ids.length).length} camps open${lists["cp-camps"].sections.some((s) => s.planned) ? ` · ${lists["cp-camps"].sections.reduce((a, s) => a + (s.planned || 0), 0)} more problems planned` : ""}`
+          : "";
 
   // the smart answer as chips the learner can take off (nothing is asked again; the page re-ranks at once)
   const topicLabel = (id: string) => [...FACETS.patterns, ...FACETS.algorithms, ...FACETS.structures].find((f) => f.id === id)?.label || id;
@@ -448,21 +450,39 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
               }
               const first = all.findIndex((x) => x.rows.length) === i;
               return (
-                <Fold key={section.id} title={section.title} count={rows.length} hint={section.planned ? plannedNote(section) : undefined} defaultOpen={first || filtered}>
-                  {() =>
-                    streets.length > 1 || (streets.length === 1 && view.list === "interview-patterns") ? (
+                <Fold key={section.id} title={section.title} count={rows.length} hint={section.planned ? plannedNote(section) : section.hint} defaultOpen={first || filtered}>
+                  {() => (
+                  <div className="flex flex-col gap-3">
+                    {section.links?.length ? (
+                      <p className="m-0 flex flex-wrap items-center gap-x-4 gap-y-1 text-[14px] text-fg-2" data-section-links>
+                        {section.links.map((l) => (
+                          <Link key={l.href} href={l.href} className="inline-flex min-h-9 items-center font-medium text-signal-text underline underline-offset-4 hover:text-fg">
+                            {l.title} →
+                          </Link>
+                        ))}
+                      </p>
+                    ) : null}
+                    {streets.length > 1 || (streets.length === 1 && (view.list === "interview-patterns" || view.list === "cp-camps")) ? (
                       <div className="flex flex-col gap-4">
                         {streets.map((st) => (
                           <div key={st.id} className="flex flex-col gap-1.5">
-                            <h4 className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3">{st.title}</h4>
+                            <h4 className="m-0 flex flex-wrap items-baseline gap-x-3 font-mono text-[11px] uppercase tracking-label text-fg-3">
+                              {st.title}
+                              {section.streets?.find((x) => x.id === st.id)?.href ? (
+                                <Link href={section.streets.find((x) => x.id === st.id)!.href!} className="normal-case tracking-normal text-signal-text underline underline-offset-4 hover:text-fg">
+                                  Camp lesson →
+                                </Link>
+                              ) : null}
+                            </h4>
                             <ProblemTable rows={st.rows} {...tableProps} />
                           </div>
                         ))}
                       </div>
                     ) : (
                       <ProblemTable rows={rows} {...tableProps} />
-                    )
-                  }
+                    )}
+                  </div>
+                  )}
                 </Fold>
               );
             })}

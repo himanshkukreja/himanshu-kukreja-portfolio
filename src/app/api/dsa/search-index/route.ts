@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { conceptLectureHref, getConceptIndex, getConceptLecture, getDsaShort, getProblemIndex, getStepLabels } from "@/lib/dsa/load";
+import { conceptLectureHref, getConceptIndex, getConceptLecture, getProblemIndex, getStepLabels } from "@/lib/dsa/load";
+import { getDsaShortAny as getDsaShort, getLeanIndex, getLeanLecture } from "@/lib/dsa/kinds-load";
+import { leanLectureHref } from "@/lib/dsa/kinds";
 import { listDsaShorts } from "@/lib/dsa/media";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import { flatten, type LectureMedia } from "@/lib/learn/lecture/types";
@@ -47,8 +49,9 @@ const CACHE = { "Cache-Control": "public, max-age=300, s-maxage=86400, stale-whi
 
 export async function GET() {
   if (!DSA_FULL) return NextResponse.json({ v: 1, docs: [], transcripts: { v: 1, built: "", l: [], m: [] } } satisfies DsaSearchIndex);
-  const [concepts, problems, labels, shorts] = await Promise.all([getConceptIndex().catch(() => []), getProblemIndex().catch(() => []), getStepLabels().catch(() => ({})), listDsaShorts().catch(() => [])]);
-  const docs = buildDsaDocs(concepts, problems, (m) => stepOf(labels, m).step);
+  const [concepts, problems, labels, shorts, lean] = await Promise.all([getConceptIndex().catch(() => []), getProblemIndex().catch(() => []), getStepLabels().catch(() => ({})), listDsaShorts().catch(() => []), getLeanIndex().catch(() => [])]);
+  const whereOf = (x: (typeof lean)[number]) => (x.station ? stepOf(labels, x.station).label : x.moduleTitle);
+  const docs = buildDsaDocs(concepts, problems, (m) => stepOf(labels, m).step, lean.map((x) => ({ id: x.id, module: x.module, kind: x.kind, title: x.title, summary: x.summary, where: whereOf(x) })));
 
   const l: TranscriptSource[] = [];
   const m: TranscriptMoment[] = [];
@@ -65,6 +68,19 @@ export async function GET() {
   for (const b of built) {
     if (!b || !b.windows.length) continue;
     const k = l.push([b.lec.quest, b.lec.title, stepOf(labels, b.c.module).step, conceptLectureHref(b.c.id), b.stale ? TRANSCRIPT_UNTIMED : TRANSCRIPT_TIMED]) - 1;
+    for (const w of b.windows) m.push([k, w.at, w.text]);
+  }
+  // lean lessons' lectures: the same moments, linking to their own lecture pages
+  const leanBuilt = await pool(lean, async (x) => {
+    const lec = await getLeanLecture(x.module, x.id).catch(() => null);
+    if (!lec) return null;
+    const t = await timings(lec.quest, lectureHash(lec), flatten(lec).length);
+    const stale = t === "stale";
+    return { x, lec, stale, windows: transcriptWindows(lec, stale ? "none" : t ?? "estimate") };
+  });
+  for (const b of leanBuilt) {
+    if (!b || !b.windows.length) continue;
+    const k = l.push([b.lec.quest, b.lec.title, whereOf(b.x), leanLectureHref(b.x.kind, b.x.module, b.x.id), b.stale ? TRANSCRIPT_UNTIMED : TRANSCRIPT_TIMED]) - 1;
     for (const w of b.windows) m.push([k, w.at, w.text]);
   }
   // shorts: only the ones the publishing controls leave live (listDsaShorts), one entry each

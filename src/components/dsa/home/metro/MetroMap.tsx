@@ -6,9 +6,10 @@
  * stations are real buttons laid over it (a 44 px target each, roving tab stop, arrow keys follow the lines), with a
  * tooltip on hover and focus. A screen-reader list mirrors the whole map.
  */
-import { useId, useRef, type KeyboardEvent } from "react";
+import { useId, useRef, useState, type KeyboardEvent } from "react";
 import { LINE_NAME, LINE_TOKEN, TAGS, VIEW, type LineId } from "@/lib/dsa/metro/layout";
-import { interchangeText, stepToward, type Metro, type Station } from "@/lib/dsa/metro/model";
+import { interchangeText, stepToward, type Metro, type Station, type StationBranch } from "@/lib/dsa/metro/model";
+import { LEAN_BRANCH_WORD } from "@/lib/dsa/kinds";
 import "./metro.css";
 
 const tone = (l: LineId) => `var(${LINE_TOKEN[l]})`;
@@ -53,6 +54,8 @@ export default function MetroMap({
   const pts = routeIds.map((id) => metro.byId.get(id)).filter((s): s is Station => !!s);
   const routePts = pts.map((s) => `${s.x},${s.y}`).join(" ");
   const shown = shownId ? metro.byId.get(shownId) : null;
+  // a side branch's stop: its label shows only on hover or focus, so the map stays about topics
+  const [tipB, setTipB] = useState<{ b: StationBranch; st: Station } | null>(null);
 
   const onKey = (e: KeyboardEvent<HTMLButtonElement>, id: string) => {
     const dir = ({ ArrowLeft: "left", ArrowRight: "right", ArrowUp: "up", ArrowDown: "down" } as const)[e.key as "ArrowLeft"];
@@ -102,6 +105,25 @@ export default function MetroMap({
             </g>
           );
         })}
+
+        {/* side branches: a short thin spur of small stops off the station, lighter than the line */}
+        {metro.stations.map((s) =>
+          s.branches.length ? (
+            <g key={`spur-${s.id}`} aria-hidden opacity={route.has(s.id) || s.id === pinnedId ? 0.95 : 0.7}>
+              {s.branches.map((b, i) => {
+                const rays = s.branches.length > 3 ? 2 : 1;
+                const from = i >= rays ? s.branches[i - rays] : s;
+                return <line key={b.key} x1={from.x} y1={from.y} x2={b.x} y2={b.y} strokeWidth={2.5} strokeLinecap="round" style={{ stroke: tone(s.line) }} />;
+              })}
+              {s.branches.map((b) => (
+                <g key={`${b.key}-stop`}>
+                  <circle cx={b.x} cy={b.y} r={6} strokeWidth={2.5} style={{ fill: b.done ? tone(s.line) : "var(--c-surface)", stroke: tone(s.line) }} />
+                  {tipB?.b.key === b.key ? <circle cx={b.x} cy={b.y} r={9} fill="none" strokeWidth={1.5} style={{ stroke: "var(--c-fg)" }} /> : null}
+                </g>
+              ))}
+            </g>
+          ) : null,
+        )}
 
         {/* the route: a paper casing, the bright line (drawn in on load and whenever the goal changes), a highlight */}
         {pts.length > 1 ? (
@@ -217,6 +239,43 @@ export default function MetroMap({
         );
       })}
 
+      {/* the side branches' stops as links over the picture (a roving stop: only the pinned station's are in the tab order) */}
+      {metro.stations.flatMap((s) =>
+        s.branches.map((b) => (
+          <a
+            key={`${s.id}-${b.key}`}
+            href={b.href}
+            tabIndex={s.id === pinnedId ? 0 : -1}
+            data-branch={b.key}
+            aria-label={`${LEAN_BRANCH_WORD[b.kind]}: ${b.title}. Also on ${s.label}.${b.done ? " Done." : ""}`}
+            onMouseEnter={() => setTipB({ b, st: s })}
+            onMouseLeave={() => setTipB(null)}
+            onFocus={() => setTipB({ b, st: s })}
+            onBlur={() => setTipB(null)}
+            className="absolute h-6 w-6 -translate-x-1/2 -translate-y-1/2 rounded-full focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-signal-text"
+            style={{ left: `${(b.x / VIEW.w) * 100}%`, top: `${(b.y / VIEW.h) * 100}%` }}
+          />
+        )),
+      )}
+
+      {tipB ? (
+        <div
+          role="tooltip"
+          className="metro-tip pointer-events-none absolute z-20 w-[210px] rounded-xl border border-line-strong bg-surface px-3 py-2 text-[12.5px] leading-snug text-fg shadow-[0_10px_30px_color-mix(in_srgb,var(--c-fg)_14%,transparent)]"
+          style={{
+            left: `${(tipB.b.x / VIEW.w) * 100}%`,
+            top: `${(tipB.b.y / VIEW.h) * 100}%`,
+            transform: `translate(${tipB.b.x < 140 ? "-20%" : tipB.b.x > 1120 ? "-80%" : "-50%"}, ${tipB.b.y > 160 ? "calc(-100% - 14px)" : "16px"})`,
+          }}
+        >
+          <span className="block text-[13px] font-semibold">{tipB.b.title}</span>
+          <span className="mt-0.5 block text-fg-3">
+            {LEAN_BRANCH_WORD[tipB.b.kind]} off {tipB.st.label} · optional{tipB.b.problemCount ? ` · ${tipB.b.problemCount} problems` : ""}
+            {tipB.b.done ? " · done" : ""}
+          </span>
+        </div>
+      ) : null}
+
       {shown ? (
         <div
           id={`${uid}-tip-${shown.id}`}
@@ -251,6 +310,15 @@ export default function MetroMap({
                     {routeIds.includes(s.id) ? " On your route." : ""}
                     {s.id === hereId ? " You are here." : ""}
                     {s.href ? <a href={s.href}> Open {s.label}</a> : null}
+                    {s.branches.length ? (
+                      <ul>
+                        {s.branches.map((b) => (
+                          <li key={b.key}>
+                            Side branch, optional: <a href={b.href}>{b.title}</a> ({LEAN_BRANCH_WORD[b.kind]}){b.done ? ", done" : ""}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </li>
                 ))}
             </ol>

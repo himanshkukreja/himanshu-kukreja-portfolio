@@ -27,6 +27,23 @@ export type OutlineLesson = {
   nodeId: string;
 };
 
+/**
+ * A side branch of a station (owner, 18 Nov 2026): a street, camp tent or Core 150 gap set that hangs off its station. Optional
+ * everywhere: never a row of the module's lessons, never counted in its done counts, "Next stop" or route (src/lib/dsa/kinds.ts).
+ */
+export type OutlineBranch = {
+  /** the progress slug (module--lesson): done = the learner finished it (dsa:c:<key>) */
+  key: string;
+  kind: "street" | "camp-tent" | "set";
+  module: string;
+  lesson: string;
+  title: string;
+  href: string;
+  minutes: number;
+  /** problems on its ladder */
+  problemCount: number;
+};
+
 export type OutlineCheckpoint = {
   nodeId: string;
   /** the lesson this row follows */
@@ -51,6 +68,8 @@ export type OutlineModule = {
   title: string;
   objective: string;
   lessons: OutlineLesson[];
+  /** the station's side branches (streets, camp tents, gap sets), in plan order; not lessons of the module */
+  branches: OutlineBranch[];
   checkpoints: OutlineCheckpoint[];
   minutes: number;
   problemCount: number;
@@ -97,6 +116,8 @@ export function buildOutline(
   steps: StepLabels,
   /** reading minutes by lesson id (resources/.../lesson.md front matter) */
   minutes: Record<string, number> = {},
+  /** the written side branches, each with the station (Academy module id) it hangs off */
+  branches: (OutlineBranch & { station: string })[] = [],
 ): Outline {
   const byConcept = new Map(concepts.map((c) => [c.id, c]));
   const perConcept = new Map<string, number>();
@@ -157,6 +178,7 @@ export function buildOutline(
       title: r.moduleTitle || r.title,
       objective: r.objective || r.intro || "",
       lessons,
+      branches: branches.filter((b) => b.station === r.module).map(({ station: _s, ...b }) => (void _s, b)),
       checkpoints,
       minutes: built.reduce((s, l) => s + l.minutes, 0),
       problemCount: built.reduce((s, l) => s + l.problemCount, 0),

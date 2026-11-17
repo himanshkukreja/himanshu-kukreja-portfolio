@@ -137,7 +137,9 @@ export function resolveDsaLecture(
     return s;
   });
   const { lesson, ...rest } = raw;
-  return { ...rest, dsa: { module: lesson?.module || "", concept: lesson?.concept || "" }, scenes };
+  // a lean lesson (street, camp tent, set) says its kind, so the recorder opens its own page (kinds.ts); an Academy lesson's JSON is unchanged
+  const lean = lesson?.kind === "street" || lesson?.kind === "camp-tent" || lesson?.kind === "set" ? { kind: lesson.kind } : {};
+  return { ...rest, dsa: { module: lesson?.module || "", concept: lesson?.concept || "", ...lean }, scenes };
 }
 
 /** "dsa--<module>--<concept>" (a concept lecture's quest, and its shorts' `short.of`) → its module and concept. */
