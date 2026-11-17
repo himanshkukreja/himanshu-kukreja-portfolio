@@ -105,16 +105,24 @@ export default function FlipReview({ decks }: { decks: DsaDeck[] }) {
     [deckOf],
   );
 
-  // the session starts by itself when cards are due; the queue is a snapshot, so grading does not reshuffle it
+  const begin = useCallback(
+    (list: ReviewCard[]) => {
+      setSession({ items: [...list].sort((a, b) => a.box - b.box || a.dueAt.localeCompare(b.dueAt)).map(itemOf), practice: false });
+      setI(0);
+      setFlipped(false);
+      setLog([]);
+    },
+    [itemOf],
+  );
+
+  // on arrival the session starts by itself when cards are due (a snapshot, so grading does not reshuffle it). Cards that
+  // fall due later, while the learner studies a deck below, wait behind a Start button instead of jumping onto the page.
   useEffect(() => {
-    if (!ready || started.current || !due.length) return;
+    if (!ready || started.current) return;
     started.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- a one-time snapshot of the queue when it first loads
-    setSession({ items: [...due].sort((a, b) => a.box - b.box || a.dueAt.localeCompare(b.dueAt)).map(itemOf), practice: false });
-    setI(0);
-    setFlipped(false);
-    setLog([]);
-  }, [ready, due, itemOf]);
+    if (due.length) begin(due);
+  }, [ready, due, begin]);
 
   const practise = useCallback(() => {
     const pool: Item[] = decks.flatMap((d) =>
@@ -361,13 +369,21 @@ export default function FlipReview({ decks }: { decks: DsaDeck[] }) {
       ) : (
         <div className={`${CARD} mx-auto flex w-full max-w-[720px] flex-col gap-4 p-6 sm:p-8`}>
           <span className={KICKER}>Due now</span>
-          <p className="m-0 font-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-fg sm:text-[28px]">{emptyLine}</p>
+          <p className="m-0 font-display text-[22px] font-bold leading-tight tracking-[-0.02em] text-fg sm:text-[28px]">{due.length ? `${due.length} card${due.length === 1 ? "" : "s"} due` : emptyLine}</p>
           <p className="m-0 max-w-[56ch] text-[14.5px] leading-relaxed text-fg-2">
-            {cards.length ? "Cards come back on the day they are due." : "Mark a card \"Again\" in a pattern deck below and it comes back here: tomorrow, then after 3, 7, 16 and 35 days as you get it right."} Want more now? Take {Math.min(PRACTICE_SIZE, decks.reduce((a, d) => a + d.cards.length, 0))} random cards.
+            {due.length
+              ? `About ${Math.max(1, Math.round(due.length / 3))} min. They are waiting for you.`
+              : `${cards.length ? "Cards come back on the day they are due." : "Mark a card \"Again\" in a pattern deck below and it comes back here: tomorrow, then after 3, 7, 16 and 35 days as you get it right."} Want more now? Take ${Math.min(PRACTICE_SIZE, decks.reduce((a, d) => a + d.cards.length, 0))} random cards.`}
           </p>
-          <button type="button" onClick={practise} disabled={!decks.length} className={`${BTN_PRIMARY} ${MID} min-h-12 self-start px-5 disabled:opacity-50`}>
-            Practise anyway
-          </button>
+          {due.length ? (
+            <button type="button" onClick={() => begin(due)} className={`${BTN_PRIMARY} ${MID} min-h-12 self-start px-5`}>
+              Start the review
+            </button>
+          ) : (
+            <button type="button" onClick={practise} disabled={!decks.length} className={`${BTN_PRIMARY} ${MID} min-h-12 self-start px-5 disabled:opacity-50`}>
+              Practise anyway
+            </button>
+          )}
         </div>
       )}
     </section>
