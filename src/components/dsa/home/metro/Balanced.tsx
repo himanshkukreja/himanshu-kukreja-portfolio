@@ -9,41 +9,7 @@
  */
 import { Children, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useMedia } from "./useMetroPrefs";
-
-const GAP = 16;
-
-/** column of each card (heights in order) minimising the spread of the column bottoms; ties keep earlier cards earlier. */
-export function balance(heights: number[], cols: number): number[] {
-  const n = heights.length;
-  if (cols <= 1 || n <= 1) return heights.map(() => 0);
-  let best: number[] = heights.map((_, i) => i % cols);
-  let bestScore = Infinity;
-  const cur: number[] = new Array(n).fill(0);
-  const sums = new Array(cols).fill(0);
-  const counts = new Array(cols).fill(0);
-  const rec = (i: number, used: number) => {
-    if (i === n) {
-      const bottoms = sums.map((s, c) => s - (counts[c] ? GAP : 0));
-      const score = Math.max(...bottoms) - Math.min(...bottoms);
-      if (score < bestScore - 0.5) {
-        bestScore = score;
-        best = cur.slice();
-      }
-      return;
-    }
-    // a card may open at most one new column (symmetry), so columns fill left to right
-    for (let c = 0; c < Math.min(cols, used + 1); c++) {
-      cur[i] = c;
-      sums[c] += heights[i] + GAP;
-      counts[c]++;
-      rec(i + 1, Math.max(used, c + 1));
-      sums[c] -= heights[i] + GAP;
-      counts[c]--;
-    }
-  };
-  rec(0, 0);
-  return best;
-}
+import { GAP, balance, stretch } from "@/lib/dsa/metro/flow";
 
 export default function Balanced({ items, className = "" }: { items: ReactNode[]; className?: string }) {
   const md = useMedia("(min-width: 768px)");
@@ -52,17 +18,36 @@ export default function Balanced({ items, className = "" }: { items: ReactNode[]
   const count = nodes.length;
   const refs = useRef<(HTMLDivElement | null)[]>([]);
   const [heights, setHeights] = useState<number[]>([]);
+  // the extra height each card was given last render: a measurement at or under it is the card's own height unchanged
+  const grown = useRef<number[]>([]);
+  const natural = useRef<number[]>([]);
 
   useLayoutEffect(() => {
     const els = refs.current;
     const measure = () => {
-      const next = Array.from({ length: count }, (_, i) => Math.round(els[i]?.getBoundingClientRect().height ?? 0));
+      const next = Array.from({ length: count }, (_, i) => {
+        const h = Math.round(els[i]?.getBoundingClientRect().height ?? 0);
+        const g = grown.current[i] ?? 0;
+        // a card that was grown reports its grown height: keep its natural one unless it got taller than that
+        return g > 0 && h <= g + 1 && natural.current[i] ? natural.current[i] : h;
+      });
+      natural.current = next;
       setHeights((h) => (h.length === next.length && h.every((v, i) => Math.abs(v - next[i]) < 2) ? h : next));
+    };
+    // a width change can shrink a grown card below its grown height unseen: drop the growth and measure afresh
+    const reset = () => {
+      grown.current = [];
+      els.forEach((r) => r && (r.style.minHeight = ""));
+      measure();
     };
     measure();
     const ro = new ResizeObserver(measure);
     els.forEach((r) => r && ro.observe(r));
-    return () => ro.disconnect();
+    window.addEventListener("resize", reset);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", reset);
+    };
   }, [count]);
 
   const visible = heights.filter((h) => h > 8).length;
@@ -71,14 +56,28 @@ export default function Balanced({ items, className = "" }: { items: ReactNode[]
   const asg = balance(idx.map((i) => heights[i]), cols);
   const place: number[] = Array.from({ length: count }, () => 0);
   idx.forEach((i, k) => (place[i] = asg[k]));
+  const extra: number[] = Array.from({ length: count }, () => 0);
+  if (cols > 1) stretch(idx.map((i) => heights[i]), asg, cols).forEach((e, k) => (extra[idx[k]] = e));
+  const grownKey = extra.map((e, i) => (e > 0 ? (heights[i] ?? 0) + e : 0)).join(",");
+  useLayoutEffect(() => {
+    grown.current = grownKey.split(",").map(Number);
+  }, [grownKey]);
 
   return (
     <div style={{ gridAutoRows: "4px" }} className={`grid items-start gap-x-4 [grid-auto-flow:dense] ${cols === 3 ? "grid-cols-3" : cols === 2 ? "grid-cols-2" : "grid-cols-1"} ${className}`} data-balanced>
-      {nodes.map((n, i) => (
-        <div key={i} ref={(el) => void (refs.current[i] = el)} style={{ gridColumn: (place[i] ?? 0) + 1, gridRowEnd: `span ${(heights[i] ?? 0) > 8 ? Math.ceil((heights[i] + GAP) / 4) : 1}` }} className="min-w-0 self-start">
-          {n}
-        </div>
-      ))}
+      {nodes.map((n, i) => {
+        const h = (heights[i] ?? 0) + extra[i];
+        return (
+          <div
+            key={i}
+            ref={(el) => void (refs.current[i] = el)}
+            style={{ gridColumn: (place[i] ?? 0) + 1, gridRowEnd: `span ${(heights[i] ?? 0) > 8 ? Math.ceil((h + GAP) / 4) : 1}`, minHeight: extra[i] > 0 ? h : undefined }}
+            className={`min-w-0 self-start ${extra[i] > 0 ? "flex flex-col [&>*]:flex-1" : ""}`}
+          >
+            {n}
+          </div>
+        );
+      })}
     </div>
   );
 }

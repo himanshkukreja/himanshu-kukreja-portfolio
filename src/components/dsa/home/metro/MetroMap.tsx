@@ -170,25 +170,15 @@ export default function MetroMap({
           );
         })}
 
-        {/* "+N": the station has N extra practice lessons (streets, camp tents, sets); a small pill beside the dot, clear of the label and the "you are here" tag */}
+        {/* extra practice lessons (streets, camp tents, sets): one tiny dot by the station; the count is in the tooltip (hover or focus) and the accessible name */}
         {metro.stations.map((s) => {
-          const n = s.branches.length;
-          if (!n) return null;
+          if (!s.branches.length) return null;
           const r = s.lines.length > 1 ? R_INTER : R;
-          const text = `+${n}`;
-          const w = 11 + text.length * 6.6;
           const above = s.side === "b";
           const side = s.side === "a" || s.side === "b";
-          const cx = side ? s.x + r + 8 + w / 2 - 4 : s.x;
-          const cy = side ? (above ? s.y - r - 3 : s.y + r + 5) : s.y + r + 13;
-          return (
-            <g key={`badge-${s.id}`} data-badge={s.id} aria-hidden transform={`translate(${cx},${cy})`}>
-              <rect x={-w / 2} y={-8} width={w} height={16} rx={8} strokeWidth={1.25} style={{ fill: "var(--c-surface)", stroke: "var(--c-fg-3)" }} />
-              <text x={0} y={4} fontSize={10.5} fontWeight={700} textAnchor="middle" style={{ fill: "var(--c-fg)", fontFamily: "var(--font-geist-mono), monospace" }}>
-                {text}
-              </text>
-            </g>
-          );
+          const cx = side ? s.x + r + 8 : s.x;
+          const cy = side ? (above ? s.y - r - 3 : s.y + r + 5) : s.y + r + 11;
+          return <circle key={`badge-${s.id}`} data-badge={s.id} aria-hidden cx={cx} cy={cy} r={3.5} style={{ fill: "var(--c-fg-3)" }} />;
         })}
 
         {here ? (
@@ -254,7 +244,7 @@ export default function MetroMap({
           </span>
           {shown.lines.length > 1 ? <span className="mt-0.5 block text-fg-2">{interchangeText(shown, lineTitle)}</span> : <span className="mt-0.5 block text-fg-3">{lineTitle(shown.line)} line</span>}
           <span className="mt-1 block text-fg-3">{stateWords(shown)}</span>
-          {shown.branches.length ? <span className="mt-0.5 block text-fg-3">+{shown.branches.length} practice {shown.branches.length === 1 ? "lesson" : "lessons"}</span> : null}
+          {shown.branches.length ? <span className="mt-0.5 block text-fg-3">+{shown.branches.length} more practice {shown.branches.length === 1 ? "lesson" : "lessons"}</span> : null}
         </div>
       ) : null}
 

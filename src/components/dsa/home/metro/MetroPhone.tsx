@@ -126,8 +126,8 @@ export default function MetroPhone({
                       {here ? <span className="rounded-full bg-signal px-2 py-0.5 text-[11px] font-semibold text-on-signal">You are here</span> : null}
                       {isGoal ? <span className="rounded-full bg-fg px-2 py-0.5 text-[11px] font-semibold text-bg">Goal</span> : null}
                       {s.branches.length ? (
-                        <span data-badge={s.id} className="ml-auto rounded-full border border-line-strong bg-surface px-2 py-px font-mono text-[11px] font-bold text-fg">
-                          <span aria-hidden>+{s.branches.length}</span>
+                        <span data-badge={s.id} className="ml-auto flex items-center gap-1.5">
+                          <span aria-hidden className="h-[7px] w-[7px] rounded-full bg-fg-3" />
                           <span className="sr-only">{s.branches.length} more practice {s.branches.length === 1 ? "lesson" : "lessons"}</span>
                         </span>
                       ) : null}
@@ -136,6 +136,7 @@ export default function MetroPhone({
                     {expanded ? (
                       <div id={`stop-${s.id}`} className="flex flex-col gap-2.5 px-4 pb-4">
                         <span className="text-[13px] text-fg-2">
+                          {s.branches.length ? <span className="mr-1 font-mono text-[12px] font-bold text-fg-3">+{s.branches.length} more practice {s.branches.length === 1 ? "lesson" : "lessons"}. </span> : null}
                           {s.lines.length > 1 ? `On two lines: ${s.lines.map(lineTitle).join(" and ")}. ` : `${lineTitle(s.line)} line. `}
                           {stateWords(s)}.
                         </span>
