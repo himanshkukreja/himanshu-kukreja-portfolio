@@ -234,3 +234,142 @@ test("smartRank: topics lift, difficulty filters, and an empty filter is relaxed
 test("the cache key ignores case, punctuation and spacing", () => {
   assert.equal(smartKey("  Sliding  WINDOW, medium?! "), smartKey("sliding window medium"));
 });
+
+/* ---------------------------------------------------------------- the palette: lessons of every kind and the new problems */
+
+const { buildDsaDocs } = await import("../../src/lib/dsa/search-index.ts");
+const { buildPaletteIndex, hitPath, mergeLessonHits, paletteHits } = await import("../../src/lib/dsa/search/palette.ts");
+
+const CONCEPTS = [
+  { id: "hashing", module: "m3-hashing", order: 1, title: "Hashing basics", status: "built", summary: "Count and look up in constant time." },
+  { id: "heaps", module: "m5-heaps", order: 2, title: "Heaps", status: "built", summary: "Always the smallest next.", kind: "structure" },
+  { id: "later", module: "m9", order: 3, title: "Planned lesson", status: "planned", summary: "Not written." },
+];
+const prob = (id, title, o = {}) => ({ id, title, module: "m3-hashing", concept: "hashing", level: "easy", patterns: ["hashing"], classic: [], blurb: "", ...o });
+const PROBLEMS = [
+  prob("match-refunds-with-payments", "Match refunds with payments", { role: "company", companyTypes: ["fintech", "e-commerce"], domain: "payments", patterns: ["queues", "hashing"], signals: ["the oldest unmatched one first", "a refund with no payment"], blurb: "Pair each refund with the payment it undoes." }),
+  prob("detect-a-duplicate-transfer", "Detect a duplicate transfer", { role: "company", companyTypes: ["fintech"], domain: "payments" }),
+  prob("fewest-coins-for-a-refund", "Fewest coins for a refund", { module: "m9-dp", level: "medium", patterns: ["dp"], blurb: "Refund an amount with the fewest coins." }),
+  prob("reverse-the-words", "Reverse the words of a sentence", { role: "company", companyTypes: ["service-mass-recruiter"], patterns: ["strings"] }),
+  prob("order-book-spread", "Order book spread", { role: "company", companyTypes: ["quant-trading"], patterns: ["heaps"] }),
+  prob("rate-card-lookup", "Rate card lookup", { patterns: ["hashing"], blurb: "Look up refunds, discounts and fees on a rate card.", signals: ["refunds and fees"] }),
+];
+const LEAN = [
+  { id: "warm-up-round", module: "co-fintech", kind: "set", title: "Warm-up round", summary: "Three easy problems the way a fintech interview frames them.", where: "Fintech interview set" },
+  { id: "warm-up-round", module: "co-e-commerce", kind: "set", title: "Warm-up round", summary: "Three easy cart and stock problems.", where: "E-commerce interview set" },
+  { id: "warm-up-round", module: "co-quant-trading", kind: "set", title: "Warm-up round", summary: "Easy order-book and rate problems.", where: "Quant and trading interview set" },
+  { id: "core-round", module: "co-service-mass-recruiter", kind: "set", title: "Core round", summary: "The strings and arrays these tests ask.", where: "Service and mass recruiters interview set" },
+  { id: "variable-windows", module: "d2-two-pointers-windows", kind: "street", title: "Variable windows", summary: "Grow and shrink a window.", where: "2.2 Two pointers" },
+  { id: "fast-io-and-stress-testing", module: "camp-1", kind: "camp-tent", title: "Fast I/O and stress testing", summary: "Read input quickly.", where: "Camp 1" },
+  { id: "trees-and-graphs", module: "core-150-gaps", kind: "set", title: "Trees and graphs", summary: "The gap set for trees.", where: "Core 150 gaps" },
+];
+const DOCS = buildDsaDocs(CONCEPTS, PROBLEMS, () => "1.1", LEAN);
+const PAL = buildPaletteIndex(DOCS);
+const top = (q, n = 5) => paletteHits(PAL, q, n).map(hitPath);
+const fintechSet = "dsa/sets/co-fintech/warm-up-round";
+
+test("every ready lesson kind and every problem is indexed, planned lessons are not", () => {
+  assert.equal(DOCS.length, 2 + LEAN.length + PROBLEMS.length);
+  for (const d of DOCS) assert.ok(d.meta, `${d.path} has search meta`);
+  const paths = DOCS.map((d) => d.path);
+  assert.ok(paths.includes("dsa/districts/d2-two-pointers-windows/variable-windows"));
+  assert.ok(paths.includes("dsa/camps/camp-1/fast-io-and-stress-testing"));
+  assert.ok(paths.includes("dsa/structures/heaps") && paths.includes("dsa/concepts/hashing"));
+  assert.ok(!paths.some((p) => p.endsWith("later")));
+});
+
+test("'warm-up' typed with a hyphen is a title word, not the easy filter ('warmup' and 'easy' still are)", () => {
+  assert.deepEqual(parseQuery("warm-up round").levels, []);
+  assert.deepEqual(parseQuery("warm-up round").terms, ["warm", "up", "round"]);
+  assert.deepEqual(parseQuery("fintech warm-up").filterWords, []);
+  assert.deepEqual(parseQuery("warmup arrays").levels, ["easy"]);
+  assert.deepEqual(parseQuery("easy, arrays").levels, ["easy"]);
+});
+
+test("a query of only a filter word lists nothing in the palette; a level word narrows problems, never lessons", () => {
+  assert.deepEqual(top("easy"), []);
+  const hard = top("hard refunds", 8);
+  assert.ok(!hard.includes("dsa/problems/match-refunds-with-payments"));
+  assert.ok(top("easy refunds", 8).includes("dsa/problems/match-refunds-with-payments"));
+  assert.ok(top("easy fintech", 8).includes(fintechSet));
+});
+
+test("a company set's own title reaches the top: 'warm-up round' and 'fintech warm-up'", () => {
+  assert.ok(top("warm-up round", 3).every((p) => p.endsWith("/warm-up-round")), top("warm-up round", 3).join());
+  assert.equal(top("fintech warm-up", 1)[0], fintechSet);
+  assert.equal(top("fintech warm up round", 1)[0], fintechSet);
+  assert.equal(top("quant warm-up", 1)[0], "dsa/sets/co-quant-trading/warm-up-round");
+});
+
+test("'refunds' finds the company problem named for it first, before a body or tag mention", () => {
+  assert.ok(top("refunds", 3).includes("dsa/problems/match-refunds-with-payments"), top("refunds", 3).join());
+  assert.equal(top("match refunds", 1)[0], "dsa/problems/match-refunds-with-payments");
+  // the rate card only mentions refunds in its statement: it comes after both problems that have the word in the title
+  const r = top("refunds", 6);
+  assert.ok(r.indexOf("dsa/problems/rate-card-lookup") > r.indexOf("dsa/problems/fewest-coins-for-a-refund") && r.indexOf("dsa/problems/rate-card-lookup") > r.indexOf("dsa/problems/match-refunds-with-payments"), r.join());
+});
+
+test("an exact or near-exact title ranks first, a prefix next, whatever the kind", () => {
+  assert.equal(top("variable windows", 1)[0], "dsa/districts/d2-two-pointers-windows/variable-windows");
+  assert.equal(top("fast io and stress testing", 1)[0], "dsa/camps/camp-1/fast-io-and-stress-testing");
+  assert.equal(top("fast i/o stress testng", 1)[0], "dsa/camps/camp-1/fast-io-and-stress-testing");
+  assert.equal(top("trees and graphs", 1)[0], "dsa/sets/core-150-gaps/trees-and-graphs");
+  assert.equal(top("order book", 1)[0], "dsa/problems/order-book-spread");
+});
+
+test("a whole-word match in the title beats the same word in the body, a tag or a topic", () => {
+  const items = [
+    { ...it("body", "Something else entirely", { summary: "retry the payment after a refund" }) },
+    { ...it("tag", "Another thing", { tags: ["refund"], topics: ["Refund handling"] }) },
+    { ...it("title", "Refund the customer") },
+    { ...it("prefix", "Refunded orders report") },
+  ];
+  const ix = buildIndex(items);
+  const r = search(ix, "refund").map((h) => h.item.id);
+  assert.equal(r[0], "title");
+  assert.ok(r.indexOf("title") < r.indexOf("prefix") && r.indexOf("prefix") < r.indexOf("body"));
+  assert.ok(r.indexOf("title") < r.indexOf("tag"));
+});
+
+test("company-type words match set lessons and company problems", () => {
+  const f = top("fintech", 6);
+  assert.ok(f.includes(fintechSet) && f.includes("dsa/problems/match-refunds-with-payments") && f.includes("dsa/problems/detect-a-duplicate-transfer"));
+  assert.ok(!f.includes("dsa/sets/co-e-commerce/warm-up-round"));
+  assert.ok(top("quant", 3).includes("dsa/sets/co-quant-trading/warm-up-round") && top("quant", 3).includes("dsa/problems/order-book-spread"));
+  assert.ok(top("mass recruiter", 3).includes("dsa/sets/co-service-mass-recruiter/core-round") && top("mass recruiters", 3).includes("dsa/problems/reverse-the-words"));
+  assert.ok(top("e-commerce interview set", 4).includes("dsa/sets/co-e-commerce/warm-up-round"));
+  assert.ok(top("fintech interview", 6).includes("dsa/problems/match-refunds-with-payments"));
+});
+
+test("the kind and the pattern names are searchable too", () => {
+  assert.ok(top("gap set", 3).includes("dsa/sets/core-150-gaps/trees-and-graphs"));
+  assert.ok(top("camp", 3).includes("dsa/camps/camp-1/fast-io-and-stress-testing"));
+  assert.ok(top("street", 3).includes("dsa/districts/d2-two-pointers-windows/variable-windows"));
+  assert.ok(top("queues", 3).includes("dsa/problems/match-refunds-with-payments"));
+  assert.equal(top("detect-a-duplicate-transfer", 1)[0], "dsa/problems/detect-a-duplicate-transfer");
+});
+
+test("on a DSA page the DSA hits lead, except another lesson whose title is the query", () => {
+  const dsa = ["d1", "d2"];
+  assert.deepEqual(mergeLessonHits(dsa, [{ hit: "o1", score: 0.2 }, { hit: "o2", score: 0.4 }], 10), ["d1", "d2", "o1", "o2"]);
+  assert.deepEqual(mergeLessonHits(dsa, [{ hit: "o1", score: 0.01 }, { hit: "o2", score: 0.4 }], 10), ["o1", "d1", "d2", "o2"]);
+  assert.equal(mergeLessonHits(dsa, [{ hit: "o1", score: 0.3 }], 2).length, 2);
+});
+
+test("the smart taxonomy lists lean lessons and company types, so 'fintech interview problems' can be answered", () => {
+  const lean = [
+    { key: "co-fintech/warm-up-round", title: "Warm-up round", kind: "set", company: "fintech" },
+    { key: "co-quant-trading/warm-up-round", title: "Warm-up round", kind: "set", company: "quant-trading" },
+    { key: "d4-binary-search/search-in-order", title: "Search in order", kind: "street" },
+  ];
+  const label = (id) => ({ "quant-trading": "Quant trading" })[id] || id;
+  const tx = buildTaxonomy(ROWS, [{ id: "fintech", label: "Fintech" }, { id: "media-streaming", label: "Media and streaming" }], { "sliding-window": "Sliding window" }, { "sliding-window": "/dsa/concepts/sliding-window" }, lean, label);
+  const sys = smartSystem(tx);
+  assert.ok(sys.includes("DOMAINS: fintech, media-streaming (Media and streaming), quant-trading"), sys.match(/DOMAINS:.*/)[0]);
+  assert.ok(sys.includes("co-fintech/warm-up-round") && sys.includes("d4-binary-search/search-in-order"));
+  assert.ok(/fintech interview problems/.test(sys) && /mass recruiter/.test(sys));
+  assert.ok(sys.length < 6000, `${sys.length} chars`);
+  const a = parseSmart('{"filters":{"topics":[],"tags":[],"difficulty":[],"domains":["fintech","quant-trading","nope"],"status":null},"keywords":["fintech"],"learnFirst":"co-fintech/warm-up-round","note":"Fintech interview problems."}', tx);
+  assert.deepEqual(a.filters.domains, ["fintech", "quant-trading"]);
+  assert.equal(a.learnFirst, "co-fintech/warm-up-round");
+});

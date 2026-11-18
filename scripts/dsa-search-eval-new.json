@@ -1,0 +1,15 @@
+{
+ "about": "10 queries for the DSA ⌘K palette over the lean lessons (sets, camp tents, streets) and the company problems. `ids` are problem ids or lesson paths (dsa/<districts|camps|sets>/<module>/<lesson>). Run: node scripts/dsa-palette-eval.mjs [--legacy]",
+ "queries": [
+  { "q": "warm-up round", "kind": "set-title", "ids": ["dsa/sets/co-fintech/warm-up-round"] },
+  { "q": "fintech warm-up", "kind": "set-company", "ids": ["dsa/sets/co-fintech/warm-up-round"] },
+  { "q": "fintech interview set", "kind": "set-company", "ids": ["dsa/sets/co-fintech/warm-up-round", "match-refunds-with-payments", "detect-a-duplicate-transfer", "running-balance-never-below-zero"] },
+  { "q": "refunds", "kind": "company-problem", "ids": ["match-refunds-with-payments"] },
+  { "q": "match refunds", "kind": "company-problem", "ids": ["match-refunds-with-payments"] },
+  { "q": "duplicate transfer", "kind": "company-problem", "ids": ["detect-a-duplicate-transfer"] },
+  { "q": "balance below zero", "kind": "company-problem", "ids": ["running-balance-never-below-zero"] },
+  { "q": "variable windows", "kind": "street", "ids": ["dsa/districts/d2-two-pointers-windows/variable-windows"] },
+  { "q": "fast io stress testing", "kind": "camp", "ids": ["dsa/camps/camp-1/fast-io-and-stress-testing"] },
+  { "q": "dp and backtracking gap set", "kind": "set-gap", "ids": ["dsa/sets/core-150-gaps/dp-and-backtracking"] }
+ ]
+}

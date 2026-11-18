@@ -212,7 +212,7 @@ function summaryOf(id: string, f: ProblemFront, md = ""): ProblemSummary {
     minutes: f.tags?.minutes ?? null,
     classic: classicsOf(id, f.tags?.classic),
     rating: typeof f.tags?.difficulty === "number" ? f.tags.difficulty : null,
-    role: f.role === "checkpoint" || f.role === "warm-up" ? f.role : "practice",
+    role: f.role === "checkpoint" || f.role === "warm-up" || f.role === "company" ? f.role : "practice",
     companyTypes: f.tags?.companyTypes || [],
     own: { structures: f.tags?.structures, algorithms: f.tags?.algorithms },
     blurb: blurbOf(md),

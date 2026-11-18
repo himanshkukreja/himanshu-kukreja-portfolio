@@ -31,6 +31,8 @@ export type SearchItem = {
   lesson: string;
   /** one line of the statement, and the signals that say when to reach for it (lower-case is fine) */
   summary: string;
+  /** the ⌘K palette also lists lessons (Academy, streets, camp tents, sets): their page path ("dsa/sets/co-fintech/warm-up-round"); absent for problems */
+  path?: string;
 };
 
 export type FieldId = "title" | "alias" | "topic" | "tag" | "lesson" | "domain" | "slug" | "summary";
@@ -146,8 +148,10 @@ export function parseQuery(raw: string): ParsedQuery {
   const multi = toks.length > 1;
   for (const t of toks) {
     const clean = t.replace(/[^a-z0-9]/g, "");
-    const lv = LEVEL_WORDS[clean];
-    const st = STATUS_WORDS[clean];
+    // a word with punctuation inside is not a filter: "warm-up" is the title word of Warm-up round, "warmup" and "easy," are filters
+    const plain = t.replace(/^[^a-z0-9]+|[^a-z0-9]+$/g, "") === clean;
+    const lv = plain ? LEVEL_WORDS[clean] : undefined;
+    const st = plain ? STATUS_WORDS[clean] : undefined;
     // a filter word is a filter when it sits next to other words, or alone ("hard", "solved")
     if (lv && (multi || toks.length === 1)) {
       if (!levels.includes(lv)) levels.push(lv);
@@ -222,6 +226,8 @@ type Doc = {
   /** the stemmed title as one string, for exact and prefix checks */
   titleN: string;
   aliasN: string[];
+  /** the title's stemmed words, for the whole-word check */
+  titleW: Set<string>;
 };
 
 /** vocab word to where it occurs, packed as doc << 10 | field << 6 | list (the list's place inside the field) */
@@ -248,7 +254,7 @@ export function buildIndex(items: SearchItem[]): SearchIndex {
       if (!p) postings.set(w, (p = []));
       p.push(di << 10 | fi << 6 | Math.min(li, 63));
     })));
-    return { item, f, title: item.title, titleN: f.title[0].join(" "), aliasN: f.alias.map((a) => a.join(" ")) };
+    return { item, f, title: item.title, titleN: f.title[0].join(" "), aliasN: f.alias.map((a) => a.join(" ")), titleW: new Set(f.title[0]) };
   });
   const list = [...vocab];
   const byLen = new Map<number, string[]>();
@@ -324,6 +330,8 @@ const EXACT_ALIAS = 900;
 const PREFIX_TITLE = 300;
 const PREFIX_ALIAS = 260;
 const PHRASE_TITLE = 60;
+/** a typed word (or phrase) that is a whole word of the title, on top of the field weight: "refunds" in "Match refunds with payments" beats the same word in a topic, tag or statement */
+const TITLE_WORD = 8;
 
 function unitFromText(text: string): Unit | null {
   const toks = stemmed(text).filter((t) => !STOPWORDS.has(t));
@@ -473,6 +481,10 @@ export function search(index: SearchIndex, query: string | ParsedQuery, opts: Se
       else if ((` ${d.titleN} `).includes(` ${typedN} `)) sc += PHRASE_TITLE;
       if (d.aliasN.some((a) => a === typedN)) sc += EXACT_ALIAS;
       else if (d.aliasN.some((a) => a.startsWith(typedN))) sc += PREFIX_ALIAS;
+    }
+    for (const u of units) {
+      const tk = u.alts[0].tokens;
+      if (tk.length && tk.every((t) => d.titleW.has(t))) sc += TITLE_WORD;
     }
     // a keyword that is a whole title or alias ("two sum", "lru cache") says which problem is meant
     for (const u of boost) {

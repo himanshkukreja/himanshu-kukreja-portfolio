@@ -22,17 +22,26 @@ export type Taxonomy = {
   lessons: { id: string; title: string }[];
 };
 
-export function buildTaxonomy(rows: FilterRow[], companies: { id: string; label: string }[], concepts: Record<string, string>, lessons: Record<string, string>): Taxonomy {
+/** A written street, camp tent or set (src/lib/dsa/kinds.ts) as the model may name it: key is "<module>/<lesson>" (a lesson id alone repeats). */
+export type LeanChoice = { key: string; title: string; kind: "street" | "camp-tent" | "set"; /** a company set's type id ("fintech") */ company?: string };
+
+/** the id with its label when the label says more than the id ("service-mass-recruiter (Service mass recruiter)" stays; "fintech" alone) */
+const withLabel = (d: { id: string; label: string }) => (d.label.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() === d.id.replace(/-/g, " ") ? d.id : `${d.id} (${d.label})`);
+
+export function buildTaxonomy(rows: FilterRow[], companies: { id: string; label: string }[], concepts: Record<string, string>, lessons: Record<string, string>, lean: LeanChoice[] = [], companyLabel: (id: string) => string = (id) => id): Taxonomy {
   const tags = new Set<string>();
   for (const r of rows) r.tags.forEach((t) => tags.add(t));
   const topics = (["patterns", "algorithms", "structures"] as const).flatMap((group) => FACETS[group].map((f) => ({ id: f.id, label: f.label, group })));
-  return { topics, tags: [...tags].sort(), domains: companies, lessons: Object.keys(lessons).map((id) => ({ id, title: concepts[id] || id })) };
+  // company types: the ones problems carry, plus those of company sets that have no problem written yet
+  const domains = [...companies];
+  for (const l of lean) if (l.company && !domains.some((d) => d.id === l.company)) domains.push({ id: l.company, label: companyLabel(l.company) });
+  return { topics, tags: [...tags].sort(), domains, lessons: [...Object.keys(lessons).map((id) => ({ id, title: concepts[id] || id })), ...lean.map((l) => ({ id: l.key, title: l.title }))] };
 }
 
 /** The system prompt: the task, the taxonomy (ids only, so it stays small), the exact JSON, and a few examples. */
 export function smartSystem(t: Taxonomy): string {
   return [
-    "You turn a learner's request into filters for a problem bank of about 630 coding problems (data structures and algorithms). You never see the problems; you only pick from the lists below. Reply with ONE JSON object and nothing else.",
+    "You turn a learner's request into filters for a problem bank of about 1,000 coding problems (data structures and algorithms). You never see the problems; you only pick from the lists below. Reply with ONE JSON object and nothing else.",
     "",
     '{"filters":{"topics":[],"tags":[],"difficulty":[],"domains":[],"status":null},"keywords":[],"learnFirst":null,"note":""}',
     "",
@@ -40,16 +49,16 @@ export function smartSystem(t: Taxonomy): string {
     "- topics: ids from TOPICS. Pick the technique and, when the request names one, the data structure (\"sliding window\" + \"string\"). 1 to 3 ids. [] when the request names no topic.",
     "- tags: ids from TAGS that fit more narrowly. 0 to 3.",
     '- difficulty: ONLY when the request itself uses a level word ("easy", "medium", "hard", "warm up" = easy, "challenging" = hard). Naming a problem or a topic is NOT a difficulty request: then [].',
-    "- domains: ids from DOMAINS only when the request names an industry (payments, maps, ads). Usually [].",
+    "- domains: ids from DOMAINS when the request names an industry (payments, maps, ads) or a kind of company or interview (\"fintech interview problems\" = [\"fintech\"], \"quant\", \"SaaS\", \"mass recruiter\", \"startup\", \"big tech\"): company-set problems are written for those types. Otherwise [].",
     '- status: "unsolved" or "solved" only when the request says so, else null.',
     '- keywords: 2 to 6 lower-case words or short phrases that would appear in a problem title or statement. For a famous problem (Two Sum, LRU Cache, Trapping Rain Water, Word Ladder) always include its LeetCode number as "lc N" and 2 to 3 descriptive words; the bank retells classics in its own scenarios, so describe the idea ("rain trapped between towers"), not only the name.',
-    "- learnFirst: an id from LESSONS when the learner is asking to learn or understand a technique and a lesson teaches it, else null.",
+    "- learnFirst: an id from LESSONS when the learner is asking to learn or understand a technique and a lesson teaches it, else null. LESSONS holds the course lessons, and the streets, camp tents and sets as <module>/<lesson> (\"co-fintech/warm-up-round\" is the Fintech set's warm-up round, \"core-150-gaps/...\" a gap set).",
     "- note: one short sentence, plain words, saying what you looked for. No payment talk.",
     "- Typos and shorthands are requests too: \"ll\" is linked list, \"pq\" is heap, \"dp\", \"bfs\", \"slidng windw\". Fix them and answer. Do not invent ids. Only a request that is clearly not about coding problems or learning them gets empty lists and a note saying so.",
     "",
     `TOPICS: ${t.topics.map((x) => x.id).join(", ")}`,
     `TAGS: ${t.tags.join(", ")}`,
-    `DOMAINS: ${t.domains.map((d) => d.id).join(", ")}`,
+    `DOMAINS: ${t.domains.map(withLabel).join(", ")}`,
     `LESSONS: ${t.lessons.map((l) => l.id).join(", ")}`,
   ].join("\n");
 }
