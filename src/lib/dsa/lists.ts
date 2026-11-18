@@ -4,7 +4,7 @@
  *
  *   all                  every ready problem (the default)
  *   daily                today's problem plus the last 13 days (client: GET /api/dsa/daily)
- *   core-150             the classics: ready problems with a classic twin, plus the Core 150 gap-fillers
+ *   core-150             one problem per Core 150 classic (the gap-filler when there is one)
  *   interview-patterns   the 18 interview districts; each street is a section; unwritten districts say "N more with wave W"
  *   company-types        the company-type facet as sections
  *   cp-camps             the Challenge League camps: each camp is a section, each camp tent a street (the tent's lesson is its link)
@@ -15,6 +15,19 @@
  * Totals count READY content; planned content is noted next to them, never added in.
  */
 import type { FilterRow } from "./problem-filters";
+
+/* ------------------------------------------------------------------ the Core 150 classics */
+/** The classic interview problems (LeetCode numbers) the list calls "the 150": the Blind 75 plus the rest of NeetCode 150. */
+const BLIND_75 = [1, 3, 5, 11, 15, 19, 20, 21, 23, 33, 39, 48, 49, 53, 54, 55, 56, 57, 62, 70, 73, 76, 79, 91, 98, 100, 102, 104, 105, 121, 124, 125, 128, 133, 139, 141, 143, 152, 153, 190, 191, 198, 200, 206, 207, 208, 211, 212, 213, 217, 226, 230, 235, 238, 242, 252, 253, 261, 268, 269, 295, 297, 300, 322, 323, 338, 347, 371, 417, 424, 435, 572, 647, 1143, 271];
+const NEETCODE_MORE = [
+  36, 4, 7, 10, 17, 22, 25, 40, 42, 43, 45, 46, 50, 51, 66, 72, 74, 84, 90, 97, 110, 115, 127, 130, 131, 134, 136, 138, 145, 146, 150, 155, 167, 199, 202, 210, 215, 239, 287, 297, 309, 312, 329, 332, 355,
+  394, 416, 435, 494, 518, 543, 567, 621, 684, 695, 703, 704, 739, 743, 763, 778, 787, 846, 853, 875, 973, 981, 1046, 1448, 1584, 1851, 1899, 2013, 678,
+];
+
+/** "lc-1", "LC 1" and "lc-0001" are the same classic */
+export const classicKey = (c: string): string => c.trim().toLowerCase().replace(/^lc[\s-]*0*(\d+)$/, "lc-$1");
+
+export const CORE_150: ReadonlySet<string> = new Set([...BLIND_75, ...NEETCODE_MORE].map((n) => `lc-${n}`));
 
 export type ListId =
   | "all"
@@ -79,14 +92,31 @@ export type PracticeLists = { "core-150": { ids: string[]; target: number; plann
 
 /* ------------------------------------------------------------------ building the server-side lists */
 
-/** Core 150: ready problems that have a classic twin or sit in the plan's core-150 gap-fillers; planned = the rest of the 150. */
-export function coreList(problems: { id: string; classic: string[] }[], gapIds: string[], target = 150): PracticeLists["core-150"] {
-  const ids = new Set<string>(gapIds);
-  for (const p of problems) if (p.classic.length) ids.add(p.id);
-  const have = new Set(problems.map((p) => p.id));
-  const ready = [...ids].filter((id) => have.has(id));
-  return { ids: ready, target, planned: Math.max(0, target - ready.length) };
+/**
+ * Core 150: one ready problem per Core 150 classic (src/lib/dsa/core150.ts), never one per twin: a classic's problem is the plan's
+ * gap-filler when it has one, else the first of its twins in course order that is not a checkpoint or company problem.
+ * planned = the rest of the target.
+ */
+export function coreList(problems: { id: string; classic: string[]; role?: string }[], gapIds: string[], target = 150, core: ReadonlySet<string> = CORE_150): PracticeLists["core-150"] {
+  const gaps = new Set(gapIds);
+  const rank = (p: { id: string; role?: string }) => (gaps.has(p.id) ? 0 : p.role === "checkpoint" || p.role === "company" ? 2 : 1);
+  const pick = new Map<string, { id: string; rank: number }>();
+  for (const p of problems) {
+    for (const k of new Set(p.classic.map(classicKey))) {
+      if (!core.has(k)) continue;
+      const cur = pick.get(k);
+      if (!cur || rank(p) < cur.rank) pick.set(k, { id: p.id, rank: rank(p) });
+    }
+  }
+  const ids = [...new Set([...pick.values()].map((x) => x.id))];
+  return { ids, target, planned: Math.max(0, target - ids.length) };
 }
+
+/** By company type holds only the company problems (role: company), not every problem that carries a company-type tag. */
+export const companyRows = <T extends { id: string }>(problems: { id: string; role?: string }[], rows: T[]): T[] => {
+  const co = new Set(problems.filter((p) => p.role === "company").map((p) => p.id));
+  return rows.filter((r) => co.has(r.id));
+};
 
 type DistrictInput = { id: string; title: string; opens?: string; planned?: number; stretches: { id: string; title: string; nodes: { ref?: string; built: boolean }[]; planned?: number }[] };
 

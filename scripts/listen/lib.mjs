@@ -104,7 +104,9 @@ export async function siteModules() {
   const dsaLoad = dsa ? await load("src/lib/dsa/load.ts") : null;
   // structure and algorithm lessons (resources/structures/, resources/algorithms/) render through their own loader
   const dsaStructures = dsa ? await load("src/lib/dsa/structures.ts") : null;
-  site = { github, render, extract, html, manifest, mcq, block, story, war, mock, stories, content: process.env.SDM_LOCAL_DIR, dsa, dsaLoad, dsaStructures };
+  // lean lessons (streets, camp tents, sets) render through kinds-load.ts and kinds.ts
+  const dsaLean = dsa ? { ...(await load("src/lib/dsa/kinds-load.ts")), ...(await load("src/lib/dsa/kinds.ts")) } : null;
+  site = { github, render, extract, html, manifest, mcq, block, story, war, mock, stories, content: process.env.SDM_LOCAL_DIR, dsa, dsaLoad, dsaStructures, dsaLean };
   return site;
 }
 
@@ -174,6 +176,14 @@ export async function listArticles() {
       });
     }
   }
+  // lean lessons: streets (resources/districts), camp tents (resources/camps) and sets (resources/sets), the lean index's order.
+  // Keyed dsa/<module>/<lesson>, as the lean page's player asks (LessonShell strips the "<module>--" of its progress slug).
+  if (site.dsaLean) {
+    for (const l of await site.dsaLean.getLeanIndex()) {
+      const dir = site.dsaLean.leanDir(l.kind, l.module, l.id);
+      out.push({ key: manifest.listenKey("dsa", l.module, l.id), kind: "dsa", dsaKind: "lean", leanKind: l.kind, leanRoot: site.dsaLean.LEAN_ROOT[l.kind], week: l.module, slug: l.id, repo: "dsa", path: `${dir}/lesson.md`, also: [`${dir}/quiz.md`], href: l.href });
+    }
+  }
   // stable: course order (or file name) within each group
   return out.map((a, i) => ({ a, i, g: GROUPS.indexOf(groupOf(a.kind)) })).sort((x, y) => x.g - y.g || x.i - y.i).map((x) => ({ ...x.a, group: GROUPS[x.g] }));
 }
@@ -231,8 +241,12 @@ function mockListenHtml(phases) {
 
 /** The HTML the page gives the player's root (null: nothing to voice), and whether its first element is the root. */
 export async function articleHtml(a) {
-  const { github, render, mcq, block, story, war, mock, dsaLoad, dsaStructures } = await siteModules();
+  const { github, render, mcq, block, story, war, mock, dsaLoad, dsaStructures, dsaLean } = await siteModules();
   if (a.kind === "dsa") {
+    if (a.dsaKind === "lean") {
+      const p = await dsaLean?.getLeanPage(a.leanRoot, a.week, a.slug);
+      return p ? { md: fs.readFileSync(path.join(await repoDir(a), a.path), "utf8"), html: p.html, scoped: false } : null;
+    }
     const c = a.dsaKind === "structure" || a.dsaKind === "algorithm" ? await dsaStructures?.getStructure(a.slug) : dsaLoad ? await dsaLoad.getConcept(a.slug) : null;
     return c ? { md: fs.readFileSync(path.join(await repoDir(a), a.path), "utf8"), html: c.html, scoped: false } : null;
   }

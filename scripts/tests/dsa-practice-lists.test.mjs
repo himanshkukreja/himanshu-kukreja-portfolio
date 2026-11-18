@@ -11,12 +11,13 @@ register(
     encodeURIComponent(`export async function resolve(s, c, next) { try { return await next(s, c); } catch (e) { if (s.startsWith(".") && !/\\.\\w+$/.test(s)) return next(s + ".ts", c); throw e; } }`),
 );
 const L = await import("../../src/lib/dsa/lists.ts");
+const CORE = L;
 const { summarise } = await import("../../src/lib/dsa/progress-summary.ts");
 const { buildDsaDocs, mergeTranscripts, lessonWeek } = await import("../../src/lib/dsa/search-index.ts");
 
 const rows = ["a", "b", "c", "d"].map((id, i) => ({ id, seq: i, order: i, title: id, companies: id === "a" ? ["fintech"] : [] }));
 const lists = {
-  "core-150": L.coreList([{ id: "a", classic: ["LC 1"] }, { id: "b", classic: [] }, { id: "c", classic: [] }], ["c", "zzz"]),
+  "core-150": L.coreList([{ id: "a", classic: ["LC 1"] }, { id: "b", classic: ["lc-1"] }, { id: "d", classic: ["lc-20"], role: "checkpoint" }, { id: "c", classic: ["lc-20"] }, { id: "e", classic: ["lc-99999"] }], ["c", "zzz"]),
   "interview-patterns": L.districtList([
     { id: "d1", title: "Arrays", opens: "Opens at launch", planned: 2, stretches: [{ id: "s1", title: "Street one", nodes: [{ ref: "d", built: true }, { ref: "x", built: false }], planned: 1 }, { id: "s2", title: "Empty", nodes: [], planned: 0 }] },
     { id: "d5", title: "Lists", opens: "Opens with wave 2", planned: 4, stretches: [] },
@@ -39,6 +40,7 @@ test("every list is either ready or carries a one-line planned state", () => {
 });
 
 test("Core 150 holds classic twins and gap-fillers that exist; planned is the rest of 150", () => {
+  // one problem per classic: LC 1 has two twins (a, b), LC 20 two (c is the gap-filler, d a checkpoint), e twins no Core 150 classic
   assert.deepEqual([...lists["core-150"].ids].sort(), ["a", "c"]);
   assert.equal(lists["core-150"].planned, 148);
 });
@@ -125,4 +127,30 @@ test("merging transcripts moves the DSA lecture numbers past the shared ones", (
   assert.equal(out.l.length, 2);
   assert.deepEqual(out.m, [[0, 5, "base words"], [1, 9, "dsa words"]]);
   assert.deepEqual(base.m, [[0, 5, "base words"]]);
+});
+
+test("Core 150 holds one problem per classic: a classic with many twins counts once, a non-core classic not at all", () => {
+  const twins = Array.from({ length: 300 }, (_, i) => ({ id: `p${i}`, classic: [`lc-${[1, 3, 5, 11][i % 4]}`] }));
+  const c = L.coreList(twins, []);
+  assert.equal(c.ids.length, 4);
+  assert.equal(c.planned, 146);
+  assert.ok(CORE.CORE_150.size >= 140 && CORE.CORE_150.size <= 160, String(CORE.CORE_150.size));
+  assert.equal(CORE.classicKey("LC 0020"), "lc-20");
+  // every id the list holds is a row of the bank, and the rail count is the list's size
+  const bank = twins.map((p, i) => ({ id: p.id, seq: i, order: i, title: p.id, companies: [] }));
+  const cx = { rows: bank, saved: new Set(), daily: null, lists: { ...lists, "core-150": c } };
+  assert.equal(L.listCount("core-150", cx), 4);
+  assert.equal(L.listIdSet("core-150", cx).size, 4);
+});
+
+test("By company type counts only the company problems, and each section lists exactly those", () => {
+  const problems = [{ id: "x", role: "company" }, { id: "y", role: "district" }, { id: "z", role: "company" }, { id: "w", role: "checkpoint" }];
+  const all = problems.map((p, i) => ({ id: p.id, seq: i, order: i, title: p.id, companies: ["fintech"] }));
+  const only = L.companyRows(problems, all);
+  assert.deepEqual(only.map((r) => r.id), ["x", "z"]);
+  const list = L.companyList(only, [{ id: "fintech", label: "Fintech" }]);
+  const cx = { rows: all, saved: new Set(), daily: null, lists: { ...lists, "company-types": list } };
+  assert.equal(L.listCount("company-types", cx), 2);
+  assert.deepEqual([...L.listIdSet("company-types", cx)].sort(), ["x", "z"]);
+  assert.deepEqual(list.sections[0].ids, ["x", "z"]);
 });

@@ -138,7 +138,7 @@ export default function LessonShell(props: LessonShellProps) {
   const [step, setStep] = useState<StepId>("learn");
   const [beat, setBeat] = useState<string>(beats[0] ?? "");
 
-  const readAloud = useReadAloud(contentRef, { listenKey: listenKey("dsa", props.module, props.id) });
+  const readAloud = useReadAloud(contentRef, { listenKey: listenKey("dsa", props.module, props.kind === "lean" && props.id.startsWith(`${props.module}--`) ? props.id.slice(props.module.length + 2) : props.id) });
   const { locked } = useSignInGate(props.gateKind);
 
   const canWatch = !!props.lecture;

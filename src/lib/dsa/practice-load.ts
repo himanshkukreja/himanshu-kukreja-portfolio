@@ -3,7 +3,7 @@ import matter from "gray-matter";
 import { readDsa } from "./content";
 import { getConceptIndex, getProblemIndex, getStepLabels, getWorld } from "./load";
 import { buildProblemData, type ProblemData } from "./problem-rows";
-import { campList, companyList, coreList, districtList, type PracticeLists } from "./lists";
+import { campList, companyList, companyRows, coreList, districtList, type PracticeLists } from "./lists";
 import { getLeanIndex, getPlanFacts } from "./kinds-load";
 import { districtName } from "./districts";
 
@@ -36,7 +36,7 @@ export async function getPracticeData(): Promise<{ data: ProblemData; lists: Pra
     "core-150": coreList(problems, gaps),
     "interview-patterns": districtList((world?.regions || []).map((r) => ({ id: r.id, title: r.moduleTitle || districtName(r.title), opens: r.opens, planned: r.planned, stretches: r.stretches }))),
     // each written company set (kinds.ts) is linked from its type's section
-    "company-types": companyList(data.rows, data.companies, lean.filter((l) => l.company).map((l) => ({ module: l.module, title: `${l.title} (set lesson)`, href: l.href }))),
+    "company-types": companyList(companyRows(problems, data.rows), data.companies, lean.filter((l) => l.company).map((l) => ({ module: l.module, title: `${l.title} (set lesson)`, href: l.href }))),
     // the camps: every camp tent of the plan, with the problems the plan homes in it (written or not), its lesson when written
     "cp-camps": campList(campsOf(facts, lean), new Set(problems.map((p) => p.id))),
   };
