@@ -21,7 +21,9 @@ import { openOnboarding, useRecommendedStart } from "../onboarding/useOnboarding
 import { useWelcome } from "../simple/view";
 import ContinueCard from "./ContinueCard";
 import CourseOutline from "./CourseOutline";
-import QuickReview from "./QuickReview";
+import QuickReview, { type QuickTile } from "./QuickReview";
+import { lineOfPart } from "@/lib/dsa/metro/model";
+import { LINE_TOKEN } from "@/lib/dsa/metro/layout";
 import SetsCard, { type CompanySetLink } from "./SetsCard";
 import TodayCard, { TodayTiles } from "./TodayCard";
 import TutorCard from "./TutorCard";
@@ -56,13 +58,15 @@ export type HomeProps = {
   mediaBase: string | null;
   /** short ids by lesson id, for Quick review */
   shorts: Record<string, string[]>;
+  /** each short's first-scene headline, for the cover of a short that is not rendered yet */
+  shortHeads?: Record<string, string>;
   /** the written company sets (not on the map): the home's link card into Practice > By company type */
   sets?: CompanySetLink[];
   /** phase-2 widgets (course path, warm-up, heatmap) slot in here without a restyle: above Continue, and atop the side column */
   slots?: { top?: React.ReactNode; side?: React.ReactNode };
 };
 
-export default function CourseHome({ outline, academy, concepts, problems, lectures, mediaBase, shorts, sets = [], slots }: HomeProps) {
+export default function CourseHome({ outline, academy, concepts, problems, lectures, mediaBase, shorts, shortHeads = {}, sets = [], slots }: HomeProps) {
   const progress = useDsaProgress();
   const welcome = useWelcome();
   const { user, profile, loading } = useAuth();
@@ -122,6 +126,15 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
     for (const s of (here ? shorts[here.lessonId] : []) ?? []) if (ids.length < 3 && !ids.includes(s)) ids.push(s);
     return ids;
   }, [here, shorts, outline, progress.concepts]);
+  // each tile: its video's poster (when rendered), its station's metro line colour and its first scene's headline
+  const quickTiles = useMemo<QuickTile[]>(() => {
+    const lineOf = new Map<string, string>();
+    outline.parts.forEach((p, i) => { const tok = LINE_TOKEN[lineOfPart(p.id, i)]; for (const m of p.modules) for (const l of m.lessons) lineOf.set(l.conceptId, tok); });
+    const owner = new Map<string, string>();
+    for (const [c, ids] of Object.entries(shorts)) for (const s of ids) owner.set(s, c);
+    const base = mediaBase ? mediaBase.replace(/\/$/, "") : null;
+    return quick.map((id) => ({ id, poster: base ? `${base}/${id}/poster.jpg` : null, headline: shortHeads[id], lineToken: lineOf.get(owner.get(id) ?? "") ?? "--c-m-toolkit" }));
+  }, [quick, shorts, shortHeads, outline, mediaBase]);
 
   const totals = useMemo(() => {
     const lessons = outline.parts.flatMap((p) => p.modules.flatMap((m) => m.lessons)).filter((l) => l.built);
@@ -151,7 +164,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
             kicker={kicker}
             intro={showWelcome && progress.ready && progress.concepts.size === 0 && progress.solved.size === 0 ? <Welcome onDone={(g) => setGoalPref({ kind: g === "placements" ? "scratch" : g ? "interview" : "scratch" })} /> : null}
             onRedo={user ? openOnboarding : undefined}
-            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" ids={quick} />, <SetsCard key="sets" sets={sets} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact={!roomy} rounded />]}
+            cards={[next ? <TutorCard key="tutor" next={next} problems={practice} /> : null, <WarmupCard key="warmup" recent={recentLessons} station={stationLessons} ready={progress.ready && !!next} />, <TodayCard key="today" />, <QuickReview key="quick" tiles={quickTiles} />, <SetsCard key="sets" sets={sets} />, <ReadinessCard key="ready" tracks={["dsa"]} id="dsa-home-readiness" compact={!roomy} rounded />]}
             below={
               <>
                 {/* guests: the AI tutor ad (CSS shows it to guests only) */}
@@ -250,7 +263,7 @@ export default function CourseHome({ outline, academy, concepts, problems, lectu
               {next ? <TutorCard next={next} problems={practice} /> : null}
               {warmup}
               <ReadinessCard tracks={["dsa"]} id="dsa-home-readiness" compact rounded />
-              <QuickReview ids={quick} />
+              <QuickReview tiles={quickTiles} />
               <SetsCard sets={sets} />
             </>
           ) : null}

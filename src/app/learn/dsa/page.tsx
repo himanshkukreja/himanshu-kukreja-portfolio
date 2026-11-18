@@ -6,6 +6,7 @@ import { JsonLd, breadcrumbs } from "@/lib/seo/jsonld";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConceptIndex, getConceptLecture, getConceptShortIds, getLessonMinutes, getProblemIndex, getStepLabels, getWorld } from "@/lib/dsa/load";
 import { liveDsaShortIds } from "@/lib/dsa/media";
+import { getDsaShortAny } from "@/lib/dsa/kinds-load";
 import { buildOutline } from "@/lib/dsa/outline";
 import { getLeanBranches, getLeanIndex } from "@/lib/dsa/kinds-load";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
@@ -56,11 +57,14 @@ async function Home() {
   // published recording's media.json, read in the browser (no server fetch per render)
   const lectures: Record<string, LectureRef> = {};
   const shorts: Record<string, string[]> = {};
+  const shortHeads: Record<string, string> = {};
   await Promise.all(
     built.map(async (c) => {
       const [l, ids] = await Promise.all([getConceptLecture(c.id).catch(() => null), getConceptShortIds(c.id).then(liveDsaShortIds).catch(() => [] as string[])]);
       if (l) lectures[c.id] = { slug: l.quest, source: lectureHash(l) };
       if (ids.length) shorts[c.id] = ids;
+      // a short's first scene headline: the cover shown while its video is not rendered yet (Quick review)
+      await Promise.all(ids.map(async (id) => { const t = (await getDsaShortAny(id).catch(() => null))?.scenes?.[0]?.title; if (t) shortHeads[id] = t; }));
     }),
   );
   // side branches (streets, camp tents, Core 150 gap sets) hang off their station on the map; company sets are not on it
@@ -74,6 +78,7 @@ async function Home() {
       lectures={lectures}
       mediaBase={lectureMediaBase()}
       shorts={shorts}
+      shortHeads={shortHeads}
       sets={leanAll.filter((l) => l.company).map((l) => ({ key: l.key, title: l.title, group: l.moduleTitle.replace(/ interview set$/i, ""), href: l.href, problems: l.ladder.length }))}
     />
   );
