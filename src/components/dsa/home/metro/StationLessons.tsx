@@ -5,12 +5,12 @@
  * is on says "You are here") and the problems link to Practice filtered to the topic. Shared by the station card
  * (computers) and the phone strip's expanded stop. A long list scrolls inside its box so a card never grows the page.
  */
+import { useId, useState } from "react";
 import Link from "next/link";
 import { Check } from "lucide-react";
 import { track } from "@/lib/track";
 import type { Station, StationLesson } from "@/lib/dsa/metro/model";
 import type { OutlineBranch } from "@/lib/dsa/outline";
-import { LEAN_BRANCH_WORD } from "@/lib/dsa/kinds";
 
 const FOCUS = "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-signal-text";
 
@@ -78,27 +78,40 @@ export function ProblemsLink({ station, moduleId, from }: { station: Station; mo
   );
 }
 
+const KIND_WORD: Record<OutlineBranch["kind"], string> = { street: "Street", "camp-tent": "Camp", set: "Set" };
+const SHOWN = 4;
+
 /**
- * "Also on this stop": the side branches (streets, camp tents, gap sets) that hang off the station, each one link. Optional
- * practice beside the lessons: never numbered with them and never counted in their done totals.
+ * "More practice on this stop": the extra lessons (streets, camp tents, sets) of the station, each one link with its kind,
+ * title, problem count and solved state. Optional practice beside the lessons: never numbered with them and never counted
+ * in their done totals. Over four, the first four show and "Show all N" opens the rest in place.
  */
 export function BranchList({ station, branches, from }: { station: Pick<Station, "id" | "label">; branches: (OutlineBranch & { done: boolean })[]; from: string }) {
+  const [all, setAll] = useState(false);
+  const id = useId();
   if (!branches.length) return null;
+  const shown = all ? branches : branches.slice(0, SHOWN);
   return (
     <div className="flex flex-col gap-1" data-station-branches>
-      <p className="m-0 font-mono text-[11px] tracking-[0.06em] text-fg-3">ALSO ON THIS STOP</p>
-      <ul aria-label={`${station.label}: side branches`} className="m-0 flex list-none flex-col gap-0.5 p-0">
-        {branches.map((b) => (
+      <p className="m-0 font-mono text-[11px] tracking-[0.06em] text-fg-3">MORE PRACTICE ON THIS STOP</p>
+      <ul id={id} aria-label={`${station.label}: more practice`} className="m-0 flex list-none flex-col gap-0.5 p-0">
+        {shown.map((b) => (
           <li key={b.key}>
             <Link
               href={b.href}
               onClick={() => track("dsa_station_branch", { station: station.id, branch: b.key, from })}
               className={`flex min-h-9 items-center gap-2.5 rounded-[10px] px-2 py-1 text-[13.5px] hover:bg-surface-2 ${FOCUS}`}
             >
-              <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full border-2 border-fg-3 ${b.done ? "bg-fg-3" : "bg-surface"}`} />
+              {b.done ? (
+                <span aria-hidden className="flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full bg-signal">
+                  <Check className="h-3 w-3 text-on-signal" strokeWidth={3} />
+                </span>
+              ) : (
+                <span aria-hidden className="h-[18px] w-[18px] shrink-0 rounded-full border-2 border-signal bg-surface" />
+              )}
               <span className="min-w-0 flex-1 text-fg">
-                <span className="text-fg-3">{LEAN_BRANCH_WORD[b.kind]}</span> · {b.title}
-                {b.done ? <span className="sr-only"> (done)</span> : null}
+                <span className="text-fg-3">{KIND_WORD[b.kind]}</span> · {b.title}
+                <span className="sr-only"> ({b.done ? "done" : "not started"})</span>
               </span>
               <span className="shrink-0 font-mono text-[11.5px] text-fg-3">{b.problemCount ? `${b.problemCount} problems` : ""}</span>
               <span aria-hidden className="text-fg-3">
@@ -108,6 +121,17 @@ export function BranchList({ station, branches, from }: { station: Pick<Station,
           </li>
         ))}
       </ul>
+      {branches.length > SHOWN ? (
+        <button
+          type="button"
+          aria-expanded={all}
+          aria-controls={id}
+          onClick={() => setAll((v) => !v)}
+          className={`self-start rounded-md px-2 py-1 text-[13px] font-medium text-fg underline decoration-line-strong underline-offset-4 hover:decoration-fg ${FOCUS}`}
+        >
+          {all ? "Show fewer" : `Show all ${branches.length}`}
+        </button>
+      ) : null}
     </div>
   );
 }

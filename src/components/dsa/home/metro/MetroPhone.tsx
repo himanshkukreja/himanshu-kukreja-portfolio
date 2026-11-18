@@ -125,7 +125,13 @@ export default function MetroPhone({
                       <span className="text-[16px] font-semibold text-fg">{s.label}</span>
                       {here ? <span className="rounded-full bg-signal px-2 py-0.5 text-[11px] font-semibold text-on-signal">You are here</span> : null}
                       {isGoal ? <span className="rounded-full bg-fg px-2 py-0.5 text-[11px] font-semibold text-bg">Goal</span> : null}
-                      <span className="ml-auto text-[12.5px] text-fg-3">{s.planned ? "Soon" : `${s.done}/${s.total}`}</span>
+                      {s.branches.length ? (
+                        <span data-badge={s.id} className="ml-auto rounded-full border border-line-strong bg-surface px-2 py-px font-mono text-[11px] font-bold text-fg">
+                          <span aria-hidden>+{s.branches.length}</span>
+                          <span className="sr-only">{s.branches.length} more practice {s.branches.length === 1 ? "lesson" : "lessons"}</span>
+                        </span>
+                      ) : null}
+                      <span className={`${s.branches.length ? "" : "ml-auto "}text-[12.5px] text-fg-3`}>{s.planned ? "Soon" : `${s.done}/${s.total}`}</span>
                     </button>
                     {expanded ? (
                       <div id={`stop-${s.id}`} className="flex flex-col gap-2.5 px-4 pb-4">

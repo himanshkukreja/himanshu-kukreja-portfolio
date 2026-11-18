@@ -251,13 +251,6 @@ export function Legend({ metro, className = "", wide = false }: { metro: Metro; 
           </span>
           You are here
         </li>
-        <li className="flex items-center gap-1.5">
-          <span aria-hidden className="inline-flex items-center">
-            <span className="h-px w-2 bg-fg-3" />
-            <span className="h-2 w-2 rounded-full border-[1.5px] border-fg-3 bg-surface" />
-          </span>
-          Side branch (optional)
-        </li>
       </ul>
     </section>
   );

@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { isLeanKey, leanHref, leanKey, leanKindOfRoot, leanLectureHref, leanOfQuest, leanQuest, leanRatingsOf, leanRowsOf, parseLeanPlan } from "../../src/lib/dsa/kinds.ts";
 import { groupStages, nextStep, prevStep, stepOfStage, stepOrderOf, stepSub, visibleStages } from "../../src/lib/dsa/lesson-steps.ts";
 import { buildOutline } from "../../src/lib/dsa/outline.ts";
-import { STATIONS, VIEW, branchPoints, EDGES } from "../../src/lib/dsa/metro/layout.ts";
+import { STATIONS, VIEW, EDGES } from "../../src/lib/dsa/metro/layout.ts";
 import { buildMetro, computeRoute, routeInfo, stationDone, stationLessons } from "../../src/lib/dsa/metro/model.ts";
 import { campList, companyList } from "../../src/lib/dsa/lists.ts";
 import { resolveDsaLecture } from "../../src/lib/dsa/lecture.ts";
@@ -121,29 +121,6 @@ test("a branch is optional: it never changes a station's counts, state, route or
   const sl = stationLessons(outlineOf([BR]), withBranch.byId.get("m3-hashing"), { concepts: progress.concepts });
   assert.equal(sl.lessons.length, 2);
   assert.equal(sl.branches.length, 1);
-});
-
-test("the spurs: every planned branch stop is on the map, clear of stations and lines", () => {
-  const PLANNED = { "m0-toolkit": 4, "m2-arrays-strings": 2, "m3-hashing": 4, "m4-two-pointers": 3, "m5-sliding-window": 3, "m7-sorting": 6, "m8-binary-search": 6, "a8-bits-and-maths": 2, "s6-graphs": 1, "a6-dynamic-programming": 1, "s5-heaps": 1, "s2-stacks": 1 };
-  const by = new Map(STATIONS.map((s) => [s.id, s]));
-  const seg = (px, py, a, b) => {
-    const vx = b.x - a.x, vy = b.y - a.y, t = Math.max(0, Math.min(1, ((px - a.x) * vx + (py - a.y) * vy) / (vx * vx + vy * vy)));
-    return Math.hypot(px - a.x - t * vx, py - a.y - t * vy);
-  };
-  const all = [];
-  for (const [id, n] of Object.entries(PLANNED)) {
-    const s = by.get(id);
-    const pts = branchPoints(s, n);
-    assert.equal(pts.length, n);
-    for (const [x, y] of pts) {
-      assert.ok(x > 8 && x < VIEW.w - 8 && y > 8 && y < VIEW.h - 8, `${id} stop at ${x},${y} is off the map`);
-      for (const o of STATIONS) assert.ok(Math.hypot(x - o.x, y - o.y) > 16, `${id} stop sits on ${o.id}`);
-      for (const e of EDGES) assert.ok(seg(x, y, by.get(e.from), by.get(e.to)) > 8, `${id} stop sits on the line ${e.from}-${e.to}`);
-      for (const q of all) assert.ok(Math.hypot(x - q[0], y - q[1]) > 12, `${id} stop touches another spur`);
-      all.push([x, y]);
-    }
-  }
-  assert.deepEqual(branchPoints(by.get("m3-hashing"), 0), []);
 });
 
 test("Practice: camps are sections of tents, company types link their set lessons", () => {

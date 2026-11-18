@@ -9,7 +9,7 @@
  */
 import type { Outline, OutlineBranch } from "../outline";
 // @ts-expect-error TS5097 (the .ts extension lets node --test load this file; the bundler resolves it too)
-import { EDGES, INTERVIEW_GOAL, LINE_OF_PART, LINE_ORDER, LINKS, MILESTONES, STATIONS, branchPoints, type EdgeSpec, type LineId, type Side } from "./layout.ts";
+import { EDGES, INTERVIEW_GOAL, LINE_OF_PART, LINE_ORDER, LINKS, MILESTONES, STATIONS, type EdgeSpec, type LineId, type Side } from "./layout.ts";
 
 export type StationState = "done" | "prog" | "todo";
 
@@ -39,15 +39,15 @@ export type Station = {
   href: string | null;
   nextLesson: number;
   regionCode: string;
-  /** the written side branches (streets, camp tents, gap sets), with their stop on the spur */
+  /** the extra practice lessons (streets, camp tents, sets) of this stop: shown as a "+N" badge and in the station card, never drawn on the map */
   branches: StationBranch[];
 };
 
 /**
- * A side branch of a station on the map: a small stop on a short spur. Optional: it never changes the station's state or
+ * An extra practice lesson of a station (a street, camp tent or set). Optional: it never changes the station's state or
  * counts, the route or "Next stop" (the learner may take it any time, or never).
  */
-export type StationBranch = OutlineBranch & { x: number; y: number; done: boolean };
+export type StationBranch = OutlineBranch & { done: boolean };
 
 export type Progress = { concepts: ReadonlySet<string>; solved: ReadonlySet<string> };
 export type ProblemRef = { id: string; concept: string; level?: "easy" | "medium" | "hard" };
@@ -110,11 +110,7 @@ export function buildMetro(outline: Outline, progress: Progress, problems: Probl
       href: built[pick]?.href ?? null,
       nextLesson: pick + 1,
       regionCode: mod.regionCode,
-      branches: (() => {
-        const list = mod.branches ?? [];
-        const at = branchPoints(s, list.length);
-        return list.map((b, i): StationBranch => ({ ...b, x: at[i][0], y: at[i][1], done: progress.concepts.has(b.key) }));
-      })(),
+      branches: (mod.branches ?? []).map((b): StationBranch => ({ ...b, done: progress.concepts.has(b.key) })),
     });
   }
   const byId = new Map(stations.map((s) => [s.id, s]));
