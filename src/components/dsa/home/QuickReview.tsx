@@ -43,7 +43,7 @@ function Thumb({ t }: { t: QuickTile }) {
       <span className="absolute right-1.5 top-1.5 z-10 grid h-6 w-6 place-items-center rounded-full bg-[color-mix(in_srgb,var(--c-plate)_70%,transparent)]">
         <Play className="h-3 w-3 fill-current" aria-hidden />
       </span>
-      {!cover && <span className="relative z-10 line-clamp-3 p-2.5 text-[12px] font-semibold leading-snug">{title}</span>}
+      {!cover && <span className="relative z-10 mt-auto line-clamp-3 p-2.5 text-[12px] font-semibold leading-snug">{title}</span>}
     </Link>
   );
 }
