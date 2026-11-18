@@ -32,7 +32,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ part, bytes: r.body.length, from: r.from, ms: Date.now() - t }, { headers: { "Cache-Control": "no-store", "x-robots-tag": "noindex" } });
     } catch (e) {
       console.error("[dsa-ai-warm]", e instanceof Error ? e.message : e);
-      return NextResponse.json({ error: "Unavailable just now." }, { status: 503, headers: { "Cache-Control": "no-store" } });
+      return NextResponse.json({ error: "Unavailable just now.", why: String(e instanceof Error ? e.message : e).slice(0, 200) }, { status: 503, headers: { "Cache-Control": "no-store" } });
     }
   }
   try {
