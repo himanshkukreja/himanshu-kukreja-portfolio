@@ -302,7 +302,7 @@ test("a company set's own title reaches the top: 'warm-up round' and 'fintech wa
 });
 
 test("'refunds' finds the company problem named for it first, before a body or tag mention", () => {
-  assert.ok(top("refunds", 3).includes("dsa/problems/match-refunds-with-payments"), top("refunds", 3).join());
+  assert.equal(top("refunds", 1)[0], "dsa/problems/match-refunds-with-payments", top("refunds", 3).join());
   assert.equal(top("match refunds", 1)[0], "dsa/problems/match-refunds-with-payments");
   // the rate card only mentions refunds in its statement: it comes after both problems that have the word in the title
   const r = top("refunds", 6);

@@ -228,6 +228,8 @@ type Doc = {
   aliasN: string[];
   /** the title's stemmed words, for the whole-word check */
   titleW: Set<string>;
+  /** the title's words as written (not stemmed): "refunds" typed finds "refunds" a little ahead of "refund" */
+  titleR: Set<string>;
 };
 
 /** vocab word to where it occurs, packed as doc << 10 | field << 6 | list (the list's place inside the field) */
@@ -254,7 +256,7 @@ export function buildIndex(items: SearchItem[]): SearchIndex {
       if (!p) postings.set(w, (p = []));
       p.push(di << 10 | fi << 6 | Math.min(li, 63));
     })));
-    return { item, f, title: item.title, titleN: f.title[0].join(" "), aliasN: f.alias.map((a) => a.join(" ")), titleW: new Set(f.title[0]) };
+    return { item, f, title: item.title, titleN: f.title[0].join(" "), aliasN: f.alias.map((a) => a.join(" ")), titleW: new Set(f.title[0]), titleR: new Set(words(item.title)) };
   });
   const list = [...vocab];
   const byLen = new Map<number, string[]>();
@@ -332,6 +334,8 @@ const PREFIX_ALIAS = 260;
 const PHRASE_TITLE = 60;
 /** a typed word (or phrase) that is a whole word of the title, on top of the field weight: "refunds" in "Match refunds with payments" beats the same word in a topic, tag or statement */
 const TITLE_WORD = 8;
+/** the typed word spelt exactly as the title spells it (no stemming), among equals */
+const TITLE_LITERAL = 3;
 
 function unitFromText(text: string): Unit | null {
   const toks = stemmed(text).filter((t) => !STOPWORDS.has(t));
@@ -467,6 +471,7 @@ export function search(index: SearchIndex, query: string | ParsedQuery, opts: Se
     return best;
   };
 
+  const typedWords = words(pq.raw);
   const hits: Hit[] = [];
   for (let at = 0; at < n; at++) {
     const d = index.docs[at];
@@ -482,6 +487,7 @@ export function search(index: SearchIndex, query: string | ParsedQuery, opts: Se
       if (d.aliasN.some((a) => a === typedN)) sc += EXACT_ALIAS;
       else if (d.aliasN.some((a) => a.startsWith(typedN))) sc += PREFIX_ALIAS;
     }
+    for (const w of typedWords) if (d.titleR.has(w)) sc += TITLE_LITERAL;
     for (const u of units) {
       const tk = u.alts[0].tokens;
       if (tk.length && tk.every((t) => d.titleW.has(t))) sc += TITLE_WORD;
