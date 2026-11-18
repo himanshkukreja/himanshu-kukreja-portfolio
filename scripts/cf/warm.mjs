@@ -71,17 +71,32 @@ const rest = paths.filter((p) => rank(p) > 1);
 await Promise.all(first.map(hit));
 // the DSA tutor's catalog: built once per content commit into R2 (a cold build is ~45 s), then loaded by every isolate in one read
 if (dsa !== DSA_HUBS) {
-  // the catalog and ⌘K's two DSA search parts (docs, lecture moments), built at the same time (each is one R2 object per content commit)
-  await Promise.all(
-    [["DSA tutor catalog", "/api/dsa/ai-warm"], ["DSA search docs", "/api/dsa/ai-warm?part=docs"], ["DSA search moments", "/api/dsa/ai-warm?part=moments"]].map(async ([name, path]) => {
-      try {
-        const r = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(280_000) });
-        console.log(`${name}: ${r.status} ${(await r.text()).slice(0, 120)}`);
-      } catch (e) {
-        console.log(`${name}: failed (${e.message})`);
-      }
-    }),
-  );
+  // the catalog and ⌘K's DSA search docs, built at the same time (each is one R2 object per content commit)
+  const one = async (name, path) => {
+    try {
+      const r = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(280_000) });
+      const t = await r.text();
+      console.log(`${name}: ${r.status} ${t.slice(0, 120)}`);
+      return r.ok ? t : null;
+    } catch (e) {
+      console.log(`${name}: failed (${e.message})`);
+      return null;
+    }
+  };
+  // ...and the lecture and short moments (⌘K deep links) in slices of a few lessons: one request can't read every lecture
+  const moments = async () => {
+    const first = await one("DSA search moments chunk 0", "/api/dsa/ai-warm?part=moments&chunk=0");
+    const total = first ? JSON.parse(first).chunks : 0;
+    let todo = Array.from({ length: Math.max(total - 1, 0) }, (_, i) => i + 1);
+    for (let round = 0; round < 3 && todo.length; round++) {
+      const failed = [];
+      let k = 0;
+      await Promise.all(Array.from({ length: 4 }, async () => { while (k < todo.length) { const n = todo[k++]; if (!(await one(`DSA search moments chunk ${n}`, `/api/dsa/ai-warm?part=moments&chunk=${n}`))) failed.push(n); } }));
+      todo = failed;
+    }
+    await one("DSA search moments", "/api/dsa/ai-warm?part=moments");
+  };
+  await Promise.all([one("DSA tutor catalog", "/api/dsa/ai-warm"), one("DSA search docs", "/api/dsa/ai-warm?part=docs"), moments()]);
 }
 for (const p of engine) await hit(p);
 if (rest.length) await hit(rest[0]);

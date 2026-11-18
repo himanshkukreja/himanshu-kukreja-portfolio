@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getCatalog, loadCatalog } from "@/lib/dsa/ai/search";
-import { contentSha, loadSearchPart, type SearchPart } from "@/lib/dsa/search-index-build";
+import { contentSha, loadMomentChunk, loadSearchPart, momentChunks, type SearchPart } from "@/lib/dsa/search-index-build";
 
 /**
  * GET /api/dsa/ai-warm → { entries, from, ms }: builds the tutor's catalog if this content commit has none in R2 yet (and
@@ -18,7 +18,17 @@ export async function GET(req: Request) {
   if (part === "docs" || part === "moments") {
     try {
       const t = Date.now();
-      const r = await loadSearchPart(part as SearchPart, await contentSha());
+      const sha = await contentSha();
+      const chunk = new URL(req.url).searchParams.get("chunk");
+      if (part === "moments" && chunk !== null) {
+        // one slice of the moments (a request can't read every lecture: Workers cap subrequests): ?chunk=0 also says how many there are
+        const total = await momentChunks();
+        const n = Number(chunk);
+        if (!Number.isInteger(n) || n < 0 || n >= Math.max(total, 1)) return NextResponse.json({ error: "No such chunk", chunks: total }, { status: 404, headers: { "Cache-Control": "no-store" } });
+        const r = await loadMomentChunk(sha, n);
+        return NextResponse.json({ part, chunk: n, chunks: total, entries: r.entries.length, from: r.from, ms: Date.now() - t }, { headers: { "Cache-Control": "no-store", "x-robots-tag": "noindex" } });
+      }
+      const r = await loadSearchPart(part as SearchPart, sha);
       return NextResponse.json({ part, bytes: r.body.length, from: r.from, ms: Date.now() - t }, { headers: { "Cache-Control": "no-store", "x-robots-tag": "noindex" } });
     } catch (e) {
       console.error("[dsa-ai-warm]", e instanceof Error ? e.message : e);
