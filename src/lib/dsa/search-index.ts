@@ -14,7 +14,19 @@ import type { SearchMeta } from "./search/items";
 export type DsaSearchDoc = { slug: string; title: string; course: string; week: string; path: string; type: "day-content" | "problem"; order: number; content: string; excerpt: string;
   /** problems only: what the instant engine ranks on (src/lib/dsa/search/): level, other names, topics, tags, domains, lesson */
   meta?: SearchMeta };
-export type DsaSearchIndex = { v: 1; docs: DsaSearchDoc[]; transcripts: TranscriptIndex };
+/** What goes over the wire per doc: the fields the palette's scorer reads. course, path, type and order are derived on arrival (hydrateDoc), a problem's excerpt is never shown. */
+export type DsaWireDoc = { slug: string; title: string; week: string; content: string; excerpt?: string; meta?: SearchMeta };
+/** GET /api/dsa/search-index: the docs only (v 2); the lecture and short moments are a second, lazy part (?part=moments, DsaMoments). */
+export type DsaSearchIndex = { v: 2; docs: DsaWireDoc[] };
+/** GET /api/dsa/search-index?part=moments: the DSA lecture and short moments, in the shared transcript index's shape. */
+export type DsaMoments = { v: 1; transcripts: TranscriptIndex };
+
+export const slimDoc = (d: DsaSearchDoc): DsaWireDoc => ({ slug: d.slug, title: d.title, week: d.week, content: d.content, ...(d.type === "problem" ? {} : { excerpt: d.excerpt }), ...(d.meta ? { meta: d.meta } : {}) });
+/** the palette's doc from a wire doc (order = its position in the list) */
+export const hydrateDoc = (d: DsaWireDoc, i: number): DsaSearchDoc => {
+  const problem = d.week === "dsa/problems";
+  return { ...d, course: "dsa", path: `${d.week}/${d.slug}`, type: problem ? "problem" : "day-content", order: problem ? 10_000 + i : i, excerpt: d.excerpt ?? "" };
+};
 
 type Concept = { id: string; module: string; order: number; title: string; status: string; summary: string; kind?: "concept" | "structure" | "algorithm" };
 type Problem = { role?: string; id: string; title: string; module: string; concept: string; level: string; patterns: string[]; classic: string[]; blurb?: string; own?: { structures?: string[]; algorithms?: string[] }; companyTypes?: string[]; domain?: string; signals?: string[] };

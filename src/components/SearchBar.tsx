@@ -25,7 +25,7 @@ import { TRANSCRIPT_SHORT, TRANSCRIPT_UNTIMED, type TranscriptIndex } from "@/li
 import { useSmartAccess } from "@/components/learn/search/useSmartAccess";
 import { isNaturalQuery } from "@/lib/search/smart/text";
 import { isDsaPath } from "@/lib/dsa/flags";
-import { mergeTranscripts, type DsaSearchIndex } from "@/lib/dsa/search-index";
+import { hydrateDoc, mergeTranscripts, type DsaMoments, type DsaSearchIndex } from "@/lib/dsa/search-index";
 import { whyText as dsaWhy } from "@/lib/dsa/search/engine";
 import type { SearchMeta } from "@/lib/dsa/search/items";
 import { buildPaletteIndex, hitPath, mergeLessonHits, paletteHits } from "@/lib/dsa/search/palette";
@@ -146,12 +146,20 @@ let dsaLoad: Promise<DsaSearchIndex | null> | null = null;
 function loadDsaIndex(): Promise<DsaSearchIndex | null> {
   dsaLoad ??= fetch("/api/dsa/search-index")
     .then((r) => (r.ok ? (r.json() as Promise<DsaSearchIndex>) : null))
-    .then((d) => (d && Array.isArray(d.docs) && d.transcripts && Array.isArray(d.transcripts.m) ? d : null))
+    .then((d) => (d && Array.isArray(d.docs) ? d : null))
     .catch(() => {
       dsaLoad = null;
       return null;
     });
   return dsaLoad;
+}
+
+/** The DSA lecture and short moments (GET /api/dsa/search-index?part=moments): only "In lectures" needs them, so they load with the transcripts, not with the palette. */
+function loadDsaMoments(): Promise<DsaMoments | null> {
+  return fetch("/api/dsa/search-index?part=moments")
+    .then((r) => (r.ok ? (r.json() as Promise<DsaMoments>) : null))
+    .then((d) => (d && d.transcripts && Array.isArray(d.transcripts.m) ? d : null))
+    .catch(() => null);
 }
 
 function loadTranscripts(dsa = false): Promise<Transcripts> {
@@ -172,7 +180,7 @@ function loadTranscripts(dsa = false): Promise<Transcripts> {
     return transcriptLoad;
   }
   // on a DSA page the DSA moments are appended to the shared index (the DSA part failing leaves the shared index as it is)
-  transcriptLoadDsa ??= Promise.all([fetchShared(), loadDsaIndex()])
+  transcriptLoadDsa ??= Promise.all([fetchShared(), loadDsaMoments()])
     .then(([d, x]) => prepTranscripts(x ? mergeTranscripts(d, x.transcripts) : d))
     .catch((e) => {
       transcriptLoadDsa = null;
@@ -292,7 +300,7 @@ function Palette({ onClose }: { onClose: () => void }) {
     // on a DSA page its lessons and problems are searched too; each index lands on its own, so a slow shared index never holds DSA back
     if (onDsa)
       void loadDsaIndex().then((x) => {
-        if (!off && x) setDocs((prev) => [...(prev || []).filter((d) => !isDsaDoc(d)), ...(x.docs as unknown as Doc[])]);
+        if (!off && x) setDocs((prev) => [...(prev || []).filter((d) => !isDsaDoc(d)), ...(x.docs.map(hydrateDoc) as unknown as Doc[])]);
       });
     fetch("/api/search")
       .then((r) => r.json())

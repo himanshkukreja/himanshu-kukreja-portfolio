@@ -1,96 +1,56 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { conceptLectureHref, getConceptIndex, getConceptLecture, getProblemIndex, getStepLabels } from "@/lib/dsa/load";
-import { getDsaShortAny as getDsaShort, getLeanIndex, getLeanLecture } from "@/lib/dsa/kinds-load";
-import { leanLectureHref } from "@/lib/dsa/kinds";
-import { listDsaShorts } from "@/lib/dsa/media";
-import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
-import { flatten, type LectureMedia } from "@/lib/learn/lecture/types";
-import { shortText, transcriptWindows, TRANSCRIPT_SHORT, TRANSCRIPT_TIMED, TRANSCRIPT_UNTIMED, type TranscriptIndex, type TranscriptMoment, type TranscriptSource } from "@/lib/learn/lecture/transcript";
-import { stepOf } from "@/lib/dsa/steps";
-import { buildDsaDocs, type DsaSearchIndex } from "@/lib/dsa/search-index";
+import { controlMap, isLive, questKey, shortKey } from "@/lib/learn/controls";
+import { TRANSCRIPT_SHORT, type TranscriptMoment, type TranscriptSource } from "@/lib/learn/lecture/transcript";
+import { contentSha, loadSearchPart, type SearchPart, type StoredMoments } from "@/lib/dsa/search-index-build";
+import type { DsaMoments } from "@/lib/dsa/search-index";
 
 export const runtime = "nodejs";
-// ⌘K on a DSA page: lessons, problems and lecture/short moments, built once and served from the cache (CDN), refreshed with the
-// content and when publishing controls change (revalidateControlled). Filtering happens in the browser, so no query is taken.
-export const revalidate = 86400;
+export const dynamic = "force-dynamic";
+// ⌘K on a DSA page. GET → the lessons and problems (the palette's scorer input, ~130 KB gzipped); GET ?part=moments → the lecture
+// and short moments, which only "In lectures" deep links need (loaded lazily). Each is one R2 object per content commit, written by
+// the deploy warm-up (/api/dsa/ai-warm), so a visit is one read (and a 304 for a browser that has it). Filtering happens in the browser.
 
-const POOL = 8;
-async function pool<T, R>(items: T[], fn: (x: T) => Promise<R>): Promise<R[]> {
-  const out = new Array<R>(items.length);
-  let next = 0;
-  await Promise.all(
-    Array.from({ length: Math.min(POOL, items.length) }, async () => {
-      while (next < items.length) {
-        const k = next++;
-        out[k] = await fn(items[k]);
-      }
-    }),
-  );
-  return out;
-}
+const headers = (etag: string | null, part: SearchPart) => ({
+  "Content-Type": "application/json; charset=utf-8",
+  // keyed by the content commit: the ETag changes with it. Browsers re-check (max-age short), the edge keeps it long; the moments part
+  // applies publishing controls per request, so the edge keeps it briefly
+  "Cache-Control": part === "moments" ? "public, max-age=300, s-maxage=300, stale-while-revalidate=3600" : "public, max-age=300, s-maxage=3600, stale-while-revalidate=604800",
+  ...(etag ? { ETag: etag } : {}),
+});
 
-/** the recording's step timings when it was made from this exact script; "stale" when older; null (estimate) without one */
-async function timings(slug: string, source: string, steps: number): Promise<number[] | "stale" | null> {
-  const base = (lectureMediaBase() || "").replace(/\/$/, "");
-  if (!/^https?:\/\//.test(base)) return null;
-  try {
-    const res = await fetch(`${base}/${slug}/media.json`, { next: { revalidate: 86400 } });
-    if (!res.ok) return null;
-    const m = (await res.json()) as Partial<LectureMedia>;
-    if (m.source !== source) return "stale";
-    return Array.isArray(m.starts) && m.starts.length === steps ? m.starts : null;
-  } catch {
-    return null;
-  }
-}
-
-const CACHE = { "Cache-Control": "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800" };
-
-export async function GET() {
-  if (!DSA_FULL) return NextResponse.json({ v: 1, docs: [], transcripts: { v: 1, built: "", l: [], m: [] } } satisfies DsaSearchIndex);
-  const [concepts, problems, labels, shorts, lean] = await Promise.all([getConceptIndex().catch(() => []), getProblemIndex().catch(() => []), getStepLabels().catch(() => ({})), listDsaShorts().catch(() => []), getLeanIndex().catch(() => [])]);
-  const whereOf = (x: (typeof lean)[number]) => (x.station ? stepOf(labels, x.station).label : x.moduleTitle);
-  const docs = buildDsaDocs(concepts, problems, (m) => stepOf(labels, m).step, lean.map((x) => ({ id: x.id, module: x.module, kind: x.kind, title: x.title, summary: x.summary, where: whereOf(x) })));
-
-  const l: TranscriptSource[] = [];
-  const m: TranscriptMoment[] = [];
-  const built = await pool(
-    concepts.filter((c) => c.status === "built"),
-    async (c) => {
-      const lec = await getConceptLecture(c.id).catch(() => null);
-      if (!lec) return null;
-      const t = await timings(lec.quest, lectureHash(lec), flatten(lec).length);
-      const stale = t === "stale";
-      return { c, lec, stale, windows: transcriptWindows(lec, stale ? "none" : t ?? "estimate") };
-    },
-  );
-  for (const b of built) {
-    if (!b || !b.windows.length) continue;
-    const k = l.push([b.lec.quest, b.lec.title, stepOf(labels, b.c.module).step, conceptLectureHref(b.c.id), b.stale ? TRANSCRIPT_UNTIMED : TRANSCRIPT_TIMED]) - 1;
-    for (const w of b.windows) m.push([k, w.at, w.text]);
-  }
-  // lean lessons' lectures: the same moments, linking to their own lecture pages
-  const leanBuilt = await pool(lean, async (x) => {
-    const lec = await getLeanLecture(x.module, x.id).catch(() => null);
-    if (!lec) return null;
-    const t = await timings(lec.quest, lectureHash(lec), flatten(lec).length);
-    const stale = t === "stale";
-    return { x, lec, stale, windows: transcriptWindows(lec, stale ? "none" : t ?? "estimate") };
+/** hidden and not-yet-scheduled shorts (and shorts of a hidden lecture) leave the moments (publishing controls; a read failure hides nothing) */
+async function applyControls(body: string): Promise<string> {
+  const j = JSON.parse(body) as StoredMoments;
+  const controls = await controlMap().catch(() => new Map());
+  const drop = new Set<number>();
+  j.transcripts.l.forEach((s: TranscriptSource, k) => {
+    if (s[4] !== TRANSCRIPT_SHORT) return;
+    if (!isLive(controls.get(shortKey(s[0]))) || (j.shortOf[s[0]] && !isLive(controls.get(questKey(j.shortOf[s[0]]))))) drop.add(k);
   });
-  for (const b of leanBuilt) {
-    if (!b || !b.windows.length) continue;
-    const k = l.push([b.lec.quest, b.lec.title, whereOf(b.x), leanLectureHref(b.x.kind, b.x.module, b.x.id), b.stale ? TRANSCRIPT_UNTIMED : TRANSCRIPT_TIMED]) - 1;
-    for (const w of b.windows) m.push([k, w.at, w.text]);
+  const out: DsaMoments = { v: 1, transcripts: j.transcripts };
+  if (drop.size) {
+    const remap: number[] = [];
+    const l: TranscriptSource[] = [];
+    j.transcripts.l.forEach((s, k) => { if (!drop.has(k)) remap[k] = l.push(s) - 1; });
+    const m = j.transcripts.m.filter(([k]) => !drop.has(k)).map(([k, at, text]): TranscriptMoment => [remap[k], at, text]);
+    out.transcripts = { ...j.transcripts, l, m };
   }
-  // shorts: only the ones the publishing controls leave live (listDsaShorts), one entry each
-  const scripts = await pool(shorts, async (s) => ({ s, l: await getDsaShort(s.id).catch(() => null) }));
-  for (const { s, l: sh } of scripts) {
-    const text = sh ? shortText(sh) : "";
-    if (!text) continue;
-    const k = l.push([s.id, s.title, s.label, `/dsa/shorts?v=${encodeURIComponent(s.id)}`, TRANSCRIPT_SHORT]) - 1;
-    m.push([k, -1, text]);
+  return JSON.stringify(out);
+}
+
+export async function GET(req: NextRequest) {
+  const part: SearchPart = req.nextUrl.searchParams.get("part") === "moments" ? "moments" : "docs";
+  if (!DSA_FULL) return NextResponse.json(part === "docs" ? { v: 2, docs: [] } : { v: 1, transcripts: { v: 1, built: "", l: [], m: [] } });
+  const sha = await contentSha();
+  // the moments part has no ETag: publishing controls change what it serves without a new commit
+  const etag = sha && part === "docs" ? `"sidx-${part}-${sha}"` : null;
+  if (etag && req.headers.get("if-none-match") === etag) return new NextResponse(null, { status: 304, headers: headers(etag, part) });
+  try {
+    const { body, from } = await loadSearchPart(part, sha);
+    return new NextResponse(part === "moments" ? await applyControls(body) : body, { headers: { ...headers(etag, part), "x-sidx-from": from } });
+  } catch (e) {
+    console.error("[dsa-search-index]", e instanceof Error ? e.message : e);
+    return NextResponse.json({ error: "Unavailable just now." }, { status: 503, headers: { "Cache-Control": "no-store" } });
   }
-  const transcripts: TranscriptIndex = { v: 1, built: new Date().toISOString(), l, m };
-  return NextResponse.json({ v: 1, docs, transcripts } satisfies DsaSearchIndex, { headers: CACHE });
 }

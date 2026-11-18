@@ -71,12 +71,17 @@ const rest = paths.filter((p) => rank(p) > 1);
 await Promise.all(first.map(hit));
 // the DSA tutor's catalog: built once per content commit into R2 (a cold build is ~45 s), then loaded by every isolate in one read
 if (dsa !== DSA_HUBS) {
-  try {
-    const r = await fetch(`${base}/api/dsa/ai-warm`, { signal: AbortSignal.timeout(120_000) });
-    console.log(`DSA tutor catalog: ${r.status} ${(await r.text()).slice(0, 120)}`);
-  } catch (e) {
-    console.log(`DSA tutor catalog: failed (${e.message})`);
-  }
+  // the catalog and ⌘K's two DSA search parts (docs, lecture moments), built at the same time (each is one R2 object per content commit)
+  await Promise.all(
+    [["DSA tutor catalog", "/api/dsa/ai-warm"], ["DSA search docs", "/api/dsa/ai-warm?part=docs"], ["DSA search moments", "/api/dsa/ai-warm?part=moments"]].map(async ([name, path]) => {
+      try {
+        const r = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(280_000) });
+        console.log(`${name}: ${r.status} ${(await r.text()).slice(0, 120)}`);
+      } catch (e) {
+        console.log(`${name}: failed (${e.message})`);
+      }
+    }),
+  );
 }
 for (const p of engine) await hit(p);
 if (rest.length) await hit(rest[0]);
