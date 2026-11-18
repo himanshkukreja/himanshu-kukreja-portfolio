@@ -16,6 +16,7 @@
  * window.__LECTURE_SET(i, t, dur, token) for every frame and screenshots once
  * window.__LECTURE_FRAME === token; window.__LECTURE_PLAN lists each step's motion length.
  */
+import { leanLectureHref } from "@/lib/dsa/kinds";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
@@ -95,9 +96,11 @@ type Props = {
   faq?: Record<string, FaqEntry[]> | null;
   /** inside a lesson page (DSA's Learn > Watch): compact chrome, no page header, chapters under the player. Nothing else changes. */
   embedded?: boolean;
+  /** the recording has no separate narration.mp3 (DSA solution videos publish only their MP4): play the MP4's own audio track */
+  audioFromVideo?: boolean;
 };
 
-export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null, faq = null, embedded = false }: Props) {
+export default function LecturePlayer({ lecture, quest, source, mediaBase, next = null, faq = null, embedded = false, audioFromVideo = false }: Props) {
   const flat = useMemo(() => flatten(lecture), [lecture]);
   const [record, setRecord] = useState(false);
   useEffect(() => {
@@ -105,7 +108,7 @@ export default function LecturePlayer({ lecture, quest, source, mediaBase, next 
     return () => window.clearTimeout(id);
   }, []);
   if (record) return <RecordStage lecture={lecture} flat={flat} quest={quest} />;
-  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} faq={faq} embedded={embedded} />;
+  return <Player lecture={lecture} flat={flat} quest={quest} source={source} mediaBase={mediaBase} next={next} faq={faq} embedded={embedded} audioFromVideo={audioFromVideo} />;
 }
 
 /* ---------- record mode: the exporter drives every frame ---------- */
@@ -210,10 +213,11 @@ function Root({ embedded, className, children }: { embedded: boolean; className:
   return embedded ? <div className={className}>{children}</div> : <main className={className}>{children}</main>;
 }
 
-function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded = false }: Props & { flat: Flat }) {
+function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded = false, audioFromVideo = false }: Props & { flat: Flat }) {
   const slug = lecture.quest;
   // the lecture's own page: DSA concept lectures live under their concept
-  const pagePath = lecture.dsa ? `/dsa/concepts/${lecture.dsa.concept}/lecture` : `/lectures/${slug}`;
+  const leanKind = lecture.dsa?.kind === "street" || lecture.dsa?.kind === "camp-tent" || lecture.dsa?.kind === "set" ? lecture.dsa.kind : null;
+  const pagePath = lecture.dsa ? (leanKind ? `${leanLectureHref(leanKind, lecture.dsa.module, lecture.dsa.concept)}` : `/dsa/concepts/${lecture.dsa.concept}/lecture`) : `/lectures/${slug}`;
   const { awardOnce, flags, setFlag, hydrated, markDone, peekDone } = useGame();
   // DSA Mastery videos (concept lectures, lesson clips, solution videos) earn DSA Bits, never SD Mastery XP
   const dsaVideo = !!(lecture.dsa || lecture.clip || lecture.solution);
@@ -302,14 +306,16 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded =
       .then((m) => {
         if (off || !m || m.source !== source) return;
         const abs = (u?: string) => (u ? new URL(u, new URL(base, window.location.href)).href : undefined);
-        setMedia({ ...m, audio: abs(m.audio)!, music: abs(m.music) });
+        const audio = audioFromVideo ? abs(m.video) : abs(m.audio);
+        if (!audio) return;
+        setMedia({ ...m, audio, music: audioFromVideo ? undefined : abs(m.music) });
       })
       .catch(() => {})
       .finally(() => !off && setMediaTried(true));
     return () => {
       off = true;
     };
-  }, [mediaBase, slug, source]);
+  }, [mediaBase, slug, source, audioFromVideo]);
 
   // timeline: where each step starts (recorded audio, else an estimate)
   const starts = useMemo(() => {
@@ -837,7 +843,21 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded =
     </div>
   );
 
-  const btn = "grid h-10 min-w-9 shrink-0 place-items-center px-1.5 font-mono text-xs text-fg-2 hover:text-fg sm:min-w-10 sm:px-2";
+  // embedded in a narrow column (the problem room's panel), the control row takes the phone treatment whatever the screen width
+  const [narrowBox, setNarrowBox] = useState(false);
+  const toolbarRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      roRef.current?.disconnect();
+      if (!el || !embedded || typeof ResizeObserver === "undefined") return;
+      const ro = new ResizeObserver(() => setNarrowBox(el.clientWidth < 600));
+      ro.observe(el);
+      roRef.current = ro;
+    },
+    [embedded],
+  );
+  const roRef = useRef<ResizeObserver | null>(null);
+  const nb = embedded && narrowBox;
+  const btn = `grid h-10 min-w-9 shrink-0 place-items-center px-1.5 font-mono text-xs text-fg-2 hover:text-fg ${nb ? "" : "sm:min-w-10 sm:px-2"}`;
   const gatedNote = gated ? (
     <p className="m-0 font-mono text-[12px] text-fg-3">
       {FREE_S === 60 ? "The first minute" : `The first ${FREE_S} seconds`} {FREE_S === 60 ? "is" : "are"} open to everyone. The rest is free for now:{" "}
@@ -966,20 +986,20 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded =
           </div>
 
           {/* one row at every width: labels shorten and the least-needed buttons drop out on small screens */}
-          <div role="toolbar" aria-label="Lecture controls" className="flex flex-nowrap items-center gap-0.5 border border-line-strong bg-surface px-1 py-1 sm:gap-1 sm:px-2">
+          <div ref={toolbarRef} role="toolbar" aria-label="Lecture controls" className={`flex flex-nowrap items-center gap-0.5 border border-line-strong bg-surface px-1 py-1 ${nb ? "" : "sm:gap-1 sm:px-2"}`}>
             <button
               type="button"
               onClick={toggle}
               aria-label={playing ? "Pause" : time > 0 ? "Resume" : "Play"}
-              className="h-10 min-w-11 shrink-0 bg-signal px-3 font-mono text-xs font-semibold text-on-signal sm:min-w-20"
+              className={`h-10 min-w-11 shrink-0 bg-signal px-3 font-mono text-xs font-semibold text-on-signal ${nb ? "" : "sm:min-w-20"}`}
             >
               <span aria-hidden>{playing ? "❚❚" : "▶"}</span>
-              <span aria-hidden className="hidden sm:inline"> {playing ? "pause" : time > 0 ? "resume" : "play"}</span>
+              <span aria-hidden className={nb ? "hidden" : "hidden sm:inline"}> {playing ? "pause" : time > 0 ? "resume" : "play"}</span>
             </button>
-            <button type="button" onClick={() => seek(time - 10)} className={`${btn} !hidden min-[480px]:!grid`} aria-label="Back 10 seconds" title="Back 10 s (J)">
+            <button type="button" onClick={() => seek(time - 10)} className={`${btn} !hidden ${nb ? "" : "min-[480px]:!grid"}`} aria-label="Back 10 seconds" title="Back 10 s (J)">
               −10s
             </button>
-            <button type="button" onClick={() => seek(time + 10)} className={`${btn} !hidden min-[480px]:!grid`} aria-label="Forward 10 seconds" title="Forward 10 s (L)">
+            <button type="button" onClick={() => seek(time + 10)} className={`${btn} !hidden ${nb ? "" : "min-[480px]:!grid"}`} aria-label="Forward 10 seconds" title="Forward 10 s (L)">
               +10s
             </button>
             <span className="shrink-0 whitespace-nowrap px-1 font-mono text-[11px] tabular-nums text-fg-3 sm:px-2 sm:text-xs">
@@ -992,17 +1012,17 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded =
                 type="button"
                 onClick={() => (ask ? closeAsk() : openAsk())}
                 aria-pressed={!!ask}
-                className={`h-10 shrink-0 whitespace-nowrap border border-signal px-2 font-mono text-xs sm:px-3 ${ask ? "bg-signal text-on-signal" : "text-signal-text hover:bg-signal hover:text-on-signal"}`}
+                className={`h-10 shrink-0 whitespace-nowrap border border-signal px-2 font-mono text-xs ${nb ? "" : "sm:px-3"} ${ask ? "bg-signal text-on-signal" : "text-signal-text hover:bg-signal hover:text-on-signal"}`}
                 title="Ask AI about this moment (A)"
                 aria-label="Ask AI about this moment"
               >
-                ✦ ask<span className="hidden lg:inline"> about this</span>
+                ✦ ask{nb ? null : <span className="hidden lg:inline"> about this</span>}
               </button>
             )}
             <button
               type="button"
               onClick={(e) => startSnip({ keyboard: e.detail === 0 })}
-              className={`${btn} !hidden min-[480px]:!grid [@media(pointer:coarse)]:h-11`}
+              className={`${btn} !hidden ${nb ? "" : "min-[480px]:!grid"} [@media(pointer:coarse)]:h-11`}
               title="Snip this frame: save it or have it explained (S)"
               aria-label="Snip this frame"
               aria-keyshortcuts="S"
@@ -1017,7 +1037,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded =
                 ♪
               </button>
             )}
-            <select value={rate} onChange={(e) => setRate(Number(e.target.value))} aria-label="Speed" className="h-10 w-[54px] shrink-0 border border-line bg-bg px-1 font-mono text-xs text-fg sm:w-auto">
+            <select value={rate} onChange={(e) => setRate(Number(e.target.value))} aria-label="Speed" className={`h-10 w-[54px] shrink-0 border border-line bg-bg px-1 font-mono text-xs text-fg ${nb ? "" : "sm:w-auto"}`}>
               {SPEEDS.map((r) => (
                 <option key={r} value={r}>
                   {r}×
@@ -1037,7 +1057,7 @@ function Player({ lecture, flat, quest, source, mediaBase, next, faq, embedded =
               }}
             />
             {canPip && (
-              <button type="button" onClick={() => void togglePip()} className={`${btn} !hidden sm:!grid`} title="Picture in picture" aria-label="Picture in picture">
+              <button type="button" onClick={() => void togglePip()} className={`${btn} !hidden ${nb ? "" : "sm:!grid"}`} title="Picture in picture" aria-label="Picture in picture">
                 ⧉
               </button>
             )}

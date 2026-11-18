@@ -22,6 +22,7 @@ const lists = {
     { id: "d5", title: "Lists", opens: "Opens with wave 2", planned: 4, stretches: [] },
   ]),
   "company-types": L.companyList(rows, [{ id: "fintech", label: "Fintech" }, { id: "saas", label: "SaaS" }]),
+  "cp-camps": L.campList([{ id: "camp-1", title: "Basics", band: [800, 1000], tents: [{ id: "t", title: "T", ids: ["b", "gone"], href: null }] }], new Set(["a", "b", "c", "d"])),
 };
 const ctx = (over = {}) => ({ rows, saved: new Set(), daily: null, lists, ...over });
 
@@ -33,7 +34,8 @@ test("parseList accepts known ids and falls back to all", () => {
 
 test("every list is either ready or carries a one-line planned state", () => {
   for (const l of L.LISTS) assert.ok(l.ready || l.planned?.line, l.id);
-  assert.equal(L.LISTS.filter((l) => !l.ready && l.id !== "build-my-list").length, 5);
+  // CP camps became a ready list (18 Nov 2026)
+  assert.equal(L.LISTS.filter((l) => !l.ready && l.id !== "build-my-list").length, 4);
 });
 
 test("Core 150 holds classic twins and gap-fillers that exist; planned is the rest of 150", () => {
@@ -55,7 +57,7 @@ test("a list's ids only count problems that are in the bank", () => {
   assert.deepEqual([...L.listIdSet("core-150", ctx())].sort(), ["a", "c"]);
   assert.deepEqual([...L.listIdSet("interview-patterns", ctx())], ["d"]);
   assert.deepEqual([...L.listIdSet("company-types", ctx())], ["a"]);
-  assert.deepEqual([...L.listIdSet("cp-camps", ctx())], []);
+  assert.deepEqual([...L.listIdSet("cp-camps", ctx())], ["b"]);
 });
 
 test("daily and saved come from the learner; counts are ready problems", () => {

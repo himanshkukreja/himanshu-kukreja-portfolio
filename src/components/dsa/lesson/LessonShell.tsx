@@ -36,8 +36,8 @@ import { BEAT_PLAIN } from "@/lib/dsa/words";
 import { mapHref } from "@/lib/dsa/lesson-stops";
 import type { VisualizerSpec } from "@/lib/dsa/viz/registry";
 import {
-  STEP_ORDER,
   STEP_TITLE,
+  stepOrderOf,
   groupStages,
   learnBeats,
   stepOfHash,
@@ -107,6 +107,10 @@ export type LessonShellProps = {
   hydrator: (rootRef: React.RefObject<HTMLDivElement | null>) => React.ReactNode;
   /** phase-2 widgets (inline visualiser, predict checks) slot into the Learn card, above the lesson text */
   learnSlot?: React.ReactNode;
+  /** "Back" goes here instead of the checkpoint's station (a lean lesson: its station, or Practice) */
+  backHref?: string;
+  /** the label of that link's target, for the phone's back button */
+  backLabel?: string;
 };
 
 const FOLDED = "stretch";
@@ -399,12 +403,13 @@ export default function LessonShell(props: LessonShellProps) {
     practice: props.practice.length,
     checkBeats: groups.check.length,
   };
-  const steps: StepView[] = STEP_ORDER.map((id, i) => ({ id, n: i + 1, title: STEP_TITLE[id], sub: stepSub(id, kind, facts), state: step === id ? "current" : doneOf[id] ? "done" : "todo" }));
+  const order = stepOrderOf(kind);
+  const steps: StepView[] = order.map((id, i) => ({ id, n: i + 1, title: STEP_TITLE[id], sub: stepSub(id, kind, facts), state: step === id ? "current" : doneOf[id] ? "done" : "todo" }));
 
   const savePlace = () => p.saveCheckpoint();
   const canAsk = !user || !!ai?.features["dsa-chat"];
   const beatName = (id: string) => (kind === "concept" ? BEAT_PLAIN[id] : "") || stages.find((s) => s.id === id)?.label || id;
-  const backHref = mapHref(props.checkpoint);
+  const backHref = props.backHref ?? mapHref(props.checkpoint);
   const lectureMin = props.lecture?.minutes ?? null;
 
   // "2.1 Arrays and strings · lesson 3 of 7" → the module for the crumbs and "Lesson 3 of 7" after it
@@ -423,7 +428,7 @@ export default function LessonShell(props: LessonShellProps) {
   const stepHeading = (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className={`m-0 text-[17px] font-semibold text-fg sm:text-[18px] ${step === "learn" ? "hidden sm:block" : ""}`}>
-        {STEP_ORDER.indexOf(step) + 1} · {STEP_TITLE[step]}
+        {order.indexOf(step) + 1} · {STEP_TITLE[step]}
       </h2>
       {step === "learn" ? (
         <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
@@ -515,7 +520,7 @@ export default function LessonShell(props: LessonShellProps) {
         <div data-reader-grid data-dsa-grid className="mt-3.5 grid grid-cols-1 gap-6 lg:mt-5 xl:grid-cols-[minmax(0,1fr)_300px] xl:gap-9">
           <div ref={mainRef} className="flex min-w-0 scroll-mt-24 flex-col gap-4 pb-28 sm:gap-[22px]" data-lesson-main data-step={step}>
             {/* the open step: one rounded card on computers (the canvas), the bare page on phones (LessonMobile) */}
-            <section aria-label={`Step ${STEP_ORDER.indexOf(step) + 1}: ${STEP_TITLE[step]}`} className="min-w-0 sm:rounded-[18px] sm:border sm:border-line sm:bg-surface sm:p-[22px]">
+            <section aria-label={`Step ${order.indexOf(step) + 1}: ${STEP_TITLE[step]}`} className="min-w-0 sm:rounded-[18px] sm:border sm:border-line sm:bg-surface sm:p-[22px]">
             <div className="flex flex-col gap-4">
               <div data-focus-hide>{stepHeading}</div>
 
@@ -549,7 +554,7 @@ export default function LessonShell(props: LessonShellProps) {
               {step === "learn" && props.learnSlot ? <div data-slot="lesson-learn">{props.learnSlot}</div> : null}
 
               {step === "try" && !gateBlocksTry ? <TryPanel kind={kind} lessonId={props.id} traces={props.traces} races={props.races} visualizer={props.visualizer} hasLabBeat={hasLabBeat} /> : null}
-              {step === "practice" ? <PracticeStep problems={props.practice} intro={props.practiceIntro} module={props.module} /> : null}
+              {step === "practice" && kind !== "lean" ? <PracticeStep problems={props.practice} intro={props.practiceIntro} module={props.module} /> : null}
               {step === "check" ? <CheckStep checkpoint={props.checkpoint} labId={props.labId ?? null} hasQuiz={props.hasQuiz} /> : null}
             </div>
 
@@ -628,13 +633,13 @@ export default function LessonShell(props: LessonShellProps) {
 
             {step === "check" ? (
               <div className="mt-8">
-                <CheckEnd checkpoint={props.checkpoint} next={props.nav.next} cheatsheet={props.cheatsheet} />
+                <CheckEnd checkpoint={props.checkpoint} next={props.nav.next} cheatsheet={props.cheatsheet} backHref={props.backHref} />
               </div>
             ) : null}
             </section>
 
             {/* the other three steps, each its own card (the canvas shows the whole lesson at a glance) */}
-            <StepPreviews steps={steps} current={step} problems={props.practice} onPick={(s) => go(s)} />
+            <StepPreviews kind={kind} steps={steps} current={step} problems={props.practice} onPick={(s) => go(s)} />
           </div>
 
           {/* the aside: a third column on wide screens; below that it folds into the end of Learn */}
@@ -651,7 +656,7 @@ export default function LessonShell(props: LessonShellProps) {
         </div>
       </div>
 
-      <StepFooter step={step} onNext={(s) => go(s)} nextPart={paged && nextBeat && !(showGate && locked) ? () => goBeat(nextBeat) : null} nextLesson={props.nav.next} backHref={backHref} />
+      <StepFooter kind={kind} step={step} onNext={(s) => go(s)} nextPart={paged && nextBeat && !(showGate && locked) ? () => goBeat(nextBeat) : null} nextLesson={props.nav.next} backHref={backHref} />
       {focus ? <FocusControls stages={p.stages} size={size} onExit={() => changeFocus(false)} /> : null}
       <ContentsSheet anyWidth open={sheet} onClose={() => setSheet(false)} toc={props.toc} stages={stages} kicker={props.moduleTitle.toUpperCase()} title={props.title} />
     </>

@@ -32,7 +32,13 @@ export function itemsFromRows(rows: FilterRow[], lessons: Record<string, string>
 /** What a problem's ⌘K doc carries so the palette can rank it with the same engine (see src/lib/dsa/search-index.ts). */
 export type SearchMeta = { lv: SearchItem["level"]; al: string[]; tp: string[]; tg: string[]; dm: string[]; ls: string };
 
-export function itemFromDoc(d: { slug: string; title: string; content: string; meta?: SearchMeta }): SearchItem {
+/**
+ * A ⌘K doc as an engine item. A lesson (week is not dsa/problems) has no unique slug (every company set has a warm-up-round),
+ * so its id is its page path; the folder words ("sets", "districts", "co fintech") then count as a faint name match too.
+ */
+export function itemFromDoc(d: { slug: string; title: string; content: string; week?: string; meta?: SearchMeta }): SearchItem {
   const m = d.meta;
-  return { id: d.slug, title: d.title, aliases: m?.al || [], topics: m?.tp || [], tags: m?.tg || [], domains: m?.dm || [], level: m?.lv || "medium", lesson: m?.ls || "", summary: d.content };
+  const lesson = !!d.week && d.week !== "dsa/problems";
+  const path = lesson ? `${d.week}/${d.slug}` : undefined;
+  return { id: path || d.slug, title: d.title, aliases: m?.al || [], topics: m?.tp || [], tags: m?.tg || [], domains: m?.dm || [], level: m?.lv || "medium", lesson: m?.ls || "", summary: d.content, ...(path ? { path } : {}) };
 }

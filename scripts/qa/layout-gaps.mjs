@@ -74,13 +74,15 @@ async function discover() {
   const algorithms = pick(/\/dsa\/algorithms\/([a-z0-9-]+)/g);
   const concepts = pick(/\/dsa\/concepts\/([a-z0-9-]+)/g);
   const problems = pick(/\\?"problems\\?":\[\{\\?"id\\?":\\?"([a-z0-9-]+)\\?"/g).concat(pick(/\/dsa\/problems\/([a-z0-9-]+)/g));
+  // lean lessons beyond the Academy (streets, camp tents, sets): /dsa/<districts|camps|sets>/<module>/<lesson>
+  const lean = [...new Set([...html.matchAll(/\/dsa\/(districts|camps|sets)\/([a-z0-9-]+)\/([a-z0-9-]+)/g)].map((m) => m[0]))];
   const conceptIds = pick(/conceptId\\?":\\?"([a-z0-9-]+)\\?"/g);
   let cheat = "";
   try {
     const h = await (await fetch(`${BASE}/dsa/cheatsheets`)).text();
     cheat = (h.match(/href="\/dsa\/cheatsheets\/([a-z0-9-]+)"/) || [])[1] || "";
   } catch {}
-  return { structures, algorithms, concepts, problems, conceptIds, cheat };
+  return { structures, algorithms, concepts, problems, conceptIds, cheat, lean };
 }
 
 function pagesOf(d) {
@@ -92,6 +94,11 @@ function pagesOf(d) {
   if (d.algorithms[0]) p.push({ id: "lesson-algorithm", url: `/dsa/algorithms/${d.algorithms[0]}` });
   const concept = d.concepts[0] || d.conceptIds.find((c) => !d.structures.includes(c) && !d.algorithms.includes(c));
   if (concept) p.push({ id: "lesson-concept", url: `/dsa/concepts/${concept}` });
+  for (const root of ["districts", "camps", "sets"]) {
+    const u = (d.lean || []).find((x) => x.startsWith(`/dsa/${root}/`));
+    if (u) p.push({ id: `lean-${root}`, url: u });
+  }
+  p.push({ id: "practice-camps", url: "/dsa/practice?list=cp-camps" }, { id: "practice-company", url: "/dsa/practice?list=company-types" });
   if (d.problems[0]) p.push({ id: "problem", url: `/dsa/problems/${d.problems[0]}` });
   p.push({ id: "practice", url: "/dsa/practice" }, { id: "search-results", url: "/dsa/practice?q=array" }, { id: "review", url: "/dsa/review" }, { id: "progress", url: "/dsa/progress" }, { id: "playground", url: "/dsa/playground" }, { id: "cheatsheets", url: "/dsa/cheatsheets" }, { id: "ai-tutor", url: "/dsa/ai-tutor" }, { id: "sdm-ai-tutor", url: "/ai-tutor" });
   if (d.cheat) p.push({ id: "cheatsheet", url: `/dsa/cheatsheets/${d.cheat}` });

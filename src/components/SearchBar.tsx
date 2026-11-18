@@ -26,8 +26,9 @@ import { useSmartAccess } from "@/components/learn/search/useSmartAccess";
 import { isNaturalQuery } from "@/lib/search/smart/text";
 import { isDsaPath } from "@/lib/dsa/flags";
 import { mergeTranscripts, type DsaSearchIndex } from "@/lib/dsa/search-index";
-import { buildIndex as buildDsaEngine, search as dsaEngineSearch, whyText as dsaWhy } from "@/lib/dsa/search/engine";
-import { itemFromDoc, type SearchMeta } from "@/lib/dsa/search/items";
+import { whyText as dsaWhy } from "@/lib/dsa/search/engine";
+import type { SearchMeta } from "@/lib/dsa/search/items";
+import { buildPaletteIndex, hitPath, mergeLessonHits, paletteHits } from "@/lib/dsa/search/palette";
 
 type Doc = LearningResource & { content?: string; excerpt?: string; meta?: SearchMeta };
 type Group = "ask" | "companies" | "lessons" | "cases" | "transcripts" | "questions" | "notes";
@@ -369,17 +370,20 @@ function Palette({ onClose }: { onClose: () => void }) {
             threshold: 0.35,
             ignoreLocation: true,
             minMatchCharLength: 2,
+            includeScore: true,
           })
         : null,
     [docs]
   );
 
-  // DSA problems are ranked by the Practice tab's engine (src/lib/dsa/search/): exact name, prefix, typos, shorthands (dp, ll), classic names
+  // DSA lessons (Academy, streets, camp tents, sets) and problems are ranked together by the Practice tab's engine
+  // (src/lib/dsa/search/): exact name, prefix, whole title words, typos, shorthands (dp, ll), classic names, company types
   const dsaEngine = useMemo(() => {
     if (!onDsa || !docs) return null;
-    const probs = docs.filter((d) => d.week === "dsa/problems");
-    return probs.length ? buildDsaEngine(probs.map((d) => itemFromDoc({ slug: d.slug, title: d.title, content: d.content || "", meta: d.meta }))) : null;
+    const mine = docs.filter((d) => d.course === "dsa");
+    return mine.length ? buildPaletteIndex(mine.map((d) => ({ slug: d.slug, title: d.title, content: d.content || "", week: d.week, course: "dsa", meta: d.meta }))) : null;
   }, [docs, onDsa]);
+  const dsaDocs = useMemo(() => new Map((docs || []).filter((d) => d.course === "dsa").map((d) => [`${d.week}/${d.slug}`, d])), [docs]);
 
   const caseFuse = useMemo(
     () =>
@@ -421,27 +425,28 @@ function Palette({ onClose }: { onClose: () => void }) {
     if (!t || !docs) return { hits: [] as Hit[], ms: 0 };
     const t0 = performance.now();
     const lower = t.toLowerCase();
-    const dsaTop = dsaEngine ? dsaEngineSearch(dsaEngine, t, { limit: 6 }) : [];
-    const dsaHits: Hit[] = dsaTop.map((h) => ({
-      id: `l:dsa/problems/${h.item.id}`,
-      group: "lessons",
-      badge: "PRB",
-      title: h.item.title,
-      sub: dsaWhy(h) || `${h.item.level} problem${h.item.lesson ? ` · ${h.item.lesson}` : ""}`,
-      meta: "DSA problem",
-      href: `/dsa/problems/${h.item.id}`,
+    const dsaTop = dsaEngine ? paletteHits(dsaEngine, t, 8) : [];
+    const dsaHits: Hit[] = dsaTop.map((h) => {
+      const path = hitPath(h);
+      if (!h.item.path)
+        return { id: `l:${path}`, group: "lessons", badge: "PRB", title: h.item.title, sub: dsaWhy(h) || `${h.item.level} problem${h.item.lesson ? ` · ${h.item.lesson}` : ""}`, meta: "DSA problem", href: `/${path}` };
+      const d = dsaDocs.get(path);
+      return { id: `l:${path}`, group: "lessons", badge: d ? badgeFor(d) : "DSA", title: h.item.title, sub: dsaWhy(h) || snippet(d?.excerpt || "", t, 60) || d?.excerpt?.slice(0, 90) || "DSA lesson", meta: "DSA lesson", href: `/${path}` };
+    });
+    // the other courses' lessons: on a DSA page the DSA hits lead, unless another lesson's title is the query
+    const otherHits = (fuse?.search(t).filter((r) => r.item.course !== "dsa").slice(0, 8) || []).map(({ item: d, score }) => ({
+      score: score ?? 1,
+      hit: {
+        id: `l:${d.week}/${d.slug}`,
+        group: "lessons",
+        badge: badgeFor(d),
+        title: d.title,
+        sub: snippet(d.content || d.excerpt || "", t, 60) || topicFor(d.week),
+        meta: topicFor(d.week),
+        href: `/${d.week}/${d.slug}?highlight=${encodeURIComponent(t)}`,
+      } as Hit,
     }));
-    const lessonOnly: Hit[] = (fuse?.search(t).filter((r) => !dsaEngine || r.item.week !== "dsa/problems").slice(0, 8) || []).map(({ item: d }) => ({
-      id: `l:${d.week}/${d.slug}`,
-      group: "lessons",
-      badge: badgeFor(d),
-      title: d.title,
-      sub: snippet(d.content || d.excerpt || "", t, 60) || topicFor(d.week),
-      meta: topicFor(d.week),
-      href: `/${d.week}/${d.slug}?highlight=${encodeURIComponent(t)}`,
-    }));
-    // a problem whose name the query is (exact or a prefix) comes first; otherwise lessons lead and problems follow
-    const lessonHits: Hit[] = dsaTop[0] && dsaTop[0].score >= 250 ? [...dsaHits, ...lessonOnly].slice(0, 10) : [...lessonOnly, ...dsaHits].slice(0, 10);
+    const lessonHits: Hit[] = mergeLessonHits(dsaHits, otherHits, 10);
     const qHits: Hit[] = questions
       .filter((x) => x.text.toLowerCase().includes(lower))
       .slice(0, 6)
@@ -495,7 +500,7 @@ function Palette({ onClose }: { onClose: () => void }) {
     // same order as `groups` below: the list's selection index runs through them in this order
     const rest = [...coHits, ...lessonHits, ...cHits, ...tHits, ...qHits, ...nHits];
     return { hits: askFirst ? [...askHits, ...rest] : [...rest, ...askHits], ms: Math.max(1, Math.round(performance.now() - t0)) };
-  }, [q, docs, fuse, dsaEngine, caseFuse, companyFuse, questions, notes, titleOf, transcripts, smart]);
+  }, [q, docs, fuse, dsaEngine, dsaDocs, caseFuse, companyFuse, questions, notes, titleOf, transcripts, smart]);
 
   const counts = useMemo(
     () => ({

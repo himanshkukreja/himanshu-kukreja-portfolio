@@ -31,7 +31,7 @@ export type ProblemSummary = {
   /* the filter fields below are absent from an older generated/problem-index.json: readers default them */
   /** tags.difficulty, 1 (gentlest) to 10 */
   rating?: number | null;
-  /** "warm-up" | "practice" | "checkpoint" */
+  /** "warm-up" | "practice" | "checkpoint" | "company" (written for a company type's interview set) */
   role?: string;
   companyTypes?: string[];
   /** tags.structures / tags.algorithms as the author wrote them (src/lib/dsa/taxonomy.ts) */

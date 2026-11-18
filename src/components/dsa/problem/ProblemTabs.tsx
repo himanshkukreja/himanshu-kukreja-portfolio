@@ -288,7 +288,7 @@ function RevealTab({ room, which }: { room: Room; which: "editorial" | "solution
   if (which === "video") {
     return editorial.video ? (
       <div id="solution-video">
-        <SolutionVideo video={editorial.video} lang={lang} />
+        <SolutionVideo video={editorial.video} lang={lang} problem={{ title: p.title, href: `/dsa/problems/${p.id}` }} />
       </div>
     ) : (
       <p className="m-0 text-[14px] text-fg-3">There is no solution video for this problem yet.</p>

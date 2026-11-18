@@ -15,7 +15,8 @@ import type { NextStep } from "@/lib/dsa/continue";
 import { BIG, BTN_PRIMARY } from "../../ui/kit";
 import { GoalPicker, Legend, RouteChips, primaryOf, routeHeading } from "./Panels";
 import { stateWords } from "./MetroMap";
-import { LessonList, ProblemsLink } from "./StationLessons";
+import { BranchList, LessonList, ProblemsLink } from "./StationLessons";
+import type { OutlineBranch } from "@/lib/dsa/outline";
 
 const tone = (l: LineId) => `var(${LINE_TOKEN[l]})`;
 
@@ -53,7 +54,7 @@ export default function MetroPhone({
   isNew: boolean;
   onGoal: (g: GoalPref) => void;
   lineTitle: (l: LineId) => string;
-  lessonsOf: (s: Station) => { lessons: StationLesson[]; moduleId: string } | null;
+  lessonsOf: (s: Station) => { lessons: StationLesson[]; moduleId: string; branches?: (OutlineBranch & { done: boolean })[] } | null;
 }) {
   // undefined = the stop the learner is at is open; null = all folded; one stop open at a time
   const [open, setOpen] = useState<string | null | undefined>(undefined);
@@ -135,6 +136,10 @@ export default function MetroPhone({
                         {(() => {
                           const c = lessonsOf(s);
                           return c ? <LessonList station={s} lessons={c.lessons} here={here} from="phone" /> : null;
+                        })()}
+                        {(() => {
+                          const c = lessonsOf(s);
+                          return c?.branches?.length ? <BranchList station={s} branches={c.branches} from="phone" /> : null;
                         })()}
                         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
                           {s.href ? (

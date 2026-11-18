@@ -173,7 +173,8 @@ await page.evaluateOnNewDocument(() => {
 });
 // a DSA Mastery lecture (resolved by dsa-resolve.mjs) records from its concept's lecture page, a DSA short from its own page
 // in-article clips and solution videos record from /dsa/video/<quest>
-const recordPath = lec.clip || lec.solution ? `/learn/dsa/video/${lec.quest}` : lec.dsa ? (PORTRAIT ? `/learn/dsa/shorts/${lec.quest}` : `/learn/dsa/concepts/${lec.dsa.concept}/lecture`) : `/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}`;
+const LEAN_ROOT = { street: "districts", "camp-tent": "camps", set: "sets" }; // lean lessons: src/lib/dsa/kinds.ts
+const recordPath = lec.clip || lec.solution ? `/learn/dsa/video/${lec.quest}` : lec.dsa ? (PORTRAIT ? `/learn/dsa/shorts/${lec.quest}` : LEAN_ROOT[lec.dsa.kind] ? `/learn/dsa/${LEAN_ROOT[lec.dsa.kind]}/${lec.dsa.module}/${lec.dsa.concept}/lecture` : `/learn/dsa/concepts/${lec.dsa.concept}/lecture`) : `/learn/${PORTRAIT ? "shorts" : "lectures"}/${lec.quest}`;
 await page.goto(`${SITE}${recordPath}?record=1`, { waitUntil: "networkidle2", timeout: 240000 });
 await page.addStyleTag({ content: "nextjs-portal{display:none!important} *{transition:none!important;animation:none!important;caret-color:transparent!important}" });
 await page.waitForFunction(() => window.__LECTURE_READY === true && typeof window.__LECTURE_SET === "function", { timeout: 180000 });

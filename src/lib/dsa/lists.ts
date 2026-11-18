@@ -7,7 +7,8 @@
  *   core-150             the classics: ready problems with a classic twin, plus the Core 150 gap-fillers
  *   interview-patterns   the 18 interview districts; each street is a section; unwritten districts say "N more with wave W"
  *   company-types        the company-type facet as sections
- *   cp-camps, systems-bridge, bug-stories, mock-interviews, contests   planned: a one-line state and a link to what exists
+ *   cp-camps             the Challenge League camps: each camp is a section, each camp tent a street (the tent's lesson is its link)
+ *   systems-bridge, bug-stories, mock-interviews, contests   planned: a one-line state and a link to what exists
  *   saved                the learner's Save-for-later problems (this device, or the account when signed in)
  *   build-my-list        planned (AI)
  *
@@ -48,7 +49,7 @@ export const LISTS: ListDef[] = [
   { id: "core-150", label: "Core 150", group: "curated", ready: true, blurb: "The classic interview problems, in our own wording, and the gap-fillers around them." },
   { id: "interview-patterns", label: "Interview patterns", group: "curated", ready: true, blurb: "Medium and hard problems in 18 sets, each street one skill." },
   { id: "company-types", label: "By company type", group: "curated", ready: true, blurb: "Problems written for the kind of company that asks them." },
-  { id: "cp-camps", label: "Competitive programming camps", group: "soon", ready: false, blurb: "Rating-banded camps from 800 to 2400.", planned: { line: "Camps 1 and 2 come with the first weekly waves (about 40 problems: fast input, stress testing, 800 to 1200).", link: { href: "/dsa/practice?list=all&lvl=hard", label: "Try the hard problems meanwhile" } } },
+  { id: "cp-camps", label: "CP camps", group: "curated", ready: true, blurb: "Competitive programming camps, banded by rating. Each camp tent is a lesson with its problems: fast input, stress tests, one small observation." },
   { id: "systems-bridge", label: "Systems bridge", group: "soon", ready: false, blurb: "A data structure next to the real system that uses it.", planned: { line: "Twenty stops are planned: each pairs a structure with a System Design lab. They open with the bank expansion.", link: { href: "/dsa/practice?list=all&co=infrastructure", label: "Infrastructure problems that exist today" } } },
   { id: "bug-stories", label: "Bug stories", group: "soon", ready: false, blurb: "Debug the incident instead of writing from scratch.", planned: { line: "Bug stories are coming with Phase 2. Until then the mistake museum in each lesson's Check step covers the common ones.", link: { href: "/dsa/review", label: "Open Review" } } },
   { id: "mock-interviews", label: "Mock interviews", group: "soon", ready: false, blurb: "A timed, whole-interview run with an AI interviewer.", planned: { line: "The timed coding mock arrives with Phase 2; voice comes after it. Interview mode already works on any single problem.", link: { href: "/dsa/practice?list=interview-patterns", label: "Practise the interview sets" } } },
@@ -70,11 +71,11 @@ export function parseList(search: string | URLSearchParams): ListId {
   return isListId(v) ? v : "all";
 }
 
-/** A section of a curated list: a district, a street, a company type. */
-export type Section = { id: string; title: string; hint?: string; ids: string[]; /** problems planned but not written yet */ planned?: number; /** when they open ("Opens with wave 3") */ opens?: string; /** nested streets */ streets?: { id: string; title: string; ids: string[]; planned?: number }[] };
+/** A section of a curated list: a district, a street, a company type, a camp. `links`: the lean lessons written for it (a company type's sets, a camp's tents are on the streets). */
+export type Section = { id: string; title: string; hint?: string; ids: string[]; /** problems planned but not written yet */ planned?: number; /** when they open ("Opens with wave 3") */ opens?: string; /** nested streets; `href`: the lesson of a camp tent */ streets?: { id: string; title: string; ids: string[]; planned?: number; href?: string }[]; links?: { title: string; href: string }[] };
 export type ListData = { sections: Section[] };
 /** What the server works out once per content refresh (the lists that need the plan or the world files). */
-export type PracticeLists = { "core-150": { ids: string[]; target: number; planned: number }; "interview-patterns": ListData; "company-types": ListData };
+export type PracticeLists = { "core-150": { ids: string[]; target: number; planned: number }; "interview-patterns": ListData; "company-types": ListData; "cp-camps": ListData };
 
 /* ------------------------------------------------------------------ building the server-side lists */
 
@@ -101,9 +102,32 @@ export function districtList(regions: DistrictInput[]): ListData {
   };
 }
 
-/** By company type: one section per type in the data, in the order given. */
-export function companyList(rows: Pick<FilterRow, "id" | "companies">[], companies: { id: string; label: string }[]): ListData {
-  return { sections: companies.map((c) => ({ id: c.id, title: c.label, ids: rows.filter((r) => r.companies.includes(c.id)).map((r) => r.id) })).filter((s) => s.ids.length) };
+/**
+ * By company type: one section per type in the data, in the order given. `sets` are the written company-set lessons (module
+ * co-<type>, src/lib/dsa/kinds.ts): each is linked from its type's section.
+ */
+export function companyList(rows: Pick<FilterRow, "id" | "companies">[], companies: { id: string; label: string }[], sets: { module: string; title: string; href: string }[] = []): ListData {
+  return {
+    sections: companies
+      .map((c) => {
+        const links = sets.filter((x) => x.module === `co-${c.id}`).map((x) => ({ title: x.title, href: x.href }));
+        return { id: c.id, title: c.label, ids: rows.filter((r) => r.companies.includes(c.id)).map((r) => r.id), ...(links.length ? { links } : {}) };
+      })
+      .filter((s) => s.ids.length),
+  };
+}
+
+type CampInput = { id: string; title: string; band: [number, number] | null; tents: { id: string; title: string; ids: string[]; href: string | null }[] };
+
+/** CP camps: one section per camp ("Camp 1 · Basics, rated 800 to 1000"), one street per tent; a tent with no ready problem drops out, a camp with none says how many are planned. */
+export function campList(camps: CampInput[], have: ReadonlySet<string>): ListData {
+  return {
+    sections: camps.map((c) => {
+      const tents = c.tents.map((t) => ({ id: t.id, title: t.title, ids: t.ids.filter((i) => have.has(i)), planned: t.ids.filter((i) => !have.has(i)).length, ...(t.href ? { href: t.href } : {}) }));
+      const n = c.id.match(/(\d+)$/)?.[1];
+      return { id: c.id, title: `${n ? `Camp ${n} · ` : ""}${c.title}`, hint: c.band ? `rated ${c.band[0]} to ${c.band[1]}` : undefined, ids: tents.flatMap((t) => t.ids), planned: tents.reduce((a, t) => a + t.planned, 0), streets: tents.filter((t) => t.ids.length) };
+    }),
+  };
 }
 
 /* ------------------------------------------------------------------ what a list holds for the table */
@@ -127,6 +151,7 @@ export function listIdSet(id: ListId, ctx: ListContext): Set<string> | null {
     case "core-150": return keep(ctx.lists["core-150"].ids);
     case "interview-patterns": return keep(ctx.lists["interview-patterns"].sections.flatMap((s) => s.ids));
     case "company-types": return keep(ctx.lists["company-types"].sections.flatMap((s) => s.ids));
+    case "cp-camps": return keep(ctx.lists["cp-camps"].sections.flatMap((s) => s.ids));
     default: return new Set();
   }
 }

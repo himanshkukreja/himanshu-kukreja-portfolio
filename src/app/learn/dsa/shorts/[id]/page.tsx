@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { getDsaShort } from "@/lib/dsa/load";
+import { getDsaShortAny as getDsaShort } from "@/lib/dsa/kinds-load";
 import { listDsaShorts } from "@/lib/dsa/media";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import ShortRecord from "@/components/learn/lecture/ShortRecord";

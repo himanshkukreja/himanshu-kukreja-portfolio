@@ -8,7 +8,7 @@
  */
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { STEP_ORDER, STEP_TITLE, type StepId } from "@/lib/dsa/lesson-steps";
+import { STEP_TITLE, stepOrderOf, type LessonKind, type StepId } from "@/lib/dsa/lesson-steps";
 import type { ProblemSummary } from "@/lib/dsa/types";
 import SolvedMark from "../problem/SolvedMark";
 import { useDsaProgress } from "../progress/useDsaProgress";
@@ -27,13 +27,13 @@ const LINE: Record<StepId, string> = {
 };
 const OPEN: Record<StepId, string> = { learn: "Back to Learn", try: "Open Try it", practice: "Open Practice", check: "Start the check" };
 
-export default function StepPreviews({ steps, current, problems, onPick }: { steps: StepView[]; current: StepId; problems: ProblemSummary[]; onPick: (s: StepId) => void }) {
+export default function StepPreviews({ steps, current, problems, onPick, kind }: { kind?: LessonKind; steps: StepView[]; current: StepId; problems: ProblemSummary[]; onPick: (s: StepId) => void }) {
   const p = useDsaProgress();
   const others = steps.filter((s) => s.id !== current);
   return (
     <div className="flex flex-col gap-4 sm:gap-[22px]" data-focus-hide data-step-previews>
       {others.map((s) => {
-        const n = STEP_ORDER.indexOf(s.id) + 1;
+        const n = stepOrderOf(kind).indexOf(s.id) + 1;
         const open = (
           <button type="button" onClick={() => onPick(s.id)} className={`${BTN_SECONDARY} ${MID} shrink-0`}>
             {OPEN[s.id]}

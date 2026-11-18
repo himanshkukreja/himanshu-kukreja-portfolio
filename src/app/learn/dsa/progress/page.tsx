@@ -5,6 +5,7 @@ import { getBadgeDefs, getConceptIndex, getProblemIndex, getStepLabels, getWorld
 import { buildProblemData } from "@/lib/dsa/problem-rows";
 import type { StatRow } from "@/lib/dsa/stats";
 import { loadOutline } from "@/lib/dsa/toolbox-load";
+import { getLeanIndex } from "@/lib/dsa/kinds-load";
 import ProgressPage from "@/components/dsa/progress/ProgressPage";
 
 // /dsa/progress (the Progress tab): summary, readiness, streak, plan, belt and badges, leaderboard, stats, certificate, share,
@@ -21,13 +22,14 @@ export const metadata: Metadata = {
 
 export default async function DsaProgressPage() {
   if (!DSA_FULL) notFound();
-  const [defs, problems, concepts, labels, academy, { outline }] = await Promise.all([
+  const [defs, problems, concepts, labels, academy, { outline }, lean] = await Promise.all([
     getBadgeDefs().catch(() => null),
     getProblemIndex().catch(() => []),
     getConceptIndex().catch(() => []),
     getStepLabels().catch(() => ({})),
     getWorld("academy").catch(() => null),
     loadOutline(),
+    getLeanIndex().catch(() => []),
   ]);
   const data = buildProblemData(problems, { labels, concepts, videos: [] });
   const rows: StatRow[] = data.rows.map((r) => ({ id: r.id, level: r.level, module: r.module, structures: r.structures, algorithms: r.algorithms }));
@@ -37,6 +39,8 @@ export default async function DsaProgressPage() {
   const parts = (academy?.parts || [])
     .map((p) => ({ id: p.id, title: p.label ? `${p.label} ${p.title}`.trim() : p.title, concepts: built.filter((c) => partOfModule.get(c.module) === p.id).map((c) => c.id) }))
     .filter((p) => p.concepts.length);
+  // the streets, camp tents and sets count as lessons done (their `dsa:c:` key is their progress slug), in a part of their own
+  if (lean.length) parts.push({ id: "beyond", title: "Beyond the Academy: streets, camps and sets", concepts: lean.map((l) => l.key) });
   return (
     <ProgressPage
       defs={defs}

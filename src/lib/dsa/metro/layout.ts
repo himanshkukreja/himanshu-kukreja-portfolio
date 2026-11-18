@@ -113,3 +113,35 @@ export const TAGS: { line: LineId; x: number; y: number }[] = [
  */
 export const MILESTONES = ["s4-trees-and-bst", "s6-graphs", "a6-dynamic-programming", "m5-sliding-window"];
 export const INTERVIEW_GOAL = "a6-dynamic-programming";
+
+/**
+ * Side branches (owner, 18 Nov 2026): the streets, camp tents and Core 150 gap sets that hang off a station are a short spur
+ * of small stops, lighter than the line. SPUR is the direction of each station's spur in degrees (0 = right, 90 = down), chosen
+ * so up to the station's planned number of stops (the plan has 1 to 6 per station) clear every label, line, tag and other spur;
+ * a station not listed takes the free side of its label. More than three stops fan out on two rays.
+ */
+export const SPUR: Record<string, number> = {
+  "m0-toolkit": 120,
+  "m2-arrays-strings": 90,
+  "m3-hashing": 45,
+  "m4-two-pointers": 315,
+  "m5-sliding-window": 315,
+  "m7-sorting": 270,
+  "m8-binary-search": 270,
+  "a8-bits-and-maths": 255,
+  "s6-graphs": 225,
+  "a6-dynamic-programming": 270,
+  "s5-heaps": 180,
+  "s2-stacks": 45,
+};
+
+/** Where the n stops of a station's spur sit: [x, y] in the map's viewBox, in order outward from the station. */
+export function branchPoints(s: { id: string; x: number; y: number; side: Side }, n: number): [number, number][] {
+  const theta = SPUR[s.id] ?? (s.side === "b" ? 270 : s.side === "l" ? 0 : s.side === "r" ? 180 : 90);
+  const rays = n > 3 ? [theta - 20, theta + 20] : [theta];
+  return Array.from({ length: n }, (_, k) => {
+    const a = (rays[k % rays.length] * Math.PI) / 180;
+    const d = 34 + 22 * Math.floor(k / rays.length);
+    return [Math.round((s.x + Math.cos(a) * d) * 10) / 10, Math.round((s.y + Math.sin(a) * d) * 10) / 10] as [number, number];
+  });
+}

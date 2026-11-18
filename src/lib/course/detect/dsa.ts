@@ -23,6 +23,7 @@ import { renderCode } from "./code";
 import type { BlockCtx } from "./blocks";
 import { blockAttr, blockBody, blockCaption, blockInner, blockLabel } from "./directives";
 import { BEAT_6S, BEAT_PLAIN } from "@/lib/dsa/words";
+import type { LadderItem } from "@/lib/dsa/kinds";
 
 export type DsaCastMember = { name: string; role: string };
 export type DsaLink = { href: string; title: string; kind: "lesson" | "lab" | "problem" };
@@ -43,6 +44,8 @@ export type DsaRenderOpts = {
   labLink?: (id: string) => DsaLink;
   /** a visual lesson's in-article clips (clips.json) by id: the caption, and the recorded files a saved copy keeps */
   clips?: Record<string, { caption: string; files: string[] }>;
+  /** a lean lesson's `::ladder`: its problems in order (the front matter ladder joined with the problem index) */
+  ladder?: LadderItem[];
   /**
    * System Design Mastery lessons use only these DSA directives (`tabs` and `clip`), so a `:::example` or
    * `:::pattern` in an SDM lesson keeps its own meaning. Unset: every DSA directive (the DSA course).
@@ -53,7 +56,7 @@ export type DsaRenderOpts = {
 /** Container names this file renders (directives.ts keeps them as blocks instead of turning them back into text). */
 export const DSA_CONTAINERS = new Set(["beat", "example", "poll", "tabs", "invariant", "pattern", "realsystems", "script", "toggle", "dsa-checkpoint", "costs"]);
 /** Leaf names this file renders. */
-export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab", "visualizer", "clip"]);
+export const DSA_LEAVES = new Set(["line", "trace", "handsolve", "race", "reorder", "game", "explainback", "checkpoint", "cards", "solutions", "viz", "sandbox", "lab", "visualizer", "clip", "ladder"]);
 
 /** The DSA directives a render honours: all of them, or the `only` subset (an SDM lesson with code tabs and clips). */
 export const dsaContainersFor = (o?: DsaRenderOpts): ReadonlySet<string> => (o?.only ? new Set([...DSA_CONTAINERS].filter((n) => o.only!.includes(n))) : DSA_CONTAINERS);
@@ -134,6 +137,15 @@ const STRUCTURE_BEATS: Record<string, string> = {
   // algorithm lessons (Academy Part 3, resources/algorithms/): Meet it, See it move, Why it works, Build it, Use it well, Recap
   "see it move": "see",
   "why it works": "why",
+  // lean lessons beyond the Academy (streets, camp tents, sets; src/lib/dsa/kinds.ts)
+  "what they share": "family",
+  "the move": "move",
+  "beyond the lesson": "beyond",
+  "contest craft": "contest",
+  "the ladder": "ladder",
+  "the interview": "brief",
+  "the moves": "moves",
+  "practise it": "practice",
 };
 
 /**
@@ -342,6 +354,29 @@ export async function dsaLeaf(node: LeafDirective, ctx: BlockCtx): Promise<AnyNo
       const c = ctx.dsa?.clips?.[label];
       if (!c) return el("p", {}, []);
       return widget("clip", { dataId: label, dataOfflineMedia: c.files.join(" ") || undefined }, c.caption);
+    }
+    case "ladder": {
+      // a lean lesson's ladder (src/components/dsa/lesson/Ladder.tsx draws it with each problem's state): the static list
+      // is the fallback for the page before it hydrates, for search engines and for a saved copy
+      const items = ctx.dsa?.ladder || [];
+      if (!items.length) return el("p", {}, []);
+      return el(
+        "figure",
+        { className: ["sdb", "dsa-block", "dsa-widget", "dsa-ladder"], dataSd: "dsa-ladder", dataSdBlock: "dsa-ladder", dataDsa: "ladder" },
+        [
+          rawHast(
+            chrome(
+              "ol",
+              { className: ["dsa-fallback", "dsa-ladder-static"] },
+              items.map((it, i) =>
+                h("li", {}, [h("a", { href: it.href }, [`${i + 1}. ${it.title}`]), ` (${it.level}${it.rating ? `, ${it.rating}` : ""}): ${it.adds}`]),
+              ),
+            ),
+          ),
+          stage(),
+        ],
+        { component: "dsa-ladder" },
+      );
     }
     case "visualizer":
       return widget("visualizer", { dataId: label }, "The visualizer: pick a grid or a map, then step through the algorithm on it. It loads in your browser.");

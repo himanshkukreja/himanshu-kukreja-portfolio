@@ -7,9 +7,9 @@
  * - Route: the shortest path over the line segments from where the learner is to the goal; "N stops" counts the stops
  *   still to finish, the current one included. Nothing is locked: the route only recommends.
  */
-import type { Outline } from "../outline";
+import type { Outline, OutlineBranch } from "../outline";
 // @ts-expect-error TS5097 (the .ts extension lets node --test load this file; the bundler resolves it too)
-import { EDGES, INTERVIEW_GOAL, LINE_OF_PART, LINE_ORDER, LINKS, MILESTONES, STATIONS, type EdgeSpec, type LineId, type Side } from "./layout.ts";
+import { EDGES, INTERVIEW_GOAL, LINE_OF_PART, LINE_ORDER, LINKS, MILESTONES, STATIONS, branchPoints, type EdgeSpec, type LineId, type Side } from "./layout.ts";
 
 export type StationState = "done" | "prog" | "todo";
 
@@ -39,7 +39,15 @@ export type Station = {
   href: string | null;
   nextLesson: number;
   regionCode: string;
+  /** the written side branches (streets, camp tents, gap sets), with their stop on the spur */
+  branches: StationBranch[];
 };
+
+/**
+ * A side branch of a station on the map: a small stop on a short spur. Optional: it never changes the station's state or
+ * counts, the route or "Next stop" (the learner may take it any time, or never).
+ */
+export type StationBranch = OutlineBranch & { x: number; y: number; done: boolean };
 
 export type Progress = { concepts: ReadonlySet<string>; solved: ReadonlySet<string> };
 export type ProblemRef = { id: string; concept: string; level?: "easy" | "medium" | "hard" };
@@ -102,6 +110,11 @@ export function buildMetro(outline: Outline, progress: Progress, problems: Probl
       href: built[pick]?.href ?? null,
       nextLesson: pick + 1,
       regionCode: mod.regionCode,
+      branches: (() => {
+        const list = mod.branches ?? [];
+        const at = branchPoints(s, list.length);
+        return list.map((b, i): StationBranch => ({ ...b, x: at[i][0], y: at[i][1], done: progress.concepts.has(b.key) }));
+      })(),
     });
   }
   const byId = new Map(stations.map((s) => [s.id, s]));
@@ -251,7 +264,7 @@ export type StationLesson = {
 };
 
 /** The lessons of a station, from the same outline the List view reads: number, title, status, minutes, link. */
-export function stationLessons(outline: Outline, station: Pick<Station, "regionCode">, progress: Pick<Progress, "concepts">): { lessons: StationLesson[]; moduleId: string } | null {
+export function stationLessons(outline: Outline, station: Pick<Station, "regionCode">, progress: Pick<Progress, "concepts">): { lessons: StationLesson[]; moduleId: string; branches: (OutlineBranch & { done: boolean })[] } | null {
   for (const part of outline.parts)
     for (const m of part.modules) {
       if (m.regionCode !== station.regionCode) continue;
@@ -262,7 +275,7 @@ export function stationLessons(outline: Outline, station: Pick<Station, "regionC
         if (now) nowSet = true;
         return { n: i + 1, conceptId: l.conceptId, title: l.title, href: l.built ? l.href : null, minutes: l.minutes, status: done ? "done" : now ? "now" : "todo" };
       });
-      return { lessons, moduleId: m.moduleId };
+      return { lessons, moduleId: m.moduleId, branches: (m.branches ?? []).map((b) => ({ ...b, done: progress.concepts.has(b.key) })) };
     }
   return null;
 }

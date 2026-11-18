@@ -4,7 +4,9 @@ import { callClaude, ownKey } from "@/lib/ai/client";
 import { isAdminEmail } from "@/lib/ai/access";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getPracticeData } from "@/lib/dsa/practice-load";
-import { buildTaxonomy, parseSmart, smartKey, smartSystem, SMART_SCHEMA, type SmartResponse, type Taxonomy } from "@/lib/dsa/search/smart";
+import { buildTaxonomy, parseSmart, smartKey, smartSystem, SMART_SCHEMA, type LeanChoice, type SmartResponse, type Taxonomy } from "@/lib/dsa/search/smart";
+import { getLeanIndex } from "@/lib/dsa/kinds-load";
+import { companyId, companyLabel } from "@/lib/dsa/problem-rows";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -23,9 +25,12 @@ const inflight = new Map<string, Promise<{ a: SmartResponse; left: number | null
 let taxo: { at: number; t: Taxonomy; system: string; lessons: Record<string, string>; titles: Record<string, string> } | null = null;
 async function taxonomy() {
   if (taxo && Date.now() - taxo.at < 10 * 60_000) return taxo;
-  const { data } = await getPracticeData();
-  const t = buildTaxonomy(data.rows, data.companies, data.concepts, data.lessons);
-  taxo = { at: Date.now(), t, system: smartSystem(t), lessons: data.lessons, titles: data.concepts };
+  const [{ data }, lean] = await Promise.all([getPracticeData(), getLeanIndex().catch(() => [])]);
+  const choices: LeanChoice[] = lean.map((l) => ({ key: `${l.module}/${l.id}`, title: l.title, kind: l.kind, ...(l.company ? { company: companyId(l.module.replace(/^co-/, "")) } : {}) }));
+  const t = buildTaxonomy(data.rows, data.companies, data.concepts, data.lessons, choices, companyLabel);
+  const lessons = { ...data.lessons, ...Object.fromEntries(lean.map((l) => [`${l.module}/${l.id}`, l.href])) };
+  const titles = { ...data.concepts, ...Object.fromEntries(lean.map((l) => [`${l.module}/${l.id}`, l.title])) };
+  taxo = { at: Date.now(), t, system: smartSystem(t), lessons, titles };
   return taxo;
 }
 
