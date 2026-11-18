@@ -144,7 +144,7 @@ export default function WarmupCard({ recent, station, ready }: { recent: string[
           <code>{q.code}</code>
         </pre>
       ) : null}
-      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,240px),1fr))] gap-2 p-0" aria-label="Choose one">
+      <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,190px),1fr))] gap-2 p-0" aria-label="Choose one">
         {order.map((oi) => {
           const isRight = oi === q.answer;
           const isPicked = saved.picked === oi;
