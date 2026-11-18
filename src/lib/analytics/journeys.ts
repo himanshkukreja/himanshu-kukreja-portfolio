@@ -208,6 +208,8 @@ export type LiveSession = {
   recording: LiveRec | null;
   /** the replay lookup for this row hasn't answered yet (the split feed loads replays after the list) */
   replayPending?: boolean;
+  /** a replay exists but has under MIN_ACTIVE_SECONDS of activity, so it isn't linked */
+  idleReplay?: boolean;
   /** latest events, oldest first (capped; `events` is the full count) */
   timeline: LiveEvent[];
 };

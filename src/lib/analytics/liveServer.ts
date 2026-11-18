@@ -2,6 +2,7 @@ import "server-only";
 import { sharedCache } from "@/lib/admin/sharedCache";
 import type { LiveEvent, LiveFeedRes, LiveFilter, LiveHeadRes, LiveRec, LiveReplaysRes, LiveSession, LiveSessionsRes, LiveWindow } from "./journeys";
 import { describe, EVENT_PROPS, propsFrom } from "./journeysModel";
+import { MIN_ACTIVE_SECONDS } from "./recordingFilter";
 import { whoOf } from "./journeysServer";
 import { hogql, iso, isUuid, NOISE, INTERNAL, num, softError, str, type Row } from "./posthogServer";
 import { titleResolver } from "./titles";
@@ -117,7 +118,7 @@ async function computeSessions(window: LiveWindow, filter: LiveFilter, before: s
   ].filter(Boolean);
   // "has replay": sessions PostHog holds a replay for (same table the replays part reads)
   const recorded =
-    filter === "recorded" ? `AND properties.$session_id IN (SELECT session_id FROM raw_session_replay_events WHERE min_first_timestamp > now() - ${w} - INTERVAL 1 DAY)` : "";
+    filter === "recorded" ? `AND properties.$session_id IN (SELECT session_id FROM raw_session_replay_events WHERE min_first_timestamp > now() - ${w} - INTERVAL 1 DAY GROUP BY session_id HAVING sum(active_milliseconds) >= ${MIN_ACTIVE_SECONDS * 1000})` : "";
 
   const [titleOf, rows] = await Promise.all([
     titleResolver(),

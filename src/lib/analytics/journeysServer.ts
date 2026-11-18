@@ -1,6 +1,7 @@
 import "server-only";
 import { isExcludedEmail, isLocalHost } from "./exclude";
 import { POSTHOG_UI_HOST } from "./config";
+import { isSubstantialRecording, substantialHavingPredicates } from "./recordingFilter";
 import type { EmbedRes, LiveRes, PageDetailRes, PathsRes, PeopleRes, PersonInfo, PersonRes, PersonRow, Recording, RecordingsRes, StreamEvent, TimelineEvent } from "./journeys";
 import { computePaths, describe, eventPropsSelect, parseElements, propsFrom, type PathRow, type TitleOf } from "./journeysModel";
 import { appUrl, cached, uncache, hogql, iso, isUuid, NOISE, INTERNAL, num, phFetch, PhError, softError, str, type Row } from "./posthogServer";
@@ -218,9 +219,11 @@ async function listRecordings(params: Record<string, string>): Promise<{ results
   return { results: r?.results ?? [], hasNext: !!(r?.has_next ?? r?.next) };
 }
 
-async function computeRecordings(opts: { person?: string | null; path?: string | null; days: number; offset: number; limit: number }): Promise<RecordingsRes> {
+async function computeRecordings(opts: { person?: string | null; path?: string | null; days: number; offset: number; limit: number; includeIdle?: boolean }): Promise<RecordingsRes> {
   const params: Record<string, string> = { limit: String(opts.limit), offset: String(opts.offset), date_from: `-${opts.days}d` };
   if (opts.person && isUuid(opts.person)) params.person_uuid = opts.person;
+  // only recordings with real activity (server-side, so pages aren't left short or empty); idle ones on request
+  if (!opts.includeIdle) params.having_predicates = substantialHavingPredicates();
   // sessions that viewed the page (path filter): asked alongside the replay list, not after it
   const pathSessions = opts.path
     ? hogql(
@@ -241,6 +244,8 @@ async function computeRecordings(opts: { person?: string | null; path?: string |
     }
     return !isExcludedEmail(email) && !isLocalHost(host);
   });
+  // belt and braces if PostHog ignores the predicate
+  if (!opts.includeIdle) results = results.filter((r) => isSubstantialRecording(r.active_seconds));
   const hasNext = listed.hasNext;
   // belt and braces: keep only this person's recordings even if the filter param is ignored
   if (opts.person) results = results.filter((r) => !r.person?.uuid || r.person.uuid === opts.person);
@@ -310,7 +315,7 @@ async function computePerson(idOrDistinct: string, days: number): Promise<Person
         ORDER BY timestamp DESC LIMIT ${EVENT_LIMIT}`,
       { name: "person_events", ttlMs: 30_000 }
     ),
-    getRecordings({ person: id, days: Math.max(days, 30), offset: 0, limit: 50 }).then(
+    getRecordings({ person: id, days: Math.max(days, 30), offset: 0, limit: 50, includeIdle: true }).then(
       (r) => ({ recordings: r.recordings, error: null }),
       (e) => ({ recordings: [] as Recording[], error: softError(e) })
     ),

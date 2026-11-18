@@ -4,12 +4,14 @@ import { useState } from "react";
 import { Badge, EmptyState, fmtDate, useNow } from "@/components/admin/ui";
 import type { Recording } from "@/lib/analytics/journeys";
 import { Who, clock, cx, personHref } from "./bits";
+import { activeLabel, filterRecordings, IDLE_NOTE } from "@/lib/analytics/recordingFilter";
 import ReplayPlayer from "./ReplayPlayer";
 
 /** Recordings with an inline player that opens under the row. */
-export default function RecordingList({ recordings, showWho = true, empty }: { recordings: Recording[]; showWho?: boolean; empty?: string }) {
+export default function RecordingList({ recordings: all, showWho = true, empty, includeIdle = false }: { recordings: Recording[]; showWho?: boolean; empty?: string; includeIdle?: boolean }) {
   const [open, setOpen] = useState<string | null>(null);
   const now = useNow();
+  const recordings = filterRecordings(all, includeIdle);
   if (!recordings.length) return <EmptyState title={empty || "No recordings"} hint="Replays appear here a minute or two after a session starts." />;
   return (
     <ul className="flex flex-col gap-2">
@@ -54,9 +56,9 @@ export default function RecordingList({ recordings, showWho = true, empty }: { r
                   </div>
                 )}
               </div>
-              <div className="ml-auto shrink-0 text-right">
+              <div className="ml-auto shrink-0 text-right" title={IDLE_NOTE}>
                 <div className="font-display text-xl font-extrabold leading-none tracking-tight text-fg">{clock(r.duration)}</div>
-                <div className="mt-1 font-mono text-[10px] text-fg-4">{clock(r.active)} active</div>
+                <div className="mt-1 font-mono text-[10px] text-fg-4">{activeLabel(r.active, r.duration)}</div>
               </div>
             </div>
             {on && (

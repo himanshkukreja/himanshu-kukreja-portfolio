@@ -6,6 +6,7 @@ import { FilterChips, Skeleton, useAdminData, type Chip } from "@/components/adm
 import type { NotConfigured, RecordingsRes } from "@/lib/analytics/journeys";
 import { DaysPicker, useDays, useSetParams, PhErrorState } from "./bits";
 import RecordingList from "./RecordingList";
+import { ShowIdleToggle, useShowIdle } from "./useShowIdle";
 import SetupCard from "./SetupCard";
 
 /** Recordings: newest session replays, filterable by person (?person=) and page (?path=). */
@@ -17,10 +18,12 @@ export default function RecordingsTab() {
   const path = params.get("path");
   const [pathDraft, setPathDraft] = useState(path || "");
   const [page, setPage] = useState(0);
+  const [showIdle, setShowIdle] = useShowIdle();
 
   const qs = new URLSearchParams({ days: String(days), offset: String(page * 50) });
   if (person) qs.set("person", person);
   if (path) qs.set("path", path);
+  if (showIdle) qs.set("idle", "1");
   const { data, error, loading, refresh } = useAdminData<RecordingsRes | NotConfigured>(`/api/admin/posthog/recordings?${qs}`);
   if (data && data.configured === false) return <SetupCard status={data.status} />;
   const res = data as RecordingsRes | undefined;
@@ -55,6 +58,7 @@ export default function RecordingsTab() {
           </button>
         </form>
         <DaysPicker fallback="7d" />
+        <ShowIdleToggle on={showIdle} onChange={(v) => { setPage(0); setShowIdle(v); }} />
       </div>
       <FilterChips
         chips={chips}
@@ -79,7 +83,7 @@ export default function RecordingsTab() {
         </div>
       ) : res ? (
         <>
-          <RecordingList recordings={res.recordings} empty={path ? `No recordings that visited ${path}` : "No recordings in this window"} />
+          <RecordingList includeIdle recordings={res.recordings} empty={path ? `No recordings that visited ${path}` : "No recordings in this window"} />
           {(page > 0 || res.hasNext) && (
             <div className="flex items-center justify-between gap-2">
               <button type="button" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="min-h-10 border border-line-strong px-3 font-mono text-xs text-fg-2 hover:bg-surface-2 disabled:opacity-40">

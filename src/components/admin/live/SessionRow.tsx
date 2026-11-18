@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { Badge, LiveDot, timeAgo } from "@/components/admin/ui";
 import type { LiveEvent, LiveSession } from "@/lib/analytics/journeys";
 import { KIND_META, KindMark, Who, clock, countryFlag, cx, hhmm, personHref } from "@/components/admin/journeys/bits";
+import { activeLabel, IDLE_NOTE } from "@/lib/analytics/recordingFilter";
 import ReplayPlayer from "@/components/admin/journeys/ReplayPlayer";
 
 const STRIP = 16;
@@ -124,17 +125,22 @@ export default function SessionRow({
               <button
                 type="button"
                 onClick={onWatch}
+                title={IDLE_NOTE}
                 aria-expanded={watching}
                 className={cx(
                   "inline-flex min-h-10 items-center gap-1.5 border px-3 font-mono text-xs",
                   watching ? "border-signal bg-signal font-semibold text-on-signal" : "border-signal text-signal-text hover:bg-signal/10"
                 )}
               >
-                {watching ? "■ close" : `▶ watch · ${clock(s.recording.duration)}`}
+                {watching ? "■ close" : `▶ watch · ${activeLabel(s.recording.active, s.recording.duration)}`}
               </button>
             ) : s.replayPending ? (
               <span className="inline-flex min-h-10 w-[92px] animate-pulse items-center border border-dashed border-line px-3 font-mono text-[11px] text-fg-4" aria-label="Looking up the replay">
                 replay…
+              </span>
+            ) : s.idleReplay ? (
+              <span className="inline-flex min-h-10 items-center border border-dashed border-line px-3 font-mono text-[11px] text-fg-4" title="This session had almost no activity (the visitor was reading or left the tab open), so its replay is hidden">
+                idle
               </span>
             ) : (
               <span className="inline-flex min-h-10 items-center border border-dashed border-line-strong px-3 font-mono text-[11px] text-fg-4" title="PostHog didn't record a replay for this session (too short, Global Privacy Control, or not sampled)">

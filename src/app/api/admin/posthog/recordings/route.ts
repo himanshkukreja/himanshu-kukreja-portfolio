@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
   const offset = Math.max(0, Math.min(5000, Number(sp.get("offset")) || 0));
   try {
     return NextResponse.json(
-      await getRecordings({ person: sp.get("person"), path: sp.get("path"), days: clampDays(sp.get("days"), 30), offset, limit: 50 })
+      await getRecordings({ person: sp.get("person"), path: sp.get("path"), days: clampDays(sp.get("days"), 30), offset, limit: 50, includeIdle: sp.get("idle") === "1" })
     );
   } catch (e) {
     return phErrorResponse(e);

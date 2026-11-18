@@ -21,6 +21,8 @@ import { Badge, Card, EmptyState, Kpi, LABEL, LiveDot, PageHead, Skeleton, fmtNu
 import type { LiveFilter, LiveHeadRes, LiveRec, LiveReplaysRes, LiveSession, LiveSessionsRes, LiveWindow, NotConfigured, PhStatus } from "@/lib/analytics/journeys";
 import { ExtLink, PhErrorState, cx, useSetParams } from "@/components/admin/journeys/bits";
 import SetupCard from "@/components/admin/journeys/SetupCard";
+import { isSubstantialRecording } from "@/lib/analytics/recordingFilter";
+import { ShowIdleToggle, useShowIdle } from "@/components/admin/journeys/useShowIdle";
 import SessionRow, { ReplaySheet } from "./SessionRow";
 
 const POLL_MS = 60_000;
@@ -257,9 +259,15 @@ function Feed({
     listed.map((s) => s.id),
     feed?.generatedAt
   );
+  const [showIdle, setShowIdle] = useShowIdle();
   const sessions = useMemo(
-    () => listed.map((s) => ({ ...s, recording: replays.recs[s.id] ?? null, replayPending: !replays.seen[s.id] })),
-    [listed, replays]
+    () =>
+      listed.map((s) => {
+        const rec = replays.recs[s.id] ?? null;
+        const idle = !!rec && !isSubstantialRecording(rec.active);
+        return { ...s, recording: idle && !showIdle ? null : rec, idleReplay: idle && !showIdle, replayPending: !replays.seen[s.id] };
+      }),
+    [listed, replays, showIdle]
   );
 
   const loadOlder = async () => {
@@ -301,6 +309,7 @@ function Feed({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented label="Show" options={FILTERS} value={filter} onChange={onFilter} />
         <Segmented label="Time window" options={WINDOWS} value={win} onChange={onWindow} />
+        <ShowIdleToggle on={showIdle} onChange={setShowIdle} />
         <span className="ml-auto font-mono text-[11px] text-fg-4">
           {loading && feed ? "updating…" : paused ? "paused" : updatedAgo ? `updated ${updatedAgo}` : ""}
         </span>

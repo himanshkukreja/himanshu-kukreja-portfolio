@@ -11,6 +11,8 @@ import { useMemo, useState } from "react";
 import { Badge, Card, Kpi, Skeleton, fmtDate, fmtNum, timeAgo, useAdminData, useNow } from "@/components/admin/ui";
 import type { NotConfigured, PersonRes, Recording, TimelineEvent, TimelineKind } from "@/lib/analytics/journeys";
 import { DaysPicker, ExtLink, Field, KindMark, clock, cx, dayKey, dayLabel, hhmm, place, useDays, PhErrorState } from "./bits";
+import { activeLabel, IDLE_NOTE, filterRecordings } from "@/lib/analytics/recordingFilter";
+import { ShowIdleToggle, useShowIdle } from "./useShowIdle";
 import RecordingList from "./RecordingList";
 import ReplayPlayer from "./ReplayPlayer";
 import SetupCard from "./SetupCard";
@@ -54,10 +56,11 @@ export default function PersonTimeline({ id }: { id: string }) {
   const now = useNow();
   const [filter, setFilter] = useState<FilterId>("key");
   const [watching, setWatching] = useState<string | null>(null);
+  const [showIdle, setShowIdle] = useShowIdle();
   const { data, error, refresh } = useAdminData<PersonRes | NotConfigured>(`/api/admin/posthog/person?id=${encodeURIComponent(id)}&days=${days}`);
   const res = data && data.configured !== false ? (data as PersonRes) : undefined;
 
-  const recs = useMemo(() => new Map((res?.recordings || []).map((r) => [r.id, r])), [res]);
+  const recs = useMemo(() => new Map(filterRecordings(res?.recordings || [], showIdle).map((r) => [r.id, r])), [res, showIdle]);
   const blocks = useMemo(() => {
     if (!res) return [];
     const kinds = FILTERS.find((f) => f.id === filter)?.kinds as readonly TimelineKind[] | null;
@@ -119,7 +122,7 @@ export default function PersonTimeline({ id }: { id: string }) {
         <Kpi label="sessions" value={fmtNum(sessions)} hint={`last ${days === 1 ? "24 h" : `${days}d`}`} />
         <Kpi label="pages viewed" value={fmtNum(pageviews)} />
         <Kpi label="events" value={`${fmtNum(res.events.length)}${res.truncated ? "+" : ""}`} />
-        <Kpi label="recordings" value={fmtNum(res.recordings.length)} />
+        <Kpi label="recordings" value={fmtNum(filterRecordings(res.recordings, showIdle).length)} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -166,11 +169,12 @@ export default function PersonTimeline({ id }: { id: string }) {
           )}
         </Card>
 
-        <Card label="session replays" title={`Recordings (${res.recordings.length})`} className="self-start">
+        <Card label="session replays" title={`Recordings (${filterRecordings(res.recordings, showIdle).length})`} className="self-start">
+          <div className="mb-2"><ShowIdleToggle on={showIdle} onChange={setShowIdle} /></div>
           {res.recordingsError ? (
             <PhErrorState error={res.recordingsError.error} scope={res.recordingsError.scope} onRetry={refresh} />
           ) : (
-            <RecordingList recordings={res.recordings} showWho={false} empty="No recordings for this person" />
+            <RecordingList includeIdle={showIdle} recordings={res.recordings} showWho={false} empty="No recordings for this person" />
           )}
         </Card>
       </div>
@@ -190,13 +194,14 @@ function SessionCard({ s, watching, onWatch }: { s: SessionBlock; watching: bool
           <button
             type="button"
             onClick={() => onWatch(!watching)}
+            title={IDLE_NOTE}
             aria-expanded={watching}
             className={cx(
               "inline-flex min-h-10 items-center gap-1.5 border px-3 font-mono text-xs",
               watching ? "border-signal bg-signal font-semibold text-on-signal" : "border-signal text-signal-text hover:bg-signal/10"
             )}
           >
-            {watching ? "■ close" : `▶ watch · ${clock(s.recording.duration)}`}
+            {watching ? "■ close" : `▶ watch · ${activeLabel(s.recording.active, s.recording.duration)}`}
           </button>
         ) : (
           <span className="font-mono text-[10px] text-fg-4">{s.id === "no-session" ? "no session id" : "no replay"}</span>
