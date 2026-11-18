@@ -24,6 +24,8 @@ import SmartSearchBox from "./SmartSearchBox";
 import { useSmartSearch } from "./useSmartSearch";
 import { ProblemTable } from "./ProblemTable";
 import { Chip, Group, useTried, useVideoIds } from "./FilterGroups";
+import BankGroups from "./BankGroups";
+import { DEFAULT_GROUPING, firstOpenId, GROUPINGS, groupRows, parseGrouping, type GroupingId } from "@/lib/dsa/problem-groups";
 import { useSavedProblems } from "./useSavedProblems";
 
 // the export dialog and its file writer load only when the learner opens it
@@ -32,12 +34,13 @@ const ExportSheetDialog = dynamic(() => import("../problems/ExportSheetDialog"),
 /**
  * /dsa/practice: the problem bank. A lists rail (library, curated, soon, mine), a filter bar (module, pattern, difficulty
  * and status inline; "More filters" for the rest), and a compact table of 50 rows a page. The URL is the state:
- * ?list=<id>, the facet params of src/lib/dsa/problem-filters.ts, ?page=, ?group=lesson|pattern.
+ * ?list=<id>, the facet params of src/lib/dsa/problem-filters.ts, ?page=, ?group=pattern|level|company|none (topic is the default and is not written).
  */
 
 const PRIMARY: GroupId[] = ["step", "patterns", "level", "status"];
 const SORT_LABEL: Record<SortId, string> = { course: "Recommended", easiest: "Easiest first", hardest: "Hardest first", quickest: "Quickest first" };
-type Grouping = "none" | "lesson" | "pattern";
+type Grouping = GroupingId;
+const OPEN_KEY = "dsa:bank:open:v1";
 
 type View = { list: ListId; page: number; grouping: Grouping };
 
@@ -45,7 +48,7 @@ function urlOf(s: FilterState, v: View): string {
   const sp = new URLSearchParams(serializeState(s));
   if (v.list !== "all") sp.set("list", v.list);
   if (v.page > 1) sp.set("page", String(v.page));
-  if (v.grouping !== "none") sp.set("group", v.grouping);
+  if (v.grouping !== DEFAULT_GROUPING) sp.set("group", v.grouping);
   const q = sp.toString();
   return `/dsa/practice${q ? `?${q}` : ""}`;
 }
@@ -53,7 +56,7 @@ function urlOf(s: FilterState, v: View): string {
 function readView(sp: URLSearchParams): View {
   const l = sp.get("list");
   const g = sp.get("group");
-  return { list: isListId(l) ? l : "all", page: Math.max(1, Number(sp.get("page")) || 1), grouping: g === "lesson" || g === "pattern" ? g : "none" };
+  return { list: isListId(l) ? l : "all", page: Math.max(1, Number(sp.get("page")) || 1), grouping: parseGrouping(g) };
 }
 
 /* ------------------------------------------------------------------ pieces */
@@ -184,11 +187,34 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const videoIds = useVideoIds();
   const data = useMemo<ProblemData>(() => (videoIds ? { ...page, rows: page.rows.map((r) => ({ ...r, video: videoIds.has(r.id) })) } : page), [page, videoIds]);
   const [state, setState] = useState<FilterState>(emptyState);
-  const [view, setView] = useState<View>({ list: "all", page: 1, grouping: "none" });
+  const [view, setView] = useState<View>({ list: "all", page: 1, grouping: DEFAULT_GROUPING });
   const [text, setText] = useState("");
   const [sheet, setSheet] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [menu, setMenu] = useState<GroupId | null>(null);
+  const [groupMenu, setGroupMenu] = useState(false);
+  // which groups the learner opened or closed on this device (their own choices only; the rest follow the default)
+  const [openMap, setOpenMap] = useState<Record<string, boolean> | null>(null);
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(OPEN_KEY);
+      const v = raw ? JSON.parse(raw) : null;
+      setOpenMap(v && typeof v === "object" ? v : {});
+    } catch {
+      setOpenMap({});
+    }
+  }, []);
+  const toggleGroup = useCallback((key: string, open: boolean) => {
+    setOpenMap((m) => {
+      const next = { ...(m || {}), [key]: open };
+      try {
+        window.localStorage.setItem(OPEN_KEY, JSON.stringify(next));
+      } catch {
+        /* private mode: the choice lasts until the page closes */
+      }
+      return next;
+    });
+  }, []);
   const { done } = useGame();
   useEffect(() => (sheet ? holdAttention() : undefined), [sheet]);
   const progress = useDsaProgress();
@@ -243,18 +269,26 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
 
   // close an open filter menu on a click outside or Escape
   useEffect(() => {
-    if (!menu) return;
+    if (!menu && !groupMenu) return;
     const away = (e: MouseEvent) => {
-      if (!barRef.current?.contains(e.target as Node)) setMenu(null);
+      if (!barRef.current?.contains(e.target as Node)) {
+        setMenu(null);
+        setGroupMenu(false);
+      }
     };
-    const key = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
+    const key = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setMenu(null);
+        setGroupMenu(false);
+      }
+    };
     document.addEventListener("mousedown", away);
     document.addEventListener("keydown", key);
     return () => {
       document.removeEventListener("mousedown", away);
       document.removeEventListener("keydown", key);
     };
-  }, [menu]);
+  }, [menu, groupMenu]);
 
   const statusOf = useCallback((id: string): Status => (progress.solved.has(id) ? "solved" : tried.has(id) ? "tried" : "todo"), [progress.solved, tried]);
 
@@ -369,18 +403,19 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const chips = GROUPS.flatMap((g) => state.sel[g].map((v) => ({ g, v, label: labelOf(g, v), title: defs.find((d) => d.id === g)?.title || "" })));
   const tableProps = { d: data, statusOf, isSaved: saved.isSaved, onSave: saved.toggle, tag: view.list === "daily" && daily.data?.daily ? { id: daily.data.daily.problem.id, label: "Today" } : null };
 
-  const groupedRows = useMemo(() => {
-    if (view.grouping === "none" || sections || planned) return null;
-    const m = new Map<string, { title: string; rows: FilterRow[] }>();
-    for (const r of ordered) {
-      const key = view.grouping === "lesson" ? r.concept : r.patterns[0] || "other";
-      const title = view.grouping === "lesson" ? data.concepts[r.concept] || "More practice" : defs.find((d) => d.id === "patterns")?.options.find((o) => o.id === key)?.label || "Other";
-      const e = m.get(key) || { title, rows: [] };
-      e.rows.push(r);
-      m.set(key, e);
-    }
-    return [...m.entries()].map(([id, v]) => ({ id, ...v }));
-  }, [view.grouping, ordered, sections, planned, data.concepts, defs]);
+  // grouped unless the learner chose None, is searching (matches stay in one list, ranked by relevance), or the list has its own sections
+  const searching = !!state.q.trim();
+  const groupOn = view.grouping !== "none" && !searching && !sections && !planned && view.list !== "daily";
+  const groupNames = useMemo(
+    () => ({
+      topic: (m: string) => data.steps.find((x) => x.id === m)?.label.replace(/^\d+\.\d+\s+/, "") || m.replace(/^[msa]\d+-/, "").replace(/-/g, " "),
+      pattern: (id: string) => defs.find((d) => d.id === "patterns")?.options.find((o) => o.id === id)?.label || id,
+      company: (id: string) => companyLabel(id),
+    }),
+    [data.steps, defs],
+  );
+  const bankGroups = useMemo(() => (groupOn ? groupRows(ordered, view.grouping, groupNames, state.sort !== "course") : []), [groupOn, ordered, view.grouping, groupNames, state.sort]);
+  const firstId = useMemo(() => firstOpenId(bankGroups, (id) => progress.solved.has(id)), [bankGroups, progress.solved]);
 
   const listNote =
     view.list === "core-150"
@@ -487,17 +522,11 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
               );
             })}
           </div>
-        ) : groupedRows ? (
-          <div className="flex flex-col gap-2">
-            {groupedRows.map((g) => (
-              <Fold key={g.id} title={g.title} count={g.rows.length}>
-                {() => <ProblemTable rows={g.rows} {...tableProps} />}
-              </Fold>
-            ))}
-          </div>
+        ) : groupOn ? (
+          <BankGroups groups={bankGroups} mode={view.grouping} firstId={progress.ready ? firstId : null} stored={openMap} onToggle={toggleGroup} isSolved={(id) => progress.solved.has(id)} tableProps={{ ...tableProps, hl: undefined }} />
         ) : (
           <>
-            <ProblemTable rows={paged.rows} {...tableProps} />
+            <ProblemTable rows={paged.rows} {...tableProps} hl={searching ? state.q : undefined} />
             <Pager page={paged.page} pages={paged.pages} total={ordered.length} onGo={go} />
           </>
         )
@@ -523,7 +552,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
 
   return (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <ListsRail active={view.list} counts={railCounts} hrefOf={(id) => urlOf(emptyState(), { list: id, page: 1, grouping: "none" })} onPick={pickList} />
+      <ListsRail active={view.list} counts={railCounts} hrefOf={(id) => urlOf(emptyState(), { list: id, page: 1, grouping: DEFAULT_GROUPING })} onPick={pickList} />
 
       <div ref={topRef} className="flex min-w-0 scroll-mt-20 flex-col gap-4">
         <header className="flex flex-col gap-1.5">
@@ -560,7 +589,10 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                 <div className="hidden flex-wrap items-center gap-2 sm:flex">
                   {PRIMARY.map((g) => {
                     const d = defs.find((x) => x.id === g);
-                    return d ? <FilterMenu key={g} def={d} open={menu === g} onOpen={(o) => setMenu(o ? g : null)} state={state} counts={counts[g]} base={base[g]} onToggle={onToggle} /> : null;
+                    return d ? <FilterMenu key={g} def={d} open={menu === g} onOpen={(o) => {
+                      setGroupMenu(false);
+                      setMenu(o ? g : null);
+                    }} state={state} counts={counts[g]} base={base[g]} onToggle={onToggle} /> : null;
                   })}
                   <button
                     ref={openerRef}
@@ -580,12 +612,12 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                   type="button"
                   onClick={() => setSheet(true)}
                   aria-haspopup="dialog"
-                  className="inline-flex h-11 min-w-[44px] flex-1 items-center justify-center gap-2 border border-line-strong bg-surface px-4 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text sm:hidden rounded-[10px]"
+                  className="inline-flex h-11 min-w-[130px] flex-1 items-center justify-center gap-2 border border-line-strong bg-surface px-4 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text sm:hidden rounded-[10px]"
                 >
                   <Filter className="h-4 w-4" aria-hidden />
                   Filters{n ? ` (${n})` : ""}
                 </button>
-                <div className="relative flex-1 sm:flex-none">
+                <div className="relative min-w-[130px] flex-1 sm:flex-none">
                   <label htmlFor="pb-sort" className="sr-only">
                     Sort problems
                   </label>
@@ -604,21 +636,48 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                   <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" aria-hidden />
                 </div>
                 {!sections && view.list !== "daily" ? (
-                  <div className="relative hidden sm:block">
-                    <label htmlFor="pb-group" className="sr-only">
-                      Group problems
-                    </label>
-                    <select
-                      id="pb-group"
-                      value={view.grouping}
-                      onChange={(e) => commit(state, { ...view, page: 1, grouping: e.target.value as Grouping })}
-                      className="h-11 appearance-none border border-line-strong bg-surface pl-3 pr-9 text-[14px] font-medium text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
+                  <div className="relative min-w-[150px] flex-1 sm:flex-none">
+                    <button
+                      type="button"
+                      aria-haspopup="true"
+                      aria-expanded={groupMenu}
+                      onClick={() => {
+                        setMenu(null);
+                        setGroupMenu(!groupMenu);
+                      }}
+                      className="inline-flex h-11 w-full items-center gap-2 border border-line-strong bg-surface px-3 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px] sm:w-auto"
                     >
-                      <option value="none">No grouping</option>
-                      <option value="lesson">By lesson</option>
-                      <option value="pattern">By pattern</option>
-                    </select>
-                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" aria-hidden />
+                      <span className="text-fg-3">Group by</span>
+                      {GROUPINGS.find((g) => g.id === view.grouping)?.label}
+                      <ChevronDown className={`ml-auto h-4 w-4 text-fg-3 transition-transform sm:ml-0 ${groupMenu ? "rotate-180" : ""}`} aria-hidden />
+                    </button>
+                    {groupMenu ? (
+                      <div role="radiogroup" aria-label="Group problems by" className="absolute left-0 top-full z-30 mt-1 flex w-[220px] flex-col border border-line-strong bg-surface p-1 shadow-lg rounded-[14px]">
+                        {GROUPINGS.map((g) => {
+                          const on = view.grouping === g.id;
+                          return (
+                            <button
+                              key={g.id}
+                              type="button"
+                              role="radio"
+                              aria-checked={on}
+                              onClick={() => {
+                                setGroupMenu(false);
+                                commit(state, { ...view, page: 1, grouping: g.id });
+                              }}
+                              className={`flex min-h-11 items-center justify-between gap-3 px-3 text-left text-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal-text rounded-[10px] ${on ? "bg-surface-2 font-semibold text-fg" : "text-fg hover:bg-surface-2"}`}
+                            >
+                              {g.label}
+                              {on ? (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden>
+                                  <path d="M4 12.5l5 5L20 6.5" />
+                                </svg>
+                              ) : null}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : null}
                   </div>
                 ) : null}
                 <button
@@ -691,6 +750,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
 
             <p role="status" aria-live="polite" className="m-0 font-mono text-[12px] text-fg-3">
               {filtered ? `${total} of ${inList.length} problems` : `${inList.length} problems`}
+              {searching && view.grouping !== "none" && !sections && !planned ? " · matches in one list, best first" : ""}
               {instant?.pq.filterWords.length ? ` · from your words: ${[...new Set(instant.pq.filterWords.map((f) => f.value))].join(", ")}` : ""}
             </p>
           </>

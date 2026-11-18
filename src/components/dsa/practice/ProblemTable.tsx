@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Bookmark, Play } from "lucide-react";
 import type { FilterRow, Status } from "@/lib/dsa/problem-filters";
 import type { ProblemData } from "@/lib/dsa/problem-rows";
+import { highlightParts } from "@/lib/dsa/problem-groups";
 
 /**
  * Practice's compact table: status, title, difficulty (the word, in its token colour), the lesson it belongs to (opens
@@ -42,9 +43,11 @@ export type TableProps = {
   onSave: (id: string) => void;
   /** a row to tag ("Today") */
   tag?: { id: string; label: string } | null;
+  /** the search words, underlined in the titles */
+  hl?: string;
 };
 
-export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag }: TableProps) {
+export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl }: TableProps) {
   return (
     <div className="overflow-x-auto border border-line bg-surface rounded-2xl">
       <table className="w-full border-collapse text-left">
@@ -86,7 +89,7 @@ export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag }: TableP
                 </td>
                 <td className="min-w-0 py-1 pr-3 align-middle">
                   <Link href={`/dsa/problems/${p.id}`} className="block text-[15px] text-fg hover:underline hover:decoration-line-strong hover:underline-offset-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-signal-text">
-                    {p.title}
+                    {hl ? highlightParts(p.title, hl).map((x, i) => (x.hit ? <mark key={i} className="bg-transparent font-semibold text-signal-text underline decoration-signal decoration-2 underline-offset-2">{x.text}</mark> : x.text)) : p.title}
                     {tag && tag.id === p.id ? <span className="ml-2 border border-signal px-1.5 py-px font-mono text-[11px] uppercase tracking-label text-signal-text">{tag.label}</span> : null}
                   </Link>
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[11px] text-fg-3 md:hidden">
