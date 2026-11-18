@@ -55,7 +55,7 @@ const STATES = arg("states", "guest,signed-in").split(",");
 const ONLY = arg("pages", "").split(",").filter(Boolean);
 const SHOTS = arg("shots", "fails");
 const TAG = arg("tag", "");
-const GAP = Number(arg("gap", "160"));
+const GAP = Number(arg("gap", "180"));
 const LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)/.test(BASE);
 mkdirSync(OUT, { recursive: true });
 
@@ -182,6 +182,19 @@ function measure(GAP) {
       }
     }
   }
+  // cards: rounded boxes with a visible surface; their interior is scanned for empty runs (scanCards)
+  out.cards = [];
+  for (const el of document.body.querySelectorAll("*")) {
+    if (!inFlow(el)) continue;
+    const cs = getComputedStyle(el);
+    const m = /rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)/.exec(cs.backgroundColor);
+    if (!m || (m[4] !== undefined && +m[4] < 0.5) || cs.backgroundImage !== "none") continue;
+    if (parseFloat(cs.borderTopLeftRadius) < 6) continue;
+    const r = rect(el);
+    if (r.r - r.l < 200 || r.b - r.t < 140) continue;
+    if (el.querySelector("img,video,canvas")) continue; // a poster or picture is flat by nature
+    out.cards.push({ l: r.l, r: r.r, t: r.t, b: r.b, label: label(el) });
+  }
   const main = document.querySelector("main") || document.body;
   const mr = rect(main);
   out.regions.push({ l: mr.l, r: mr.r, t: mr.t, b: mr.b, parent: "main (full width)", full: true });
@@ -248,6 +261,56 @@ async function scan(b64, regions, GAP, MAXY) {
     for (const [a, b] of found) runs.push({ left: l, width: r - l, top: a, height: b - a, parent: g.parent, full: !!g.full });
   }
   // one report per area: drop a run inside a bigger one
+  return runs.filter((x, i) => !runs.some((y, j) => j !== i && y.left <= x.left + 2 && y.left + y.width >= x.left + x.width - 2 && y.top <= x.top + 2 && y.top + y.height >= x.top + x.height - 2 && (y.height > x.height || (y.height === x.height && j < i))));
+}
+
+/** in the page: runs over CARD_GAP px inside a card where every row is one flat colour across the card's whole width (the card's own surface) */
+async function scanCards(b64, cards, CARD_GAP, MAXY) {
+  const img = new Image();
+  img.src = "data:image/png;base64," + b64;
+  await img.decode();
+  const W = img.naturalWidth;
+  const H = Math.min(img.naturalHeight, MAXY);
+  const cv = document.createElement("canvas");
+  cv.width = W;
+  cv.height = H;
+  const ctx = cv.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(img, 0, 0);
+  const data = ctx.getImageData(0, 0, W, H).data;
+  const runs = [];
+  for (const c of cards) {
+    const l = Math.max(0, Math.round(c.l) + 6);
+    const r = Math.min(W, Math.round(c.r) - 6);
+    const y0 = Math.max(0, Math.round(c.t) + 6);
+    const y1 = Math.min(H, Math.round(c.b) - 6);
+    if (r - l < 100 || y1 - y0 < CARD_GAP) continue;
+    // the surface colour: the commonest colour down the card's left inside edge
+    const counts = new Map();
+    for (let y = y0; y < y1; y += 2) {
+      const i = (y * W + l) * 4;
+      const k = (data[i] << 16) | (data[i + 1] << 8) | data[i + 2];
+      counts.set(k, (counts.get(k) || 0) + 1);
+    }
+    if (!counts.size) continue;
+    const sk = [...counts.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    const sr = (sk >> 16) & 255, sg = (sk >> 8) & 255, sb = sk & 255;
+    const flat = (y) => {
+      for (let x = l; x < r; x += 2) {
+        const i = (y * W + x) * 4;
+        if (Math.abs(data[i] - sr) > 3 || Math.abs(data[i + 1] - sg) > 3 || Math.abs(data[i + 2] - sb) > 3) return false;
+      }
+      return true;
+    };
+    let start = -1;
+    for (let y = y0; y <= y1; y++) {
+      if (y < y1 && flat(y)) {
+        if (start < 0) start = y;
+      } else {
+        if (start >= 0 && y - start > CARD_GAP) runs.push({ left: l, width: r - l, top: start, height: y - start, parent: "card " + c.label });
+        start = -1;
+      }
+    }
+  }
   return runs.filter((x, i) => !runs.some((y, j) => j !== i && y.left <= x.left + 2 && y.left + y.width >= x.left + x.width - 2 && y.top <= x.top + 2 && y.top + y.height >= x.top + x.height - 2 && (y.height > x.height || (y.height === x.height && j < i))));
 }
 
@@ -347,9 +410,16 @@ try {
         const m = await retry(page, measure, GAP);
         const height = await retry(page, () => document.documentElement.scrollHeight);
         await retry(page, () => document.querySelectorAll("nextjs-portal, [data-nextjs-toast]").forEach((n) => (n.style.display = "none")));
-        const probe = await page.screenshot(height <= 9000 ? { fullPage: true, encoding: "base64" } : { clip: { x: 0, y: 0, width: w, height: 9000 }, captureBeyondViewport: true, encoding: "base64" });
-        if (process.env.GAP_DEBUG) writeFileSync(path.join(OUT, `probe-${pg.id}-${state}-${w}.png`), Buffer.from(probe, "base64"));
-        const blank = await retry(page, scan, probe, m.regions, GAP, 9000);
+        // a fade-in still running at the first screenshot reads as an empty area: a finding is confirmed with a second, later look
+        let probe, blank;
+        for (let attempt = 0; attempt < 2; attempt++) {
+          if (attempt) await new Promise((r) => setTimeout(r, 2500));
+          probe = await page.screenshot(height <= 9000 ? { fullPage: true, encoding: "base64" } : { clip: { x: 0, y: 0, width: w, height: 9000 }, captureBeyondViewport: true, encoding: "base64" });
+          if (process.env.GAP_DEBUG) writeFileSync(path.join(OUT, `probe-${pg.id}-${state}-${w}.png`), Buffer.from(probe, "base64"));
+          blank = await retry(page, scan, probe, m.regions, GAP, 9000);
+          blank.push(...(await retry(page, scanCards, probe, m.cards, 120, 9000)));
+          if (!blank.length) break;
+        }
         const fail = !!m.overflow || m.gaps.length > 0 || blank.length > 0;
         const rec = { page: pg.id, state, width: w, height, fail, overflow: m.overflow, gaps: m.gaps, blank };
         results.push(rec);

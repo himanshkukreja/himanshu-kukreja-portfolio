@@ -36,7 +36,7 @@ type Props = {
 export default function MetroHome({ outline, progress, problems, next, kicker, intro, cards, onRedo, below }: Props) {
   const [, setView] = useHomeView();
   const wide = useMedia("(min-width: 768px)");
-  const huge = useMedia("(min-width: 1440px)");
+  const huge = useMedia("(min-width: 1024px)");
   const [goal, setGoal] = useGoal();
   const [seen, setSeen] = useTourSeen();
   const [tour, setTour] = useState(false);
