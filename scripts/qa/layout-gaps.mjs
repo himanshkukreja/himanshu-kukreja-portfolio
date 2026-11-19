@@ -40,6 +40,7 @@ import { createRequire } from "node:module";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
+import { signIn } from "./signin.mjs";
 
 const require = createRequire(path.join(homedir(), ".cache/hk-render/deps/package.json"));
 const puppeteer = require("puppeteer-core");
@@ -193,6 +194,8 @@ function measure(GAP) {
     const r = rect(el);
     if (r.r - r.l < 200 || r.b - r.t < 140) continue;
     if (el.querySelector("img,video,canvas")) continue; // a poster or picture is flat by nature
+    if (el.closest(".hk-gated")) continue; // the guest gate's peek region is clipped and faded by design; a full-page capture shows its tail as an empty box
+    if (el.closest("figure.dsa-clip")) continue; // a lesson clip mounts its video only near the viewport; its 16:9 stage is empty until then, by design
     out.cards.push({ l: r.l, r: r.r, t: r.t, b: r.b, label: label(el) });
   }
   const main = document.querySelector("main") || document.body;
@@ -328,8 +331,8 @@ const retry = async (page, fn, ...args) => {
 };
 const d = await discover();
 const pages = pagesOf(d);
-const states = STATES.filter((s) => (s === "signed-in" ? LOCAL : true));
-if (!LOCAL && STATES.includes("signed-in")) console.log("note: signed-in-like state skipped (the fixture is dev-only; base is not localhost)");
+// off localhost the signed-in state is the real QA account (scripts/qa/signin.mjs); on localhost it is the dev-only fixture
+const states = STATES;
 
 const seedDone = () => {
   const done = {};
@@ -353,14 +356,14 @@ try {
       const errs = new Set();
       page.on("pageerror", (e) => errs.add(`pageerror: ${e.message.slice(0, 160)}`));
       page.on("console", (m) => m.type() === "error" && !/401|403|Failed to load resource|favicon/.test(m.text()) && errs.add(`console: ${m.text().slice(0, 160)}`));
-      const game = signed ? { xp: 420, done: seedDone(), flags: { "pref:dsa-goal": { kind: "scratch" } } } : null;
+      const game = signed && LOCAL ? { xp: 420, done: seedDone(), flags: { "pref:dsa-goal": { kind: "scratch" } } } : null;
       await page.evaluateOnNewDocument(
-        (prefs, game, signed) => {
+        (prefs, game, signed, local) => {
           try {
             localStorage.setItem("dsa:metro-tour:v1", "1");
             for (const [k, v] of Object.entries(prefs)) localStorage.setItem(k, v);
             if (game) localStorage.setItem("hk.game.v1", JSON.stringify(game));
-            if (signed) sessionStorage.setItem("hk.qa.signedin", "1");
+            if (signed && local) sessionStorage.setItem("hk.qa.signedin", "1");
             else sessionStorage.removeItem("hk.qa.signedin");
             localStorage.setItem("hk.consent", "denied");
           } catch {}
@@ -368,8 +371,10 @@ try {
         { "dsa:home-view:v1": "map", ...(pg.prefs || {}) },
         game,
         signed,
+        LOCAL,
       );
-      const url = `${BASE}${pg.url}${signed ? (pg.url.includes("?") ? "&" : "?") + "qa=signed-in" : ""}`;
+      if (signed && !LOCAL) await signIn(page, BASE);
+      const url = `${BASE}${pg.url}${signed && LOCAL ? (pg.url.includes("?") ? "&" : "?") + "qa=signed-in" : ""}`;
       for (let w of WIDTHS) {
         try {
         await page.setViewport({ width: w, height: 900, deviceScaleFactor: 1 });
