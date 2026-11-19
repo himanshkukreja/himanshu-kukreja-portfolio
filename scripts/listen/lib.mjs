@@ -286,7 +286,7 @@ export async function articleText(a) {
 
 /* ---------------------------------------------------------------- audio */
 
-function readWav(file) {
+export function readWav(file) {
   const buf = fs.readFileSync(file);
   if (buf.toString("ascii", 0, 4) !== "RIFF" || buf.toString("ascii", 8, 12) !== "WAVE") throw new Error(`${file}: not a WAV`);
   let off = 12;
@@ -305,7 +305,7 @@ function readWav(file) {
   throw new Error(`${file}: no data chunk`);
 }
 
-function wavHeader(bytes, rate) {
+export function wavHeader(bytes, rate) {
   const h = Buffer.alloc(44);
   h.write("RIFF", 0);
   h.writeUInt32LE(36 + bytes, 4);
@@ -334,7 +334,7 @@ function gapAfter(b, next) {
   return 0.45;
 }
 
-function runTts(itemsFile, onProgress) {
+export function runTts(itemsFile, onProgress) {
   return new Promise((resolve, reject) => {
     const p = spawn(PYTHON, [path.join(ROOT, "scripts/lecture/tts.py"), itemsFile, VOICE, String(SPEED), KOKORO], { stdio: ["ignore", "pipe", "pipe"] });
     let err = "";

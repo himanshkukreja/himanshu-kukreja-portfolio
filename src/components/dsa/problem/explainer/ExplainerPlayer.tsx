@@ -7,14 +7,16 @@
  *
  * - Plays itself (each frame held for its caption's reading time, or for its narration when the sound is on), or step
  *   by step: Back / Next, the beat chips, the scrubber; ← → Space Home End when the player has focus.
- * - Captions are always on; the narration track (when the explainer has one) starts muted until the learner turns it on.
+ * - Captions are always on; the narration (scripts/explainers/voice.mjs, listen/dsa-explainers/<id>/) starts off until the
+ *   learner turns it on, and is used only when it was recorded from these exact captions (its `source`).
  * - Reduced motion swaps frames without tweening. Every picture carries a text description (role="img").
  */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Pause, Play, RotateCcw, Volume2, VolumeX } from "lucide-react";
 import { VIEWS } from "@/components/dsa/viz/views";
 import { useReducedMotion, useTween } from "@/components/dsa/viz/StepPlayer";
-import { BEAT_LABEL, flatFrames, holdFor, linesOfStep, type Explainer, type ExplainerBeatId } from "@/lib/dsa/explainer";
+import { BEAT_LABEL, explainerTexts, flatFrames, holdFor, linesOfStep, type Explainer, type ExplainerAudio, type ExplainerBeatId } from "@/lib/dsa/explainer";
+import { listenMediaBase } from "@/lib/listen/manifest";
 import { DSA_LANG_LABEL, type DsaLang } from "@/lib/dsa/types";
 import { track } from "@/lib/track";
 
@@ -23,6 +25,22 @@ type ViewDef = { Component: React.ComponentType<{ state: unknown; prev: unknown;
 const SPEEDS = [0.75, 1, 1.25, 1.5, 2];
 const BTN = "inline-flex min-h-9 items-center justify-center gap-1.5 rounded-[9px] border border-line px-2.5 text-[13px] font-medium text-fg-2 hover:bg-surface-2 hover:text-fg disabled:opacity-40 [@media(pointer:coarse)]:min-h-11";
 const fmt = (v: unknown): string => (v === null || v === undefined ? "–" : Array.isArray(v) ? `[${v.map((x: unknown) => fmt(x)).join(", ")}]` : typeof v === "object" ? JSON.stringify(v) : String(v));
+/** The recorded narration, when it was voiced from these captions (sha1 of the lines, 12 hex, as voice.mjs writes it). */
+async function loadAudio(e: Explainer): Promise<ExplainerAudio | null> {
+  try {
+    const base = `${listenMediaBase()}/dsa-explainers/${e.problem}`;
+    const r = await fetch(`${base}/listen.json`);
+    if (!r.ok) return null;
+    const m = (await r.json()) as { source: string; audio: string; marks: number[]; recap: number; duration: number };
+    const digest = await crypto.subtle.digest("SHA-1", new TextEncoder().encode(JSON.stringify(explainerTexts(e))));
+    const source = [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 12);
+    if (m.source !== source || m.marks?.length !== flatFrames(e).length) return null;
+    return { url: `${base}/${m.audio}`, marks: m.marks, recap: m.recap, dur: m.duration };
+  } catch {
+    return null;
+  }
+}
+
 const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
 
 export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Explainer; lang: DsaLang }) {
@@ -38,7 +56,15 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
   const audio = useRef<HTMLAudioElement | null>(null);
   const codeBox = useRef<HTMLPreElement | null>(null);
   const done = useRef(false);
-  const hasAudio = !!e.audio?.url;
+  const [narration, setNarration] = useState<ExplainerAudio | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadAudio(e).then((a) => live && setNarration(a));
+    return () => {
+      live = false;
+    };
+  }, [e]);
+  const hasAudio = !!narration;
   // the recap card ends the play
   const playing = playState && i < n;
   const voiced = hasAudio && sound;
@@ -50,7 +76,7 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
   const prevState = prev && (prev.frame.view ?? e.view) === viewId ? prev.frame.state : null;
   const beatId: ExplainerBeatId | "recap" = cur ? cur.beat.id : "recap";
   const firstOf = (id: ExplainerBeatId | "recap") => (id === "recap" ? n : frames.findIndex((f) => f.beat.id === id));
-  const length = useMemo(() => (e.audio?.dur ? e.audio.dur : frames.reduce((s, f) => s + holdFor(f.frame), 0) + 6), [e.audio, frames]);
+  const length = useMemo(() => (narration?.dur ? narration.dur : frames.reduce((s, f) => s + holdFor(f.frame), 0) + 6), [narration, frames]);
   const lastCost = (id: ExplainerBeatId) => {
     const b = e.beats.find((x) => x.id === id);
     return b?.frames.length ? b.frames[b.frames.length - 1].cost : null;
@@ -76,15 +102,15 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
   }, [playing, voiced, speed, hasAudio]);
   const onTime = () => {
     const a = audio.current;
-    if (!a || !e.audio || !voiced) return;
+    if (!a || !narration || !voiced) return;
     const at = a.currentTime;
-    let k = at >= e.audio.recap ? n : 0;
-    if (k < n) for (let j = 0; j < e.audio.marks.length; j++) if (e.audio.marks[j] <= at) k = j;
+    let k = at >= narration.recap ? n : 0;
+    if (k < n) for (let j = 0; j < narration.marks.length; j++) if (narration.marks[j] <= at) k = j;
     if (k !== i) setI(k);
   };
   const seekAudio = (k: number) => {
     const a = audio.current;
-    if (a && e.audio) a.currentTime = k >= n ? e.audio.recap : (e.audio.marks[k] ?? 0);
+    if (a && narration) a.currentTime = k >= n ? narration.recap : (narration.marks[k] ?? 0);
   };
 
   const go = (k: number, how?: string) => {
@@ -269,7 +295,7 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
         )}
       </div>
       {/* the captions are the frames' own text, always on screen */}
-      {hasAudio && <audio ref={audio} src={e.audio!.url} preload="none" onTimeUpdate={onTime} onEnded={() => setPlaying(false)} />}
+      {narration && <audio ref={audio} src={narration.url} preload="none" onTimeUpdate={onTime} onEnded={() => setPlaying(false)} />}
     </section>
   );
 }

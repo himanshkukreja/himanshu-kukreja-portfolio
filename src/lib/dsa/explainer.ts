@@ -38,6 +38,12 @@ export type ExplainerRecap = { pattern: string; time: string; space: string; tak
 /** The narration track: one file, each frame's start (seconds), the recap's start, the length. */
 export type ExplainerAudio = { url: string; marks: number[]; recap: number; dur: number };
 
+/** The narration lines in play order (each frame's `say` or note, then the recap): what scripts/explainers/voice.mjs voices. */
+export function explainerTexts(e: Pick<Explainer, "beats" | "recap">): string[] {
+  const frames = e.beats.flatMap((b) => b.frames.map((f) => f.say || f.note));
+  return [...frames, e.recap.say || `${e.recap.pattern}. ${e.recap.takeaway}`];
+}
+
 export type Explainer = {
   problem: string;
   title: string | null;
@@ -50,7 +56,6 @@ export type Explainer = {
   result: unknown;
   /** the reference solutions by language (the walk lights the lines of the current step) */
   code?: Partial<Record<DsaLang, string>>;
-  audio?: ExplainerAudio | null;
 };
 
 export const BEAT_LABEL: Record<ExplainerBeatId | "recap", string> = { picture: "The picture", slow: "The slow way", idea: "The idea", walk: "Step by step", recap: "Recap" };
