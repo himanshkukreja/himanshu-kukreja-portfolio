@@ -99,6 +99,9 @@ function pagesOf(d) {
     const u = (d.lean || []).find((x) => x.startsWith(`/dsa/${root}/`));
     if (u) p.push({ id: `lean-${root}`, url: u });
   }
+  // My lists: the hub and a list page, seeded through the game flags (pref:dsa-list:<id>) so a guest has two lists
+  const seedLists = JSON.stringify({ xp: 0, done: {}, flags: { "pref:dsa-list:qaqa1234": { v: 1, id: "qaqa1234", name: "Google prep", desc: "Six weeks, mediums first", ids: ["sum-of-two-numbers", "read-until-the-end-of-input", "sum-of-many-lines-fast", "find-the-maximum-and-its-position", "stress-test-a-wrong-minimum", "handling-tle-with-a-faster-loop", "even-or-odd-steps", "count-the-digits", "parity-of-the-sum", "smallest-missing-positive-in-a-short-list", "reverse-and-compare", "palindromic-number-check", "count-the-letters-that-repeat", "sort-three-numbers"], createdAt: 1, updatedAt: 1 }, "pref:dsa-list:qaqb5678": { v: 1, id: "qaqb5678", name: "Weekend DP", desc: "", ids: [], createdAt: 2, updatedAt: 2 } } });
+  p.push({ id: "practice-my-lists", url: "/dsa/practice?list=my-lists", prefs: { "hk.game.v1": seedLists } }, { id: "my-list", url: "/dsa/lists/qaqa1234", prefs: { "hk.game.v1": seedLists } });
   p.push({ id: "practice-camps", url: "/dsa/practice?list=cp-camps" }, { id: "practice-company", url: "/dsa/practice?list=company-types" });
   if (d.problems[0]) p.push({ id: "problem", url: `/dsa/problems/${d.problems[0]}` });
   p.push({ id: "practice", url: "/dsa/practice" }, { id: "search-results", url: "/dsa/practice?q=array" }, { id: "review", url: "/dsa/review" }, { id: "progress", url: "/dsa/progress" }, { id: "playground", url: "/dsa/playground" }, { id: "cheatsheets", url: "/dsa/cheatsheets" }, { id: "ai-tutor", url: "/dsa/ai-tutor" }, { id: "sdm-ai-tutor", url: "/ai-tutor" });

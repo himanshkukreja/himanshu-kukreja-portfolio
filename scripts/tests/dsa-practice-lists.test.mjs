@@ -35,8 +35,10 @@ test("parseList accepts known ids and falls back to all", () => {
 
 test("every list is either ready or carries a one-line planned state", () => {
   for (const l of L.LISTS) assert.ok(l.ready || l.planned?.line, l.id);
-  // CP camps became a ready list (18 Nov 2026)
-  assert.equal(L.LISTS.filter((l) => !l.ready && l.id !== "build-my-list").length, 4);
+  // CP camps became a ready list (18 Nov 2026), My lists too (19 Nov): four rows are still "coming"
+  assert.equal(L.LISTS.filter((l) => !l.ready).length, 4);
+  assert.equal(L.listDef("my-lists").label, "My lists");
+  assert.equal(L.parseList("list=build-my-list"), "my-lists");
 });
 
 test("Core 150 holds classic twins and gap-fillers that exist; planned is the rest of 150", () => {

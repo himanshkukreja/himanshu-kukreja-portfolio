@@ -10,7 +10,7 @@
  *   cp-camps             the Challenge League camps: each camp is a section, each camp tent a street (the tent's lesson is its link)
  *   systems-bridge, bug-stories, mock-interviews, contests   planned: a one-line state and a link to what exists
  *   saved                the learner's Save-for-later problems (this device, or the account when signed in)
- *   build-my-list        planned (AI)
+ *   my-lists             the learner's own named lists (src/lib/dsa/my-lists.ts); each list has its own page, /dsa/lists/<id>
  *
  * Totals count READY content; planned content is noted next to them, never added in.
  */
@@ -41,7 +41,7 @@ export type ListId =
   | "mock-interviews"
   | "contests"
   | "saved"
-  | "build-my-list";
+  | "my-lists";
 
 export type ListGroup = "library" | "curated" | "soon" | "mine";
 
@@ -68,7 +68,7 @@ export const LISTS: ListDef[] = [
   { id: "mock-interviews", label: "Mock interviews", group: "soon", ready: false, blurb: "A timed, whole-interview run with an AI interviewer.", planned: { line: "The timed coding mock arrives with Phase 2; voice comes after it. Interview mode already works on any single problem.", link: { href: "/dsa/practice?list=interview-patterns", label: "Practise the interview sets" } } },
   { id: "contests", label: "Contests", group: "soon", ready: false, blurb: "Virtual contests against a timer.", planned: { line: "Virtual contests are planned for after the camps open.", link: { href: "/dsa/practice?list=daily", label: "Do today's problem" } } },
   { id: "saved", label: "Saved", group: "mine", ready: true, blurb: "Problems you saved for later." },
-  { id: "build-my-list", label: "Build my list", group: "mine", ready: false, blurb: "From the whole bank, only what you need.", planned: { line: "An AI-curated list from your gaps and your interview date is planned. Your readiness bands in Progress already point at the weakest topics.", link: { href: "/dsa/progress#readiness", label: "See your readiness" } } },
+  { id: "my-lists", label: "My lists", group: "mine", ready: true, blurb: "Your own problem lists: Google prep, Weekend DP. Add from any problem, reorder, share a read-only link." },
 ];
 
 export const GROUP_LABEL: Record<ListGroup, string> = { library: "Library", curated: "Curated", soon: "Coming", mine: "Mine" };
@@ -81,7 +81,8 @@ export const listDef = (id: ListId): ListDef => LISTS.find((l) => l.id === id) a
 export function parseList(search: string | URLSearchParams): ListId {
   const sp = typeof search === "string" ? new URLSearchParams(search) : search;
   const v = sp.get("list");
-  return isListId(v) ? v : "all";
+  // the planned "Build my list" row became My lists
+  return v === "build-my-list" ? "my-lists" : isListId(v) ? v : "all";
 }
 
 /** A section of a curated list: a district, a street, a company type, a camp. `links`: the lean lessons written for it (a company type's sets, a camp's tents are on the streets). */

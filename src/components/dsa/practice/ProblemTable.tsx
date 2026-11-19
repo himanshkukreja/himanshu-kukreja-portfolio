@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Bookmark, Play } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowDown, ArrowUp, Bookmark, GripVertical, Play, X } from "lucide-react";
 import type { FilterRow, Status } from "@/lib/dsa/problem-filters";
 import type { ProblemData } from "@/lib/dsa/problem-rows";
 import { highlightParts } from "@/lib/dsa/problem-groups";
+import AddToList from "./AddToList";
+import type { MyLists } from "./useMyLists";
 
 /**
  * Practice's compact table: status, title, difficulty (the word, in its token colour), the lesson it belongs to (opens
@@ -45,14 +48,34 @@ export type TableProps = {
   tag?: { id: string; label: string } | null;
   /** the search words, underlined in the titles */
   hl?: string;
+  /** the learner's lists: adds the "Add to list" control next to the bookmark */
+  myLists?: MyLists;
+  /** a list page: reorder (drag the grip, or the arrow keys on it, or the Move buttons on a phone) and remove */
+  manage?: { onMove: (from: number, to: number) => void; onRemove: (id: string) => void };
 };
 
-export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl }: TableProps) {
+const ROW_BTN = "grid h-9 w-9 place-items-center text-fg-3 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal-text [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11";
+const TXT_BTN = "inline-flex min-h-11 items-center gap-1 px-1 text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text";
+
+export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl, myLists, manage }: TableProps) {
+  const inAny = useMemo(() => new Set(myLists ? myLists.lists.flatMap((l) => l.ids) : []), [myLists]);
+  const [drag, setDrag] = useState<{ from: number; over: number } | null>(null);
+  const [said, setSaid] = useState("");
+  const move = (i: number, to: number, title: string) => {
+    if (!manage || to < 0 || to >= rows.length) return;
+    manage.onMove(i, to);
+    setSaid(`${title} moved to position ${to + 1} of ${rows.length}.`);
+  };
   return (
     <div className="overflow-x-auto border border-line bg-surface rounded-2xl">
       <table className="w-full border-collapse text-left">
         <thead className="sr-only md:not-sr-only">
           <tr className="border-b border-line bg-surface-2 font-mono text-[11px] uppercase tracking-label text-fg-3">
+            {manage ? (
+              <th scope="col" className="hidden w-10 py-2 pl-3 font-medium md:table-cell">
+                <span className="sr-only">Reorder</span>
+              </th>
+            ) : null}
             <th scope="col" className="w-12 py-2 pl-4 pr-2 font-medium">
               <span className="sr-only">Status</span>
             </th>
@@ -71,19 +94,57 @@ export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl }: Ta
             <th scope="col" className="hidden w-9 py-2 pr-1 font-medium md:table-cell">
               <span className="sr-only">Solution video</span>
             </th>
+            {myLists ? (
+              <th scope="col" className="w-11 py-2 font-medium">
+                <span className="sr-only">Add to list</span>
+              </th>
+            ) : null}
             <th scope="col" className="w-11 py-2 pr-2 font-medium">
               <span className="sr-only">Save for later</span>
             </th>
+            {manage ? (
+              <th scope="col" className="hidden w-10 py-2 pr-2 font-medium md:table-cell">
+                <span className="sr-only">Remove from list</span>
+              </th>
+            ) : null}
           </tr>
         </thead>
         <tbody>
-          {rows.map((p) => {
+          {rows.map((p, i) => {
             const lv = LEVEL[p.level];
             const lessonHref = d.lessons[p.concept];
             const lessonTitle = d.concepts[p.concept];
             const saved = isSaved(p.id);
             return (
-              <tr key={p.id} className="border-b border-line last:border-b-0 hover:bg-surface-2">
+              <tr
+                key={p.id}
+                onDragOver={manage && drag ? (e) => { e.preventDefault(); if (drag.over !== i) setDrag({ ...drag, over: i }); } : undefined}
+                onDrop={manage && drag ? (e) => { e.preventDefault(); move(drag.from, i, rows[drag.from].title); setDrag(null); } : undefined}
+                className={`border-b border-line last:border-b-0 hover:bg-surface-2 ${drag && drag.over === i && drag.from !== i ? "shadow-[inset_0_2px_0_0_var(--c-signal)]" : ""} ${drag?.from === i ? "opacity-50" : ""}`}
+              >
+                {manage ? (
+                  <td className="hidden py-1 pl-3 align-middle md:table-cell">
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", p.id); const tr = e.currentTarget.closest("tr"); if (tr) e.dataTransfer.setDragImage(tr, 16, 16); setDrag({ from: i, over: i }); }}
+                      onDragEnd={() => setDrag(null)}
+                      onKeyDown={(e) => {
+                        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return;
+                        e.preventDefault();
+                        move(i, i + (e.key === "ArrowUp" ? -1 : 1), p.title);
+                        const btn = e.currentTarget;
+                        requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-grip="${p.id}"]`)?.focus() ?? btn.focus()));
+                      }}
+                      data-grip={p.id}
+                      aria-label={`Reorder ${p.title}, position ${i + 1} of ${rows.length}. Press the up or down arrow to move it, or drag.`}
+                      title="Drag, or press the up and down arrows"
+                      className={`${ROW_BTN} cursor-grab active:cursor-grabbing`}
+                    >
+                      <GripVertical className="h-4 w-4" aria-hidden />
+                    </button>
+                  </td>
+                ) : null}
                 <td className="py-1 pl-4 pr-2 align-middle">
                   <StatusRing status={statusOf(p.id)} />
                 </td>
@@ -92,6 +153,19 @@ export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl }: Ta
                     {hl ? highlightParts(p.title, hl).map((x, i) => (x.hit ? <mark key={i} className="bg-transparent font-semibold text-signal-text underline decoration-signal decoration-2 underline-offset-2">{x.text}</mark> : x.text)) : p.title}
                     {tag && tag.id === p.id ? <span className="ml-2 border border-signal px-1.5 py-px font-mono text-[11px] uppercase tracking-label text-signal-text">{tag.label}</span> : null}
                   </Link>
+                  {manage ? (
+                    <span className="flex flex-wrap items-center gap-x-3 font-mono text-[12px] md:hidden">
+                      <button type="button" disabled={i === 0} onClick={() => move(i, i - 1, p.title)} className={`${TXT_BTN} disabled:opacity-40`} aria-label={`Move ${p.title} up`}>
+                        <ArrowUp className="h-3.5 w-3.5" aria-hidden /> Up
+                      </button>
+                      <button type="button" disabled={i === rows.length - 1} onClick={() => move(i, i + 1, p.title)} className={`${TXT_BTN} disabled:opacity-40`} aria-label={`Move ${p.title} down`}>
+                        <ArrowDown className="h-3.5 w-3.5" aria-hidden /> Down
+                      </button>
+                      <button type="button" onClick={() => manage.onRemove(p.id)} className={TXT_BTN} aria-label={`Remove ${p.title} from this list`}>
+                        <X className="h-3.5 w-3.5" aria-hidden /> Remove
+                      </button>
+                    </span>
+                  ) : null}
                   <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[11px] text-fg-3 md:hidden">
                     <span className={`font-semibold tracking-label ${lv.tone}`}>{lv.word}</span>
                     {lessonTitle ? <span className="max-w-[180px] truncate">{lessonTitle}</span> : null}
@@ -124,6 +198,11 @@ export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl }: Ta
                     </span>
                   ) : null}
                 </td>
+                {myLists ? (
+                  <td className="py-1 align-middle">
+                    <AddToList problemId={p.id} title={p.title} api={myLists} inAny={inAny.has(p.id)} from={manage ? "list" : "bank"} />
+                  </td>
+                ) : null}
                 <td className="py-1 pr-2 align-middle">
                   <button
                     type="button"
@@ -135,11 +214,21 @@ export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl }: Ta
                     <Bookmark className={`h-4 w-4 ${saved ? "fill-current" : ""}`} aria-hidden />
                   </button>
                 </td>
+                {manage ? (
+                  <td className="hidden py-1 pr-2 align-middle md:table-cell">
+                    <button type="button" onClick={() => manage.onRemove(p.id)} aria-label={`Remove ${p.title} from this list`} title="Remove from this list" className={ROW_BTN}>
+                      <X className="h-4 w-4" aria-hidden />
+                    </button>
+                  </td>
+                ) : null}
               </tr>
             );
           })}
         </tbody>
       </table>
+      <p role="status" aria-live="polite" className="sr-only">
+        {said}
+      </p>
     </div>
   );
 }

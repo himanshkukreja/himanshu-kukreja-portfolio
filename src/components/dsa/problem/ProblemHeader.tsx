@@ -12,6 +12,8 @@ import SaveOfflineButton from "@/components/offline/SaveOfflineButton";
 import { INK_EVENTS } from "@/lib/learn/ink/types";
 import ResetProblem from "./ResetProblem";
 import { useSavedProblems } from "@/components/dsa/practice/useSavedProblems";
+import { useMyLists } from "@/components/dsa/practice/useMyLists";
+import AddToList from "@/components/dsa/practice/AddToList";
 import type { ProblemPosition, Room } from "./useProblemRoom";
 
 const LINK = "inline-flex min-h-10 items-center text-[14px] text-fg-2 hover:text-fg [@media(pointer:coarse)]:min-h-11";
@@ -22,6 +24,8 @@ export default function ProblemHeader({ room, position }: { room: Room; position
   const [menu, setMenu] = useState(false);
   const { isSaved, toggle } = useSavedProblems();
   const saved = isSaved(p.id);
+  const myLists = useMyLists();
+  const inAnyList = myLists.lists.some((l) => l.ids.includes(p.id));
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!menu) return;
@@ -79,6 +83,7 @@ export default function ProblemHeader({ room, position }: { room: Room; position
           <MessageSquareQuote className="h-4 w-4 text-signal-text" aria-hidden />
           Interview
         </button>
+        <AddToList problemId={p.id} title={p.title} api={myLists} inAny={inAnyList} from="problem" variant="bar" />
         <div ref={box} className="relative">
           <button
             type="button"

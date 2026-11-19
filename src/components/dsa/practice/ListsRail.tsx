@@ -1,6 +1,7 @@
 "use client";
 
 import { LISTS, GROUP_LABEL, type ListDef, type ListGroup, type ListId } from "@/lib/dsa/lists";
+import type { MyList } from "@/lib/dsa/my-lists";
 
 /**
  * Practice's lists: a left rail on desktop, a horizontal chip scroller on phones. Every list is a real link
@@ -9,18 +10,18 @@ import { LISTS, GROUP_LABEL, type ListDef, type ListGroup, type ListId } from "@
 
 const ORDER: ListGroup[] = ["library", "curated", "soon", "mine"];
 
-type Props = { active: ListId; counts: Partial<Record<ListId, number | null>>; hrefOf: (id: ListId) => string; onPick: (id: ListId) => void };
+type Props = { active: ListId; counts: Partial<Record<ListId, number | null>>; hrefOf: (id: ListId) => string; onPick: (id: ListId) => void; /** the learner's own lists: "My lists" expands to them */ mine?: MyList[] };
 
 function Count({ def, n }: { def: ListDef; n: number | null | undefined }) {
   if (!def.ready) return <span className="font-mono text-[11px] text-fg-3">soon</span>;
   return (
-    <span className="font-mono text-[12px] tabular-nums text-fg-3" aria-label={n == null ? undefined : `${n} problems`}>
+    <span className="font-mono text-[12px] tabular-nums text-fg-3" aria-label={n == null ? undefined : def.id === "my-lists" ? `${n} lists` : `${n} problems`}>
       {n == null ? "" : n}
     </span>
   );
 }
 
-export default function ListsRail({ active, counts, hrefOf, onPick }: Props) {
+export default function ListsRail({ active, counts, hrefOf, onPick, mine = [] }: Props) {
   const click = (id: ListId) => (e: React.MouseEvent) => {
     if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
     e.preventDefault();
@@ -72,6 +73,18 @@ export default function ListsRail({ active, counts, hrefOf, onPick }: Props) {
                         <span className="min-w-0 leading-snug">{l.label}</span>
                         <Count def={l} n={counts[l.id]} />
                       </a>
+                      {l.id === "my-lists" && mine.length ? (
+                        <ul aria-label="Your lists" className="m-0 mb-1 flex list-none flex-col p-0">
+                          {mine.map((m) => (
+                            <li key={m.id}>
+                              <a href={`/dsa/lists/${m.id}`} className="flex min-h-9 items-center justify-between gap-2 border-l-[3px] border-transparent py-1 pl-6 pr-3 text-[13.5px] text-fg-2 hover:bg-surface-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal-text">
+                                <span className="min-w-0 truncate">{m.name}</span>
+                                <span className="font-mono text-[11.5px] tabular-nums text-fg-3" aria-label={`${m.ids.length} problems`}>{m.ids.length}</span>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : null}
                     </li>
                   );
                 })}

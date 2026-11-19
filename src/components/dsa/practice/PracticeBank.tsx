@@ -30,6 +30,8 @@ import { Chip, Group, useTried, useVideoIds } from "./FilterGroups";
 import BankGroups from "./BankGroups";
 import { DEFAULT_GROUPING, firstOpenId, GROUPINGS, groupRows, parseGrouping, type GroupingId } from "@/lib/dsa/problem-groups";
 import { useSavedProblems } from "./useSavedProblems";
+import { useMyLists } from "./useMyLists";
+import MyListsHub from "./MyListsHub";
 
 // the export dialog and its file writer load only when the learner opens it
 const ExportSheetDialog = dynamic(() => import("../problems/ExportSheetDialog"), { ssr: false });
@@ -223,6 +225,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const progress = useDsaProgress();
   const tried = useTried();
   const saved = useSavedProblems();
+  const myLists = useMyLists();
   const daily = useDsaDaily();
   const streak = useDsaStreak();
   const defs = useMemo(() => groupDefs(data), [data]);
@@ -324,10 +327,13 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const base = useMemo(() => evaluate(inList, emptyState(), () => "todo").counts, [inList]);
   const summary = useMemo(() => solvedSummary(data.rows, (id) => progress.solved.has(id)), [data.rows, progress.solved]);
   const viewCounts = useMemo(() => statusViewCounts(counts.status), [counts]);
-  const railCounts = useMemo(() => Object.fromEntries(LISTS.map((l) => [l.id, listCount(l.id, ctx)])) as Partial<Record<ListId, number | null>>, [ctx]);
+  const railCounts = useMemo(() => ({ ...(Object.fromEntries(LISTS.map((l) => [l.id, listCount(l.id, ctx)])) as Partial<Record<ListId, number | null>>), "my-lists": myLists.ready ? myLists.lists.length : null }), [ctx, myLists.ready, myLists.lists.length]);
 
   const def = listDef(view.list);
-  const planned = !def.ready;
+  const planned0 = !def.ready;
+  // My lists is a page of lists (cards and a form), not a table: the filters, tabs and pager stay out of it
+  const hub = view.list === "my-lists";
+  const planned = planned0 || hub;
   const sections: Section[] | null = view.list === "interview-patterns" ? lists["interview-patterns"].sections : view.list === "company-types" ? lists["company-types"].sections : view.list === "cp-camps" ? lists["cp-camps"].sections : null;
 
   // the rows in the order shown: recommended = course order with unsolved first; the daily list keeps its own order
@@ -405,7 +411,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const filtered = isFiltered(state);
   const labelOf = (g: GroupId, v: string) => (g === "video" ? "Has a solution video" : defs.find((d) => d.id === g)?.options.find((o) => o.id === v)?.label || v);
   const chips = GROUPS.flatMap((g) => state.sel[g].map((v) => ({ g, v, label: labelOf(g, v), title: defs.find((d) => d.id === g)?.title || "" })));
-  const tableProps = { d: data, statusOf, isSaved: saved.isSaved, onSave: saved.toggle, tag: view.list === "daily" && daily.data?.daily ? { id: daily.data.daily.problem.id, label: "Today" } : null };
+  const tableProps = { d: data, statusOf, isSaved: saved.isSaved, onSave: saved.toggle, myLists, tag: view.list === "daily" && daily.data?.daily ? { id: daily.data.daily.problem.id, label: "Today" } : null };
 
   // grouped unless the learner chose None, is searching (matches stay in one list, ranked by relevance), or the list has its own sections
   const searching = !!state.q.trim();
@@ -449,7 +455,8 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const body = (
     <>
       {/* a list that has nothing to show yet */}
-      {planned ? <PlannedPanel id={view.list} /> : null}
+      {planned0 ? <PlannedPanel id={view.list} /> : null}
+      {hub ? <MyListsHub api={myLists} rows={data.rows} solved={(id) => progress.solved.has(id)} onBrowse={() => pickList("all")} /> : null}
       {view.list === "daily" && daily.data?.daily ? (
         <div className="flex flex-wrap items-center justify-between gap-3 border border-line bg-surface px-4 py-3 rounded-2xl">
           <p className="m-0 text-[14px] text-fg-2">
@@ -556,7 +563,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
 
   return (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <ListsRail active={view.list} counts={railCounts} hrefOf={(id) => urlOf(emptyState(), { list: id, page: 1, grouping: DEFAULT_GROUPING })} onPick={pickList} />
+      <ListsRail active={view.list} counts={railCounts} mine={myLists.lists} hrefOf={(id) => urlOf(emptyState(), { list: id, page: 1, grouping: DEFAULT_GROUPING })} onPick={pickList} />
 
       <div ref={topRef} className="flex min-w-0 scroll-mt-20 flex-col gap-4">
         <header className="flex flex-col gap-1.5">
