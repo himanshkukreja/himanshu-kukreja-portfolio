@@ -9,7 +9,7 @@ import { stepRank } from "./steps";
 import { leanLectureHref } from "./kinds";
 
 /**
- * DSA's shorts as ONE manifest per content commit (<prefix>/derived/shorts-v1-<sha>.json in R2), the same pattern as
+ * DSA's shorts as ONE manifest per content commit (<prefix>/derived/shorts-v2-<sha>.json in R2), the same pattern as
  * ⌘K's moments (search-index-build.ts). Walking ~650 shorts per request (a content read and a media.json each) blew a
  * Worker's subrequest limit: later fetches failed, every short read "not recorded", and the feed said "No shorts here
  * yet". The deploy warm-up builds the manifest in slices of a few lessons (GET /api/dsa/ai-warm?part=shorts&chunk=n,
@@ -130,8 +130,8 @@ export async function buildShortsChunk(n: number): Promise<ShortRow[]> {
   return rows.flat();
 }
 
-const chunkName = (sha: string, n: number) => `shorts-chunk-v1-${sha}-${n}`;
-const finalName = (sha: string) => `shorts-v1-${sha}`;
+const chunkName = (sha: string, n: number) => `shorts-chunk-v2-${sha}-${n}`;
+const finalName = (sha: string) => `shorts-v2-${sha}`;
 
 /** The content commit's sha, or null (no bundle: local files). */
 export const shortsSha = () => dsaBundleVersion().catch(() => null);
@@ -166,7 +166,7 @@ export async function assembleShorts(sha: string): Promise<{ rows: number; recor
 
 /**
  * After media was published (POST /api/revalidate-courses?source=dsa): every slice read again, then the manifest. The
- * slices are other requests of this site (each has its own subrequest budget), 4 at a time; `auth` is the caller's
+ * slices are other requests of this site (each has its own subrequest budget), 11 at a time; `auth` is the caller's
  * Authorization header (a fresh build is for admins only).
  */
 export async function rebuildShorts(origin: string, auth: string): Promise<void> {
@@ -182,7 +182,7 @@ export async function rebuildShorts(origin: string, auth: string): Promise<void>
   for (let round = 0; round < 2 && todo.length; round++) {
     const failed: number[] = [];
     let k = 0;
-    await Promise.all(Array.from({ length: 4 }, async () => { while (k < todo.length) { const n = todo[k++]; if (!(await call(n).catch(() => null))) failed.push(n); } }));
+    await Promise.all(Array.from({ length: 11 }, async () => { while (k < todo.length) { const n = todo[k++]; if (!(await call(n).catch(() => null))) failed.push(n); } }));
     todo = failed;
   }
   await fetch(`${origin}/api/dsa/ai-warm?part=shorts`, { headers: { authorization: auth }, cache: "no-store" }).catch(() => null);
