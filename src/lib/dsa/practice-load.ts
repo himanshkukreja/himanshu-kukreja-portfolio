@@ -3,37 +3,36 @@ import matter from "gray-matter";
 import { readDsa } from "./content";
 import { getConceptIndex, getProblemIndex, getStepLabels, getWorld } from "./load";
 import { buildProblemData, type ProblemData } from "./problem-rows";
-import { campList, companyList, companyRows, coreList, districtList, type PracticeLists } from "./lists";
+import { campList, companyList, companyRows, coreListsFrom, districtList, type PracticeLists } from "./lists";
 import { getLeanIndex, getPlanFacts } from "./kinds-load";
 import { districtName } from "./districts";
 
 /**
  * What /dsa/practice needs from the content repo, worked out once per revalidation (the page is ISR): the problem rows
- * with their facets, and the curated lists that need the plan (Core 150 gap-fillers) or the world file (the 18 interview
+ * with their facets, and the curated lists that need the plan (the Core 75, 150 and 300 files) or the world file (the 18 interview
  * districts with their streets). The rest of the lists (daily, saved) are per learner and load in the browser.
  */
 export async function getPracticeData(): Promise<{ data: ProblemData; lists: PracticeLists }> {
-  const [problems, concepts, labels, world, plan, lean, facts] = await Promise.all([
+  const [problems, concepts, labels, world, coreYml, lean, facts] = await Promise.all([
     getProblemIndex().catch(() => []),
     getConceptIndex().catch(() => []),
     getStepLabels().catch(() => ({})),
     getWorld("product-districts").catch(() => null),
-    readDsa("resources/plan/curriculum.yml").catch(() => null),
+    readDsa("resources/plan/core-lists.yml").catch(() => null),
     getLeanIndex().catch(() => []),
     getPlanFacts().catch(() => ({ lessons: [], rows: [], ratings: [] })),
   ]);
   const data = buildProblemData(problems, { labels, concepts, videos: [] });
   if (data.unknown.length) console.warn(`[dsa taxonomy] pattern tags with no facets yet: ${data.unknown.join(", ")}`);
-  // the plan's Core 150 gap-fillers that are built (a row counts only when its problem exists)
-  let gaps: string[] = [];
+  // the Core lists (resources/plan/core-lists.yml, through the same R2 or local reader as the other plan files)
+  let core = coreListsFrom(null);
   try {
-    const rows = plan ? (matter(`---\n${plan}\n---\n`, {}).data as { problems?: { id: string; home?: string }[] }).problems || [] : [];
-    gaps = rows.filter((r) => (r.home || "").startsWith("core-150-gaps/")).map((r) => r.id);
+    core = coreListsFrom(coreYml ? matter(`---\n${coreYml}\n---\n`, {}).data : null);
   } catch {
-    gaps = [];
+    // an unreadable file leaves the three rows empty rather than breaking Practice
   }
   const lists: PracticeLists = {
-    "core-150": coreList(problems, gaps),
+    core,
     "interview-patterns": districtList((world?.regions || []).map((r) => ({ id: r.id, title: r.moduleTitle || districtName(r.title), opens: r.opens, planned: r.planned, stretches: r.stretches }))),
     // each written company set (kinds.ts) is linked from its type's section
     "company-types": companyList(companyRows(problems, data.rows), data.companies, lean.filter((l) => l.company).map((l) => ({ module: l.module, title: `${l.title} (set lesson)`, href: l.href }))),

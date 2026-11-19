@@ -11,13 +11,13 @@ register(
     encodeURIComponent(`export async function resolve(s, c, next) { try { return await next(s, c); } catch (e) { if (s.startsWith(".") && !/\\.\\w+$/.test(s)) return next(s + ".ts", c); throw e; } }`),
 );
 const L = await import("../../src/lib/dsa/lists.ts");
-const CORE = L;
+const { dedupeChips } = await import("../../src/lib/dsa/search/chips.ts");
 const { summarise } = await import("../../src/lib/dsa/progress-summary.ts");
 const { buildDsaDocs, mergeTranscripts, lessonWeek } = await import("../../src/lib/dsa/search-index.ts");
 
 const rows = ["a", "b", "c", "d"].map((id, i) => ({ id, seq: i, order: i, title: id, companies: id === "a" ? ["fintech"] : [] }));
 const lists = {
-  "core-150": L.coreList([{ id: "a", classic: ["LC 1"] }, { id: "b", classic: ["lc-1"] }, { id: "d", classic: ["lc-20"], role: "checkpoint" }, { id: "c", classic: ["lc-20"] }, { id: "e", classic: ["lc-99999"] }], ["c", "zzz"]),
+  core: L.coreListsFrom({ "core-75": ["d", "a"], "core-150": ["d", "a", "c", "b", "zzz"], "core-300": ["d", "a", "c", "b", "d", "e"] }),
   "interview-patterns": L.districtList([
     { id: "d1", title: "Arrays", opens: "Opens at launch", planned: 2, stretches: [{ id: "s1", title: "Street one", nodes: [{ ref: "d", built: true }, { ref: "x", built: false }], planned: 1 }, { id: "s2", title: "Empty", nodes: [], planned: 0 }] },
     { id: "d5", title: "Lists", opens: "Opens with wave 2", planned: 4, stretches: [] },
@@ -29,6 +29,8 @@ const ctx = (over = {}) => ({ rows, saved: new Set(), daily: null, lists, ...ove
 
 test("parseList accepts known ids and falls back to all", () => {
   assert.equal(L.parseList("list=core-150&q=x"), "core-150");
+  assert.equal(L.parseList("list=core-75"), "core-75");
+  assert.equal(L.parseList("list=core-300"), "core-300");
   assert.equal(L.parseList("list=nope"), "all");
   assert.equal(L.parseList(""), "all");
 });
@@ -41,10 +43,23 @@ test("every list is either ready or carries a one-line planned state", () => {
   assert.equal(L.parseList("list=build-my-list"), "my-lists");
 });
 
-test("Core 150 holds classic twins and gap-fillers that exist; planned is the rest of 150", () => {
-  // one problem per classic: LC 1 has two twins (a, b), LC 20 two (c is the gap-filler, d a checkpoint), e twins no Core 150 classic
-  assert.deepEqual([...lists["core-150"].ids].sort(), ["a", "c"]);
-  assert.equal(lists["core-150"].planned, 148);
+test("the Core lists keep the file's order, drop repeats, and are nested", () => {
+  assert.deepEqual(lists.core["core-75"], ["d", "a"]);
+  assert.deepEqual(lists.core["core-300"], ["d", "a", "c", "b", "e"]);
+  const yml = L.coreListsFrom({ lists: { "core-75": [{ id: "x" }, "y"], "core-150": { ids: ["x", "y", "z"] } } });
+  assert.deepEqual(yml["core-75"], ["x", "y"]);
+  assert.deepEqual(yml["core-150"], ["x", "y", "z"]);
+  assert.deepEqual(L.coreListsFrom(null)["core-300"], []);
+  assert.deepEqual(L.CORE_IDS, ["core-75", "core-150", "core-300"]);
+  assert.equal(L.listDef("core-75").group, "curated");
+});
+
+test("a Core list opens in list order, with only None (list order) and Topic to group by", () => {
+  const all = [{ id: "topic", label: "Topic" }, { id: "pattern", label: "Pattern" }, { id: "none", label: "None" }];
+  assert.equal(L.defaultGroupingFor("core-150"), "none");
+  assert.equal(L.defaultGroupingFor("all"), "topic");
+  assert.deepEqual(L.groupingsFor("core-75", all).map((g) => g.label), ["None (list order)", "Topic"]);
+  assert.equal(L.groupingsFor("all", all).length, 3);
 });
 
 test("interview patterns: built problems under their streets, unwritten districts say how many and when", () => {
@@ -58,7 +73,7 @@ test("interview patterns: built problems under their streets, unwritten district
 
 test("a list's ids only count problems that are in the bank", () => {
   assert.equal(L.listIdSet("all", ctx()), null);
-  assert.deepEqual([...L.listIdSet("core-150", ctx())].sort(), ["a", "c"]);
+  assert.deepEqual([...L.listIdSet("core-150", ctx())].sort(), ["a", "b", "c", "d"]);
   assert.deepEqual([...L.listIdSet("interview-patterns", ctx())], ["d"]);
   assert.deepEqual([...L.listIdSet("company-types", ctx())], ["a"]);
   assert.deepEqual([...L.listIdSet("cp-camps", ctx())], ["b"]);
@@ -131,18 +146,11 @@ test("merging transcripts moves the DSA lecture numbers past the shared ones", (
   assert.deepEqual(base.m, [[0, 5, "base words"]]);
 });
 
-test("Core 150 holds one problem per classic: a classic with many twins counts once, a non-core classic not at all", () => {
-  const twins = Array.from({ length: 300 }, (_, i) => ({ id: `p${i}`, classic: [`lc-${[1, 3, 5, 11][i % 4]}`] }));
-  const c = L.coreList(twins, []);
-  assert.equal(c.ids.length, 4);
-  assert.equal(c.planned, 146);
-  assert.ok(CORE.CORE_150.size >= 140 && CORE.CORE_150.size <= 160, String(CORE.CORE_150.size));
-  assert.equal(CORE.classicKey("LC 0020"), "lc-20");
-  // every id the list holds is a row of the bank, and the rail count is the list's size
-  const bank = twins.map((p, i) => ({ id: p.id, seq: i, order: i, title: p.id, companies: [] }));
-  const cx = { rows: bank, saved: new Set(), daily: null, lists: { ...lists, "core-150": c } };
-  assert.equal(L.listCount("core-150", cx), 4);
-  assert.equal(L.listIdSet("core-150", cx).size, 4);
+test("a Core list's rail count is its ready problems: ids the bank lacks do not count", () => {
+  assert.equal(L.listCount("core-300", ctx({ rows: rows.slice(0, 2) })), 2);
+  assert.equal(L.listCount("core-150", ctx()), 4);
+  assert.deepEqual([...L.listIdSet("core-150", ctx())].sort(), ["a", "b", "c", "d"]);
+  assert.equal(L.listCount("core-300", ctx()), 4);
 });
 
 test("By company type counts only the company problems, and each section lists exactly those", () => {
@@ -155,4 +163,9 @@ test("By company type counts only the company problems, and each section lists e
   assert.equal(L.listCount("company-types", cx), 2);
   assert.deepEqual([...L.listIdSet("company-types", cx)].sort(), ["x", "z"]);
   assert.deepEqual(list.sections[0].ids, ["x", "z"]);
+});
+
+test("smart search chips: case duplicates collapse, keeping the first form", () => {
+  const chips = ["BFS", "DFS", "bfs", "dfs", "Graph", "graph "].map((label, i) => ({ id: String(i), label }));
+  assert.deepEqual(dedupeChips(chips).map((c) => c.label), ["BFS", "DFS", "Graph"]);
 });

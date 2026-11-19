@@ -51,13 +51,15 @@ export type TableProps = {
   /** the learner's lists: adds the "Add to list" control next to the bookmark */
   myLists?: MyLists;
   /** a list page: reorder (drag the grip, or the arrow keys on it, or the Move buttons on a phone) and remove */
+  /** a Core list: each problem's place in the list, shown as a numbered first column */
+  nums?: ReadonlyMap<string, number>;
   manage?: { onMove: (from: number, to: number) => void; onRemove: (id: string) => void };
 };
 
 const ROW_BTN = "grid h-9 w-9 place-items-center text-fg-3 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-signal-text [@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11";
 const TXT_BTN = "inline-flex min-h-11 items-center gap-1 px-1 text-fg-2 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text";
 
-export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl, myLists, manage }: TableProps) {
+export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl, myLists, manage, nums }: TableProps) {
   const inAny = useMemo(() => new Set(myLists ? myLists.lists.flatMap((l) => l.ids) : []), [myLists]);
   const [drag, setDrag] = useState<{ from: number; over: number } | null>(null);
   const [said, setSaid] = useState("");
@@ -76,7 +78,13 @@ export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl, myLi
                 <span className="sr-only">Reorder</span>
               </th>
             ) : null}
-            <th scope="col" className="w-12 py-2 pl-4 pr-2 font-medium">
+            {nums ? (
+              <th scope="col" className="w-10 py-2 pl-4 pr-0 text-right font-medium">
+                <span aria-hidden>#</span>
+                <span className="sr-only">Position in the list</span>
+              </th>
+            ) : null}
+            <th scope="col" className={`w-12 py-2 pr-2 font-medium ${nums ? "pl-3" : "pl-4"}`}>
               <span className="sr-only">Status</span>
             </th>
             <th scope="col" className="py-2 pr-3 font-medium">
@@ -145,7 +153,8 @@ export function ProblemTable({ rows, d, statusOf, isSaved, onSave, tag, hl, myLi
                     </button>
                   </td>
                 ) : null}
-                <td className="py-1 pl-4 pr-2 align-middle">
+                {nums ? <td className="w-10 py-1 pl-4 pr-0 text-right align-middle font-mono text-[12px] tabular-nums text-fg-3">{nums.get(p.id)}</td> : null}
+                <td className={`py-1 pr-2 align-middle ${nums ? "pl-3" : "pl-4"}`}>
                   <StatusRing status={statusOf(p.id)} />
                 </td>
                 <td className="min-w-0 py-1 pr-3 align-middle">

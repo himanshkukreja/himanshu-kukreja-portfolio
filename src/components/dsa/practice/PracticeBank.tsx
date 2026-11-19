@@ -12,7 +12,8 @@ import { activeCount, clearAll, emptyState, evaluate, GROUPS, isFiltered, parseS
 import type { ProblemData } from "@/lib/dsa/problem-rows";
 import { groupDefs } from "../problems/problem-options";
 import { holdAttention } from "@/lib/learn/guide/attention";
-import { isListId, listCount, listDef, listIdSet, LISTS, pageOf, plannedNote, recommendedOrder, sectionRows, type ListContext, type ListId, type PracticeLists, type Section } from "@/lib/dsa/lists";
+import { dedupeChips } from "@/lib/dsa/search/chips";
+import { defaultGroupingFor, groupingsFor, isCoreId, isListId, listCount, listDef, listIdSet, LISTS, pageOf, plannedNote, recommendedOrder, sectionRows, type ListContext, type ListId, type PracticeLists, type Section } from "@/lib/dsa/lists";
 import { FACETS } from "@/lib/dsa/taxonomy";
 import { companyLabel } from "@/lib/dsa/problem-rows";
 import { itemsFromRows } from "@/lib/dsa/search/items";
@@ -53,7 +54,7 @@ function urlOf(s: FilterState, v: View): string {
   const sp = new URLSearchParams(serializeState(s));
   if (v.list !== "all") sp.set("list", v.list);
   if (v.page > 1) sp.set("page", String(v.page));
-  if (v.grouping !== DEFAULT_GROUPING) sp.set("group", v.grouping);
+  if (v.grouping !== defaultGroupingFor(v.list)) sp.set("group", v.grouping);
   const q = sp.toString();
   return `/dsa/practice${q ? `?${q}` : ""}`;
 }
@@ -61,7 +62,10 @@ function urlOf(s: FilterState, v: View): string {
 function readView(sp: URLSearchParams): View {
   const l = sp.get("list");
   const g = sp.get("group");
-  return { list: isListId(l) ? l : "all", page: Math.max(1, Number(sp.get("page")) || 1), grouping: parseGrouping(g) };
+  const list: ListId = isListId(l) ? l : "all";
+  // a Core list opens in list order; ?group=topic is the only other choice it writes
+  const grouping = g && GROUPINGS.some((x) => x.id === g) && (!isCoreId(list) || g === "topic" || g === "none") ? parseGrouping(g) : defaultGroupingFor(list);
+  return { list, page: Math.max(1, Number(sp.get("page")) || 1), grouping };
 }
 
 /* ------------------------------------------------------------------ pieces */
@@ -336,15 +340,21 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const planned = planned0 || hub;
   const sections: Section[] | null = view.list === "interview-patterns" ? lists["interview-patterns"].sections : view.list === "company-types" ? lists["company-types"].sections : view.list === "cp-camps" ? lists["cp-camps"].sections : null;
 
+  // a Core list: each problem's place in the file's order, and how many of them the learner has solved
+  const coreIds = isCoreId(view.list) ? lists.core[view.list] : null;
+  const coreAt = useMemo(() => new Map((coreIds || []).map((id, i) => [id, i + 1] as [string, number])), [coreIds]);
+  const coreSolved = coreIds ? coreIds.filter((id) => progress.solved.has(id)).length : 0;
+
   // the rows in the order shown: recommended = course order with unsolved first; the daily list keeps its own order
   const ordered = useMemo(() => {
     if (view.list === "daily" && dailyIds) {
       const at = new Map(dailyIds.map((id, i) => [id, i]));
       return [...results].sort((a, b) => (at.get(a.id) ?? 99) - (at.get(b.id) ?? 99));
     }
+    if (isCoreId(view.list) && !rankAt && state.sort === "course") return [...results].sort((a, b) => (coreAt.get(a.id) ?? 0) - (coreAt.get(b.id) ?? 0));
     if (rankAt && state.sort === "course") return [...results].sort((a, b) => (rankAt.get(a.id) ?? 0) - (rankAt.get(b.id) ?? 0));
     return state.sort === "course" ? recommendedOrder(results, (id) => progress.solved.has(id)) : results;
-  }, [results, state.sort, progress.solved, view.list, dailyIds, rankAt]);
+  }, [results, state.sort, progress.solved, view.list, dailyIds, rankAt, coreAt]);
   const paged = pageOf(ordered, view.page);
 
   const onToggle = (g: GroupId, v: string) => commitFilters(toggle(state, g, v));
@@ -368,7 +378,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   }, [state.q, smartHere, smartSignedIn, smartAsk]);
   const pickList = (id: ListId) => {
     setMenu(null);
-    commit({ ...state }, { list: id, page: 1, grouping: view.grouping });
+    commit({ ...state }, { list: id, page: 1, grouping: isCoreId(id) !== isCoreId(view.list) ? defaultGroupingFor(id) : view.grouping });
   };
   const go = (p: number) => {
     commit(state, { ...view, page: p });
@@ -411,7 +421,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const filtered = isFiltered(state);
   const labelOf = (g: GroupId, v: string) => (g === "video" ? "Has a solution video" : defs.find((d) => d.id === g)?.options.find((o) => o.id === v)?.label || v);
   const chips = GROUPS.flatMap((g) => state.sel[g].map((v) => ({ g, v, label: labelOf(g, v), title: defs.find((d) => d.id === g)?.title || "" })));
-  const tableProps = { d: data, statusOf, isSaved: saved.isSaved, onSave: saved.toggle, myLists, tag: view.list === "daily" && daily.data?.daily ? { id: daily.data.daily.problem.id, label: "Today" } : null };
+  const tableProps = { d: data, statusOf, isSaved: saved.isSaved, onSave: saved.toggle, myLists, nums: coreIds ? coreAt : undefined, tag: view.list === "daily" && daily.data?.daily ? { id: daily.data.daily.problem.id, label: "Today" } : null };
 
   // grouped unless the learner chose None, is searching (matches stay in one list, ranked by relevance), or the list has its own sections
   const searching = !!state.q.trim();
@@ -428,8 +438,8 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const firstId = useMemo(() => firstOpenId(bankGroups, (id) => progress.solved.has(id)), [bankGroups, progress.solved]);
 
   const listNote =
-    view.list === "core-150"
-      ? `${lists["core-150"].ids.length} ready${lists["core-150"].planned ? ` · ${lists["core-150"].planned} more planned toward ${lists["core-150"].target}` : ""}`
+    coreIds
+      ? ""
       : view.list === "interview-patterns"
         ? `${lists["interview-patterns"].sections.filter((s) => s.ids.length).length} of ${lists["interview-patterns"].sections.length} sets open${lists["interview-patterns"].sections.some((s) => s.planned) ? ` · ${lists["interview-patterns"].sections.reduce((a, s) => a + (s.planned || 0), 0)} more problems planned` : ""}`
         : view.list === "cp-camps"
@@ -447,7 +457,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
     f.domains.forEach((id) => out.push({ id: `c-${id}`, label: companyLabel(id), remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, domains: a.filters.domains.filter((x) => x !== id) } })) }));
     f.tags.forEach((id) => out.push({ id: `g-${id}`, label: id.replace(/-/g, " "), remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, tags: a.filters.tags.filter((x) => x !== id) } })) }));
     if (f.status) out.push({ id: "s", label: f.status === "solved" ? "Solved" : "Unsolved", remove: () => smartHook.edit((a) => ({ ...a, filters: { ...a.filters, status: undefined } })) });
-    return out;
+    return dedupeChips(out);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [smartHere, smartHook.edit]);
 
@@ -563,14 +573,14 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
 
   return (
     <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[212px_minmax(0,1fr)] lg:items-start lg:gap-8">
-      <ListsRail active={view.list} counts={railCounts} mine={myLists.lists} hrefOf={(id) => urlOf(emptyState(), { list: id, page: 1, grouping: DEFAULT_GROUPING })} onPick={pickList} />
+      <ListsRail active={view.list} counts={railCounts} mine={myLists.lists} hrefOf={(id) => urlOf(emptyState(), { list: id, page: 1, grouping: defaultGroupingFor(id) })} onPick={pickList} />
 
       <div ref={topRef} className="flex min-w-0 scroll-mt-20 flex-col gap-4">
         <header className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
             <h2 className="m-0 font-display text-[26px] font-extrabold leading-tight tracking-[-0.02em] text-fg">{def.label}</h2>
             <p className="m-0 font-mono text-[12px] tabular-nums text-fg-3" aria-label="Your progress">
-              {progress.ready ? summary.solved : "–"} of {summary.total} solved
+              {progress.ready ? (coreIds ? coreSolved : summary.solved) : "–"} of {coreIds ? coreIds.length : summary.total} solved
             </p>
           </div>
           <p className="m-0 max-w-[70ch] text-[14.5px] leading-relaxed text-fg-2">{def.blurb}</p>
@@ -640,7 +650,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                   >
                     {SORTS.map((s) => (
                       <option key={s.id} value={s.id}>
-                        {SORT_LABEL[s.id]}
+                        {s.id === "course" && coreIds ? "List order" : SORT_LABEL[s.id]}
                       </option>
                     ))}
                   </select>
@@ -659,12 +669,12 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                       className="inline-flex h-11 w-full items-center gap-2 border border-line-strong bg-surface px-3 text-[14px] font-medium text-fg hover:bg-surface-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px] sm:w-auto"
                     >
                       <span className="text-fg-3">Group by</span>
-                      {GROUPINGS.find((g) => g.id === view.grouping)?.label}
+                      {groupingsFor(view.list, GROUPINGS).find((g) => g.id === view.grouping)?.label}
                       <ChevronDown className={`ml-auto h-4 w-4 text-fg-3 transition-transform sm:ml-0 ${groupMenu ? "rotate-180" : ""}`} aria-hidden />
                     </button>
                     {groupMenu ? (
                       <div role="radiogroup" aria-label="Group problems by" className="absolute left-0 top-full z-30 mt-1 flex w-[220px] flex-col border border-line-strong bg-surface p-1 shadow-lg rounded-[14px]">
-                        {GROUPINGS.map((g) => {
+                        {groupingsFor(view.list, GROUPINGS).map((g) => {
                           const on = view.grouping === g.id;
                           return (
                             <button
