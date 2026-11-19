@@ -260,8 +260,8 @@ const shortCached = cached(async (module: string, lesson: string, slug: string):
   if (!raw || raw.quest !== id || !raw.short || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
   const resolved = resolveDsaShort(raw, await lectureSources(dir, raw));
   const labels = await getStepLabels();
-  return resolved.short ? { ...resolved, short: { ...resolved.short, label: l.station ? stepOf(labels, l.station).label : l.moduleTitle } } : resolved;
-}, "dsa-lean-short-v1");
+  return resolved.short ? { ...resolved, short: { ...resolved.short, labelRaw: resolved.short.label, label: l.station ? stepOf(labels, l.station).label : l.moduleTitle } } : resolved;
+}, "dsa-lean-short-v2");
 export async function getLeanShort(module: string, lesson: string, slug: string): Promise<Lecture | null> {
   return SLUG.test(module) && SLUG.test(lesson) && SLUG.test(slug) ? shortCached(module, lesson, slug) : null;
 }

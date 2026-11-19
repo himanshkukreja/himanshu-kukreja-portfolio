@@ -837,8 +837,8 @@ const shortCached = cached(async (id: string): Promise<Lecture | null> => {
   if (!raw || raw.quest !== id || !raw.short || !Array.isArray(raw.scenes) || !raw.scenes.length) return null;
   const resolved = resolveDsaShort(raw, await lectureSources(dir, raw));
   // the label on top of a short is the module's step label ("2.3 Linked lists"), never a code
-  return resolved.short ? { ...resolved, short: { ...resolved.short, label: stepOf(await getStepLabels(), c.module).label } } : resolved;
-}, "dsa-short-v3");
+  return resolved.short ? { ...resolved, short: { ...resolved.short, labelRaw: resolved.short.label, label: stepOf(await getStepLabels(), c.module).label } } : resolved;
+}, "dsa-short-v4");
 
 export async function getDsaShort(id: string): Promise<Lecture | null> {
   if (!dsaShortParts(id)) return null;

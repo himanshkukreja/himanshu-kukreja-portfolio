@@ -1,6 +1,6 @@
 import "server-only";
-import crypto from "crypto";
 import { readDerived, writeDerived } from "@/lib/content-r2";
+import { lectureHash } from "@/lib/learn/lecture/load";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import { conceptHref, conceptLectureHref, getConceptIndex, getConceptShortIds, getDsaShort, getStepLabels } from "./load";
 import { getDsaShortAny, getLeanIndex, getLeanShortIds } from "./kinds-load";
@@ -19,7 +19,7 @@ import { leanLectureHref } from "./kinds";
 
 const MEDIA = () => (process.env.NEXT_PUBLIC_LECTURE_MEDIA || "").replace(/\/$/, "");
 /** same fingerprint as lectureHash() in src/lib/learn/lecture/load.ts and export.mjs */
-export const hashOf = (l: Lecture) => crypto.createHash("sha1").update(JSON.stringify(l)).digest("hex").slice(0, 12);
+export const hashOf = lectureHash;
 export const wordsOf = (l: Lecture) => l.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
 
 /** The published media's script hash and length, or null (not published, or no media host). `fresh`: past the fetch cache. */

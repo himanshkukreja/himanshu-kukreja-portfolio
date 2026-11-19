@@ -37,7 +37,15 @@ export async function getShort(id: string): Promise<Lecture | null> {
 }
 
 /** Fingerprint of a lecture's script; recorded media made from another version is ignored. */
-export const lectureHash = (l: Lecture) => crypto.createHash("sha1").update(JSON.stringify(l)).digest("hex").slice(0, 12);
+export const lectureHash = (l: Lecture) => {
+  // a DSA short shows its module's step label, but the recording was made from (and is fingerprinted by) the script's own
+  let s = l;
+  if (l.short?.labelRaw !== undefined) {
+    const { labelRaw, ...rest } = l.short;
+    s = { ...l, short: { ...rest, label: labelRaw } };
+  }
+  return crypto.createHash("sha1").update(JSON.stringify(s)).digest("hex").slice(0, 12);
+};
 
 /** Where recorded lecture media lives: the R2 public URL, or public/lecture-media in development. */
 export const lectureMediaBase = () => process.env.NEXT_PUBLIC_LECTURE_MEDIA || (process.env.NODE_ENV === "development" ? "/lecture-media" : null);

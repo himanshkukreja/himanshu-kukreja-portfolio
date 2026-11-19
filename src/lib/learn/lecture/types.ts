@@ -240,6 +240,8 @@ export type Lecture = {
     of: string;
     article: string;
     label: string;
+    /** DSA: the label as the script has it, before the loader shows the module's step label instead; lectureHash() hashes with it, so recordings made from the script stay current */
+    labelRaw?: string;
     /** 1-3 lowercase topic tags for the feed's filters (caching, databases, incidents, …) */
     topics?: string[];
     /** where this idea sits in the long lecture: a scene id there (the "full lecture" link opens at it) */
