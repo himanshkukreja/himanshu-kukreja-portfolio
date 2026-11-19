@@ -195,7 +195,7 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
           <>
             <p className="m-0 font-mono text-[11px] uppercase tracking-label text-fg-3">{cur.beat.title}</p>
             <div className="relative">
-              <div role="img" aria-label={view.describe(cur.frame.state)} className="overflow-x-auto overscroll-x-contain rounded-[10px] border border-line bg-bg px-1 py-2">
+              <div role="img" aria-label={view.describe(cur.frame.state)} className="overflow-x-auto overscroll-x-contain rounded-[10px] border border-line bg-bg px-1 py-2 [&>svg]:!min-w-0">
                 <view.Component state={cur.frame.state} prev={prevState} t={t} />
               </div>
               {!started && (

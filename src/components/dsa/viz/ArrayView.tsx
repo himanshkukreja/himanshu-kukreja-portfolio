@@ -13,6 +13,11 @@ const PAD = 24;
 const TOP0 = 30;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const cx = (i: number) => PAD + i * (CELL + GAP);
+/** long values (-1500, 12.75) shrink to stay inside their cell */
+const valueSize = (v: unknown) => {
+  const len = v === null ? 0 : String(v).length;
+  return len <= 3 ? 22 : len === 4 ? 18 : len === 5 ? 15 : 12.5;
+};
 
 export function describeArray(s: ArrayState): string {
   const ptrs = Object.entries(s.pointers).map(([k, i]) => `${k} at index ${i}`);
@@ -61,7 +66,7 @@ export default function ArrayView({ state, prev, t }: { state: ArrayState; prev:
               strokeWidth={lit || moved ? 3 : 2}
               strokeDasharray={v === null ? "5 4" : undefined}
             />
-            <text x={cx(i) + CELL / 2} y={TOP + CELL / 2 + 8} textAnchor="middle" fontSize={22} fontWeight={700} className="font-mono" fill={lit ? "var(--c-on-signal)" : "var(--c-fg)"}>
+            <text x={cx(i) + CELL / 2} y={TOP + CELL / 2 + 8} textAnchor="middle" fontSize={valueSize(v)} fontWeight={700} className="font-mono" fill={lit ? "var(--c-on-signal)" : "var(--c-fg)"}>
               {v === null ? "" : String(v)}
             </text>
             {state.labels?.[i] && (
