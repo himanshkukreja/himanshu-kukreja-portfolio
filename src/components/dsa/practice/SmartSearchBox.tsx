@@ -2,9 +2,10 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock, Search, Sparkles, X } from "lucide-react";
+import { Lock, Sparkles, X } from "lucide-react";
 import { useSignInGate } from "@/components/gate/SignInGate";
 import { instantRank, type Progress } from "@/lib/dsa/search/rank";
+import { exampleWindow, EXAMPLES, isQuestion } from "@/lib/dsa/search/ask";
 import { whyText, type Hit, type SearchIndex } from "@/lib/dsa/search/engine";
 
 /** the title with the matched words picked out (tokens only: no raw colours) */
@@ -74,6 +75,31 @@ export default function SmartSearchBox({
   const wrap = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);
 
+  // the examples under the box: three at a time, one step every 7 s while the box is idle (first paint is the same for everyone)
+  const [from, setFrom] = useState(0);
+  const [still, setStill] = useState(false);
+  useEffect(() => {
+    if (still || value || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const t = setInterval(() => setFrom((f) => (f + 1) % EXAMPLES.length), 7000);
+    return () => clearInterval(t);
+  }, [still, value]);
+  // on this page the box is the search: ⌘K / Ctrl K and "/" jump into it
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      const typing = /^(input|textarea|select)$/i.test((e.target as HTMLElement)?.tagName || "") || (e.target as HTMLElement)?.isContentEditable;
+      if (((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") || (e.key === "/" && !typing && !e.metaKey && !e.ctrlKey && !e.altKey)) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onFocusIndex();
+        input.current?.focus();
+        input.current?.select();
+        setOpen(true);
+      }
+    };
+    window.addEventListener("keydown", key, true);
+    return () => window.removeEventListener("keydown", key, true);
+  }, [onFocusIndex]);
+
   const q = value.trim();
   const hits = useMemo<Hit[]>(() => (index && q ? instantRank(index, q, progress, MAX).hits : []), [index, q, progress]);
   // the extra row: ask the smart layer (signed in), shown for anything long enough to be a question
@@ -128,59 +154,67 @@ export default function SmartSearchBox({
   const live = !q ? "" : busy ? "Asking smart search" : hits.length ? `${hits.length} quick result${hits.length === 1 ? "" : "s"}${canAsk ? ", or ask smart search" : ""}` : "No quick results";
 
   return (
-    <div ref={wrap} role="search" className="relative min-w-0 flex-1 basis-full sm:basis-[220px]">
-      <label htmlFor={`${uid}-in`} className="sr-only">
-        Search problems by name, topic, tag or a sentence like “sliding window, medium string problems”
-      </label>
-      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-fg-3" aria-hidden />
-      <input
-        ref={input}
-        id={`${uid}-in`}
-        type="text"
-        role="combobox"
-        aria-expanded={showList}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        aria-activedescendant={showList && active >= 0 ? `${uid}-o${active}` : undefined}
-        value={value}
-        onChange={(e) => {
-          onFocusIndex();
-          onChange(e.target.value);
-          setActive(-1);
-          setOpen(true);
-        }}
-        onFocus={() => {
-          onFocusIndex();
-          setOpen(true);
-        }}
-        onKeyDown={onKey}
-        placeholder={placeholder}
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
-        enterKeyHint="search"
-        className="h-11 w-full border border-line-strong bg-surface pl-9 pr-10 text-[15px] text-fg placeholder:text-fg-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
-      />
-      {value ? (
-        <button
-          type="button"
-          aria-label="Clear search"
-          onClick={() => {
-            onChange("");
-            onClear();
-            input.current?.focus();
-          }}
-          className="absolute right-1 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center text-fg-3 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[8px]"
-        >
-          <X className="h-4 w-4" aria-hidden />
-        </button>
-      ) : null}
+    <div ref={wrap} role="search" className="relative min-w-0 flex-1 basis-full">
+      <div className="relative bg-[linear-gradient(115deg,var(--c-signal),var(--c-line-strong)_45%,var(--c-signal))] p-[1.5px] shadow-[0_0_0_0_transparent] transition-shadow focus-within:shadow-[0_0_0_4px_color-mix(in_srgb,var(--c-signal)_16%,transparent)] hover:shadow-[0_0_0_4px_color-mix(in_srgb,var(--c-signal)_10%,transparent)] rounded-[16px]">
+        <div className="relative bg-surface rounded-[14.5px]">
+          <label htmlFor={`${uid}-in`} className="sr-only">
+            Ask or search: problem names, topics, tags, or a question like “what’s the difference between BFS and DFS?”
+          </label>
+          <Sparkles className="pointer-events-none absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-signal-text" aria-hidden />
+          <input
+            ref={input}
+            id={`${uid}-in`}
+            type="text"
+            role="combobox"
+            aria-expanded={showList}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-activedescendant={showList && active >= 0 ? `${uid}-o${active}` : undefined}
+            value={value}
+            onChange={(e) => {
+              onFocusIndex();
+              onChange(e.target.value);
+              setActive(-1);
+              setOpen(true);
+            }}
+            onFocus={() => {
+              onFocusIndex();
+              setOpen(true);
+            }}
+            onKeyDown={onKey}
+            placeholder={placeholder}
+            autoComplete="off"
+            autoCorrect="off"
+            spellCheck={false}
+            enterKeyHint="search"
+            className="h-14 w-full truncate bg-transparent pl-12 pr-14 text-[16px] text-fg placeholder:text-fg-3 focus-visible:outline-none sm:pr-20 rounded-[14.5px]"
+          />
+          {value ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => {
+                onChange("");
+                onClear();
+                input.current?.focus();
+              }}
+              className="absolute right-2 top-1/2 inline-flex h-10 w-10 -translate-y-1/2 items-center justify-center text-fg-3 hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-[10px]"
+            >
+              <X className="h-4 w-4" aria-hidden />
+            </button>
+          ) : (
+            <kbd aria-hidden className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 border border-line-strong px-1.5 py-0.5 font-mono text-[11px] text-fg-3 sm:inline">
+              ⌘K
+            </kbd>
+          )}
+        </div>
+      </div>
       <p className="sr-only" role="status" aria-live="polite">
         {live}
       </p>
 
       {showList ? (
-        <div className="absolute left-0 right-0 top-full z-30 mt-1 overflow-hidden border sm:right-auto sm:w-[460px] sm:max-w-[calc(100vw-3rem)] border-line-strong bg-surface shadow-[0_12px_40px_rgba(0,0,0,0.18)] rounded-[14px]">
+        <div className="absolute left-0 right-0 top-[60px] z-30 overflow-hidden border sm:right-auto sm:w-[560px] sm:max-w-[calc(100vw-3rem)] border-line-strong bg-surface shadow-[0_12px_40px_rgba(0,0,0,0.18)] rounded-[14px]">
           <ul id={listId} role="listbox" aria-label="Quick results" className="m-0 max-h-[min(48vh,420px)] list-none overflow-y-auto p-1">
             {hits.map((h, i) => {
               const why = whyText(h);
@@ -240,11 +274,33 @@ export default function SmartSearchBox({
       ) : null}
 
       {busy ? (
-        <p className="m-0 mt-1.5 font-mono text-[12px] text-fg-3" aria-hidden>
+        <p className="m-0 mt-2 font-mono text-[12px] text-fg-3" aria-hidden>
           Reading your question…
         </p>
-      ) : message && !smartOn ? (
-        <p className="m-0 mt-1.5 font-mono text-[12px] text-fg-3">{message}</p>
+      ) : message && !smartOn && !isQuestion(value) ? (
+        <p className="m-0 mt-2 font-mono text-[12px] text-fg-3">{message}</p>
+      ) : null}
+
+      {!value ? (
+        <ul aria-label="Examples to try" onMouseEnter={() => setStill(true)} onMouseLeave={() => setStill(false)} onFocus={() => setStill(true)} onBlur={() => setStill(false)} className="m-0 mt-2.5 flex list-none flex-wrap gap-2 p-0">
+          {exampleWindow(from).map((ex) => (
+            <li key={ex} className="min-w-0 max-w-full">
+              <button
+                type="button"
+                onClick={() => {
+                  onFocusIndex();
+                  onChange(ex);
+                  onAsk(ex);
+                  setOpen(false);
+                }}
+                className="inline-flex min-h-10 max-w-full items-center gap-1.5 border border-line-strong bg-surface px-3 py-1.5 text-left text-[13.5px] leading-snug text-fg-2 transition-colors hover:border-signal hover:text-fg focus-visible:outline focus-visible:outline-2 focus-visible:outline-signal-text rounded-full"
+              >
+                <Sparkles className="h-3.5 w-3.5 shrink-0 text-signal-text" aria-hidden />
+                <span className="min-w-0">{ex}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );

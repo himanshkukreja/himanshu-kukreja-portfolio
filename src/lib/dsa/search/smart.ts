@@ -6,13 +6,14 @@
 import { FACETS } from "../taxonomy";
 import type { FilterRow, FilterState, GroupId } from "../problem-filters";
 import { emptyState } from "../problem-filters";
+import type { AskAnswer } from "./ask";
 
 export const SMART_MODEL = "claude-haiku-4-5-20251001";
 
 export type SmartFilters = { topics: string[]; tags: string[]; difficulty: ("easy" | "medium" | "hard")[]; domains: string[]; status?: "unsolved" | "solved" };
 export type SmartAnswer = { filters: SmartFilters; keywords: string[]; learnFirst?: string; note: string };
 /** what the route returns: the answer plus the lesson's title and page when learnFirst is one we can open */
-export type SmartResponse = SmartAnswer & { learn?: { id: string; title: string; href: string }; cached?: boolean; left?: number | null };
+export type SmartResponse = SmartAnswer & { learn?: { id: string; title: string; href: string }; /** the written answer and its links, for a question */ ask?: AskAnswer; cached?: boolean; left?: number | null };
 
 /** What the model may pick from. Built from the page's data once per revalidation. */
 export type Taxonomy = {

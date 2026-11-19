@@ -98,7 +98,7 @@ export const FEATURES: Record<FeatureId, FeatureDef> = {
   // the Practice tab's search box (DSA Mastery): a sentence like "sliding window, medium string problems" to filters, keywords and a
   // lesson to read first, from a compact taxonomy (src/lib/dsa/search/smart.ts). Claude Haiku 4.5 (the owner's pick, 17 Nov 2026), one
   // short JSON answer (~1.6k tokens in, ~80 out, about $0.002), no thinking. 60 a day per learner; identical questions are cached.
-  "dsa-smart-search": { label: "DSA Practice smart search", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 60, maxTokens: 500, maxInputChars: 400, think: false, live: true },
+  "dsa-smart-search": { label: "DSA Practice smart search", model: MODELS.haiku, amberModel: MODELS.haiku, perDay: 60, maxTokens: 900, maxInputChars: 400, think: false, live: true },
   // the course chat (/chat and the Ask panel): a tool-use conversation (lib/ai/chat). Its own quota, outside the
   // shared credits: `perDay` messages a day. Every message on Haiku 5.5 with its tuned prompt since 7 Nov 2026 (owner's
   // decision): the earlier 30 Sonnet messages a day, then "fast mode" up to a 300-message ceiling, are one limit now.

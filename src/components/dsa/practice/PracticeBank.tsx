@@ -21,6 +21,9 @@ import { instantRank, smartRank } from "@/lib/dsa/search/rank";
 import { smartKey } from "@/lib/dsa/search/smart";
 import ListsRail from "./ListsRail";
 import SmartSearchBox from "./SmartSearchBox";
+import AskAnswerCard from "./AskAnswerCard";
+import { cardState } from "@/lib/dsa/search/ask";
+import { useSignInGate } from "@/components/gate/SignInGate";
 import { useSmartSearch } from "./useSmartSearch";
 import { ProblemTable } from "./ProblemTable";
 import { Chip, Group, useTried, useVideoIds } from "./FilterGroups";
@@ -225,6 +228,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
   const defs = useMemo(() => groupDefs(data), [data]);
   // the search box: the instant engine's index is built when the box is first used (about 30 ms, once); the smart layer is signed-in only
   const smartHook = useSmartSearch();
+  const { ask: askSignIn } = useSignInGate("dsa-practice");
   const [indexOn, setIndexOn] = useState(false);
   const sortedRows = useMemo(() => [...data.rows].sort((a, b) => a.seq - b.seq || a.order - b.order), [data.rows]);
   const index = useMemo<SearchIndex | null>(() => (indexOn ? buildIndex(itemsFromRows(sortedRows, data.concepts, companyLabel)) : null), [indexOn, sortedRows, data.concepts]);
@@ -583,7 +587,7 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                   onAsk={askSmart}
                   onClear={() => smartHook.clear()}
                   smartOn={!!smartHere}
-                  placeholder="Name, topic, tag or a question"
+                  placeholder="Search problems or ask anything, e.g. medium sliding-window problems on strings"
                 />
                 {/* module, pattern, difficulty, status: inline from a tablet up */}
                 <div className="hidden flex-wrap items-center gap-2 sm:flex">
@@ -721,6 +725,14 @@ export default function PracticeBank({ data: page, lists }: { data: ProblemData;
                 </li>
               </ul>
             ) : null}
+
+            <AskAnswerCard
+              state={cardState({ text: state.q, signedIn: smartHook.signedIn, authLoading: smartHook.authLoading, busy: smartHook.busy, hasAnswer: !!smartHere?.ask, answerText: smartHere?.ask?.text ?? "", failed: smartHook.failed })}
+              question={state.q.trim()}
+              ask={smartHere?.ask}
+              message={smartHook.message}
+              onSignIn={() => askSignIn("practice-answer")}
+            />
 
             {smartHere ? (
               <section aria-label="What smart search understood" className="flex flex-col gap-2 border border-line bg-surface px-3 py-3 rounded-[14px]">

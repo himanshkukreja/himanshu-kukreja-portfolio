@@ -8,6 +8,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { userJson } from "@/components/learn/progress/userFetch";
+import { isQuestion, type AskAnswer } from "@/lib/dsa/search/ask";
 import { smartKey, type SmartAnswer, type SmartResponse } from "@/lib/dsa/search/smart";
 
 export type SmartState = {
@@ -15,6 +16,8 @@ export type SmartState = {
   key: string;
   answer: SmartAnswer;
   learn?: SmartResponse["learn"];
+  /** the written answer, for a question */
+  ask?: AskAnswer;
 };
 
 const STORE = "hk.dsa.smart.v1";
@@ -43,6 +46,7 @@ export function useSmartSearch() {
   const [state, setState] = useState<SmartState | null>(null);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [failed, setFailed] = useState(false);
   const run = useRef(0);
 
   /** answer for q: from this browser's cache, else the server. Resolves true when there is an answer. */
@@ -52,21 +56,24 @@ export function useSmartSearch() {
       if (!uid || key.length < 3) return false;
       const mine = ++run.current;
       setMessage("");
+      setFailed(false);
       const cached = read(uid)[key];
-      if (cached && Date.now() - cached.at < DAY) {
-        setState({ key, answer: { filters: cached.a.filters, keywords: cached.a.keywords, learnFirst: cached.a.learnFirst, note: cached.a.note }, learn: cached.a.learn });
+      const wantAnswer = isQuestion(q);
+      if (cached && Date.now() - cached.at < DAY && (!wantAnswer || cached.a.ask)) {
+        setState({ key, answer: { filters: cached.a.filters, keywords: cached.a.keywords, learnFirst: cached.a.learnFirst, note: cached.a.note }, learn: cached.a.learn, ask: cached.a.ask });
         return true;
       }
       setBusy(true);
       try {
-        const r = await userJson<SmartResponse>("/api/dsa/smart-search", { method: "POST", body: JSON.stringify({ q }) });
+        const r = await userJson<SmartResponse>("/api/dsa/smart-search", { method: "POST", body: JSON.stringify({ q, answer: wantAnswer }) });
         if (mine !== run.current) return false;
         const s = read(uid);
         s[key] = { at: Date.now(), a: r };
         write(uid, s);
-        setState({ key, answer: { filters: r.filters, keywords: r.keywords, learnFirst: r.learnFirst, note: r.note }, learn: r.learn });
+        setState({ key, answer: { filters: r.filters, keywords: r.keywords, learnFirst: r.learnFirst, note: r.note }, learn: r.learn, ask: r.ask });
         return true;
       } catch (e) {
+        if (mine === run.current) setFailed(true);
         if (mine === run.current) setMessage((e as Error).message || "Smart search is resting for a moment. The instant results are complete.");
         return false;
       } finally {
@@ -81,6 +88,7 @@ export function useSmartSearch() {
     setState(null);
     setBusy(false);
     setMessage("");
+    setFailed(false);
   }, []);
   const edit = useCallback((fn: (a: SmartAnswer) => SmartAnswer) => setState((s) => (s ? { ...s, answer: fn(s.answer) } : s)), []);
 
@@ -89,5 +97,5 @@ export function useSmartSearch() {
     if (!loading && !uid) clear();
   }, [loading, uid, clear]);
 
-  return { signedIn: !!uid, authLoading: loading, state, busy, message, ask, clear, edit };
+  return { signedIn: !!uid, authLoading: loading, state, busy, failed, message, ask, clear, edit };
 }
