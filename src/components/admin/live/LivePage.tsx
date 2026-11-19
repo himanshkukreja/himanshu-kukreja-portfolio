@@ -19,6 +19,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge, Card, EmptyState, Kpi, LABEL, LiveDot, PageHead, Skeleton, fmtNum, timeAgo, useAdminClient, useAdminData, useNow, type AdminError } from "@/components/admin/ui";
 import type { LiveFilter, LiveHeadRes, LiveRec, LiveReplaysRes, LiveSession, LiveSessionsRes, LiveWindow, NotConfigured, PhStatus } from "@/lib/analytics/journeys";
+import { CourseFilterBar, CourseTag, useCourseFilter } from "@/components/admin/journeys/CourseFilter";
 import { ExtLink, PhErrorState, cx, useSetParams } from "@/components/admin/journeys/bits";
 import SetupCard from "@/components/admin/journeys/SetupCard";
 import { isSubstantialRecording } from "@/lib/analytics/recordingFilter";
@@ -56,13 +57,15 @@ export default function LivePage() {
   const rawF = params.get("filter");
   const win: LiveWindow = isWindow(rawW) ? rawW : "24h";
   const filter: LiveFilter = isFilter(rawF) ? rawF : "all";
+  const cf = useCourseFilter();
+  const courseQs = `${cf.course !== "all" ? `&course=${cf.course}` : ""}${cf.includeStaging ? "&staging=1" : ""}`;
   const [paused, setPaused] = useState(false);
   const { data: status } = useAdminData<PhStatus>("/api/admin/posthog/status");
   // don't wait for the status check: the feed answers { configured: false } itself when PostHog isn't set up
   const on = status ? status.configured : true;
   const poll = { refreshMs: paused ? undefined : POLL_MS, followUpMs: followUp };
   const headQ = useAdminData<LiveHeadRes | NotConfigured>(on ? `${FEED}?part=head` : null, poll);
-  const listQ = useAdminData<LiveSessionsRes | NotConfigured>(on ? `${FEED}?part=sessions&window=${win}&filter=${filter}` : null, poll);
+  const listQ = useAdminData<LiveSessionsRes | NotConfigured>(on ? `${FEED}?part=sessions&window=${win}&filter=${filter}${courseQs}` : null, poll);
   const now = useNow(10_000);
 
   const head = headQ.data && headQ.data.configured !== false ? (headQ.data as LiveHeadRes) : undefined;
@@ -109,7 +112,9 @@ export default function LivePage() {
         <>
           <StatsStrip head={head} error={headQ.error} />
           <Feed
-            key={`${win}:${filter}`}
+            key={`${win}:${filter}:${courseQs}`}
+            courseQs={courseQs}
+            cf={cf}
             feed={list}
             error={listQ.error}
             loading={listQ.loading}
@@ -182,7 +187,11 @@ function Feed({
   paused,
   onWindow,
   onFilter,
+  courseQs,
+  cf,
 }: {
+  courseQs: string;
+  cf: ReturnType<typeof useCourseFilter>;
   feed?: LiveSessionsRes;
   error?: AdminError;
   loading: boolean;
@@ -276,7 +285,7 @@ function Feed({
     freeze();
     setOlder((o) => ({ ...o, loading: true, error: null }));
     try {
-      const res = await client.json<LiveSessionsRes>(`${FEED}?part=sessions&window=${win}&filter=${filter}&before=${encodeURIComponent(last.last)}`);
+      const res = await client.json<LiveSessionsRes>(`${FEED}?part=sessions&window=${win}&filter=${filter}${courseQs}&before=${encodeURIComponent(last.last)}`);
       setOlder((o) => ({ sessions: [...o.sessions, ...res.sessions], hasMore: res.hasMore, loading: false, error: null }));
     } catch (e) {
       setOlder((o) => ({ ...o, loading: false, error: (e as Error)?.message || "failed" }));
@@ -309,6 +318,7 @@ function Feed({
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <Segmented label="Show" options={FILTERS} value={filter} onChange={onFilter} />
         <Segmented label="Time window" options={WINDOWS} value={win} onChange={onWindow} />
+        <CourseFilterBar course={cf.course} includeStaging={cf.includeStaging} onCourse={cf.setCourse} onStaging={cf.setIncludeStaging} />
         <ShowIdleToggle on={showIdle} onChange={setShowIdle} />
         <span className="ml-auto font-mono text-[11px] text-fg-4">
           {loading && feed ? "updating…" : paused ? "paused" : updatedAgo ? `updated ${updatedAgo}` : ""}
