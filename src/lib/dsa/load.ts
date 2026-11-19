@@ -16,6 +16,7 @@ import { checkpointFor } from "./lesson-stops";
 import { districtName, groupDistricts, waveLabel, type PlanDistrict, type PlanProblem } from "./districts";
 import { clipQuestParts, clipRefs, dsaShortParts, lectureRefs, parseTemplates, resolveDsaClip, resolveDsaLecture, resolveDsaShort, resolveDsaSolution, type RawClips, type RawDsaLecture, type RawRace, type RawTrace } from "./lecture";
 import type { Lecture } from "@/lib/learn/lecture/types";
+import type { Explainer } from "./explainer";
 import {
   dsaKeys,
   type ConceptPage,
@@ -1020,6 +1021,23 @@ const editorialCached = cached(async (id: string): Promise<{ html: string } | nu
 export async function getEditorial(id: string) {
   if (!ID.test(id)) return null;
   return withSdmTitles(editorialCached(id));
+}
+
+/** A problem's graphical explainer (src/lib/dsa/explainer.ts) with its four reference solutions, or null when it has none. */
+const explainerCached = cached(async (id: string): Promise<Explainer | null> => {
+  const e = await readDsaJson<Explainer>(`generated/explainers/${id}.json`);
+  if (!e) return null;
+  const codes = await Promise.all(SOLUTION_FILES.map(([, file]) => readDsa(`resources/problems/${id}/solutions/${file}`)));
+  const code: Partial<Record<DsaLang, string>> = {};
+  SOLUTION_FILES.forEach(([lang], i) => {
+    if (codes[i]?.trim()) code[lang] = codes[i]!;
+  });
+  return { ...e, code };
+}, "dsa-explainer-v1");
+
+export async function getExplainer(id: string): Promise<Explainer | null> {
+  if (!ID.test(id)) return null;
+  return explainerCached(id);
 }
 
 /* ------------------------------------------------------------------ in-article clips and solution videos */

@@ -10,7 +10,7 @@ import type { ArrayState } from "@/lib/dsa/viz/types";
 const CELL = 58;
 const GAP = 8;
 const PAD = 24;
-const TOP = 30;
+const TOP0 = 30;
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 const cx = (i: number) => PAD + i * (CELL + GAP);
 
@@ -23,10 +23,22 @@ export default function ArrayView({ state, prev, t }: { state: ArrayState; prev:
   const n = Math.max(1, state.values.length);
   const width = PAD * 2 + n * CELL + (n - 1) * GAP;
   const names = Object.keys(state.pointers);
-  const height = TOP + CELL + 24 + Math.max(1, names.length) * 26 + 12;
+  // bars (explainers): each value as a bar above its cell, scaled to the largest
+  const BAR = state.bars ? 110 : 0;
+  const TOP = TOP0 + BAR;
+  const nums = state.values.map((v) => (typeof v === "number" ? v : 0));
+  const max = Math.max(1, ...nums);
+  const LAB = state.labels ? 20 : 0;
+  const height = TOP + CELL + LAB + (names.length ? 24 + names.length * 26 : 8) + 12;
   const stack = (k: string) => names.filter((x) => state.pointers[x] === state.pointers[k]).indexOf(k);
   return (
     <svg viewBox={`0 0 ${width} ${height}`} className="block h-auto w-full" style={{ minWidth: Math.min(width, 46 * n + 40) }} aria-hidden>
+      {state.bars &&
+        state.values.map((v, i) => {
+          const h = Math.max(3, (nums[i] / max) * (BAR - 34));
+          const lit = state.mark.includes(i) || (state.range ? i >= state.range[0] && i <= state.range[1] : false);
+          return <rect key={`b${i}`} x={cx(i) + 8} y={TOP - 26 - h} width={CELL - 16} height={h} rx={3} fill={lit ? "var(--c-signal)" : "var(--c-line-strong)"} opacity={state.dim.includes(i) ? 0.35 : 1} />;
+        })}
       {state.range && (
         <rect x={cx(state.range[0]) - 5} y={TOP - 5} width={cx(state.range[1]) - cx(state.range[0]) + CELL + 10} height={CELL + 10} fill="var(--c-dsa-hl)" stroke="var(--c-signal)" strokeWidth={2.5} />
       )}
@@ -52,6 +64,11 @@ export default function ArrayView({ state, prev, t }: { state: ArrayState; prev:
             <text x={cx(i) + CELL / 2} y={TOP + CELL / 2 + 8} textAnchor="middle" fontSize={22} fontWeight={700} className="font-mono" fill={lit ? "var(--c-on-signal)" : "var(--c-fg)"}>
               {v === null ? "" : String(v)}
             </text>
+            {state.labels?.[i] && (
+              <text x={cx(i) + CELL / 2} y={TOP + CELL + 16} textAnchor="middle" fontSize={11.5} className="font-mono" fill="var(--c-fg-3)">
+                {state.labels[i]}
+              </text>
+            )}
           </g>
         );
       })}
@@ -61,7 +78,7 @@ export default function ArrayView({ state, prev, t }: { state: ArrayState; prev:
         const x = lerp(from, to, t);
         const tw = k.length * 9.5 + 16;
         return (
-          <g key={k} transform={`translate(${x - tw / 2} ${TOP + CELL + 12 + stack(k) * 26})`}>
+          <g key={k} transform={`translate(${x - tw / 2} ${TOP + CELL + LAB + 12 + stack(k) * 26})`}>
             <rect width={tw} height={22} rx={3} fill="var(--c-signal)" />
             <text x={tw / 2} y={15.5} textAnchor="middle" fontSize={13} fontWeight={600} className="font-mono" fill="var(--c-on-signal)">
               {k}

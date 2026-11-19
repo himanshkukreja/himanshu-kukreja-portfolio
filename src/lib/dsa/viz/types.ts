@@ -17,7 +17,7 @@
 export type NodeId = number;
 
 /** The views the player can draw; a script names one. */
-export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals" | "dp" | "strings" | "bits";
+export type ViewId = "list" | "array" | "memory" | "grid" | "stack" | "queue" | "tree" | "heap" | "graph" | "trie" | "intervals" | "dp" | "strings" | "bits" | "map";
 
 /** A predict-then-reveal question, asked before its frame is shown. */
 export type VizAsk = { prompt: string; choices: { label: string; correct: boolean; why?: string }[] };
@@ -80,6 +80,34 @@ export type ArrayState = {
   dim: number[];
   /** a highlighted range [l, r] */
   range?: [number, number] | null;
+  /** draw each value as a bar above its cell as well (explainers: minutes, heights, prices) */
+  bars?: boolean;
+  /** a short caption under each cell ("build 0") */
+  labels?: string[];
+};
+
+/* ------------------------------------------------------------------ the hash map state ("map" view) */
+
+/** A hash map being filled while a loop walks an input (explainers of hashing problems): the input strip on top, the map below. */
+export type MapState = {
+  /** the input the loop walks, drawn as cells (null: no strip) */
+  input: (number | string | null)[] | null;
+  /** named indexes under the input (i, j) */
+  pointers: Record<string, number>;
+  /** input cells lit this step */
+  mark: number[];
+  /** the map's entries in insertion order */
+  entries: { key: number | string; value: unknown }[];
+  /** keys looked up this step (a key that is missing is drawn as a miss) */
+  lit: (number | string)[];
+  /** keys whose value changed this step */
+  changed: (number | string)[];
+  /** keys just added */
+  new: (number | string)[];
+  /** a short result chip ("pair found: 2 and 7") */
+  out: string | null;
+  /** the map's caption ("seen value → index") */
+  title?: string | null;
 };
 
 /* ------------------------------------------------------------------ the memory picture ("memory" view) */

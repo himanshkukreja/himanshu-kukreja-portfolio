@@ -16,6 +16,7 @@ import ConfirmDialog from "@/components/ConfirmDialog";
 import { GateNotice } from "@/components/gate/SignInGate";
 import Jargon from "../glossary/Jargon";
 import DsaHydrator from "../concept/DsaHydrator";
+import ExplainerPlayer from "./explainer/ExplainerPlayer";
 import SolutionVideo from "./SolutionVideo";
 import { mmss, type Room, type Tab } from "./useProblemRoom";
 
@@ -296,9 +297,19 @@ function RevealTab({ room, which }: { room: Room; which: "editorial" | "solution
   }
   const html = which === "editorial" ? editorial.editorial : editorial.solutions;
   const ref = which === "editorial" ? editorialRef : solutionsRef;
-  if (!html) return <p className="m-0 text-[14px] text-fg-3">{which === "solutions" ? "The solutions are part of the editorial for this problem." : "No editorial for this problem yet."}</p>;
+  const explainer = which === "solutions" && editorial.explainer ? <ExplainerPlayer explainer={editorial.explainer} lang={lang} /> : null;
+  if (!html)
+    return explainer ? (
+      <div className="flex flex-col gap-4">
+        {explainer}
+        <p className="m-0 text-[14px] text-fg-3">The solutions are part of the editorial for this problem.</p>
+      </div>
+    ) : (
+      <p className="m-0 text-[14px] text-fg-3">{which === "solutions" ? "The solutions are part of the editorial for this problem." : "No editorial for this problem yet."}</p>
+    );
   return (
     <div ref={ref} className="flex flex-col gap-4">
+      {explainer}
       {which === "editorial" && editorial.video && (
         <button type="button" onClick={() => setTab("video")} className={`${PILL} self-start`}>
           <PlayCircle className="h-4 w-4 text-signal-text" aria-hidden /> Watch the solution video

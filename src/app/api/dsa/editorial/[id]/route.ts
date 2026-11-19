@@ -1,14 +1,15 @@
 import { NextResponse } from "next/server";
 import { DSA_FULL } from "@/lib/dsa/flags";
-import { getEditorial } from "@/lib/dsa/load";
+import { getEditorial, getExplainer } from "@/lib/dsa/load";
 import { solutionVideoFor } from "@/lib/dsa/media";
 import { getLearner } from "@/app/api/learn/_lib/auth";
 import { supabase } from "@/lib/supabase";
 import { forgetUnlocks } from "@/lib/dsa/ai/unlock";
 
 /**
- * GET /api/dsa/editorial/<id> → { html, video }: a problem's editorial with its four reference solutions, and its solution
- * video when one is published (lib/dsa/media.ts solutionVideoFor; null otherwise). Fetched by the problem
+ * GET /api/dsa/editorial/<id> → { html, video, explainer }: a problem's editorial with its four reference solutions, its solution
+ * video when one is published (lib/dsa/media.ts solutionVideoFor; null otherwise) and its graphical explainer when it has one
+ * (lib/dsa/explainer.ts; null otherwise). Fetched by the problem
  * room only after an accepted solve, three failed submits, or "show the editorial" (solving after that earns a quarter of the Bits), so the
  * page itself never carries it. 404 in "soon" mode.
  */
@@ -17,9 +18,9 @@ export const runtime = "nodejs";
 export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!DSA_FULL) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const { id } = await params;
-  const [e, video] = await Promise.all([getEditorial(id).catch(() => null), solutionVideoFor(id).catch(() => null)]);
+  const [e, video, explainer] = await Promise.all([getEditorial(id).catch(() => null), solutionVideoFor(id).catch(() => null), getExplainer(id).catch(() => null)]);
   if (!e) return NextResponse.json({ error: "No editorial for this problem yet" }, { status: 404 });
-  return NextResponse.json({ ...e, video }, { headers: { "Cache-Control": "public, max-age=300, s-maxage=86400", "x-robots-tag": "noindex" } });
+  return NextResponse.json({ ...e, video, explainer }, { headers: { "Cache-Control": "public, max-age=300, s-maxage=86400", "x-robots-tag": "noindex" } });
 }
 
 /**

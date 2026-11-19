@@ -18,7 +18,7 @@ import { VIEWS } from "./views";
 
 const ease = (p: number) => (p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2);
 
-function useReducedMotion(): boolean {
+export function useReducedMotion(): boolean {
   const [r, setR] = useState(false);
   useEffect(() => {
     const m = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -31,7 +31,7 @@ function useReducedMotion(): boolean {
 }
 
 /** 0 → 1 over `ms` each time `key` changes (1 at once with reduced motion). */
-function useTween(key: unknown, ms: number, reduced: boolean): number {
+export function useTween(key: unknown, ms: number, reduced: boolean): number {
   const [t, setT] = useState(1);
   // a new key starts the tween from 0 in the same render (React's "adjust state while rendering" pattern)
   const [seen, setSeen] = useState(key);

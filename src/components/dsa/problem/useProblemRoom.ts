@@ -27,6 +27,7 @@ import { celebrate } from "@/lib/dsa/celebrate";
 import { useSignInGate } from "@/components/gate/SignInGate";
 import type { SolutionVideoData } from "@/lib/dsa/media";
 import type { TutorRequest } from "./ProblemTutor";
+import type { Explainer } from "@/lib/dsa/explainer";
 import { splitEditorial } from "./splitEditorial";
 
 export type Tab = "problem" | "hints" | "editorial" | "solutions" | "video";
@@ -43,7 +44,7 @@ export type ProblemPosition = {
   prev: { id: string; title: string } | null;
   next: { id: string; title: string } | null;
 };
-type EditorialState = { state: "locked" | "loading" | "ready" | "error"; editorial: string; solutions: string; video?: SolutionVideoData | null };
+type EditorialState = { state: "locked" | "loading" | "ready" | "error"; editorial: string; solutions: string; video?: SolutionVideoData | null; explainer?: Explainer | null };
 
 export const store = {
   get(key: string): string | null {
@@ -140,9 +141,9 @@ export function useProblemRoom(p: ProblemPage, videoTeaser: VideoTeaser | null) 
     try {
       const r = await fetch(`/api/dsa/editorial/${p.id}`);
       if (!r.ok) throw new Error(String(r.status));
-      const j = (await r.json()) as { html: string; video?: SolutionVideoData | null };
+      const j = (await r.json()) as { html: string; video?: SolutionVideoData | null; explainer?: Explainer | null };
       const split = splitEditorial(j.html);
-      setEditorial({ state: "ready", editorial: split.editorial, solutions: split.solutions, video: j.video ?? null });
+      setEditorial({ state: "ready", editorial: split.editorial, solutions: split.solutions, video: j.video ?? null, explainer: j.explainer ?? null });
     } catch {
       setEditorial({ state: "error", editorial: "", solutions: "" });
     }
