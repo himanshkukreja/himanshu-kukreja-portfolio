@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
+import { COURSE_ICONS_JS } from "@/lib/site/courseIcons";
 import SiteHeader from "@/components/site/SiteHeader";
 import { GameProvider } from "@/game/GameProvider";
 import XPToaster from "@/game/XPToaster";
@@ -117,6 +118,8 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-title" content="SD Mastery" />
+        {/* DSA Mastery pages (data-course="dsa", set above by READING_JS) swap the icon links to DSA's own set (src/lib/site/courseIcons.ts) */}
+        <script dangerouslySetInnerHTML={{ __html: COURSE_ICONS_JS }} />
         {/* white status text over the page (the header pads under it): the dark theme
             continues behind it, the light (default) theme gets a black strip there (globals.css) */}
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

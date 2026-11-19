@@ -12,7 +12,10 @@ import SearchBar from "@/components/SearchBar";
 import { LearnBrand, LearnDock, LearnTabs } from "./LearnNav";
 import { CourseSwitch, DsaAsk, DsaBrand, DsaDock, DsaTabs } from "./DsaNav";
 import BitsToaster from "@/components/dsa/rewards/BitsToaster";
-import { isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
+import { applyCourseIcons } from "@/lib/site/courseIcons";
+import { DSA_FULL, isDsaPath, isDsaReaderPath } from "@/lib/dsa/flags";
+import DsaPromoBar from "./DsaPromoBar";
+import { useDsaPromo } from "@/lib/site/dsaPromo";
 import { useCoursePathname, useSite } from "./SiteMode";
 import { COURSE_ORIGIN } from "@/lib/site/hosts";
 import { isLessonPath } from "@/lib/learn/paths";
@@ -145,6 +148,7 @@ function useCourseAttr(dsa: boolean) {
     const r = document.documentElement;
     if (dsa) r.setAttribute("data-course", "dsa");
     else r.removeAttribute("data-course");
+    applyCourseIcons(dsa);
   }, [dsa]);
 }
 
@@ -162,6 +166,8 @@ export default function SiteHeader() {
   // DSA Mastery (/dsa/…): its own brand, tabs and dock in the same header; its concept pages read like lessons
   const dsa = learn && isDsaPath(pathname);
   useCourseAttr(dsa);
+  // the course switch's "new" dot (SD Mastery side) until the learner has opened DSA
+  const promo = useDsaPromo();
   const lesson = learn && (isLessonPath(pathname) || isDsaReaderPath(pathname));
   // lesson pages: the header slides away while reading down, back on scroll up
   useAutoHideChrome(lesson && !questsOpen);
@@ -216,6 +222,8 @@ export default function SiteHeader() {
           {/* min-w-0: in learn mode the search box gives up width before the row overflows */}
           <div className="flex min-w-0 items-center gap-1 min-[400px]:gap-2 sm:gap-2.5">
             {dsa && <CourseSwitch pathname={pathname} />}
+            {/* SD Mastery's side of the same switch, only while DSA is live (never a link to the coming-soon page) */}
+            {learn && !dsa && DSA_FULL && !pathname.startsWith("/admin") && <CourseSwitch pathname={pathname} from="sdm" dot={promo.ready && !promo.visited} />}
             {learn && <SearchBar variant="nav" hotkey wide2xl={dsa} label={dsa ? "Search lessons and problems" : undefined} />}
             {dsa && <DsaAsk />}
             {/* SD Mastery's guide: the desktop tab row has its own "?"; tablets and phones (below lg) get it here (not on DSA pages) */}
@@ -291,6 +299,7 @@ export default function SiteHeader() {
         )}
       </header>
       <OfflineStrip />
+      {learn && DSA_FULL && <DsaPromoBar pathname={pathname} />}
       {dsa && <BitsToaster />}
       {dsa && <DsaRewardsHost />}
 

@@ -40,6 +40,7 @@ import { InstallButton } from "@/components/offline/Install";
 import { useOffline } from "@/components/offline/OfflineProvider";
 import ShortsTeaser, { type TeaserShort } from "@/components/learn/war/ShortsTeaser";
 import QuietNudge, { usePlanStanding } from "@/components/learn/plan/QuietNudge";
+import DsaLiveCard from "./DsaLiveCard";
 
 /** DSA Mastery is fully open on this build (staging: NEXT_PUBLIC_DSA_MODE=full); otherwise /dsa is its coming-soon page. */
 const DSA_LIVE = ["full", "beta", "on"].includes((process.env.NEXT_PUBLIC_DSA_MODE || "").trim().toLowerCase());
@@ -160,6 +161,9 @@ export default function CourseHub({ map, shorts }: { map: CourseMap; shorts?: { 
           <ContinueReadingBanner ready={ready} resume={resume} stages={stages} dueCount={dueCount} dueReady={dueReady} streak={streak} />
         </div>
       </section>
+
+      {/* DSA Mastery's launch card (only while DSA is live), one compact row so Continue stays above the fold */}
+      <DsaLiveCard />
 
       {/* guests: the AI tutor ad, right after the hero (CSS shows it to guests only) */}
       <AiAdSection course="sdm" />

@@ -20,7 +20,7 @@ export const DSA_FULL = DSA_MODE === "full";
 
 /** /dsa/... paths that stay public in "soon" mode (the coming-soon page itself and its share images). */
 export function dsaPathAllowedSoon(clean: string): boolean {
-  return clean === "/dsa" || clean === "/dsa/" || /^\/dsa\/(?:opengraph-image|twitter-image)(?:[-.\w]*)?$/.test(clean);
+  return clean === "/dsa" || clean === "/dsa/" || /^\/dsa\/(?:opengraph-image|twitter-image|manifest\.webmanifest)(?:[-.\w]*)?$/.test(clean);
 }
 
 /** A DSA lesson page (/dsa/concepts|structures|algorithms/<id>, or a lean lesson /dsa/districts|camps|sets/<module>/<lesson>): it has its own reading dock (Ask AI, Notebook, Listen, Snip), so the

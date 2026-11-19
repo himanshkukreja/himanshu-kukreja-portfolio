@@ -67,7 +67,7 @@ const COURSES = [
  * under that the account menu's "course" link and the logo take over). The menu lists both courses, this one ticked, and
  * closes on a pick, Escape, a click outside or a route change.
  */
-export function CourseSwitch({ pathname }: { pathname: string }) {
+export function CourseSwitch({ pathname, from = "dsa", dot = false }: { pathname: string; from?: "sdm" | "dsa"; dot?: boolean }) {
   const [open, setOpen] = useState(false);
   const [seen, setSeen] = useState(pathname);
   if (seen !== pathname) {
@@ -75,6 +75,8 @@ export function CourseSwitch({ pathname }: { pathname: string }) {
     setOpen(false);
   }
   const ref = useRef<HTMLDivElement>(null);
+  // SD Mastery's header (from="sdm") is the busier row (seven tabs, the level bar): the pill's words wait for 1440 px there
+  const sdm = from === "sdm";
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -98,16 +100,22 @@ export function CourseSwitch({ pathname }: { pathname: string }) {
         aria-expanded={open}
         aria-label="Switch course"
         title="Switch course"
-        className={`inline-flex h-[38px] shrink-0 items-center justify-center gap-2 rounded-full border font-mono text-[12px] min-[400px]:w-[38px] xl:w-auto xl:px-3 ${open ? "border-signal text-signal-text" : "border-line text-fg-3 hover:text-fg"}`}
+        className={`inline-flex h-[38px] shrink-0 items-center justify-center gap-2 rounded-full border font-mono text-[12px] min-[400px]:w-[38px] ${sdm ? "min-[1440px]:w-auto min-[1440px]:px-3" : "xl:w-auto xl:px-3"} ${open ? "border-signal text-signal-text" : "border-line text-fg-3 hover:text-fg"}`}
       >
         <ChevronsUpDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span className="hidden whitespace-nowrap xl:inline">System design ⇄ DSA</span>
+        <span className={`hidden whitespace-nowrap ${sdm ? "min-[1440px]:inline" : "xl:inline"}`}>System design ⇄ DSA</span>
+        {dot && (
+          <>
+            <span aria-hidden data-new-dot className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-signal ring-2 ring-bg" />
+            <span className="sr-only">New: DSA Mastery</span>
+          </>
+        )}
       </button>
       {open && (
         <div role="menu" aria-label="Courses" className="absolute right-0 top-[calc(100%+12px)] z-50 flex w-[min(320px,calc(100vw-32px))] animate-hk-in flex-col rounded-2xl border border-line bg-surface p-1.5 shadow-[0_12px_40px_rgba(0,0,0,0.18)]">
           <span className="px-2.5 pb-1.5 pt-1 font-mono text-[11px] uppercase tracking-label text-fg-3">Your courses · one account</span>
           {COURSES.map((c) => {
-            const here = c.id === "dsa";
+            const here = c.id === from;
             return (
               <Link
                 key={c.id}
@@ -123,6 +131,7 @@ export function CourseSwitch({ pathname }: { pathname: string }) {
                   <span className="text-[12.5px] leading-snug text-fg-3">{c.line}</span>
                 </span>
                 {here && <Check className="h-4 w-4 shrink-0 text-signal-text" aria-label="this course" />}
+                {dot && c.id === "dsa" && <span className="shrink-0 rounded-full border border-signal px-2 py-px font-mono text-[10px] font-semibold uppercase tracking-label text-signal-text">new</span>}
               </Link>
             );
           })}
