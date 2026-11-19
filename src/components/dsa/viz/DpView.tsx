@@ -23,5 +23,5 @@ const PAL: DpPalette = {
 export const describeDpState = describeDp;
 
 export default function DpView({ state }: { state: DpState; prev: DpState | null; t: number }) {
-  return <DpDraw state={state} pal={PAL} className="mx-auto w-full" style={{ maxWidth: 640 }} />;
+  return <DpDraw state={state} pal={PAL} fit className="mx-auto w-full" style={{ maxWidth: 640 }} />;
 }

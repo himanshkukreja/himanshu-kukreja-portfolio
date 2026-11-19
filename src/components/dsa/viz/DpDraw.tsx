@@ -58,9 +58,10 @@ export function treeLayout(calls: { parent: number }[]): { pos: Pt[]; leaves: nu
   return { pos: calls.map((_, i) => ({ x: x[i], y: depthOf[i] })), leaves: Math.max(1, slot), depth: Math.max(0, ...depthOf) };
 }
 
-export default function DpDraw({ state, pal, fs = 1, className, style }: { state: DpState; pal: DpPalette; fs?: number; className?: string; style?: React.CSSProperties }) {
+/** fit: crop a table's drawing to the table itself, so a small table fills its box (the site's views; lectures keep the full width) */
+export default function DpDraw({ state, pal, fs = 1, className, style, fit = false }: { state: DpState; pal: DpPalette; fs?: number; className?: string; style?: React.CSSProperties; fit?: boolean }) {
   if (state.tree) return <TreeDraw state={state} pal={pal} fs={fs} className={className} style={style} />;
-  if (state.table) return <TableDraw state={state} pal={pal} fs={fs} className={className} style={style} />;
+  if (state.table) return <TableDraw state={state} pal={pal} fs={fs} className={className} style={style} fit={fit} />;
   return null;
 }
 
@@ -76,7 +77,7 @@ function Chip({ text, pal, x, y, fs }: { text: string; pal: DpPalette; x: number
   );
 }
 
-function TableDraw({ state, pal, fs, className, style }: { state: DpState; pal: DpPalette; fs: number; className?: string; style?: React.CSSProperties }) {
+function TableDraw({ state, pal, fs, className, style, fit }: { state: DpState; pal: DpPalette; fs: number; className?: string; style?: React.CSSProperties; fit: boolean }) {
   const t = state.table!;
   const R = t.cells.length;
   const C = t.cols.length;
@@ -85,13 +86,18 @@ function TableDraw({ state, pal, fs, className, style }: { state: DpState; pal: 
   const ch = Math.min(46, Math.max(34, cw));
   const left = Math.max(8, (W - headW - cw * C) / 2);
   const top = 30;
-  const height = top + R * ch + (state.out ? 40 : 14);
+  // a read two or more cells along the same row curves under the row, so it doesn't strike through the numbers between
+  const arcs = !!t.now && t.reads.some(([r, c]) => r === t.now![0] && Math.abs(c - t.now![1]) > 1);
+  const below = arcs && t.now![0] === R - 1 ? ch * 0.7 : 0;
+  const height = top + R * ch + below + (state.out ? 40 : 14);
+  const vbX = fit ? Math.max(0, left - 8) : 0;
+  const vbW = fit ? Math.min(W, headW + cw * C + 16) : W;
   const cx = (c: number) => left + headW + c * cw + cw / 2;
   const cy = (r: number) => top + r * ch + ch / 2;
   const isIn = (list: [number, number][], r: number, c: number) => list.some(([a, b]) => a === r && b === c);
   const font = Math.min(18, cw * 0.38) * fs;
   return (
-    <svg viewBox={`0 0 ${W} ${height}`} className={className ?? "block h-auto w-full"} style={style} aria-hidden>
+    <svg viewBox={`${vbX} 0 ${vbW} ${height}`} className={className ?? "block h-auto w-full"} style={fit ? { ...style, maxWidth: Math.min(Number(style?.maxWidth ?? W), vbW * 1.6) } : style} aria-hidden>
       {t.cols.map((h, c) => (
         <text key={`h${c}`} x={cx(c)} y={top - 10} textAnchor="middle" fontSize={Math.min(14, cw * 0.32) * fs} fill={pal.sub} fontFamily={MONO}>
           {h}
@@ -103,9 +109,13 @@ function TableDraw({ state, pal, fs, className, style }: { state: DpState; pal: 
         </text>
       ))}
       {t.now &&
-        t.reads.map(([r, c], k) => (
-          <line key={`l${k}`} x1={cx(c)} y1={cy(r)} x2={cx(t.now![1])} y2={cy(t.now![0])} stroke={pal.sig} strokeWidth={2.5} strokeDasharray="5 4" opacity={0.85} />
-        ))}
+        t.reads.map(([r, c], k) =>
+          r === t.now![0] && Math.abs(c - t.now![1]) > 1 ? (
+            <path key={`l${k}`} d={`M ${cx(c)} ${cy(r) + ch / 2} Q ${(cx(c) + cx(t.now![1])) / 2} ${cy(r) + ch * 1.15} ${cx(t.now![1])} ${cy(r) + ch / 2}`} fill="none" stroke={pal.sig} strokeWidth={2.5} strokeDasharray="5 4" opacity={0.85} />
+          ) : (
+            <line key={`l${k}`} x1={cx(c)} y1={cy(r)} x2={cx(t.now![1])} y2={cy(t.now![0])} stroke={pal.sig} strokeWidth={2.5} strokeDasharray="5 4" opacity={0.85} />
+          ),
+        )}
       {t.cells.map((row, r) =>
         row.map((v, c) => {
           const now = t.now && t.now[0] === r && t.now[1] === c;
@@ -139,7 +149,7 @@ function TableDraw({ state, pal, fs, className, style }: { state: DpState; pal: 
           );
         }),
       )}
-      {state.out && <Chip text={state.out} pal={pal} x={W - 16} y={height - 28} fs={fs} />}
+      {state.out && <Chip text={state.out} pal={pal} x={vbX + vbW - 8} y={height - 28} fs={fs} />}
     </svg>
   );
 }
