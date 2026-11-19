@@ -5,7 +5,7 @@
  * "Try a smaller version", the Bits receipt, printed output, and the submissions history on this device.
  */
 import { useMemo, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { ChevronDown, ChevronUp, Sparkles } from "lucide-react";
 import { DSA_LANG_LABEL, type DsaLang, type DsaTestCase } from "@/lib/dsa/types";
 import { VERDICT_LABEL, fnNameFor, type JudgeOutcome } from "@/lib/dsa/harness";
 import { friendlyError, friendlyWrong } from "@/lib/dsa/friendly";
@@ -170,15 +170,17 @@ function CaseValue({ v }: { v: unknown }) {
 
 /* ------------------------------------------------------------------ the panel */
 
-export default function ResultsPanel({ room }: { room: Room }) {
+/** `open` false folds the panel to its tab bar (EditorPane opens it on every run); the bar then carries the last verdict */
+export default function ResultsPanel({ room, open = true, onOpen }: { room: Room; open?: boolean; onOpen?: (open: boolean) => void }) {
   const { p, outcome, notice, loadMsg, stdout, bottom, setBottom, history, solved, fails, askTutor } = room;
+  const hint = `Run tries the ${p.visible.length} sample test${p.visible.length === 1 ? "" : "s"}. Submit also runs ${p.hiddenCount} hidden test${p.hiddenCount === 1 ? "" : "s"}; when it says Accepted, the problem is solved.`;
   const tabs = [
     { id: "results" as const, label: "Results" },
     { id: "submissions" as const, label: `Submissions${history.length ? ` · ${history.length}` : ""}` },
   ];
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-line bg-surface" data-results-panel>
-      <div role="tablist" aria-label="Results and submissions" className="flex shrink-0 border-b border-line">
+      <div role="tablist" aria-label="Results and submissions" className={`flex shrink-0 items-center ${open ? "border-b border-line" : ""}`}>
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -187,14 +189,40 @@ export default function ResultsPanel({ room }: { room: Room }) {
             id={`rp-tab-${t.id}`}
             aria-selected={bottom === t.id}
             aria-controls={`rp-${t.id}`}
-            onClick={() => setBottom(t.id)}
-            className={`inline-flex min-h-10 items-center border-b-2 px-3.5 text-[13px] font-medium [@media(pointer:coarse)]:min-h-11 ${bottom === t.id ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
+            onClick={() => {
+              setBottom(t.id);
+              onOpen?.(true);
+            }}
+            className={`inline-flex min-h-10 shrink-0 items-center border-b-2 px-3.5 text-[13px] font-medium [@media(pointer:coarse)]:min-h-11 ${bottom === t.id && open ? "border-signal text-fg" : "border-transparent text-fg-3 hover:text-fg"}`}
           >
             {t.label}
           </button>
         ))}
+        {!open && (
+          <button type="button" onClick={() => onOpen?.(true)} className="min-w-0 flex-1 truncate px-2 text-left text-[12px] text-fg-3 hover:text-fg" title={outcome ? undefined : hint}>
+            {outcome ? (
+              <span className={outcome.o.verdict === "AC" ? "text-ok-text" : "text-bad-text"}>
+                {outcome.o.verdict === "AC" ? "✓" : "✗"} {VERDICT_LABEL[outcome.o.verdict]} · {outcome.o.passed}/{outcome.o.total} tests
+              </span>
+            ) : (
+              hint
+            )}
+          </button>
+        )}
+        {onOpen && (
+          <button
+            type="button"
+            onClick={() => onOpen(!open)}
+            aria-expanded={open}
+            aria-label={open ? "Hide the results panel" : "Show the results panel"}
+            className="ml-auto inline-flex min-h-10 shrink-0 items-center gap-1 px-3 text-[12px] text-fg-3 hover:text-fg [@media(pointer:coarse)]:min-h-11"
+          >
+            {open ? <ChevronDown className="h-3.5 w-3.5" aria-hidden /> : <ChevronUp className="h-3.5 w-3.5" aria-hidden />}
+            {open ? "Hide" : "Show"}
+          </button>
+        )}
       </div>
-      <div role="tabpanel" id={`rp-${bottom}`} aria-labelledby={`rp-tab-${bottom}`} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
+      {open && <div role="tabpanel" id={`rp-${bottom}`} aria-labelledby={`rp-tab-${bottom}`} className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
         {bottom === "results" ? (
           <div className="flex flex-col gap-3">
             {loadMsg && <p className="m-0 text-[13px] text-fg-3">{loadMsg}</p>}
@@ -214,9 +242,7 @@ export default function ResultsPanel({ room }: { room: Room }) {
             {!outcome && !notice && !loadMsg && !stdout && (
               <p className="m-0 flex items-start gap-2 text-[14px] text-fg-3">
                 <Sparkles className="mt-0.5 h-3.5 w-3.5 shrink-0 text-signal-text" aria-hidden />
-                <span>
-                  Run tries the {p.visible.length} sample test{p.visible.length === 1 ? "" : "s"}. Submit also runs {p.hiddenCount} hidden test{p.hiddenCount === 1 ? "" : "s"}; when it says Accepted, the problem is solved.
-                </span>
+                <span>{hint}</span>
               </p>
             )}
           </div>
@@ -249,7 +275,7 @@ export default function ResultsPanel({ room }: { room: Room }) {
             </tbody>
           </table>
         )}
-      </div>
+      </div>}
     </div>
   );
 }

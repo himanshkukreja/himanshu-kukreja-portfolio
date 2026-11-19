@@ -3,7 +3,11 @@
 /**
  * The problem page's layout (Nov 2026 redesign): the header bar, then two panes. Left: Problem | Hints | Editorial |
  * Solutions | Video, with the tutor and the interview as drawers over it. Right: the editor, its results panel and the
- * Run / Submit / Ask the tutor footer. Phones show one pane at a time (Problem | Code). All state is in useProblemRoom.
+ * Run / Submit / Ask the tutor footer. Narrow rooms show one pane at a time (Problem | Code). All state is in useProblemRoom.
+ *
+ * The layout follows the room's own width (a container query, the `room:` variants), not the window's: a docked
+ * notebook or Ask panel can leave a laptop page 800 px wide, too narrow for two panes, so it gets the tabs (each pane
+ * still fills the window's height there).
  */
 import { fnNameFor } from "@/lib/dsa/harness";
 import FirstProblemGuide from "./FirstProblemGuide";
@@ -24,9 +28,9 @@ export default function ProblemShell({ room, position }: { room: Room; position:
     { id: "code" as const, label: "Code" },
   ];
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
+    <div className="flex min-h-0 flex-1 flex-col [container:room/inline-size]">
       <ProblemHeader room={room} position={position} />
-      <div role="tablist" aria-label="Problem or code" className="mx-3 mt-3 grid grid-cols-2 rounded-[10px] bg-surface-2 p-[3px] lg:hidden">
+      <div role="tablist" aria-label="Problem or code" className="mx-3 mt-3 grid grid-cols-2 rounded-[10px] bg-surface-2 p-[3px] room:hidden">
         {paneTabs.map((t) => (
           <button
             key={t.id}
@@ -40,8 +44,8 @@ export default function ProblemShell({ room, position }: { room: Room; position:
           </button>
         ))}
       </div>
-      <div className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 gap-3 p-3 pb-16 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:grid-rows-[minmax(0,1fr)] lg:pb-3 xl:grid-cols-[minmax(0,600px)_minmax(0,1fr)]">
-        <section aria-label="Problem" className={`relative min-h-[60vh] min-w-0 flex-col overflow-hidden rounded-[14px] border border-line bg-surface lg:min-h-0 ${pane === "problem" ? "flex" : "hidden lg:flex"}`}>
+      <div className="mx-auto grid min-h-0 w-full max-w-[1600px] flex-1 gap-3 p-3 pb-16 lg:grid-rows-[minmax(0,1fr)] lg:pb-3 room:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] room-xl:grid-cols-[minmax(0,600px)_minmax(0,1fr)]">
+        <section aria-label="Problem" className={`relative min-h-[60vh] min-w-0 flex-col overflow-hidden rounded-[14px] border border-line bg-surface lg:min-h-0 ${pane === "problem" ? "flex" : "hidden room:flex"}`}>
           <ProblemTabs room={room} />
           <Drawer open={drawer === "tutor"} label="Problem tutor" onClose={closeDrawer}>
             <ProblemTutor
@@ -61,7 +65,7 @@ export default function ProblemShell({ room, position }: { room: Room; position:
             <ProblemInterview embedded p={p} lang={lang} code={code} accepted={solved || outcome?.o.verdict === "AC"} unlocked={unlocked} justSolved={outcome?.o.verdict === "AC" && outcome.mode === "submit"} />
           </Drawer>
         </section>
-        <div className={`min-w-0 lg:h-full lg:min-h-0 ${pane === "code" ? "block" : "hidden lg:block"}`}>
+        <div className={`min-w-0 lg:h-full lg:min-h-0 ${pane === "code" ? "block" : "hidden room:block"}`}>
           <EditorPane room={room} />
         </div>
       </div>

@@ -20,7 +20,7 @@ const LINK = "inline-flex min-h-10 items-center text-[14px] text-fg-2 hover:text
 const ITEM = "flex min-h-10 w-full items-center gap-2 px-3 text-left text-[14px] text-fg-2 hover:bg-surface-2 hover:text-fg [@media(pointer:coarse)]:min-h-11";
 
 export default function ProblemHeader({ room, position }: { room: Room; position: ProblemPosition | null }) {
-  const { p, solved, hints, fails, history, seenEarly, drawer, setDrawer, freshStart } = room;
+  const { p, solved, hints, fails, history, seenEarly, drawer, setDrawer, setPane, freshStart } = room;
   const [menu, setMenu] = useState(false);
   const { isSaved, toggle } = useSavedProblems();
   const saved = isSaved(p.id);
@@ -76,7 +76,11 @@ export default function ProblemHeader({ room, position }: { room: Room; position
         ) : null}
         <button
           type="button"
-          onClick={() => setDrawer(drawer === "interview" ? null : "interview")}
+          onClick={() => {
+            // the drawer sits over the Problem pane: when the Code pane is the one showing, bring the Problem pane forward
+            if (drawer !== "interview") setPane("problem");
+            setDrawer(drawer === "interview" ? null : "interview");
+          }}
           aria-pressed={drawer === "interview"}
           className="inline-flex min-h-9 items-center gap-1.5 rounded-[10px] border border-line px-3 text-[14px] font-medium text-fg hover:bg-surface-2 [@media(pointer:coarse)]:min-h-11"
         >

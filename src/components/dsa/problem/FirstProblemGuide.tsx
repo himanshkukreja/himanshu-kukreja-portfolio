@@ -7,7 +7,7 @@
  *
  * A ring is drawn over the target (fixed, pointer-events none) and the card sits beside it on desktop, at the bottom
  * of the screen on phones. The card is a non-modal dialog: focus moves to its button on every step and back to the
- * page when it closes.
+ * page when it closes. Both sit under the site header (z-50), so its menus (account, search) open over the tour.
  */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { track } from "@/lib/track";
@@ -129,7 +129,7 @@ export default function FirstProblemGuide({ fn, toolbar, examples, run, avoid, o
       {box ? (
         <div
           aria-hidden
-          className="pointer-events-none fixed z-[70] border-2 border-signal shadow-[0_0_0_4px_var(--c-dsa-hl)]"
+          className="pointer-events-none fixed z-[45] border-2 border-signal shadow-[0_0_0_4px_var(--c-dsa-hl)]"
           style={{ left: box.ring.left - 4, top: box.ring.top - 4, width: box.ring.width + 8, height: box.ring.height + 8 }}
         />
       ) : null}
@@ -138,7 +138,7 @@ export default function FirstProblemGuide({ fn, toolbar, examples, run, avoid, o
         role="dialog"
         aria-labelledby="dsa-guide-h"
         aria-describedby="dsa-guide-b"
-        className={`fixed z-[75] flex flex-col gap-2.5 border border-line-strong bg-surface p-4 shadow-lg ${box?.card ? "w-[320px]" : "bottom-[calc(76px+env(safe-area-inset-bottom))] left-3 right-3"}`}
+        className={`fixed z-[46] flex flex-col gap-2.5 border border-line-strong bg-surface p-4 shadow-lg ${box?.card ? "w-[320px]" : "bottom-[calc(76px+env(safe-area-inset-bottom))] left-3 right-3"}`}
         style={box?.card ? { left: box.card.left, top: box.card.top } : undefined}
       >
         <span className="font-mono text-[11px] uppercase tracking-label text-signal-text">Your first problem · {step + 1} of 3</span>

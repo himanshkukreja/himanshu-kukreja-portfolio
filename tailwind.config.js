@@ -74,6 +74,16 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    // the DSA problem room sizes itself by its own width (a docked notebook or Ask panel narrows it), not the window:
+    // `room:` is the side-by-side layout (>= 1024 px of room), `room-xl:` the wide one, `max-room:` the tabbed one
+    ({ addVariant }) => {
+      addVariant('room', '@container room (min-width: 1024px)');
+      addVariant('room-xl', '@container room (min-width: 1280px)');
+      addVariant('max-room', '@container room (max-width: 1023.98px)');
+      // the editor pane's own width (its footer keeps Run and Submit on the hint's line when there is space)
+      addVariant('pane-wide', '@container pane (min-width: 640px)');
+    },
+  ],
   darkMode: ['class'],
 }

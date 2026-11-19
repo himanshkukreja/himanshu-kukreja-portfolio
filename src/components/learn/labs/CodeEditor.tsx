@@ -47,13 +47,21 @@ const coarse = () => typeof window !== "undefined" && !!window.matchMedia?.("(po
 
 /**
  * Basic suggestions: the language's own sources plus ./completions. Enter or Tab accepts, Escape closes (Tab still
- * indents when the list is closed). Opens after 2 typed characters, or at once after a dot.
+ * indents when the list is closed). Opens after 2 typed characters, or at once after a dot. The source is made once
+ * per language: the autocompletion keeps a source's results by its identity, so a new function on every update
+ * re-queried forever and the list never showed (Java and C++ have no source of their own to fall back on).
  */
+const SOURCES = new Map<EditorLang, ReturnType<typeof makeSource>>();
+const sourceFor = (l: EditorLang) => {
+  let s = SOURCES.get(l);
+  if (!s) SOURCES.set(l, (s = makeSource(l)));
+  return s;
+};
 const suggestExt = (l: EditorLang, on: boolean) =>
   on
     ? [
         autocompletion({ activateOnTyping: true, activateOnTypingDelay: 120, maxRenderedOptions: 12, icons: true, selectOnOpen: !coarse() }),
-        EditorState.languageData.of(() => [{ autocomplete: makeSource(l) }]),
+        EditorState.languageData.of(() => [{ autocomplete: sourceFor(l) }]),
         Prec.high(keymap.of([{ key: "Tab", run: acceptCompletion }])),
       ]
     : [];
