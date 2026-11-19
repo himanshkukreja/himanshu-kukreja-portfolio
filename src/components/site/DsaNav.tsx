@@ -75,7 +75,7 @@ export function CourseSwitch({ pathname, from = "dsa", dot = false }: { pathname
     setOpen(false);
   }
   const ref = useRef<HTMLDivElement>(null);
-  // SD Mastery's header (from="sdm") is the busier row (seven tabs, search, level chip): it keeps the icon button at every width
+  // SD Mastery's header (from="sdm") is the busier row (seven tabs, search, level chip): it keeps the icon button at every width and steps aside for 1024-1099 px, where the tab row leaves no room
   const sdm = from === "sdm";
   useEffect(() => {
     if (!open) return;
@@ -92,7 +92,7 @@ export function CourseSwitch({ pathname, from = "dsa", dot = false }: { pathname
   }, [open]);
   return (
     // below 400 px the header has no room: the signed-in avatar menu has "course" (the way back to System Design Mastery)
-    <div ref={ref} className="relative hidden shrink-0 min-[400px]:block">
+    <div ref={ref} className={`relative hidden shrink-0 min-[400px]:block${sdm ? " lg:max-[1099px]:hidden" : ""}`}>
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
