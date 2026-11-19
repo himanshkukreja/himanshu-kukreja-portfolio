@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default async function DsaShortsPage() {
   if (!DSA_FULL) notFound();
-  const shorts = await listDsaShorts().catch(() => []);
+  const shorts = await listDsaShorts(); // an unbuilt manifest throws: the page is not cached empty
   return (
     <div className="dsa-theme">
       <ShortsFeed shorts={hourlyOrder(shorts)} home="/dsa" shareBase="/dsa/shorts" guide={false} />

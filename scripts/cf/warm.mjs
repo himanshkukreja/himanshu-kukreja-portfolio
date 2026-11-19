@@ -96,7 +96,20 @@ if (dsa !== DSA_HUBS) {
     }
     await one("DSA search moments", "/api/dsa/ai-warm?part=moments");
   };
-  await Promise.all([one("DSA tutor catalog", "/api/dsa/ai-warm"), one("DSA search docs", "/api/dsa/ai-warm?part=docs"), moments()]);
+  // ...and the shorts manifest (which shorts are recorded: one object per content commit), in slices too
+  const shorts = async () => {
+    const first = await one("DSA shorts chunk 0", "/api/dsa/ai-warm?part=shorts&chunk=0");
+    const total = first ? JSON.parse(first).chunks : 0;
+    let todo = Array.from({ length: Math.max(total - 1, 0) }, (_, i) => i + 1);
+    for (let round = 0; round < 3 && todo.length; round++) {
+      const failed = [];
+      let k = 0;
+      await Promise.all(Array.from({ length: 4 }, async () => { while (k < todo.length) { const n = todo[k++]; if (!(await one(`DSA shorts chunk ${n}`, `/api/dsa/ai-warm?part=shorts&chunk=${n}`))) failed.push(n); } }));
+      todo = failed;
+    }
+    await one("DSA shorts manifest", "/api/dsa/ai-warm?part=shorts");
+  };
+  await Promise.all([one("DSA tutor catalog", "/api/dsa/ai-warm"), one("DSA search docs", "/api/dsa/ai-warm?part=docs"), moments(), shorts()]);
 }
 for (const p of engine) await hit(p);
 if (rest.length) await hit(rest[0]);

@@ -4,7 +4,8 @@ import { SDM_CONTENT_TAG } from '@/lib/github';
 import { invalidateContentSnapshot } from '@/lib/content-snapshot';
 import { invalidateR2Manifest } from '@/lib/content-r2';
 import { DSA_CONTENT_TAG } from '@/lib/dsa/content';
-import { NextRequest, NextResponse } from 'next/server';
+import { after, NextRequest, NextResponse } from 'next/server';
+import { rebuildShorts } from '@/lib/dsa/shorts-manifest';
 import { timingSafeEqual } from 'crypto';
 import { getAdmin } from '@/lib/admin/auth';
 
@@ -44,6 +45,9 @@ export async function POST(request: NextRequest) {
       invalidateR2Manifest();
       revalidateTag(DSA_CONTENT_TAG);
       revalidatePath('/learn/dsa', 'layout');
+      // a render that just published media: the shorts manifest (which shorts are recorded) is built again, in slices, after the reply
+      const auth = request.headers.get('authorization') || '';
+      after(() => rebuildShorts(request.nextUrl.origin, auth).catch((e) => console.error('[Revalidate] shorts manifest', e instanceof Error ? e.message : e)));
       return NextResponse.json({ revalidated: true, source: 'dsa', now: Date.now() });
     }
 

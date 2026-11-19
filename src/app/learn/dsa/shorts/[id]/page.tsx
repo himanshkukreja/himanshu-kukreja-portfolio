@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { BookOpen } from "lucide-react";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getDsaShortAny as getDsaShort } from "@/lib/dsa/kinds-load";
-import { listDsaShorts } from "@/lib/dsa/media";
+import { getDsaShortCard } from "@/lib/dsa/media";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
 import ShortRecord from "@/components/learn/lecture/ShortRecord";
 import ShortPlayer from "@/components/learn/war/ShortPlayer";
@@ -36,7 +36,8 @@ export default async function DsaShortPage({ params }: Props) {
   const { id } = await params;
   const l = await getDsaShort(id);
   if (!l) notFound();
-  const s = (await listDsaShorts({ includeUnpublished: true }).catch(() => [])).find((x) => x.id === l.quest) ?? null;
+  // only this short: its script (above) and its own media.json, never the whole listing (~650 shorts overran a Worker)
+  const s = await getDsaShortCard(l.quest).catch(() => null);
   const paras = transcript(l);
   return (
     <ShortRecord lecture={l} source={lectureHash(l)} mediaBase={lectureMediaBase()}>

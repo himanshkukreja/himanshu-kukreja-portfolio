@@ -23,7 +23,7 @@ const conceptOf = (href: string) => href.split("/").filter(Boolean).pop() || "";
 
 export default async function DsaReviewPage() {
   if (!DSA_FULL) notFound();
-  const [decks, problems, shorts, sheets] = await Promise.all([getDsaDecks().catch(() => []), getProblemIndex().catch(() => []), listDsaShorts().catch(() => []), listCheatsheets().catch(() => [])]);
+  const [decks, problems, shorts, sheets] = await Promise.all([getDsaDecks().catch(() => []), getProblemIndex().catch(() => []), listDsaShorts(), listCheatsheets().catch(() => [])]);
   return (
     <ReviewPage
       decks={decks}

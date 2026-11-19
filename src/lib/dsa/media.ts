@@ -1,14 +1,12 @@
 import "server-only";
-import crypto from "crypto";
 import { unstable_cache } from "next/cache";
 import type { Lecture } from "@/lib/learn/lecture/types";
 import type { LectureSummary } from "@/lib/learn/lecture/load";
 import type { PlayableShort } from "@/lib/learn/shorts/types";
-import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getConceptShortIds, getProblemIndex, getSolutionVideo, getStepLabels } from "./load";
-import { getDsaShortAny, getLeanIndex, getLeanShortIds } from "./kinds-load";
+import { conceptHref, conceptLectureHref, getConceptIndex, getConceptLecture, getProblemIndex, getSolutionVideo, getStepLabels } from "./load";
+import { hashOf, publishedMedia as published, shortRow, shortRows, wordsOf, type ShortRow } from "./shorts-manifest";
 import { DSA_CONTENT_TAG, dsaFresh, dsaItem, dsaItemKey } from "./content";
 import { stepOf, stepRank } from "./steps";
-import { leanLectureHref } from "./kinds";
 import { controlMap, isLive, questKey, shortKey, type Control } from "@/lib/learn/controls";
 
 /**
@@ -20,24 +18,6 @@ import { controlMap, isLive, questKey, shortKey, type Control } from "@/lib/lear
  */
 
 const MEDIA = () => (process.env.NEXT_PUBLIC_LECTURE_MEDIA || "").replace(/\/$/, "");
-/** same fingerprint as lectureHash() in src/lib/learn/lecture/load.ts and export.mjs */
-const hashOf = (l: Lecture) => crypto.createHash("sha1").update(JSON.stringify(l)).digest("hex").slice(0, 12);
-const wordsOf = (l: Lecture) => l.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
-
-/** The published media's script hash and length, or null (not published, or no media host). `fresh`: past the fetch cache. */
-async function published(quest: string, fresh = false): Promise<{ source: string; duration: number } | null> {
-  const base = MEDIA();
-  if (!/^https?:\/\//.test(base)) return null;
-  try {
-    const res = await fetch(`${base}/${quest}/media.json`, fresh ? { cache: "no-store" } : { next: { revalidate: 3600 } });
-    if (!res.ok) return null;
-    const m = (await res.json()) as { source?: string; duration?: number; video?: string };
-    return m.source && m.video ? { source: m.source, duration: Number(m.duration) || 0 } : null;
-  } catch {
-    return null;
-  }
-}
-
 async function inBatches<T, R>(items: T[], n: number, fn: (x: T) => Promise<R>): Promise<R[]> {
   const out: R[] = [];
   for (let i = 0; i < items.length; i += n) out.push(...(await Promise.all(items.slice(i, i + n).map(fn))));
@@ -88,48 +68,47 @@ export async function listDsaLectures(): Promise<DsaLectureSummary[]> {
   return rows.filter((x): x is DsaLectureSummary => !!x);
 }
 
+const card = (r: ShortRow): PlayableShort & { recorded: boolean } => ({
+  id: r.id,
+  title: r.title,
+  label: r.label,
+  category: "course",
+  topics: r.topics,
+  lecture: r.of,
+  full: r.full,
+  article: r.article,
+  src: `${MEDIA()}/${r.id}/video.mp4?v=${r.v}`,
+  poster: `${MEDIA()}/${r.id}/poster.jpg?v=${r.v}`,
+  seconds: r.seconds,
+  recorded: r.recorded,
+});
+
 /**
  * Every DSA short whose recorded video matches its script (others aren't watchable yet), in course order. The feed
- * shuffles them; `full` opens the concept's lecture at the short's moment, `article` the concept page.
+ * shuffles them; `full` opens the concept's lecture at the short's moment, `article` the concept page. Read from the
+ * shorts manifest (one R2 object per content commit, shorts-manifest.ts), never by walking the shorts; it throws until
+ * the deploy warm-up has built it (so a page doesn't cache an empty list).
  */
 export async function listDsaShorts(opts: { includeUnpublished?: boolean; ignoreControls?: boolean } = {}): Promise<(PlayableShort & { recorded: boolean })[]> {
-  const base = MEDIA();
   // publishing controls (/admin/publishing): a hidden or not-yet-scheduled short leaves every list; no row = live, and a
-  // read failure hides nothing (controlMap returns an empty map). The single-short page keeps its own check (ignoreControls).
+  // read failure hides nothing (controlMap returns an empty map)
   const controls: Map<string, Control> = opts.ignoreControls ? new Map() : await controlMap().catch(() => new Map<string, Control>());
-  const built = await builtInOrder();
-  // lean lessons (streets, camp tents, sets; kinds.ts) have shorts too: the same feed, linking to their own pages
-  const lean = await getLeanIndex().catch(() => []);
-  const leanIds = (await inBatches(lean, 6, (x) => getLeanShortIds(x.module, x.id))).flat();
-  const leanSet = new Set(leanIds);
-  const ids = [...(await inBatches(built, 6, (c) => getConceptShortIds(c.id))).flat(), ...leanIds];
-  const rows = await inBatches(ids, 6, async (id) => {
-    const l = await getDsaShortAny(id).catch(() => null);
-    if (!l?.short || !l.dsa) return null;
-    if (!isLive(controls.get(shortKey(l.quest))) || !isLive(controls.get(questKey(l.short.of)))) return null;
-    const v = hashOf(l);
-    const media = await published(l.quest);
-    const recorded = !!media && media.source === v;
-    if (!recorded && !opts.includeUnpublished) return null;
-    const words = wordsOf(l);
-    const x = leanSet.has(id) ? lean.find((y) => y.module === l.dsa!.module && y.id === l.dsa!.concept) : undefined;
-    const row: PlayableShort & { recorded: boolean } = {
-      id: l.quest,
-      title: l.title,
-      label: l.short.label,
-      category: "course",
-      topics: l.short.topics ?? [],
-      lecture: l.short.of,
-      full: `${x ? leanLectureHref(x.kind, x.module, x.id) : conceptLectureHref(l.dsa.concept)}${l.short.at ? `?at=${encodeURIComponent(l.short.at)}` : ""}`,
-      article: x ? x.href : conceptHref(l.dsa.concept),
-      src: `${base}/${l.quest}/video.mp4?v=${v}`,
-      poster: `${base}/${l.quest}/poster.jpg?v=${v}`,
-      seconds: recorded && media.duration ? Math.round(media.duration) : Math.round((words / 150) * 60 * 1.08),
-      recorded,
-    };
-    return row;
-  });
-  return rows.filter((x): x is PlayableShort & { recorded: boolean } => !!x);
+  const rows = await shortRows();
+  return rows.filter((r) => (r.recorded || opts.includeUnpublished) && isLive(controls.get(shortKey(r.id))) && isLive(controls.get(questKey(r.of)))).map(card);
+}
+
+/** One short for its own page: just that short's script and media.json (no listing). null: no such short, or hidden. */
+export async function getDsaShortCard(id: string): Promise<(PlayableShort & { recorded: boolean }) | null> {
+  const r = await shortRow(id);
+  if (!r) return null;
+  const controls = await controlMap().catch(() => new Map<string, Control>());
+  return isLive(controls.get(shortKey(r.id))) && isLive(controls.get(questKey(r.of))) ? card(r) : null;
+}
+
+/** each short's first scene headline, for the home's Quick review covers (an empty map until the manifest is built) */
+export async function dsaShortHeads(): Promise<Record<string, string>> {
+  const rows = await shortRows().catch(() => []);
+  return Object.fromEntries(rows.filter((r) => r.head).map((r) => [r.id, r.head]));
 }
 
 /** Short ids (a lesson's or the home's list) with the hidden and not-yet-scheduled ones taken out (publishing controls; a read failure hides nothing). */

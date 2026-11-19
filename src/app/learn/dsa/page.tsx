@@ -5,8 +5,7 @@ import type { LectureRef } from "@/components/dsa/home/useLectureSeconds";
 import { JsonLd, breadcrumbs } from "@/lib/seo/jsonld";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getConceptIndex, getConceptLecture, getConceptShortIds, getLessonMinutes, getProblemIndex, getStepLabels, getWorld } from "@/lib/dsa/load";
-import { liveDsaShortIds } from "@/lib/dsa/media";
-import { getDsaShortAny } from "@/lib/dsa/kinds-load";
+import { dsaShortHeads, liveDsaShortIds } from "@/lib/dsa/media";
 import { buildOutline } from "@/lib/dsa/outline";
 import { getLeanBranches, getLeanIndex } from "@/lib/dsa/kinds-load";
 import { lectureHash, lectureMediaBase } from "@/lib/learn/lecture/load";
@@ -57,16 +56,15 @@ async function Home() {
   // published recording's media.json, read in the browser (no server fetch per render)
   const lectures: Record<string, LectureRef> = {};
   const shorts: Record<string, string[]> = {};
-  const shortHeads: Record<string, string> = {};
   await Promise.all(
     built.map(async (c) => {
       const [l, ids] = await Promise.all([getConceptLecture(c.id).catch(() => null), getConceptShortIds(c.id).then(liveDsaShortIds).catch(() => [] as string[])]);
       if (l) lectures[c.id] = { slug: l.quest, source: lectureHash(l) };
       if (ids.length) shorts[c.id] = ids;
-      // a short's first scene headline: the cover shown while its video is not rendered yet (Quick review)
-      await Promise.all(ids.map(async (id) => { const t = (await getDsaShortAny(id).catch(() => null))?.scenes?.[0]?.title; if (t) shortHeads[id] = t; }));
     }),
   );
+  // a short's first scene headline: the cover shown while its video is not rendered yet (Quick review), from the shorts manifest
+  const shortHeads = await dsaShortHeads();
   // side branches (streets, camp tents, Core 150 gap sets) hang off their station on the map; company sets are not on it
   const outline = buildOutline(academy, concepts, problems, steps, minutes, branches.map((b) => ({ station: b.station!, key: b.key, kind: b.kind, module: b.module, lesson: b.id, title: b.title, href: b.href, minutes: b.minutes, problemCount: b.ladder.length })));
   return (

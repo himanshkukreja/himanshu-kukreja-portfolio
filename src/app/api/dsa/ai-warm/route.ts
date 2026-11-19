@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { getCatalog, loadCatalog } from "@/lib/dsa/ai/search";
+import { assembleShorts, loadShortsChunk, shortsChunks, shortsSha } from "@/lib/dsa/shorts-manifest";
 import { contentSha, loadMomentChunk, loadSearchPart, momentChunks, type SearchPart } from "@/lib/dsa/search-index-build";
 
 /**
@@ -15,6 +16,35 @@ export const dynamic = "force-dynamic";
 export async function GET(req: Request) {
   if (!DSA_FULL) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const part = new URL(req.url).searchParams.get("part");
+  if (part === "shorts") {
+    // the shorts manifest (lists of shorts): ?chunk=n builds one slice (?fresh=1, admins only: read media.json again), no chunk puts the slices together
+    try {
+      const t = Date.now();
+      const sha = await shortsSha();
+      const q = new URL(req.url).searchParams;
+      const chunk = q.get("chunk");
+      if (chunk !== null) {
+        const total = await shortsChunks();
+        const n = Number(chunk);
+        if (!Number.isInteger(n) || n < 0 || n >= Math.max(total, 1)) return NextResponse.json({ error: "No such chunk", chunks: total }, { status: 404, headers: { "Cache-Control": "no-store" } });
+        let fresh = false;
+        if (q.get("fresh")) {
+          const given = (req.headers.get("authorization") || "").replace(/^Bearer /, "").trim();
+          const want = process.env.ANALYTICS_ADMIN_TOKEN || "";
+          if (!want || given !== want) return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "Cache-Control": "no-store" } });
+          fresh = true;
+        }
+        const r = await loadShortsChunk(sha, n, fresh);
+        return NextResponse.json({ part, chunk: n, chunks: total, entries: r.rows.length, from: r.from, ms: Date.now() - t }, { headers: { "Cache-Control": "no-store", "x-robots-tag": "noindex" } });
+      }
+      if (!sha) return NextResponse.json({ part, note: "no content bundle: built in memory on read" }, { headers: { "Cache-Control": "no-store" } });
+      const r = await assembleShorts(sha);
+      return NextResponse.json({ part, ...r, ms: Date.now() - t }, { headers: { "Cache-Control": "no-store", "x-robots-tag": "noindex" } });
+    } catch (e) {
+      console.error("[dsa-ai-warm]", e instanceof Error ? e.message : e);
+      return NextResponse.json({ error: "Unavailable just now.", why: String(e instanceof Error ? e.message : e).slice(0, 200) }, { status: 503, headers: { "Cache-Control": "no-store" } });
+    }
+  }
   if (part === "docs" || part === "moments") {
     try {
       const t = Date.now();
