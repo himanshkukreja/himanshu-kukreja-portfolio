@@ -79,7 +79,7 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
   const length = useMemo(() => (narration?.dur ? narration.dur : frames.reduce((s, f) => s + holdFor(f.frame), 0) + 6), [narration, frames]);
   const lastCost = (id: ExplainerBeatId) => {
     const b = e.beats.find((x) => x.id === id);
-    return b?.frames.length ? b.frames[b.frames.length - 1].cost : null;
+    return b?.frames.length ? { n: b.frames[b.frames.length - 1].cost, unit: b.unit ?? e.costUnit } : null;
   };
 
   // silent play: hold each frame for its caption's reading time
@@ -212,7 +212,7 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
             <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
               {(beatId === "slow" || beatId === "walk") && (
                 <span className={`font-mono text-[13px] font-semibold ${tone}`}>
-                  {e.costUnit}: {cur.frame.cost}
+                  {cur.beat.unit ?? e.costUnit}: {cur.frame.cost}
                 </span>
               )}
               {cur.frame.vars && (
@@ -300,7 +300,7 @@ export default function ExplainerPlayer({ explainer: e, lang }: { explainer: Exp
   );
 }
 
-function Recap({ e, slow, walk }: { e: Explainer; slow: number | null; walk: number | null }) {
+function Recap({ e, slow, walk }: { e: Explainer; slow: { n: number; unit: string } | null; walk: { n: number; unit: string } | null }) {
   const r = e.recap;
   return (
     <div className="flex flex-col gap-3" aria-live="polite">
@@ -312,7 +312,19 @@ function Recap({ e, slow, walk }: { e: Explainer; slow: number | null; walk: num
         <span className="rounded-[6px] bg-surface-2 px-2 py-1 text-fg">space {r.space}</span>
         {slow !== null && walk !== null && (
           <span className="rounded-[6px] bg-surface-2 px-2 py-1 text-fg-2">
-            on this example: <span className="text-bad-text">{slow}</span> → <span className="text-ok-text">{walk}</span> {e.costUnit}
+            on this example:{" "}
+            {slow.unit === walk.unit ? (
+              <>
+                <span className="text-bad-text">{slow.n}</span> → <span className="text-ok-text">{walk.n}</span> {walk.unit}
+              </>
+            ) : (
+              <>
+                <span className="text-bad-text">
+                  {slow.n} {slow.unit}
+                </span>{" "}
+                → <span className="text-ok-text">{walk.n} {walk.unit}</span>
+              </>
+            )}
           </span>
         )}
       </div>

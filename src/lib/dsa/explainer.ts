@@ -31,7 +31,8 @@ export type ExplainerFrame = {
   hold?: number;
 };
 
-export type ExplainerBeat = { id: ExplainerBeatId; title: string; frames: ExplainerFrame[] };
+/** unit: the beat's own cost unit when it counts something else (the slow beat's "calls"); otherwise the explainer's */
+export type ExplainerBeat = { id: ExplainerBeatId; title: string; frames: ExplainerFrame[]; unit?: string };
 
 export type ExplainerRecap = { pattern: string; time: string; space: string; takeaway: string; also: string[]; say?: string };
 
