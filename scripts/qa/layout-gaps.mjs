@@ -107,6 +107,8 @@ function pagesOf(d) {
   if (d.problems[0]) p.push({ id: "problem", url: `/dsa/problems/${d.problems[0]}` });
   p.push({ id: "practice", url: "/dsa/practice" }, { id: "search-results", url: "/dsa/practice?q=array" }, { id: "review", url: "/dsa/review" }, { id: "progress", url: "/dsa/progress" }, { id: "playground", url: "/dsa/playground" }, { id: "cheatsheets", url: "/dsa/cheatsheets" }, { id: "ai-tutor", url: "/dsa/ai-tutor" }, { id: "sdm-ai-tutor", url: "/ai-tutor" });
   if (d.cheat) p.push({ id: "cheatsheet", url: `/dsa/cheatsheets/${d.cheat}` });
+  // System Design Mastery's hub (its "Now live: DSA Mastery" card and announcement bar, only while DSA is live)
+  p.push({ id: "sdm-home", url: "/" });
   return ONLY.length ? p.filter((x) => ONLY.includes(x.id)) : p;
 }
 
