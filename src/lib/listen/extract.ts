@@ -82,6 +82,8 @@ const norm = (s: string) => s.replace(/\s+/g, " ").trim();
 
 function skipped(el: ListenNode): boolean {
   const tag = tagOf(el);
+  // a glossary term is a button the page adds around a word of the sentence (DSA lessons): the word is read
+  if (tag === "BUTTON" && /(^|\s)dsa-term(\s|$)/.test(attr(el, "class") || "")) return false;
   if (SKIP_TAGS.has(tag)) return true;
   if (attr(el, "aria-hidden") === "true" || attr(el, "data-sd-chrome") !== null) return true;
   const sd = attr(el, "data-sd");
