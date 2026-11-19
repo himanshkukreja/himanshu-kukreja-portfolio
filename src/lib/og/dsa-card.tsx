@@ -6,7 +6,7 @@ import { DSA_MARK as M, DSA_MARK_COLORS as K } from "@/lib/site/dsaMark";
  * DSA Mastery's share card (/dsa): the course card's frame (true black, dot grid, top bar, accent baseline,
  * square corners) with DSA Mastery's mark and teal in place of the orange.
  */
-export const DSA_ALT = "DSA Mastery, coming soon on System Design Mastery: data structures and algorithms through real product engineering";
+export const DSA_ALT = "DSA Mastery: learn data structures and algorithms by doing, through real product engineering, on System Design Mastery";
 
 const TEAL = K.accent;
 const ON_TEAL = "#021A16";
@@ -55,8 +55,8 @@ export async function dsaCard() {
 
         <div style={{ display: "flex", flexDirection: "column", flex: 1, padding: "0 64px" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14, marginTop: 44 }}>
-            <div style={{ display: "flex", padding: "6px 12px", background: TEAL, ...mono, fontSize: 20, fontWeight: 600, letterSpacing: "0.08em", color: ON_TEAL }}>COMING SOON</div>
-            <Label color={C.fg2}>founding members: both courses free for life</Label>
+            <div style={{ display: "flex", padding: "6px 12px", background: TEAL, ...mono, fontSize: 20, fontWeight: 600, letterSpacing: "0.08em", color: ON_TEAL }}>NOW LIVE</div>
+            <Label color={C.fg2}>lessons · practice problems · AI tutor</Label>
           </div>
           <div style={{ display: "flex", marginTop: 20, ...display, fontWeight: 800, fontSize: 84, lineHeight: 1, letterSpacing: "-0.045em", color: C.fg, maxWidth: 1072 }}>
             Data structures and algorithms, through real product engineering

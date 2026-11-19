@@ -22,15 +22,18 @@ export const revalidate = 604800;
 
 const TITLE = "DSA Mastery: coming soon · System Design Mastery";
 const SHARE_TITLE = "DSA Mastery: data structures and algorithms through real product engineering";
+const LIVE_DESCRIPTION =
+  "DSA Mastery from System Design Mastery: four parts of lessons, practice problems and checkpoint quizzes, an AI tutor, and a judge in Python, Java, C++ and JavaScript. Learn data structures and algorithms by doing.";
 const DESCRIPTION =
   "A concept-first DSA course from System Design Mastery: the 6S teaching loop, six worlds on a game map, an AI tutor, plans and curated sheets, and a problem platform in Python, Java, C++ and JavaScript. Join the waitlist: founding members keep both courses free for life.";
 
 export const metadata: Metadata = DSA_FULL
   ? {
-      title: "DSA Mastery · Learn",
-      description: "Your next DSA Mastery step and the whole course: four parts of lessons, practice problems and checkpoint quizzes.",
+      title: "DSA Mastery: learn data structures and algorithms by doing",
+      description: LIVE_DESCRIPTION,
       alternates: { canonical: "/dsa" },
-      robots: { index: false, follow: false },
+      openGraph: { title: SHARE_TITLE, description: LIVE_DESCRIPTION, url: "/dsa", type: "website" },
+      twitter: { card: "summary_large_image", title: SHARE_TITLE, description: LIVE_DESCRIPTION },
     }
   : {
       title: TITLE,

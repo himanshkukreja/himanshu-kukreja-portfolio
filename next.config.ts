@@ -104,6 +104,9 @@ const courseIconRewrites = ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-ic
   destination: `/course-brand${source.replace(/:file\(.*\)$/, ":file")}`,
 }));
 
+// /dsa/favicon.ico and friends (tools that resolve a favicon relative to the page's section) answer with DSA Mastery's teal set, on every host.
+const dsaIconRewrites = ["/favicon.ico", "/icon.svg", "/icon.png", "/apple-icon.png"].map((f) => ({ source: `/dsa${f}`, destination: `/course-brand/dsa${f}` }));
+
 // One id per deploy for offline reading: the service worker is registered as /sw.js?v=<id> (a new id
 // installs a new worker) and saved pages record the build whose app files they need. Set once here
 // so the build's worker processes (which inherit process.env) all inline the same value.
@@ -158,7 +161,7 @@ const nextConfig: NextConfig = {
     return config;
   },
   async rewrites() {
-    return { beforeFiles: [...courseIconRewrites, ...courseRewrites], afterFiles: posthogRewrites, fallback: [] };
+    return { beforeFiles: [...dsaIconRewrites, ...courseIconRewrites, ...courseRewrites], afterFiles: posthogRewrites, fallback: [] };
   },
   // ...but keep the site's own canonical URLs: /learn/ → /learn as before (proxy paths excluded).
   async redirects() {
