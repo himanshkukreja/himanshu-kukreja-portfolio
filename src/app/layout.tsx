@@ -5,7 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { AuthModalProvider } from "@/contexts/AuthModalContext";
-import { COURSE_ICONS_JS } from "@/lib/site/courseIcons";
+import CourseHeadIcons from "@/components/site/CourseHeadIcons";
 import SiteHeader from "@/components/site/SiteHeader";
 import { GameProvider } from "@/game/GameProvider";
 import XPToaster from "@/game/XPToaster";
@@ -110,16 +110,10 @@ export default function RootLayout({
         {GATE_ON && <script dangerouslySetInnerHTML={{ __html: GATE_JS }} />}
         {/* then the page's theme (the course's eight on its host, light / dark elsewhere) and tone, before first paint (src/lib/learn/readingModes.ts) */}
         <script dangerouslySetInnerHTML={{ __html: READING_JS }} />
-        <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
-        <link rel="icon" href="/icon.svg?v=3" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/apple-icon.png?v=3" />
-        {/* Offline reading / installable app (src/app/manifest.ts, public/sw.js); in <head> for the same reason. */}
-        <link rel="manifest" href="/manifest.webmanifest" />
+        {/* icons, manifest and web-app title of the page's course: only that course's set, chosen in the server render */}
+        <CourseHeadIcons />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-title" content="SD Mastery" />
-        {/* DSA Mastery pages (data-course="dsa", set above by READING_JS) swap the icon links to DSA's own set (src/lib/site/courseIcons.ts) */}
-        <script dangerouslySetInnerHTML={{ __html: COURSE_ICONS_JS }} />
         {/* white status text over the page (the header pads under it): the dark theme
             continues behind it, the light (default) theme gets a black strip there (globals.css) */}
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

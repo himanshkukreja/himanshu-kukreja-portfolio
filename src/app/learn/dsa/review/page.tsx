@@ -16,6 +16,7 @@ export const revalidate = 3600;
 export const metadata: Metadata = {
   title: "Review · DSA Mastery",
   description: "Cards that are due, problems to redo, 60-second shorts and cheat sheets for the lessons you have done.",
+  alternates: { canonical: "/dsa/review" },
   robots: { index: false, follow: false },
 };
 

@@ -14,7 +14,6 @@ export const metadata: Metadata = {
   title: "Shorts · DSA Mastery",
   description: "DSA in two-minute vertical videos: one idea each, from the course's concepts, each linked to its full lecture and lesson.",
   alternates: { canonical: "/dsa/shorts" },
-  robots: { index: false, follow: false },
 };
 
 export default async function DsaShortsPage() {

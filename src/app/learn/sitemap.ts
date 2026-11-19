@@ -10,6 +10,11 @@ import { lectureMediaBase, listLectures } from "@/lib/learn/lecture/load";
 import { listShorts } from "@/lib/learn/shorts/load";
 import { getWarStories } from "@/lib/learn/war/load";
 import { getCatalogue } from "@/lib/concepts/load";
+import { DSA_FULL } from "@/lib/dsa/flags";
+import { getConceptIndex, getProblemIndex, lessonHref } from "@/lib/dsa/load";
+import { getLeanIndex } from "@/lib/dsa/kinds-load";
+import { listCheatsheets } from "@/lib/dsa/cheatsheet";
+import { listDsaShorts } from "@/lib/dsa/media";
 
 // The course host's sitemap (systemdesignmastery.dev/sitemap.xml, rewritten here by the middleware):
 // clean URLs only. The portfolio's own sitemap is src/app/sitemap.ts.
@@ -41,8 +46,8 @@ const STATIC: { path: string; priority: number; freq: Entry["changeFrequency"] }
   { path: "/design-week", priority: 0.6, freq: "weekly" },
   { path: "/plan", priority: 0.4, freq: "monthly" },
   { path: "/arena", priority: 0.5, freq: "weekly" },
-  // DSA Mastery: only its coming-soon page until launch (plan §14.6), everything else after
-  { path: "/dsa", priority: 0.7, freq: "weekly" },
+  // DSA Mastery: its home always; the rest of its pages (lessons, problems, cheat sheets, shorts) are added below once it is on
+  { path: "/dsa", priority: 0.8, freq: "weekly" },
   { path: "/privacy", priority: 0.1, freq: "yearly" },
 ];
 
@@ -56,8 +61,30 @@ async function safe<T>(p: Promise<T>, fallback: T): Promise<T> {
   }
 }
 
+/**
+ * Every indexable DSA Mastery page beyond its fixed ones, once DSA is on: lessons of every kind (concepts, structures and
+ * algorithms, lean districts / camps / sets), problems, cheat sheets and shorts. One file holds them (about 1,400 URLs,
+ * far under the 50,000 limit), so no sitemap index is needed. Never the personal or app pages (progress, review, lists, playground).
+ */
+async function dsaSection(): Promise<{ lessons: string[]; problems: string[]; sheets: string[]; shorts: { href: string; title: string; label: string; poster: string; src: string; seconds: number }[] } | null> {
+  if (!DSA_FULL) return null;
+  const [concepts, lean, problems, sheets, shorts] = await Promise.all([
+    safe(getConceptIndex(), []),
+    safe(getLeanIndex(), []),
+    safe(getProblemIndex(), []),
+    safe(listCheatsheets(), []),
+    safe(listDsaShorts(), []),
+  ]);
+  return {
+    lessons: [...concepts.filter((c) => c.status === "built").map((c) => lessonHref(c)), ...lean.map((l) => l.href)],
+    problems: problems.map((p) => `/dsa/problems/${p.id}`),
+    sheets: sheets.map((c) => `/dsa/cheatsheets/${c.id}`),
+    shorts: shorts.map((s) => ({ href: `/dsa/shorts/${s.id}`, title: s.title, label: s.label, poster: s.poster, src: s.src, seconds: s.seconds })),
+  };
+}
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const [map, decks, labs, stories, concepts, sheets, companies, war, lectures, shorts] = await Promise.all([
+  const [map, decks, labs, stories, concepts, sheets, companies, war, lectures, shorts, dsa] = await Promise.all([
     safe(getCourseMap(), null),
     safe(getRevisionWeeks(), []),
     safe(getLabSummaries(), []),
@@ -68,6 +95,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     safe(getWarStories(), { stories: [], rooms: [] }),
     safe(listLectures(), []),
     safe(listShorts(), []),
+    safe(dsaSection(), null),
   ]);
   // video entries (Google video results): the released files on the media host, with their posters
   const media = (lectureMediaBase() || "").replace(/\/$/, "");
@@ -118,6 +146,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   for (const s of stories) {
     out.push({ url: url(`/case-files/${s.slug}`), changeFrequency: "monthly", priority: 0.7, ...(s.date ? { lastModified: new Date(s.date) } : {}) });
+  }
+  if (dsa) {
+    for (const p of ["/dsa/practice", "/dsa/cheatsheets", "/dsa/shorts", "/dsa/ai-tutor"]) out.push({ url: url(p), changeFrequency: "weekly", priority: 0.7 });
+    for (const l of dsa.lessons) out.push({ url: url(l), changeFrequency: "monthly", priority: 0.7 });
+    for (const p of dsa.problems) out.push({ url: url(p), changeFrequency: "monthly", priority: 0.6 });
+    for (const c of dsa.sheets) out.push({ url: url(c), changeFrequency: "monthly", priority: 0.5 });
+    for (const s of dsa.shorts)
+      out.push({
+        url: url(s.href),
+        changeFrequency: "monthly",
+        priority: 0.4,
+        videos: [{ title: x(s.title, 100), description: x(`${s.label}: ${s.title}`, 2048), thumbnail_loc: s.poster, content_loc: s.src, duration: Math.max(1, s.seconds), family_friendly: "yes" as const }],
+      });
   }
   // de-duplicate (a lesson href could repeat across sections)
   return [...new Map(out.map((e) => [e.url, e])).values()];

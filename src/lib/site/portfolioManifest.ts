@@ -1,7 +1,8 @@
 import type { MetadataRoute } from "next";
 
 /**
- * himanshukukreja.in's manifest, unchanged on purpose: apps installed before the course moved keep
+ * himanshukukreja.in's manifest (served by src/app/manifest.webmanifest/route.ts, a route rather than the metadata file convention so
+ * that no <link rel="manifest"> is added to every page, DSA Mastery's included), unchanged on purpose: apps installed before the course moved keep
  * their identity (id /learn) and open /learn, which now forwards to systemdesignmastery.dev (the
  * bridge carries the browser's course state across once). The course host serves its own manifest
  * (src/lib/site/manifest.ts).
@@ -19,7 +20,7 @@ import type { MetadataRoute } from "next";
  * `name` is what Chrome prefixes window titles with ("<name> - <page title>"), so it is the course
  * name alone and the installed app's page titles drop it (src/components/offline/AppWindow.tsx).
  */
-export default function manifest(): MetadataRoute.Manifest {
+export function portfolioManifest(): MetadataRoute.Manifest {
   return {
     id: "/learn",
     name: "System Design Mastery",

@@ -13,6 +13,7 @@ export const revalidate = 604800;
 export const metadata: Metadata = {
   title: `Certificate · ${DSA_CERT_NAME}`,
   description: "Finish the Foundations world of DSA Mastery and earn a verifiable certificate.",
+  alternates: { canonical: "/dsa/certificate" },
   robots: { index: false, follow: false },
 };
 

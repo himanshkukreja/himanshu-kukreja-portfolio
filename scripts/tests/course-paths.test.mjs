@@ -86,7 +86,7 @@ test("rendered content links are cleaned", () => {
 /* ---------------------------------------------------------------- no leftover links in the source */
 
 // the old host keeps its own manifest on purpose (installed apps open /learn, which forwards)
-const ALLOW = new Set(["src/middleware.ts", "src/lib/learn/paths.ts", "src/lib/site/carry.ts", "src/app/manifest.ts"]);
+const ALLOW = new Set(["src/middleware.ts", "src/lib/learn/paths.ts", "src/lib/site/carry.ts", "src/lib/site/portfolioManifest.ts"]);
 function* walk(dir) {
   for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
     const p = path.join(dir, e.name);

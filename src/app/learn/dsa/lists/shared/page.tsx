@@ -9,7 +9,7 @@ import SharedListPage from "@/components/dsa/practice/SharedListPage";
 
 export const revalidate = 604800;
 
-export const metadata: Metadata = { title: "Shared list · DSA Mastery", robots: { index: false, follow: false } };
+export const metadata: Metadata = { title: "Shared list · DSA Mastery", alternates: { canonical: "/dsa/lists/shared" }, robots: { index: false, follow: false } };
 
 export default async function SharedPage() {
   if (!DSA_FULL) notFound();

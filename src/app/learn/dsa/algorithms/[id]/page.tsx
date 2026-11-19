@@ -7,7 +7,8 @@ import { lectureCard } from "@/lib/learn/lecture/load";
 import StructureReader from "@/components/dsa/structure/StructureReader";
 import { gateLesson } from "@/lib/gate/server";
 import { getLessonExtras } from "@/lib/dsa/lesson-extras";
-import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
+import { lessonDescription } from "@/lib/dsa/seo";
+import { JsonLd, dsaResource, signInGated } from "@/lib/seo/jsonld";
 
 // An algorithm lesson (/dsa/algorithms/<id>), Academy Part 3 "Algorithms": the explainer with step-through demos and
 // the visualizer (the learner's own grid, stepped forward and back with predict questions), why it works with code in
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const s = await getStructure(id).catch(() => null);
   if (!s || s.kind !== "algorithm") return { title: "Not found" };
-  return { title: `${s.title} · DSA Mastery`, description: s.summary, alternates: { canonical: `/dsa/algorithms/${s.id}` }, robots: { index: false, follow: false } };
+  return { title: `${s.title} · DSA Mastery`, description: lessonDescription(s.title, s.summary), alternates: { canonical: `/dsa/algorithms/${s.id}` } };
 }
 
 export default async function AlgorithmPage({ params }: Props) {
@@ -42,7 +43,7 @@ export default async function AlgorithmPage({ params }: Props) {
   return (
     <div className="dsa-theme">
       <main className="pb-16">
-        <JsonLd data={signInGated(plainArticle({ title: s.title, description: s.summary, path: `/dsa/algorithms/${s.id}` }), gate.gated)} />
+        <JsonLd data={signInGated(dsaResource({ type: "Lesson", title: s.title, description: lessonDescription(s.title, s.summary), path: `/dsa/algorithms/${s.id}` }), gate.gated)} />
         <StructureReader page={{ ...s, html: gate.html }} lecture={card ? { ...card, href: conceptLectureHref(s.id) } : null} extras={extras} />
       </main>
     </div>

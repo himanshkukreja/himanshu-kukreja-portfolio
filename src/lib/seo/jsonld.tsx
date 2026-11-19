@@ -89,6 +89,22 @@ export function plainArticle(o: { title: string; description?: string | null; pa
 }
 
 /**
+ * A DSA Mastery lesson or practice problem: an Article that is also a schema.org LearningResource of the DSA Mastery course
+ * (free to read; signInGated marks the part a guest sees after the sign-in card).
+ */
+export function dsaResource(o: { title: string; description?: string | null; path: string; type: "Lesson" | "Practice problem"; level?: string }) {
+  return {
+    ...plainArticle(o),
+    "@type": ["Article", "LearningResource"],
+    learningResourceType: o.type,
+    educationalLevel: o.level || "Beginner to advanced",
+    teaches: o.title,
+    isAccessibleForFree: true,
+    isPartOf: { "@type": "Course", name: "DSA Mastery", url: `${SITE_URL}/dsa`, provider: AUTHOR },
+  };
+}
+
+/**
  * The sign-in gate (src/lib/gate) as Google's markup for gated content: the text marked .hk-gated is in the HTML
  * for everyone but shown to signed-in readers only, so it says so (not cloaking: one HTML for all). `gated` false
  * (gate off, or a page too short to cut) leaves the object as it was.

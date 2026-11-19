@@ -14,7 +14,7 @@ export const revalidate = 604800;
 export const metadata: Metadata = {
   title: "Practice · DSA Mastery",
   description: "Original problems set in everyday apps, tied to the lesson that teaches them. Filter by module, pattern and difficulty, or follow a curated list.",
-  robots: { index: false, follow: false },
+  alternates: { canonical: "/dsa/practice" },
 };
 
 export default async function PracticePage() {

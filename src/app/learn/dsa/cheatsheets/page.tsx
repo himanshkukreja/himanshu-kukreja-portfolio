@@ -15,7 +15,6 @@ export const metadata: Metadata = {
   title: "Cheat sheets · DSA Mastery",
   description: "One printable page per pattern: the words that give it away, the invariant, the template in Python, Java, C++ and JavaScript, complexity and pitfalls.",
   alternates: { canonical: "/dsa/cheatsheets" },
-  robots: { index: false, follow: false },
 };
 
 export default async function DsaCheatsheetsPage() {

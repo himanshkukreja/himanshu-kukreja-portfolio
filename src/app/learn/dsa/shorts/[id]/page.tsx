@@ -28,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!DSA_FULL) return { title: "Not found" };
   const l = await getDsaShort((await params).id).catch(() => null);
   if (!l) return { title: "Not found" };
-  return { title: `${l.title} · Short · DSA Mastery`, description: transcript(l).join(" ").slice(0, 155), alternates: { canonical: `/dsa/shorts/${l.quest}` }, robots: { index: false, follow: false } };
+  return { title: `${l.title} · Short · DSA Mastery`, description: transcript(l).join(" ").slice(0, 155), alternates: { canonical: `/dsa/shorts/${l.quest}` } };
 }
 
 export default async function DsaShortPage({ params }: Props) {

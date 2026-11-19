@@ -17,6 +17,7 @@ export const revalidate = 604800;
 export const metadata: Metadata = {
   title: "Progress · DSA Mastery",
   description: "Your DSA Mastery progress: lessons and problems done, interview readiness, streak, belt, certificate and settings.",
+  alternates: { canonical: "/dsa/progress" },
   robots: { index: false, follow: false },
 };
 

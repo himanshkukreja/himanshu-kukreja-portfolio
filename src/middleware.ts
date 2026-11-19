@@ -249,6 +249,10 @@ export async function middleware(req: NextRequest) {
   const { site, setCookie } = resolveSite(req);
   const res = site === "course" ? await courseHost(req) : await portfolioHost(req);
   if (setCookie) res.cookies.set("hk_site", setCookie, { path: "/", sameSite: "lax" });
+  // a DSA page opened with a query (?list=, ?view=, ?record=, ?t=...) shows state for that visitor or that cut: not for a search index
+  // (the page's canonical is the clean path, which stays indexable)
+  const u = req.nextUrl;
+  if (site === "course" && u.search && /^\/dsa(?:\/|$)/.test(u.pathname) && !res.headers.has("location")) res.headers.set("x-robots-tag", "noindex, follow");
   return res;
 }
 

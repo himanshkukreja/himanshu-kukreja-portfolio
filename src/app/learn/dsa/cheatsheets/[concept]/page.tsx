@@ -20,7 +20,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (!DSA_FULL) return { title: "Not found" };
   const s = await getCheatsheet((await params).concept).catch(() => null);
   if (!s) return { title: "Not found" };
-  return { title: `${s.title} · Cheat sheet · DSA Mastery`, description: `${s.title}: when to use it, the invariant, the template in Python, Java, C++ and JavaScript, complexity and pitfalls.`, alternates: { canonical: `/dsa/cheatsheets/${s.id}` }, robots: { index: false, follow: false } };
+  return { title: `${s.title} · Cheat sheet · DSA Mastery`, description: `${s.title}: when to use it, the invariant, the template in Python, Java, C++ and JavaScript, complexity and pitfalls.`, alternates: { canonical: `/dsa/cheatsheets/${s.id}` } };
 }
 
 export default async function DsaCheatsheetPage({ params }: Props) {

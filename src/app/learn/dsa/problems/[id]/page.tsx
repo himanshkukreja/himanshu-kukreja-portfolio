@@ -6,6 +6,8 @@ import type { ProblemPosition } from "@/components/dsa/problem/ProblemRoom";
 import ProblemRoom from "@/components/dsa/problem/ProblemRoom";
 import { getStructure } from "@/lib/dsa/structures";
 import { solutionVideoFor } from "@/lib/dsa/media";
+import { problemDescription } from "@/lib/dsa/seo";
+import { JsonLd, breadcrumbs, dsaResource } from "@/lib/seo/jsonld";
 
 // A DSA Mastery problem (/dsa/problems/<id>): the statement and hints from the content repo, cached (ISR, refreshed on
 // content sync); the editor, the browser judge, the editorial (fetched after a solve) and progress run on the client.
@@ -24,7 +26,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const p = await getProblem(id).catch(() => null);
   if (!p) return { title: "Not found" };
-  return { title: `${p.title} · DSA Mastery`, alternates: { canonical: `/dsa/problems/${p.id}` }, robots: { index: false, follow: false } };
+  const description = problemDescription(p.title, p.sections);
+  const title = `${p.title} · DSA Mastery`;
+  return {
+    title,
+    description,
+    alternates: { canonical: `/dsa/problems/${p.id}` },
+    openGraph: { title, description, url: `/dsa/problems/${p.id}`, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
 }
 
 export default async function ProblemPage({ params }: Props) {
@@ -37,6 +47,12 @@ export default async function ProblemPage({ params }: Props) {
   const position = await positionOf(p.id, p.concept);
   return (
     <div className="dsa-theme">
+      <JsonLd
+        data={[
+          dsaResource({ type: "Practice problem", title: p.title, description: problemDescription(p.title, p.sections), path: `/dsa/problems/${p.id}`, level: p.level }),
+          breadcrumbs([{ name: "DSA Mastery", path: "/dsa" }, { name: "Practice", path: "/dsa/practice" }, { name: p.title, path: `/dsa/problems/${p.id}` }]),
+        ]}
+      />
       {/* desktop: a split screen exactly the window's height under the header. The page doesn't scroll; the statement
           scrolls in its own column and the editor stays put (a sticky editor still slid at the top and bottom) */}
       <main className="lg:flex lg:h-[calc(100dvh-var(--hk-header-h,61px))] lg:flex-col lg:overflow-hidden">

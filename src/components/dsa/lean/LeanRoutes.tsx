@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DSA_FULL } from "@/lib/dsa/flags";
 import { gateLesson } from "@/lib/gate/server";
-import { JsonLd, plainArticle, signInGated } from "@/lib/seo/jsonld";
+import { lessonDescription } from "@/lib/dsa/seo";
+import { JsonLd, dsaResource, signInGated } from "@/lib/seo/jsonld";
 import { getStepLabels } from "@/lib/dsa/load";
 import { findLean, getLeanIndex, getLeanLecture, getLeanPage } from "@/lib/dsa/kinds-load";
 import { getLeanExtras } from "@/lib/dsa/lean-extras";
@@ -23,7 +24,7 @@ export async function leanMetadata(root: string, { params }: LeanParams): Promis
   const { module, lesson } = await params;
   const s = await getLeanPage(root, module, lesson).catch(() => null);
   if (!s) return { title: "Not found" };
-  return { title: `${s.title} · DSA Mastery`, description: s.summary, alternates: { canonical: leanHref(s.kind, module, lesson) }, robots: { index: false, follow: false } };
+  return { title: `${s.title} · DSA Mastery`, description: lessonDescription(s.title, s.summary), alternates: { canonical: leanHref(s.kind, module, lesson) } };
 }
 
 export async function LeanLessonRoute(root: string, { params }: LeanParams) {
@@ -38,7 +39,7 @@ export async function LeanLessonRoute(root: string, { params }: LeanParams) {
   return (
     <div className="dsa-theme">
       <main className="pb-16">
-        <JsonLd data={signInGated(plainArticle({ title: s.title, description: s.summary, path }), gate.gated)} />
+        <JsonLd data={signInGated(dsaResource({ type: "Lesson", title: s.title, description: lessonDescription(s.title, s.summary), path }), gate.gated)} />
         <LeanReader page={{ ...s, html: gate.html }} lecture={card ? { ...card, href: leanLectureHref(s.kind, module, lesson) } : null} extras={extras} />
       </main>
     </div>
@@ -50,7 +51,7 @@ export async function leanLectureMetadata(root: string, { params }: LeanParams):
   const { module, lesson } = await params;
   const [l, lean] = await Promise.all([getLeanLecture(module, lesson).catch(() => null), findLean(root, module, lesson).catch(() => null)]);
   if (!l || !lean) return { title: "Not found" };
-  return { title: `${l.title} · Lecture · DSA Mastery`, description: l.summary, alternates: { canonical: leanLectureHref(lean.kind, module, lesson) }, robots: { index: false, follow: false } };
+  return { title: `${l.title} · Lecture · DSA Mastery`, description: lessonDescription(l.title, l.summary), alternates: { canonical: leanLectureHref(lean.kind, module, lesson) }, robots: { index: false, follow: false } };
 }
 
 export async function LeanLectureRoute(root: string, { params }: LeanParams) {
