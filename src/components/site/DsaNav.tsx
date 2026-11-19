@@ -75,7 +75,7 @@ export function CourseSwitch({ pathname, from = "dsa", dot = false }: { pathname
     setOpen(false);
   }
   const ref = useRef<HTMLDivElement>(null);
-  // SD Mastery's header (from="sdm") is the busier row (seven tabs, the level bar): the pill's words wait for 1440 px there
+  // SD Mastery's header (from="sdm") is the busier row (seven tabs, search, level chip): it keeps the icon button at every width
   const sdm = from === "sdm";
   useEffect(() => {
     if (!open) return;
@@ -100,10 +100,10 @@ export function CourseSwitch({ pathname, from = "dsa", dot = false }: { pathname
         aria-expanded={open}
         aria-label="Switch course"
         title="Switch course"
-        className={`inline-flex h-[38px] shrink-0 items-center justify-center gap-2 rounded-full border font-mono text-[12px] min-[400px]:w-[38px] ${sdm ? "min-[1440px]:w-auto min-[1440px]:px-3" : "xl:w-auto xl:px-3"} ${open ? "border-signal text-signal-text" : "border-line text-fg-3 hover:text-fg"}`}
+        className={`inline-flex h-[38px] shrink-0 items-center justify-center gap-2 rounded-full border font-mono text-[12px] min-[400px]:w-[38px] ${sdm ? "" : "xl:w-auto xl:px-3"} ${open ? "border-signal text-signal-text" : "border-line text-fg-3 hover:text-fg"}`}
       >
         <ChevronsUpDown className="h-3.5 w-3.5 shrink-0" aria-hidden />
-        <span className={`hidden whitespace-nowrap ${sdm ? "min-[1440px]:inline" : "xl:inline"}`}>System design ⇄ DSA</span>
+        {!sdm && <span className="hidden whitespace-nowrap xl:inline">System design ⇄ DSA</span>}
         {dot && (
           <>
             <span aria-hidden data-new-dot className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 rounded-full bg-signal ring-2 ring-bg" />
