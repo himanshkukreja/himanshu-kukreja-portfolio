@@ -47,7 +47,11 @@ export async function POST(request: NextRequest) {
       revalidatePath('/learn/dsa', 'layout');
       // a render that just published media: the shorts manifest (which shorts are recorded) is built again, in slices, after the reply
       const auth = request.headers.get('authorization') || '';
-      after(() => rebuildShorts(request.nextUrl.origin, auth).catch((e) => console.error('[Revalidate] shorts manifest', e instanceof Error ? e.message : e)));
+      after(() =>
+        rebuildShorts(request.nextUrl.origin, auth)
+          .then(() => revalidatePath('/learn/dsa', 'layout')) // pages rendered meanwhile saw the old manifest
+          .catch((e) => console.error('[Revalidate] shorts manifest', e instanceof Error ? e.message : e)),
+      );
       return NextResponse.json({ revalidated: true, source: 'dsa', now: Date.now() });
     }
 

@@ -22,12 +22,12 @@ const MEDIA = () => (process.env.NEXT_PUBLIC_LECTURE_MEDIA || "").replace(/\/$/,
 export const hashOf = lectureHash;
 export const wordsOf = (l: Lecture) => l.scenes.reduce((a, s) => a + s.steps.reduce((b, st) => b + st.say.split(/\s+/).length, 0), 0);
 
-/** The published media's script hash and length, or null (not published, or no media host). `fresh`: past the fetch cache. */
-export async function publishedMedia(quest: string, fresh = false): Promise<{ source: string; duration: number } | null> {
+/** The published media's script hash and length, or null (not published, or no media host). `fresh`: true = past the fetch cache (route handlers only: a no-store fetch makes an ISR page fail), a number = that many seconds in it. */
+export async function publishedMedia(quest: string, fresh: boolean | number = false): Promise<{ source: string; duration: number } | null> {
   const base = MEDIA();
   if (!/^https?:\/\//.test(base)) return null;
   try {
-    const res = await fetch(`${base}/${quest}/media.json`, fresh ? { cache: "no-store" } : { next: { revalidate: 3600 } });
+    const res = await fetch(`${base}/${quest}/media.json`, fresh === true ? { cache: "no-store" } : { next: { revalidate: typeof fresh === "number" ? fresh : 3600 } });
     if (!res.ok) return null;
     const m = (await res.json()) as { source?: string; duration?: number; video?: string };
     return m.source && m.video ? { source: m.source, duration: Number(m.duration) || 0 } : null;
@@ -76,13 +76,13 @@ export function rowOf(l: Lecture, lean: LeanItem | undefined, media: { source: s
   };
 }
 
-/** one short by its id, with its own media.json read just now (the short's page; no listing) */
+/** one short by its id, with its own media.json (the short's page; no listing) */
 export async function shortRow(id: string): Promise<ShortRow | null> {
   const l = await getDsaShortAny(id).catch(() => null);
   if (!l?.short || !l.dsa) return null;
   const isConcept = !!(await getDsaShort(id).catch(() => null));
   const lean = isConcept ? undefined : (await getLeanIndex().catch(() => [])).find((y) => y.module === l.dsa!.module && y.id === l.dsa!.concept);
-  return rowOf(l, lean, await publishedMedia(l.quest, true));
+  return rowOf(l, lean, await publishedMedia(l.quest, 300)); // the page is ISR: no no-store fetch here, a short cache so a new render shows within minutes
 }
 
 /* ------------------------------------------------------------------ the slices */
@@ -193,7 +193,7 @@ export async function rebuildShorts(origin: string, auth: string): Promise<void>
 let memory: { sha: string | null; rows: ShortRow[]; at: number } | null = null;
 let loading: Promise<ShortRow[]> | null = null;
 /** how long this isolate keeps the manifest before it reads the object again (a rebuild shows within this) */
-const TTL = 90_000;
+const TTL = 30_000;
 const NO_SHA_TTL = 5 * 60_000;
 
 /** Every short's row, in course order: this isolate's copy, else the commit's R2 object. Throws when it isn't built yet. */
