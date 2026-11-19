@@ -84,6 +84,8 @@ export type ArrayState = {
   bars?: boolean;
   /** a short caption under each cell ("build 0") */
   labels?: string[];
+  /** with bars: water standing on each bar (trapped rain), drawn on top of it */
+  water?: number[];
 };
 
 /* ------------------------------------------------------------------ the hash map state ("map" view) */

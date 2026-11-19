@@ -32,7 +32,8 @@ export default function ArrayView({ state, prev, t }: { state: ArrayState; prev:
   const BAR = state.bars ? 110 : 0;
   const TOP = TOP0 + BAR;
   const nums = state.values.map((v) => (typeof v === "number" ? v : 0));
-  const max = Math.max(1, ...nums);
+  const wet = (i: number) => state.water?.[i] ?? 0;
+  const max = Math.max(1, ...nums.map((v, i) => v + wet(i)));
   const LAB = state.labels ? 20 : 0;
   const height = TOP + CELL + LAB + (names.length ? 24 + names.length * 26 : 8) + 12;
   const stack = (k: string) => names.filter((x) => state.pointers[x] === state.pointers[k]).indexOf(k);
@@ -42,7 +43,13 @@ export default function ArrayView({ state, prev, t }: { state: ArrayState; prev:
         state.values.map((v, i) => {
           const h = Math.max(3, (nums[i] / max) * (BAR - 34));
           const lit = state.mark.includes(i) || (state.range ? i >= state.range[0] && i <= state.range[1] : false);
-          return <rect key={`b${i}`} x={cx(i) + 8} y={TOP - 26 - h} width={CELL - 16} height={h} rx={3} fill={lit ? "var(--c-signal)" : "var(--c-line-strong)"} opacity={state.dim.includes(i) ? 0.35 : 1} />;
+          const wh = (wet(i) / max) * (BAR - 34);
+          return (
+            <g key={`b${i}`}>
+              {wh > 0 && <rect x={cx(i) + 2} y={TOP - 26 - h - wh} width={CELL - 4} height={wh} fill="var(--c-sky)" opacity={0.55} />}
+              <rect x={cx(i) + 8} y={TOP - 26 - h} width={CELL - 16} height={h} rx={3} fill={lit ? "var(--c-signal)" : "var(--c-line-strong)"} opacity={state.dim.includes(i) ? 0.35 : 1} />
+            </g>
+          );
         })}
       {state.range && (
         <rect x={cx(state.range[0]) - 5} y={TOP - 5} width={cx(state.range[1]) - cx(state.range[0]) + CELL + 10} height={CELL + 10} fill="var(--c-dsa-hl)" stroke="var(--c-signal)" strokeWidth={2.5} />
